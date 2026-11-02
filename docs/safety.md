@@ -5,6 +5,7 @@ Contents:
 - [Agent session context](#agent-session-context)
 - [Microsoft Graph](#microsoft-graph)
 - [Azure, Falcon and Vectra reads](#azure-falcon-and-vectra-reads)
+- [Gitea reads](#gitea-reads)
 - [Network appliance reads](#network-appliance-reads)
 - [Technitium DNS](#technitium-dns)
 - [Write gates by tool](#write-gates-by-tool)
@@ -123,6 +124,17 @@ User, role, API-client and credential administration remains blocked.
 Review the [Vectra grant warnings](admin-guide.md#browser-administration) before enabling operations.
 See [client input handling](client-reference.md#command-surface-and-subcommands) for Vectra file inputs.
 
+## Gitea reads
+
+Gitea admits the named reads and GET-only metadata routes in its [reviewed inventory](../tools/inventories/gitea-axi.json), which owns the package pin and command boundary.
+Repository reads require `--repo OWNER/NAME`; item reads retain the native number or tag selector.
+Artium supplies the HTTPS origin, origin-bound token SecretRef, and TLS trust.
+Profile, host, credential, header and endpoint overrides are refused before forwarding.
+Credential-bearing, administrative, download and unclassified raw routes are refused.
+Code search, pending workflow commands, local git workflows, file inputs, writes and attachment transfers are unavailable through this adapter.
+For `pr checks --watch`, any explicit `--timeout` must stay within the bound shown by `artium-axi gitea-axi pr checks --help`; larger values return `INVALID_INPUT` before forwarding.
+Use `artium-axi gitea-axi issue view 42 --repo OWNER/NAME --help` for native read selectors and `artium-axi tools show gitea-axi` for the admitted commands.
+
 ## Network appliance reads
 
 UniFi admits the pinned package's implemented read commands, including application information, sites, inventory and policies.
@@ -151,6 +163,7 @@ Local fake-service checks do not establish live server acceptance.
 | LDAP | Fixed read-only. |
 | UniFi / Proxmox | Ordinary reads only; writes and byte transports unavailable through these adapters. |
 | Technitium DNS | See the [read-only capability boundary](#technitium-dns). |
+| Gitea | See the [read-only capability boundary](#gitea-reads). |
 | GitHub | Reviewed reads plus exact administrator-selected collaboration and repository writes, off by default, using classic or fine-grained PATs, admin-connected device-flow OAuth tokens or GitHub App installation tokens on GitHub.com, `*.ghe.com` or GHES. Artium previews each write without sending it; repeat the exact request with its returned `--confirm` value to execute. Installation tokens cannot access gists or user-only endpoints. Deletes, secret set, merge --admin, API non-GET, GraphQL escape paths, local git, setup/update, watch, downloads and local files stay blocked. Issue lock/unlock is unsupported by the pinned upstream combination; repo-edit visibility is unavailable. Only gist create/edit with `--filename` accepts stdin. Repository commands require `-R OWNER/NAME`; URL selectors and host-qualified repository names are refused. Repo creation requires a positional `OWNER/NAME`; project writes require `--owner OWNER` for recovery scope. Repo list/create, gist commands, search repos and api reject the `-R` selector. The bare dashboard and `home` remain refused because pinned gh-axi swallows dashboard read errors. SSH keys authenticate git transport, never the API used by gh-axi. See [GitHub setup](tool-credentials.md#github) for the operation tiers, device flow and token lifecycle. |
 | Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |
 | Graph | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |

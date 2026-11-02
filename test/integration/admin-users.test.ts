@@ -678,7 +678,7 @@ test('role listing uses bounded stable pagination', async () => {
   expect(first.roles.map(role => role.id)).toEqual(['a'])
   expect(first.nextCursor).toBe('a')
   const second = adminRolesResponseSchema.parse(await (await roleRequest('GET', '?limit=1&cursor=a')).json())
-  expect(second.roles[0]).toMatchObject({ id: 'synthetic-role', tools: ['ado-axi', 'awx-axi', 'az-axi', 'beyondtrust-axi', 'checkpoint-axi', 'falcon-axi', 'gh-axi', 'hybrid-axi', 'ldap-axi', 'mg-axi', 'proxmox-axi', 'technitium-axi', 'tenable-axi', 'unifi-axi', 'vectra-axi'] })
+  expect(second.roles[0]).toMatchObject({ id: 'synthetic-role', tools: ['ado-axi', 'awx-axi', 'az-axi', 'beyondtrust-axi', 'checkpoint-axi', 'falcon-axi', 'gh-axi', 'gitea-axi', 'hybrid-axi', 'ldap-axi', 'mg-axi', 'proxmox-axi', 'technitium-axi', 'tenable-axi', 'unifi-axi', 'vectra-axi'] })
   expect(second.nextCursor).toBeNull()
   await failure(await roleRequest('GET', '?limit=101'), 'INVALID_INPUT')
 })
@@ -803,6 +803,7 @@ test('user detail combines overlapping role grants and reports disabled access w
     { name: 'checkpoint-axi', enabled: false, roleIds: ['synthetic-role'] },
     { name: 'falcon-axi', enabled: true, roleIds: ['extra', 'synthetic-role'] },
     { name: 'gh-axi', enabled: false, roleIds: ['synthetic-role'] },
+    { name: 'gitea-axi', enabled: false, roleIds: ['synthetic-role'] },
     { name: 'hybrid-axi', enabled: false, roleIds: ['synthetic-role'] },
     { name: 'ldap-axi', enabled: false, roleIds: ['synthetic-role'] },
     { name: 'mg-axi', enabled: false, roleIds: ['synthetic-role'] },

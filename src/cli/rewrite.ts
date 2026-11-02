@@ -16,9 +16,11 @@ import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type
 import technitium from '../../tools/inventories/technitium-axi.json' with { type: 'json' }
 import unifi from '../../tools/inventories/unifi-axi.json' with { type: 'json' }
 import proxmox from '../../tools/inventories/proxmox-axi.json' with { type: 'json' }
+import gitea from '../../tools/inventories/gitea-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
   'technitium-axi': technitium.adapterBoundary.unsafeOverrides,
+  'gitea-axi': gitea.adapterBoundary.unsafeOverrides,
   'unifi-axi': unifi.adapterBoundary.unsafeOverrides,
   'proxmox-axi': proxmox.adapterBoundary.unsafeOverrides,
   'beyondtrust-axi': beyondtrust.adapterBoundary.unsafeOverrides,
@@ -85,24 +87,30 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
         help: [technitium.discovery.help] }) + '\n'
     } catch { /* Ordinary output retains its original suggestion contract below. */ }
   }
-  if (tool === 'unifi-axi' || tool === 'proxmox-axi') {
+  if (tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'gitea-axi') {
     try {
       const json = output.trimStart().startsWith('{')
       const document = (json ? JSON.parse(output) : decode(output)) as Record<string, unknown>
-      const inventory = tool === 'unifi-axi' ? unifi : proxmox
+      const inventory = tool === 'unifi-axi' ? unifi : tool === 'gitea-axi' ? gitea : proxmox
       if (document.flags || document.commands) {
         const usage = String(invocation?.help ? invocation.command : document.usage ?? document.command ?? '')
           .replace(new RegExp(`^(?:artium-axi )?${tool} ?`), '')
         const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
           .find(route => usage === route.command || usage.startsWith(route.command + ' '))
-        const command = `artium-axi ${tool}${route?.command && route.command !== 'home' ? ` ${route.command}` : ''}`
+        const group = tool === 'gitea-axi' && inventory.discovery.commands.some(command => command.startsWith(usage + ' ')) ? usage : ''
+        const selected = route?.command || group
+        const command = `artium-axi ${tool}${selected && selected !== 'home' ? ` ${selected}` : ''}`
         document.command = command
         document.usage = `${command} [flags]`
-        document.flags = route?.flags ?? inventory.commands.find(route => !route.command || route.command === 'home')!.flags
+        if (!group) document.flags = route?.flags ?? inventory.commands.find(route => !route.command || route.command === 'home')!.flags
+        if (tool === 'gitea-axi' && route?.command === 'pr checks') {
+          document.flags = { ...route.flags, timeout: `value (1-${gitea.adapterBoundary.checksWatchTimeoutSeconds} seconds; requires --watch)` }
+        }
         document.examples = [`${command} --help`]
         if (document.commands) {
-          document.commands = inventory.discovery.commands
-          if (Object.hasOwn(document, 'count')) document.count = inventory.discovery.commands.length
+          const commands = inventory.discovery.commands.filter(command => !group || command.startsWith(group + ' '))
+          document.commands = commands
+          if (Object.hasOwn(document, 'count')) document.count = commands.length
         }
         if (document.bin) document.bin = `artium-axi ${tool}`
         document.help = [rewriteDiscoveryHelp(inventory.discovery.help, tool)]
@@ -336,8 +344,8 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 }
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
-  if ((tool === 'unifi-axi' || tool === 'proxmox-axi')
-    && (new RegExp(`\\b${tool} (?:auth|config|profile|setup|update)\\b`).test(help) || /\b(?:UNIFI|PROXMOX)_AXI_[A-Z_]+\b/.test(help))) {
+  if ((tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'gitea-axi')
+    && (new RegExp(`\\b${tool} (?:auth|config|profile|setup|update)\\b`).test(help) || /\b(?:UNIFI|PROXMOX|GITEA)_AXI_[A-Z_]+\b/.test(help))) {
     return 'Ask an administrator to update the managed credential.'
   }
   if (tool === 'beyondtrust-axi') {

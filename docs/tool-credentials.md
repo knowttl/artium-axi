@@ -34,6 +34,7 @@ Contents:
 - [UniFi](#unifi)
 - [Proxmox](#proxmox)
 - [Technitium DNS](#technitium-dns)
+- [Gitea](#gitea)
 
 Configure only the tools you intend to use.
 At `/admin/tools`, open the tool, save its connection, then use **Test connection** and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
@@ -54,6 +55,7 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | UniFi (`unifi-axi`) | See [UniFi setup](#unifi). | `info`. |
 | Proxmox (`proxmox-axi`) | See [Proxmox setup](#proxmox). | `get /version`. |
 | Technitium DNS (`technitium-axi`) | See [Technitium setup](#technitium-dns). | `user session get`. |
+| Gitea (`gitea-axi`) | See [Gitea setup](#gitea). | `doctor`. |
 
 #### UniFi
 
@@ -66,6 +68,16 @@ Its optional `connectAddress` selects the connection IP while certificate identi
 Certificate chain, validity, identity and fingerprint verification remain required.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
 After saving, testing, enabling and granting the tool, use `artium-axi unifi-axi info` for the first managed read.
+
+#### Gitea
+
+At `/admin/tools/gitea-axi`, enter the HTTPS `origin`, the identical `tokenOrigin`, and the token itself.
+Both origins must be canonical origins without paths, user information or query strings.
+Changing either identity field requires a new token.
+Artium stores the token encrypted and supplies it privately through a SecretRef.
+Use the existing certificate controls for private CA or certificate-pin trust.
+After testing, enabling and granting the tool, run `artium-axi gitea-axi doctor`, then `artium-axi gitea-axi issue view 42 --repo OWNER/NAME` for an existing item.
+See the [Gitea capability boundary](safety.md#gitea-reads) for supported operations and restrictions.
 
 #### Proxmox
 

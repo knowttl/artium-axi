@@ -19,7 +19,8 @@
     "@knowttl/ldap-axi": "0.3.2",
     "@knowttl/unifi-axi": "0.1.0",
     "@knowttl/proxmox-axi": "0.1.1",
-    "@knowttl/technitium-axi": "0.1.0"
+    "@knowttl/technitium-axi": "0.1.0",
+    "@knowttl/gitea-axi": "0.1.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": []

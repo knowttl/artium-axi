@@ -17,6 +17,7 @@ import { createBeyondtrustAdapter } from '../../src/server/adapters/beyondtrust.
 import { createCheckpointAdapter } from '../../src/server/adapters/checkpoint.js'
 import { createNetworkReadAdapter } from '../../src/server/adapters/network-reads.js'
 import { createTechnitiumAdapter } from '../../src/server/adapters/technitium.js'
+import { createGiteaAdapter } from '../../src/server/adapters/gitea.js'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -34,6 +35,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
     const pem = readFileSync(join(directory, 'ca.crt'), 'utf8')
     const credentials = {
       'technitium-axi': { origin: 'https://dns.example', auth: 'token', tokenKind: 'api', token: 'CANARY-technitium-token', caFile: pem },
+      'gitea-axi': { origin: 'https://forge.example', tokenOrigin: 'https://forge.example', token: 'CANARY-gitea-token' },
       'unifi-axi': { origin: 'https://controller.example', apiKey: 'CANARY-unifi-key' },
       'proxmox-axi': { origin: 'https://cluster.example', auth: 'api-token', tokenId: 'reader@pve!automation', token: 'CANARY-proxmox-token' },
       'gh-axi': { origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' },
@@ -53,6 +55,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
     const log = join(directory, 'writes.log')
     const adapters = {
       'technitium-axi': createTechnitiumAdapter(source),
+      'gitea-axi': createGiteaAdapter(source),
       'unifi-axi': createNetworkReadAdapter('unifi-axi', source),
       'proxmox-axi': createNetworkReadAdapter('proxmox-axi', source),
       'gh-axi': createGhAdapter(source),
@@ -69,7 +72,7 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
       'ldap-axi': createLdapAdapter(source),
     }
     const args = { 'beyondtrust-axi': ['doctor'], 'gh-axi': ['api', '/rate_limit'], 'checkpoint-axi': ['doctor'], 'hybrid-axi': ['quota'], 'tenable-axi': ['card', 'list'], 'awx-axi': ['job', 'list'], 'falcon-axi': ['auth', 'status'], 'vectra-axi': ['health', 'list'],
-      'unifi-axi': ['info'], 'proxmox-axi': ['get', '/version'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list'], 'technitium-axi': ['status'] }
+      'gitea-axi': ['doctor'], 'unifi-axi': ['info'], 'proxmox-axi': ['get', '/version'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list'], 'technitium-axi': ['status'] }
     const call = await adapters[tool].prepare(args[tool], { id: 'synthetic-credential', tool, revision: 1 })
     const runner = await Runner.create(join(directory, 'calls'), trustSource === 'server' ? loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }) : undefined)
     const node = `const fs = require('node:fs'); console.log(JSON.stringify({

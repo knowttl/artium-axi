@@ -8,12 +8,18 @@ import { toolSchema } from '../src/shared/api.js'
 test.each(toolSchema.options)('%s overlay preserves tool guidance with managed command examples', tool => {
   const source = tool === 'gh-axi' ? 'tools/node_modules/gh-axi/skills/gh-axi/SKILL.md' : tool === 'falcon-axi' ? 'test/fixtures/falcon-SKILL.md' : tool === 'awx-axi' ? 'tools/skills/awx-axi/SKILL.md' : tool === 'ado-axi' ? 'tools/node_modules/@knowttl/ado-axi/SKILL.md' : `tools/node_modules/@knowttl/${tool}/skills/${tool}/SKILL.md`
   const skill = loadToolSkill(tool, tool === 'unifi-axi' ? 'tools/node_modules/@knowttl/unifi-axi/dist/SKILL.md'
-    : tool === 'proxmox-axi' || tool === 'technitium-axi' ? `tools/node_modules/@knowttl/${tool}/README.md` : source)
+    : tool === 'proxmox-axi' || tool === 'technitium-axi' ? `tools/node_modules/@knowttl/${tool}/README.md` : tool === 'gitea-axi' ? 'tools/node_modules/@knowttl/gitea-axi/generated/SKILL.md' : source)
   expect(skill).toContain(`name: ${tool}`)
   expect(skill).toContain(`artium-axi ${tool}`)
   if (tool === 'technitium-axi') {
     expect(skill).toContain('same user with current access and the same credential revision')
     expect(skill).toContain('five minutes')
+    return
+  }
+  if (tool === 'gitea-axi') {
+    expect(skill).toContain('issue view 42 --repo OWNER/NAME --help')
+    expect(skill).toContain('api GET repos/OWNER/NAME')
+    expect(skill).toContain('attachment transfers are unavailable.')
     return
   }
   if (tool === 'unifi-axi' || tool === 'proxmox-axi') {

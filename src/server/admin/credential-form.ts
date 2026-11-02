@@ -8,6 +8,7 @@ import { beyondtrustProfile } from '../adapters/beyondtrust.js'
 import { checkpointProfile } from '../adapters/checkpoint.js'
 import { networkProfiles } from '../adapters/network-reads.js'
 import { technitiumProfile } from '../adapters/technitium.js'
+import { giteaProfile } from '../adapters/gitea.js'
 import { nativeSettingsSchemas } from '../../shared/api.js'
 import type { ToolName } from '../store/credential-store.js'
 import { escape } from './escape.js'
@@ -15,6 +16,7 @@ import { escape } from './escape.js'
 // Legacy adapters need a host editor even when no published profile is available.
 export function editorProfile(tool: ToolName, profile?: CredentialProfile): CredentialProfile {
   if (tool === 'technitium-axi') return technitiumProfile
+  if (tool === 'gitea-axi') return giteaProfile
   if (tool === 'unifi-axi' || tool === 'proxmox-axi') return networkProfiles[tool]
   if (tool === 'beyondtrust-axi') return beyondtrustProfile
   if (tool === 'checkpoint-axi') return checkpointProfile
@@ -68,6 +70,11 @@ const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
     tokenKind: 'Choose the supplied token kind: api, session or single-use. Changing it requires a replacement token; single-use tokens are never retried.',
     username: 'Optional username associated with the supplied token. This field does not sign in or change the token identity.',
     tlsServerName: 'Optional DNS name verified in the server certificate when connecting to this origin. Certificate-chain and validity checks remain required.',
+  },
+  'gitea-axi': {
+    origin: 'Gitea HTTPS origin, without a path. Changing it requires a new token.',
+    tokenOrigin: 'The same HTTPS origin as origin, binding the token to its server. Changing it requires a new token.',
+    token: 'Enter the token itself. It is supplied privately through a managed SecretRef. Leave blank to keep the stored token for the same identity.',
   },
   'unifi-axi': {
     origin: 'UniFi Network HTTPS origin, without a path. Changing it requires a new API key.',

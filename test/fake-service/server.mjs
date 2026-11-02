@@ -57,6 +57,15 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     })
     return
   }
+  if (url.pathname === '/api/v1/version' || url.pathname === '/api/v1/repos/example/project/issues/42') {
+    const canaryReceived = req.headers.authorization === 'token CANARY-gitea-token'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived })
+    if (req.method !== 'GET' || !canaryReceived) { res.writeHead(401); res.end('{}'); return }
+    res.end(JSON.stringify(url.pathname === '/api/v1/version' ? { version: '1.23.4' }
+      : { id: 42, number: 42, title: 'Synthetic issue', state: 'open', body: 'Synthetic issue body',
+        user: { id: 1, login: 'synthetic-reader' }, token: 'CANARY-upstream-token' }))
+    return
+  }
   if (url.pathname === '/proxy/network/integration/v1/info' || url.pathname === '/api2/json/version') {
     const canaryReceived = url.pathname === '/proxy/network/integration/v1/info' ? req.headers['x-api-key'] === 'CANARY-unifi-key'
       : req.headers.authorization === 'PVEAPIToken=reader@pve!automation=CANARY-proxmox-token'

@@ -15,6 +15,7 @@ import { createBeyondtrustAdapter } from './adapters/beyondtrust.js'
 import { createCheckpointAdapter } from './adapters/checkpoint.js'
 import { createTechnitiumAdapter } from './adapters/technitium.js'
 import { createNetworkReadAdapter } from './adapters/network-reads.js'
+import { createGiteaAdapter } from './adapters/gitea.js'
 import { AzureTokenCache } from './adapters/azure-token-cache.js'
 import { initializeNativeWriteLog, retainNativeWriteLog } from './adapters/native-log.js'
 import { retainRunJournals } from './adapters/run-journal.js'
@@ -70,7 +71,7 @@ async function main() {
         createHybridAdapter(source, join(dirname(database), 'tool-logs', 'hybrid-axi', 'writes.log')),
         createBeyondtrustAdapter(source, join(dirname(database), 'tool-logs', 'beyondtrust-axi', 'writes.log')),
         createCheckpointAdapter(source, join(dirname(database), 'tool-logs', 'checkpoint-axi', 'writes.log')),
-        createNetworkReadAdapter('unifi-axi', source), createNetworkReadAdapter('proxmox-axi', source)] })
+        createNetworkReadAdapter('unifi-axi', source), createNetworkReadAdapter('proxmox-axi', source), createGiteaAdapter(source)] })
     const maintain = async () => {
       try { audit.maintain() }
       catch { log('error', 'retention', { code: 'AUDIT_UNAVAILABLE', target: 'audit' }) }

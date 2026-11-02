@@ -21,6 +21,7 @@ import { beyondtrustCredentialSchema, beyondtrustWritePolicy } from '../adapters
 import { checkpointCredentialSchema, checkpointWritePolicy } from '../adapters/checkpoint.js'
 import { networkProfiles, networkReadPolicy } from '../adapters/network-reads.js'
 import { technitiumProfile, technitiumWritePolicy } from '../adapters/technitium.js'
+import { giteaProfile, giteaReadPolicy } from '../adapters/gitea.js'
 import { exchangeAwxPassword, awxPasswordRequested } from '../adapters/awx-login.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
@@ -41,11 +42,12 @@ export interface ToolAdminOptions {
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>>
 }
 
-const credentialSchemas = { 'technitium-axi': technitiumProfile.credentialSchema, 'unifi-axi': networkProfiles['unifi-axi'].credentialSchema, 'proxmox-axi': networkProfiles['proxmox-axi'].credentialSchema, 'beyondtrust-axi': beyondtrustCredentialSchema, 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
-const writePolicies = { 'unifi-axi': networkReadPolicy, 'proxmox-axi': networkReadPolicy, 'beyondtrust-axi': beyondtrustWritePolicy, 'gh-axi': ghWritePolicy, 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
+const credentialSchemas = { 'gitea-axi': giteaProfile.credentialSchema, 'technitium-axi': technitiumProfile.credentialSchema, 'unifi-axi': networkProfiles['unifi-axi'].credentialSchema, 'proxmox-axi': networkProfiles['proxmox-axi'].credentialSchema, 'beyondtrust-axi': beyondtrustCredentialSchema, 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
+const writePolicies = { 'gitea-axi': giteaReadPolicy, 'unifi-axi': networkReadPolicy, 'proxmox-axi': networkReadPolicy, 'beyondtrust-axi': beyondtrustWritePolicy, 'gh-axi': ghWritePolicy, 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
   'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy, 'hybrid-axi': hybridWritePolicy, 'technitium-axi': technitiumWritePolicy }
 const publicFields = {
   'technitium-axi': ['origin', 'auth', 'tokenKind', 'username', 'tlsServerName'],
+  'gitea-axi': ['origin', 'tokenOrigin'],
   'unifi-axi': ['origin', 'siteId', 'apiContract'],
   'proxmox-axi': ['origin', 'auth', 'tokenId'],
   'gh-axi': ['origin', 'auth', 'appId', 'installationId', 'repositories', 'permissions', 'login', 'accessTokenExpiresAt'],
@@ -63,6 +65,7 @@ const publicFields = {
 }
 const legacySecretFields = {
   'technitium-axi': ['token'],
+  'gitea-axi': ['token'],
   'unifi-axi': ['apiKey'],
   'proxmox-axi': ['token'],
   'gh-axi': ['token', 'privateKey', 'accessToken'],

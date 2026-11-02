@@ -64,6 +64,13 @@ export class CredentialProfile {
       this.inputSchema.properties.caFile = { type: 'string', minLength: 1, title: 'Trusted CA PEM', description: 'PEM certificate contents, not a file path.' }
       delete this.inputSchema.properties.writes
     }
+    if (tool === 'gitea-axi') {
+      delete this.inputSchema.properties.writes
+      delete this.inputSchema.properties.allowInsecureHttp
+      delete this.inputSchema.if
+      delete this.inputSchema.then
+      for (const name of ['origin', 'tokenOrigin']) this.inputSchema.properties[name] = { type: 'string', format: 'canonical-https-origin' }
+    }
     if (tool === 'unifi-axi' || tool === 'proxmox-axi') {
       delete this.inputSchema.properties.writes
       this.inputSchema.properties.origin = { type: 'string', format: 'canonical-https-origin' }
@@ -191,6 +198,7 @@ export class CredentialProfile {
     this.credentialSchema = z.custom<Record<string, unknown>>(value => {
       return Boolean(value && typeof value === 'object' && !Array.isArray(value))
     }, 'Invalid credential profile').superRefine((value, context) => {
+      if (tool === 'gitea-axi' && value.origin !== value.tokenOrigin) context.addIssue({ code: 'custom', path: ['tokenOrigin'], message: 'tokenOrigin must match origin.' })
       this.secrets.clear()
       if (this.validateInput(value)) return
       for (const issue of this.input.reasons(value)) context.addIssue({ code: 'custom', ...issue })
@@ -261,7 +269,7 @@ export class CredentialProfile {
   }
 
   prepare(tool: ToolName, value: unknown, writeLog: string | undefined, readOnly: boolean): Pick<PreparedCall, 'environment' | 'files' | 'secrets'> {
-    if (!['ldap-axi', 'awx-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi'].includes(tool) && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
+    if (!['ldap-axi', 'awx-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi', 'gitea-axi'].includes(tool) && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
     const parsed = this.parsed(value)
     // These administrator switches are host policy, not upstream profile fields.
     if (tool === 'falcon-axi' || tool === 'awx-axi') delete parsed.value.allowWrites

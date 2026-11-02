@@ -6,6 +6,7 @@ import { decode } from '@toon-format/toon'
 import { expect, test } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createNetworkReadAdapter } from '../../src/server/adapters/network-reads.js'
+import { createGiteaAdapter } from '../../src/server/adapters/gitea.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { toolPaths, toolSkillPaths } from '../../src/server/config.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -24,6 +25,8 @@ const cases = [
     executable: 'dist/bin.js', skill: 'dist/SKILL.md', secret: 'CANARY-unifi-key' },
   { tool: 'proxmox-axi', args: ['get', '/version'], version: '9.2.0', path: '/api2/json/version',
     executable: 'bin/proxmox-axi.mjs', skill: 'README.md', secret: 'CANARY-proxmox-token' },
+  { tool: 'gitea-axi', args: ['api', 'version'], version: '1.23.4', path: '/api/v1/version',
+    executable: 'dist/cli.js', skill: 'generated/SKILL.md', secret: 'CANARY-gitea-token' },
 ] as const
 type Case = typeof cases[number]
 
@@ -39,6 +42,7 @@ async function withTool(item: Case, check: (fixture: {
     const store = createCredentialStore(db, provider)
     const origin = `https://localhost:${port}`
     store.replaceCredential(item.tool, item.tool === 'unifi-axi' ? { origin, apiKey: item.secret }
+      : item.tool === 'gitea-axi' ? { origin, tokenOrigin: origin, token: item.secret }
       : { origin, auth: 'api-token', tokenId: 'reader@pve!automation', token: item.secret,
         caBundle: readFileSync(join(directory, 'ca.crt'), 'utf8') }, 0, 'synthetic-development-user', Date.now())
     db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(item.tool)
@@ -48,7 +52,8 @@ async function withTool(item: Case, check: (fixture: {
     Object.assign(toolPaths, { [item.tool]: join(process.cwd(), 'tools/node_modules/@knowttl', item.tool, item.executable) })
     Object.assign(toolSkillPaths, { [item.tool]: join(process.cwd(), 'tools/node_modules/@knowttl', item.tool, item.skill) })
     const app = createApp({ db, runner, audit: new Audit(db), environment: {}, credentialStore: store,
-      resolver: new SharedIdentityResolver(store), adapters: [createNetworkReadAdapter(item.tool, new EmbeddedSecretSource(store))] })
+      resolver: new SharedIdentityResolver(store), adapters: [item.tool === 'gitea-axi' ? createGiteaAdapter(new EmbeddedSecretSource(store))
+        : createNetworkReadAdapter(item.tool, new EmbeddedSecretSource(store))] })
     try {
       const url = await app.listen({ host: '127.0.0.1', port: 0 })
       const token = issueTestAccessToken(db, 'synthetic-development-user')
@@ -121,7 +126,30 @@ test.each(cases)('$tool refuses credential overrides and writes before forwardin
     expect(override.json().error.code).toBe('FLAG_BLOCKED')
     const write = await app.inject({ method: 'POST', url: `/v1/tools/${item.tool}/run`, headers,
       payload: { args: ['create', '/nodes', '--confirm', 'synthetic'] } })
-    expect(write.json().error.code).toBe('INVALID_INPUT')
+    expect(write.json().error.code).toBe(item.tool === 'gitea-axi' ? 'FLAG_BLOCKED' : 'INVALID_INPUT')
+    expect((await evidence()).requests).toEqual([])
+  })
+})
+
+test('Gitea named item reads preserve selectors and redact upstream secret fields', async () => {
+  await withTool(cases[2], async ({ cli, evidence }) => {
+    const result = await cli(['gitea-axi', 'issue', 'view', '42', '-R', 'example/project', '--full'])
+    expect(result.stdout).toContain('Synthetic issue')
+    expect(result.stdout).not.toContain('CANARY-upstream-token')
+    expect((await evidence()).requests).toEqual([{ method: 'GET', path: '/api/v1/repos/example/project/issues/42', canaryReceived: true }])
+  })
+})
+
+test.each([
+  ['api', 'POST', 'repos/example/project/issues'], ['api', 'user/tokens'], ['api', 'admin/users'],
+  ['api', 'repos/example/project/raw/main/private.txt'], ['api', 'repos/example/project?token=CANARY-forbidden'],
+  ['api', 'https://other.invalid/api/v1/version'], ['api', 'repos/example%2fproject'],
+  ['issue', 'view', '42', '--repo', 'example/project', '--hostname', 'other.invalid'],
+  ['issue', 'download', '42', '--repo', 'example/project'], ['workflow', 'list', '--repo', 'example/project'],
+].map(args => ({ args })))('Gitea refuses $args before vendor forwarding', async ({ args }) => {
+  await withTool(cases[2], async ({ app, headers, evidence }) => {
+    const result = await app.inject({ method: 'POST', url: '/v1/tools/gitea-axi/run', headers, payload: { args } })
+    expect(result.statusCode).toBe(400)
     expect((await evidence()).requests).toEqual([])
   })
 })

@@ -66,6 +66,8 @@ const commands = {
     flags: ['Declared ordinary reads accept --help. Writes, byte transports, session authentication and file input are unavailable.'], example: 'artium-axi proxmox-axi get /version' },
   'technitium-axi': { usage: 'artium-axi technitium-axi [<args>]', purpose: 'Read Technitium DNS data with managed credentials.',
     flags: ['Declared reads accept --help. Authenticated reads return protected result references; local result paths and writes are unavailable.'], example: 'artium-axi technitium-axi status' },
+  'gitea-axi': { usage: 'artium-axi gitea-axi [<args>]', purpose: 'Read Gitea data with managed credentials.',
+    flags: ['Repository reads require --repo OWNER/NAME. api accepts GET and classified metadata paths. Writes, attachment transfers, local configuration and workflows are unavailable.'], example: 'artium-axi gitea-axi issue view 42 --repo OWNER/NAME' },
 } as const
 
 export type HelpCommand = keyof typeof commands
