@@ -47,7 +47,12 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   }
   const route = inventory.commands.find(route => positionals.slice(0, route.command.split(' ').length).join(' ') === route.command)
   if (!route) throw invalidCommand('awx-axi', positionals, inventory.commands.filter(route => route.effect !== 'blocked').map(route => route.command))
-  if (route.effect === 'blocked' && !flags.has('help')) throw new ArtiumError('INVALID_INPUT', `Command ${route.command} is not yet supported through Artium.`)
+  if (route.effect === 'blocked' && !flags.has('help')) {
+    if (route.command === 'auth logout') throw new ArtiumError('INVALID_INPUT',
+      'Managed accounts do not retain a verified current PAT id for automatic logout.',
+      'Use artium-axi awx-axi user token-revoke <numeric-token-id> --dry-run, then repeat with --confirm. Removing an account does not revoke its PAT.')
+    throw new ArtiumError('INVALID_INPUT', `Command ${route.command} is not yet supported through Artium.`)
+  }
   const schema: Record<string, string | undefined> = route.flags
   for (const name of flags.keys()) if (!Object.hasOwn(schema, name)) throw new ArtiumError('INVALID_INPUT',
     `Unknown flag --${name} for awx-axi ${route.command}.`,
@@ -139,10 +144,12 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const prefix = ['--input-type=module', '-e', awxInputBridge, toolPaths['awx-axi']]
       const privateInput = structured.length || input?.files?.length || input?.stdin !== undefined
       const privateRead = !call.invocation.help && ['inventory show', 'inventory constructed-show', 'project show', 'activity-stream show'].includes(call.invocation.command)
-      const bridge = privateInput || privateRead
+      const tokenCreate = call.effect === 'write' && call.invocation.command === 'user token-create'
+      const bridge = privateInput || privateRead || tokenCreate
       const output = bridge ? awxPrivateOutput(input ?? {}, structured, call.args) : undefined
       if (output) profile.files.push({ name: 'awx-input.json', content: JSON.stringify({ values: structured, output }) })
       return { executable: bridge ? process.execPath : toolPaths['awx-axi'], ...call,
+        ...(tokenCreate ? { protectedResult: { source: 'file' as const, operation: 'token-create', name: 'awx-token.txt', flag: '--artium-token-result' } } : {}),
         ...(bridge ? { args: [...prefix, ...call.args], fileArguments: call.fileArguments.map(index => index + prefix.length) } : {}),
         ...profile, limits: { timeoutMs: runnerLimits.timeoutMs, ...(output ? { privateOutput: output } : {}) } }
     },

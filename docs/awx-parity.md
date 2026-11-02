@@ -106,3 +106,17 @@ The [command reference](commands.md) describes image settings and attachment of 
 Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) verifies ordinary image configuration and credential attachment, preview without mutation, confirmation, disabled writes, AWX permission denials and audit through the public run API against a fake controller.
 It also verifies persisted image changes and read-only recovery after an interrupted rename.
 Copy/delete acceptance remains in S13.
+
+## Organizations, users, teams and roles (S10)
+
+S1's shared write path admits organization configuration and associations, team configuration and membership, user configuration and password inputs, role grant/revoke and token revocation under the single tenant writes switch.
+See the [command reference](commands.md) for operations, privilege flags and private password-file/stdin handling.
+Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) uses the public run API and pinned CLI against the fake controller to verify preview, confirmation, disabled writes, AWX permission denials, tenant isolation, exact configuration and association payloads, private password handling and audit.
+Stateful journeys verify membership and role grant/revoke readback with writes disabled, privilege removal and interrupted username recovery, and authentication failure after PAT revocation.
+Organization association requests are verified against the fake controller; the pinned organization read surface does not enumerate those memberships.
+The pinned upstream has no token-list command.
+Confirmed token creation uses the existing protected-result mechanism: a one-time authenticated download scoped to the requesting caller, operation and current managed credential revision, expiring after five minutes and served with no-store caching.
+Routine responses and audit contain metadata and a result reference, never PAT bytes.
+Acceptance verifies read/write token scopes, disabled writes, preview, confirmation, denied/malformed/uncertain creation without a result reference, caller and credential isolation, current permission checks, expiry, consumption and canary redaction.
+The managed logout equivalent is explicit `user token-revoke <numeric-token-id>` because managed accounts do not retain a verified current PAT ID.
+Raw `auth logout` directs callers to that preview/confirm flow without removing their managed account; account removal is not PAT revocation.

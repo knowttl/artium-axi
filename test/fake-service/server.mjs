@@ -10,10 +10,12 @@ import { checkpointResponse } from './checkpoint.mjs'
 const requests = []
 const resources = new Map()
 const awxAssociations = new Map()
+const awxTokens = new Map([[7, 'CANARY-awx-minted-token']])
 let mutations = 0
 let basicAuthEnabled = true
 let awxConfigurationAllowed = true
 let awxDropWrite = false
+let awxTokenResponse = 'valid'
 let githubDeviceScenario = 'success'
 let githubDevicePolls = 0
 const giteaIssue = { id: 42, number: 42, title: 'Synthetic issue', state: 'open', body: 'Synthetic issue body',
@@ -238,11 +240,13 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   if (url.pathname === '/__ado/reset' && req.method === 'POST') {
     resources.clear()
     awxAssociations.clear()
+    awxTokens.set(7, 'CANARY-awx-minted-token')
     requests.length = 0
     mutations = 0
     basicAuthEnabled = true
     awxConfigurationAllowed = true
     awxDropWrite = false
+    awxTokenResponse = 'valid'
     res.end('{}')
     return
   }
@@ -260,6 +264,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     awxDropWrite = url.searchParams.get('drop') === 'true'
     res.end('{}')
     return
+  }
+  if (url.pathname === '/__awx/token-response' && req.method === 'POST') {
+    awxTokenResponse = url.searchParams.get('mode') ?? 'valid'
+    res.end('{}'); return
   }
   if (req.headers.host === 'hybrid-analysis.com') {
     hybridResponse(req, res, url, requests, resources, () => { mutations++ })
@@ -329,17 +337,18 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         return
       }
       res.writeHead(201)
+      awxTokens.set(7, 'CANARY-awx-minted-token')
       res.end(JSON.stringify({ id: 7, token: 'CANARY-awx-minted-token', scope: 'write', description: 'awx-axi' }))
     })
     return
   }
   if (url.pathname.startsWith('/api/v2/')) {
     const authorization = req.headers.authorization
-    const canaryReceived = authorization === 'Bearer CANARY-awx-token' || authorization === 'Bearer CANARY-awx-minted-token'
+    const canaryReceived = authorization === 'Bearer CANARY-awx-token' || [...awxTokens.values()].some(token => authorization === `Bearer ${token}`)
     const recorded = { method: req.method, path: url.pathname, auth: authorizationScheme(authorization), canaryReceived }
     requests.push(recorded)
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ detail: 'Invalid token' })); return }
-    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|inventory_updates|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|project_updates|schedules|execution_environments|credentials|users|teams|notification_templates|bulk)\//.test(url.pathname)
+    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|inventory_updates|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|project_updates|schedules|execution_environments|credentials|users|teams|roles|organizations|tokens|notification_templates|bulk)\//.test(url.pathname)
     if (req.method === 'GET' && url.pathname === '/api/v2/job_templates/7/' && !resources.has(url.pathname)) {
       res.end(JSON.stringify({ id: 7, name: 'Synthetic promptable template', ask_inventory_on_launch: true,
         ask_limit_on_launch: true, ask_variables_on_launch: true, ask_tags_on_launch: true, ask_skip_tags_on_launch: true })); return
@@ -361,22 +370,12 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       resources.delete(url.pathname)
       res.writeHead(204); res.end(); return
     }
-    if (req.method === 'DELETE' && /^\/api\/v2\/(inventories|inventory_sources)\/\d+\/$/.test(url.pathname)) {
+    if (req.method === 'DELETE' && /^\/api\/v2\/(inventories|inventory_sources|tokens)\/\d+\/$/.test(url.pathname)) {
       if (!awxConfigurationAllowed) { res.writeHead(403); res.end(JSON.stringify({ detail: 'You do not have permission to perform this action.' })); return }
       mutations++
       resources.delete(url.pathname)
+      if (url.pathname.startsWith('/api/v2/tokens/')) awxTokens.delete(Number(url.pathname.split('/')[4]))
       res.writeHead(204); res.end(); return
-    }
-    if (req.method === 'POST' && url.pathname === '/api/v2/roles/42/users/') {
-      let body = ''
-      req.setEncoding('utf8')
-      req.on('data', chunk => { body += chunk })
-      req.on('end', () => {
-        recorded.body = JSON.parse(body)
-        mutations++
-        res.writeHead(204); res.end()
-      })
-      return
     }
     if ((configurationPath || url.pathname === '/api/v2/ad_hoc_commands/') && ['POST', 'PATCH'].includes(req.method)) {
       let body = ''
@@ -386,12 +385,22 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         const payload = JSON.parse(body || '{}')
         recorded.body = payload
         if (configurationPath && !awxConfigurationAllowed) { res.writeHead(403); res.end(JSON.stringify({ detail: 'You do not have permission to perform this action.' })); return }
+        if (/^\/api\/v2\/users\/\d+\/personal_tokens\/$/.test(url.pathname)) {
+          mutations++
+          const id = Math.max(7, ...awxTokens.keys()) + 1
+          const token = `CANARY-awx-created-token-${id}`
+          awxTokens.set(id, token)
+          if (awxDropWrite) { req.socket.destroy(); return }
+          res.writeHead(201)
+          res.end(JSON.stringify({ ...(awxTokenResponse === 'missing-id' ? {} : { id }),
+            ...(awxTokenResponse === 'missing-token' ? {} : { token }), scope: payload.scope ?? 'write', description: token })); return
+        }
         if ((url.pathname.startsWith('/api/v2/credentials/') || /^\/api\/v2\/teams\/\d+\/credentials\/$/.test(url.pathname))
           && payload.credential_type !== undefined && payload.credential_type !== 7) {
           res.writeHead(400); res.end(JSON.stringify({ credential_type: ['Invalid pk - object does not exist.'] })); return
         }
         mutations++
-        const association = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|(?:projects|inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes|schedules)\/\d+\/(credentials|labels|instance_groups|notification_templates_(?:started|success|error|approvals)|(?:success|failure|always)_nodes))\/$/.exec(url.pathname)
+        const association = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|(?:projects|inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes|schedules)\/\d+\/(credentials|labels|instance_groups|notification_templates_(?:started|success|error|approvals)|(?:success|failure|always)_nodes)|organizations\/\d+\/(users|admins|teams|galaxy_credentials|instance_groups|execution_environments|notification_templates(?:_(?:started|success|error))?)|teams\/\d+\/users|roles\/\d+\/(users|teams))\/$/.exec(url.pathname)
         if (association) {
           const members = awxAssociations.get(url.pathname) ?? new Set()
           if (payload.disassociate) members.delete(payload.id)
@@ -478,6 +487,12 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       res.end(JSON.stringify({ content: lines.slice(start, end).join('\n') + '\n', range: { start, end, absolute_end: lines.length } })); return
     }
     if ((configurationPath || url.pathname.startsWith('/api/v2/activity_stream/')) && req.method === 'GET') {
+      const securityMembers = /^\/api\/v2\/(?:teams|roles)\/\d+\/(users|teams)\/$/.exec(url.pathname)
+      if (securityMembers) {
+        const rows = [...resources.entries()].filter(([path, value]) => new RegExp(`^/api/v2/${securityMembers[1]}/\\d+/$`).test(path)
+          && awxAssociations.get(url.pathname)?.has(value.id)).map(([, value]) => value)
+        res.end(JSON.stringify({ count: rows.length, next: null, results: rows })); return
+      }
       const workflowNodes = /^\/api\/v2\/workflow_job_templates\/(\d+)\/workflow_nodes\/$/.exec(url.pathname)
       const nodeMembers = /^\/api\/v2\/workflow_job_template_nodes\/\d+\/(credentials|(?:success|failure|always)_nodes)\/$/.exec(url.pathname)
       if (workflowNodes || nodeMembers) {
@@ -507,6 +522,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       else {
         const rows = [...resources.entries()].filter(([path]) => path.startsWith(url.pathname) && /^\d+\/$/.test(path.slice(url.pathname.length)))
           .map(([, value]) => value).filter(value => (!url.searchParams.has('name') || value.name === url.searchParams.get('name'))
+            && (!url.searchParams.has('username') || value.username === url.searchParams.get('username'))
             && (!url.searchParams.has('inventory') || value.inventory === Number(url.searchParams.get('inventory'))))
         res.end(JSON.stringify({ count: rows.length, next: null, results: rows }))
       }

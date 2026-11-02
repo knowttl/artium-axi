@@ -11,11 +11,13 @@ const inputFields = {
 // Upstream's public main accepts argv in memory. Load private structured values
 // there, so even tools which require inline JSON/YAML never receive it via exec.
 export const awxInputBridge = `
-const { readFileSync } = await import('node:fs');
+const { readFileSync, writeFileSync } = await import('node:fs');
 const { pathToFileURL } = await import('node:url');
 const { createRequire } = await import('node:module');
 const executable = process.argv[1];
 const argv = process.argv.slice(2);
+const resultIndex = argv.indexOf('--artium-token-result');
+const tokenResult = resultIndex < 0 ? undefined : argv.splice(resultIndex, 2)[1];
 const require = createRequire(executable);
 const awxModule = require.resolve('awx-axi');
 const { decode, encode } = await import(pathToFileURL(require.resolve('@toon-format/toon')).href);
@@ -58,7 +60,31 @@ const output = stream => ({ write(chunk) {
   stream.write(encode({ ...redact(decode(String(chunk))), input: fields }) + '\\n');
 } });
 const { main } = await import(pathToFileURL(awxModule).href);
-await main({ argv, env: process.env, stdout: output(process.stdout), stderr: output(process.stderr) });
+let tokenTransport;
+if (tokenResult) {
+  const { createTransport } = await import(new URL('./core/auth.js', pathToFileURL(awxModule)).href);
+  const { AwxAxiError } = await import(new URL('./core/errors.js', pathToFileURL(awxModule)).href);
+  tokenTransport = (env, signal, diagnostics) => {
+    const transport = createTransport(env, {}, undefined, signal, diagnostics);
+    const post = transport.post.bind(transport);
+    transport.post = async (route, payload, tag) => {
+      if (!/^users\\/\\d+\\/personal_tokens\\/$/.test(route)) throw new AwxAxiError('Unexpected token creation route.', 'INVALID_RESPONSE');
+      const response = await post(route, payload, tag);
+      if (![200, 201].includes(response.status)) return { ...response, body: { detail: 'Controller refused token creation.' } };
+      const body = response.body;
+      if (!body || !Number.isSafeInteger(body.id) || body.id <= 0 || typeof body.token !== 'string' || !body.token.trim()
+        || !['read', 'write'].includes(body.scope)) {
+        throw new AwxAxiError('Controller returned no usable token metadata. Inspect existing tokens before retrying.', 'INVALID_RESPONSE');
+      }
+      // Upstream discards this secret; retain it only through the private result channel.
+      writeFileSync(tokenResult, body.token, { mode: 0o600, flag: 'wx' });
+      return { ...response, body: { id: body.id, scope: body.scope } };
+    };
+    return transport;
+  };
+}
+await main({ argv, env: process.env, stdout: output(process.stdout), stderr: output(process.stderr),
+  ...(tokenTransport ? { createTransport: tokenTransport } : {}) });
 `
 
 export function awxPrivateOutput(input: RunnerInput, structured: readonly (readonly [number, string])[], args: readonly string[]) {

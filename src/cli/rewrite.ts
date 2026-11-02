@@ -386,6 +386,8 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
     if (['project create', 'project edit', 'job stdout', 'ad-hoc stdout'].includes(command ?? '')) {
       help = help.trimEnd() + '\nSCM URLs must have no userinfo, credential query parameters or fragments. Use --credential with SCM secrets supplied through credential create/edit --inputs-file. Already-retained AWX logs from URLs set outside Artium are AWX-held data, outside Artium SCM input protection.\n'
     }
+    if (command === 'user token-create') help = help.trimEnd()
+      + '\nToken bytes are delivered only through the protected result path using an authenticated GET by the same caller with current access and the same managed credential revision. Save within five minutes; the result is consumed once and never appears in routine output or audit.\n'
     const guidance = awx.discovery.help.split('\n')[1] + ' Ask an administrator to update the managed credential.'
     help = help.split('\n').filter(line => !/(?:\bAWX_AXI_[A-Z_]+\b|\bawx-axi (?:auth (?:login|logout)|setup|config|profile|update)\b|--(?:origin|profile|config|verify-ssl|allow-http)\b)/.test(line))
       .filter(line => !/^(?:Run|Use) .*\bawx-axi job stdout\b.*--download\b/.test(line))

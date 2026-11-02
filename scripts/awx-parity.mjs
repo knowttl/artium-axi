@@ -76,13 +76,14 @@ const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
       dependentSlices: ['c', 'e'] } : {}),
     ...(effect === 'destructive' && security(domain.name, route.name) ? { note: 'Upstream delete tag checks only the native delete gate; this is not a separate target permission' } : {}),
     ...(command === 'user token-revoke' ? { note: 'Upstream DELETE tagged security, so the native security gate applies rather than the delete gate; target authorization is write', dependentSlices: ['d'] } : {}),
+    ...(command === 'user token-create' ? { note: 'Confirmed creation delivers the PAT through an authenticated one-time protected result, scoped to the caller and current managed credential revision, expiring after five minutes; no token bytes in routine output or audit' } : {}),
     ...(command === 'job watch' ? { note: 'Artium runner has a bounded lifetime; use --timeout 50 or less' } : {}),
     flags: flagsFor(command, [{ name: 'help', takesValue: false, description: 'Command help' }, ...route.flags], effect, targetSlice, status) }
 }))
 
 const localReasons = {
   'auth login': ['managed equivalent', 'Artium AWX account form accepts a PAT or exchanges username/password for a PAT; raw upstream login is blocked. Passwords and tokens use the managed credential store, never argv.'],
-  'auth logout': ['blocked', 'Raw managed auth logout remains refused; removing a managed account does not revoke its upstream PAT. Use user token-revoke under the single administrator-controlled per-tenant writes switch, default OFF, with preview, explicit confirmation and audit.'],
+  'auth logout': ['managed equivalent', 'Managed accounts do not retain a verified current PAT id. Use user token-revoke <numeric-token-id> under the single administrator-controlled per-tenant writes switch, default OFF, with preview, explicit confirmation and audit. The managed account is preserved; account removal does not revoke its upstream PAT.'],
   'config path': ['not applicable', 'Artium materializes private runner configuration. There is no client-owned upstream config path to expose.'],
   'profile list': ['managed equivalent', 'Use Artium account discovery and selection; upstream filesystem profiles are not caller-owned.'],
   'setup hooks': ['managed equivalent', 'Use artium-axi setup --host <claude|codex|opencode> --hook on Linux for authenticated ambient tool context and granted tool skills. Claude Code and Codex use SessionStart; OpenCode 1.19.x uses its local system-context plugin API. Codex host trust and feature controls still apply. Pi and non-Linux hosts retain skill-only setup. Never install hooks in the server runner.'],
