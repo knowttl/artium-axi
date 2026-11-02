@@ -18,6 +18,15 @@ import type { RunInput } from '../../src/shared/api.js'
 const upload = (name: string, content: string) => ({ name, size: Buffer.byteLength(content), contentBase64: Buffer.from(content).toString('base64') })
 
 const configurationCases: { args: string[], path: string, body: unknown, input?: RunInput, unconfirmed?: Record<string, unknown> }[] = [
+  ...['run', 'a', '[redacted]', 'dry_run'].map(value => ({
+    args: ['inventory', 'host-create', 'synthetic', '--inventory', '7', '--variables', JSON.stringify({ mode: value })],
+    path: 'hosts/', body: { name: 'synthetic', inventory: 7, variables: JSON.stringify({ mode: value }) },
+  })),
+  { args: ['inventory', 'host-create', 'synthetic', '--inventory', '7', '--variables', 'variables.json'], path: 'hosts/',
+    body: { name: 'synthetic', inventory: 7, variables: '{"env":"a"}' },
+    input: { files: [upload('variables.json', '{"env":"a"}')] } },
+  { args: ['credential', 'edit', '42', '--inputs-file', '-'], path: 'credentials/42/', body: { inputs: { password: 'a' } },
+    input: { stdin: '{"password":"a"}' } },
   { args: ['team', 'credential-create', '7', '--name', 'Synthetic team credential', '--credential-type', '7', '--inputs-file', 'team.json'], path: 'teams/7/credentials/',
     body: { name: 'Synthetic team credential', credential_type: 7, inputs: { password: 'CANARY-team-password' } },
     input: { files: [upload('team.json', '{"password":"CANARY-team-password"}')] } },

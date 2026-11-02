@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { decode } from '@toon-format/toon'
 import { Client } from '../../src/cli/http.js'
 import { toolInput } from '../../src/cli/input.js'
 import { inputLimits, runSuccessSchema } from '../../src/shared/api.js'
@@ -45,7 +46,7 @@ beforeEach(async () => {
   // Replace only the external executable with the existing offline probe.
   const execution = { ...adapter, prepare: async (...args: Parameters<typeof prepare>) => {
     const call = await prepare(...args)
-    return { ...call, executable: fakeTool.executable, args: [...fakeTool.args, outcome === 'args' ? 'print' : tool === 'awx-axi' ? 'awx-input' : 'input-file', ...call.args],
+    return { ...call, executable: fakeTool.executable, args: [...fakeTool.args, outcome === 'args' ? 'awx-args' : tool === 'awx-axi' ? 'awx-input' : 'input-file', ...call.args],
       fileArguments: call.fileArguments?.map(index => index + fakeTool.args.length + 1),
       environment: { ...call.environment, ARTIUM_TEST_READY_FILE: join(directory, 'ready.json'), ARTIUM_TEST_INPUT_OUTCOME: outcome } }
   } }
@@ -80,7 +81,7 @@ test.each([{ result: 'success', exitCode: 0 }, { result: 'error', exitCode: 7 }]
   expect(request.files).toEqual([{ name: 'report.txt', size: content.length, contentBase64: content.toString('base64') }])
   const response = runSuccessSchema.parse(await client.request(route, 'POST', request, token))
   expect(response.exitCode).toBe(exitCode)
-  const received = JSON.parse(response.stdout)
+  const received = tool === 'awx-axi' ? decode(response.stdout) as Record<string, any> : JSON.parse(response.stdout)
   expect(received).toEqual({ path: expect.stringMatching(/\/artium-call-[^/]+\/tmp\/inputs\/report.txt$/),
     ...(tool === 'awx-axi' ? { argv: expect.any(Array), sha256: createHash('sha256').update(content).digest('hex') }
       : { contentBase64: content.toString('base64') }), mode: 0o600, directoryMode: 0o700 })

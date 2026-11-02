@@ -58,6 +58,25 @@ test('scan with no injected secrets accepts output', () => {
   expect(new SecretScanner([]).scan('stdout', Buffer.from('ordinary output'))).toBe(false)
 })
 
+test.each(streams)('private-input scanning preserves protocol keys and null masks in %s (R1)', stream => {
+  const scanner = new SecretScanner([], ['run', 'a', '[redacted]', 'dry_run'])
+  scanner.scan(stream, Buffer.from('dry_run:\n  payload: null\n'))
+  expect(scanner.finish()).toBe(false)
+})
+
+test.each(streams)('private-input scanning detects nested values across chunks in %s (R1)', stream => {
+  const scanner = new SecretScanner([], ['a'])
+  scanner.scan(stream, Buffer.from('dry_run:\n  payload:\n    env: '))
+  scanner.scan(stream, Buffer.from('a\n'))
+  expect(scanner.finish()).toBe(true)
+})
+
+test.each(streams)('private-input scanning rejects malformed responses in %s', stream => {
+  const scanner = new SecretScanner([], ['CANARY-private'])
+  scanner.scan(stream, Buffer.from('payload[2]:\n  - invalid\n'))
+  expect(scanner.finish()).toBe(true)
+})
+
 test.each(streams)('security: detects JSON-escaped multiline secrets in %s', stream => {
   const secret = 'CANARY-key\n"quoted"\\path'
   const escaped = JSON.stringify(secret).slice(1, -1)

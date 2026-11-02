@@ -1,3 +1,5 @@
+import { decode } from '@toon-format/toon'
+
 type OutputStream = 'stdout' | 'stderr'
 
 export function secretForms(secrets: readonly string[]): string[] {
@@ -34,8 +36,11 @@ export class SecretScanner {
   readonly #patterns: { bytes: Buffer, prefixes: Uint32Array }[]
   readonly #positions: Record<OutputStream, Uint32Array>
   #matched = false
+  readonly #valuePatterns: readonly string[]
+  readonly #chunks: Record<OutputStream, Buffer[]> = { stdout: [], stderr: [] }
 
-  constructor(secrets: readonly string[]) {
+  constructor(secrets: readonly string[], valueSecrets: readonly string[] = []) {
+    this.#valuePatterns = secretForms(valueSecrets)
     this.#patterns = secretForms(secrets).map(form => {
       const bytes = Buffer.from(form, 'utf8')
       return { bytes, prefixes: prefixLengths(bytes) }
@@ -48,6 +53,7 @@ export class SecretScanner {
 
   scan(stream: OutputStream, chunk: Uint8Array): boolean {
     if (this.#matched) return true
+    if (this.#valuePatterns.length) this.#chunks[stream].push(Buffer.from(chunk))
     const positions = this.#positions[stream]
     for (let index = 0; index < this.#patterns.length; index++) {
       const { bytes, prefixes } = this.#patterns[index]
@@ -63,5 +69,21 @@ export class SecretScanner {
       positions[index] = position
     }
     return false
+  }
+
+  finish(): boolean {
+    const containsSecret = (value: unknown): boolean => {
+      if (typeof value === 'string') return this.#valuePatterns.some(pattern => value.includes(pattern))
+      if (Array.isArray(value)) return value.some(containsSecret)
+      return value !== null && typeof value === 'object' && Object.values(value).some(containsSecret)
+    }
+    for (const stream of ['stdout', 'stderr'] as const) {
+      const chunks = this.#chunks[stream]
+      this.#chunks[stream] = []
+      if (!chunks.length) continue
+      try { this.#matched ||= containsSecret(decode(Buffer.concat(chunks).toString('utf8'))) }
+      catch { this.#matched = true }
+    }
+    return this.#matched
   }
 }

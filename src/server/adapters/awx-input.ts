@@ -9,15 +9,20 @@ const { pathToFileURL } = await import('node:url');
 const { createRequire } = await import('node:module');
 const executable = process.argv[1];
 const argv = process.argv.slice(2);
+const require = createRequire(executable);
+const { decode, encode } = await import(pathToFileURL(require.resolve('@toon-format/toon')).href);
 const { values, patterns } = JSON.parse(readFileSync('awx-input.json', 'utf8'));
 for (const [index, value] of values) argv[index] = value;
-patterns.sort((a, b) => b.length - a.length);
+const redact = value => {
+  if (typeof value === 'string') return patterns.some(pattern => value.includes(pattern)) ? null : value;
+  if (Array.isArray(value)) return value.map(redact);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, redact(child)]));
+  return value;
+};
 const output = stream => ({ write(chunk) {
-  let text = String(chunk);
-  for (const pattern of patterns) text = text.replaceAll(pattern, '[redacted]');
-  stream.write(text);
+  stream.write(encode(redact(decode(String(chunk)))) + '\\n');
 } });
-const { main } = await import(pathToFileURL(createRequire(executable).resolve('awx-axi')).href);
+const { main } = await import(pathToFileURL(require.resolve('awx-axi')).href);
 await main({ argv, env: process.env, stdout: output(process.stdout), stderr: output(process.stderr) });
 `
 
