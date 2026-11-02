@@ -1281,8 +1281,8 @@ test('Falcon write switch activates only the selected saved MalQuery operation',
   expect(store.readCredential(store.findCredential('falcon-axi')!)).toMatchObject({
     ...values['falcon-axi'], writes: { allowWrites: true, operations: ['malquery search'] } })
   const detail = await (await request('GET', '/falcon-axi')).json()
-  expect(detail).toMatchObject({ readOnly: false, writeAccess: { capable: true, enabled: true,
-    supportedOperations: ['host usb', 'identity activity', 'malquery search', 'rtr run', 'search start', 'search stop'], allowedOperations: ['malquery search'] } })
+  expect(detail).toMatchObject({ readOnly: false, writeAccess: { capable: true, enabled: true, allowedOperations: ['malquery search'] } })
+  expect([...detail.writeAccess.supportedOperations].sort()).toEqual(['host usb', 'identity activity', 'malquery search', 'rtr run', 'search start', 'search stop'])
 })
 
 test.each(['az-axi', 'ado-axi', 'awx-axi'] as const)('%s write switch preserves native settings and credentials', async tool => {
