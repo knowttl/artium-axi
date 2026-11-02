@@ -39,31 +39,20 @@ Targets for aliases and file/output flags are managed equivalents as described b
 
 ## Status and authorization rules
 
-This read/write target supersedes the earlier multi-permission proposals in the linked capability notes.
+The generated [target authorization policy](../awx-parity-matrix.md#target-authorization-policy), owned by `scripts/awx-parity.mjs`, governs the authorization columns below.
 Implementation slices ship without an Artium release per slice; publish one release after the final slice.
 
 Blocked means the current adapter refuses the route or flag, even when an administrator enables writes.
 Managed equivalent replaces upstream client state, filesystem access or input delivery with an Artium-owned workflow.
 Not applicable always has an explicit managed-deployment reason.
 Every flag row has its own current and target decision; accepted commands do not imply all flags work.
-Flags inherit the command's tier, conditional authorization and upstream validation.
+Flags inherit the command's read/write authorization and upstream validation.
 `<value>` denotes a value-taking flag, while other flags are boolean.
 Positionals retain upstream names and required counts in the command table.
 
-All operations retain tenant/account access, managed HTTPS origin, verified TLS, credential isolation and AWX resource authorization.
-Target authorization is read/write only: one administrator-controlled per-tenant writes switch, default OFF.
-Reads need no writes switch; all mutations, including destructive actions and security administration, require that single writes switch.
 Today ordinary configuration access uses separate `allowConfigurationWrites`, while operational writes use `allowWrites`; these describe the existing boundary only.
-S1 replaces that split target model with one writes switch and replaces permanent mutation-route rejection with setting-gated access.
+S1 applies the target policy and replaces permanent mutation-route rejection with setting-gated access.
 Current configuration previews need configuration authorization; operational execution needs `--confirm` without `--dry-run`.
-Target mutations retain upstream previews, explicit confirmation, coordination, audit and unknown-outcome recovery consistent with Artium's other tools.
-Help itself is read-only; a mutation's listed tier governs its preview/execution rather than granting help a write effect.
-
-Upstream config/delete/security tags describe operation effects, not separate target administrator permissions; all mutations below have authorization `write`.
-Association removals, graph unlinking, resource deletion and token revocation all require the same writes switch.
-Credential-bearing inventory-source and execution-environment variants, plus notification configuration/messages input, retain secure input handling under the same writes switch.
-Project credential attachment requires the same writes switch as project create/edit.
-Upstream copy tags still distinguish security from configuration effects; every copy uses target authorization `write`.
 
 ## Global and version flags
 
@@ -296,9 +285,9 @@ Raw overrides are blocked today; target managed equivalents keep selection and t
 | `role users` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `role teams` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `home` | supported | supported | read | Uses the selected managed AWX account; upstream identity/read diagnostics retained |
-| `auth login` | managed equivalent (raw command blocked) | managed equivalent | write | Artium AWX account form accepts a PAT or exchanges username/password for a PAT; raw upstream login is blocked. Passwords and tokens use the managed credential store, never argv. Client-local lifecycle also mints or revokes an upstream PAT; logout needs delete and security gates upstream |
+| `auth login` | managed equivalent (raw command blocked) | managed equivalent | write | Artium AWX account form accepts a PAT or exchanges username/password for a PAT; raw upstream login is blocked. Passwords and tokens use the managed credential store, never argv. Native PAT effects are described in the generated reference. |
 | `auth status` | supported | supported | read | Uses the selected managed AWX account; upstream identity/read diagnostics retained |
-| `auth logout` | blocked | managed equivalent | write | Removing a managed account is not upstream PAT revocation. Target managed token revocation requires the single writes switch, preview/confirmation and audit. Client-local lifecycle also mints or revokes an upstream PAT; logout needs delete and security gates upstream |
+| `auth logout` | blocked | managed equivalent | write | Removing a managed account is not upstream PAT revocation. Provide managed token revocation under the target authorization policy. Native PAT effects are described in the generated reference. |
 | `setup hooks` | managed equivalent (raw command blocked) | managed equivalent | read | Use artium-axi setup --host <claude\|codex\|opencode> --hook on Linux for authenticated ambient tool context and granted tool skills. Claude Code and Codex use SessionStart; OpenCode 1.19.x uses its local system-context plugin API. Codex host trust and feature controls still apply. Pi and non-Linux hosts retain skill-only setup. Never install hooks in the server runner. |
 | `profile list` | managed equivalent (raw command blocked) | managed equivalent | read | Use Artium account discovery and selection; upstream filesystem profiles are not caller-owned. |
 | `config path` | not applicable | not applicable | read | Artium materializes private runner configuration. There is no client-owned upstream config path to expose. |

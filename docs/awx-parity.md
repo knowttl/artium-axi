@@ -1,8 +1,8 @@
 # AWX capability parity
 
 Tracks #237's capability inventory and delivery slices, including the ordinary configuration writes implemented in slice b.
-The [S0 published-package audit](parity/awx-axi.md) owns command and flag target decisions, authorization, managed equivalents and counts against `@knowttl/awx-axi@0.1.11`.
-Its [status and authorization rules](parity/awx-axi.md#status-and-authorization-rules) supersede the earlier permission and release proposals.
+The [S0 published-package audit](parity/awx-axi.md) owns command and flag target decisions, managed equivalents, release sequencing and counts against `@knowttl/awx-axi@0.1.11`.
+The generated [target authorization policy](awx-parity-matrix.md#target-authorization-policy) owns target permissions.
 The exhaustive [command and flag matrix](awx-parity-matrix.md) and [JSON inventory](../tools/inventories/awx-axi-parity.json) describe the installed `awx-axi` version pinned in [tools/package.json](../tools/package.json) and [tools/integrity.json](../tools/integrity.json).
 
 ## Reproduction and freshness
@@ -25,8 +25,8 @@ Regeneration detects metadata drift, but does not prove classifications for a ne
 
 ## Reading the matrix
 
-Each command and flag has an upstream effect, current Artium status, target slice and required administrator control.
-The generated artifacts retain the earlier multi-permission target proposals; use the [S0 decisions](parity/awx-axi.md) for target authorization and alias equivalents instead.
+Each command and flag has an upstream effect, current Artium status, target slice and read/write target authorization.
+Use the [S0 decisions](parity/awx-axi.md) for target support and alias equivalents.
 Upstream effect tags describe operation effects, not target administrator permissions.
 The JSON carries upstream descriptions and help, input delivery requirements, reasons, conditional effects and alias relationships.
 Four selection globals are listed once and apply across leaves; `--help` is included for every leaf, while `--version`, `-v` and `-V` apply to bare invocations.
@@ -44,7 +44,7 @@ Target slices group delivery work; already supported rows, including those assig
 
 See the [AWX write boundary](safety.md#write-gates-by-tool) for current write permissions and blocked operation classes.
 See the [client command reference](commands.md) for preview and confirmation behavior.
-The [S0 authorization rules](parity/awx-axi.md#status-and-authorization-rules) govern every later write class, including deletion, credential association and token revocation.
+The [target authorization policy](awx-parity-matrix.md#target-authorization-policy) governs every later write class, including deletion, credential association and token revocation.
 `auth login` and `auth logout` belong to client-local credential lifecycle, but also mint/revoke PATs upstream.
 The managed account form already supports PAT entry or username/password token acquisition; removing an Artium account is not equivalent to revoking a PAT.
 
@@ -64,7 +64,7 @@ Global `--config` refers to managed runner configuration and has no caller file-
 
 ## Delivery slices
 
-These work packages retain the earlier b-f labels; their target controls follow the [S0 authorization rules](parity/awx-axi.md#status-and-authorization-rules).
+These work packages retain the earlier b-f labels; their target controls follow the [target authorization policy](awx-parity-matrix.md#target-authorization-policy).
 
 | Slice | Work and acceptance boundary | Required controls |
 | --- | --- | --- |
