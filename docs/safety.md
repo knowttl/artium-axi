@@ -238,7 +238,7 @@ Artium does not scrub historical logs or scan current projects for stdout redact
 
 AWX `host inspect` reads a bounded batch of selected hosts, with optional inventory scoping and explicit per-host completeness, errors and previews.
 This read does not itself mutate hosts; bulk host create and delete are separate writes under the same single tenant writes switch, and the [reviewed AWX inventory](../tools/inventories/awx-axi.json) owns the command and flag boundary.
-Bulk host delete is reported as `PARTIAL_OUTCOME` with `unconfirmed_hosts` unless the controller confirms every requested host as deleted.
+See [bulk outcome recovery](runbook.md#retention-and-export) for controller confirmation requirements and safe readback before retrying.
 Inventory and constructed-inventory detail reads parse JSON/YAML variable documents and redact sensitive keys before returning them; malformed documents are replaced with `***`.
 Constructed inventories expose only the reads supported by the pinned CLI.
 
