@@ -27,7 +27,7 @@ export async function withFakeService(check: (fixture: {
     const [chunk] = await once(child.stdout!, 'data', { signal: AbortSignal.timeout(30_000) })
     const port = Number(chunk.toString().trim().split(' ')[1])
     const send = (path: string, method = 'GET', trusted = true) => new Promise<string>((resolve, reject) => {
-      const req = request({ hostname: 'localhost', port, path, method,
+      const req = request({ hostname: 'localhost', port, path, method, agent: false,
         headers: { authorization: 'Bearer CANARY-synthetic' },
         ...(trusted ? { ca: readFileSync(join(directory, 'ca.crt')) } : {}),
       }, response => {
