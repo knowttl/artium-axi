@@ -38,7 +38,7 @@ Their JSON entries explicitly record this upstream limitation for slice f.
 `supported` means the reviewed route or flag passes Artium validation, subject to upstream validation, managed account permissions and execution limits.
 It does not claim live acceptance or complete upstream behavior for every value.
 `blocked` includes unsupported routes and inputs; it does not imply that route help is refused.
-Flags listed in the inventory's `secureInputFlags` remain blocked pending secure input support; see the [current input boundary](safety.md#write-gates-by-tool).
+Flags listed in the inventory's `secureInputFlags` require the [controlled input channel](client-reference.md#command-surface-and-subcommands); see the [current input boundary](safety.md#write-gates-by-tool) for supported inputs and remaining restrictions.
 `managed equivalent` identifies an Artium-owned workflow rather than permission to execute the upstream command or override.
 `not applicable` identifies a client-local operation with an explicit managed-deployment reason.
 Target slices group delivery work; already supported rows, including those assigned to slice f, mean retain and verify behavior, not postpone existing support.
@@ -80,15 +80,5 @@ No live tenant or appliance evidence is claimed here.
 
 ## Inventories and sources (S4)
 
-Canonical `inventory create` and `inventory edit` accept private `--variables` input.
-`inventory source-create` and `inventory source-edit` accept `--source-vars`, `--source-project`, `--credential` and the pinned update-on-launch flags under the same per-tenant writes switch.
-Source variables must be a JSON object, as required by the pinned CLI; inventory variables accept JSON or YAML.
-Use the existing structured input channel for inline values or uploaded local files.
-Source credential and notification associations use `inventory source-credential-add`, `source-credential-remove`, `source-notification-add` and `source-notification-remove`; notification events are `started`, `success` and `error`.
-Every mutation requires write access for preview and explicit confirmation for execution, and retains AWX resource permission checks and audit.
-
-With writes disabled, `inventory show`, `inventory sources`, `inventory-source list`, `inventory-source show` and `inventory updates` remain available.
-Inventory and constructed-inventory detail variables are parsed and sensitive keys are redacted before returning them; malformed variable documents are replaced with `***`.
-Source detail retains redacted configuration and update history; `inventory sync` continues to target a source and supports preview, confirmation and waiting for completion.
-Constructed inventories retain only the reads exposed by the pinned CLI.
-Acceptance tests use the public run API with the pinned CLI and fake AWX service, including credential-bearing writes, disabled-write and permission denials, private input cleanup and later reads.
+See the [command reference](commands.md) for inventory and source operations, [structured input handling](client-reference.md#command-surface-and-subcommands) for variable formats and uploads, and the [AWX safety boundary](safety.md#write-gates-by-tool) for permissions and read redaction.
+Acceptance scenarios in [the AWX integration suite](../test/integration/awx.test.ts) use the public run API with the pinned CLI and fake AWX service, including credential-bearing writes, deletion, disabled-write and permission denials, private input cleanup and later reads.

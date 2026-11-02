@@ -181,6 +181,8 @@ Labs hunting and search contracts are experimental.
 
 AWX `host inspect` reads a bounded batch of selected hosts, with optional inventory scoping and explicit per-host completeness, errors and previews.
 This read does not enable bulk host mutations; the [reviewed AWX inventory](../tools/inventories/awx-axi.json) owns its command and flag boundary.
+Inventory and constructed-inventory detail reads parse JSON/YAML variable documents and redact sensitive keys before returning them; malformed documents are replaced with `***`.
+Constructed inventories expose only the reads supported by the pinned CLI.
 
 AWX protocol metadata preservation has a known upstream exception: awx-axi substring-redacts registered secrets in its encoded output, so a secret equal to a protocol token can mask an error code before Artium receives it.
 This can prevent unknown-outcome recovery guidance after an interrupted write; inspect the affected resource before retrying.
