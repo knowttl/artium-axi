@@ -250,6 +250,7 @@ For each call, the host:
    The implementation is in [runner.ts](../src/server/runner/runner.ts).
 2. Writes `$XDG_CONFIG_HOME/<tool>/config.json` containing exactly one profile, named `artium`, which is also the `defaultProfile`.
    Tenable instead selects a stable private configuration through `TENABLE_AXI_CONFIG`; see [journal and profile custody](runbook.md#retention-and-export).
+   Kubernetes mutation workflows select a private per-call profile through `KUBERNETES_AXI_CONFIG` beside persistent request state; see [request custody and retention](runbook.md#retention-and-export).
 3. Replaces each `x-secret` field with `{"env": "ARTIUM_SECRET_<n>"}` and passes the values through the environment.
 4. Adds every secret value to its output scanner.
 5. Sets `P_READ_ONLY` and `P_WRITE_LOG` according to its own policy for tools with native write gates.
