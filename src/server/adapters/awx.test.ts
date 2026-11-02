@@ -4,6 +4,8 @@ import { decode, encode } from '@toon-format/toon'
 import { homeDiagnostic } from '../../../tools/node_modules/awx-axi/dist/commands/home.js'
 import { rawRegion } from '../../../tools/node_modules/awx-axi/dist/core/output.js'
 import { jobDomain } from '../../../tools/node_modules/awx-axi/dist/domains/job/index.js'
+import { main } from '../../../tools/node_modules/awx-axi/dist/cli.js'
+import { RecordedTransport } from '../../../tools/node_modules/awx-axi/dist/core/transport.js'
 import inventory from '../../../tools/inventories/awx-axi.json' with { type: 'json' }
 import { toolAllowsWrites } from '../../shared/api.js'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
@@ -21,6 +23,38 @@ const adapter = (allowWrites = false, allowConfigurationWrites = false) => creat
 const fixedSchemaLists = ['job', 'template', 'workflow', 'organization', 'system-job-template', 'system-job',
   'credential', 'ad-hoc', 'project', 'schedule', 'execution-environment', 'user', 'notification',
   'notification-template', 'activity-stream', 'team', 'role']
+
+test.each(['notification', 'notification-template'].flatMap(group => [
+  { group, flags: ['--limit', '1'], ids: [41], stop: 'row-budget', truncated: true, pages: 1 },
+  { group, flags: ['--all', '--max-rows', '2'], ids: [41, 42], stop: 'complete', truncated: false, pages: 2 },
+]))('$group reads preserve pagination with writes disabled: $flags', async ({ group, flags, ids, stop, truncated, pages }) => {
+  const call = await adapter().prepare([group, 'list', ...flags], reference)
+  const route = group === 'notification' ? 'notifications/' : 'notification_templates/'
+  const transport = new RecordedTransport([
+    { status: 200, body: { count: 2, next: `/api/v2/${route}?page=2`, results: [{ id: 41, name: 'Synthetic first', status: 'successful' }] } },
+    { status: 200, body: { count: 2, next: null, results: [{ id: 42, name: 'Synthetic second', status: 'pending' }] } },
+  ], { readOnly: true })
+  let stdout = ''
+  await main({ argv: call.args, env: call.environment, createTransport: () => transport,
+    stdout: { write: chunk => { stdout += chunk } } })
+  const output = decode(stdout) as Record<string, unknown>
+  const label = group === 'notification' ? 'notifications' : 'notification-templates'
+  expect(output[label]).toEqual(ids.map(id => expect.objectContaining({ id })))
+  expect(output).toMatchObject({ pagination: { stop, truncated, pages } })
+})
+
+test.each(['create', 'edit'].flatMap(operation => ['configuration-file', 'config-file', 'messages-file'].map(flag => ({ operation, flag }))))(
+  'notification-template $operation --$flag keeps uploaded bytes out of process arguments', async ({ operation, flag }) => {
+    const content = '{"token":"CANARY-notification-input"}'
+    const call = await adapter(true).prepare(['notification-template', operation, '42', `--${flag}`, 'notification.json', '--confirm'], reference,
+      { files: [{ name: 'notification.json', contentBase64: Buffer.from(content).toString('base64') }] })
+    expect(call.args.join(' ')).not.toContain('CANARY-')
+    expect(call.fileArguments?.map(index => call.args[index])).toEqual(['notification.json'])
+    expect(call.limits?.privateOutput?.fields).toMatchObject({
+      [flag === 'messages-file' ? 'messages' : 'notification_configuration']: '[structured input redacted, 37 bytes]',
+    })
+  },
+)
 
 test.each([
   'https://CANARY-user@scm.example/repo',

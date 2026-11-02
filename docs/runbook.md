@@ -577,6 +577,7 @@ AWX's upstream journal stays in its isolated per-call state directory and is rem
 AWX writes returning native `CONTROLLER_UNREACHABLE` or `SERVER_BUSY` are reported as `UNKNOWN_OUTCOME` because the controller may have applied the change before the response failed.
 After an unknown credential creation or copy outcome, including `team credential-create`, reconcile through `artium-axi awx-axi credential list --limit 100`.
 After an unknown execution-environment create or rename outcome, reconcile through `artium-axi awx-axi execution-environment list --limit 100` and inspect the matching environment with `execution-environment show <id|name>`, including the new name after a rename.
+After an unknown notification-template create or rename outcome, reconcile through `artium-axi awx-axi notification-template list --limit 100` and inspect the matching template with `notification-template show <id|name>`, including the new name after a rename.
 Follow the returned read-back command and inspect the affected resources and any additional pages before retrying; absence from a bounded read does not prove the write failed.
 There is no audit deletion endpoint or general export CLI.
 See [Audit screen and API usage](admin-guide.md#audit-screen-and-api) for filtered review, pagination, CSV and JSON-lines downloads and read authorization.

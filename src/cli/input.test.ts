@@ -79,6 +79,11 @@ test.each([
   ['credential', 'create', 'Synthetic', '--inputs-file'],
   ['inventory', 'host-create', 'synthetic-host', '--variables'],
   ['notification-template', 'edit', '42', '--configuration-file'],
+  ['notification-template', 'create', 'Synthetic', '--configuration-file'],
+  ['notification-template', 'create', 'Synthetic', '--config-file'],
+  ['notification-template', 'edit', '42', '--config-file'],
+  ['notification-template', 'create', 'Synthetic', '--messages-file'],
+  ['notification-template', 'edit', '42', '--messages-file'],
 ])('AWX uploads exact caller bytes through %j', async (...prefix) => {
   const path = join(directory, 'awx-input.yml')
   const content = 'password: CANARY-upload\r\nkey: é\n'

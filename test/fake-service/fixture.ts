@@ -23,7 +23,8 @@ export async function withFakeService(check: (fixture: {
     child.on('message', message => {
       if (message === 'held-request') onHeldRequest?.()
     })
-    const [chunk] = await once(child.stdout!, 'data', { signal: AbortSignal.timeout(3000) })
+    // Child startup needs the same headroom as integration hooks under concurrent load.
+    const [chunk] = await once(child.stdout!, 'data', { signal: AbortSignal.timeout(30_000) })
     const port = Number(chunk.toString().trim().split(' ')[1])
     const send = (path: string, method = 'GET', trusted = true) => new Promise<string>((resolve, reject) => {
       const req = request({ hostname: 'localhost', port, path, method,
