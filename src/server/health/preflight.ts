@@ -2,7 +2,7 @@ import type { LookupAddress } from 'node:dns'
 import { X509Certificate } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
 import { connect, isIP } from 'node:net'
-import { connect as connectTls } from 'node:tls'
+import { checkServerIdentity, connect as connectTls } from 'node:tls'
 import type { CredentialTrust } from '../store/trusted-certificates.js'
 import { certificatePinMismatchMessage, classifyCertificateFailure, credentialTlsOptions } from '../credential-tls.js'
 import { certificateEndpoint } from '../certificate-endpoint.js'
@@ -16,15 +16,18 @@ function verificationCode(error: unknown): string {
   return typeof code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(code) ? code : 'CONNECTION_FAILED'
 }
 
+type NativeTls = { connectAddress?: string, peerFingerprintSha256?: string,
+  certificatePin?: { sha256: string, origin: string, replaceHostname?: boolean } }
+
 // The handshake sends no application data or credentials. Each stage has a deadline.
 export async function inspectEndpoint(endpoint: URL, ca?: string, timeoutMs = 5000, maxVersion?: 'TLSv1.2',
-  trust: readonly CredentialTrust[] = []):
+  trust: readonly CredentialTrust[] = [], native: NativeTls = {}):
 Promise<{ chain: X509Certificate[], verificationError?: string }> {
   const { hostname: host, port } = certificateEndpoint(endpoint)
   let addresses: LookupAddress[]
   let timer: NodeJS.Timeout | undefined
   try {
-    addresses = await Promise.race([lookup(host, { all: true }), new Promise<never>((_, reject) => {
+    addresses = await Promise.race([lookup(native.connectAddress ?? host, { all: true }), new Promise<never>((_, reject) => {
       timer = setTimeout(() => reject(Object.assign(new Error(), { code: 'ETIMEDOUT' })), timeoutMs)
     })])
   } catch (error) {
@@ -74,8 +77,20 @@ Promise<{ chain: X509Certificate[], verificationError?: string }> {
       chain.push(new X509Certificate(peer.raw))
       peer = peer.issuerCertificate
     }
-    const failure = !secure.authorized ? await classifyCertificateFailure(
+    let failure = !secure.authorized ? await classifyCertificateFailure(
       Object.assign(new Error(), { code: String(secure.authorizationError) }), trust, chain[0]?.fingerprint256) : undefined
+    const pin = native.certificatePin
+    const fingerprint = chain[0]?.fingerprint256.replaceAll(':', '').toLowerCase()
+    if (pin) {
+      const certificate = chain[0]
+      const identityError = !pin.replaceHostname ? checkServerIdentity(host, secure.getPeerCertificate()) : undefined
+      failure = pin.origin !== endpoint.origin || fingerprint !== pin.sha256.toLowerCase()
+        ? Object.assign(new Error(), { code: 'CERTIFICATE_PIN_MISMATCH' })
+        : !certificate || Date.now() < Date.parse(certificate.validFrom) || Date.now() > Date.parse(certificate.validTo)
+          ? Object.assign(new Error(), { code: 'CERT_HAS_EXPIRED' }) : identityError
+    } else if (native.peerFingerprintSha256 && fingerprint !== native.peerFingerprintSha256.toLowerCase()) {
+      failure = Object.assign(new Error(), { code: 'CERTIFICATE_PIN_MISMATCH' })
+    }
     return { chain, ...(failure ? { verificationError: (failure as NodeJS.ErrnoException).code } : {}) }
   } catch (error) {
     const certificate = secure.getPeerCertificate()
@@ -92,8 +107,8 @@ Promise<{ chain: X509Certificate[], verificationError?: string }> {
 }
 
 export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 5000, maxVersion?: 'TLSv1.2',
-  trust: readonly CredentialTrust[] = []): Promise<void> {
-  const result = await inspectEndpoint(endpoint, ca, timeoutMs, maxVersion, trust)
+  trust: readonly CredentialTrust[] = [], native: NativeTls = {}): Promise<void> {
+  const result = await inspectEndpoint(endpoint, ca, timeoutMs, maxVersion, trust, native)
   if (!result.verificationError) return
   const host = endpoint.hostname.replace(/^\[|\]$/g, '')
   const code = result.verificationError
@@ -105,11 +120,13 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
 }
 
 export async function preflight(tool: ToolName, credential: Record<string, unknown>, trust: readonly CredentialTrust[] = []): Promise<void> {
+  const tls = tool === 'unifi-axi' ? credential.tls as NativeTls & { trustedCertificatePem?: string } | undefined : undefined
+  const native: NativeTls = tool === 'proxmox-axi' ? { certificatePin: credential.certificatePin as NativeTls['certificatePin'] } : tls ?? {}
   const ca = credential.caBundle ?? credential.caFile
-    ?? (tool === 'unifi-axi' ? (credential.tls as { trustedCertificatePem?: string } | undefined)?.trustedCertificatePem : undefined)
+    ?? tls?.trustedCertificatePem
   for (const endpoint of toolEndpoints(tool, credential)) {
     await preflightEndpoint(endpoint, typeof ca === 'string' ? ca : undefined, undefined,
       tool === 'ldap-axi' && credential.tlsMaxVersion === '1.2' ? 'TLSv1.2' : undefined,
-      trust.filter(certificate => certificateEndpoint(certificate.endpoint).href === certificateEndpoint(endpoint).href))
+      trust.filter(certificate => certificateEndpoint(certificate.endpoint).href === certificateEndpoint(endpoint).href), native)
   }
 }

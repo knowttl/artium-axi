@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { X509Certificate } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -22,6 +23,9 @@ beforeAll(() => {
   createTestCertificates(directory, ['localhost'])
   mkdirSync(join(directory, 'extra'))
   createTestCertificates(join(directory, 'extra'), ['extra.synthetic.invalid'])
+  execFileSync('openssl', ['req', '-x509', '-key', 'server.key', '-subj', '/CN=localhost', '-days', '3650',
+    '-addext', 'subjectAltName=DNS:localhost,DNS:extra.synthetic.invalid', '-addext', 'basicConstraints=CA:FALSE',
+    '-out', 'self-signed.crt'], { cwd: directory, stdio: 'pipe' })
   execFileSync('openssl', ['req', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=synthetic-leaf',
     '-keyout', 'invalid-ca.key', '-out', 'invalid-ca.csr'], { cwd: directory, stdio: 'pipe' })
   execFileSync('openssl', ['ca', '-batch', '-notext', '-rand_serial', '-config', 'authority.cnf',
@@ -30,6 +34,45 @@ beforeAll(() => {
     '-enddate', '20991231235959Z'], { cwd: directory, stdio: 'pipe' })
 })
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
+
+test.each([
+  { fingerprint: 'matching', host: 'extra.synthetic.invalid', error: undefined },
+  { fingerprint: 'mismatched', host: 'extra.synthetic.invalid', error: 'CERTIFICATE_PIN_MISMATCH' },
+  { fingerprint: 'matching', host: '127.0.0.1', error: 'ERR_TLS_CERT_ALTNAME_INVALID' },
+])('UniFi preflight honors connectAddress with $fingerprint pin for $host', async ({ fingerprint, host, error }) => {
+  const pem = readFileSync(join(directory, 'self-signed.crt'), 'utf8')
+  const server = createServer({ key: readFileSync(join(directory, 'server.key')), cert: pem })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const check = preflight('unifi-axi', { origin: `https://${host}:${(server.address() as { port: number }).port}`,
+      tls: { connectAddress: '127.0.0.1', trustedCertificatePem: pem,
+        peerFingerprintSha256: fingerprint === 'matching' ? new X509Certificate(pem).fingerprint256.replaceAll(':', '') : '0'.repeat(64) } })
+    if (error) await expect(check).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED', diagnostic: { toolCode: error } })
+    else await expect(check).resolves.toBeUndefined()
+  } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
+})
+
+test.each([
+  { host: 'localhost', fingerprint: 'matching', replaceHostname: false, differentOrigin: false, error: undefined },
+  { host: 'localhost', fingerprint: 'mismatched', replaceHostname: false, differentOrigin: false, error: 'CERTIFICATE_PIN_MISMATCH' },
+  { host: 'localhost', fingerprint: 'matching', replaceHostname: false, differentOrigin: true, error: 'CERTIFICATE_PIN_MISMATCH' },
+  { host: '127.0.0.1', fingerprint: 'matching', replaceHostname: false, differentOrigin: false, error: 'ERR_TLS_CERT_ALTNAME_INVALID' },
+  { host: '127.0.0.1', fingerprint: 'matching', replaceHostname: true, differentOrigin: false, error: undefined },
+])('Proxmox preflight checks $host with $fingerprint pin and hostname replacement $replaceHostname, origin mismatch $differentOrigin',
+  async ({ host, fingerprint, replaceHostname, differentOrigin, error }) => {
+    const pem = readFileSync(join(directory, 'self-signed.crt'), 'utf8')
+    const server = createServer({ key: readFileSync(join(directory, 'server.key')), cert: pem })
+    await new Promise<void>(resolve => server.listen(0, resolve))
+    try {
+      const origin = `https://${host}:${(server.address() as { port: number }).port}`
+      const check = preflight('proxmox-axi', { origin, certificatePin: {
+        origin: differentOrigin ? 'https://other.synthetic.invalid' : origin, replaceHostname,
+        sha256: fingerprint === 'matching' ? new X509Certificate(pem).fingerprint256.replaceAll(':', '') : '0'.repeat(64),
+      } })
+      if (error) await expect(check).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED', diagnostic: { toolCode: error } })
+      else await expect(check).resolves.toBeUndefined()
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
+  })
 
 test.each([
   ['falcon-axi', { region: 'us-2' }, ['https://api.us-2.crowdstrike.com/']],
