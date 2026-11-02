@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.31](https://github.com/knowttl/artium-axi/compare/v0.0.30...v0.0.31) (2026-11-02)
+
+
+### Features
+
+* **admin:** redesign role management and audit browsing ([#261](https://github.com/knowttl/artium-axi/issues/261)) ([b2e63dc](https://github.com/knowttl/artium-axi/commit/b2e63dce0fd94041a95f346902a024e8b2fbd30f))
+* propose connection-lifetime credential custody contract ([#257](https://github.com/knowttl/artium-axi/issues/257)) ([458ee4d](https://github.com/knowttl/artium-axi/commit/458ee4d7e53daf3f01b4b6c91f75331841e0ad16))
+* redesign admin overview and people management ([#262](https://github.com/knowttl/artium-axi/issues/262)) ([1a8d668](https://github.com/knowttl/artium-axi/commit/1a8d668b7e2466a7666c6a8a792b8f3e6b4b7bf0))
+* **server:** add shared UI design system and admin shell ([#259](https://github.com/knowttl/artium-axi/issues/259)) ([de55dc1](https://github.com/knowttl/artium-axi/commit/de55dc1bb164e8311ca85b3f15af6502cb033774))
+* **server:** redesign SSO administration and account setup ([#263](https://github.com/knowttl/artium-axi/issues/263)) ([de1569b](https://github.com/knowttl/artium-axi/commit/de1569b9907235748844382cca6fc969f85c97e9))
+* **server:** redesign tool setup and write permissions ([#264](https://github.com/knowttl/artium-axi/issues/264)) ([08967be](https://github.com/knowttl/artium-axi/commit/08967bef659ad98371b9d7b1bb740eb62ae7156b))
+
 ## [0.0.30](https://github.com/knowttl/artium-axi/compare/v0.0.29...v0.0.30) (2026-10-31)
 
 
