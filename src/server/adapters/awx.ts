@@ -71,7 +71,8 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   const effect = ['write', 'configuration-write'].includes(route.effect) && flags.has('confirm') && !flags.has('dry-run') ? 'write' as const : 'read' as const
   const createsRun = positionals[1] === 'launch' || route.command === 'job relaunch'
   const readGroup = positionals[0] === 'inventory' ? route.command.includes('host-') ? 'host' : route.command.includes('group-') ? 'group'
-    : route.command.includes('source-') || route.command === 'inventory sync' ? 'inventory-source' : 'inventory' : positionals[0]
+    : route.command.includes('source-') || route.command === 'inventory sync' ? 'inventory-source' : 'inventory'
+    : route.command === 'team credential-create' ? 'credential' : positionals[0]
   let checkArgs = [readGroup, 'list', '--limit', '100']
   if (createsRun) checkArgs = ['job', 'list', '--type', 'all', '--limit', '100']
   else if (configuration && route.command.startsWith('workflow node-')) {

@@ -90,6 +90,16 @@ Inspect state with `inventory show`, `inventory sources`, `inventory-source list
 `inventory-source show` includes redacted configuration and update history.
 `inventory sync <source-id|name>` targets a source, supports preview and confirmation, and accepts `--wait` to wait for completion.
 
+Credential creation accepts a private JSON object of credential inputs: `artium-axi awx-axi credential create synthetic-machine --credential-type Machine --organization 7 --inputs-file machine.json --dry-run`.
+Replace `--dry-run` with `--confirm` to create it; AWX validates the credential type and permissions.
+Use `credential edit <id|name> --inputs-file machine.json` to update inputs, or `--inputs-file -` on credential create/edit to read bounded stdin.
+Keep SSH keys and passwords in the protected file or stdin, never command arguments.
+`team credential-create <team-id|name> --name synthetic-machine --credential-type Machine --inputs-file machine.json` creates a team credential using an uploaded file; this upstream command does not accept stdin.
+`credential copy <id|name> --name synthetic-copy` copies a credential on the controller without downloading its secrets.
+Both commands use the same administrator writes switch, `--dry-run` preview and `--confirm` execution gate.
+After an unknown creation or copy outcome, inspect `credential list --limit 100` and additional pages before retrying; team credential creation also reconciles through credentials.
+Credential list/show remain available with writes disabled and return metadata without credential inputs.
+
 ## Technitium DNS
 
 Run `artium-axi tools show technitium-axi` for admitted commands and each command with `--help` for its required selectors.

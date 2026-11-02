@@ -240,6 +240,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     requests.push(recorded)
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ detail: 'Invalid token' })); return }
     const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|inventory_updates|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|schedules|credentials|users|teams|notification_templates|bulk)\//.test(url.pathname)
+    if (req.method === 'GET' && url.pathname === '/api/v2/credential_types/') {
+      const rows = url.searchParams.has('name') && url.searchParams.get('name') !== 'Machine' ? [] : [{ id: 7, name: 'Machine', kind: 'ssh' }]
+      res.end(JSON.stringify({ count: rows.length, next: null, results: rows })); return
+    }
     if (req.method === 'GET' && url.pathname === '/api/v2/constructed_inventories/71/') {
       res.end(JSON.stringify({ id: 71, name: 'Synthetic constructed inventory', source: 'constructed',
         variables: 'mode: synthetic\npassword: CANARY-constructed-variable\n',
@@ -278,6 +282,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         const payload = JSON.parse(body || '{}')
         recorded.body = payload
         if (configurationPath && !awxConfigurationAllowed) { res.writeHead(403); res.end(JSON.stringify({ detail: 'You do not have permission to perform this action.' })); return }
+        if ((url.pathname.startsWith('/api/v2/credentials/') || /^\/api\/v2\/teams\/\d+\/credentials\/$/.test(url.pathname))
+          && payload.credential_type !== undefined && payload.credential_type !== 7) {
+          res.writeHead(400); res.end(JSON.stringify({ credential_type: ['Invalid pk - object does not exist.'] })); return
+        }
         mutations++
         const association = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|inventory_sources\/\d+\/(credentials|notification_templates_(?:started|success|error)))\/$/.exec(url.pathname)
         if (association) {
@@ -298,11 +306,14 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           res.writeHead(202); res.end(JSON.stringify(update)); return
         }
         const groupInventory = /^\/api\/v2\/inventories\/(\d+)\/groups\/$/.exec(url.pathname)
-        const collection = groupInventory ? '/api/v2/groups/' : url.pathname
+        const credentialCopy = /^\/api\/v2\/credentials\/(\d+)\/copy\/$/.exec(url.pathname)
+        const teamCredential = /^\/api\/v2\/teams\/(\d+)\/credentials\/$/.exec(url.pathname)
+        const collection = groupInventory ? '/api/v2/groups/' : credentialCopy || teamCredential ? '/api/v2/credentials/' : url.pathname
         let id = 42
         if (req.method === 'POST') while (resources.has(`${collection}${id}/`)) id++
         const path = req.method === 'PATCH' ? url.pathname : `${collection}${id}/`
-        const resource = { id, ...(groupInventory ? { inventory: Number(groupInventory[1]) } : {}), ...resources.get(path), ...payload }
+        const original = credentialCopy ? resources.get(`/api/v2/credentials/${credentialCopy[1]}/`) : undefined
+        const resource = { ...original, id, ...(groupInventory ? { inventory: Number(groupInventory[1]) } : {}), ...resources.get(path), ...payload }
         resources.set(path, resource)
         if (awxDropWrite) { req.socket.destroy(); return }
         res.writeHead(req.method === 'PATCH' ? 200 : 201)
