@@ -32,6 +32,30 @@ function basicPassword(header) {
 const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert: readFileSync(join(certs, 'server.crt')) }, (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
+  if (['/api/status', '/api/user/session/get', '/api/zones/export', '/api/logs/export', '/api/admin/ldap/get', '/api/admin/cluster/primary/transferConfig'].includes(url.pathname)) {
+    const canaryReceived = req.headers.authorization === 'Bearer CANARY-technitium-token'
+    let body = ''
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      requests.push({ method: req.method, path: url.pathname, canaryReceived, fields: Object.fromEntries(new URLSearchParams(body)) })
+      if (req.method !== 'POST' || (url.pathname !== '/api/status' && !canaryReceived)) { res.writeHead(401); res.end('{}'); return }
+      if (url.pathname === '/api/status') res.end(JSON.stringify({ status: 'ok', server: 'Technitium DNS', hasDefaultCredentials: false, ssoEnabled: false }))
+      else if (url.pathname === '/api/user/session/get') res.end(JSON.stringify({ status: 'ok', username: 'synthetic-reader', token: 'CANARY-returned-session', tokenName: 'synthetic-api', info: { version: '14.0', permissions: { zones: { canView: true } } } }))
+      else if (url.pathname === '/api/admin/ldap/get') res.end(JSON.stringify({ status: 'ok', response: { ldapEnabled: false, ldapBindPassword: 'CANARY-ldap-password' } }))
+      else if (url.pathname === '/api/zones/export') {
+        res.setHeader('content-type', 'text/plain')
+        res.end('synthetic.test. IN TXT "CANARY-technitium-token"\n')
+      } else if (url.pathname === '/api/logs/export') {
+        res.setHeader('content-type', 'text/csv')
+        res.end('name,result\r\nsynthetic.test,CANARY-confidential-result\r\n')
+      } else {
+        res.setHeader('content-type', 'application/zip')
+        res.setHeader('last-modified', 'Mon, 02 Nov 2026 00:00:00 GMT')
+        res.end(Buffer.from('504b0506000000000000000000000000000000000000', 'hex'))
+      }
+    })
+    return
+  }
   if (url.pathname === '/proxy/network/integration/v1/info' || url.pathname === '/api2/json/version') {
     const canaryReceived = url.pathname === '/proxy/network/integration/v1/info' ? req.headers['x-api-key'] === 'CANARY-unifi-key'
       : req.headers.authorization === 'PVEAPIToken=reader@pve!automation=CANARY-proxmox-token'

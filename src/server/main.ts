@@ -13,6 +13,7 @@ import { createTenableAdapter } from './adapters/tenable.js'
 import { createHybridAdapter } from './adapters/hybrid.js'
 import { createBeyondtrustAdapter } from './adapters/beyondtrust.js'
 import { createCheckpointAdapter } from './adapters/checkpoint.js'
+import { createTechnitiumAdapter } from './adapters/technitium.js'
 import { createNetworkReadAdapter } from './adapters/network-reads.js'
 import { AzureTokenCache } from './adapters/azure-token-cache.js'
 import { initializeNativeWriteLog, retainNativeWriteLog } from './adapters/native-log.js'
@@ -64,7 +65,7 @@ async function main() {
         createVectraAdapter(source, writeLog),
         createAzAdapter(source, join(dirname(database), 'tool-logs', 'az-axi', 'writes.log'), azureTokens),
         createMgAdapter(source, join(dirname(database), 'tool-logs', 'mg-axi', 'writes.log')),
-        createLdapAdapter(source), createAdoAdapter(source, azureTokens), createGhAdapter(source),
+        createLdapAdapter(source), createAdoAdapter(source, azureTokens), createGhAdapter(source), createTechnitiumAdapter(source),
         createAwxAdapter(source), createTenableAdapter(source, join(dirname(database), 'tool-logs', 'tenable-axi', 'writes.log')),
         createHybridAdapter(source, join(dirname(database), 'tool-logs', 'hybrid-axi', 'writes.log')),
         createBeyondtrustAdapter(source, join(dirname(database), 'tool-logs', 'beyondtrust-axi', 'writes.log')),

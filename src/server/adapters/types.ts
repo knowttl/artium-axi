@@ -22,6 +22,7 @@ export interface PreparedCall {
   secrets: string[]
   fileArguments?: readonly number[]
   effect?: 'read' | 'write'
+  protectedResult?: { operation: string } & ({ source: 'projection' } | { source: 'file', name: string, flag: string })
   write?: { operation: string, target: string, checkArgs: string[], afterCheck?: string }
   preview?: { operation: string, target: string, confirm: string }
   limits: { timeoutMs: number, terminationGraceMs?: number, runtime?: 'python', nodeHeapMiB?: number, systemCaBundle?: boolean }

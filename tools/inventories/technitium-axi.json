@@ -1,0 +1,1140 @@
+{
+  "generatedBy": "scripts/technitium-inventory.ts",
+  "tool": "technitium-axi",
+  "package": "@knowttl/technitium-axi",
+  "version": "0.1.0",
+  "integrity": "sha512-qUEubth8NpLOtx+dzKz0c6XyJJhMBRWXzmfWaQrzy8Nqz/m2ZNxpwcHcNTGlO1oAMj4Nfqg2FGvhlEUDx0qw6A==",
+  "sources": [
+    {
+      "path": "package.json",
+      "sha256": "7f235bb0a76307c6c84f4f8bfd30cc9647fb6b838abdc5d24b5fbad220986b39"
+    },
+    {
+      "path": "README.md",
+      "sha256": "cc8fb01a7eb6adb420fbf54e48541210a9fe204b2dae75568fcb2216f24ce16c"
+    },
+    {
+      "path": "command-inventory.json",
+      "sha256": "36562ee875947b23168b80b703238cfb4bcec7ba02388a29e94335ca9e112063"
+    },
+    {
+      "path": "axi-credential.schema.json",
+      "sha256": "b6a411b298b1b1fb3efc2f88f1a5267f370aab84f1db14ea5c41f985bd1380dc"
+    },
+    {
+      "path": "bin/technitium-axi.js",
+      "sha256": "f5acdba029fb47c2ba908d47427a179731675d4fe283362a5e0d6bce729b6b41"
+    },
+    {
+      "path": "dist/cli.js",
+      "sha256": "f195e9b5166bd083dd93a93b9dbc28349c8aa6ae8fdbace24d25b2d3d168c8f8"
+    },
+    {
+      "path": "dist/catalogue.js",
+      "sha256": "79febd41e115401be9bf9945c78b37caafd2dbeb4196bacf1f422e114c4210fb"
+    },
+    {
+      "path": "dist/read-contracts.js",
+      "sha256": "500b374736fc7a8566ae0cd2c327debe17dd2649244886f0170ff7a410a1a5f0"
+    },
+    {
+      "path": "dist/archive-contract.js",
+      "sha256": "1693d98ca15e7c3bb21854d8b766cde4278aeeda037f4377d0fa15812977b44e"
+    },
+    {
+      "path": "dist/reads.js",
+      "sha256": "b7b38adcef34753a75d5579e46ffd65d7b1919b2229ec9ef6a6a8c57f93bdc1e"
+    },
+    {
+      "path": "dist/vendor.js",
+      "sha256": "7fe0808ee700d6956589bda92d55cb3bd3a085f2d156721c94e36ee40812d4ce"
+    },
+    {
+      "path": "dist/credentials.js",
+      "sha256": "faee482ddaca88c358376f27cf23bb468320619b3994c2ff21c42669b56a80cb"
+    },
+    {
+      "path": "dist/private-file.js",
+      "sha256": "e8421333f0ff83bfb60b925cf7e201c3a9923bd9bb4ec4b120915241a73d522c"
+    },
+    {
+      "path": "dist/errors.js",
+      "sha256": "c3aa8ddd51dcf129b42dc4dbd09385b4279b45b9647060babc770a002843424b"
+    }
+  ],
+  "credentialSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://github.com/knowttl/technitium-axi/axi-credential.schema.json",
+    "title": "Technitium credential profile",
+    "description": "AXI Credential Standard v2 profile. Secret values must be references.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "origin",
+      "auth",
+      "tokenKind"
+    ],
+    "properties": {
+      "origin": {
+        "type": "string",
+        "pattern": "^https://(?:\\[[0-9A-Fa-f:]+\\]|[A-Za-z0-9.-]+)(?::[0-9]{1,5})?$"
+      },
+      "auth": {
+        "const": "token",
+        "type": "string"
+      },
+      "tokenKind": {
+        "type": "string",
+        "enum": [
+          "api",
+          "session",
+          "single-use"
+        ]
+      },
+      "token": {
+        "$ref": "#/definitions/secretRef",
+        "x-secret": true,
+        "default": {
+          "env": "TECHNITIUM_AXI_TOKEN"
+        }
+      },
+      "username": {
+        "type": "string",
+        "minLength": 1
+      },
+      "caFile": {
+        "type": "string",
+        "minLength": 1
+      },
+      "tlsServerName": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9.-]+$"
+      },
+      "writes": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "allowWrites",
+          "operations"
+        ],
+        "default": {
+          "allowWrites": false,
+          "operations": []
+        },
+        "properties": {
+          "allowWrites": {
+            "const": false,
+            "type": "boolean"
+          },
+          "operations": {
+            "type": "array",
+            "maxItems": 0,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "definitions": {
+      "secretRef": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "env"
+            ],
+            "properties": {
+              "env": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?:/|[A-Za-z]:[\\\\/]).+"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "stored"
+            ],
+            "properties": {
+              "stored": {
+                "const": true,
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "commands": [
+    {
+      "command": "",
+      "flags": {
+        "help": "boolean",
+        "version": "boolean",
+        "json": "boolean"
+      },
+      "effect": "read"
+    },
+    {
+      "command": "schema",
+      "effect": "read",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean"
+      }
+    },
+    {
+      "command": "inventory",
+      "effect": "read",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean"
+      }
+    },
+    {
+      "command": "status",
+      "effect": "read",
+      "operation": "OP-001",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean"
+      }
+    },
+    {
+      "command": "user session get",
+      "effect": "read",
+      "operation": "OP-006",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean"
+      }
+    },
+    {
+      "command": "auth status",
+      "effect": "read",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean"
+      }
+    },
+    {
+      "command": "doctor",
+      "effect": "read",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean"
+      }
+    },
+    {
+      "command": "user profile get",
+      "effect": "read",
+      "operation": "OP-012",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value"
+      }
+    },
+    {
+      "command": "user check-for-update",
+      "effect": "read",
+      "operation": "OP-014",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value"
+      }
+    },
+    {
+      "command": "dashboard metrics json",
+      "effect": "read",
+      "operation": "OP-015",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value"
+      }
+    },
+    {
+      "command": "dashboard metrics text",
+      "effect": "read",
+      "operation": "OP-016",
+      "resultSource": "file",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value"
+      }
+    },
+    {
+      "command": "dashboard stats get",
+      "effect": "read",
+      "operation": "OP-017",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "type": "value",
+        "utc": "value",
+        "dont-trim-query-type-data": "value",
+        "start": "value",
+        "end": "value"
+      }
+    },
+    {
+      "command": "dashboard stats get-top",
+      "effect": "read",
+      "operation": "OP-018",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "type": "value",
+        "start": "value",
+        "end": "value",
+        "stats-type": "value",
+        "limit": "value",
+        "no-reverse-lookup": "value",
+        "only-rate-limited-clients": "value"
+      }
+    },
+    {
+      "command": "zone list",
+      "effect": "read",
+      "operation": "OP-020",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "filter-name": "value",
+        "filter-type": "value",
+        "page-number": "value",
+        "zones-per-page": "value"
+      }
+    },
+    {
+      "command": "zone catalog list",
+      "effect": "read",
+      "operation": "OP-021",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value"
+      }
+    },
+    {
+      "command": "zone export",
+      "effect": "read",
+      "operation": "OP-024",
+      "resultSource": "file",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "zone": "value"
+      }
+    },
+    {
+      "command": "zone options get",
+      "effect": "read",
+      "operation": "OP-031",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "zone": "value",
+        "include-available-catalog-zone-names": "value",
+        "include-available-tsig-key-names": "value"
+      }
+    },
+    {
+      "command": "zone permission get",
+      "effect": "read",
+      "operation": "OP-033",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "zone": "value",
+        "include-users-and-groups": "value"
+      }
+    },
+    {
+      "command": "zone dnssec view-ds",
+      "effect": "read",
+      "operation": "OP-037",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "zone": "value"
+      }
+    },
+    {
+      "command": "zone dnssec properties get",
+      "effect": "read",
+      "operation": "OP-038",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "zone": "value"
+      }
+    },
+    {
+      "command": "zone record get",
+      "effect": "read",
+      "operation": "OP-050",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "domain": "value",
+        "zone": "value",
+        "list-zone": "value"
+      }
+    },
+    {
+      "command": "cache list",
+      "effect": "read",
+      "operation": "OP-053",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "domain": "value",
+        "direction": "value"
+      }
+    },
+    {
+      "command": "allowed list",
+      "effect": "read",
+      "operation": "OP-056",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "domain": "value",
+        "direction": "value"
+      }
+    },
+    {
+      "command": "allowed export",
+      "effect": "read",
+      "operation": "OP-061",
+      "resultSource": "file",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value"
+      }
+    },
+    {
+      "command": "blocked list",
+      "effect": "read",
+      "operation": "OP-062",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "domain": "value",
+        "direction": "value"
+      }
+    },
+    {
+      "command": "blocked export",
+      "effect": "read",
+      "operation": "OP-067",
+      "resultSource": "file",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value"
+      }
+    },
+    {
+      "command": "app list",
+      "effect": "read",
+      "operation": "OP-068",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value"
+      }
+    },
+    {
+      "command": "app list-store-apps",
+      "effect": "read",
+      "operation": "OP-069",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value"
+      }
+    },
+    {
+      "command": "app config get",
+      "effect": "read",
+      "operation": "OP-075",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "name": "value"
+      }
+    },
+    {
+      "command": "dns-client health-check",
+      "effect": "read",
+      "operation": "OP-078",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "domain": "value",
+        "type": "value"
+      }
+    },
+    {
+      "command": "settings get",
+      "effect": "read",
+      "operation": "OP-079",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value"
+      }
+    },
+    {
+      "command": "settings get-tsig-key-names",
+      "effect": "read",
+      "operation": "OP-081",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value"
+      }
+    },
+    {
+      "command": "settings backup",
+      "effect": "read",
+      "operation": "OP-084",
+      "resultSource": "file",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "auth-config": "value",
+        "cluster-config": "value",
+        "web-service-settings": "value",
+        "dns-settings": "value",
+        "log-settings": "value",
+        "zones": "value",
+        "allowed-zones": "value",
+        "blocked-zones": "value",
+        "block-lists": "value",
+        "apps": "value",
+        "scopes": "value",
+        "stats": "value",
+        "logs": "value"
+      }
+    },
+    {
+      "command": "dhcp lease list",
+      "effect": "read",
+      "operation": "OP-086",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value"
+      }
+    },
+    {
+      "command": "dhcp scope list",
+      "effect": "read",
+      "operation": "OP-090",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value"
+      }
+    },
+    {
+      "command": "dhcp scope get",
+      "effect": "read",
+      "operation": "OP-091",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "name": "value"
+      }
+    },
+    {
+      "command": "admin session list",
+      "effect": "read",
+      "operation": "OP-098",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value"
+      }
+    },
+    {
+      "command": "admin user list",
+      "effect": "read",
+      "operation": "OP-101",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value"
+      }
+    },
+    {
+      "command": "admin user get",
+      "effect": "read",
+      "operation": "OP-103",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "user": "value",
+        "include-groups": "value"
+      }
+    },
+    {
+      "command": "admin group list",
+      "effect": "read",
+      "operation": "OP-106",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value"
+      }
+    },
+    {
+      "command": "admin group get",
+      "effect": "read",
+      "operation": "OP-108",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "group": "value",
+        "include-users": "value"
+      }
+    },
+    {
+      "command": "admin permission list",
+      "effect": "read",
+      "operation": "OP-111",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value"
+      }
+    },
+    {
+      "command": "admin permission get",
+      "effect": "read",
+      "operation": "OP-112",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "section": "value",
+        "include-users-and-groups": "value"
+      }
+    },
+    {
+      "command": "admin sso get",
+      "effect": "read",
+      "operation": "OP-114",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "include-groups": "value"
+      }
+    },
+    {
+      "command": "admin cluster state",
+      "effect": "read",
+      "operation": "OP-118",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "include-server-ip-addresses": "value"
+      }
+    },
+    {
+      "command": "admin cluster primary transfer-config",
+      "effect": "read",
+      "operation": "OP-125",
+      "resultSource": "file",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "include-zones": "value",
+        "if-modified-since": "value"
+      }
+    },
+    {
+      "command": "log list",
+      "effect": "read",
+      "operation": "OP-134",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value"
+      }
+    },
+    {
+      "command": "log download",
+      "effect": "read",
+      "operation": "OP-135",
+      "resultSource": "file",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "file-name": "value",
+        "limit": "value"
+      }
+    },
+    {
+      "command": "log query",
+      "effect": "read",
+      "operation": "OP-138",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "name": "value",
+        "class-path": "value",
+        "page-number": "value",
+        "entries-per-page": "value",
+        "descending-order": "value",
+        "start": "value",
+        "end": "value",
+        "client-ip-address": "value",
+        "protocol": "value",
+        "response-type": "value",
+        "rcode": "value",
+        "qname": "value",
+        "qtype": "value",
+        "qclass": "value"
+      }
+    },
+    {
+      "command": "log export",
+      "effect": "read",
+      "operation": "OP-139",
+      "resultSource": "file",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "node": "value",
+        "name": "value",
+        "class-path": "value",
+        "start": "value",
+        "end": "value",
+        "client-ip-address": "value",
+        "protocol": "value",
+        "response-type": "value",
+        "rcode": "value",
+        "qname": "value",
+        "qtype": "value",
+        "qclass": "value"
+      }
+    },
+    {
+      "command": "admin ldap get",
+      "effect": "read",
+      "operation": "OP-141",
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "fields": "value",
+        "full": "boolean",
+        "max-bytes": "value",
+        "max-requests": "value",
+        "max-pages": "value",
+        "max-elapsed-ms": "value",
+        "include-groups": "value"
+      }
+    }
+  ],
+  "discovery": {
+    "commands": [
+      "schema",
+      "inventory",
+      "status",
+      "user session get",
+      "auth status",
+      "doctor",
+      "user profile get",
+      "user check-for-update",
+      "dashboard metrics json",
+      "dashboard metrics text",
+      "dashboard stats get",
+      "dashboard stats get-top",
+      "zone list",
+      "zone catalog list",
+      "zone export",
+      "zone options get",
+      "zone permission get",
+      "zone dnssec view-ds",
+      "zone dnssec properties get",
+      "zone record get",
+      "cache list",
+      "allowed list",
+      "allowed export",
+      "blocked list",
+      "blocked export",
+      "app list",
+      "app list-store-apps",
+      "app config get",
+      "dns-client health-check",
+      "settings get",
+      "settings get-tsig-key-names",
+      "settings backup",
+      "dhcp lease list",
+      "dhcp scope list",
+      "dhcp scope get",
+      "admin session list",
+      "admin user list",
+      "admin user get",
+      "admin group list",
+      "admin group get",
+      "admin permission list",
+      "admin permission get",
+      "admin sso get",
+      "admin cluster state",
+      "admin cluster primary transfer-config",
+      "log list",
+      "log download",
+      "log query",
+      "log export",
+      "admin ldap get"
+    ],
+    "example": [
+      "status"
+    ],
+    "help": "Managed Technitium reads. Run artium-axi technitium-axi <command> --help for selectors.\nAuthenticated reads return a protected result reference; retrieve it once with the same identity and current credential.\nWrites and local configuration are unavailable.\n"
+  },
+  "adapterBoundary": {
+    "nativeWrites": "read-only upstream design",
+    "unsafeOverrides": [
+      "config",
+      "profile",
+      "origin",
+      "token",
+      "api-key",
+      "allow-insecure-http",
+      "result-file",
+      "input-file"
+    ]
+  }
+}

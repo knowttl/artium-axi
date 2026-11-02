@@ -537,6 +537,15 @@ Keep the example deployment's shutdown grace period when adapting it so native s
 
 ## Retention and export
 
+Technitium protected results stay in process memory and are not persisted or backed up.
+The executable limits are owned by `protectedResultLimits` in [server configuration](../src/server/config.ts); consult it for result size, per-user and server-wide capacity, and reference lifetime.
+Consuming, canceling, clearing or expiring a result releases its stored bytes and expiration timer; server restart removes all pending results.
+At capacity, new result-producing calls return `TOO_MANY_CALLS`; retrieve outstanding results or wait for expiration before retrying.
+An oversized result returns `OUTPUT_LIMIT`; narrow the native read where supported.
+A consumed, expired, wrong-user, wrong-operation or superseded-credential reference returns `NOT_FOUND`; repeat the permitted read to obtain a new reference.
+Retrieval also rechecks authentication and current tool access, so reauthenticate or ask an administrator to restore access when those checks fail.
+See [Technitium result retrieval](commands.md#technitium-dns) and its [confidentiality boundary](safety.md#storage-and-execution-boundaries).
+
 SQLite audit retention runs at startup and daily, deleting events strictly older than the captured 90-day cutoff in batches of at most 500.
 Each batch commits its count and cutoff with the deletion.
 Azure, ordinary Graph runs, Vectra and Falcon use isolated native journals at `<configured write-log path>.runs/run-*/writes.log`.

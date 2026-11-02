@@ -70,7 +70,7 @@ Ordinary discovery and tool calls never install or repair agent settings.
 
 ## What it covers
 
-All fourteen managed tools start disabled; role grants, enabled tools and upstream permissions determine access.
+All fifteen managed tools start disabled; role grants, enabled tools and upstream permissions determine access.
 Write capabilities below require administrator opt-in.
 
 | Group | Purpose | Access | Reference |
@@ -90,6 +90,7 @@ Write capabilities below require administrator opt-in.
 | Check Point Email Security | Email investigation and response | Reads; selected writes/saves | [Credentials](docs/tool-credentials.md#check-point-email-security) |
 | UniFi | Network application, inventory and policy investigation | Implemented reads with managed API key and trust | [Capabilities](docs/safety.md#network-appliance-reads) |
 | Proxmox | Cluster and virtual machine investigation | Ordinary reads with a managed API token | [Capabilities](docs/safety.md#network-appliance-reads) |
+| Technitium DNS | DNS investigation and exports | Managed authenticated reads with protected result retrieval | [Capabilities](docs/safety.md#technitium-dns) |
 
 [Reviewed inventories](tools/inventories) own the pinned command boundary.
 The [client reference](docs/client-reference.md#command-surface-and-subcommands) covers forwarding and inputs; [commands](docs/commands.md) lists client operations.

@@ -17,6 +17,8 @@ import { runTool } from '../../src/server/runner/run.js'
 import { createAwxAdapter } from '../../src/server/adapters/awx.js'
 import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
+import { createTechnitiumAdapter } from '../../src/server/adapters/technitium.js'
+import { ProtectedResults } from '../../src/server/protected-results.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { ToolHealth } from '../../src/server/health/health.js'
 import { createCredentialStore, migrate, openStore, validateSchema } from '../../src/server/store/db.js'
@@ -780,6 +782,57 @@ test.each([
   }
 })
 
+test.each(['ca', 'pin'] as const)('Technitium saved %s trust matches the endpoint with a different TLS identity', async mode => {
+  serve('leaf', true)
+  const origin = endpoint.replace('localhost', '127.0.0.1')
+  const reference = store.replaceCredential('technitium-axi', { origin, auth: 'token', tokenKind: 'api',
+    token: 'CANARY-technitium-token', tlsServerName: 'localhost' }, 0, 'synthetic-development-user', Date.now())
+  db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run('technitium-axi')
+  const base = '/v1/admin/tools/technitium-axi/certificates'
+  const inspection = await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })
+  expect(inspection.statusCode, inspection.body).toBe(200)
+  const details = certificateInspectionSchema.parse(inspection.json())
+  expect(details.endpoint).toBe(origin + '/')
+  expect(details.chain[0].matchesHostname).toBe(true)
+  const saved = await app.inject({ method: 'POST', url: base + '/trust', headers,
+    payload: { inspectionId: details.inspectionId, mode } })
+  expect(saved.statusCode, saved.body).toBe(200)
+  const body = { status: 'ok', username: 'synthetic-reader', token: 'CANARY-returned-session',
+    tokenName: 'synthetic-api', info: { version: '14.0', permissions: { zones: { canView: true } } } }
+  httpReply = () => JSON.stringify(body)
+  const adapter = createTechnitiumAdapter(new EmbeddedSecretSource(store))
+  const prepare = adapter.prepare.bind(adapter)
+  adapter.prepare = async (...input) => {
+    const call = await prepare(...input)
+    return { ...call, args: [join(process.cwd(), 'tools/node_modules/@knowttl/technitium-axi/bin/technitium-axi.js'), ...call.args.slice(1)] }
+  }
+  const protectedResults = new ProtectedResults()
+  const health = new ToolHealth(db, new Audit(db), runner, [adapter], store)
+  try {
+    const result = await runTool(db, new Audit(db), runner, headers.authorization.slice(7),
+      { args: ['user', 'session', 'get', '--json'] }, adapter, new SharedIdentityResolver(store),
+      { requestId: 'alternate-tls-identity', clientAddress: null, protectedResults })
+    expect(result.exitCode, result.stdout + result.stderr).toBe(0)
+    const downloaded = protectedResults.take(JSON.parse(result.stdout).result.id, { userId: 'synthetic-development-user',
+      credential: reference, operation: 'OP-006' })
+    expect(JSON.parse(downloaded.toString())).toEqual({ status: 'ok', username: 'synthetic-reader',
+      tokenName: 'synthetic-api', info: { version: '14.0', permissions: { zones: { canView: true } } } })
+    expect(downloaded.toString()).not.toContain('CANARY-returned-session')
+    await expect(health.check('technitium-axi', 'synthetic-development-user', 'manual-tls-identity', null)).resolves.toMatchObject({ status: 'ok' })
+    await health.refresh('technitium-axi')
+    expect(db.prepare('SELECT status, error_code FROM tool_health WHERE tool = ?').get('technitium-axi'))
+      .toMatchObject({ status: 'ok', error_code: null })
+    bytes = 0
+    const wrongIdentity = await runner.run('synthetic-development-user', process.execPath, ['-e', `
+      require('node:https').get(${JSON.stringify(origin)}, { servername: 'wrong.synthetic.test' }, r => r.resume())
+        .on('error', e => { console.error(e.code); process.exitCode = 1 })
+    `], {}, [], { credentialTrust: readCredentialTrust(db, reference) })
+    expect(wrongIdentity.exitCode).not.toBe(0)
+    expect(wrongIdentity.stderr).toContain('ERR_TLS_CERT_ALTNAME_INVALID')
+    expect(bytes).toBe(0)
+  } finally { protectedResults.clear(); await health.stop() }
+})
+
 test.each(['node', 'python'] as const)('%s isolates mg-axi login and Graph trust when both use the same private root', async runtime => {
   tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('server') + pem('ca') })
   const result = await inspect()
@@ -790,7 +843,8 @@ test.each(['node', 'python'] as const)('%s isolates mg-axi login and Graph trust
   const args = runtime === 'node'
     ? ['-e', `const tls = require('node:tls');
       const connect = host => new Promise(resolve => {
-        const socket = tls.connect({ host: '127.0.0.1', port: ${port}, servername: host }, () => socket.write('GET / HTTP/1.1\\r\\n\\r\\n'));
+        const socket = tls.connect({ host, port: ${port}, servername: host, family: 4,
+          lookup: (_host, _options, done) => done(null, '127.0.0.1', 4) }, () => socket.write('GET / HTTP/1.1\\r\\n\\r\\n'));
         socket.on('data', () => {});
         socket.once('end', () => resolve('accepted'));
         socket.once('error', () => resolve('rejected'));

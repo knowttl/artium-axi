@@ -16,7 +16,7 @@ function verificationCode(error: unknown): string {
   return typeof code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(code) ? code : 'CONNECTION_FAILED'
 }
 
-type NativeTls = { connectAddress?: string, peerFingerprintSha256?: string,
+type NativeTls = { connectAddress?: string, serverName?: string, peerFingerprintSha256?: string,
   certificatePin?: { sha256: string, origin: string, replaceHostname?: boolean } }
 
 // The handshake sends no application data or credentials. Each stage has a deadline.
@@ -61,7 +61,7 @@ Promise<{ chain: X509Certificate[], verificationError?: string }> {
   // peer certificate for the diagnostic, then require authorized before success.
   // No application bytes or credentials are sent on this socket.
   const secure = connectTls({ ...credentialTlsOptions(trust, ca), socket, host,
-    servername: isIP(host) ? undefined : host, rejectUnauthorized: false, ...(maxVersion ? { maxVersion } : {}) })
+    servername: native.serverName ?? (isIP(host) ? undefined : host), rejectUnauthorized: false, ...(maxVersion ? { maxVersion } : {}) })
   try {
     await new Promise<void>((resolve, reject) => {
       secure.setTimeout(timeoutMs, () => secure.destroy(Object.assign(new Error(), { code: 'ETIMEDOUT' })))
@@ -121,7 +121,8 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
 
 export async function preflight(tool: ToolName, credential: Record<string, unknown>, trust: readonly CredentialTrust[] = []): Promise<void> {
   const tls = tool === 'unifi-axi' ? credential.tls as NativeTls & { trustedCertificatePem?: string } | undefined : undefined
-  const native: NativeTls = tool === 'proxmox-axi' ? { certificatePin: credential.certificatePin as NativeTls['certificatePin'] } : tls ?? {}
+  const native: NativeTls = tool === 'proxmox-axi' ? { certificatePin: credential.certificatePin as NativeTls['certificatePin'] }
+    : tool === 'technitium-axi' ? { serverName: credential.tlsServerName as string | undefined } : tls ?? {}
   const ca = credential.caBundle ?? credential.caFile
     ?? tls?.trustedCertificatePem
   for (const endpoint of toolEndpoints(tool, credential)) {

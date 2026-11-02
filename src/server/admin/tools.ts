@@ -20,6 +20,7 @@ import { hybridCredentialSchema, hybridWritePolicy } from '../adapters/hybrid.js
 import { beyondtrustCredentialSchema, beyondtrustWritePolicy } from '../adapters/beyondtrust.js'
 import { checkpointCredentialSchema, checkpointWritePolicy } from '../adapters/checkpoint.js'
 import { networkProfiles, networkReadPolicy } from '../adapters/network-reads.js'
+import { technitiumProfile, technitiumWritePolicy } from '../adapters/technitium.js'
 import { exchangeAwxPassword, awxPasswordRequested } from '../adapters/awx-login.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
@@ -40,10 +41,11 @@ export interface ToolAdminOptions {
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>>
 }
 
-const credentialSchemas = { 'unifi-axi': networkProfiles['unifi-axi'].credentialSchema, 'proxmox-axi': networkProfiles['proxmox-axi'].credentialSchema, 'beyondtrust-axi': beyondtrustCredentialSchema, 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
+const credentialSchemas = { 'technitium-axi': technitiumProfile.credentialSchema, 'unifi-axi': networkProfiles['unifi-axi'].credentialSchema, 'proxmox-axi': networkProfiles['proxmox-axi'].credentialSchema, 'beyondtrust-axi': beyondtrustCredentialSchema, 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
 const writePolicies = { 'unifi-axi': networkReadPolicy, 'proxmox-axi': networkReadPolicy, 'beyondtrust-axi': beyondtrustWritePolicy, 'gh-axi': ghWritePolicy, 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
-  'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy, 'hybrid-axi': hybridWritePolicy }
+  'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy, 'hybrid-axi': hybridWritePolicy, 'technitium-axi': technitiumWritePolicy }
 const publicFields = {
+  'technitium-axi': ['origin', 'auth', 'tokenKind', 'username', 'tlsServerName'],
   'unifi-axi': ['origin', 'siteId', 'apiContract'],
   'proxmox-axi': ['origin', 'auth', 'tokenId'],
   'gh-axi': ['origin', 'auth', 'appId', 'installationId', 'repositories', 'permissions', 'login', 'accessTokenExpiresAt'],
@@ -60,6 +62,7 @@ const publicFields = {
   'mg-axi': ['tenantId', 'clientId', 'auth', 'thumbprint'],
 }
 const legacySecretFields = {
+  'technitium-axi': ['token'],
   'unifi-axi': ['apiKey'],
   'proxmox-axi': ['token'],
   'gh-axi': ['token', 'privateKey', 'accessToken'],
@@ -367,7 +370,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       let next = value
       if (saving) {
         const stored = reference ? credentialStore().readCredential(reference) as Record<string, unknown> : {}
-        const sameIdentity = ['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org', 'appId', 'installationId', 'tokenId'].every(key => stored[key] === value[key])
+        const sameIdentity = ['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org', 'appId', 'installationId', 'tokenId', 'tokenKind'].every(key => stored[key] === value[key])
         const secrets = credentialProfiles[tool]?.fields().filter(field => field.schema['x-secret'] && field.schema['x-ephemeral'] !== true)
           .map(field => field.name) ?? legacySecretFields[tool]
         const retained = sameIdentity ? Object.fromEntries(secrets.filter(key => Object.hasOwn(stored, key)).map(key => [key, stored[key]])) : {}

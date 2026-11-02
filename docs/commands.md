@@ -23,6 +23,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi session-context` | Emit current tool grants without session identity, or an explicit unavailable diagnostic; exits 0 so hosts can deliver failure context. |
 | `artium-axi unifi-axi [<args>]` | Read implemented UniFi application, inventory and policy commands with managed credentials. |
 | `artium-axi proxmox-axi [<args>]` | Read ordinary Proxmox routes with a managed API token; writes and byte transports are unavailable. |
+| `artium-axi technitium-axi [<args>]` | Read Technitium DNS data with managed credentials and authenticated one-time result retrieval. |
 | `artium-axi --managed-session <command> [<args>]` | Supply and persist caller-owned sessions through private pipes; see `artium-axi --managed-session --help`. |
 | `artium-axi falcon-axi [<args>]` | Run Falcon commands with managed credentials; [tool reference](https://github.com/knowttl/falcon-axi#readme). |
 | `artium-axi vectra-axi [<args>]` | Run Vectra commands with managed credentials; [tool reference](https://www.npmjs.com/package/@knowttl/vectra-axi). |
@@ -68,6 +69,18 @@ Configuration commands without `--help`, `--dry-run` or `--confirm` are refused;
 Previews are read-classified, and `--dry-run` takes precedence over `--confirm`.
 Run a command with `--help` for its reviewed flags and required AWX resource permissions.
 See its [scope and managed equivalents](awx-parity.md) for client-local exceptions and planned delivery slices, and the [write boundary](safety.md#write-gates-by-tool) for current permissions.
+
+## Technitium DNS
+
+Run `artium-axi tools show technitium-axi` for admitted commands and each command with `--help` for its required selectors.
+Native boolean parameters take explicit `true` or `false` values; `--include-zones` also accepts the native empty selection.
+Successful authenticated reads return their normal safe projection and an operation-bound `result` reference.
+For JSON reads, result downloads contain only the package's redacted projection, encoded as JSON or TOON according to the invocation's `--json` flag; native text, CSV and ZIP downloads contain the exported bytes.
+Retrieve `result.path` once with an authenticated GET to the Artium server using an Artium bearer token for the same user, with a current tool grant and the same credential revision.
+This retrieval is separate from `artium-axi download`; the CLI does not automatically save the result.
+Failed or incomplete reads remain failures; do not infer empty data.
+For authentication or managed-configuration failures, ask an administrator to update the stored credential and connection settings.
+See the [capability boundary](safety.md#technitium-dns) and [retention, limits and retrieval failures](runbook.md#retention-and-export).
 
 ## Check Point Email Security
 

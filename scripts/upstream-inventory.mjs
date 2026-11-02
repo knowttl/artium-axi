@@ -11,6 +11,7 @@ import './checkpoint-inventory.mjs'
 import './beyondtrust-inventory.mjs'
 import './hybrid-inventory.mjs'
 import './network-read-inventory.ts'
+import './technitium-inventory.ts'
 
 const root = new URL('../tools/', import.meta.url)
 const load = (tool, path) => import(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))

@@ -58,6 +58,7 @@ type ToolName = z.infer<typeof toolSchema>
 
 // Product display names and their two-letter marks, the one place tools are named for people.
 export const toolProducts: Record<ToolName, { name: string, mark: string }> = {
+  'technitium-axi': { name: 'Technitium DNS', mark: 'TD' },
   'unifi-axi': { name: 'UniFi', mark: 'UN' },
   'proxmox-axi': { name: 'Proxmox', mark: 'PX' },
   'falcon-axi': { name: 'CrowdStrike Falcon', mark: 'FA' },

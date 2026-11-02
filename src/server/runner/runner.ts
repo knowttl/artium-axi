@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { constants } from 'node:fs'
 import { chmod, mkdir, mkdtemp, open, readdir, rename, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
@@ -6,7 +7,7 @@ import { performance } from 'node:perf_hooks'
 import { isIP } from 'node:net'
 import { connect, getCACertificates } from 'node:tls'
 import type { TrustedCaBundle, TrustedCertificate } from '../trusted-ca.js'
-import { adoPathPrefix, runnerLimits, runtimePath, toolPaths } from '../config.js'
+import { adoPathPrefix, runnerLimits, runtimePath, toolPaths, protectedResultLimits } from '../config.js'
 import { SecretScanner } from './scan.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { inputFileSchema } from '../../shared/api.js'
@@ -27,6 +28,7 @@ export interface RunnerLimits {
   nodeHeapMiB?: number
   signal?: AbortSignal
   credentialTrust?: readonly CredentialTrust[]
+  protectedResult?: { name: string, flag: string, receive: (bytes: Buffer) => void }
 }
 
 export interface RunnerResult {
@@ -227,6 +229,10 @@ async function execute(
       }
     } catch { throw new RunnerError('TEMP_UNAVAILABLE') }
     args = await writeInput(directories.TMPDIR, args, input)
+    if (limits.protectedResult) {
+      if (!inputFileSchema.shape.name.safeParse(limits.protectedResult.name).success) throw new RunnerError('INVALID_INPUT')
+      args = [...args, limits.protectedResult.flag, join(directories.XDG_CONFIG_HOME, limits.protectedResult.name)]
+    }
     if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
     const result = await new Promise<RunnerResult>((resolve, reject) => {
       const streams = {
@@ -388,6 +394,17 @@ async function execute(
         result.truncated = { stdout: false, stderr: diagnostic.length > cap }
         break
       }
+    }
+    if (result.exitCode === 0 && limits.protectedResult) {
+      const { name, receive } = limits.protectedResult
+      const file = await open(join(directories.XDG_CONFIG_HOME, name), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
+        .catch(() => { throw new RunnerError('TEMP_UNAVAILABLE') })
+      try {
+        const info = await file.stat()
+        if (!info.isFile() || info.uid !== process.getuid?.() || (info.mode & 0o077) !== 0) throw new RunnerError('TEMP_UNAVAILABLE')
+        if (info.size > protectedResultLimits.bytes) throw new RunnerError('OUTPUT_LIMIT')
+        receive(await file.readFile())
+      } finally { await file.close() }
     }
     result.durationMs = performance.now() - started
     return result
