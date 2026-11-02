@@ -20,6 +20,7 @@ import { LocalAuthProvider } from '../../src/server/auth/local.js'
 import { issueLoginTokens } from '../../src/server/auth/tokens.js'
 import { tokenDefaults } from '../../src/server/config.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
+import { ProtectedResults } from '../../src/server/protected-results.js'
 import { runTool } from '../../src/server/runner/run.js'
 import { Runner, RunnerError } from '../../src/server/runner/runner.js'
 import { openStore } from '../../src/server/store/db.js'
@@ -415,7 +416,8 @@ describe('AWX native write failure recovery (R1)', () => {
     const identities = new SharedIdentityResolver(new FakeCredentialStore([
       { reference: { id: 'synthetic-awx', tool: 'awx-axi', revision: 1 }, value: {} },
     ]))
-    return (args: string[]) => runTool(db, audit, runner, token, { args }, awx, identities, context)
+    return (args: string[]) => runTool(db, audit, runner, token, { args }, awx, identities,
+      { ...context, protectedResults: new ProtectedResults() })
   }
 
   test.each(awxInventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect)))(
