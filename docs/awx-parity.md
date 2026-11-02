@@ -82,3 +82,11 @@ No live tenant or appliance evidence is claimed here.
 
 See the [command reference](commands.md) for inventory and source operations, [structured input handling](client-reference.md#command-surface-and-subcommands) for variable formats and uploads, and the [AWX safety boundary](safety.md#write-gates-by-tool) for permissions and read redaction.
 Acceptance scenarios in [the AWX integration suite](../test/integration/awx.test.ts) use the public run API with the pinned CLI and fake AWX service, including credential-bearing writes, deletion, disabled-write and permission denials, private input cleanup and later reads.
+
+## Templates and workflows (S6)
+
+The [command reference](commands.md) describes template/workflow variables, associations, graph edits and approval templates.
+See [structured input handling](client-reference.md#command-surface-and-subcommands) for extra-variable formats and private input metadata.
+Acceptance uses the public run API and fake AWX controller to verify preview/confirmation, disabled-write and AWX permission denials, association additions/removals, all graph edge types, approval nodes, private variable handling and interrupted node creation recovery through `template-nodes` and `template-node`.
+The synthetic onboarding journey provisions inventory, a host and a canary SSH machine credential, attaches the credential to a template and submits a connectivity launch.
+It verifies the controller request flow without executing a real playbook or contacting a target server.

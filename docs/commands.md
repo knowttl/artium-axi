@@ -100,6 +100,21 @@ For each preview, replace `--dry-run` with `--confirm` to execute under the [ten
 For unknown outcomes, follow [AWX recovery guidance](runbook.md#retention-and-export).
 Credential list/show remain available with writes disabled and return metadata without credential inputs.
 
+Create or edit templates and workflows with `template create|edit` or `workflow create|edit`, using `--extra-vars @variables.yml` for private JSON/YAML variables.
+Preview each change with `--dry-run`, then replace it with `--confirm`.
+Templates support `credential-add|remove`, `label-add|remove`, `instance-group-add|remove` and `notification-add|remove` associations.
+Workflows support label and notification associations; notification events are `started`, `success`, `error` and, for workflows, `approval`.
+For example, attach a machine credential with `artium-axi awx-axi template credential-add 42 --credential 7 --confirm`, then launch the configured connectivity playbook with `artium-axi awx-axi template launch 42 --confirm`.
+
+Manage editable workflow graphs with `workflow node-create`, `node-edit`, `node-link`, `node-unlink` and `node-add-approval`.
+Node create/edit accept private `--extra-vars` plus template, inventory, limit, branch, job type, tags and verbosity inputs.
+For example, preview `artium-axi awx-axi workflow node-create 42 --template 7 --inventory 8 --extra-vars @node.json --dry-run`.
+Link nodes with `workflow node-link 51 --to 52 --on success --confirm`; `node-unlink` removes that edge, and `--on` also accepts `failure` or `always`.
+Use `node-credential-add|remove`, `node-label-add|remove` and `node-instance-group-add|remove` for node associations.
+`workflow node-add-approval 52 --name synthetic-approval --timeout 300 --dry-run` previews an approval template on an existing node.
+Inspect editable graph state with `workflow template-nodes <workflow-id|name>` and `workflow template-node <node-id>`, including after an unknown write outcome; these reads remain available with writes disabled.
+`workflow nodes` inspects nodes of an executed workflow run.
+
 ## Technitium DNS
 
 Run `artium-axi tools show technitium-axi` for admitted commands and each command with `--help` for its required selectors.

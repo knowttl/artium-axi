@@ -22,7 +22,18 @@ const { decode, encode } = await import(pathToFileURL(require.resolve('@toon-for
 const { parse } = await import(pathToFileURL(createRequire(awxModule).resolve('yaml')).href);
 const { redactValue } = await import(new URL('./core/redact.js', pathToFileURL(awxModule)).href);
 const { values, output: { fields, patterns } } = JSON.parse(readFileSync('awx-input.json', 'utf8'));
-for (const [index, value] of values) argv[index] = argv[index].split('=', 1)[0] + '=' + value;
+for (const [index, value] of values) {
+  const flag = argv[index].split('=', 1)[0];
+  let content = value;
+  // Pinned upstream advertises YAML extra vars but its parser accepts only JSON.
+  if (flag === '--extra-vars') {
+    try {
+      const parsed = parse(value);
+      if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) content = JSON.stringify(parsed);
+    } catch { /* Leave invalid input for upstream validation. */ }
+  }
+  argv[index] = flag + '=' + content;
+}
 const tokens = patterns.map(([pattern, mask]) => [new RegExp(pattern, 'u'), mask]);
 const masks = new Set([...Object.values(fields), ...patterns.map(([, mask]) => mask)]);
 const protocolFields = new Set(${JSON.stringify(protocolOutputFields)});
@@ -50,7 +61,8 @@ await main({ argv, env: process.env, stdout: output(process.stdout), stderr: out
 export function awxPrivateOutput(input: RunnerInput, structured: readonly (readonly [number, string])[], args: readonly string[]) {
   const inline = new Map(structured.map(([index, content]) => [args[index].slice(2).split('=', 1)[0], content]))
   return privateOutput(Object.entries(inputFields).flatMap(([flag, defaultField]) => {
-    const field = flag === 'extra-vars' && args[0] === 'schedule' ? 'extra_data' : defaultField
+    const field = flag === 'extra-vars' && (args[0] === 'schedule' || args[0] === 'workflow' && ['node-create', 'node-edit'].includes(args[1]))
+      ? 'extra_data' : defaultField
     let content = inline.get(flag)
     if (content === undefined) {
       const index = args.indexOf(`--${flag}`)
