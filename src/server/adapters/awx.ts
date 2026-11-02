@@ -129,10 +129,13 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const { structured, ...call } = normalized
       const prefix = ['--input-type=module', '-e', awxInputBridge, toolPaths['awx-axi']]
       const privateInput = structured.length || input?.files?.length || input?.stdin !== undefined
-      const output = privateInput ? awxPrivateOutput(input ?? {}, structured, call.args) : undefined
+      // Upstream inventory detail leaves variables as opaque JSON/YAML strings.
+      const privateRead = !call.invocation.help && ['inventory show', 'inventory constructed-show'].includes(call.invocation.command)
+      const bridge = privateInput || privateRead
+      const output = bridge ? awxPrivateOutput(input ?? {}, structured, call.args) : undefined
       if (output) profile.files.push({ name: 'awx-input.json', content: JSON.stringify({ values: structured, output }) })
-      return { executable: privateInput ? process.execPath : toolPaths['awx-axi'], ...call,
-        ...(privateInput ? { args: [...prefix, ...call.args], fileArguments: call.fileArguments.map(index => index + prefix.length) } : {}),
+      return { executable: bridge ? process.execPath : toolPaths['awx-axi'], ...call,
+        ...(bridge ? { args: [...prefix, ...call.args], fileArguments: call.fileArguments.map(index => index + prefix.length) } : {}),
         ...profile, limits: { timeoutMs: runnerLimits.timeoutMs, ...(output ? { privateOutput: output } : {}) } }
     },
   }

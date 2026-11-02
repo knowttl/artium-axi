@@ -239,7 +239,12 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     const recorded = { method: req.method, path: url.pathname, auth: authorizationScheme(authorization), canaryReceived }
     requests.push(recorded)
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ detail: 'Invalid token' })); return }
-    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|schedules|credentials|users|teams|notification_templates|bulk)\//.test(url.pathname)
+    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|inventory_updates|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|schedules|credentials|users|teams|notification_templates|bulk)\//.test(url.pathname)
+    if (req.method === 'GET' && url.pathname === '/api/v2/constructed_inventories/71/') {
+      res.end(JSON.stringify({ id: 71, name: 'Synthetic constructed inventory', source: 'constructed',
+        variables: 'mode: synthetic\npassword: CANARY-constructed-variable\n',
+        source_vars: '{"region":"synthetic","token":"CANARY-constructed-source"}' })); return
+    }
     if (req.method === 'GET' && url.pathname === '/api/v2/job_templates/43/launch/') {
       res.end(JSON.stringify({ passwords_needed_to_start: ['ssh_password'] })); return
     }
@@ -268,7 +273,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         recorded.body = payload
         if (configurationPath && !awxConfigurationAllowed) { res.writeHead(403); res.end(JSON.stringify({ detail: 'You do not have permission to perform this action.' })); return }
         mutations++
-        const association = /^\/api\/v2\/groups\/\d+\/(hosts|children)\/$/.exec(url.pathname)
+        const association = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|inventory_sources\/\d+\/(credentials|notification_templates_(?:started|success|error)))\/$/.exec(url.pathname)
         if (association) {
           const members = awxAssociations.get(url.pathname) ?? new Set()
           if (payload.disassociate) members.delete(payload.id)
@@ -276,6 +281,15 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           awxAssociations.set(url.pathname, members)
           if (awxDropWrite) { req.socket.destroy(); return }
           res.writeHead(204); res.end(); return
+        }
+        const sync = /^\/api\/v2\/inventory_sources\/(\d+)\/update\/$/.exec(url.pathname)
+        if (sync) {
+          const history = `/api/v2/inventory_sources/${sync[1]}/inventory_updates/`
+          const update = { id: 42, name: 'Synthetic inventory update', status: 'successful', failed: false }
+          resources.set(`${history}42/`, update)
+          resources.set('/api/v2/inventory_updates/42/', update)
+          if (awxDropWrite) { req.socket.destroy(); return }
+          res.writeHead(202); res.end(JSON.stringify(update)); return
         }
         const groupInventory = /^\/api\/v2\/inventories\/(\d+)\/groups\/$/.exec(url.pathname)
         const collection = groupInventory ? '/api/v2/groups/' : url.pathname
@@ -308,7 +322,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       if (variables) {
         res.end(JSON.stringify(parse(resources.get(`/api/v2/${variables[1]}/${variables[2]}/`)?.variables ?? '{}') ?? {})); return
       }
-      const members = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|hosts\/(\d+)\/groups|inventories\/(\d+)\/(hosts|groups))\/$/.exec(url.pathname)
+      const members = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|hosts\/(\d+)\/groups|inventories\/(\d+)\/(hosts|groups|inventory_sources))\/$/.exec(url.pathname)
       if (members) {
         const collection = members[1] === 'children' || members[2] ? 'groups' : members[1] ?? members[4]
         const rows = [...resources.entries()].filter(([path, value]) => {
@@ -323,7 +337,8 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       if (/\/\d+\/$/.test(url.pathname)) res.end(JSON.stringify(resources.get(url.pathname) ?? { id: 42, name: 'Synthetic resource' }))
       else {
         const rows = [...resources.entries()].filter(([path]) => path.startsWith(url.pathname) && /^\d+\/$/.test(path.slice(url.pathname.length)))
-          .map(([, value]) => value).filter(value => !url.searchParams.has('name') || value.name === url.searchParams.get('name'))
+          .map(([, value]) => value).filter(value => (!url.searchParams.has('name') || value.name === url.searchParams.get('name'))
+            && (!url.searchParams.has('inventory') || value.inventory === Number(url.searchParams.get('inventory'))))
         res.end(JSON.stringify({ count: rows.length, next: null, results: rows }))
       }
       return

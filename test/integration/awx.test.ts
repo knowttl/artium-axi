@@ -213,6 +213,12 @@ const configurationCases: { args: string[], path: string, body: unknown, input?:
     input: { files: [upload('variables.yml', 'password: CANARY-yaml-variable\n')] } },
   { args: ['inventory', 'create', 'Synthetic inventory', '--organization', '7'], path: 'inventories/', body: { name: 'Synthetic inventory', organization: 7 } },
   { args: ['inventory', 'edit', '42', '--name', 'Updated inventory'], path: 'inventories/42/', body: { name: 'Updated inventory' } },
+  ...['create', 'edit'].map(verb => ({
+    args: ['inventory', verb, verb === 'create' ? 'Synthetic inventory' : '42', ...(verb === 'create' ? ['--organization', '7'] : []), '--variables', 'inventory.yml'],
+    path: verb === 'create' ? 'inventories/' : 'inventories/42/',
+    body: { ...(verb === 'create' ? { name: 'Synthetic inventory', organization: 7 } : {}), variables: 'mode: synthetic\npassword: CANARY-inventory-variable\n' },
+    input: { files: [upload('inventory.yml', 'mode: synthetic\npassword: CANARY-inventory-variable\n')] },
+  })),
   { args: ['inventory', 'host-create', 'synthetic-host', '--inventory', '7'], path: 'hosts/', body: { name: 'synthetic-host', inventory: 7 } },
   { args: ['inventory', 'host-edit', '42', '--name', 'updated-host'], path: 'hosts/42/', body: { name: 'updated-host' } },
   { args: ['inventory', 'host-edit', '42', '--variables', 'variables.json'], path: 'hosts/42/',
@@ -234,6 +240,23 @@ const configurationCases: { args: string[], path: string, body: unknown, input?:
   { args: ['inventory', 'source-create', 'Synthetic source', '--inventory', '7', '--source', 'scm', '--source-vars', '{"region":"synthetic-region"}'],
     path: 'inventory_sources/', body: { name: 'Synthetic source', inventory: 7, source: 'scm', source_vars: '{"region":"synthetic-region"}' } },
   { args: ['inventory', 'source-edit', '42', '--name', 'Updated source'], path: 'inventory_sources/42/', body: { name: 'Updated source' } },
+  ...['create', 'edit'].flatMap(verb => ['inline', 'upload'].map(channel => ({
+    args: ['inventory', `source-${verb}`, verb === 'create' ? 'Synthetic source' : '42', ...(verb === 'create' ? ['--inventory', '7'] : []),
+      '--source', 'scm', '--source-project', '8', '--credential', '9', '--source-vars', channel === 'inline' ? '{"password":"CANARY-source-variable"}' : 'source.json',
+      verb === 'create' ? '--update-on-launch' : '--no-update-on-launch'],
+    path: verb === 'create' ? 'inventory_sources/' : 'inventory_sources/42/',
+    body: { ...(verb === 'create' ? { name: 'Synthetic source', inventory: 7 } : {}), source: 'scm', source_project: 8, credential: 9,
+      source_vars: '{"password":"CANARY-source-variable"}', update_on_launch: verb === 'create' },
+    input: channel === 'upload' ? { files: [upload('source.json', '{"password":"CANARY-source-variable"}')] } : {},
+  }))),
+  ...['add', 'remove'].flatMap(operation => [
+    { args: ['inventory', `source-credential-${operation}`, '42', '--credential', '9'], path: 'inventory_sources/42/credentials/',
+      body: { id: 9, ...(operation === 'remove' ? { disassociate: true } : {}) } },
+    ...['started', 'success', 'error'].map(event => ({
+      args: ['inventory', `source-notification-${operation}`, '42', '--event', event, '--notification-template', '10'],
+      path: `inventory_sources/42/notification_templates_${event}/`, body: { id: 10, ...(operation === 'remove' ? { disassociate: true } : {}) },
+    })),
+  ]),
   { args: ['template', 'create', 'Synthetic template', '--inventory', '7', '--project', '8', '--playbook', 'synthetic.yml'], path: 'job_templates/', body: { name: 'Synthetic template', inventory: 7, project: 8, playbook: 'synthetic.yml' } },
   { args: ['template', 'edit', '42', '--name', 'Updated template'], path: 'job_templates/42/', body: { name: 'Updated template' } },
   { args: ['project', 'create', 'Synthetic project', '--organization', '7'], path: 'projects/', body: { name: 'Synthetic project', organization: 7 } },
@@ -455,6 +478,73 @@ test.each([
       } })
       expect(await run(['host', 'show', '42'])).toMatchObject({ host: { name: 'synthetic-updated', groups: [] } })
       expect(await run(['group', 'show', '43'])).toMatchObject({ group: { name: 'synthetic-child', inventory: '7' } })
+      expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
+      expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    } finally { await app.close(); db.close() }
+  })
+}, 60_000)
+
+test('AWX inventory variables remain private on later reads with writes disabled (S4)', async () => {
+  await withFakeService(async ({ directory, port, send }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+    let allowWrites = true
+    const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
+    const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
+      token: 'CANARY-awx-token', allowWrites }) })
+    const prepare = adapter.prepare.bind(adapter)
+    adapter.prepare = async (...input) => {
+      const call = await prepare(...input)
+      if (call.executable === process.execPath) call.args[3] = join(process.cwd(), 'tools/node_modules/.bin/awx-axi')
+      else return { ...call, executable: process.execPath, args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+      return call
+    }
+    const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
+    const app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), adapters: [adapter], environment: {},
+      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }])) })
+    const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+    const run = async (args: string[], input: RunInput = {}) => {
+      const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args, ...input } })
+      expect(response.json(), response.body).toMatchObject({ exitCode: 0 })
+      expect(response.body).not.toContain('CANARY-')
+      return decode(response.json().stdout)
+    }
+    try {
+      await run(['inventory', 'create', 'synthetic-inventory', '--organization', '7', '--variables', '{"password":"CANARY-inventory"}', '--confirm'])
+      allowWrites = false
+      expect(await run(['inventory', 'show', 'synthetic-inventory'])).toMatchObject({ inventory: { id: 42, name: 'synthetic-inventory', variables: { password: '***' } } })
+      allowWrites = true
+      await run(['inventory', 'edit', '42', '--variables', 'inventory.yml', '--confirm'], { files: [upload('inventory.yml', 'password: CANARY-inventory-edit\n')] })
+      await run(['inventory', 'source-create', 'synthetic-source', '--inventory', 'synthetic-inventory', '--source', 'scm', '--credential', '9',
+        '--source-project', '8', '--source-vars', '{"region":"synthetic","password":"CANARY-source"}', '--update-on-launch', '--confirm'])
+      await run(['inventory', 'source-edit', 'synthetic-source', '--name', 'synthetic-updated', '--credential', '10', '--no-update-on-launch',
+        '--source-vars', 'source.json', '--confirm'], { files: [upload('source.json', '{"region":"updated","password":"CANARY-source-edit"}')] })
+      await run(['inventory', 'source-credential-add', 'synthetic-updated', '--credential', '11', '--confirm'])
+      await run(['inventory', 'source-credential-remove', 'synthetic-updated', '--credential', '11', '--confirm'])
+      await run(['inventory', 'source-notification-add', 'synthetic-updated', '--event', 'success', '--notification-template', '12', '--confirm'])
+      await run(['inventory', 'source-notification-remove', 'synthetic-updated', '--event', 'success', '--notification-template', '12', '--confirm'])
+      expect(await run(['inventory', 'sync', 'synthetic-updated', '--confirm', '--wait'])).toMatchObject({ inventory_update: { id: 42, inventory_source: 42, status: 'successful' } })
+      allowWrites = false
+      expect(await run(['inventory', 'show', '42'])).toMatchObject({ inventory: { name: 'synthetic-inventory', variables: { password: '***' } } })
+      expect(await run(['inventory', 'sources', '42'])).toMatchObject({ inventory_sources: [{ id: 42, name: 'synthetic-updated', source: 'scm', source_vars: 'configured' }] })
+      expect(await run(['inventory-source', 'list', '--inventory', '42'])).toMatchObject({ inventory_sources: [{ id: 42, name: 'synthetic-updated', inventory: '42' }] })
+      expect(await run(['inventory-source', 'show', 'synthetic-updated'])).toMatchObject({ inventory_source: {
+        inventory: '42', credential: '10', source_project: '8', update_on_launch: false,
+        source_vars: { region: 'updated', password: '***' }, total_updates: 1, updates: [{ id: 42, status: 'successful' }],
+      } })
+      expect(await run(['inventory', 'updates', '42'])).toMatchObject({ inventory_updates: [{ id: 42, source: '42 (synthetic-updated)', status: 'successful' }] })
+      expect(await run(['inventory', 'constructed-show', '71'])).toMatchObject({ inventory: {
+        name: 'Synthetic constructed inventory', variables: { mode: 'synthetic', password: '***' }, source_vars: { region: 'synthetic', token: '***' },
+      } })
+      allowWrites = true
+      await run(['inventory', 'edit', '42', '--variables', 'password: CANARY-awx-token\n', '--confirm'])
+      allowWrites = false
+      expect(await run(['inventory', 'show', '42'])).toMatchObject({ inventory: { variables: '***' } })
+      expect(JSON.parse(await send('/__evidence')).requests).toContainEqual(expect.objectContaining({
+        method: 'POST', path: '/api/v2/inventory_sources/42/credentials/', body: { id: 11, disassociate: true },
+      }))
       expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
     } finally { await app.close(); db.close() }

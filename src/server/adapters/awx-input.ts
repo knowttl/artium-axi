@@ -17,7 +17,10 @@ const { createRequire } = await import('node:module');
 const executable = process.argv[1];
 const argv = process.argv.slice(2);
 const require = createRequire(executable);
+const awxModule = require.resolve('awx-axi');
 const { decode, encode } = await import(pathToFileURL(require.resolve('@toon-format/toon')).href);
+const { parse } = await import(pathToFileURL(createRequire(awxModule).resolve('yaml')).href);
+const { redactValue } = await import(new URL('./core/redact.js', pathToFileURL(awxModule)).href);
 const { values, output: { fields, patterns } } = JSON.parse(readFileSync('awx-input.json', 'utf8'));
 for (const [index, value] of values) argv[index] = argv[index].split('=', 1)[0] + '=' + value;
 const tokens = patterns.map(([pattern, mask]) => [new RegExp(pattern, 'u'), mask]);
@@ -25,6 +28,9 @@ const masks = new Set([...Object.values(fields), ...patterns.map(([, mask]) => m
 const protocolFields = new Set(${JSON.stringify(protocolOutputFields)});
 const redact = (value, key = '', depth = 0) => {
   if ((depth > 1 || key === 'payload') && Object.hasOwn(fields, key)) return fields[key];
+  if (depth > 1 && ['variables', 'source_vars'].includes(key) && typeof value === 'string') {
+    try { return redactValue(parse(value)); } catch { return '***'; }
+  }
   if (protocolFields.has(key)) return value;
   if (typeof value === 'string' && !masks.has(value)) {
     const match = tokens.find(([pattern]) => pattern.test(value));
@@ -37,7 +43,7 @@ const redact = (value, key = '', depth = 0) => {
 const output = stream => ({ write(chunk) {
   stream.write(encode({ ...redact(decode(String(chunk))), input: fields }) + '\\n');
 } });
-const { main } = await import(pathToFileURL(require.resolve('awx-axi')).href);
+const { main } = await import(pathToFileURL(awxModule).href);
 await main({ argv, env: process.env, stdout: output(process.stdout), stderr: output(process.stderr) });
 `
 
