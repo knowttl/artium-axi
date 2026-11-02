@@ -398,6 +398,9 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
             || existing.some(host => host.inventory === payload.inventory && names.includes(host.name))) {
             res.writeHead(400); res.end(JSON.stringify({ hosts: ['Host names must be unique and present.'] })); return
           }
+          if (payload.hosts.some(host => host.variables !== undefined && typeof host.variables !== 'string')) {
+            res.writeHead(400); res.end(JSON.stringify({ hosts: ['Variables must be text.'] })); return
+          }
           mutations++
           const created = names.map((name, index) => {
             let id = 42

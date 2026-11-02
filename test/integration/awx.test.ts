@@ -272,8 +272,8 @@ const configurationCases: { args: string[], path: string, body: unknown, input?:
     preview: { input: { notification_configuration: '[structured input redacted, 37 bytes]', messages: '[structured input redacted, 50 bytes]' } },
   }))),
   { args: ['inventory', 'host-bulk-create', '--inventory', '7', '--hosts-file', 'hosts.json'], path: 'bulk/host_create/',
-    body: { inventory: 7, hosts: [{ name: 'synthetic-bulk-host', variables: { password: 'CANARY-bulk-secret' } }] },
-    input: { files: [upload('hosts.json', '[{"name":"synthetic-bulk-host","variables":{"password":"CANARY-bulk-secret"}}]')] } },
+    body: { inventory: 7, hosts: [{ name: 'synthetic-bulk-host', variables: '{"password":"CANARY-bulk-secret"}' }] },
+    input: { files: [upload('hosts.json', JSON.stringify([{ name: 'synthetic-bulk-host', variables: '{"password":"CANARY-bulk-secret"}' }]))] } },
   { args: ['inventory', 'host-create', 'synthetic-json-host', '--inventory', '7', '--variables', '{"password":"CANARY-json-variable"}'], path: 'hosts/',
     body: { name: 'synthetic-json-host', inventory: 7, variables: '{"password":"CANARY-json-variable"}' } },
   { args: ['inventory', 'host-create', 'synthetic-yaml-host', '--inventory', '7', '--variables', 'variables.yml'], path: 'hosts/',
@@ -1529,7 +1529,7 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
     const create = ['inventory', 'host-bulk-create', '--inventory', '7', '--hosts-file', 'hosts.json']
     const remove = ['inventory', 'host-bulk-delete', '--hosts-file', 'ids.json']
     const names = upload('hosts.json', JSON.stringify([
-      { name: 'not-ready', variables: { password: 'CANARY-bulk-secret' } }, { name: 'failed' }, { name: 'access-denied' }]))
+      { name: 'not-ready', variables: '{"password":"CANARY-bulk-secret"}' }, { name: 'failed' }, { name: 'access-denied' }]))
     try {
       // Reads stay available and bulk previews and confirmations are refused while writes are off.
       for (const [args, files] of [[create, [names]], [remove, [upload('ids.json', '[42]')]]] as const) {
@@ -1558,7 +1558,7 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
       expect(created.json(), created.body).toMatchObject({ exitCode: 0 })
       expect(created.body).not.toContain('CANARY-bulk-secret')
       expect((await evidence()).requests).toContainEqual(expect.objectContaining({ method: 'POST', path: '/api/v2/bulk/host_create/',
-        body: { inventory: 7, hosts: [{ name: 'not-ready', variables: { password: 'CANARY-bulk-secret' } },
+        body: { inventory: 7, hosts: [{ name: 'not-ready', variables: '{"password":"CANARY-bulk-secret"}' },
           { name: 'failed' }, { name: 'access-denied' }] } }))
       // A one-row page proves nothing about the other hosts.
       expect(await hostIds('--limit', '1')).toEqual({ count: '1 of 3 total', ids: [42] })
@@ -1572,6 +1572,14 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
       const freshDuplicate = await run([...create, '--confirm'], [upload('hosts.json', '[{"name":"fresh"},{"name":"fresh"}]')])
       expect(freshDuplicate.json(), freshDuplicate.body).toMatchObject({ exitCode: 2, stdout: expect.stringContaining('VALIDATION_ERROR') })
       expect((await hostIds('--limit', '100')).ids).toEqual([42, 43, 44])
+
+      for (const variables of [{ password: 'CANARY-bulk-secret' }, ['CANARY-bulk-secret']]) {
+        const invalidVariables = await run([...create, '--confirm'], [upload('hosts.json', JSON.stringify([
+          { name: 'fresh-valid', variables: '{}' }, { name: 'fresh-invalid', variables },
+        ]))])
+        expect(invalidVariables.json(), invalidVariables.body).toMatchObject({ exitCode: 2, stdout: expect.stringContaining('VALIDATION_ERROR') })
+        expect((await hostIds('--limit', '100')).ids).toEqual([42, 43, 44])
+      }
 
       const invalidBatch = await run([...remove, '--confirm'], [upload('ids.json', '[42,43,99]')])
       expect(invalidBatch.json(), invalidBatch.body).toMatchObject({ exitCode: 2, stdout: expect.stringContaining('VALIDATION_ERROR') })
