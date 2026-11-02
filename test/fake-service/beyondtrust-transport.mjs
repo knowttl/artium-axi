@@ -6,10 +6,11 @@ const target = new URL(process.env.ARTIUM_TEST_BEYONDTRUST_ORIGIN)
 if (target.protocol !== 'https:' || target.hostname !== 'localhost') throw new Error('Expected local BeyondTrust fake')
 const request = https.request
 const interruption = process.env.ARTIUM_TEST_BEYONDTRUST_INTERRUPTION
+const deadline = new AbortController()
 if (interruption === 'before-intent-crash') process.kill(process.pid, 'SIGKILL')
 if (interruption === 'native-deadline') {
   const timeout = AbortSignal.timeout.bind(AbortSignal)
-  AbortSignal.timeout = milliseconds => timeout(milliseconds === 60_000 ? 1000 : milliseconds)
+  AbortSignal.timeout = milliseconds => milliseconds === 60_000 ? deadline.signal : timeout(milliseconds)
 }
 https.request = (input, options, listener) => {
   const url = new URL(input)
@@ -25,6 +26,7 @@ https.request = (input, options, listener) => {
       if (interruption === 'exit') process.exit(7)
     }
     listener(response)
+    if (stall && interruption === 'native-deadline') deadline.abort(new DOMException('Deadline reached', 'TimeoutError'))
   })
 }
 globalThis.fetch = () => { throw new Error('Unexpected fetch in BeyondTrust fake') }
