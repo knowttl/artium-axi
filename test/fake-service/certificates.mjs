@@ -64,6 +64,9 @@ extendedKeyUsage = serverAuth
 authorityInfoAccess = caIssuers;URI:ftp://issuer.synthetic.test/intermediate
 [empty-subject]
 commonName = optional
+[self-signed]
+subjectAltName = DNS:localhost
+basicConstraints = CA:FALSE
 `)
   openssl(['req', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=Artium synthetic intermediate',
     '-keyout', 'intermediate.key', '-out', 'intermediate.csr'])
@@ -90,10 +93,11 @@ commonName = optional
     '-out', 'mismatch.crt', ...validity])
   openssl([...ca, '-extensions', 'non-http-server', '-cert', 'intermediate.crt', '-keyfile', 'intermediate.key',
     '-subj', '/CN=non-http.synthetic.test', '-in', 'server.csr', '-out', 'non-http.crt', ...validity])
-  openssl(['req', '-x509', '-key', 'server.key', '-subj', '/CN=localhost', '-days', '3650',
-    '-addext', 'subjectAltName=DNS:localhost', '-addext', 'basicConstraints=CA:FALSE', '-out', 'self-signed.crt'])
-  openssl(['req', '-x509', '-key', 'server.key', '-subj', '/CN=rotated.localhost', '-days', '3650',
-    '-addext', 'subjectAltName=DNS:localhost', '-addext', 'basicConstraints=CA:FALSE', '-out', 'self-signed-rotated.crt'])
+  // Re-sign the backdated certificate so self-signed fixtures tolerate clock skew too.
+  openssl(['x509', '-in', 'server.crt', '-signkey', 'server.key', '-preserve_dates', '-clrext',
+    '-subj', '/CN=localhost', '-extfile', 'inspection.cnf', '-extensions', 'self-signed', '-out', 'self-signed.crt'])
+  openssl(['x509', '-in', 'server.crt', '-signkey', 'server.key', '-preserve_dates', '-clrext',
+    '-subj', '/CN=rotated.localhost', '-extfile', 'inspection.cnf', '-extensions', 'self-signed', '-out', 'self-signed-rotated.crt'])
   openssl(['req', '-x509', '-key', 'server.key', '-subj', '/', '-days', '3650',
     '-addext', 'basicConstraints=CA:FALSE', '-out', 'nameless.crt'])
   openssl(['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=Other synthetic CA', '-days', '3650',

@@ -15,7 +15,9 @@ import { createInspectionCertificates } from '../../../test/fake-service/certifi
 const source = { getCredential: async () => ({ origin: 'https://synthetic.invalid', apiKey: 'CANARY-unifi-key' }) }
 
 let directory: string
+let verifierTime: number
 beforeAll(() => {
+  verifierTime = Math.floor(Date.now() / 1000) - 60
   directory = mkdtempSync(join(tmpdir(), 'artium-native-unifi-'))
   createInspectionCertificates(directory, 'http://issuer.synthetic.invalid/issuer')
   writeFileSync(join(directory, 'ip.cnf'), '[ip]\nsubjectAltName=IP:127.0.0.2,IP:::2\nbasicConstraints=CA:FALSE\n')
@@ -25,6 +27,14 @@ beforeAll(() => {
   { cwd: directory, stdio: 'pipe' })
 })
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
+
+// Regression: freshly generated self-signed fixtures intermittently failed TLS verification.
+test.each(['self-signed', 'self-signed-rotated'])('%s tolerates a verifier clock one minute behind generation', certificate => {
+  const pem = join(directory, `${certificate}.crt`)
+  const output = execFileSync('openssl', ['verify', '-trusted', pem, '-check_ss_sig', '-verify_hostname', 'localhost',
+    '-attime', String(verifierTime), pem], { encoding: 'utf8' })
+  expect(output.trim()).toBe(`${pem}: OK`)
+})
 
 test.each([
   { host: '127.0.0.2', certificate: 'ip', trust: 'ip', success: true },
