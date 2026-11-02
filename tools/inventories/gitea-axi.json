@@ -2747,15 +2747,17 @@
       "remote",
       "clone",
       "workspace",
-      "attach",
-      "file",
-      "content-type"
+      "dir",
+      "output",
+      "clobber"
     ],
     "nativeWrites": "exact administrator-selected native operations with preview/confirmation and durable receipts",
     "inputFileFlags": [
       "input",
       "body-file",
-      "notes-file"
+      "notes-file",
+      "file",
+      "attach"
     ],
     "blockedCommands": [
       "auth",
@@ -2790,6 +2792,60 @@
         "R": "repo"
       },
       "repeatableFlags": []
+    },
+    {
+      "command": "issue download",
+      "effect": "download",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "asset-id": "value",
+        "pattern": "value",
+        "sha256": "value",
+        "content-type": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": [
+        "pattern"
+      ]
+    },
+    {
+      "command": "pr download",
+      "effect": "download",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "asset-id": "value",
+        "pattern": "value",
+        "sha256": "value",
+        "content-type": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": [
+        "pattern"
+      ]
+    },
+    {
+      "command": "release download",
+      "effect": "download",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "asset-id": "value",
+        "pattern": "value",
+        "sha256": "value",
+        "content-type": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": [
+        "pattern"
+      ]
     },
     {
       "command": "secret list",
@@ -3034,6 +3090,130 @@
       "repeatableFlags": []
     },
     {
+      "command": "issue upload",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "file": "value",
+        "content-type": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": [
+        "file"
+      ]
+    },
+    {
+      "command": "pr upload",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "file": "value",
+        "content-type": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": [
+        "file"
+      ]
+    },
+    {
+      "command": "release upload",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "file": "value",
+        "content-type": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": [
+        "file"
+      ]
+    },
+    {
+      "command": "secret set",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "org": "value",
+        "input": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "secret delete",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "org": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "variable set",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "org": "value",
+        "body": "value",
+        "input": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
+      "command": "variable delete",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "allow-write": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "org": "value"
+      },
+      "shortFlags": {
+        "R": "repo"
+      },
+      "repeatableFlags": []
+    },
+    {
       "command": "repo create",
       "effect": "write",
       "flags": {
@@ -3097,6 +3277,8 @@
         "allow-write": "value",
         "preview": "boolean",
         "confirm": "value",
+        "attach": "value",
+        "content-type": "value",
         "title": "value",
         "notes": "value",
         "notes-file": "value",
@@ -3119,7 +3301,9 @@
         "d": "draft",
         "p": "prerelease"
       },
-      "repeatableFlags": []
+      "repeatableFlags": [
+        "attach"
+      ]
     },
     {
       "command": "release edit",
@@ -3130,6 +3314,8 @@
         "allow-write": "value",
         "preview": "boolean",
         "confirm": "value",
+        "attach": "value",
+        "content-type": "value",
         "title": "value",
         "notes": "value",
         "notes-file": "value",
@@ -3143,7 +3329,9 @@
         "n": "notes",
         "F": "notes-file"
       },
-      "repeatableFlags": []
+      "repeatableFlags": [
+        "attach"
+      ]
     },
     {
       "command": "release delete",
@@ -3173,6 +3361,8 @@
         "body": "value",
         "body-file": "value",
         "milestone": "value",
+        "attach": "value",
+        "content-type": "value",
         "base": "value",
         "head": "value",
         "assignee": "value",
@@ -3184,6 +3374,7 @@
         "R": "repo"
       },
       "repeatableFlags": [
+        "attach",
         "assignee",
         "label",
         "reviewer",
@@ -3203,6 +3394,8 @@
         "body": "value",
         "body-file": "value",
         "milestone": "value",
+        "attach": "value",
+        "content-type": "value",
         "base": "value",
         "add-label": "value",
         "remove-label": "value",
@@ -3217,6 +3410,7 @@
         "R": "repo"
       },
       "repeatableFlags": [
+        "attach",
         "add-label",
         "remove-label",
         "add-assignee",
@@ -3268,12 +3462,16 @@
         "preview": "boolean",
         "confirm": "value",
         "body": "value",
-        "body-file": "value"
+        "body-file": "value",
+        "attach": "value",
+        "content-type": "value"
       },
       "shortFlags": {
         "R": "repo"
       },
-      "repeatableFlags": []
+      "repeatableFlags": [
+        "attach"
+      ]
     },
     {
       "command": "pr update-branch",
@@ -3347,6 +3545,8 @@
         "body": "value",
         "body-file": "value",
         "milestone": "value",
+        "attach": "value",
+        "content-type": "value",
         "assignee": "value",
         "label": "value"
       },
@@ -3354,6 +3554,7 @@
         "R": "repo"
       },
       "repeatableFlags": [
+        "attach",
         "assignee",
         "label"
       ]
@@ -3371,6 +3572,8 @@
         "body": "value",
         "body-file": "value",
         "milestone": "value",
+        "attach": "value",
+        "content-type": "value",
         "add-label": "value",
         "remove-label": "value",
         "add-assignee": "value",
@@ -3380,6 +3583,7 @@
         "R": "repo"
       },
       "repeatableFlags": [
+        "attach",
         "add-label",
         "remove-label",
         "add-assignee",
@@ -3427,12 +3631,16 @@
         "preview": "boolean",
         "confirm": "value",
         "body": "value",
-        "body-file": "value"
+        "body-file": "value",
+        "attach": "value",
+        "content-type": "value"
       },
       "shortFlags": {
         "R": "repo"
       },
-      "repeatableFlags": []
+      "repeatableFlags": [
+        "attach"
+      ]
     },
     {
       "command": "issue delete",
@@ -3633,6 +3841,9 @@
   "discovery": {
     "commands": [
       "repo view",
+      "issue download",
+      "pr download",
+      "release download",
       "secret list",
       "variable list",
       "dashboard",
@@ -3650,6 +3861,13 @@
       "release view",
       "api",
       "write reconcile",
+      "issue upload",
+      "pr upload",
+      "release upload",
+      "secret set",
+      "secret delete",
+      "variable set",
+      "variable delete",
       "repo create",
       "repo edit",
       "repo fork",
@@ -3687,6 +3905,6 @@
       "--repo",
       "<owner/name>"
     ],
-    "help": "Gitea managed reads and administrator-selected writes. Repository commands require --repo OWNER/NAME.\nWrites are off by default; select exact native operation IDs with --allow-write and use --preview, then repeat the same request with --confirm <confirmation>.\nUse write reconcile <confirmation> after an uncertain outcome; never replay it.\nUse pr checks --watch with --timeout from 1 to 50 seconds.\nText/JSON input accepts managed uploads or explicit stdin. Protected values, attachment transfers, local workflows and identity overrides are unavailable.\n"
+    "help": "Gitea managed reads and administrator-selected writes. Repository commands require --repo OWNER/NAME or their native positional selector; secret/variable commands also support --org.\nWrites are off by default; select exact native operation IDs with --allow-write and use --preview, then repeat the same request with --confirm <confirmation>.\nUse write reconcile <confirmation> after an uncertain outcome; never replay it.\nUse pr checks --watch with --timeout from 1 to 50 seconds.\nText/JSON input accepts managed uploads or explicit stdin. Secret values require --input and never argv. Attachments upload with --file or --attach within Artium input limits.\nDownload one exact asset with artium-axi download and its selected gitea.*.download operation; ordinary downloads and output paths are refused. Local workflows and identity overrides are unavailable.\n"
   }
 }

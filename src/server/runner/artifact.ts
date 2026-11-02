@@ -11,6 +11,7 @@ import type { RunContext } from './run.js'
 import { RunnerError } from './runner.js'
 import type { Runner, RunnerResult } from './runner.js'
 import { logRun } from './log.js'
+import { giteaTransferBytes } from '../../shared/gitea-writes.js'
 
 const completionSchema = z.object({ id: z.string(), type: z.string(), output: z.string(),
   bytes: z.number().int().nonnegative(), auditId: z.uuid() })
@@ -48,6 +49,12 @@ async function nativeJournal(path: string | undefined, scope: TransferScope, out
 }
 
 function nativeArguments(scope: TransferScope, output: string): string[] {
+  if (transferTool(scope.selection.operation) === 'gitea-axi') {
+    const [owner, repo, ...parts] = scope.selection.selector.split('/')
+    const asset = parts.pop()!
+    return [scope.selection.operation.split('.')[1], 'download', '--repo', owner + '/' + repo,
+      '--asset-id', asset, '--output', output, '--', parts.join('/')]
+  }
   if (transferTool(scope.selection.operation) === 'beyondtrust-axi') return [
     ...scope.selection.operation.split('.'), ...(scope.selection.operation === 'api-definition.download' ? [] : [scope.selection.selector]), '--out', output]
 
@@ -84,7 +91,7 @@ export async function previewNativeArtifact(reservation: ArtifactReservation, ru
       authorize()
       return transferPreviewSchema.parse({ transferId: reservation.scope.transferId,
         expiresAt: reservation.scope.expiresAt, targetDigest: reservation.scope.targetDigest,
-        confirm: hostedConfirmation(reservation.scope), warnings: ['mg-axi', 'beyondtrust-axi'].includes(transferTool(reservation.scope.selection.operation))
+        confirm: hostedConfirmation(reservation.scope), warnings: ['mg-axi', 'beyondtrust-axi', 'gitea-axi'].includes(transferTool(reservation.scope.selection.operation))
           ? [transferWarningFor(reservation.scope.selection.operation)] : [
           'Host-owned confirmation. Download once, save only; do not extract or execute. Native SHA-256 verification is mandatory; live scopes and email/ZIP hash availability remain unverified. ZIP responses may contain only some attachments.',
         ] })
@@ -117,6 +124,17 @@ export async function executeNativeArtifact(reservation: ArtifactReservation, ru
       runner.run(scope.userId, prepared.executable, prepared.args, prepared.environment, prepared.secrets,
         { ...prepared.limits, signal }, {}, prepared.files, () => { authorize(); launched = true }))
     try {
+      if (transferTool(scope.selection.operation) === 'gitea-axi') {
+        if (confirm !== hostedConfirmation(scope)) throw new ArtiumError('INVALID_INPUT')
+        profile = await prepare(nativeArguments(scope, output))
+        result = await run(profile)
+        if (result.exitCode !== 0 || result.timedOut || result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('UNKNOWN_OUTCOME')
+        const completion = z.strictObject({ downloads: z.tuple([z.strictObject({
+          id: z.literal(Number(scope.selection.selector.split('/').at(-1))), name: z.string(), path: z.literal(output),
+          bytes: z.number().int().nonnegative().max(giteaTransferBytes), sha256: z.string().regex(/^[a-f0-9]{64}$/), content_type: z.string(),
+        })]) }).parse(decode(result.stdout)).downloads[0]
+        return { archiveBytes: completion.bytes, verifiedSha256: completion.sha256, nativeAuditId: null, nativeJournalResult: null }
+      }
       if (transferTool(scope.selection.operation) === 'mg-axi') {
         if (confirm !== hostedConfirmation(scope)) throw new ArtiumError('INVALID_INPUT')
         const target = scope.selection.selector.split('/').at(-1)!

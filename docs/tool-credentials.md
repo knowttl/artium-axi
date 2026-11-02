@@ -104,7 +104,9 @@ Use the existing certificate controls for private CA or certificate-pin trust.
 After testing, enabling and granting the tool, run `artium-axi gitea-axi doctor`, then `artium-axi gitea-axi issue view 42 --repo OWNER/NAME` for an existing item.
 See the [Gitea capability boundary](safety.md#gitea-reads) for supported operations and restrictions.
 See [write-permission administration](admin-guide.md#browser-administration) to grant the required native operations.
-Credentials and SecretRefs never belong in command arguments; text file inputs carry mutation content only.
+Credentials and SecretRefs never belong in command arguments.
+Protected Gitea secret values enter through private `--input` uploads or explicit stdin, while variable values are non-secret.
+Grant each attachment download operation separately; uploads retain native operation grants and preview/confirmation.
 
 #### Proxmox
 

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { decode } from '@toon-format/toon'
 import { withFakeService } from './fixture.js'
@@ -14,6 +16,9 @@ import { SharedIdentityResolver } from '../../src/server/policy/identity-resolve
 import { seedToolUser } from '../fixtures/tokens.js'
 import { toolInput } from '../../src/cli/input.js'
 import type { RunInput } from '../../src/shared/api.js'
+import { transferRoutesFor } from '../../src/shared/api.js'
+import { transferTargetDigest } from '../../src/server/transfer.js'
+import { SessionStore, sessionPath } from '../../src/cli/session.js'
 
 // Authenticated native probes run only inside the container with --network none.
 assert.ok(!readFileSync('/proc/net/route', 'utf8').split('\n').slice(1).some(line => line.split(/\s+/)[1] === '00000000'))
@@ -107,6 +112,112 @@ await withFakeService(async ({ directory, port, send }) => {
       [...edit, '--allow-write=issueCreateIssue', '--preview'],
     ]) assert.ok((await invoke(args)).statusCode >= 400)
     assert.equal((await evidence()).requests.length, before)
+    await policy(true, ['updateRepoSecret', 'deleteRepoSecret', 'createRepoVariable', 'updateRepoVariable', 'deleteRepoVariable',
+      'issueCreateIssueAttachment', 'gitea.issue.download', 'gitea.pr.download', 'gitea.release.download'])
+    const protectedValue = 'CANARY-protected-gitea-value'
+    const input = { files: [{ name: 'protected.txt', contentBase64: Buffer.from(protectedValue).toString('base64') }] }
+    const setSecret = ['secret', 'set', 'SYNTHETIC', '--repo', 'example/project', '--input', 'protected.txt', '--allow-write', 'updateRepoSecret']
+    const secretPreview = await success([...setSecret, '--preview'], input)
+    await success([...setSecret, '--confirm', secretPreview.confirmation], input)
+    const rawSecret = ['api', 'PUT', 'repos/example/project/actions/secrets/SECOND', '--input', '-', '--allow-write', 'updateRepoSecret']
+    const jsonInput = { stdin: JSON.stringify({ data: protectedValue }) }
+    const jsonPreview = await success([...rawSecret, '--preview'], jsonInput)
+    await success([...rawSecret, '--confirm', jsonPreview.confirmation], jsonInput)
+    const names = await invoke(['secret', 'list', '--repo', 'example/project'])
+    assert.equal(names.json().exitCode, 0, names.body)
+    assert.match(names.json().stdout, /SYNTHETIC/)
+    assert.doesNotMatch(names.body, /CANARY-/)
+    const setVariable = ['variable', 'set', 'SYNTHETIC', '--repo', 'example/project', '--body=', '--allow-write', 'createRepoVariable']
+    const variablePreview = await success([...setVariable, '--preview'])
+    await success([...setVariable, '--confirm', variablePreview.confirmation])
+    const opaque = Buffer.from([0, 255, 128, 13, 10, 2])
+    const binary = { files: [{ name: 'new.bin', contentBase64: opaque.toString('base64') }] }
+    const uploadAsset = ['issue', 'upload', '42', '--repo', 'example/project', '--file', 'new.bin', '--allow-write', 'issueCreateIssueAttachment']
+    const assetPreview = await success([...uploadAsset, '--preview'], binary)
+    await success([...uploadAsset, '--confirm', assetPreview.confirmation], binary)
+    const uploaded = JSON.parse(await send('/__evidence')) as { requests: Array<{ uploadedBase64?: string }> }
+    assert.ok(uploaded.requests.some(row => row.uploadedBase64 === opaque.toString('base64')))
+    const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+    const proof = { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }
+    const routes = transferRoutesFor('gitea-axi')
+    const expected = Buffer.from([0, 255, 13, 10, 127, 1])
+    const sha256 = createHash('sha256').update(expected).digest('hex')
+    for (const [operation, selector] of [
+      ['gitea.issue.download', 'example/project/42/77'], ['gitea.pr.download', 'example/project/42/77'],
+      ['gitea.release.download', 'example/project/releases/v1+build/77'],
+    ]) {
+      const selection = { operation, selector, type: 'attachment' }
+      const request = { selection, targetDigest: transferTargetDigest(join(directory, 'saved.bin')) }
+      const count = (await evidence()).requests.length
+      const preview = await app.inject({ method: 'POST', url: routes.prepare.path, headers: proof, payload: request })
+      assert.equal(preview.statusCode, 200, preview.body)
+      assert.equal((await evidence()).requests.length, count)
+      const transfer = { ...request, transferId: preview.json().transferId }
+      const execute = await app.inject({ method: 'POST', url: routes.execute.path, headers: proof,
+        payload: { ...transfer, execute: true, confirm: preview.json().confirm } })
+      assert.equal(execute.statusCode, 200, execute.body)
+      assert.deepEqual(execute.json().archive, { archiveBytes: expected.length, archiveSha256: sha256 })
+      const received = await app.inject({ method: 'POST', url: routes.retrieve.path, headers: proof, payload: transfer })
+      assert.equal(received.statusCode, 200, received.body)
+      assert.deepEqual(received.rawPayload, expected)
+      const replay = await app.inject({ method: 'POST', url: routes.retrieve.path, headers: proof, payload: transfer })
+      assert.notEqual(replay.statusCode, 200, replay.body)
+      const receipt = await app.inject({ method: 'POST', url: routes.receipt.path, headers: proof,
+        payload: { ...transfer, archive: execute.json().archive, saveOutcome: 'verified-save' } })
+      assert.equal(receipt.statusCode, 204, receipt.body)
+    }
+    const serverUrl = await app.listen({ host: '127.0.0.1', port: 0 })
+    const environment = { ...process.env, ARTIUM_AXI_URL: serverUrl, ARTIUM_AXI_TEST_HTTP: '1', XDG_CONFIG_HOME: join(directory, 'client') }
+    const clientLogin = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })
+    assert.equal(clientLogin.statusCode, 200, clientLogin.body)
+    new SessionStore(serverUrl, sessionPath(process.platform, environment)).write(clientLogin.json())
+    const destinationDirectory = join(directory, 'saved')
+    mkdirSync(destinationDirectory, { mode: 0o700 })
+    const destination = join(destinationDirectory, 'attachment.bin')
+    const cliArgs = ['download', '--operation', 'gitea.release.download', '--selector', 'example/project/releases/v1+build/77',
+      '--type', 'attachment', '--destination', destination, '--password-stdin']
+    const cli = (args: string[]) => new Promise<string>((resolve, reject) => {
+      const child = spawn(process.execPath, ['/work/dist/cli/artium-axi.mjs', ...args], { env: environment, stdio: 'pipe' })
+      let output = ''; let error = ''
+      child.stdout.on('data', chunk => { output += chunk })
+      child.stderr.on('data', chunk => { error += chunk })
+      child.on('error', reject)
+      child.on('close', code => code === 0 ? resolve(output) : reject(new Error(`${code}: ${output} ${error}`)))
+      child.stdin.end('CANARY-local-password\n')
+    })
+    const previewOutput = await cli(cliArgs)
+    const { transferId, confirm: confirmation } = decode(previewOutput) as { transferId: string, confirm: string }
+    assert.ok(transferId && confirmation, previewOutput)
+    const saved = await cli([...cliArgs, '--transfer', transferId, '--execute', '--confirm', confirmation])
+    assert.match(saved, /verified-save/)
+    assert.deepEqual(readFileSync(destination), expected)
+    const selected = { selection: { operation: 'gitea.issue.download', selector: 'example/project/42/77', type: 'attachment' },
+      targetDigest: transferTargetDigest(join(directory, 'denied.bin')) }
+    const withoutProof = await app.inject({ method: 'POST', url: routes.prepare.path, headers, payload: selected })
+    assert.notEqual(withoutProof.statusCode, 200, withoutProof.body)
+    const owned = await app.inject({ method: 'POST', url: routes.prepare.path, headers: proof, payload: selected })
+    assert.equal(owned.statusCode, 200, owned.body)
+    const clientSession = new SessionStore(serverUrl, sessionPath(process.platform, environment)).read()
+    assert.ok(clientSession && 'accessToken' in clientSession)
+    const other = { authorization: `Bearer ${clientSession.accessToken}` }
+    const unrelated = await app.inject({ method: 'POST', url: routes.status.path, headers: other,
+      payload: { ...selected, transferId: owned.json().transferId } })
+    assert.notEqual(unrelated.statusCode, 200, unrelated.body)
+    const ownerStatus = await app.inject({ method: 'POST', url: routes.status.path, headers: proof,
+      payload: { ...selected, transferId: owned.json().transferId } })
+    assert.equal(ownerStatus.statusCode, 200, ownerStatus.body)
+    const count = (await evidence()).requests.length
+    const changedTarget = await app.inject({ method: 'POST', url: routes.execute.path, headers: proof,
+      payload: { ...selected, targetDigest: 'a'.repeat(64), transferId: owned.json().transferId, execute: true, confirm: owned.json().confirm } })
+    assert.notEqual(changedTarget.statusCode, 200, changedTarget.body)
+    assert.equal((await evidence()).requests.length, count)
+    const staleTransfer = await app.inject({ method: 'POST', url: routes.prepare.path, headers: proof, payload: selected })
+    assert.equal(staleTransfer.statusCode, 200, staleTransfer.body)
+    await policy(false)
+    const staleExecute = await app.inject({ method: 'POST', url: routes.execute.path, headers: proof,
+      payload: { ...selected, transferId: staleTransfer.json().transferId, execute: true, confirm: staleTransfer.json().confirm } })
+    assert.notEqual(staleExecute.statusCode, 200, staleExecute.body)
+    assert.doesNotMatch(JSON.stringify(db.prepare('SELECT * FROM audit').all()), /protected\.txt/)
     db.prepare("DELETE FROM role_tools WHERE tool = 'gitea-axi'").run()
     const denied = await invoke(['issue', 'view', '42', '--repo', 'example/project'])
     assert.equal(denied.statusCode, 403, denied.body)

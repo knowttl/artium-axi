@@ -72,7 +72,7 @@ export async function runTool<Credential>(
       throw error
     }
     const identity = { userId, tool: adapter.name, requestId: context.requestId, clientAddress: context.clientAddress }
-    for (const file of input.files ?? []) {
+    for (const file of adapter.sensitiveInput?.(args, input) ? [] : input.files ?? []) {
       const bytes = Buffer.from(file.contentBase64, 'base64')
       audit.record({ ...identity, event: 'upload', outcome: 'success', args, sensitive: adapter.sensitiveArguments(args),
         file: { name: file.name, size: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') } })

@@ -101,14 +101,14 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
   app.addHook('onSend', async (request, _reply, payload) => {
     // Retrieval has already claimed the entry and checks authority while reading.
     // A revoking mutation's response still waits for cancellation below.
-    if ((['hybrid-axi', 'checkpoint-axi', 'mg-axi', 'beyondtrust-axi'] as const).some(tool => request.routeOptions.url === transferRoutesFor(tool).retrieve.path)) return payload
+    if ((['hybrid-axi', 'checkpoint-axi', 'mg-axi', 'beyondtrust-axi', 'gitea-axi'] as const).some(tool => request.routeOptions.url === transferRoutesFor(tool).retrieve.path)) return payload
     for (const entry of entries.values()) {
       try { access(entry.reservation.scope) }
       catch { await discard(entry) }
     }
     return payload
   })
-  const routeGroups = (['hybrid-axi', 'checkpoint-axi', 'mg-axi', 'beyondtrust-axi'] as const).flatMap(tool => {
+  const routeGroups = (['hybrid-axi', 'checkpoint-axi', 'mg-axi', 'beyondtrust-axi', 'gitea-axi'] as const).flatMap(tool => {
     const routes = transferRoutesFor(tool)
     return Object.values(routes).map(route => ({ tool, routes, route }))
   })
@@ -190,6 +190,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
         if (request.headers.range || request.headers['if-range'] || request.headers['accept-encoding'] && request.headers['accept-encoding'] !== 'identity') {
           throw new ArtiumError('INVALID_INPUT')
         }
+        if (entry.delivery) { await entry.delivery; throw new ArtiumError('INVALID_INPUT') }
         const delivering = entry
         entry.delivery = entry.reservation.consume(async (path, archive, signal) => {
           ownerFor(request); access(scope)

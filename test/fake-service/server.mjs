@@ -19,6 +19,9 @@ let githubDevicePolls = 0
 const giteaIssue = { id: 42, number: 42, title: 'Synthetic issue', state: 'open', body: 'Synthetic issue body',
   user: { id: 1, login: 'synthetic-reader' }, token: 'CANARY-upstream-token' }
 let giteaDropWrite = false
+const giteaValues = new Map()
+const giteaBytes = Buffer.from([0, 255, 13, 10, 127, 1])
+const giteaAssets = [{ id: 77, uuid: '11111111-1111-4111-8111-111111111111', name: 'asset.bin', size: giteaBytes.length }]
 const certs = process.argv[2] ?? '/certs'
 const githubAppPublicKey = new X509Certificate(readFileSync(join(certs, 'server.crt'))).publicKey
 
@@ -104,6 +107,48 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     return
   }
   if (url.pathname === '/__gitea/drop-write') { giteaDropWrite = true; res.end('{}'); return }
+  if (/^\/api\/v1\/(?:repos\/example\/project|orgs\/example)\/actions\/(?:secrets|variables)(?:\/[^/]+)?$/.test(url.pathname)) {
+    const canaryReceived = req.headers.authorization === 'token CANARY-gitea-token'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived })
+    if (!canaryReceived) { res.writeHead(401); res.end('{}'); return }
+    const selected = /\/(secrets|variables)(?:\/([^/]+))?$/.exec(url.pathname)
+    const collection = url.pathname.slice(0, selected.index) + '/' + selected[1]
+    const values = giteaValues.get(collection) ?? new Map([['CONTROL', 'Synthetic control']])
+    giteaValues.set(collection, values)
+    if (req.method === 'GET') {
+      const rows = [...values].map(([name, data]) => ({ name, ...(selected[1] === 'variables' ? { data } : {}) }))
+      res.end(JSON.stringify(selected[2] ? rows.find(row => row.name === selected[2]) : rows))
+    } else {
+      let body = ''
+      req.on('data', chunk => { body += chunk })
+      req.on('end', () => {
+        if (req.method === 'DELETE') values.delete(selected[2])
+        else { const payload = JSON.parse(body); values.set(selected[2], payload.data ?? payload.value) }
+        mutations++; res.writeHead(204); res.end()
+      })
+    }
+    return
+  }
+  if (/^\/api\/v1\/repos\/example\/project\/(?:pulls\/42|releases|(?:issues\/42|releases\/17)\/assets(?:\/77)?)$/.test(url.pathname)
+    || url.pathname === '/attachments/11111111-1111-4111-8111-111111111111') {
+    const canaryReceived = req.headers.authorization === 'token CANARY-gitea-token'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived })
+    if (!canaryReceived) { res.writeHead(401); res.end('{}'); return }
+    if (req.method === 'POST') {
+      void new Request('https://localhost/upload', { method: 'POST', headers: req.headers, body: req, duplex: 'half' }).formData().then(async form => {
+        const file = form.get('attachment')
+        const bytes = Buffer.from(await file.arrayBuffer())
+        const asset = { id: 78, uuid: '22222222-2222-4222-8222-222222222222', name: file.name, size: bytes.length }
+        giteaAssets.push(asset); mutations++
+        requests.at(-1).uploadedBase64 = bytes.toString('base64')
+        res.writeHead(201); res.end(JSON.stringify(asset))
+      }).catch(() => { res.writeHead(400); res.end('{}') })
+    } else if (url.pathname.startsWith('/attachments/')) { res.setHeader('content-type', 'application/octet-stream'); res.end(giteaBytes) }
+    else res.end(JSON.stringify(url.pathname.endsWith('/pulls/42') ? giteaIssue
+      : url.pathname.endsWith('/releases') ? [{ id: 17, tag_name: 'releases/v1+build' }]
+      : url.pathname.endsWith('/77') ? giteaAssets[0] : giteaAssets))
+    return
+  }
   if (['/api/v1/version', '/api/v1/user', '/api/v1/repos/example/project/issues/42'].includes(url.pathname)) {
     const canaryReceived = req.headers.authorization === 'token CANARY-gitea-token'
     requests.push({ method: req.method, path: url.pathname, canaryReceived })
