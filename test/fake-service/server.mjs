@@ -8,6 +8,7 @@ import { checkpointResponse } from './checkpoint.mjs'
 
 const requests = []
 const resources = new Map()
+const awxAssociations = new Map()
 let mutations = 0
 let basicAuthEnabled = true
 let awxConfigurationAllowed = true
@@ -135,6 +136,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   }
   if (url.pathname === '/__ado/reset' && req.method === 'POST') {
     resources.clear()
+    awxAssociations.clear()
     requests.length = 0
     mutations = 0
     basicAuthEnabled = true
@@ -265,8 +267,21 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         recorded.body = payload
         if (configurationPath && !awxConfigurationAllowed) { res.writeHead(403); res.end(JSON.stringify({ detail: 'You do not have permission to perform this action.' })); return }
         mutations++
-        const path = req.method === 'PATCH' ? url.pathname : `${url.pathname}42/`
-        const resource = { id: 42, ...resources.get(path), ...payload }
+        const association = /^\/api\/v2\/groups\/\d+\/(hosts|children)\/$/.exec(url.pathname)
+        if (association) {
+          const members = awxAssociations.get(url.pathname) ?? new Set()
+          if (payload.disassociate) members.delete(payload.id)
+          else members.add(payload.id)
+          awxAssociations.set(url.pathname, members)
+          if (awxDropWrite) { req.socket.destroy(); return }
+          res.writeHead(204); res.end(); return
+        }
+        const groupInventory = /^\/api\/v2\/inventories\/(\d+)\/groups\/$/.exec(url.pathname)
+        const collection = groupInventory ? '/api/v2/groups/' : url.pathname
+        let id = 42
+        if (req.method === 'POST') while (resources.has(`${collection}${id}/`)) id++
+        const path = req.method === 'PATCH' ? url.pathname : `${collection}${id}/`
+        const resource = { id, ...(groupInventory ? { inventory: Number(groupInventory[1]) } : {}), ...resources.get(path), ...payload }
         resources.set(path, resource)
         if (awxDropWrite) { req.socket.destroy(); return }
         res.writeHead(req.method === 'PATCH' ? 200 : 201)
@@ -288,6 +303,22 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       res.end(JSON.stringify({ count: 1, next: null, results: [{ id: 42, name: 'Synthetic AWX job', status: 'running', type: 'job' }] })); return
     }
     if (configurationPath && req.method === 'GET') {
+      const variables = /^\/api\/v2\/(hosts|groups)\/(\d+)\/variable_data\/$/.exec(url.pathname)
+      if (variables) {
+        res.end(resources.get(`/api/v2/${variables[1]}/${variables[2]}/`)?.variables ?? '{}'); return
+      }
+      const members = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|hosts\/(\d+)\/groups|inventories\/(\d+)\/(hosts|groups))\/$/.exec(url.pathname)
+      if (members) {
+        const collection = members[1] === 'children' || members[2] ? 'groups' : members[1] ?? members[4]
+        const rows = [...resources.entries()].filter(([path, value]) => {
+          if (!new RegExp(`^/api/v2/${collection}/\\d+/$`).test(path)) return false
+          if (members[3]) return value.inventory === Number(members[3])
+          if (members[2]) return awxAssociations.get(`/api/v2/groups/${value.id}/hosts/`)?.has(Number(members[2]))
+          return awxAssociations.get(url.pathname)?.has(value.id)
+        }).map(([, value]) => value)
+        res.end(JSON.stringify({ count: rows.length, next: null, results: rows })); return
+      }
+      if (/^\/api\/v2\/hosts\/\d+\/ansible_facts\/$/.test(url.pathname)) { res.end('{}'); return }
       if (/\/\d+\/$/.test(url.pathname)) res.end(JSON.stringify(resources.get(url.pathname) ?? { id: 42, name: 'Synthetic resource' }))
       else {
         const rows = [...resources.entries()].filter(([path]) => path.startsWith(url.pathname) && /^\d+\/$/.test(path.slice(url.pathname.length)))
