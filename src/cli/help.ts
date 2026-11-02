@@ -7,8 +7,6 @@ import { transferLimits, transferWarning } from '../shared/api.js'
 import { inputLimits } from '../shared/api.js'
 
 const commands = {
-  'gitea-axi': { usage: 'artium-axi gitea-axi [<args>]', purpose: 'Read Gitea data with managed credentials.',
-    flags: ['Repository reads require --repo OWNER/NAME. api accepts GET and classified metadata paths. Writes, attachment transfers, local configuration and workflows are unavailable.'], example: 'artium-axi gitea-axi issue view 42 --repo OWNER/NAME' },
   'gh-axi': { usage: 'artium-axi gh-axi [<args>]', purpose: 'Read and update GitHub data with managed credentials.',
     flags: ['Repository commands require -R OWNER/NAME. Writes require an administrator-enabled exact operation: preview, then repeat with its --confirm value. api is GET only; deletes, secret set, merge --admin, local git, files and downloads are unavailable. Only gist create/edit with --filename accepts piped stdin.'], example: 'artium-axi gh-axi repo list --limit 1' },
   home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|setup|update|download|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: ['--version, -v, -V (default false; print the client package version and exit)'], example: 'artium-axi' },
@@ -68,6 +66,8 @@ const commands = {
     flags: ['Declared ordinary reads accept --help. Writes, byte transports, session authentication and file input are unavailable.'], example: 'artium-axi proxmox-axi get /version' },
   'technitium-axi': { usage: 'artium-axi technitium-axi [<args>]', purpose: 'Read Technitium DNS data with managed credentials.',
     flags: ['Declared reads accept --help. Authenticated reads return protected result references; local result paths and writes are unavailable.'], example: 'artium-axi technitium-axi status' },
+  'gitea-axi': { usage: 'artium-axi gitea-axi [<args>]', purpose: 'Read Gitea data with managed credentials.',
+    flags: ['Repository reads require --repo OWNER/NAME. api accepts GET and classified metadata paths. Writes, attachment transfers, local configuration and workflows are unavailable.'], example: 'artium-axi gitea-axi issue view 42 --repo OWNER/NAME' },
 } as const
 
 export type HelpCommand = keyof typeof commands
