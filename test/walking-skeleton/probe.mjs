@@ -45,7 +45,7 @@ const upstreamSuggestions = (text, removeManaged = false) => {
     else if (line && !line.startsWith(' ')) help = false
     if (!help) return line
     const unwrapped = line.replaceAll('artium-axi falcon-axi', 'falcon-axi').replaceAll('artium-axi vectra-axi', 'vectra-axi')
-    return removeManaged ? unwrapped.replace(/ --region us-1(?=`)/g, '')
+    return removeManaged ? unwrapped.replace(/ --region https:\/\/falcon\.synthetic\.crowdstrike\.com(?=`)/g, '')
       .replace(/, --(?:region|allow-unknown-origin|member-cid|no-member-cid|config|profile)(?=,|"|$)/g, '') : unwrapped
   }).join('\n')
 }
