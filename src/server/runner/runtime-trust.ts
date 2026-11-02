@@ -21,7 +21,7 @@ tls.connect = function (...args) {
     port: args[0], ...(typeof args[1] === 'string' ? { host: args[1] } : {}),
     ...args.find((value, index) => index > 0 && value && typeof value === 'object')
   };
-  const host = (options.servername || options.host || 'localhost').replace(/^\[|\]$/g, '').toLowerCase();
+  const host = (options.host || 'localhost').replace(/^\[|\]$/g, '').toLowerCase();
   const port = Number(options.port || options.socket?.remotePort || 443);
   const expected = pins.filter(pin => pin.hostname === host && pin.port === port);
   const scoped = buildOptions(tls, expected, options.ca);
