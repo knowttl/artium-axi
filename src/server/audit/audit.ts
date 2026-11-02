@@ -22,6 +22,7 @@ type Outcome = 'success' | 'failure' | ErrorCode
 type Arguments = { args: readonly string[], sensitive: SensitiveArguments }
 type CredentialTestEvidence = { checkedAt: number | null, credentialRevision: number | null, errorCode: ErrorCode | null }
 export type AuditEvent = Context & (
+  | { event: 'protected-result', outcome: 'success', result: { id: string, operation: string, bytes: number, sha256: string } }
   | ({ event: 'upload', outcome: 'success', file: { name: string, size: number, sha256: string } } & Arguments)
   | { event: 'ado-api', outcome: 'allowed' | 'refused', method: string, path: string | null, bodySha256: string, bodyBytes: number }
   | { event: 'transfer', outcome: z.infer<typeof transferOutcomeSchema>, credentialRevision: number,
@@ -223,6 +224,8 @@ export class Audit {
     const row = {
       occurred_at: this.clock(), event: event.event, user_id: event.userId, tool: event.tool,
       arguments: event.event === 'upload' ? JSON.stringify({ command: redactArguments(event.args, event.sensitive), file: event.file }) :
+        event.event === 'protected-result' ? JSON.stringify({ id: event.result.id, operation: event.result.operation,
+          bytes: event.result.bytes, sha256: event.result.sha256 }) :
         event.event === 'ado-api' ? JSON.stringify({ method: event.method, path: event.path,
           decision: event.outcome, bodySha256: event.bodySha256, bodyBytes: event.bodyBytes }) :
         event.event === 'run-start' ? JSON.stringify(redactArguments(event.args, event.sensitive)) :

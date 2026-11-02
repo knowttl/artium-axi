@@ -448,6 +448,25 @@ Use `job watch --timeout 50` or less to stay within the runner timeout.
 For an interrupted write, inspect current state using the returned read-back guidance before retrying.
 Local fake-service checks do not establish live controller acceptance.
 
+#### Technitium DNS
+
+Artium pins `@knowttl/technitium-axi` to `0.1.0`, whose published write model permits reads only.
+Enter a canonical HTTPS `origin`, `auth: token`, the token's actual `tokenKind` (`api`, `session` or `single-use`) and the token value in the managed credential editor.
+Artium encrypts the value and supplies a private SecretRef for each invocation.
+Changing the origin, authentication or token kind requires a replacement secret.
+Optional `caFile` contains trusted CA PEM contents, and `tlsServerName` selects the name verified by native reads, manual preflight and certificate inspection.
+The connection test uses authenticated `user session get`; the unauthenticated `status` read alone does not validate a token.
+
+Run `artium-axi tools show technitium-axi` for admitted commands and each command with `--help` for its required selectors.
+Native boolean parameters take explicit `true` or `false` values; `--include-zones` also accepts the native empty selection.
+Authenticated reads return their normal safe projection and an operation-bound `result` reference.
+Retrieve `result.path` once with an authenticated GET using the same Artium user, current tool grant and credential revision.
+The server returns the exact original JSON, text, CSV or ZIP bytes as an attachment and never executes or extracts them.
+References expire after five minutes; results are limited to 1 MiB each, four pending references per user and 64 per server.
+Server restart removes all pending results.
+Caller result paths, local profiles, file input and writes are unavailable.
+Local fake-service checks do not establish live server acceptance.
+
 #### Hybrid Analysis
 
 Artium bundles `@knowttl/hybrid-axi` at the [reviewed package pin](../tools/package.json).

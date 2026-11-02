@@ -198,6 +198,10 @@ Access tokens last one hour, with 12-hour local or 8-hour SSO CLI families; pass
 
 Requests, bounded tool input and uploads travel to the server; enabled tools contact their upstream APIs using shared service identities.
 Audit excludes injected credentials, request bodies, stdin, uploaded contents and output streams; see [upload audit metadata](admin-guide.md#audit-screen-and-api) for retained file metadata.
+Technitium authenticated reads keep confidential bytes in private per-call files and bounded process memory, separate from ordinary stdout.
+Their one-time result references require the same user, operation and current credential revision, with current access checked again at retrieval.
+Only the result identifier, operation, byte count and SHA-256 enter the result audit event; confidential bytes never enter logs or audit.
+Result references expire after five minutes and disappear on restart; see [Technitium setup](tool-credentials.md#technitium-dns) for limits.
 Failed-run diagnostics use separate administrator-only storage; see [diagnostic storage and retention](runbook.md#scripted-administrator-sessions) for limits, exclusions and backup handling.
 The runner scans known secret encodings and discards output on a match; unknown upstream-minted tokens cannot be identified by exact-value scanning.
 Its restricted environment, private directories and process limits are not a complete sandbox; descendants starting a new session can escape process-group termination.

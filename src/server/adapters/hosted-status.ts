@@ -48,7 +48,7 @@ export function hostedStatus(tool: string, invocation: PreparedCall['invocation'
     }
     if (Object.hasOwn(document, 'bin')) document.bin = replace(document.bin, `artium-axi ${tool}`)
     if (document.setup && typeof document.setup === 'object') document.setup = 'Managed by artium.'
-    for (const field of ['source', 'bind_password_source', 'client_secret_source', 'apiKey', 'accessKey', 'secretKey']) {
+    for (const field of ['source', 'bind_password_source', 'client_secret_source', 'apiKey', 'accessKey', 'secretKey', 'tokenSource']) {
       if (Object.hasOwn(document, field)) document[field] = sourceKind(document[field])
     }
     if (document.secrets && typeof document.secrets === 'object') {

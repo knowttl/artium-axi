@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { ArtiumError } from '../shared/errors.js'
 import type { CredentialReference } from './store/credential-store.js'
+import { protectedResultLimits } from './config.js'
 
 export interface ResultScope { userId: string, credential: CredentialReference, operation: string }
 
@@ -12,18 +13,18 @@ export class ProtectedResults {
 
   reserve(scope: ResultScope) {
     for (const [id, entry] of this.entries) if (entry.expires <= Date.now()) this.entries.delete(id)
-    if (this.entries.size >= 64 || [...this.entries.values()].filter(entry => entry.scope.userId === scope.userId).length >= 4) {
+    if (this.entries.size >= protectedResultLimits.total || [...this.entries.values()].filter(entry => entry.scope.userId === scope.userId).length >= protectedResultLimits.perUser) {
       throw new ArtiumError('TOO_MANY_CALLS')
     }
     const id = randomUUID()
     const entry: { scope: ResultScope, bytes?: Buffer, expires: number } = {
-      scope: { ...scope, credential: { ...scope.credential } }, expires: Date.now() + 5 * 60 * 1000,
+      scope: { ...scope, credential: { ...scope.credential } }, expires: Date.now() + protectedResultLimits.lifetimeMs,
     }
     this.entries.set(id, entry)
-    setTimeout(() => this.entries.delete(id), 5 * 60 * 1000).unref()
+    setTimeout(() => this.entries.delete(id), protectedResultLimits.lifetimeMs).unref()
     return {
       commit: (bytes: Buffer) => {
-        if (bytes.length > 1024 * 1024) throw new ArtiumError('OUTPUT_LIMIT')
+        if (bytes.length > protectedResultLimits.bytes) throw new ArtiumError('OUTPUT_LIMIT')
         if (this.entries.get(id) !== entry || entry.expires <= Date.now() || entry.bytes) throw new ArtiumError('NOT_FOUND')
         entry.bytes = Buffer.from(bytes)
         return { id, operation: scope.operation, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'),

@@ -49,6 +49,7 @@ let cache: AzureTokenCache
 const actor = 'synthetic-development-user'
 const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const values = {
+  'technitium-axi': { origin: 'https://dns.example', auth: 'token', tokenKind: 'api', token: 'CANARY-technitium-token' },
   'unifi-axi': { origin: 'https://controller.example', apiKey: 'CANARY-unifi-key' },
   'proxmox-axi': { origin: 'https://cluster.example', auth: 'api-token', tokenId: 'reader@pve!automation', token: 'CANARY-proxmox-token' },
   'gh-axi': { origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' },
@@ -678,6 +679,15 @@ test('Proxmox token identity changes require a replacement secret', async () => 
   expect(store.readCredential(store.findCredential('proxmox-axi')!)).toEqual(values['proxmox-axi'])
 })
 
+test('Technitium token-kind changes require a replacement secret', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('technitium-axi')
+  await replace('technitium-axi')
+  const { token: _token, ...identity } = values['technitium-axi']
+  expect((await save('technitium-axi', identity, 1)).status).toBe(200)
+  await failure(await save('technitium-axi', { ...identity, tokenKind: 'session' }, 2), 'INVALID_INPUT')
+  expect(store.readCredential(store.findCredential('technitium-axi')!)).toEqual(values['technitium-axi'])
+})
+
 test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'] as const)('%s save retains omitted secrets and native settings', async tool => {
   await replace(tool)
   const current = store.readCredential(store.findCredential(tool)!) as Record<string, unknown>
@@ -1156,6 +1166,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'gh-axi', capable: true, enabled: false, reason: null },
       { name: 'unifi-axi', capable: false, enabled: false, reason: 'This adapter admits ordinary reads only.' },
       { name: 'proxmox-axi', capable: false, enabled: false, reason: 'This adapter admits ordinary reads only.' },
+      { name: 'technitium-axi', capable: false, enabled: false, reason: 'The pinned Technitium package supports reads only.' },
     ])
   for (const tool of tools) {
     const detail = await request('GET', `/${tool.name}`)
@@ -1509,6 +1520,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'gh-axi', version: '0.1.45', health: { status: 'disabled' } },
     { name: 'unifi-axi', version: '0.1.0', health: { status: 'disabled' } },
     { name: 'proxmox-axi', version: '0.1.1', health: { status: 'disabled' } },
+    { name: 'technitium-axi', version: '0.1.0', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()
   expect(network.requests).toEqual([])

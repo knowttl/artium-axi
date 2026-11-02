@@ -70,7 +70,7 @@ Ordinary discovery and tool calls never install or repair agent settings.
 
 ## What it covers
 
-All fourteen managed tools start disabled; role grants, enabled tools and upstream permissions determine access.
+All fifteen managed tools start disabled; role grants, enabled tools and upstream permissions determine access.
 Write capabilities below require administrator opt-in.
 
 | Group | Purpose | Access | Reference |

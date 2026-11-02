@@ -64,6 +64,8 @@ const commands = {
     flags: ['Declared implemented reads accept --help. Writes, local configuration and file input are unavailable.'], example: 'artium-axi unifi-axi info' },
   'proxmox-axi': { usage: 'artium-axi proxmox-axi [<args>]', purpose: 'Read Proxmox data with a managed API token.',
     flags: ['Declared ordinary reads accept --help. Writes, byte transports, session authentication and file input are unavailable.'], example: 'artium-axi proxmox-axi get /version' },
+  'technitium-axi': { usage: 'artium-axi technitium-axi [<args>]', purpose: 'Read Technitium DNS data with managed credentials.',
+    flags: ['Declared reads accept --help. Authenticated reads return protected result references; local result paths and writes are unavailable.'], example: 'artium-axi technitium-axi status' },
 } as const
 
 export type HelpCommand = keyof typeof commands

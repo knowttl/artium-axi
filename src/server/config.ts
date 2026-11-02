@@ -1,4 +1,5 @@
 export const toolPaths = {
+  'technitium-axi': '/opt/tools/node_modules/@knowttl/technitium-axi/bin/technitium-axi.js',
   'unifi-axi': '/opt/tools/node_modules/@knowttl/unifi-axi/dist/bin.js',
   'proxmox-axi': '/opt/tools/node_modules/@knowttl/proxmox-axi/bin/proxmox-axi.mjs',
   'gh-axi': '/opt/tools/node_modules/.bin/gh-axi',
@@ -15,6 +16,7 @@ export const toolPaths = {
   'ado-axi': '/opt/tools/node_modules/.bin/ado-axi',
 } as const
 export const toolSkillPaths = {
+  'technitium-axi': '/opt/tools/node_modules/@knowttl/technitium-axi/README.md',
   'unifi-axi': '/opt/tools/node_modules/@knowttl/unifi-axi/dist/SKILL.md',
   'proxmox-axi': '/opt/tools/node_modules/@knowttl/proxmox-axi/README.md',
   'gh-axi': '/opt/tools/node_modules/gh-axi/skills/gh-axi/SKILL.md',
@@ -31,6 +33,7 @@ export const toolSkillPaths = {
   'ado-axi': '/opt/tools/node_modules/@knowttl/ado-axi/SKILL.md',
 } as const
 export const toolCredentialSchemaPaths = {
+  'technitium-axi': '/opt/tools/node_modules/@knowttl/technitium-axi/axi-credential.schema.json',
   'unifi-axi': '/opt/tools/node_modules/@knowttl/unifi-axi/dist/axi-credential.schema.json',
   'proxmox-axi': '/opt/tools/node_modules/@knowttl/proxmox-axi/axi-credential.schema.json',
   'gh-axi': undefined,
@@ -56,6 +59,7 @@ export const browserDefaults = { idleMs: 1_800_000, absoluteMs: 43_200_000 } as 
 export const ssoDefaults = { transactionMs: 600_000, pendingLimit: 4096 } as const
 export const deviceDefaults = { lifetimeMs: 600_000, intervalMs: 5000, pendingLimit: 4096 } as const
 export const healthDefaults = { intervalMs: 900_000, retryMs: 60_000, tickMs: 10_000, backgroundCalls: 2, actor: 'system:tool-health' } as const
+export const protectedResultLimits = { bytes: 1024 * 1024, perUser: 4, total: 64, lifetimeMs: 5 * 60 * 1000 } as const
 export const runnerLimits = {
   globalCalls: 8,
   userCalls: 4,

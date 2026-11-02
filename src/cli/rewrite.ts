@@ -13,10 +13,12 @@ import hybrid from '../../tools/inventories/hybrid-axi.json' with { type: 'json'
 import { rewriteGhSuggestions } from '../shared/gh-suggestions.js'
 import beyondtrust from '../../tools/inventories/beyondtrust-axi.json' with { type: 'json' }
 import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
+import technitium from '../../tools/inventories/technitium-axi.json' with { type: 'json' }
 import unifi from '../../tools/inventories/unifi-axi.json' with { type: 'json' }
 import proxmox from '../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
+  'technitium-axi': technitium.adapterBoundary.unsafeOverrides,
   'unifi-axi': unifi.adapterBoundary.unsafeOverrides,
   'proxmox-axi': proxmox.adapterBoundary.unsafeOverrides,
   'beyondtrust-axi': beyondtrust.adapterBoundary.unsafeOverrides,
@@ -63,6 +65,26 @@ function encodeSuggestion(value: string, inline: boolean): string {
 export function rewriteSuggestions(output: string, tool: string, truncated = false, invocation?: { command: string, help: boolean }): string {
   if (truncated) return output
   if (tool === 'gh-axi') return rewriteGhSuggestions(output, invocation, truncated)
+  if (tool === 'technitium-axi') {
+    try {
+      const json = output.trimStart().startsWith('{')
+      const document = (json ? JSON.parse(output) : decode(output)) as Record<string, unknown>
+      const code = document.error && typeof document.error === 'object' ? (document.error as { code?: unknown }).code : undefined
+      if (typeof code === 'string' && ['AUTH_REQUIRED', 'PROFILE_REQUIRED', 'PROFILE_NOT_FOUND', 'PROFILE_AMBIGUOUS', 'CONFIG_INVALID', 'TRANSPORT_FAILED', 'TWO_FACTOR_REQUIRED'].includes(code)) {
+        return (json ? JSON.stringify : encode)({ ...document, help: ['Ask an administrator to update the managed credential and connection settings.'] }) + '\n'
+      }
+      if (typeof document.command === 'string' && Array.isArray(document.flags)) {
+        const route = technitium.commands.find(entry => entry.command === document.command)
+        if (route) return (json ? JSON.stringify : encode)({ ...document,
+          command: `artium-axi technitium-axi ${route.command}`,
+          flags: Object.keys(route.flags).map(name => `--${name}`),
+          examples: [`artium-axi technitium-axi ${route.command} --help`], help: [technitium.discovery.help] }) + '\n'
+      }
+      if (Array.isArray(document.commands)) return (json ? JSON.stringify : encode)({
+        description: 'Read Technitium DNS data with managed credentials.', commands: technitium.discovery.commands,
+        help: [technitium.discovery.help] }) + '\n'
+    } catch { /* Ordinary output retains its original suggestion contract below. */ }
+  }
   if (tool === 'unifi-axi' || tool === 'proxmox-axi') {
     try {
       const json = output.trimStart().startsWith('{')

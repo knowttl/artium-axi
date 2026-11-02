@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3'
 import { createHash } from 'node:crypto'
 import { validateFileInput } from '../../shared/file-input.js'
-import { encode } from '@toon-format/toon'
+import { decode, encode } from '@toon-format/toon'
 import { runRequestSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Adapter, PreparedCall } from '../adapters/types.js'
@@ -17,11 +17,13 @@ import { readCredentialTrust } from '../store/trusted-certificates.js'
 import { hostedStatus } from '../adapters/hosted-status.js'
 import { logRun } from './log.js'
 import { adoApiAudit } from '../adapters/ado-api.js'
+import type { ProtectedResults } from '../protected-results.js'
 
 export interface RunContext {
   requestId: string
   clientAddress: string | null
   signal?: AbortSignal
+  protectedResults?: ProtectedResults
 }
 
 function unknownWriteResult(auditId: string, durationMs: number, outputBytes: RunnerResult['outputBytes']): RunnerResult {
@@ -78,10 +80,16 @@ export async function runTool<Credential>(
     audit.record({ ...identity, event: 'run-start', outcome: 'started', args, sensitive: adapter.sensitiveArguments(args) })
     let write: PreparedCall['write']
     let journal: Awaited<ReturnType<typeof prepareRunJournal>> | undefined
+    let reservation: ReturnType<ProtectedResults['reserve']> | undefined
     let failure: Extract<AuditEvent, { event: 'run-terminal' }>['failure']
     try {
       const reference = await resolver.resolve(userId, adapter.name)
       const prepared = await adapter.prepare(args, reference, input)
+      let privateBytes: Buffer | undefined
+      if (prepared.protectedResult) {
+        if (!context.protectedResults) throw new ArtiumError('UNSUPPORTED_INPUT')
+        reservation = context.protectedResults.reserve({ userId, credential: reference, operation: prepared.protectedResult.operation })
+      }
       write = prepared.write
       const preparedJournal = await prepareRunJournal(prepared.environment, adapter.name, prepared.effect, write)
       journal = preparedJournal
@@ -96,9 +104,25 @@ export async function runTool<Credential>(
             outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
         }
         return runner.run(identity.userId, prepared.executable, prepared.args, preparedJournal.environment,
-          prepared.secrets, { ...prepared.limits, signal: context.signal, credentialTrust: readCredentialTrust(db, reference) },
+          prepared.secrets, { ...prepared.limits, signal: context.signal, credentialTrust: readCredentialTrust(db, reference),
+            protectedResult: prepared.protectedResult ? { ...prepared.protectedResult, receive: bytes => { privateBytes = bytes } } : undefined },
           { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) }, prepared.pathPrefix)
       })
+      if (privateBytes && reservation) {
+        authenticate(db, token)
+        checkToolPolicy(db, userId, adapter.name)
+        const current = await resolver.resolve(userId, adapter.name)
+        authenticate(db, token)
+        checkToolPolicy(db, userId, adapter.name)
+        if (current.id !== reference.id || current.revision !== reference.revision) throw new ArtiumError('NOT_FOUND')
+        const json = args.includes('--json')
+        const projection = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
+        const resultReference = reservation.commit(privateBytes)
+        projection.result = resultReference
+        result.stdout = (json ? JSON.stringify(projection) : encode(projection)) + '\n'
+        result.outputBytes.stdout = Buffer.byteLength(result.stdout)
+        audit.record({ ...identity, event: 'protected-result', outcome: 'success', result: resultReference })
+      } else reservation?.cancel()
       if (result.exitCode !== 0) failure = {
         diagnostic: toolFailure(result.stdout, result.stderr, result.exitCode, adapter.name).diagnostic,
         secrets: prepared.secrets,
@@ -113,6 +137,7 @@ export async function runTool<Credential>(
         result = unknownWriteResult(await journal.auditId(), result.durationMs, result.outputBytes)
       }
     } catch (error) {
+      reservation?.cancel()
       recordApiDecision('refused')
       const runnerError = error instanceof RunnerError ? error : undefined
       if (write && journal?.auditId && runnerError?.processStarted) {

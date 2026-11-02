@@ -58,6 +58,12 @@ export class CredentialProfile {
   constructor(readonly schema: Schema, tool?: ToolName) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
+    if (tool === 'technitium-axi') {
+      this.inputSchema.required = ['origin', 'auth', 'tokenKind', 'token']
+      this.inputSchema.properties.origin.format = 'canonical-https-origin'
+      this.inputSchema.properties.caFile = { type: 'string', minLength: 1, title: 'Trusted CA PEM', description: 'PEM certificate contents, not a file path.' }
+      delete this.inputSchema.properties.writes
+    }
     if (tool === 'unifi-axi' || tool === 'proxmox-axi') {
       delete this.inputSchema.properties.writes
       this.inputSchema.properties.origin = { type: 'string', format: 'canonical-https-origin' }
@@ -255,7 +261,7 @@ export class CredentialProfile {
   }
 
   prepare(tool: ToolName, value: unknown, writeLog: string | undefined, readOnly: boolean): Pick<PreparedCall, 'environment' | 'files' | 'secrets'> {
-    if (!['ldap-axi', 'awx-axi', 'unifi-axi', 'proxmox-axi'].includes(tool) && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
+    if (!['ldap-axi', 'awx-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi'].includes(tool) && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
     const parsed = this.parsed(value)
     // These administrator switches are host policy, not upstream profile fields.
     if (tool === 'falcon-axi' || tool === 'awx-axi') delete parsed.value.allowWrites
@@ -280,6 +286,10 @@ export class CredentialProfile {
     }
     // Vectra's CA bundle is a file path upstream; the host stores its PEM contents.
     const files: PreparedCall['files'] = []
+    if (tool === 'technitium-axi' && typeof parsed.value.caFile === 'string') {
+      files.push({ name: 'technitium-axi/technitium-ca.pem', content: parsed.value.caFile, appendTrustedCa: true })
+      parsed.value.caFile = 'technitium-ca.pem'
+    }
     if (tool === 'proxmox-axi' && typeof parsed.value.caBundle === 'string') {
       files.push({ name: 'proxmox-axi/ca.pem', content: parsed.value.caBundle, appendTrustedCa: true })
       parsed.value.caBundle = '/proc/self/cwd/proxmox-axi/ca.pem'

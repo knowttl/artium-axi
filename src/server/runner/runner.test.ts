@@ -97,6 +97,38 @@ test('duplicate adapter files cannot replace an existing profile', async () => {
   ])).rejects.toMatchObject({ code: 'TEMP_UNAVAILABLE' })
 })
 
+test('protected result capture retains exact bytes before private call cleanup', async () => {
+  let captured: Buffer | undefined
+  const result = await run(process.execPath, ['-e',
+    "require('node:fs').writeFileSync(process.argv[2], Buffer.from([0, 255, 10]), { mode: 0o600 }); console.log('metadata')", '--'],
+  {}, [], { protectedResult: { name: 'result.bin', flag: '--result-file', receive: bytes => { captured = bytes } } })
+  expect(result.stdout).toBe('metadata\n')
+  expect(captured).toEqual(Buffer.from([0, 255, 10]))
+  expect(await readdir(root)).toEqual([])
+})
+
+test.each([
+  { script: "fs.writeFileSync(process.argv[2], 'confidential', { mode: 0o644 })", code: 'TEMP_UNAVAILABLE' },
+  { script: "fs.symlinkSync('private.bin', process.argv[2])", code: 'TEMP_UNAVAILABLE' },
+  { script: "fs.writeFileSync(process.argv[2], Buffer.alloc(1024 * 1024 + 1), { mode: 0o600 })", code: 'OUTPUT_LIMIT' },
+])('protected result capture refuses unsafe file contract: $code / $script', async ({ script, code }) => {
+  const captured: Buffer[] = []
+  await expect(run(process.execPath, ['-e', `const fs = require('node:fs'); ${script}`, '--'], {}, [],
+    { protectedResult: { name: 'result.bin', flag: '--result-file', receive: bytes => { captured.push(bytes) } } },
+    {}, [{ name: 'private.bin', content: 'confidential' }])).rejects.toMatchObject({ code })
+  expect(captured).toEqual([])
+})
+
+test('protected result capture never bypasses the ordinary secret-output scanner', async () => {
+  const captured: Buffer[] = []
+  await expect(run(process.execPath, ['-e',
+    "require('node:fs').writeFileSync(process.argv[2], 'confidential', { mode: 0o600 }); console.log(process.env.CANARY)", '--'],
+  { CANARY: 'CANARY-confidential' }, ['CANARY-confidential'],
+  { protectedResult: { name: 'result.bin', flag: '--result-file', receive: bytes => { captured.push(bytes) } } }))
+    .rejects.toMatchObject({ code: 'SECRET_IN_OUTPUT' })
+  expect(captured).toEqual([])
+})
+
 test.each([
   {},
   {

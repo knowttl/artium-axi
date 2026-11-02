@@ -75,17 +75,17 @@ async function fetchIssuer(leaf: X509Certificate): Promise<X509Certificate | und
   } catch { /* An unavailable or invalid AIA issuer leaves the original trust failure visible. */ }
 }
 
-export async function inspectCertificate(endpoint: URL, ca?: string, maxVersion?: 'TLSv1.2', connectAddress?: string) {
+export async function inspectCertificate(endpoint: URL, ca?: string, maxVersion?: 'TLSv1.2', connectAddress?: string, serverName?: string) {
   const { hostname: host, href } = certificateEndpoint(endpoint)
-  const presented = await inspectEndpoint(endpoint, ca, undefined, maxVersion, [], { connectAddress })
+  const presented = await inspectEndpoint(endpoint, ca, undefined, maxVersion, [], { connectAddress, serverName })
   if (!presented.chain.length) throw new Error('The endpoint presented no certificate')
   const leaf = presented.chain[0]
   let intermediate: X509Certificate | undefined
   if (presented.chain.length === 1 && ['UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'].includes(presented.verificationError ?? '')) {
     intermediate = await fetchIssuer(leaf)
   }
-  const chain = presented.chain.map(certificate => certificateDetails(certificate, host))
-  if (intermediate) chain.push(certificateDetails(intermediate, host))
+  const chain = presented.chain.map(certificate => certificateDetails(certificate, serverName ?? host))
+  if (intermediate) chain.push(certificateDetails(intermediate, serverName ?? host))
   const warnings: string[] = []
   if (!chain[0].matchesHostname) warnings.push('The hostname does not match the certificate names.')
   for (const certificate of chain) {

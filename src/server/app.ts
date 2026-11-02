@@ -45,6 +45,7 @@ import { registerTransfers } from './transfer-routes.js'
 import type { ArtifactStore } from './artifacts.js'
 import { errorDiagnostic } from './error-diagnostic.js'
 import { RunnerError } from './runner/runner.js'
+import { ProtectedResults } from './protected-results.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
@@ -65,6 +66,7 @@ export function createApp(options: {
   const proxies = (environment.ARTIUM_AXI_TRUSTED_PROXIES ?? '').split(',').map(value => value.trim()).filter(Boolean)
   if (proxies.some(address => !isIP(address))) throw new Error('Trusted proxies must be explicit IP addresses')
   const authenticate = verifyAccessToken
+  const protectedResults = new ProtectedResults()
   const localAuth = new LocalAuthProvider(db)
   const authAttempts = new AuthAttempts(db, audit)
   audit.recoverInterrupted()
@@ -249,6 +251,16 @@ export function createApp(options: {
   registerAdminPages(app, db, credentialProfiles, runner.trustedCertificates)
   registerAuditPage(app, db, audit)
   registerTransfers(app, db, audit, runner, resolver, adapters, options.artifactStore)
+  app.get<{ Params: { operation: string, id: string } }>('/v1/results/technitium-axi/:operation/:id', async (request, reply) => {
+    const userId = authenticate(db, bearer(request.headers.authorization))
+    checkToolPolicy(db, userId, 'technitium-axi')
+    const credential = await resolver.resolve(userId, 'technitium-axi')
+    authenticate(db, bearer(request.headers.authorization))
+    checkToolPolicy(db, userId, 'technitium-axi')
+    const bytes = protectedResults.take(request.params.id, { userId, credential, operation: request.params.operation })
+    return reply.header('cache-control', 'no-store').header('content-disposition', 'attachment; filename="result.bin"')
+      .header('x-content-type-options', 'nosniff').type('application/octet-stream').send(bytes)
+  })
   app.post<{ Params: { tool: string } }>('/v1/tools/:tool/run', async (request, reply) => {
     const name = toolSchema.safeParse(request.params.tool)
     if (!name.success) throw new ArtiumError('INVALID_INPUT')
@@ -270,11 +282,11 @@ export function createApp(options: {
     reply.raw.once('close', disconnect)
     try {
       const result = await runTool(db, audit, runner, bearer(request.headers.authorization), request.body,
-        adapter, resolver, { requestId: request.id, clientAddress: request.ip, signal: controller.signal }, authenticate)
+        adapter, resolver, { requestId: request.id, clientAddress: request.ip, signal: controller.signal, protectedResults }, authenticate)
       const { stdout, stderr, exitCode, durationMs, outputBytes, truncated } = result
       return { source: adapter.name, stdout, stderr, exitCode, durationMs, outputBytes, truncated }
     } finally { reply.raw.off('close', disconnect) }
   })
-  app.addHook('preClose', async () => { await runner.shutdown(); await health.stop() })
+  app.addHook('preClose', async () => { await runner.shutdown(); await health.stop(); protectedResults.clear() })
   return app
 }
