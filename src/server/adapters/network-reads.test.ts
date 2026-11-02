@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { X509Certificate } from 'node:crypto'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:https'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -15,14 +15,26 @@ import { createInspectionCertificates } from '../../../test/fake-service/certifi
 const source = { getCredential: async () => ({ origin: 'https://synthetic.invalid', apiKey: 'CANARY-unifi-key' }) }
 
 let directory: string
+let verifierTime: number
 beforeAll(() => {
+  verifierTime = Math.floor(Date.now() / 1000) - 60
   directory = mkdtempSync(join(tmpdir(), 'artium-native-unifi-'))
   createInspectionCertificates(directory, 'http://issuer.synthetic.invalid/issuer')
-  execFileSync('openssl', ['req', '-x509', '-key', 'server.key', '-subj', '/CN=synthetic-IP', '-days', '3650',
-    '-addext', 'subjectAltName=IP:127.0.0.2,IP:::2', '-addext', 'basicConstraints=CA:FALSE', '-out', 'ip.crt'],
+  writeFileSync(join(directory, 'ip.cnf'), '[ip]\nsubjectAltName=IP:127.0.0.2,IP:::2\nbasicConstraints=CA:FALSE\n')
+  execFileSync('openssl', ['ca', '-batch', '-notext', '-rand_serial', '-selfsign', '-config', 'authority.cnf',
+    '-keyfile', 'server.key', '-subj', '/CN=synthetic-IP', '-in', 'server.csr', '-out', 'ip.crt',
+    '-extfile', 'ip.cnf', '-extensions', 'ip', '-startdate', '20200101000000Z', '-enddate', '20991231235959Z'],
   { cwd: directory, stdio: 'pipe' })
 })
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
+
+// Regression: freshly generated self-signed fixtures intermittently failed TLS verification.
+test.each(['self-signed', 'self-signed-rotated'])('%s tolerates a verifier clock one minute behind generation', certificate => {
+  const pem = join(directory, `${certificate}.crt`)
+  const output = execFileSync('openssl', ['verify', '-trusted', pem, '-check_ss_sig', '-verify_hostname', 'localhost',
+    '-attime', String(verifierTime), pem], { encoding: 'utf8' })
+  expect(output.trim()).toBe(`${pem}: OK`)
+})
 
 test.each([
   { host: '127.0.0.2', certificate: 'ip', trust: 'ip', success: true },

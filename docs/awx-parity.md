@@ -90,3 +90,11 @@ See [structured input handling](client-reference.md#command-surface-and-subcomma
 Acceptance uses the public run API and fake AWX controller to verify preview/confirmation, disabled-write and AWX permission denials, association additions/removals, all graph edge types, approval nodes, private variable handling and interrupted node creation recovery through `template-nodes` and `template-node`.
 The synthetic onboarding journey provisions inventory, a host and a canary SSH machine credential, attaches the credential to a template and submits a connectivity launch.
 It verifies the controller request flow without executing a real playbook or contacting a target server.
+
+## Schedules (S7)
+
+See the [command reference](commands.md) for schedule inputs, associations and readback limitations, [structured input handling](client-reference.md#command-surface-and-subcommands) for private variables, and the [AWX safety boundary](safety.md#write-gates-by-tool) for write controls.
+Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) verifies disabled writes, denied AWX permissions, structured request payloads and association requests through the public run API.
+It also verifies schedule show/list with writes disabled after an interrupted rename.
+Fixed synthetic controller timing verifies that previews and edits which omit the recurrence rule preserve timing values; no scheduler waits or real jobs are used.
+Extra-variable and association writes are verified against fake controller requests.
