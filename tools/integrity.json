@@ -7,6 +7,10 @@
     "version": "0.1.1",
     "integrity": "sha512-HcKw/Rlos7F4UP9rk6YtCMEz1XNTqHHQo3vQeHHmBMCDN3Jri0x8aYl6aCt/MOp6eM9CY5sKbyTaPXvSCdx6nw=="
   },
+  "@knowttl/technitium-axi": {
+    "version": "0.1.0",
+    "integrity": "sha512-qUEubth8NpLOtx+dzKz0c6XyJJhMBRWXzmfWaQrzy8Nqz/m2ZNxpwcHcNTGlO1oAMj4Nfqg2FGvhlEUDx0qw6A=="
+  },
   "axi-sdk-js": {
     "version": "0.1.13",
     "integrity": "sha512-Ygh8qUN5kdwQ3ASw+BNzCKYpy5QYi18vfcEpqEOQOSrcyh6i4wChrPMtvVW0/3Sqho3xPH3CuFkP0QUma5oxxA=="
