@@ -20,8 +20,10 @@ import type { CredentialTrust } from '../store/trusted-certificates.js'
 import { certificateEndpoint } from '../certificate-endpoint.js'
 import { classifyCertificateFailure, observeCertificate } from '../credential-tls.js'
 import { nodeTrustBootstrap, pythonTrustBootstrap } from './runtime-trust.js'
+import { acquireFalconRtrLock } from './falcon-rtr-lock.js'
 
 export interface RunnerLimits {
+  falconRtrDevice?: string
   trustedIpc?: Serializable
   outputBytesPerStream?: number
   timeoutMs?: number
@@ -129,7 +131,12 @@ export class Runner {
     const key = Symbol()
     const controller = new AbortController()
     const signal = limits.signal ? AbortSignal.any([limits.signal, controller.signal]) : controller.signal
-    const result = execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input, files, beforeSpawn, this.trustedCa, pathPrefix)
+    const result = (async () => {
+      const custody = limits.falconRtrDevice ? await acquireFalconRtrLock(this.root,
+        executable === process.execPath ? args[0] : executable, limits.falconRtrDevice) : undefined
+      try { return await execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input, files, beforeSpawn, this.trustedCa, pathPrefix) }
+      finally { custody?.close() }
+    })()
       .finally(() => {
         this.active.delete(key)
         this.drain()
@@ -282,6 +289,7 @@ async function execute(
           PATH: pathPrefix ? `${pathPrefix}:${runtimePath}` : runtimePath,
           ...directories,
           ...(environment.BEYONDTRUST_AXI_WRITE_LOG ? { XDG_STATE_HOME: dirname(environment.BEYONDTRUST_AXI_WRITE_LOG) } : {}),
+          ...(limits.falconRtrDevice ? { XDG_STATE_HOME: join(root, 'falcon-rtr-state') } : {}),
           NODE_OPTIONS: `--max-old-space-size=${limits.nodeHeapMiB ?? runnerLimits.nodeHeapMiB}${credentialTrust.length ? ` --require=${join(directories.XDG_CONFIG_HOME, 'artium-tls.cjs')}` : ''}`,
         },
         stdio: limits.trustedIpc === undefined ? ['pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe', 'ipc'],

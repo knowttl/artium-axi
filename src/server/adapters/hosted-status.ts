@@ -57,7 +57,7 @@ export function hostedStatus(tool: string, invocation: PreparedCall['invocation'
     const json = result.stdout.trimStart().startsWith('{')
     const document = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
     if (tool === 'falcon-axi') {
-      const posture = 'Passive reads only. Fixed Identity Protection queries require the vendor-labelled Identity Protection GraphQL:write scope.'
+      const posture = 'Reads are available. Writes default off and require administrator enablement of exact operations. RTR execution additionally requires native profile rtr.enabled, obeys command restrictions and requires --execute with exact --confirm device:command. Fixed Identity Protection queries require the vendor-labelled Identity Protection GraphQL:write scope.'
       if (invocation.command === 'scopes') {
         if (!Array.isArray(document.scopes)) throw new Error('Invalid scope matrix')
         const admitted = new Set(falcon.commands.map(entry => entry.command))

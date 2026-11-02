@@ -9,6 +9,7 @@ import type { RunnerInput } from '../runner/input.js'
 import type { Adapter, PreparedCall } from './types.js'
 import { CredentialProfile } from './credential-profile.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
+import { falconWriteOperations } from '../../shared/api.js'
 
 export const falconManifest = inventory
 export const falconProfile = new CredentialProfile(inventory.credentialSchema, 'falcon-axi')
@@ -17,10 +18,9 @@ export type FalconCredential = z.infer<typeof falconCredentialSchema>
 const falconLimits = { timeoutMs: inventory.requirements.timeoutMs, terminationGraceMs: 12_000 }
 const defaultWriteLog = '/data/tool-logs/falcon-axi/writes.log'
 const capabilityPolicy = writePolicy({
-  supportedOperations: ['rtr run', 'malquery search'],
-  reason: 'This TypeScript Falcon adapter currently admits passive reads only.',
-  unlocks: 'No write actions in this admission.',
-  blocked: 'Search-backed operations, MalQuery submission and RTR execution are unavailable; saved administrator choices are retained.',
+  supportedOperations: falconWriteOperations,
+  unlocks: 'Exact search, search-backed and MalQuery commands; restricted RTR with native profile opt-in and execution confirmation.',
+  blocked: 'Host changes, scripts and file transfers remain unavailable. RTR command restrictions and exact --execute/--confirm still apply.',
 })
 function capabilitySettings(settings: Record<string, unknown>) {
   return { writes: settings?.writes ?? { allowWrites: settings?.allowWrites === true,
@@ -28,7 +28,10 @@ function capabilitySettings(settings: Record<string, unknown>) {
 }
 export const falconWritePolicy = {
   read: (settings: Record<string, unknown>) => capabilityPolicy.read(capabilitySettings(settings)),
-  update: capabilityPolicy.update,
+  update(settings: Record<string, unknown>, input: Parameters<typeof capabilityPolicy.update>[1]) {
+    const { allowWrites: _, writes: __, ...rest } = settings
+    return { ...rest, ...capabilityPolicy.update(capabilitySettings(settings), input) }
+  },
 }
 export const falconCredentialFiles = z.object({
   clientIdFile: z.string().min(1), clientSecretFile: z.string().min(1),
@@ -54,25 +57,31 @@ export function createFalconAdapter(source: SecretSource, writeLog = defaultWrit
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { validateFalconArgs(args, input) },
     async prepare(args, reference, input) {
-      const invocation = validateFalconArgs(args, input)
+      const call = parseFalconArgs(args, input)
       if (reference.tool !== 'falcon-axi') throw new ArtiumError('CREDENTIAL_INVALID')
-      return prepareCredential(args, invocation, await source.getCredential(reference), writeLog, profile)
+      const access = falconWritePolicy.read(source.getSettings?.(reference) ?? {})
+      if (call.executing && (!access.enabled || !access.allowedOperations.includes(call.operation!))) throw new ArtiumError('FLAG_BLOCKED')
+      const prepared = profile.prepare('falcon-axi', await source.getCredential(reference), writeLog, !call.executing)
+      return { executable: process.execPath, args: [toolPaths['falcon-axi'], ...args], invocation: call.invocation,
+        effect: call.executing ? 'write' : 'read', ...prepared,
+        limits: { ...falconLimits, ...(call.device ? { falconRtrDevice: call.device } : {}) } }
     },
   }
 }
 
-export function validateFalconArgs(args: readonly string[], input: RunnerInput = {}): NonNullable<PreparedCall['invocation']> {
+function parseFalconArgs(args: readonly string[], input: RunnerInput = {}) {
   if (input.stdin !== undefined || input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (inventory.blockedCommands.includes(args[0]) || inventory.blockedCommands.includes(args.slice(0, 2).join(' '))) throw new ArtiumError('FLAG_BLOCKED')
   for (const token of args) {
     if (token === '--' || token.startsWith('--') && inventory.unsafeOverrides.includes(token.slice(2).split('=')[0])) throw new ArtiumError('FLAG_BLOCKED')
   }
-  if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) return { command: 'version', help: false }
+  if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) return {
+    invocation: { command: 'version', help: false }, operation: null, executing: false, device: undefined }
   const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
     .find(entry => entry.command !== 'home' && entry.command.split(' ').every((word, index) => args[index] === word))
   const group = args.slice(0, -1).join(' ')
   if (!route && args.at(-1) === '--help' && group && inventory.commands.some(entry => entry.command.startsWith(group + ' '))) {
-    return { command: group, help: true }
+    return { invocation: { command: group, help: true }, operation: null, executing: false, device: undefined }
   }
   const home = !args.length || args[0].startsWith('-')
   if (!route && !home) throw invalidCommand('falcon-axi', args, inventory.discovery.commands)
@@ -101,7 +110,21 @@ export function validateFalconArgs(args: readonly string[], input: RunnerInput =
     const hostname = ['host logins', 'host network'].includes(selected.command) && values.has('hostname')
     if (positionals.length !== (selected.positional && !hostname ? 1 : 0)) throw new ArtiumError('INVALID_INPUT')
   }
-  return { command: selected.command, help: values.has('help') }
+  const operation = selected.effect === 'write' && !values.has('help') ? selected.command : null
+  let executing = Boolean(operation && operation !== 'rtr run')
+  let device: string | undefined
+  if (operation === 'rtr run') {
+    const command = values.get('command')
+    executing = values.has('execute')
+    if (!/^[a-fA-F0-9]{32}$/.test(positionals[0]) || !command || values.has('confirm') && !executing
+      || executing && values.get('confirm') !== `${positionals[0]}:${command}`) throw new ArtiumError('INVALID_INPUT')
+    if (executing) device = positionals[0].toLowerCase()
+  }
+  return { invocation: { command: selected.command, help: values.has('help') }, operation, executing, device }
+}
+
+export function validateFalconArgs(args: readonly string[], input: RunnerInput = {}): NonNullable<PreparedCall['invocation']> {
+  return parseFalconArgs(args, input).invocation
 }
 
 export async function prepareFalcon(args: readonly string[], configuration: FalconCredentialFiles) {

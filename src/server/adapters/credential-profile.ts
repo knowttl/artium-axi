@@ -10,7 +10,7 @@ import type { ToolName } from '../store/credential-store.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { Adapter, PreparedCall } from './types.js'
-import { toolAllowsWrites } from '../../shared/api.js'
+import { toolAllowsWrites, falconWriteOperations } from '../../shared/api.js'
 import { CredentialInput, credentialFormats, standardCredentialFormats } from './credential-input.js'
 import applicationMode from '../../shared/mg-application-mode.json' with { type: 'json' }
 export { isCanonicalHttpsOrigin } from './credential-input.js'
@@ -152,8 +152,8 @@ export class CredentialProfile {
       this.inputSchema.required = ['clientId', 'clientSecret', 'region']
       this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow RTR execution' }
       this.inputSchema.properties.writes = { type: 'object', additionalProperties: false, required: ['allowWrites', 'operations'],
-        properties: { allowWrites: { type: 'boolean' }, operations: { type: 'array', minItems: 1, maxItems: 2,
-          items: { enum: ['rtr run', 'malquery search'] } } } }
+        properties: { allowWrites: { type: 'boolean' }, operations: { type: 'array', minItems: 1, maxItems: falconWriteOperations.length,
+          items: { enum: falconWriteOperations } } } }
     }
     if (tool === 'ldap-axi') {
       this.inputSchema.required = [...new Set([...this.inputSchema.required ?? [], 'auth', 'bindDn', 'bindPassword'])]

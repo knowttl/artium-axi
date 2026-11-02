@@ -11,13 +11,13 @@ export async function withFakeService(check: (fixture: {
   directory: string
   port: number
   send: (path: string, method?: string, trusted?: boolean) => Promise<string>
-}) => Promise<void>, onHeldRequest?: () => void) {
+}) => Promise<void>, onHeldRequest?: () => void, endpoint = { port: 0, hosts: ['localhost'] }) {
   const root = fileURLToPath(new URL('../../', import.meta.url))
   const directory = mkdtempSync(join(tmpdir(), 'artium-tls-'))
   let child: ReturnType<typeof spawn> | undefined
   try {
-    createTestCertificates(directory, ['localhost'])
-    child = spawn(process.execPath, [join(root, 'test/fake-service/server.mjs'), directory, '0'], {
+    createTestCertificates(directory, endpoint.hosts)
+    child = spawn(process.execPath, [join(root, 'test/fake-service/server.mjs'), directory, String(endpoint.port)], {
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     })
     child.on('message', message => {
@@ -27,7 +27,7 @@ export async function withFakeService(check: (fixture: {
     const [chunk] = await once(child.stdout!, 'data', { signal: AbortSignal.timeout(30_000) })
     const port = Number(chunk.toString().trim().split(' ')[1])
     const send = (path: string, method = 'GET', trusted = true) => new Promise<string>((resolve, reject) => {
-      const req = request({ hostname: 'localhost', port, path, method,
+      const req = request({ hostname: 'localhost', port, path, method, agent: false,
         headers: { authorization: 'Bearer CANARY-synthetic' },
         ...(trusted ? { ca: readFileSync(join(directory, 'ca.crt')) } : {}),
       }, response => {

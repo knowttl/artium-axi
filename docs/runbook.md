@@ -439,7 +439,7 @@ Tool lists and health responses report `readOnly`; LDAP remains fixed read-only.
 GitHub writes require exact administrator-selected operations and Artium-owned preview/confirmation; see [GitHub setup](tool-credentials.md#github) for the tiers and interrupted-write recovery.
 Existing explicit write opt-ins are preserved; omitted grants remain off.
 The write-access endpoint rejects changes for LDAP with the fixed read-only reason.
-See the [Falcon capability boundary](safety.md#write-gates-by-tool) for its current read-only admission.
+See the [Falcon capability boundary](safety.md#write-gates-by-tool) for exact lifecycle grants and independent RTR execution gates.
 
 For shared-credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
 See [SSH setup](tool-credentials.md#ssh) for the dedicated host administration limitation.
@@ -521,8 +521,14 @@ These diagnostics leave response error codes unchanged and are separate from aud
 
 ### Falcon RTR execution
 
-See the [Falcon capability boundary](safety.md#write-gates-by-tool) for available reads and deferred operations.
-Previously saved write choices and profile opt-in remain stored, including the narrow RTR meaning of legacy `allowWrites: true` settings, without granting execution.
+See the [Falcon capability boundary](safety.md#write-gates-by-tool) for exact grants and native execution rules.
+Previously saved choices retain their narrow meaning: legacy `allowWrites: true` grants only `rtr run`, and other operations require an explicit selection.
+Keep writes off until the required commands, API permissions and independent profile RTR opt-in have been reviewed.
+Preview with `artium-axi falcon-axi rtr run <device_id> --command '<complete command>'`, then repeat with `--execute --confirm '<device_id>:<complete command>'` exactly.
+The native command restriction still applies, and every run must delete its session during bounded cleanup.
+Device custody remains held across users and aliases until cleanup and process-group settlement finish.
+Do not remove shared RTR lock state while a controller or its child may still own it.
+After an uncertain outcome, inspect native session/audit history and durable journal evidence before starting another execution.
 Keep existing Falcon journals intact for audit reconciliation and [retention and export](#retention-and-export).
 See [supported Falcon capabilities](safety.md) and [upstream permissions and licensing](tool-credentials.md#falcon).
 
@@ -547,7 +553,8 @@ Azure, ordinary Graph runs and Vectra use isolated native journals at `<configur
 At startup and daily, retention removes run directories whose modification time is strictly older than 90 days, after validating any journal present.
 Graph and Vectra keep each run's native intent/outcome entries together; the legacy Vectra journal still retains paired entries with its existing daily cutoff.
 Graph mail downloads instead retain native intent/outcome journals at `<configured write-log path>.<transferId>`; run-journal retention does not prune these files.
-Legacy Falcon execution journals expire with their run directory after 90 days; admitted passive reads create no isolated run journals.
+Falcon write calls use isolated run directories at `<configured write-log path>.runs/run-*/`, with native RTR evidence in `writes.log` when emitted.
+These directories expire under the same 90-day retention; passive reads and RTR previews create no isolated run journals.
 Tenable, Hybrid Analysis and Check Point writes each keep one shared native journal at `<database directory>/tool-logs/<tool>/writes.log` so sequential and concurrent invocations retain native intent replay protection.
 Check Point downloads use host-owned transfer audit evidence with empty native journal fields; the upstream downloader emits no native journal.
 These journals are not pruned by run-journal retention.

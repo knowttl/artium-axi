@@ -110,8 +110,13 @@ Related collections are bounded without paging; section failures retain successf
 Falcon investigation reads include detection lineage, process details and trees, existing sandbox reports, FileVantage changes and device-control policy details.
 Falcon `host logins` and `host network` accept `--hostname <name>` to resolve a host before reading its history.
 The pinned TypeScript runtime admits passive reads, including existing search status and RTR session and audit history.
-Search creation and cancellation, host USB and identity activity searches, MalQuery submission and RTR execution remain unavailable pending their write integration.
-Saved administrator write choices are retained without enabling execution.
+Search start/stop, host USB and identity activity searches, MalQuery submission and RTR execution require exact administrator-selected command grants, with writes off by default.
+Legacy `allowWrites: true` grants retain only their RTR meaning and never enable other commands.
+Search and MalQuery use native immediate submission without an invented preview or confirmation gate; preserve returned job/request IDs and do not automatically retry uncertain submissions.
+RTR previews without `--execute`; execution also requires native profile `rtr.enabled: true`, its fixed command restriction and exact `--confirm <device_id>:<complete command>`.
+Shared device custody spans users and case aliases until native session cleanup and process-group settlement finish.
+Native RTR children retain their own device lock in a shared server-owned state directory across calls.
+Host changes, arbitrary scripts and file transfers remain unavailable.
 
 Vectra `host show` and `entity show --type host`, plus the matching raw host reads, retain every returned API field under `host`, separate from CLI metadata.
 Use `--full` on host/entity detail commands for complete returned text; secret redaction still applies, and upstream omissions cannot be restored.
@@ -208,7 +213,7 @@ Local fake-service checks do not establish live server acceptance.
 
 | Tool | Write capability and unlock |
 | --- | --- |
-| Falcon | See the [Falcon read boundary](#azure-falcon-and-vectra-reads) for admitted reads, deferred operations and retained write choices. |
+| Falcon | See the [Falcon boundary](#azure-falcon-and-vectra-reads) for passive reads, exact lifecycle grants and native RTR opt-in/confirmation. |
 | LDAP | Fixed read-only. |
 | UniFi / Proxmox | Ordinary reads only; writes and byte transports unavailable through these adapters. |
 | Technitium DNS | See the [read-only capability boundary](#technitium-dns). |

@@ -292,7 +292,7 @@ test('a retired cached category requires a fresh test without breaking administr
 })
 
 test.each([
-  { tool: 'falcon-axi', settings: { allowWrites: true }, readOnly: true, writableTools: [] },
+  { tool: 'falcon-axi', settings: { allowWrites: true }, readOnly: false, writableTools: ['falcon-axi'] },
   { tool: 'az-axi', settings: { allowWrites: true }, readOnly: false, writableTools: ['az-axi'] },
   { tool: 'mg-axi', settings: { writes: { allowWrites: true, operations: ['mg.entra.group.member.add'] } }, readOnly: false, writableTools: ['mg-axi'] },
   { tool: 'vectra-axi', settings: { writes: { allowWrites: true, operations: ['qux.detection.tag.set'] } }, readOnly: false, writableTools: ['vectra-axi'] },
@@ -313,7 +313,7 @@ test.each([
 })
 
 test.each([
-  { tool: 'falcon-axi', settings: { allowWrites: true }, writableTools: [] },
+  { tool: 'falcon-axi', settings: { allowWrites: true }, writableTools: ['falcon-axi'] },
   { tool: 'az-axi', settings: { allowWrites: true }, writableTools: ['az-axi'] },
   { tool: 'mg-axi', settings: { writes: { allowWrites: true, operations: ['mg.entra.group.member.add'] } }, writableTools: ['mg-axi'] },
   { tool: 'vectra-axi', settings: { writes: { allowWrites: true, operations: ['qux.detection.tag.set'] } }, writableTools: ['vectra-axi'] },
@@ -326,21 +326,21 @@ test.each([
   expect(list.filter(item => !item.readOnly).map(item => item.name)).toEqual(writableTools)
 })
 
-test('Falcon discovery and health retain saved execution choices without enabling writes', async () => {
+test('Falcon discovery and health report the preserved legacy RTR grant', async () => {
   await replace('falcon-axi', { ...values['falcon-axi'], allowWrites: true })
   const tested = await request('POST', '/falcon-axi/test', {})
   expect(tested.status).toBe(200)
-  expect(healthSchema.parse(await tested.json())).toMatchObject({ status: 'ok', readOnly: true })
+  expect(healthSchema.parse(await tested.json())).toMatchObject({ status: 'ok', readOnly: false })
   const admin = (await (await request('GET', '')).json() as { tools: unknown[] }).tools
     .map(tool => adminToolSchema.parse(tool)).find(tool => tool.name === 'falcon-axi')!
-  expect(admin).toMatchObject({ nativeSettings: { allowWrites: true }, readOnly: true,
-    health: { status: 'ok', readOnly: true } })
+  expect(admin).toMatchObject({ nativeSettings: { allowWrites: true }, readOnly: false,
+    health: { status: 'ok', readOnly: false }, writeAccess: { enabled: true, allowedOperations: ['rtr run'] } })
   const discovery = await fetch(`${url}/v1/tools`, { headers })
   expect(discovery.status).toBe(200)
   const tool = toolsResponseSchema.parse(await discovery.json()).tools.find(tool => tool.name === 'falcon-axi')!
-  expect(tool).toMatchObject({ status: 'ok', readOnly: true })
-  expect(toolView(tool)).toContain('readOnly: true\n')
-  expect(toolsView([tool])).toContain('falcon-axi,ok,"1.0.0-rc.2",true\n')
+  expect(tool).toMatchObject({ status: 'ok', readOnly: false })
+  expect(toolView(tool)).toContain('readOnly: false\n')
+  expect(toolsView([tool])).toContain('falcon-axi,ok,"1.0.0-rc.2",false\n')
   const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
   const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
   const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
@@ -350,7 +350,7 @@ test('Falcon discovery and health retain saved execution choices without enablin
   const page = await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi?tab=writes',
     headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
   expect(page.statusCode).toBe(200)
-  expect(page.body).toContain('passive reads only')
+  expect(page.body).toContain('exact --execute/--confirm')
 })
 
 test('schema-driven replacement reaches the isolated runner and keeps secrets out of metadata', async () => {
@@ -1222,7 +1222,7 @@ test('admin list and detail expose write capability for every tool, including un
   const { tools } = await response.json()
   expect(tools.map((tool: { name: string, writeAccess: unknown }) => ({ name: tool.name, ...tool.writeAccess as object })))
     .toMatchObject([
-      { name: 'falcon-axi', capable: false, enabled: false, reason: expect.stringContaining('passive reads only') },
+      { name: 'falcon-axi', capable: true, enabled: false, reason: null },
       { name: 'vectra-axi', capable: true, enabled: false, reason: null },
       { name: 'az-axi', capable: true, enabled: false, reason: null },
       { name: 'mg-axi', capable: true, enabled: false, reason: null },
@@ -1273,16 +1273,16 @@ test('GitHub admin selects exact write operations and preserves them through dis
   expect(await adapter.prepare(args, store.findCredential('gh-axi')!)).toMatchObject({ preview: { operation: 'issue comment' } })
 })
 
-test('Falcon write switch refuses activation and retains saved MalQuery choices', async () => {
+test('Falcon write switch activates only the selected saved MalQuery operation', async () => {
   await replace('falcon-axi', { ...values['falcon-axi'], writes: { allowWrites: false, operations: ['malquery search'] } })
   const enabled = await request('PATCH', '/falcon-axi/write-access', { enabled: true,
     operations: ['malquery search'], expectedRevision: 2 })
-  await failure(enabled, 'INVALID_INPUT')
+  expect(enabled.status).toBe(200)
   expect(store.readCredential(store.findCredential('falcon-axi')!)).toMatchObject({
-    ...values['falcon-axi'], writes: { allowWrites: false, operations: ['malquery search'] } })
+    ...values['falcon-axi'], writes: { allowWrites: true, operations: ['malquery search'] } })
   const detail = await (await request('GET', '/falcon-axi')).json()
-  expect(detail).toMatchObject({ readOnly: true, writeAccess: { capable: false, enabled: false,
-    supportedOperations: ['rtr run', 'malquery search'], allowedOperations: ['malquery search'] } })
+  expect(detail).toMatchObject({ readOnly: false, writeAccess: { capable: true, enabled: true, allowedOperations: ['malquery search'] } })
+  expect([...detail.writeAccess.supportedOperations].sort()).toEqual(['host usb', 'identity activity', 'malquery search', 'rtr run', 'search start', 'search stop'])
 })
 
 test.each(['az-axi', 'ado-axi', 'awx-axi'] as const)('%s write switch preserves native settings and credentials', async tool => {

@@ -424,6 +424,12 @@
   },
   "falcon-axi": {
     "groups": [
+      { "title": "Search lifecycle", "operations": {
+        "search start": { "label": "Start search" },
+        "search stop": { "label": "Stop search" },
+        "host usb": { "label": "Search host USB activity" },
+        "identity activity": { "label": "Search identity activity" }
+      } },
       { "title": "Remote response", "operations": {
         "rtr run": { "label": "Run command" }
       } },

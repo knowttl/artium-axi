@@ -11,7 +11,11 @@ import { toolPaths } from '../config.js'
 
 let directory: string
 let configuration: { clientIdFile: string, clientSecretFile: string, region: string, memberCid?: string }
-const deferredCommands = ['search start', 'search stop', 'host usb', 'identity activity', 'malquery search', 'rtr run']
+const writeCalls = [
+  ['search', 'start', '--query', 'synthetic'], ['search', 'stop', 'synthetic-search'],
+  ['host', 'usb', 'a'.repeat(32)], ['identity', 'activity', 'a'.repeat(32)], ['malquery', 'search', '--string', 'synthetic'],
+  ['rtr', 'run', 'a'.repeat(32), '--command', 'ps', '--execute', '--confirm', `${'a'.repeat(32)}:ps`],
+]
 beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), 'artium-falcon-test-'))
   configuration = { clientIdFile: join(directory, 'client-id'), clientSecretFile: join(directory, 'client-secret'), region: 'us-2' }
@@ -37,25 +41,36 @@ test.each([false, true].flatMap(managed => [
   expect(quota.environment.FALCON_AXI_READ_ONLY).toBe('true')
   expect(quota.effect).toBe('read')
   expect(JSON.parse(quota.files[0].content as string).profiles.artium).not.toHaveProperty('writes')
-  for (const command of deferredCommands) {
-    await expect(adapter.prepare(command.split(' '), reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  for (const args of writeCalls) {
+    await expect(adapter.prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
   }
 })
 
-test.each(deferredCommands)('security refuses %s before retrieving credentials', async command => {
+test.each(writeCalls.map(args => ({ args })))('security refuses an ungranted write $args before retrieving credentials', async ({ args }) => {
   const getCredential = vi.fn()
-  await expect(createFalconAdapter({ getCredential }).prepare(command.split(' '), { id: 'synthetic', tool: 'falcon-axi' }))
+  await expect(createFalconAdapter({ getCredential }).prepare(args, { id: 'synthetic', tool: 'falcon-axi' }))
     .rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
   expect(getCredential).not.toHaveBeenCalled()
 })
 
+test.each(writeCalls.map(args => ({ args })))('the exact Falcon grant enables native execution for $args', async ({ args }) => {
+  const operation = args.slice(0, 2).join(' ')
+  const adapter = createFalconAdapter({ getSettings: () => ({ writes: { allowWrites: true, operations: [operation] } }),
+    getCredential: async () => ({ clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2', rtr: { enabled: true, commands: ['ps'] } }) },
+  join(directory, 'writes.log'))
+  const call = await adapter.prepare(args, { id: 'synthetic', tool: 'falcon-axi', revision: 1 })
+  expect(call.environment.FALCON_AXI_READ_ONLY).toBe('false')
+  expect(call.effect).toBe('write')
+  expect(call.args.slice(1)).toEqual(args)
+})
+
 test('Falcon write switch keeps MalQuery off for legacy RTR opt-ins and retains choices while disabled', () => {
   expect(falconWritePolicy.read({})).toMatchObject({ enabled: false, allowedOperations: [] })
-  expect(falconWritePolicy.read({ allowWrites: true })).toMatchObject({ capable: false, enabled: false,
-    supportedOperations: ['rtr run', 'malquery search'], allowedOperations: ['rtr run'] })
+  expect(falconWritePolicy.read({ allowWrites: true })).toMatchObject({ capable: true, enabled: true, allowedOperations: ['rtr run'] })
   const settings = { rtr: { enabled: true }, writes: { allowWrites: true, operations: ['malquery search'] } }
-  expect(falconWritePolicy.read(settings)).toMatchObject({ capable: false, enabled: false, allowedOperations: ['malquery search'] })
-  expect(() => falconWritePolicy.update(settings, { enabled: true, expectedRevision: 1 })).toThrow('passive reads only')
+  expect(falconWritePolicy.read(settings)).toMatchObject({ capable: true, enabled: true, allowedOperations: ['malquery search'] })
+  expect(falconWritePolicy.update(settings, { enabled: false, expectedRevision: 1 })).toEqual({ rtr: { enabled: true },
+    writes: { allowWrites: false, operations: ['malquery search'] } })
   expect(settings.writes).toEqual({ allowWrites: true, operations: ['malquery search'] })
 })
 
