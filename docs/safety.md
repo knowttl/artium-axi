@@ -215,6 +215,12 @@ Consuming hunting matches is account-wide across all rules, with no rule selecto
 Updating a YARA rule with `reset_counter:true` resets its all-time match counter and changes its rule ID; use the returned ID for subsequent commands.
 Labs hunting and search contracts are experimental.
 
+AWX project create/edit reject invalid SCM URLs and URLs containing userinfo, credential query parameters or fragments, including percent-encoded and uploaded values.
+Rejected inputs return `UNSUPPORTED_INPUT` with guidance to reference an AWX SCM credential through `--credential` and supply its secrets through `credential create/edit --inputs-file`.
+The same input restriction applies to previews and confirmed writes.
+Already-retained AWX logs from URLs set outside Artium are AWX-held data and are outside Artium's SCM input protection.
+Artium does not scrub historical logs or scan current projects for stdout redaction values; ordinary log URLs remain unchanged.
+
 AWX `host inspect` reads a bounded batch of selected hosts, with optional inventory scoping and explicit per-host completeness, errors and previews.
 This read does not enable bulk host mutations; the [reviewed AWX inventory](../tools/inventories/awx-axi.json) owns its command and flag boundary.
 Inventory and constructed-inventory detail reads parse JSON/YAML variable documents and redact sensitive keys before returning them; malformed documents are replaced with `***`.
