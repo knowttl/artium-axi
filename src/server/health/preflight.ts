@@ -33,7 +33,7 @@ Promise<{ chain: X509Certificate[], verificationError?: string }> {
   } catch (error) {
     throw diagnosticError('UPSTREAM_NETWORK_FAILED', { stage: 'DNS', host, message: `DNS lookup failed for ${host}: ${verificationCode(error)}.` })
   } finally { clearTimeout(timer) }
-  const socket = connect({ host, port, autoSelectFamily: true,
+  const socket = connect({ host: native.connectAddress ?? host, port, autoSelectFamily: true,
     lookup: (_hostname, _options, callback) => callback(null, addresses) })
   try {
     await new Promise<void>((resolve, reject) => {

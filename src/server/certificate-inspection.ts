@@ -75,9 +75,9 @@ async function fetchIssuer(leaf: X509Certificate): Promise<X509Certificate | und
   } catch { /* An unavailable or invalid AIA issuer leaves the original trust failure visible. */ }
 }
 
-export async function inspectCertificate(endpoint: URL, ca?: string, maxVersion?: 'TLSv1.2') {
+export async function inspectCertificate(endpoint: URL, ca?: string, maxVersion?: 'TLSv1.2', connectAddress?: string) {
   const { hostname: host, href } = certificateEndpoint(endpoint)
-  const presented = await inspectEndpoint(endpoint, ca, undefined, maxVersion)
+  const presented = await inspectEndpoint(endpoint, ca, undefined, maxVersion, [], { connectAddress })
   if (!presented.chain.length) throw new Error('The endpoint presented no certificate')
   const leaf = presented.chain[0]
   let intermediate: X509Certificate | undefined

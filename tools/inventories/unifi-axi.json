@@ -226,7 +226,7 @@
   },
   "commands": [
     {
-      "command": "home",
+      "command": "",
       "effect": "read",
       "flags": {
         "help": "boolean",
@@ -658,7 +658,6 @@
   ],
   "discovery": {
     "commands": [
-      "home",
       "commands",
       "doctor",
       "info",

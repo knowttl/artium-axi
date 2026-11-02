@@ -31,9 +31,9 @@ function readArguments(tool: NetworkTool, args: readonly string[], input: Runner
   }
   const index = args.findIndex(arg => arg.startsWith('-'))
   const words = index < 0 ? args : args.slice(0, index)
-  const command = words.join(' ') || 'home'
-  const route = inventory.commands.find(entry => entry.command === command)
-  if (!route) throw invalidCommand(tool, args, inventory.commands.map(entry => entry.command))
+  const command = words.join(' ')
+  const route = inventory.commands.find(entry => entry.command === command || !command && entry.command === 'home')
+  if (!route) throw invalidCommand(tool, args, inventory.discovery.commands)
   const flags: Record<string, string | undefined> = route.flags
   const seen = new Set<string>()
   const normalized = [...words]
@@ -53,7 +53,7 @@ function readArguments(tool: NetworkTool, args: readonly string[], input: Runner
       normalized.push(value)
     }
   }
-  return { args: normalized, invocation: { command, help: seen.has('help') } }
+  return { args: normalized, invocation: { command: command || 'home', help: seen.has('help') } }
 }
 
 export function createNetworkReadAdapter(tool: NetworkTool, source: SecretSource): Adapter<unknown> {

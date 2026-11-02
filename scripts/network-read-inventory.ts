@@ -14,7 +14,7 @@ const specifications = {
     sources: ['package.json', ...readdirSync(new URL('node_modules/@knowttl/unifi-axi/dist/', root))
       .filter(path => /\.(js|json)$/.test(path)).map(path => `dist/${path}`), 'dist/SKILL.md',
       'evidence/sources/network-10.6.109-openapi.json', 'evidence/sources/network-11.0.97-openapi.json'],
-    commands: [{ command: 'home', flags: { help: 'boolean', site: 'value' }, effect: 'read' },
+    commands: [{ command: '', flags: { help: 'boolean', site: 'value' }, effect: 'read' },
       { command: 'commands', flags: { help: 'boolean' }, effect: 'read' },
       { command: 'doctor', flags: { help: 'boolean' }, effect: 'read' },
       ...catalogue.filter(entry => entry.effect === 'read' && entry.status === 'implemented').map(entry => ({
@@ -34,12 +34,13 @@ for (const [tool, spec] of Object.entries(specifications)) {
   const pkg = JSON.parse(read(tool, 'package.json')) as { name: string, version: string }
   if (pins[pkg.name].version !== pkg.version) throw new Error(`${tool} installed version differs from its pin`)
   const commands = spec.commands.map(entry => ({ command: entry.command, effect: 'read',
-    flags: Object.fromEntries(Object.entries(entry.flags).filter(([name]) => !unsafeOverrides.includes(name))) }))
+    flags: Object.fromEntries(Object.entries(entry.flags).filter(([name]) => !unsafeOverrides.includes(name)
+      && !(tool === 'proxmox-axi' && name === 'journal'))) }))
   const data = { generatedBy: 'scripts/network-read-inventory.ts', tool, package: pkg.name, version: pkg.version, integrity: pins[pkg.name].integrity,
     sources: [...spec.sources, spec.schema].map(path => ({ path, sha256: createHash('sha256').update(read(tool, path)).digest('hex') })),
     credentialSchema: JSON.parse(read(tool, spec.schema)) as Record<string, unknown>,
     adapterBoundary: { unsafeOverrides, nativeWrites: 'not admitted', blockedCommands: ['setup', 'update', 'auth', 'config', 'profile'] },
-    commands, discovery: { commands: commands.map(entry => entry.command), example: spec.example,
+    commands, discovery: { commands: commands.map(entry => entry.command).filter(Boolean), example: spec.example,
       help: `${tool} managed reads. Run ${tool} ${spec.example.join(' ')} --help for selectors and limits.\nWrites, local configuration, input files and byte transports are unavailable.\n` } }
   const output = JSON.stringify(data, null, 2) + '\n'
   const target = new URL(`inventories/${tool}.json`, root)

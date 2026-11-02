@@ -68,26 +68,24 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
       const json = output.trimStart().startsWith('{')
       const document = (json ? JSON.parse(output) : decode(output)) as Record<string, unknown>
       const inventory = tool === 'unifi-axi' ? unifi : proxmox
-      const help = [rewriteDiscoveryHelp(inventory.discovery.help, tool), 'Ask an administrator to update the managed credential.']
       if (document.flags || document.commands) {
         const usage = String(document.usage ?? document.command ?? '').replace(new RegExp(`^(?:artium-axi )?${tool} ?`), '')
         const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
           .find(route => usage === route.command || usage.startsWith(route.command + ' '))
-        const command = `artium-axi ${tool}${route && route.command !== 'home' ? ` ${route.command}` : ''}`
+        const command = `artium-axi ${tool}${route?.command && route.command !== 'home' ? ` ${route.command}` : ''}`
         document.command = command
         document.usage = `${command} [flags]`
-        document.flags = route?.flags ?? inventory.commands.find(route => route.command === 'home')!.flags
+        document.flags = route?.flags ?? inventory.commands.find(route => !route.command || route.command === 'home')!.flags
         document.examples = [`${command} --help`]
         if (document.commands) {
           document.commands = inventory.discovery.commands
           if (Object.hasOwn(document, 'count')) document.count = inventory.discovery.commands.length
         }
         if (document.bin) document.bin = `artium-axi ${tool}`
-        document.help = help
-      } else if (document.help) document.help = help
-      else return output
-      return (json ? JSON.stringify(document) : encode(document)) + (output.endsWith('\n') ? '\n' : '')
-    } catch { return output }
+        document.help = [rewriteDiscoveryHelp(inventory.discovery.help, tool)]
+        return (json ? JSON.stringify(document) : encode(document)) + (output.endsWith('\n') ? '\n' : '')
+      }
+    } catch {}
   }
   if (tool === 'vectra-axi') {
     try {
@@ -315,6 +313,10 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 }
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
+  if ((tool === 'unifi-axi' || tool === 'proxmox-axi')
+    && (new RegExp(`\\b${tool} (?:auth|config|profile|setup|update)\\b`).test(help) || /\b(?:UNIFI|PROXMOX)_AXI_[A-Z_]+\b/.test(help))) {
+    return 'Ask an administrator to update the managed credential.'
+  }
   if (tool === 'beyondtrust-axi') {
     help = help.split('\n').filter(line => !/BEYONDTRUST_AXI_|SecretRef|beyondtrust-axi (?:config|profile)|Valid commands:/.test(line)).join('\n')
     if (!help.trim()) help = beyondtrust.discovery.help

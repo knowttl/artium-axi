@@ -23,7 +23,33 @@ test.each([
   expect(document.examples).toEqual([`${hosted} --help`])
   expect(document.commands ?? []).not.toContain('profile configure')
   expect(document.commands ?? []).not.toContain('acl-rule create')
+  expect(document.commands ?? []).not.toContain('home')
+  expect(document.help).not.toContain('Ask an administrator to update the managed credential.')
   expect(rewriteSuggestions(output, tool)).toBe(output)
+})
+
+test.each(['status', 'log', 'wait'])('Proxmox task %s help omits unsupported journal input', action => {
+  const native = execFileSync(process.execPath, ['tools/node_modules/@knowttl/proxmox-axi/bin/proxmox-axi.mjs',
+    'task', action, '--help'], { encoding: 'utf8' })
+  const document = decode(rewriteSuggestions(native, 'proxmox-axi')) as { command: string, flags: Record<string, string> }
+  expect(document.command).toBe(`artium-axi proxmox-axi task ${action}`)
+  expect(document.flags).not.toHaveProperty('journal')
+  expect(document.flags).toHaveProperty('api-upid', 'value')
+})
+
+test.each([
+  { tool: 'unifi-axi', help: ['unifi-axi device list --site synthetic-site --config /synthetic/config --profile artium',
+    'unifi-axi site list --profile artium'], expected: ['artium-axi unifi-axi device list --site synthetic-site', 'artium-axi unifi-axi site list'] },
+  { tool: 'proxmox-axi', help: ['proxmox-axi task status --api-node <node> --api-upid <UPID>'],
+    expected: ['artium-axi proxmox-axi task status --api-node <node> --api-upid <UPID>'] },
+])('$tool retains operational continuations in both formats', ({ tool, help, expected }) => {
+  for (const serialize of [encode, JSON.stringify]) {
+    const input = { status: 'running', help, data: { help: ['Keep resource data'] } }
+    const output = rewriteSuggestions(serialize(input), tool)
+    const document = (output.trimStart().startsWith('{') ? JSON.parse(output) : decode(output)) as typeof input
+    expect(document).toEqual({ ...input, help: expected })
+    expect(rewriteSuggestions(output, tool)).toBe(output)
+  }
 })
 
 test.each(['unifi-axi', 'proxmox-axi'])('%s authentication recovery uses managed credentials in both formats', tool => {

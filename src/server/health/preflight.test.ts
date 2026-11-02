@@ -24,7 +24,7 @@ beforeAll(() => {
   mkdirSync(join(directory, 'extra'))
   createTestCertificates(join(directory, 'extra'), ['extra.synthetic.invalid'])
   execFileSync('openssl', ['req', '-x509', '-key', 'server.key', '-subj', '/CN=localhost', '-days', '3650',
-    '-addext', 'subjectAltName=DNS:localhost,DNS:extra.synthetic.invalid', '-addext', 'basicConstraints=CA:FALSE',
+    '-addext', 'subjectAltName=DNS:localhost,DNS:extra.synthetic.invalid,IP:127.0.0.2,IP:::2', '-addext', 'basicConstraints=CA:FALSE',
     '-out', 'self-signed.crt'], { cwd: directory, stdio: 'pipe' })
   execFileSync('openssl', ['req', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=synthetic-leaf',
     '-keyout', 'invalid-ca.key', '-out', 'invalid-ca.csr'], { cwd: directory, stdio: 'pipe' })
@@ -37,6 +37,8 @@ afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
 test.each([
   { fingerprint: 'matching', host: 'extra.synthetic.invalid', error: undefined },
+  { fingerprint: 'matching', host: '127.0.0.2', error: undefined },
+  { fingerprint: 'matching', host: '[::2]', error: undefined },
   { fingerprint: 'mismatched', host: 'extra.synthetic.invalid', error: 'CERTIFICATE_PIN_MISMATCH' },
   { fingerprint: 'matching', host: '127.0.0.1', error: 'ERR_TLS_CERT_ALTNAME_INVALID' },
 ])('UniFi preflight honors connectAddress with $fingerprint pin for $host', async ({ fingerprint, host, error }) => {

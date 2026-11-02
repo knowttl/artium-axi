@@ -65,7 +65,8 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     if (!endpoint) throw new ArtiumError('INVALID_INPUT')
     const ca = value.caBundle ?? value.caFile
     const inspection = await inspectCertificate(endpoint, typeof ca === 'string' ? ca : undefined,
-      reference.tool === 'ldap-axi' && value.tlsMaxVersion === '1.2' ? 'TLSv1.2' : undefined)
+      reference.tool === 'ldap-axi' && value.tlsMaxVersion === '1.2' ? 'TLSv1.2' : undefined,
+      reference.tool === 'unifi-axi' ? (value.tls as { connectAddress?: string } | undefined)?.connectAddress : undefined)
     authorize(request)
     current(reference)
     const certificates = credentialCertificates(db, reference.id).filter(pin => pin.endpoint === certificateEndpoint(endpoint).href)

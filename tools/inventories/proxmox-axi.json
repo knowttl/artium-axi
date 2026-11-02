@@ -380,8 +380,7 @@
         "help": "boolean",
         "format": "value",
         "api-node": "value",
-        "api-upid": "value",
-        "journal": "value"
+        "api-upid": "value"
       }
     },
     {
@@ -391,8 +390,7 @@
         "help": "boolean",
         "format": "value",
         "api-node": "value",
-        "api-upid": "value",
-        "journal": "value"
+        "api-upid": "value"
       }
     },
     {
@@ -403,7 +401,6 @@
         "format": "value",
         "api-node": "value",
         "api-upid": "value",
-        "journal": "value",
         "wait-ms": "value"
       }
     },
