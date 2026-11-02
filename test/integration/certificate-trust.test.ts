@@ -106,7 +106,8 @@ function runtimeCall(runtime: 'node' | 'python', trusted = true) {
     runtime === 'node'
       ? ['-e', `fetch(${JSON.stringify(endpoint)}).then(r => r.text()).then(console.log).catch(e => { console.error(e.cause?.message || e.message); process.exitCode = 1 })`]
       : ['-c', `import requests; print(requests.get(${JSON.stringify(endpoint)}, timeout=3).text)`],
-    {}, [], { ...(runtime === 'python' ? { runtime: 'python' as const } : {}), timeoutMs: 5000, credentialTrust: trust })
+    // Allow runtime startup and the diagnostic TLS handshake under concurrent test load.
+    {}, [], { ...(runtime === 'python' ? { runtime: 'python' as const } : {}), timeoutMs: 15_000, credentialTrust: trust })
 }
 
 beforeAll(async () => {
