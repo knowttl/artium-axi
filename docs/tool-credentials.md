@@ -33,6 +33,7 @@ Contents:
 - [Hybrid Analysis](#hybrid-analysis)
 - [UniFi](#unifi)
 - [Proxmox](#proxmox)
+- [Technitium DNS](#technitium-dns)
 
 Configure only the tools you intend to use.
 At `/admin/tools`, open the tool, save its connection, then use **Test connection** and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
@@ -52,6 +53,7 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | Check Point Email Security (`checkpoint-axi`) | Region, client ID, client secret, optional SaaS and scope. | `doctor`; regional authentication and one bounded email search. |
 | UniFi (`unifi-axi`) | See [UniFi setup](#unifi). | `info`. |
 | Proxmox (`proxmox-axi`) | See [Proxmox setup](#proxmox). | `get /version`. |
+| Technitium DNS (`technitium-axi`) | See [Technitium setup](#technitium-dns). | `user session get`. |
 
 #### UniFi
 
@@ -450,22 +452,14 @@ Local fake-service checks do not establish live controller acceptance.
 
 #### Technitium DNS
 
-Artium pins `@knowttl/technitium-axi` to `0.1.0`, whose published write model permits reads only.
+The [reviewed Technitium inventory](../tools/inventories/technitium-axi.json) owns the pinned profile schema and command boundary; [tools/package.json](../tools/package.json) owns the package pin.
 Enter a canonical HTTPS `origin`, `auth: token`, the token's actual `tokenKind` (`api`, `session` or `single-use`) and the token value in the managed credential editor.
 Artium encrypts the value and supplies a private SecretRef for each invocation.
 Changing the origin, authentication or token kind requires a replacement secret.
 Optional `caFile` contains trusted CA PEM contents, and `tlsServerName` selects the name verified by native reads, manual preflight and certificate inspection.
 The connection test uses authenticated `user session get`; the unauthenticated `status` read alone does not validate a token.
 
-Run `artium-axi tools show technitium-axi` for admitted commands and each command with `--help` for its required selectors.
-Native boolean parameters take explicit `true` or `false` values; `--include-zones` also accepts the native empty selection.
-Authenticated reads return their normal safe projection and an operation-bound `result` reference.
-JSON result downloads contain only that redacted projection; native text, CSV and ZIP downloads contain the exported bytes.
-Retrieve `result.path` once with an authenticated GET using the same Artium user, current tool grant and credential revision.
-The server returns result bytes as an attachment and never executes or extracts them.
-References expire after five minutes; results are limited to 1 MiB each, four pending references per user and 64 per server.
-Server restart removes all pending results.
-Caller result paths, local profiles, file input and writes are unavailable.
+See [Technitium commands and result retrieval](commands.md#technitium-dns), the [supported capability boundary](safety.md#technitium-dns) and [result retention](runbook.md#retention-and-export).
 Local fake-service checks do not establish live server acceptance.
 
 #### Hybrid Analysis

@@ -6,6 +6,7 @@ Contents:
 - [Microsoft Graph](#microsoft-graph)
 - [Azure, Falcon and Vectra reads](#azure-falcon-and-vectra-reads)
 - [Network appliance reads](#network-appliance-reads)
+- [Technitium DNS](#technitium-dns)
 - [Write gates by tool](#write-gates-by-tool)
 - [Initial read permissions](#initial-read-permissions)
 - [Storage and execution boundaries](#storage-and-execution-boundaries)
@@ -133,6 +134,15 @@ Credentials, endpoints, profiles, local configuration, file inputs, session auth
 These adapters admit reads only; administrator settings cannot enable writes in this admission slice.
 Local synthetic verification does not establish live appliance commissioning.
 
+## Technitium DNS
+
+The pinned Technitium package supports reads only; administrator settings cannot enable writes.
+Artium admits the reads and discovery commands in the [reviewed inventory](../tools/inventories/technitium-axi.json), including JSON reads and native text, CSV and ZIP exports.
+Caller-controlled credentials, endpoints, local profiles, result paths and file inputs are unavailable.
+The server returns exported bytes as attachments and never executes or extracts them.
+See [credential setup](tool-credentials.md#technitium-dns) and [command usage](commands.md#technitium-dns).
+Local fake-service checks do not establish live server acceptance.
+
 ## Write gates by tool
 
 | Tool | Write capability and unlock |
@@ -140,6 +150,7 @@ Local synthetic verification does not establish live appliance commissioning.
 | Falcon | Separate, off-by-default capabilities for guarded RTR execution and bounded MalQuery exact/fuzzy literal search. RTR retains the standard read-only command allowlist and profile narrowing. Host changes, scripts, hunt and file transfers remain unavailable. See [Falcon execution setup](runbook.md#falcon-rtr-execution). |
 | LDAP | Fixed read-only. |
 | UniFi / Proxmox | Ordinary reads only; writes and byte transports unavailable through these adapters. |
+| Technitium DNS | See the [read-only capability boundary](#technitium-dns). |
 | GitHub | Reviewed reads plus exact administrator-selected collaboration and repository writes, off by default, using classic or fine-grained PATs, admin-connected device-flow OAuth tokens or GitHub App installation tokens on GitHub.com, `*.ghe.com` or GHES. Artium previews each write without sending it; repeat the exact request with its returned `--confirm` value to execute. Installation tokens cannot access gists or user-only endpoints. Deletes, secret set, merge --admin, API non-GET, GraphQL escape paths, local git, setup/update, watch, downloads and local files stay blocked. Issue lock/unlock is unsupported by the pinned upstream combination; repo-edit visibility is unavailable. Only gist create/edit with `--filename` accepts stdin. Repository commands require `-R OWNER/NAME`; URL selectors and host-qualified repository names are refused. Repo creation requires a positional `OWNER/NAME`; project writes require `--owner OWNER` for recovery scope. Repo list/create, gist commands, search repos and api reject the `-R` selector. The bare dashboard and `home` remain refused because pinned gh-axi swallows dashboard read errors. SSH keys authenticate git transport, never the API used by gh-axi. See [GitHub setup](tool-credentials.md#github) for the operation tiers, device flow and token lifecycle. |
 | Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |
 | Graph | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |
@@ -198,10 +209,10 @@ Access tokens last one hour, with 12-hour local or 8-hour SSO CLI families; pass
 
 Requests, bounded tool input and uploads travel to the server; enabled tools contact their upstream APIs using shared service identities.
 Audit excludes injected credentials, request bodies, stdin, uploaded contents and output streams; see [upload audit metadata](admin-guide.md#audit-screen-and-api) for retained file metadata.
-Technitium authenticated reads store only the package's redacted projection for JSON results; native text, CSV and ZIP downloads keep their bytes in private per-call files and bounded process memory.
+Technitium authenticated reads store only the package's redacted projection for JSON reads; native text, CSV and ZIP downloads keep their bytes in private per-call files and bounded process memory.
 Their one-time result references require the same user, operation and current credential revision, with current access checked again at retrieval.
 Only the result identifier, operation, byte count and SHA-256 enter the result audit event; confidential bytes never enter logs or audit.
-Result references expire after five minutes and disappear on restart; see [Technitium setup](tool-credentials.md#technitium-dns) for limits.
+See [result retention and limits](runbook.md#retention-and-export).
 Failed-run diagnostics use separate administrator-only storage; see [diagnostic storage and retention](runbook.md#scripted-administrator-sessions) for limits, exclusions and backup handling.
 The runner scans known secret encodings and discards output on a match; unknown upstream-minted tokens cannot be identified by exact-value scanning.
 Its restricted environment, private directories and process limits are not a complete sandbox; descendants starting a new session can escape process-group termination.
