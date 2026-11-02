@@ -79,6 +79,17 @@ For inline JSON/YAML and `--variables @local-file` handling, see [AWX structured
 Associate a host with `artium-axi awx-axi inventory group-add-host 42 --host 43 --confirm`, or a child group with `artium-axi awx-axi inventory group-add-child 42 --child 44 --confirm`; the matching `group-remove-host` and `group-remove-child` commands remove membership while preserving the resources.
 Inspect the resulting state with `host show`, `group show`, `inventory hosts` or `inventory groups`; these reads remain available when writes are disabled.
 
+Inventory creation and editing use `inventory create` and `inventory edit` with private `--variables` input.
+For sources, use canonical `inventory source-create` and `inventory source-edit` with `--source-vars`, `--source-project` and `--credential` as needed.
+Both accept `--update-on-launch`; editing also accepts `--no-update-on-launch`.
+For example, preview `artium-axi awx-axi inventory source-create synthetic-source --inventory 7 --source scm --source-project 8 --credential 9 --source-vars @source.json --dry-run`, then replace `--dry-run` with `--confirm`.
+Use `inventory source-credential-add` or `inventory source-credential-remove` with `--credential` for credential associations.
+Use `inventory source-notification-add` or `inventory source-notification-remove` with `--notification-template` and `--event started|success|error` for notification associations.
+Delete resources with `inventory delete <id|name>` or `inventory source-delete <id|name>`, using the same preview and confirmation flow.
+Inspect state with `inventory show`, `inventory sources`, `inventory-source list`, `inventory-source show` and `inventory updates`; these reads remain available with writes disabled.
+`inventory-source show` includes redacted configuration and update history.
+`inventory sync <source-id|name>` targets a source, supports preview and confirmation, and accepts `--wait` to wait for completion.
+
 ## Technitium DNS
 
 Run `artium-axi tools show technitium-axi` for admitted commands and each command with `--help` for its required selectors.

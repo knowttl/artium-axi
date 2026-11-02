@@ -165,7 +165,7 @@ The server loads those structured values privately into upstream memory, preserv
 All caller-supplied structured inputs remain opaque in previews and responses, including variables, survey and launch inputs, Ansible arguments, notification configuration/messages and uploaded structured files.
 Artium shows redacted placeholders with the original UTF-8 byte lengths; a hidden preview payload reports the combined input byte length.
 Credential secrets continue to use the controlled file channel; see the [AWX boundary](safety.md#write-gates-by-tool) for the upstream protocol-token collision limitation.
-Upstream validates the command-specific format; for example, schedule extra variables require a JSON object.
+Upstream validates the command-specific format; schedule extra variables and inventory source variables require a JSON object, while inventory variables accept JSON or YAML.
 Server paths, nested `@path` references and stdin for other AWX flags are refused.
 Authentication, role checks, write confirmations, redaction and call limits apply as usual.
 GitHub writes require an administrator-enabled exact operation, then an Artium preview and `--confirm <returned-value>` on the same request.
