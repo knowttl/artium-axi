@@ -68,6 +68,8 @@ const commands = {
     flags: ['Declared reads accept --help. Authenticated reads return protected result references; local result paths and writes are unavailable.'], example: 'artium-axi technitium-axi status' },
   'gitea-axi': { usage: 'artium-axi gitea-axi [<args>]', purpose: 'Read Gitea data with managed credentials.',
     flags: ['Repository reads require --repo OWNER/NAME. api accepts GET and classified metadata paths. Writes, attachment transfers, local configuration and workflows are unavailable.'], example: 'artium-axi gitea-axi issue view 42 --repo OWNER/NAME' },
+  'kubernetes-axi': { usage: 'artium-axi kubernetes-axi [<args>]', purpose: 'Read Kubernetes with managed credentials and pinned kubectl.',
+    flags: ['Compact and native reads accept --help. Issuing CA trust is supported; saved leaf pins, mutations, file input and streaming sessions are unavailable.'], example: 'artium-axi kubernetes-axi get pods' },
 } as const
 
 export type HelpCommand = keyof typeof commands

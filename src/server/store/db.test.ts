@@ -60,6 +60,7 @@ it('opens an unconfigured store with every supported tool disabled', () => {
       { name: 'gh-axi', enabled: 0, pinned_version: '' },
       { name: 'gitea-axi', enabled: 0, pinned_version: '' },
       { name: 'hybrid-axi', enabled: 0, pinned_version: '' },
+      { name: 'kubernetes-axi', enabled: 0, pinned_version: '' },
       { name: 'ldap-axi', enabled: 0, pinned_version: '' },
       { name: 'mg-axi', enabled: 0, pinned_version: '' },
       { name: 'proxmox-axi', enabled: 0, pinned_version: '' },

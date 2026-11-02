@@ -4,6 +4,7 @@ import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type
 import { diagnosticError } from './health/diagnostic.js'
 
 export function toolEndpoints(tool: ToolName, credential: Record<string, unknown>): URL[] {
+  if (tool === 'kubernetes-axi') return [new URL(String(credential.origin))]
   if (tool === 'gh-axi') {
     const origin = new URL(String(credential.origin))
     return [origin, origin.hostname === 'github.com' ? new URL('https://api.github.com')

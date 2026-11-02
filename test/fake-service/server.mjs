@@ -32,9 +32,50 @@ function basicPassword(header) {
   const separator = decoded.indexOf(':')
   return separator === -1 ? '' : decoded.slice(separator + 1)
 }
-const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert: readFileSync(join(certs, 'server.crt')) }, (req, res) => {
+const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert: readFileSync(join(certs, 'server.crt')),
+  ca: readFileSync(join(certs, 'ca.crt')), requestCert: true, rejectUnauthorized: false }, (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
+  if (['/version', '/api', '/apis', '/api/v1'].includes(url.pathname)
+    || /^\/apis\/(apps|authorization\.k8s\.io|authentication\.k8s\.io)(\/|$)/.test(url.pathname)
+    || url.pathname.startsWith('/api/v1/namespaces/synthetic/')) {
+    const canaryReceived = req.headers.authorization === 'Bearer CANARY-kubernetes-token'
+      || req.socket.authorized && req.socket.getPeerCertificate().subject?.CN === 'synthetic-kubernetes-client'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived })
+    if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ kind: 'Status', apiVersion: 'v1', status: 'Failure', reason: 'Unauthorized', code: 401 })); return }
+    const groups = [['apps', 'v1'], ['authorization.k8s.io', 'v1'], ['authentication.k8s.io', 'v1']]
+    const resource = (name, kind, namespaced, shortNames = []) => ({ name, singularName: kind.toLowerCase(), namespaced, kind, shortNames, verbs: ['get', 'list', 'create'] })
+    let value
+    if (url.pathname === '/version') value = { major: '1', minor: '32', gitVersion: 'v1.32.2' }
+    else if (url.pathname === '/api') value = { kind: 'APIVersions', apiVersion: 'v1', versions: ['v1'] }
+    else if (url.pathname === '/apis') value = { kind: 'APIGroupList', apiVersion: 'v1', groups: groups.map(([name, version]) => ({
+      name, versions: [{ groupVersion: `${name}/${version}`, version }], preferredVersion: { groupVersion: `${name}/${version}`, version } })) }
+    else if (url.pathname === '/api/v1') value = { kind: 'APIResourceList', apiVersion: 'v1', groupVersion: 'v1', resources: [resource('pods', 'Pod', true, ['po']), resource('secrets', 'Secret', true)] }
+    else if (url.pathname === '/apis/apps/v1') value = { kind: 'APIResourceList', apiVersion: 'v1', groupVersion: 'apps/v1', resources: [resource('deployments', 'Deployment', true, ['deploy'])] }
+    else if (url.pathname === '/apis/authorization.k8s.io/v1') value = { kind: 'APIResourceList', apiVersion: 'v1', groupVersion: 'authorization.k8s.io/v1', resources: [resource('selfsubjectaccessreviews', 'SelfSubjectAccessReview', false)] }
+    else if (url.pathname === '/apis/authentication.k8s.io/v1') value = { kind: 'APIResourceList', apiVersion: 'v1', groupVersion: 'authentication.k8s.io/v1', resources: [resource('selfsubjectreviews', 'SelfSubjectReview', false)] }
+    else if (req.method === 'POST' && /\/selfsubject(?:access)?reviews$/.test(url.pathname)) {
+      req.resume()
+      value = url.pathname.endsWith('/selfsubjectaccessreviews')
+        ? { apiVersion: 'authorization.k8s.io/v1', kind: 'SelfSubjectAccessReview', status: { allowed: true } }
+        : { apiVersion: 'authentication.k8s.io/v1', kind: 'SelfSubjectReview', status: { userInfo: { username: 'synthetic-reader', groups: ['synthetic-readers'] } } }
+    } else if (req.method === 'GET' && url.pathname === '/api/v1/namespaces/synthetic/pods/synthetic-pod') {
+      value = { apiVersion: 'v1', kind: 'Pod', metadata: { name: 'synthetic-pod', namespace: 'synthetic' },
+        spec: { containers: [{ name: 'synthetic-container', image: 'synthetic.invalid/image:fake' }] }, status: { phase: 'Running' } }
+    } else if (req.method === 'GET' && url.pathname === '/api/v1/namespaces/synthetic/pods/synthetic-pod/log') {
+      res.setHeader('content-type', 'text/plain'); res.end('Synthetic pod log\n'); return
+    } else if (req.method === 'GET' && /\/(pods|secrets|deployments)$/.test(url.pathname)) {
+      const type = url.pathname.split('/').at(-1)
+      const kind = { pods: 'Pod', secrets: 'Secret', deployments: 'Deployment' }[type]
+      const apiVersion = type === 'deployments' ? 'apps/v1' : 'v1'
+      value = { apiVersion, kind: kind + 'List', metadata: { resourceVersion: '17' }, items: [{ apiVersion, kind,
+        metadata: { name: `synthetic-${kind.toLowerCase()}`, namespace: 'synthetic' },
+        ...(type === 'pods' ? { status: { phase: 'Running' } } : type === 'deployments' ? { spec: { replicas: 2 }, status: { availableReplicas: 2 } }
+          : { data: { token: Buffer.from('CANARY-never-public-secret').toString('base64') } }) }] }
+    } else { res.writeHead(403); value = { kind: 'Status', apiVersion: 'v1', status: 'Failure', reason: 'Forbidden', code: 403 } }
+    res.end(JSON.stringify(value))
+    return
+  }
   if (['/api/status', '/api/user/session/get', '/api/zones/export', '/api/logs/export', '/api/admin/ldap/get', '/api/admin/cluster/primary/transferConfig'].includes(url.pathname)) {
     const canaryReceived = req.headers.authorization === 'Bearer CANARY-technitium-token'
     let body = ''

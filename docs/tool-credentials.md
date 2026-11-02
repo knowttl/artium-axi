@@ -35,6 +35,7 @@ Contents:
 - [Proxmox](#proxmox)
 - [Technitium DNS](#technitium-dns)
 - [Gitea](#gitea)
+- [Kubernetes](#kubernetes)
 
 Configure only the tools you intend to use.
 At `/admin/tools`, open the tool, save its connection, then use **Test connection** and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
@@ -56,6 +57,7 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | Proxmox (`proxmox-axi`) | See [Proxmox setup](#proxmox). | `get /version`. |
 | Technitium DNS (`technitium-axi`) | See [Technitium setup](#technitium-dns). | `user session get`. |
 | Gitea (`gitea-axi`) | See [Gitea setup](#gitea). | `doctor`. |
+| Kubernetes (`kubernetes-axi`) | See [Kubernetes setup](#kubernetes). | `get pods`. |
 
 #### UniFi
 
@@ -68,6 +70,18 @@ Its optional `connectAddress` selects the connection IP while certificate identi
 Certificate chain, validity, identity and fingerprint verification remain required.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
 After saving, testing, enabling and granting the tool, use `artium-axi unifi-axi info` for the first managed read.
+
+#### Kubernetes
+
+At `/admin/tools/kubernetes-axi`, enter the HTTPS cluster `origin`, `certificateAuthority` issuing CA PEM and optional default `namespace`.
+Choose token authentication and enter the token itself, or certificate authentication with `clientCertificate` PEM and its matching private key.
+Artium stores secret values encrypted and supplies private SecretRefs to the pinned tool; callers cannot select credentials or local kubeconfig files.
+Changing the cluster origin, authentication type or client certificate requires replacement secrets.
+See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for the Kubernetes issuing CA requirement and managed trust projection.
+Test, enable and grant the tool, then run `artium-axi kubernetes-axi get pods`.
+The connection test performs that authenticated pod read; `doctor` and `auth status` only describe local profile resolution.
+The [reviewed inventory](../tools/inventories/kubernetes-axi.json) owns the supported kubectl/server version matrix and command boundary.
+See the [Kubernetes capability boundary](safety.md#kubernetes-reads) for supported operations and restrictions.
 
 #### Gitea
 

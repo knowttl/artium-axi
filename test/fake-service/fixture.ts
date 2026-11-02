@@ -3,6 +3,7 @@ import { once } from 'node:events'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { request } from 'node:https'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { createTestCertificates } from './certificates.mjs'
 
@@ -12,7 +13,7 @@ export async function withFakeService(check: (fixture: {
   send: (path: string, method?: string, trusted?: boolean) => Promise<string>
 }) => Promise<void>, onHeldRequest?: () => void) {
   const root = fileURLToPath(new URL('../../', import.meta.url))
-  const directory = mkdtempSync(join(root, '.tmp-tls-'))
+  const directory = mkdtempSync(join(tmpdir(), 'artium-tls-'))
   let child: ReturnType<typeof spawn> | undefined
   try {
     createTestCertificates(directory, ['localhost'])

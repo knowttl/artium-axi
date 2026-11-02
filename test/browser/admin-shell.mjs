@@ -432,6 +432,27 @@ test('sign-in settings can save a client secret and requires a replacement when 
   `)
 })
 
+test('Kubernetes certificate editor saves separate fields and requires a key when the certificate changes', () => {
+  browser(`
+    await page.open(base + '/admin/tools/kubernetes-axi?tab=credential');
+    await page.fill('[data-profile-field=origin]', 'https://cluster.example');
+    await page.fill('[data-profile-field=certificateAuthority]', 'CANARY-cluster-CA');
+    await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"certificate"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
+    check(await page.eval(() => document.querySelector('[data-certificate]').hidden), 'Unsupported combined certificate upload is visible');
+    check(await page.eval(() => document.querySelector('[data-profile-field=clientCertificate]').tagName === 'TEXTAREA'), 'Client certificate must preserve PEM lines');
+    await page.fill('[data-profile-field=clientCertificate]', 'CANARY-client-certificate');
+    await page.fill('[data-profile-field=privateKey]', 'CANARY-client-private-key');
+    await page.click('form[action$="/credential"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
+    check(await page.eval(() => document.querySelector('[data-profile-field=privateKey]').value === '' && !document.documentElement.outerHTML.includes('CANARY-client-private-key')), 'Private key redisplayed');
+    check(await page.eval(() => !document.querySelector('[data-profile-field=privateKey]').required), 'Unchanged identity cannot retain its stored key');
+    await page.fill('[data-profile-field=clientCertificate]', 'CANARY-replacement-certificate');
+    check(await page.eval(() => document.querySelector('[data-profile-field=privateKey]').required), 'Changed certificate does not require a replacement key');
+  `)
+})
+
 test('audit request ID copies and offers manual selection when clipboard is unavailable', async () => {
   assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/audit'), { method: 'POST' })).status, 200)
   browser(`

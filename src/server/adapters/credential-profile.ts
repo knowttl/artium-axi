@@ -58,6 +58,11 @@ export class CredentialProfile {
   constructor(readonly schema: Schema, tool?: ToolName) {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
+    if (tool === 'kubernetes-axi') {
+      this.inputSchema.properties.origin.format = 'canonical-https-origin'
+      this.inputSchema.properties.certificateAuthority.description = 'Paste the cluster issuing CA PEM. Artium supports issuing CA trust; saved strict leaf pins are unavailable.'
+      this.inputSchema.properties.clientCertificate.description = 'Paste the client certificate PEM for certificate authentication. Changing it requires a new private key.'
+    }
     if (tool === 'technitium-axi') {
       this.inputSchema.required = ['origin', 'auth', 'tokenKind', 'token']
       this.inputSchema.properties.origin.format = 'canonical-https-origin'
@@ -270,7 +275,7 @@ export class CredentialProfile {
   }
 
   prepare(tool: ToolName, value: unknown, writeLog: string | undefined, readOnly: boolean): Pick<PreparedCall, 'environment' | 'files' | 'secrets'> {
-    if (!['ldap-axi', 'awx-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi', 'gitea-axi'].includes(tool) && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
+    if (!['ldap-axi', 'awx-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi', 'gitea-axi', 'kubernetes-axi'].includes(tool) && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
     const parsed = this.parsed(value)
     // These administrator switches are host policy, not upstream profile fields.
     if (tool === 'falcon-axi' || tool === 'awx-axi') delete parsed.value.allowWrites
@@ -311,7 +316,8 @@ export class CredentialProfile {
       files.push({ name: 'ldap-axi/ldap-ca.pem', content: typeof parsed.value.caFile === 'string' ? parsed.value.caFile : '', appendTrustedCa: true })
       parsed.value.caFile = 'ldap-axi/ldap-ca.pem'
     }
-    return { environment, secrets, files: [...files, { name: `${tool}/config.json`, content: JSON.stringify({
+    return { environment, secrets, files: [...files, { name: `${tool}/config.json`,
+      ...(tool === 'kubernetes-axi' ? { appendTrustedCaAt: ['profiles', 'artium', 'certificateAuthority'] } : {}), content: JSON.stringify({
       version: 1, defaultProfile: 'artium', profiles: { artium: parsed.value },
     }) }] }
   }

@@ -15,6 +15,8 @@ import { decode } from '@toon-format/toon'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import { copyClientInput } from './fixtures/client-inputs.js'
 import { createTestCertificates } from './fake-service/certificates.mjs'
+import { createKubernetesAdapter } from '../src/server/adapters/kubernetes.js'
+import { hostedStatus } from '../src/server/adapters/hosted-status.js'
 import { SessionStore } from '../src/cli/session.js'
 import { Client, DEFAULT_REQUEST_DEADLINE_MS } from '../src/cli/http.js'
 import { cliVersion } from '../src/shared/version.js'
@@ -872,6 +874,46 @@ test('bundle rewrites only complete suggestion streams and preserves the upstrea
   expect(await cli(['falcon-axi'])).toMatchObject({ code: 7,
     stdout: 'help[1]:\n  Run `artium-axi falcon-axi host list`\n',
     stderr: `artium-axi: output truncated (stderr).\n${stderr}` })
+})
+
+test.each([
+  ['--help'], ['-h'], ['--help=true'],
+  ['get', '--help=true'], ['get', '-h=true'], ['get', '-h=t'],
+  ['get', '--help=false', '--help=true'],
+  ['get', '--help=1', '-o', 'json'],
+  ['native', '--', 'get', '--help=T'],
+  ['native', '--', 'describe', '-h=True'],
+  ['get', '-Ah'], ['native', '--', 'get', '-Ah'],
+  ['get', '-Ahh'], ['native', '--', 'get', '-Ah=true', '-o', 'json'],
+  ['get', '--help=false', '-Ah'], ['get', '-Ah=false', '-h=1'],
+  ['native', '--', 'get', '-Ah=false', '--help=true'],
+  ['get', '-A', '-h=TRUE'],
+])('Kubernetes published help is managed through the bundle: %j', async (...args) => {
+  requests = []
+  const executable = join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js')
+  const adapter = await createKubernetesAdapter({ getCredential: async () => ({ origin: 'https://cluster.example', auth: 'token',
+    certificateAuthority: 'CANARY-CA-PEM', token: 'CANARY-kubernetes-token' }) }, executable)
+  const call = await adapter.prepare(args, { id: 'synthetic', tool: 'kubernetes-axi', revision: 1 })
+  const { stdout } = await execute(process.execPath, [
+    executable, ...args,
+  ])
+  const hosted = hostedStatus('kubernetes-axi', call.invocation, { stdout, stderr: stdout, exitCode: 0, timedOut: false,
+    durationMs: 1, outputBytes: { stdout: stdout.length, stderr: stdout.length }, truncated: { stdout: false, stderr: false } })
+  response = { status: 200, body: { source: 'kubernetes-axi', stdout: hosted.stdout, stderr: hosted.stderr, exitCode: hosted.exitCode,
+    durationMs: hosted.durationMs, outputBytes: hosted.outputBytes, truncated: hosted.truncated } }
+  const result = await cli(['kubernetes-axi', ...args])
+  expect(result.code).toBe(0)
+  const document = (result.stdout.trimStart().startsWith('{') ? JSON.parse(result.stdout) : decode(result.stdout)) as {
+    command: string, flags: Record<string, string>, commands: string[], help: string[] }
+  const command = args.includes('get') ? 'get' : args.includes('describe') ? 'describe' : ''
+  const native = args[0] === 'native' ? 'native -- ' : ''
+  expect(document.command).toBe(`artium-axi kubernetes-axi${command ? ` ${native}${command}` : ''}`)
+  expect(document.flags).not.toHaveProperty('config')
+  expect(document.flags).not.toHaveProperty('profile')
+  expect(document.commands.join('\n')).not.toMatch(/prepare|confirm|config path/)
+  expect(document.help.join('\n')).toContain('managed')
+  expect(result.stdout).not.toMatch(/--native-config|--trust-exec|prepare --/)
+  expect(result.stderr).toBe(result.stdout)
 })
 
 test.each([[], ['home'], ['sub', 'list'], ['--subscription', 'synthetic', 'sub', 'list'],

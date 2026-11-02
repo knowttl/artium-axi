@@ -5,16 +5,35 @@ import type { PreparedCall } from './types.js'
 import { hostedGhOutput } from './gh-output.js'
 import { rewriteGhSuggestions } from '../../shared/gh-suggestions.js'
 import falcon from '../../../tools/inventories/falcon-axi.json' with { type: 'json' }
+import kubernetes from '../../../tools/inventories/kubernetes-axi.json' with { type: 'json' }
 
 // Status metadata describes the hosted credential, never the server's local layout.
 export function hostedStatus(tool: string, invocation: PreparedCall['invocation'], result: RunnerResult): RunnerResult {
+  if (tool === 'kubernetes-axi' && invocation?.help) {
+    const route = kubernetes.commands.find(route => route.command === invocation.command)!
+    const command = `artium-axi kubernetes-axi${route.command === 'home' ? '' : ' ' + route.command}`
+    const rewrite = (output: string, truncated: boolean) => {
+      if (truncated || !output) return output
+      try {
+        const json = output.trimStart().startsWith('{')
+        const document = (json ? JSON.parse(output) : decode(output)) as Record<string, unknown>
+        if (Array.isArray(document.flags) && (typeof document.command === 'string' || Array.isArray(document.commands))) {
+          return (json ? JSON.stringify : encode)({ command, usage: command + ' [flags]', effect: 'read',
+            flags: route.flags, commands: route.command === 'home' ? kubernetes.discovery.commands : [],
+            examples: [command + ' --help'], help: [kubernetes.discovery.help] }) + '\n'
+        }
+      } catch {}
+      return output
+    }
+    return { ...result, stdout: rewrite(result.stdout, result.truncated.stdout), stderr: rewrite(result.stderr, result.truncated.stderr) }
+  }
   if (tool === 'gh-axi') {
     const output = hostedGhOutput(invocation, result)
     return { ...output, stdout: rewriteGhSuggestions(output.stdout, invocation, output.truncated.stdout),
       stderr: rewriteGhSuggestions(output.stderr, invocation, output.truncated.stderr) }
   }
   if (!invocation || invocation.help || !(['home', 'auth status'].includes(invocation.command)
-    || tool === 'falcon-axi' && invocation.command === 'scopes')) return result
+    || tool === 'falcon-axi' && invocation.command === 'scopes' || tool === 'kubernetes-axi' && invocation.command === 'doctor')) return result
   if (result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('INVALID_RESPONSE', 'The hosted status output was truncated.')
   if (result.stdout === '') return result
   try {
@@ -67,7 +86,7 @@ export function hostedStatus(tool: string, invocation: PreparedCall['invocation'
     }
     if (Object.hasOwn(document, 'bin')) document.bin = replace(document.bin, `artium-axi ${tool}`)
     if (document.setup && typeof document.setup === 'object') document.setup = 'Managed by artium.'
-    for (const field of ['source', 'bind_password_source', 'client_secret_source', 'apiKey', 'accessKey', 'secretKey', 'tokenSource']) {
+    for (const field of ['source', 'bind_password_source', 'client_secret_source', 'apiKey', 'accessKey', 'secretKey', 'tokenSource', 'secretSource']) {
       if (Object.hasOwn(document, field)) document[field] = sourceKind(document[field])
     }
     if (document.secrets && typeof document.secrets === 'object') {

@@ -63,7 +63,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     if (!value) throw new ArtiumError('REVISION_CONFLICT')
     const endpoint = toolEndpoints(reference.tool, value)[endpointIndex]
     if (!endpoint) throw new ArtiumError('INVALID_INPUT')
-    const ca = value.caBundle ?? value.caFile
+    const ca = value.caBundle ?? value.caFile ?? value.certificateAuthority
     const inspection = await inspectCertificate(endpoint, typeof ca === 'string' ? ca : undefined,
       reference.tool === 'ldap-axi' && value.tlsMaxVersion === '1.2' ? 'TLSv1.2' : undefined,
       reference.tool === 'unifi-axi' ? (value.tls as { connectAddress?: string } | undefined)?.connectAddress : undefined,
@@ -90,8 +90,8 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     if (!item.inspection.verificationError) throw new ArtiumError('INVALID_INPUT', item.inspection.reason)
     const { anchor, chain } = item.inspection
     const hasCA = anchor.ca && anchor.fingerprint !== chain[0].fingerprint
-    if (reference.tool === 'gh-axi' && (mode !== 'ca' || !hasCA)) throw new ArtiumError('INVALID_INPUT',
-      'GitHub CLI requires the issuing CA. Strict leaf pinning is unavailable; configure the trusted CA bundle instead.')
+    if (['gh-axi', 'kubernetes-axi'].includes(reference.tool) && (mode !== 'ca' || !hasCA)) throw new ArtiumError('INVALID_INPUT',
+      'This tool requires the issuing CA. Strict leaf pinning is unavailable; configure the trusted CA bundle instead.')
     if (mode === 'ca' && !hasCA && !chain[0].selfSigned) throw new ArtiumError('INVALID_INPUT',
       'CA trust is unavailable because no issuing CA was obtained. Choose strict leaf pinning explicitly.')
     save(request, actor, item.reference, item.inspection,

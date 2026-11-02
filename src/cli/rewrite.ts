@@ -17,8 +17,10 @@ import technitium from '../../tools/inventories/technitium-axi.json' with { type
 import unifi from '../../tools/inventories/unifi-axi.json' with { type: 'json' }
 import proxmox from '../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 import gitea from '../../tools/inventories/gitea-axi.json' with { type: 'json' }
+import kubernetes from '../../tools/inventories/kubernetes-axi.json' with { type: 'json' }
 
 const managedFlags: Record<string, string[]> = {
+  'kubernetes-axi': kubernetes.adapterBoundary.unsafeOverrides,
   'technitium-axi': technitium.adapterBoundary.unsafeOverrides,
   'gitea-axi': gitea.adapterBoundary.unsafeOverrides,
   'unifi-axi': unifi.adapterBoundary.unsafeOverrides,
@@ -67,6 +69,7 @@ function encodeSuggestion(value: string, inline: boolean): string {
 export function rewriteSuggestions(output: string, tool: string, truncated = false, invocation?: { command: string, help: boolean }): string {
   if (truncated) return output
   if (tool === 'gh-axi') return rewriteGhSuggestions(output, invocation, truncated)
+  if (tool === 'kubernetes-axi') return output
   if (tool === 'technitium-axi') {
     try {
       const json = output.trimStart().startsWith('{')

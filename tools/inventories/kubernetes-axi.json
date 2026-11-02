@@ -1,0 +1,1190 @@
+{
+  "generatedBy": "scripts/kubernetes-inventory.ts",
+  "tool": "kubernetes-axi",
+  "package": "@knowttl/kubernetes-axi",
+  "version": "0.1.1",
+  "integrity": "sha512-fq2+5ZKZKHXgM1KeQL+qT9bO9olMveBqGt6ga7SlwYRrOzGaOyIKq2A7p239C3h9/FLRW/8zbpfUgyjyW7Owhw==",
+  "sources": [
+    {
+      "path": "package.json",
+      "sha256": "2a797bce65b945f5da9250d93e24d6ef460c9224042cb318da14d089478a5d23"
+    },
+    {
+      "path": "axi-credential.schema.json",
+      "sha256": "60586182cde319f4ac52d6fedbf40b4e260577cda68221a851f9625bdf0012a8"
+    },
+    {
+      "path": "command-metadata.json",
+      "sha256": "b7ff45e522f0aa9b6d16b861cfcbf9414786b1f999bede2dcb1f628949c4fc49"
+    },
+    {
+      "path": "kubectl-pins.json",
+      "sha256": "3fd8ae2224ee1a24599f16a912393363beb8e6df31ed5b84ae7b6e0bc21efa20"
+    },
+    {
+      "path": "bin/kubernetes-axi.js",
+      "sha256": "cf625e87cda9ff8035e9bc130a219ac79432e6dbe4ecb19f5039a8706b0e1382"
+    },
+    {
+      "path": "dist/byte-process.d.ts",
+      "sha256": "2c465b49c965667a96f7818672d0421528179bc9422f0c7ee5e53ca16dd9d3bc"
+    },
+    {
+      "path": "dist/byte-process.js",
+      "sha256": "d54b39f21697ac5e7b8394f36a3687e5241f24e58da5fa8bc64821f6076bcb98"
+    },
+    {
+      "path": "dist/cli.d.ts",
+      "sha256": "b3cbaebf073b1d417ee57b9dfd7ae72d8c89ef6341b4e287bdb01b882d0bf5ae"
+    },
+    {
+      "path": "dist/cli.js",
+      "sha256": "68cd76069a8f18aff7ae902de84997e8f0b03135162d6287a23b94db162c0c5c"
+    },
+    {
+      "path": "dist/credentials.d.ts",
+      "sha256": "a5236362816986103213969a1aa4e91c77ed52d8bde4e8a8c60feb0f9ad31fc1"
+    },
+    {
+      "path": "dist/credentials.js",
+      "sha256": "c8789f2059826ad23d46a0b550703f79e684f6e4f909783710587eb6fe6dd29d"
+    },
+    {
+      "path": "dist/errors.d.ts",
+      "sha256": "97524a0051236fc9b8e21b8ce2dfc573b583be17a2b449f47899c6eaa187f835"
+    },
+    {
+      "path": "dist/errors.js",
+      "sha256": "7ba7aa5f491bf25539139e2d93f24c68999b62cdf98aa2e36e9d626e5f1d55f8"
+    },
+    {
+      "path": "dist/exec-shim.d.ts",
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/exec-shim.js",
+      "sha256": "77973178b38889a591ac29829187e98e0294b438b2312d4e372eab6faf6f870e"
+    },
+    {
+      "path": "dist/grammar.d.ts",
+      "sha256": "bd78b61f8156919b54c02525c0f1d4b431b8253ed5df73d9e2cd9e89a6aba92a"
+    },
+    {
+      "path": "dist/grammar.js",
+      "sha256": "b129cd81991ba854804bbc19a169759cdd6102b303cd6397ba68f3ceab135a39"
+    },
+    {
+      "path": "dist/hosted-session.d.ts",
+      "sha256": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881"
+    },
+    {
+      "path": "dist/hosted-session.js",
+      "sha256": "f39ea7fbae7d63a88573c2cf715f2af8caa0a0de4fbca57c9ef8b57252ff7992"
+    },
+    {
+      "path": "dist/metadata-pin.d.ts",
+      "sha256": "f7047c98d86600252ad3c0178097bda9e05ba4c91d26f555a86d4dc0b4f6a9c4"
+    },
+    {
+      "path": "dist/metadata-pin.js",
+      "sha256": "0891e30773cb0b588825be0e21ca9115d2840f8cb249063ba25c17be65f2dfb8"
+    },
+    {
+      "path": "dist/mutations.d.ts",
+      "sha256": "e8e7033f281adf426431c0fe14f5dffb4221e3c340d95bcb504e5a6750d404ac"
+    },
+    {
+      "path": "dist/mutations.js",
+      "sha256": "45a1a8d8cd8ac332358967cd0405bc447e8c31ab58493290567fa8e803da504a"
+    },
+    {
+      "path": "dist/native.d.ts",
+      "sha256": "cea7498128ecec4e1608b4f4d3d960234eca93bacdc6e5e73672b04e069df342"
+    },
+    {
+      "path": "dist/native.js",
+      "sha256": "e5daf72b6bce1eb8f5f6538cfeae2256e1a7a17a7035a2fdcd065e1a69e2b6e4"
+    },
+    {
+      "path": "dist/private-files.d.ts",
+      "sha256": "c8385d23f635a21467bb781305165b72e005a6510fdf970013ab3930d4bd45c7"
+    },
+    {
+      "path": "dist/private-files.js",
+      "sha256": "37701a10c3987ef37d8b07bc02667e97eb63c5e6dfe88bf9319a14215cc841eb"
+    },
+    {
+      "path": "dist/protobuf-schema.d.ts",
+      "sha256": "617d642127fcaf6c928fd2be3c303c296b47a5197e2beb10cd55cf9ce91c2cc9"
+    },
+    {
+      "path": "dist/protobuf-schema.js",
+      "sha256": "adf88bccc8ecc56f78935360dbd157a57d9b5d3ec5670069480c6209a41122d4"
+    },
+    {
+      "path": "dist/protobuf.d.ts",
+      "sha256": "8a62ec69ad8529418e8b39ce70d3de01102b92974a7c17c1877c5a1b00c46607"
+    },
+    {
+      "path": "dist/protobuf.js",
+      "sha256": "4f533becc8ee39d30cc78c603bf41560eed98e2f316d6f3afe291c9d7bf27dad"
+    },
+    {
+      "path": "dist/redaction.d.ts",
+      "sha256": "f030ca2fe30266b526246e987b607fbfa72fef71c6a4ef8c68752b5fec1492ce"
+    },
+    {
+      "path": "dist/redaction.js",
+      "sha256": "da57b95e7fc6ecc9ab1d364f6f9c678fc43889790c14e56746ab009573f9fed3"
+    },
+    {
+      "path": "dist/remote-session.d.ts",
+      "sha256": "325ee3dcffb760f384025a31659ad3d3136e971c74822d443e10aa97230a934d"
+    },
+    {
+      "path": "dist/remote-session.js",
+      "sha256": "bed73b90b4ee6a9228d235cd4240b1e64da4a25dc64f6f6a1fe9d43c18d71b3e"
+    },
+    {
+      "path": "dist/route-policy.d.ts",
+      "sha256": "cf6ab6d22d5d2933c5c90c2bb3757d930efef7b7278c9fcdb07e104892441502"
+    },
+    {
+      "path": "dist/route-policy.js",
+      "sha256": "108efdacc8737ba43a7aeca8d706f275fe159d75046c2ec46c3e68719d472101"
+    },
+    {
+      "path": "dist/runner.d.ts",
+      "sha256": "b41ec1f954a26d6de6a89bacd32efedbbaf9e9b99aae9ffbc61a5ce8e2817d3c"
+    },
+    {
+      "path": "dist/runner.js",
+      "sha256": "1079267b1d915ffe6cd23a6a56cee19d5871a6aaea99c28055aa16adfd407a5b"
+    },
+    {
+      "path": "dist/workspace-tar.d.ts",
+      "sha256": "30d983ec10aa8a1e2cc6a09d1d20ae7f87cb186c273a8d34970380b1216fe07b"
+    },
+    {
+      "path": "dist/workspace-tar.js",
+      "sha256": "3f8979f94052e3470e653cc215e9f82fc017913b16a34130c303921d3fffa536"
+    },
+    {
+      "path": "vendor/kubectl-linux-amd64",
+      "sha256": "4f6a959dcc5b702135f8354cc7109b542a2933c46b808b248a214c1f69f817ea"
+    },
+    {
+      "path": "vendor/kubectl-windows-amd64.exe",
+      "sha256": "cf51a1c6bf3b6ba6a5b549d1debf8aa6afb00c4c5a3d5d4bb1072f54cbe4390f"
+    },
+    {
+      "path": "skills/kubernetes-axi/SKILL.md",
+      "sha256": "7cd7a7562a35b205aa093ca51e928fe7a77d115924a8fa7a45ce7e77311b0570"
+    }
+  ],
+  "credentialSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "urn:kubernetes-axi:credential-profile",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "origin",
+      "auth",
+      "certificateAuthority"
+    ],
+    "properties": {
+      "origin": {
+        "type": "string",
+        "minLength": 1
+      },
+      "auth": {
+        "enum": [
+          "token",
+          "certificate"
+        ]
+      },
+      "namespace": {
+        "type": "string",
+        "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+        "maxLength": 63
+      },
+      "certificateAuthority": {
+        "type": "string",
+        "minLength": 1
+      },
+      "token": {
+        "$ref": "#/definitions/secretRef",
+        "x-secret": true
+      },
+      "clientCertificate": {
+        "type": "string",
+        "minLength": 1
+      },
+      "privateKey": {
+        "$ref": "#/definitions/secretRef",
+        "x-secret": true
+      }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "auth": {
+              "const": "token"
+            }
+          }
+        },
+        "then": {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "privateKey"
+                ]
+              },
+              {
+                "required": [
+                  "clientCertificate"
+                ]
+              }
+            ]
+          }
+        },
+        "else": {
+          "required": [
+            "clientCertificate"
+          ],
+          "not": {
+            "required": [
+              "token"
+            ]
+          }
+        }
+      }
+    ],
+    "definitions": {
+      "secretRef": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "env"
+            ],
+            "properties": {
+              "env": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "kubectl": {
+    "version": "v1.32.2",
+    "supportedServerMinors": [
+      31,
+      32,
+      33
+    ],
+    "binaries": {
+      "linux-x64": {
+        "file": "kubectl-linux-amd64",
+        "url": "https://dl.k8s.io/release/v1.32.2/bin/linux/amd64/kubectl",
+        "sha256": "4f6a959dcc5b702135f8354cc7109b542a2933c46b808b248a214c1f69f817ea"
+      },
+      "win32-x64": {
+        "file": "kubectl-windows-amd64.exe",
+        "url": "https://dl.k8s.io/release/v1.32.2/bin/windows/amd64/kubectl.exe",
+        "sha256": "cf51a1c6bf3b6ba6a5b549d1debf8aa6afb00c4c5a3d5d4bb1072f54cbe4390f"
+      }
+    }
+  },
+  "adapterBoundary": {
+    "unsafeOverrides": [
+      "as",
+      "as-current-user",
+      "as-group",
+      "as-uid",
+      "attach",
+      "auth-provider",
+      "auth-provider-arg",
+      "cache-dir",
+      "cert",
+      "certificate-authority",
+      "client-certificate",
+      "client-key",
+      "cluster",
+      "config",
+      "context",
+      "credential-fd",
+      "docker-password",
+      "edit",
+      "enable-alpha-plugins",
+      "enable-helm",
+      "exec-arg",
+      "exec-command",
+      "exec-env",
+      "filename",
+      "from-env-file",
+      "from-file",
+      "helm-command",
+      "insecure-skip-tls-verify",
+      "insecure-skip-tls-verify-backend",
+      "interactive",
+      "key",
+      "kubeconfig",
+      "kustomize",
+      "leave-stdin-open",
+      "local",
+      "mount",
+      "native-config",
+      "output-directory",
+      "password",
+      "patch-file",
+      "privileged",
+      "profile",
+      "profile-output",
+      "proxy-url",
+      "server",
+      "stdin",
+      "template",
+      "tls-server-name",
+      "token",
+      "trust-exec",
+      "tty",
+      "user",
+      "username",
+      "www"
+    ],
+    "blockedCommands": [
+      "prepare",
+      "preview",
+      "confirm",
+      "server-dry-run",
+      "profile",
+      "config",
+      "setup",
+      "update"
+    ],
+    "nativeWrites": "not admitted",
+    "streams": "false only; authenticated sessions are a separate capability"
+  },
+  "commands": [
+    {
+      "command": "home",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "namespace": "value"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace"
+      }
+    },
+    {
+      "command": "api-resources",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "shortFlags": {
+        "h": "help"
+      }
+    },
+    {
+      "command": "native -- api-resources",
+      "effect": "read",
+      "flags": {
+        "api-group": "value",
+        "cached": "boolean",
+        "categories": "value",
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "namespaced": "boolean",
+        "no-headers": "boolean",
+        "output": "value",
+        "request-timeout": "value",
+        "sort-by": "value",
+        "v": "value",
+        "verbs": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "o": "output",
+        "v": "v"
+      }
+    },
+    {
+      "command": "api-versions",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "shortFlags": {
+        "h": "help"
+      }
+    },
+    {
+      "command": "native -- api-versions",
+      "effect": "read",
+      "flags": {
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "request-timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "v": "v"
+      }
+    },
+    {
+      "command": "native -- apply view-last-applied",
+      "effect": "read",
+      "flags": {
+        "all": "boolean",
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "o": "output",
+        "R": "recursive",
+        "l": "selector",
+        "v": "v"
+      }
+    },
+    {
+      "command": "auth can-i",
+      "effect": "read",
+      "flags": {
+        "all-namespaces": "boolean",
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "list": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "no-headers": "boolean",
+        "quiet": "boolean",
+        "request-timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "A": "all-namespaces",
+        "h": "help",
+        "n": "namespace",
+        "q": "quiet",
+        "v": "v"
+      }
+    },
+    {
+      "command": "native -- auth can-i",
+      "effect": "read",
+      "flags": {
+        "all-namespaces": "boolean",
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "list": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "no-headers": "boolean",
+        "quiet": "boolean",
+        "request-timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "A": "all-namespaces",
+        "h": "help",
+        "n": "namespace",
+        "q": "quiet",
+        "v": "v"
+      }
+    },
+    {
+      "command": "auth whoami",
+      "effect": "read",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "o": "output",
+        "v": "v"
+      }
+    },
+    {
+      "command": "native -- auth whoami",
+      "effect": "read",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "o": "output",
+        "v": "v"
+      }
+    },
+    {
+      "command": "native -- cluster-info",
+      "effect": "read",
+      "flags": {
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "request-timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "v": "v"
+      }
+    },
+    {
+      "command": "native -- cluster-info dump",
+      "effect": "read",
+      "flags": {
+        "all-namespaces": "boolean",
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "namespaces": "value",
+        "output": "value",
+        "pod-running-timeout": "value",
+        "request-timeout": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "A": "all-namespaces",
+        "h": "help",
+        "n": "namespace",
+        "o": "output",
+        "v": "v"
+      }
+    },
+    {
+      "command": "describe",
+      "effect": "read",
+      "flags": {
+        "all-namespaces": "boolean",
+        "chunk-size": "value",
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "show-events": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "A": "all-namespaces",
+        "h": "help",
+        "n": "namespace",
+        "R": "recursive",
+        "l": "selector",
+        "v": "v"
+      }
+    },
+    {
+      "command": "native -- describe",
+      "effect": "read",
+      "flags": {
+        "all-namespaces": "boolean",
+        "chunk-size": "value",
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "show-events": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "A": "all-namespaces",
+        "h": "help",
+        "n": "namespace",
+        "R": "recursive",
+        "l": "selector",
+        "v": "v"
+      }
+    },
+    {
+      "command": "explain",
+      "effect": "read",
+      "flags": {
+        "api-version": "value",
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "o": "output",
+        "v": "v"
+      }
+    },
+    {
+      "command": "native -- explain",
+      "effect": "read",
+      "flags": {
+        "api-version": "value",
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "o": "output",
+        "v": "v"
+      }
+    },
+    {
+      "command": "get",
+      "effect": "read",
+      "flags": {
+        "all-namespaces": "boolean",
+        "field-selector": "value",
+        "help": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "selector": "value",
+        "continue": "value"
+      },
+      "shortFlags": {
+        "A": "all-namespaces",
+        "h": "help",
+        "n": "namespace",
+        "o": "output",
+        "l": "selector"
+      }
+    },
+    {
+      "command": "native -- get",
+      "effect": "read",
+      "flags": {
+        "all-namespaces": "boolean",
+        "allow-missing-template-keys": "boolean",
+        "chunk-size": "value",
+        "disable-compression": "boolean",
+        "field-selector": "value",
+        "help": "boolean",
+        "ignore-not-found": "boolean",
+        "label-columns": "value",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "no-headers": "boolean",
+        "output": "value",
+        "output-watch-events": "boolean",
+        "raw": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "server-print": "boolean",
+        "show-kind": "boolean",
+        "show-labels": "boolean",
+        "show-managed-fields": "boolean",
+        "sort-by": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean",
+        "watch": "boolean",
+        "watch-only": "boolean"
+      },
+      "shortFlags": {
+        "A": "all-namespaces",
+        "h": "help",
+        "L": "label-columns",
+        "n": "namespace",
+        "o": "output",
+        "R": "recursive",
+        "l": "selector",
+        "v": "v",
+        "w": "watch"
+      }
+    },
+    {
+      "command": "logs",
+      "effect": "read",
+      "flags": {
+        "all-containers": "boolean",
+        "all-pods": "boolean",
+        "container": "value",
+        "disable-compression": "boolean",
+        "follow": "boolean",
+        "help": "boolean",
+        "ignore-errors": "boolean",
+        "limit-bytes": "value",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "max-log-requests": "value",
+        "namespace": "value",
+        "pod-running-timeout": "value",
+        "prefix": "boolean",
+        "previous": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "since": "value",
+        "since-time": "value",
+        "tail": "value",
+        "timestamps": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "c": "container",
+        "f": "follow",
+        "h": "help",
+        "n": "namespace",
+        "p": "previous",
+        "l": "selector",
+        "v": "v"
+      }
+    },
+    {
+      "command": "native -- logs",
+      "effect": "read",
+      "flags": {
+        "all-containers": "boolean",
+        "all-pods": "boolean",
+        "container": "value",
+        "disable-compression": "boolean",
+        "follow": "boolean",
+        "help": "boolean",
+        "ignore-errors": "boolean",
+        "limit-bytes": "value",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "max-log-requests": "value",
+        "namespace": "value",
+        "pod-running-timeout": "value",
+        "prefix": "boolean",
+        "previous": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "since": "value",
+        "since-time": "value",
+        "tail": "value",
+        "timestamps": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "c": "container",
+        "f": "follow",
+        "h": "help",
+        "n": "namespace",
+        "p": "previous",
+        "l": "selector",
+        "v": "v"
+      }
+    },
+    {
+      "command": "rollout history",
+      "effect": "read",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "revision": "value",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "o": "output",
+        "R": "recursive",
+        "l": "selector",
+        "v": "v"
+      }
+    },
+    {
+      "command": "native -- rollout history",
+      "effect": "read",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "revision": "value",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "o": "output",
+        "R": "recursive",
+        "l": "selector",
+        "v": "v"
+      }
+    },
+    {
+      "command": "rollout status",
+      "effect": "read",
+      "flags": {
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "revision": "value",
+        "selector": "value",
+        "timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean",
+        "watch": "boolean"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "R": "recursive",
+        "l": "selector",
+        "v": "v",
+        "w": "watch"
+      }
+    },
+    {
+      "command": "native -- rollout status",
+      "effect": "read",
+      "flags": {
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "revision": "value",
+        "selector": "value",
+        "timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean",
+        "watch": "boolean"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "R": "recursive",
+        "l": "selector",
+        "v": "v",
+        "w": "watch"
+      }
+    },
+    {
+      "command": "top node",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "namespace": "value",
+        "selector": "value"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "l": "selector"
+      }
+    },
+    {
+      "command": "native -- top node",
+      "effect": "read",
+      "flags": {
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "no-headers": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "show-capacity": "boolean",
+        "sort-by": "value",
+        "use-protocol-buffers": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "l": "selector",
+        "v": "v"
+      }
+    },
+    {
+      "command": "top pod",
+      "effect": "read",
+      "flags": {
+        "all-namespaces": "boolean",
+        "help": "boolean",
+        "namespace": "value",
+        "selector": "value"
+      },
+      "shortFlags": {
+        "A": "all-namespaces",
+        "h": "help",
+        "n": "namespace",
+        "l": "selector"
+      }
+    },
+    {
+      "command": "native -- top pod",
+      "effect": "read",
+      "flags": {
+        "all-namespaces": "boolean",
+        "containers": "boolean",
+        "disable-compression": "boolean",
+        "field-selector": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "no-headers": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "sort-by": "value",
+        "sum": "boolean",
+        "use-protocol-buffers": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "A": "all-namespaces",
+        "h": "help",
+        "n": "namespace",
+        "l": "selector",
+        "v": "v"
+      }
+    },
+    {
+      "command": "version",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "shortFlags": {
+        "h": "help"
+      }
+    },
+    {
+      "command": "native -- version",
+      "effect": "read",
+      "flags": {
+        "client": "boolean",
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      },
+      "shortFlags": {
+        "h": "help",
+        "n": "namespace",
+        "o": "output",
+        "v": "v"
+      }
+    },
+    {
+      "command": "auth status",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "shortFlags": {}
+    },
+    {
+      "command": "doctor",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      },
+      "shortFlags": {}
+    }
+  ],
+  "healthRead": [
+    "get",
+    "pods"
+  ],
+  "requirements": {
+    "timeoutMs": 65000,
+    "runtime": "node"
+  },
+  "discovery": {
+    "commands": [
+      "api-resources",
+      "native -- api-resources",
+      "api-versions",
+      "native -- api-versions",
+      "native -- apply view-last-applied",
+      "auth can-i",
+      "native -- auth can-i",
+      "auth whoami",
+      "native -- auth whoami",
+      "native -- cluster-info",
+      "native -- cluster-info dump",
+      "describe",
+      "native -- describe",
+      "explain",
+      "native -- explain",
+      "get",
+      "native -- get",
+      "logs",
+      "native -- logs",
+      "rollout history",
+      "native -- rollout history",
+      "rollout status",
+      "native -- rollout status",
+      "top node",
+      "native -- top node",
+      "top pod",
+      "native -- top pod",
+      "version",
+      "native -- version",
+      "auth status",
+      "doctor"
+    ],
+    "example": [
+      "get",
+      "pods"
+    ],
+    "help": "Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported; saved strict leaf pins are unavailable.\nWrites, local configuration, impersonation, file input and streaming sessions are unavailable.\n"
+  }
+}

@@ -123,7 +123,7 @@ export async function preflight(tool: ToolName, credential: Record<string, unkno
   const tls = tool === 'unifi-axi' ? credential.tls as NativeTls & { trustedCertificatePem?: string } | undefined : undefined
   const native: NativeTls = tool === 'proxmox-axi' ? { certificatePin: credential.certificatePin as NativeTls['certificatePin'] }
     : tool === 'technitium-axi' ? { serverName: credential.tlsServerName as string | undefined } : tls ?? {}
-  const ca = credential.caBundle ?? credential.caFile
+  const ca = credential.caBundle ?? credential.caFile ?? credential.certificateAuthority
     ?? tls?.trustedCertificatePem
   for (const endpoint of toolEndpoints(tool, credential)) {
     await preflightEndpoint(endpoint, typeof ca === 'string' ? ca : undefined, undefined,

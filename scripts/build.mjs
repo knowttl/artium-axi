@@ -19,6 +19,7 @@ if (reusable) {
     const result = spawnSync(process.execPath, [script], { stdio: 'inherit' })
     if (result.error || result.status !== 0) throw new Error(result.error?.message ?? `${script} failed`)
     if (script.endsWith('/tsc')) cpSync('src/server/store/migrations', 'dist/src/server/store/migrations', { recursive: true })
+    if (script.endsWith('/tsc')) cpSync('test/fake-service', 'dist/test/fake-service', { recursive: true, filter: path => !path.endsWith('.ts') })
   }
   if (JSON.stringify(buildInputs()) !== JSON.stringify(inputs)) throw new Error('Build inputs changed during compilation')
   writeFileSync(stamp, JSON.stringify({ inputs, output: digest(['dist/']) }))
