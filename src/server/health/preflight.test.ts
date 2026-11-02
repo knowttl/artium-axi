@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { X509Certificate } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer, createSecureContext, getCACertificates, setDefaultCACertificates, TLSSocket } from 'node:tls'
@@ -23,9 +23,14 @@ beforeAll(() => {
   createTestCertificates(directory, ['localhost'])
   mkdirSync(join(directory, 'extra'))
   createTestCertificates(join(directory, 'extra'), ['extra.synthetic.invalid'])
-  execFileSync('openssl', ['req', '-x509', '-key', 'server.key', '-subj', '/CN=localhost', '-days', '3650',
-    '-addext', 'subjectAltName=DNS:localhost,DNS:extra.synthetic.invalid,IP:127.0.0.2,IP:::2', '-addext', 'basicConstraints=CA:FALSE',
-    '-out', 'self-signed.crt'], { cwd: directory, stdio: 'pipe' })
+  writeFileSync(join(directory, 'self-signed.cnf'), `[server]
+subjectAltName=DNS:localhost,DNS:extra.synthetic.invalid,IP:127.0.0.2,IP:::2
+basicConstraints=CA:FALSE
+`)
+  execFileSync('openssl', ['ca', '-batch', '-notext', '-rand_serial', '-selfsign', '-config', 'authority.cnf',
+    '-keyfile', 'server.key', '-subj', '/CN=synthetic-self-signed', '-extfile', 'self-signed.cnf', '-extensions', 'server',
+    '-in', 'server.csr', '-out', 'self-signed.crt', '-startdate', '20200101000000Z',
+    '-enddate', '20991231235959Z'], { cwd: directory, stdio: 'pipe' })
   execFileSync('openssl', ['req', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=synthetic-leaf',
     '-keyout', 'invalid-ca.key', '-out', 'invalid-ca.csr'], { cwd: directory, stdio: 'pipe' })
   execFileSync('openssl', ['ca', '-batch', '-notext', '-rand_serial', '-config', 'authority.cnf',
