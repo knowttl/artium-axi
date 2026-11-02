@@ -22,6 +22,35 @@ beforeAll(() => {
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
 test.each([
+  { command: ['inventory', 'host-create'], flag: 'variables' },
+  { command: ['template', 'create'], flag: 'extra-vars' },
+  { command: ['inventory', 'source-create'], flag: 'source-vars' },
+  { command: ['ad-hoc', 'launch'], flag: 'module-args' },
+  { command: ['ad-hoc', 'launch'], flag: 'args' },
+].flatMap(route => ['{}', '@synthetic-not-read.yml'].flatMap(value => [true, false].map(attached => ({ ...route, value, attached })))))(
+  'AWX native help ignores unused --$flag input $value, attached=$attached (R8)', async ({ command, flag, value, attached }) => {
+    const adapter = createAwxAdapter({ getCredential: async () => ({ origin: 'https://controller.example', token: 'CANARY-awx-token' }) })
+    const call = await adapter.prepare([...command, 'synthetic', ...(attached ? [`--${flag}=${value}`] : [`--${flag}`, value]), '--confirm', '--help'],
+      { id: 'synthetic', tool: 'awx-axi' })
+    const bin = join(directory, 'opt/tools/node_modules/awx-axi/dist/bin/awx-axi.js')
+    const expected = spawnSync(process.execPath, [bin, ...command, '--help'], { encoding: 'utf8' })
+    const args = call.executable === process.execPath
+      ? call.args.map((arg, index) => index === 3 ? join(directory, 'opt/tools/node_modules/.bin/awx-axi') : arg)
+      : [bin, ...call.args]
+    const runner = await Runner.create(join(directory, 'opt/artium/calls'))
+    try {
+      const result = await runner.run('synthetic', process.execPath, args, call.environment, call.secrets, call.limits, {}, call.files)
+      expect(expected.status, expected.stderr).toBe(0)
+      expect(result.exitCode, result.stderr).toBe(0)
+      expect(result.stdout).toBe(expected.stdout)
+      expect(result.stdout).toContain(`awx-axi ${command.join(' ')}`)
+      expect(call.effect).toBe('read')
+      expect(call.args).toEqual([...command, '--help'])
+    } finally { await runner.shutdown() }
+  },
+)
+
+test.each([
   { args: ['inventory', 'host-create', 'synthetic', '--inventory', '7', '--variables', '{"mode":"run"}', '--dry-run'],
     input: {}, expected: { action: 'create', type: 'host', would_send: 'POST hosts/', payload: '[structured input redacted, 14 bytes]' } },
   { args: ['inventory', 'host-create', 'synthetic', '--inventory', '7', '--variables', '{"ansible_password":12345678}', '--dry-run'],
@@ -43,6 +72,8 @@ test.each([
     input: {}, expected: { module_args: '[structured input redacted, 11 bytes]' } },
   { args: ['ad-hoc', 'launch', '7', '--module-args=', '--dry-run'],
     input: {}, expected: { module_args: '[structured input redacted, 0 bytes]' } },
+  { args: ['ad-hoc', 'launch', '7', '--args', '--help', '--dry-run'],
+    input: {}, expected: { module_args: '[structured input redacted, 6 bytes]' } },
 ])('packaged AWX private input works with separate application and tools roots: $args', async ({ args, input, expected }) => {
   const adapter = createAwxAdapter({ getCredential: async () => ({ origin: 'https://controller.example',
     token: 'CANARY-awx-token', allowWrites: true }) })
