@@ -10,6 +10,7 @@ import { copyClientInput } from '../fixtures/client-inputs.js'
 import * as credentialTls from '../../src/server/credential-tls.js'
 import * as healthPreflight from '../../src/server/health/preflight.js'
 import { createApp } from '../../src/server/app.js'
+import { runnerLimits } from '../../src/server/config.js'
 import { createBeyondtrustAdapter } from '../../src/server/adapters/beyondtrust.js'
 import { toolFailure } from '../../src/server/health/diagnostic.js'
 import type { PreparedCall } from '../../src/server/adapters/types.js'
@@ -48,8 +49,8 @@ async function withBeyondtrust(check: (fixture: {
     const wrap = (call: PreparedCall): PreparedCall => ({ ...call, executable: process.execPath,
           args: ['--import', join(process.cwd(), 'test/fake-service/beyondtrust-transport.mjs'),
             join(process.cwd(), 'tools/node_modules/@knowttl/beyondtrust-axi/bin/beyondtrust-axi.js'), ...call.args],
-          limits: call.write && ['native-deadline', 'timeout'].includes(options.interruption ?? '')
-            ? { ...call.limits, timeoutMs: options.interruption === 'native-deadline' ? 5000 : 2000 } : call.limits,
+          limits: call.write && options.interruption === 'timeout'
+            ? { ...call.limits, timeoutMs: runnerLimits.timeoutMs } : call.limits,
           environment: { ...call.environment, ARTIUM_TEST_BEYONDTRUST_ORIGIN: `https://localhost:${port}`,
             ...(options.invalidResponse ? { ARTIUM_TEST_BEYONDTRUST_INVALID_RESPONSE: '1' } : {}),
             ...(options.interruption && call.write ? { ARTIUM_TEST_BEYONDTRUST_INTERRUPTION: options.interruption,
@@ -175,8 +176,12 @@ test.each(['native-deadline', 'timeout', 'cancel', 'crash', 'exit'])('a committe
     const preview = await run(args)
     expect(preview.exitCode, preview.stdout).toBe(0)
     const { confirmation } = decode(preview.stdout) as { confirmation: string }
+    if (interruption === 'timeout') vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const watcher = watch(directory, (_event, name) => {
-      if (interruption === 'cancel' && name === 'committed') controller.abort()
+      if (name !== 'committed') return
+      watcher.close()
+      if (interruption === 'cancel') controller.abort()
+      if (interruption === 'timeout') vi.advanceTimersByTime(runnerLimits.timeoutMs + runnerLimits.terminationGraceMs)
     })
     try {
       const result = await run([...args, '--execute', '--confirm', confirmation])
@@ -191,7 +196,7 @@ test.each(['native-deadline', 'timeout', 'cancel', 'crash', 'exit'])('a committe
       expect(db.prepare("SELECT action, outcome, native_audit_id, error_code FROM audit WHERE event = 'run-terminal' ORDER BY id DESC LIMIT 1").get())
         .toEqual({ action: 'write', outcome: 'UNKNOWN_OUTCOME', native_audit_id: error.auditId, error_code: 'OUTCOME_UNKNOWN' })
       expect(JSON.stringify(result)).not.toMatch(/CANARY-beyondtrust-(secret|token)/)
-    } finally { watcher.close() }
+    } finally { watcher.close(); if (interruption === 'timeout') vi.useRealTimers() }
   }, { interruption, signal: controller.signal })
 })
 test('managed cursor resumes across isolated calls', async () => {

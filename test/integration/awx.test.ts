@@ -215,8 +215,21 @@ const configurationCases: { args: string[], path: string, body: unknown, input?:
   { args: ['inventory', 'edit', '42', '--name', 'Updated inventory'], path: 'inventories/42/', body: { name: 'Updated inventory' } },
   { args: ['inventory', 'host-create', 'synthetic-host', '--inventory', '7'], path: 'hosts/', body: { name: 'synthetic-host', inventory: 7 } },
   { args: ['inventory', 'host-edit', '42', '--name', 'updated-host'], path: 'hosts/42/', body: { name: 'updated-host' } },
+  { args: ['inventory', 'host-edit', '42', '--variables', 'variables.json'], path: 'hosts/42/',
+    body: { variables: '{"ansible_password":"CANARY-host-edit"}' },
+    input: { files: [upload('variables.json', '{"ansible_password":"CANARY-host-edit"}')] } },
   { args: ['inventory', 'group-create', 'Synthetic group', '--inventory', '7'], path: 'inventories/7/groups/', body: { name: 'Synthetic group' } },
   { args: ['inventory', 'group-edit', '42', '--name', 'Updated group'], path: 'groups/42/', body: { name: 'Updated group' } },
+  { args: ['inventory', 'group-create', 'Synthetic group', '--inventory', '7', '--variables', '{"ansible_password":"CANARY-group-create"}'],
+    path: 'inventories/7/groups/', body: { name: 'Synthetic group', variables: '{"ansible_password":"CANARY-group-create"}' } },
+  { args: ['inventory', 'group-edit', '42', '--variables', 'variables.yml'], path: 'groups/42/',
+    body: { variables: 'ansible_password: CANARY-group-edit\n' },
+    input: { files: [upload('variables.yml', 'ansible_password: CANARY-group-edit\n')] } },
+  ...['host', 'child'].flatMap(kind => ['add', 'remove'].map(operation => ({
+    args: ['inventory', `group-${operation}-${kind}`, '42', `--${kind}`, '43'],
+    path: `groups/42/${kind === 'host' ? 'hosts' : 'children'}/`,
+    body: { id: 43, ...(operation === 'remove' ? { disassociate: true } : {}) },
+  }))),
   { args: ['inventory', 'source-create', 'Synthetic source', '--inventory', '7', '--source', 'scm'], path: 'inventory_sources/', body: { name: 'Synthetic source', inventory: 7, source: 'scm' } },
   { args: ['inventory', 'source-create', 'Synthetic source', '--inventory', '7', '--source', 'scm', '--source-vars', '{"region":"synthetic-region"}'],
     path: 'inventory_sources/', body: { name: 'Synthetic source', inventory: 7, source: 'scm', source_vars: '{"region":"synthetic-region"}' } },
@@ -364,6 +377,85 @@ test.each(configurationCases)('AWX configuration authority gates $args through t
       expect(JSON.stringify(audit)).not.toContain('CANARY-')
       expect(written.body).not.toContain(privateValue)
       expect(written.body).not.toContain('CANARY-awx-token')
+      expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    } finally { await app.close(); db.close() }
+  })
+}, 60_000)
+
+test.each([
+  { format: 'json', initial: '{"mode":"initial","ansible_password":"CANARY-create"}', updated: '{"mode":"updated","ansible_password":"CANARY-edit"}' },
+  { format: 'yml', initial: 'mode: initial\nansible_password: CANARY-create\n', updated: 'mode: updated\nansible_password: CANARY-edit\n' },
+])('AWX host and group $format changes persist through inventory and membership reads with writes disabled', async ({ format, initial, updated }) => {
+  await withFakeService(async ({ directory, port }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+    let allowWrites = true
+    const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
+    const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
+      token: 'CANARY-awx-token', allowWrites }) })
+    const prepare = adapter.prepare.bind(adapter)
+    adapter.prepare = async (...input) => {
+      const call = await prepare(...input)
+      if (call.executable === process.execPath) call.args[3] = join(process.cwd(), 'tools/node_modules/.bin/awx-axi')
+      else return { ...call, executable: process.execPath, args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+      return call
+    }
+    const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
+    const app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), adapters: [adapter], environment: {},
+      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }])) })
+    const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+    const run = async (args: string[], input: RunInput = {}) => {
+      const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args, ...input } })
+      expect(response.json(), response.body).toMatchObject({ exitCode: 0 })
+      expect(response.body).not.toContain('CANARY-')
+      return decode(response.json().stdout)
+    }
+    try {
+      await run(['inventory', 'host-create', 'synthetic-host', '--inventory', '7', '--enabled', '--variables', initial, '--confirm'])
+      await run(['inventory', 'host-create', 'synthetic-sibling', '--inventory', '7', '--confirm'])
+      await run(['inventory', 'group-create', 'synthetic-parent', '--inventory', '7', '--variables', initial, '--confirm'])
+      await run(['inventory', 'group-create', 'synthetic-child', '--inventory', '7', '--confirm'])
+      await run(['inventory', 'group-create', 'synthetic-other-child', '--inventory', '7', '--confirm'])
+      allowWrites = false
+      expect(await run(['host', 'show', 'synthetic-host'])).toMatchObject({ host: {
+        id: 42, name: 'synthetic-host', inventory: '7', enabled: true, variables: { mode: 'initial', ansible_password: '***' },
+      } })
+      expect(await run(['group', 'show', 'synthetic-parent'])).toMatchObject({ group: {
+        id: 42, inventory: '7', variables: { mode: 'initial', ansible_password: '***' }, total_hosts: 0, total_children: 0,
+      } })
+      allowWrites = true
+      await run(['inventory', 'host-edit', 'synthetic-host', '--name', 'synthetic-updated', '--description', 'Updated host', '--disabled', '--variables', `host.${format}`, '--confirm'],
+        { files: [upload(`host.${format}`, updated)] })
+      await run(['inventory', 'group-edit', 'synthetic-parent', '--description', 'Updated group', '--variables', `group.${format}`, '--confirm'],
+        { files: [upload(`group.${format}`, updated)] })
+      await run(['inventory', 'group-add-host', 'synthetic-parent', '--host', 'synthetic-updated', '--confirm'])
+      await run(['inventory', 'group-add-host', 'synthetic-parent', '--host', 'synthetic-sibling', '--confirm'])
+      await run(['inventory', 'group-add-child', 'synthetic-parent', '--child', 'synthetic-child', '--confirm'])
+      await run(['inventory', 'group-add-child', 'synthetic-parent', '--child', 'synthetic-other-child', '--confirm'])
+      allowWrites = false
+      expect(await run(['inventory', 'hosts', '7'])).toMatchObject({ hosts: [{ id: 42, name: 'synthetic-updated', enabled: false }, { id: 43, name: 'synthetic-sibling' }] })
+      expect(await run(['inventory', 'groups', '7'])).toMatchObject({ groups: [{ id: 42, name: 'synthetic-parent' }, { id: 43, name: 'synthetic-child' }, { id: 44, name: 'synthetic-other-child' }] })
+      expect(await run(['host', 'show', '42'])).toMatchObject({ host: {
+        name: 'synthetic-updated', description: 'Updated host', enabled: false,
+        variables: { mode: 'updated', ansible_password: '***' }, groups: [{ id: 42, name: 'synthetic-parent' }],
+      } })
+      expect(await run(['group', 'show', '42'])).toMatchObject({ group: {
+        description: 'Updated group', variables: { mode: 'updated', ansible_password: '***' }, total_hosts: 2, total_children: 2,
+        hosts: [{ id: 42, name: 'synthetic-updated' }, { id: 43, name: 'synthetic-sibling' }],
+        children: [{ id: 43, name: 'synthetic-child' }, { id: 44, name: 'synthetic-other-child' }],
+      } })
+      allowWrites = true
+      await run(['inventory', 'group-remove-host', '42', '--host', '42', '--confirm'])
+      await run(['inventory', 'group-remove-child', '42', '--child', '43', '--confirm'])
+      allowWrites = false
+      expect(await run(['group', 'show', '42'])).toMatchObject({ group: { total_hosts: 1, total_children: 1,
+        hosts: [{ id: 43, name: 'synthetic-sibling' }], children: [{ id: 44, name: 'synthetic-other-child' }],
+      } })
+      expect(await run(['host', 'show', '42'])).toMatchObject({ host: { name: 'synthetic-updated', groups: [] } })
+      expect(await run(['group', 'show', '43'])).toMatchObject({ group: { name: 'synthetic-child', inventory: '7' } })
+      expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
     } finally { await app.close(); db.close() }
   })
