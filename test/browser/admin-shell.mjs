@@ -998,6 +998,23 @@ test('tools show capability and current write state including fixed read-only re
   `)
 })
 
+test('Kubernetes mutation workflows default off and require the administrator switch', () => {
+  browser(`
+    await page.open(base + '/admin/tools/kubernetes-axi?tab=writes');
+    await page.wait('form[action$="/write-access"]');
+    check(await page.eval(() => document.querySelector('[data-write-access] input[role=switch]').checked === false), 'Kubernetes writes enabled by default');
+    check(await page.eval(() => document.querySelector('[data-write-access]').innerText.includes('confirm exact digests')), 'Native confirmation guidance missing');
+    await page.click('[data-write-access] input[role=switch]');
+    await page.click('form[action$="/write-access"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/write-access"] [name=expectedRevision][value="2"]');
+    await page.open(base + '/admin/tools/kubernetes-axi?tab=writes');
+    await page.wait('form[action$="/write-access"]');
+    check(await page.eval(() => document.querySelector('[data-write-access] input[role=switch]').checked === true), 'Administrator permission did not persist');
+  `)
+})
+
 test('Falcon offers exact lifecycle and RTR capabilities off by default', () => {
   browser(`
     await page.open(base + '/admin/tools/falcon-axi?tab=writes');

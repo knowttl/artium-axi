@@ -73,7 +73,7 @@ test('Kubernetes uses a private SecretRef and owned CA projection', async () => 
   expect(call.environment.ARTIUM_SECRET_0).toBe(credential.token)
   expect(call.files[0].appendTrustedCaAt).toEqual(['profiles', 'artium', 'certificateAuthority'])
   expect(call.limits.systemCaBundle).toEqual({ endpoint: credential.origin })
-  expect(toolAllowsWrites('kubernetes-axi', { allowWrites: true })).toBe(false)
+  expect(toolAllowsWrites('kubernetes-axi', { allowWrites: true })).toBe(true)
 })
 
 test.each([
@@ -91,6 +91,30 @@ test('Kubernetes certificate identity stores its private key as a SecretRef', as
   const call = await client.prepare(['get', 'pods'], reference)
   expect(JSON.parse(String(call.files[0].content)).profiles.artium.privateKey).toEqual({ env: 'ARTIUM_SECRET_0' })
   expect(call.environment.ARTIUM_SECRET_0).toBe(certificate.privateKey)
+})
+
+test.each([
+  ['prepare', '--', 'create', 'configmap', 'synthetic', '--from-literal=mode=synthetic'],
+  ['server-dry-run', '--', 'label', 'configmap', 'synthetic', 'mode=synthetic'],
+  ['confirm', '11111111-1111-4111-8111-111111111111', '--digest', 'a'.repeat(64)],
+])('Kubernetes workflow requires administrator permission before credentials: %j', async (...args) => {
+  const denied = await createKubernetesAdapter({ getCredential: async () => { throw new Error('Unexpected credential acquisition') } }, native, '/synthetic/requests')
+  await expect(denied.prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+})
+
+test.each([
+  { args: ['prepare', '--', 'create', 'configmap', 'synthetic', '--from-literal=mode=synthetic'], readOnly: 'false', effect: 'read' },
+  { args: ['server-dry-run', '--', 'label', 'configmap', 'synthetic', 'mode=synthetic'], readOnly: 'false', effect: 'write' },
+  { args: ['preview', '11111111-1111-4111-8111-111111111111'], readOnly: 'true', effect: 'read' },
+  { args: ['confirm', '11111111-1111-4111-8111-111111111111', '--digest', 'a'.repeat(64)], readOnly: 'false', effect: 'write' },
+])('Kubernetes preserves the native workflow and SecretRef profile: $args', async ({ args, readOnly, effect }) => {
+  const writable = await createKubernetesAdapter({ getSettings: () => ({ allowWrites: true }),
+    getCredential: async () => ({ ...credential, allowWrites: true }) }, native, '/synthetic/requests')
+  const prepared = await writable.prepare(args, reference)
+  expect(prepared).toMatchObject({ args: [native, ...args], effect, kubernetesWorkflowRoot: '/synthetic/requests',
+    environment: { KUBERNETES_AXI_READ_ONLY: readOnly } })
+  expect(JSON.parse(String(prepared.files[0].content)).profiles.artium).toEqual({
+    ...credential, token: { env: 'ARTIUM_SECRET_0' } })
 })
 
 test('Kubernetes native resource data with help-shaped fields is preserved byte for byte', () => {

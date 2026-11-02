@@ -22,6 +22,10 @@ let githubDevicePolls = 0
 let falconRedirect = 'none'
 let falconDropSearch = false
 let falconHoldRtr = false
+let kubernetesFailure
+const kubernetesConfigMaps = new Map(['synthetic-config', 'synthetic-second'].map(name => [name, {
+  apiVersion: 'v1', kind: 'ConfigMap', metadata: { name, namespace: 'synthetic', uid: `uid-${name}`, resourceVersion: '1' }, data: { mode: 'initial' },
+}]))
 const giteaIssue = { id: 42, number: 42, title: 'Synthetic issue', state: 'open', body: 'Synthetic issue body',
   user: { id: 1, login: 'synthetic-reader' }, token: 'CANARY-upstream-token' }
 let giteaDropWrite = false
@@ -48,13 +52,59 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   ca: readFileSync(join(certs, 'ca.crt')), requestCert: true, rejectUnauthorized: false }, (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
+  if (url.pathname === '/__kubernetes/control') {
+    const name = url.searchParams.get('name')
+    if (url.searchParams.get('mode') === 'bump') {
+      const current = kubernetesConfigMaps.get(name)
+      current.metadata.resourceVersion = String(Number(current.metadata.resourceVersion) + 1)
+    } else kubernetesFailure = { mode: url.searchParams.get('mode'), name }
+    res.end('{}'); return
+  }
   if (['/version', '/api', '/apis', '/api/v1'].includes(url.pathname)
     || /^\/apis\/(apps|authorization\.k8s\.io|authentication\.k8s\.io)(\/|$)/.test(url.pathname)
     || url.pathname.startsWith('/api/v1/namespaces/synthetic/')) {
     const canaryReceived = req.headers.authorization === 'Bearer CANARY-kubernetes-token'
       || req.socket.authorized && req.socket.getPeerCertificate().subject?.CN === 'synthetic-kubernetes-client'
-    requests.push({ method: req.method, path: url.pathname, canaryReceived })
+    const recorded = { method: req.method, path: url.pathname, canaryReceived }
+    requests.push(recorded)
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ kind: 'Status', apiVersion: 'v1', status: 'Failure', reason: 'Unauthorized', code: 401 })); return }
+    if (/^\/api\/v1\/namespaces\/synthetic\/configmaps(?:\/|$)/.test(url.pathname)) {
+      let body = ''
+      req.on('data', chunk => { body += chunk })
+      req.on('end', () => {
+        const payload = body ? JSON.parse(body) : {}
+        const name = req.method === 'POST' ? payload.metadata.name : url.pathname.split('/')[6]
+          ?? (req.method === 'DELETE' ? url.searchParams.get('fieldSelector')?.replace(/^metadata\.name=/, '') : undefined)
+        const current = kubernetesConfigMaps.get(name)
+        const failure = (code, reason) => { res.writeHead(code); res.end(JSON.stringify({ kind: 'Status', apiVersion: 'v1', status: 'Failure', reason, code })) }
+        if (req.method === 'GET') {
+          if (!name) res.end(JSON.stringify({ kind: 'ConfigMapList', apiVersion: 'v1', metadata: { resourceVersion: '1' }, items: [...kubernetesConfigMaps.values()] }))
+          else if (current) res.end(JSON.stringify(current))
+          else failure(404, 'NotFound')
+          return
+        }
+        const dryRun = url.searchParams.get('dryRun') === 'All'
+        const preconditions = req.method === 'DELETE' ? payload.preconditions : payload.metadata
+        recorded.dryRun = dryRun
+        if (current && req.method !== 'POST' && (preconditions?.uid !== current.metadata.uid || preconditions?.resourceVersion !== current.metadata.resourceVersion)) {
+          failure(409, 'Conflict'); return
+        }
+        if (req.method === 'POST' && current) { failure(409, 'AlreadyExists'); return }
+        if (req.method !== 'POST' && !current) { failure(404, 'NotFound'); return }
+        if (kubernetesFailure?.mode === 'deny' && kubernetesFailure.name === name && !dryRun) { kubernetesFailure = undefined; failure(403, 'Forbidden'); return }
+        if (req.method === 'DELETE') {
+          if (!dryRun) { kubernetesConfigMaps.delete(name); mutations++ }
+          res.end(JSON.stringify({ kind: 'Status', apiVersion: 'v1', status: 'Success' })); return
+        }
+        const result = { ...current, ...payload, metadata: { ...current?.metadata, ...payload.metadata, name, namespace: 'synthetic',
+          uid: current?.metadata.uid ?? `uid-${name}`, resourceVersion: String(Number(current?.metadata.resourceVersion ?? 0) + 1) } }
+        if (!dryRun) { kubernetesConfigMaps.set(name, result); mutations++ }
+        if (kubernetesFailure?.mode === 'drop' && kubernetesFailure.name === name && !dryRun) { kubernetesFailure = undefined; req.socket.destroy(); return }
+        res.writeHead(req.method === 'POST' ? 201 : 200)
+        res.end(JSON.stringify(result))
+      })
+      return
+    }
     const groups = [['apps', 'v1'], ['authorization.k8s.io', 'v1'], ['authentication.k8s.io', 'v1']]
     const resource = (name, kind, namespaced, shortNames = []) => ({ name, singularName: kind.toLowerCase(), namespaced, kind, shortNames, verbs: ['get', 'list', 'create'] })
     let value
@@ -62,7 +112,8 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     else if (url.pathname === '/api') value = { kind: 'APIVersions', apiVersion: 'v1', versions: ['v1'] }
     else if (url.pathname === '/apis') value = { kind: 'APIGroupList', apiVersion: 'v1', groups: groups.map(([name, version]) => ({
       name, versions: [{ groupVersion: `${name}/${version}`, version }], preferredVersion: { groupVersion: `${name}/${version}`, version } })) }
-    else if (url.pathname === '/api/v1') value = { kind: 'APIResourceList', apiVersion: 'v1', groupVersion: 'v1', resources: [resource('pods', 'Pod', true, ['po']), resource('secrets', 'Secret', true)] }
+    else if (url.pathname === '/api/v1') value = { kind: 'APIResourceList', apiVersion: 'v1', groupVersion: 'v1', resources: [resource('pods', 'Pod', true, ['po']), resource('secrets', 'Secret', true),
+      { ...resource('configmaps', 'ConfigMap', true, ['cm']), verbs: ['get', 'list', 'create', 'patch', 'update', 'delete'] }] }
     else if (url.pathname === '/apis/apps/v1') value = { kind: 'APIResourceList', apiVersion: 'v1', groupVersion: 'apps/v1', resources: [resource('deployments', 'Deployment', true, ['deploy'])] }
     else if (url.pathname === '/apis/authorization.k8s.io/v1') value = { kind: 'APIResourceList', apiVersion: 'v1', groupVersion: 'authorization.k8s.io/v1', resources: [resource('selfsubjectaccessreviews', 'SelfSubjectAccessReview', false)] }
     else if (url.pathname === '/apis/authentication.k8s.io/v1') value = { kind: 'APIResourceList', apiVersion: 'v1', groupVersion: 'authentication.k8s.io/v1', resources: [resource('selfsubjectreviews', 'SelfSubjectReview', false)] }

@@ -10,8 +10,9 @@ import { CredentialProfile } from './credential-profile.js'
 import { writePolicy } from './write-policy.js'
 
 export const kubernetesProfile = new CredentialProfile(inventory.credentialSchema, 'kubernetes-axi')
-export const kubernetesReadPolicy = writePolicy({ reason: 'This adapter admits bounded Kubernetes reads and passive authorization reviews.',
-  unlocks: 'No write actions.', blocked: 'Mutation workflows, local configuration, execution and streaming sessions are unavailable.' })
+export const kubernetesWritePolicy = writePolicy({
+  unlocks: 'Prepare resource mutations, inspect saved previews, confirm exact digests and explicitly request server dry run.',
+  blocked: 'Bulk deletion additionally requires collectionDelete=true in advanced native settings. Direct mutations, local configuration, file inputs, execution, credential issuance and streaming sessions remain unavailable.' })
 
 interface Invocation {
   native: boolean
@@ -20,43 +21,64 @@ interface Invocation {
   positionals: string[]
   help: boolean
   home: boolean
-  workflow?: unknown
+  workflow?: { kind: 'prepare' | 'preview' | 'confirm' | 'server-dry-run' }
 }
 type Parser = (args: string[]) => Invocation
 
 // Use the pinned native parser for Cobra aliases, flags and raw-route classification.
-export async function createKubernetesAdapter(source: SecretSource, executable: string = toolPaths['kubernetes-axi']): Promise<Adapter<unknown>> {
+export async function createKubernetesAdapter(source: SecretSource, executable: string = toolPaths['kubernetes-axi'], workflowRoot?: string): Promise<Adapter<unknown>> {
   const parser = existsSync(executable)
     ? (await import(new URL('../dist/grammar.js', pathToFileURL(executable)).href) as { parse: Parser }).parse : undefined
-  function readArguments(args: readonly string[], input: RunnerInput = {}) {
+  function argumentsForCall(args: readonly string[], input: RunnerInput = {}) {
     if (input.stdin !== undefined || input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
     if (args.some(arg => arg.startsWith('--') && inventory.adapterBoundary.unsafeOverrides.includes(arg.slice(2).split('=')[0]))
       || inventory.adapterBoundary.blockedCommands.includes(args[0] ?? '')
-      || args.some((arg, index) => arg === '--' && !(index === 1 && args[0] === 'native'))) throw new ArtiumError('FLAG_BLOCKED')
+      || args.some((arg, index) => arg === '--' && !(index === 1 && ['native', 'prepare', 'server-dry-run'].includes(args[0])))) throw new ArtiumError('FLAG_BLOCKED')
     if (!parser) throw new ArtiumError('SPAWN_FAILED')
     let parsed: Invocation
-    try { parsed = parser([...args]) } catch { throw new ArtiumError('INVALID_INPUT') }
+    // Native parsing consults this switch synchronously; dispatch uses its own child environment.
+    const previous = process.env.KUBERNETES_AXI_READ_ONLY
+    try { process.env.KUBERNETES_AXI_READ_ONLY = 'false'; parsed = parser([...args]) }
+    catch { throw new ArtiumError('INVALID_INPUT') }
+    finally {
+      if (previous === undefined) delete process.env.KUBERNETES_AXI_READ_ONLY
+      else process.env.KUBERNETES_AXI_READ_ONLY = previous
+    }
     const command = (parsed.native ? 'native -- ' : '') + (parsed.home ? 'home' : parsed.command.path)
-    const route = inventory.commands.find(route => route.command === command)
-    if (!route || parsed.workflow) throw new ArtiumError('FLAG_BLOCKED')
+    const workflow = parsed.workflow?.kind
+    const workflowHelp = parsed.help && inventory.workflows.some(workflow => workflow.command === parsed.command.path)
+    const route = workflow === 'prepare' || workflow === 'server-dry-run'
+      ? inventory.writeCommands.find(route => route.command === parsed.command.path)
+      : workflow === 'confirm' ? { flags: { digest: 'value' } }
+        : workflow || workflowHelp ? { flags: {} } : inventory.commands.find(route => route.command === command)
+    if (!route) throw new ArtiumError('FLAG_BLOCKED')
     if ((parsed.command.path === 'describe' || parsed.command.path === 'apply view-last-applied' || parsed.native && parsed.command.path === 'get')
       && parsed.positionals.some((value, index) => value.split(',').some(resource => (index === 0 || resource.includes('/'))
         && /^secrets?(?:$|[/.])/i.test(resource)))) throw new ArtiumError('FLAG_BLOCKED')
     for (const name of parsed.flags.keys()) if (!Object.hasOwn(route.flags, name)) throw new ArtiumError('FLAG_BLOCKED')
-    return { args: [...args], invocation: { command, help: parsed.help } }
+    const invocation = { command: workflow === 'prepare' || workflow === 'server-dry-run'
+      ? `${workflow} -- ${parsed.command.path}` : workflow ?? command, help: parsed.help }
+    return { args: [...args], invocation, workflow: parsed.help ? undefined : workflow }
   }
   return { name: 'kubernetes-axi', executable, credentialProfile: kubernetesProfile,
     credentialSchema: kubernetesProfile.credentialSchema, timeoutMs: inventory.requirements.timeoutMs,
     blockedFlags: inventory.adapterBoundary.unsafeOverrides.map(name => `--${name}`), allowedFlagValues: {},
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
-    validateArgs: (args, input) => { readArguments(args, input) },
+    validateArgs: (args, input) => { argumentsForCall(args, input) },
     async prepare(args, reference, input) {
-      const call = readArguments(args, input)
+      const { workflow, ...call } = argumentsForCall(args, input)
       if (reference.tool !== 'kubernetes-axi') throw new ArtiumError('CREDENTIAL_INVALID')
+      const settings = source.getSettings?.(reference) ?? {}
+      const writable = workflow && workflow !== 'preview'
+      if (writable && !kubernetesWritePolicy.read(settings).enabled) throw new ArtiumError('FLAG_BLOCKED')
+      if (workflow && !workflowRoot) throw new ArtiumError('TEMP_UNAVAILABLE')
       const value = await source.getCredential(reference)
-      const profile = kubernetesProfile.prepare('kubernetes-axi', value, undefined, true)
-      return { ...call, executable: process.execPath, args: [executable, ...call.args], effect: 'read',
-        ...profile, limits: { timeoutMs: inventory.requirements.timeoutMs, systemCaBundle: { endpoint: (value as { origin: string }).origin } } }
+      const profile = kubernetesProfile.prepare('kubernetes-axi', value, undefined, !writable)
+      return { ...call, executable: process.execPath, args: [executable, ...call.args],
+        effect: workflow === 'confirm' || workflow === 'server-dry-run' ? 'write' : 'read',
+        ...(workflow ? { kubernetesWorkflowRoot: workflowRoot } : {}),
+        ...profile, environment: { ...profile.environment, KUBERNETES_AXI_COLLECTION_DELETE: String(Boolean(writable && settings.collectionDelete === true)) },
+        limits: { timeoutMs: inventory.requirements.timeoutMs, systemCaBundle: { endpoint: (value as { origin: string }).origin } } }
     } }
 }

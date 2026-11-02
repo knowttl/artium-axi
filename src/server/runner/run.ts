@@ -7,7 +7,7 @@ import { ArtiumError } from '../../shared/errors.js'
 import type { Adapter, PreparedCall } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
 import type { Audit, AuditEvent } from '../audit/audit.js'
-import { verifyAccessToken } from '../auth/tokens.js'
+import { verifyAccessToken, verifyAccessFamily } from '../auth/tokens.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { RunnerError } from './runner.js'
@@ -86,6 +86,10 @@ export async function runTool<Credential>(
       const reference = adapter.prepareForCaller ? undefined : await resolver.resolve(userId, adapter.name)
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
         : await adapter.prepare(args, reference!, input)
+      const kubernetesRequests = prepared.kubernetesWorkflowRoot && reference ? {
+        root: prepared.kubernetesWorkflowRoot,
+        scope: createHash('sha256').update(JSON.stringify({ userId, family: verifyAccessFamily(db, token), reference })).digest('hex'),
+      } : undefined
       let privateBytes: Buffer | undefined
       if (prepared.protectedResult) {
         if (!context.protectedResults || !reference) throw new ArtiumError('UNSUPPORTED_INPUT')
@@ -105,11 +109,18 @@ export async function runTool<Credential>(
             outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
         }
         return runner.run(identity.userId, prepared.executable, prepared.args, preparedJournal.environment,
-          prepared.secrets, { ...prepared.limits, trustedIpc: prepared.trustedIpc, signal: context.signal,
+          prepared.secrets, { ...prepared.limits, kubernetesRequests, trustedIpc: prepared.trustedIpc, signal: context.signal,
             credentialTrust: reference ? readCredentialTrust(db, reference) : [],
             protectedResult: prepared.protectedResult?.source === 'file'
               ? { ...prepared.protectedResult, receive: bytes => { privateBytes = bytes } } : undefined },
-          { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => { authenticate(db, token) }, prepared.pathPrefix)
+          { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => {
+            authenticate(db, token)
+            if (kubernetesRequests && reference) {
+              checkToolPolicy(db, identity.userId, adapter.name)
+              const current = db.prepare('SELECT revision FROM credentials WHERE id = ? AND tool = ?').get(reference.id, adapter.name) as { revision: number } | undefined
+              if (current?.revision !== reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
+            }
+          }, prepared.pathPrefix)
       })
       if (prepared.protectedResult?.source === 'projection' && result.exitCode === 0) privateBytes = Buffer.from(result.stdout)
       if (privateBytes && reservation && reference) {

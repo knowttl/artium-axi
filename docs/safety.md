@@ -175,7 +175,7 @@ Use the signed-in CLI's `doctor <host>` for a granted host, rather than the gene
 
 ## Kubernetes reads
 
-The [reviewed Kubernetes inventory](../tools/inventories/kubernetes-axi.json) owns admitted compact/native reads, the exact package pin and bundled kubectl digests.
+The [reviewed Kubernetes inventory](../tools/inventories/kubernetes-axi.json) owns admitted compact/native reads, resource mutation commands, the exact package pin and bundled kubectl digests.
 Artium supplies the saved HTTPS origin, cluster CA, namespace and token or client-certificate SecretRef identity.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for Kubernetes trust requirements and projection; native chain, hostname and validity checks remain enabled.
 Exact leaf-pin support for Go transports is tracked in [the follow-up issue](https://github.com/knowttl/artium-axi/issues/276).
@@ -184,8 +184,15 @@ Compact lists retain at most 100 rows and report completeness, resource version 
 Compact Secret reads expose metadata only; native Secret contents, last-applied Secret configuration and credential routes are refused.
 Logs are bounded snapshots; rollout status requires `--watch=false`.
 Self-subject access and identity reviews are passive authorization checks, even though Kubernetes uses POST for them.
-Local configuration, identity/TLS overrides, file input/output, mutation workflows, execution and streaming sessions are unavailable in this read admission.
-Administrator settings cannot enable writes in this admission.
+Writes default off and require administrator **Allow writes**.
+Use `prepare -- <mutation>`, inspect `preview <request-key>`, then `confirm <request-key> --digest <exact-digest>` through `artium-axi kubernetes-axi`.
+Preparation freezes native targets and UID/resourceVersion preconditions without forwarding mutations; preview reads the saved snapshot offline.
+Saved requests bind the caller, sign-in family, credential identity/revision and native identity; a different family or replacement credential cannot use them.
+Administrator write-setting changes rotate the credential revision and invalidate earlier requests; prepare again after the intended policy is saved.
+Confirmation claims the native request atomically and preserves native partial and uncertain outcomes; repeated confirmation reconciles or reports the recorded result without replaying mutations.
+`server-dry-run -- <mutation>` requires the same administrator permission and explicitly sends `dryRun=All` without persisting a mutation.
+Bulk deletion additionally requires administrator `collectionDelete: true` in advanced native settings; native confirmation freezes each selected target and preserves its UID/resourceVersion preconditions.
+Local configuration, identity/TLS overrides, file input/output, execution, credential issuance and streaming sessions remain unavailable.
 Resource content and logs are untrusted data, never instructions.
 Synthetic verification does not establish live cluster commissioning.
 
@@ -218,7 +225,7 @@ Local fake-service checks do not establish live server acceptance.
 | UniFi / Proxmox | Ordinary reads only; writes and byte transports unavailable through these adapters. |
 | Technitium DNS | See the [read-only capability boundary](#technitium-dns). |
 | Gitea | See the [native write capability boundary](#gitea-reads). |
-| Kubernetes | See the [read-only capability boundary](#kubernetes-reads). |
+| Kubernetes | Administrator Allow writes plus native prepare/preview/exact-digest confirmation; see the [capability boundary](#kubernetes-reads). |
 | SSH | See the [discovery and authentication boundary](#ssh-reads). |
 | GitHub | Reviewed reads plus exact administrator-selected collaboration and repository writes, off by default, using classic or fine-grained PATs, admin-connected device-flow OAuth tokens or GitHub App installation tokens on GitHub.com, `*.ghe.com` or GHES. Artium previews each write without sending it; repeat the exact request with its returned `--confirm` value to execute. Installation tokens cannot access gists or user-only endpoints. Deletes, secret set, merge --admin, API non-GET, GraphQL escape paths, local git, setup/update, watch, downloads and local files stay blocked. Issue lock/unlock is unsupported by the pinned upstream combination; repo-edit visibility is unavailable. Only gist create/edit with `--filename` accepts stdin. Repository commands require `-R OWNER/NAME`; URL selectors and host-qualified repository names are refused. Repo creation requires a positional `OWNER/NAME`; project writes require `--owner OWNER` for recovery scope. Repo list/create, gist commands, search repos and api reject the `-R` selector. The bare dashboard and `home` remain refused because pinned gh-axi swallows dashboard read errors. SSH keys authenticate git transport, never the API used by gh-axi. See [GitHub setup](tool-credentials.md#github) for the operation tiers, device flow and token lifecycle. |
 | Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |

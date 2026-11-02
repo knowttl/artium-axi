@@ -16,6 +16,7 @@ export interface TemporaryFile {
 }
 
 export interface PreparedCall {
+  kubernetesWorkflowRoot?: string
   executable: string
   args: string[]
   invocation?: { command: string, help: boolean, credentialAuth?: 'device', nativeGh?: boolean, checkArgs?: string[] }

@@ -2,12 +2,12 @@
   "generatedBy": "scripts/kubernetes-inventory.ts",
   "tool": "kubernetes-axi",
   "package": "@knowttl/kubernetes-axi",
-  "version": "0.1.1",
-  "integrity": "sha512-fq2+5ZKZKHXgM1KeQL+qT9bO9olMveBqGt6ga7SlwYRrOzGaOyIKq2A7p239C3h9/FLRW/8zbpfUgyjyW7Owhw==",
+  "version": "0.1.2",
+  "integrity": "sha512-7o2jalepVul06VX00l2Z3IX8Pv/c27ezewDdch+j9KkvFtK20YQf28eBWgsHK/IhhfINl1nL8h5w0SPKPhl7kQ==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "2a797bce65b945f5da9250d93e24d6ef460c9224042cb318da14d089478a5d23"
+      "sha256": "addf7bb2ded3cde94e37a8f768ce503ccf42e97594b6901f741d529e0c364ae8"
     },
     {
       "path": "axi-credential.schema.json",
@@ -39,7 +39,7 @@
     },
     {
       "path": "dist/cli.js",
-      "sha256": "68cd76069a8f18aff7ae902de84997e8f0b03135162d6287a23b94db162c0c5c"
+      "sha256": "8033823b68377c10ba589b4767af627989921743b64dc9fdf395a2682802c6fb"
     },
     {
       "path": "dist/credentials.d.ts",
@@ -71,7 +71,7 @@
     },
     {
       "path": "dist/grammar.js",
-      "sha256": "b129cd81991ba854804bbc19a169759cdd6102b303cd6397ba68f3ceab135a39"
+      "sha256": "206d456fd39517f7251ec3dff95819ae982a3a5f6dc340803ef693f7e443fe09"
     },
     {
       "path": "dist/hosted-session.d.ts",
@@ -95,15 +95,15 @@
     },
     {
       "path": "dist/mutations.js",
-      "sha256": "45a1a8d8cd8ac332358967cd0405bc447e8c31ab58493290567fa8e803da504a"
+      "sha256": "eab8859c274cb38398af8884dd9e962441b773e5b8ae134f1137f6872725a5e6"
     },
     {
       "path": "dist/native.d.ts",
-      "sha256": "cea7498128ecec4e1608b4f4d3d960234eca93bacdc6e5e73672b04e069df342"
+      "sha256": "81ef45781dfb507d9f052411525365bc9307463ccb29c6469205585075f115d5"
     },
     {
       "path": "dist/native.js",
-      "sha256": "e5daf72b6bce1eb8f5f6538cfeae2256e1a7a17a7035a2fdcd065e1a69e2b6e4"
+      "sha256": "1fd956b5ed1ab0e889e5b49505bb95f3bbd7de1a9f36c2ea8eece4f58dd04fcf"
     },
     {
       "path": "dist/private-files.d.ts",
@@ -143,7 +143,7 @@
     },
     {
       "path": "dist/remote-session.js",
-      "sha256": "bed73b90b4ee6a9228d235cd4240b1e64da4a25dc64f6f6a1fe9d43c18d71b3e"
+      "sha256": "75766546c63760b0d14af565793fce0b33f291810ef1f980a6476e351db6cd38"
     },
     {
       "path": "dist/route-policy.d.ts",
@@ -151,7 +151,7 @@
     },
     {
       "path": "dist/route-policy.js",
-      "sha256": "108efdacc8737ba43a7aeca8d706f275fe159d75046c2ec46c3e68719d472101"
+      "sha256": "0f658d088e1a75d617dab5e79af13b02e63f237fd94e916aa7ef6501cf9881f3"
     },
     {
       "path": "dist/runner.d.ts",
@@ -159,7 +159,7 @@
     },
     {
       "path": "dist/runner.js",
-      "sha256": "1079267b1d915ffe6cd23a6a56cee19d5871a6aaea99c28055aa16adfd407a5b"
+      "sha256": "099bd42df35f4beb71eeb3f03f9f64739d0010ac35c5868a68afc4efb66b52fc"
     },
     {
       "path": "dist/workspace-tar.d.ts",
@@ -373,16 +373,12 @@
       "www"
     ],
     "blockedCommands": [
-      "prepare",
-      "preview",
-      "confirm",
-      "server-dry-run",
       "profile",
       "config",
       "setup",
       "update"
     ],
-    "nativeWrites": "not admitted",
+    "nativeWrites": "administrator-enabled prepare/preview/confirm and server-dry-run; direct mutations refused",
     "streams": "false only; authenticated sessions are a separate capability"
   },
   "commands": [
@@ -1139,6 +1135,1409 @@
       "shortFlags": {}
     }
   ],
+  "writeCommands": [
+    {
+      "command": "annotate",
+      "effect": "write",
+      "flags": {
+        "all": "boolean",
+        "all-namespaces": "boolean",
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "field-selector": "value",
+        "help": "boolean",
+        "list": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "overwrite": "boolean",
+        "record": "boolean",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "resource-version": "value",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "apply",
+      "effect": "write",
+      "flags": {
+        "all": "boolean",
+        "allow-missing-template-keys": "boolean",
+        "cascade": "value",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "force": "boolean",
+        "force-conflicts": "boolean",
+        "grace-period": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "openapi-patch": "boolean",
+        "output": "value",
+        "overwrite": "boolean",
+        "prune": "boolean",
+        "prune-allowlist": "value",
+        "record": "boolean",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "server-side": "boolean",
+        "show-managed-fields": "boolean",
+        "timeout": "value",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "wait": "boolean",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "apply set-last-applied",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "create-annotation": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "auth reconcile",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "recursive": "boolean",
+        "remove-extra-permissions": "boolean",
+        "remove-extra-subjects": "boolean",
+        "request-timeout": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "autoscale",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "cpu-percent": "value",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "max": "value",
+        "min": "value",
+        "name": "value",
+        "namespace": "value",
+        "output": "value",
+        "record": "boolean",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "certificate",
+      "effect": "write",
+      "flags": {
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "request-timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "certificate approve",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "force": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "certificate deny",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "force": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "cordon",
+      "effect": "write",
+      "flags": {
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "request-timeout": "value",
+        "selector": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "record": "boolean",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean",
+        "windows-line-endings": "boolean"
+      }
+    },
+    {
+      "command": "create clusterrole",
+      "effect": "write",
+      "flags": {
+        "aggregation-rule": "value",
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "non-resource-url": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "resource": "value",
+        "resource-name": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "verb": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create clusterrolebinding",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "clusterrole": "value",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "group": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "serviceaccount": "value",
+        "show-managed-fields": "boolean",
+        "user": "value",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create configmap",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "append-hash": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "from-literal": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create cronjob",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "image": "value",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "restart": "value",
+        "save-config": "boolean",
+        "schedule": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create deployment",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "image": "value",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "port": "value",
+        "replicas": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create ingress",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "annotation": "value",
+        "class": "value",
+        "default-backend": "value",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "rule": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create job",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "from": "value",
+        "help": "boolean",
+        "image": "value",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create namespace",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create poddisruptionbudget",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "max-unavailable": "value",
+        "min-available": "value",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create priorityclass",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "description": "value",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "global-default": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "preemption-policy": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "value": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create quota",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "hard": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "scopes": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create role",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "resource": "value",
+        "resource-name": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "verb": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create rolebinding",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "clusterrole": "value",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "group": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "role": "value",
+        "save-config": "boolean",
+        "serviceaccount": "value",
+        "show-managed-fields": "boolean",
+        "user": "value",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create secret",
+      "effect": "write",
+      "flags": {
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "request-timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create secret docker-registry",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "append-hash": "boolean",
+        "disable-compression": "boolean",
+        "docker-email": "value",
+        "docker-server": "value",
+        "docker-username": "value",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create secret generic",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "append-hash": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "from-literal": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "type": "value",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create secret tls",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "append-hash": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create service",
+      "effect": "write",
+      "flags": {
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "request-timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create service clusterip",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "clusterip": "value",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "tcp": "value",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create service externalname",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "external-name": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "tcp": "value",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create service loadbalancer",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "tcp": "value",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create service nodeport",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "node-port": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "tcp": "value",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "create serviceaccount",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "debug",
+      "effect": "write",
+      "flags": {
+        "arguments-only": "boolean",
+        "container": "value",
+        "copy-to": "value",
+        "custom": "value",
+        "disable-compression": "boolean",
+        "env": "value",
+        "help": "boolean",
+        "image": "value",
+        "image-pull-policy": "value",
+        "keep-annotations": "boolean",
+        "keep-init-containers": "boolean",
+        "keep-labels": "boolean",
+        "keep-liveness": "boolean",
+        "keep-readiness": "boolean",
+        "keep-startup": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "profile": "value",
+        "quiet": "boolean",
+        "replace": "boolean",
+        "request-timeout": "value",
+        "same-node": "boolean",
+        "set-image": "value",
+        "share-processes": "boolean",
+        "target": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "delete",
+      "effect": "write",
+      "flags": {
+        "all": "boolean",
+        "all-namespaces": "boolean",
+        "cascade": "value",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-selector": "value",
+        "force": "boolean",
+        "grace-period": "value",
+        "help": "boolean",
+        "ignore-not-found": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "now": "boolean",
+        "output": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "wait": "boolean",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "drain",
+      "effect": "write",
+      "flags": {
+        "chunk-size": "value",
+        "delete-emptydir-data": "boolean",
+        "disable-compression": "boolean",
+        "disable-eviction": "boolean",
+        "dry-run": "value",
+        "force": "boolean",
+        "grace-period": "value",
+        "help": "boolean",
+        "ignore-daemonsets": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "pod-selector": "value",
+        "request-timeout": "value",
+        "selector": "value",
+        "skip-wait-for-delete-timeout": "value",
+        "timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "expose",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "cluster-ip": "value",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "external-ip": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "labels": "value",
+        "load-balancer-ip": "value",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "name": "value",
+        "namespace": "value",
+        "output": "value",
+        "override-type": "value",
+        "overrides": "value",
+        "port": "value",
+        "protocol": "value",
+        "record": "boolean",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "selector": "value",
+        "session-affinity": "value",
+        "show-managed-fields": "boolean",
+        "target-port": "value",
+        "type": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "label",
+      "effect": "write",
+      "flags": {
+        "all": "boolean",
+        "all-namespaces": "boolean",
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "field-selector": "value",
+        "help": "boolean",
+        "list": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "overwrite": "boolean",
+        "record": "boolean",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "resource-version": "value",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "patch",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "patch": "value",
+        "record": "boolean",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "show-managed-fields": "boolean",
+        "type": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "replace",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "cascade": "value",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "force": "boolean",
+        "grace-period": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "timeout": "value",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "wait": "boolean",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "rollout",
+      "effect": "write",
+      "flags": {
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "request-timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "rollout pause",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "rollout restart",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "rollout resume",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "rollout undo",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "to-revision": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "run",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "annotations": "value",
+        "cascade": "value",
+        "command": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "env": "value",
+        "expose": "boolean",
+        "field-manager": "value",
+        "force": "boolean",
+        "grace-period": "value",
+        "help": "boolean",
+        "image": "value",
+        "image-pull-policy": "value",
+        "labels": "value",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "override-type": "value",
+        "overrides": "value",
+        "pod-running-timeout": "value",
+        "port": "value",
+        "quiet": "boolean",
+        "record": "boolean",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "restart": "value",
+        "rm": "boolean",
+        "save-config": "boolean",
+        "show-managed-fields": "boolean",
+        "timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "wait": "boolean",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "scale",
+      "effect": "write",
+      "flags": {
+        "all": "boolean",
+        "allow-missing-template-keys": "boolean",
+        "current-replicas": "value",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "record": "boolean",
+        "recursive": "boolean",
+        "replicas": "value",
+        "request-timeout": "value",
+        "resource-version": "value",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "set",
+      "effect": "write",
+      "flags": {
+        "disable-compression": "boolean",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "request-timeout": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "set env",
+      "effect": "write",
+      "flags": {
+        "all": "boolean",
+        "allow-missing-template-keys": "boolean",
+        "containers": "value",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "env": "value",
+        "field-manager": "value",
+        "from": "value",
+        "help": "boolean",
+        "keys": "value",
+        "list": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "overwrite": "boolean",
+        "prefix": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "resolve": "boolean",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "set image",
+      "effect": "write",
+      "flags": {
+        "all": "boolean",
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "record": "boolean",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "set resources",
+      "effect": "write",
+      "flags": {
+        "all": "boolean",
+        "allow-missing-template-keys": "boolean",
+        "containers": "value",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "limits": "value",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "record": "boolean",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "requests": "value",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "set selector",
+      "effect": "write",
+      "flags": {
+        "all": "boolean",
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "record": "boolean",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "resource-version": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "set serviceaccount",
+      "effect": "write",
+      "flags": {
+        "all": "boolean",
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "record": "boolean",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "set subject",
+      "effect": "write",
+      "flags": {
+        "all": "boolean",
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "group": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "recursive": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "serviceaccount": "value",
+        "show-managed-fields": "boolean",
+        "user": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "taint",
+      "effect": "write",
+      "flags": {
+        "all": "boolean",
+        "allow-missing-template-keys": "boolean",
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "field-manager": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "overwrite": "boolean",
+        "request-timeout": "value",
+        "selector": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "validate": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
+      "command": "uncordon",
+      "effect": "write",
+      "flags": {
+        "disable-compression": "boolean",
+        "dry-run": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "request-timeout": "value",
+        "selector": "value",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "command": "prepare",
+      "usage": "prepare -- <mutation>",
+      "effect": "write",
+      "flags": {
+        "help": "boolean"
+      }
+    },
+    {
+      "command": "preview",
+      "usage": "preview <request-key>",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      }
+    },
+    {
+      "command": "confirm",
+      "usage": "confirm <request-key> --digest <exact-digest>",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "digest": "value"
+      }
+    },
+    {
+      "command": "server-dry-run",
+      "usage": "server-dry-run -- <mutation>",
+      "effect": "write",
+      "flags": {
+        "help": "boolean"
+      }
+    }
+  ],
   "healthRead": [
     "get",
     "pods"
@@ -1179,12 +2578,16 @@
       "version",
       "native -- version",
       "auth status",
-      "doctor"
+      "doctor",
+      "prepare -- <mutation>",
+      "preview <request-key>",
+      "confirm <request-key> --digest <exact-digest>",
+      "server-dry-run -- <mutation>"
     ],
     "example": [
       "get",
       "pods"
     ],
-    "help": "Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported; saved strict leaf pins are unavailable.\nWrites, local configuration, impersonation, file input and streaming sessions are unavailable.\n"
+    "help": "Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported; saved strict leaf pins are unavailable.\nAdministrator-enabled mutations require prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>; server-dry-run -- <mutation> is separately explicit.\nLocal configuration, impersonation, file input, execution, credential issuance and streaming sessions are unavailable.\n"
   }
 }

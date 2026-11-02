@@ -17,6 +17,7 @@ import { createTechnitiumAdapter } from './adapters/technitium.js'
 import { createNetworkReadAdapter } from './adapters/network-reads.js'
 import { createGiteaAdapter } from './adapters/gitea.js'
 import { createKubernetesAdapter } from './adapters/kubernetes.js'
+import { retainKubernetesRequests } from './runner/kubernetes-requests.js'
 import { createSshAdapter } from './adapters/ssh.js'
 import { SshHosts } from './store/ssh-hosts.js'
 import { AzureTokenCache } from './adapters/azure-token-cache.js'
@@ -60,6 +61,7 @@ async function main() {
     runner = await Runner.create(serverDefaults.temporaryDirectory, trustedCa)
     const audit = new Audit(db)
     const source = new EmbeddedSecretSource(store)
+    const kubernetesRequests = join(dirname(database), 'tool-logs', 'kubernetes-axi', 'workflow')
     const azureTokens = new AzureTokenCache()
     const writeLog = join(dirname(database), 'tool-logs', 'vectra-axi', 'writes.log')
     try { initializeNativeWriteLog(writeLog) }
@@ -76,8 +78,10 @@ async function main() {
         createBeyondtrustAdapter(source, join(dirname(database), 'tool-logs', 'beyondtrust-axi', 'writes.log')),
         createCheckpointAdapter(source, join(dirname(database), 'tool-logs', 'checkpoint-axi', 'writes.log')),
         createNetworkReadAdapter('unifi-axi', source), createNetworkReadAdapter('proxmox-axi', source),
-        createGiteaAdapter(source, join(dirname(database), 'tool-logs', 'gitea-axi', 'writes.log')), await createKubernetesAdapter(source)] })
+        createGiteaAdapter(source, join(dirname(database), 'tool-logs', 'gitea-axi', 'writes.log')), await createKubernetesAdapter(source, undefined, kubernetesRequests)] })
     const maintain = async () => {
+      try { await retainKubernetesRequests(kubernetesRequests) }
+      catch { log('error', 'retention', { code: 'AUDIT_UNAVAILABLE', target: 'kubernetes-axi' }) }
       try { audit.maintain() }
       catch { log('error', 'retention', { code: 'AUDIT_UNAVAILABLE', target: 'audit' }) }
       try { retainNativeWriteLog(writeLog) }

@@ -27,15 +27,20 @@ export function hostedStatus(tool: string, invocation: PreparedCall['invocation'
     } catch { if (/^\d+\.\d+\.\d+\s*$/.test(result.stdout)) return result; throw new ArtiumError('INVALID_RESPONSE') }
   }
   if (tool === 'kubernetes-axi' && invocation?.help) {
-    const route = kubernetes.commands.find(route => route.command === invocation.command)!
-    const command = `artium-axi kubernetes-axi${route.command === 'home' ? '' : ' ' + route.command}`
+    const workflow = /^(?:prepare|server-dry-run) -- (.+)$/.exec(invocation.command)
+    const route = kubernetes.commands.find(route => route.command === invocation.command)
+      ?? (workflow ? kubernetes.writeCommands.find(route => route.command === workflow[1]) : undefined)
+      ?? kubernetes.workflows.find(workflow => workflow.command === invocation.command)
+    if (!route) throw new ArtiumError('INVALID_RESPONSE')
+    const command = `artium-axi kubernetes-axi${invocation.command === 'home' ? '' : ' ' + invocation.command}`
+    const usage = 'usage' in route ? 'artium-axi kubernetes-axi ' + route.usage : command + ' [flags]'
     const rewrite = (output: string, truncated: boolean) => {
       if (truncated || !output) return output
       try {
         const json = output.trimStart().startsWith('{')
         const document = (json ? JSON.parse(output) : decode(output)) as Record<string, unknown>
         if (Array.isArray(document.flags) && (typeof document.command === 'string' || Array.isArray(document.commands))) {
-          return (json ? JSON.stringify : encode)({ command, usage: command + ' [flags]', effect: 'read',
+          return (json ? JSON.stringify : encode)({ command, usage, effect: route.effect,
             flags: route.flags, commands: route.command === 'home' ? kubernetes.discovery.commands : [],
             examples: [command + ' --help'], help: [kubernetes.discovery.help] }) + '\n'
         }

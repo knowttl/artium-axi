@@ -272,6 +272,11 @@ GitHub and Kubernetes are exceptions: their editors accept only an issuing CA, a
 For self-signed endpoints or a missing issuing CA with either tool, configure the server-wide bundle above.
 The GitHub CLI child receives system roots, the server bundle and credential CAs together through a private `SSL_CERT_FILE`; those CAs are additive across the child's connections rather than restricted to the inspected endpoint.
 For Kubernetes, system roots, the server bundle and confirmed CAs for the saved cluster origin are appended to the profile's `certificateAuthority` in a private per-call profile for bundled kubectl.
+Kubernetes native mutation requests persist under `<database directory>/tool-logs/kubernetes-axi/workflow/` in private scopes bound to caller, sign-in family and credential revision.
+Each call removes its temporary SecretRef profile after process settlement; the native request plan, signing key, atomic claim and outcome remain together without copying claims between call directories.
+These plans can contain original resource payloads, including Secret data; protect the directory with the database and inspect only through the caller's saved preview.
+Startup and daily maintenance remove scopes inactive for more than 90 days, after their sign-in families have expired.
+After an uncertain confirmation, inspect the native result and current resource state; repeated confirmation never resends a claimed mutation, and unfinished work needs a fresh preparation and digest.
 No certificate file or private key is accepted by this flow.
 
 Trust is stored with that tool’s credential and audited with the administrator, time, tool, subject and fingerprint.

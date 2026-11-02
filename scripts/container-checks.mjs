@@ -64,6 +64,11 @@ try {
         '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
         '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/dist/test/fake-service/kubernetes-probe.js'])
       const artifacts = `${builder}-artifacts`
+      const kubernetesWrites = `${builder}-kubernetes-writes`
+      recoveryContainers.push(kubernetesWrites)
+      await command('docker', ['run', '--name', kubernetesWrites, '--pull', 'never', '--init', '--network', 'none', '--read-only',
+        '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
+        '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/dist/test/fake-service/kubernetes-writes-probe.js'])
       const gitea = `${builder}-gitea`
       recoveryContainers.push(gitea)
       await command('docker', ['run', '--name', gitea, '--pull', 'never', '--init', '--network', 'none', '--read-only',

@@ -59,6 +59,9 @@ export class CredentialProfile {
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) throw new Error('Expected a profile schema')
     this.inputSchema = this.hostSchema(schema)
     if (tool === 'kubernetes-axi') {
+      this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow Kubernetes mutation workflows' }
+      this.inputSchema.properties.collectionDelete = { type: 'boolean', title: 'Allow Kubernetes bulk deletion',
+        description: 'Requires Allow writes and native frozen-target confirmation. Off by default.' }
       this.inputSchema.properties.origin.format = 'canonical-https-origin'
       this.inputSchema.properties.certificateAuthority.description = 'Paste the cluster issuing CA PEM. Artium supports issuing CA trust; saved strict leaf pins are unavailable.'
       this.inputSchema.properties.clientCertificate.description = 'Paste the client certificate PEM for certificate authentication. Changing it requires a new private key.'
@@ -279,7 +282,8 @@ export class CredentialProfile {
     if (!['ldap-axi', 'awx-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi', 'gitea-axi', 'kubernetes-axi'].includes(tool) && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
     const parsed = this.parsed(value)
     // These administrator switches are host policy, not upstream profile fields.
-    if (tool === 'falcon-axi' || tool === 'awx-axi') delete parsed.value.allowWrites
+    if (tool === 'falcon-axi' || tool === 'awx-axi' || tool === 'kubernetes-axi') delete parsed.value.allowWrites
+    if (tool === 'kubernetes-axi') delete parsed.value.collectionDelete
     if (tool === 'awx-axi') delete parsed.value.allowConfigurationWrites
     if (tool === 'falcon-axi') delete parsed.value.writes
     const environment: Record<string, string> = {}

@@ -30,8 +30,8 @@ importers:
         specifier: 0.1.5
         version: 0.1.5
       '@knowttl/kubernetes-axi':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.1.2
+        version: 0.1.2
       '@knowttl/ldap-axi':
         specifier: 0.3.2
         version: 0.3.2
@@ -122,8 +122,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/kubernetes-axi@0.1.1':
-    resolution: {integrity: sha512-fq2+5ZKZKHXgM1KeQL+qT9bO9olMveBqGt6ga7SlwYRrOzGaOyIKq2A7p239C3h9/FLRW/8zbpfUgyjyW7Owhw==}
+  '@knowttl/kubernetes-axi@0.1.2':
+    resolution: {integrity: sha512-7o2jalepVul06VX00l2Z3IX8Pv/c27ezewDdch+j9KkvFtK20YQf28eBWgsHK/IhhfINl1nL8h5w0SPKPhl7kQ==}
     engines: {node: 24.14.0, npm: 11.9.0}
     hasBin: true
 
@@ -579,7 +579,7 @@ snapshots:
       smol-toml: 1.9.1
       zod: 4.3.6
 
-  '@knowttl/kubernetes-axi@0.1.1':
+  '@knowttl/kubernetes-axi@0.1.2':
     dependencies:
       '@toon-format/toon': 4.4.0
       '@types/node': 24.10.0
