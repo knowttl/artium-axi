@@ -7,10 +7,6 @@ import { transferLimits, transferWarning } from '../shared/api.js'
 import { inputLimits } from '../shared/api.js'
 
 const commands = {
-  'unifi-axi': { usage: 'artium-axi unifi-axi [<args>]', purpose: 'Read UniFi data with managed credentials.',
-    flags: ['Declared implemented reads accept --help. Writes, local configuration and file input are unavailable.'], example: 'artium-axi unifi-axi info' },
-  'proxmox-axi': { usage: 'artium-axi proxmox-axi [<args>]', purpose: 'Read Proxmox data with a managed API token.',
-    flags: ['Declared ordinary reads accept --help. Writes, byte transports, session authentication and file input are unavailable.'], example: 'artium-axi proxmox-axi get /version' },
   'gh-axi': { usage: 'artium-axi gh-axi [<args>]', purpose: 'Read and update GitHub data with managed credentials.',
     flags: ['Repository commands require -R OWNER/NAME. Writes require an administrator-enabled exact operation: preview, then repeat with its --confirm value. api is GET only; deletes, secret set, merge --admin, local git, files and downloads are unavailable. Only gist create/edit with --filename accepts piped stdin.'], example: 'artium-axi gh-axi repo list --limit 1' },
   home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|passwd|logout|doctor|setup|update|download|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: ['--version, -v, -V (default false; print the client package version and exit)'], example: 'artium-axi' },
@@ -64,6 +60,10 @@ const commands = {
     flags: ['Arguments after mg-axi are forwarded upstream, including --help.'], example: 'artium-axi mg-axi entra user list' },
   'managed-session': { usage: 'artium-axi --managed-session <command> [<args>]', purpose: 'Let a caller supply and persist sessions through private pipes.',
     flags: [], example: 'artium-axi --managed-session whoami' },
+  'unifi-axi': { usage: 'artium-axi unifi-axi [<args>]', purpose: 'Read UniFi data with managed credentials.',
+    flags: ['Declared implemented reads accept --help. Writes, local configuration and file input are unavailable.'], example: 'artium-axi unifi-axi info' },
+  'proxmox-axi': { usage: 'artium-axi proxmox-axi [<args>]', purpose: 'Read Proxmox data with a managed API token.',
+    flags: ['Declared ordinary reads accept --help. Writes, byte transports, session authentication and file input are unavailable.'], example: 'artium-axi proxmox-axi get /version' },
 } as const
 
 export type HelpCommand = keyof typeof commands

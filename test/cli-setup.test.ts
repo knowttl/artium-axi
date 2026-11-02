@@ -10,6 +10,7 @@ import { copyClientInput } from './fixtures/client-inputs.js'
 import { setup } from '../src/cli/setup.js'
 import { SessionStore } from '../src/cli/session.js'
 import { loadToolSkill } from '../src/server/tool-skills.js'
+import { toolSkillPaths } from '../src/server/config.js'
 import { toolSchema } from '../src/shared/api.js'
 import type { ToolName } from '../src/server/store/credential-store.js'
 
@@ -29,7 +30,7 @@ const server = createServer((request, reply) => {
   }
   reply.setHeader('content-type', 'application/json')
   reply.end(JSON.stringify(skillResponse ?? { skills: granted.map(name => ({ name,
-    content: loadToolSkill(name, name === 'gh-axi' ? 'tools/node_modules/gh-axi/skills/gh-axi/SKILL.md' : name === 'falcon-axi' ? 'test/fixtures/falcon-SKILL.md' : name === 'awx-axi' ? 'tools/skills/awx-axi/SKILL.md' : name === 'ado-axi' ? 'tools/node_modules/@knowttl/ado-axi/SKILL.md' : `tools/node_modules/@knowttl/${name}/skills/${name}/SKILL.md`) })) }))
+    content: loadToolSkill(name, name === 'falcon-axi' ? 'test/fixtures/falcon-SKILL.md' : toolSkillPaths[name].replace(/^\/opt\//, '')) })) }))
 })
 beforeAll(async () => {
   copyClientInput('bundle', bundle)
