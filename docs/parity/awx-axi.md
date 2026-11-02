@@ -3,6 +3,8 @@
 This S0 audit supports [issue #237](https://github.com/knowttl/artium-axi/issues/237).
 It records the adapter at baseline `4253cd55da67ac92ea8a87987bafac08cd7fc18d` and proposed full-parity behavior; target support is not implemented by this document.
 The existing [generated reference](../awx-parity-matrix.md), [machine-readable inventory](../../tools/inventories/awx-axi-parity.json), and [capability notes](../awx-parity.md) remain the runtime inventory's references.
+All counts and "today" tables below describe that historical baseline, not the current S1 boundary.
+See the [AWX write boundary](../safety.md#write-gates-by-tool) for current authorization and input restrictions.
 
 ## Evidence and scope
 
@@ -49,14 +51,6 @@ Every flag row has its own current and target decision; accepted commands do not
 Flags inherit the command's read/write authorization and upstream validation.
 `<value>` denotes a value-taking flag, while other flags are boolean.
 Positionals retain upstream names and required counts in the command table.
-
-All implemented writes now use the single tenant `allowWrites` setting, default off.
-Legacy `allowConfigurationWrites` is ignored and grants no access.
-S1 applies this policy to deletion, removals, credential associations and security administration as well as operational and configuration writes.
-Secret and structured inputs, SCM URLs, files/stdin and bulk host operations report "not yet supported: requires secure input" pending S2.
-Credential references and metadata-only credential changes are supported.
-All previews require the tenant writes switch; execution also needs `--confirm` without `--dry-run`.
-The counts and "today" tables in this S0 audit describe the baseline above; the regenerated matrix owns the current S1 boundary.
 
 ## Global and version flags
 

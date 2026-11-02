@@ -1,6 +1,6 @@
 # AWX capability parity
 
-Tracks #237's capability inventory and delivery slices, including the ordinary configuration writes implemented in slice b.
+Tracks #237's capability inventory and delivery slices, including the S1 authorization model.
 The [S0 published-package audit](parity/awx-axi.md) owns command and flag target decisions, managed equivalents, release sequencing and counts against `@knowttl/awx-axi@0.1.11`.
 The generated [target authorization policy](awx-parity-matrix.md#target-authorization-policy) owns target permissions.
 The exhaustive [command and flag matrix](awx-parity-matrix.md) and [JSON inventory](../tools/inventories/awx-axi-parity.json) describe the installed `awx-axi` version pinned in [tools/package.json](../tools/package.json) and [tools/integrity.json](../tools/integrity.json).
@@ -37,15 +37,14 @@ Their JSON entries explicitly record this upstream limitation for slice f.
 
 `supported` means the reviewed route or flag passes Artium validation, subject to upstream validation, managed account permissions and execution limits.
 It does not claim live acceptance or complete upstream behavior for every value.
-`blocked` includes routes rejected even for `--help` or `--dry-run`, flags omitted from the adapter schema and all file/stdin input.
+`blocked` includes unsupported routes and inputs; it does not imply that route help is refused.
+Secure-input flags may appear in the inventory but are rejected by the adapter with "not yet supported: requires secure input".
 `managed equivalent` identifies an Artium-owned workflow rather than permission to execute the upstream command or override.
 `not applicable` identifies a client-local operation with an explicit managed-deployment reason.
 Target slices group delivery work; already supported rows, including those assigned to slice f, mean retain and verify behavior, not postpone existing support.
 
 See the [AWX write boundary](safety.md#write-gates-by-tool) for current write permissions and blocked operation classes.
 See the [client command reference](commands.md) for preview and confirmation behavior.
-S1 applies the [target authorization policy](awx-parity-matrix.md#target-authorization-policy) to deletion, credential association and security administration, including token revocation.
-Secret and structured inputs, SCM URLs, files/stdin and bulk host operations await S2 and report "not yet supported: requires secure input".
 `auth login` and `auth logout` belong to client-local credential lifecycle, but also mint/revoke PATs upstream.
 The managed account form already supports PAT entry or username/password token acquisition; removing an Artium account is not equivalent to revoking a PAT.
 
@@ -66,13 +65,14 @@ Global `--config` refers to managed runner configuration and has no caller file-
 ## Delivery slices
 
 These work packages retain the earlier b-f labels; their target controls follow the [target authorization policy](awx-parity-matrix.md#target-authorization-policy).
+S1 has enabled the mutation routes in b-e except inputs awaiting the S2 secure input channel; these rows retain the remaining acceptance work and original grouping.
 
 | Slice | Work and acceptance boundary | Required controls |
 | --- | --- | --- |
-| b | Implements the reviewed ordinary configuration writes in the [current boundary](safety.md#write-gates-by-tool). Verify preview and confirmed requests against fake AWX endpoints. | Current boundary controls apply. Credential/secret-bearing variants wait for c/e. |
-| c | Add credential create/edit/copy and team credential creation, structured and secret inputs, extra-vars files, notification input and stdin through TD-066. Verify preserved bytes, permissions, redaction and cleanup using canaries. | S0 target controls; secure input delivery as described above. |
-| d | Enable deletions and host bulk operations, with explicit target/budget checks and unknown-outcome handling. Verify fake bulk success and partial/failure outcomes. | S0 target controls; confirmation and native gates. |
-| e | Enable users, teams, roles, membership/admin changes, token lifecycle and credential associations, including conditional security variants from b/c. Verify denial before send and each granted operation against fakes. | S0 target controls; managed account scope and native security gate. |
+| b | Retain reviewed ordinary configuration writes. Verify preview and confirmed requests against fake AWX endpoints. | [Current boundary controls](safety.md#write-gates-by-tool) apply. Secret/structured inputs wait for c. |
+| c | Add secure inputs to credential create/edit/copy and team credential creation, structured and secret inputs, extra-vars files, notification input and stdin through TD-066. Verify preserved bytes, permissions, redaction and cleanup using canaries. | S0 target controls; secure input delivery as described above. |
+| d | Retain deletions and add host bulk inputs, with explicit target/budget checks and unknown-outcome handling. Verify fake bulk success and partial/failure outcomes. | S0 target controls; confirmation and native gates. |
+| e | Retain users, teams, roles, membership/admin changes, token lifecycle and credential associations; add secure-input variants from b/c. Verify denial before send and each granted operation against fakes. | S0 target controls; managed account scope and native security gate. |
 | f | Audit upgraded upstream metadata and handler tags, resolve currently omitted read flags (`--fields`, stdout `--full`/`--ansi`/`--download`, job-events `--type`), normalize nested aliases and maintain managed lifecycle exceptions. Add semantic drift checks covering changed commands/flags, not only generated bytes. | Preserve all controls; output downloads require managed artifacts, not server paths. |
 
 All later acceptance uses synthetic identities, fake AWX endpoints and canary credentials.
