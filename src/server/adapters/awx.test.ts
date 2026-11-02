@@ -63,9 +63,22 @@ test.each([
   await expect(adapter(true).prepare(args, reference, input)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
 })
 
-test.each(inventory.commands.filter(route => route.effect === 'blocked'))('$command retains the managed client-local boundary', async route => {
+test.each(inventory.commands.filter(route => route.effect === 'blocked' && route.command !== 'auth logout'))('$command retains the managed client-local boundary', async route => {
   await expect(adapter().prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') })
   await expect(adapter(true).prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') })
+})
+
+test('managed logout directs callers to explicit upstream PAT revocation', async () => {
+  await expect(adapter(true).prepare(['auth', 'logout'], reference)).rejects.toMatchObject({ code: 'INVALID_INPUT',
+    next: expect.stringContaining('user token-revoke <numeric-token-id> --dry-run') })
+})
+
+test('token creation help describes protected delivery through the managed client', () => {
+  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', 'user', 'token-create', '--help'], { encoding: 'utf8' })
+  expect(result.status).toBe(0)
+  const help = rewriteSuggestions(result.stdout, 'awx-axi')
+  expect(help).toContain('authenticated GET by the same caller')
+  expect(help).toContain('Save within five minutes')
 })
 
 test.each(inventory.commands.flatMap(route => Object.keys(route.flags)

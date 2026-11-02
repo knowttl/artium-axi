@@ -14445,6 +14445,7 @@
         "required": 1
       },
       "help": "awx-axi user token-create <id|name> [--scope <scope>] [--confirm] [--dry-run]",
+      "note": "Confirmed creation delivers the PAT through an authenticated one-time protected result, scoped to the caller and current managed credential revision, expiring after five minutes; no token bytes in routine output or audit",
       "flags": [
         {
           "name": "help",
@@ -17915,8 +17916,8 @@
     {
       "command": "auth logout",
       "effect": "client-local",
-      "status": "blocked",
-      "reason": "Raw managed auth logout remains refused; removing a managed account does not revoke its upstream PAT. Use user token-revoke under the single administrator-controlled per-tenant writes switch, default OFF, with preview, explicit confirmation and audit.",
+      "status": "managed equivalent",
+      "reason": "Managed accounts do not retain a verified current PAT id. Use user token-revoke <numeric-token-id> under the single administrator-controlled per-tenant writes switch, default OFF, with preview, explicit confirmation and audit. The managed account is preserved; account removal does not revoke its upstream PAT.",
       "targetSlice": "e",
       "authorization": "write",
       "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -17926,7 +17927,7 @@
           "takesValue": false,
           "description": "Command help",
           "effect": "client-local",
-          "status": "blocked",
+          "status": "managed equivalent",
           "targetSlice": "f",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",

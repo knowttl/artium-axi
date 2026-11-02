@@ -447,7 +447,8 @@ Follow the [credential editor guidance](admin-guide.md#browser-administration) f
 Use “Test connection” on the tool page to test the replacement with the fixed harmless read before enabling it; see [Connection tab save-and-test behavior](admin-guide.md#browser-administration) for testing during a save.
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
 AWX username-and-password sign-in mints a personal access token during credential save.
-Other upstream credential issuance, and revocation for every tool including AWX, remain live-only owner steps and are not exercised here.
+AWX also supports [managed PAT creation and revocation](commands.md); these paths have fake-controller acceptance only.
+Live credential issuance and revocation remain owner acceptance steps; other tools use the owner's upstream process.
 Credential replacement advances credential and tool revisions, clears health, and invalidates old Azure resource-token cache entries.
 The [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) owns API request fields, retention, identity-change restrictions and revision requirements.
 This API uses the same authorization, encryption, audit, health refresh and cache invalidation as complete replacement.
@@ -527,14 +528,18 @@ See [supported Falcon capabilities](safety.md) and [upstream permissions and lic
 
 ## Retention and export
 
-Technitium protected results stay in process memory and are not persisted or backed up.
+Technitium and AWX protected results stay in process memory and are not persisted or backed up.
 The executable limits are owned by `protectedResultLimits` in [server configuration](../src/server/config.ts); consult it for result size, per-user and server-wide capacity, and reference lifetime.
 Consuming, canceling, clearing or expiring a result releases its stored bytes and expiration timer; server restart removes all pending results.
 At capacity, new result-producing calls return `TOO_MANY_CALLS`; retrieve outstanding results or wait for expiration before retrying.
-An oversized result returns `OUTPUT_LIMIT`; narrow the native read where supported.
-A consumed, expired, wrong-user, wrong-operation or superseded-credential reference returns `NOT_FOUND`; repeat the permitted read to obtain a new reference.
+An oversized result returns `OUTPUT_LIMIT`; for a read, narrow the native query where supported.
+A consumed, expired, wrong-user, wrong-operation or superseded-credential reference returns `NOT_FOUND`.
+For Technitium, repeat the permitted read to obtain a new reference.
 Retrieval also rechecks authentication and current tool access, so reauthenticate or ask an administrator to restore access when those checks fail.
-See [Technitium result retrieval](commands.md#technitium-dns) and its [confidentiality boundary](safety.md#storage-and-execution-boundaries).
+For AWX, a missing token result does not undo token creation: inspect controller token state before retrying a failed, malformed or uncertain creation, or one whose result is no longer retrievable.
+The pinned CLI has no token-list command; use the controller's token administration to reconcile, and revoke an unwanted token through the [managed revoke flow](commands.md) when its numeric ID is known.
+After an interrupted user rename, reconcile with `user list` and `user show <new-username>` before retrying.
+See [AWX result retrieval](commands.md) and its [security boundary](safety.md#write-gates-by-tool), or [Technitium result retrieval](commands.md#technitium-dns) and its [confidentiality boundary](safety.md#storage-and-execution-boundaries).
 
 SQLite audit retention runs at startup and daily, deleting events strictly older than the captured 90-day cutoff in batches of at most 500.
 Each batch commits its count and cutoff with the deletion.

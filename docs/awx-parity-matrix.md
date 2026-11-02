@@ -246,7 +246,7 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | home | read | supported | f | read |
 | auth login | client-local | managed equivalent | f | write |
 | auth status | read | supported | f | read |
-| auth logout | client-local | blocked | e | write |
+| auth logout | client-local | managed equivalent | e | write |
 | setup hooks | client-local | managed equivalent | f | read |
 | profile list | client-local | managed equivalent | f | read |
 | config path | client-local | not applicable | f | read |
@@ -2290,7 +2290,7 @@ See command controls above.
 
 ### user token-create
 
-See command controls above.
+Confirmed creation delivers the PAT through an authenticated one-time protected result, scoped to the caller and current managed credential revision, expiring after five minutes; no token bytes in routine output or audit
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
@@ -2801,11 +2801,11 @@ Uses the selected managed AWX account; upstream identity/read diagnostics retain
 
 ### auth logout
 
-Raw managed auth logout remains refused; removing a managed account does not revoke its upstream PAT. Use user token-revoke under the single administrator-controlled per-tenant writes switch, default OFF, with preview, explicit confirmation and audit.
+Managed accounts do not retain a verified current PAT id. Use user token-revoke <numeric-token-id> under the single administrator-controlled per-tenant writes switch, default OFF, with preview, explicit confirmation and audit. The managed account is preserved; account removal does not revoke its upstream PAT.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | f | write | none |
+| --help | boolean | managed equivalent | f | write | none |
 
 ### setup hooks
 

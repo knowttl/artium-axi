@@ -142,6 +142,32 @@ Inspect images and associated templates with `execution-environment list` and `e
 The pinned upstream read output does not expose the attached registry credential or pull policy.
 After an unknown create or rename outcome, follow [AWX recovery guidance](runbook.md#retention-and-export).
 
+Create or edit organizations with `organization create|edit`, using `--name`, `--description`, `--max-hosts` and `--default-environment <id|name>`.
+Organization associations use `user-add|remove`, `admin-add|remove`, `team-add|remove`, `galaxy-credential-add|remove`, `instance-group-add|remove`, `execution-environment-add|remove` and `notification-template-add|remove` with the matching resource flag.
+Admin associations use `--user`; Galaxy credential associations use `--credential`.
+Use `organization notification-add|remove` with `--notification-template` and `--event started|success|error` for event-specific notifications.
+For example, preview `artium-axi awx-axi organization admin-add 42 --user 7 --dry-run`, then replace `--dry-run` with `--confirm`.
+
+Create or edit teams with `team create|edit --name synthetic-team --organization <id|name> --description <text>`, supplying the existing team ID or name after `edit`.
+Use `team user-add|remove <team-id|name> --user <id|name>` for membership.
+Create users with `user create synthetic-person`, or edit them with `user edit <id|username>`.
+Both accept `--username`, `--first-name`, `--last-name`, `--email`, `--is-superuser` and `--is-system-auditor`; editing also accepts `--no-superuser` and `--no-system-auditor` to remove those privileges.
+Passwords use a protected local `--password-file password.txt` or bounded stdin with `--password-file -`, never command arguments.
+Grant or revoke a role with `role grant|revoke <role-id|name> --user <id|username>` or `--team <id|name>`.
+All these writes require the tenant writes switch and the same `--dry-run` / `--confirm` flow, including membership removals and privilege changes.
+Inspect current state with organization, user and team list/show commands, `team users`, `role users` and `role teams`; these reads remain available with writes disabled.
+The pinned upstream organization read output does not enumerate association membership.
+After an interrupted user rename, follow [AWX recovery guidance](runbook.md#retention-and-export).
+
+Revoke an upstream PAT with `artium-axi awx-axi user token-revoke <numeric-token-id> --dry-run`, then replace `--dry-run` with `--confirm`.
+This explicit revoke flow is the managed logout equivalent; raw `auth logout` directs callers to it.
+See the [AWX security boundary](safety.md#write-gates-by-tool) for authorization and managed-account behavior, and [recovery guidance](runbook.md#retention-and-export) for token lookup limitations.
+
+Create a PAT with `artium-axi awx-axi user token-create <user-id|username> --scope read|write --dry-run`, then replace `--dry-run` with `--confirm`.
+Confirmed creation returns token metadata and a protected `result.path` in the decoded tool stdout.
+Save the result bytes through an authenticated GET to that path using the requesting caller's Artium bearer session, keeping authentication headers in protected input rather than process arguments.
+Follow the [AWX security boundary](safety.md#write-gates-by-tool) for retrieval scope, expiry and one-time consumption, and [AWX recovery guidance](runbook.md#retention-and-export) if delivery fails.
+
 ## Technitium DNS
 
 Run `artium-axi tools show technitium-axi` for admitted commands and each command with `--help` for its required selectors.

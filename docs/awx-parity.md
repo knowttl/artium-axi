@@ -106,3 +106,13 @@ The [command reference](commands.md) describes image settings and attachment of 
 Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) verifies ordinary image configuration and credential attachment, preview without mutation, confirmation, disabled writes, AWX permission denials and audit through the public run API against a fake controller.
 It also verifies persisted image changes and read-only recovery after an interrupted rename.
 Copy/delete acceptance remains in S13.
+
+## Organizations, users, teams and roles (S10)
+
+S1's shared write path admits organization configuration and associations, team configuration and membership, user configuration and password inputs, role grant/revoke and token revocation under the single tenant writes switch.
+See the [command reference](commands.md) for operations, privilege flags and private password-file/stdin handling.
+Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) uses the public run API and pinned CLI against the fake controller to verify preview, confirmation, disabled writes, AWX permission denials, tenant isolation, exact configuration and association payloads, private password handling and audit.
+Stateful journeys verify membership and role grant/revoke readback with writes disabled, privilege removal and interrupted username recovery, and authentication failure after PAT revocation.
+Organization association requests are verified against the fake controller; see the [command reference](commands.md) for readback limitations.
+The [token integration suite](../test/integration/awx-tokens.test.ts) verifies read/write token scopes, disabled writes, preview, confirmation, denied/malformed/uncertain creation without a result reference, caller and credential isolation, current permission checks, expiry, consumption and canary redaction.
+See the [AWX security boundary](safety.md#write-gates-by-tool) for protected token delivery and managed logout, and [recovery guidance](runbook.md#retention-and-export) for lost results and token lookup limitations.
