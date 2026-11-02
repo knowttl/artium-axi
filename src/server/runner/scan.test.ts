@@ -58,10 +58,22 @@ test('scan with no injected secrets accepts output', () => {
   expect(new SecretScanner([]).scan('stdout', Buffer.from('ordinary output'))).toBe(false)
 })
 
-test.each(streams)('private-input scanning preserves protocol keys and null masks in %s (R1)', stream => {
-  const scanner = new SecretScanner([], ['run', 'a', '[redacted]', 'dry_run'])
-  scanner.scan(stream, Buffer.from('dry_run:\n  payload: null\n'))
+test.each(streams)('secret-input scanning preserves protocol metadata and null masks in %s (R1, R3)', stream => {
+  const scanner = new SecretScanner([], ['run', 'a', 'A', 'pending', 'create', 'host', 'FORBIDDEN'])
+  scanner.scan(stream, Buffer.from('code: FORBIDDEN\ndry_run:\n  action: create\n  type: host\n  status: pending\n  would_send: POST hosts/\n  payload: null\nhelp[1]: Re-run with --confirm to create a host\n'))
   expect(scanner.finish()).toBe(false)
+})
+
+test.each(streams)('secret-input scanning accepts substrings inside ordinary values in %s', stream => {
+  const scanner = new SecretScanner([], ['a', 'run'])
+  scanner.scan(stream, Buffer.from('name: database\ndescription: runtime\n'))
+  expect(scanner.finish()).toBe(false)
+})
+
+test.each(streams)('secret-input scanning detects unregistered values in known secret fields in %s', stream => {
+  const scanner = new SecretScanner([], ['CANARY-original'])
+  scanner.scan(stream, Buffer.from('resource:\n  password: CANARY-new\n'))
+  expect(scanner.finish()).toBe(true)
 })
 
 test.each(streams)('private-input scanning detects nested values across chunks in %s (R1)', stream => {

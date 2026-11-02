@@ -11,6 +11,7 @@ const resources = new Map()
 let mutations = 0
 let basicAuthEnabled = true
 let awxConfigurationAllowed = true
+let awxDropWrite = false
 let githubDeviceScenario = 'success'
 let githubDevicePolls = 0
 const certs = process.argv[2] ?? '/certs'
@@ -129,6 +130,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     mutations = 0
     basicAuthEnabled = true
     awxConfigurationAllowed = true
+    awxDropWrite = false
     res.end('{}')
     return
   }
@@ -139,6 +141,11 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   }
   if (url.pathname === '/__awx/configuration-permission' && req.method === 'POST') {
     awxConfigurationAllowed = url.searchParams.get('enabled') !== 'false'
+    res.end('{}')
+    return
+  }
+  if (url.pathname === '/__awx/write-outcome' && req.method === 'POST') {
+    awxDropWrite = url.searchParams.get('drop') === 'true'
     res.end('{}')
     return
   }
@@ -252,6 +259,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         const path = req.method === 'PATCH' ? url.pathname : `${url.pathname}42/`
         const resource = { id: 42, ...resources.get(path), ...payload }
         resources.set(path, resource)
+        if (awxDropWrite) { req.socket.destroy(); return }
         res.writeHead(req.method === 'PATCH' ? 200 : 201)
         res.end(JSON.stringify(resource))
       })

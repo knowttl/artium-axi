@@ -2,6 +2,9 @@ import { decode } from '@toon-format/toon'
 
 type OutputStream = 'stdout' | 'stderr'
 
+export const secretFieldPattern = /(?:passwords?|passphrase|token|secret|(?:api|access|private|ssh)[-_]?key(?:[-_]?data)?|ssh_key_unlock|authorization|key)$/i
+export const protocolOutputFields = ['code', 'action', 'type', 'status', 'would_send', 'help', 'label']
+
 export function secretForms(secrets: readonly string[]): string[] {
   const forms = new Set<string>()
   for (const secret of secrets) {
@@ -14,6 +17,10 @@ export function secretForms(secrets: readonly string[]): string[] {
     forms.add(JSON.stringify(secret).slice(1, -1))
   }
   return [...forms]
+}
+
+export function secretTokenPatterns(secrets: readonly string[]): string[] {
+  return secretForms(secrets).map(form => `(?<![\\p{L}\\p{N}_])${form.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}_])`)
 }
 
 // Prefix lengths let a mismatch reuse a partial match without retaining output bytes.
@@ -36,11 +43,11 @@ export class SecretScanner {
   readonly #patterns: { bytes: Buffer, prefixes: Uint32Array }[]
   readonly #positions: Record<OutputStream, Uint32Array>
   #matched = false
-  readonly #valuePatterns: readonly string[]
+  readonly #valuePatterns: readonly RegExp[]
   readonly #chunks: Record<OutputStream, Buffer[]> = { stdout: [], stderr: [] }
 
   constructor(secrets: readonly string[], valueSecrets: readonly string[] = []) {
-    this.#valuePatterns = secretForms(valueSecrets)
+    this.#valuePatterns = secretTokenPatterns(valueSecrets).map(pattern => new RegExp(pattern, 'u'))
     this.#patterns = secretForms(secrets).map(form => {
       const bytes = Buffer.from(form, 'utf8')
       return { bytes, prefixes: prefixLengths(bytes) }
@@ -72,10 +79,12 @@ export class SecretScanner {
   }
 
   finish(): boolean {
-    const containsSecret = (value: unknown): boolean => {
-      if (typeof value === 'string') return this.#valuePatterns.some(pattern => value.includes(pattern))
-      if (Array.isArray(value)) return value.some(containsSecret)
-      return value !== null && typeof value === 'object' && Object.values(value).some(containsSecret)
+    const containsSecret = (value: unknown, key = ''): boolean => {
+      if (protocolOutputFields.includes(key)) return false
+      if (secretFieldPattern.test(key) && value !== null && typeof value !== 'boolean' && typeof value !== 'number') return true
+      if (typeof value === 'string') return this.#valuePatterns.some(pattern => pattern.test(value))
+      if (Array.isArray(value)) return value.some(child => containsSecret(child))
+      return value !== null && typeof value === 'object' && Object.entries(value).some(([name, child]) => containsSecret(child, name))
     }
     for (const stream of ['stdout', 'stderr'] as const) {
       const chunks = this.#chunks[stream]

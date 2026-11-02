@@ -9,7 +9,7 @@ import type { Adapter } from './types.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 import { validateFileInput } from '../../shared/file-input.js'
 import { awxInputBridge, awxInputSecrets } from './awx-input.js'
-import { secretForms } from '../runner/scan.js'
+import { secretTokenPatterns } from '../runner/scan.js'
 
 export const awxManifest = { ...inventory, ...inventory.adapterBoundary }
 export const awxWritePolicy = writePolicy({ unlocks: 'All AWX writes for this tenant, including configuration, deletion, removals and security administration, support preview and require explicit confirmation and AWX resource permission.',
@@ -120,7 +120,7 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const readOnly = !allowed(parsed.data)
       if (requiresWriteAccess && readOnly) throw new ArtiumError('FLAG_BLOCKED')
       const profile = awxProfile.prepare('awx-axi', parsed.data, undefined, readOnly)
-      const valueSecrets = awxInputSecrets(input ?? {}, normalized.structured.map(([, value]) => value))
+      const valueSecrets = awxInputSecrets(input ?? {}, normalized.structured.map(([, value]) => value), normalized.args)
       if (normalized.mutation && !readOnly) Object.assign(profile.environment, {
         AWX_AXI_ALLOW_CONFIG_WRITES: '1', AWX_AXI_ALLOW_DELETES: '1', AWX_AXI_ALLOW_SECURITY_WRITES: '1',
         AWX_AXI_ALLOW_CREDENTIAL_PASSWORDS: '1',
@@ -128,7 +128,7 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const { structured, ...call } = normalized
       const prefix = ['--input-type=module', '-e', awxInputBridge, toolPaths['awx-axi']]
       const privateInput = structured.length || input?.files?.length || input?.stdin !== undefined
-      if (privateInput) profile.files.push({ name: 'awx-input.json', content: JSON.stringify({ values: structured, patterns: secretForms(valueSecrets) }) })
+      if (privateInput) profile.files.push({ name: 'awx-input.json', content: JSON.stringify({ values: structured, patterns: secretTokenPatterns(valueSecrets) }) })
       return { executable: privateInput ? process.execPath : toolPaths['awx-axi'], ...call,
         ...(privateInput ? { args: [...prefix, ...call.args], fileArguments: call.fileArguments.map(index => index + prefix.length) } : {}),
         ...profile, limits: { timeoutMs: runnerLimits.timeoutMs, ...(privateInput ? { valueSecrets } : {}) } }

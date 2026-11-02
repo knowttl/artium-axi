@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, vi } from 'vitest'
+import { decode } from '@toon-format/toon'
 import { createApp } from '../../src/server/app.js'
 import { createAwxAdapter } from '../../src/server/adapters/awx.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -17,6 +18,47 @@ import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import type { RunInput } from '../../src/shared/api.js'
 
 const upload = (name: string, content: string) => ({ name, size: Buffer.byteLength(content), contentBase64: Buffer.from(content).toString('base64') })
+
+test('AWX protocol metadata survives structured values through completion and uncertain writes (R3)', async () => {
+  await withFakeService(async ({ directory, port, send }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+    const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
+    const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
+      token: 'CANARY-awx-token', allowWrites: true }) })
+    const prepare = adapter.prepare.bind(adapter)
+    adapter.prepare = async (...input) => {
+      const call = await prepare(...input)
+      if (call.executable === process.execPath) {
+        call.args[3] = join(process.cwd(), 'tools/node_modules/.bin/awx-axi')
+        return call
+      }
+      return { ...call, executable: process.execPath, args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+    }
+    const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
+    const app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), adapters: [adapter], environment: {},
+      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }])) })
+    const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+    const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
+    try {
+      const launched = await run(['ad-hoc', 'launch', '7', '--extra-vars', '{"mode":"pending"}', '--confirm'])
+      expect(launched.json(), launched.body).toMatchObject({ exitCode: 0 })
+      expect(decode(launched.json().stdout)).toMatchObject({ ad_hoc_command: { status: 'pending' } })
+      await send('/__ado/reset', 'POST')
+      await send('/__awx/write-outcome?drop=true', 'POST')
+      const interrupted = await run(['inventory', 'host-create', 'synthetic', '--inventory', '7', '--variables', '{"mode":"A"}', '--confirm'])
+      expect(interrupted.json(), interrupted.body).toMatchObject({ error: { code: 'UNKNOWN_OUTCOME',
+        next: expect.stringContaining('artium-axi awx-axi host list --limit 100') } })
+      expect(JSON.parse(await send('/__evidence'))).toMatchObject({ mutations: 1,
+        requests: [{ method: 'POST', path: '/api/v2/hosts/', body: { name: 'synthetic', inventory: 7, variables: '{"mode":"A"}' } }] })
+      const recovered = await run(['host', 'list', '--limit', '100'])
+      expect(recovered.json(), recovered.body).toMatchObject({ exitCode: 0 })
+      expect(decode(recovered.json().stdout)).toMatchObject({ hosts: [{ id: 42, name: 'synthetic' }] })
+    } finally { await app.close(); db.close() }
+  })
+}, 60_000)
 
 test.each([
   { flag: 'variables', args: ['inventory', 'host-create', 'synthetic', '--inventory', '7'], trailing: ['--description', 'placeholder'],
@@ -76,10 +118,12 @@ test.each([
   }, 60_000,
 )
 
-const configurationCases: { args: string[], path: string, body: unknown, input?: RunInput, unconfirmed?: Record<string, unknown> }[] = [
-  ...['run', 'a', '[redacted]', 'dry_run'].map(value => ({
+const configurationCases: { args: string[], path: string, body: unknown, input?: RunInput, unconfirmed?: Record<string, unknown>, preview?: unknown }[] = [
+  ...['run', 'a', 'A', 'pending', 'create', 'CONTROLLER_UNREACHABLE', '[redacted]', 'dry_run'].map(value => ({
     args: ['inventory', 'host-create', 'synthetic', '--inventory', '7', '--variables', JSON.stringify({ mode: value })],
     path: 'hosts/', body: { name: 'synthetic', inventory: 7, variables: JSON.stringify({ mode: value }) },
+    preview: { dry_run: { action: 'create', type: 'host', would_send: 'POST hosts/', payload: { variables: JSON.stringify({ mode: value }) } },
+      help: ['Re-run with --confirm to create'] },
   })),
   { args: ['inventory', 'host-create', 'synthetic', '--inventory', '7', '--variables', 'variables.json'], path: 'hosts/',
     body: { name: 'synthetic', inventory: 7, variables: '{"env":"a"}' },
@@ -101,8 +145,8 @@ const configurationCases: { args: string[], path: string, body: unknown, input?:
   { args: ['user', 'create', 'synthetic-person', '--password-file', '-'], path: 'users/', body: { username: 'synthetic-person', password: 'CANARY-user-password' },
     input: { stdin: 'CANARY-user-password\n' } },
   { args: ['notification-template', 'create', 'Synthetic notification', '--organization', '7', '--notification-type', 'webhook', '--configuration-file', 'configuration.json', '--messages-file', 'messages.json'], path: 'notification_templates/',
-    body: { name: 'Synthetic notification', organization: 7, notification_type: 'webhook', notification_configuration: { token: 'CANARY-notification-token' }, messages: { success: { body: 'CANARY-notification-message' } } },
-    input: { files: [upload('configuration.json', '{"token":"CANARY-notification-token"}'), upload('messages.json', '{"success":{"body":"CANARY-notification-message"}}')] } },
+    body: { name: 'Synthetic notification', organization: 7, notification_type: 'webhook', notification_configuration: { token: 'CANARY-notification-token' }, messages: { success: { body: 'Synthetic completion' } } },
+    input: { files: [upload('configuration.json', '{"token":"CANARY-notification-token"}'), upload('messages.json', '{"success":{"body":"Synthetic completion"}}')] } },
   { args: ['inventory', 'host-bulk-create', '--inventory', '7', '--hosts-file', 'hosts.json'], path: 'bulk/host_create/',
     body: { inventory: 7, hosts: [{ name: 'synthetic-bulk-host', variables: { password: 'CANARY-bulk-secret' } }] },
     input: { files: [upload('hosts.json', '[{"name":"synthetic-bulk-host","variables":{"password":"CANARY-bulk-secret"}}]')] } },
@@ -188,7 +232,7 @@ test('AWX enabling writes in one tenant does not grant another tenant write acce
   }
 })
 
-test.each(configurationCases)('AWX configuration authority gates $args through the public run API', async ({ args, path, body, input = {}, unconfirmed = { error: { code: 'FLAG_BLOCKED' } } }) => {
+test.each(configurationCases)('AWX configuration authority gates $args through the public run API', async ({ args, path, body, input = {}, unconfirmed = { error: { code: 'FLAG_BLOCKED' } }, preview: expectedPreview }) => {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
@@ -244,6 +288,7 @@ test.each(configurationCases)('AWX configuration authority gates $args through t
       expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
       const preview = await run([...args, '--dry-run'])
       expect(preview.json(), preview.body).toMatchObject({ exitCode: 0, stdout: expect.stringContaining('dry_run') })
+      if (expectedPreview) expect(decode(preview.json().stdout)).toMatchObject(expectedPreview)
       expect(preview.body).not.toContain('CANARY-')
       expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
       await send('/__awx/configuration-permission?enabled=false', 'POST')
