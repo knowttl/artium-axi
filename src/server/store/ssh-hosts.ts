@@ -4,7 +4,8 @@ import { decryptCredential, encryptCredential, type EncryptedCredential } from '
 import { ArtiumError } from '../../shared/errors.js'
 
 export interface SshHost { id: string, address: string, port: number, username: string }
-interface Binding extends SshHost { approved_host_keys: string, allowed_addresses: string, credential_id: string }
+interface Binding extends SshHost { approved_host_keys: string, allowed_addresses: string, credential_id: string,
+  host_revision: number, binding_revision: number, credential_revision: number }
 
 // Reusing a deleted handle must not make an old administrative draft current again.
 export function nextSshRevision(db: Database.Database, table: 'ssh_hosts' | 'ssh_credentials', id: string, revision: number, create = false): number {
@@ -43,13 +44,20 @@ export class SshHosts {
 
   private bindings(userId: string): Binding[] {
     return this.db.prepare(`SELECT h.id, h.address, h.port, h.approved_host_keys, h.allowed_addresses,
-      b.username, b.credential_id FROM ssh_hosts h JOIN ssh_bindings b ON b.host_id = h.id
+      b.username, b.credential_id, h.revision AS host_revision, b.revision AS binding_revision, c.revision AS credential_revision
+      FROM ssh_hosts h JOIN ssh_bindings b ON b.host_id = h.id JOIN ssh_credentials c ON c.id = b.credential_id
       JOIN ssh_grants g ON g.host_id = h.id WHERE g.user_id = ? AND g.shell = 1 AND h.enabled = 1
       AND b.sudo = 0 ORDER BY h.id`).all(userId) as Binding[]
   }
 
   list(userId: string): SshHost[] {
     return this.bindings(userId).map(({ id, address, port, username }) => ({ id, address, port, username }))
+  }
+
+  dispatchGuard(userId: string, hostId?: string): () => void {
+    const read = () => JSON.stringify(this.bindings(userId).filter(host => !hostId || host.id === hostId))
+    const snapshot = read()
+    return () => { if (read() !== snapshot) throw new ArtiumError('CREDENTIAL_INVALID') }
   }
 
   profile(userId: string, hostId: string): Record<string, unknown> {

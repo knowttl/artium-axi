@@ -9,6 +9,7 @@ import { Runner } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { SshHosts } from '../../src/server/store/ssh-hosts.js'
+import { createSshAdapter } from '../../src/server/adapters/ssh.js'
 import { decryptCredential, type EncryptedCredential } from '../../src/server/store/crypto.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { seedToolUser } from '../fixtures/tokens.js'
@@ -170,4 +171,18 @@ test('recreated host and credential handles never accept drafts from before dele
   await save('credential-delete', { id: 'ordinary', expectedRevision: 1, confirm: true })
   expect(await save('credential', { id: 'ordinary', expectedRevision: 0, confirm: true, privateKey: 'CANARY-recreated-key' })).toEqual({ id: 'ordinary', revision: 2 })
   expect((await post('credential-delete', { id: 'ordinary', expectedRevision: 1, confirm: true })).json().error.code).toBe('REVISION_CONFLICT')
+})
+
+test.each([
+  ['host policy', () => save('hosts', { ...host, expectedRevision: 3, enabled: false })],
+  ['account binding', () => save('binding', { host: host.id, expectedRevision: 3, confirm: true, sudo: false, username: 'replacement', credential: 'elevated' })],
+  ['caller grant', () => save('grant', { host: host.id, user: actor, expectedRevision: 3, confirm: true, shell: false, sudo: false })],
+  ['credential revision', () => save('credential', { id: 'ordinary', expectedRevision: 1, confirm: true, privateKey: 'CANARY-replacement' })],
+] as const)('a prepared SSH profile cannot dispatch after its %s changes', async (_name, change) => {
+  await provision()
+  const adapter = createSshAdapter(hosts, join(directory, 'writes.log'), join(process.cwd(), 'tools/node_modules/@knowttl/ssh-axi/dist/hosted.js'))
+  const prepared = await adapter.prepareForCaller!(['doctor', host.id], actor)
+  expect(() => prepared.beforeSpawn!()).not.toThrow()
+  await change()
+  expect(() => prepared.beforeSpawn!()).toThrow(expect.objectContaining({ code: 'CREDENTIAL_INVALID' }))
 })

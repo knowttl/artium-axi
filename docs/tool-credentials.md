@@ -87,7 +87,9 @@ Sudo bindings require a different account and credential and never substitute fo
 All changes require administrator identity, recent confirmation and the displayed current revision; reload after each save before another edit.
 Key replacement advances its encrypted credential revision; deleting a key removes its account bindings, while deleting a host removes its bindings and caller grants.
 Host and credential changes are audited without key or passphrase content.
-Remote execution, sudo execution and reusable connections remain unavailable in this administration slice.
+Recreating a deleted host or credential ID advances its retired revision, so an old draft cannot become current again.
+Calls waiting for a runner slot recheck host, binding, credential and caller access before opening a transport.
+Remote execution, sudo execution and reusable connections remain unavailable.
 After an approved binding is available, use `artium-axi ssh-axi host list`, `host show <host>` and `doctor <host>`.
 See [SSH read boundaries](safety.md#ssh-reads).
 

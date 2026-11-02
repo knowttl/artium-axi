@@ -13,7 +13,7 @@ import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { SshHosts } from '../../src/server/store/ssh-hosts.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
-import { toolPaths } from '../../src/server/config.js'
+import { runnerLimits, toolPaths } from '../../src/server/config.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 
 // All authenticated native probes run inside one owned --network none container.
@@ -146,7 +146,29 @@ try {
   assert.notEqual(failedOrdinary.json().exitCode, 0, failedOrdinary.body)
   assert.ok(counts.usernames.every(username => username === 'ordinary'))
   assert.equal(counts.channels, 0)
-  await admin('grant', { host: 'granted', user: 'synthetic-development-user', shell: false, sudo: false, expectedRevision: revisions.get('granted') })
+  const blockers = Array.from({ length: runnerLimits.globalCalls }, (_, index) => {
+    const controller = new AbortController()
+    let admitted!: () => void
+    const ready = new Promise<void>(resolve => { admitted = resolve })
+    const pending = runner.run(`synthetic-blocker-${index}`, process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {}, [],
+      { signal: controller.signal }, {}, [], admitted)
+    return { controller, ready, pending }
+  })
+  try {
+    await Promise.all(blockers.map(blocker => blocker.ready))
+    const queued = invoke(['doctor', 'granted', '--json'])
+    await new Promise<void>(resolve => setImmediate(resolve))
+    const beforeRevocation = counts.transports
+    await admin('grant', { host: 'granted', user: 'synthetic-development-user', shell: false, sudo: false, expectedRevision: revisions.get('granted') })
+    for (const blocker of blockers) blocker.controller.abort()
+    await Promise.allSettled(blockers.map(blocker => blocker.pending))
+    const revoked = await queued
+    assert.equal(revoked.json().error?.code, 'CREDENTIAL_INVALID', revoked.body)
+    assert.equal(counts.transports, beforeRevocation)
+  } finally {
+    for (const blocker of blockers) blocker.controller.abort()
+    await Promise.allSettled(blockers.map(blocker => blocker.pending))
+  }
   assert.equal((await invoke(['doctor', 'granted'])).statusCode, 404)
   assert.deepEqual(JSON.parse((await invoke(['host', 'list', '--json'])).json().stdout).hosts, [])
   db.exec("DELETE FROM role_tools WHERE tool = 'ssh-axi'")
