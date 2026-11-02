@@ -27,6 +27,7 @@ test.each([
   { command: ['inventory', 'source-create'], flag: 'source-vars' },
   { command: ['ad-hoc', 'launch'], flag: 'module-args' },
   { command: ['ad-hoc', 'launch'], flag: 'args' },
+  { command: ['project', 'create'], flag: 'scm-url' },
 ].flatMap(route => ['{}', '@synthetic-not-read.yml'].flatMap(value => [true, false].map(attached => ({ ...route, value, attached })))))(
   'AWX native help ignores unused --$flag input $value, attached=$attached (R8)', async ({ command, flag, value, attached }) => {
     const adapter = createAwxAdapter({ getCredential: async () => ({ origin: 'https://controller.example', token: 'CANARY-awx-token' }) })
@@ -51,6 +52,9 @@ test.each([
 )
 
 test.each([
+  { args: ['project', 'create', 'synthetic', '--scm-type', 'git', '--scm-url', 'scm.txt', '--scm-branch', 'main', '--credential', '9', '--dry-run'],
+    input: { files: [{ name: 'scm.txt', contentBase64: Buffer.from('https://synthetic:CANARY-scm@scm.example/repo').toString('base64') }] },
+    expected: { action: 'create', type: 'project', payload: { scm_type: 'git', scm_url: '[SCM URL redacted]', scm_branch: 'main', credential: 9 } } },
   { args: ['inventory', 'host-create', 'synthetic', '--inventory', '7', '--variables', '{"mode":"run"}', '--dry-run'],
     input: {}, expected: { action: 'create', type: 'host', would_send: 'POST hosts/', payload: '[structured input redacted, 14 bytes]' } },
   { args: ['inventory', 'host-create', 'synthetic', '--inventory', '7', '--variables', '{"ansible_password":12345678}', '--dry-run'],
@@ -87,6 +91,6 @@ test.each([
       call.limits, { ...input, fileArguments: call.fileArguments }, call.files)
     expect(result.exitCode, result.stdout + result.stderr).toBe(0)
     expect(decode(result.stdout)).toMatchObject({ dry_run: expected })
-    expect(result.stdout).not.toContain('CANARY-awx-token')
+    expect(result.stdout).not.toContain('CANARY-')
   } finally { await runner.shutdown() }
 })

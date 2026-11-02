@@ -280,7 +280,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     const recorded = { method: req.method, path: url.pathname, auth: authorizationScheme(authorization), canaryReceived }
     requests.push(recorded)
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ detail: 'Invalid token' })); return }
-    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|inventory_updates|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|schedules|credentials|users|teams|notification_templates|bulk)\//.test(url.pathname)
+    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|inventory_updates|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|project_updates|schedules|credentials|users|teams|notification_templates|bulk)\//.test(url.pathname)
     if (req.method === 'GET' && url.pathname === '/api/v2/job_templates/7/' && !resources.has(url.pathname)) {
       res.end(JSON.stringify({ id: 7, name: 'Synthetic promptable template', ask_inventory_on_launch: true,
         ask_limit_on_launch: true, ask_variables_on_launch: true, ask_tags_on_launch: true, ask_skip_tags_on_launch: true })); return
@@ -332,7 +332,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           res.writeHead(400); res.end(JSON.stringify({ credential_type: ['Invalid pk - object does not exist.'] })); return
         }
         mutations++
-        const association = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|(?:inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes|schedules)\/\d+\/(credentials|labels|instance_groups|notification_templates_(?:started|success|error|approvals)|(?:success|failure|always)_nodes))\/$/.exec(url.pathname)
+        const association = /^\/api\/v2\/(?:groups\/\d+\/(hosts|children)|(?:projects|inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes|schedules)\/\d+\/(credentials|labels|instance_groups|notification_templates_(?:started|success|error|approvals)|(?:success|failure|always)_nodes))\/$/.exec(url.pathname)
         if (association) {
           const members = awxAssociations.get(url.pathname) ?? new Set()
           if (payload.disassociate) members.delete(payload.id)
@@ -343,12 +343,13 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           if (awxDropWrite) { req.socket.destroy(); return }
           res.writeHead(204); res.end(); return
         }
-        const sync = /^\/api\/v2\/inventory_sources\/(\d+)\/update\/$/.exec(url.pathname)
+        const sync = /^\/api\/v2\/(inventory_sources|projects)\/(\d+)\/update\/$/.exec(url.pathname)
         if (sync) {
-          const history = `/api/v2/inventory_sources/${sync[1]}/inventory_updates/`
-          const update = { id: 42, name: 'Synthetic inventory update', status: 'successful', failed: false }
+          const updates = sync[1] === 'projects' ? 'project_updates' : 'inventory_updates'
+          const history = `/api/v2/${sync[1]}/${sync[2]}/${updates}/`
+          const update = { id: 42, name: sync[1] === 'projects' ? 'Synthetic project update' : 'Synthetic inventory update', status: 'successful', failed: false }
           resources.set(`${history}42/`, update)
-          resources.set('/api/v2/inventory_updates/42/', update)
+          resources.set(`/api/v2/${updates}/42/`, update)
           if (awxDropWrite) { req.socket.destroy(); return }
           res.writeHead(202); res.end(JSON.stringify(update)); return
         }

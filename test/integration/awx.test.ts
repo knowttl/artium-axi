@@ -118,6 +118,8 @@ test.each([
     path: '/api/v2/ad_hoc_commands/', field: 'module_args', exitCode: 0 },
   { flag: 'args', args: ['ad-hoc', 'launch', '7', '--module-name', 'command'], trailing: ['--verbosity', '0'],
     path: '/api/v2/ad_hoc_commands/', field: 'module_args', exitCode: 0 },
+  { flag: 'scm-url', args: ['project', 'create', 'Synthetic SCM'], trailing: ['--scm-type', 'git'],
+    path: '/api/v2/projects/', field: 'scm_url', exitCode: 0 },
 ].flatMap(route => ['inline', 'separate', 'upload'].map(channel => ({ ...route, channel }))))(
   'AWX structured --$flag $channel input cannot redirect the managed token (R2)',
   async ({ flag, args, trailing, path, field, exitCode, channel }) => {
@@ -309,6 +311,21 @@ const configurationCases: { args: string[], path: string, body: unknown, input?:
   }))),
   { args: ['project', 'create', 'Synthetic project', '--organization', '7'], path: 'projects/', body: { name: 'Synthetic project', organization: 7 } },
   { args: ['project', 'edit', '42', '--name', 'Updated project'], path: 'projects/42/', body: { name: 'Updated project' } },
+  ...['create', 'edit'].flatMap(verb => ['inline', 'upload'].map(channel => ({
+    args: ['project', verb, verb === 'create' ? 'Synthetic SCM project' : '42', '--organization', '7',
+      '--scm-type', 'git', '--scm-url', channel === 'inline' ? 'https://synthetic:CANARY-scm-password@scm.example/repo?token=CANARY-scm-token' : 'scm.txt',
+      '--scm-branch', 'synthetic-branch', '--credential', '9'],
+    path: verb === 'create' ? 'projects/' : 'projects/42/',
+    body: { ...(verb === 'create' ? { name: 'Synthetic SCM project' } : {}), organization: 7, scm_type: 'git',
+      scm_url: 'https://synthetic:CANARY-scm-password@scm.example/repo?token=CANARY-scm-token', scm_branch: 'synthetic-branch', credential: 9 },
+    input: channel === 'upload' ? { files: [upload('scm.txt', 'https://synthetic:CANARY-scm-password@scm.example/repo?token=CANARY-scm-token')] } : {},
+    preview: { dry_run: { payload: { organization: 7, scm_type: 'git', scm_branch: 'synthetic-branch', credential: 9,
+      scm_url: '[SCM URL redacted]' } } },
+  }))),
+  ...['started', 'success', 'error'].map(event => ({
+    args: ['project', 'notification-remove', '42', '--event', event, '--notification-template', '7'],
+    path: `projects/42/notification_templates_${event}/`, body: { id: 7, disassociate: true },
+  })),
   { args: ['schedule', 'create', 'Synthetic schedule', '--template', '7', '--rrule', 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY'], path: 'schedules/', body: { name: 'Synthetic schedule', unified_job_template: 7, rrule: 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY' } },
   { args: ['schedule', 'edit', '42', '--name', 'Updated schedule'], path: 'schedules/42/', body: { name: 'Updated schedule' } },
   ...['create', 'edit'].flatMap(operation => ['inline', 'upload'].map(channel => ({
@@ -603,6 +620,66 @@ test.each([
     })
   }, 60_000,
 )
+
+test('AWX project SCM URLs remain private on later reads and projects still sync (S8)', async () => {
+  await withFakeService(async ({ directory, port, send }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+    let allowWrites = true
+    const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
+    const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
+      token: 'CANARY-awx-token', allowWrites }) })
+    const prepare = adapter.prepare.bind(adapter)
+    adapter.prepare = async (...input) => {
+      const call = await prepare(...input)
+      expect(call.args.join(' ')).not.toContain('CANARY-')
+      if (call.executable === process.execPath) call.args[3] = join(process.cwd(), 'tools/node_modules/.bin/awx-axi')
+      else return { ...call, executable: process.execPath, args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+      return call
+    }
+    const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
+    const lines: string[] = []
+    const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => lines.push(line)), adapters: [adapter], environment: {},
+      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }])) })
+    const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+    const run = async (args: string[], input: RunInput = {}) => {
+      const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args, ...input } })
+      expect(response.json(), response.body).toMatchObject({ exitCode: 0 })
+      expect(response.body).not.toContain('CANARY-')
+      return decode(response.json().stdout)
+    }
+    try {
+      await run(['project', 'create', 'Synthetic SCM', '--scm-type', 'git', '--scm-url', 'scm.txt', '--scm-branch', 'main', '--credential', '9', '--confirm'],
+        { files: [upload('scm.txt', 'https://synthetic:CANARY-project-password@scm.example/repo?token=CANARY-project-token')] })
+      await run(['project', 'edit', '42', '--scm-branch', 'updated', '--credential', '10', '--confirm'])
+      expect(await run(['project', 'sync', '42', '--dry-run'])).toMatchObject({ dry_run: { action: 'sync', project: 42 } })
+      expect(await run(['project', 'sync', '42', '--confirm', '--wait'])).toMatchObject({ job: { id: 42, project: 42, status: 'successful' } })
+      allowWrites = false
+      expect(await run(['project', 'show', '42'])).toMatchObject({ project: {
+        name: 'Synthetic SCM', scm_type: 'git', scm_branch: 'updated', scm_url: '[SCM URL redacted]',
+      } })
+      expect(await run(['project', 'updates', '42'])).toMatchObject({ updates: [{ id: 42, status: 'successful' }] })
+      allowWrites = true
+      await send('/__awx/write-outcome?drop=true', 'POST')
+      const interrupted = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: {
+        args: ['project', 'edit', '42', '--name', 'Recovered SCM', '--scm-url', 'https://scm.example/repo?token=CANARY-recovered', '--confirm'],
+      } })
+      expect(interrupted.json(), interrupted.body).toMatchObject({ error: { code: 'UNKNOWN_OUTCOME',
+        next: expect.stringContaining('artium-axi awx-axi project list --limit 100') } })
+      expect(interrupted.body).not.toContain('CANARY-')
+      allowWrites = false
+      expect(await run(['project', 'list', '--limit', '100'])).toMatchObject({ projects: [{ id: 42, name: 'Recovered SCM' }] })
+      expect(await run(['project', 'show', '42'])).toMatchObject({ project: { name: 'Recovered SCM', scm_url: '[SCM URL redacted]' } })
+      expect(JSON.parse(await send('/__evidence')).requests).toContainEqual(expect.objectContaining({
+        method: 'PATCH', path: '/api/v2/projects/42/', body: { scm_branch: 'updated', credential: 10 },
+      }))
+      expect(lines.join('\n') + JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
+      expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    } finally { await app.close(); db.close() }
+  })
+}, 60_000)
 
 test('AWX inventory variables remain private on later reads with writes disabled (S4)', async () => {
   await withFakeService(async ({ directory, port, send }) => {
@@ -1035,7 +1112,7 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
         ['inventory', 'host-bulk-create', '--hosts-file', 'synthetic.json'],
         ['credential', 'create', 'Synthetic credential', '--inputs-file', 'synthetic.json'],
         ['user', 'create', 'synthetic-user', '--password-file', 'synthetic.txt'],
-        ['project', 'create', 'Synthetic', '--scm-url', 'https://scm.example/synthetic'],
+        ['project', 'create', 'Synthetic', '--scm-url', '@synthetic.txt'],
         ['inventory', 'create', 'Synthetic', '--variables', '@synthetic.json'],
         ['template', 'create', 'Synthetic', '--extra-vars', '@synthetic.json'],
       ]) {

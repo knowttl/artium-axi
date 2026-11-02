@@ -39,7 +39,7 @@ test.each(inventory.commands.filter(route => route.effect === 'blocked'))('$comm
 })
 
 test.each(inventory.commands.flatMap(route => Object.keys(route.flags)
-  .filter(name => inventory.adapterBoundary.secureInputFlags.includes(name) || name.endsWith('-file'))
+  .filter(name => name.endsWith('-file'))
   .map(flag => ({ command: route.command, flag, required: route.positionals.required }))))('$command --$flag requires secure input', async ({ command, flag, required }) => {
   await expect(adapter(true).prepare([...command.split(' '), ...Array<string>(required).fill('42'), `--${flag}`, 'CANARY-input', '--confirm'], reference))
     .rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
@@ -94,7 +94,6 @@ test.each(inventory.commands.filter(route => route.effect === 'configuration-wri
   expect(help).toContain(`artium-axi awx-axi ${command}`)
   expect(help).toContain('--confirm')
   expect(help).toContain('--dry-run')
-  expect(help).not.toMatch(/--scm-url\b/)
   expect(help).toContain('allowWrites and --confirm')
   expect(help).toContain(`AWX must authorize ${command}`)
 })
@@ -104,6 +103,8 @@ test.each([
   { command: 'template notification-add', requirement: 'started, success, or error' },
   { command: 'workflow notification-add', requirement: 'started, success, error, or approval' },
   { command: 'project notification-add', requirement: 'started, success, or error' },
+  { command: 'project create', requirement: '--scm-url' },
+  { command: 'project edit', requirement: '--scm-url' },
   { command: 'inventory source-notification-add', requirement: 'started, success, or error' },
   ...['schedule create', 'schedule edit'].flatMap(command => [
     { command, requirement: 'ask_inventory_on_launch' }, { command, requirement: 'ask_limit_on_launch' },

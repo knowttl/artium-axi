@@ -8828,6 +8828,11 @@
       },
       "help": "awx-axi project create [<name>] [--scm-type <t>] [--scm-url <u>] [--confirm] [--dry-run]",
       "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
+      "conditionalEffect": "security administration when credential or notification configuration/messages input is supplied",
+      "dependentSlices": [
+        "c",
+        "e"
+      ],
       "flags": [
         {
           "name": "help",
@@ -8890,15 +8895,15 @@
           "description": "SCM URL",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
-          "file": false,
+          "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "scm-branch",
@@ -8918,15 +8923,14 @@
           "name": "credential",
           "description": "SCM credential id or name",
           "takesValue": true,
-          "effect": "configuration write",
+          "effect": "security administration",
           "status": "supported",
-          "targetSlice": "b",
+          "targetSlice": "e",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "stdin": false
         },
         {
           "name": "description",
@@ -8987,6 +8991,11 @@
       },
       "help": "awx-axi project edit <id|name> [--name <n>] [--confirm] [--dry-run]",
       "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
+      "conditionalEffect": "security administration when credential or notification configuration/messages input is supplied",
+      "dependentSlices": [
+        "c",
+        "e"
+      ],
       "flags": [
         {
           "name": "help",
@@ -9049,15 +9058,15 @@
           "description": "SCM URL",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
-          "file": false,
+          "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "scm-branch",
@@ -9077,15 +9086,14 @@
           "name": "credential",
           "description": "SCM credential id or name",
           "takesValue": true,
-          "effect": "configuration write",
+          "effect": "security administration",
           "status": "supported",
-          "targetSlice": "b",
+          "targetSlice": "e",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "stdin": false
         },
         {
           "name": "description",

@@ -5,7 +5,7 @@ const inputFields = {
   variables: 'variables', 'extra-vars': 'extra_vars', 'source-vars': 'source_vars',
   'module-args': 'module_args', args: 'module_args', 'inputs-file': 'inputs', 'password-file': 'password',
   'credential-passwords-file': 'credential_passwords', 'hosts-file': 'hosts',
-  'configuration-file': 'notification_configuration', 'config-file': 'notification_configuration', 'messages-file': 'messages',
+  'configuration-file': 'notification_configuration', 'config-file': 'notification_configuration', 'messages-file': 'messages', 'scm-url': 'scm_url',
 }
 
 // Upstream's public main accepts argv in memory. Load private structured values
@@ -60,7 +60,7 @@ await main({ argv, env: process.env, stdout: output(process.stdout), stderr: out
 
 export function awxPrivateOutput(input: RunnerInput, structured: readonly (readonly [number, string])[], args: readonly string[]) {
   const inline = new Map(structured.map(([index, content]) => [args[index].slice(2).split('=', 1)[0], content]))
-  return privateOutput(Object.entries(inputFields).flatMap(([flag, defaultField]) => {
+  const output = privateOutput(Object.entries(inputFields).flatMap(([flag, defaultField]) => {
     const field = flag === 'extra-vars' && (args[0] === 'schedule' || args[0] === 'workflow' && ['node-create', 'node-edit'].includes(args[1]))
       ? 'extra_data' : defaultField
     let content = inline.get(flag)
@@ -73,4 +73,10 @@ export function awxPrivateOutput(input: RunnerInput, structured: readonly (reado
     }
     return content === undefined ? [] : [{ field, content }]
   }))
+  if (args[0] === 'project') {
+    // Mask stored URLs on reads too, including credentials not supplied by this call.
+    output.fields.scm_url = '[SCM URL redacted]'
+    if (inline.has('scm-url')) delete output.fields.payload
+  }
+  return output
 }

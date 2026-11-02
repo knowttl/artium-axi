@@ -38,7 +38,7 @@ Their JSON entries explicitly record this upstream limitation for slice f.
 `supported` means the reviewed route or flag passes Artium validation, subject to upstream validation, managed account permissions and execution limits.
 It does not claim live acceptance or complete upstream behavior for every value.
 `blocked` includes unsupported routes and inputs; it does not imply that route help is refused.
-Flags listed in the inventory's `secureInputFlags` require the [controlled input channel](client-reference.md#command-surface-and-subcommands); see the [current input boundary](safety.md#write-gates-by-tool) for supported inputs and remaining restrictions.
+Sensitive inputs use the [controlled input channel](client-reference.md#command-surface-and-subcommands); see the [current input boundary](safety.md#write-gates-by-tool) for supported inputs and remaining restrictions.
 `managed equivalent` identifies an Artium-owned workflow rather than permission to execute the upstream command or override.
 `not applicable` identifies a client-local operation with an explicit managed-deployment reason.
 Target slices group delivery work; already supported rows, including those assigned to slice f, mean retain and verify behavior, not postpone existing support.

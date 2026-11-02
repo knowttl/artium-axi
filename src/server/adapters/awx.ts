@@ -12,7 +12,7 @@ import { awxInputBridge, awxPrivateOutput } from './awx-input.js'
 
 export const awxManifest = { ...inventory, ...inventory.adapterBoundary }
 export const awxWritePolicy = writePolicy({ unlocks: 'All AWX writes for this tenant, including configuration, deletion, removals and security administration, support preview and require explicit confirmation and AWX resource permission.',
-  blocked: 'SCM URLs and unsafe overrides remain blocked. File flags upload local bytes privately; structured flags accept inline JSON/YAML or @local-file. Credential inputs-file and password-file accept stdin (-). Server file paths are refused.' })
+  blocked: 'Unsafe overrides remain blocked. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. Use protected local files for sensitive URLs. Credential inputs-file and password-file accept stdin (-). Server file paths are refused.' })
 export const awxProfile = new CredentialProfile(inventory.credentialSchema, 'awx-axi')
 export const awxCredentialSchema = awxProfile.credentialSchema
 
@@ -55,7 +55,7 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   if (flags.has('help')) return { args: [...route.command.split(' '), '--help'], fileArguments: [], structured: [] as [number, string][],
     invocation: { command: route.command, help: true }, effect: 'read' as const, configuration: false, mutation: false }
   for (const [name, value] of flags) {
-    if (awxManifest.secureInputFlags.includes(name) || typeof value === 'string' && value.startsWith('@')) throw new ArtiumError('UNSUPPORTED_INPUT', 'Not yet supported: requires secure input.')
+    if (typeof value === 'string' && value.startsWith('@')) throw new ArtiumError('UNSUPPORTED_INPUT')
     if (name.endsWith('-file') && !(value === '-' && (name === 'password-file' || name === 'inputs-file' && positionals[0] === 'credential')
       && input.stdin !== undefined) && !input.files?.some(file => file.name === value)) throw new ArtiumError('UNSUPPORTED_INPUT')
   }
@@ -130,8 +130,8 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const { structured, ...call } = normalized
       const prefix = ['--input-type=module', '-e', awxInputBridge, toolPaths['awx-axi']]
       const privateInput = structured.length || input?.files?.length || input?.stdin !== undefined
-      // Upstream inventory detail leaves variables as opaque JSON/YAML strings.
-      const privateRead = !call.invocation.help && ['inventory show', 'inventory constructed-show'].includes(call.invocation.command)
+      // Detail reads need private redaction for opaque variables and stored SCM URLs.
+      const privateRead = !call.invocation.help && ['inventory show', 'inventory constructed-show', 'project show'].includes(call.invocation.command)
       const bridge = privateInput || privateRead
       const output = bridge ? awxPrivateOutput(input ?? {}, structured, call.args) : undefined
       if (output) profile.files.push({ name: 'awx-input.json', content: JSON.stringify({ values: structured, output }) })

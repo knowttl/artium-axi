@@ -25,8 +25,7 @@ const writeVerbs = /^(?:(?:host-bulk|host|group|source|node|token|credential)-)?
 const operationalWrites = ['job launch', 'job cancel', 'job relaunch', 'template launch', 'workflow launch',
   'approval approve', 'approval deny', 'project sync', 'inventory sync', 'ad-hoc launch',
   'system-job-template launch', 'system-job cancel', 'notification-template test']
-const secureInputFlags = ['scm-url']
-const structuredInputFlags = ['extra-vars', 'variables', 'source-vars', 'module-args', 'args']
+const structuredInputFlags = ['extra-vars', 'variables', 'source-vars', 'module-args', 'args', 'scm-url']
 const inputFileFlags = ['inputs-file', 'password-file', 'credential-passwords-file', 'hosts-file', 'configuration-file', 'config-file', 'messages-file', ...structuredInputFlags]
 const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
   const read = reads[domain.name]?.split(' ').includes(route.name)
@@ -53,11 +52,11 @@ const data = { generatedBy: 'scripts/awx-inventory.mjs', tool: 'awx-axi', ...pin
   skillSha256: createHash('sha256').update(skill).digest('hex'),
   adapterBoundary: { unsafeOverrides: ['config', 'profile', 'origin', 'verify-ssl', 'allow-http'],
     blockedCommands: ['auth login', 'auth logout', 'setup', 'config', 'profile', 'update'],
-    nativeWrites: 'host-classified', secureInputFlags, structuredInputFlags, inputFileFlags,
+    nativeWrites: 'host-classified', structuredInputFlags, inputFileFlags,
     inputs: { stdin: 'credential inputs-file and password-file only', files: 'TD-066 private uploads; structured flags accept inline values or @local-file' } },
   discovery: { commands: [...DOMAINS.map(domain => domain.name), 'auth status', 'doctor'],
     example: ['job', 'list', '--limit', '1'],
-    help: 'awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. One tenant switch, default off, gates previews and execution; reads and help remain available. AWX permissions still apply. File flags upload local bytes privately; structured flags accept inline JSON/YAML or @local-file. Credential inputs-file and password-file accept stdin (-). SCM URLs, server file paths and unsafe overrides remain blocked. Use job watch --timeout 50 or less.\n' },
+    help: 'awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. One tenant switch, default off, gates previews and execution; reads and help remain available. AWX permissions still apply. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. Use protected local files for sensitive URLs. Credential inputs-file and password-file accept stdin (-). Server file paths and unsafe overrides remain blocked. Use job watch --timeout 50 or less.\n' },
   suggestionFields: ['help'], format: 'TOON', commands }
 const outputs = [['inventories/awx-axi.json', JSON.stringify(data, null, 2) + '\n'], ['skills/awx-axi/SKILL.md', skill]]
 for (const [path, contents] of outputs) {

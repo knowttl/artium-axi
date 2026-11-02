@@ -30,10 +30,10 @@ const sources = sourceFiles.map(path => ({ path: `dist/${path}`, sha256: createH
 const security = (domain, name) => ['user', 'team', 'role', 'credential'].includes(domain)
   || /credential|^(?:user|admin|team)-(?:add|remove)$/.test(name)
   || name === 'copy' && ['project', 'execution-environment', 'notification-template'].includes(domain)
-const conditionalSecurity = new Set(['inventory source-create', 'inventory source-edit', 'execution-environment create', 'execution-environment edit', 'notification-template create', 'notification-template edit'])
+const conditionalSecurity = new Set(['inventory source-create', 'inventory source-edit', 'project create', 'project edit', 'execution-environment create', 'execution-environment edit', 'notification-template create', 'notification-template edit'])
 const sensitiveNames = new Set(['inputs-file', 'password-file', 'credential-passwords-file', 'configuration-file', 'config-file', 'messages-file', 'extra-vars', 'variables', 'source-vars', 'module-args', 'args', 'scm-url'])
 const inputDetails = (command, name) => {
-  const file = name.endsWith('-file') || name === 'extra-vars'
+  const file = name.endsWith('-file') || name === 'extra-vars' || name === 'scm-url'
   const stdin = name === 'password-file' || name === 'inputs-file' && command.startsWith('credential ')
   return {
     secret: sensitiveNames.has(name), file, stdin,
@@ -47,7 +47,7 @@ const flagsFor = (command, specs, effect, slice, status) => specs.map(flag => {
   const securityInput = conditionalSecurity.has(command) && ['credential', 'configuration-file', 'config-file', 'messages-file'].includes(flag.name)
   const flagEffect = securityInput ? 'security administration' : effect
   const authorization = ['auth login', 'auth logout'].includes(command) ? 'write' : authorizationFor(flagEffect)
-  const allowed = routes.get(command)?.flags[flag.name] !== undefined && !inventory.adapterBoundary.secureInputFlags.includes(flag.name)
+  const allowed = routes.get(command)?.flags[flag.name] !== undefined
   const blockedInput = flag.name.endsWith('-file') && !inventory.adapterBoundary.inputFileFlags.includes(flag.name)
   return { ...flag, effect: flagEffect, status: flag.name === 'allow-http' ? 'not applicable' : status === 'supported' && allowed && !blockedInput ? 'supported' : status === 'managed equivalent' ? status : 'blocked',
     targetSlice: input.file || input.secret ? 'c' : securityInput ? 'e' : !allowed && status === 'supported' && effect !== 'configuration write' ? 'f' : slice,
@@ -55,7 +55,7 @@ const flagsFor = (command, specs, effect, slice, status) => specs.map(flag => {
     ...(flagEffect === 'configuration write' && status === 'supported' && allowed && !blockedInput ? { currentAdminControl: configurationControl } : {}),
     ...(flag.name === 'allow-http' ? { reason: 'Managed AWX accounts require HTTPS; no HTTP opt-in equivalent' } : {}),
     ...(status === 'supported' && !allowed ? { reason: 'Omitted from the reviewed Artium flag schema' } : {}),
-    ...(blockedInput || inventory.adapterBoundary.secureInputFlags.includes(flag.name) ? { reason: 'Not yet supported: requires secure input' } : {}) }
+    ...(blockedInput ? { reason: 'Not yet supported: requires secure input' } : {}) }
 })
 const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
   const command = `${domain.name} ${route.name}`
