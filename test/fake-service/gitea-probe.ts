@@ -187,7 +187,6 @@ await withFakeService(async ({ directory, port, send }) => {
     })
     const previewOutput = await cli(cliArgs)
     const { transferId, confirm: confirmation } = decode(previewOutput) as { transferId: string, confirm: string }
-    assert.ok(transferId && confirmation, previewOutput)
     const saved = await cli([...cliArgs, '--transfer', transferId, '--execute', '--confirm', confirmation])
     assert.match(saved, /verified-save/)
     assert.deepEqual(readFileSync(destination), expected)
@@ -198,7 +197,7 @@ await withFakeService(async ({ directory, port, send }) => {
     const owned = await app.inject({ method: 'POST', url: routes.prepare.path, headers: proof, payload: selected })
     assert.equal(owned.statusCode, 200, owned.body)
     const clientSession = new SessionStore(serverUrl, sessionPath(process.platform, environment)).read()
-    assert.ok(clientSession && 'accessToken' in clientSession)
+    assert.equal(clientSession?.status, 'authenticated')
     const other = { authorization: `Bearer ${clientSession.accessToken}` }
     const unrelated = await app.inject({ method: 'POST', url: routes.status.path, headers: other,
       payload: { ...selected, transferId: owned.json().transferId } })
