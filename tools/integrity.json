@@ -3,6 +3,10 @@
     "version": "0.1.1",
     "integrity": "sha512-l/N2AIjQ6F75wQP/JRZ+YZxZMMMAPihPg9SJX7lAEXxze6THZjwhw80e748Uw9sETKiGMI5jzUZ2wkBZyc0GsQ=="
   },
+  "@knowttl/falcon-axi": {
+    "version": "1.0.0-rc.2",
+    "integrity": "sha512-SkSVJ7XhdXtP3jdo6dkRhooN0Hl9RaQDark4YYniUEYRTBuHWlB2sDz38gi9EDQle0BzwwCsEIv/YPv2iiUXJA=="
+  },
   "@knowttl/unifi-axi": {
     "version": "0.1.0",
     "integrity": "sha512-I16b8FozbmDxl+acJAH6My1JWicYCCfmi4wbsz35OQvgfupuZIRh0INmXxoRPddaqFOXYFFCZUF4J/H8xYfg6Q=="

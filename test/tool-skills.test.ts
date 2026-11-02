@@ -6,7 +6,7 @@ import { loadToolSkill } from '../src/server/tool-skills.js'
 import { toolSchema } from '../src/shared/api.js'
 
 test.each(toolSchema.options)('%s overlay preserves tool guidance with managed command examples', tool => {
-  const source = tool === 'gh-axi' ? 'tools/node_modules/gh-axi/skills/gh-axi/SKILL.md' : tool === 'falcon-axi' ? 'test/fixtures/falcon-SKILL.md' : tool === 'awx-axi' ? 'tools/skills/awx-axi/SKILL.md' : tool === 'ado-axi' ? 'tools/node_modules/@knowttl/ado-axi/SKILL.md' : `tools/node_modules/@knowttl/${tool}/skills/${tool}/SKILL.md`
+  const source = tool === 'gh-axi' ? 'tools/node_modules/gh-axi/skills/gh-axi/SKILL.md' : tool === 'awx-axi' ? 'tools/skills/awx-axi/SKILL.md' : tool === 'ado-axi' ? 'tools/node_modules/@knowttl/ado-axi/SKILL.md' : `tools/node_modules/@knowttl/${tool}/skills/${tool}/SKILL.md`
   const skill = loadToolSkill(tool, tool === 'unifi-axi' ? 'tools/node_modules/@knowttl/unifi-axi/dist/SKILL.md'
     : tool === 'proxmox-axi' || tool === 'technitium-axi' ? `tools/node_modules/@knowttl/${tool}/README.md` : tool === 'gitea-axi' ? 'tools/node_modules/@knowttl/gitea-axi/generated/SKILL.md' : source)
   expect(skill).toContain(`name: ${tool}`)
@@ -38,7 +38,7 @@ test.each([
   { tool: 'mg-axi' as const, source: 'tools/node_modules/@knowttl/mg-axi/skills/mg-axi/SKILL.md', examples: ['artium-axi mg-axi security hunting query --file query.kql', 'enabledPacks: ["entra", "security"]', '64 KiB', 'enabledPacks: ["entra", "mail"]', 'mail message list --mailbox', 'The run API accepts the cursor token in stdin with --cursor -', 'the bundled CLI does not capture Graph cursor stdin, so use --cursor <token> there.', 'untrusted data written by outside senders', 'Exchange RBAC for Applications', 'mail.message.tag', 'rule.json', 'at most 20'] },
   { tool: 'vectra-axi' as const, source: 'tools/node_modules/@knowttl/vectra-axi/skills/vectra-axi/SKILL.md', examples: ['artium-axi vectra-axi host list --name <text>', 'artium-axi vectra-axi detection show <id> --full'] },
   { tool: 'ldap-axi' as const, source: 'tools/node_modules/@knowttl/ldap-axi/skills/ldap-axi/SKILL.md', examples: ['artium-axi ldap-axi user groups <identifier-or-dn>', '--fields name,description,display_name'] },
-  { tool: 'falcon-axi' as const, source: 'test/fixtures/falcon-SKILL.md', examples: ['artium-axi falcon-axi search start --query', 'artium-axi falcon-axi search status <id> --wait 30', '1-50 seconds', 'formatTime(', 'Stop search jobs when no longer needed.'] },
+  { tool: 'falcon-axi' as const, source: 'tools/node_modules/@knowttl/falcon-axi/skills/falcon-axi/SKILL.md', examples: ['artium-axi falcon-axi detection list', 'artium-axi falcon-axi search status <id> --wait 30', '1-50 seconds', 'Identity Protection GraphQL permission', 'Existing write choices are retained'] },
 ].flatMap(({ tool, source, examples }) => examples.map(example => ({ tool, source, example }))))('$tool generated skill retains $example', ({ tool, source, example }) => {
   const skill = loadToolSkill(tool, source)
   expect(skill).toContain(example)

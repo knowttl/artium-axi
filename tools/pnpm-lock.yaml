@@ -20,6 +20,9 @@ importers:
       '@knowttl/checkpoint-axi':
         specifier: 0.1.5
         version: 0.1.5
+      '@knowttl/falcon-axi':
+        specifier: 1.0.0-rc.2
+        version: 1.0.0-rc.2
       '@knowttl/gitea-axi':
         specifier: 0.1.1
         version: 0.1.1
@@ -94,6 +97,11 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
+  '@knowttl/falcon-axi@1.0.0-rc.2':
+    resolution: {integrity: sha512-SkSVJ7XhdXtP3jdo6dkRhooN0Hl9RaQDark4YYniUEYRTBuHWlB2sDz38gi9EDQle0BzwwCsEIv/YPv2iiUXJA==}
+    engines: {node: '>=24.11.0 <25'}
+    hasBin: true
+
   '@knowttl/gitea-axi@0.1.1':
     resolution: {integrity: sha512-l/N2AIjQ6F75wQP/JRZ+YZxZMMMAPihPg9SJX7lAEXxze6THZjwhw80e748Uw9sETKiGMI5jzUZ2wkBZyc0GsQ==}
     engines: {node: '>=24.11.0 <25'}
@@ -144,6 +152,9 @@ packages:
 
   '@toon-format/toon@2.3.1':
     resolution: {integrity: sha512-sWqEMeAJGMda9qRrfPKrX3C4c33CO9SJuvJzzrcBEn5sbDB+k6pSLkDsfN0rVnLQwR97MV3sDgVbcxQNsq8xVw==}
+
+  '@toon-format/toon@4.1.1':
+    resolution: {integrity: sha512-SGCkS7IjVpwRmGPgnY8ENKpAf0EdAnZDOQkvFW0d2cgOpdn9FEFl7sTgryESyypXrWr0YajHGpwsAUX4zw9ZvA==}
 
   '@toon-format/toon@4.4.0':
     resolution: {integrity: sha512-A6UcsVoWbNdhdLNhJbe6JpRlocmf/DZGG57fur3bd8oQtsjBaKWo2hHbOU2zTuy+byUmLIOyP1xJeitopCZzpQ==}
@@ -460,6 +471,13 @@ snapshots:
       axi-sdk-js: 0.1.13
       zod: 4.3.6
 
+  '@knowttl/falcon-axi@1.0.0-rc.2':
+    dependencies:
+      '@toon-format/toon': 4.1.1
+      ajv: 8.20.0
+      axi-sdk-js: 0.1.13
+      toml-eslint-parser: 1.0.3
+
   '@knowttl/gitea-axi@0.1.1':
     dependencies:
       '@toon-format/toon': 2.3.1
@@ -519,6 +537,8 @@ snapshots:
   '@kusto/language-service-next@12.4.1': {}
 
   '@toon-format/toon@2.3.1': {}
+
+  '@toon-format/toon@4.1.1': {}
 
   '@toon-format/toon@4.4.0': {}
 

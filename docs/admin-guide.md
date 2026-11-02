@@ -213,7 +213,8 @@ Use the **Write permissions** tab (`?tab=writes`) on a tool page to change write
 Writes default to off; the master **Allow writes** switch is absent on fixed read-only tools, which show the reason instead.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
 For AWX, use **Allow writes** and review the [AWX write boundary](safety.md#write-gates-by-tool) for its scope, preview requirements, legacy settings and operations awaiting support.
-For Falcon, GitHub, Graph, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
+For GitHub, Graph, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
+Falcon's TypeScript admission currently permits passive reads only; existing write selections remain stored without enabling execution.
 For BeyondTrust, the separate **Allow deletes** toggle can be saved while writes are off; see the [delete gates](safety.md#beyondtrust-endpoint-privilege-management) before enabling it.
 Check Point name-only event actions use exact `event.action.<name>` entries added through native settings or the write-access API, based on `event show`; no wildcard is accepted.
 Check Point email/attachment downloads are separately selected and use [host-owned CLI confirmation](client-reference.md#check-point-email-and-attachment-saving), while mutations retain their native gates.
@@ -353,9 +354,7 @@ Device approval and refusal emit `device-approve` and `device-deny` events, with
 For Azure, Graph and Vectra, each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
 LDAP runs report `read` from its inventory's read-only declaration.
-Falcon calls report `read` unless they contain `--execute` or submit `malquery search`.
-Those calls report `write` only with valid native journal records; absent or empty evidence reports `unknown`, even after success.
-MalQuery submissions do not emit the native RTR journal.
+Admitted Falcon calls report `read`; effectful search operations, MalQuery submission and RTR execution are unavailable.
 ADO and AWX use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
 Identifiable raw ADO API mutations also emit an `ado-api` decision record; the [API contract](../src/shared/api.ts) owns its argument fields.
 The decision is `allowed` immediately before runner admission or `refused` on validation, policy or credential refusal.

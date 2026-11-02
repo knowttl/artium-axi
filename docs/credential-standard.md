@@ -165,7 +165,7 @@ macOS and WSL follow the Linux rules.
    That module takes the platform and the ACL function as injectable parameters, as artium-axi's [`SessionStore`](../src/cli/session.ts) does, so tests can run both branches on Linux.
 3. Before a release, at least one real Windows run of `auth status` and of a config write SHOULD happen.
 4. `axi-sdk-js` is third-party (kunchenguid/axi), so the module lives in each tool.
-   falcon-axi needs a Python version of it.
+   The TypeScript falcon-axi runtime uses its own private-file module.
 
 ## 5. Precedence
 
@@ -300,11 +300,11 @@ An opting-in integration MUST additionally verify those behaviors, including own
 
 ### Per-tool host-facing schemas
 
-The Falcon adapter supports the pinned credential profile and a legacy environment credential channel.
+The Falcon adapter uses the pinned TypeScript credential schema and Artium's private profile writer.
+Client ID, client-secret SecretRef, region and optional member CID come from the stored profile.
 The shared profile writer removes host-owned `allowWrites` and `writes` from the upstream profile while preserving `rtr` settings.
-The host sets `FALCON_AXI_READ_ONLY=false` only when write access is enabled and the call's capability is selected: `malquery search` for that command, `rtr run` for other calls.
-Otherwise it sets `FALCON_AXI_READ_ONLY=true`.
-See [Falcon execution setup](runbook.md#falcon-rtr-execution) for capability selection, legacy settings and independent native gates.
+The host sets `FALCON_AXI_READ_ONLY=true` for every call in the passive read admission and refuses effectful commands before retrieving credentials.
+Existing write choices remain stored for the later write integration.
 The [Falcon inventory](../tools/inventories/falcon-axi.json) owns the blocked local configuration commands and credential overrides.
 
 mg-axi keeps the `mode` field.

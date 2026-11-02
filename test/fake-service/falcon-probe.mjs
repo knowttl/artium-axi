@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createConnection } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createFalconAdapter, prepareFalcon, falconManifest } from '../../dist/src/server/adapters/falcon.js'
+import { toolPaths } from '../../dist/src/server/config.js'
 import { Runner } from '../../dist/src/server/runner/runner.js'
 import { loadTrustedCa } from '../../dist/src/server/trusted-ca.js'
 import { createApp } from '../../dist/src/server/app.js'
@@ -32,61 +32,25 @@ try {
   const untrusted = await Runner.create(join(directory, 'untrusted'))
   try {
     const call = await prepareFalcon(['detection', 'list', '--limit', '1'], configuration)
-    const result = await untrusted.run('synthetic-user', call.executable, call.args, call.environment, call.secrets, call.limits)
+    const result = await untrusted.run('synthetic-user', call.executable, call.args, call.environment, call.secrets, call.limits, undefined, call.files)
     assert.notEqual(result.exitCode, 0, 'Pinned Falcon must refuse the untrusted private CA')
   } finally { await untrusted.shutdown() }
-  // Execute the pinned parser, rather than treating source text as behavioral evidence.
-  const parserEvidence = execFileSync('/opt/falcon-axi/bin/python', ['-c', `
-import json
-from falcon_axi.cli import parse
-from falcon_axi.core import CliError
-assert parse(['detection', 'list', '--region=us-1', '--region', 'us-2']).flags['region'] == 'us-2'
-assert parse(['detection', 'list', '--allow-unknown-origin=false']).flags['allow-unknown-origin'] is True
-assert parse(['search', 'start', '--query', 'synthetic | head(5)', '--wait', '1']).flags['wait'] == '1'
-assert parse(['search', 'status', 'synthetic-search', '--wait', '50']).flags['wait'] == '50'
-for args in [
-    ['detection', 'process', 'synthetic-detection', '--full'],
-    ['process', 'show', 'pid:' + 'a' * 32 + ':123', '--full'],
-    ['process', 'tree', 'pid:' + 'a' * 32 + ':123', '--full'],
-    ['sandbox', 'list', '--sha256', 'a' * 64, '--limit', '1'],
-    ['sandbox', 'show', 'synthetic-report'],
-    ['file-change', 'list', '--filter', 'synthetic', '--limit', '1'],
-    ['file-change', 'show', 'synthetic-change'],
-    ['policy', 'show', 'synthetic-policy', '--type', 'device-control'],
-    ['host', 'usb', 'a' * 32, '--since', '24h'],
-    ['malquery', 'show', 'a' * 64],
-    ['malquery', 'quota'],
-    ['malquery', 'search', '--hex', '4d 5a', '--fuzzy', '--limit', '10'],
-    ['malquery', 'status', '00000000-0000-4000-8000-000000000001', '--limit', '10'],
-]:
-    parse(args)
-for wait in ['0', '51', 'forever']:
-    try:
-        parse(['search', 'status', 'synthetic-search', '--wait', wait])
-    except CliError:
-        continue
-    raise AssertionError('Unbounded search wait accepted')
-for args in [['detection', 'list', '--'], ['detection', 'list', '-r', 'us-1'], ['detection', 'list', '--member_cid=synthetic']]:
-    try:
-        parse(args)
-    except CliError:
-        continue
-    raise AssertionError('Unexpected parser alias or delimiter')
-print(json.dumps({'aliases': {}, 'shortFlags': {}, 'repeats': 'last value wins', 'equals': True, 'doubleDash': 'invalid empty flag; not a positional delimiter'}))
-`], { encoding: 'utf8' })
-  const { path, sha256, ...recordedParser } = falconManifest.parser
-  assert.deepEqual(JSON.parse(parserEvidence), recordedParser)
+  const { parse } = await import(new URL('./parser.js', 'file://' + toolPaths['falcon-axi']))
+  assert.equal(parse(['detection', 'list', '--region=us-1', '--region', 'us-2']).flags.get('--region'), 'us-2')
+  assert.equal(parse(['search', 'status', 'synthetic-search', '--wait', '50']).flags.get('--wait'), '50')
+  for (const args of [['detection', 'list', '--allow-unknown-origin=false'], ['detection', 'list', '--'],
+    ['detection', 'list', '-r', 'us-1'], ['detection', 'list', '--member_cid=synthetic'],
+    ['search', 'status', 'synthetic-search', '--wait', '0'], ['search', 'status', 'synthetic-search', '--wait', '51']]) {
+    assert.throws(() => parse(args), undefined, `Pinned parser must reject ${JSON.stringify(args)}`)
+  }
   const run = async (args, settings = configuration) => {
     const prepared = await prepareFalcon(args, settings)
-    assert.deepEqual(Object.keys(prepared.environment).sort(), ['FALCON_AXI_CLIENT_ID', 'FALCON_AXI_CLIENT_SECRET', 'FALCON_AXI_READ_ONLY'])
     assert.equal(prepared.environment.FALCON_AXI_READ_ONLY, 'true')
+    assert.equal(prepared.environment.FALCON_AXI_CLIENT_SECRET, undefined)
     return runner.run('synthetic-user', prepared.executable, prepared.args,
-      prepared.environment, prepared.secrets, prepared.limits)
+      prepared.environment, prepared.secrets, prepared.limits, undefined, prepared.files)
   }
   const evidence = async () => (await fetch('https://api.crowdstrike.com/__evidence')).json()
-  const adapter = createFalconAdapter({ getCredential: async () => ({
-    clientId: 'CANARY-falcon-id', clientSecret: 'CANARY-falcon-secret', region: 'us-1',
-  }) })
   const beforeHelp = (await evidence()).requests.length
   for (const command of ['detection', 'host', 'search']) {
     const help = await run([command, '--help'])
@@ -94,49 +58,6 @@ print(json.dumps({'aliases': {}, 'shortFlags': {}, 'repeats': 'last value wins',
     assert.match(help.stdout, new RegExp(command))
   }
   assert.equal((await evidence()).requests.length, beforeHelp)
-  for (const args of [
-    ['search', 'start', '--query', 'synthetic | head(1)', '--wait', '30'],
-    ['search', 'status', 'synthetic-search', '--wait', '30'],
-    ['search', 'stop', 'synthetic-search'],
-    ['identity', 'activity', 'synthetic@example.test'],
-    ['host', 'usb', 'a'.repeat(32), '--since', '24h'],
-    ['malquery', 'search', '--string', 'SYNTHETIC-PATTERN'],
-    ['malquery', 'search', '--hex', '4d 5a', '--fuzzy'],
-  ]) {
-    const capabilityCalls = args[0] === 'malquery' ? await Promise.all([
-      { allowWrites: true },
-      { writes: { allowWrites: true, operations: ['malquery search'] } },
-    ].map(settings => createFalconAdapter({ getCredential: async () => ({
-      clientId: 'CANARY-falcon-id', clientSecret: 'CANARY-falcon-secret', region: 'us-1', ...settings,
-    }) }).prepare(args, { id: 'synthetic', tool: 'falcon-axi' }))) : []
-    for (const prepared of [await prepareFalcon(args, configuration),
-      await adapter.prepare(args, { id: 'synthetic', tool: 'falcon-axi' }), ...capabilityCalls]) {
-      execFileSync('/opt/falcon-axi/bin/python', ['-c', `
-import json, sys
-from falcon_axi.cli import run
-from falcon_axi.core import CliError
-class RejectedAuthentication:
-    called = False
-    def request_oauth_token(self, args):
-        assert args.client_id == 'CANARY-falcon-id'
-        assert args.client_secret == 'CANARY-falcon-secret'
-        self.called = True
-        raise CliError('AUTH_FAILED', 'Synthetic rejection')
-call = json.load(sys.stdin)
-transport = RejectedAuthentication()
-env = call['environment']
-env['HOME'] = ${JSON.stringify(directory)}
-for file in call.get('files', []):
-    if file['name'] == 'falcon-axi/config.json':
-        env['FALCON_AXI_CONFIG'] = ${JSON.stringify(join(directory, 'config.json'))}
-        with open(env['FALCON_AXI_CONFIG'], 'w') as output:
-            output.write(file['content'])
-stdout, code = run(call['args'], transport=transport, env=env)
-assert transport.called == (call['args'][:2] == ['search', 'status'] or env['FALCON_AXI_READ_ONLY'] == 'false'), stdout
-assert code != 0 and ('AUTH_FAILED' in stdout or 'READ_ONLY_VIOLATION' in stdout), stdout
-`], { input: JSON.stringify(prepared), encoding: 'utf8' })
-    }
-  }
   for (const settings of [configuration, { ...configuration, memberCid: 'synthetic-member' }]) {
     const before = (await evidence()).requests.length
     const first = await run(['detection', 'list', '--limit', '1'], settings)
@@ -163,116 +84,79 @@ assert code != 0 and ('AUTH_FAILED' in stdout or 'READ_ONLY_VIOLATION' in stdout
     ])
   }
   const beforeRedirects = (await evidence()).requests.length
-  const redirected = await run(['detection', 'list'], { ...configuration, region: 'https://redirect.crowdstrike.com' })
-  assert.notEqual(redirected.exitCode, 0)
-  assert.match(redirected.stdout, /ORIGIN_NOT_ALLOWED/)
-  const apiRedirected = await run(['detection', 'list', '--limit', '1'], { ...configuration, region: 'https://api-redirect.crowdstrike.com' })
-  assert.notEqual(apiRedirected.exitCode, 0)
-  assert.match(apiRedirected.stdout, /ORIGIN_NOT_ALLOWED/)
+  for (const [region, code] of [['https://redirect.crowdstrike.com', 'ORIGIN_NOT_ALLOWED'],
+    ['https://api-redirect.crowdstrike.com', 'UPSTREAM_ERROR']]) {
+    const result = await run(['detection', 'list', '--limit', '1'], { ...configuration, region })
+    assert.notEqual(result.exitCode, 0)
+    assert.match(result.stdout, new RegExp(code))
+  }
+  assert.deepEqual((await evidence()).requests.slice(beforeRedirects), [
+    { method: 'POST', host: 'redirect.crowdstrike.com', path: '/oauth2/token', canaryReceived: true },
+    { method: 'POST', host: 'api-redirect.crowdstrike.com', path: '/oauth2/token', canaryReceived: true },
+    { method: 'GET', host: 'api-redirect.crowdstrike.com', path: '/alerts/queries/alerts/v2', canaryReceived: true, offset: '0', limit: '1' },
+  ])
   for (const name of falconManifest.unsafeOverrides) {
     for (const args of [[`--${name}`, 'synthetic'], [`--${name}=synthetic`], ['--', `--${name}=synthetic`]]) {
       await assert.rejects(run(['detection', 'list', ...args], { ...configuration, clientIdFile: '/missing' }), { code: 'FLAG_BLOCKED' })
     }
   }
-  const recorded = await evidence()
-  assert.deepEqual(recorded.requests.slice(beforeRedirects), [
-    { method: 'POST', host: 'redirect.crowdstrike.com', path: '/oauth2/token', canaryReceived: true },
-    { method: 'POST', host: 'api-redirect.crowdstrike.com', path: '/oauth2/token', canaryReceived: true },
-    { method: 'GET', host: 'api-redirect.crowdstrike.com', path: '/alerts/queries/alerts/v2', canaryReceived: true, offset: '0', limit: '1' },
-  ])
-  assert.equal(recorded.mutations, 0)
-  // Exercise the shipped CLI through the authenticated API and audited administrator switch.
+  // Exercise the shipped binary through the authenticated API with the stored tenant identity.
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
-  const db = openStore(join(directory, 'rtr.db'), provider)
+  const db = openStore(join(directory, 'falcon.db'), provider)
+  const seedStore = createCredentialStore(db, provider)
+  await seedToolUser(db)
+  db.exec("UPDATE users SET administrator = 1; UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
+  seedStore.replaceCredential('falcon-axi', { clientId: 'CANARY-falcon-id', clientSecret: 'CANARY-falcon-secret',
+    region: 'us-1', writes: { allowWrites: true, operations: ['rtr run', 'malquery search'] },
+    rtr: { enabled: true, commands: ['ps'] } }, 0, 'synthetic-development-user', Date.now())
+  // Reopening the store migrates encrypted legacy choices into the tenant settings.
   const store = createCredentialStore(db, provider)
-  const rtrAdapter = createFalconAdapter(new EmbeddedSecretSource(store), join(directory, 'rtr-writes.log'))
-  const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [rtrAdapter], credentialStore: store,
+  const adapter = createFalconAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
+  const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [adapter], credentialStore: store,
     resolver: new SharedIdentityResolver(store), environment: {} })
   try {
-    await seedToolUser(db)
-    db.exec("UPDATE users SET administrator = 1; UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
-    store.replaceCredential('falcon-axi', { clientId: 'CANARY-falcon-id', clientSecret: 'CANARY-falcon-secret',
-      region: 'us-1' }, 0, 'synthetic-development-user', Date.now())
     const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: {
       username: 'synthetic-user', password: 'CANARY-local-password' } })
     const headers = { authorization: `Bearer ${login.json().accessToken}` }
-    const run = async args => {
-      const response = await app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run', headers, payload: { args } })
+    const invoke = args => app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run', headers, payload: { args } })
+    for (const args of [[], ['--help'], ['detection', 'list'], ['auth', 'status'], ['scopes'], ['identity', 'list'], ['identity', 'assessment'],
+      ['rtr', 'session', 'list'], ['rtr', 'session', 'show', 'synthetic-rtr-session'], ['rtr', 'audit', 'list']]) {
+      const response = await invoke(args)
       assert.equal(response.statusCode, 200, response.body)
-      return response.json()
+      const result = response.json()
+      assert.equal(result.exitCode, 0, result.stdout + result.stderr)
+      assert.doesNotMatch(response.body, /CANARY-|ARTIUM_SECRET_0/)
+      if (!args.length) assert.match(result.stdout, /bin: artium-axi falcon-axi/)
+      if (args[0] === 'detection') assert.match(result.stdout, /synthetic-detection/)
+      if (args[0] === 'rtr') assert.match(result.stdout, /synthetic-rtr-session/)
+      if (args[0] === 'auth') assert.match(result.stdout, /credential_resolved: true/)
+      if (args[0] === 'identity' && args[1] === 'list') assert.match(result.stdout, /Synthetic identity/)
+      if (args[0] === 'identity' && args[1] === 'assessment') assert.match(result.stdout, /score: 42/)
     }
-    const command = ['rtr', 'run', 'a'.repeat(32), '--command', 'ps']
-    const execute = [...command, '--execute', '--confirm', `${'a'.repeat(32)}:ps`]
+    assert.deepEqual((await evidence()).requests.filter(request => request.path === '/identity-protection/combined/graphql/v1')
+      .map(request => request.document), ['query', 'query'])
+    const beforeDenials = (await evidence()).requests.length
+    for (const command of ['search start', 'search stop', 'host usb', 'identity activity', 'malquery search', 'rtr run']) {
+      const response = await invoke(command.split(' '))
+      assert.equal(response.json().error.code, 'FLAG_BLOCKED', response.body)
+    }
+    assert.equal((await evidence()).requests.length, beforeDenials)
     const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
-    const confirmedHeaders = { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }
-    const configured = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/falcon-axi', headers: confirmedHeaders,
-      payload: { nativeSettings: { rtr: { enabled: true, commands: ['ps'] } }, expectedRevision: 1 } })
-    assert.equal(configured.statusCode, 200, configured.body)
-    const detail = await app.inject({ url: '/v1/admin/tools/falcon-axi', headers: confirmedHeaders })
+    const detail = await app.inject({ url: '/v1/admin/tools/falcon-axi',
+      headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket } })
     assert.equal(detail.statusCode, 200, detail.body)
+    assert.equal(detail.json().writeAccess.capable, false)
     assert.equal(detail.json().writeAccess.enabled, false)
-    assert.deepEqual(detail.json().writeAccess.supportedOperations, ['rtr run', 'malquery search'])
-    assert.deepEqual(detail.json().writeAccess.allowedOperations, [])
-    const start = (await evidence()).requests.length
-    assert.equal((await run(command)).exitCode, 0)
-    assert.match((await run(execute)).stdout, /READ_ONLY_VIOLATION/)
-    assert.equal((await evidence()).requests.length, start)
-    for (const args of [['rtr', 'session', 'list'], ['rtr', 'session', 'show', 'synthetic-rtr-session'], ['rtr', 'audit', 'list']]) {
-      const history = await run(args)
-      assert.equal(history.exitCode, 0, history.stdout)
-      assert.match(history.stdout, /synthetic-rtr-session/)
-    }
-    const switchInput = { enabled: true, operations: ['rtr run'], expectedRevision: detail.json().revision }
-    const unconfirmed = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/falcon-axi/write-access', headers, payload: switchInput })
-    assert.equal(unconfirmed.json().error.code, 'REAUTH_REQUIRED')
-    const on = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/falcon-axi/write-access',
-      headers: confirmedHeaders, payload: switchInput })
-    assert.equal(on.statusCode, 200, on.body)
-    assert.equal(on.json().writeAccess.enabled, true)
-    assert.deepEqual(on.json().nativeSettings.rtr, { enabled: true, commands: ['ps'] })
-    assert.equal(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event = 'tool-write-access' AND tool = 'falcon-axi'").get().count, 1)
-    const beforeRun = (await evidence()).requests.length
-    const forced = await rtrAdapter.prepare(execute, store.findCredential('falcon-axi'))
-    const forcedResult = await runner.run('synthetic-user', forced.executable, forced.args,
-      { ...forced.environment, FALCON_AXI_READ_ONLY: 'true' }, forced.secrets, forced.limits, undefined, forced.files)
-    assert.match(forcedResult.stdout, /READ_ONLY_VIOLATION/)
-    assert.match((await run([...command, '--execute', '--confirm', 'wrong'])).stdout, /VALIDATION_ERROR/)
-    assert.match((await run(['rtr', 'run', 'a'.repeat(32), '--command', 'ls', '--execute', '--confirm', `${'a'.repeat(32)}:ls`])).stdout, /READ_ONLY_VIOLATION/)
-    assert.equal((await evidence()).requests.length, beforeRun)
-    const result = await run(execute)
-    assert.equal(result.exitCode, 0, result.stdout)
-    assert.match(result.stdout, /synthetic process list/)
-    assert.match(result.stdout, /synthetic remaining processes/)
-    assert.match(result.stdout, /complete: true/)
-    assert.match(result.stdout, /truncated: false/)
-    assert.match(result.stdout, /size_unverified: false/)
-    assert.match(result.stdout, /cleanup: deleted/)
-    assert.deepEqual((await evidence()).requests.slice(beforeRun).map(({ method, path }) => ({ method, path })), [
-      { method: 'POST', path: '/oauth2/token' },
-      { method: 'POST', path: '/real-time-response/entities/sessions/v1' },
-      { method: 'POST', path: '/real-time-response/entities/command/v1' },
-      { method: 'GET', path: '/real-time-response/entities/command/v1' },
-      { method: 'GET', path: '/real-time-response/entities/command/v1' },
-      { method: 'GET', path: '/real-time-response/entities/command/v1' },
-      { method: 'DELETE', path: '/real-time-response/entities/sessions/v1' },
-    ])
+    assert.deepEqual(detail.json().writeAccess.allowedOperations, ['rtr run', 'malquery search'])
     const actions = db.prepare("SELECT action FROM audit WHERE event = 'run-terminal' AND tool = 'falcon-axi'").all().map(row => row.action)
-    assert.ok(actions.includes('write') && actions.includes('read'))
-    const journalRoot = join(directory, 'rtr-writes.log.runs')
-    const journals = await Promise.all((await readdir(journalRoot)).map(async name =>
-      readFile(join(journalRoot, name, 'writes.log'), 'utf8').catch(error => {
-        if (error.code === 'ENOENT') return ''
-        throw error
-      })))
-    assert.match(journals.join(''), /"cleanup": "deleted"/)
-    assert.doesNotMatch(journals.join(''), /CANARY-|synthetic process list/)
-    const optOut = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/falcon-axi', headers: confirmedHeaders,
-      payload: { nativeSettings: { allowWrites: true, rtr: { enabled: false } }, expectedRevision: on.json().revision } })
-    assert.equal(optOut.statusCode, 200, optOut.body)
-    assert.match((await run(execute)).stdout, /explicit profile opt-in/)
-    console.log('falcon-rtr: default off, history reads, recent confirmation, audited switch, native confirmation, command narrowing, execute and delete passed')
+    assert.ok(actions.includes('read'))
+    assert.ok(!actions.includes('write'))
   } finally { await app.close(); db.close() }
-  console.log(JSON.stringify({ parser: 'matched', reads: 4, pagination: 'advanced with and without member CID', cursorOriginReplay: 'refused before detection request', tokenRedirect: 'refused', apiRedirect: 'refused', outbound: 'denied', unsafeOverrides: 'refused before secrets', requests: recorded.requests }))
+  const recorded = await evidence()
+  assert.equal(recorded.mutations, 0)
+  console.log(JSON.stringify({ parser: 'TypeScript contract matched', pagination: 'advanced with and without member CID',
+    cursorOriginReplay: 'refused', redirects: 'refused', outbound: 'denied', unsafeOverrides: 'refused before secrets',
+    api: 'authenticated reads and deferred-operation denials', requests: recorded.requests.length }))
 } finally {
   await runner.shutdown()
   await rm(directory, { recursive: true, force: true })

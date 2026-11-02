@@ -10,6 +10,7 @@ import { encryptCredential } from '../store/crypto.js'
 import { EnvironmentKeyProvider } from '../store/key-provider.js'
 import { Runner } from '../runner/runner.js'
 import { FakeCredentialStore } from '../../../test/fixtures/credential-store.js'
+import { toolPaths } from '../config.js'
 
 let directory: string
 const reference = { id: 'synthetic-falcon', tool: 'falcon-axi' as const }
@@ -35,19 +36,21 @@ test('Falcon prepares the persisted shared credential after database reopen', as
     const identity = await new SharedIdentityResolver(store).resolve('synthetic-user', 'falcon-axi')
     const adapter = createFalconAdapter(new EmbeddedSecretSource(store))
     const prepared = await adapter.prepare(['detection', 'list', '--help'], identity)
-    expect(prepared).toEqual({
+    expect(prepared).toMatchObject({
       invocation: { command: 'detection list', help: true },
-      executable: '/opt/falcon-axi/bin/falcon-axi',
-      args: ['detection', 'list', '--help', '--region', 'us-2', '--member-cid', 'synthetic-member'],
-      environment: { FALCON_AXI_CLIENT_ID: credential.clientId, FALCON_AXI_CLIENT_SECRET: credential.clientSecret, FALCON_AXI_READ_ONLY: 'true', FALCON_AXI_WRITE_LOG: '/data/tool-logs/falcon-axi/writes.log' },
-      secrets: [credential.clientId, credential.clientSecret], files: [], effect: 'read', limits: { runtime: 'python', timeoutMs: 65_000, terminationGraceMs: 12_000 },
+      executable: process.execPath,
+      args: [toolPaths['falcon-axi'], 'detection', 'list', '--help'],
+      environment: { ARTIUM_SECRET_0: credential.clientSecret, FALCON_AXI_READ_ONLY: 'true', FALCON_AXI_WRITE_LOG: '/data/tool-logs/falcon-axi/writes.log' },
+      effect: 'read', limits: { timeoutMs: 65_000, terminationGraceMs: 12_000 },
     })
+    expect(JSON.parse(prepared.files[0].content as string).profiles.artium).toEqual({ clientId: credential.clientId,
+      clientSecret: { env: 'ARTIUM_SECRET_0' }, region: 'us-2', memberCid: 'synthetic-member' })
     const runner = await Runner.create(join(directory, 'calls'))
     try {
-      const result = await runner.run('synthetic-user', process.execPath, ['-e', 'console.log(process.env.FALCON_AXI_CLIENT_ID === "CANARY-falcon-id" && process.env.FALCON_AXI_CLIENT_SECRET === "CANARY-falcon-secret")'], prepared.environment, prepared.secrets)
+      const result = await runner.run('synthetic-user', process.execPath, ['-e', 'console.log(process.env.ARTIUM_SECRET_0 === "CANARY-falcon-secret")'], prepared.environment, prepared.secrets)
       expect(result.stdout).toBe('true\n')
       expect(result.exitCode).toBe(0)
-      await expect(runner.run('synthetic-user', process.execPath, ['-e', 'console.log(process.env.FALCON_AXI_CLIENT_SECRET)'], prepared.environment, prepared.secrets))
+      await expect(runner.run('synthetic-user', process.execPath, ['-e', 'console.log(process.env.ARTIUM_SECRET_0)'], prepared.environment, prepared.secrets))
         .rejects.toMatchObject({ code: 'SECRET_IN_OUTPUT' })
     } finally { await runner.shutdown() }
   } finally { reopened.close() }

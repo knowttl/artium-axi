@@ -77,7 +77,7 @@ Write capabilities below require administrator opt-in.
 | --- | --- | --- | --- |
 | BeyondTrust PM Cloud | Endpoint Privilege Management reads, selected writes, deletes and four downloads | Managed credentials; exact operation grants; separate delete toggle | [Credentials](docs/tool-credentials.md#beyondtrust-pm-cloud) |
 | Discovery and sessions | Identity, login, tools, doctor, update and setup | Client/session operations | [Commands](docs/commands.md) |
-| Falcon | Endpoint investigations, guarded RTR and MalQuery | Reads; selected execution/search | [Capabilities](docs/safety.md#write-gates-by-tool) |
+| Falcon | Endpoint investigations and existing search, MalQuery and RTR history | Passive reads | [Capabilities](docs/safety.md#write-gates-by-tool) |
 | Vectra | Hosts, detections and response workflows | Reads; selected writes | [Credentials](docs/tool-credentials.md#vectra) |
 | Azure | Subscriptions, resources and queries | Reads; reviewed writes | [Credentials](docs/tool-credentials.md#azure) |
 | Microsoft Graph | Entra, optional mail and hunting packs | Reads; selected writes | [Capabilities](docs/safety.md#microsoft-graph) |

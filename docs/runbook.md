@@ -517,23 +517,11 @@ These diagnostics leave response error codes unchanged and are separate from aud
 
 ### Falcon RTR execution
 
-Turn on Falcon's audited **Allow writes** switch on the **Write permissions** tab and select `rtr run` with recent identity confirmation, then separately replace settings on the Advanced tab with profile opt-in, for example `{"writes": {"allowWrites": true, "operations": ["rtr run"]}, "rtr": {"enabled": true, "commands": ["ps"]}}`.
-Replacing native settings on the Advanced tab replaces the whole object, so preserve the `writes` selection when saving the profile opt-in.
-Existing `allowWrites: true` settings retain RTR permission only; saving the write switch converts them to the explicit operation selection.
-Select `malquery search` separately on the **Write permissions** tab to enable it; existing RTR grants do not select it.
-See [supported Falcon capabilities](safety.md), [upstream permissions and licensing](tool-credentials.md#falcon) and [audit classification](admin-guide.md#audit-screen-and-api) before enabling it.
-Omit `rtr.commands` to use the standard read-only command allowlist or supply a subset to narrow it; the [API contract](../src/shared/api.ts) owns accepted settings and command names.
-The switch never supplies profile opt-in or execution confirmation for the caller.
-Preview with `artium-axi falcon-axi rtr run <device_id> --command ps`, then execute the same call with `--execute --confirm '<device_id>:ps'`.
-Confirmation must match the device ID and complete command exactly.
-Without the `rtr run` capability enabled, the [native read-only override](credential-standard.md#per-tool-host-facing-schemas) blocks RTR execution, NG-SIEM job start/stop, `host usb` and identity activity; RTR session and audit history reads and local previews remain available.
-Execution deletes its session afterward and records a durable redacted journal; see [retention and export](#retention-and-export).
-RTR reads successive output chunks and reports `complete` and `truncated`; check both before treating the returned output as complete.
-For `cat`, the tool first looks up the file size and reads chunks up to the 64 KiB cap; completion requires the returned byte count to match the size.
-Check `size_unverified` as well: an unverified size cannot establish complete file output.
-Avoid overlapping sessions for the same host and API client, including from other machines.
-After ambiguous session initialization or failed deletion, reconcile sessions in Falcon before retrying; never replay automatically.
-Keep the example deployment's shutdown grace period when adapting it so native session cleanup can complete before container termination.
+The TypeScript Falcon admission currently permits passive reads only.
+RTR session and audit history remain available; RTR preview and execution are unavailable pending the write integration.
+Previously saved write choices and profile opt-in remain stored, including the narrow RTR meaning of legacy `allowWrites: true` settings, without granting execution.
+Keep existing Falcon journals intact for audit reconciliation and [retention and export](#retention-and-export).
+See [supported Falcon capabilities](safety.md) and [upstream permissions and licensing](tool-credentials.md#falcon).
 
 ## Retention and export
 

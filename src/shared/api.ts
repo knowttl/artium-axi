@@ -340,8 +340,7 @@ export const nativeSettingsSchemas = {
 export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Record<string, unknown>): boolean {
   if (!settings || typeof settings !== 'object') return false
   if (tool === 'ldap-axi' || tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'technitium-axi' || tool === 'gitea-axi') return false
-  if (tool === 'falcon-axi') return settings.writes
-    ? (settings.writes as { allowWrites?: unknown }).allowWrites === true : settings.allowWrites === true
+  if (tool === 'falcon-axi') return false
   if (tool === 'gh-axi' || tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi' || tool === 'hybrid-axi' || tool === 'checkpoint-axi' || tool === 'beyondtrust-axi') {
     return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
   }

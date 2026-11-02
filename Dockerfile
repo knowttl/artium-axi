@@ -14,13 +14,7 @@ RUN --network=none /opt/tools/node_modules/.bin/tenable-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/checkpoint-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/beyondtrust-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/hybrid-axi --version
-RUN python3 -m venv /opt/falcon-build && python3 -m venv /opt/falcon-axi
-RUN /opt/falcon-build/bin/pip download --require-hashes --only-binary=:all: --platform any --python-version 3.11 -r /opt/tools/requirements.txt -d /runtime-wheels
-RUN node --input-type=module -e 'import {readFileSync} from "node:fs"; import {execFileSync} from "node:child_process"; const pin=JSON.parse(readFileSync("/opt/tools/falcon-source.json")); for(const args of [["init","/source"],["-C","/source","remote","add","origin",pin.repository],["-C","/source","fetch","--depth=1","origin",pin.commit],["-C","/source","checkout","--detach",pin.commit]]) execFileSync("git",args,{stdio:"inherit"})'
-WORKDIR /source
-RUN mkdir -p /opt/tools/skills/falcon-axi && cp skills/falcon-axi/SKILL.md /opt/tools/skills/falcon-axi/SKILL.md
-RUN --network=none /opt/falcon-axi/bin/pip install --no-index --find-links=/runtime-wheels --require-hashes -r /opt/tools/requirements.txt && /opt/falcon-axi/bin/pip check
-WORKDIR /opt/artium
+RUN --network=none node /opt/tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js --version
 COPY tsconfig.json ./
 COPY src ./src
 COPY skill ./skill
@@ -36,11 +30,10 @@ RUN pnpm exec tsc src/server/main.ts src/server/maintenance.ts src/server/artifa
 
 FROM node:24.21.0-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv ca-certificates && rm -rf /var/lib/apt/lists/* && useradd --create-home --uid 10001 artium && mkdir /data && chown artium:artium /data
-COPY --from=builder /opt/falcon-axi /opt/falcon-axi
 COPY --from=builder /usr/local/bin/gh /usr/local/bin/gh
 COPY --from=builder /opt/tools /opt/tools
 COPY --from=builder /opt/artium /opt/artium
-ENV PATH="/opt/artium/bin:/opt/falcon-axi/bin:/opt/tools/node_modules/.bin:$PATH"
+ENV PATH="/opt/artium/bin:/opt/tools/node_modules/.bin:$PATH"
 WORKDIR /opt/artium
 USER artium
 EXPOSE 8080

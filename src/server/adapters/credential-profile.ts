@@ -143,6 +143,7 @@ export class CredentialProfile {
       }]
     }
     if (tool === 'falcon-axi') {
+      this.inputSchema.required = ['clientId', 'clientSecret', 'region']
       this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow RTR execution' }
       this.inputSchema.properties.writes = { type: 'object', additionalProperties: false, required: ['allowWrites', 'operations'],
         properties: { allowWrites: { type: 'boolean' }, operations: { type: 'array', minItems: 1, maxItems: 2,

@@ -94,16 +94,12 @@ test.each([
   { tool: 'vectra-axi', command: 'match enablement set --value true' },
   { tool: 'vectra-axi', command: 'group member set --id 8 --members-file members.json' },
   { tool: 'vectra-axi', command: 'setting syslog set --config-file export.json' },
-  { tool: 'falcon-axi', command: 'search start --query "synthetic | head(5)" --wait 30' },
   { tool: 'falcon-axi', command: 'search status synthetic-job --wait 30' },
-  { tool: 'falcon-axi', command: 'search stop synthetic-job' },
   { tool: 'falcon-axi', command: 'detection process synthetic-detection --full' },
   { tool: 'falcon-axi', command: 'process tree synthetic-process --full' },
   { tool: 'falcon-axi', command: 'sandbox list --sha256 ' + 'a'.repeat(64) },
   { tool: 'falcon-axi', command: 'file-change list --filter synthetic --limit 1' },
   { tool: 'falcon-axi', command: 'policy show synthetic-policy --type device-control' },
-  { tool: 'falcon-axi', command: 'host usb ' + 'a'.repeat(32) + ' --since 24h' },
-  { tool: 'falcon-axi', command: 'malquery search --hex "4d 5a" --fuzzy --limit 10' },
   { tool: 'falcon-axi', command: 'malquery status 00000000-0000-4000-8000-000000000001 --limit 10' },
 ])('$tool preserves the new command arguments in managed suggestions: $command', ({ tool, command }) => {
   const input = encode({ help: [`Run \`${tool} ${command}\``] })
@@ -116,6 +112,12 @@ test('Falcon discovery hosts every indented executable example', () => {
   expect(output.upstreamHelp).toBe(expected)
   expect(rewriteDiscoveryHelp(output.upstreamHelp, 'falcon-axi')).toBe(expected)
 })
+
+test.each(['search start', 'search stop', 'host usb', 'identity activity', 'malquery search', 'rtr run'])
+  ('Falcon suggestions omit deferred %s', command => {
+    expect(decode(rewriteSuggestions(encode({ help: [`Run ` + '`' + `falcon-axi ${command}` + '`'] }), 'falcon-axi')))
+      .toEqual({ help: [] })
+  })
 
 test('Vectra discovery hosts command and examples while preserving other help fields', () => {
   const output = decode(toolView({ name: 'vectra-axi', status: 'ok', version: vectra.version })) as { upstreamHelp: string }

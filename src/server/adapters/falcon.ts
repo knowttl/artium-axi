@@ -2,122 +2,106 @@ import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import inventory from '../../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import { ArtiumError } from '../../shared/errors.js'
-import { falconRtrSettingsSchema } from '../../shared/api.js'
 import { writePolicy } from './write-policy.js'
 import { toolPaths } from '../config.js'
 import type { SecretSource } from '../store/secret-source.js'
+import type { RunnerInput } from '../runner/input.js'
 import type { Adapter, PreparedCall } from './types.js'
-import { loadCredentialProfile } from './credential-profile.js'
+import { CredentialProfile } from './credential-profile.js'
+import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 export const falconManifest = inventory
-const falconLimits = { runtime: 'python' as const, timeoutMs: inventory.requirements.timeoutMs, terminationGraceMs: 12_000 }
+export const falconProfile = new CredentialProfile(inventory.credentialSchema, 'falcon-axi')
+export const falconCredentialSchema = falconProfile.credentialSchema
+export type FalconCredential = z.infer<typeof falconCredentialSchema>
+const falconLimits = { timeoutMs: inventory.requirements.timeoutMs, terminationGraceMs: 12_000 }
+const defaultWriteLog = '/data/tool-logs/falcon-axi/writes.log'
 const capabilityPolicy = writePolicy({
   supportedOperations: ['rtr run', 'malquery search'],
-  unlocks: 'RTR read-only command execution and MalQuery exact/fuzzy search (MalQuery:write)',
-  blocked: 'Host changes, scripts, hunt and file transfers remain unavailable. Profile RTR opt-in, command restrictions and exact execution confirmation still apply.' })
+  reason: 'This TypeScript Falcon adapter currently admits passive reads only.',
+  unlocks: 'No write actions in this admission.',
+  blocked: 'Search-backed operations, MalQuery submission and RTR execution are unavailable; saved administrator choices are retained.',
+})
 function capabilitySettings(settings: Record<string, unknown>) {
   return { writes: settings?.writes ?? { allowWrites: settings?.allowWrites === true,
     operations: typeof settings?.allowWrites === 'boolean' ? ['rtr run'] : [] } }
 }
 export const falconWritePolicy = {
   read: (settings: Record<string, unknown>) => capabilityPolicy.read(capabilitySettings(settings)),
-  update(settings: Record<string, unknown>, input: Parameters<typeof capabilityPolicy.update>[1]) {
-    const { allowWrites: _, writes: __, ...rest } = settings
-    return { ...rest, ...capabilityPolicy.update(capabilitySettings(settings), input) }
-  },
+  update: capabilityPolicy.update,
 }
 export const falconCredentialFiles = z.object({
-  clientIdFile: z.string().min(1),
-  clientSecretFile: z.string().min(1),
-  region: z.string().min(1),
-  memberCid: z.string().min(1).optional(),
+  clientIdFile: z.string().min(1), clientSecretFile: z.string().min(1),
+  region: z.string().min(1), memberCid: z.string().min(1).optional(),
 }).strict()
 export type FalconCredentialFiles = z.infer<typeof falconCredentialFiles>
 
-export const falconCredentialSchema = z.object({
-  allowWrites: z.boolean().optional(),
-  writes: z.strictObject({ allowWrites: z.boolean(), operations: z.array(z.enum(['rtr run', 'malquery search'])).min(1) }).optional(),
-  rtr: falconRtrSettingsSchema.optional(),
-  clientId: z.string().trim().min(1),
-  clientSecret: z.string().trim().min(1),
-  region: z.string().min(1),
-  memberCid: z.string().min(1).optional(),
-}).strict()
-export type FalconCredential = z.infer<typeof falconCredentialSchema>
-
-function allowsCall(args: readonly string[], credential: Record<string, unknown>) {
-  const access = falconWritePolicy.read(credential)
-  return access.enabled && access.allowedOperations.includes(args[0] === 'malquery' && args[1] === 'search' ? 'malquery search' : 'rtr run')
+function prepareCredential(args: readonly string[], invocation: NonNullable<PreparedCall['invocation']>,
+  credential: unknown, writeLog: string, profile: CredentialProfile): PreparedCall {
+  const prepared = profile.prepare('falcon-axi', credential, writeLog, true)
+  return { executable: process.execPath, args: [toolPaths['falcon-axi'], ...args], invocation,
+    effect: 'read', limits: falconLimits, ...prepared }
 }
 
-function prepareCredential(args: readonly string[], credential: FalconCredential) {
-  const { clientId, clientSecret, region, memberCid } = credential
-  const group = args.slice(0, -1).join(' ')
-  // Group help must end at --help and never resolves connection settings upstream.
-  const groupHelp = args.at(-1) === '--help' && inventory.commands.some(route => route.command.startsWith(group + ' '))
-  const environment: Record<string, string> = credential.rtr
-    ? { ARTIUM_SECRET_0: clientSecret }
-    : { FALCON_AXI_CLIENT_ID: clientId, FALCON_AXI_CLIENT_SECRET: clientSecret }
-  environment.FALCON_AXI_READ_ONLY = String(!allowsCall(args, credential))
+export function createFalconAdapter(source: SecretSource, writeLog = defaultWriteLog,
+  profile = falconProfile): Adapter<unknown> {
   return {
-    executable: toolPaths['falcon-axi'],
-    args: groupHelp ? [...args] : [...args, '--region', region, ...(memberCid ? ['--member-cid', memberCid] : [])],
-    environment,
-    secrets: [clientId, clientSecret],
-    limits: falconLimits,
-  }
-}
-
-export function createFalconAdapter(source: SecretSource, writeLog = '/data/tool-logs/falcon-axi/writes.log',
-  profile = loadCredentialProfile('falcon-axi')): Adapter<unknown> {
-  return {
-    name: 'falcon-axi',
-    executable: toolPaths['falcon-axi'],
-    credentialSchema: profile?.credentialSchema ?? falconCredentialSchema,
-    credentialProfile: profile,
+    name: 'falcon-axi', executable: toolPaths['falcon-axi'],
+    credentialSchema: profile.credentialSchema, credentialProfile: profile,
     timeoutMs: inventory.requirements.timeoutMs,
-    blockedFlags: inventory.unsafeOverrides.map(flag => `--${flag}`),
-    allowedFlagValues: {},
-    sensitiveArguments: () => ({ flags: ['--client-id', '--client-secret'], positions: [] }),
-    validateArgs: validateFalconArgs,
-    async prepare(args, reference) {
-      const invocation = validateFalconArgs(args)
+    blockedFlags: inventory.unsafeOverrides.map(flag => '--' + flag), allowedFlagValues: {},
+    sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => '--' + name),
+      positions: args.map((_, index) => index) }),
+    validateArgs: (args, input) => { validateFalconArgs(args, input) },
+    async prepare(args, reference, input) {
+      const invocation = validateFalconArgs(args, input)
       if (reference.tool !== 'falcon-axi') throw new ArtiumError('CREDENTIAL_INVALID')
-      const value = await source.getCredential(reference)
-      const effect = args[0] === 'malquery' && args[1] === 'search' || args.some(token => token === '--execute' || token.startsWith('--execute=')) ? 'write' : 'read'
-      if (profile) {
-        return { executable: toolPaths['falcon-axi'], args: [...args], invocation, limits: falconLimits, effect,
-          ...profile.prepare('falcon-axi', value, writeLog, !allowsCall(args, value as Record<string, unknown>)) }
-      }
-      const parsed = falconCredentialSchema.safeParse(value)
-      if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
-      const { rtr, region, memberCid } = parsed.data
-      const prepared = prepareCredential(args, parsed.data)
-      return { ...prepared, invocation, effect, environment: { ...prepared.environment, FALCON_AXI_WRITE_LOG: writeLog }, files: rtr ? [{ name: 'falcon-axi/config.json', content: JSON.stringify({
-        version: 1, defaultProfile: 'artium', profiles: { artium: { clientId: parsed.data.clientId,
-          clientSecret: { env: 'ARTIUM_SECRET_0' }, region, memberCid, rtr } },
-      }) }] : [] }
+      return prepareCredential(args, invocation, await source.getCredential(reference), writeLog, profile)
     },
   }
 }
 
-export function validateFalconArgs(args: readonly string[]): NonNullable<PreparedCall['invocation']> {
-  const command = args.slice(0, 2).join(' ')
-  if (inventory.blockedCommands.includes(args[0]) || inventory.blockedCommands.includes(command)) {
-    throw new ArtiumError('FLAG_BLOCKED')
-  }
-  // The pinned parser has no aliases and no double-dash delimiter. Repeats cannot clear a refusal.
-  let help = false
+export function validateFalconArgs(args: readonly string[], input: RunnerInput = {}): NonNullable<PreparedCall['invocation']> {
+  if (input.stdin !== undefined || input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
+  if (inventory.blockedCommands.includes(args[0]) || inventory.blockedCommands.includes(args.slice(0, 2).join(' '))) throw new ArtiumError('FLAG_BLOCKED')
   for (const token of args) {
-    if (token.split('=')[0] === '--help') help = true
-    if (token === '--' || (token.startsWith('--') && inventory.unsafeOverrides.includes(token.slice(2).split('=')[0]))) {
-      throw new ArtiumError('FLAG_BLOCKED')
+    if (token === '--' || token.startsWith('--') && inventory.unsafeOverrides.includes(token.slice(2).split('=')[0])) throw new ArtiumError('FLAG_BLOCKED')
+  }
+  if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) return { command: 'version', help: false }
+  const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
+    .find(entry => entry.command !== 'home' && entry.command.split(' ').every((word, index) => args[index] === word))
+  const group = args.slice(0, -1).join(' ')
+  if (!route && args.at(-1) === '--help' && group && inventory.commands.some(entry => entry.command.startsWith(group + ' '))) {
+    return { command: group, help: true }
+  }
+  const home = !args.length || args[0].startsWith('-')
+  if (!route && !home) throw invalidCommand('falcon-axi', args, inventory.discovery.commands)
+  const selected = route ?? inventory.commands.find(entry => entry.command === 'home')!
+  const flags: Record<string, string | undefined> = selected.flags
+  const values = new Map<string, string>()
+  const positionals: string[] = []
+  const length = selected.command === 'home' ? 0 : selected.command.split(' ').length
+  for (let index = length; index < args.length; index++) {
+    const token = args[index]
+    if (!token.startsWith('-')) { positionals.push(token); continue }
+    const match = /^--([a-z][a-z-]*)(?:=(.*))?$/s.exec(token)
+    if (!match || !Object.hasOwn(flags, match[1])) throw unknownFlag('falcon-axi', selected.command, token,
+      Object.keys(flags).filter(name => !inventory.unsafeOverrides.includes(name)))
+    const [, name, inline] = match
+    if (flags[name] === 'boolean') {
+      if (inline !== undefined) throw new ArtiumError('INVALID_INPUT')
+      values.set(name, 'true')
+    } else {
+      const value = inline ?? args[++index]
+      if (value === undefined || value === '' || value.startsWith('--')) throw new ArtiumError('INVALID_INPUT')
+      values.set(name, value)
     }
   }
-  const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
-    .find(route => route.command.split(' ').every((word, index) => args[index] === word))
-  return { command: args.length === 1 && ['--version', '-v', '-V'].includes(args[0]) ? 'version'
-    : !args.length || args[0].startsWith('-') ? 'home' : route?.command ?? args[0], help }
+  if (!values.has('help')) {
+    const hostname = ['host logins', 'host network'].includes(selected.command) && values.has('hostname')
+    if (positionals.length !== (selected.positional && !hostname ? 1 : 0)) throw new ArtiumError('INVALID_INPUT')
+  }
+  return { command: selected.command, help: values.has('help') }
 }
 
 export async function prepareFalcon(args: readonly string[], configuration: FalconCredentialFiles) {
@@ -129,5 +113,5 @@ export async function prepareFalcon(args: readonly string[], configuration: Falc
     .then(values => values.map(value => value.trim()))
     .catch(() => { throw new ArtiumError('CREDENTIAL_INVALID') })
   if (!clientId || !clientSecret) throw new ArtiumError('CREDENTIAL_INVALID')
-  return { ...prepareCredential(args, { clientId, clientSecret, region, memberCid }), invocation }
+  return prepareCredential(args, invocation, { clientId, clientSecret, region, ...(memberCid ? { memberCid } : {}) }, defaultWriteLog, falconProfile)
 }

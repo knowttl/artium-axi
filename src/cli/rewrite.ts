@@ -391,7 +391,13 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
     else if (commands && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
   }
   if (tool === 'falcon-axi') {
+    const rootPosture = help.includes('\nRTR execution requires')
     help = help.replace(new RegExp(`^  (?:${falcon.blockedCommands.join('|')})(?=\\s|$)[^\\r\\n]*(?:\\r?\\n|$)`, 'gm'), '')
+      .replace(/\nRTR execution requires[\s\S]*$/, '\n')
+      .replace(/ \([^)]*\bexception N[1-4]\)/gi, '')
+      .split('\n').filter(line => !falcon.blockedCommands.some(command => line.includes(`falcon-axi ${command}`))).join('\n')
+    const guidance = 'Artium manages the Falcon profile, region and member CID. Passive reads are available; search submission, cancellation, USB and identity event searches, MalQuery submission and RTR execution are unavailable. Use artium-axi falcon-axi scopes for the admitted read permissions.'
+    if (rootPosture && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
   }
   if (tool === 'gh-axi') {
     const guidance = 'Artium manages the GitHub host and credential. Ask an Artium administrator to reconnect the GitHub credential. Use -R OWNER/NAME for repository commands. Writes require an administrator-enabled exact operation: preview, then repeat the exact request with its --confirm value. api accepts GET and relative paths only.'

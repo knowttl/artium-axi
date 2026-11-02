@@ -28,8 +28,8 @@ try {
   })
   const origin = 'https://localhost'
   const run = args => new Promise((resolve, reject) => {
-    const child = spawn('/opt/falcon-axi/bin/falcon-axi', ['detection', 'list', '--region', origin, ...args], {
-      env: { PATH: process.env.PATH, HOME: directory, REQUESTS_CA_BUNDLE: join(directory, 'ca.crt'),
+    const child = spawn(process.execPath, ['/opt/tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js', 'detection', 'list', '--region', origin, ...args], {
+      env: { PATH: process.env.PATH, HOME: directory, NODE_EXTRA_CA_CERTS: join(directory, 'ca.crt'),
         FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret' },
       timeout: 15_000,
     })
