@@ -23,8 +23,6 @@ const reads = metadata.commands.filter(command => ['read', 'authorization'].incl
 const mutations = metadata.commands.filter(command => command.effect === 'clusterWrite' && !command.compatibilityLimit)
 const safe = (command: Command, flag: Flag) => ['argument', 'presentation', 'stream'].includes(flag.effect)
   || command.path === 'get' && flag.name === 'raw'
-const unsafeOverrides = [...new Set(['config', 'profile', 'native-config', 'trust-exec', 'credential-fd',
-  ...metadata.commands.flatMap(command => command.flags.filter(flag => ['identity', 'secret', 'tls', 'impersonation', 'fileRead', 'localWrite', 'execution'].includes(flag.effect)).map(flag => flag.name))])].sort()
 function route(command: Command, native: boolean) {
   const selected = command.flags.filter(flag => safe(command, flag)
     && (native || !Object.hasOwn(compactFlags, command.path) || compactFlags[command.path].includes(flag.name) || flag.name === 'help'))
@@ -41,6 +39,9 @@ const commands = [route(home, false), ...reads.flatMap(command => [
 const writeCommands = mutations.map(command => ({ command: command.path, effect: 'write',
   flags: Object.fromEntries(command.flags.filter(flag => ['argument', 'presentation', 'stream', 'clusterWrite'].includes(flag.effect))
     .map(flag => [flag.name, flag.type === 'bool' ? 'boolean' : 'value'])) }))
+const unsafeOverrides = [...new Set(['config', 'profile', 'native-config', 'trust-exec', 'credential-fd',
+  ...metadata.commands.flatMap(command => command.flags.filter(flag => ['identity', 'secret', 'tls', 'impersonation', 'fileRead', 'localWrite', 'execution'].includes(flag.effect))
+    .map(flag => flag.name)).filter(name => ![...commands, ...writeCommands].some(route => Object.hasOwn(route.flags, name)))])].sort()
 const workflows = [
   ['prepare', 'prepare -- <mutation>', 'write'], ['preview', 'preview <request-key>', 'read'],
   ['confirm', 'confirm <request-key> --digest <exact-digest>', 'write'], ['server-dry-run', 'server-dry-run -- <mutation>', 'write'],

@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { decode, encode } from '@toon-format/toon'
 import { expect, test } from 'vitest'
 import { createKubernetesAdapter, kubernetesProfile } from './kubernetes.js'
 import { toolAllowsWrites } from '../../shared/api.js'
@@ -121,6 +122,46 @@ test('Kubernetes native resource data with help-shaped fields is preserved byte 
   const output = JSON.stringify({ apiVersion: 'example.test/v1', kind: 'Task', metadata: { name: 'synthetic' },
     command: 'get', flags: ['server'], help: ['Keep this resource field exactly.'] }) + '\n'
   expect(rewriteSuggestions(output, 'kubernetes-axi', false, { command: 'native --', help: false })).toBe(output)
+})
+
+test.each(['prepare', 'server-dry-run'].flatMap(workflow => [
+  ['create', 'rolebinding', 'synthetic', '--clusterrole=view', '--user=synthetic-user'],
+  ['create', 'clusterrolebinding', 'synthetic', '--clusterrole=view', '--user', 'synthetic-user'],
+  ['set', 'subject', 'rolebinding', 'synthetic', '--user=synthetic-user'],
+].map(mutation => [workflow, '--', ...mutation])))('Kubernetes admits RBAC subject users through each mutation workflow (R1): %j', async (...args) => {
+  const writable = await createKubernetesAdapter({ getSettings: () => ({ allowWrites: true }),
+    getCredential: async () => credential }, native, '/synthetic/requests')
+  writable.validateArgs(args)
+  const call = await writable.prepare(args, reference)
+  expect(call.args).toEqual([native, ...args])
+  expect(writable.blockedFlags).not.toContain('--user')
+})
+
+test.each([
+  ['get', 'pods', '--user=synthetic-user'],
+  ['native', '--', 'get', 'pods', '--user=synthetic-user'],
+  ['prepare', '--', 'create', 'rolebinding', 'synthetic', '--clusterrole=view', '--token=CANARY-forbidden'],
+  ['server-dry-run', '--', 'set', 'subject', 'rolebinding', 'synthetic', '--user=synthetic-user', '--context=other'],
+])('Kubernetes still refuses identity overrides by command (R1): %j', async (...args) => {
+  await expect(adapter.prepare(args, reference)).rejects.toBeInstanceOf(ArtiumError)
+})
+
+test.each([
+  { format: 'JSON', serialize: JSON.stringify, parse: JSON.parse },
+  { format: 'TOON', serialize: encode, parse: decode },
+].flatMap(format => [
+  { command: 'prepare -- create rolebinding', suggestion: 'kubernetes-axi preview 11111111-1111-4111-8111-111111111111' },
+  { command: 'preview', suggestion: `kubernetes-axi confirm 11111111-1111-4111-8111-111111111111 --digest ${'a'.repeat(64)}` },
+].map(workflow => ({ ...format, ...workflow }))))('Kubernetes $command suggestions retain managed context in $format (R2)', ({ serialize, parse, command, suggestion }) => {
+  const document = { request: '11111111-1111-4111-8111-111111111111', help: [suggestion],
+    data: { help: ['kubernetes-axi preview resource-owned-value'] } }
+  const output = serialize(document) + '\n'
+  const result = { stdout: output, stderr: output, exitCode: 0, durationMs: 1, timedOut: false,
+    outputBytes: { stdout: output.length, stderr: output.length }, truncated: { stdout: false, stderr: false } }
+  const hosted = hostedStatus('kubernetes-axi', { command, help: false }, result)
+  expect(parse(hosted.stdout)).toEqual({ ...document, help: ['artium-axi ' + suggestion] })
+  expect(parse(hosted.stderr)).toEqual({ ...document, help: ['artium-axi ' + suggestion] })
+  expect(rewriteSuggestions(hosted.stdout, 'kubernetes-axi')).toBe(hosted.stdout)
 })
 
 test.each([

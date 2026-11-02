@@ -26,6 +26,23 @@ export function hostedStatus(tool: string, invocation: PreparedCall['invocation'
       return { ...result, stdout: (json ? JSON.stringify(document) : encode(document)) + '\n' }
     } catch { if (/^\d+\.\d+\.\d+\s*$/.test(result.stdout)) return result; throw new ArtiumError('INVALID_RESPONSE') }
   }
+  if (tool === 'kubernetes-axi' && invocation && !invocation.help && result.exitCode === 0
+    && (invocation.command.startsWith('prepare -- ') || invocation.command === 'preview')) {
+    const rewrite = (output: string, truncated: boolean) => {
+      if (truncated || !output) return output
+      try {
+        const json = output.trimStart().startsWith('{')
+        const document = (json ? JSON.parse(output) : decode(output)) as Record<string, unknown>
+        if (Array.isArray(document.help)) {
+          document.help = document.help.map(value => typeof value === 'string'
+            ? value.replace(/^kubernetes-axi (?=preview |confirm )/, 'artium-axi kubernetes-axi ') : value)
+          return (json ? JSON.stringify : encode)(document) + '\n'
+        }
+      } catch {}
+      return output
+    }
+    return { ...result, stdout: rewrite(result.stdout, result.truncated.stdout), stderr: rewrite(result.stderr, result.truncated.stderr) }
+  }
   if (tool === 'kubernetes-axi' && invocation?.help) {
     const workflow = /^(?:prepare|server-dry-run) -- (.+)$/.exec(invocation.command)
     const route = kubernetes.commands.find(route => route.command === invocation.command)
