@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync, readdirSync, realpathSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 import { join } from 'node:path'
 import { decode } from '@toon-format/toon'
 import { withFakeService } from './fixture.js'
@@ -14,9 +16,11 @@ import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 import { rewriteSuggestions } from '../../src/cli/rewrite.js'
+import { toolPaths } from '../../src/server/config.js'
 
 // The container caller has --network none; all authenticated traffic stays on loopback.
 assert.ok(!readFileSync('/proc/net/route', 'utf8').split('\n').slice(1).some(line => line.split(/\s+/)[1] === '00000000'))
+const nativeCodec = await import(pathToFileURL(createRequire(realpathSync(toolPaths['kubernetes-axi'])).resolve('@toon-format/toon')).href) as { decode: (text: string) => unknown }
 await withFakeService(async ({ directory, port, send }) => {
   const origin = `https://localhost:${port}`
   const pem = readFileSync(join(directory, 'ca.crt'), 'utf8')
@@ -57,7 +61,7 @@ await withFakeService(async ({ directory, port, send }) => {
     const review = await invoke(['auth', 'can-i', 'get', 'pods'])
     assert.equal(review.statusCode, 200, review.body)
     assert.equal(review.json().exitCode, 0, review.body)
-    const authorization = decode(review.json().stdout) as { reviews: Array<{ status: { allowed: boolean } }> }
+    const authorization = nativeCodec.decode(review.json().stdout) as { reviews: Array<{ status: { allowed: boolean } }> }
     assert.deepEqual(authorization.reviews.map(review => review.status.allowed), [true])
     const help = await invoke(['native', '--', 'get', '--help'])
     assert.equal(help.json().exitCode, 0, help.body)

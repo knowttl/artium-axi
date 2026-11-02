@@ -59,6 +59,9 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       value = url.pathname.endsWith('/selfsubjectaccessreviews')
         ? { apiVersion: 'authorization.k8s.io/v1', kind: 'SelfSubjectAccessReview', status: { allowed: true } }
         : { apiVersion: 'authentication.k8s.io/v1', kind: 'SelfSubjectReview', status: { userInfo: { username: 'synthetic-reader', groups: ['synthetic-readers'] } } }
+    } else if (req.method === 'GET' && url.pathname === '/api/v1/namespaces/synthetic/pods/synthetic-pod') {
+      value = { apiVersion: 'v1', kind: 'Pod', metadata: { name: 'synthetic-pod', namespace: 'synthetic' },
+        spec: { containers: [{ name: 'synthetic-container', image: 'synthetic.invalid/image:fake' }] }, status: { phase: 'Running' } }
     } else if (req.method === 'GET' && url.pathname === '/api/v1/namespaces/synthetic/pods/synthetic-pod/log') {
       res.setHeader('content-type', 'text/plain'); res.end('Synthetic pod log\n'); return
     } else if (req.method === 'GET' && /\/(pods|secrets|deployments)$/.test(url.pathname)) {
