@@ -38,7 +38,7 @@ beforeEach(async () => {
     resolver: new SharedIdentityResolver(new FakeCredentialStore([])) })
   headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
   vi.spyOn(toolSkills, 'loadToolSkill').mockImplementation(tool => loadToolSkill(tool,
-    tool === 'falcon-axi' ? 'test/fixtures/falcon-SKILL.md' : `tools/node_modules/@knowttl/${tool}/skills/${tool}/SKILL.md`))
+    `tools/node_modules/@knowttl/${tool}/skills/${tool}/SKILL.md`))
 })
 afterEach(async () => {
   await app.close()
@@ -97,7 +97,7 @@ test('skill downloads require an active signed-in account', async () => {
 test('one unavailable granted skill fails the whole snapshot', async () => {
   vi.mocked(toolSkills.loadToolSkill).mockImplementation(tool => {
     if (tool === 'ldap-axi') throw new ArtiumError('INTERNAL_ERROR')
-    return loadToolSkill(tool, 'test/fixtures/falcon-SKILL.md')
+    return loadToolSkill(tool, 'tools/node_modules/@knowttl/falcon-axi/skills/falcon-axi/SKILL.md')
   })
   const response = await app.inject({ url: '/v1/skills', headers })
   expect(response.statusCode).toBe(500)

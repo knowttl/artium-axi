@@ -140,7 +140,7 @@ A bare `artium-axi vectra-axi` reads bounded live detection context; use `artium
 For GitHub's dashboard limitation and repository selection, see the [supported boundary](safety.md); `artium-axi gh-axi --help` lists the reviewed commands and write gates.
 A bare `artium-axi ldap-axi` shows directory discovery with managed-credential guidance.
 Arguments after a tool name belong to upstream, subject to adapter restrictions on credential, configuration and file paths.
-The ADO, AWX, Azure, Check Point, GitHub, Graph, Hybrid Analysis, LDAP and Tenable adapters distinguish unknown or incomplete commands (`INVALID_INPUT`, with command guidance) from managed policy restrictions (`FLAG_BLOCKED`).
+The ADO, AWX, Azure, Check Point, Falcon, GitHub, Graph, Hybrid Analysis, LDAP and Tenable adapters distinguish unknown or incomplete commands (`INVALID_INPUT`, with command guidance) from managed policy restrictions (`FLAG_BLOCKED`).
 Unknown flags in these adapters return `INVALID_INPUT` with the flag name and hosted help guidance; Azure diagnostics also list valid flags.
 The bundled CLI forwards argument tokens and local Azure files supplied through the reviewed `--file` and `--body-file` flags.
 It captures bounded non-terminal stdin for Azure `rg query` (also `graph query`) and `logs query` (also `monitor log-analytics query`) only with no uploaded file, positional query or explicit query flag (`--graph-query`, `-q`, `--analytics-query`).
@@ -191,7 +191,7 @@ Other Graph commands do not upload local files; help and version requests leave 
 For Graph collection commands, including mail lists, the run API accepts the cursor token in `stdin` with `--cursor -`; the bundled CLI does not capture Graph cursor stdin, so use `--cursor <token>` there.
 See the [Graph capability boundary](safety.md) for supported mail reads and writes, hunting, content limits and administrator opt-in.
 
-See [write-access administration](runbook.md#roles-credentials-and-health) for per-tool switches and native write gates, including [Falcon RTR execution](runbook.md#falcon-rtr-execution).
+See [write-access administration](runbook.md#roles-credentials-and-health) for per-tool switches and native write gates, and the [Falcon capability boundary](safety.md#write-gates-by-tool) for its current read-only admission.
 Artium does not add a universal confirmation flag.
 
 Azure writes whose outcome is unknown are not retried and return `UNKNOWN_OUTCOME` with state-check guidance; reads may still retry.

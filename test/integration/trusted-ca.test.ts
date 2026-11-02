@@ -81,10 +81,8 @@ test.each(toolSchema.options.flatMap(tool => (['server', 'credential'] as const)
       go: process.env.SSL_CERT_FILE ? fs.readFileSync(process.env.SSL_CERT_FILE, 'utf8') : undefined,
       files: JSON.parse(process.env.ARTIUM_TEST_CA_FILES).map(name => fs.readFileSync(name, 'utf8'))
     }))`
-    const python = `import json,os; print(json.dumps({'node': open(os.environ['NODE_EXTRA_CA_CERTS']).read(), 'python': open(os.environ['REQUESTS_CA_BUNDLE']).read(), 'files': []}))`
     try {
-      const result = await runner.run('synthetic-user', tool === 'falcon-axi' ? '/usr/bin/python3' : process.execPath,
-        tool === 'falcon-axi' ? ['-c', python] : ['-e', node],
+      const result = await runner.run('synthetic-user', process.execPath, ['-e', node],
         { ...call.environment, ARTIUM_TEST_CA_FILES: JSON.stringify(call.files.filter(file => file.appendTrustedCa).map(file => file.name)) },
         call.secrets, { ...call.limits, ...(trustSource === 'credential' ? { credentialTrust: [{
           endpoint: 'https://appliance.test/', pem, fingerprint: 'synthetic', leafFingerprint: 'synthetic', mode: tool === 'gh-axi' ? 'ca' as const : 'pin' as const,

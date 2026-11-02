@@ -12,7 +12,7 @@ import azSchema from '../../../test/fixtures/az-credential.schema.json' with { t
 
 const identity = { tenantId: azureTestTenant, clientId: '22222222-2222-4222-8222-222222222222' }
 const cases = [
-  { tool: 'falcon-axi', optedInReadOnly: 'false', credential: { clientId: 'synthetic-client', clientSecret: 'CANARY-secret', region: 'us-2' },
+  { tool: 'falcon-axi', optedInReadOnly: 'true', credential: { clientId: 'synthetic-client', clientSecret: 'CANARY-secret', region: 'us-2' },
     args: ['auth', 'status'], create: (source: SecretSource, profile?: CredentialProfile) => createFalconAdapter(source, '/tmp/writes.log', profile) },
   { tool: 'vectra-axi', optedInReadOnly: 'false', credential: { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test', auth: 'token', token: 'CANARY-token' },
     args: ['health', 'list'], create: (source: SecretSource, profile?: CredentialProfile) => createVectraAdapter(source, '/tmp/writes.log', profile) },

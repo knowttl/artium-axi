@@ -9,7 +9,6 @@ import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { SessionStore } from '../../src/cli/session.js'
-import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { checkAuthSettings } from '../../src/server/auth/settings.js'
 import { certificateDetailsSchema, errorResponseSchema, runSuccessSchema, toolsResponseSchema, inputLimits, loginResponseSchema } from '../../src/shared/api.js'
@@ -20,7 +19,7 @@ import { Runner } from '../../src/server/runner/runner.js'
 import { openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
-import { fakeTool } from '../fake-tool/tool.js'
+import { fakeTool, createRunnerTestAdapter } from '../fake-tool/tool.js'
 import { hashPassword, LocalAuthProvider } from '../../src/server/auth/local.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 
@@ -41,12 +40,12 @@ beforeEach(async () => {
   await seedToolUser(db)
   db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.6.0' WHERE name = 'falcon-axi'")
   const runner = await Runner.create(join(directory, 'calls'))
-  const adapter = createFalconAdapter({ getCredential })
+  const adapter = createRunnerTestAdapter({ getCredential })
   const prepare = adapter.prepare.bind(adapter)
   vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference) => {
     const prepared = await prepare(args, reference)
     return { ...prepared, executable: fakeTool.executable, args: [...fakeTool.args, ...args], limits: { timeoutMs: 5000 },
-      environment: { ...prepared.environment, ARTIUM_TEST_CANARY: prepared.environment.FALCON_AXI_CLIENT_SECRET } }
+      environment: { ...prepared.environment, ARTIUM_TEST_CANARY: prepared.environment.ARTIUM_SECRET_0 } }
   })
   getCredential.mockClear()
   options = { db, runner, audit: new Audit(db), environment, adapters: [adapter],
@@ -551,7 +550,7 @@ test('password endpoint changes only the access-token owner and requires a fresh
 test('real requests list tools without retrieving credentials and preserve the completed upstream envelope', async () => {
   const listing = await fetch(`${url}/v1/tools`, { headers })
   expect(listing.status).toBe(200)
-  expect(toolsResponseSchema.parse(await listing.json())).toEqual({ tools: [{ name: 'falcon-axi', version: '0.9.0', status: 'unconfigured', readOnly: true }] })
+  expect(toolsResponseSchema.parse(await listing.json())).toEqual({ tools: [{ name: 'falcon-axi', version: '1.0.0-rc.2', status: 'unconfigured', readOnly: true }] })
   expect(getCredential).not.toHaveBeenCalled()
   const response = await run({ args: ['upstream', 'vectra-axi', 'error'] })
   expect(response.status).toBe(200)
@@ -874,7 +873,7 @@ test('the real server remains available after startup encounters a damaged nativ
       .toEqual(malformedJournals.map(({ content }) => content))
     const listing = await fetch(`${origin}/v1/tools`, { headers })
     expect(listing.status).toBe(200)
-    expect(toolsResponseSchema.parse(await listing.json()).tools).toContainEqual({ name: 'falcon-axi', version: '0.9.0', status: 'unconfigured', readOnly: true })
+    expect(toolsResponseSchema.parse(await listing.json()).tools).toContainEqual({ name: 'falcon-axi', version: '1.0.0-rc.2', status: 'unconfigured', readOnly: true })
     db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.6' WHERE name = 'az-axi'")
     const azureListing = await fetch(`${origin}/v1/tools`, { headers })
     expect(toolsResponseSchema.parse(await azureListing.json()).tools).toContainEqual({ name: 'az-axi', version: '0.1.17', status: 'unconfigured', readOnly: true })

@@ -438,7 +438,7 @@ Tool lists and health responses report `readOnly`; LDAP remains fixed read-only.
 GitHub writes require exact administrator-selected operations and Artium-owned preview/confirmation; see [GitHub setup](tool-credentials.md#github) for the tiers and interrupted-write recovery.
 Existing explicit write opt-ins are preserved; omitted grants remain off.
 The write-access endpoint rejects changes for LDAP with the fixed read-only reason.
-See [Falcon RTR execution](#falcon-rtr-execution) for its additional profile and confirmation gates.
+See the [Falcon capability boundary](safety.md#write-gates-by-tool) for its current read-only admission.
 
 For credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
 Follow the [credential editor guidance](admin-guide.md#browser-administration) for guided fields and combined certificate PEM uploads.
@@ -517,23 +517,10 @@ These diagnostics leave response error codes unchanged and are separate from aud
 
 ### Falcon RTR execution
 
-Turn on Falcon's audited **Allow writes** switch on the **Write permissions** tab and select `rtr run` with recent identity confirmation, then separately replace settings on the Advanced tab with profile opt-in, for example `{"writes": {"allowWrites": true, "operations": ["rtr run"]}, "rtr": {"enabled": true, "commands": ["ps"]}}`.
-Replacing native settings on the Advanced tab replaces the whole object, so preserve the `writes` selection when saving the profile opt-in.
-Existing `allowWrites: true` settings retain RTR permission only; saving the write switch converts them to the explicit operation selection.
-Select `malquery search` separately on the **Write permissions** tab to enable it; existing RTR grants do not select it.
-See [supported Falcon capabilities](safety.md), [upstream permissions and licensing](tool-credentials.md#falcon) and [audit classification](admin-guide.md#audit-screen-and-api) before enabling it.
-Omit `rtr.commands` to use the standard read-only command allowlist or supply a subset to narrow it; the [API contract](../src/shared/api.ts) owns accepted settings and command names.
-The switch never supplies profile opt-in or execution confirmation for the caller.
-Preview with `artium-axi falcon-axi rtr run <device_id> --command ps`, then execute the same call with `--execute --confirm '<device_id>:ps'`.
-Confirmation must match the device ID and complete command exactly.
-Without the `rtr run` capability enabled, the [native read-only override](credential-standard.md#per-tool-host-facing-schemas) blocks RTR execution, NG-SIEM job start/stop, `host usb` and identity activity; RTR session and audit history reads and local previews remain available.
-Execution deletes its session afterward and records a durable redacted journal; see [retention and export](#retention-and-export).
-RTR reads successive output chunks and reports `complete` and `truncated`; check both before treating the returned output as complete.
-For `cat`, the tool first looks up the file size and reads chunks up to the 64 KiB cap; completion requires the returned byte count to match the size.
-Check `size_unverified` as well: an unverified size cannot establish complete file output.
-Avoid overlapping sessions for the same host and API client, including from other machines.
-After ambiguous session initialization or failed deletion, reconcile sessions in Falcon before retrying; never replay automatically.
-Keep the example deployment's shutdown grace period when adapting it so native session cleanup can complete before container termination.
+See the [Falcon capability boundary](safety.md#write-gates-by-tool) for available reads and deferred operations.
+Previously saved write choices and profile opt-in remain stored, including the narrow RTR meaning of legacy `allowWrites: true` settings, without granting execution.
+Keep existing Falcon journals intact for audit reconciliation and [retention and export](#retention-and-export).
+See [supported Falcon capabilities](safety.md) and [upstream permissions and licensing](tool-credentials.md#falcon).
 
 ## Retention and export
 
@@ -548,11 +535,11 @@ See [Technitium result retrieval](commands.md#technitium-dns) and its [confident
 
 SQLite audit retention runs at startup and daily, deleting events strictly older than the captured 90-day cutoff in batches of at most 500.
 Each batch commits its count and cutoff with the deletion.
-Azure, ordinary Graph runs, Vectra and Falcon use isolated native journals at `<configured write-log path>.runs/run-*/writes.log`.
+Azure, ordinary Graph runs and Vectra use isolated native journals at `<configured write-log path>.runs/run-*/writes.log`.
 At startup and daily, retention removes run directories whose modification time is strictly older than 90 days, after validating any journal present.
 Graph and Vectra keep each run's native intent/outcome entries together; the legacy Vectra journal still retains paired entries with its existing daily cutoff.
 Graph mail downloads instead retain native intent/outcome journals at `<configured write-log path>.<transferId>`; run-journal retention does not prune these files.
-Falcon execution journals persist after calls and expire with their run directory after 90 days.
+Legacy Falcon execution journals expire with their run directory after 90 days; admitted passive reads create no isolated run journals.
 Tenable, Hybrid Analysis and Check Point writes each keep one shared native journal at `<database directory>/tool-logs/<tool>/writes.log` so sequential and concurrent invocations retain native intent replay protection.
 Check Point downloads use host-owned transfer audit evidence with empty native journal fields; the upstream downloader emits no native journal.
 These journals are not pruned by run-journal retention.

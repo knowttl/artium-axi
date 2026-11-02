@@ -544,7 +544,21 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     canaryReceived: /CANARY-/.test(req.headers.authorization ?? ''),
     ...(url.pathname === '/alerts/queries/alerts/v2' ? { offset: url.searchParams.get('offset'), limit: url.searchParams.get('limit') } : {}) }
   requests.push(recorded)
-  if (url.pathname === '/real-time-response/queries/sessions/v1') {
+  if (url.pathname === '/identity-protection/combined/graphql/v1') {
+    let body = ''
+    req.setEncoding('utf8')
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      const { query } = JSON.parse(body)
+      recorded.document = typeof query === 'string' && /^query (?:IdentityAssessment|IdentityList)\b/.test(query) ? 'query' : 'unsupported'
+      if (recorded.document !== 'query') { res.statusCode = 400; res.end(JSON.stringify({ errors: [{ message: 'Synthetic query refused' }] })); return }
+      res.end(JSON.stringify({ data: {
+        securityAssessment: { overallScore: 42, overallScoreLevel: 'MEDIUM', assessmentFactors: [] },
+        entities: { nodes: [{ entityId: 'a'.repeat(32), primaryDisplayName: 'Synthetic identity', type: 'USER',
+          riskScore: 42, riskScoreSeverity: 'MEDIUM' }], pageInfo: { hasNextPage: false, endCursor: null } },
+      } }))
+    })
+  } else if (url.pathname === '/real-time-response/queries/sessions/v1') {
     res.end(JSON.stringify({ resources: ['synthetic-rtr-session'], meta: { pagination: { total: 1, offset: 0 } } }))
   } else if (url.pathname === '/real-time-response/entities/sessions/GET/v1'
     || url.pathname === '/real-time-response-audit/combined/sessions/v1') {

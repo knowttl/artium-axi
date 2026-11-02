@@ -24,7 +24,7 @@ const overlays = {
   'vectra-axi': { sha256: '4c14b7fa56eae1a9bdf24b3fdeefe6d77ba7c470b056bd854fb561eebb511714', sections: ['Safety'] },
   'mg-axi': { sha256: 'efdc55d2c4a7cee3dd46250bc844385c2b6c4ebf0c9e0072147c08599461f885', sections: ['Safety'] },
   'ldap-axi': { sha256: '0fd60163e192fce5bf6222d885e012638047b039af2b1a1df87a4d51057c148b', sections: ['Investigation reads', 'One invocation instead of hand-written loops', 'Keep output bounded'] },
-  'falcon-axi': { sha256: '893c2ad3a474d76734117e4e46a91b19278f1fdeafaf1b69189be4a09da333b1', sections: ['Read-only boundary', 'Orientation', 'Credentials and output', 'Read-only RTR execution'] },
+  'falcon-axi': { sha256: toolManifests['falcon-axi'].skillSha256, sections: [] },
 } as const
 
 export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool]): string {
@@ -103,11 +103,8 @@ export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool
       body = body.replaceAll(' --profile work', '')
       body += '\n\nUse `artium-axi ldap-axi user groups <identifier-or-dn>` for group membership.\nFor AD user details, request `artium-axi ldap-axi user show <identifier-or-dn> --fields name,description,display_name`; --attributes accepts LDAP attribute names such as displayName.\n'
     } else if (tool === 'falcon-axi') {
-      body += '\n\nUse `artium-axi falcon-axi host logins --hostname <name>` or `artium-axi falcon-axi host network --hostname <name>` to resolve a host before reading its history.\n'
-      body = body.split('\n').filter(line => !/^(Secrets belong|Use `--profile|Use `--member-cid)/.test(line)).join('\n')
-        .replaceAll('uvx falcon-axi', 'falcon-axi')
-        .replace('](references/agent-guide.md)', `](https://github.com/knowttl/falcon-axi/blob/v${toolManifests[tool].version}/skills/falcon-axi/references/agent-guide.md)`)
-      body += '\n\nArtium must enable RTR read-only command execution separately from the managed profile rtr.enabled opt-in. History reads remain available while execution is off.\nMalQuery search is a separate administrator capability, off by default, requiring MalQuery:write. Only bounded exact/fuzzy searches are available; hunt and sample downloads remain excluded.\n'
+      frontmatter = frontmatter.replace(/^description:.*$/m, 'description: Read CrowdStrike Falcon through Artium with managed credentials and administrator-selected cloud and member identity.')
+      body = '## Managed Falcon reads\n\nUse `artium-axi falcon-axi detection list --severity high --since 24h` for endpoint alerts and `artium-axi falcon-axi host list --hostname <name>` to find a host.\nUse `artium-axi falcon-axi cve show <CVE-ID>` for one CVE.\nUse `artium-axi falcon-axi host logins --hostname <name>` or `artium-axi falcon-axi host network --hostname <name>` to resolve a host before reading its history.\nArtium supplies the client ID, client-secret SecretRef, cloud region and optional member CID.\nRun `artium-axi falcon-axi auth status` for authentication and `artium-axi falcon-axi scopes` for admitted API permission requirements.\nFalcon requires a write-labelled Identity Protection GraphQL permission for its fixed identity reads.\nUse --limit, --fields and opaque cursors to bound lists; --full retains detail within the native and host output limits.\nFQL uses + for AND, commas for OR and single-quoted values; keep credentials out of queries.\nRead an existing search job with `artium-axi falcon-axi search status <id> --wait 30`; --wait accepts 1-50 seconds and the same repository selection must be retained.\nSearch creation and stopping, host USB searches, identity activity searches, MalQuery submission and RTR execution are unavailable in this admission.\nExisting write choices are retained for the later write integration.\nRTR session and audit history remain passive reads.\nRun each command with --help for selectors and examples.\n'
     }
     const registry = source.match(/<!-- command-registry:start -->\n([\s\S]*?)\n<!-- command-registry:end -->/)
     let commands = ''

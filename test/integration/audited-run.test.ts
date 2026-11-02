@@ -6,7 +6,6 @@ import { join, resolve } from 'node:path'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { MockInstance } from 'vitest'
-import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
 import { createGhAdapter } from '../../src/server/adapters/gh.js'
 import { createAwxAdapter } from '../../src/server/adapters/awx.js'
@@ -27,7 +26,7 @@ import { openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { issueTestAccessToken } from '../fixtures/tokens.js'
-import { fakeTool } from '../fake-tool/tool.js'
+import { fakeTool, createRunnerTestAdapter } from '../fake-tool/tool.js'
 
 vi.mock('node:fs/promises', { spy: true })
 vi.mock('node:child_process', { spy: true })
@@ -42,7 +41,7 @@ let token: string
 let lines: string[]
 const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const getCredential = vi.fn(async () => ({ clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' }))
-const adapter = createFalconAdapter({ getCredential })
+const adapter = createRunnerTestAdapter({ getCredential })
 const resolver = new SharedIdentityResolver(new FakeCredentialStore([
   { reference: { id: 'synthetic-credential', tool: 'falcon-axi' }, value: {} },
 ]))
@@ -627,7 +626,7 @@ test('credential preparation failure completes its start with a safe code', asyn
 })
 
 describe.each([
-  { tool: 'falcon-axi', create: () => createFalconAdapter({ getCredential }) },
+  { tool: 'falcon-axi', create: () => createRunnerTestAdapter({ getCredential }) },
   { tool: 'vectra-axi', create: () => createVectraAdapter({ getCredential: async () => ({
     kind: 'qux', apiVersion: '2.5', auth: 'token', token: 'CANARY-vectra-token', origin: 'https://synthetic.invalid',
   }) }, join(directory, 'vectra-writes.log')) },

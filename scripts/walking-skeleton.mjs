@@ -51,7 +51,7 @@ try {
   createTestCertificates(directory, hosts)
   chmodSync(directory, 0o755)
   chmodSync(join(directory, 'server.key'), 0o644)
-  copyFileSync(join(root, 'test/fake-tool/environment.py'), join(directory, 'fake-axi'))
+  copyFileSync(join(root, 'test/fake-tool/environment.ts'), join(directory, 'fake-axi'))
   chmodSync(join(directory, 'fake-axi'), 0o755)
   console.log(`container-resource: ${JSON.stringify({ network: name })}`)
   docker('network', 'create', '--internal', name)
@@ -65,7 +65,7 @@ try {
     if (mode === 'canary') {
       const output = run('local-env', ['--rm', '--network', 'none', ...mounts,
         '--env', 'FALCON_AXI_CLIENT_ID=CANARY-falcon-id', '--env', 'FALCON_AXI_CLIENT_SECRET=CANARY-falcon-secret',
-        image, 'python3', '/work/test/fake-tool/environment.py', 'env'])
+        image, 'node', '/work/test/fake-tool/environment.ts'])
       assert.equal(JSON.parse(output).FALCON_AXI_CLIENT_SECRET, 'CANARY-falcon-secret')
     }
     const volume = `${name}-${mode}-data`
@@ -77,8 +77,8 @@ try {
       '--env', `ARTIUM_AXI_MASTER_KEY=${masterKey}`,
       image, 'node', '/work/test/walking-skeleton/setup.mjs'])
     run(`${mode}-ownership`, ['--rm', '--user', '0', '--network', 'none', ...data, image, 'chown', '-R', '10001:10001', '/data'])
-    const trust = mode !== 'canary' ? ['--mount', `type=bind,src=${join(directory, 'ca.crt')},dst=/opt/falcon-axi/lib/python3.11/site-packages/certifi/cacert.pem,readonly`] :
-      ['--mount', `type=bind,src=${join(directory, 'fake-axi')},dst=/opt/falcon-axi/bin/falcon-axi,readonly`]
+    const trust = mode !== 'canary' ? ['--env', 'ARTIUM_AXI_EXTRA_CA_FILE=/certs/ca.crt'] :
+      ['--mount', `type=bind,src=${join(directory, 'fake-axi')},dst=/opt/tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js,readonly`]
     run(`${mode}-server`, ['--detach', '--init', '--read-only', '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
       '--network', name, '--network-alias', 'artium-server', ...mounts, ...data, ...trust,
       '--env', `ARTIUM_AXI_MASTER_KEY=${masterKey}`,

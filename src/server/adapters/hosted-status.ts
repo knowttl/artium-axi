@@ -4,6 +4,7 @@ import type { RunnerResult } from '../runner/runner.js'
 import type { PreparedCall } from './types.js'
 import { hostedGhOutput } from './gh-output.js'
 import { rewriteGhSuggestions } from '../../shared/gh-suggestions.js'
+import falcon from '../../../tools/inventories/falcon-axi.json' with { type: 'json' }
 
 // Status metadata describes the hosted credential, never the server's local layout.
 export function hostedStatus(tool: string, invocation: PreparedCall['invocation'], result: RunnerResult): RunnerResult {
@@ -12,12 +13,30 @@ export function hostedStatus(tool: string, invocation: PreparedCall['invocation'
     return { ...output, stdout: rewriteGhSuggestions(output.stdout, invocation, output.truncated.stdout),
       stderr: rewriteGhSuggestions(output.stderr, invocation, output.truncated.stderr) }
   }
-  if (!invocation || invocation.help || !['home', 'auth status'].includes(invocation.command)) return result
+  if (!invocation || invocation.help || !(['home', 'auth status'].includes(invocation.command)
+    || tool === 'falcon-axi' && invocation.command === 'scopes')) return result
   if (result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('INVALID_RESPONSE', 'The hosted status output was truncated.')
   if (result.stdout === '') return result
   try {
     const json = result.stdout.trimStart().startsWith('{')
     const document = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
+    if (tool === 'falcon-axi') {
+      const posture = 'Passive reads only. Fixed Identity Protection queries require the vendor-labelled Identity Protection GraphQL:write scope.'
+      if (invocation.command === 'scopes') {
+        if (!Array.isArray(document.scopes)) throw new Error('Invalid scope matrix')
+        const admitted = new Set(falcon.commands.map(entry => entry.command))
+        document.scopes = document.scopes.flatMap((row: Record<string, unknown>) => {
+          if (typeof row.commands !== 'string') throw new Error('Invalid scope commands')
+          const commands = row.commands.split(', ').filter(command => admitted.has(command))
+          return commands.length ? [{ ...row, commands: commands.join(', ') }] : []
+        })
+        document.posture = posture
+        document.member_cid_token_scope = 'Additional Flight Control permissions may be required for the saved member CID; verify with your tenant administrator.'
+        document.help = ['Grant the listed scopes in the Falcon console under Support and resources > API clients and keys.',
+          'Identity Protection GraphQL:write permits only the fixed read queries exposed here.',
+          'Some read scopes require the corresponding Falcon product licence.']
+      } else if (Object.hasOwn(document, 'scopes')) document.scopes = posture
+    }
     const references = new Map<string, string>()
     const replace = (value: unknown, kind: string) => {
       if (typeof value === 'string' && value.length > kind.length) references.set(value, kind)
