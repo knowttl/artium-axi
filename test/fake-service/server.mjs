@@ -18,6 +18,9 @@ let awxDropWrite = false
 let awxTokenResponse = 'valid'
 let githubDeviceScenario = 'success'
 let githubDevicePolls = 0
+let falconRedirect = 'none'
+let falconDropSearch = false
+let falconHoldRtr = false
 const giteaIssue = { id: 42, number: 42, title: 'Synthetic issue', state: 'open', body: 'Synthetic issue body',
   user: { id: 1, login: 'synthetic-reader' }, token: 'CANARY-upstream-token' }
 let giteaDropWrite = false
@@ -109,6 +112,9 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     return
   }
   if (url.pathname === '/__gitea/drop-write') { giteaDropWrite = true; res.end('{}'); return }
+  if (url.pathname === '/__falcon/redirect') { falconRedirect = url.searchParams.get('mode'); res.end('{}'); return }
+  if (url.pathname === '/__falcon/drop-search') { falconDropSearch = true; res.end('{}'); return }
+  if (url.pathname === '/__falcon/hold-rtr') { falconHoldRtr = url.searchParams.get('enabled') === 'true'; res.end('{}'); return }
   if (/^\/api\/v1\/(?:repos\/example\/project|orgs\/example)\/actions\/(?:secrets|variables)(?:\/[^/]+)?$/.test(url.pathname)) {
     const canaryReceived = req.headers.authorization === 'token CANARY-gitea-token'
     requests.push({ method: req.method, path: url.pathname, canaryReceived })
@@ -712,8 +718,8 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       const values = new URLSearchParams(body)
       requests.push({ method: req.method, host: req.headers.host, path: url.pathname,
         canaryReceived: values.get('client_id') === 'CANARY-falcon-id' && values.get('client_secret') === 'CANARY-falcon-secret' })
-      if (req.headers.host === 'redirect.crowdstrike.com') {
-        res.writeHead(302, { location: 'https://appliance.test/falcon-redirect-destination' })
+      if (falconRedirect === 'token' || req.headers.host === 'redirect.crowdstrike.com') {
+        res.writeHead(302, { location: 'https://localhost/falcon-redirect-destination' })
         res.end()
       } else res.end(JSON.stringify({ access_token: 'CANARY-falcon-token', token_type: 'bearer', expires_in: 3600 }))
     })
@@ -723,7 +729,24 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     canaryReceived: /CANARY-/.test(req.headers.authorization ?? ''),
     ...(url.pathname === '/alerts/queries/alerts/v2' ? { offset: url.searchParams.get('offset'), limit: url.searchParams.get('limit') } : {}) }
   requests.push(recorded)
-  if (url.pathname === '/identity-protection/combined/graphql/v1') {
+  if (/^\/humio\/api\/v1\/repositories\/[^/]+\/queryjobs(?:\/[^/]+)?$/.test(url.pathname)) {
+    req.resume()
+    if (req.method === 'POST') {
+      req.on('end', () => {
+        mutations++
+        if (falconDropSearch) { falconDropSearch = false; req.socket.destroy(); return }
+        res.end(JSON.stringify({ id: 'synthetic-search' }))
+      })
+    } else if (req.method === 'DELETE') { mutations++; res.writeHead(204); res.end() }
+    else res.end(JSON.stringify({ done: true, events: [{ ComputerName: 'synthetic-host' }], metaData: { processedEvents: 1, eventCount: 1 } }))
+  } else if (url.pathname.startsWith('/malquery/')) {
+    req.resume()
+    req.on('end', () => {
+      if (req.method === 'POST') mutations++
+      res.end(JSON.stringify({ meta: { reqid: '11111111-1111-4111-8111-111111111111', status: 'done', download_limit: 100, pagination: { total: 1 } },
+        resources: [{ sha256: 'a'.repeat(64), family: 'synthetic-family', filetype: 'PE', filesize: 123 }] }))
+    })
+  } else if (url.pathname === '/identity-protection/combined/graphql/v1') {
     let body = ''
     req.setEncoding('utf8')
     req.on('data', chunk => { body += chunk })
@@ -751,6 +774,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   } else if (url.pathname === '/real-time-response/entities/command/v1') {
     req.resume()
     if (req.method === 'POST') mutations++
+    if (req.method === 'GET' && falconHoldRtr) { process.send?.('held-request'); return }
     const sequence = Number(url.searchParams.get('sequence_id') ?? 0)
     const output = ['synthetic process list\n', 'synthetic remaining processes'][sequence] ?? ''
     res.end(JSON.stringify({ resources: [req.method === 'POST' ? { cloud_request_id: 'synthetic-rtr-command' }
@@ -758,8 +782,8 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   } else if (url.pathname === '/alerts/queries/alerts/v2') {
     if (url.searchParams.get('filter') === "hostname:'synthetic-malformed'") {
       res.end(JSON.stringify({ resources: { unexpected: 'CANARY-response-value' } }))
-    } else if (req.headers.host === 'api-redirect.crowdstrike.com') {
-      res.writeHead(302, { location: 'https://appliance.test/falcon-api-redirect-destination' })
+    } else if (falconRedirect === 'api' || req.headers.host === 'api-redirect.crowdstrike.com') {
+      res.writeHead(302, { location: 'https://localhost/falcon-api-redirect-destination' })
       res.end()
     } else {
       const offset = Number(url.searchParams.get('offset') ?? 0)

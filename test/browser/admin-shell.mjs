@@ -998,14 +998,15 @@ test('tools show capability and current write state including fixed read-only re
   `)
 })
 
-test('Falcon passive admission explains why RTR and MalQuery execution controls are unavailable', () => {
+test('Falcon offers exact lifecycle and RTR capabilities off by default', () => {
   browser(`
     await page.open(base + '/admin/tools/falcon-axi?tab=writes');
     await page.wait('[data-write-access]');
-    const state = await page.eval(() => document.querySelector('[data-write-access]').innerText);
-    check(state.includes('This TypeScript Falcon adapter currently admits passive reads only.'), 'Passive admission reason missing');
-    check(state.includes('MalQuery submission and RTR execution are unavailable'), 'Execution boundary missing');
-    check(await page.eval(() => !document.querySelector('form[action$="/write-access"]')), 'Passive admission offers a write switch');
+    for (const operation of ['search start', 'search stop', 'host usb', 'identity activity', 'malquery search', 'rtr run']) {
+      check(await page.eval('document.querySelector(' + JSON.stringify('[name=operations][value="' + operation + '"]') + ')?.checked === false'), operation + ' missing or selected by default');
+    }
+    check(await page.eval(() => document.querySelector('[data-write-access] input[role=switch]').checked === false), 'Falcon writes enabled by default');
+    check(await page.eval(() => document.querySelector('[data-write-access]').innerText.includes('exact --execute/--confirm')), 'Native RTR confirmation guidance missing');
   `)
 })
 

@@ -114,9 +114,9 @@ test('Falcon discovery hosts every indented executable example', () => {
 })
 
 test.each(['search start', 'search stop', 'host usb', 'identity activity', 'malquery search', 'rtr run'])
-  ('Falcon suggestions omit deferred %s', command => {
+  ('Falcon suggestions retain admitted native operation %s', command => {
     expect(decode(rewriteSuggestions(encode({ help: [`Run ` + '`' + `falcon-axi ${command}` + '`'] }), 'falcon-axi')))
-      .toEqual({ help: [] })
+      .toEqual({ help: [`Run ` + '`' + `artium-axi falcon-axi ${command}` + '`'] })
   })
 
 test('Vectra discovery hosts command and examples while preserving other help fields', () => {

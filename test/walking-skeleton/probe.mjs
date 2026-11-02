@@ -21,7 +21,7 @@ const execute = async (bin, args, env = {}, input) => {
   const [code] = await once(child, 'close')
   return { stdout, stderr, code }
 }
-const environment = { PATH: `${install}:${process.env.PATH}`, HOME: directory, ARTIUM_AXI_URL: 'http://artium-server:8080',
+const environment = { PATH: `${install}:${process.env.PATH}`, HOME: directory, ARTIUM_AXI_URL: 'http://127.0.0.1:8080',
   XDG_CONFIG_HOME: join(directory, 'config') }
 const toolOutput = result => {
   if (result.code === 0) return result
@@ -49,7 +49,7 @@ const upstreamSuggestions = (text, removeManaged = false) => {
       .replace(/, --(?:region|allow-unknown-origin|member-cid|no-member-cid|config|profile)(?=,|"|$)/g, '') : unwrapped
   }).join('\n')
 }
-// The CLI uses HTTPS to the local test proxy. HTTP is never permitted to the container hostname.
+// Every process shares the isolated service network namespace and uses loopback.
 try {
   const { createServer } = await import('node:https')
   const { readFileSync } = await import('node:fs')
@@ -57,7 +57,7 @@ try {
     const chunks = []
     for await (const chunk of req) chunks.push(chunk)
     try {
-      const upstream = await fetch(`http://artium-server:8080${req.url}`, { method: req.method,
+      const upstream = await fetch(`http://127.0.0.1:8080${req.url}`, { method: req.method,
         headers: { authorization: req.headers.authorization, ...(req.method === 'POST' ? { 'content-type': 'application/json' } : {}) },
         ...(req.method === 'POST' ? { body: Buffer.concat(chunks) } : {}) })
       res.writeHead(upstream.status, Object.fromEntries(upstream.headers))
@@ -142,13 +142,14 @@ try {
       const falconHelp = await cli(['falcon-axi', '--help'])
       assert.equal(falconHelp.code, 0, falconHelp.stdout + falconHelp.stderr)
       assert.match(falconHelp.stdout, /Passive reads are available/)
-      assert.doesNotMatch(falconHelp.stdout, /^  (?:search start|search stop|host usb|identity activity|malquery search|rtr run|profile|config|setup)\b/m)
+      assert.match(falconHelp.stdout, /exact administrator grants, off by default/)
+      assert.doesNotMatch(falconHelp.stdout, /^  (?:profile|config|setup)\b/m)
       const clean = text => text.replace(/^(?:duration_ms|elapsed_ms|durationMs):.*\n/gm, '')
       const { decode } = await import(createRequire('/opt/artium/package.json').resolve('@toon-format/toon'))
       for (const args of [['detection', 'list', '--help'], ['detection', 'list'], ['detection', 'list', '--limit', '1'],
         ['detection', 'list', '--filter', "hostname:'synthetic-empty'"],
         ['detection', 'list', '--filter', "hostname:'synthetic-malformed'"]]) {
-        const local = await execute(process.execPath, ['/opt/tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js', ...args, '--region', 'us-1'], {
+        const local = await execute(process.execPath, ['/opt/tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js', ...args, '--region', 'https://falcon.synthetic.crowdstrike.com'], {
           FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret', NODE_EXTRA_CA_CERTS: '/certs/ca.crt',
         })
         const remote = toolOutput(await cli(['falcon-axi', ...args]))
@@ -164,7 +165,7 @@ try {
           assert.doesNotMatch(remote.stdout + remote.stderr, /CANARY-response-value/)
         }
       }
-      const redaction = await execute(process.execPath, ['/opt/tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js', 'detection', 'list', '--filter', "hostname:'synthetic-redaction'", '--region', 'us-1'], {
+      const redaction = await execute(process.execPath, ['/opt/tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js', 'detection', 'list', '--filter', "hostname:'synthetic-redaction'", '--region', 'https://falcon.synthetic.crowdstrike.com'], {
         FALCON_AXI_CLIENT_ID: 'CANARY-falcon-id', FALCON_AXI_CLIENT_SECRET: 'CANARY-falcon-secret', NODE_EXTRA_CA_CERTS: '/certs/ca.crt',
       })
       assert.equal(redaction.code, 0)
@@ -172,14 +173,14 @@ try {
         rawMintedTokenVisible: redaction.stdout.includes('CANARY-falcon-token') || redaction.stderr.includes('CANARY-falcon-token') }))
       const { createVectraAdapter } = await import('/opt/artium/dist/src/server/adapters/vectra.js')
       const adapter = createVectraAdapter({ getCredential: async () => ({
-        kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.test', auth: 'token', token: 'CANARY-vectra-token',
+        kind: 'qux', apiVersion: '2.5', origin: 'https://localhost', auth: 'token', token: 'CANARY-vectra-token',
         caBundle: readFileSync('/certs/ca.crt', 'utf8'), writes: { allowWrites: true, operations: ['qux.detection.tag.set'] },
       }) }, join(directory, 'writes.log'))
       // The profile's CA is used by the actual binary; the harness reads evidence through HTTPS with its test CA.
       const requests = async () => {
         const { request } = await import('node:https')
         return new Promise((resolve, reject) => {
-          const req = request('https://appliance.test/__evidence', { ca: readFileSync('/certs/ca.crt') }, res => {
+          const req = request('https://localhost/__evidence', { ca: readFileSync('/certs/ca.crt') }, res => {
             let body = ''
             res.on('data', chunk => { body += chunk })
             res.on('end', () => resolve(JSON.parse(body)))

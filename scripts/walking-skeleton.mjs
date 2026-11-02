@@ -15,7 +15,6 @@ console.log(`container-resources: ${JSON.stringify({ prefix: name, scratch: dire
 const containers = []
 const images = []
 const volumes = []
-let network = false
 const masterKey = randomBytes(32).toString('base64')
 const command = (bin, args, timeout = 60_000) => {
   const result = spawnSync(bin, args, { encoding: 'utf8', timeout })
@@ -47,18 +46,14 @@ try {
     console.log(command(process.execPath, ['scripts/build-fake-service-image.mjs', flag, tag], 0))
   }
   console.log(`server image: ${docker('image', 'inspect', image, '--format', '{{.Id}}')}`)
-  const hosts = ['api.crowdstrike.com', 'appliance.test', 'localhost']
+  const hosts = ['falcon.synthetic.crowdstrike.com', 'localhost']
   createTestCertificates(directory, hosts)
   chmodSync(directory, 0o755)
   chmodSync(join(directory, 'server.key'), 0o644)
   copyFileSync(join(root, 'test/fake-tool/environment.ts'), join(directory, 'fake-axi'))
   chmodSync(join(directory, 'fake-axi'), 0o755)
-  console.log(`container-resource: ${JSON.stringify({ network: name })}`)
-  docker('network', 'create', '--internal', name)
-  network = true
-  if (!JSON.parse(docker('network', 'inspect', name))[0].Internal) throw new Error('Fake-only network must be internal')
   const service = `${name}-service`
-  run('service', ['--detach', '--network', name, '--network-alias', 'api.crowdstrike.com', '--network-alias', 'appliance.test', ...mounts,
+  run('service', ['--detach', '--network', 'none', ...mounts,
     cliImage, 'node', '/work/test/fake-service/server.mjs'])
   await ready(service)
   for (const mode of ['distribution', 'pinned', 'canary']) {
@@ -80,16 +75,17 @@ try {
     const trust = mode !== 'canary' ? ['--env', 'ARTIUM_AXI_EXTRA_CA_FILE=/certs/ca.crt'] :
       ['--mount', `type=bind,src=${join(directory, 'fake-axi')},dst=/opt/tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js,readonly`]
     run(`${mode}-server`, ['--detach', '--init', '--read-only', '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
-      '--network', name, '--network-alias', 'artium-server', ...mounts, ...data, ...trust,
+      '--network', `container:${service}`, ...mounts, ...data, ...trust,
       '--env', `ARTIUM_AXI_MASTER_KEY=${masterKey}`,
-      image, 'node', '--import', '/work/test/walking-skeleton/ready.mjs', 'dist/src/server/main.js'])
+      image, 'node', '--import', '/work/dist/test/fake-service/falcon-loopback-guard.js', '--import', '/work/test/walking-skeleton/ready.mjs', 'dist/src/server/main.js'])
     await ready(`${name}-${mode}-server`)
     const clientMounts = mode === 'distribution'
       ? ['--mount', `type=bind,src=${join(root, 'test/walking-skeleton/probe.mjs')},dst=/probe.mjs,readonly`,
         '--mount', `type=bind,src=${directory},dst=/certs,readonly`]
       : [...mounts, '--mount', `type=volume,src=${volume},dst=/test-data,readonly`]
-    console.log(run(`${mode}-client`, ['--rm', '--user', '0', '--network', name, ...clientMounts,
-      mode === 'pinned' ? image : cliImage, 'node', mode === 'distribution' ? '/probe.mjs' : '/work/test/walking-skeleton/probe.mjs', mode]))
+    console.log(run(`${mode}-client`, ['--rm', '--user', '0', '--network', `container:${service}`, ...clientMounts,
+      mode === 'pinned' ? image : cliImage, 'node', ...(mode === 'pinned' ? ['--import', '/work/dist/test/fake-service/falcon-loopback-guard.js'] : []),
+      mode === 'distribution' ? '/probe.mjs' : '/work/test/walking-skeleton/probe.mjs', mode]))
     docker('stop', `${name}-${mode}-server`)
   }
 } catch (error) {
@@ -105,7 +101,6 @@ try {
   }
   for (const container of containers.reverse()) cleanup(['rm', '--force', container])
   for (const volume of volumes) cleanup(['volume', 'rm', volume])
-  if (network) cleanup(['network', 'rm', name])
   for (const tag of images) cleanup(['image', 'rm', tag])
   rmSync(directory, { recursive: true, force: true })
 }

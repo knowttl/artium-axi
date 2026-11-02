@@ -204,7 +204,7 @@ Other Graph commands do not upload local files; help and version requests leave 
 For Graph collection commands, including mail lists, the run API accepts the cursor token in `stdin` with `--cursor -`; the bundled CLI does not capture Graph cursor stdin, so use `--cursor <token>` there.
 See the [Graph capability boundary](safety.md) for supported mail reads and writes, hunting, content limits and administrator opt-in.
 
-See [write-access administration](runbook.md#roles-credentials-and-health) for per-tool switches and native write gates, and the [Falcon capability boundary](safety.md#write-gates-by-tool) for its current read-only admission.
+See [write-access administration](runbook.md#roles-credentials-and-health) for per-tool switches and native write gates, and the [Falcon capability boundary](safety.md#write-gates-by-tool) for exact lifecycle grants and restricted RTR execution.
 Artium does not add a universal confirmation flag.
 
 Azure writes whose outcome is unknown are not retried and return `UNKNOWN_OUTCOME` with state-check guidance; reads may still retry.

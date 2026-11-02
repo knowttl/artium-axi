@@ -8,7 +8,7 @@ import { createTestCertificates } from '../test/fake-service/certificates.mjs'
 const root = fileURLToPath(new URL('../', import.meta.url))
 const falcon = process.argv.includes('--falcon')
 const image = process.env.ARTIUM_TEST_IMAGE ?? (falcon ? 'artium-axi:local' : 'artium-test-node24')
-const hosts = falcon ? ['api.crowdstrike.com', 'api.us-2.crowdstrike.com', 'redirect.crowdstrike.com', 'api-redirect.crowdstrike.com', 'appliance.test'] : ['management.azure.com', 'api.loganalytics.io', 'graph.microsoft.com', 'login.microsoftonline.com',
+const hosts = ['management.azure.com', 'api.loganalytics.io', 'graph.microsoft.com', 'login.microsoftonline.com',
   'synthetic.blob.core.windows.net', 'synthetic.vault.azure.net', 'synthetic.azurecr.io', 'appliance.test']
 const name = `artium-test-${randomUUID()}`
 const containers = []
@@ -26,7 +26,6 @@ const start = (suffix, network, aliases = []) => {
   containers.push(container)
   console.log(`container-resource: ${JSON.stringify({ container })}`)
   docker('run', '--detach', '--pull', 'never', '--name', container, '--network', network,
-    ...(falcon ? ['--user', '0'] : []),
     ...aliases.flatMap(host => ['--network-alias', host]),
     '--mount', `type=bind,src=${root},dst=/work,readonly`,
     '--mount', `type=bind,src=${certs},dst=/certs,readonly`,
@@ -52,26 +51,36 @@ try {
   console.log(`container-resource: ${JSON.stringify({ container: versionContainer })}`)
   const version = docker('run', '--rm', '--pull', 'never', '--network', 'none', '--name', versionContainer, image, 'node', '--version')
   if (Number(version.slice(1).split('.')[0]) < 24) throw new Error('Harness image requires Node 24 or later')
-  createTestCertificates(certs, hosts)
-  for (const suffix of ['inside', 'outside']) {
-    const network = `${name}-${suffix}`
-    networks.push(network)
-    console.log(`container-resource: ${JSON.stringify({ network })}`)
-    docker('network', 'create', '--internal', network)
-    if (!JSON.parse(docker('network', 'inspect', network))[0].Internal) throw new Error('Network is not internal')
+  if (falcon) {
+    const client = `${name}-client`
+    containers.push(client)
+    console.log(`container-resource: ${JSON.stringify({ container: client })}`)
+    console.log(docker('run', '--rm', '--pull', 'never', '--name', client, '--network', 'none', '--read-only',
+      '--sysctl', 'net.ipv4.ip_unprivileged_port_start=0',
+      '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
+      '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/test/fake-service/falcon-probe.mjs'))
+  } else {
+    createTestCertificates(certs, hosts)
+    for (const suffix of ['inside', 'outside']) {
+      const network = `${name}-${suffix}`
+      networks.push(network)
+      console.log(`container-resource: ${JSON.stringify({ network })}`)
+      docker('network', 'create', '--internal', network)
+      if (!JSON.parse(docker('network', 'inspect', network))[0].Internal) throw new Error('Network is not internal')
+    }
+    const service = start('service', networks[0], hosts)
+    const outside = start('outside', networks[1])
+    await Promise.all([ready(service), ready(outside)])
+    const outsideIp = Object.values(JSON.parse(docker('inspect', outside))[0].NetworkSettings.Networks)[0].IPAddress
+    const client = `${name}-client`
+    containers.push(client)
+    console.log(`container-resource: ${JSON.stringify({ container: client })}`)
+    console.log(docker('run', '--rm', '--pull', 'never', '--name', client, '--network', networks[0],
+      '--mount', `type=bind,src=${root},dst=/work,readonly`, '--mount', `type=bind,src=${join(certs, 'ca.crt')},dst=/test-ca.crt,readonly`,
+      '--env', 'NODE_EXTRA_CA_CERTS=/test-ca.crt', '--env', 'AZ_AXI_ARM_TOKEN=CANARY-synthetic',
+      '--env', `ARTIUM_TEST_HOSTS=${JSON.stringify(hosts)}`, '--env', `ARTIUM_TEST_OUTSIDE_IP=${outsideIp}`,
+      image, 'node', '/work/test/fake-service/probe.mjs'))
   }
-  const service = start('service', networks[0], hosts)
-  const outside = start('outside', networks[1])
-  await Promise.all([ready(service), ready(outside)])
-  const outsideIp = Object.values(JSON.parse(docker('inspect', outside))[0].NetworkSettings.Networks)[0].IPAddress
-  const client = `${name}-client`
-  containers.push(client)
-  console.log(`container-resource: ${JSON.stringify({ container: client })}`)
-  console.log(docker('run', '--rm', '--pull', 'never', '--name', client, '--network', networks[0],
-    '--mount', `type=bind,src=${root},dst=/work,readonly`, '--mount', `type=bind,src=${join(certs, 'ca.crt')},dst=/test-ca.crt,readonly`,
-    '--env', 'NODE_EXTRA_CA_CERTS=/test-ca.crt', '--env', 'AZ_AXI_ARM_TOKEN=CANARY-synthetic',
-    '--env', `ARTIUM_TEST_HOSTS=${JSON.stringify(hosts)}`, '--env', `ARTIUM_TEST_OUTSIDE_IP=${outsideIp}`,
-    image, 'node', falcon ? '/work/test/fake-service/falcon-probe.mjs' : '/work/test/fake-service/probe.mjs'))
 } catch (error) {
   console.error(`fake-services: unverified: ${error.message}`)
   process.exitCode = 1

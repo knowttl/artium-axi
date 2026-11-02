@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { giteaWriteOperations, giteaTransferOperations, giteaTransferBytes } from './gitea-writes.js'
 import { errors } from './errors.js'
 import ghInventory from '../../tools/inventories/gh-axi.json' with { type: 'json' }
+import falconInventory from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
 
 export const inputLimits = {
   requestBytes: 16 * 1024 * 1024,
@@ -315,6 +316,7 @@ export const falconRtrSettingsSchema = z.strictObject({ enabled: z.boolean(),
   commands: z.array(z.enum(['cat', 'cd', 'csrutil', 'env', 'eventlog', 'filehash', 'getsid',
     'ifconfig', 'ipconfig', 'ls', 'mount', 'netstat', 'ps', 'reg query', 'users'])).optional() })
 export const ghWriteOperations = ghInventory.commands.filter(route => route.effect === 'write').map(route => route.command)
+export const falconWriteOperations = falconInventory.commands.filter(route => route.effect === 'write').map(route => route.command)
 export const nativeSettingsSchemas = {
   'ssh-axi': z.strictObject({}),
   'gitea-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
@@ -341,7 +343,7 @@ export const nativeSettingsSchemas = {
     preview: z.boolean().optional(), writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().min(1).max(256)).min(1).max(64) }).optional() }),
   'falcon-axi': z.strictObject({ allowWrites: z.boolean().optional(), rtr: falconRtrSettingsSchema.optional(),
-    writes: z.strictObject({ allowWrites: z.boolean(), operations: z.array(z.enum(['rtr run', 'malquery search'])).min(1).max(2) }).optional() }),
+    writes: z.strictObject({ allowWrites: z.boolean(), operations: z.array(z.enum(falconWriteOperations)).min(1).max(falconWriteOperations.length) }).optional() }),
   'vectra-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().min(1).refine(value => value.trim().length > 0)).min(1) }).optional() }),
   'az-axi': z.strictObject({ subscriptions: z.array(z.string().min(1)).optional(),
@@ -358,7 +360,8 @@ export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Rec
   if (tool === 'gitea-axi') return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
   if (tool === 'ssh-axi') return false
   if (tool === 'ldap-axi' || tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'technitium-axi' || tool === 'kubernetes-axi') return false
-  if (tool === 'falcon-axi') return false
+  if (tool === 'falcon-axi') return settings.writes === undefined ? settings.allowWrites === true
+    : (settings.writes as { allowWrites?: unknown }).allowWrites === true
   if (tool === 'gh-axi' || tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi' || tool === 'hybrid-axi' || tool === 'checkpoint-axi' || tool === 'beyondtrust-axi') {
     return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
   }

@@ -215,7 +215,7 @@ Writes default to off; the master **Allow writes** switch is absent on fixed rea
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
 For AWX, use **Allow writes** and review the [AWX write boundary](safety.md#write-gates-by-tool) for its scope, preview requirements, legacy settings and operations awaiting support.
 For Gitea, GitHub, Graph, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
-See the [Falcon capability boundary](safety.md#write-gates-by-tool) for its fixed read-only policy and retained write selections.
+See the [Falcon capability boundary](safety.md#write-gates-by-tool) for exact lifecycle grants and the independent RTR profile opt-in and command restriction.
 For BeyondTrust, the separate **Allow deletes** toggle can be saved while writes are off; see the [delete gates](safety.md#beyondtrust-endpoint-privilege-management) before enabling it.
 Check Point name-only event actions use exact `event.action.<name>` entries added through native settings or the write-access API, based on `event show`; no wildcard is accepted.
 Check Point email/attachment downloads are separately selected and use [host-owned CLI confirmation](client-reference.md#check-point-email-and-attachment-saving), while mutations retain their native gates.
@@ -356,7 +356,8 @@ Device approval and refusal emit `device-approve` and `device-deny` events, with
 For Azure, Graph and Vectra, each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
 This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
 LDAP runs report `read` from its inventory's read-only declaration.
-Admitted Falcon calls report `read`.
+Falcon passive calls and RTR previews report `read`; native RTR journal activity reports `write` and missing or incomplete evidence remains `unknown`.
+Search and MalQuery submissions do not emit RTR journals, so their classified mutation audit remains `unknown` without that evidence, even when a job/request ID is returned.
 ADO, AWX and Gitea use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
 Gitea previews and reconciliation calls are classified as reads; see its [native write boundary](safety.md#gitea-reads).
 Identifiable raw ADO API mutations also emit an `ado-api` decision record; the [API contract](../src/shared/api.ts) owns its argument fields.

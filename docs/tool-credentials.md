@@ -179,7 +179,10 @@ For example, account reads need `Assets:read`, while CVE reads need `Vulnerabili
 Identity Protection directory/timeline queries require `Identity Protection GraphQL:write` plus the documented read scopes, even though those queries read data.
 These are optional domain requirements and do not justify granting other write or response scopes.
 The pinned tool does not change hosts, detections, policies or identities and exposes no arbitrary REST or GraphQL requests.
-See the [Falcon capability boundary](safety.md#write-gates-by-tool) for admitted reads and deferred operations.
+See the [Falcon capability boundary](safety.md#write-gates-by-tool) for admitted reads, exact write grants and native execution gates.
+Search creation/stopping and search-backed commands require `NGSIEM:write`; MalQuery submissions require `MalQuery:write`.
+RTR additionally needs native profile `rtr.enabled: true`, an optional narrower `rtr.commands` subset and the published `Real time response:read` permission.
+Set this opt-in in managed native settings, preserving the existing writes selection when replacing its JSON.
 MalQuery metadata, quota and request-status reads require `MalQuery:read`.
 Falcon's `auth status` test authenticates the saved client against its selected cloud.
 Also run `artium-axi falcon-axi detection list --limit 1` after enabling and granting the tool to verify access to the intended data.

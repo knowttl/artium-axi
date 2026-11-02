@@ -13,14 +13,15 @@ const native = JSON.parse(read('artium-invocations.json')) as { commands: Comman
 const metadata = await import(new URL('.typescript-build/src/metadata.js', base).href) as { commands: NativeCommand[] }
 const help = JSON.parse(read('.typescript-build/src/help.json')) as Record<string, string>
 const unsafeOverrides = ['region', 'member-cid', 'allow-unknown-origin', 'no-member-cid', 'config', 'profile']
-const deferredCommands = ['search start', 'search stop', 'host usb', 'identity activity', 'malquery search', 'rtr run']
+const writeCommands = ['search start', 'search stop', 'host usb', 'identity activity', 'malquery search', 'rtr run']
+const deferredCommands: string[] = []
 const blockedCommands = ['setup', 'config', 'profile', 'credentials', 'credential', 'export', 'auth login', 'auth logout', ...deferredCommands]
 const admitted = native.commands.filter(entry => !blockedCommands.includes(entry.command)
   && !blockedCommands.includes(entry.command.split(' ')[0]))
 const globalFlags = Object.fromEntries(native.globalFlags.map(name => [name,
   ['help', 'allow-unknown-origin', 'no-member-cid'].includes(name) ? 'boolean' : 'value']))
 const commands = [{ command: 'home', flags: globalFlags, effect: 'read', positional: null },
-  ...admitted.map(entry => ({ ...entry, effect: 'read',
+  ...admitted.map(entry => ({ ...entry, effect: writeCommands.includes(entry.command) ? 'write' : 'read',
     positional: metadata.commands.find(command => command.name === entry.command)?.positional ?? null }))]
 function files(path: string): string[] {
   return readdirSync(new URL(path, base), { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)).flatMap(entry => entry.isDirectory()
@@ -37,7 +38,7 @@ const data = { generatedBy: 'scripts/falcon-inventory.ts', tool: 'falcon-axi', p
   unsafeOverrides, blockedCommands, deferredCommands, commands,
   environment: ['FALCON_AXI_READ_ONLY', 'FALCON_AXI_WRITE_LOG'].map(name => ({ name, disposition: 'injected' })),
   requirements: { runtime: 'node', timeoutMs: 65_000, temporaryFiles: ['falcon-axi/config.json'],
-    nativeWrites: 'Passive reads only in this admission; search-backed operations, MalQuery submission and RTR execution are deferred.' },
+    nativeWrites: 'Exact administrator command grants and FALCON_AXI_READ_ONLY; search/MalQuery lifecycle dispatches natively, RTR retains profile opt-in, restrictions and exact execute/confirm.' },
   healthRead: ['auth', 'status'], suggestionFields: ['help'],
   discovery: { commands: [...new Set(admitted.map(entry => entry.command.split(' ')[0]))], example: ['detection', 'list'],
     help: help['detection list'] },
@@ -46,4 +47,4 @@ const contents = JSON.stringify(data, null, 2) + '\n'
 const destination = new URL('inventories/falcon-axi.json', root)
 if (process.argv.includes('--write')) writeFileSync(destination, contents)
 else if (readFileSync(destination, 'utf8') !== contents) throw new Error('Falcon inventory is stale')
-console.log(`inventory: falcon-axi ${pkg.version}, ${commands.length} passive commands`)
+console.log(`inventory: falcon-axi ${pkg.version}, ${commands.length} admitted commands`)

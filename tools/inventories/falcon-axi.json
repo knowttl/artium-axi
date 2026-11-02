@@ -755,22 +755,9 @@
     "credential",
     "export",
     "auth login",
-    "auth logout",
-    "search start",
-    "search stop",
-    "host usb",
-    "identity activity",
-    "malquery search",
-    "rtr run"
+    "auth logout"
   ],
-  "deferredCommands": [
-    "search start",
-    "search stop",
-    "host usb",
-    "identity activity",
-    "malquery search",
-    "rtr run"
-  ],
+  "deferredCommands": [],
   "commands": [
     {
       "command": "home",
@@ -927,6 +914,21 @@
         "hostname": "value"
       },
       "effect": "read",
+      "positional": "device identifier"
+    },
+    {
+      "command": "host usb",
+      "flags": {
+        "help": "boolean",
+        "allow-unknown-origin": "boolean",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "region": "value",
+        "member-cid": "value",
+        "since": "value"
+      },
+      "effect": "write",
       "positional": "device identifier"
     },
     {
@@ -1379,6 +1381,39 @@
       "positional": "policy identifier"
     },
     {
+      "command": "identity activity",
+      "flags": {
+        "help": "boolean",
+        "allow-unknown-origin": "boolean",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "region": "value",
+        "member-cid": "value",
+        "since": "value"
+      },
+      "effect": "write",
+      "positional": "account objectGUID or account name"
+    },
+    {
+      "command": "search start",
+      "flags": {
+        "help": "boolean",
+        "allow-unknown-origin": "boolean",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "region": "value",
+        "member-cid": "value",
+        "query": "value",
+        "repository": "value",
+        "since": "value",
+        "wait": "value"
+      },
+      "effect": "write",
+      "positional": null
+    },
+    {
       "command": "search status",
       "flags": {
         "help": "boolean",
@@ -1392,6 +1427,21 @@
         "wait": "value"
       },
       "effect": "read",
+      "positional": "search identifier"
+    },
+    {
+      "command": "search stop",
+      "flags": {
+        "help": "boolean",
+        "allow-unknown-origin": "boolean",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "region": "value",
+        "member-cid": "value",
+        "repository": "value"
+      },
+      "effect": "write",
       "positional": "search identifier"
     },
     {
@@ -1708,6 +1758,24 @@
         "member-cid": "value"
       },
       "effect": "read",
+      "positional": null
+    },
+    {
+      "command": "malquery search",
+      "flags": {
+        "help": "boolean",
+        "allow-unknown-origin": "boolean",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "region": "value",
+        "member-cid": "value",
+        "fuzzy": "boolean",
+        "string": "value",
+        "hex": "value",
+        "limit": "value"
+      },
+      "effect": "write",
       "positional": null
     },
     {
@@ -2154,6 +2222,23 @@
       "positional": null
     },
     {
+      "command": "rtr run",
+      "flags": {
+        "help": "boolean",
+        "allow-unknown-origin": "boolean",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "region": "value",
+        "member-cid": "value",
+        "execute": "boolean",
+        "command": "value",
+        "confirm": "value"
+      },
+      "effect": "write",
+      "positional": "device id"
+    },
+    {
       "command": "auth status",
       "flags": {
         "help": "boolean",
@@ -2309,7 +2394,7 @@
     "temporaryFiles": [
       "falcon-axi/config.json"
     ],
-    "nativeWrites": "Passive reads only in this admission; search-backed operations, MalQuery submission and RTR execution are deferred."
+    "nativeWrites": "Exact administrator command grants and FALCON_AXI_READ_ONLY; search/MalQuery lifecycle dispatches natively, RTR retains profile opt-in, restrictions and exact execute/confirm."
   },
   "healthRead": [
     "auth",
@@ -2338,8 +2423,8 @@
       "serverless",
       "classification",
       "data-policy",
-      "search",
       "identity",
+      "search",
       "ioc",
       "process",
       "sandbox",
