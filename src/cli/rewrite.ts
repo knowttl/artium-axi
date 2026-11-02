@@ -69,22 +69,7 @@ function encodeSuggestion(value: string, inline: boolean): string {
 export function rewriteSuggestions(output: string, tool: string, truncated = false, invocation?: { command: string, help: boolean }): string {
   if (truncated) return output
   if (tool === 'gh-axi') return rewriteGhSuggestions(output, invocation, truncated)
-  if (tool === 'kubernetes-axi') {
-    if (!invocation?.help) return output
-    try {
-      const json = output.trimStart().startsWith('{')
-      const document = (json ? JSON.parse(output) : decode(output)) as Record<string, unknown>
-      if (Array.isArray(document.flags) && (typeof document.command === 'string' || Array.isArray(document.commands))) {
-        const path = typeof document.command === 'string' ? document.command.replace(/^(?:artium-axi )?kubernetes-axi ?/, '') || 'home' : 'home'
-        const route = kubernetes.commands.find(route => route.command === (invocation?.command === 'native --' ? `native -- ${path}` : path))
-        const command = `artium-axi kubernetes-axi${route && route.command !== 'home' ? ' ' + route.command : ''}`
-        return (json ? JSON.stringify : encode)({ command, usage: command + ' [flags]', effect: 'read',
-          flags: route?.flags ?? {}, commands: route?.command === 'home' ? kubernetes.discovery.commands : [],
-          examples: [command + ' --help'], help: [kubernetes.discovery.help] }) + '\n'
-      }
-    } catch { /* Invalid help retains the native diagnostic. */ }
-    return output
-  }
+  if (tool === 'kubernetes-axi') return output
   if (tool === 'technitium-axi') {
     try {
       const json = output.trimStart().startsWith('{')

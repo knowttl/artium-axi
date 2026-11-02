@@ -4,6 +4,7 @@ import { createKubernetesAdapter, kubernetesProfile } from './kubernetes.js'
 import { toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
+import { hostedStatus } from './hosted-status.js'
 
 const native = join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js')
 const credential = { origin: 'https://cluster.example', auth: 'token', certificateAuthority: 'CANARY-CA-PEM', token: 'CANARY-kubernetes-token' }
@@ -14,10 +15,22 @@ test.each([
   ['get', 'pods', '-n', 'synthetic', '--selector=app=synthetic'],
   ['get', 'secrets'], ['get', 'deployments', '--continue=opaque'],
   ['describe', 'deployment', 'synthetic'],
+  ['describe', 'deployment', 'secret'],
+  ['describe', 'deployment', 'secret.example'],
+  ['describe', 'deployment/secret'],
   ['native', '--', 'describe', 'deployments,configmaps'],
+  ['native', '--', 'describe', 'deployment', 'secret'],
+  ['native', '--', 'describe', 'deployment', 'secret.example'],
+  ['native', '--', 'describe', 'deployment/secret'],
   ['native', '--', 'get', 'deploy', '-o', 'json'],
+  ['native', '--', 'get', 'pods', 'secret'],
+  ['native', '--', 'get', 'pods', 'secret.example'],
+  ['native', '--', 'get', 'pods/secret'],
   ['native', '--', 'get', '--raw=/version'],
   ['native', '--', 'apply', 'view-last-applied', 'deployment/synthetic'],
+  ['native', '--', 'apply', 'view-last-applied', 'deployment', 'secret'],
+  ['native', '--', 'apply', 'view-last-applied', 'deployment', 'secret.example'],
+  ['native', '--', 'apply', 'view-last-applied', 'deployment/secret'],
   ['rollout', 'status', 'deployment/synthetic', '--watch=false'],
   ['auth', 'can-i', 'get', 'pods'], ['auth', 'whoami'],
 ])('Kubernetes read arguments reach the pinned grammar unchanged: %j', async (...args) => {
@@ -36,6 +49,7 @@ test.each([
   ['describe', 'configmaps,secrets', '--all-namespaces'],
   ['native', '--', 'describe', 'configmap/synthetic', 'secret/synthetic-token'],
   ['native', '--', 'get', 'configmaps,secrets', '--help'],
+  ['native', '--', 'get', 'configmap/synthetic', 'secret/synthetic-token', '--help'],
   ['native', '--', 'apply', 'view-last-applied', 'secrets,configmaps', '--all'],
   ['native', '--', 'apply', 'view-last-applied', 'configmap/synthetic', 'secrets.v1/synthetic-token'],
   ['native', '--', 'get', '--raw=/api/v1/namespaces/default/secrets'],
@@ -83,4 +97,20 @@ test('Kubernetes native resource data with help-shaped fields is preserved byte 
   const output = JSON.stringify({ apiVersion: 'example.test/v1', kind: 'Task', metadata: { name: 'synthetic' },
     command: 'get', flags: ['server'], help: ['Keep this resource field exactly.'] }) + '\n'
   expect(rewriteSuggestions(output, 'kubernetes-axi', false, { command: 'native --', help: false })).toBe(output)
+})
+
+test.each([
+  ['native', '--', 'get', 'pods', '-Ah', '--help=false'],
+  ['native', '--', 'get', 'pods', '--help=true', '-Ah=false'],
+  ['native', '--', 'get', 'pods', '-l', '-h'],
+  ['native', '--', 'get', 'pods', '-lAh'],
+])('Kubernetes non-help output follows the pinned grammar: %j', async (...args) => {
+  const call = await adapter.prepare(args, reference)
+  const output = JSON.stringify({ command: 'get', flags: ['--server'], help: ['Keep this resource field exactly.'] }) + '\n'
+  const result = { stdout: output, stderr: output, exitCode: 0, durationMs: 1, timedOut: false,
+    outputBytes: { stdout: output.length, stderr: output.length }, truncated: { stdout: false, stderr: false } }
+  const hosted = hostedStatus('kubernetes-axi', call.invocation, result)
+  expect(hosted).toEqual(result)
+  expect(rewriteSuggestions(hosted.stdout, 'kubernetes-axi')).toBe(output)
+  expect(rewriteSuggestions(hosted.stderr, 'kubernetes-axi')).toBe(output)
 })

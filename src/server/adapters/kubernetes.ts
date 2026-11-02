@@ -40,7 +40,8 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
     const route = inventory.commands.find(route => route.command === command)
     if (!route || parsed.workflow) throw new ArtiumError('FLAG_BLOCKED')
     if ((parsed.command.path === 'describe' || parsed.command.path === 'apply view-last-applied' || parsed.native && parsed.command.path === 'get')
-      && parsed.positionals.some(value => value.split(',').some(resource => /^secrets?(?:$|[/.])/i.test(resource)))) throw new ArtiumError('FLAG_BLOCKED')
+      && parsed.positionals.some((value, index) => value.split(',').some(resource => (index === 0 || resource.includes('/'))
+        && /^secrets?(?:$|[/.])/i.test(resource)))) throw new ArtiumError('FLAG_BLOCKED')
     for (const name of parsed.flags.keys()) if (!Object.hasOwn(route.flags, name)) throw new ArtiumError('FLAG_BLOCKED')
     return { args: [...args], invocation: { command, help: parsed.help } }
   }
