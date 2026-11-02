@@ -44,6 +44,9 @@ importers:
       '@knowttl/vectra-axi':
         specifier: 0.1.14
         version: 0.1.14
+      '@toon-format/toon':
+        specifier: 2.3.1
+        version: 2.3.1
       awx-axi:
         specifier: 0.1.11
         version: 0.1.11

@@ -12,6 +12,11 @@
 !node_modules/.pnpm/zod@*/node_modules
 !node_modules/.pnpm/zod@*/node_modules/zod
 !node_modules/.pnpm/zod@*/node_modules/zod/**
+!node_modules/.pnpm/@toon-format+toon@*
+!node_modules/.pnpm/@toon-format+toon@*/node_modules
+!node_modules/.pnpm/@toon-format+toon@*/node_modules/@toon-format
+!node_modules/.pnpm/@toon-format+toon@*/node_modules/@toon-format/toon
+!node_modules/.pnpm/@toon-format+toon@*/node_modules/@toon-format/toon/**
 !test
 !test/fake-tool
 !test/fake-tool/**

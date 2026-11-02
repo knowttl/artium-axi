@@ -147,7 +147,7 @@ It captures bounded non-terminal stdin for Azure `rg query` (also `graph query`)
 Azure `api` captures non-terminal stdin only without an explicit body source (`--body`, `--body-file` or `--data`); method and path positionals do not supply a body.
 The pinned upstream accepts `--body` and `--body-file`; `--data` leaves stdin unread and is forwarded for normal unsupported-flag rejection.
 Flag values such as `--workspace <workspace>` do not count as positional input.
-Tool stdin is read to EOF with a fixed 5-second deadline, including Tenable file flags with `-` and Hybrid Analysis `--body-file -`.
+Tool stdin is read to EOF with a fixed 5-second deadline, including Tenable file flags with `-`, Hybrid Analysis `--body-file -`, and AWX credential `--inputs-file -` or user `--password-file -`.
 An open pipe that does not reach EOF fails with `INVALID_INPUT` and exit code 2 before sending a request, even if it has already supplied bytes.
 Close stdin, pass a local file with the relevant file flag, or use `--body`/`--body-file` for Azure `api`.
 Closed empty stdin remains valid transport input; the tool validates whether its command requires a query or body.
@@ -158,6 +158,15 @@ Only commands declaring the corresponding file flag in the reviewed inventory ac
 The runner substitutes a private mode-0600 file path for the uploaded leaf argument inside a per-call mode-0700 directory, removed after success, error or cancellation.
 Adapters requiring stable paths for native confirmation retain their private profile upload paths and cleanup ownership.
 See [upload audit metadata](admin-guide.md#audit-screen-and-api) for what is recorded about accepted files.
+
+AWX file flags upload local bytes through this channel, including credential inputs/passwords, launch credential passwords, bulk hosts and notification configuration/messages.
+AWX structured flags (`--extra-vars`, `--variables`, `--source-vars`, `--module-args`, `--args`) accept inline text or `@local-file`; use a protected local file for secrets so they never enter the local CLI's process arguments.
+The server loads those structured values privately into upstream memory, preserving JSON/YAML text and keeping hosted process arguments free of secrets.
+All caller-supplied structured inputs remain opaque in previews and responses, including variables, survey and launch inputs, Ansible arguments, notification configuration/messages and uploaded structured files.
+Artium shows redacted placeholders with the original UTF-8 byte lengths; a hidden preview payload reports the combined input byte length.
+Credential secrets continue to use the controlled file channel; see the [AWX boundary](safety.md#write-gates-by-tool) for the upstream protocol-token collision limitation.
+Upstream validates the command-specific format; for example, schedule extra variables require a JSON object.
+Server paths, nested `@path` references and stdin for other AWX flags are refused.
 Authentication, role checks, write confirmations, redaction and call limits apply as usual.
 GitHub writes require an administrator-enabled exact operation, then an Artium preview and `--confirm <returned-value>` on the same request.
 GitHub gist create/edit with `--filename` captures bounded piped stdin; repeat identical content when confirming.

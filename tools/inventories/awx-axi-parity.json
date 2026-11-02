@@ -832,15 +832,14 @@
           "description": "extra vars JSON",
           "takesValue": true,
           "effect": "operational write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "inventory",
@@ -912,15 +911,14 @@
           "description": "path to credential passwords JSON file",
           "takesValue": true,
           "effect": "operational write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "wait",
@@ -1996,7 +1994,7 @@
           "description": "extra vars JSON/YAML",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -2004,7 +2002,7 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "limit",
@@ -2198,7 +2196,7 @@
           "description": "extra vars JSON/YAML",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -2206,7 +2204,7 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "limit",
@@ -2649,15 +2647,14 @@
           "description": "extra vars JSON/YAML",
           "takesValue": true,
           "effect": "operational write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "inventory",
@@ -2729,15 +2726,14 @@
           "description": "path to credential passwords JSON file",
           "takesValue": true,
           "effect": "operational write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "wait",
@@ -2925,7 +2921,7 @@
           "description": "extra vars JSON/YAML",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -2933,7 +2929,7 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "limit",
@@ -3112,7 +3108,7 @@
           "description": "extra vars JSON/YAML",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -3120,7 +3116,7 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "limit",
@@ -4479,7 +4475,7 @@
           "description": "extra vars JSON/YAML",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -4487,7 +4483,7 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -4596,7 +4592,7 @@
           "description": "extra vars JSON/YAML",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -4604,7 +4600,7 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -4879,15 +4875,14 @@
           "description": "extra vars JSON/YAML",
           "takesValue": true,
           "effect": "operational write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "limit",
@@ -6754,15 +6749,14 @@
           "description": "extra variables JSON object",
           "takesValue": true,
           "effect": "operational write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "confirm",
@@ -7522,15 +7516,14 @@
           "description": "JSON file path (or - for stdin)",
           "takesValue": true,
           "effect": "security administration",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": true,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "confirm",
@@ -7645,15 +7638,14 @@
           "description": "JSON file path (or - for stdin)",
           "takesValue": true,
           "effect": "security administration",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": true,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "confirm",
@@ -8225,15 +8217,14 @@
           "description": "extra vars JSON",
           "takesValue": true,
           "effect": "operational write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "verbosity",
@@ -9573,7 +9564,7 @@
     {
       "command": "inventory host-bulk-create",
       "effect": "configuration write",
-      "status": "blocked",
+      "status": "supported",
       "targetSlice": "d",
       "authorization": "write",
       "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -9582,40 +9573,42 @@
         "required": 0
       },
       "help": "awx-axi inventory host-bulk-create --inventory <i|name> --hosts-file <path> [--confirm] [--dry-run]",
-      "reason": "Not yet supported: requires secure input",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
           "takesValue": false,
           "description": "Command help",
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "d",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
           "description": "inventory id or name",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "d",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "hosts-file",
           "description": "JSON host array file",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -9623,40 +9616,42 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
           "description": "confirm live execution",
           "takesValue": false,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "d",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
           "description": "preview without mutating",
           "takesValue": false,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "d",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
     {
       "command": "inventory host-bulk-delete",
       "effect": "destructive",
-      "status": "blocked",
+      "status": "supported",
       "targetSlice": "d",
       "authorization": "write",
       "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -9665,14 +9660,13 @@
         "required": 0
       },
       "help": "awx-axi inventory host-bulk-delete --hosts-file <path> [--confirm] [--dry-run]",
-      "reason": "Not yet supported: requires secure input",
       "flags": [
         {
           "name": "help",
           "takesValue": false,
           "description": "Command help",
           "effect": "destructive",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "d",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -9685,22 +9679,21 @@
           "description": "JSON host id array file",
           "takesValue": true,
           "effect": "destructive",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "confirm",
           "description": "confirm live execution",
           "takesValue": false,
           "effect": "destructive",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "d",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -9713,7 +9706,7 @@
           "description": "preview without mutating",
           "takesValue": false,
           "effect": "destructive",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "d",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -9800,7 +9793,7 @@
           "description": "group variables",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -9808,7 +9801,7 @@
           "file": false,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -9903,7 +9896,7 @@
           "description": "group variables",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -9911,7 +9904,7 @@
           "file": false,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -10404,7 +10397,7 @@
           "description": "source variables JSON",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -10412,7 +10405,7 @@
           "file": false,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "update-on-launch",
@@ -10553,7 +10546,7 @@
           "description": "source variables JSON",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -10561,7 +10554,7 @@
           "file": false,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "update-on-launch",
@@ -11096,7 +11089,7 @@
           "description": "inventory variables YAML/JSON",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -11104,7 +11097,7 @@
           "file": false,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -11227,7 +11220,7 @@
           "description": "inventory variables YAML/JSON",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -11235,7 +11228,7 @@
           "file": false,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -11482,7 +11475,7 @@
           "description": "host variables YAML/JSON",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -11490,7 +11483,7 @@
           "file": false,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "enabled",
@@ -11627,7 +11620,7 @@
           "description": "host variables YAML/JSON",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -11635,7 +11628,7 @@
           "file": false,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "enabled",
@@ -13329,7 +13322,7 @@
           "description": "extra vars JSON object or @file (needs ask_variables_on_launch)",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -13337,7 +13330,7 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "job-tags",
@@ -13544,7 +13537,7 @@
           "description": "extra vars JSON object or @file (needs ask_variables_on_launch)",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -13552,7 +13545,7 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "job-tags",
@@ -14605,15 +14598,14 @@
           "description": "password file path (or - for stdin)",
           "takesValue": true,
           "effect": "security administration",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": true,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "first-name",
@@ -14754,15 +14746,14 @@
           "description": "password file path (or - for stdin)",
           "takesValue": true,
           "effect": "security administration",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": true,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "first-name",
@@ -15374,45 +15365,42 @@
           "description": "0600 JSON configuration file",
           "takesValue": true,
           "effect": "security administration",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "config-file",
           "description": "alias for configuration file",
           "takesValue": true,
           "effect": "security administration",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "messages-file",
           "description": "JSON message templates file",
           "takesValue": true,
           "effect": "security administration",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "description",
@@ -15540,45 +15528,42 @@
           "description": "0600 JSON configuration file",
           "takesValue": true,
           "effect": "security administration",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "config-file",
           "description": "alias for configuration file",
           "takesValue": true,
           "effect": "security administration",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "messages-file",
           "description": "JSON message templates file",
           "takesValue": true,
           "effect": "security administration",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "description",
@@ -16419,15 +16404,14 @@
           "description": "0600 JSON inputs file",
           "takesValue": true,
           "effect": "security administration",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": true,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "confirm",
@@ -18102,7 +18086,8 @@
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -18115,7 +18100,8 @@
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "hosts-file",
@@ -18130,7 +18116,7 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -18143,7 +18129,8 @@
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -18156,7 +18143,8 @@
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
@@ -18195,8 +18183,7 @@
           "secret": false,
           "file": true,
           "stdin": false,
-          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths"
         },
         {
           "name": "confirm",
@@ -18305,7 +18292,7 @@
           "file": false,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -18402,7 +18389,7 @@
           "file": false,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -19143,7 +19130,7 @@
           "file": false,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "update-on-launch",
@@ -19281,7 +19268,7 @@
           "file": false,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "update-on-launch",
@@ -20063,7 +20050,7 @@
           "file": false,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "enabled",
@@ -20202,7 +20189,7 @@
           "file": false,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "enabled",

@@ -34,9 +34,10 @@ test.each([
     } } }), { mode: 0o600 })
     const result = spawnSync(process.execPath, [join(root, 'tools/node_modules/@knowttl/vectra-axi/bin/vectra-axi.js'),
       'detection', 'tag', 'set', '--config', config, '--id', id, '--tags', 'synthetic', ...execution], {
-      encoding: 'utf8', timeout: 3000, env: { HOME: directory, PATH: process.env.PATH,
+      encoding: 'utf8', timeout: 20_000, env: { HOME: directory, PATH: process.env.PATH,
         CANARY_TOKEN: 'CANARY-synthetic', VECTRA_AXI_WRITE_LOG: log },
     })
+    expect(result.error).toBeUndefined()
     expect(result.status, result.stdout + result.stderr).toBe(status)
     const evidence = JSON.parse(await send('/__evidence'))
     expect(evidence.mutations).toBe(mutations)

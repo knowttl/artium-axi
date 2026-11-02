@@ -290,14 +290,32 @@
     ],
     "nativeWrites": "host-classified",
     "secureInputFlags": [
+      "scm-url"
+    ],
+    "structuredInputFlags": [
       "extra-vars",
       "variables",
       "source-vars",
-      "scm-url"
+      "module-args",
+      "args"
+    ],
+    "inputFileFlags": [
+      "inputs-file",
+      "password-file",
+      "credential-passwords-file",
+      "hosts-file",
+      "configuration-file",
+      "config-file",
+      "messages-file",
+      "extra-vars",
+      "variables",
+      "source-vars",
+      "module-args",
+      "args"
     ],
     "inputs": {
-      "stdin": "unsupported",
-      "files": "unsupported"
+      "stdin": "credential inputs-file and password-file only",
+      "files": "TD-066 private uploads; structured flags accept inline values or @local-file"
     }
   },
   "discovery": {
@@ -333,7 +351,7 @@
       "--limit",
       "1"
     ],
-    "help": "awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. One tenant switch, default off, gates previews and execution; reads and help remain available. AWX permissions still apply. Secret and structured inputs, SCM URLs, files/stdin and bulk host operations are not yet supported: requires secure input. Credential references are supported. Use job watch --timeout 50 or less.\n"
+    "help": "awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. One tenant switch, default off, gates previews and execution; reads and help remain available. AWX permissions still apply. File flags upload local bytes privately; structured flags accept inline JSON/YAML or @local-file. Credential inputs-file and password-file accept stdin (-). SCM URLs, server file paths and unsafe overrides remain blocked. Use job watch --timeout 50 or less.\n"
   },
   "suggestionFields": [
     "help"
@@ -2189,7 +2207,7 @@
     },
     {
       "command": "inventory host-bulk-create",
-      "effect": "secure-input",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "inventory": "value",
@@ -2204,7 +2222,7 @@
     },
     {
       "command": "inventory host-bulk-delete",
-      "effect": "secure-input",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "hosts-file": "value",

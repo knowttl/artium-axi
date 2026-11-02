@@ -11,6 +11,7 @@ const resources = new Map()
 let mutations = 0
 let basicAuthEnabled = true
 let awxConfigurationAllowed = true
+let awxDropWrite = false
 let githubDeviceScenario = 'success'
 let githubDevicePolls = 0
 const certs = process.argv[2] ?? '/certs'
@@ -129,6 +130,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     mutations = 0
     basicAuthEnabled = true
     awxConfigurationAllowed = true
+    awxDropWrite = false
     res.end('{}')
     return
   }
@@ -139,6 +141,11 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   }
   if (url.pathname === '/__awx/configuration-permission' && req.method === 'POST') {
     awxConfigurationAllowed = url.searchParams.get('enabled') !== 'false'
+    res.end('{}')
+    return
+  }
+  if (url.pathname === '/__awx/write-outcome' && req.method === 'POST') {
+    awxDropWrite = url.searchParams.get('drop') === 'true'
     res.end('{}')
     return
   }
@@ -220,7 +227,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     const recorded = { method: req.method, path: url.pathname, auth: authorizationScheme(authorization), canaryReceived }
     requests.push(recorded)
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ detail: 'Invalid token' })); return }
-    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|schedules)\//.test(url.pathname)
+    const configurationPath = /^\/api\/v2\/(?:inventories|hosts|groups|inventory_sources|job_templates|workflow_job_templates|workflow_job_template_nodes|projects|schedules|credentials|users|teams|notification_templates|bulk)\//.test(url.pathname)
+    if (req.method === 'GET' && url.pathname === '/api/v2/job_templates/43/launch/') {
+      res.end(JSON.stringify({ passwords_needed_to_start: ['ssh_password'] })); return
+    }
     if (req.method === 'DELETE' && url.pathname === '/api/v2/job_templates/42/') {
       mutations++
       resources.delete(url.pathname)
@@ -237,18 +247,19 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       })
       return
     }
-    if (configurationPath && ['POST', 'PATCH'].includes(req.method)) {
+    if ((configurationPath || url.pathname === '/api/v2/ad_hoc_commands/') && ['POST', 'PATCH'].includes(req.method)) {
       let body = ''
       req.setEncoding('utf8')
       req.on('data', chunk => { body += chunk })
       req.on('end', () => {
         const payload = JSON.parse(body || '{}')
         recorded.body = payload
-        if (!awxConfigurationAllowed) { res.writeHead(403); res.end(JSON.stringify({ detail: 'You do not have permission to perform this action.' })); return }
+        if (configurationPath && !awxConfigurationAllowed) { res.writeHead(403); res.end(JSON.stringify({ detail: 'You do not have permission to perform this action.' })); return }
         mutations++
         const path = req.method === 'PATCH' ? url.pathname : `${url.pathname}42/`
         const resource = { id: 42, ...resources.get(path), ...payload }
         resources.set(path, resource)
+        if (awxDropWrite) { req.socket.destroy(); return }
         res.writeHead(req.method === 'PATCH' ? 200 : 201)
         res.end(JSON.stringify(resource))
       })

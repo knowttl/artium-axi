@@ -25,12 +25,14 @@ const writeVerbs = /^(?:(?:host-bulk|host|group|source|node|token|credential)-)?
 const operationalWrites = ['job launch', 'job cancel', 'job relaunch', 'template launch', 'workflow launch',
   'approval approve', 'approval deny', 'project sync', 'inventory sync', 'ad-hoc launch',
   'system-job-template launch', 'system-job cancel', 'notification-template test']
-const secureInputFlags = ['extra-vars', 'variables', 'source-vars', 'scm-url']
+const secureInputFlags = ['scm-url']
+const structuredInputFlags = ['extra-vars', 'variables', 'source-vars', 'module-args', 'args']
+const inputFileFlags = ['inputs-file', 'password-file', 'credential-passwords-file', 'hosts-file', 'configuration-file', 'config-file', 'messages-file', ...structuredInputFlags]
 const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
   const read = reads[domain.name]?.split(' ').includes(route.name)
   if (!read && !writeVerbs.test(route.name)) throw new Error(`Unclassified command: ${domain.name} ${route.name}`)
   const command = `${domain.name} ${route.name}`
-  return { command, effect: read ? 'read' : route.name.startsWith('host-bulk-') ? 'secure-input' : operationalWrites.includes(command) ? 'write' : 'configuration-write',
+  return { command, effect: read ? 'read' : operationalWrites.includes(command) ? 'write' : 'configuration-write',
     flags: { help: 'boolean', ...Object.fromEntries(route.flags
       .filter(flag => flag.name !== 'fields'
         && (command !== 'job stdout' || !['download', 'full', 'ansi'].includes(flag.name))
@@ -51,10 +53,11 @@ const data = { generatedBy: 'scripts/awx-inventory.mjs', tool: 'awx-axi', ...pin
   skillSha256: createHash('sha256').update(skill).digest('hex'),
   adapterBoundary: { unsafeOverrides: ['config', 'profile', 'origin', 'verify-ssl', 'allow-http'],
     blockedCommands: ['auth login', 'auth logout', 'setup', 'config', 'profile', 'update'],
-    nativeWrites: 'host-classified', secureInputFlags, inputs: { stdin: 'unsupported', files: 'unsupported' } },
+    nativeWrites: 'host-classified', secureInputFlags, structuredInputFlags, inputFileFlags,
+    inputs: { stdin: 'credential inputs-file and password-file only', files: 'TD-066 private uploads; structured flags accept inline values or @local-file' } },
   discovery: { commands: [...DOMAINS.map(domain => domain.name), 'auth status', 'doctor'],
     example: ['job', 'list', '--limit', '1'],
-    help: 'awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. One tenant switch, default off, gates previews and execution; reads and help remain available. AWX permissions still apply. Secret and structured inputs, SCM URLs, files/stdin and bulk host operations are not yet supported: requires secure input. Credential references are supported. Use job watch --timeout 50 or less.\n' },
+    help: 'awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. One tenant switch, default off, gates previews and execution; reads and help remain available. AWX permissions still apply. File flags upload local bytes privately; structured flags accept inline JSON/YAML or @local-file. Credential inputs-file and password-file accept stdin (-). SCM URLs, server file paths and unsafe overrides remain blocked. Use job watch --timeout 50 or less.\n' },
   suggestionFields: ['help'], format: 'TOON', commands }
 const outputs = [['inventories/awx-axi.json', JSON.stringify(data, null, 2) + '\n'], ['skills/awx-axi/SKILL.md', skill]]
 for (const [path, contents] of outputs) {

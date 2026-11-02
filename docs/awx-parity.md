@@ -38,7 +38,7 @@ Their JSON entries explicitly record this upstream limitation for slice f.
 `supported` means the reviewed route or flag passes Artium validation, subject to upstream validation, managed account permissions and execution limits.
 It does not claim live acceptance or complete upstream behavior for every value.
 `blocked` includes unsupported routes and inputs; it does not imply that route help is refused.
-Secure-input flags may appear in the inventory but are rejected by the adapter with "not yet supported: requires secure input".
+Flags listed in the inventory's `secureInputFlags` remain blocked pending secure input support; see the [current input boundary](safety.md#write-gates-by-tool).
 `managed equivalent` identifies an Artium-owned workflow rather than permission to execute the upstream command or override.
 `not applicable` identifies a client-local operation with an explicit managed-deployment reason.
 Target slices group delivery work; already supported rows, including those assigned to slice f, mean retain and verify behavior, not postpone existing support.
@@ -53,9 +53,8 @@ The managed account form already supports PAT entry or username/password token a
 Every file flag, `--extra-vars @file`, and upstream stdin form is marked in the matrix.
 Private keys, passwords, tokens and other credential fields belong inside credential `--inputs-file` JSON, `--password-file`, launch `--credential-passwords-file` JSON, or managed account credentials, never secret argv flags.
 Notification configuration/messages, variables, module arguments and SCM URLs are marked as potentially secret-bearing structured input.
-Slice c must deliver caller-owned file or secret bytes through the **TD-066 file channel**, materializing only bounded private runner leaves, with scanning, redaction and cleanup.
-No flag may read an arbitrary server file path.
-This includes stdin values represented upstream by `-`: credential inputs and user passwords must use the same controlled channel.
+See [client input handling](client-reference.md#command-surface-and-subcommands) for S2's TD-066 file channel, structured flag syntax, supported stdin forms and response placeholders.
+The [AWX write boundary](safety.md#write-gates-by-tool) owns supported input classes, private delivery guarantees and blocked paths or overrides.
 Managed account PAT/password entry stays in Artium's existing credential storage workflow, rather than becoming command input.
 Global `--config` refers to managed runner configuration and has no caller file-upload equivalent.
 `auth login --allow-http` has no equivalent because managed AWX accounts require HTTPS.
@@ -65,11 +64,12 @@ Global `--config` refers to managed runner configuration and has no caller file-
 ## Delivery slices
 
 These work packages retain the earlier b-f labels; their target controls follow the [target authorization policy](awx-parity-matrix.md#target-authorization-policy).
-S1 has enabled the mutation routes in b-e except inputs awaiting the S2 secure input channel; these rows retain the remaining acceptance work and original grouping.
+S1 enabled the mutation routes in b-e; S2 adds secure structured, credential, notification and bulk file inputs.
+These rows retain the remaining acceptance work and original grouping.
 
 | Slice | Work and acceptance boundary | Required controls |
 | --- | --- | --- |
-| b | Retain reviewed ordinary configuration writes. Verify preview and confirmed requests against fake AWX endpoints. | [Current boundary controls](safety.md#write-gates-by-tool) apply. Secret/structured inputs wait for c. |
+| b | Retain reviewed ordinary configuration writes. Verify preview and confirmed requests against fake AWX endpoints. | [Current boundary controls](safety.md#write-gates-by-tool) apply. Secure inputs are delivered by c (S2). |
 | c | Add secure inputs to credential create/edit/copy and team credential creation, structured and secret inputs, extra-vars files, notification input and stdin through TD-066. Verify preserved bytes, permissions, redaction and cleanup using canaries. | S0 target controls; secure input delivery as described above. |
 | d | Retain deletions and add host bulk inputs, with explicit target/budget checks and unknown-outcome handling. Verify fake bulk success and partial/failure outcomes. | S0 target controls; confirmation and native gates. |
 | e | Retain users, teams, roles, membership/admin changes, token lifecycle and credential associations; add secure-input variants from b/c. Verify denial before send and each granted operation against fakes. | S0 target controls; managed account scope and native security gate. |

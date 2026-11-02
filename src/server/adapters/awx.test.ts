@@ -22,21 +22,27 @@ const fixedSchemaLists = ['job', 'template', 'workflow', 'organization', 'system
   'credential', 'ad-hoc', 'project', 'schedule', 'execution-environment', 'user', 'notification',
   'notification-template', 'activity-stream', 'team', 'role']
 
+test.each([
+  { args: ['schedule', 'edit', '42', '--extra-vars', '@/etc/hosts', '--dry-run'], input: {} },
+  { args: ['schedule', 'edit', '42', '--extra-vars', 'vars.json', '--dry-run'], input: {
+    files: [{ name: 'vars.json', contentBase64: Buffer.from('@/etc/hosts').toString('base64') }] } },
+  { args: ['credential', 'edit', '42', '--inputs-file', '/etc/hosts', '--dry-run'], input: {} },
+  { args: ['team', 'credential-create', '42', '--inputs-file', '-', '--dry-run'], input: { stdin: '{}' } },
+  { args: ['job', 'list'], input: { stdin: 'CANARY-unrequested-stdin' } },
+])('refuses server paths and undeclared stdin: $args', async ({ args, input }) => {
+  await expect(adapter(true).prepare(args, reference, input)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
+})
+
 test.each(inventory.commands.filter(route => route.effect === 'blocked'))('$command retains the managed client-local boundary', async route => {
   await expect(adapter().prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') })
   await expect(adapter(true).prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') })
-})
-
-test.each(inventory.commands.filter(route => route.effect === 'secure-input').flatMap(route =>
-  [false, true].map(enabled => ({ ...route, enabled }))))('$command requires secure input with writes $enabled', async route => {
-  await expect(adapter(route.enabled).prepare([...route.command.split(' '), '--confirm'], reference)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT', message: 'Not yet supported: requires secure input.' })
 })
 
 test.each(inventory.commands.flatMap(route => Object.keys(route.flags)
   .filter(name => inventory.adapterBoundary.secureInputFlags.includes(name) || name.endsWith('-file'))
   .map(flag => ({ command: route.command, flag, required: route.positionals.required }))))('$command --$flag requires secure input', async ({ command, flag, required }) => {
   await expect(adapter(true).prepare([...command.split(' '), ...Array<string>(required).fill('42'), `--${flag}`, 'CANARY-input', '--confirm'], reference))
-    .rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT', message: 'Not yet supported: requires secure input.' })
+    .rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
 })
 
 test.each(inventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect)))('$command requires the single tenant write switch', async route => {
@@ -88,7 +94,7 @@ test.each(inventory.commands.filter(route => route.effect === 'configuration-wri
   expect(help).toContain(`artium-axi awx-axi ${command}`)
   expect(help).toContain('--confirm')
   expect(help).toContain('--dry-run')
-  expect(help).not.toMatch(/--(?:extra-vars|variables|source-vars|scm-url|[a-z-]+-file)\b/)
+  expect(help).not.toMatch(/--scm-url\b/)
   expect(help).toContain('allowWrites and --confirm')
   expect(help).toContain(`AWX must authorize ${command}`)
 })
@@ -296,7 +302,7 @@ test.each(inventory.discovery.commands.filter(command => !['auth status', 'docto
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
   expect(help).toContain(`artium-axi awx-axi ${command} list`)
-  expect(help).not.toMatch(/artium-axi awx-axi inventory host-bulk-/)
+  if (command === 'inventory') expect(help).toContain('artium-axi awx-axi inventory host-bulk-create')
 })
 
 test.each(['auth status', 'doctor'])('%s published help uses managed credential guidance', async command => {

@@ -148,8 +148,8 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | project updates | read | supported | f | read |
 | project roles | read | supported | f | read |
 | project sync | operational write | supported | f | write |
-| inventory host-bulk-create | configuration write | blocked | d | write |
-| inventory host-bulk-delete | destructive | blocked | d | write |
+| inventory host-bulk-create | configuration write | supported | d | write |
+| inventory host-bulk-delete | destructive | supported | d | write |
 | inventory group-create | configuration write | supported | b | write |
 | inventory group-edit | configuration write | supported | b | write |
 | inventory group-delete | destructive | supported | d | write |
@@ -289,7 +289,7 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 
 Every row inherits its command's reasons and restrictions from the JSON; conditional upstream effects do not add target permission tiers.
 Global selection flags above apply to every command; per-command --help is included below.
-Secret/file inputs use the TD-066 file channel in slice c; current file/stdin input is blocked.
+Secret/file inputs use the TD-066 private file channel. Structured flags accept inline values or @local-file; credential inputs-file and password-file also accept stdin (-).
 
 ### job list
 
@@ -367,13 +367,13 @@ See command controls above.
 | --limit | value | supported | f | write | none |
 | --tags | value | supported | f | write | none |
 | --skip-tags | value | supported | f | write | none |
-| --extra-vars | value | blocked | c | write | potential secret, file |
+| --extra-vars | value | supported | c | write | potential secret, file |
 | --inventory | value | supported | f | write | none |
 | --scm-branch | value | supported | f | write | none |
 | --verbosity | value | supported | f | write | none |
 | --job-type | value | supported | f | write | none |
 | --diff | boolean | supported | f | write | none |
-| --credential-passwords-file | value | blocked | c | write | potential secret, file |
+| --credential-passwords-file | value | supported | c | write | potential secret, file |
 | --wait | boolean | supported | f | write | none |
 | --timeout | value | supported | f | write | none |
 | --confirm | boolean | supported | f | write | none |
@@ -527,7 +527,7 @@ See command controls above.
 | --playbook | value | supported | b | write | none |
 | --description | value | supported | b | write | none |
 | --execution-environment | value | supported | b | write | none |
-| --extra-vars | value | blocked | c | write | potential secret, file |
+| --extra-vars | value | supported | c | write | potential secret, file |
 | --limit | value | supported | b | write | none |
 | --verbosity | value | supported | b | write | none |
 | --job-type | value | supported | b | write | none |
@@ -547,7 +547,7 @@ See command controls above.
 | --playbook | value | supported | b | write | none |
 | --description | value | supported | b | write | none |
 | --execution-environment | value | supported | b | write | none |
-| --extra-vars | value | blocked | c | write | potential secret, file |
+| --extra-vars | value | supported | c | write | potential secret, file |
 | --limit | value | supported | b | write | none |
 | --verbosity | value | supported | b | write | none |
 | --job-type | value | supported | b | write | none |
@@ -615,13 +615,13 @@ See command controls above.
 | --limit | value | supported | f | write | none |
 | --tags | value | supported | f | write | none |
 | --skip-tags | value | supported | f | write | none |
-| --extra-vars | value | blocked | c | write | potential secret, file |
+| --extra-vars | value | supported | c | write | potential secret, file |
 | --inventory | value | supported | f | write | none |
 | --scm-branch | value | supported | f | write | none |
 | --verbosity | value | supported | f | write | none |
 | --job-type | value | supported | f | write | none |
 | --diff | boolean | supported | f | write | none |
-| --credential-passwords-file | value | blocked | c | write | potential secret, file |
+| --credential-passwords-file | value | supported | c | write | potential secret, file |
 | --wait | boolean | supported | f | write | none |
 | --timeout | value | supported | f | write | none |
 | --confirm | boolean | supported | f | write | none |
@@ -647,7 +647,7 @@ See command controls above.
 | --help | boolean | supported | b | write | none |
 | --template | value | supported | b | write | none |
 | --inventory | value | supported | b | write | none |
-| --extra-vars | value | blocked | c | write | potential secret, file |
+| --extra-vars | value | supported | c | write | potential secret, file |
 | --limit | value | supported | b | write | none |
 | --scm-branch | value | supported | b | write | none |
 | --job-type | value | supported | b | write | none |
@@ -666,7 +666,7 @@ See command controls above.
 | --help | boolean | supported | b | write | none |
 | --template | value | supported | b | write | none |
 | --inventory | value | supported | b | write | none |
-| --extra-vars | value | blocked | c | write | potential secret, file |
+| --extra-vars | value | supported | c | write | potential secret, file |
 | --limit | value | supported | b | write | none |
 | --scm-branch | value | supported | b | write | none |
 | --job-type | value | supported | b | write | none |
@@ -856,7 +856,7 @@ See command controls above.
 | --name | value | supported | b | write | none |
 | --organization | value | supported | b | write | none |
 | --description | value | supported | b | write | none |
-| --extra-vars | value | blocked | c | write | potential secret, file |
+| --extra-vars | value | supported | c | write | potential secret, file |
 | --confirm | boolean | supported | b | write | none |
 | --dry-run | boolean | supported | b | write | none |
 
@@ -870,7 +870,7 @@ See command controls above.
 | --name | value | supported | b | write | none |
 | --organization | value | supported | b | write | none |
 | --description | value | supported | b | write | none |
-| --extra-vars | value | blocked | c | write | potential secret, file |
+| --extra-vars | value | supported | c | write | potential secret, file |
 | --confirm | boolean | supported | b | write | none |
 | --dry-run | boolean | supported | b | write | none |
 
@@ -920,7 +920,7 @@ See command controls above.
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
 | --help | boolean | supported | f | write | none |
-| --extra-vars | value | blocked | c | write | potential secret, file |
+| --extra-vars | value | supported | c | write | potential secret, file |
 | --limit | value | supported | f | write | none |
 | --scm-branch | value | supported | f | write | none |
 | --wait | boolean | supported | f | write | none |
@@ -1202,7 +1202,7 @@ See command controls above.
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
 | --help | boolean | supported | f | write | none |
-| --extra-vars | value | blocked | c | write | potential secret, file |
+| --extra-vars | value | supported | c | write | potential secret, file |
 | --confirm | boolean | supported | f | write | none |
 | --dry-run | boolean | supported | f | write | none |
 
@@ -1318,7 +1318,7 @@ See command controls above.
 | --credential-type | value | supported | c | write | none |
 | --organization | value | supported | c | write | none |
 | --description | value | supported | c | write | none |
-| --inputs-file | value | blocked | c | write | potential secret, file, stdin |
+| --inputs-file | value | supported | c | write | potential secret, file, stdin |
 | --confirm | boolean | supported | c | write | none |
 | --dry-run | boolean | supported | c | write | none |
 
@@ -1333,7 +1333,7 @@ See command controls above.
 | --credential-type | value | supported | c | write | none |
 | --organization | value | supported | c | write | none |
 | --description | value | supported | c | write | none |
-| --inputs-file | value | blocked | c | write | potential secret, file, stdin |
+| --inputs-file | value | supported | c | write | potential secret, file, stdin |
 | --confirm | boolean | supported | c | write | none |
 | --dry-run | boolean | supported | c | write | none |
 
@@ -1423,7 +1423,7 @@ See command controls above.
 | --args | value | supported | c | write | potential secret |
 | --credential | value | supported | f | write | none |
 | --limit | value | supported | f | write | none |
-| --extra-vars | value | blocked | c | write | potential secret, file |
+| --extra-vars | value | supported | c | write | potential secret, file |
 | --verbosity | value | supported | f | write | none |
 | --wait | boolean | supported | f | write | none |
 | --timeout | value | supported | f | write | none |
@@ -1618,26 +1618,26 @@ See command controls above.
 
 ### inventory host-bulk-create
 
-Not yet supported: requires secure input
+See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --inventory | value | blocked | d | write | none |
-| --hosts-file | value | blocked | c | write | file |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --inventory | value | supported | d | write | none |
+| --hosts-file | value | supported | c | write | file |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### inventory host-bulk-delete
 
-Not yet supported: requires secure input
+See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --hosts-file | value | blocked | c | write | file |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --hosts-file | value | supported | c | write | file |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### inventory group-create
 
@@ -1649,7 +1649,7 @@ See command controls above.
 | --name | value | supported | b | write | none |
 | --inventory | value | supported | b | write | none |
 | --description | value | supported | b | write | none |
-| --variables | value | blocked | c | write | potential secret |
+| --variables | value | supported | c | write | potential secret |
 | --confirm | boolean | supported | b | write | none |
 | --dry-run | boolean | supported | b | write | none |
 
@@ -1662,7 +1662,7 @@ See command controls above.
 | --help | boolean | supported | b | write | none |
 | --name | value | supported | b | write | none |
 | --description | value | supported | b | write | none |
-| --variables | value | blocked | c | write | potential secret |
+| --variables | value | supported | c | write | potential secret |
 | --confirm | boolean | supported | b | write | none |
 | --dry-run | boolean | supported | b | write | none |
 
@@ -1732,7 +1732,7 @@ See command controls above.
 | --source | value | supported | b | write | none |
 | --source-project | value | supported | b | write | none |
 | --credential | value | supported | e | write | none |
-| --source-vars | value | blocked | c | write | potential secret |
+| --source-vars | value | supported | c | write | potential secret |
 | --update-on-launch | boolean | supported | b | write | none |
 | --confirm | boolean | supported | b | write | none |
 | --dry-run | boolean | supported | b | write | none |
@@ -1748,7 +1748,7 @@ See command controls above.
 | --source | value | supported | b | write | none |
 | --source-project | value | supported | b | write | none |
 | --credential | value | supported | e | write | none |
-| --source-vars | value | blocked | c | write | potential secret |
+| --source-vars | value | supported | c | write | potential secret |
 | --update-on-launch | boolean | supported | b | write | none |
 | --no-update-on-launch | boolean | supported | b | write | none |
 | --confirm | boolean | supported | b | write | none |
@@ -1822,7 +1822,7 @@ See command controls above.
 | --kind | value | supported | b | write | none |
 | --host-filter | value | supported | b | write | none |
 | --description | value | supported | b | write | none |
-| --variables | value | blocked | c | write | potential secret |
+| --variables | value | supported | c | write | potential secret |
 | --confirm | boolean | supported | b | write | none |
 | --dry-run | boolean | supported | b | write | none |
 
@@ -1837,7 +1837,7 @@ See command controls above.
 | --organization | value | supported | b | write | none |
 | --host-filter | value | supported | b | write | none |
 | --description | value | supported | b | write | none |
-| --variables | value | blocked | c | write | potential secret |
+| --variables | value | supported | c | write | potential secret |
 | --confirm | boolean | supported | b | write | none |
 | --dry-run | boolean | supported | b | write | none |
 
@@ -1873,7 +1873,7 @@ See command controls above.
 | --name | value | supported | b | write | none |
 | --inventory | value | supported | b | write | none |
 | --description | value | supported | b | write | none |
-| --variables | value | blocked | c | write | potential secret |
+| --variables | value | supported | c | write | potential secret |
 | --enabled | boolean | supported | b | write | none |
 | --disabled | boolean | supported | b | write | none |
 | --confirm | boolean | supported | b | write | none |
@@ -1889,7 +1889,7 @@ See command controls above.
 | --name | value | supported | b | write | none |
 | --inventory | value | supported | b | write | none |
 | --description | value | supported | b | write | none |
-| --variables | value | blocked | c | write | potential secret |
+| --variables | value | supported | c | write | potential secret |
 | --enabled | boolean | supported | b | write | none |
 | --disabled | boolean | supported | b | write | none |
 | --confirm | boolean | supported | b | write | none |
@@ -2149,7 +2149,7 @@ See command controls above.
 | --description | value | supported | b | write | none |
 | --inventory | value | supported | b | write | none |
 | --limit | value | supported | b | write | none |
-| --extra-vars | value | blocked | c | write | potential secret, file |
+| --extra-vars | value | supported | c | write | potential secret, file |
 | --job-tags | value | supported | b | write | none |
 | --skip-tags | value | supported | b | write | none |
 | --enabled | boolean | supported | b | write | none |
@@ -2170,7 +2170,7 @@ See command controls above.
 | --description | value | supported | b | write | none |
 | --inventory | value | supported | b | write | none |
 | --limit | value | supported | b | write | none |
-| --extra-vars | value | blocked | c | write | potential secret, file |
+| --extra-vars | value | supported | c | write | potential secret, file |
 | --job-tags | value | supported | b | write | none |
 | --skip-tags | value | supported | b | write | none |
 | --enabled | boolean | supported | b | write | none |
@@ -2317,7 +2317,7 @@ See command controls above.
 | --- | --- | --- | --- | --- | --- |
 | --help | boolean | supported | e | write | none |
 | --username | value | supported | e | write | none |
-| --password-file | value | blocked | c | write | potential secret, file, stdin |
+| --password-file | value | supported | c | write | potential secret, file, stdin |
 | --first-name | value | supported | e | write | none |
 | --last-name | value | supported | e | write | none |
 | --email | value | supported | e | write | none |
@@ -2334,7 +2334,7 @@ See command controls above.
 | --- | --- | --- | --- | --- | --- |
 | --help | boolean | supported | e | write | none |
 | --username | value | supported | e | write | none |
-| --password-file | value | blocked | c | write | potential secret, file, stdin |
+| --password-file | value | supported | c | write | potential secret, file, stdin |
 | --first-name | value | supported | e | write | none |
 | --last-name | value | supported | e | write | none |
 | --email | value | supported | e | write | none |
@@ -2415,9 +2415,9 @@ See command controls above.
 | --name | value | supported | b | write | none |
 | --organization | value | supported | b | write | none |
 | --notification-type | value | supported | b | write | none |
-| --configuration-file | value | blocked | c | write | potential secret, file |
-| --config-file | value | blocked | c | write | potential secret, file |
-| --messages-file | value | blocked | c | write | potential secret, file |
+| --configuration-file | value | supported | c | write | potential secret, file |
+| --config-file | value | supported | c | write | potential secret, file |
+| --messages-file | value | supported | c | write | potential secret, file |
 | --description | value | supported | b | write | none |
 | --confirm | boolean | supported | b | write | none |
 | --dry-run | boolean | supported | b | write | none |
@@ -2432,9 +2432,9 @@ See command controls above.
 | --name | value | supported | b | write | none |
 | --organization | value | supported | b | write | none |
 | --notification-type | value | supported | b | write | none |
-| --configuration-file | value | blocked | c | write | potential secret, file |
-| --config-file | value | blocked | c | write | potential secret, file |
-| --messages-file | value | blocked | c | write | potential secret, file |
+| --configuration-file | value | supported | c | write | potential secret, file |
+| --config-file | value | supported | c | write | potential secret, file |
+| --messages-file | value | supported | c | write | potential secret, file |
 | --description | value | supported | b | write | none |
 | --confirm | boolean | supported | b | write | none |
 | --dry-run | boolean | supported | b | write | none |
@@ -2556,7 +2556,7 @@ See command controls above.
 | --help | boolean | supported | c | write | none |
 | --name | value | supported | c | write | none |
 | --credential-type | value | supported | c | write | none |
-| --inputs-file | value | blocked | c | write | potential secret, file |
+| --inputs-file | value | supported | c | write | potential secret, file |
 | --confirm | boolean | supported | c | write | none |
 | --dry-run | boolean | supported | c | write | none |
 

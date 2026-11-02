@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { once } from 'node:events'
 import { link, mkdir, readFile, readdir, rename, stat, symlink, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -36,17 +37,26 @@ try {
       })
       process.send({ ready: true })
       break
+    case 'awx-input':
     case 'input-file': {
-      const path = args[args.indexOf('--note-file') + 1]
+      const { encode } = await import('@toon-format/toon')
+      const path = args[args.indexOf(args.includes('--inputs-file') ? '--inputs-file' : '--note-file') + 1]
       const content = await readFile(path)
-      const metadata = { path, contentBase64: content.toString('base64'),
+      const metadata = { path, ...(mode === 'awx-input' ? { argv: process.argv, sha256: createHash('sha256').update(content).digest('hex') } : { contentBase64: content.toString('base64') }),
         mode: (await stat(path)).mode & 0o777, directoryMode: (await stat(join(path, '..'))).mode & 0o777 }
       await ready(metadata)
       if (process.env.ARTIUM_TEST_INPUT_OUTCOME === 'cancel') hold()
+      else if (process.env.ARTIUM_TEST_INPUT_OUTCOME === 'leak') console.log(mode === 'awx-input'
+        ? encode({ payload: JSON.parse(content.toString()).password }) : JSON.parse(content.toString()).password)
       else {
-        console.log(JSON.stringify(metadata))
+        console.log(mode === 'awx-input' ? encode(metadata) : JSON.stringify(metadata))
         process.exitCode = process.env.ARTIUM_TEST_INPUT_OUTCOME === 'error' ? 7 : 0
       }
+      break
+    }
+    case 'awx-args': {
+      const { encode } = await import('@toon-format/toon')
+      console.log(encode({ argv: args.join(' ') }))
       break
     }
     case 'native-artifact': {

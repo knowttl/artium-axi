@@ -9,6 +9,7 @@ import { connect, getCACertificates } from 'node:tls'
 import type { TrustedCaBundle, TrustedCertificate } from '../trusted-ca.js'
 import { adoPathPrefix, runnerLimits, runtimePath, toolPaths, protectedResultLimits } from '../config.js'
 import { SecretScanner } from './scan.js'
+import type { PrivateOutput } from './scan.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { inputFileSchema } from '../../shared/api.js'
 import { validateInput, writeInput } from './input.js'
@@ -29,6 +30,7 @@ export interface RunnerLimits {
   signal?: AbortSignal
   credentialTrust?: readonly CredentialTrust[]
   protectedResult?: { name: string, flag: string, receive: (bytes: Buffer) => void }
+  privateOutput?: PrivateOutput
 }
 
 export interface RunnerResult {
@@ -185,7 +187,7 @@ async function execute(
   if (!Number.isSafeInteger(cap) || cap < 0) throw new RangeError('Output byte limit must be a non-negative integer')
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new RangeError('Timeout must be a positive integer')
   if (!Number.isSafeInteger(terminationGraceMs) || terminationGraceMs <= 0) throw new RangeError('Termination grace must be a positive integer')
-  const scanner = new SecretScanner(secrets)
+  const scanner = new SecretScanner(secrets, limits.privateOutput)
   const started = performance.now()
   const directory = await mkdtemp(join(root, 'artium-call-')).catch(() => {
     throw new RunnerError('TEMP_UNAVAILABLE')
@@ -333,7 +335,7 @@ async function execute(
         if (!closed || !cleanupDone) return
         clearTimeout(timeout)
         limits.signal?.removeEventListener('abort', cancel)
-        if (secretDetected) {
+        if (secretDetected || scanner.finish()) {
           failure = new RunnerError('SECRET_IN_OUTPUT')
         } else if (spawnError) {
           failure = new RunnerError('SPAWN_FAILED')
