@@ -378,6 +378,13 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           } : {}),
           ...(workflowNode ? { workflow_job_template: Number(workflowNode[1]), success_nodes: [], failure_nodes: [], always_nodes: [] } : {}),
           ...resources.get(path), ...payload }
+        if (path.startsWith('/api/v2/projects/') && payload.scm_url !== undefined) {
+          const eventId = [...resources.keys()].filter(key => key.startsWith('/api/v2/activity_stream/')).length + 1
+          const changes = { scm_url: [resources.get(path)?.scm_url ?? '', payload.scm_url], name: resource.name }
+          resources.set(`/api/v2/activity_stream/${eventId}/`, { id: eventId,
+            operation: req.method === 'PATCH' ? 'update' : 'create', object_type: 'project', object1: String(resource.id),
+            changes: req.method === 'PATCH' ? changes : JSON.stringify(changes) })
+        }
         resources.set(path, resource)
         if (awxDropWrite) { req.socket.destroy(); return }
         res.writeHead(req.method === 'PATCH' ? 200 : 201)
@@ -398,7 +405,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     if (url.pathname === '/api/v2/unified_jobs/' || url.pathname === '/api/v2/jobs/') {
       res.end(JSON.stringify({ count: 1, next: null, results: [{ id: 42, name: 'Synthetic AWX job', status: 'running', type: 'job' }] })); return
     }
-    if (configurationPath && req.method === 'GET') {
+    if ((configurationPath || url.pathname.startsWith('/api/v2/activity_stream/')) && req.method === 'GET') {
       const workflowNodes = /^\/api\/v2\/workflow_job_templates\/(\d+)\/workflow_nodes\/$/.exec(url.pathname)
       const nodeMembers = /^\/api\/v2\/workflow_job_template_nodes\/\d+\/(credentials|(?:success|failure|always)_nodes)\/$/.exec(url.pathname)
       if (workflowNodes || nodeMembers) {

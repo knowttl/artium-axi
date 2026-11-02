@@ -621,7 +621,7 @@ test.each([
   }, 60_000,
 )
 
-test('AWX project SCM URLs remain private on later reads and projects still sync (S8)', async () => {
+test('AWX project SCM URLs remain private on later project and activity reads (S8, R1)', async () => {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
@@ -661,6 +661,8 @@ test('AWX project SCM URLs remain private on later reads and projects still sync
         name: 'Synthetic SCM', scm_type: 'git', scm_branch: 'updated', scm_url: '[SCM URL redacted]',
       } })
       expect(await run(['project', 'updates', '42'])).toMatchObject({ updates: [{ id: 42, status: 'successful' }] })
+      const createdEvent = await run(['activity-stream', 'show', '1']) as { 'activity-stream': { changes: string } }
+      expect(JSON.parse(createdEvent['activity-stream'].changes)).toEqual({ scm_url: '[SCM URL redacted]', name: 'Synthetic SCM' })
       allowWrites = true
       await send('/__awx/write-outcome?drop=true', 'POST')
       const interrupted = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: {
@@ -672,9 +674,16 @@ test('AWX project SCM URLs remain private on later reads and projects still sync
       allowWrites = false
       expect(await run(['project', 'list', '--limit', '100'])).toMatchObject({ projects: [{ id: 42, name: 'Recovered SCM' }] })
       expect(await run(['project', 'show', '42'])).toMatchObject({ project: { name: 'Recovered SCM', scm_url: '[SCM URL redacted]' } })
+      const editedEvent = await run(['activity-stream', 'show', '2']) as { 'activity-stream': { changes: string } }
+      expect(JSON.parse(editedEvent['activity-stream'].changes)).toEqual({ scm_url: '[SCM URL redacted]', name: 'Recovered SCM' })
       expect(JSON.parse(await send('/__evidence')).requests).toContainEqual(expect.objectContaining({
         method: 'PATCH', path: '/api/v2/projects/42/', body: { scm_branch: 'updated', credential: 10 },
       }))
+      allowWrites = true
+      await send('/__awx/write-outcome?drop=false', 'POST')
+      await run(['project', 'edit', '42', '--scm-url', `https://scm.example/repo?token=CANARY-${'x'.repeat(1100)}`, '--confirm'])
+      allowWrites = false
+      expect(await run(['activity-stream', 'show', '3'])).toMatchObject({ 'activity-stream': { changes: '[activity changes redacted]' } })
       expect(lines.join('\n') + JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
     } finally { await app.close(); db.close() }

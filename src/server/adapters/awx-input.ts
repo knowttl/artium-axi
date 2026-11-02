@@ -39,6 +39,9 @@ const masks = new Set([...Object.values(fields), ...patterns.map(([, mask]) => m
 const protocolFields = new Set(${JSON.stringify(protocolOutputFields)});
 const redact = (value, key = '', depth = 0) => {
   if ((depth > 1 || key === 'payload') && Object.hasOwn(fields, key)) return fields[key];
+  if (depth > 1 && key === 'changes' && typeof value === 'string') {
+    try { return JSON.stringify(redact(JSON.parse(value), '', depth + 1)); } catch { return '[activity changes redacted]'; }
+  }
   if (depth > 1 && ['variables', 'source_vars'].includes(key) && typeof value === 'string') {
     try { return redactValue(parse(value)); } catch { return '***'; }
   }
@@ -73,10 +76,7 @@ export function awxPrivateOutput(input: RunnerInput, structured: readonly (reado
     }
     return content === undefined ? [] : [{ field, content }]
   }))
-  if (args[0] === 'project') {
-    // Mask stored URLs on reads too, including credentials not supplied by this call.
-    output.fields.scm_url = '[SCM URL redacted]'
-    if (inline.has('scm-url')) delete output.fields.payload
-  }
+  output.fields.scm_url = '[SCM URL redacted]'
+  if (inline.has('scm-url')) delete output.fields.payload
   return output
 }
