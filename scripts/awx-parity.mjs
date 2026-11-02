@@ -24,7 +24,7 @@ const targetPolicy = {
   write: 'One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery',
 }
 const authorizationFor = effect => ['read', 'client-local'].includes(effect) ? 'read' : 'write'
-const configurationControl = 'Administrator allowConfigurationWrites; AWX_AXI_ALLOW_CONFIG_WRITES; --confirm without --dry-run; AWX resource permission'
+const configurationControl = 'Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission'
 const sourceFiles = readdirSync(new URL('dist/', upstream), { recursive: true }).filter(path => path.endsWith('.js')).sort()
 const sources = sourceFiles.map(path => ({ path: `dist/${path}`, sha256: createHash('sha256').update(readFileSync(new URL(`dist/${path}`, upstream))).digest('hex') }))
 const security = (domain, name) => ['user', 'team', 'role', 'credential'].includes(domain)
@@ -37,8 +37,7 @@ const inputDetails = (command, name) => {
   const stdin = name === 'password-file' || name === 'inputs-file' && command.startsWith('credential ')
   return {
     secret: sensitiveNames.has(name), file, stdin,
-    ...(file || sensitiveNames.has(name) ? { delivery: 'TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths',
-      ...(name === 'extra-vars' ? { currentException: 'Inline JSON allowed on supported routes; @file rejected' } : {}) } : {}),
+    ...(file || sensitiveNames.has(name) ? { delivery: 'TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths' } : {}),
     ...(name === 'download' ? { outputFile: true, delivery: 'Managed artifact download required; never a caller-selected server path' } : {}),
     ...(name === 'playbook' ? { note: 'AWX project-relative playbook name, not a runner file upload' } : {}),
   }
@@ -48,7 +47,7 @@ const flagsFor = (command, specs, effect, slice, status) => specs.map(flag => {
   const securityInput = conditionalSecurity.has(command) && ['credential', 'configuration-file', 'config-file', 'messages-file'].includes(flag.name)
   const flagEffect = securityInput ? 'security administration' : effect
   const authorization = ['auth login', 'auth logout'].includes(command) ? 'write' : authorizationFor(flagEffect)
-  const allowed = routes.get(command)?.flags[flag.name] !== undefined
+  const allowed = routes.get(command)?.flags[flag.name] !== undefined && !inventory.adapterBoundary.secureInputFlags.includes(flag.name)
   const blockedInput = flag.name.endsWith('-file')
   return { ...flag, effect: flagEffect, status: flag.name === 'allow-http' ? 'not applicable' : status === 'supported' && allowed && !blockedInput ? 'supported' : status === 'managed equivalent' ? status : 'blocked',
     targetSlice: input.file || input.secret ? 'c' : securityInput ? 'e' : !allowed && status === 'supported' && effect !== 'configuration write' ? 'f' : slice,
@@ -56,7 +55,7 @@ const flagsFor = (command, specs, effect, slice, status) => specs.map(flag => {
     ...(flagEffect === 'configuration write' && status === 'supported' && allowed && !blockedInput ? { currentAdminControl: configurationControl } : {}),
     ...(flag.name === 'allow-http' ? { reason: 'Managed AWX accounts require HTTPS; no HTTP opt-in equivalent' } : {}),
     ...(status === 'supported' && !allowed ? { reason: 'Omitted from the reviewed Artium flag schema' } : {}),
-    ...(blockedInput ? { reason: 'AWX adapter rejects file inputs before execution' } : {}) }
+    ...(blockedInput || inventory.adapterBoundary.secureInputFlags.includes(flag.name) ? { reason: 'Not yet supported: requires secure input' } : {}) }
 })
 const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
   const command = `${domain.name} ${route.name}`
@@ -68,9 +67,10 @@ const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
   const targetSlice = effect === 'read' || effect === 'operational write' ? 'f'
     : effect === 'destructive' || route.name.includes('bulk') ? 'd'
     : effect === 'security administration' ? domain.name === 'credential' || route.name === 'credential-create' ? 'c' : 'e' : 'b'
-  const status = current.effect === 'blocked' ? 'blocked' : 'supported'
+  const status = ['blocked', 'secure-input'].includes(current.effect) ? 'blocked' : 'supported'
   const authorization = authorizationFor(effect)
   return { command, effect, status, targetSlice, authorization, requiredAdminControl: targetPolicy[authorization], positionals: route.positionals, help: route.help,
+    ...(current.effect === 'secure-input' ? { reason: 'Not yet supported: requires secure input' } : {}),
     ...(effect === 'configuration write' && status === 'supported' ? { currentAdminControl: configurationControl } : {}),
     ...(conditionalSecurity.has(command) ? { conditionalEffect: 'security administration when credential or notification configuration/messages input is supplied',
       dependentSlices: ['c', 'e'] } : {}),
@@ -82,7 +82,7 @@ const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
 
 const localReasons = {
   'auth login': ['managed equivalent', 'Artium AWX account form accepts a PAT or exchanges username/password for a PAT; raw upstream login is blocked. Passwords and tokens use the managed credential store, never argv.'],
-  'auth logout': ['blocked', 'Removing a managed account is not upstream PAT revocation. Slice e must provide explicit token revocation under the target write policy.'],
+  'auth logout': ['blocked', 'Raw managed auth logout remains refused; removing a managed account does not revoke its upstream PAT. Use user token-revoke under the single administrator-controlled per-tenant writes switch, default OFF, with preview, explicit confirmation and audit.'],
   'config path': ['not applicable', 'Artium materializes private runner configuration. There is no client-owned upstream config path to expose.'],
   'profile list': ['managed equivalent', 'Use Artium account discovery and selection; upstream filesystem profiles are not caller-owned.'],
   'setup hooks': ['managed equivalent', 'Use artium-axi setup --host <claude|codex|opencode> --hook on Linux for authenticated ambient tool context and granted tool skills. Claude Code and Codex use SessionStart; OpenCode 1.19.x uses its local system-context plugin API. Codex host trust and feature controls still apply. Pi and non-Linux hosts retain skill-only setup. Never install hooks in the server runner.'],
@@ -114,7 +114,7 @@ const aliases = commands.filter(route => /^inventory (host|group|source)-/.test(
   const spellings = [`inventory ${noun} ${parts.join('-')}`]
   if (noun !== 'host' && parts.length > 1) spellings.push(`inventory ${noun} ${parts.join(' ')}`)
   return spellings.map(command => ({ command, canonicalCommand: route.command, effect: route.effect, status: 'blocked', targetSlice: route.targetSlice,
-    authorization: route.authorization, requiredAdminControl: route.requiredAdminControl, reason: 'Upstream nested alias; Artium accepts only canonical inventory leaf spelling, which is also currently blocked',
+    authorization: route.authorization, requiredAdminControl: route.requiredAdminControl, reason: 'Upstream nested alias; Artium accepts only canonical inventory leaf spelling',
     ...(noun !== 'host' && parts.length > 1 ? { upstreamException: 'Pinned router joins every trailing token into the action for non-CRUD group/source aliases, including flags and values. Use canonical spelling for working invocations; slice f must track this upstream limitation.' } : {}),
     flags: route.flags.map(flag => ({ ...flag, status: 'blocked' })) }))
 })

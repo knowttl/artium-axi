@@ -24,7 +24,7 @@ const settingsGuide = {
   'tenable-axi': 'Optional writes: {"allowWrites": true, "operations": ["tags-create-tag-category"]}. Writes and export jobs require native preview, execute and exact confirmation. Use {} to turn writes off.',
   'beyondtrust-axi': 'Writes require selected exact operations, native preview, execute and exact confirmation. Deletes additionally require Allow deletes and exact confirm-delete. Downloads use artium-axi download.',
   'checkpoint-axi': 'Optional writes: {"allowWrites": true, "operations": ["email.quarantine"]}. Exact event.action.<name> entries can be added here using an available event action name. Writes require native preview, execute and exact confirmation. Downloads require separately selected operations and artium-axi download with host-owned confirmation. Ambiguous deletes remain blocked. Use {} to turn writes off.',
-  'awx-axi': 'Optional allowWrites (boolean), off by default, enables operational actions only (launch, cancel, sync, approval and notification tests). Separate allowConfigurationWrites (boolean), off by default, enables ordinary create/edit/copy and additive associations for inventories, hosts, groups, sources, templates, projects, schedules and workflows/nodes. Each write requires --confirm and AWX resource permission. Credentials, secret input, files/stdin, deletes, removals, bulk, organizations, users, teams, roles and tokens remain blocked. Use {} to turn both controls off.',
+  'awx-axi': 'Optional allowWrites (boolean), off by default, is the single tenant switch for all writes, including configuration, deletes, removals and security administration. Preview and execution require write access; execution requires --confirm and AWX resource permission. Secret and structured inputs, SCM URLs, files/stdin and bulk host operations are not yet supported: requires secure input. Credential references are supported. Legacy allowConfigurationWrites is ignored. Use {} to turn writes off.',
   'ado-axi': 'Optional allowWrites (boolean), off by default. Permits reviewed work-item delete/destroy, link removal, pipeline, repository, policy, PR and ref writes. Release creation may deploy. Raw API writes require server-listed paths. Artium classifies and journals every command. Use {} to turn writes off.',
   'ldap-axi': 'LDAP is read-only and has no editable native settings. Use {}.',
   'mg-axi': 'Optional enabledPacks: ["entra", "security"] enables read-only hunting; default ["entra"]. Optional preview (boolean) and writes: {"allowWrites": true, "operations": ["mg.entra.group.member.add"]}. Use {} to clear settings.',
@@ -134,7 +134,6 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const failing = state === 'failing'
     const writes = tool.writeAccess
     const awx = tool.name === 'awx-axi'
-    const configurationWrites = awx && tool.nativeSettings.allowConfigurationWrites === true
 
     const test = formStart(api + '/test', 'POST', '', `data-test-tool="${tool.name}"`) + `<button class="btn btn-secondary">${icon('test')}Test connection</button></form>`
     const enable = formStart(api, 'PATCH', tool.enabled ? 'Disable this tool and block new calls?' : 'Enable this tool for people whose roles grant access?') +
@@ -196,7 +195,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
         rows || '<p class="empty">No roles grant this tool. Open a role and select this tool to give its members access.</p>',
         { actions: '<a class="btn btn-secondary btn-sm" href="/admin/roles">Manage roles</a>' })
     } else {
-      const writeState = `${awx ? 'operational writes' : 'writes'} ${writes.enabled ? 'on' : 'off'}${awx ? `; configuration changes ${configurationWrites ? 'on' : 'off'}` : ''}`
+      const writeState = `writes ${writes.enabled ? 'on' : 'off'}`
       panel = callout('warn', 'This replaces all native settings', 'Saving keeps the credential and clears cached health. Omitting write settings turns writes off. Use Write permissions for everyday changes.', '') +
         formStart(api, 'PATCH', 'Replace native settings while keeping the credential?', '', 'card') +
         `<div class="card-head"><div><h2>Native settings (JSON)</h2><p>Current: ${escape(writeState)}.</p></div></div><div class="card-body"><input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}"><p>${escape(settingsGuide[tool.name])}</p><label>Native settings (JSON object)<textarea name="nativeSettings" data-type="json" data-json-check rows="10" required spellcheck="false">${escape(JSON.stringify(tool.nativeSettings, null, 2))}</textarea></label><p class="note" data-json-status aria-live="polite"></p></div>
@@ -207,15 +206,14 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     return browserPage(reply, product, stateTemplates + failure + setup + result + navigation + panel + filterForm, current, undefined, { lead: toolIcon(tool.name, 'lg'), heading: product, meta, actions: `<div class="actions">${test}${enable}</div>`, helpTopic: 'Tools' })
 
     function writesPanel(): string {
-      const blocked = noteCard('Always blocked', `<p>${escape(writes.blocked)}</p>`)
+      const blocked = noteCard(awx ? 'Capability boundary' : 'Always blocked', `<p>${escape(writes.blocked)}</p>`)
       if (!writes.capable) {
         return `<div class="split has-aside" data-write-access><div class="column">${card('Always read-only', `${product} cannot change data through Artium.`, `<div class="card-body"><p>${escape(writes.reason ?? 'No write actions.')}</p><p>No write actions are currently granted.</p></div>`)}</div><div class="column">${blocked}</div></div>`
       }
       const deletes = (tool.nativeSettings.writes as { allowDeletes?: boolean } | undefined)?.allowDeletes === true
-      let switches = `<label class="switch-row"><input type="checkbox" class="switch" role="switch" name="enabled" data-type="boolean"${writes.enabled ? ' checked' : ''}><div><b>${awx ? 'Operational actions' : 'Allow writes'}</b><span>${writes.enabled ? 'On.' : 'Off.'} ${awx ? 'Launch, relaunch, cancel, sync, approvals and notification tests.' : `Agents can only read from ${escape(product)} while this is off.${writes.supportedOperations ? ' Turning it on allows only the operations you select below.' : ''}`}</span></div></label>`
-      if (awx) switches += `<label class="switch-row"><input type="checkbox" class="switch" role="switch" name="allowConfigurationWrites" data-type="boolean"${configurationWrites ? ' checked' : ''}><div><b>Configuration changes</b><span>${configurationWrites ? 'On.' : 'Off.'} Create, edit and copy, plus additive associations, for inventories, hosts, groups, sources, templates, projects, schedules and workflows. Requires AWX resource permission.</span></div></label>`
+      let switches = `<label class="switch-row"><input type="checkbox" class="switch" role="switch" name="enabled" data-type="boolean"${writes.enabled ? ' checked' : ''}><div><b>Allow writes</b><span>${writes.enabled ? 'On.' : 'Off.'} ${awx ? 'All writes for this tenant, including configuration, deletes, removals and security administration. Secret and structured inputs require the future secure input channel. Reads and help remain available while off.' : `Agents can only read from ${escape(product)} while this is off.${writes.supportedOperations ? ' Turning it on allows only the operations you select below.' : ''}`}</span></div></label>`
       if (tool.name === 'beyondtrust-axi') switches += `<label class="switch-row"><input type="checkbox" class="switch" role="switch" name="allowDeletes" data-type="boolean"${deletes ? ' checked' : ''}><div><b>Allow deletes</b><span>${deletes ? 'On.' : 'Off.'} Deletes also need their exact operation selected below and both native confirmations.</span></div></label>`
-      const grant = `<p class="note">${writes.enabled ? `Current grant: ${escape(writes.unlocks)}` : awx ? 'No operational actions are currently granted.' : 'No write actions are currently granted.'}</p>`
+      const grant = `<p class="note">${writes.enabled ? `Current grant: ${escape(writes.unlocks)}` : 'No write actions are currently granted.'}</p>`
       const confirmation = 'Save write access and the selected operations for this tool? Other native settings stay unchanged. Turning writes on allows the actions described on this page; turning writes off blocks them. This change is audited.'
       const unsupported = writes.supportedOperations && writes.allowedOperations.some(operation => !writes.supportedOperations!.includes(operation))
         ? callout('err', 'Unsupported operations saved', 'The saved allow-list contains operations outside the pinned catalogue. Saving write permissions removes them.', '', { role: 'alert' }) : ''

@@ -62,7 +62,8 @@ try {
       ? ['print', args.includes('--full') ? 'detail: Synthetic full detail\n' : upstream] : [...args]
     return { ...prepared, executable: process.execPath, args: [join(root, 'test/fake-tool/fake-axi.mjs'), ...fakeArgs], limits: { timeoutMs: 5000 } }
   }
-  app = createApp({ db, audit: new Audit(db), runner, adapters: [adapter], credentialStore: store,
+  // Health is seeded above; omit its credential source so background probes stay offline.
+  app = createApp({ db, audit: new Audit(db), runner, adapters: [adapter],
     resolver: new SharedIdentityResolver(store), environment: {} })
   await app.ready()
   createTestCertificates(directory, ['localhost'])

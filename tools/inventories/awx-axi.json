@@ -289,6 +289,12 @@
       "update"
     ],
     "nativeWrites": "host-classified",
+    "secureInputFlags": [
+      "extra-vars",
+      "variables",
+      "source-vars",
+      "scm-url"
+    ],
     "inputs": {
       "stdin": "unsupported",
       "files": "unsupported"
@@ -327,7 +333,7 @@
       "--limit",
       "1"
     ],
-    "help": "awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Operational writes require administrator allowWrites and --confirm. Ordinary configuration create/edit/copy and additive associations for inventories, hosts, groups, sources, templates, projects, schedules and workflows/nodes require separate allowConfigurationWrites and --confirm. AWX permissions still apply. Credentials, secret input, files/stdin, deletes, removals, bulk and security administration stay blocked. Use job watch --timeout 50 or less.\n"
+    "help": "awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. One tenant switch, default off, gates previews and execution; reads and help remain available. AWX permissions still apply. Secret and structured inputs, SCM URLs, files/stdin and bulk host operations are not yet supported: requires secure input. Credential references are supported. Use job watch --timeout 50 or less.\n"
   },
   "suggestionFields": [
     "help"
@@ -512,7 +518,7 @@
     },
     {
       "command": "template credential-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "credential": "value",
@@ -528,7 +534,7 @@
     },
     {
       "command": "template credential-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "credential": "value",
@@ -560,7 +566,7 @@
     },
     {
       "command": "template instance-group-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "instance-group": "value",
@@ -592,7 +598,7 @@
     },
     {
       "command": "template label-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "label": "value",
@@ -625,7 +631,7 @@
     },
     {
       "command": "template notification-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "event": "value",
@@ -651,6 +657,7 @@
         "playbook": "value",
         "description": "value",
         "execution-environment": "value",
+        "extra-vars": "value",
         "limit": "value",
         "verbosity": "value",
         "job-type": "value",
@@ -675,6 +682,7 @@
         "playbook": "value",
         "description": "value",
         "execution-environment": "value",
+        "extra-vars": "value",
         "limit": "value",
         "verbosity": "value",
         "job-type": "value",
@@ -690,7 +698,7 @@
     },
     {
       "command": "template delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -811,6 +819,7 @@
         "help": "boolean",
         "template": "value",
         "inventory": "value",
+        "extra-vars": "value",
         "limit": "value",
         "scm-branch": "value",
         "job-type": "value",
@@ -834,6 +843,7 @@
         "help": "boolean",
         "template": "value",
         "inventory": "value",
+        "extra-vars": "value",
         "limit": "value",
         "scm-branch": "value",
         "job-type": "value",
@@ -852,7 +862,7 @@
     },
     {
       "command": "workflow node-delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -884,7 +894,7 @@
     },
     {
       "command": "workflow node-unlink",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "on": "value",
@@ -901,7 +911,7 @@
     },
     {
       "command": "workflow node-credential-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "credential": "value",
@@ -917,7 +927,7 @@
     },
     {
       "command": "workflow node-credential-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "credential": "value",
@@ -949,7 +959,7 @@
     },
     {
       "command": "workflow node-label-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "label": "value",
@@ -981,7 +991,7 @@
     },
     {
       "command": "workflow node-instance-group-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "instance-group": "value",
@@ -1032,7 +1042,7 @@
     },
     {
       "command": "workflow notification-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "event": "value",
@@ -1065,7 +1075,7 @@
     },
     {
       "command": "workflow label-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "label": "value",
@@ -1103,6 +1113,7 @@
         "name": "value",
         "organization": "value",
         "description": "value",
+        "extra-vars": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
       },
@@ -1121,6 +1132,7 @@
         "name": "value",
         "organization": "value",
         "description": "value",
+        "extra-vars": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
       },
@@ -1133,7 +1145,7 @@
     },
     {
       "command": "workflow delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -1254,7 +1266,7 @@
     },
     {
       "command": "organization create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -1273,7 +1285,7 @@
     },
     {
       "command": "organization edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -1292,7 +1304,7 @@
     },
     {
       "command": "organization delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -1307,7 +1319,7 @@
     },
     {
       "command": "organization notification-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "event": "value",
@@ -1324,7 +1336,7 @@
     },
     {
       "command": "organization notification-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "event": "value",
@@ -1341,7 +1353,7 @@
     },
     {
       "command": "organization user-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "user": "value",
@@ -1357,7 +1369,7 @@
     },
     {
       "command": "organization user-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "user": "value",
@@ -1373,7 +1385,7 @@
     },
     {
       "command": "organization admin-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "user": "value",
@@ -1389,7 +1401,7 @@
     },
     {
       "command": "organization admin-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "user": "value",
@@ -1405,7 +1417,7 @@
     },
     {
       "command": "organization team-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "team": "value",
@@ -1421,7 +1433,7 @@
     },
     {
       "command": "organization team-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "team": "value",
@@ -1437,7 +1449,7 @@
     },
     {
       "command": "organization instance-group-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "instance-group": "value",
@@ -1453,7 +1465,7 @@
     },
     {
       "command": "organization instance-group-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "instance-group": "value",
@@ -1469,7 +1481,7 @@
     },
     {
       "command": "organization execution-environment-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "execution-environment": "value",
@@ -1485,7 +1497,7 @@
     },
     {
       "command": "organization execution-environment-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "execution-environment": "value",
@@ -1501,7 +1513,7 @@
     },
     {
       "command": "organization notification-template-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "notification-template": "value",
@@ -1517,7 +1529,7 @@
     },
     {
       "command": "organization notification-template-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "notification-template": "value",
@@ -1533,7 +1545,7 @@
     },
     {
       "command": "organization galaxy-credential-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "credential": "value",
@@ -1549,7 +1561,7 @@
     },
     {
       "command": "organization galaxy-credential-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "credential": "value",
@@ -1733,7 +1745,7 @@
     },
     {
       "command": "credential copy",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -1749,7 +1761,7 @@
     },
     {
       "command": "credential create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -1769,7 +1781,7 @@
     },
     {
       "command": "credential edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -1789,7 +1801,7 @@
     },
     {
       "command": "credential delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -1978,7 +1990,7 @@
     },
     {
       "command": "project copy",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -2011,7 +2023,7 @@
     },
     {
       "command": "project notification-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "event": "value",
@@ -2034,7 +2046,9 @@
         "name": "value",
         "organization": "value",
         "scm-type": "value",
+        "scm-url": "value",
         "scm-branch": "value",
+        "credential": "value",
         "description": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
@@ -2054,7 +2068,9 @@
         "name": "value",
         "organization": "value",
         "scm-type": "value",
+        "scm-url": "value",
         "scm-branch": "value",
+        "credential": "value",
         "description": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
@@ -2068,7 +2084,7 @@
     },
     {
       "command": "project delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -2173,7 +2189,7 @@
     },
     {
       "command": "inventory host-bulk-create",
-      "effect": "blocked",
+      "effect": "secure-input",
       "flags": {
         "help": "boolean",
         "inventory": "value",
@@ -2188,7 +2204,7 @@
     },
     {
       "command": "inventory host-bulk-delete",
-      "effect": "blocked",
+      "effect": "secure-input",
       "flags": {
         "help": "boolean",
         "hosts-file": "value",
@@ -2208,6 +2224,7 @@
         "name": "value",
         "inventory": "value",
         "description": "value",
+        "variables": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
       },
@@ -2225,6 +2242,7 @@
         "help": "boolean",
         "name": "value",
         "description": "value",
+        "variables": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
       },
@@ -2237,7 +2255,7 @@
     },
     {
       "command": "inventory group-delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -2268,7 +2286,7 @@
     },
     {
       "command": "inventory group-remove-host",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "host": "value",
@@ -2300,7 +2318,7 @@
     },
     {
       "command": "inventory group-remove-child",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "child": "value",
@@ -2323,6 +2341,8 @@
         "inventory": "value",
         "source": "value",
         "source-project": "value",
+        "credential": "value",
+        "source-vars": "value",
         "update-on-launch": "boolean",
         "confirm": "boolean",
         "dry-run": "boolean"
@@ -2342,6 +2362,8 @@
         "name": "value",
         "source": "value",
         "source-project": "value",
+        "credential": "value",
+        "source-vars": "value",
         "update-on-launch": "boolean",
         "no-update-on-launch": "boolean",
         "confirm": "boolean",
@@ -2356,7 +2378,7 @@
     },
     {
       "command": "inventory source-delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -2371,7 +2393,7 @@
     },
     {
       "command": "inventory source-credential-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "credential": "value",
@@ -2387,7 +2409,7 @@
     },
     {
       "command": "inventory source-credential-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "credential": "value",
@@ -2420,7 +2442,7 @@
     },
     {
       "command": "inventory source-notification-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "event": "value",
@@ -2445,6 +2467,7 @@
         "kind": "value",
         "host-filter": "value",
         "description": "value",
+        "variables": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
       },
@@ -2464,6 +2487,7 @@
         "organization": "value",
         "host-filter": "value",
         "description": "value",
+        "variables": "value",
         "confirm": "boolean",
         "dry-run": "boolean"
       },
@@ -2476,7 +2500,7 @@
     },
     {
       "command": "inventory delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -2514,6 +2538,7 @@
         "name": "value",
         "inventory": "value",
         "description": "value",
+        "variables": "value",
         "enabled": "boolean",
         "disabled": "boolean",
         "confirm": "boolean",
@@ -2534,6 +2559,7 @@
         "name": "value",
         "inventory": "value",
         "description": "value",
+        "variables": "value",
         "enabled": "boolean",
         "disabled": "boolean",
         "confirm": "boolean",
@@ -2548,7 +2574,7 @@
     },
     {
       "command": "inventory host-delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -2793,7 +2819,7 @@
     },
     {
       "command": "schedule credential-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "credential": "value",
@@ -2809,7 +2835,7 @@
     },
     {
       "command": "schedule credential-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "credential": "value",
@@ -2841,7 +2867,7 @@
     },
     {
       "command": "schedule label-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "label": "value",
@@ -2873,7 +2899,7 @@
     },
     {
       "command": "schedule instance-group-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "instance-group": "value",
@@ -2898,6 +2924,7 @@
         "description": "value",
         "inventory": "value",
         "limit": "value",
+        "extra-vars": "value",
         "job-tags": "value",
         "skip-tags": "value",
         "enabled": "boolean",
@@ -2923,6 +2950,7 @@
         "description": "value",
         "inventory": "value",
         "limit": "value",
+        "extra-vars": "value",
         "job-tags": "value",
         "skip-tags": "value",
         "enabled": "boolean",
@@ -2939,7 +2967,7 @@
     },
     {
       "command": "schedule delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -2985,7 +3013,7 @@
     },
     {
       "command": "execution-environment create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -3006,7 +3034,7 @@
     },
     {
       "command": "execution-environment edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -3027,7 +3055,7 @@
     },
     {
       "command": "execution-environment delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -3042,7 +3070,7 @@
     },
     {
       "command": "execution-environment copy",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -3088,7 +3116,7 @@
     },
     {
       "command": "user token-create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "scope": "value",
@@ -3104,7 +3132,7 @@
     },
     {
       "command": "user token-revoke",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -3119,7 +3147,7 @@
     },
     {
       "command": "user create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "username": "value",
@@ -3141,7 +3169,7 @@
     },
     {
       "command": "user edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "username": "value",
@@ -3165,7 +3193,7 @@
     },
     {
       "command": "user delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -3244,7 +3272,7 @@
     },
     {
       "command": "notification-template create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -3266,7 +3294,7 @@
     },
     {
       "command": "notification-template edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -3288,7 +3316,7 @@
     },
     {
       "command": "notification-template delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -3318,7 +3346,7 @@
     },
     {
       "command": "notification-template copy",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -3403,7 +3431,7 @@
     },
     {
       "command": "team user-add",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "user": "value",
@@ -3419,7 +3447,7 @@
     },
     {
       "command": "team user-remove",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "user": "value",
@@ -3435,7 +3463,7 @@
     },
     {
       "command": "team credential-create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -3453,7 +3481,7 @@
     },
     {
       "command": "team create",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -3471,7 +3499,7 @@
     },
     {
       "command": "team edit",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -3489,7 +3517,7 @@
     },
     {
       "command": "team delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -3629,7 +3657,7 @@
     },
     {
       "command": "role grant",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "user": "value",
@@ -3646,7 +3674,7 @@
     },
     {
       "command": "role revoke",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "user": "value",

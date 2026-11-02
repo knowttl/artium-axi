@@ -416,8 +416,8 @@ Follow [browser administration](admin-guide.md#browser-administration) to use th
 For scripted administration, read `GET /v1/admin/tools` or `GET /v1/admin/tools/:tool` to review normalized `writeAccess` capability, current state, fixed read-only reasons, supported and allowed operations, and the actions a grant unlocks or leaves blocked.
 Use `PATCH /v1/admin/tools/:tool/write-access` to change only write access while preserving other native settings and credential values.
 Follow the [scripted administrator session procedure](#scripted-administrator-sessions); the request requires administrator capability, recent confirmation and the current tool revision.
-The [API contract](../src/shared/api.ts) (`adminToolRoutes.writeAccess`) owns the input and response fields, allow-list update semantics and AWX's independent configuration grant, which is reported in `nativeSettings` rather than `writeAccess`.
-See the [AWX supported boundary](safety.md#write-gates-by-tool) before enabling either write control.
+The [API contract](../src/shared/api.ts) (`adminToolRoutes.writeAccess`) owns the input and response fields and allow-list update semantics.
+See the [AWX supported boundary](safety.md#write-gates-by-tool) before enabling its write switch or migrating saved legacy settings.
 See [GitHub setup and limitations](tool-credentials.md#github) before activation.
 See the [Tenable One supported boundary](tool-credentials.md#tenable-one) before enabling its operation allow-list, including export jobs.
 See the [Hybrid Analysis supported boundary](safety.md) before enabling its operation allow-list and [credential setup](tool-credentials.md#hybrid-analysis) before activation.

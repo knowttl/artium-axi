@@ -108,9 +108,9 @@ export class CredentialProfile {
       delete this.inputSchema.properties.allowHttp
       delete this.inputSchema.if
       delete this.inputSchema.else
-      this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow operational writes' }
-      this.inputSchema.properties.allowConfigurationWrites = { type: 'boolean', title: 'Allow ordinary AWX configuration writes',
-        description: 'Create/edit/copy and additive associations for inventories, hosts, groups, sources, templates, projects, schedules and workflows/nodes. Requires --confirm and AWX permission. Credentials, secret input, deletes, removals, bulk and security administration stay blocked.' }
+      this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow AWX writes' }
+      this.inputSchema.properties.allowConfigurationWrites = { type: 'boolean', deprecated: true,
+        description: 'Legacy setting, ignored. Only administrator allowWrites grants mutation access.' }
       this.inputSchema.allOf = [...this.inputSchema.allOf ?? [], {
         if: { required: ['signIn'], properties: { signIn: { const: 'password' } } },
         then: { required: ['username', 'password'], not: { anyOf: [{ required: ['token'] }] } },
