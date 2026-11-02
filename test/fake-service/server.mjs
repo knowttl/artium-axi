@@ -144,8 +144,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         res.writeHead(201); res.end(JSON.stringify(asset))
       }).catch(() => { res.writeHead(400); res.end('{}') })
     } else if (url.pathname.startsWith('/attachments/')) { res.setHeader('content-type', 'application/octet-stream'); res.end(giteaBytes) }
-    else res.end(JSON.stringify(url.pathname.endsWith('/pulls/42') ? giteaIssue
-      : url.pathname.endsWith('/releases') ? [{ id: 17, tag_name: 'releases/v1+build' }]
+    else res.end(JSON.stringify(url.pathname.endsWith('/pulls/42') ? { ...giteaIssue,
+      head: { sha: 'a'.repeat(40), ref: 'synthetic' }, base: { sha: 'b'.repeat(40), ref: 'main' } }
+      : url.pathname.endsWith('/releases') ? [{ id: 17, tag_name: 'releases/v1+build', target_commitish: 'main',
+        name: 'Synthetic release', body: '', draft: false, prerelease: false }]
       : url.pathname.endsWith('/77') ? giteaAssets[0] : giteaAssets))
     return
   }
