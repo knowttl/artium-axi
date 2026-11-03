@@ -16,6 +16,8 @@ export interface TemporaryFile {
 }
 
 export interface PreparedCall {
+  // Dedicated identities can change while the call queues or its private files are materialized.
+  beforeSpawn?: () => void
   kubernetesWorkflowRoot?: string
   executable: string
   args: string[]

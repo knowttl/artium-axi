@@ -115,6 +115,10 @@ export async function runTool<Credential>(
               ? { ...prepared.protectedResult, receive: bytes => { privateBytes = bytes } } : undefined },
           { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => {
             authenticate(db, token)
+            if (prepared.beforeSpawn) {
+              checkToolPolicy(db, identity.userId, adapter.name)
+              prepared.beforeSpawn()
+            }
             if (kubernetesRequests && reference) {
               checkToolPolicy(db, identity.userId, adapter.name)
               const current = db.prepare('SELECT revision FROM credentials WHERE id = ? AND tool = ?').get(reference.id, adapter.name) as { revision: number } | undefined

@@ -46,13 +46,14 @@ import type { ArtifactStore } from './artifacts.js'
 import { errorDiagnostic } from './error-diagnostic.js'
 import { RunnerError } from './runner/runner.js'
 import { ProtectedResults } from './protected-results.js'
-import { hasSshConfiguration } from './store/ssh-hosts.js'
+import { hasSshConfiguration, type SshHosts } from './store/ssh-hosts.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
   adapters: readonly Adapter<unknown>[], environment?: NodeJS.ProcessEnv,
   credentialStore?: MutableCredentialStore,
   providerCredentials?: ProviderCredentials,
+  sshHosts?: SshHosts,
   ssoFetch?: SsoFetch,
   artifactStore?: ArtifactStore,
 }) {
@@ -246,7 +247,7 @@ export function createApp(options: {
       { requestId: request.id, clientAddress: request.ip }, Date.now(), token)
     return reply.code(204).send()
   })
-  registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health, credentialProfiles }, options.providerCredentials)
+  registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health, credentialProfiles, sshHosts: options.sshHosts }, options.providerCredentials)
   registerOverviewPage(app, db)
   registerUsersPage(app, db)
   registerRolesPages(app, db)

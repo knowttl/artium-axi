@@ -35,7 +35,7 @@ import type { CredentialReference, MutableCredentialStore, ToolName } from '../s
 import { readCredentialTrust } from '../store/trusted-certificates.js'
 import { isAwxOriginOnly } from '../store/credential-store.js'
 import { isCanonicalHttpsOrigin } from '../adapters/credential-input.js'
-import { hasSshConfiguration } from '../store/ssh-hosts.js'
+import { hasSshConfiguration, type SshHosts } from '../store/ssh-hosts.js'
 
 export interface ToolAdminOptions {
   adapters: readonly Adapter<unknown>[]
@@ -43,6 +43,7 @@ export interface ToolAdminOptions {
   store?: MutableCredentialStore
   health: ToolHealth
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>>
+  sshHosts?: SshHosts
 }
 
 const credentialSchemas = { 'ssh-axi': z.never(), 'kubernetes-axi': kubernetesProfile.credentialSchema, 'gitea-axi': giteaProfile.credentialSchema, 'technitium-axi': technitiumProfile.credentialSchema, 'unifi-axi': networkProfiles['unifi-axi'].credentialSchema, 'proxmox-axi': networkProfiles['proxmox-axi'].credentialSchema, 'beyondtrust-axi': beyondtrustCredentialSchema, 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }

@@ -41,6 +41,7 @@ export function createSshAdapter(hosts: SshHosts, writeLog: string, executable: 
         const path = new URL('../' + source.path, pathToFileURL(executable))
         if (createHash('sha256').update(readFileSync(path)).digest('hex') !== source.sha256) throw new ArtiumError('CREDENTIAL_INVALID')
       }
+      const beforeSpawn = call.offline ? undefined : hosts.dispatchGuard(userId, call.host)
       const visible = call.offline ? [] : hosts.list(userId)
       const selected = call.host ? visible.filter(host => host.id === call.host) : visible
       if (call.host && !call.offline && !selected.length) throw new ArtiumError('NOT_FOUND')
@@ -48,6 +49,7 @@ export function createSshAdapter(hosts: SshHosts, writeLog: string, executable: 
         ? profile.prepare('ssh-axi', hosts.profile(userId, call.host!), writeLog, true)
         : { environment: {}, files: [], secrets: [] }
       return { executable: process.execPath, args: [executable, ...args], ...credentials,
+        beforeSpawn,
         invocation: { command: call.command, help: call.help }, trustedIpc: { revision: 1, hosts: selected },
         effect: 'read', limits: { timeoutMs: inventory.requirements.timeoutMs, terminationGraceMs: 200 } }
     } }
