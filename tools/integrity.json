@@ -8,12 +8,12 @@
     "integrity": "sha512-HdIwNTtKC0edpIMN0zqfEGhR+D+QnQGTNWe9i20cKOiNc63CpP3/j0XKOH14jVTE3drcu2jTIfRcpqh7VChR8Q=="
   },
   "@knowttl/gitea-axi": {
-    "version": "0.1.1",
-    "integrity": "sha512-l/N2AIjQ6F75wQP/JRZ+YZxZMMMAPihPg9SJX7lAEXxze6THZjwhw80e748Uw9sETKiGMI5jzUZ2wkBZyc0GsQ=="
+    "version": "0.1.4",
+    "integrity": "sha512-vLMFveWfQ/u8XEUVIaqGuCKxhfkzegi5jybAYItENbrz4m3aVjIgaE0+o7do+NGg77+pJ/Sr7x+J2K+ek0G26Q=="
   },
   "@knowttl/falcon-axi": {
-    "version": "1.0.0-rc.2",
-    "integrity": "sha512-SkSVJ7XhdXtP3jdo6dkRhooN0Hl9RaQDark4YYniUEYRTBuHWlB2sDz38gi9EDQle0BzwwCsEIv/YPv2iiUXJA=="
+    "version": "1.0.0-rc.3",
+    "integrity": "sha512-9MiSRNs2L49Pq+YCDHJpDysvvRKxp44Pfp/Al6z3SgtW1xbtMp955AE98pC6hJrQ5V7dKszf2D8rSN+5qQY1JA=="
   },
   "@knowttl/unifi-axi": {
     "version": "0.1.3",
@@ -24,24 +24,24 @@
     "integrity": "sha512-Ol4Q82UE/70GgriSCfvDQvnnQOIr/beddlNwZolu3bJiN9fZyU0pvJlC22uXrZB+/zb96OaYgYkjhUonXnvoaA=="
   },
   "@knowttl/technitium-axi": {
-    "version": "0.1.0",
-    "integrity": "sha512-qUEubth8NpLOtx+dzKz0c6XyJJhMBRWXzmfWaQrzy8Nqz/m2ZNxpwcHcNTGlO1oAMj4Nfqg2FGvhlEUDx0qw6A=="
+    "version": "0.1.1",
+    "integrity": "sha512-hwsNnF+heZnqrsJdp9Y0M+zsjElqnhoRameyZGBoNmc2njKK/a+SNMynED49S+Ywyw88dJxIXifIxeRMEmRR2A=="
   },
   "axi-sdk-js": {
     "version": "0.1.13",
     "integrity": "sha512-Ygh8qUN5kdwQ3ASw+BNzCKYpy5QYi18vfcEpqEOQOSrcyh6i4wChrPMtvVW0/3Sqho3xPH3CuFkP0QUma5oxxA=="
   },
   "gh-axi": {
-    "version": "0.1.45",
-    "integrity": "sha512-frarCzBzqv3eYR+A15frkrS73OZe2nf7tGwoHq+WPlRaij+RHna6geH3fgq4UQoytjWvefHQYkal9EDyUgtcTw=="
+    "version": "0.1.48",
+    "integrity": "sha512-OzQT70Aik2n0VOj/ilu7Z1KGn8+OSd2UGYjJYVXHaGIqnsS5B+nWReyACk+PFGFfWSb3h1BWUrwETI/ArSXeFg=="
   },
   "@knowttl/checkpoint-axi": {
     "version": "0.1.5",
     "integrity": "sha512-zmBdIDk8Q0OjSysuRrZPvEgbqfNJQV4Op6cHrua9n69arnJ/yuOxFscCAXP5SUFyppXR3dOeMiA0c/fyXFwvWA=="
   },
   "@knowttl/beyondtrust-axi": {
-    "version": "0.1.6",
-    "integrity": "sha512-WGfsTvrzA+QNejvqlcDaQ9ClHXABfc7oi9k8VK++YHYQVEvtod5GzL0n02brEqJUJMbQZNSZr4kAXYTfYp7mKA=="
+    "version": "0.1.8",
+    "integrity": "sha512-B1dbqQmcvTGP3mMZnZdip8144COubalCiFD56wvUmPt4hPC4/MwEz6cLekFFsSMi4pGYrVMy++WSgu3Vvymeew=="
   },
   "@knowttl/hybrid-axi": {
     "version": "0.1.5",

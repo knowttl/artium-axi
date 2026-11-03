@@ -225,7 +225,7 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.doesNotMatch(JSON.stringify(db.prepare('SELECT * FROM audit').all()) + readFileSync(log, 'utf8'), /CANARY-|Synthetic uploaded body|Applied before lost reply/)
     assert.ok(readdirSync(join(directory, 'journal', 'write-receipts')).length > 0)
     assert.deepEqual(readdirSync(join(directory, 'calls')), [])
-    console.log(JSON.stringify({ gitea: '0.1.1', policy: 'admin default off with exact operations', preview: 'no mutations',
+    console.log(JSON.stringify({ gitea: '0.1.4', policy: 'admin default off with exact operations', preview: 'no mutations',
       confirmation: 'revision-bound across native processes', text: 'upload and explicit stdin', raw: 'classified metadata',
       recovery: 'lost reply reconciled without retry', custody: 'managed profiles, redacted audit', deny: 'verified' }))
   } finally { await app.close(); db.close(); await runner.shutdown() }

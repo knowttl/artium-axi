@@ -1342,7 +1342,7 @@ test('doctor shows the server category for every unhealthy tool without diagnost
       roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
     '/v1/tools': { status: 200, body: { tools: [
       { name: 'falcon-axi', version: '0.9.0', status: 'ok' },
-      { name: 'beyondtrust-axi', version: '0.1.6', status: 'error', errorCode: 'UPSTREAM_RESPONSE_INVALID' },
+      { name: 'beyondtrust-axi', version: '0.1.8', status: 'error', errorCode: 'UPSTREAM_RESPONSE_INVALID' },
       { name: 'vectra-axi', version: '0.1.3', status: 'error', errorCode: 'UPSTREAM_TLS_FAILED' },
     ] } },
   }
@@ -1587,10 +1587,10 @@ test.each([
 
 test('tool detail uses pinned help without running the tool', async () => {
   requests = []
-  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '1.0.0-rc.2' }] } }
+  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '1.0.0-rc.3' }] } }
   const result = await cli(['tools', 'show', 'falcon-axi'])
   expect(result).toMatchObject({ code: 0, stderr: '' })
-  expect(result.stdout).toContain('version: "1.0.0-rc.2"\nstatus: ok\nreadOnly: true\ncommands[')
+  expect(result.stdout).toContain('version: "1.0.0-rc.3"\nstatus: ok\nreadOnly: true\ncommands[')
   expect(result.stdout).toContain('example: artium-axi falcon-axi detection list\nupstreamHelp:')
   expect(result.stdout).toContain('default 20, ceiling 10000')
   const discovery = decode(result.stdout) as { commands: string[] }
@@ -1611,10 +1611,10 @@ test.each([
   { tool: 'az-axi', example: 'sub list', version: '0.1.17' },
   { tool: 'mg-axi', example: 'entra user list', version: '0.1.19' },
   { tool: 'vectra-axi', example: 'detection list', version: '0.1.14' },
-  { tool: 'falcon-axi', example: 'detection list', version: '1.0.0-rc.2' },
+  { tool: 'falcon-axi', example: 'detection list', version: '1.0.0-rc.3' },
   { tool: 'ldap-axi', example: 'user list --limit 1', version: '0.3.2' },
   { tool: 'ado-axi', example: 'project list --limit 1', version: '0.5.1' },
-  { tool: 'gh-axi', example: 'repo list --limit 1', version: '0.1.45' },
+  { tool: 'gh-axi', example: 'repo list --limit 1', version: '0.1.48' },
   { tool: 'awx-axi', example: 'job list --limit 1', version: '0.1.11' },
   { tool: 'tenable-axi', example: 'card list --limit 1', version: '0.1.6' },
   { tool: 'hybrid-axi', example: 'quota', version: '0.1.5' },

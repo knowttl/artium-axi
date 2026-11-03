@@ -364,7 +364,7 @@ test('Falcon discovery and health report the preserved legacy RTR grant', async 
   const tool = toolsResponseSchema.parse(await discovery.json()).tools.find(tool => tool.name === 'falcon-axi')!
   expect(tool).toMatchObject({ status: 'ok', readOnly: false })
   expect(toolView(tool)).toContain('readOnly: false\n')
-  expect(toolsView([tool])).toContain('falcon-axi,ok,"1.0.0-rc.2",false\n')
+  expect(toolsView([tool])).toContain('falcon-axi,ok,"1.0.0-rc.3",false\n')
   const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
   const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
   const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
@@ -1294,7 +1294,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'gh-axi', capable: true, enabled: false, reason: null },
       { name: 'unifi-axi', capable: true, enabled: false, reason: null },
       { name: 'proxmox-axi', capable: true, enabled: false, reason: null },
-      { name: 'technitium-axi', capable: false, enabled: false, reason: 'The pinned Technitium package supports reads only.' },
+      { name: 'technitium-axi', capable: false, enabled: false, reason: 'Artium currently admits Technitium reads only.' },
       { name: 'gitea-axi', capable: true, enabled: false, reason: null },
       { name: 'kubernetes-axi', capable: true, enabled: false, reason: null },
       { name: 'ssh-axi', capable: true, enabled: false, reason: null },
@@ -1640,7 +1640,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
   expect(response.status).toBe(200)
   const { tools } = await response.json() as { tools: unknown[] }
   expect(tools.map(tool => adminToolSchema.parse(tool))).toMatchObject([
-    { name: 'falcon-axi', version: '1.0.0-rc.2', health: { status: 'unconfigured' } },
+    { name: 'falcon-axi', version: '1.0.0-rc.3', health: { status: 'unconfigured' } },
     { name: 'vectra-axi', version: '0.1.14', health: { status: 'unconfigured' } },
     { name: 'az-axi', version: '0.1.17', health: { status: 'unconfigured' } },
     { name: 'mg-axi', version: '0.1.19', health: { status: 'disabled' } },
@@ -1650,12 +1650,12 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'tenable-axi', version: '0.1.6', health: { status: 'disabled' } },
     { name: 'hybrid-axi', version: '0.1.5', health: { status: 'disabled' } },
     { name: 'checkpoint-axi', version: '0.1.5', health: { status: 'disabled' } },
-    { name: 'beyondtrust-axi', version: '0.1.6', health: { status: 'disabled' } },
-    { name: 'gh-axi', version: '0.1.45', health: { status: 'disabled' } },
+    { name: 'beyondtrust-axi', version: '0.1.8', health: { status: 'disabled' } },
+    { name: 'gh-axi', version: '0.1.48', health: { status: 'disabled' } },
     { name: 'unifi-axi', version: '0.1.3', health: { status: 'disabled' } },
     { name: 'proxmox-axi', version: '0.1.2', health: { status: 'disabled' } },
-    { name: 'technitium-axi', version: '0.1.0', health: { status: 'disabled' } },
-    { name: 'gitea-axi', version: '0.1.1', health: { status: 'disabled' } },
+    { name: 'technitium-axi', version: '0.1.1', health: { status: 'disabled' } },
+    { name: 'gitea-axi', version: '0.1.4', health: { status: 'disabled' } },
     { name: 'kubernetes-axi', version: '0.1.3', health: { status: 'disabled' } },
     { name: 'ssh-axi', version: '0.1.2', health: { status: 'disabled' } },
   ])

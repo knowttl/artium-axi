@@ -1,21 +1,21 @@
 {
   "generatedBy": "scripts/beyondtrust-inventory.mjs",
   "tool": "beyondtrust-axi",
-  "version": "0.1.6",
-  "integrity": "sha512-WGfsTvrzA+QNejvqlcDaQ9ClHXABfc7oi9k8VK++YHYQVEvtod5GzL0n02brEqJUJMbQZNSZr4kAXYTfYp7mKA==",
+  "version": "0.1.8",
+  "integrity": "sha512-B1dbqQmcvTGP3mMZnZdip8144COubalCiFD56wvUmPt4hPC4/MwEz6cLekFFsSMi4pGYrVMy++WSgu3Vvymeew==",
   "parserEvidence": "Published catalogue and reviewed native parsers, write coordinator, delete gates and download contracts",
   "sources": [
     {
       "path": "dist/src/catalogue.js",
-      "sha256": "ca012e2e388009c4b55453583ef02b38b74912813d546b0321c3ff41b70c2f7e"
+      "sha256": "c6d59b4d84af819a73846da4969542e31b6efc0d32f1db096f28b74a3aa29262"
     },
     {
       "path": "dist/src/cli.js",
-      "sha256": "fe93095d54dc805bfda874e12bdc09599b50100e74e9112f2732f3232fd0f15d"
+      "sha256": "8e5f668eecddfe0df660456da8f49eb47e655fa574c87d89fa4756a65971082f"
     },
     {
       "path": "dist/src/computer-writes.js",
-      "sha256": "fe5797953f006f23a0d8c30f73166eb8c5ff858385e2f2f1cc55bacbf512eaa1"
+      "sha256": "3647306e9e38c61925bb7617d88c34a2aeab4e55d5becd51815b786f97ce2dc0"
     },
     {
       "path": "dist/src/deletes.js",
@@ -23,11 +23,11 @@
     },
     {
       "path": "dist/src/downloads.js",
-      "sha256": "18409a5abdc0e052f90db9f27df3bec0b591d45b9305ecf470a74aa5aabc95b2"
+      "sha256": "421641f91c048af7c70cd26a68d1a06d07cedda523b18c94cc19e206d3e34871"
     },
     {
       "path": "dist/src/group-writes.js",
-      "sha256": "8e257d59a678181d11fd4cad185b00a7650fae6b3c3b44eb0a61b3142518b35d"
+      "sha256": "d0e48d1040c1b217f0ecdad96ba444a446264a3041479fc254d5d7eef8b7f952"
     },
     {
       "path": "dist/src/hooks.js",
@@ -35,7 +35,7 @@
     },
     {
       "path": "dist/src/identity-writes.js",
-      "sha256": "36b04e2dcdbc83116e7db6441cb9a2d307438bbfffecd53a1984f5dfc3da57e1"
+      "sha256": "0b4bb834062dd3e08b7796ed2ab8695a577699ec2eeeee7685a94fd9431f7d38"
     },
     {
       "path": "dist/src/jit-writes.js",
@@ -43,7 +43,7 @@
     },
     {
       "path": "dist/src/policy-writes.js",
-      "sha256": "bbdc99880a073e5967919d8ef51b6b561941acce9ae63791678607c69d82f0a7"
+      "sha256": "16e4ad48588944c2826030d3966e67c20a448408b6307ddbbda5894d73f14f52"
     },
     {
       "path": "dist/src/private-file.js",
@@ -59,7 +59,7 @@
     },
     {
       "path": "dist/src/resource-reads.js",
-      "sha256": "e3bbaf02248dea93393f260f5b550601ce4e0e4823be05c28441bb6fd0bb8c4c"
+      "sha256": "2a0b879c07e10a2c64f6e11d16fe1b11b7e47b7ba1dfea66c763cccce0083f34"
     },
     {
       "path": "dist/src/response-diagnostics.js",
@@ -67,7 +67,7 @@
     },
     {
       "path": "dist/src/transport.js",
-      "sha256": "11916fe8494556a67513c5ce2716d3149da8a9f02b1aee1a71ecc5878de9abc8"
+      "sha256": "430267ef84b1e34451017a8fa12a4ab9d0267a12a6c3ba49a5b2845687642d35"
     },
     {
       "path": "dist/src/windows-download.js",
@@ -75,7 +75,7 @@
     },
     {
       "path": "dist/src/writes.js",
-      "sha256": "bb35fb801d711d276f268548572e9f122d6a442f590a3ac79f4c93973635d46b"
+      "sha256": "850cabe93d8eba18e1e9fe34a065760d750fad2b3a53869ebf651fba2ab41180"
     }
   ],
   "credentialSchema": {
@@ -194,7 +194,7 @@
       }
     }
   },
-  "skillSha256": "1ef466cb246ee9264d2c05c166529add6f30d11ba470126e92d0b89b6a349059",
+  "skillSha256": "07558cdba442f82a58e973aca19e9b1b08e4f5c1ae462e9733cc50bac2a0740c",
   "nativeWriteSettings": {
     "supportedOperations": [
       "admin-request.create",
@@ -364,7 +364,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -386,7 +386,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID",
@@ -401,7 +401,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -441,13 +441,13 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
         "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
         "cursor": "Resume an opaque cursor with the same profile, command and filters",
-        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "sort": "Sort property and order, e.g. created:desc; keys: created, user, entity, auditType, changedBy, details (default: created:desc)",
         "user": "Filter User (string)",
         "details": "Filter Details (string)",
         "created-dates": "Filter Created Dates (array; comma-separated)",
@@ -463,13 +463,13 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
         "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
         "cursor": "Resume an opaque cursor with the same profile, command and filters",
-        "sort": "Sort property and order, e.g. name:asc (default: created:asc)",
+        "sort": "Sort property and order, e.g. created:desc; keys: created, user, entity, auditType, changedBy, details (default: created:desc)",
         "user": "Filter User (string)",
         "details": "Filter Details (string)",
         "created-dates": "Filter Created Dates (array; comma-separated)",
@@ -485,13 +485,10 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
-        "id": "Required resource int64",
-        "limit": "Maximum rows, 1-1000 (default: 50)",
-        "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
-        "cursor": "Resume an opaque cursor with the same profile, command and filters"
+        "id": "Required resource int64"
       }
     },
     {
@@ -500,7 +497,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -529,7 +526,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource int64",
@@ -555,7 +552,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help"
       }
@@ -566,7 +563,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -599,7 +596,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource string",
@@ -665,7 +662,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Only all is accepted: the export documents no row columns for this command",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID",
@@ -769,7 +766,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -819,7 +816,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID",
@@ -873,7 +870,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID"
@@ -934,7 +931,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -948,7 +945,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID"
@@ -973,13 +970,13 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields (compact) and fullFields (--full) in --help",
         "full": "Show complete redacted ECS event objects instead of compact columns",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
         "all": "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB",
         "cursor": "Resume an opaque cursor with the same profile, command and filters",
-        "since": "UTC start time (default: 24 hours before end; maximum window: 31 days)"
+        "since": "UTC ingestion-time start, e.g. 2026-10-30T00:00:00Z (default: 24 hours ago; at most 31 days ago); only the first 1000 events ingested after it are returned"
       }
     },
     {
@@ -988,7 +985,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields (compact) and fullFields (--full) in --help",
         "full": "Show complete redacted ECS event objects instead of compact columns",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -998,13 +995,14 @@
         "until": "UTC end time (default: now)",
         "group": "ComputerGroups; arrays use comma-separated values",
         "os": "OperatingSystem (required); arrays use comma-separated values",
-        "action": "Events EventAction; arrays use comma-separated values",
+        "action": "Events EventAction; arrays use comma-separated values; the live API may return no rows for valid actions, so verify results",
         "code": "Events EventCode; arrays use comma-separated values",
         "type": "Events EventType; arrays use comma-separated values",
         "app-type": "Application ApplicationType; arrays use comma-separated values",
         "host": "Computers HostName; arrays use comma-separated values",
         "domain": "Computers HostDomain; arrays use comma-separated values",
         "user": "Users UserName; arrays use comma-separated values",
+        "user-domain": "Users UserDomain; arrays use comma-separated values",
         "workstyle": "Policies WorkstyleName; arrays use comma-separated values",
         "app-group": "Policies ApplicationGroupName; arrays use comma-separated values",
         "on-demand": "Policies OnDemandRule; arrays use comma-separated values"
@@ -1016,7 +1014,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -1035,7 +1033,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID"
@@ -1155,7 +1153,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -1246,7 +1244,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Only all is accepted: the export documents no row columns for this command",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID"
@@ -1302,7 +1300,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID",
@@ -1388,7 +1386,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -1410,7 +1408,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID",
@@ -1441,7 +1439,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID",
@@ -1486,7 +1484,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Only all is accepted: the export documents no row columns for this command",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID"
@@ -1498,7 +1496,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID",
@@ -1528,7 +1526,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -1542,7 +1540,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID"
@@ -1554,7 +1552,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help"
       }
@@ -1565,7 +1563,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -1579,7 +1577,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -1594,7 +1592,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -1622,7 +1620,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -1665,7 +1663,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID"
@@ -1752,7 +1750,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "limit": "Maximum rows, 1-1000 (default: 50)",
@@ -1801,7 +1799,7 @@
       "flags": {
         "config": "Configuration file path (default: platform config directory)",
         "profile": "Named file profile (default: selection precedence)",
-        "fields": "Comma-separated output fields (default: all)",
+        "fields": "Comma-separated row columns to keep, or all (default: all); see fields in --help",
         "full": "Show complete strings",
         "help": "Show command help",
         "id": "Required resource UUID"

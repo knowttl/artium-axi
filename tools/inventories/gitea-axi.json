@@ -2,12 +2,12 @@
   "generatedBy": "scripts/gitea-inventory.ts",
   "tool": "gitea-axi",
   "package": "@knowttl/gitea-axi",
-  "version": "0.1.1",
-  "integrity": "sha512-l/N2AIjQ6F75wQP/JRZ+YZxZMMMAPihPg9SJX7lAEXxze6THZjwhw80e748Uw9sETKiGMI5jzUZ2wkBZyc0GsQ==",
+  "version": "0.1.4",
+  "integrity": "sha512-vLMFveWfQ/u8XEUVIaqGuCKxhfkzegi5jybAYItENbrz4m3aVjIgaE0+o7do+NGg77+pJ/Sr7x+J2K+ek0G26Q==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "fb618d1f2a6eeffa0657866cfac20a0cddcd961b380a512df6abd6c4c6a652f8"
+      "sha256": "8c60d03716f68c26e1bd351a3f98043fbabc2c167584de5075bc14d8b633c3ec"
     },
     {
       "path": "axi-credential.schema.json",
@@ -15,7 +15,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "16a110a40e09803b1810e1c3f22948858521493ed6d65e3626ccd80be8c13c75"
+      "sha256": "70b6f5c2be97181689e97e097d114e9bd1854144944d0bffcc323ef8fd7574a5"
     },
     {
       "path": "generated/SKILL.md",
@@ -23,15 +23,15 @@
     },
     {
       "path": "generated/host-inventory.json",
-      "sha256": "1066a4a55a46dd51682f4aef8c2e1d8c7e496d0f5e8aba3c47ef24681d67082f"
+      "sha256": "aad5dbf7eb6eb887ed536af9768ec12a286c6351a3e34432b3d15d765cdc90b1"
     },
     {
       "path": "generated/routes.json",
-      "sha256": "003e4f5252ef4699a9b8986ad404874a3f95ca71b857e46bc5fdfa316a1d5756"
+      "sha256": "b0a2e660adeaf25fabc10fbdb9b42e28f412cee67bb610343f997222c16af6bf"
     },
     {
-      "path": "generated/capabilities.json",
-      "sha256": "3d5ca1d1e517bd159417944f6a7979b5c9876c59ee683e2b4f65849c7e37ac47"
+      "path": "generated/help.txt",
+      "sha256": "2dd152b1257218a26224b1e6be538457a277c11f241bb9ced6bf82cb656c03b9"
     },
     {
       "path": "schemas/vendor.json",
@@ -51,7 +51,7 @@
     },
     {
       "path": "dist/api.js",
-      "sha256": "d10dafaeed59c106b74d35afeda41215a7281a43749f61adc2abdef46e1f77fd"
+      "sha256": "d37ff7bcf8e56cb940045f0cd84a7d9cebf62f275ad67976213590390c8ffad9"
     },
     {
       "path": "dist/attachments.js",
@@ -67,11 +67,11 @@
     },
     {
       "path": "dist/cli.js",
-      "sha256": "fd872b5009d2ee5a800028cf4c8197009011525aad54744de8d388e3e9a5573d"
+      "sha256": "c7ef5fe0209d61726e13a96df75fbd875d1e164e3755f493dbed23bf9887c20d"
     },
     {
       "path": "dist/credentials.js",
-      "sha256": "cecbcf9ec15a9b33d91b7108f3759764ba6611a2f6a4b21f2cfe90f4d3757219"
+      "sha256": "6e928e903b07c0b830c60fd334051293b00c4a211759944939e7ff3a491366a4"
     },
     {
       "path": "dist/error.js",
@@ -79,15 +79,19 @@
     },
     {
       "path": "dist/git.js",
-      "sha256": "1aa6ef4cfc92376f9b577ec4efbbff07af24d1fdc93ecc80ed72a564e9c95986"
+      "sha256": "a6f2fab5b375adf5f0f9a2507ff8ea16d133d2ecdbaa19516e4f15006f5548af"
     },
     {
       "path": "dist/local-workflows.js",
-      "sha256": "0db07ba35072df638da235933b99fd32223728efc61f6b934542e32b0e6fccd0"
+      "sha256": "0ab26881f3c2663ef53e0a8007d99b0d683f715beca67b4c3ce07674fd12e6d4"
     },
     {
       "path": "dist/main.js",
-      "sha256": "0cdfeb0a83e6ff1c31928c750be4a4497e2e6e30055fb384453ad1367a3883ed"
+      "sha256": "d662b0f7fc2a586ad2440af4d30fd1f3d20df4a302a4b9e0c98c6e53e4b60205"
+    },
+    {
+      "path": "dist/output.js",
+      "sha256": "524de4547b9b8da3cf05b36f1ae5b05e3d919f24dbbd7f6f6adad26ddb3511d7"
     },
     {
       "path": "dist/private-file.js",
@@ -95,15 +99,15 @@
     },
     {
       "path": "dist/pulls.js",
-      "sha256": "a1e55f35b3fe0b47cbf05f7a05bf6acda01107c2b83e9fc7364c2420b648e440"
+      "sha256": "599b684c1e5dc96b658b93893f243dd1f0c434d8177da3dce44aa1a067ebb9b5"
     },
     {
       "path": "dist/reads.js",
-      "sha256": "ea1e8dfb10c2d3fc2dc5170102afeee44456d1a9b18b843883c6822c6b8cc5dc"
+      "sha256": "c29f3d738d41fba8b5635f293746af5fd391b994d6e7c774b03265e77d52fd1d"
     },
     {
       "path": "dist/registry.js",
-      "sha256": "124f14d193acd059384125b563e418a1843912b901d89e80eeac8e233c2e6686"
+      "sha256": "ce6b0859703a3c0cecb68340a8a853eea84b5c49b5a4dee548d48ee66da45eb4"
     },
     {
       "path": "dist/releases.js",
@@ -119,15 +123,15 @@
     },
     {
       "path": "dist/search.js",
-      "sha256": "480e03b50f8ba51dc58946bf2b3314149c25d4aece6d370a758ddcb9222ee0c1"
+      "sha256": "3b837b022a042dce0d148aa669b13336bc6c58a7e9daefee0c4200ce8d34fd42"
     },
     {
       "path": "dist/stacks.js",
-      "sha256": "52f0cadb4d155350b0a942bfb6e9b4e987e9431f7018996f1a3ec4f745c86797"
+      "sha256": "446799392f397d09e04805f09f8b31ce3790f7683288fdd8c3364099dd77ae24"
     },
     {
       "path": "dist/transport.js",
-      "sha256": "2458a2665c9d358ff08fb5f95f8634fd7a09b550bd2b4a8224693414e1bc8d34"
+      "sha256": "3011d8c632c233c741f69a96a41f107ef40eca57c618d3101e375a77ddbe8f31"
     },
     {
       "path": "dist/vendor.generated.js",
@@ -135,7 +139,7 @@
     },
     {
       "path": "dist/writes.js",
-      "sha256": "b5bbc9e1597ed12593d21bd1ea1d7d0e2f71431829582f450a25a48e8a0458ca"
+      "sha256": "88a97a1550c0f571eef64ef99f55656133b9602e7a729a151feb6d1ead149d67"
     }
   ],
   "credentialSchema": {
@@ -2786,7 +2790,8 @@
       "effect": "read",
       "flags": {
         "repo": "value",
-        "help": "boolean"
+        "help": "boolean",
+        "json": "boolean"
       },
       "shortFlags": {
         "R": "repo"
@@ -2797,6 +2802,7 @@
       "command": "issue download",
       "effect": "download",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "asset-id": "value",
@@ -2815,6 +2821,7 @@
       "command": "pr download",
       "effect": "download",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "asset-id": "value",
@@ -2833,6 +2840,7 @@
       "command": "release download",
       "effect": "download",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "asset-id": "value",
@@ -2851,6 +2859,7 @@
       "command": "secret list",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "org": "value",
@@ -2865,6 +2874,7 @@
       "command": "variable list",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "org": "value",
@@ -2879,6 +2889,7 @@
       "command": "dashboard",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value"
       },
@@ -2891,6 +2902,7 @@
       "command": "doctor",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean"
       },
       "shortFlags": {},
@@ -2900,6 +2912,7 @@
       "command": "repo list",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "limit": "value",
         "org": "value"
@@ -2911,6 +2924,7 @@
       "command": "org view",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean"
       },
       "shortFlags": {},
@@ -2920,6 +2934,7 @@
       "command": "issue list",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "limit": "value",
@@ -2941,6 +2956,7 @@
       "command": "issue view",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "fields": "value",
@@ -2956,6 +2972,7 @@
       "command": "label list",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "limit": "value"
@@ -2969,6 +2986,7 @@
       "command": "pr list",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "limit": "value",
@@ -2990,6 +3008,7 @@
       "command": "pr view",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "fields": "value",
@@ -3007,6 +3026,7 @@
       "command": "pr checks",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "watch": "boolean",
@@ -3022,6 +3042,7 @@
       "command": "pr diff",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "full": "boolean"
@@ -3035,6 +3056,7 @@
       "command": "release list",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "limit": "value",
@@ -3050,6 +3072,7 @@
       "command": "release view",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "full": "boolean"
@@ -3063,6 +3086,7 @@
       "command": "api",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "allow-write": "value",
         "preview": "boolean",
@@ -3084,6 +3108,7 @@
       "command": "write reconcile",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean"
       },
       "shortFlags": {},
@@ -3093,6 +3118,7 @@
       "command": "issue upload",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3112,6 +3138,7 @@
       "command": "pr upload",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3131,6 +3158,7 @@
       "command": "release upload",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3150,6 +3178,7 @@
       "command": "secret set",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3167,6 +3196,7 @@
       "command": "secret delete",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3183,6 +3213,7 @@
       "command": "variable set",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3201,6 +3232,7 @@
       "command": "variable delete",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3217,6 +3249,7 @@
       "command": "repo create",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3236,6 +3269,7 @@
       "command": "repo edit",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3256,6 +3290,7 @@
       "command": "repo fork",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3272,6 +3307,7 @@
       "command": "release create",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3309,6 +3345,7 @@
       "command": "release edit",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3337,6 +3374,7 @@
       "command": "release delete",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3352,6 +3390,7 @@
       "command": "pr create",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3385,6 +3424,7 @@
       "command": "pr edit",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3425,6 +3465,7 @@
       "command": "pr close",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3441,6 +3482,7 @@
       "command": "pr reopen",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3456,6 +3498,7 @@
       "command": "pr comment",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3477,6 +3520,7 @@
       "command": "pr update-branch",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3492,6 +3536,7 @@
       "command": "pr merge",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3515,6 +3560,7 @@
       "command": "pr review",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3536,6 +3582,7 @@
       "command": "issue create",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3563,6 +3610,7 @@
       "command": "issue edit",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3594,6 +3642,7 @@
       "command": "issue close",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3610,6 +3659,7 @@
       "command": "issue reopen",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3625,6 +3675,7 @@
       "command": "issue comment",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3646,6 +3697,7 @@
       "command": "issue delete",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3661,6 +3713,7 @@
       "command": "issue pin",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3676,6 +3729,7 @@
       "command": "issue unpin",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3691,6 +3745,7 @@
       "command": "label create",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3709,6 +3764,7 @@
       "command": "label edit",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3727,6 +3783,7 @@
       "command": "label delete",
       "effect": "write",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "allow-write": "value",
@@ -3742,6 +3799,7 @@
       "command": "run list",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "workflow": "value",
@@ -3761,6 +3819,7 @@
       "command": "search issues",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "owner": "value",
@@ -3782,6 +3841,7 @@
       "command": "search prs",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "owner": "value",
@@ -3804,6 +3864,7 @@
       "command": "search repos",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "owner": "value",
@@ -3823,6 +3884,7 @@
       "command": "search commits",
       "effect": "read",
       "flags": {
+        "json": "boolean",
         "help": "boolean",
         "repo": "value",
         "author": "value",

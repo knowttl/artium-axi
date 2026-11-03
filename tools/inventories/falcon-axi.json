@@ -2,16 +2,16 @@
   "generatedBy": "scripts/falcon-inventory.ts",
   "tool": "falcon-axi",
   "package": "@knowttl/falcon-axi",
-  "version": "1.0.0-rc.2",
-  "integrity": "sha512-SkSVJ7XhdXtP3jdo6dkRhooN0Hl9RaQDark4YYniUEYRTBuHWlB2sDz38gi9EDQle0BzwwCsEIv/YPv2iiUXJA==",
+  "version": "1.0.0-rc.3",
+  "integrity": "sha512-9MiSRNs2L49Pq+YCDHJpDysvvRKxp44Pfp/Al6z3SgtW1xbtMp955AE98pC6hJrQ5V7dKszf2D8rSN+5qQY1JA==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "a10af60514ebc87d043b06cbd3167676c144a8ed9f8113dce938cf9dc801fb4b"
+      "sha256": "0767e2ec052db098f2fc953d040ad16ce53297790e6b1c1759aedbe2ae18fd6d"
     },
     {
       "path": "artium-invocations.json",
-      "sha256": "9d0a70e6ec2b98088274492d2e8686b77427a185ce43e9bc85fe65cd8d27bfb7"
+      "sha256": "3ea572bd9363a7f869a0bce59ec10563dba74cb7a7b8855fa690c86b396c0618"
     },
     {
       "path": ".typescript-build/native/checksums.json",
@@ -31,11 +31,11 @@
     },
     {
       "path": ".typescript-build/src/cli.js",
-      "sha256": "60990a3fb724626c62b65f6d81d443a606766782876397878f491f8ee998f81a"
+      "sha256": "f37a94ddbebbb326483bf4a7ad60bcf890cf8b1e2cce6bedd16b2a138611146c"
     },
     {
       "path": ".typescript-build/src/core.js",
-      "sha256": "6eb04b6385ca33c58f390ec28c99ebf608275bb336f9cc7e720597c1a2581528"
+      "sha256": "b976d1a0f8f3cccedebae802f1644c15a0472c7f014ebec7613cf1ff462bd399"
     },
     {
       "path": ".typescript-build/src/cql.js",
@@ -47,11 +47,11 @@
     },
     {
       "path": ".typescript-build/src/cursor.js",
-      "sha256": "8a26c7bdf85a622c00a907c64756872abfd998d92a5b5cebf155bfcbcd59642b"
+      "sha256": "1c2207bb5467a1e63a805794d6ea0f123006351cf8c114f9dfa599ade60cfbda"
     },
     {
       "path": ".typescript-build/src/domain.js",
-      "sha256": "6dc6fe90ff835df240b35717e3faf2d40566b1cd393c87a4912429f2be9775a2"
+      "sha256": "159283c7e876113c14bf979ce375c0fe81a89972ebde949d74f0b833a97398c9"
     },
     {
       "path": ".typescript-build/src/executable.js",
@@ -71,7 +71,7 @@
     },
     {
       "path": ".typescript-build/src/identity.js",
-      "sha256": "3ef26c01e19bfbf51f9b9d18a6245a69b02f4d3f88007c3bf8953163ae0d5560"
+      "sha256": "69b3b41dffe14978e4cc3bd7a10f69a86a6584d58cb220274e59fd65e8a1611c"
     },
     {
       "path": ".typescript-build/src/inspection-commands.json",
@@ -79,23 +79,23 @@
     },
     {
       "path": ".typescript-build/src/inspection.js",
-      "sha256": "a1bc671827ad0fb329cfaca77f56fbed5d57758da80d045509aef030771a55bb"
+      "sha256": "5de79e330eb07d76579945fc8ac9a3beaef1bb18d180d4d5e0a9bd87a8c90020"
     },
     {
       "path": ".typescript-build/src/inventory.js",
-      "sha256": "c36f57ea61f8083fa0864bfb7dd3754b8a7a1d3f289d42dcab9168f53290313f"
+      "sha256": "62c069c171b612016070ba6b82d4dcb26732f06144aeb28b99b9c37918b5da9f"
     },
     {
       "path": ".typescript-build/src/investigation.js",
-      "sha256": "0d14982a931d13dcb9a53c41d1428c94de93b2ea4ece99ce2fb11876583a44c5"
+      "sha256": "d804ac8744e722765296d6f766edeeb042f07c28afe24c6fde12bf9631d4263d"
     },
     {
       "path": ".typescript-build/src/malquery.js",
-      "sha256": "15eb6ac44c9e1de0e3d0f415562f90125e390fdc9c20007a3cc52a5273e4dd3e"
+      "sha256": "e3f5f61aece966dde87b0fc74f9ba94c1e96566e2ce3ec437cd053890a4dc5a8"
     },
     {
       "path": ".typescript-build/src/metadata.js",
-      "sha256": "c6a0851e901e3e9aadc19e5b312122835d61ce4d2b0733c6a01400ca9e76eb2c"
+      "sha256": "26f98569532c241350868427a11362718555ee9957edf602f1a7bd32a0599f65"
     },
     {
       "path": ".typescript-build/src/origin.js",
@@ -103,7 +103,7 @@
     },
     {
       "path": ".typescript-build/src/parser.js",
-      "sha256": "245e0b7b86311cb7876ef94dc3eab0550529501d14e25073516fad1c028c5552"
+      "sha256": "1a348bb4a13e0034d5919b218e02ddf7ed0036b51d78d06b488bda4fcb78f8eb"
     },
     {
       "path": ".typescript-build/src/render.js",
@@ -175,7 +175,7 @@
     },
     {
       "path": ".typescript-build/src/version.js",
-      "sha256": "b39d707d33465ed08fdbbe72f78035159dbfac809478189c3ad5ea7f46525719"
+      "sha256": "f44dfefc1948d6c291908260d5c0ed2ca3d6aec6164962f15cdbe84713e2d249"
     },
     {
       "path": ".typescript-build/src/windows-acl.js",
@@ -701,7 +701,7 @@
   "skillSha256": "c4929199fc77842e1a55779f9551499376c311effb8c5879042e5be4ee2beafd",
   "parser": {
     "path": ".typescript-build/src/parser.js",
-    "sha256": "245e0b7b86311cb7876ef94dc3eab0550529501d14e25073516fad1c028c5552",
+    "sha256": "1a348bb4a13e0034d5919b218e02ddf7ed0036b51d78d06b488bda4fcb78f8eb",
     "aliases": {},
     "shortFlags": {},
     "repeats": "last value wins",

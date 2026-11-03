@@ -161,7 +161,7 @@ test('preserves resource help fields', () => {
   const output = decode(rewriteSuggestions(encode(original), 'gh-axi')) as typeof original
   expect(output.body).toBe(original.body)
   expect(output.help).toEqual(original.help)
-  expect(toolView({ name: 'gh-axi', version: '0.1.45', status: 'unconfigured' })).toContain('artium-axi gh-axi repo list')
+  expect(toolView({ name: 'gh-axi', version: '0.1.48', status: 'unconfigured' })).toContain('artium-axi gh-axi repo list')
 })
 
 test.each([

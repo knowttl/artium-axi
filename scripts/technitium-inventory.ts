@@ -26,7 +26,7 @@ const output = JSON.stringify({ generatedBy: 'scripts/technitium-inventory.ts', 
   ...pins[pkg.name], sources, credentialSchema: JSON.parse(readFileSync(source('axi-credential.schema.json'), 'utf8')),
   commands, discovery: { commands: commands.map(entry => entry.command).filter(Boolean), example: ['status'],
     help: 'Managed Technitium reads. Run artium-axi technitium-axi <command> --help for selectors.\nAuthenticated reads return a protected result reference; retrieve it once with the same identity and current credential.\nWrites and local configuration are unavailable.\n' },
-  adapterBoundary: { nativeWrites: 'read-only upstream design', unsafeOverrides } }, null, 2) + '\n'
+  adapterBoundary: { nativeWrites: 'Published native writes are not admitted by the host; reads remain forced read-only.', unsafeOverrides } }, null, 2) + '\n'
 const destination = new URL('inventories/technitium-axi.json', root)
 if (process.argv.includes('--write')) writeFileSync(destination, output)
 else if (readFileSync(destination, 'utf8') !== output) throw new Error('Technitium inventory is stale')

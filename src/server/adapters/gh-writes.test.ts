@@ -381,12 +381,23 @@ test.each([
   expect(getCredential).not.toHaveBeenCalled()
 })
 
+test.each([
+  { args: ['project', 'field-create', '3', '--owner', 'synthetic'] },
+  { args: ['project', 'field-delete', '--id', 'PVTSSF_synthetic'] },
+])('new published project field writes remain unadmitted: $args', async ({ args }) => {
+  const getCredential = vi.fn(async () => credential)
+  const adapter = createGhAdapter({ getCredential,
+    getSettings: () => ({ writes: { allowWrites: true, operations: ['project create'] } }) })
+  await expect(adapter.prepare(args, reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
 test.each(['lock', 'unlock'])('issue %s reports its upstream incompatibility before credential retrieval', async action => {
   const getCredential = vi.fn(async () => credential)
   const adapter = createGhAdapter({ getCredential,
     getSettings: () => ({ writes: { allowWrites: true, operations: [`issue ${action}`] } }) })
   await expect(adapter.prepare(['issue', action, '1', '-R', 'canary/repo'], reference)).rejects.toMatchObject({
-    code: 'INVALID_INPUT', message: expect.stringContaining('gh-axi 0.1.45'),
+    code: 'INVALID_INPUT', message: expect.stringContaining('gh-axi 0.1.48'),
     next: expect.stringContaining('compatible published upstream release'),
   })
   await expect(adapter.prepare(['issue', action, '--help'], reference)).rejects.toMatchObject({
