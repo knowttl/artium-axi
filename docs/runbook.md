@@ -191,6 +191,11 @@ networks:
 The corresponding `nginx.conf` replaces client forwarding headers with the proxy's own values:
 
 ```nginx
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
 server {
     listen 443 ssl;
     server_name artium.example.test;
@@ -199,6 +204,11 @@ server {
     client_max_body_size 16m;
     location / {
         proxy_pass http://artium:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
         proxy_set_header Host $http_host;
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto https;

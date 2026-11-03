@@ -301,6 +301,18 @@ await withFakeService(async ({ directory, port, send }) => {
     await assert.rejects(echo(tunnel.ports[0].local, bytes), { code: 'ECONNREFUSED' })
     assert.equal((await request(`${prefix}/${forward.id}`)).statusCode, 404)
     await policy(true)
+    const lostForward = await start('port-forward', ['port-forward', 'synthetic-pod', '0:8080'])
+    await request(`${prefix}/${lostForward.id}/confirm`, 'POST', { digest: lostForward.preview!.digest })
+    await request(`${prefix}/${lostForward.id}?wait=ready`)
+    const lostTunnel = await openKubernetesTunnel({ serverUrl: address, session: lostForward.id, ports: [8080],
+      accessToken: login.json().accessToken, signal: new AbortController().signal })
+    const forwardingWorkers = children(process.pid).filter(pid => readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('/dist/hosted-session.js'))
+    assert.equal(forwardingWorkers.length, 1)
+    process.kill(forwardingWorkers[0], 'SIGKILL')
+    assert.equal((await show(lostForward.id)).state, 'failed')
+    await lostTunnel.closed
+    await assert.rejects(echo(lostTunnel.ports[0].local, bytes), { code: 'ECONNREFUSED' })
+    await cancel(lostForward.id)
     const cliForward = await start('port-forward', ['port-forward', 'synthetic-pod', '0:8080'])
     await request(`${prefix}/${cliForward.id}/confirm`, 'POST', { digest: cliForward.preview!.digest })
     const child = spawn(process.execPath, [fileURLToPath(new URL('../../cli/artium-axi.mjs', import.meta.url)),

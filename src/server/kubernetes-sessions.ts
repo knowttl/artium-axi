@@ -20,7 +20,6 @@ import { SecretScanner } from './runner/scan.js'
 import type { Runner } from './runner/runner.js'
 import { readCredentialTrust } from './store/trusted-certificates.js'
 import { verifyAccessToken } from './auth/tokens.js'
-import type { Duplex } from 'node:stream'
 import { attachKubernetesTunnel } from './kubernetes-tunnels.js'
 import { acceptsCliVersion } from '../shared/version.js'
 
@@ -47,7 +46,7 @@ interface Session {
   preview?: Record<string, unknown>, digest?: string, confirmed: boolean, exitCode?: number, code?: string,
   artifacts?: z.infer<typeof kubernetesFile>[], result?: unknown, chunks: Chunk[], sequence: number,
   offsets: { stdout: number, stderr: number }, retained: number, limit: number, truncated: boolean,
-  approvedPorts: number[], ports: Map<number, number>, tunnelPeers: Set<Duplex>,
+  approvedPorts: number[], ports: Map<number, number>, tunnels: Set<Promise<void>>,
   usedConnections: Set<string>, activeConnections: Set<string>, portsReady: Promise<void>, portsAcknowledge: () => void,
 }
 
@@ -236,6 +235,10 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       })
     } catch (error) { if (active(session)) { session.state = 'failed'; session.code ??= error instanceof ArtiumError ? error.code : 'SESSION_FAILED' } }
     finally {
+      if (session.kind === 'port-forward') {
+        session.controller.abort()
+        await Promise.allSettled([...session.tunnels])
+      }
       try {
         if (session.state !== 'exited') await rm(session.directory, { recursive: true, force: true })
         else for (const name of await readdir(session.directory)) if (name !== 'artifacts') await rm(join(session.directory, name), { recursive: true, force: true })
@@ -272,7 +275,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       expiresAt: Date.now() + lifetime * 1000, startedAt: Date.now(), controller: new AbortController(), job: Promise.resolve(),
       changed: new EventEmitter(), active: new Set(), ready: new Promise(resolve => { acknowledge = resolve }), acknowledge: () => acknowledge(),
       confirmed: false, chunks: [], sequence: 1, offsets: { stdout: 0, stderr: 0 }, retained: 0, limit, truncated: false,
-      approvedPorts: [], ports: new Map(), tunnelPeers: new Set(), usedConnections: new Set(), activeConnections: new Set(),
+      approvedPorts: [], ports: new Map(), tunnels: new Set(), usedConnections: new Set(), activeConnections: new Set(),
       portsReady: new Promise(resolve => { portsAcknowledge = resolve }), portsAcknowledge: () => portsAcknowledge(),
       timer: setTimeout(() => {}, 0) }
     clearTimeout(session.timer)
@@ -379,18 +382,18 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
         name === 'forwarded' || name.startsWith('x-forwarded-'))) throw new ArtiumError('PROXY_HEADERS_UNTRUSTED')
       const session = await selected(request, match[1])
       if (session.kind !== 'port-forward' || session.state !== 'running' || !session.approvedPorts.length
-        || session.ports.size !== session.approvedPorts.length || session.tunnelPeers.size >= 4) throw new ArtiumError('INVALID_INPUT')
+        || session.ports.size !== session.approvedPorts.length || session.tunnels.size >= 4) throw new ArtiumError('INVALID_INPUT')
       audit.record({ event: 'admin-change', userId: session.owner.user, tool: 'kubernetes-axi', requestId: randomUUID(),
         clientAddress: request.socket.remoteAddress ?? null, outcome: 'success', action: 'kubernetes-session-tunnel', targetId: session.id })
       const accept = createHash('sha1').update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64')
       socket.write(`HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Accept: ${accept}\r\nX-Artium-Remote-Ports: ${session.approvedPorts.join(',')}\r\n\r\n`)
-      session.tunnelPeers.add(socket)
       const drained = attachKubernetesTunnel(socket, head, session.id, session.ports, session.usedConnections,
         session.activeConnections, session.controller.signal, () => {
           kubernetesOwner(db, request); access(session)
         })
       session.active.add(drained)
-      void drained.then(() => { session.tunnelPeers.delete(socket); session.active.delete(drained) })
+      session.tunnels.add(drained)
+      void drained.then(() => { session.tunnels.delete(drained); session.active.delete(drained) })
     })().catch(error => {
       try {
         let userId: string | null = null
