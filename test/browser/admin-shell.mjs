@@ -451,16 +451,17 @@ test('SSH dedicated administration provisions credentials, verified hosts and re
   chrome(['resize', '420', '900'])
   browser(`
     await page.open(base + '/admin/ssh/credentials');
-    await page.fill('[name=id]', 'browser-key');
+    await page.fill('[name=id]', 'new-credential');
     await page.fill('[name=privateKey]', 'CANARY-browser-ssh-key');
     await page.click('form[action$="/credential"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
     check(await page.eval(() => [...document.querySelectorAll('[name=privateKey]')].every(input => input.value === '') && !document.documentElement.outerHTML.includes('CANARY-browser-ssh-key')), 'SSH key was redisplayed');
+    check(await page.eval(() => [...document.querySelectorAll('main label[for]')].filter(label => label.closest('form')).every(label => label.control?.form === label.closest('form'))), 'Credential labels target controls in another form');
     await page.open(base + '/admin/ssh');
     check(await page.eval(() => !document.querySelector('[name=enabled]').checked && document.querySelector('[name=readOnly]').checked), 'New hosts must start disabled and read only');
-    await page.fill('[name=id]', 'browser-host');
+    await page.fill('[name=id]', 'new-host');
     await page.fill('[name=address]', '127.0.0.1');
     await page.fill('[name=approvedHostKeys]', '["ssh-ed25519 YWJj"]');
     await page.fill('[name=allowedAddresses]', '["127.0.0.1"]');
@@ -470,8 +471,9 @@ test('SSH dedicated administration provisions credentials, verified hosts and re
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/binding"] [name=expectedRevision][value="1"]');
+    check(await page.eval(() => [...document.querySelectorAll('main label[for]')].filter(label => label.closest('form')).every(label => label.control?.form === label.closest('form'))), 'Host labels target controls in another form');
     await page.fill('form[action$="/binding"] [name=username]', 'ordinary');
-    await page.eval(() => { document.querySelector('form[action$="/binding"] [name=credential]').value = 'browser-key'; });
+    await page.eval(() => { document.querySelector('form[action$="/binding"] [name=credential]').value = 'new-credential'; });
     await page.click('form[action$="/binding"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
@@ -484,7 +486,7 @@ test('SSH dedicated administration provisions credentials, verified hosts and re
     await page.wait('form[action$="/grant"] [name=expectedRevision][value="3"]');
     check(await page.eval(async () => {
       const data = await (await fetch('/v1/admin/ssh/hosts')).json();
-      return data.hosts[0].readOnly && data.hosts[0].enabled && data.bindings[0].credential === 'browser-key' && data.grants[0].shell === 1;
+      return data.hosts[0].readOnly && data.hosts[0].enabled && data.bindings[0].credential === 'new-credential' && data.grants[0].shell === 1;
     }), 'Saved host, binding and grant did not persist');
     check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'SSH host administration overflows at 420px');
   `)

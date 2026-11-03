@@ -24,7 +24,7 @@ export function registerSshPages(app: FastifyInstance, db: Database.Database, au
     const form = (path: string, label: string, controls: string, consequence: string) => apiForm(csrf, `/v1/admin/ssh/${path}`, 'POST', label,
       proof + controls, consequence, '', 'btn btn-primary')
     const hostForm = (host?: SshAdminHost) => {
-      const prefix = host?.id ?? 'new-host'
+      const prefix = host ? `stored-host-${host.id}` : 'new-host'
       return form('hosts', 'Save host', revision(host?.revision ?? 0) + (host
         ? `<input type="hidden" name="id" value="${escape(host.id)}">` : text(prefix, 'id', 'Host ID')) +
         text(prefix, 'address', 'Approved hostname or address', host?.address) + text(prefix, 'port', 'Port', host?.port ?? 22, 'number') +
@@ -65,7 +65,7 @@ export function registerSshPages(app: FastifyInstance, db: Database.Database, au
     const csrf = reply.generateCsrf()
     const rows = readCredentials().credentials as { id: string, revision: number }[]
     const credentialForm = (row?: { id: string, revision: number }) => {
-      const prefix = row?.id ?? 'new-credential'
+      const prefix = row ? `stored-credential-${row.id}` : 'new-credential'
       return apiForm(csrf, '/v1/admin/ssh/credential', 'POST', row ? 'Replace credential' : 'Save credential', proof + revision(row?.revision ?? 0) +
         (row ? `<input type="hidden" name="id" value="${escape(row.id)}">` : text(prefix, 'id', 'Credential ID')) +
         field(`${prefix}-privateKey`, 'Private key', attrs => `<textarea ${attrs} name="privateKey" rows="6" autocomplete="off" required></textarea>`) +
