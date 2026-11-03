@@ -53,6 +53,8 @@ function argumentsForCall(args: readonly string[], input: RunnerInput = {}) {
   if (executing && (!/^[a-f0-9]{64}$/.test(seen.get('confirm') ?? '')
     || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(seen.get('request-id') ?? ''))) throw new ArtiumError('INVALID_INPUT')
   return { args: normalized, fileArguments: help ? [] : fileArguments, executing,
+    ...(executing ? { write: { operation: command, target: 'managed UniFi resource',
+      checkArgs: ['write', 'reconcile', '--request-id', seen.get('request-id')!] } } : {}),
     operation: route && 'operation' in route ? route.operation ?? '' : '', effect: executing ? 'write' as const : 'read' as const,
     invocation: { command: command || 'home', help } }
 }
