@@ -131,17 +131,15 @@ API-token authentication is preferred: supply the full token identity and token 
 Alternatively, select password authentication and supply the Proxmox username including its realm and the password.
 Use an identity authorized for the intended cluster and virtual machine reads.
 The [reviewed Proxmox inventory](../tools/inventories/proxmox-axi.json) owns the pinned profile schema; the [host profile restrictions](../src/server/adapters/credential-profile.ts) permit only API-token or password credentials to be stored.
-Authorized Artium users have no separate Proxmox sign-in step.
-Stored passwords sign in automatically on first use; issued ticket/CSRF values are cached only in memory for at most five minutes and reacquired after expiry.
-Passwords are resolved only for their call and are never retained with tickets.
+Authorized Artium users have no separate Proxmox sign-in step; stored passwords sign in automatically.
+See the [custody amendment](credential-standard.md#proxmox-memory-authentication-and-protected-result-amendment) for ticket caching, password handling and authentication failure rules.
 TFA-enabled accounts cannot use automatic password sign-in; configure an API token instead.
-API-token failures never fall back to a different authentication kind.
 The token-forbidden password and TFA management operations require the stored username/password branch and its upstream privileges.
 For a credential-specific CA bundle, paste PEM contents into `caBundle`, never a server file path; Artium materializes it privately for each call.
 Alternatively, the advanced `certificatePin` object binds a certificate fingerprint to the exact origin and cannot be combined with `caBundle`; follow the editor's schema requirements.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
 After saving, testing, enabling and granting the tool, use `artium-axi proxmox-axi get /version` for the first managed read.
-Ordinary writes require exact operation IDs in native `writes.operations` and the independent host grant list controlled by **Write permissions**.
+JSON writes require exact operation IDs in native `writes.operations` and the independent host grant list controlled by **Write permissions**.
 For example, starting a virtual machine requires `OP-POST-f879c7c9f8` in both lists and the host **Allow writes** switch enabled.
 Set native `writes.operations` on **Advanced**; selecting host grants does not silently grant native permission.
 Use `create /nodes/{node}/qemu/{vmid}/status/start --api-node <node> --api-vmid <id> --preview`, then repeat the identical command with the exact returned `--confirm` instead of `--preview`.

@@ -589,8 +589,9 @@ Restore invalidates the original sessions, so restored execution metadata preser
 
 ## Retention and export
 
-Technitium, AWX and Kubernetes protected results stay in process memory and are not persisted or backed up.
+Technitium, AWX, Kubernetes and Proxmox protected results stay in process memory and are not persisted or backed up.
 The executable limits are owned by `protectedResultLimits` in [server configuration](../src/server/config.ts); consult it for result size, per-user and server-wide capacity, and reference lifetime.
+Proxmox additionally enforces the native frame bound described in its [private delivery contract](client-reference.md#proxmox-private-results); malformed, oversized or misbound native frames yield no retrievable result and require uncertain-write recovery.
 Consuming, canceling, clearing or expiring a result releases its stored bytes and expiration timer; server restart removes all pending results.
 At capacity, new result-producing calls return `TOO_MANY_CALLS`; retrieve outstanding results or wait for expiration before retrying.
 An oversized result returns `OUTPUT_LIMIT`; for a read, narrow the native query where supported.
@@ -602,7 +603,8 @@ Retrieval also rechecks authentication and current tool access, so reauthenticat
 For AWX, a missing token result does not undo token creation: inspect controller token state before retrying a failed, malformed or uncertain creation, or one whose result is no longer retrievable.
 The pinned CLI has no token-list command; use the controller's token administration to reconcile, and revoke an unwanted token through the [managed revoke flow](commands.md) when its numeric ID is known.
 After an interrupted user rename, reconcile with `user list` and `user show <new-username>` before retrying.
-See [AWX result retrieval](commands.md) and its [security boundary](safety.md#write-gates-by-tool), [Technitium result retrieval](commands.md#technitium-dns) and its [confidentiality boundary](safety.md#storage-and-execution-boundaries), or [Kubernetes credential delivery](commands.md) and its [capability boundary](safety.md#kubernetes-reads).
+For Proxmox, an unavailable result or interrupted private delivery does not undo the mutation or authorize credential recreation or confirmation replay; reconcile the native journal and inspect provider state before preparing another write.
+See [AWX result retrieval](commands.md) and its [security boundary](safety.md#write-gates-by-tool), [Technitium result retrieval](commands.md#technitium-dns) and its [confidentiality boundary](safety.md#storage-and-execution-boundaries), [Kubernetes credential delivery](commands.md) and its [capability boundary](safety.md#kubernetes-reads), or [Proxmox private delivery](client-reference.md#proxmox-private-results).
 
 SQLite audit retention runs at startup and daily, deleting events strictly older than the captured 90-day cutoff in batches of at most 500.
 Each batch commits its count and cutoff with the deletion.
@@ -659,14 +661,11 @@ Use owned `journal show/reconcile <id>` and task status/log/wait with `--journal
 Native reconciliation records observations and may retain uncertainty; inspect provider state before preparing a new mutation.
 Records bind caller, sign-in family and credential/settings revision; changing policy or credentials requires a new preview and owner scope.
 There is no automatic pruning of native claims; monitor their growth and preserve unresolved records.
-The administrator stores one API token or username/password credential; users have no additional PVE sign-in step.
-Password authentication acquires and reuses ready ticket/CSRF state only in server memory, for at most five minutes, then reacquires automatically.
-TFA-enabled accounts must use an API token.
-Issued tickets and protected results are excluded from profiles, databases, journals and backups; resolved passwords are never retained beyond their call.
-Credential, authorization, family and trust changes fence affected calls and clear retained state, and restart starts empty.
-One-shot private results expire after five minutes; see [retrieval](client-reference.md#proxmox-private-results).
-An interrupted private delivery does not authorize recreating a credential or replaying a consumed confirmation.
-Byte transports remain unavailable.
+For credential setup and automatic sign-in requirements, see [Proxmox setup](tool-credentials.md#proxmox); the [custody amendment](credential-standard.md#proxmox-memory-authentication-and-protected-result-amendment) owns authentication retention and invalidation.
+For native `AUTH_SESSION_REQUIRED`, the operation forbids API tokens: an administrator must configure an authorized username/password credential, and TFA accounts cannot use that branch.
+For `AUTH_REQUIRED` or `AUTH_SESSION_INVALID`, ask an administrator to verify the stored credential; users have no separate PVE sign-in command.
+The failed operation is not retried automatically; reconcile its durable journal before further write action.
+For private-result expiry and uncertain delivery, follow the [retention guidance](#retention-and-export); for unavailable transports, see the [capability boundary](safety.md#network-appliance-reads).
 
 UniFi keeps native request claims and observations in private directories beneath `<database directory>/tool-logs/unifi-axi/writes.log/`.
 Keep these durable records with the database; removing them discards native request-ID replay protection.

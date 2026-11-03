@@ -222,18 +222,15 @@ Runner-generated recovery for Sentinel incident updates and comment creation fir
 
 ### Proxmox private results
 
-Proxmox authentication comes from the administrator-managed API token or username/password profile.
-Users sign in only to Artium; stored passwords acquire tickets automatically and TFA accounts require an API token.
+Users sign in only to Artium; see [Proxmox credential setup](tool-credentials.md#proxmox) for managed authentication requirements.
 Secret-producing JSON writes return safe metadata and a one-time result reference.
 Use `artium-axi proxmox-axi result take <operation> <id>` with `PROXMOX_AXI_RESULT_FD` set to an inherited writable private pipe or socket numbered 5 or higher.
+Use the operation ID and result ID returned by the write; `--json` selects JSON delivery metadata.
 Standard streams, regular files and reserved descriptors are refused before retrieving the result.
 The CLI delivers the original native S4 frame, a four-byte big-endian length followed by at most 65536 bytes of JSON containing version, binding and private payload.
 Routine output reports only delivery metadata, byte count and SHA-256.
 The CLI verifies the authenticated response length and hash before writing to the private descriptor and never retries interrupted delivery.
-Retrieval expires after five minutes and requires the original user, sign-in family, operation and credential revision with current tool access and trust.
-Results disappear on retrieval, expiry, relevant revocation or restart.
-An unavailable result or failed delivery does not authorize recreating a credential or replaying its consumed native confirmation.
-See [credential custody](credential-standard.md#proxmox-memory-authentication-and-protected-result-amendment) and [recovery](runbook.md#retention-and-export).
+See [credential custody](credential-standard.md#proxmox-memory-authentication-and-protected-result-amendment) for retrieval bindings and revocation, and [retention and recovery](runbook.md#retention-and-export) for expiry and failed delivery.
 
 ### Check Point email and attachment saving
 
