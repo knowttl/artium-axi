@@ -511,14 +511,20 @@ async function execute(
     }
     if (result.exitCode === 0 && limits.protectedResult) {
       const { name, receive } = limits.protectedResult
-      const file = await open(join(directories.XDG_CONFIG_HOME, name), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
-        .catch(() => { throw new RunnerError('TEMP_UNAVAILABLE') })
       try {
-        const info = await file.stat()
-        if (!info.isFile() || info.uid !== process.getuid?.() || (info.mode & 0o077) !== 0) throw new RunnerError('TEMP_UNAVAILABLE')
-        if (info.size > protectedResultLimits.bytes) throw new RunnerError('OUTPUT_LIMIT')
-        receive(await file.readFile())
-      } finally { await file.close() }
+        const file = await open(join(directories.XDG_CONFIG_HOME, name), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
+        try {
+          const info = await file.stat()
+          if (!info.isFile() || info.uid !== process.getuid?.() || (info.mode & 0o077) !== 0) throw new RunnerError('TEMP_UNAVAILABLE')
+          if (info.size > protectedResultLimits.bytes) throw new RunnerError('OUTPUT_LIMIT')
+          receive(await file.readFile())
+        } finally { await file.close() }
+      } catch (error) {
+        throw Object.assign(error instanceof RunnerError ? error : new RunnerError('TEMP_UNAVAILABLE'), {
+          processStarted: true, durationMs: performance.now() - started,
+          outputBytes: result.outputBytes, truncated: result.truncated,
+        })
+      }
     }
     if (result.exitCode === 0 && limits.protectedPipe && 'flag' in limits.protectedPipe && privateChunks.length) {
       const bytes = Buffer.concat(privateChunks)

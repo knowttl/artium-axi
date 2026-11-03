@@ -202,6 +202,8 @@ test('protected pipe capture preserves the public secret-output guard', async ()
 })
 
 test.each([
+  { script: '', code: 'TEMP_UNAVAILABLE' },
+  { script: 'fs.mkdirSync(process.argv[2])', code: 'TEMP_UNAVAILABLE' },
   { script: "fs.writeFileSync(process.argv[2], 'confidential', { mode: 0o644 })", code: 'TEMP_UNAVAILABLE' },
   { script: "fs.symlinkSync('private.bin', process.argv[2])", code: 'TEMP_UNAVAILABLE' },
   { script: "fs.writeFileSync(process.argv[2], Buffer.alloc(4 * 1024 * 1024 + 1), { mode: 0o600 })", code: 'OUTPUT_LIMIT' },
@@ -209,7 +211,8 @@ test.each([
   const captured: Buffer[] = []
   await expect(run(process.execPath, ['-e', `const fs = require('node:fs'); ${script}`, '--'], {}, [],
     { protectedResult: { name: 'result.bin', flag: '--result-file', receive: bytes => { captured.push(bytes) } } },
-    {}, [{ name: 'private.bin', content: 'confidential' }])).rejects.toMatchObject({ code })
+    {}, [{ name: 'private.bin', content: 'confidential' }])).rejects.toMatchObject({ code, processStarted: true,
+    durationMs: expect.any(Number), outputBytes: { stdout: 0, stderr: 0 }, truncated: { stdout: false, stderr: false } })
   expect(captured).toEqual([])
 })
 

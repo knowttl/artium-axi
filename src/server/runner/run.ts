@@ -183,7 +183,7 @@ export async function runTool<Credential>(
         result = unknownWriteResult(await journal.auditId(), runnerError.durationMs ?? Date.now() - started,
           runnerError.outputBytes ?? { stdout: 0, stderr: 0 })
       } else {
-        if (write && runnerError?.processStarted && ['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT_LIMIT', 'UNKNOWN_OUTCOME'].includes(runnerError.code)) {
+        if (write && runnerError?.processStarted && ['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT_LIMIT', 'UNKNOWN_OUTCOME', 'TEMP_UNAVAILABLE'].includes(runnerError.code)) {
           const command = ['artium-axi', adapter.name, ...write.checkArgs].map(value =>
             /^[a-zA-Z0-9_./:=,+@%-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`).join(' ')
           error = Object.assign(new RunnerError('UNKNOWN_OUTCOME', `Unknown outcome for ${write.operation} ${write.target}.`,

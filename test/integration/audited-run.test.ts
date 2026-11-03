@@ -10,6 +10,7 @@ import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
 import { createGhAdapter } from '../../src/server/adapters/gh.js'
 import { createAwxAdapter } from '../../src/server/adapters/awx.js'
 import { createUnifiAdapter } from '../../src/server/adapters/unifi.js'
+import { createTechnitiumAdapter } from '../../src/server/adapters/technitium.js'
 import awxInventory from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
@@ -425,6 +426,34 @@ test.each([
   expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get())
     .toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'unknown' })
   expect(JSON.stringify(failure) + lines.join('')).not.toMatch(/CANARY-private-site|CANARY-private-body|CANARY-unifi-key/)
+})
+
+test.each([
+  { failure: 'oversized', script: "fs.writeFileSync(process.argv[2], Buffer.alloc(5 * 1024 * 1024), { mode: 0o600 })" },
+  { failure: 'missing', script: '' },
+])('Technitium completed writes require reconciliation after $failure protected results (R2)', async ({ script }) => {
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'technitium-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'technitium-axi')")
+  const credential = { origin: 'https://synthetic.invalid', auth: 'token', tokenKind: 'api', token: 'CANARY-technitium-token' }
+  const store = createCredentialStore(db, provider)
+  store.replaceCredential('technitium-axi', credential, 0, 'synthetic-user', Date.now())
+  const grants = { allowWrites: true, operations: ['OP-080'] }
+  const technitium = createTechnitiumAdapter({ getCredential: async () => credential,
+    getSettings: () => ({ writes: grants, hostWrites: grants }) }, join(directory, 'technitium-writes'))
+  const mutation = join(directory, 'synthetic-mutation')
+  const execution = { ...technitium, async prepare(...input: Parameters<typeof technitium.prepare>) {
+    return { ...await technitium.prepare(...input), executable: process.execPath,
+      args: ['-e', `const fs=require('node:fs'); fs.writeFileSync(${JSON.stringify(mutation)}, 'applied'); ${script}`, '--'],
+      fileArguments: [] }
+  } }
+  const args = ['settings', 'set', '--input-file', 'input.json', '--execute',
+    '--confirm', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.' + 'a'.repeat(64)]
+  const files = [{ name: 'input.json', contentBase64: Buffer.from(JSON.stringify({ parameters: { dnsServerDomain: 'synthetic.test' } })).toString('base64') }]
+  await expect(runTool(db, audit, runner, token, { args, files }, execution, new SharedIdentityResolver(store),
+    { ...context, protectedResults: new ProtectedResults() })).rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME',
+    next: expect.stringContaining('Reconcile with the native audit ID') })
+  expect(readFileSync(mutation, 'utf8')).toBe('applied')
+  expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get())
+    .toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'unknown' })
 })
 
 test('a classified write ending on a signal records an unknown outcome', async () => {

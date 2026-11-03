@@ -44,6 +44,32 @@ test.each(['user', 'pass', 'totp'])('Technitium refuses create-token acquisition
   await expect(toolInput('technitium-axi', ['user', 'create-token', '--input-file', path])).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
 })
 
+test.each([
+  { name: 'TECHNITIUM_INPUT_FILE_0', parametersFirst: true, envelope: false },
+  { name: 'TECHNITIUM_INPUT_FILE_1', parametersFirst: false, envelope: false },
+  { name: 'TECHNITIUM_INPUT_FILE_0', parametersFirst: true, envelope: true },
+  { name: 'TECHNITIUM_INPUT_FILE_1', parametersFirst: false, envelope: true },
+])('Technitium preserves caller secret names across parameters and baseline (R1): %j', async ({ name, parametersFirst, envelope }) => {
+  const secret = join(directory, 'technitium-collision-secret')
+  const path = join(directory, 'technitium-collision.json')
+  writeFileSync(secret, 'CANARY-file-secret', { mode: 0o600 })
+  vi.stubEnv(name, 'CANARY-caller-secret')
+  const caller = { env: name }
+  const local = { file: secret }
+  writeFileSync(path, JSON.stringify({
+    parameters: { tsigKeys: [{ sharedSecret: parametersFirst ? local : caller }] },
+    baseline: { tsigKeys: [{ sharedSecret: parametersFirst ? caller : local }] },
+    ...(envelope ? { secrets: { [name]: 'CANARY-caller-secret' } } : {}),
+  }), { mode: 0o600 })
+  try {
+    const request = await toolInput('technitium-axi', ['settings', 'set', '--input-file', path])
+    const body = JSON.parse(Buffer.from(request.files![0].contentBase64, 'base64').toString('utf8'))
+    expect(body.secrets[name]).toBe('CANARY-caller-secret')
+    expect(body.secrets[body.parameters.tsigKeys[0].sharedSecret.env]).toBe(parametersFirst ? 'CANARY-file-secret' : 'CANARY-caller-secret')
+    expect(body.secrets[body.baseline.tsigKeys[0].sharedSecret.env]).toBe(parametersFirst ? 'CANARY-caller-secret' : 'CANARY-file-secret')
+  } finally { vi.unstubAllEnvs() }
+})
+
 test('Gitea uploads opaque attachment bytes with a managed leaf', async () => {
   const path = join(directory, 'asset.bin')
   const bytes = Buffer.from([0, 255, 13, 10])

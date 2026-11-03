@@ -55,27 +55,36 @@ export async function technitiumToolInput(original: string[]) {
   if (route.operation === 'OP-076' && technitiumObject(value.parameters.config)) {
     await upload(value.parameters.config.file, 'config.bin'); value.parameters.config.file = 'config.bin'
   }
-  const visit = async (node: unknown, key = '', depth = 0): Promise<void> => {
+  const reserved = new Set(Object.keys(secrets))
+  let nextSecret = 0
+  const visit = async (node: unknown, materialize: boolean, key = '', depth = 0): Promise<void> => {
     if (depth > 24) throw new ArtiumError('INVALID_INPUT')
     if (technitiumSecretNames.has(key)) {
       if (!technitiumObject(node) || Object.keys(node).length !== 1) throw new ArtiumError('FLAG_BLOCKED')
       if (typeof node.env === 'string' && /^TECHNITIUM_INPUT_[A-Z0-9_]+$/.test(node.env)) {
+        reserved.add(node.env)
+        if (!materialize) return
         const secret = secrets[node.env] ?? process.env[node.env]
         if (secret === undefined) throw new ArtiumError('INVALID_INPUT')
         secrets[node.env] = secret
       } else if (typeof node.file === 'string') {
-        const name = 'TECHNITIUM_INPUT_FILE_' + Object.keys(secrets).length
+        if (!materialize) return
+        let name: string
+        do { name = 'TECHNITIUM_INPUT_FILE_' + nextSecret++ } while (reserved.has(name))
+        reserved.add(name)
         secrets[name] = (await readPrivate(node.file)).toString('utf8')
         delete node.file; node.env = name
       } else throw new ArtiumError('FLAG_BLOCKED')
-    } else if (Array.isArray(node)) for (const item of node) await visit(item, '', depth + 1)
+    } else if (Array.isArray(node)) for (const item of node) await visit(item, materialize, '', depth + 1)
     else if (technitiumObject(node)) for (const [name, child] of Object.entries(node)) {
       if (route.operation === 'OP-076' && key === '' && name === 'config') continue
-      await visit(child, name, depth + 1)
+      await visit(child, materialize, name, depth + 1)
     }
   }
-  await visit(value.parameters)
-  if (value.baseline !== undefined) await visit(value.baseline)
+  for (const materialize of [false, true]) {
+    await visit(value.parameters, materialize)
+    if (value.baseline !== undefined) await visit(value.baseline, materialize)
+  }
   value.secrets = secrets
   const content = Buffer.from(JSON.stringify(value))
   files.unshift({ name: 'input.json', size: content.length, contentBase64: content.toString('base64') })
