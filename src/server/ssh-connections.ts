@@ -135,7 +135,7 @@ export class SshConnections {
         mkdirSync(dirname(target), { recursive: true, mode: 0o700 })
         writeFileSync(target, file.content, { mode: 0o600, flag: 'wx' })
       }
-      const scanner = new SecretScanner(prepared.secrets)
+      let scanner: SecretScanner | undefined = new SecretScanner(prepared.secrets)
       const child = fork(join(dirname(this.executable), 'connection-worker.js'), [], {
         execArgv: [], detached: true, cwd: directories.HOME,
         env: { ...prepared.environment, ...directories, NODE_OPTIONS: '--max-old-space-size=128' },
@@ -149,13 +149,20 @@ export class SshConnections {
         connection.state = 'closed'; clearTimeout(connection.timer)
         for (const pending of connection.pending.values()) pending.reject(new ArtiumError('CONNECTION_CLOSED'))
         connection.pending.clear()
+        child.off('message', receive)
+        child.off('error', failed)
+        child.off('close', cleanup)
+        for (const stream of ['stdout', 'stderr'] as const) child[stream]!.off('data', unexpectedOutput)
+        scanner = undefined
+        connection.child = undefined
         rmSync(connection.directory, { recursive: true, force: true })
         connection.closing = undefined
         finish()
       }
-      child.once('error', cleanup)
-      child.once('close', cleanup)
-      child.on('message', raw => {
+      const failed = () => { void this.closeEntry(connection, 'worker-failed') }
+      const unexpectedOutput = () => { void this.closeEntry(connection) }
+      const receive = (raw: unknown) => {
+        if (!scanner) return
         const bytes = Buffer.from(JSON.stringify(raw))
         const response = responseSchema.safeParse(raw)
         if (bytes.length > 256 * 1024 || scanner.scan('stdout', bytes) || !response.success) { void this.closeEntry(connection); return }
@@ -170,8 +177,11 @@ export class SshConnections {
             : code === 'AUTH_FAILED' ? 'UPSTREAM_AUTH_FAILED' : code === 'AUTH_TIMEOUT' ? 'TIMEOUT'
               : ['TRUST_FAILED', 'ADDRESS_DENIED'].includes(code ?? '') ? 'CREDENTIAL_INVALID' : 'CONNECTION_CLOSED'))
         }
-      })
-      for (const stream of ['stdout', 'stderr'] as const) child[stream]!.on('data', () => { void this.closeEntry(connection) })
+      }
+      child.once('error', failed)
+      child.once('close', cleanup)
+      child.on('message', receive)
+      for (const stream of ['stdout', 'stderr'] as const) child[stream]!.on('data', unexpectedOutput)
       const deadline = setTimeout(() => { void this.closeEntry(connection, 'authentication-timeout') }, 17000)
       try { await this.request(connection, 'open') } finally { clearTimeout(deadline) }
       if (!this.current(connection)) throw new ArtiumError('REVISION_CONFLICT')

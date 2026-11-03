@@ -19,7 +19,7 @@ Contents:
 - [10. Migration](#10-migration)
 
 Status: AGREED.
-The [connection-lifetime amendment](#opt-in-connection-lifetime-amendment) records the separate conditional SSH approval.
+The [connection-lifetime amendment](#opt-in-connection-lifetime-amendment) records the separate SSH approval and its release-at-close requirement.
 The owner approved the base standard on the board in round 3, writing "if everything looks good you can finalize the report and hand it back".
 This is the agreed contract; current host rollout and remaining tool migrations are tracked in [credential-migration.md](credential-migration.md).
 Round 2 added the owner's requirement that credential storage work the same on Windows and Linux.
@@ -262,7 +262,7 @@ Per-tool policy covers the inventory, blocked commands and flags, and hosted res
 
 ### Opt-in connection-lifetime amendment
 
-Status: CONDITIONALLY APPROVED for the explicitly admitted SSH integration only, subject to the release-at-close requirement below and a deterministic regression proving that release through the public lifecycle or real process boundary.
+Status: APPROVED for the explicitly admitted SSH integration only, with the release-at-close requirement below and a deterministic regression proving that release through the public lifecycle or real process boundary.
 The separate amendment and custody conformance checks were merged in [PR #257](https://github.com/knowttl/artium-axi/pull/257), commit `458ee4d7e53daf3f01b4b6c91f75331841e0ad16`; that amendment alone did not authorize production admission.
 Section 9's agreed per-call behavior remains the default.
 The SSH owner decision grants no automatic admission to other tools.

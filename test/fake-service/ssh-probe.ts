@@ -1,15 +1,17 @@
 import assert from 'node:assert/strict'
 import { decode } from '@toon-format/toon'
-import { spawn, type ChildProcess } from 'node:child_process'
+import { spawn, ChildProcess } from 'node:child_process'
 import { EventEmitter, once } from 'node:events'
 import { generateKeyPairSync } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { lstatSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { queryObjects } from 'node:v8'
 import type { ParsedKey, Connection } from 'ssh2'
 import { createSshAdapter } from '../../src/server/adapters/ssh.js'
 import { Runner } from '../../src/server/runner/runner.js'
+import { SecretScanner } from '../../src/server/runner/scan.js'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
@@ -270,7 +272,14 @@ try {
     assert.equal(response.statusCode, 200, response.body)
     assert.equal(response.json().state, 'closed')
   }
+  // R4: retain closed metadata, but release the real worker and its secret scanner at close.
+  const retainedResources = () => ({ workers: queryObjects(ChildProcess, { format: 'count' }) as number,
+    scanners: queryObjects(SecretScanner, { format: 'count' }) as number })
+  await new Promise<void>(resolve => setImmediate(resolve))
+  const retainedBefore = retainedResources()
   const reusable = await openConnection()
+  assert.deepEqual(retainedResources(),
+    { workers: retainedBefore.workers + 1, scanners: retainedBefore.scanners + 1 })
   const reusedTransport = counts.transports
   const firstReuse = await finish(await submit(await prepare('id', { connection: reusable.id })))
   const secondReuse = await finish(await submit(await prepare('printf synthetic', { connection: reusable.id })))
@@ -295,6 +304,9 @@ try {
   assert.equal(cancelled.json().termination, 'unknown')
   await closeConnection(reusable.id)
   await closeConnection(reusable.id)
+  await new Promise<void>(resolve => setImmediate(resolve))
+  assert.deepEqual(retainedResources(), retainedBefore,
+    'R4: closed connection metadata must not retain workers, listeners or secret-scanner buffers')
   assert.equal((await execution('prepare', { ...input, connection: reusable.id })).json().error.code, 'CONNECTION_CLOSED')
   assert.equal(counts.transports, reusedTransport)
   const activeClose = await openConnection()
