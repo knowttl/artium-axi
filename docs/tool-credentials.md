@@ -133,6 +133,14 @@ For a credential-specific CA bundle, paste PEM contents into `caBundle`, never a
 Alternatively, the advanced `certificatePin` object binds a certificate fingerprint to the exact origin and cannot be combined with `caBundle`; follow the editor's schema requirements.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
 After saving, testing, enabling and granting the tool, use `artium-axi proxmox-axi get /version` for the first managed read.
+Ordinary writes require exact operation IDs in native `writes.operations` and the independent host grant list controlled by **Write permissions**.
+For example, starting a virtual machine requires `OP-POST-f879c7c9f8` in both lists and the host **Allow writes** switch enabled.
+Set native `writes.operations` on **Advanced**; selecting host grants does not silently grant native permission.
+Use `create /nodes/{node}/qemu/{vmid}/status/start --api-node <node> --api-vmid <id> --preview`, then repeat the identical command with the exact returned `--confirm` instead of `--preview`.
+Sensitive operation fields use private `--protected-input` stdin with `{ "api": { ... }, "secrets": { "PVE_INPUT_NAME": "<value>" } }`; the corresponding API field references `{ "env": "PVE_INPUT_NAME" }`.
+These values exist for one invocation and are removed with its private inputs; authentication credentials still come only from the managed profile.
+Ticket/password authentication, protected-result operations and stream transports are not yet available.
+See [write safety and recovery](safety.md#network-appliance-reads) before enabling writes.
 
 #### Check Point Email Security
 

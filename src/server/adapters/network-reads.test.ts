@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createUnifiAdapter } from './unifi.js'
-import { createNetworkReadAdapter } from './network-reads.js'
+import { createProxmoxAdapter } from './proxmox.js'
 import { toolPaths } from '../config.js'
 import { Runner } from '../runner/runner.js'
 import { preflight } from '../health/preflight.js'
@@ -95,7 +95,7 @@ test.each([['home'], ['home', '--help']])('UniFi rejects the unsupported explici
   expect(() => createUnifiAdapter(source).validateArgs(args)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
 })
 
-test.each(['status', 'log', 'wait'])('Proxmox task %s rejects journal input', action => {
-  const adapter = createNetworkReadAdapter('proxmox-axi', source)
+test.each(['status', 'log', 'wait'])('Proxmox task %s rejects malformed journal identifiers', action => {
+  const adapter = createProxmoxAdapter(source)
   expect(() => adapter.validateArgs(['task', action, '--journal', 'synthetic-intent'])).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
 })

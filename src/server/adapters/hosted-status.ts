@@ -7,9 +7,29 @@ import { rewriteGhSuggestions } from '../../shared/gh-suggestions.js'
 import falcon from '../../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import kubernetes from '../../../tools/inventories/kubernetes-axi.json' with { type: 'json' }
 import ssh from '../../../tools/inventories/ssh-axi.json' with { type: 'json' }
+import proxmox from '../../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 
 // Status metadata describes the hosted credential, never the server's local layout.
 export function hostedStatus(tool: string, invocation: PreparedCall['invocation'], result: RunnerResult): RunnerResult {
+  if (tool === 'proxmox-axi' && invocation?.help && result.exitCode === 0) {
+    const route = proxmox.commands.find(route => route.command === invocation.command)
+    const document = { command: `artium-axi proxmox-axi${invocation.command === 'home' ? '' : ' ' + invocation.command}`,
+      flags: route?.flags ?? { help: 'boolean', format: 'value' },
+      commands: invocation.command === 'home' ? proxmox.discovery.commands : proxmox.commands
+        .filter(route => route.command.startsWith(invocation.command + ' ')).map(route => route.command),
+      help: [proxmox.discovery.help] }
+    const json = result.stdout.trimStart().startsWith('{')
+    return { ...result, stdout: (json ? JSON.stringify(document) : encode(document)) + '\n' }
+  }
+  if (tool === 'proxmox-axi' && invocation && invocation.command !== 'version' && result.stdout) {
+    if (result.truncated.stdout) throw new ArtiumError('INVALID_RESPONSE')
+    try {
+      const json = result.stdout.trimStart().startsWith('{')
+      const document = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
+      delete document.credential
+      result = { ...result, stdout: (json ? JSON.stringify(document) : encode(document)) + '\n' }
+    } catch { throw new ArtiumError('INVALID_RESPONSE') }
+  }
   if (tool === 'ssh-axi' && invocation && result.exitCode === 0) {
     if (result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('INVALID_RESPONSE')
     const json = result.stdout.trimStart().startsWith('{')

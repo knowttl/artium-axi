@@ -31,12 +31,12 @@ test.each([
   expect(rewriteSuggestions(output, tool)).toBe(output)
 })
 
-test.each(['status', 'log', 'wait'])('Proxmox task %s help omits unsupported journal input', action => {
+test.each(['status', 'log', 'wait'])('Proxmox task %s help includes owned journal recovery', action => {
   const native = execFileSync(process.execPath, ['tools/node_modules/@knowttl/proxmox-axi/bin/proxmox-axi.mjs',
     'task', action, '--help'], { encoding: 'utf8' })
   const document = decode(rewriteSuggestions(native, 'proxmox-axi')) as { command: string, flags: Record<string, string> }
   expect(document.command).toBe(`artium-axi proxmox-axi task ${action}`)
-  expect(document.flags).not.toHaveProperty('journal')
+  expect(document.flags).toHaveProperty('journal', 'value')
   expect(document.flags).toHaveProperty('api-upid', 'value')
 })
 

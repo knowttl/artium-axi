@@ -651,6 +651,16 @@ Use `session list` after a lost start reply and `session show` or `session outpu
 These temporary handles and results do not survive restart, and a missing handle does not prove that remote work was undone.
 Local downloads require a new absolute filename in an existing private directory and publish only after byte count and digest verification.
 
+Proxmox retains native preview, intent, claim and outcome records beneath `<database directory>/tool-logs/proxmox-axi/writes.log.d/`.
+Keep that complete private directory, including its fingerprint key, with database backups; deleting claims discards replay protection and deleting the key invalidates retained ownership and confirmation bindings.
+Only metadata and keyed fingerprints persist; operation inputs and authentication SecretRefs remain per-call and are removed after process settlement.
+Native profile grants and administrator host grants are independent; both default to no operation authority.
+Use owned `journal show/reconcile <id>` and task status/log/wait with `--journal <id>` after uncertain acknowledgement or runner termination, never repeat a consumed confirmation.
+Native reconciliation records observations and may retain uncertainty; inspect provider state before preparing a new mutation.
+Records bind caller, sign-in family and credential/settings revision; changing policy or credentials requires a new preview and owner scope.
+There is no automatic pruning of native claims; monitor their growth and preserve unresolved records.
+Protected results, in-memory authentication and byte transports remain unavailable.
+
 UniFi keeps native request claims and observations in private directories beneath `<database directory>/tool-logs/unifi-axi/writes.log/`.
 Keep these durable records with the database; removing them discards native request-ID replay protection.
 The native records contain hashes and sanitized selectors, never uploaded JSON bodies or credential values.

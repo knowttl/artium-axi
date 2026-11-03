@@ -58,6 +58,11 @@ try {
       await command('docker', ['run', '--name', unifi, '--pull', 'never', '--init', '--network', 'none', '--read-only',
         '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
         '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/dist/test/fake-service/unifi-probe.js'])
+      const proxmox = `${builder}-proxmox`
+      recoveryContainers.push(proxmox)
+      await command('docker', ['run', '--name', proxmox, '--pull', 'never', '--init', '--network', 'none', '--read-only',
+        '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
+        '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/dist/test/fake-service/proxmox-probe.js'])
       const ssh = `${builder}-ssh`
       recoveryContainers.push(ssh)
       await command('docker', ['run', '--name', ssh, '--pull', 'never', '--init', '--network', 'none', '--read-only',

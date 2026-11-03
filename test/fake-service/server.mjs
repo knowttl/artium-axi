@@ -9,9 +9,11 @@ import { checkpointResponse } from './checkpoint.mjs'
 const { kubernetesBytes } = await import(existsSync(new URL('./kubernetes-bytes.js', import.meta.url))
   ? './kubernetes-bytes.js' : './kubernetes-bytes.ts')
 const { unifiController } = await import(existsSync(new URL('./unifi.js', import.meta.url)) ? './unifi.js' : './unifi.ts')
+const { proxmoxController } = await import(existsSync(new URL('./proxmox.js', import.meta.url)) ? './proxmox.js' : './proxmox.ts')
 
 const requests = []
 const unifi = unifiController(event => requests.push(event))
+const proxmox = proxmoxController(event => requests.push(event))
 const resources = new Map()
 const awxAssociations = new Map()
 const awxTokens = new Map([[7, 'CANARY-awx-minted-token']])
@@ -63,6 +65,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
   if (unifi(req, res, url)) return
+  if (proxmox(req, res, url)) return
   if (url.pathname === '/__kubernetes/bytes') { res.end(JSON.stringify(byteEvidence())); return }
   if (url.pathname === '/__kubernetes/credentials') { res.end(JSON.stringify({ requests: kubernetesTokenRequests })); return }
   if (url.pathname === '/__kubernetes/control') {
@@ -258,13 +261,6 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     } else if (req.method === 'GET') res.end(JSON.stringify(url.pathname === '/api/v1/version' ? { version: '1.23.4' }
       : url.pathname === '/api/v1/user' ? { id: 1, login: 'synthetic-reader' } : giteaIssue))
     else { res.writeHead(405); res.end('{}') }
-    return
-  }
-  if (url.pathname === '/api2/json/version') {
-    const canaryReceived = req.headers.authorization === 'PVEAPIToken=reader@pve!automation=CANARY-proxmox-token'
-    requests.push({ method: req.method, path: url.pathname, canaryReceived })
-    if (req.method !== 'GET' || !canaryReceived) { res.writeHead(401); res.end('{}'); return }
-    res.end(JSON.stringify({ data: { version: '9.2.0', release: '1', repoid: 'synthetic-build' } }))
     return
   }
   if (url.pathname === '/__github/device') {

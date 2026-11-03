@@ -36,6 +36,10 @@ export async function toolInput(tool: string, original: string[]) {
   if (!runRequestSchema.safeParse({ args: original }).success) throw new ArtiumError('INVALID_INPUT')
   const args = tool === 'gitea-axi' ? normalizeGiteaFileArguments(original) : [...original]
   const input: RunInput = {}
+  if (tool === 'proxmox-axi' && args.includes('--protected-input') && !args.includes('--help')) {
+    if (process.stdin.isTTY) throw new ArtiumError('UNSUPPORTED_INPUT', 'Pipe a private JSON object with api and secrets fields on stdin.')
+    input.stdin = (await readBounded(process.stdin, 65536, '--protected-input with closed stdin')).toString('utf8')
+  }
   let totalFileBytes = 0
   if (tool === 'gh-axi' && ['gist create', 'gist edit'].includes(args.slice(0, 2).join(' '))
     && args.some(arg => arg === '--filename' || arg.startsWith('--filename='))

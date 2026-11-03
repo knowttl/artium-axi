@@ -326,6 +326,18 @@ test.each([
   expect(list.filter(item => !item.readOnly).map(item => item.name)).toEqual(writableTools)
 })
 
+test('Proxmox offers independent exact native and host write grants off by default', async () => {
+  const list = await (await request('GET', '')).json() as { tools: unknown[] }
+  const tool = list.tools.map(item => adminToolSchema.parse(item)).find(item => item.name === 'proxmox-axi')!
+  expect(tool.writeAccess).toMatchObject({ capable: true, enabled: false, allowedOperations: [] })
+  expect(tool.writeAccess.supportedOperations).toContain('OP-POST-f879c7c9f8')
+  const saved = await request('PATCH', '/proxmox-axi/write-access', { enabled: true,
+    operations: ['OP-POST-f879c7c9f8'], expectedRevision: tool.revision })
+  expect(saved.status).toBe(200)
+  expect(adminToolSchema.parse(await saved.json())).toMatchObject({ readOnly: false,
+    nativeSettings: { hostWrites: { allowWrites: true, operations: ['OP-POST-f879c7c9f8'] } } })
+})
+
 test('UniFi offers exact native write grants with execution off by default', async () => {
   const list = await (await request('GET', '')).json() as { tools: unknown[] }
   const tool = list.tools.map(item => adminToolSchema.parse(item)).find(item => item.name === 'unifi-axi')!
@@ -1269,7 +1281,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'beyondtrust-axi', capable: true, enabled: false, reason: null },
       { name: 'gh-axi', capable: true, enabled: false, reason: null },
       { name: 'unifi-axi', capable: true, enabled: false, reason: null },
-      { name: 'proxmox-axi', capable: false, enabled: false, reason: 'This adapter admits ordinary reads only.' },
+      { name: 'proxmox-axi', capable: true, enabled: false, reason: null },
       { name: 'technitium-axi', capable: false, enabled: false, reason: 'The pinned Technitium package supports reads only.' },
       { name: 'gitea-axi', capable: true, enabled: false, reason: null },
       { name: 'kubernetes-axi', capable: true, enabled: false, reason: null },
@@ -1629,7 +1641,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'beyondtrust-axi', version: '0.1.6', health: { status: 'disabled' } },
     { name: 'gh-axi', version: '0.1.45', health: { status: 'disabled' } },
     { name: 'unifi-axi', version: '0.1.3', health: { status: 'disabled' } },
-    { name: 'proxmox-axi', version: '0.1.1', health: { status: 'disabled' } },
+    { name: 'proxmox-axi', version: '0.1.2', health: { status: 'disabled' } },
     { name: 'technitium-axi', version: '0.1.0', health: { status: 'disabled' } },
     { name: 'gitea-axi', version: '0.1.1', health: { status: 'disabled' } },
     { name: 'kubernetes-axi', version: '0.1.3', health: { status: 'disabled' } },

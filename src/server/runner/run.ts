@@ -91,8 +91,12 @@ export async function runTool<Credential>(
         root: prepared.kubernetesWorkflowRoot,
         scope: createHash('sha256').update(JSON.stringify({ userId, family: verifyAccessFamily(db, token), reference })).digest('hex'),
       } : undefined
-      const unifiScope = adapter.name === 'unifi-axi' && reference
+      const nativeScope = ['unifi-axi', 'proxmox-axi'].includes(adapter.name) && reference
         ? createHash('sha256').update(JSON.stringify({ userId, family: verifyAccessFamily(db, token), reference })).digest('hex') : undefined
+      if (adapter.name === 'proxmox-axi' && reference) {
+        prepared.environment.PROXMOX_AXI_ACTOR = nativeScope!
+        prepared.environment.PROXMOX_AXI_CREDENTIAL_REVISION = `${reference.id}:${reference.revision}`
+      }
       const protectedResult = prepared.protectedResult?.source === 'pipe' && kubernetesRequests
         && !await kubernetesCredentialRequest(kubernetesRequests.root, kubernetesRequests.scope, args[1])
         ? undefined : prepared.protectedResult
@@ -116,7 +120,8 @@ export async function runTool<Credential>(
             outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
         }
         return runner.run(identity.userId, prepared.executable, prepared.args, preparedJournal.environment,
-          prepared.secrets, { ...prepared.limits, kubernetesRequests, unifiScope, trustedIpc: prepared.trustedIpc, signal: context.signal,
+          prepared.secrets, { ...prepared.limits, publicContent: prepared.publicContent, kubernetesRequests,
+            unifiScope: adapter.name === 'unifi-axi' ? nativeScope : undefined, trustedIpc: prepared.trustedIpc, signal: context.signal,
             credentialTrust: reference ? readCredentialTrust(db, reference) : [],
             protectedResult: protectedResult?.source === 'file'
               ? { ...protectedResult, receive: bytes => { privateBytes = bytes } } : undefined,
@@ -128,7 +133,8 @@ export async function runTool<Credential>(
               checkToolPolicy(db, identity.userId, adapter.name)
               prepared.beforeSpawn()
             }
-            if ((kubernetesRequests || unifiScope) && reference) {
+            if ((kubernetesRequests || nativeScope) && reference) {
+              authenticate(db, token)
               checkToolPolicy(db, identity.userId, adapter.name)
               const current = db.prepare('SELECT revision FROM credentials WHERE id = ? AND tool = ?').get(reference.id, adapter.name) as { revision: number } | undefined
               if (current?.revision !== reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')

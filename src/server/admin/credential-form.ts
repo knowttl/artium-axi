@@ -6,7 +6,7 @@ import { tenableProfile } from '../adapters/tenable.js'
 import { hybridProfile } from '../adapters/hybrid.js'
 import { beyondtrustProfile } from '../adapters/beyondtrust.js'
 import { checkpointProfile } from '../adapters/checkpoint.js'
-import { networkProfiles } from '../adapters/network-reads.js'
+import { proxmoxProfile } from '../adapters/proxmox.js'
 import { unifiProfile } from '../adapters/unifi.js'
 import { technitiumProfile } from '../adapters/technitium.js'
 import { giteaProfile } from '../adapters/gitea.js'
@@ -22,7 +22,7 @@ export function editorProfile(tool: ToolName, profile?: CredentialProfile): Cred
   if (tool === 'technitium-axi') return technitiumProfile
   if (tool === 'gitea-axi') return giteaProfile
   if (tool === 'unifi-axi') return unifiProfile
-  if (tool === 'proxmox-axi') return networkProfiles[tool]
+  if (tool === 'proxmox-axi') return proxmoxProfile
   if (tool === 'beyondtrust-axi') return beyondtrustProfile
   if (tool === 'checkpoint-axi') return checkpointProfile
   if (tool === 'ado-axi') return adoProfile

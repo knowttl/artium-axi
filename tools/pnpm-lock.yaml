@@ -39,8 +39,8 @@ importers:
         specifier: 0.1.19
         version: 0.1.19
       '@knowttl/proxmox-axi':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.1.2
+        version: 0.1.2
       '@knowttl/ssh-axi':
         specifier: 0.1.2
         version: 0.1.2
@@ -137,8 +137,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/proxmox-axi@0.1.1':
-    resolution: {integrity: sha512-HcKw/Rlos7F4UP9rk6YtCMEz1XNTqHHQo3vQeHHmBMCDN3Jri0x8aYl6aCt/MOp6eM9CY5sKbyTaPXvSCdx6nw==}
+  '@knowttl/proxmox-axi@0.1.2':
+    resolution: {integrity: sha512-Ol4Q82UE/70GgriSCfvDQvnnQOIr/beddlNwZolu3bJiN9fZyU0pvJlC22uXrZB+/zb96OaYgYkjhUonXnvoaA==}
     engines: {node: '>=24.11.0'}
     hasBin: true
 
@@ -603,7 +603,7 @@ snapshots:
       axi-sdk-js: 0.1.13
       open: 11.0.4
 
-  '@knowttl/proxmox-axi@0.1.1':
+  '@knowttl/proxmox-axi@0.1.2':
     dependencies:
       '@toon-format/toon': 2.3.1
       ajv: 8.20.0

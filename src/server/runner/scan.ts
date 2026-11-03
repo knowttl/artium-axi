@@ -9,6 +9,8 @@ export interface PrivateOutput {
   patterns: [string, string][]
 }
 
+export type PublicContent = (stdout: string, stderr: string) => readonly string[]
+
 function secretForms(secrets: readonly string[]): string[] {
   const forms = new Set<string>()
   for (const secret of secrets) {
@@ -54,7 +56,7 @@ function prefixLengths(bytes: Uint8Array): Uint32Array {
   return lengths
 }
 
-/** One scanner per call. Scan every byte before retention or rewriting, even after the cap.
+/** One scanner per call. Check output before persistence or delivery, even after the cap.
  * A true result is permanent and requires the caller to discard both output streams.
  * Only supplied values and their canonical encodings are known, not upstream-minted tokens.
  */
@@ -64,8 +66,10 @@ export class SecretScanner {
   #matched = false
   readonly #valuePatterns: readonly RegExp[]
   readonly #chunks: Record<OutputStream, Buffer[]> = { stdout: [], stderr: [] }
+  #projectedBytes = 0
 
-  constructor(secrets: readonly string[], private readonly output?: PrivateOutput) {
+  constructor(private readonly secrets: readonly string[], private readonly output?: PrivateOutput,
+    private readonly publicContent?: PublicContent) {
     this.#valuePatterns = (output?.patterns ?? []).map(([pattern]) => new RegExp(pattern, 'u'))
     this.#patterns = secretForms(secrets).map(form => {
       const bytes = Buffer.from(form, 'utf8')
@@ -79,7 +83,13 @@ export class SecretScanner {
 
   scan(stream: OutputStream, chunk: Uint8Array): boolean {
     if (this.#matched) return true
-    if (this.output) this.#chunks[stream].push(Buffer.from(chunk))
+    if (this.output || this.publicContent) this.#chunks[stream].push(Buffer.from(chunk))
+    if (this.publicContent) {
+      // A reviewed structured protocol must be complete before its provider values can be selected.
+      this.#projectedBytes += chunk.length
+      this.#matched = this.#projectedBytes > 1024 * 1024
+      return this.#matched
+    }
     const positions = this.#positions[stream]
     for (let index = 0; index < this.#patterns.length; index++) {
       const { bytes, prefixes } = this.#patterns[index]
@@ -98,6 +108,14 @@ export class SecretScanner {
   }
 
   finish(): boolean {
+    if (this.publicContent) {
+      try {
+        const values = this.publicContent(Buffer.concat(this.#chunks.stdout).toString('utf8'), Buffer.concat(this.#chunks.stderr).toString('utf8'))
+        this.#matched ||= values.some(value => new SecretScanner(this.secrets).scan('stdout', Buffer.from(value)))
+      } catch { this.#matched = true }
+      this.#chunks.stdout = []; this.#chunks.stderr = []
+      return this.#matched
+    }
     const fields = this.output?.fields ?? {}
     const masks = new Set([...Object.values(fields), ...(this.output?.patterns ?? []).map(([, mask]) => mask)])
     const containsSecret = (value: unknown, key = '', depth = 0): boolean => {
