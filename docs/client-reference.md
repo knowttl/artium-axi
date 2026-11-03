@@ -192,9 +192,10 @@ Proxmox `--protected-input` accepts a private piped JSON object containing only 
 For example, `{ "api": { "password": { "env": "PVE_INPUT_PASSWORD" } }, "secrets": { "PVE_INPUT_PASSWORD": "<value>" } }` supplies a sensitive operation field without putting its value in arguments.
 Secret names must match `PVE_INPUT_[A-Z0-9_]+` and values must be nonempty strings.
 Do not supply the same API field in both `api` and an `--api-<field>` argument; repeat identical input when confirming a preview.
-The run API carries the same JSON text in `stdin` with `--protected-input`; local file uploads and caller-selected server files are unavailable.
+The run API carries the same JSON text in `stdin` with `--protected-input`; it does not accept local file uploads or caller-selected server files.
 Without that flag, and for `--help`, Proxmox leaves stdin unread.
-Authentication still comes from the managed profile; see the [Proxmox capability boundary](safety.md#network-appliance-reads) for write grants and pending capabilities.
+For local storage uploads, use the separate [managed stream workflow](#proxmox-managed-streams).
+Authentication still comes from the managed profile; see the [Proxmox capability boundary](safety.md#network-appliance-reads) for write grants and supported routes.
 Gitea uploads local text, JSON or opaque attachment bytes through the file flags declared for each command in its [reviewed inventory](../tools/inventories/gitea-axi.json), including their short aliases.
 Explicit `--body-file -`, `--notes-file -` or `--input -` reads bounded caller stdin instead; other Gitea calls leave stdin unread.
 Repeat identical file or stdin bytes when confirming a preview.
@@ -237,11 +238,13 @@ See [credential custody](credential-standard.md#proxmox-memory-authentication-an
 
 Run `artium-axi proxmox-axi stream limits` to inspect authenticated host-selected quotas.
 Use `artium-axi proxmox-axi stream -- transfer|duplex <native arguments>` for the reviewed byte routes; normal run requests do not admit stream operations.
+The [reviewed inventory](../tools/inventories/proxmox-axi.json)'s `streamCommands` owns the route list; append `--help` to a selected stream command for its accepted flags.
 `--json` before the separator selects JSON metadata, including `stream limits --json`; native `--format toon|json` remains available after the separator.
 Before execution, set `PROXMOX_AXI_STREAM_FD` to an inherited private writable pipe or socket numbered 5 or higher.
 Duplex requires a readable and writable byte channel plus a distinct `PROXMOX_AXI_RESULT_FD` for its S4 setup frame; descriptor aliases and standard or managed-session descriptors are refused before dispatch.
 Previews require no destination descriptor.
-SPICE configuration reaches only the private byte destination after native count/hash validation and authenticated one-shot retrieval.
+The stream CLI automatically retrieves duplex setup into `PROXMOX_AXI_RESULT_FD` and SPICE configuration into `PROXMOX_AXI_STREAM_FD` using the [one-shot private result contract](#proxmox-private-results).
+SPICE delivery follows native completion and count/hash validation; duplex setup arrives while the operation is active so the caller can complete the inner protocol.
 Other binary data streams directly, with backpressure; stdout and stderr contain only scanned metadata.
 Keep partial bytes only after successful completion and matching count and SHA-256; no interrupted transfer reconnects or retries automatically.
 Duplex preserves four-byte native message lengths and final peer messages after input EOF.

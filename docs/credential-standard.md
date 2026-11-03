@@ -340,15 +340,15 @@ This amendment authorizes no persistent Proxmox worker and does not extend the S
 8. Production admission requires synthetic conformance for automatic acquisition and expiry, TFA refusal, caller/family and credential/trust isolation, absence of fallback, capacity, private framing and single-use retrieval, secrecy, targeted revocation of idle and active state, failure cleanup and restart without retained credentials.
    This amendment alone does not establish implementation conformance or live appliance commissioning.
 
-### Per-tool host-facing schemas
-
-The managed Proxmox S5 routes preserve this credential custody: they add neither an authentication kind nor a retained password or provider worker.
+The managed Proxmox S5 routes preserve this credential custody: they add no authentication kind, additional password retention or persistent provider worker.
 Genuine duplex setup frames may be validated and committed to the existing one-shot memory store while their owning operation remains active, so the caller can complete its inner protocol.
 The S4 frame size and six native binding checks remain unchanged, and minted setup values are registered before provider text can be released.
 SPICE configuration is a different native representation: exact raw text bytes, never a fabricated S4 JSON frame.
 The host accepts it only from its selected SPICE operation, checks native completion, byte count and SHA-256, and registers configuration values before accepting public metadata.
 It uses the existing result store's 4 MiB bound, five-minute lifetime, four-per-user/sixteen-global capacity, current caller/family/credential/trust checks and one-shot retrieval, delivering only to the caller's validated private byte destination.
 Opaque console and migration messages stay on the active private byte channel, are never text-redacted or persisted, and are fenced with the owning native call.
+
+### Per-tool host-facing schemas
 
 The Falcon adapter uses the pinned TypeScript credential schema and Artium's private profile writer.
 Client ID, client-secret SecretRef, region and optional member CID come from the stored profile.
