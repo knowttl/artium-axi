@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { readFileSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs'
-import { execFile } from 'node:child_process'
+import { readFileSync, readdirSync, mkdirSync, writeFileSync, realpathSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { execFile, spawn } from 'node:child_process'
+import { createConnection } from 'node:net'
+import { once } from 'node:events'
+import { createInterface } from 'node:readline'
+import type { Readable } from 'node:stream'
 import { promisify } from 'node:util'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { join } from 'node:path'
 import { withFakeService } from './fixture.js'
 import { createKubernetesAdapter } from '../../src/server/adapters/kubernetes.js'
@@ -19,8 +24,11 @@ import { kubernetesSessionKind } from '../../src/shared/kubernetes.js'
 import type { z } from 'zod'
 import { SessionStore, sessionPath } from '../../src/cli/session.js'
 import { createTestClientCertificate } from './certificates.mjs'
+import { openKubernetesTunnel } from '../../src/cli/kubernetes-tunnel.js'
+import { toolPaths } from '../../src/server/config.js'
 
 assert.ok(!readFileSync('/proc/net/route', 'utf8').split('\n').slice(1).some(line => line.split(/\s+/)[1] === '00000000'))
+const nativeCodec = await import(pathToFileURL(createRequire(realpathSync(toolPaths['kubernetes-axi'])).resolve('@toon-format/toon')).href) as { decode: (text: string) => unknown }
 await withFakeService(async ({ directory, port, send }) => {
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 2).toString('base64') })
   const db = openStore(join(directory, 'data', 'artium.db'), provider)
@@ -47,14 +55,14 @@ await withFakeService(async ({ directory, port, send }) => {
     const prefix = '/v1/tools/kubernetes-axi/sessions'
     const reauth = await request('/v1/auth/reauth', 'POST', { password: 'CANARY-local-password' })
     assert.equal(reauth.statusCode, 200, reauth.body)
-    const policy = async (allowWrites: boolean, grants = [...kubernetesSessionKind.options]) => {
+    const policy = async (allowWrites: boolean, grants = [...kubernetesSessionKind.options], acquireCredential = false) => {
       const detail = await app.inject({ url: '/v1/admin/tools/kubernetes-axi', headers: {
         ...headers, 'x-artium-reauth-ticket': reauth.json().ticket,
       } })
       assert.equal(detail.statusCode, 200, detail.body)
       const response = await app.inject({ url: '/v1/admin/tools/kubernetes-axi', method: 'PATCH',
         headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: {
-          expectedRevision: detail.json().revision, nativeSettings: { allowWrites, sessions: { grants: { 'synthetic-development-user': grants } } },
+          expectedRevision: detail.json().revision, nativeSettings: { allowWrites, acquireCredential, sessions: { grants: { 'synthetic-development-user': grants } } },
         } })
       assert.equal(response.statusCode, 200, response.body)
     }
@@ -260,6 +268,121 @@ await withFakeService(async ({ directory, port, send }) => {
     await cli(['session', 'cancel', cliSession.id, '--confirm', '--json'])
     await cli(['workspace', 'delete', staged.id, '--json'])
     await request('/v1/tools/kubernetes-axi/workspaces/' + workspace, 'DELETE')
+    const echo = async (port: number, bytes: Buffer): Promise<Buffer> => {
+      const socket = createConnection({ host: '127.0.0.1', port })
+      const chunks: Buffer[] = []
+      socket.setTimeout(10000, () => socket.destroy(new Error('Synthetic forwarded connection timed out')))
+      try {
+        return await new Promise<Buffer>((resolve, reject) => {
+          socket.once('connect', () => socket.end(bytes))
+          socket.on('data', (chunk: Buffer) => chunks.push(chunk))
+          socket.once('end', () => resolve(Buffer.concat(chunks)))
+          socket.once('error', reject)
+        })
+      } finally { socket.destroy() }
+    }
+    const forward = await start('port-forward', ['port-forward', 'synthetic-pod', '0:8080', '0:9090'])
+    assert.equal((await request(`${prefix}/${forward.id}/confirm`, 'POST', { digest: forward.preview!.digest })).statusCode, 200)
+    const ready = await request(`${prefix}/${forward.id}?wait=ready`)
+    assert.equal(ready.statusCode, 200, ready.body)
+    assert.deepEqual(ready.json().remotePorts, [8080, 9090]); assert.equal(ready.json().tunnelReady, true)
+    const tunnel = await openKubernetesTunnel({ serverUrl: address, session: forward.id, ports: [8080, 9090],
+      accessToken: login.json().accessToken, signal: new AbortController().signal })
+    assert.deepEqual(await Promise.all(tunnel.ports.map(port => echo(port.local, bytes))), [bytes, bytes])
+    const largeForward = Buffer.alloc(256 * 1024 + 1, 98)
+    assert.deepEqual(await echo(tunnel.ports[0].local, largeForward), largeForward)
+    await assert.rejects(openKubernetesTunnel({ serverUrl: address, session: forward.id, ports: [8080],
+      accessToken: separateLogin.json().accessToken, signal: new AbortController().signal }))
+    await assert.rejects(openKubernetesTunnel({ serverUrl: address, session: forward.id, ports: [4444],
+      accessToken: login.json().accessToken, signal: new AbortController().signal }), { code: 'INVALID_INPUT' })
+    assert.deepEqual(await echo(tunnel.ports[1].local, bytes), bytes)
+    await policy(false)
+    await tunnel.closed
+    await assert.rejects(echo(tunnel.ports[0].local, bytes), { code: 'ECONNREFUSED' })
+    assert.equal((await request(`${prefix}/${forward.id}`)).statusCode, 404)
+    await policy(true)
+    const lostForward = await start('port-forward', ['port-forward', 'synthetic-pod', '0:8080'])
+    await request(`${prefix}/${lostForward.id}/confirm`, 'POST', { digest: lostForward.preview!.digest })
+    await request(`${prefix}/${lostForward.id}?wait=ready`)
+    const lostTunnel = await openKubernetesTunnel({ serverUrl: address, session: lostForward.id, ports: [8080],
+      accessToken: login.json().accessToken, signal: new AbortController().signal })
+    const forwardingWorkers = children(process.pid).filter(pid => readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('/dist/hosted-session.js'))
+    assert.equal(forwardingWorkers.length, 1)
+    process.kill(forwardingWorkers[0], 'SIGKILL')
+    assert.equal((await show(lostForward.id)).state, 'failed')
+    await lostTunnel.closed
+    await assert.rejects(echo(lostTunnel.ports[0].local, bytes), { code: 'ECONNREFUSED' })
+    await cancel(lostForward.id)
+    const cliForward = await start('port-forward', ['port-forward', 'synthetic-pod', '0:8080'])
+    await request(`${prefix}/${cliForward.id}/confirm`, 'POST', { digest: cliForward.preview!.digest })
+    const child = spawn(process.execPath, [fileURLToPath(new URL('../../cli/artium-axi.mjs', import.meta.url)),
+      'kubernetes-axi', 'tunnel', cliForward.id, '--port', '8080', '--json'], { env: environment, stdio: ['ignore', 'pipe', 'pipe'], timeout: 30000 })
+    const terminal = once(child, 'close')
+    const lines = createInterface({ input: child.stdout })
+    try {
+      const [line] = await once(lines, 'line')
+      const connected = JSON.parse(line) as { ports: { local: number }[] }
+      assert.deepEqual(await echo(connected.ports[0].local, bytes), bytes)
+      child.kill('SIGINT')
+      assert.equal((await terminal)[0], 0)
+    } finally { lines.close(); child.kill('SIGKILL'); await terminal; await cancel(cliForward.id) }
+
+    type NativeReply = { request: string, digest: string, complete?: boolean, replayed?: boolean, result?: { id: string, path: string } }
+    const native = async (args: string[]) => {
+      const response = await request('/v1/tools/kubernetes-axi/run', 'POST', { args })
+      assert.equal(response.statusCode, 200, response.body)
+      assert.doesNotMatch(response.body, /CANARY-|ARTIUM_SECRET_/)
+      return { code: response.json().exitCode as number, value: nativeCodec.decode(response.json().stdout) as NativeReply }
+    }
+    const nativeSuccess = async (args: string[]) => {
+      const result = await native(args); assert.equal(result.code, 0, JSON.stringify(result)); return result.value
+    }
+    const acquisition = ['prepare', '--', 'create', 'token', 'synthetic-account', '--duration=600s']
+    assert.equal((await request('/v1/tools/kubernetes-axi/run', 'POST', { args: acquisition })).json().error.code, 'FLAG_BLOCKED')
+    await policy(true, [...kubernetesSessionKind.options], true)
+    const tokenCount = async () => (JSON.parse(await send('/__kubernetes/credentials')) as { requests: number }).requests
+    assert.notEqual((await native(['prepare', '--', 'create', 'token', 'synthetic-account', '--duration=3601s'])).code, 0)
+    assert.equal(await tokenCount(), 0)
+    const preparedToken = await nativeSuccess(acquisition)
+    const tokenPreview = await nativeSuccess(['preview', preparedToken.request])
+    assert.equal(await tokenCount(), 0)
+    const confirmation = ['confirm', preparedToken.request, '--digest', tokenPreview.digest]
+    const acquired = await nativeSuccess(confirmation)
+    assert.ok(acquired.result)
+    assert.equal(await tokenCount(), 1)
+    assert.equal((await app.inject({ url: acquired.result.path, headers: stranger })).statusCode, 404)
+    const invalidSink = await cli(['credential', acquired.result.id, '--credential-fd', '1', '--json']).catch(error => error as { code: number })
+    assert.equal((invalidSink as { code: number }).code, 2)
+    const delivered = spawn(process.execPath, [fileURLToPath(new URL('../../cli/artium-axi.mjs', import.meta.url)), 'kubernetes-axi',
+      'credential', acquired.result.id, '--credential-fd', '5', '--json'], { env: environment,
+      stdio: ['ignore', 'pipe', 'pipe', 'ignore', 'ignore', 'pipe'], timeout: 30000 })
+    const privateChunks: Buffer[] = [], publicChunks: Buffer[] = []
+    const deliveryPipe = delivered.stdio.at(5) as Readable
+    deliveryPipe.on('data', (chunk: Buffer) => privateChunks.push(chunk))
+    delivered.stdout!.on('data', (chunk: Buffer) => publicChunks.push(chunk))
+    delivered.stderr!.on('data', (chunk: Buffer) => publicChunks.push(chunk))
+    assert.equal((await once(delivered, 'close'))[0], 0)
+    assert.equal(Buffer.concat(privateChunks).toString(), 'CANARY-issued-kubernetes-token\n')
+    assert.doesNotMatch(Buffer.concat(publicChunks).toString(), /CANARY-|ARTIUM_SECRET_/)
+    assert.equal((await request(acquired.result.path)).statusCode, 404)
+    assert.equal((await nativeSuccess(confirmation)).replayed, true)
+    assert.equal(await tokenCount(), 1)
+    const revokedToken = await nativeSuccess(acquisition)
+    const revokedPreview = await nativeSuccess(['preview', revokedToken.request])
+    const revokedResult = await nativeSuccess(['confirm', revokedToken.request, '--digest', revokedPreview.digest])
+    assert.ok(revokedResult.result)
+    await policy(true, [...kubernetesSessionKind.options], false)
+    assert.equal((await request(revokedResult.result.path)).json().error.code, 'FLAG_BLOCKED')
+    await policy(true, [...kubernetesSessionKind.options], true)
+    assert.equal((await request(revokedResult.result.path)).statusCode, 404)
+    await send('/__kubernetes/control?mode=credential-drop')
+    const lostToken = await nativeSuccess(acquisition)
+    const lostPreview = await nativeSuccess(['preview', lostToken.request])
+    const lostConfirmation = ['confirm', lostToken.request, '--digest', lostPreview.digest]
+    assert.notEqual((await native(lostConfirmation)).code, 0)
+    const afterLost = await tokenCount()
+    await native(lostConfirmation)
+    assert.equal(await tokenCount(), afterLost)
     createTestClientCertificate(directory)
     const current = store.findCredential('kubernetes-axi')!
     store.replaceCredential('kubernetes-axi', { origin: credential.origin, auth: 'certificate', namespace: 'synthetic', certificateAuthority: 'no native trust',

@@ -29,6 +29,8 @@ let falconRedirect = 'none'
 let falconDropSearch = false
 let falconHoldRtr = false
 let kubernetesFailure
+let kubernetesTokenRequests = 0
+let kubernetesDropToken = false
 const kubernetesConfigMaps = new Map(['synthetic-config', 'synthetic-second'].map(name => [name, {
   apiVersion: 'v1', kind: 'ConfigMap', metadata: { name, namespace: 'synthetic', uid: `uid-${name}`, resourceVersion: '1' }, data: { mode: 'initial' },
 }]))
@@ -59,9 +61,11 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
   if (url.pathname === '/__kubernetes/bytes') { res.end(JSON.stringify(byteEvidence())); return }
+  if (url.pathname === '/__kubernetes/credentials') { res.end(JSON.stringify({ requests: kubernetesTokenRequests })); return }
   if (url.pathname === '/__kubernetes/control') {
     const name = url.searchParams.get('name')
-    if (url.searchParams.get('mode') === 'bump') {
+    if (url.searchParams.get('mode') === 'credential-drop') kubernetesDropToken = true
+    else if (url.searchParams.get('mode') === 'bump') {
       const current = kubernetesConfigMaps.get(name)
       current.metadata.resourceVersion = String(Number(current.metadata.resourceVersion) + 1)
     } else kubernetesFailure = { mode: url.searchParams.get('mode'), name }
@@ -123,7 +127,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     else if (url.pathname === '/api') value = { kind: 'APIVersions', apiVersion: 'v1', versions: ['v1'] }
     else if (url.pathname === '/apis') value = { kind: 'APIGroupList', apiVersion: 'v1', groups: groups.map(([name, version]) => ({
       name, versions: [{ groupVersion: `${name}/${version}`, version }], preferredVersion: { groupVersion: `${name}/${version}`, version } })) }
-    else if (url.pathname === '/api/v1') value = { kind: 'APIResourceList', apiVersion: 'v1', groupVersion: 'v1', resources: [resource('pods', 'Pod', true, ['po']), resource('secrets', 'Secret', true),
+    else if (url.pathname === '/api/v1') value = { kind: 'APIResourceList', apiVersion: 'v1', groupVersion: 'v1', resources: [resource('pods', 'Pod', true, ['po']), resource('secrets', 'Secret', true), resource('serviceaccounts', 'ServiceAccount', true, ['sa']),
       { ...resource('configmaps', 'ConfigMap', true, ['cm']), verbs: ['get', 'list', 'create', 'patch', 'update', 'delete'] }] }
     else if (url.pathname === '/apis/apps/v1') value = { kind: 'APIResourceList', apiVersion: 'v1', groupVersion: 'apps/v1', resources: [resource('deployments', 'Deployment', true, ['deploy'])] }
     else if (url.pathname === '/apis/authorization.k8s.io/v1') value = { kind: 'APIResourceList', apiVersion: 'v1', groupVersion: 'authorization.k8s.io/v1', resources: [resource('selfsubjectaccessreviews', 'SelfSubjectAccessReview', false)] }
@@ -133,6 +137,20 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       value = url.pathname.endsWith('/selfsubjectaccessreviews')
         ? { apiVersion: 'authorization.k8s.io/v1', kind: 'SelfSubjectAccessReview', status: { allowed: true } }
         : { apiVersion: 'authentication.k8s.io/v1', kind: 'SelfSubjectReview', status: { userInfo: { username: 'synthetic-reader', groups: ['synthetic-readers'] } } }
+    } else if (req.method === 'GET' && url.pathname === '/api/v1/namespaces/synthetic/serviceaccounts/synthetic-account') {
+      value = { apiVersion: 'v1', kind: 'ServiceAccount', metadata: { name: 'synthetic-account', namespace: 'synthetic', uid: 'uid-synthetic-account', resourceVersion: '1' } }
+    } else if (req.method === 'POST' && url.pathname === '/api/v1/namespaces/synthetic/serviceaccounts/synthetic-account/token') {
+      let body = ''
+      req.on('data', chunk => { body += chunk })
+      req.on('end', () => {
+        const tokenRequest = JSON.parse(body)
+        kubernetesTokenRequests++; mutations++
+        if (kubernetesDropToken) { kubernetesDropToken = false; req.socket.destroy(); return }
+        res.writeHead(201)
+        res.end(JSON.stringify({ apiVersion: 'authentication.k8s.io/v1', kind: 'TokenRequest', status: {
+          token: 'CANARY-issued-kubernetes-token', expirationTimestamp: new Date(Date.now() + tokenRequest.spec.expirationSeconds * 1000).toISOString(),
+        } }))
+      }); return
     } else if (req.method === 'GET' && url.pathname === '/api/v1/namespaces/synthetic/pods/synthetic-pod') {
       value = { apiVersion: 'v1', kind: 'Pod', metadata: { name: 'synthetic-pod', namespace: 'synthetic', uid: 'uid-synthetic-pod', resourceVersion: '1' },
         spec: { containers: [{ name: 'synthetic-container', image: 'synthetic.invalid/image:fake' }] }, status: { phase: 'Running' } }

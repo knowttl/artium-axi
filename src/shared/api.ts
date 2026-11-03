@@ -322,7 +322,7 @@ export const nativeSettingsSchemas = {
   'ssh-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
   'gitea-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.enum(giteaWriteOperations)).min(1).max(giteaWriteOperations.length) }).optional() }),
-  'kubernetes-axi': z.strictObject({ allowWrites: z.boolean().optional(), collectionDelete: z.boolean().optional(),
+  'kubernetes-axi': z.strictObject({ allowWrites: z.boolean().optional(), collectionDelete: z.boolean().optional(), acquireCredential: z.boolean().optional(),
     sessions: kubernetesSessionPolicy.optional() }),
   'unifi-axi': z.strictObject({}),
   'proxmox-axi': z.strictObject({}),

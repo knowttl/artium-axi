@@ -107,6 +107,37 @@ test('protected result capture retains exact bytes before private call cleanup',
   expect(await readdir(root)).toEqual([])
 })
 
+test('protected pipe capture keeps exact bytes separate from public streams', async () => {
+  let captured: Buffer | undefined
+  const result = await run(process.execPath, ['-e',
+    "const fs=require('node:fs'); const fd=Number(process.argv[2]); const sink=fs.fstatSync(fd); if(!sink.isFIFO()&&!sink.isSocket()) process.exit(2); fs.writeFileSync(fd, Buffer.from([0,255,10])); console.log('metadata')", '--'],
+  {}, [], { protectedPipe: { flag: '--result-fd', argumentIndex: 3, receive: bytes => { captured = Buffer.from(bytes) } } })
+  expect(result.stdout).toBe('metadata\n')
+  expect(result.stderr).toBe('')
+  expect(captured).toEqual(Buffer.from([0, 255, 10]))
+  expect(await readdir(root)).toEqual([])
+})
+
+test('protected pipe capture refuses an oversized result before publication', async () => {
+  const captured: Buffer[] = []
+  await expect(run(process.execPath, ['-e',
+    "const {Socket}=require('node:net'); const sink=new Socket({fd:Number(process.argv[2]),readable:false,writable:true}); sink.on('error',()=>{}); sink.end(Buffer.alloc(4*1024*1024+1))", '--'],
+  {}, [], { protectedPipe: { flag: '--result-fd', argumentIndex: 3, receive: bytes => { captured.push(Buffer.from(bytes)) } } }))
+    .rejects.toMatchObject({ code: 'OUTPUT_LIMIT' })
+  expect(captured).toEqual([])
+  expect(await readdir(root)).toEqual([])
+})
+
+test('protected pipe capture preserves the public secret-output guard', async () => {
+  const captured: Buffer[] = []
+  await expect(run(process.execPath, ['-e',
+    "require('node:fs').writeFileSync(Number(process.argv[2]), 'private'); console.log(process.env.CANARY)", '--'],
+  { CANARY: 'CANARY-selected-secret' }, ['CANARY-selected-secret'],
+  { protectedPipe: { flag: '--result-fd', argumentIndex: 3, receive: bytes => { captured.push(Buffer.from(bytes)) } } }))
+    .rejects.toMatchObject({ code: 'SECRET_IN_OUTPUT' })
+  expect(captured).toEqual([])
+})
+
 test.each([
   { script: "fs.writeFileSync(process.argv[2], 'confidential', { mode: 0o644 })", code: 'TEMP_UNAVAILABLE' },
   { script: "fs.symlinkSync('private.bin', process.argv[2])", code: 'TEMP_UNAVAILABLE' },

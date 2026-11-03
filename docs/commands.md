@@ -50,6 +50,15 @@ Read sessions start immediately: use `session start logs -- logs <pod> --follow`
 Use `--stdin-file <file>` for at most 512 KiB of inline input, or `--input-workspace <id> --input-path <path>` for a staged input artifact up to 100 MiB.
 For copy, use `session start cp --workspace <id> -- cp workspace:<path> <pod>:/absolute/path` or `session start cp -- cp <pod>:/absolute/path artifact:<path>`, then confirm the returned digest.
 Copy requires `tar` in the container.
+For forwarding use `session start port-forward -- port-forward <pod> 0:<remote-port>`, inspect the preview and confirm its exact digest.
+Use `session show <id> --ready` to await native readiness, then `tunnel <id> --port <remote-port>` to bind a local 127.0.0.1 listener.
+The tunnel prints each remote port and its assigned local port; connect to that local port.
+Repeat `--port` for up to eight distinct approved remote ports; Ctrl+C closes local listeners without replaying the remote operation.
+Cancel the session explicitly when finished.
+With administrator Allow writes and `acquireCredential: true`, use `prepare -- create token <service-account> --duration 600s`, preview and exact-digest confirmation to obtain a protected result reference.
+Use `credential <result-id> --credential-fd <fd>` with an already open private writable pipe or socket numbered 5 or higher.
+Only that pipe receives token bytes; public output reports metadata.
+References bind the issuing sign-in family and can be consumed once; see the [retention runbook](runbook.md#retention-and-export) for expiry and uncertain issuance or delivery recovery.
 `session artifact <id> <path> --output <absolute-file>` and `workspace download <id> <path> --output <absolute-file>` save exact bytes with verified hashes into a new file in a private directory.
 See the [Kubernetes capability boundary](safety.md#kubernetes-reads) for workspace access and session grants.
 Use `session list` to recover a lost start reply, `session cancel <id> --confirm` to stop work and discard results, and `workspace delete <id>` to remove staged files.

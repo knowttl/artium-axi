@@ -283,7 +283,7 @@ test('audit API and export filter on the stored tool failure code', async () => 
 })
 
 test('request ID and failed-run filters select the same records in API and export', async () => {
-  const audit = new Audit(db)
+  const audit = new Audit(db, () => Date.parse('2026-01-01T00:00:00Z'))
   const context = { userId: administrator, tool: 'falcon-axi' as const, clientAddress: null }
   audit.record({ ...context, requestId: 'target', event: 'run-start', outcome: 'started', args: [], sensitive: { flags: [], positions: [] } })
   audit.record({ ...context, requestId: 'denial', event: 'denial', outcome: 'TOOL_NOT_GRANTED' })
@@ -619,10 +619,17 @@ test('concurrent last-admin disables on separate connections commit exactly one 
   } finally { await other.server.close(); otherDb.close() }
 })
 
-test('expired and other-session reauth tickets cannot administer accounts', async () => {
+test('other-session reauth tickets cannot administer accounts', async () => {
   const other = await adminHeaders()
   await failure(await request('GET', '', undefined, { ...other, 'x-artium-reauth-ticket': headers['x-artium-reauth-ticket']! }), 'REAUTH_REQUIRED')
-  vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 900_000)
+})
+
+test('expired reauth tickets cannot administer accounts', async () => {
+  const now = Date.now()
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(now)
+  headers = await adminHeaders()
+  expect((await request('GET', '')).status).toBe(200)
+  clock.mockReturnValue(now + 900_000)
   await failure(await request('GET', ''), 'REAUTH_REQUIRED')
 })
 

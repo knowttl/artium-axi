@@ -3,7 +3,7 @@ import { ArtiumError } from '../shared/errors.js'
 import type { CredentialReference } from './store/credential-store.js'
 import { protectedResultLimits } from './config.js'
 
-export interface ResultScope { userId: string, credential: CredentialReference, operation: string }
+export interface ResultScope { userId: string, credential: CredentialReference, operation: string, familyId?: string }
 
 // Confidential bytes stay in bounded process memory and require current access on retrieval.
 export class ProtectedResults {
@@ -47,6 +47,7 @@ export class ProtectedResults {
     const entry = this.entries.get(id)
     if (entry && entry.expires <= Date.now()) this.remove(id)
     if (!entry?.bytes || entry.expires <= Date.now() || entry.scope.userId !== scope.userId
+      || entry.scope.familyId !== undefined && entry.scope.familyId !== scope.familyId
       || entry.scope.operation !== scope.operation || entry.scope.credential.tool !== scope.credential.tool
       || entry.scope.credential.id !== scope.credential.id || entry.scope.credential.revision !== scope.credential.revision) {
       throw new ArtiumError('NOT_FOUND')

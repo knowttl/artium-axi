@@ -191,6 +191,11 @@ networks:
 The corresponding `nginx.conf` replaces client forwarding headers with the proxy's own values:
 
 ```nginx
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
 server {
     listen 443 ssl;
     server_name artium.example.test;
@@ -199,6 +204,11 @@ server {
     client_max_body_size 16m;
     location / {
         proxy_pass http://artium:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
         proxy_set_header Host $http_host;
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto https;
@@ -579,7 +589,7 @@ Restore invalidates the original sessions, so restored execution metadata preser
 
 ## Retention and export
 
-Technitium and AWX protected results stay in process memory and are not persisted or backed up.
+Technitium, AWX and Kubernetes protected results stay in process memory and are not persisted or backed up.
 The executable limits are owned by `protectedResultLimits` in [server configuration](../src/server/config.ts); consult it for result size, per-user and server-wide capacity, and reference lifetime.
 Consuming, canceling, clearing or expiring a result releases its stored bytes and expiration timer; server restart removes all pending results.
 At capacity, new result-producing calls return `TOO_MANY_CALLS`; retrieve outstanding results or wait for expiration before retrying.
@@ -592,7 +602,7 @@ Retrieval also rechecks authentication and current tool access, so reauthenticat
 For AWX, a missing token result does not undo token creation: inspect controller token state before retrying a failed, malformed or uncertain creation, or one whose result is no longer retrievable.
 The pinned CLI has no token-list command; use the controller's token administration to reconcile, and revoke an unwanted token through the [managed revoke flow](commands.md) when its numeric ID is known.
 After an interrupted user rename, reconcile with `user list` and `user show <new-username>` before retrying.
-See [AWX result retrieval](commands.md) and its [security boundary](safety.md#write-gates-by-tool), or [Technitium result retrieval](commands.md#technitium-dns) and its [confidentiality boundary](safety.md#storage-and-execution-boundaries).
+See [AWX result retrieval](commands.md) and its [security boundary](safety.md#write-gates-by-tool), [Technitium result retrieval](commands.md#technitium-dns) and its [confidentiality boundary](safety.md#storage-and-execution-boundaries), or [Kubernetes credential delivery](commands.md) and its [capability boundary](safety.md#kubernetes-reads).
 
 SQLite audit retention runs at startup and daily, deleting events strictly older than the captured 90-day cutoff in batches of at most 500.
 Each batch commits its count and cutoff with the deletion.
@@ -626,6 +636,16 @@ Keep Allow writes off until the intended mutation kinds are authorized; read-onl
 Each session owns one operation and one worker, with no reusable transport or later command on that worker.
 Sessions retain at most 1 MiB of stdout/stderr within a 64 MiB observed-output limit, have a five-minute default and thirty-minute maximum lifetime, and reserve four slots per user and eight globally including retained results.
 Cancel unused sessions to release a slot; expiry, revocation, shutdown and cancellation terminate workers and remove private profiles before cleanup is acknowledged.
+To allow port forwarding, add `port-forward` to the intended caller's grants and enable Allow writes.
+Confirm the native preview before attaching `tunnel`; only approved remote ports are accepted and client listeners bind to 127.0.0.1.
+Forwarding data is opaque traffic and is never retained as session output or audit content.
+For service-account token issuance, additionally enable `acquireCredential: true` in advanced native settings.
+Keep it disabled unless token acquisition is intended.
+Tokens use native prepare/preview/confirm and a separate private runner pipe; ordinary stdout/stderr and audit contain no token bytes.
+Use the [credential delivery command](commands.md) to consume the protected reference.
+The reference uses the `protectedResultLimits` lifetime above; retrieval requires the original caller, sign-in family, credential revision and current write/acquisition settings.
+An otherwise valid reference from a different sign-in family returns `NOT_FOUND`; disabling writes or credential acquisition returns `FLAG_BLOCKED`.
+Do not retry an uncertain native token request or a failed consuming delivery; reconcile the saved native outcome before issuing another credential.
 Completed copy artifacts remain private until session expiry or cancellation and are scanned and hash-verified before delivery.
 Use `session list` after a lost start reply and `session show` or `session output` after an interrupted confirmation; inspect remote state before creating another uncertain operation.
 These temporary handles and results do not survive restart, and a missing handle does not prove that remote work was undone.

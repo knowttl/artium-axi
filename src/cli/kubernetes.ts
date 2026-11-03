@@ -4,7 +4,9 @@ import { constants } from 'node:fs'
 import { lstat, open, readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { z } from 'zod'
-import { kubernetesFile, kubernetesHostedCommands, kubernetesSessionStart, kubernetesWorkspaceManifest } from '../shared/kubernetes.js'
+import { kubernetesFile, kubernetesHostedCommands, kubernetesSessionStart, kubernetesWorkspaceManifest, kubernetesSessionView as sessionSchema } from '../shared/kubernetes.js'
+import { kubernetesTunnel } from './kubernetes-tunnel.js'
+import { kubernetesCredential } from './kubernetes-credential.js'
 import { ArtiumError } from '../shared/errors.js'
 import { artifactDestination } from './artifact-save.js'
 import type { Client } from './http.js'
@@ -13,8 +15,6 @@ import inventory from '../../tools/inventories/kubernetes-axi.json' with { type:
 
 const workspaceSchema = z.object({ id: z.uuid(), expiresAt: z.number(),
   files: z.array(kubernetesFile.extend({ state: z.enum(['empty', 'uploading', 'ready']) })), ready: z.boolean() }).passthrough()
-const sessionSchema = z.object({ id: z.uuid(), expiresAt: z.number(), state: z.string(),
-  artifacts: z.array(kubernetesFile).optional() }).passthrough()
 function validated<S extends z.ZodType>(schema: S, value: unknown, code: 'INVALID_INPUT' | 'INVALID_RESPONSE' = 'INVALID_INPUT'): z.output<S> {
   const result = schema.safeParse(value)
   if (!result.success) throw new ArtiumError(code)
@@ -34,6 +34,8 @@ async function fileBytes(path: string, limit = 100 * 1024 * 1024) {
 export async function kubernetesHosted(args: string[], createClient: () => Client, write: (text: string, stream?: 'stdout' | 'stderr') => void): Promise<boolean> {
   let prefix = 0
   while (args[prefix] === '--json') prefix++
+  if (args[prefix] === 'tunnel') return kubernetesTunnel(createClient, [...args.slice(prefix), ...(prefix ? ['--json'] : [])], text => write(text))
+  if (args[prefix] === 'credential') return kubernetesCredential(createClient, [...args.slice(prefix), ...(prefix ? ['--json'] : [])], text => write(text))
   const [group, action, ...rest] = args.slice(prefix)
   if (!['workspace', 'session'].includes(group ?? '')) {
     if (args.includes('--help') && args.every(arg => ['--help', '--json'].includes(arg))) {
@@ -43,7 +45,8 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
         help: ['Reads use managed credentials. Mutations require administrator Allow writes, off by default.',
           'Use prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>.',
           'Byte sessions also require explicit caller/session-kind grants. Each session is one bounded operation.',
-          'Use each command with --help. Interactive execution, tunnels and credential issuance remain unavailable.'] }
+          'Use tunnel for an approved port-forward session. Credential issuance also requires administrator acquireCredential=true and private credential --credential-fd delivery.',
+          'Use each command with --help. Interactive execution remains unavailable.'] }
       const text = (args.includes('--json') ? JSON.stringify(help) : encode(help)) + '\n'
       write(text); write(text, 'stderr'); return true
     }
@@ -52,7 +55,7 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
   const separator = rest.indexOf('--'), controls = separator === -1 ? rest : rest.slice(0, separator)
   const native = separator === -1 ? [] : rest.slice(separator + 1)
   const flags = new Map<string, string>(), positionals: string[] = []
-  const booleans = ['--json', '--help', '--wait', '--confirm']
+  const booleans = ['--json', '--help', '--wait', '--ready', '--confirm']
   const values = ['--workspace', '--stdin-file', '--input-workspace', '--input-path', '--timeout', '--output-limit', '--digest', '--after', '--output']
   for (let index = 0; index < controls.length; index++) {
     const word = controls[index]
@@ -68,7 +71,9 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
     print({ usage: `artium-axi kubernetes-axi ${group} <command> [flags]`, commands: kubernetesHostedCommands.filter(command => command.startsWith(group)),
       flags: '--json, --help; start: --workspace <id>, --stdin-file <file> or --input-workspace <id> --input-path <path>, --timeout 1-1800, --output-limit 1-1048576',
       help: ['Native arguments follow --. Session start prepends prepare -- for mutation kinds; inspect its preview, then confirm the exact digest.',
-        'Kinds: watch, logs, exec, attach, apply, create, cp. Every kind needs its explicit caller grant; mutations additionally need Allow writes.',
+        'Kinds: watch, logs, exec, attach, apply, create, cp, port-forward. Every kind needs its explicit caller grant; mutations additionally need Allow writes.',
+        'Logs and watch start immediately as reads. Other kinds return a native preview for exact-digest confirmation.',
+        'For port-forward use session show <id> --ready, then tunnel <id> --port <approved-remote-port>. Local listeners bind only 127.0.0.1.',
         'Workspace paths use workspace:<relative-path>; copy downloads use artifact:<relative-path>. Copy requires tar in the container.',
         'A session runs one bounded operation and never reconnects or replays automatically. Recover a lost start reply with session list.',
         'Inspect state after interrupted confirmation. Output is bounded and may be truncated; --wait on output waits up to 20 seconds for more bytes.',
@@ -77,11 +82,11 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
   }
   const allowed: Record<string, string[]> = { 'workspace create': [], 'workspace show': [], 'workspace delete': [],
     'workspace download': ['--output'], 'session list': [], 'session start': values.filter(flag => !['--digest', '--after', '--output'].includes(flag)),
-    'session show': ['--wait'], 'session output': ['--after', '--wait'], 'session confirm': ['--digest'],
+    'session show': ['--wait', '--ready'], 'session output': ['--after', '--wait'], 'session confirm': ['--digest'],
     'session cancel': ['--confirm'], 'session artifact': ['--output'] }
   const route = `${group} ${action}`
   if (!allowed[route] || [...flags.keys()].some(flag => flag !== '--json' && !allowed[route].includes(flag))
-    || route !== 'session start' && separator !== -1) throw new ArtiumError('INVALID_INPUT')
+    || route !== 'session start' && separator !== -1 || flags.has('--wait') && flags.has('--ready')) throw new ArtiumError('INVALID_INPUT')
   let client: Client | undefined
   const current = () => client ??= createClient()
   const base = `/v1/tools/kubernetes-axi/${group === 'workspace' ? 'workspaces' : 'sessions'}`
@@ -155,10 +160,10 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
     const digest = validated(z.string().regex(/^[a-f0-9]{64}$/), flags.get('--digest'))
     print(await call(path + '/confirm', 'POST', { digest })); return true
   }
-  if (route === 'session show' && flags.has('--wait')) {
+  if (route === 'session show' && (flags.has('--wait') || flags.has('--ready'))) {
     const session = validated(sessionSchema, await call(path, 'GET'), 'INVALID_RESPONSE')
     const deadlineMs = Math.max(0, session.expiresAt - Date.now()) + DEFAULT_REQUEST_DEADLINE_MS
-    print(await call(path + '?wait=true', 'GET', undefined, deadlineMs)); return true
+    print(await call(path + '?wait=' + (flags.has('--ready') ? 'ready' : 'true'), 'GET', undefined, deadlineMs)); return true
   }
   const query = new URLSearchParams()
   if (flags.has('--wait')) query.set('wait', 'true')

@@ -50,6 +50,15 @@ test('protected result references expire after five minutes', () => {
   expect(() => results.take(reference.id, scope)).toThrow(expect.objectContaining({ code: 'NOT_FOUND' }))
 })
 
+test('a different sign-in family cannot consume the issuing family private result', () => {
+  const results = new ProtectedResults()
+  const issuer = { ...scope, credential: { ...scope.credential, tool: 'kubernetes-axi' as const }, operation: 'token-create', familyId: 'issuing-family' }
+  const reference = results.reserve(issuer).commit(Buffer.from('CANARY-issued-credential'))
+  expect(() => results.take(reference.id, { ...issuer, familyId: 'different-family' }))
+    .toThrow(expect.objectContaining({ code: 'NOT_FOUND' }))
+  expect(results.take(reference.id, issuer)).toEqual(Buffer.from('CANARY-issued-credential'))
+})
+
 test('per-user capacity is reserved before execution and released by cancellation or consumption', () => {
   vi.useFakeTimers()
   const results = new ProtectedResults()
