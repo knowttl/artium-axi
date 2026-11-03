@@ -16,6 +16,8 @@ import { LocalAuthProvider, localAuthenticationMethod } from './auth/local.js'
 import { hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, verifyAccessToken, verifyAccessFamily, verifyPasswordToken } from './auth/tokens.js'
 import { kubernetesBinding, kubernetesOwner } from './policy/kubernetes.js'
 import { ProxmoxAccess, proxmoxTrust } from './runner/proxmox.js'
+import { registerProxmoxStreams } from './proxmox-streams.js'
+import type { ProxmoxAdapter } from './adapters/proxmox.js'
 import { loginSchema, reauthSchema, refreshSchema } from '../shared/api.js'
 import { AuthAttempts } from './auth/attempts.js'
 import { browserCookie, browserPage, registerBrowser } from './auth/browser.js'
@@ -91,11 +93,21 @@ export function createApp(options: {
   const proxmoxMonitor = setInterval(() => { void reconcileProxmox().catch(() => {}) }, 1000)
   proxmoxMonitor.unref()
   app.addHook('onSend', reconcileProxmox)
+  const proxmoxAdapter = adapters.find(adapter => adapter.name === 'proxmox-axi')
+  if (proxmoxAdapter && 'prepareStream' in proxmoxAdapter && 'inspectStream' in proxmoxAdapter) {
+    registerProxmoxStreams(app, db, resolver, proxmoxAdapter as ProxmoxAdapter, runner, proxmox, protectedResults, audit, environment, proxies)
+  }
   const kubernetes = adapters.find(adapter => adapter.name === 'kubernetes-axi')
   if (kubernetes) {
     const workspaces = registerKubernetesWorkspaces(app, db, resolver, kubernetes, audit)
     registerKubernetesSessions(app, db, resolver, kubernetes, runner, audit, workspaces, proxies)
   }
+  if (kubernetes || proxmoxAdapter && 'prepareStream' in proxmoxAdapter) app.server.on('upgrade', (request, socket) => {
+    const path = request.url ?? ''
+    if (kubernetes && path.startsWith('/v1/tools/kubernetes-axi/sessions/')
+      || proxmoxAdapter && 'prepareStream' in proxmoxAdapter && path.startsWith('/v1/tools/proxmox-axi/streams/')) return
+    socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
+  })
   app.addHook('onReady', async () => { health.start() })
   app.setErrorHandler<FastifyError>((error, request, reply) => {
     const failure = error instanceof ArtiumError ? error

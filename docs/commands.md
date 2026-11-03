@@ -24,6 +24,8 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi unifi-axi [<args>]` | Read UniFi data and preview administrator-selected native writes; execute with exact confirmation and a stable request ID. |
 | `artium-axi proxmox-axi [<args>]` | Use managed authentication for reads and JSON writes, with independent grants, native confirmation, private results and durable recovery. |
 | `artium-axi proxmox-axi result take <operation> <id>` | Retrieve a one-time private result through `PROXMOX_AXI_RESULT_FD`; follow the [private delivery contract](client-reference.md#proxmox-private-results). |
+| `artium-axi proxmox-axi stream limits` | Inspect authenticated host byte, staging, deadline and concurrency limits. |
+| `artium-axi proxmox-axi stream -- transfer\|duplex <native arguments>` | Use [private managed byte channels](client-reference.md#proxmox-managed-streams) for reviewed transfers and console/migration operations. |
 | `artium-axi technitium-axi [<args>]` | Read Technitium DNS data with managed credentials and authenticated one-time result retrieval. |
 | `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |
 | `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources or use administrator-enabled [mutation and bounded byte workflows](safety.md#kubernetes-reads), caller-owned workspaces and managed credentials with pinned kubectl. |

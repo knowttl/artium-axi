@@ -351,7 +351,8 @@ function managedFlagRanges(command: string, tool: string): [number, number][] {
 
 function hostedHelp(help: string, tool: string, flags: string[], commands: boolean): string {
   if ((tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'gitea-axi')
-    && (new RegExp(`\\b${tool} (?:auth|config|profile|setup|update)\\b`).test(help) || /\b(?:UNIFI|PROXMOX|GITEA)_AXI_[A-Z_]+\b/.test(help))) {
+    && (new RegExp(`\\b${tool} (?:auth|config|profile|setup|update)\\b`).test(help)
+      || /\b(?:(?:UNIFI|GITEA)_AXI_[A-Z_]+|PROXMOX_AXI_(?!(?:STREAM|RESULT)_FD\b)[A-Z_]+)\b/.test(help))) {
     return 'Ask an administrator to update the managed credential.'
   }
   if (tool === 'beyondtrust-axi') {

@@ -227,10 +227,30 @@ Secret-producing JSON writes return safe metadata and a one-time result referenc
 Use `artium-axi proxmox-axi result take <operation> <id>` with `PROXMOX_AXI_RESULT_FD` set to an inherited writable private pipe or socket numbered 5 or higher.
 Use the operation ID and result ID returned by the write; `--json` selects JSON delivery metadata.
 Standard streams, regular files and reserved descriptors are refused before retrieving the result.
-The CLI delivers the original native S4 frame, a four-byte big-endian length followed by at most 65536 bytes of JSON containing version, binding and private payload.
+For JSON writes and duplex setup, the CLI delivers the original native S4 frame, a four-byte big-endian length followed by at most 65536 bytes of JSON containing version, binding and private payload.
+SPICE operations deliver exact raw configuration bytes through the same one-shot result store, with its 4 MiB limit; these bytes are not an S4 frame.
 Routine output reports only delivery metadata, byte count and SHA-256.
 The CLI verifies the authenticated response length and hash before writing to the private descriptor and never retries interrupted delivery.
 See [credential custody](credential-standard.md#proxmox-memory-authentication-and-protected-result-amendment) for retrieval bindings and revocation, and [retention and recovery](runbook.md#retention-and-export) for expiry and failed delivery.
+
+### Proxmox managed streams
+
+Run `artium-axi proxmox-axi stream limits` to inspect authenticated host-selected quotas.
+Use `artium-axi proxmox-axi stream -- transfer|duplex <native arguments>` for the reviewed byte routes; normal run requests do not admit stream operations.
+`--json` before the separator selects JSON metadata, including `stream limits --json`; native `--format toon|json` remains available after the separator.
+Before execution, set `PROXMOX_AXI_STREAM_FD` to an inherited private writable pipe or socket numbered 5 or higher.
+Duplex requires a readable and writable byte channel plus a distinct `PROXMOX_AXI_RESULT_FD` for its S4 setup frame; descriptor aliases and standard or managed-session descriptors are refused before dispatch.
+Previews require no destination descriptor.
+SPICE configuration reaches only the private byte destination after native count/hash validation and authenticated one-shot retrieval.
+Other binary data streams directly, with backpressure; stdout and stderr contain only scanned metadata.
+Keep partial bytes only after successful completion and matching count and SHA-256; no interrupted transfer reconnects or retries automatically.
+Duplex preserves four-byte native message lengths and final peer messages after input EOF.
+The native 1 MiB message bound and each direction's byte/hash checks apply independently of network packet boundaries.
+For uploads, `--input-file` selects an absolute local regular file; its path is never sent to the server.
+The client holds the opened source while hashing and sending, the server verifies private staging before native execution, and the native preview/confirmation binds that source's count and digest.
+Use identical bytes and native arguments for preview and confirmation; changing a source requires a fresh preview.
+Uploads and effectful setup retain exact independent operation grants and native one-shot confirmation; read transfers work with writes off.
+Cancellation, expiry or relevant revocation closes delivery and the provider process, removes partial staging and releases capacity only after cleanup.
 
 ### Check Point email and attachment saving
 

@@ -15,7 +15,7 @@ import { ArtiumError } from '../../shared/errors.js'
 import { inputFileSchema } from '../../shared/api.js'
 import { validateInput, writeInput } from './input.js'
 import type { RunnerInput } from './input.js'
-import type { Readable } from 'node:stream'
+import type { Readable, Duplex } from 'node:stream'
 import type { TemporaryFile } from '../adapters/types.js'
 import type { CredentialTrust } from '../store/trusted-certificates.js'
 import { certificateEndpoint } from '../certificate-endpoint.js'
@@ -41,7 +41,9 @@ export interface RunnerLimits {
   protectedResult?: { name: string, flag: string, receive: (bytes: Buffer) => void }
   protectedPipe?: ({ flag: string, argumentIndex: number } | { environment: string }) & {
     receive: (bytes: Buffer) => readonly string[] | void
+    early?: boolean
   }
+  bytePipe?: { environment: string, connect: (socket: Duplex, signal: AbortSignal) => Promise<void> }
   privateOutput?: PrivateOutput
 }
 
@@ -299,6 +301,8 @@ async function execute(
       let cleanupDone = false
       let closed = false
       let finished = false
+      let byteDone = !limits.bytePipe, privateDelivered = false
+      const byteController = new AbortController()
       let exitCode: number | null = null
       const python = limits.runtime === 'python' || executable === toolPaths['falcon-axi']
       const launcher = `import os,resource,sys; resource.setrlimit(resource.RLIMIT_AS, (${runnerLimits.pythonAddressSpaceBytes}, ${runnerLimits.pythonAddressSpaceBytes})); os.execv(sys.argv[1], sys.argv[1:])`
@@ -310,6 +314,7 @@ async function execute(
         env: {
           ...environment,
           ...(limits.protectedPipe && 'environment' in limits.protectedPipe ? { [limits.protectedPipe.environment]: '4' } : {}),
+          ...(limits.bytePipe ? { [limits.bytePipe.environment]: '5' } : {}),
           ...(trustPem ? {
             NODE_EXTRA_CA_CERTS: join(directories.XDG_CONFIG_HOME, 'artium-trusted-ca.pem'),
             REQUESTS_CA_BUNDLE: join(directories.XDG_CONFIG_HOME, 'artium-trusted-ca.pem'),
@@ -326,15 +331,34 @@ async function execute(
           ...(kubernetesProfile ? { KUBERNETES_AXI_CONFIG: kubernetesProfile } : {}),
           NODE_OPTIONS: `--max-old-space-size=${limits.nodeHeapMiB ?? runnerLimits.nodeHeapMiB}${credentialTrust.length ? ` --require=${join(directories.XDG_CONFIG_HOME, 'artium-tls.cjs')}` : ''}`,
         },
-        stdio: limits.protectedPipe ? ['pipe', 'pipe', 'pipe', limits.trustedIpc === undefined ? 'ignore' : 'ipc', 'pipe']
+        stdio: limits.bytePipe ? ['pipe', 'pipe', 'pipe', limits.trustedIpc === undefined ? 'ignore' : 'ipc', limits.protectedPipe ? 'pipe' : 'ignore', 'pipe']
+          : limits.protectedPipe ? ['pipe', 'pipe', 'pipe', limits.trustedIpc === undefined ? 'ignore' : 'ipc', 'pipe']
           : limits.trustedIpc === undefined ? ['pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe', 'ipc'],
       }) as ChildProcessWithoutNullStreams
       const privatePipe = limits.protectedPipe ? child.stdio[4] as Readable : undefined
+      const bytePipe = limits.bytePipe ? child.stdio.at(5) as Duplex : undefined
+      if (bytePipe) void Promise.resolve().then(() => limits.bytePipe!.connect(bytePipe,
+        limits.signal ? AbortSignal.any([limits.signal, byteController.signal]) : byteController.signal))
+        .catch(() => { failure ??= new RunnerError('TEMP_UNAVAILABLE'); terminate() })
+        .finally(() => { byteDone = true; finish() })
       let privateBytes = 0
       privatePipe?.on('data', (chunk: Buffer) => {
         privateBytes += chunk.length
         if (privateBytes > protectedResultLimits.bytes) { failure ??= new RunnerError('OUTPUT_LIMIT'); terminate() }
-        else privateChunks.push(Buffer.from(chunk))
+        else {
+          privateChunks.push(Buffer.from(chunk))
+          if (limits.protectedPipe?.early) {
+            const bytes = Buffer.concat(privateChunks)
+            try {
+              if (bytes.length > 65540 || bytes.length >= 4 && (bytes.readUInt32BE(0) > 65536 || bytes.length > bytes.readUInt32BE(0) + 4)) throw new Error('Frame bound')
+              if (!privateDelivered && bytes.length >= 4 && bytes.length === bytes.readUInt32BE(0) + 4) {
+                scanner.registerSecrets(limits.protectedPipe.receive(bytes) ?? [])
+                privateDelivered = true
+              }
+            } catch { failure ??= new RunnerError('UNKNOWN_OUTCOME'); terminate() }
+            finally { bytes.fill(0) }
+          }
+        }
       })
       privatePipe?.on('error', () => { failure ??= new RunnerError('TEMP_UNAVAILABLE'); terminate() })
       if (limits.trustedIpc !== undefined) child.once('spawn', () => {
@@ -345,6 +369,7 @@ async function execute(
       child.stdin.end(input.stdin, 'utf8')
       // Even a normally exited leader can leave descendants, with or without inherited pipes.
       const terminate = () => {
+        if (failure) { byteController.abort(); bytePipe?.destroy() }
         if (killTimer || cleanupDone) return
         child.stdin.destroy()
         const signalled = signalGroup(child.pid, 'SIGTERM')
@@ -356,6 +381,7 @@ async function execute(
             child.stdout.destroy()
             child.stderr.destroy()
             privatePipe?.destroy()
+            byteController.abort(); bytePipe?.destroy()
             finish()
           }, terminationGraceMs)
         } else {
@@ -399,11 +425,11 @@ async function execute(
       })
       // close follows exit and stream drainage, including failed executable lookup.
       const finish = () => {
-        if (!closed || !cleanupDone || finished) return
+        if (!closed || !cleanupDone || !byteDone || finished) return
         finished = true
         clearTimeout(timeout)
         limits.signal?.removeEventListener('abort', cancel)
-        if (limits.protectedPipe && 'environment' in limits.protectedPipe && (privateChunks.length || exitCode === 0)) {
+        if (limits.protectedPipe && 'environment' in limits.protectedPipe && !privateDelivered && (privateChunks.length || exitCode === 0)) {
           const bytes = Buffer.concat(privateChunks)
           try { scanner.registerSecrets(limits.protectedPipe.receive(bytes) ?? []) }
           catch { failure ??= new RunnerError('UNKNOWN_OUTCOME') }

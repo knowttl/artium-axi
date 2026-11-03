@@ -378,3 +378,33 @@ test('already cancelled calls create no child and release admission slots', asyn
     .rejects.toMatchObject({ code: 'CANCELLED' })
   expect((await fake(['print', 'ready'])).stdout).toBe('ready')
 })
+
+test('managed bytes stay private and a setup frame is available before interactive completion', async () => {
+  const script = `
+    const { Socket } = require('node:net');
+    const channel = new Socket({fd:Number(process.env.TEST_BYTE_FD),readable:true,writable:true});
+    const bytes = Buffer.from(JSON.stringify({secret:'CANARY-issued'})), prefix = Buffer.alloc(4);
+    prefix.writeUInt32BE(bytes.length);
+    require('node:fs').writeSync(Number(process.env.TEST_RESULT_FD),Buffer.concat([prefix,bytes]));
+    channel.once('data', bytes => { channel.end(bytes); process.stdout.write('safe metadata'); });
+  `
+  let resolveSetup!: () => void
+  const setup = new Promise<void>(resolve => { resolveSetup = resolve })
+  const received: Buffer[] = []
+  const result = await run(process.execPath, ['-e', script], {}, [], {
+    publicContent: (stdout, stderr) => [stdout, stderr],
+    protectedPipe: { environment: 'TEST_RESULT_FD', early: true, receive(bytes) {
+      expect(JSON.parse(bytes.subarray(4).toString('utf8'))).toEqual({ secret: 'CANARY-issued' })
+      resolveSetup()
+      return ['CANARY-issued']
+    } },
+    bytePipe: { environment: 'TEST_BYTE_FD', async connect(socket) {
+      // The child waits for input; that input requires setup delivered while it runs.
+      await setup
+      socket.end(Buffer.from([0, 255, 10, 13]))
+      for await (const chunk of socket) received.push(Buffer.from(chunk))
+    } },
+  })
+  expect(result.stdout).toBe('safe metadata')
+  expect(Buffer.concat(received)).toEqual(Buffer.from([0, 255, 10, 13]))
+})

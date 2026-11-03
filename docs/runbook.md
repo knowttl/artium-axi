@@ -667,6 +667,15 @@ For `AUTH_REQUIRED` or `AUTH_SESSION_INVALID`, ask an administrator to verify th
 The failed operation is not retried automatically; reconcile its durable journal before further write action.
 For private-result expiry and uncertain delivery, follow the [retention guidance](#retention-and-export); for unavailable transports, see the [capability boundary](safety.md#network-appliance-reads).
 
+Proxmox managed streams use `ARTIUM_PVE_TRANSFER_BYTES` (default and maximum 8 GiB), `ARTIUM_PVE_STREAM_MS` (default five minutes, maximum thirty minutes) and `ARTIUM_PVE_DUPLEX_IDLE_MS` (default thirty seconds).
+Values must be positive safe integers; invalid settings prevent stream registration.
+Duplex direction payloads are additionally limited to the smaller of the transfer quota and 64 MiB, with 1 MiB native messages.
+Private-result-producing streams are bounded to five minutes; password-authenticated calls also end when their selected ticket expires and never reacquire inside an active operation.
+Uploads have the existing 250 MiB per-source staging bound, at most four staged sources and 1 GiB reserved in total, plus one stream per user and sixteen globally.
+Provision this additional staging capacity beside the database before enabling uploads; private `byte-streams` directories are removed after each call and abandoned owned directories are removed before startup admission.
+Cleanup must finish before reservations are released, and an interrupted upload or console retains native recovery rather than replaying a mutation.
+Use [stream limits and private descriptors](client-reference.md#proxmox-managed-streams) to inspect the effective contract.
+
 UniFi keeps native request claims and observations in private directories beneath `<database directory>/tool-logs/unifi-axi/writes.log/`.
 Keep these durable records with the database; removing them discards native request-ID replay protection.
 The native records contain hashes and sanitized selectors, never uploaded JSON bodies or credential values.

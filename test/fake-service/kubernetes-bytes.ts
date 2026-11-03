@@ -25,6 +25,7 @@ export function kubernetesBytes(server: Server, record: (event: { method?: strin
     return Buffer.concat([head, bytes])
   }
   server.on('upgrade', (request, socket, head) => {
+    if (!request.url?.startsWith('/api/v1/')) return
     void (async () => {
       const url = new URL(request.url ?? '', 'https://synthetic.invalid')
       const tls = socket as TLSSocket

@@ -207,7 +207,7 @@ export class ProxmoxAccess {
       }
       if (signal.aborted || !entry.valid()) throw new RunnerError('CANCELLED')
       const protectedPipe: RunnerLimits['protectedPipe'] = prepared.protectedResult?.source === 'proxmox'
-        ? { environment: 'PROXMOX_AXI_RESULT_FD', receive(bytes) {
+        ? { environment: 'PROXMOX_AXI_RESULT_FD', early: prepared.proxmox?.stream?.duplex === true, receive(bytes) {
           const result = proxmoxResult(bytes, resultBinding(prepared, prepared.protectedResult!.operation))
           prepared.secrets.push(...result.secrets)
           receive(Buffer.from(bytes))

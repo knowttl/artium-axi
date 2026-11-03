@@ -500,6 +500,12 @@
         "OP-GET-32aec68edd": { "label": "Read task status within a batch" },
         "OP-GET-22c6caf285": { "label": "Read node version within a batch" }
       } },
+      { "title": "Managed transfers", "operations": {
+        "OP-POST-9a334b54b5": { "label": "Prepare container SPICE configuration" },
+        "OP-POST-6807588e8e": { "label": "Prepare virtual-machine SPICE configuration" },
+        "OP-POST-3764420a92": { "label": "Prepare node SPICE configuration" },
+        "OP-POST-c70b1f8290": { "label": "Upload storage content" }
+      } },
       { "title": "Task control and batches", "operations": {
         "OP-DELETE-d6b1eb65f2": { "label": "Cancel task" },
         "OP-POST-c4fdd6f30b": { "label": "Execute reviewed node-relative batch", "risk": ["bulk"] }

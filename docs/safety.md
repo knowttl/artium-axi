@@ -263,7 +263,12 @@ The bounded native protocol separates generated receipt metadata from provider v
 Secret-producing writes require the native private result channel before dispatch and return one-time references instead of secret values in routine output.
 The [approved credential custody amendment](credential-standard.md#proxmox-memory-authentication-and-protected-result-amendment) owns authentication caching, result binding, scanning and revocation requirements.
 Use [private CLI retrieval](client-reference.md#proxmox-private-results) and follow the [retention and recovery guidance](runbook.md#retention-and-export).
-Managed transfers and duplex streams remain unavailable.
+Reviewed transfers and duplex routes use [authenticated private byte channels](client-reference.md#proxmox-managed-streams), outside ordinary run input.
+Read transfers remain available with writes off; effectful setup and uploads require the same exact native/host grants and consumed-once confirmations.
+SPICE stays in the existing one-shot memory result store; other opaque bytes are not text-redacted, logged or persisted.
+Uploads are verified in private staging before provider execution; failed cleanup retains capacity rather than permitting an unbounded fallback.
+One stream per user and sixteen globally are also subject to Runner admission, and live delivery rechecks the current family, credential, access and trust.
+Byte quotas, message bounds and expiry terminate the call; cancellation never authorizes reconnection or confirmation replay.
 Local synthetic verification does not establish live appliance commissioning.
 
 ## Technitium DNS
