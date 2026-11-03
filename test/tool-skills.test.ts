@@ -14,7 +14,7 @@ test.each(toolSchema.options)('%s overlay preserves tool guidance with managed c
   if (tool === 'ssh-axi') {
     expect(skill).toContain('doctor <host>')
     expect(skill).toContain('every resolved address must belong to the approved literal address set')
-    expect(skill).toContain('no sudo or generic credential fallback')
+    expect(skill).toContain('ordinary calls never fall back to sudo or generic credentials')
     return
   }
   if (tool === 'kubernetes-axi') {
