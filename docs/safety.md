@@ -164,7 +164,7 @@ SSH admits caller-filtered `host list`, `host show <host>` and `doctor <host>` t
 Doctor authenticates without opening a remote command channel.
 Hosts must be enabled, have an ordinary binding and grant the signed-in caller shell access in addition to the normal Artium tool grant.
 Unknown and unauthorized host handles both return `NOT_FOUND`.
-Private keys and optional passphrases remain in the dedicated encrypted SSH credential store and become SecretRefs in a private per-call profile.
+Private keys and optional passphrases remain in the dedicated encrypted SSH credential store and become SecretRefs in a private profile under the [credential custody contract](credential-standard.md#9-hosted-contract-artium-axi).
 Generic tenant credentials cannot configure or override SSH bindings.
 Ordinary accounts and credentials never fall back to sudo bindings.
 Every server public key must be independently verified and every resolved address must belong to the administrator-approved literal address set.

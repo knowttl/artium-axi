@@ -19,8 +19,8 @@ Contents:
 - [10. Migration](#10-migration)
 
 Status: AGREED.
-The proposed [connection-lifetime amendment](#proposed-opt-in-connection-lifetime-amendment) is excluded from this agreement pending owner approval.
-The owner approved it on the board in round 3, writing "if everything looks good you can finalize the report and hand it back".
+The [connection-lifetime amendment](#opt-in-connection-lifetime-amendment) records the separate conditional SSH approval.
+The owner approved the base standard on the board in round 3, writing "if everything looks good you can finalize the report and hand it back".
 This is the agreed contract; current host rollout and remaining tool migrations are tracked in [credential-migration.md](credential-migration.md).
 Round 2 added the owner's requirement that credential storage work the same on Windows and Linux.
 Round 3 recorded all six board decisions:
@@ -260,13 +260,13 @@ For each call, the host:
 The shared profile writer owns schema validation and secret injection.
 Per-tool policy covers the inventory, blocked commands and flags, and hosted restrictions on credential inputs in [credential-profile.ts](../src/server/adapters/credential-profile.ts).
 
-### Proposed opt-in connection-lifetime amendment
+### Opt-in connection-lifetime amendment
 
-Status: PROPOSED, held for owner approval as a security-sensitive credential-custody change.
-The amendment and its conformance checks MUST be submitted as a separate artium-axi PR and MUST NOT be merged under standing authority; explicit owner approval is required.
+Status: CONDITIONALLY APPROVED for the explicitly admitted SSH integration only, subject to the release-at-close requirement below and a deterministic regression proving that release through the public lifecycle or real process boundary.
+The separate amendment and custody conformance checks were merged in [PR #257](https://github.com/knowttl/artium-axi/pull/257), commit `458ee4d7e53daf3f01b4b6c91f75331841e0ad16`; that amendment alone did not authorize production admission.
 Section 9's agreed per-call behavior remains the default.
-This proposal does not opt in any existing tool or authorize connection admission.
-A design depending on this extension MUST NOT be labelled fully conformant until the owner agrees to the amendment and its implementation passes conformance.
+The SSH owner decision grants no automatic admission to other tools.
+A design depending on this extension MUST NOT be labelled fully conformant until its implementation meets the approval conditions and passes conformance.
 
 Only an admitted tool whose reviewed host integration explicitly declares a connection-lifetime requirement MAY request this extension.
 Command arguments, credentials, environment variables and possession of a connection handle MUST NOT enable it.
@@ -287,7 +287,9 @@ For each connection, the host MUST:
    Releasing private-key buffers after authentication where supported MUST NOT remove known-secret output protection.
    Memory release is best effort, never a secure-erasure guarantee.
 4. On connection close, revoke further dispatch, terminate the worker and remove all its private directories and profile files before reporting local cleanup complete.
-   The same cleanup MUST run after worker failure or forced termination.
+   Known-secret scanning MUST remain available until the worker has terminated; then the parent MUST release secret-derived scanner buffers, event listeners, the child reference and other retained resources before reporting cleanup complete.
+   Only metadata needed for owner inspection and idempotent close MAY remain; memory release is best effort, never a secure-erasure guarantee.
+   The same cleanup MUST run after explicit close, idle or hard expiry, authentication or worker failure, forced termination, shutdown and authorization, trust or grant changes, including early failure and repeated close.
    Server restart recovery MUST remove abandoned worker directories before admitting new work; connections MUST NOT survive a server restart or be silently reconnected.
 5. Recheck current authorization and selected credential and host-trust revisions before dispatch.
    Revoking the extension declaration or tool admission, removing caller access, invalidating the caller's session, disabling the host, or changing the selected credential or host trust MUST fence further dispatch and close affected connections through the same termination and cleanup path.
