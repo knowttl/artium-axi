@@ -1,7 +1,7 @@
 import { decode, encode } from '@toon-format/toon'
 import { expect, test } from 'vitest'
 import { hostedStatus } from './hosted-status.js'
-import { createNetworkReadAdapter } from './network-reads.js'
+import { createProxmoxAdapter } from './proxmox.js'
 import { createAzAdapter } from './az.js'
 import { createAdoAdapter } from './ado.js'
 import { createLdapAdapter } from './ldap.js'
@@ -45,12 +45,23 @@ test('Falcon scope discovery describes admitted reads and native writes', () => 
 test.each([
   ['--format', 'json'], ['--format=json'], ['home', '--format', 'json'], ['home', '--format=json'],
 ])('Proxmox hosted status retains JSON for %j', async (...args) => {
-  const adapter = createNetworkReadAdapter('proxmox-axi', { getCredential: async () => ({ origin: 'https://synthetic.invalid',
+  const adapter = createProxmoxAdapter({ getCredential: async () => ({ origin: 'https://synthetic.invalid',
     auth: 'api-token', tokenId: 'reader@pve!automation', token: 'CANARY-proxmox-token' }) })
   const call = await adapter.prepare(args, { id: 'synthetic', tool: 'proxmox-axi', revision: 1 })
   const output = hostedStatus('proxmox-axi', call.invocation, { ...result,
     stdout: JSON.stringify({ bin: '/synthetic/proxmox-axi', config: '/synthetic/config.json', configured: true }) })
   expect(JSON.parse(output.stdout)).toEqual({ bin: 'artium-axi proxmox-axi', configured: true })
+})
+
+test.each([
+  { serialize: encode, parse: decode }, { serialize: JSON.stringify, parse: JSON.parse },
+])('Proxmox version reads omit hosted credential diagnostics', ({ serialize, parse }) => {
+  const output = hostedStatus('proxmox-axi', { command: 'get /version', help: false }, { ...result,
+    stdout: serialize({ version: { version: '9.2.0', release: '1', repoid: 'synthetic-build' },
+      credential: { profile: 'artium', source: 'file', tokenSource: 'env:ARTIUM_SECRET_0' },
+      compatibility: { status: 'supported' } }) })
+  expect(parse(output.stdout)).toEqual({ version: { version: '9.2.0', release: '1', repoid: 'synthetic-build' },
+    compatibility: { status: 'supported' } })
 })
 
 test.each(['hybrid-axi', 'tenable-axi'])('%s status exposes only secret source kinds', tool => {

@@ -446,5 +446,6 @@ The runner uses argument arrays without a shell, a restricted child environment,
 Reusable SSH transports have a separate [connection lifetime boundary](safety.md#ssh-reads).
 See [runner admission](runbook.md#runner-admission) for capacity, queue waits and cancellation behavior.
 Known injected secrets are scanned in raw, JSON-escaped, base64, base64url and URL-encoded output, including beyond capture limits; a match discards both streams.
+Proxmox uses a bounded structured protocol that separates generated receipt metadata from scanned provider content; see its [output boundary](safety.md#network-appliance-reads).
 Exact-value scanning cannot identify unknown tokens minted upstream.
 Heap and address-space limits are not complete process isolation: descendants starting a new session escape the runner's process group.

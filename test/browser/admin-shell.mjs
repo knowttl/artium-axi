@@ -1171,10 +1171,10 @@ test('write switch confirms identity, preserves native settings, refreshes JSON 
   `)
 })
 
-test('unifi-axi operation picker labels stay within their desktop grid cells', () => {
+for (const tool of ['unifi-axi', 'proxmox-axi']) test(tool + ' operation picker labels stay within their desktop grid cells', () => {
   chrome(['resize', '1280', '900'])
   browser(`
-    await page.open(base + '/admin/tools/unifi-axi?tab=writes');
+    await page.open(base + '/admin/tools/${tool}?tab=writes');
     const overflowing = await page.eval(() => {
       document.querySelectorAll('[data-ops-group]').forEach(group => { group.open = true; });
       return [...document.querySelectorAll('label.op')].filter(label => {
@@ -1188,7 +1188,7 @@ test('unifi-axi operation picker labels stay within their desktop grid cells', (
   `)
 })
 
-for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi', 'unifi-axi']) test(tool + ' operation picker matches the pinned catalogue and saves the selection', () => {
+for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi', 'unifi-axi', 'proxmox-axi']) test(tool + ' operation picker matches the pinned catalogue and saves the selection', () => {
   browser(`
     await page.open(base + '/admin/tools/${tool}?tab=writes');
     const initial = await page.eval(async () => (await (await fetch('/v1/admin/tools/${tool}')).json()));

@@ -437,5 +437,44 @@
         "malquery search": { "label": "Search samples" }
       } }
     ]
+  },
+  "proxmox-axi": {
+    "groups": [
+      { "title": "Virtual machines", "operations": {
+        "OP-POST-f879c7c9f8": { "label": "Start virtual machine" },
+        "OP-POST-05ab7d9156": { "label": "Stop virtual machine" },
+        "OP-POST-1199595650": { "label": "Shut down virtual machine" },
+        "OP-POST-345014c6ff": { "label": "Reboot virtual machine" },
+        "OP-POST-efaca33d25": { "label": "Reset virtual machine" },
+        "OP-POST-97afa7ebdb": { "label": "Suspend virtual machine" },
+        "OP-POST-1f4b20b40f": { "label": "Resume virtual machine" },
+        "OP-PUT-41cd6542bd": { "label": "Update reviewed virtual-machine configuration" },
+        "OP-DELETE-5e826ea6b0": { "label": "Delete virtual machine", "risk": ["delete"] }
+      } },
+      { "title": "Containers", "operations": {
+        "OP-POST-eb7989b072": { "label": "Start container" },
+        "OP-POST-0c3592c269": { "label": "Stop container" },
+        "OP-POST-f9dce48db7": { "label": "Shut down container" },
+        "OP-POST-2bc4d554ca": { "label": "Reboot container" },
+        "OP-POST-0c0c166e83": { "label": "Suspend container" },
+        "OP-POST-411b1766e9": { "label": "Resume container" },
+        "OP-PUT-224f55de4f": { "label": "Update reviewed container configuration" },
+        "OP-DELETE-db1a319dfa": { "label": "Delete container", "risk": ["delete"] }
+      } },
+      { "title": "Pools", "operations": {
+        "OP-POST-73c42b39fb": { "label": "Create pool" },
+        "OP-PUT-efde0d0880": { "label": "Update pool" },
+        "OP-DELETE-eccba53f33": { "label": "Delete pool", "risk": ["delete"] }
+      } },
+      { "title": "Node configuration and scans", "operations": {
+        "OP-POST-cc95340692": { "label": "Install custom node certificate" },
+        "OP-GET-48e0b9a8fa": { "label": "Scan CIFS storage with protected credentials" },
+        "OP-GET-649f0e57fc": { "label": "Scan backup storage with protected credentials" }
+      } },
+      { "title": "Task control and batches", "operations": {
+        "OP-DELETE-d6b1eb65f2": { "label": "Cancel task" },
+        "OP-POST-c4fdd6f30b": { "label": "Execute reviewed node-relative batch", "risk": ["bulk"] }
+      } }
+    ]
   }
 }

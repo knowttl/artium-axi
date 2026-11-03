@@ -248,7 +248,18 @@ Confirmation binds the payload, observed state, caller, sign-in family and curre
 Native durable claims prevent repeated request IDs from resending a mutation, including after rejection or an uncertain response.
 Use `artium-axi unifi-axi write show --request-id <id>` and `write reconcile --request-id <id>` for read-only recovery.
 Reconciliation can retain an unknown outcome; inspect remote state before preparing another write.
-Proxmox remains read-only through its adapter in this admission slice.
+Proxmox admits the ordinary JSON write/batch operation IDs in the [reviewed inventory](../tools/inventories/proxmox-axi.json) with API-token authentication.
+Both the native profile `writes.operations` and the independent administrator `hostWrites` operation list must permit every operation and batch child; the host switch defaults off.
+Native previews also require both grants, and bounded version reads select the actual server contract even with an explicit catalogue selector.
+Use `--preview`, inspect the receipt, then repeat identical inputs with its exact `--confirm <id.fingerprint>` within five minutes.
+Caller, sign-in family, credential/settings revision, identity, contract, policy, ordered inputs, trust and secret revisions bind the native confirmation.
+Each confirmation is claimed once; rejection, cancellation and uncertain acknowledgement never permit a resend.
+Use `journal show <id>`, `journal reconcile <id>` and journal-bound task status/log/wait for recovery; UPID acceptance is not business completion and observations may retain uncertainty.
+Task cancellation requires its own grant, preview and confirmation.
+Effectful CIFS/PBS GET scans are writes and use the same gates.
+Sensitive values require the [private Proxmox stdin contract](client-reference.md#command-surface-and-subcommands), never arguments or caller-selected host files.
+The bounded native protocol separates generated receipt metadata from provider values, preserving short-secret inputs while scanning provider content before delivery.
+Protected-result operations, token-forbidden user operations, session authentication, managed transfers and duplex streams remain unavailable.
 Local synthetic verification does not establish live appliance commissioning.
 
 ## Technitium DNS
@@ -267,7 +278,7 @@ Local fake-service checks do not establish live server acceptance.
 | Falcon | See the [Falcon boundary](#azure-falcon-and-vectra-reads) for passive reads, exact lifecycle grants and native RTR opt-in/confirmation. |
 | LDAP | Fixed read-only. |
 | UniFi | Exact native operation and variant grants plus native preview, confirmation and stable request ID; see [network appliance access](#network-appliance-reads). |
-| Proxmox | Ordinary reads only; writes and byte transports unavailable through this adapter. |
+| Proxmox | See [network appliance access](#network-appliance-reads) for ordinary write grants, confirmation and pending capabilities. |
 | Technitium DNS | See the [read-only capability boundary](#technitium-dns). |
 | Gitea | See the [native write capability boundary](#gitea-reads). |
 | Kubernetes | See the [native mutation capability boundary](#kubernetes-reads). |

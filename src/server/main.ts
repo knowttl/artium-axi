@@ -14,7 +14,7 @@ import { createHybridAdapter } from './adapters/hybrid.js'
 import { createBeyondtrustAdapter } from './adapters/beyondtrust.js'
 import { createCheckpointAdapter } from './adapters/checkpoint.js'
 import { createTechnitiumAdapter } from './adapters/technitium.js'
-import { createNetworkReadAdapter } from './adapters/network-reads.js'
+import { createProxmoxAdapter } from './adapters/proxmox.js'
 import { createUnifiAdapter } from './adapters/unifi.js'
 import { createGiteaAdapter } from './adapters/gitea.js'
 import { createKubernetesAdapter } from './adapters/kubernetes.js'
@@ -81,7 +81,8 @@ async function main() {
         createHybridAdapter(source, join(dirname(database), 'tool-logs', 'hybrid-axi', 'writes.log')),
         createBeyondtrustAdapter(source, join(dirname(database), 'tool-logs', 'beyondtrust-axi', 'writes.log')),
         createCheckpointAdapter(source, join(dirname(database), 'tool-logs', 'checkpoint-axi', 'writes.log')),
-        createUnifiAdapter(source, join(dirname(database), 'tool-logs', 'unifi-axi', 'writes.log')), createNetworkReadAdapter('proxmox-axi', source),
+        createUnifiAdapter(source, join(dirname(database), 'tool-logs', 'unifi-axi', 'writes.log')),
+        createProxmoxAdapter(source, join(dirname(database), 'tool-logs', 'proxmox-axi', 'writes.log')),
         createGiteaAdapter(source, join(dirname(database), 'tool-logs', 'gitea-axi', 'writes.log')), await createKubernetesAdapter(source, undefined, kubernetesRequests)] })
     const maintain = async () => {
       try { await retainKubernetesRequests(kubernetesRequests) }

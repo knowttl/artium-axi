@@ -101,13 +101,14 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
           .replace(/\s+\[flags\]$/, '')
         const route = [...inventory.commands].sort((a, b) => b.command.length - a.command.length)
           .find(route => usage === route.command || usage.startsWith(route.command + ' '))
-        const group = (tool === 'gitea-axi' || tool === 'unifi-axi') && inventory.discovery.commands.some(command => command.startsWith(usage + ' ')) ? usage : ''
+        const group = inventory.discovery.commands.some(command => command.startsWith(usage + ' ')) ? usage : ''
         const selected = route?.command || group
         const command = `artium-axi ${tool}${selected && selected !== 'home' ? ` ${selected}` : ''}`
         document.command = command
         document.usage = `${command} [flags]`
         if (!group) document.flags = route?.flags ?? inventory.commands.find(route => !route.command || route.command === 'home')!.flags
         else if (tool === 'unifi-axi') document.flags = { help: 'boolean' }
+        else if (tool === 'proxmox-axi') document.flags = { help: 'boolean', format: 'value' }
         if (tool === 'gitea-axi' && route?.command === 'pr checks') {
           document.flags = { ...route.flags, timeout: `value (1-${gitea.adapterBoundary.checksWatchTimeoutSeconds} seconds; requires --watch)` }
         }

@@ -47,7 +47,10 @@ test.each(toolSchema.options)('%s overlay preserves tool guidance with managed c
   }
   if (tool === 'proxmox-axi') {
     expect(skill).toContain('get /version --help')
-    expect(skill).toContain('Writes, local configuration, file input and byte transports are unavailable.')
+    expect(skill).toContain('independent administrator hostWrites operation list')
+    expect(skill).toContain('--confirm <id.fingerprint>')
+    expect(skill).toContain('journal reconcile <id>')
+    expect(skill).toContain('Protected results and in-memory authentication are assigned to the next capability slice')
     return
   }
   expect(skill).toContain('Artium supplies the managed credentials')

@@ -25,6 +25,7 @@ import { acquireFalconRtrLock } from './falcon-rtr-lock.js'
 import { kubernetesRequestProfile } from './kubernetes-requests.js'
 
 export interface RunnerLimits {
+  publicContent?: import('./scan.js').PublicContent
   unifiScope?: string
   kubernetesRequests?: { root: string, scope: string }
   falconRtrDevice?: string
@@ -211,7 +212,7 @@ async function execute(
   if (!Number.isSafeInteger(cap) || cap < 0) throw new RangeError('Output byte limit must be a non-negative integer')
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new RangeError('Timeout must be a positive integer')
   if (!Number.isSafeInteger(terminationGraceMs) || terminationGraceMs <= 0) throw new RangeError('Termination grace must be a positive integer')
-  const scanner = new SecretScanner(secrets, limits.privateOutput)
+  const scanner = new SecretScanner(secrets, limits.privateOutput, limits.publicContent)
   const started = performance.now()
   const directory = await mkdtemp(join(root, 'artium-call-')).catch(() => {
     throw new RunnerError('TEMP_UNAVAILABLE')

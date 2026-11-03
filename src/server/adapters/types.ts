@@ -4,7 +4,7 @@ import type { SensitiveArguments } from '../audit/redact.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { CredentialProfile } from './credential-profile.js'
 import type { TransferScope } from '../../shared/api.js'
-import type { PrivateOutput } from '../runner/scan.js'
+import type { PrivateOutput, PublicContent } from '../runner/scan.js'
 import type { Serializable } from 'node:child_process'
 
 // The runner materializes adapter-owned relative paths privately, including XDG profiles.
@@ -16,6 +16,8 @@ export interface TemporaryFile {
 }
 
 export interface PreparedCall {
+  // Native-generated protocol metadata stays intact; every selected provider value is still scanned.
+  publicContent?: PublicContent
   // Dedicated identities can change while the call queues or its private files are materialized.
   beforeSpawn?: () => void
   kubernetesWorkflowRoot?: string
