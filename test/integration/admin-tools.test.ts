@@ -353,6 +353,24 @@ test('Falcon discovery and health report the preserved legacy RTR grant', async 
   expect(page.body).toContain('exact --execute/--confirm')
 })
 
+test('Kubernetes Advanced guidance describes admitted workflows and remaining exclusions', async () => {
+  // Regression T1: the rendered guidance incorrectly excluded admitted byte sessions and workspaces.
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
+  payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
+  expect(login.statusCode).toBe(303)
+  const page = await app.inject({ method: 'GET', url: '/admin/tools/kubernetes-axi?tab=advanced',
+    headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain('Caller-owned workspaces support file inputs.')
+  expect(page.body).toContain('Bounded watch, logs, exec, attach, apply, create and cp sessions require explicit per-user sessions.grants; no sessions are granted by default.')
+  expect(page.body).toContain('Mutating sessions additionally require Allow writes and native exact-digest confirmation; watch and logs remain reads.')
+  expect(page.body).toContain('Credential issuance, port-forward tunnels and interactive/editor/helper execution remain unavailable.')
+  expect(page.body).not.toContain('File inputs, execution, credential issuance and streaming sessions remain unavailable.')
+})
+
 test('schema-driven replacement reaches the isolated runner and keeps secrets out of metadata', async () => {
   await app.close()
   runner = await Runner.create(join(directory, 'calls'))
@@ -1600,7 +1618,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'proxmox-axi', version: '0.1.1', health: { status: 'disabled' } },
     { name: 'technitium-axi', version: '0.1.0', health: { status: 'disabled' } },
     { name: 'gitea-axi', version: '0.1.1', health: { status: 'disabled' } },
-    { name: 'kubernetes-axi', version: '0.1.2', health: { status: 'disabled' } },
+    { name: 'kubernetes-axi', version: '0.1.3', health: { status: 'disabled' } },
     { name: 'ssh-axi', version: '0.1.2', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()

@@ -13,6 +13,7 @@ import type { Adapter, PreparedCall } from './types.js'
 import { toolAllowsWrites, falconWriteOperations } from '../../shared/api.js'
 import { CredentialInput, credentialFormats, standardCredentialFormats } from './credential-input.js'
 import applicationMode from '../../shared/mg-application-mode.json' with { type: 'json' }
+import { kubernetesSessionPolicy } from '../../shared/kubernetes.js'
 export { isCanonicalHttpsOrigin } from './credential-input.js'
 
 type Schema = Record<string, any>
@@ -60,6 +61,7 @@ export class CredentialProfile {
     this.inputSchema = this.hostSchema(schema)
     if (tool === 'kubernetes-axi') {
       this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow Kubernetes mutation workflows' }
+      this.inputSchema.properties.sessions = z.toJSONSchema(kubernetesSessionPolicy)
       this.inputSchema.properties.collectionDelete = { type: 'boolean', title: 'Allow Kubernetes bulk deletion',
         description: 'Requires Allow writes and native frozen-target confirmation. Off by default.' }
       this.inputSchema.properties.origin.format = 'canonical-https-origin'
@@ -284,6 +286,7 @@ export class CredentialProfile {
     // These administrator switches are host policy, not upstream profile fields.
     if (tool === 'falcon-axi' || tool === 'awx-axi' || tool === 'kubernetes-axi') delete parsed.value.allowWrites
     if (tool === 'kubernetes-axi') delete parsed.value.collectionDelete
+    if (tool === 'kubernetes-axi') delete parsed.value.sessions
     if (tool === 'awx-axi') delete parsed.value.allowConfigurationWrites
     if (tool === 'falcon-axi') delete parsed.value.writes
     const environment: Record<string, string> = {}

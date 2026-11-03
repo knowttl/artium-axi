@@ -617,6 +617,20 @@ These plans can contain original resource payloads, including Secret data; prote
 Startup and daily maintenance remove scopes inactive for more than 90 days, after their sign-in families have expired.
 After an uncertain confirmation, inspect the native result and current resource state; repeated confirmation never resends a claimed mutation, and unfinished work needs a fresh preparation and digest.
 
+Kubernetes workspaces and byte sessions are separate temporary capabilities under `<database directory>/tool-logs/kubernetes-axi/workspaces/` and `byte-sessions/`.
+They belong to one caller, sign-in family and credential revision; startup removes abandoned files and never resumes or replays a session.
+Workspaces accept at most 100 regular files, 100 MiB per file and 250 MiB total, with four reservations per user and eight globally.
+Their default lifetime is five minutes, bounded to thirty minutes; every upload must match its declared size and SHA-256.
+Byte sessions require explicit caller grants in advanced native settings, for example `{"allowWrites":true,"sessions":{"grants":{"<user-id>":["exec","cp"]},"lifetimeSeconds":300,"outputBytes":1048576}}`.
+Keep Allow writes off until the intended mutation kinds are authorized; read-only `logs` and `watch` still need their own caller grants.
+Each session owns one operation and one worker, with no reusable transport or later command on that worker.
+Sessions retain at most 1 MiB of stdout/stderr within a 64 MiB observed-output limit, have a five-minute default and thirty-minute maximum lifetime, and reserve four slots per user and eight globally including retained results.
+Cancel unused sessions to release a slot; expiry, revocation, shutdown and cancellation terminate workers and remove private profiles before cleanup is acknowledged.
+Completed copy artifacts remain private until session expiry or cancellation and are scanned and hash-verified before delivery.
+Use `session list` after a lost start reply and `session show` or `session output` after an interrupted confirmation; inspect remote state before creating another uncertain operation.
+These temporary handles and results do not survive restart, and a missing handle does not prove that remote work was undone.
+Local downloads require a new absolute filename in an existing private directory and publish only after byte count and digest verification.
+
 Gitea keeps its shared dispatch journal at `<database directory>/tool-logs/gitea-axi/writes.log` and native receipts and attempt guards in the adjacent `write-receipts/` directory.
 These files survive calls and restarts and are not automatically pruned; preserve them together when backing up or recovering write state so replay protection remains intact.
 After an uncertain Gitea result, including native `WRITE_OUTCOME_UNKNOWN`, use `artium-axi gitea-axi write reconcile UUID` with the preview's confirmation UUID to inspect the receipt and current remote observations.

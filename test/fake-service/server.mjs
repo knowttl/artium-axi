@@ -1,11 +1,13 @@
 import { createServer } from 'node:https'
 import { verify, X509Certificate } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse } from 'yaml'
 import { hybridResponse } from './hybrid.mjs'
 import { beyondtrustResponse } from './beyondtrust.mjs'
 import { checkpointResponse } from './checkpoint.mjs'
+const { kubernetesBytes } = await import(existsSync(new URL('./kubernetes-bytes.js', import.meta.url))
+  ? './kubernetes-bytes.js' : './kubernetes-bytes.ts')
 
 const requests = []
 const resources = new Map()
@@ -56,6 +58,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   ca: readFileSync(join(certs, 'ca.crt')), requestCert: true, rejectUnauthorized: false }, (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
+  if (url.pathname === '/__kubernetes/bytes') { res.end(JSON.stringify(byteEvidence())); return }
   if (url.pathname === '/__kubernetes/control') {
     const name = url.searchParams.get('name')
     if (url.searchParams.get('mode') === 'bump') {
@@ -72,6 +75,10 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     const recorded = { method: req.method, path: url.pathname, canaryReceived }
     requests.push(recorded)
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ kind: 'Status', apiVersion: 'v1', status: 'Failure', reason: 'Unauthorized', code: 401 })); return }
+    if (url.searchParams.get('watch') === 'true' && url.pathname === '/api/v1/namespaces/synthetic/pods') {
+      res.end(JSON.stringify({ type: 'ADDED', object: { apiVersion: 'v1', kind: 'Pod',
+        metadata: { name: 'synthetic-pod', namespace: 'synthetic', resourceVersion: '18' }, status: { phase: 'Running' } } }) + '\n'); return
+    }
     if (/^\/api\/v1\/namespaces\/synthetic\/configmaps(?:\/|$)/.test(url.pathname)) {
       let body = ''
       req.on('data', chunk => { body += chunk })
@@ -127,7 +134,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
         ? { apiVersion: 'authorization.k8s.io/v1', kind: 'SelfSubjectAccessReview', status: { allowed: true } }
         : { apiVersion: 'authentication.k8s.io/v1', kind: 'SelfSubjectReview', status: { userInfo: { username: 'synthetic-reader', groups: ['synthetic-readers'] } } }
     } else if (req.method === 'GET' && url.pathname === '/api/v1/namespaces/synthetic/pods/synthetic-pod') {
-      value = { apiVersion: 'v1', kind: 'Pod', metadata: { name: 'synthetic-pod', namespace: 'synthetic' },
+      value = { apiVersion: 'v1', kind: 'Pod', metadata: { name: 'synthetic-pod', namespace: 'synthetic', uid: 'uid-synthetic-pod', resourceVersion: '1' },
         spec: { containers: [{ name: 'synthetic-container', image: 'synthetic.invalid/image:fake' }] }, status: { phase: 'Running' } }
     } else if (req.method === 'GET' && url.pathname === '/api/v1/namespaces/synthetic/pods/synthetic-pod/log') {
       res.setHeader('content-type', 'text/plain'); res.end('Synthetic pod log\n'); return
@@ -1081,4 +1088,5 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.end(JSON.stringify({ value: [] }))
   }
 })
+const byteEvidence = kubernetesBytes(server, record => requests.push(record))
 server.listen(Number(process.argv[3] ?? 443), '0.0.0.0', () => console.log(`artium-test-ready ${server.address().port}`))

@@ -48,6 +48,8 @@ import { RunnerError } from './runner/runner.js'
 import { ProtectedResults } from './protected-results.js'
 import { hasSshConfiguration, type SshHosts } from './store/ssh-hosts.js'
 import { registerSshExecutions, type SshExecutionOptions } from './ssh-executions.js'
+import { registerKubernetesWorkspaces } from './kubernetes-workspaces.js'
+import { registerKubernetesSessions } from './kubernetes-sessions.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
@@ -82,6 +84,11 @@ export function createApp(options: {
   const device = registerDevice(app, db, audit)
   const sso = registerSso(app, db, audit, options.providerCredentials, options.ssoFetch, device)
   const health = new ToolHealth(db, audit, runner, adapters, options.credentialStore)
+  const kubernetes = adapters.find(adapter => adapter.name === 'kubernetes-axi')
+  if (kubernetes) {
+    const workspaces = registerKubernetesWorkspaces(app, db, resolver, kubernetes, audit)
+    registerKubernetesSessions(app, db, resolver, kubernetes, runner, audit, workspaces)
+  }
   app.addHook('onReady', async () => { health.start() })
   app.setErrorHandler<FastifyError>((error, request, reply) => {
     const failure = error instanceof ArtiumError ? error

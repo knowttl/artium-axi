@@ -83,6 +83,10 @@ export class Runner {
 
   get trustedCertificates(): readonly TrustedCertificate[] { return this.trustedCa?.certificates ?? [] }
 
+  caBundleFor(endpoint: string, credentialTrust: readonly CredentialTrust[]): string {
+    return runtimeTrust({ systemCaBundle: { endpoint }, credentialTrust }, this.trustedCa).trustPem
+  }
+
   static async create(root = join(tmpdir(), 'artium-calls'), trustedCa?: TrustedCaBundle): Promise<Runner> {
     await mkdir(root, { recursive: true, mode: 0o700 })
     for (const entry of await readdir(root)) {
@@ -167,6 +171,18 @@ function signalGroup(pid: number | undefined, signal: NodeJS.Signals | 0): boole
   }
 }
 
+function runtimeTrust(limits: Pick<RunnerLimits, 'systemCaBundle' | 'credentialTrust'>, trustedCa?: TrustedCaBundle) {
+  const caEndpoint = typeof limits.systemCaBundle === 'object' ? certificateEndpoint(limits.systemCaBundle.endpoint).href : undefined
+  const credentialTrust = (limits.credentialTrust ?? []).filter(certificate => !caEndpoint || certificateEndpoint(certificate.endpoint).href === caEndpoint)
+  if (limits.systemCaBundle && credentialTrust.some(certificate => certificate.mode !== 'ca')) {
+    throw new RunnerError('INVALID_INPUT', 'This tool requires an issuing CA; certificate pinning is unavailable.')
+  }
+  const trustPem = trustedCa || credentialTrust.length || limits.systemCaBundle
+    ? [...getCACertificates('default'), ...(trustedCa ? [trustedCa.pem] : []),
+      ...(limits.systemCaBundle ? credentialTrust.map(certificate => certificate.pem) : [])].join('\n') : ''
+  return { credentialTrust, trustPem }
+}
+
 async function execute(
   root: string,
   executable: string,
@@ -180,14 +196,7 @@ async function execute(
   trustedCa?: TrustedCaBundle,
   pathPrefix?: string,
 ): Promise<RunnerResult> {
-  const caEndpoint = typeof limits.systemCaBundle === 'object' ? certificateEndpoint(limits.systemCaBundle.endpoint).href : undefined
-  const credentialTrust = (limits.credentialTrust ?? []).filter(certificate => !caEndpoint || certificateEndpoint(certificate.endpoint).href === caEndpoint)
-  if (limits.systemCaBundle && credentialTrust.some(certificate => certificate.mode !== 'ca')) {
-    throw new RunnerError('INVALID_INPUT', 'This tool requires an issuing CA; certificate pinning is unavailable.')
-  }
-  const trustPem = trustedCa || credentialTrust.length || limits.systemCaBundle
-    ? [...getCACertificates('default'), ...(trustedCa ? [trustedCa.pem] : []),
-      ...(limits.systemCaBundle ? credentialTrust.map(certificate => certificate.pem) : [])].join('\n') : ''
+  const { credentialTrust, trustPem } = runtimeTrust(limits, trustedCa)
   const pins = credentialTrust.map(certificate => {
     const endpoint = certificateEndpoint(certificate.endpoint)
     return { hostname: endpoint.hostname, port: endpoint.port, protocol: new URL(certificate.endpoint).protocol,

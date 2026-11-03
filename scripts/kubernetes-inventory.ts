@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+const { kubernetesHostedCommands } = await import(new URL('../src/shared/kubernetes.ts', import.meta.url).href) as typeof import('../src/shared/kubernetes.js')
 
 type Flag = { name: string, short: string, type: string, effect: string, default: string }
 type Command = { path: string, effect: string, flags: Flag[], aliases: string[], compatibilityLimit?: string }
@@ -59,11 +60,12 @@ for (const binary of Object.values(kubectl.binaries)) {
 const data = { generatedBy: 'scripts/kubernetes-inventory.ts', tool: 'kubernetes-axi', package: pkg.name, ...pins[pkg.name],
   sources, credentialSchema: JSON.parse(read('axi-credential.schema.json')) as Record<string, unknown>, kubectl,
   adapterBoundary: { unsafeOverrides, blockedCommands: ['profile', 'config', 'setup', 'update'],
-    nativeWrites: 'administrator-enabled prepare/preview/confirm and server-dry-run; direct mutations refused', streams: 'false only; authenticated sessions are a separate capability' },
+    nativeWrites: 'administrator-enabled prepare/preview/confirm and server-dry-run; direct mutations refused',
+    streams: 'bounded byte sessions require explicit per-caller kind grants; mutation kinds also require Allow writes' },
   commands, writeCommands, workflows, healthRead: ['get', 'pods'], requirements: { timeoutMs: 65_000, runtime: 'node' },
   discovery: { commands: [...commands.filter(route => route.command !== 'home').map(route => route.command),
-    ...workflows.map(workflow => workflow.usage)], example: ['get', 'pods'],
-    help: 'Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported; saved strict leaf pins are unavailable.\nAdministrator-enabled mutations require prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>; server-dry-run -- <mutation> is separately explicit.\nLocal configuration, impersonation, file input, execution, credential issuance and streaming sessions are unavailable.\n' } }
+    ...workflows.map(workflow => workflow.usage), ...kubernetesHostedCommands], example: ['get', 'pods'],
+    help: 'Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported; saved strict leaf pins are unavailable.\nAdministrator-enabled mutations require prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>; server-dry-run -- <mutation> is separately explicit.\nUse workspace create to stage regular files and session start for one bounded operation. Every session kind needs an explicit caller grant in administrator native settings; mutation kinds also require Allow writes.\nUse session show/output/confirm/cancel and session artifact for owned recovery and verified bytes. Workspace references use workspace:<path>; copy downloads use artifact:<path>.\nLocal configuration, impersonation, interactive execution, credential issuance and tunnels remain unavailable.\n' } }
 const output = JSON.stringify(data, null, 2) + '\n'
 const target = new URL('inventories/kubernetes-axi.json', root)
 if (process.argv.includes('--write')) writeFileSync(target, output)

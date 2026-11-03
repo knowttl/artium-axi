@@ -51,22 +51,23 @@ export class Client {
     managed?.checkServer(this.serverUrl)
   }
 
-  async request(path: string, method: 'GET' | 'POST', input: undefined, token: undefined, bytes: true): Promise<Buffer>
-  async request(path: string, method: 'GET' | 'POST', input?: unknown, token?: string, bytes?: false, headers?: Record<string, string>): Promise<unknown>
-  async request(path: string, method: 'GET' | 'POST', input?: unknown, token?: string, bytes = false, headers: Record<string, string> = {}): Promise<unknown> {
+  async request(path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', input: undefined, token: undefined, bytes: true): Promise<Buffer>
+  async request(path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', input?: unknown, token?: string, bytes?: false, headers?: Record<string, string>, deadlineMs?: number): Promise<unknown>
+  async request(path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', input?: unknown, token?: string, bytes = false, headers: Record<string, string> = {}, deadlineMs = this.requestDeadlineMs): Promise<unknown> {
     this.requestId = undefined
     this.certificateVerified = false
     let ca: string[] | undefined
     try { if (this.caFile) ca = [...rootCertificates, readFileSync(this.caFile, 'utf8')] }
     catch { throw new ArtiumError('CLIENT_CONFIG_INVALID') }
-    const body = input === undefined ? undefined : JSON.stringify(input)
+    const body = input === undefined ? undefined : Buffer.isBuffer(input) ? input : JSON.stringify(input)
     const controller = new AbortController()
-    const deadline = setTimeout(() => controller.abort(), this.requestDeadlineMs)
+    const deadline = setTimeout(() => controller.abort(), deadlineMs)
     const url = new URL(`${this.serverUrl}${path}`)
     const result = await new Promise<{ status: number, body: unknown, serverVersion?: string }>((resolve, reject) => {
       const request = (url.protocol === 'https:' ? httpsRequest : httpRequest)(url, {
         method, ca, rejectUnauthorized: true, signal: AbortSignal.any([controller.signal, this.cancellation.signal]),
-        headers: { ...headers, 'x-artium-cli-version': cliVersion, ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body ? { 'content-type': 'application/json' } : {}) },
+        headers: { ...headers, 'x-artium-cli-version': cliVersion, ...(token ? { authorization: `Bearer ${token}` } : {}),
+          ...(body !== undefined ? { 'content-type': Buffer.isBuffer(body) ? 'application/octet-stream' : 'application/json', 'content-length': Buffer.byteLength(body) } : {}) },
       }, response => {
         const requestId = response.headers['x-artium-request-id']
         if (typeof requestId === 'string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(requestId)) this.requestId = requestId
@@ -144,7 +145,7 @@ export class Client {
   }
 
   async artifact(path: string, input: unknown, token: string, ticket: string, expiresAt: number,
-    consume: (response: IncomingMessage, signal: AbortSignal) => Promise<void>): Promise<void> {
+    consume: (response: IncomingMessage, signal: AbortSignal) => Promise<void>, method: 'POST' | 'GET' = 'POST'): Promise<void> {
     let ca: string[] | undefined
     try { if (this.caFile) ca = [...rootCertificates, readFileSync(this.caFile, 'utf8')] }
     catch { throw new ArtiumError('CLIENT_CONFIG_INVALID') }
@@ -156,7 +157,7 @@ export class Client {
       await new Promise<void>((resolve, reject) => {
         let incoming: IncomingMessage | undefined
         const request = (url.protocol === 'https:' ? httpsRequest : httpRequest)(url, {
-          method: 'POST', ca, rejectUnauthorized: true, signal,
+          method, ca, rejectUnauthorized: true, signal,
           headers: { authorization: `Bearer ${token}`, 'x-artium-cli-version': cliVersion,
             'x-artium-reauth-ticket': ticket, 'accept-encoding': 'identity', 'content-type': 'application/json' },
         }, response => {
@@ -184,7 +185,7 @@ export class Client {
           if (incoming) incoming.destroy(error)
           else reject(error)
         })
-        request.end(JSON.stringify(input))
+        request.end(method === 'POST' ? JSON.stringify(input) : undefined)
       })
     } finally { clearTimeout(deadline) }
   }
