@@ -170,27 +170,27 @@ await withFakeService(async ({ directory, port, send }) => {
     const attached = await confirm(await start('attach', ['attach', 'synthetic-pod']))
     assert.equal(attached.state, 'exited', JSON.stringify(attached)); await cancel(attached.id)
     for (const kind of ['create', 'apply'] as const) {
-      const manifest = Buffer.from(JSON.stringify({ apiVersion: 'v1', kind: 'ConfigMap',
-        metadata: { name: `synthetic-session-${kind}`, namespace: 'synthetic' }, data: { mode: 'workspace' } }))
-      const files = [
-        { path: 'object.json', content: manifest },
-        { path: 'bundle/object.json', content: manifest },
-        { path: 'bundle/kustomization.yaml', content: Buffer.from('resources:\n  - object.json\n') },
-      ]
-      const staged = await request('/v1/tools/kubernetes-axi/workspaces', 'POST', {
-        files: files.map(file => ({ path: file.path, bytes: file.content.length, sha256: createHash('sha256').update(file.content).digest('hex') })),
-      })
-      assert.equal(staged.statusCode, 200, staged.body)
-      const workspace = staged.json().id as string
-      for (const file of files) assert.equal((await app.inject({ method: 'PUT', url: `/v1/tools/kubernetes-axi/workspaces/${workspace}/files/${file.path}`,
-        headers: { ...headers, 'content-type': 'application/octet-stream' }, payload: file.content })).statusCode, 200)
-      for (const flags of [['-f', 'workspace:object.json'], ['-f=workspace:object.json'], ['-k=workspace:bundle']]) {
+      for (const [variant, flags] of [['-f', 'workspace:object.json'], ['-f=workspace:object.json'], ['-k=workspace:bundle']].entries()) {
+        const manifest = Buffer.from(JSON.stringify({ apiVersion: 'v1', kind: 'ConfigMap',
+          metadata: { name: `synthetic-session-${kind}-${variant}`, namespace: 'synthetic' }, data: { mode: 'workspace' } }))
+        const files = [
+          { path: 'object.json', content: manifest },
+          { path: 'bundle/object.json', content: manifest },
+          { path: 'bundle/kustomization.yaml', content: Buffer.from('resources:\n  - object.json\n') },
+        ]
+        const staged = await request('/v1/tools/kubernetes-axi/workspaces', 'POST', {
+          files: files.map(file => ({ path: file.path, bytes: file.content.length, sha256: createHash('sha256').update(file.content).digest('hex') })),
+        })
+        assert.equal(staged.statusCode, 200, staged.body)
+        const workspace = staged.json().id as string
+        for (const file of files) assert.equal((await app.inject({ method: 'PUT', url: `/v1/tools/kubernetes-axi/workspaces/${workspace}/files/${file.path}`,
+          headers: { ...headers, 'content-type': 'application/octet-stream' }, payload: file.content })).statusCode, 200)
         const operation = await start(kind, [kind, ...flags, '--validate=false'], { workspace })
         const settled = await confirm(operation)
         assert.equal(settled.state, 'exited', JSON.stringify(settled))
         await cancel(operation.id)
+        await request('/v1/tools/kubernetes-axi/workspaces/' + workspace, 'DELETE')
       }
-      await request('/v1/tools/kubernetes-axi/workspaces/' + workspace, 'DELETE')
     }
     const bounded = await confirm(await start('exec', ['exec', 'synthetic-pod', '--', 'true'], { limits: { outputBytes: 5 } }))
     const clipped = await request(`${prefix}/${bounded.id}/output`)

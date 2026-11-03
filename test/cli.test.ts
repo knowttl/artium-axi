@@ -156,9 +156,11 @@ test.each([false, true])('Kubernetes waiting reads survive 120 seconds and remai
     [path]: { status: 200, body: status },
     [path + '?wait=true']: { status: 200, body: completed },
   }
-  const waiting = Promise.withResolvers<void>(), release = Promise.withResolvers<void>()
+  let signalWaiting!: () => void, releaseReply!: () => void
+  const waiting = new Promise<void>(resolve => { signalWaiting = resolve })
+  const release = new Promise<void>(resolve => { releaseReply = resolve })
   beforeReply = async requestPath => {
-    if (requestPath === path + '?wait=true') { waiting.resolve(); await release.promise }
+    if (requestPath === path + '?wait=true') { signalWaiting(); await release }
   }
   requests = []
   const output: string[] = []
@@ -166,18 +168,18 @@ test.each([false, true])('Kubernetes waiting reads survive 120 seconds and remai
   const result = kubernetesHosted(['session', 'show', id, '--wait', '--json'], () => client, text => output.push(text))
     .then(value => { settled = true; return value }, error => { settled = true; return error })
   try {
-    await waiting.promise
+    await waiting
     await vi.advanceTimersByTimeAsync(120_000)
     await new Promise<void>(resolve => setImmediate(resolve))
     expect(settled).toBe(false)
     if (cancel) client.cancel()
-    else release.resolve()
+    else releaseReply()
     if (cancel) expect(await result).toMatchObject({ code: 'SERVER_UNAVAILABLE' })
     else { expect(await result).toBe(true); expect(output.map(text => JSON.parse(text))).toEqual([completed]) }
     expect(requests.filter(request => request.path === path + '?wait=true')).toHaveLength(1)
     expect(requests.every(request => request.body === undefined)).toBe(true)
   } finally {
-    release.resolve(); client.cancel(); await result
+    releaseReply(); client.cancel(); await result
     beforeReply = undefined; doctorResponses = undefined; vi.useRealTimers()
   }
 })
