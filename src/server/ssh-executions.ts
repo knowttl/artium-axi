@@ -9,6 +9,9 @@ import { sshExecutionInput, sshExecutionStatus, type SshExecutionInput } from '.
 import { ArtiumError } from '../shared/errors.js'
 import { verifyAccessToken, verifyAccessFamily } from './auth/tokens.js'
 import { checkToolPolicy } from './policy/policy.js'
+import { sshBinding, type SshOwner as Owner } from './policy/ssh.js'
+import { SshConnections } from './ssh-connections.js'
+import { registerSshAudit } from './admin/ssh-audit.js'
 import { sshProfile, verifySshArtifact } from './adapters/ssh.js'
 import { toolPaths } from './config.js'
 import { decryptCredential, encryptCredential, type EncryptedCredential } from './store/crypto.js'
@@ -17,10 +20,10 @@ import type { KeyProvider } from './store/key-provider.js'
 import type { Runner } from './runner/runner.js'
 import type { Audit } from './audit/audit.js'
 
-interface Owner { user: string, family: string }
-interface Row { id: string, request_key: string, input_hash: string, user_id: string, family_id: string,
+export interface SshExecutionRow { id: string, request_key: string, input_hash: string, user_id: string, family_id: string,
   host_id: string, account: string, binding: string, command: string, sudo: number, request_id: string,
   started_at: number, finished_at: number | null, outcome: z.infer<typeof sshExecutionStatus>['outcome'], metadata: string }
+type Row = SshExecutionRow
 const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 const remoteCommand = (input: SshExecutionInput) => input.sudo ? `sudo -n -- /bin/sh -c '${input.command.replaceAll("'", "'\\''")}'` : input.command
 const claimsSchema = z.object({ version: z.literal(1), keyId: z.string(), nonce: z.uuid(),
@@ -34,9 +37,11 @@ const nativeResult = sshExecutionStatus.omit({ id: true, host: true }).extend({ 
 export interface SshExecutionOptions { provider: KeyProvider, writeLog: string, executable?: string }
 export function registerSshExecutions(app: FastifyInstance, options: SshExecutionOptions & {
   db: Database.Database, hosts: SshHosts, runner: Runner, audit: Audit, environment: NodeJS.ProcessEnv,
+  authorizeAdmin: (request: FastifyRequest) => string,
 }): void {
   const { db, hosts, runner, audit, provider, writeLog, environment, executable = toolPaths['ssh-axi'] } = options
-  const active = new Map<string, { controller: AbortController, guard: () => void, done: Promise<void> }>()
+  const connections = new SshConnections(db, hosts, writeLog, executable)
+  const active = new Map<string, { controller: AbortController, guard: () => void, done: Promise<void>, connection?: string }>()
   const parse = <T>(schema: z.ZodType<T>, value: unknown): T => {
     const result = schema.safeParse(value)
     if (!result.success) throw new ArtiumError('INVALID_INPUT')
@@ -50,24 +55,20 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
     prune()
     return { user, family }
   }
-  const current = (owner: Owner) => {
-    checkToolPolicy(db, owner.user, 'ssh-axi')
-    if (!db.prepare('SELECT 1 FROM session_families WHERE id=? AND user_id=? AND revoked_at IS NULL AND expires_at>?')
-      .get(owner.family, owner.user, Date.now())) throw new ArtiumError('TOKEN_INVALID')
-  }
   const binding = (owner: Owner, input: SshExecutionInput) => {
-    current(owner)
     const tool = db.prepare("SELECT revision, native_settings FROM tools WHERE name='ssh-axi'").get() as { revision: number, native_settings: string }
     if (!toolAllowsWrites('ssh-axi', JSON.parse(tool.native_settings)) || environment.SSH_AXI_READ_ONLY && !['false', '0'].includes(environment.SSH_AXI_READ_ONLY)) throw new ArtiumError('FLAG_BLOCKED')
-    const selected = hosts.executionBinding(owner.user, input.host, input.sudo)
+    const state = sshBinding(db, hosts, owner, input.host, input.sudo)
+    const { selected } = state
     if (selected.read_only) throw new ArtiumError('FLAG_BLOCKED')
     if (input.timeout > selected.command_seconds || input.outputLimit > selected.output_bytes) throw new ArtiumError('INVALID_INPUT')
-    return { selected, hash: hash({ selected, tool }) }
+    return state
   }
   const scanner = () => import(pathToFileURL(join(dirname(executable), 'output.js')).href) as Promise<typeof import('../../tools/node_modules/@knowttl/ssh-axi/dist/output.js')>
   const admit = async (owner: Owner, raw: unknown) => {
     const input = parse(sshExecutionInput, raw)
     const state = binding(owner, input)
+    if (input.connection) connections.assertAvailable(owner, input.host, input.connection, input.sudo)
     verifySshArtifact(executable)
     const credential = hosts.profile(owner.user, input.host, input.sudo)
     const profile = sshProfile.prepare('ssh-axi', credential, writeLog, false)
@@ -78,6 +79,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
     }
     catch { throw new ArtiumError('INVALID_INPUT', 'Command is invalid or contains protected material; nothing was journaled or dispatched.') }
     if (binding(owner, input).hash !== state.hash) throw new ArtiumError('REVISION_CONFLICT')
+    if (input.connection) connections.assertAvailable(owner, input.host, input.connection, input.sudo)
     return { input, state, profile }
   }
   const sign = (body: string) => createHmac('sha256', provider.getKey().bytes).update('ssh-execution-v1\0').update(body).digest('base64url')
@@ -97,14 +99,21 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
     hosts.executionBinding(owner.user, row.host_id, Boolean(row.sudo))
     return row
   }
-  const view = (row: Row) => {
+  const view = (row: Row, includeOutput = true) => {
     let result: Record<string, unknown> = JSON.parse(row.metadata)
     const encrypted = db.prepare('SELECT * FROM ssh_execution_results WHERE id=?').get(row.id) as EncryptedCredential | undefined
-    if (encrypted) {
+    if (encrypted && includeOutput) {
       const plain = decryptCredential(encrypted, provider.getKey())
       try { result = { ...result, ...JSON.parse(plain.toString('utf8')) } } finally { plain.fill(0) }
     }
+    if (!includeOutput) {
+      for (const stream of ['stdout', 'stderr']) if (result[stream] && typeof result[stream] === 'object') {
+        const { text: _, ...counts } = result[stream] as Record<string, unknown>
+        result[stream] = counts
+      }
+    }
     return { remoteExit: null, remoteSignal: null, termination: 'unknown', ...result,
+      samples: !includeOutput ? 'omitted' : encrypted ? 'available' : row.finished_at === null ? 'pending' : 'unavailable-or-expired',
       id: row.id, host: row.host_id, account: row.account, sudo: Boolean(row.sudo), command: row.command,
       confirmed: true, requestId: row.request_id, startedAt: new Date(row.started_at).toISOString(),
       finishedAt: row.finished_at === null ? null : new Date(row.finished_at).toISOString(),
@@ -114,6 +123,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
   const prune = () => db.transaction(() => {
     db.prepare('DELETE FROM ssh_execution_results WHERE updated_at<=?').run(Date.now() - 14 * 86400000)
     db.prepare('DELETE FROM ssh_executions WHERE finished_at<=?').run(Date.now() - 90 * 86400000)
+    db.prepare('DELETE FROM ssh_connection_events WHERE occurred_at<=?').run(Date.now() - 90 * 86400000)
   }).immediate()
   prune()
   db.prepare("UPDATE ssh_executions SET outcome='unknown', finished_at=? WHERE outcome='running'").run(Date.now())
@@ -124,12 +134,15 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
       diagnostic: 'No proven remote result. Inspect remote state before preparing another command.' }
     try {
       const command = remoteCommand(admitted.input)
-      const output = await runner.run(row.user_id, process.execPath, [executable, 'exec', row.host_id, '--confirm', '--json'],
+      const raw = admitted.input.connection ? await connections.execute({ user: row.user_id, family: row.family_id },
+        row.host_id, admitted.input.connection, admitted.input.sudo, { command, timeout: admitted.input.timeout,
+          outputLimit: Math.min(admitted.input.outputLimit, 8192) }, controller.signal, runner, guard)
+        : JSON.parse((await runner.run(row.user_id, process.execPath, [executable, 'exec', row.host_id, '--confirm', '--json'],
         admitted.profile.environment, admitted.profile.secrets, { timeoutMs: (admitted.input.timeout + 18) * 1000,
           signal: controller.signal, trustedIpc: { revision: 1, hosts: [{ id: row.host_id, address: admitted.state.selected.address,
             port: admitted.state.selected.port, username: row.account }], execution: { command,
-            timeout: admitted.input.timeout, outputLimit: Math.min(admitted.input.outputLimit, 8192) } } }, {}, admitted.profile.files, guard)
-      const parsed = nativeResult.safeParse(JSON.parse(output.stdout))
+            timeout: admitted.input.timeout, outputLimit: Math.min(admitted.input.outputLimit, 8192) } } }, {}, admitted.profile.files, guard)).stdout)
+      const parsed = nativeResult.safeParse(raw)
       if (parsed.success) {
         result = parsed.data
         if (admitted.input.sudo && result.remoteExit !== 0 && /sudo:.*(?:password|terminal|tty|required|not allowed|not in the sudoers)/i.test(parsed.data.stderr.text)) {
@@ -137,6 +150,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
         }
       }
     } catch { /* A durable claim is never released, even without a proven remote result. */ }
+    if (controller.signal.reason === 'user' && result.outcome === 'unknown') result.outcome = 'cancelled'
     const { stdout, stderr, ...metadata } = result
     const counts = (value: unknown) => value && typeof value === 'object' ? { ...value, text: '' } : undefined
     const plain = Buffer.from(JSON.stringify({ stdout, stderr }))
@@ -181,6 +195,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
       user_id: owner.user, family_id: owner.family, host_id: admitted.input.host, account: admitted.state.selected.username,
       binding: admitted.state.hash, command: admitted.input.command, sudo: Number(admitted.input.sudo), request_id: request.id,
       started_at: Date.now(), finished_at: null, outcome: 'running', metadata: JSON.stringify({
+        connectionId: admitted.input.connection ?? null,
         owner: owner.user, sessionFamily: owner.family,
         endpoint: { address: admitted.state.selected.address, port: admitted.state.selected.port },
         binding: { hostRevision: admitted.state.selected.host_revision, bindingRevision: admitted.state.selected.binding_revision,
@@ -193,6 +208,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
         sensitive: { flags: ['--command'], positions: [] } }, () => {
         if (db.prepare('SELECT 1 FROM ssh_executions WHERE request_key=?').get(body.requestKey)) throw duplicateClaim
         if (claims.expires <= Date.now()) throw new ArtiumError('INVALID_INPUT')
+        if (admitted.input.connection) connections.assertAvailable(owner, admitted.input.host, admitted.input.connection, admitted.input.sudo)
         db.prepare(`INSERT INTO ssh_executions VALUES (@id, @request_key, @input_hash, @user_id, @family_id, @host_id,
           @account, @binding, @command, @sudo, @request_id, @started_at, @finished_at, @outcome, @metadata)`).run(row)
         created = true
@@ -203,14 +219,14 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
       const controller = new AbortController()
       const guard = () => { if (controller.signal.aborted) throw new ArtiumError('CANCELLED'); if (binding(owner, admitted.input).hash !== row.binding) throw new ArtiumError('REVISION_CONFLICT') }
       const done = execute(row, admitted, controller, guard)
-      active.set(row.id, { controller, guard, done })
+      active.set(row.id, { controller, guard, done, connection: admitted.input.connection })
       void done.catch(() => {})
     }
     return view(claimed)
   })
   app.post('/v1/ssh/show', async request => {
     const owner = identity(request)
-    const selector = parse(z.object({ id: z.string().optional(), requestKey: z.string().max(4096).optional() }).strict()
+    const selector = parse(z.object({ id: z.string().optional(), requestKey: z.string().max(4096).optional(), full: z.boolean().default(false) }).strict()
       .refine(value => Boolean(value.id) !== Boolean(value.requestKey)), request.body)
     prune()
     const row = owned(owner, selector)
@@ -218,7 +234,68 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
       clientAddress: request.ip, outcome: 'success', action: 'ssh-execution-read', targetId: row.id })
     return view(row)
   })
+  const recordRead = (request: FastifyRequest, userId: string, action: string, targetId = 'ssh-executions') => audit.record({
+    event: 'admin-change', userId, tool: 'ssh-axi', requestId: request.id, clientAddress: request.ip, outcome: 'success', action, targetId })
+  app.post('/v1/ssh/list', async request => {
+    const owner = identity(request)
+    parse(z.object({}).strict(), request.body)
+    const rows = db.prepare('SELECT * FROM ssh_executions WHERE user_id=? AND family_id=? ORDER BY started_at DESC,id DESC')
+      .all(owner.user, owner.family) as Row[]
+    const executions = rows.filter(row => {
+      try { hosts.executionBinding(owner.user, row.host_id, Boolean(row.sudo)); return true } catch { return false }
+    }).map(row => ({ id: row.id, host: row.host_id, outcome: row.outcome, startedAt: new Date(row.started_at).toISOString() }))
+    recordRead(request, owner.user, 'ssh-execution-list')
+    return { executions, count: executions.length, ...(executions.length ? {} : { message: 'No retained executions for this caller and session.' }),
+      help: ['artium-axi ssh-axi execution show <id> --full'] }
+  })
+  app.post('/v1/ssh/cancel', async request => {
+    const owner = identity(request)
+    const body = parse(z.object({ id: z.string(), confirm: z.literal(true) }).strict(), request.body)
+    const row = owned(owner, body)
+    const job = active.get(row.id)
+    if (job) { job.controller.abort('user'); await job.done }
+    recordRead(request, owner.user, 'ssh-execution-cancel', row.id)
+    return view(owned(owner, body))
+  })
+  const idle = z.number().int().min(1).max(60)
+  app.post('/v1/ssh/connection/open', async request => {
+    const owner = identity(request)
+    const body = parse(z.object({ host: sshExecutionInput.shape.host, idle: idle.default(10), sudo: z.boolean().default(false) }).strict(), request.body)
+    return connections.open(owner, body.host, body.idle, body.sudo)
+  })
+  app.post('/v1/ssh/connection/list', async request => {
+    const owner = identity(request); parse(z.object({}).strict(), request.body)
+    await connections.reconcile()
+    recordRead(request, owner.user, 'ssh-connection-list')
+    return connections.list(owner)
+  })
+  app.post('/v1/ssh/connection/show', async request => {
+    const owner = identity(request)
+    const body = parse(z.object({ id: z.string() }).strict(), request.body)
+    await connections.reconcile()
+    const result = connections.show(owner, body.id)
+    recordRead(request, owner.user, 'ssh-connection-show', body.id)
+    return result
+  })
+  app.post('/v1/ssh/connection/set', async request => {
+    const owner = identity(request)
+    const body = parse(z.object({ id: z.string(), idle }).strict(), request.body)
+    await connections.reconcile()
+    const result = await connections.set(owner, body.id, body.idle)
+    recordRead(request, owner.user, 'ssh-connection-set', body.id)
+    return result
+  })
+  app.post('/v1/ssh/connection/close', async request => {
+    const owner = identity(request)
+    const body = parse(z.object({ id: z.string(), confirm: z.boolean().default(false) }).strict(), request.body)
+    const result = await connections.close(owner, body.id, body.confirm)
+    for (const job of active.values()) if (job.connection === body.id) { job.controller.abort('user'); await job.done }
+    recordRead(request, owner.user, 'ssh-connection-close', body.id)
+    return result
+  })
+  registerSshAudit(app, db, options.authorizeAdmin, recordRead, prune, view)
   const reconcile = async () => {
+    await connections.reconcile()
     for (const job of active.values()) {
       try { job.guard() } catch { job.controller.abort(); await job.done }
     }
@@ -238,6 +315,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
   app.addHook('preClose', async () => {
     clearInterval(monitor)
     clearInterval(retention)
+    await connections.shutdown()
     for (const job of active.values()) job.controller.abort()
     await Promise.allSettled([...active.values()].map(job => job.done))
   })

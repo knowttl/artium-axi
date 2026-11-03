@@ -18,6 +18,7 @@ import { createCredentialStore, openStore } from '../../dist/src/server/store/db
 import { ProviderCredentials } from '../../dist/src/server/store/provider-credentials.js'
 import { SshHosts } from '../../dist/src/server/store/ssh-hosts.js'
 import { EnvironmentKeyProvider } from '../../dist/src/server/store/key-provider.js'
+import { encryptCredential } from '../../dist/src/server/store/crypto.js'
 import { seedToolUser } from '../../dist/test/fixtures/tokens.js'
 import { EmbeddedSecretSource } from '../../dist/src/server/store/secret-source.js'
 import { createFalconAdapter } from '../../dist/src/server/adapters/falcon.js'
@@ -68,7 +69,8 @@ let callbackCookies
 const server = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), adapters,
   ...(process.env.ARTIUM_TEST_SSO === '1' ? { ssoFetch: (...args) =>
     (args[0].startsWith('https://generic.example/') ? genericSso : sso).fetch(...args) } : {}),
-  credentialStore: store, sshHosts: new SshHosts(db, key), providerCredentials: new ProviderCredentials(db, key), resolver: new SharedIdentityResolver(store), environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' } })
+  credentialStore: store, sshHosts: new SshHosts(db, key), sshExecution: { provider: key, writeLog: join(directory, 'ssh-writes.log') },
+  providerCredentials: new ProviderCredentials(db, key), resolver: new SharedIdentityResolver(store), environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' } })
 let offset = 0
 const realNow = Date.now.bind(Date)
 Date.now = () => realNow() + offset
@@ -132,6 +134,17 @@ server.post('/test/audit', async () => {
     userId: 'synthetic-ordinary', tool: 'falcon-axi', requestId: 'synthetic-run-' + id, clientAddress: '192.0.2.1',
     args: ['read', '--password=CANARY-audit-secret'], sensitive: { flags: ['--password'], positions: [] } })
   return { seeded: 103 }
+})
+server.post('/test/ssh-audit', async () => {
+  const family = db.prepare("SELECT id FROM session_families WHERE user_id='synthetic-development-user' ORDER BY created_at DESC LIMIT 1").get()
+  const sample = '<script>window.syntheticOutputExecuted=true</script>'
+  db.prepare(`INSERT INTO ssh_executions VALUES ('exec_browser_fixture','fixture-browser-key','fixture-input',
+    'synthetic-development-user',?,'synthetic-host','ordinary','fixture-binding','printf synthetic',0,
+    'fixture-request',?,?,'completed',?)`).run(family.id, Date.now(), Date.now(), JSON.stringify({ remoteExit: 0 }))
+  const encrypted = encryptCredential('exec_browser_fixture', 'ssh-axi', Buffer.from(JSON.stringify({ stdout: { text: sample } })), key.getKey())
+  db.prepare(`INSERT INTO ssh_execution_results (id,tool,schema_version,key_id,nonce,ciphertext,authentication_tag,updated_at)
+    VALUES (@id,@tool,@schema_version,@key_id,@nonce,@ciphertext,@authentication_tag,@now)`).run({ ...encrypted, now: Date.now() })
+  return { seeded: true }
 })
 server.post('/test/sso', async () => {
   db.exec(`INSERT INTO users (id, username, display_name, source, must_change)

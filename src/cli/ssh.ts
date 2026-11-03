@@ -3,7 +3,8 @@ import { constants, closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, open
 import { dirname, join, parse } from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import { setTimeout } from 'node:timers/promises'
-import { parseArguments } from '../../tools/node_modules/@knowttl/ssh-axi/dist/arguments.js'
+import { commands, parseArguments } from '../../tools/node_modules/@knowttl/ssh-axi/dist/arguments.js'
+import { z } from 'zod'
 import { SshError } from '../../tools/node_modules/@knowttl/ssh-axi/dist/errors.js'
 import { sshExecutionStatus, sshPreparation } from '../shared/ssh-execution.js'
 import { ArtiumError } from '../shared/errors.js'
@@ -57,41 +58,67 @@ export async function sshExecution(args: string[], createClient: () => Client, w
   while (['--json', '--help'].includes(args[prefix])) prefix++
   if (args.includes('--help') && prefix === args.length) {
     const value = { usage: 'artium-axi ssh-axi <command> [flags]', commands: ['host list', 'host show <host>', 'doctor <host>',
-      'exec <host> --command <text> --confirm', 'execution show [<id> | --request-key <key>]'],
+      'exec <host> --command <text> --confirm [--connection <id>]', 'execution list', 'execution show [<id> | --request-key <key>]',
+      'execution cancel <id> --confirm', 'connection open <host>', 'connection list', 'connection show <id>',
+      'connection set <id> --idle-timeout <duration>', 'connection close <id> [--confirm]'],
     help: ['Writes default off and require a writable host and caller grants. Use each command with --help.',
       'Recover with execution show after an interrupted submission. No automatic replay.'] }
     write((args.includes('--json') ? JSON.stringify(value) : encode(value)) + '\n')
     return true
   }
   const command = args[prefix] === 'exec' ? 'exec' : args.slice(prefix, prefix + 2).join(' ')
-  if (!['exec', 'execution show'].includes(command)) return false
-  const flags = command === 'exec' ? '--command, --confirm, --timeout 1s-600s (default 60s), --output-limit 0-1048576 (default 65536), --sudo, --detach, --request-key, --json, --help' : '--request-key, --json, --help'
+  if (!(command === 'exec' || command.startsWith('execution ') || command.startsWith('connection '))) return false
+  const flags = ['--json', '--help', ...Object.keys(commands[command]?.flags ?? {}).map(flag => `--${flag}`)].join(', ')
   let parsed: ReturnType<typeof parseArguments>
   try { parsed = parseArguments(args) }
   catch (error) { if (error instanceof SshError) throw new ArtiumError('INVALID_INPUT', 'Invalid SSH execution arguments.', `Valid flags: ${flags}. Every exec requires <host> --command <text> --confirm.`); throw error }
-  if (parsed.config !== undefined || command !== 'exec' && parsed.profile !== undefined || parsed.values.connection || parsed.values.full) throw new ArtiumError('FLAG_BLOCKED')
+  if (parsed.config !== undefined || command !== 'exec' && parsed.profile !== undefined) throw new ArtiumError('FLAG_BLOCKED')
   const print = (value: Record<string, unknown>) => write((parsed.json ? JSON.stringify(value) : encode(value)) + '\n')
   if (parsed.help) {
-    print({ usage: command === 'exec' ? 'artium-axi ssh-axi exec <host> --command <text> --confirm [flags]' : 'artium-axi ssh-axi execution show [<id> | --request-key <key>]',
+    print({ usage: command === 'exec' ? 'artium-axi ssh-axi exec <host> --command <text> --confirm [flags]'
+      : command === 'execution show' ? 'artium-axi ssh-axi execution show [<id> | --request-key <key>] [--full]'
+        : `artium-axi ssh-axi ${command}${commands[command]?.arguments ? command === 'connection open' ? ' <host>' : ' <id>' : ''} [flags]`,
       flags,
       help: ['Writes default off and require a writable host and caller grants. Every arbitrary command needs --confirm.',
         'Managed output samples retain at most 8192 bytes per stream. No automatic resubmission or replay.',
         'A private command-free receipt is saved before submission. execution show without an ID recovers it.',
-        'Reusable connections and cancellation remain unavailable.'] })
+        'Connections are owned by one user and session, expire after 10 minutes idle by default, and never reconnect automatically.',
+        'Use --confirm to cancel an execution or close an active connection. Audit reads and metadata exports are at /admin/ssh/audit.'] })
     return true
   }
   if (command === 'exec' && (typeof parsed.values.command !== 'string' || parsed.values.confirm !== true)) throw new ArtiumError('INVALID_INPUT', 'Every arbitrary command requires --command <text> --confirm.')
+  if (command === 'execution cancel' && parsed.values.confirm !== true) throw new ArtiumError('INVALID_INPUT', 'Cancellation requires --confirm.')
+  const idleValue = parsed.values['idle-timeout'] ?? '10m'
+  const idle = typeof idleValue === 'string' && /^\d+m?$/.test(idleValue) ? Number(idleValue.replace(/m$/, '')) : NaN
+  if (['connection open', 'connection set'].includes(command) && (!Number.isInteger(idle) || idle < 1 || idle > 60
+    || command === 'connection set' && parsed.values['idle-timeout'] === undefined)) throw new ArtiumError('INVALID_INPUT', 'Use --idle-timeout 1m-60m within the host ceiling.')
   const client = createClient()
+  if (command.startsWith('connection ') || ['execution list', 'execution cancel'].includes(command)) {
+    const action = command.split(' ')[1]
+    const route = command.startsWith('connection ') ? `connection/${action}` : action === 'list' ? 'list' : 'cancel'
+    const payload = action === 'list' ? {} : action === 'open' ? { host: parsed.id, idle, sudo: parsed.values.sudo === true }
+      : action === 'set' ? { id: parsed.id, idle } : action === 'show' ? { id: parsed.id }
+        : { id: parsed.id, confirm: parsed.values.confirm === true }
+    print(z.record(z.string(), z.unknown()).parse(await client.authenticated(`/v1/ssh/${route}`, 'POST', payload)))
+    return true
+  }
   if (command === 'execution show') {
     const requestKey = parsed.values['request-key'] ?? (!parsed.id ? receipt(client).requestKey : undefined)
-    print(sshExecutionStatus.parse(await client.authenticated('/v1/ssh/show', 'POST', requestKey ? { requestKey } : { id: parsed.id })))
+    print(sshExecutionStatus.parse(await client.authenticated('/v1/ssh/show', 'POST', { ...(requestKey ? { requestKey } : { id: parsed.id }), full: parsed.values.full === true })))
     return true
   }
   if (process.platform === 'win32') throw new ArtiumError('SESSION_STORAGE_UNAVAILABLE', 'Native Windows SSH receipt custody is pending.')
   const input = { host: parsed.id!, command: parsed.values.command, confirm: true,
-    timeout: parsed.timeout, outputLimit: parsed.outputLimit, sudo: parsed.values.sudo === true }
+    timeout: parsed.timeout, outputLimit: parsed.outputLimit, sudo: parsed.values.sudo === true,
+    ...(parsed.values.connection ? { connection: parsed.values.connection } : {}) }
   let interrupted = false
-  const interrupt = () => { interrupted = true }
+  let executionId: string | undefined
+  let cancelling: Promise<unknown> | undefined
+  const interrupt = () => {
+    interrupted = true
+    if (executionId && !cancelling) cancelling = client.authenticated('/v1/ssh/cancel', 'POST', { id: executionId, confirm: true })
+    void cancelling?.catch(() => {})
+  }
   process.on('SIGINT', interrupt)
   try {
     const prepared = parsed.values['request-key'] ? { requestKey: String(parsed.values['request-key']), host: input.host }
@@ -104,8 +131,14 @@ export async function sshExecution(args: string[], createClient: () => Client, w
       if (error instanceof ArtiumError) throw new ArtiumError(error.code, error.message, 'Recover with artium-axi ssh-axi execution show. No submission was retried.')
       throw error
     }
+    executionId = result.id
+    if (interrupted) interrupt()
     while (!parsed.values.detach && !interrupted && result.outcome === 'running') {
       await setTimeout(200)
+      result = sshExecutionStatus.parse(await client.authenticated('/v1/ssh/show', 'POST', { id: result.id }))
+    }
+    if (interrupted) {
+      await cancelling
       result = sshExecutionStatus.parse(await client.authenticated('/v1/ssh/show', 'POST', { id: result.id }))
     }
     print(result)

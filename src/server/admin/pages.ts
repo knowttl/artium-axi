@@ -19,7 +19,7 @@ import { credentialCertificates } from '../store/trusted-certificates.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 
 const settingsGuide = {
-  'ssh-axi': 'Writes default off. Confirmed execution additionally requires a writable host and current caller grants; sudo needs its distinct approved account and credential. Receipts prevent replay and execution show recovers a result. Reusable connections and cancellation remain unavailable.',
+  'ssh-axi': 'Writes default off. Confirmed execution additionally requires a writable host and current caller grants; sudo needs its distinct approved account and credential. Receipts prevent replay and execution show recovers a result. Reusable connections belong to one user and session. Audit reads and metadata exports are available at /admin/ssh/audit.',
   'technitium-axi': 'The pinned Technitium package is read-only. Use {}. Protected results expire after five minutes and require the same user, current tool grant and credential revision.',
   'gitea-axi': 'Writes default off. Use Allow writes and select exact native operation IDs, then require caller preview and confirmation. Secret values use protected --input; opaque attachments use --file or --attach and managed download grants. Local workflows remain unavailable.',
   'kubernetes-axi': 'Writes default off. Use {"allowWrites": true} for native prepare, offline preview, exact-digest confirmation and explicit server-dry-run. Bulk deletion additionally requires {"collectionDelete": true}. Saving write settings invalidates earlier prepared requests. File inputs, execution, credential issuance and streaming sessions remain unavailable.',

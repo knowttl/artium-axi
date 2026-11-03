@@ -65,7 +65,7 @@ function decode(bytes: Buffer, truncated: boolean): string {
 
 // One server owns one runner. Admission covers setup, child execution and cleanup.
 export class Runner {
-  private readonly active = new Map<symbol, { userId: string, controller: AbortController, result: Promise<RunnerResult> }>()
+  private readonly active = new Map<symbol, { userId: string, controller: AbortController, result: Promise<unknown> }>()
   private closed = false
   private readonly queue: { userId: string, admit: () => void, reject: (code: 'CANCELLED' | 'RUNNER_CLOSED' | 'TOO_MANY_CALLS') => void }[] = []
 
@@ -101,18 +101,36 @@ export class Runner {
     } catch (error) {
       return Promise.reject(error)
     }
+    return this.runManaged(userId, limits.signal, async signal => {
+      const custody = limits.falconRtrDevice ? await acquireFalconRtrLock(this.root,
+        executable === process.execPath ? args[0] : executable, limits.falconRtrDevice) : undefined
+      try { return await execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input, files, beforeSpawn, this.trustedCa, pathPrefix) }
+      finally { custody?.close() }
+    })
+  }
+
+  runManaged<T>(userId: string, signal: AbortSignal | undefined, operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    if (!userId) return Promise.reject(new TypeError('An authenticated user is required'))
     if (this.closed) return Promise.reject(new RunnerError('RUNNER_CLOSED'))
-    if (limits.signal?.aborted) return Promise.reject(new RunnerError('CANCELLED'))
-    return new Promise<RunnerResult>((resolve, reject) => {
+    if (signal?.aborted) return Promise.reject(new RunnerError('CANCELLED'))
+    return new Promise<T>((resolve, reject) => {
       const cleanup = () => {
         clearTimeout(timer)
-        limits.signal?.removeEventListener('abort', cancel)
+        signal?.removeEventListener('abort', cancel)
       }
       const pending = {
         userId,
         admit: () => {
           cleanup()
-          resolve(this.start(userId, executable, args, environment, secrets, limits, input, files, beforeSpawn, pathPrefix))
+          const key = Symbol()
+          const controller = new AbortController()
+          const combined = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal
+          const result = Promise.resolve().then(() => operation(combined)).finally(() => {
+            this.active.delete(key)
+            this.drain()
+          })
+          this.active.set(key, { userId, controller, result })
+          resolve(result)
         },
         reject: (code: 'CANCELLED' | 'RUNNER_CLOSED' | 'TOO_MANY_CALLS') => {
           cleanup()
@@ -123,28 +141,10 @@ export class Runner {
       }
       const cancel = () => pending.reject('CANCELLED')
       const timer = setTimeout(() => pending.reject('TOO_MANY_CALLS'), runnerLimits.admissionWaitMs)
-      limits.signal?.addEventListener('abort', cancel, { once: true })
+      signal?.addEventListener('abort', cancel, { once: true })
       this.queue.push(pending)
       this.drain()
     })
-  }
-
-  private start(userId: string, executable: string, args: readonly string[], environment: Readonly<Record<string, string>>, secrets: readonly string[], limits: RunnerLimits, input: RunnerInput, files: readonly TemporaryFile[], beforeSpawn?: () => void, pathPrefix?: string): Promise<RunnerResult> {
-    const key = Symbol()
-    const controller = new AbortController()
-    const signal = limits.signal ? AbortSignal.any([limits.signal, controller.signal]) : controller.signal
-    const result = (async () => {
-      const custody = limits.falconRtrDevice ? await acquireFalconRtrLock(this.root,
-        executable === process.execPath ? args[0] : executable, limits.falconRtrDevice) : undefined
-      try { return await execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input, files, beforeSpawn, this.trustedCa, pathPrefix) }
-      finally { custody?.close() }
-    })()
-      .finally(() => {
-        this.active.delete(key)
-        this.drain()
-      })
-    this.active.set(key, { userId, controller, result })
-    return result
   }
 
   async shutdown(): Promise<void> {

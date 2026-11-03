@@ -9,6 +9,7 @@ import { Runner } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { SshHosts } from '../../src/server/store/ssh-hosts.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
+import { encryptCredential } from '../../src/server/store/crypto.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 
@@ -130,4 +131,87 @@ test('unused preparation expires without creating a dispatch claim', async () =>
   const response = await post('submit', { requestKey: prepared.json().requestKey, input })
   expect(response.json().error.code).toBe('INVALID_INPUT')
   expect(db.prepare('SELECT * FROM ssh_executions').all()).toEqual([])
+})
+
+test('empty connection discovery works while writes are disabled', async () => {
+  const response = await post('connection/list', {})
+  expect(response.statusCode).toBe(200)
+  expect(response.json()).toEqual({ connections: [], count: 0, message: 'No open connections found for this caller.' })
+})
+
+test.each([
+  { host: 'synthetic-host', idle: 0 },
+  { host: 'synthetic-host', idle: 61 },
+  { host: 'synthetic-host', username: 'injected-account' },
+  { host: 'synthetic-host', privateKey: 'CANARY-injected-key' },
+])('connection admission refuses invalid input before opening a transport: %j', async value => {
+  const response = await post('connection/open', value)
+  expect(response.json().error.code).toBe('INVALID_INPUT')
+})
+
+test('connection admission requires a current host grant without generic credentials', async () => {
+  expect((await post('connection/open', { host: 'synthetic-host' })).json().error.code).toBe('NOT_FOUND')
+})
+
+test('connection reads retain the normal tool role denial', async () => {
+  db.exec("DELETE FROM role_tools WHERE tool='ssh-axi'")
+  expect((await post('connection/list', {})).json().error.code).toBe('TOOL_NOT_GRANTED')
+})
+
+test('cancellation requires explicit confirmation before looking up an execution', async () => {
+  expect((await post('cancel', { id: 'missing', confirm: false })).json().error.code).toBe('INVALID_INPUT')
+})
+
+const sample = '<script>synthetic-untrusted-output</script>'
+function retain() {
+  provision()
+  const family = db.prepare('SELECT id FROM session_families WHERE user_id=?').get('synthetic-development-user') as { id: string }
+  const metadata = JSON.stringify({ stdout: { receivedBytes: sample.length, retainedBytes: sample.length, text: '' }, remoteExit: 0 })
+  db.prepare(`INSERT INTO ssh_executions VALUES ('exec_fixture','fixture-key','fixture-input',? ,? ,'synthetic-host',
+    'ordinary','fixture-binding','printf synthetic',0,'fixture-request',?,?,'completed',?)`)
+    .run('synthetic-development-user', family.id, Date.now(), Date.now(), metadata)
+  const encrypted = encryptCredential('exec_fixture', 'ssh-axi', Buffer.from(JSON.stringify({ stdout: { text: sample, receivedBytes: sample.length, retainedBytes: sample.length } })), provider.getKey())
+  db.prepare(`INSERT INTO ssh_execution_results (id,tool,schema_version,key_id,nonce,ciphertext,authentication_tag,updated_at)
+    VALUES (@id,@tool,@schema_version,@key_id,@nonce,@ciphertext,@authentication_tag,@now)`).run({ ...encrypted, now: Date.now() })
+}
+
+test('execution list returns owned metadata without output samples', async () => {
+  retain()
+  const response = await post('list', {})
+  expect(response.json().executions).toEqual([{ id: 'exec_fixture', host: 'synthetic-host', outcome: 'completed', startedAt: expect.any(String) }])
+  expect(response.body).not.toContain(sample)
+})
+
+test('retained output expires independently of command metadata', async () => {
+  retain()
+  db.prepare('UPDATE ssh_execution_results SET updated_at=?').run(Date.now() - 14 * 86400000)
+  const response = await post('show', { id: 'exec_fixture', full: true })
+  expect(response.json()).toMatchObject({ command: 'printf synthetic', samples: 'unavailable-or-expired', stdout: { receivedBytes: sample.length } })
+  expect(response.body).not.toContain('synthetic-untrusted-output')
+})
+
+test('expired execution metadata is removed rather than exposed through recovery', async () => {
+  retain()
+  db.prepare('UPDATE ssh_executions SET finished_at=?').run(Date.now() - 90 * 86400000)
+  expect((await post('show', { id: 'exec_fixture' })).json().error.code).toBe('NOT_FOUND')
+})
+
+test('retained audit reads require the existing administrator capability', async () => {
+  const response = await app.inject({ url: '/v1/admin/ssh/audit', headers })
+  expect(response.json().error.code).toBe('ADMIN_REQUIRED')
+})
+
+test('administrator export contains metadata and records every read without exporting samples', async () => {
+  retain()
+  db.exec('UPDATE users SET administrator=1')
+  const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+  const proof = { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }
+  const inspected = await app.inject({ url: '/v1/admin/ssh/audit', headers: proof })
+  expect(inspected.json().executions[0].stdout.text).toBe(sample)
+  const exported = await app.inject({ url: '/v1/admin/ssh/audit/export', headers: proof })
+  expect(exported.json().executions[0]).toMatchObject({ id: 'exec_fixture', command: 'printf synthetic', samples: 'omitted' })
+  expect(exported.json().executions[0].stdout).not.toHaveProperty('text')
+  expect(exported.body).not.toContain('synthetic-untrusted-output')
+  expect(db.prepare("SELECT action FROM audit WHERE action IN ('ssh-audit-read','ssh-audit-export') ORDER BY id").all())
+    .toEqual([{ action: 'ssh-audit-read' }, { action: 'ssh-audit-export' }])
 })

@@ -231,7 +231,13 @@ Every arbitrary command requires `--confirm`, including commands intended only t
 `--timeout 30s` selects a deadline from 1s to 600s, default 60s, within the host ceiling.
 `--output-limit <bytes>` accepts 0-1048576, default 65536, within the host ceiling; managed output samples have a separate [retention cap](runbook.md#ssh-execution-recovery-and-retention).
 By default the CLI waits for a terminal result; `--detach` returns the current execution status after submission.
-Ctrl-C stops waiting without canceling the remote command.
+Ctrl-C requests cancellation of the accepted execution; local teardown does not prove remote descendants stopped.
 Use `artium-axi ssh-axi execution show` to inspect the latest local receipt, `execution show <id>` for a known execution or `execution show --request-key <key>` for a saved request key.
 See [SSH recovery and retention](runbook.md#ssh-execution-recovery-and-retention) before acting on an interrupted or uncertain result.
-Use `--json` for JSON status and `--help` on either execution command for accepted flags.
+Use `--json` for JSON status and `--help` on each command for accepted flags.
+Use `execution list` for retained jobs and `execution cancel <id> --confirm` to request cancellation.
+Use `connection open <host> [--idle-timeout 10m] [--sudo]`, `connection list`, `connection show <id>` and `connection set <id> --idle-timeout 5m` for reusable transports.
+Select a transport with `exec <host> --connection <id> --command <text> --confirm`; it must match the host and ordinary/sudo binding.
+`connection close <id>` closes an idle transport; active work additionally requires `--confirm`.
+Connections never reconnect automatically, and commands without `--connection` retain one-shot execution.
+See the [connection capability boundary](safety.md#ssh-reads) for idle-timeout bounds, expiry and capacity limits.

@@ -368,9 +368,68 @@
         "output-limit": "string",
         "detach": "boolean",
         "request-key": "string",
-        "sudo": "boolean"
+        "sudo": "boolean",
+        "connection": "string"
       },
       "effect": "write"
+    },
+    {
+      "command": "connection open",
+      "arguments": 1,
+      "flags": {
+        "help": "boolean",
+        "json": "boolean",
+        "idle-timeout": "string",
+        "sudo": "boolean"
+      },
+      "effect": "read"
+    },
+    {
+      "command": "connection list",
+      "arguments": 0,
+      "flags": {
+        "help": "boolean",
+        "json": "boolean"
+      },
+      "effect": "read"
+    },
+    {
+      "command": "connection show",
+      "arguments": 1,
+      "flags": {
+        "help": "boolean",
+        "json": "boolean"
+      },
+      "effect": "read"
+    },
+    {
+      "command": "connection set",
+      "arguments": 1,
+      "flags": {
+        "help": "boolean",
+        "json": "boolean",
+        "idle-timeout": "string"
+      },
+      "effect": "read"
+    },
+    {
+      "command": "connection close",
+      "arguments": 1,
+      "flags": {
+        "help": "boolean",
+        "json": "boolean",
+        "confirm": "boolean"
+      },
+      "effect": "write"
+    },
+    {
+      "command": "execution list",
+      "arguments": 0,
+      "flags": {
+        "help": "boolean",
+        "json": "boolean"
+      },
+      "effect": "read"
     },
     {
       "command": "execution show",
@@ -378,14 +437,25 @@
       "flags": {
         "help": "boolean",
         "json": "boolean",
-        "request-key": "string"
+        "request-key": "string",
+        "full": "boolean"
       },
       "effect": "read"
+    },
+    {
+      "command": "execution cancel",
+      "arguments": 1,
+      "flags": {
+        "help": "boolean",
+        "json": "boolean",
+        "confirm": "boolean"
+      },
+      "effect": "write"
     }
   ],
   "adapterBoundary": {
     "credentials": "Dedicated encrypted SSH credentials and caller-filtered ordinary host bindings only.",
-    "writes": "Confirmed one-shot execution uses signed preparations and durable claims; Allow writes, writable hosts and caller grants are required. Sudo uses a distinct approved account and credential. Reusable connections and cancellation are not admitted."
+    "writes": "Confirmed execution uses signed preparations and durable claims; Allow writes, writable hosts and caller grants are required. Sudo uses a distinct approved account and credential. Reusable connections belong to one caller and session, never reconnect automatically, and require confirmation to close active work."
   },
   "requirements": {
     "timeoutMs": 17000,
@@ -397,12 +467,19 @@
       "host show",
       "doctor",
       "exec",
-      "execution show"
+      "connection open",
+      "connection list",
+      "connection show",
+      "connection set",
+      "connection close",
+      "execution list",
+      "execution show",
+      "execution cancel"
     ],
     "example": [
       "host",
       "list"
     ],
-    "help": "Discover granted SSH hosts with host list, host show <host> and doctor <host>.\nDoctor authenticates without remote execution.\nUse exec <host> --command <text> --confirm for arbitrary commands; writes default off and require a writable host and caller grants.\nSudo additionally requires its separate approved account, credential and caller grant.\nA private command-free receipt is saved before submission; execution show without an ID recovers it. No automatic replay.\nCommands have a 1-600 second deadline and retain at most 8192 bytes per output stream for 14 days, encrypted; sanitized command metadata is retained for 90 days.\nAdministrators manage independently verified hosts and encrypted keys at /admin/ssh.\nCredentials, endpoints and trust cannot be overridden in arguments. Reusable connections, cancellation and audit exports remain unavailable.\n"
+    "help": "Discover granted SSH hosts with host list, host show <host> and doctor <host>.\nDoctor authenticates without remote execution.\nUse exec <host> --command <text> --confirm for arbitrary commands; writes default off and require a writable host and caller grants.\nSudo additionally requires its separate approved account, credential and caller grant.\nA private command-free receipt is saved before submission; execution show without an ID recovers it. No automatic replay.\nUse execution list, execution show <id> --full and execution cancel <id> --confirm for retained jobs.\nUse connection open/list/show/set/close and exec --connection <id> for owned reusable transports; no automatic reconnection.\nConnections allow one active command, default to 10 minutes idle within the host ceiling, and have an 8-hour maximum age, four per user and sixteen globally.\nCommands have a 1-600 second deadline and retain at most 8192 bytes per output stream for 14 days, encrypted; sanitized command metadata is retained for 90 days.\nAdministrators manage independently verified hosts and encrypted keys at /admin/ssh and inspect or export retained metadata at /admin/ssh/audit.\nCredentials, endpoints and trust cannot be overridden in arguments. Native Windows protected-file custody remains unavailable.\n"
   }
 }

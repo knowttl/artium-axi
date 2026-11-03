@@ -509,6 +509,23 @@ test('SSH write permissions default off and save without creating shared credent
   `)
 })
 
+test('SSH audit escapes retained output and exports only recorded metadata', async () => {
+  assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/ssh-audit'), { method: 'POST' })).status, 200)
+  chrome(['resize', '420', '900'])
+  browser(`
+    await page.open(base + '/admin/ssh/audit');
+    await page.wait('main');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('<script>window.syntheticOutputExecuted=true</script>')), 'Retained output was not displayed as text');
+    check(await page.eval(() => window.syntheticOutputExecuted !== true), 'Untrusted output executed');
+    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'SSH audit overflows at 420px');
+    const exported = await page.eval(async () => await (await fetch('/v1/admin/ssh/audit/export')).json());
+    check(exported.executions[0].id === 'exec_browser_fixture' && exported.executions[0].samples === 'omitted', 'Metadata export missing');
+    check(!JSON.stringify(exported).includes('syntheticOutputExecuted'), 'Metadata export included output');
+    const actions = await page.eval(async () => (await (await fetch('/v1/admin/audit?event=admin-change')).json()).records.map(row => row.action));
+    check(actions.includes('ssh-audit-read') && actions.includes('ssh-audit-export'), 'Audit read or export was not recorded');
+  `)
+})
+
 test('Kubernetes certificate editor saves separate fields and requires a key when the certificate changes', () => {
   browser(`
     await page.open(base + '/admin/tools/kubernetes-axi?tab=credential');

@@ -19,7 +19,7 @@ export function verifySshArtifact(executable: string): void {
 }
 export const sshWritePolicy = writePolicy({
   unlocks: 'Confirmed one-shot execution requires Allow writes, a writable host and current caller grants. Sudo additionally requires its distinct approved account and credential.',
-  blocked: 'Reusable connections, cancellation and audit exports remain unavailable. Credentials and host trust cannot be overridden in arguments.' })
+  blocked: 'Credentials and host trust cannot be overridden in arguments. No automatic reconnection or replay; interactive SSH channels and forwarding are unavailable.' })
 
 function invocation(args: readonly string[], input?: RunnerInput) {
   if (input?.stdin !== undefined || input?.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')

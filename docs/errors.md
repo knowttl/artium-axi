@@ -10,6 +10,8 @@ Azure token-acquisition diagnostics retain supported provider codes.
 
 | Code | Source | HTTP | CLI exit | Message | Next step |
 |---|---|---|---|---|---|
+| CONNECTION_BUSY | artium-axi | 409 | 1 | An SSH command is already active on this connection. | Inspect its execution before submitting another command, or explicitly open another connection. |
+| CONNECTION_CLOSED | artium-axi | 409 | 1 | The selected SSH connection is closed or expired. | Inspect remote state before explicitly opening another connection; no reconnection or command replay occurred. |
 | STORE_SCHEMA_INVALID | artium-axi | 503 | 1 | The store schema is unsupported by this image. | Use the matching image, or restore the pre-upgrade backup into a new volume with its matching image and key. |
 | BACKUP_FAILED | artium-axi | 500 | 1 | Database backup did not complete. | Check the source store and a writable backup directory; choose a new output file. |
 | RESTORE_FAILED | artium-axi | 500 | 1 | Database restore did not complete. | Stop the destination server and use an empty new data volume, an intact backup and its matching master key. |

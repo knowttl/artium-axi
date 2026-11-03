@@ -1,15 +1,17 @@
 import assert from 'node:assert/strict'
 import { decode } from '@toon-format/toon'
-import { spawn } from 'node:child_process'
+import { spawn, ChildProcess } from 'node:child_process'
 import { EventEmitter, once } from 'node:events'
 import { generateKeyPairSync } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { lstatSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { queryObjects } from 'node:v8'
 import type { ParsedKey, Connection } from 'ssh2'
 import { createSshAdapter } from '../../src/server/adapters/ssh.js'
 import { Runner } from '../../src/server/runner/runner.js'
+import { SecretScanner } from '../../src/server/runner/scan.js'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
@@ -166,7 +168,8 @@ try {
   assert.equal(counts.transports, before)
   const help = await invoke(['--help', '--json'])
   assert.equal(help.json().exitCode, 0, help.body)
-  assert.deepEqual(JSON.parse(help.json().stdout).commands, ['host list', 'host show', 'doctor', 'exec', 'execution show'])
+  assert.deepEqual(JSON.parse(help.json().stdout).commands, ['host list', 'host show', 'doctor', 'exec',
+    'connection open', 'connection list', 'connection show', 'connection set', 'connection close', 'execution list', 'execution show', 'execution cancel'])
   assert.doesNotMatch(help.json().stdout, /--config|--profile/)
   const authenticationCount = counts.usernames.length
   db.prepare('UPDATE ssh_hosts SET approved_host_keys = ? WHERE id = ?').run(JSON.stringify([`${sudo.type} ${sudo.getPublicSSH().toString('base64')}`]), 'granted')
@@ -181,6 +184,8 @@ try {
   await saveKey('ordinary-key', sudoKey)
   const failedOrdinary = await invoke(['doctor', 'granted', '--json'])
   assert.notEqual(failedOrdinary.json().exitCode, 0, failedOrdinary.body)
+  const failedConnection = await app.inject({ method: 'POST', url: '/v1/ssh/connection/open', headers, payload: { host: 'granted' } })
+  assert.equal(failedConnection.json().error.code, 'UPSTREAM_AUTH_FAILED', failedConnection.body)
   assert.ok(counts.usernames.every(username => username === 'ordinary'))
   assert.equal(counts.channels, 0)
   const occupyRunner = () => Array.from({ length: runnerLimits.globalCalls }, (_, index) => {
@@ -257,6 +262,133 @@ try {
   const otherLogin = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })
   const other = { authorization: `Bearer ${otherLogin.json().accessToken}` }
   assert.equal((await execution('show', { id: completed.id }, other)).json().error.code, 'NOT_FOUND')
+  const openConnection = async (extra: Record<string, unknown> = {}, identity = headers) => {
+    const response = await execution('connection/open', { host: 'granted', ...extra }, identity)
+    assert.equal(response.statusCode, 200, response.body)
+    return response.json() as { id: string, state: string, expiresAt: string }
+  }
+  const closeConnection = async (id: string, identity = headers, confirm = false) => {
+    const response = await execution('connection/close', { id, confirm }, identity)
+    assert.equal(response.statusCode, 200, response.body)
+    assert.equal(response.json().state, 'closed')
+  }
+  // R4: retain closed metadata, but release the real worker and its secret scanner at close.
+  const retainedResources = () => ({ workers: queryObjects(ChildProcess, { format: 'count' }) as number,
+    scanners: queryObjects(SecretScanner, { format: 'count' }) as number })
+  await new Promise<void>(resolve => setImmediate(resolve))
+  const retainedBefore = retainedResources()
+  const reusable = await openConnection()
+  assert.deepEqual(retainedResources(),
+    { workers: retainedBefore.workers + 1, scanners: retainedBefore.scanners + 1 })
+  const reusedTransport = counts.transports
+  const firstReuse = await finish(await submit(await prepare('id', { connection: reusable.id })))
+  const secondReuse = await finish(await submit(await prepare('printf synthetic', { connection: reusable.id })))
+  assert.equal(firstReuse.connectionId, reusable.id)
+  assert.equal(secondReuse.outcome, 'completed')
+  assert.equal(counts.transports, reusedTransport)
+  assert.equal((await execution('connection/show', { id: reusable.id }, other)).json().error.code, 'NOT_FOUND')
+  assert.deepEqual((await execution('connection/list', {}, other)).json().connections, [])
+  const remoteStarted = once(events, 'command', { signal: AbortSignal.timeout(20000) })
+  const held = await submit(await prepare('synthetic-hold', { connection: reusable.id }))
+  await remoteStarted
+  const activeView = await execution('connection/show', { id: reusable.id })
+  assert.equal(Date.parse(activeView.json().expiresAt) - Date.parse(activeView.json().openedAt), 8 * 3600000)
+  const claimedBeforeBusy = db.prepare('SELECT count(*) AS count FROM ssh_executions').get()
+  const busy = await execution('prepare', { ...input, connection: reusable.id })
+  assert.equal(busy.json().error.code, 'CONNECTION_BUSY')
+  assert.deepEqual(db.prepare('SELECT count(*) AS count FROM ssh_executions').get(), claimedBeforeBusy)
+  const unconfirmedClose = await execution('connection/close', { id: reusable.id, confirm: false })
+  assert.equal(unconfirmedClose.json().error.code, 'INVALID_INPUT')
+  const cancelled = await execution('cancel', { id: held.id, confirm: true })
+  assert.equal(cancelled.json().outcome, 'cancelled', cancelled.body)
+  assert.equal(cancelled.json().termination, 'unknown')
+  await closeConnection(reusable.id)
+  await closeConnection(reusable.id)
+  await new Promise<void>(resolve => setImmediate(resolve))
+  assert.deepEqual(retainedResources(), retainedBefore,
+    'R4: closed connection metadata must not retain workers, listeners or secret-scanner buffers')
+  assert.equal((await execution('prepare', { ...input, connection: reusable.id })).json().error.code, 'CONNECTION_CLOSED')
+  assert.equal(counts.transports, reusedTransport)
+  const activeClose = await openConnection()
+  const activeStarted = once(events, 'command', { signal: AbortSignal.timeout(20000) })
+  const closedExecution = await submit(await prepare('synthetic-hold', { connection: activeClose.id }))
+  await activeStarted
+  await closeConnection(activeClose.id, headers, true)
+  assert.notEqual((await execution('show', { id: closedExecution.id })).json().outcome, 'running')
+  const sudoConnection = await openConnection({ sudo: true })
+  assert.equal(counts.usernames.at(-1), 'sudo-account')
+  const mismatchedMode = await execution('prepare', { ...input, connection: sudoConnection.id })
+  assert.equal(mismatchedMode.json().error.code, 'NOT_FOUND')
+  const sudoReuse = await finish(await submit(await prepare('id', { connection: sudoConnection.id, sudo: true })))
+  assert.equal(sudoReuse.outcome, 'completed')
+  assert.equal(commands.at(-1), "sudo -n -- /bin/sh -c 'id'")
+  await closeConnection(sudoConnection.id)
+  const realPerformanceNow = performance.now.bind(performance)
+  let clockOffset = 0
+  Object.defineProperty(performance, 'now', { configurable: true, value: () => realPerformanceNow() + clockOffset })
+  try {
+    const expiring = await openConnection()
+    assert.equal((await execution('connection/show', { id: expiring.id })).json().expiresAt, expiring.expiresAt)
+    clockOffset += 61000
+    const shortened = await execution('connection/set', { id: expiring.id, idle: 1 })
+    assert.equal(shortened.json().state, 'closed', shortened.body)
+    const aged = await openConnection()
+    for (let index = 0; index < 53; index++) {
+      clockOffset += 9 * 60000
+      assert.equal((await finish(await submit(await prepare('id', { connection: aged.id })))).outcome, 'completed')
+    }
+    clockOffset += 4 * 60000
+    assert.equal((await execution('connection/show', { id: aged.id })).json().state, 'closed')
+    assert.equal((await execution('connection/list', {})).json().count, 0)
+    const activeAge = await openConnection()
+    const ageStarted = once(events, 'command', { signal: AbortSignal.timeout(20000) })
+    const agedExecution = await submit(await prepare('synthetic-hold', { connection: activeAge.id }))
+    await ageStarted
+    clockOffset += 8 * 3600000
+    assert.equal((await execution('connection/show', { id: activeAge.id })).json().state, 'closed')
+    assert.notEqual((await execution('show', { id: agedExecution.id })).json().outcome, 'running')
+  } finally { Object.defineProperty(performance, 'now', { configurable: true, value: realPerformanceNow }) }
+  const userCapacity = await Promise.all(Array.from({ length: 4 }, () => openConnection()))
+  const userLimit = await execution('connection/open', { host: 'granted' }, other)
+  assert.equal(userLimit.json().error.code, 'TOO_MANY_CALLS')
+  await Promise.all(userCapacity.map(connection => closeConnection(connection.id)))
+  const globalCapacity: { id: string, identity: typeof headers }[] = []
+  try {
+    for (let index = 0; index < 4; index++) {
+      const user = `synthetic-connection-cap-${index}`
+      db.prepare(`INSERT INTO users (id,username,display_name,password_hash,must_change)
+        SELECT ?,?, ?,password_hash,0 FROM users WHERE id='synthetic-development-user'`).run(user, user, user)
+      db.prepare("INSERT INTO user_roles (user_id,role_id) VALUES (?,'synthetic-role')").run(user)
+      db.prepare("INSERT INTO ssh_grants (user_id,host_id,shell,sudo) VALUES (?,'granted',1,0)").run(user)
+      const response = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: user, password: 'CANARY-local-password' } })
+      assert.equal(response.statusCode, 200, response.body)
+      const identity = { authorization: `Bearer ${response.json().accessToken}` }
+      const opened = await Promise.all(Array.from({ length: 4 }, () => openConnection({}, identity)))
+      globalCapacity.push(...opened.map(connection => ({ id: connection.id, identity })))
+    }
+    const globalLimit = await execution('connection/open', { host: 'granted' })
+    assert.equal(globalLimit.json().error.code, 'TOO_MANY_CALLS')
+  } finally { await Promise.all(globalCapacity.map(connection => closeConnection(connection.id, connection.identity))) }
+  const rotatingConnection = await openConnection()
+  await saveKey('ordinary-key', replacement)
+  assert.equal((await execution('connection/show', { id: rotatingConnection.id })).json().state, 'closed')
+  const revokingConnection = await openConnection()
+  await admin('grant', { host: 'granted', user: 'synthetic-development-user', shell: false, sudo: false, expectedRevision: revisions.get('granted') })
+  assert.equal(connections.size, 0)
+  assert.deepEqual(readdirSync(join(directory, 'connections')), [])
+  assert.equal((await execution('connection/show', { id: revokingConnection.id })).json().error.code, 'NOT_FOUND')
+  await admin('grant', { host: 'granted', user: 'synthetic-development-user', shell: true, sudo: true, expectedRevision: revisions.get('granted') })
+  const proof = { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }
+  const auditPage = await app.inject({ url: '/v1/admin/ssh/audit', headers: proof })
+  assert.equal(auditPage.statusCode, 200, auditPage.body)
+  assert.equal(auditPage.json().executions.length, 50)
+  assert.ok(auditPage.json().nextCursor)
+  const older = await app.inject({ url: `/v1/admin/ssh/audit?before=${auditPage.json().nextCursor}`, headers: proof })
+  assert.ok(older.json().executions.some((row: { id: string }) => row.id === completed.id))
+  const exported = await app.inject({ url: '/v1/admin/ssh/audit/export', headers: proof })
+  assert.equal(exported.statusCode, 200, exported.body)
+  assert.doesNotMatch(exported.body, /synthetic-result|CANARY|PRIVATE KEY/)
+  assert.ok(exported.json().executions.every((row: { stdout?: { text?: string } }) => row.stdout?.text === undefined))
   const bounded = await finish(await submit(await prepare('synthetic-output')))
   assert.equal(bounded.stdout.text, 'x'.repeat(8192))
   assert.equal(bounded.stdout.truncated, true)
@@ -287,7 +419,9 @@ try {
   await setWrites(false)
   assert.equal((await execution('show', { id: completed.id })).json().outcome, 'completed')
   assert.equal((await execution('prepare', input)).json().error.code, 'FLAG_BLOCKED')
+  const readOnlyConnection = await openConnection()
   await setWrites(true)
+  assert.equal((await execution('connection/show', { id: readOnlyConnection.id })).json().state, 'closed')
   const queuedBlockers = occupyRunner()
   try {
     await Promise.all(queuedBlockers.map(blocker => blocker.ready))
@@ -305,7 +439,7 @@ try {
   const serverUrl = await app.listen({ host: '127.0.0.1', port: 0 })
   const environment = { ...process.env, ARTIUM_AXI_URL: serverUrl, ARTIUM_AXI_TEST_HTTP: '1', XDG_CONFIG_HOME: join(directory, 'client') }
   new SessionStore(serverUrl, sessionPath(process.platform, environment)).write(otherLogin.json())
-  const cli = (args: string[]) => new Promise<{ code: number | null, value: Record<string, unknown> }>((resolve, reject) => {
+  const cli = (args: string[], onSpawn?: (child: ChildProcess) => void) => new Promise<{ code: number | null, value: Record<string, unknown> }>((resolve, reject) => {
     const child = spawn(process.execPath, ['/work/dist/cli/artium-axi.mjs', 'ssh-axi', ...args, '--json'], { env: environment, stdio: 'pipe' })
     let output = ''; let error = ''
     child.stdout.on('data', chunk => { output += chunk })
@@ -315,6 +449,7 @@ try {
       try { resolve({ code, value: (output.startsWith('{') ? JSON.parse(output) : decode(output)) as Record<string, unknown> }) }
       catch { reject(new Error(`${code}: ${output} ${error}`)) }
     })
+    onSpawn?.(child)
     child.stdin.end()
   })
   const cliResult = await cli(['exec', 'granted', '--command', 'id', '--confirm'])
@@ -336,6 +471,30 @@ try {
   if (recoveredRow.outcome === 'running' && !terminals.has(String(recoveredRow.requestId))) await once(events, String(recoveredRow.requestId), { signal: AbortSignal.timeout(20000) })
   assert.equal((await cli(['execution', 'show'])).value.id, recoveredRow.id)
   assert.equal(counts.commands, beforeRecovery + 1)
+  const cliConnection = await cli(['connection', 'open', 'granted', '--idle-timeout', '1m'])
+  assert.equal(cliConnection.code, 0, JSON.stringify(cliConnection))
+  const cliId = String(cliConnection.value.id)
+  const beforeCliReuse = counts.transports
+  const cliExecution = await cli(['exec', 'granted', '--connection', cliId, '--command', 'id', '--confirm'])
+  assert.equal(cliExecution.value.outcome, 'completed')
+  assert.equal(cliExecution.value.connectionId, cliId)
+  assert.equal(counts.transports, beforeCliReuse)
+  assert.ok(JSON.stringify((await cli(['connection', 'list'])).value).includes(cliId))
+  const cliSet = await cli(['connection', 'set', cliId, '--idle-timeout', '2m'])
+  assert.equal(cliSet.value.idleTimeout, '2m')
+  assert.equal((await cli(['execution', 'show', String(cliExecution.value.id), '--full'])).value.samples, 'available')
+  const cliExecutions = await cli(['execution', 'list'])
+  assert.ok(JSON.stringify(cliExecutions.value).includes(String(cliExecution.value.id)))
+  assert.ok(!JSON.stringify(cliExecutions.value).includes(completed.id))
+  assert.equal((await cli(['connection', 'close', cliId])).value.state, 'closed')
+  assert.equal((await cli(['connection', 'close', cliId])).value.state, 'closed')
+  const interruptAtCommand = once(events, 'command', { signal: AbortSignal.timeout(20000) })
+  const interruptedCli = await cli(['exec', 'granted', '--command', 'synthetic-hold', '--confirm'], child => {
+    void interruptAtCommand.then(() => child.kill('SIGINT'))
+  })
+  assert.equal(interruptedCli.code, 130, JSON.stringify(interruptedCli))
+  assert.equal(interruptedCli.value.outcome, 'cancelled')
+  assert.equal((await cli(['execution', 'cancel', String(interruptedCli.value.id), '--confirm'])).value.outcome, 'cancelled')
   db.exec("DELETE FROM role_tools WHERE tool = 'ssh-axi'")
   const denied = await invoke(['host', 'list'])
   assert.equal(denied.statusCode, 403, denied.body)
@@ -368,7 +527,8 @@ try {
   }
   let server = await launch()
   try {
-    const restartInput = { ...input, command: 'synthetic-hold', timeout: 2 }
+    const persistent = await external(server, 'connection/open', { host: 'granted' })
+    const restartInput = { ...input, command: 'synthetic-hold', timeout: 2, connection: persistent.id }
     const prepared = await external(server, 'prepare', restartInput)
     const started = once(events, 'command', { signal: AbortSignal.timeout(20000) })
     const claimed = await external(server, 'submit', { requestKey: prepared.requestKey, input: restartInput })
@@ -376,6 +536,10 @@ try {
     const beforeRestart = counts.commands
     await stop(server, 'SIGKILL')
     server = await launch()
+    const abandoned = await fetch(`${server.url}/v1/ssh/connection/show`, { method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify({ id: persistent.id }) })
+    assert.equal(abandoned.status, 404)
+    assert.deepEqual(readdirSync(join(directory, 'connections')), [])
     const recovered = await external(server, 'show', { requestKey: prepared.requestKey })
     assert.equal(recovered.id, claimed.id)
     assert.equal(recovered.outcome, 'unknown')
@@ -401,7 +565,9 @@ try {
   console.log(JSON.stringify({ ssh: 'passed', transports: counts.transports, authenticatedAccounts: [...new Set(counts.usernames)], remoteChannels: counts.channels,
     discovery: 'caller-filtered', trust: 'strict', addressSet: 'fixed', sudoFallback: 'refused', credentialCleanup: 'passed',
     administration: 'public-api', keyRotation: 'authenticated', grantRevocation: 'immediate', execution: 'published-runtime',
-    dispatch: 'one per durable key', sudo: 'distinct binding and exact quoting', recovery: 'private CLI receipt, lost response and hard restart', deadline: 'bounded', output: 'encrypted and capped' }))
+    dispatch: 'one per durable key', sudo: 'distinct binding and exact quoting', recovery: 'private CLI receipt, lost response and hard restart',
+    reusable: 'owned, one active command, bounded lifetime and capacity, no reconnection', cancellation: 'API, active close and CLI interrupt',
+    retainedAudit: 'paged metadata-only exports', deadline: 'bounded', output: 'encrypted and capped' }))
 } finally {
   await app.close()
   for (const connection of connections) connection.end()

@@ -4,6 +4,8 @@ export const cliOutdatedUpdateNext = 'Run artium-axi update to install the curre
 export const cliOutdatedDownloadNext = 'Download the current CLI from /cli/artium-axi.mjs on this server, verify it with the SHA-256 checksum at /cli/artium-axi.mjs.sha256, and install it as artium-axi.'
 
 const definitions = {
+  CONNECTION_BUSY: { status: 409, message: 'An SSH command is already active on this connection.', next: 'Inspect its execution before submitting another command, or explicitly open another connection.' },
+  CONNECTION_CLOSED: { status: 409, message: 'The selected SSH connection is closed or expired.', next: 'Inspect remote state before explicitly opening another connection; no reconnection or command replay occurred.' },
   STORE_SCHEMA_INVALID: { status: 503, message: 'The store schema is unsupported by this image.', next: 'Use the matching image, or restore the pre-upgrade backup into a new volume with its matching image and key.' },
   BACKUP_FAILED: { status: 500, message: 'Database backup did not complete.', next: 'Check the source store and a writable backup directory; choose a new output file.' },
   RESTORE_FAILED: { status: 500, message: 'Database restore did not complete.', next: 'Stop the destination server and use an empty new data volume, an intact backup and its matching master key.' },
