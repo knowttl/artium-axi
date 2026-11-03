@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.0.32](https://github.com/knowttl/artium-axi/compare/v0.0.31...v0.0.32) (2026-11-03)
+
+
+### Features
+
+* add hosted SSH discovery and authentication checks ([#282](https://github.com/knowttl/artium-axi/issues/282)) ([fe4aa1d](https://github.com/knowttl/artium-axi/commit/fe4aa1dc2423002857fac8bbdf28fcc78534967a))
+* add Kubernetes tunnels and protected token delivery ([#299](https://github.com/knowttl/artium-axi/issues/299)) ([4d7c07d](https://github.com/knowttl/artium-axi/commit/4d7c07d7e682e06797ae2dc39d3f139638c30878))
+* add managed Kubernetes tool integration ([#280](https://github.com/knowttl/artium-axi/issues/280)) ([d5b7e3f](https://github.com/knowttl/artium-axi/commit/d5b7e3f8f3672469f86cbdb7238849c02e410d5c))
+* add managed Kubernetes workspaces and bounded sessions ([#298](https://github.com/knowttl/artium-axi/issues/298)) ([128e95b](https://github.com/knowttl/artium-axi/commit/128e95b6f70441e76db6fe0398baecb75dbe8fd3))
+* add managed Proxmox sign-in and private results ([#302](https://github.com/knowttl/artium-axi/issues/302)) ([aa3ed39](https://github.com/knowttl/artium-axi/commit/aa3ed399cf235eb96a76628c837bd937606ca2df))
+* add managed Proxmox transfers and duplex streams ([#303](https://github.com/knowttl/artium-axi/issues/303)) ([7855f51](https://github.com/knowttl/artium-axi/commit/7855f518e0649ded9341eaeabbd25cf4eed44053))
+* add managed SSH command execution and recovery ([#295](https://github.com/knowttl/artium-axi/issues/295)) ([a04d1a8](https://github.com/knowttl/artium-axi/commit/a04d1a86311422d330c9236f78d845a03f06444c))
+* add managed Technitium DNS reads and protected results ([#270](https://github.com/knowttl/artium-axi/issues/270)) ([8ddc4e0](https://github.com/knowttl/artium-axi/commit/8ddc4e015495d36f092547e9312de24cb82316d5))
+* add managed UniFi and Proxmox read integrations ([#269](https://github.com/knowttl/artium-axi/issues/269)) ([7cfdcd3](https://github.com/knowttl/artium-axi/commit/7cfdcd35b5088a878f4870108adec7244578d602))
+* add protected AWX token delivery and security administration coverage ([#287](https://github.com/knowttl/artium-axi/issues/287)) ([3a34d23](https://github.com/knowttl/artium-axi/commit/3a34d23ec1d7f5d04b1e240d39d6b22d79665544))
+* add reusable SSH connections, cancellation, and audit exports ([#296](https://github.com/knowttl/artium-axi/issues/296)) ([88482d1](https://github.com/knowttl/artium-axi/commit/88482d1d73c4d9d45013b2698c75400ba95a7030))
+* admit protected Gitea values and managed attachment transfers ([#286](https://github.com/knowttl/artium-axi/issues/286)) ([36230b8](https://github.com/knowttl/artium-axi/commit/36230b8648fc725778acdf8e75ecc5242b2ca1ee))
+* complete AWX flag parity and protected stdout downloads ([#294](https://github.com/knowttl/artium-axi/issues/294)) ([6088e2a](https://github.com/knowttl/artium-axi/commit/6088e2a8779f88fcfa20571ed814eeff1bc34dbc))
+* enable guarded Kubernetes mutation workflows ([#291](https://github.com/knowttl/artium-axi/issues/291)) ([0ee5474](https://github.com/knowttl/artium-axi/commit/0ee54742b16c5253b2e9f14ca8dce2d5d69ef4c0))
+* enable managed Gitea writes and refresh UniFi pin ([#284](https://github.com/knowttl/artium-axi/issues/284)) ([dd47167](https://github.com/knowttl/artium-axi/commit/dd471679adf56ebfe6b6ac3f45f55248cd0f22da))
+* **server:** add dedicated SSH administration ([#293](https://github.com/knowttl/artium-axi/issues/293)) ([92798af](https://github.com/knowttl/artium-axi/commit/92798af5ba8618c3a7b08d6d39983d66b82b2476))
+* **server:** add managed Gitea reads ([#272](https://github.com/knowttl/artium-axi/issues/272)) ([1e81145](https://github.com/knowttl/artium-axi/commit/1e81145159cb74c17a49b4dc3de5113f29f491f5))
+* **server:** migrate Falcon reads to TypeScript ([#274](https://github.com/knowttl/artium-axi/issues/274)) ([d366c3d](https://github.com/knowttl/artium-axi/commit/d366c3d78196c14af1b8a36b900bbbacc0cc46ed))
+* support gated Proxmox writes and durable recovery ([#301](https://github.com/knowttl/artium-axi/issues/301)) ([64285b5](https://github.com/knowttl/artium-axi/commit/64285b50011d365ea7054585f6f8292f3ec745fe))
+* support managed UniFi writes with native confirmation ([#300](https://github.com/knowttl/artium-axi/issues/300)) ([1d29a37](https://github.com/knowttl/artium-axi/commit/1d29a37598b932c32fa0a1c29ca81cccc0f470b6))
+* support private SCM URL input for AWX projects ([#283](https://github.com/knowttl/artium-axi/issues/283)) ([23725a1](https://github.com/knowttl/artium-axi/commit/23725a197bc52bee977d379e6c2a7946903a953a))
+* support secure AWX credential and structured inputs ([#271](https://github.com/knowttl/artium-axi/issues/271)) ([fa72fcf](https://github.com/knowttl/artium-axi/commit/fa72fcf1d967c1cb8ef6158eed82517e959f01ab))
+* unify AWX writes under one tenant switch ([#267](https://github.com/knowttl/artium-axi/issues/267)) ([f5dc305](https://github.com/knowttl/artium-axi/commit/f5dc305302b372ee625ba1461eeeb38d3ffa18b0))
+
+
+### Bug Fixes
+
+* correct AWX team credential recovery guidance ([#277](https://github.com/knowttl/artium-axi/issues/277)) ([5d9eb6a](https://github.com/knowttl/artium-axi/commit/5d9eb6a088d2f595c6c25cf83a4486af035a28b2))
+* **server:** handle private AWX template and workflow variables ([#279](https://github.com/knowttl/artium-axi/issues/279)) ([fb40edc](https://github.com/knowttl/artium-axi/commit/fb40edccd57a1ad12a22a3612a123da4787796f8))
+* **server:** redact AWX inventory variables on detail reads ([#275](https://github.com/knowttl/artium-axi/issues/275)) ([9e4a5c3](https://github.com/knowttl/artium-axi/commit/9e4a5c3dab3f2caf51dbded1b6cbb87260c5fe18))
+* **server:** require per-host confirmation for AWX bulk deletion ([#290](https://github.com/knowttl/artium-axi/issues/290)) ([1660142](https://github.com/knowttl/artium-axi/commit/1660142ec14cdcc441ce01a91f9157c60636b1bf))
+* update managed AXI tools and align command contracts ([#304](https://github.com/knowttl/artium-axi/issues/304)) ([d02758e](https://github.com/knowttl/artium-axi/commit/d02758edff81b4d8060905007477354cd7b71151))
+
 ## [0.0.31](https://github.com/knowttl/artium-axi/compare/v0.0.30...v0.0.31) (2026-11-02)
 
 
