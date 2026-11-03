@@ -58,7 +58,7 @@ function prefixLengths(bytes: Uint8Array): Uint32Array {
 
 /** One scanner per call. Check output before persistence or delivery, even after the cap.
  * A true result is permanent and requires the caller to discard both output streams.
- * Only supplied values and their canonical encodings are known, not upstream-minted tokens.
+ * Supplied and registered minted values are checked with their canonical encodings.
  */
 export class SecretScanner {
   readonly #patterns: { bytes: Buffer, prefixes: Uint32Array }[]

@@ -96,6 +96,15 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.equal(invalidToken.json().exitCode, 1, invalidToken.body)
     assert.equal((await evidence()).logins, 0)
     await replace(password)
+    const beforeHealth = (await evidence()).logins
+    for (const count of [1, 2]) {
+      const health = await app.inject({ method: 'POST', url: '/v1/admin/tools/proxmox-axi/test',
+        headers: await recent(), payload: {} })
+      assert.equal(health.statusCode, 200, health.body)
+      assert.equal(health.json().status, 'ok', health.body)
+      assert.doesNotMatch(health.body, /CANARY-|ARTIUM_SECRET_/)
+      assert.equal((await evidence()).logins, beforeHealth + count)
+    }
     await send('/__proxmox/control?auth=hold')
     const firstLogin = (await evidence()).logins
     const firstReads = Promise.all([success(['get', '/nodes']), success(['get', '/nodes'])])

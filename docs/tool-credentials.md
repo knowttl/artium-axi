@@ -145,8 +145,8 @@ Ordinary writes require exact operation IDs in native `writes.operations` and th
 For example, starting a virtual machine requires `OP-POST-f879c7c9f8` in both lists and the host **Allow writes** switch enabled.
 Set native `writes.operations` on **Advanced**; selecting host grants does not silently grant native permission.
 Use `create /nodes/{node}/qemu/{vmid}/status/start --api-node <node> --api-vmid <id> --preview`, then repeat the identical command with the exact returned `--confirm` instead of `--preview`.
-For sensitive operation fields, follow the [private Proxmox stdin contract](client-reference.md#command-surface-and-subcommands).
 Native batches require explicit native and host grants for their node-relative read children; ordinary reads do not require write grants.
+For sensitive operation fields, follow the [private Proxmox stdin contract](client-reference.md#command-surface-and-subcommands).
 These values exist for one invocation and are removed with its private inputs; authentication credentials still come only from the managed profile.
 Secret-producing JSON writes deliver one-time private results; follow the [private result retrieval contract](client-reference.md#proxmox-private-results).
 Supplied tickets, caller-managed sign-in, managed transfers and duplex streams are not available.
