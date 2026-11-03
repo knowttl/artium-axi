@@ -104,7 +104,7 @@ Tool reference links describe upstream commands; Artium controls availability, c
 | `artium-axi setup --host <claude\|codex\|opencode\|pi> [--hook] [--force]` | Install skills for the signed-in account's granted tools and optional ambient context for Claude Code, Codex or OpenCode on Linux. |
 | `artium-axi session-context` | Emit current tool grants without session identity, or an explicit unavailable diagnostic; exits 0 so hosts can deliver failure context. |
 | `artium-axi unifi-axi [<args>]` | See the [client command reference](https://github.com/knowttl/artium-axi/blob/main/docs/commands.md) for UniFi usage. |
-| `artium-axi proxmox-axi [<args>]` | Read ordinary Proxmox routes with a managed API token; writes and byte transports are unavailable. |
+| `artium-axi proxmox-axi [<args>]` | See the [client command reference](https://github.com/knowttl/artium-axi/blob/main/docs/commands.md) for Proxmox usage. |
 | `artium-axi technitium-axi [<args>]` | Read Technitium DNS data with managed credentials and authenticated one-time result retrieval. |
 | `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |
 | `artium-axi kubernetes-axi [<args>]` | See the [managed Kubernetes command reference](https://github.com/knowttl/artium-axi/blob/main/docs/commands.md). |

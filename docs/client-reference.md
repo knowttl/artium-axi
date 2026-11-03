@@ -147,7 +147,7 @@ It captures bounded non-terminal stdin for Azure `rg query` (also `graph query`)
 Azure `api` captures non-terminal stdin only without an explicit body source (`--body`, `--body-file` or `--data`); method and path positionals do not supply a body.
 The pinned upstream accepts `--body` and `--body-file`; `--data` leaves stdin unread and is forwarded for normal unsupported-flag rejection.
 Flag values such as `--workspace <workspace>` do not count as positional input.
-Tool stdin is read to EOF with a fixed 5-second deadline, including Tenable file flags with `-`, Hybrid Analysis `--body-file -`, AWX credential `--inputs-file -` or user `--password-file -`, and the Gitea explicit stdin flags described below.
+Tool stdin is read to EOF with a fixed 5-second deadline, including Tenable file flags with `-`, Hybrid Analysis `--body-file -`, AWX credential `--inputs-file -` or user `--password-file -`, Proxmox `--protected-input`, and the Gitea explicit stdin flags described below.
 An open pipe that does not reach EOF fails with `INVALID_INPUT` and exit code 2 before sending a request, even if it has already supplied bytes.
 Close stdin, pass a local file with the relevant file flag, or use `--body`/`--body-file` for Azure `api`.
 Closed empty stdin remains valid transport input; the tool validates whether its command requires a query or body.
@@ -188,6 +188,13 @@ Tenable uploads local inputs for the `adapterBoundary.inputFileFlags` declared i
 Its run API accepts uploaded leaf names or `-` for explicit stdin; server file paths are unavailable.
 Check Point uploads private JSON inputs with `--input <local-file>`; the server receives only the uploaded leaf and materializes a private file for the pinned native parser.
 Check Point stdin and server paths are unavailable.
+Proxmox `--protected-input` accepts a private piped JSON object containing only `api` and `secrets`, at most 64 KiB; both fields must be objects.
+For example, `{ "api": { "password": { "env": "PVE_INPUT_PASSWORD" } }, "secrets": { "PVE_INPUT_PASSWORD": "<value>" } }` supplies a sensitive operation field without putting its value in arguments.
+Secret names must match `PVE_INPUT_[A-Z0-9_]+` and values must be nonempty strings.
+Do not supply the same API field in both `api` and an `--api-<field>` argument; repeat identical input when confirming a preview.
+The run API carries the same JSON text in `stdin` with `--protected-input`; local file uploads and caller-selected server files are unavailable.
+Without that flag, and for `--help`, Proxmox leaves stdin unread.
+Authentication still comes from the managed profile; see the [Proxmox capability boundary](safety.md#network-appliance-reads) for write grants and pending capabilities.
 Gitea uploads local text, JSON or opaque attachment bytes through the file flags declared for each command in its [reviewed inventory](../tools/inventories/gitea-axi.json), including their short aliases.
 Explicit `--body-file -`, `--notes-file -` or `--input -` reads bounded caller stdin instead; other Gitea calls leave stdin unread.
 Repeat identical file or stdin bytes when confirming a preview.

@@ -137,7 +137,7 @@ Ordinary writes require exact operation IDs in native `writes.operations` and th
 For example, starting a virtual machine requires `OP-POST-f879c7c9f8` in both lists and the host **Allow writes** switch enabled.
 Set native `writes.operations` on **Advanced**; selecting host grants does not silently grant native permission.
 Use `create /nodes/{node}/qemu/{vmid}/status/start --api-node <node> --api-vmid <id> --preview`, then repeat the identical command with the exact returned `--confirm` instead of `--preview`.
-Sensitive operation fields use private `--protected-input` stdin with `{ "api": { ... }, "secrets": { "PVE_INPUT_NAME": "<value>" } }`; the corresponding API field references `{ "env": "PVE_INPUT_NAME" }`.
+For sensitive operation fields, follow the [private Proxmox stdin contract](client-reference.md#command-surface-and-subcommands).
 These values exist for one invocation and are removed with its private inputs; authentication credentials still come only from the managed profile.
 Ticket/password authentication, protected-result operations and stream transports are not yet available.
 See [write safety and recovery](safety.md#network-appliance-reads) before enabling writes.
