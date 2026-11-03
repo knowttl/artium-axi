@@ -7,7 +7,7 @@ const packageRoot = new URL('node_modules/gh-axi/', root)
 const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot)))
 const pin = JSON.parse(readFileSync(new URL('integrity.json', root)))[pkg.name]
 if (pkg.version !== pin.version) throw new Error('Pin mismatch for gh-axi')
-// Reviewed published 0.1.45 dispatch and flag parsing. Internal GraphQL query
+// Reviewed published 0.1.48 dispatch and flag parsing. Internal GraphQL query
 // transport is separate from the caller-facing GET-only api route.
 const commands = []
 function route(command, values = '', booleans = '', positionals = 0, repository = false) {

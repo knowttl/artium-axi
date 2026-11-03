@@ -23,7 +23,7 @@ const commands = inventory.commands.filter(entry => (['read', 'download'].includ
       .map(([name, flag]) => [flag.short!, name])),
     repeatableFlags: Object.entries(entry.flags).filter(([name, flag]) => flag.multiple && !unsafeOverrides.includes(name) && !flag.gap).map(([name]) => name) }))
 const sources = ['package.json', 'axi-credential.schema.json', 'README.md', 'generated/SKILL.md', 'generated/host-inventory.json',
-  'generated/routes.json', 'generated/capabilities.json', 'schemas/vendor.json', 'schemas/responses.json', 'schemas/catalogue.json',
+  'generated/routes.json', 'generated/help.txt', 'schemas/vendor.json', 'schemas/responses.json', 'schemas/catalogue.json',
   ...readdirSync(new URL('node_modules/@knowttl/gitea-axi/dist/', root)).filter(path => path.endsWith('.js')).map(path => `dist/${path}`)]
 const checksWatchTimeoutSeconds = 50
 const data = { generatedBy: 'scripts/gitea-inventory.ts', tool: 'gitea-axi', package: pkg.name, ...pins[pkg.name],

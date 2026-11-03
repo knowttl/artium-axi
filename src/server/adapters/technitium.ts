@@ -9,8 +9,8 @@ import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 import { writePolicy } from './write-policy.js'
 
 export const technitiumProfile = new CredentialProfile(inventory.credentialSchema, 'technitium-axi')
-export const technitiumWritePolicy = writePolicy({ reason: 'The pinned Technitium package supports reads only.',
-  unlocks: 'No write operations.', blocked: 'Writes and local configuration are unavailable.' })
+export const technitiumWritePolicy = writePolicy({ reason: 'Artium currently admits Technitium reads only.',
+  unlocks: 'No host-admitted write operations.', blocked: 'Native mutations await separate admission; local configuration is unavailable.' })
 
 function argumentsForRead(args: readonly string[], input: RunnerInput = {}) {
   if (input.stdin !== undefined || input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')

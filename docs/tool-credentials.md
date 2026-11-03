@@ -449,7 +449,7 @@ An administrator enables exact operations on the **Write permissions** tab, pers
 The collaboration and repository tiers describe capabilities; selecting one operation never enables its siblings.
 For exact operation names and tier membership, use the `effect: "write"` command entries and their `tier` fields in the [reviewed inventory](../tools/inventories/gh-axi.json).
 
-Issue lock/unlock is unsupported because pinned gh-axi 0.1.45 requests the `locked` issue field, which gh 2.103.3 does not export.
+Issue lock/unlock is unsupported because pinned gh-axi 0.1.48 requests the `locked` issue field, which gh 2.103.3 does not export.
 A compatible published upstream release is required before these operations can be enabled.
 Repository creation requires an explicit `OWNER/NAME`; unqualified and host-qualified names are refused.
 Repository visibility changes are unavailable.

@@ -2,24 +2,24 @@
   "generatedBy": "scripts/technitium-inventory.ts",
   "tool": "technitium-axi",
   "package": "@knowttl/technitium-axi",
-  "version": "0.1.0",
-  "integrity": "sha512-qUEubth8NpLOtx+dzKz0c6XyJJhMBRWXzmfWaQrzy8Nqz/m2ZNxpwcHcNTGlO1oAMj4Nfqg2FGvhlEUDx0qw6A==",
+  "version": "0.1.1",
+  "integrity": "sha512-hwsNnF+heZnqrsJdp9Y0M+zsjElqnhoRameyZGBoNmc2njKK/a+SNMynED49S+Ywyw88dJxIXifIxeRMEmRR2A==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "7f235bb0a76307c6c84f4f8bfd30cc9647fb6b838abdc5d24b5fbad220986b39"
+      "sha256": "faf258dac91ff22b4eb63d8893c8cb73b287c98868b1db1088c42ace1e5d289f"
     },
     {
       "path": "README.md",
-      "sha256": "cc8fb01a7eb6adb420fbf54e48541210a9fe204b2dae75568fcb2216f24ce16c"
+      "sha256": "94750ee06c5e58014e03248e2184a3fd592f796f95d017eba3c4b34416e4de6a"
     },
     {
       "path": "command-inventory.json",
-      "sha256": "36562ee875947b23168b80b703238cfb4bcec7ba02388a29e94335ca9e112063"
+      "sha256": "5d4de01923c30d2125ff691241aae60e8047ac8f16d8d8f5646911b7f22d4387"
     },
     {
       "path": "axi-credential.schema.json",
-      "sha256": "b6a411b298b1b1fb3efc2f88f1a5267f370aab84f1db14ea5c41f985bd1380dc"
+      "sha256": "d14be1773a2c449994632f7798297ccf308b4640df85e8cd6017138f57cfe6cd"
     },
     {
       "path": "bin/technitium-axi.js",
@@ -27,35 +27,35 @@
     },
     {
       "path": "dist/cli.js",
-      "sha256": "f195e9b5166bd083dd93a93b9dbc28349c8aa6ae8fdbace24d25b2d3d168c8f8"
+      "sha256": "91eb9e77e8463dbf3b0622189e3097c5bbcbef01aa53ae8e3703f18221949b46"
     },
     {
       "path": "dist/catalogue.js",
-      "sha256": "79febd41e115401be9bf9945c78b37caafd2dbeb4196bacf1f422e114c4210fb"
+      "sha256": "f138bcb2d115df31193ce2c26fa843d0563e248de9584a67e59455df224af1a7"
     },
     {
       "path": "dist/read-contracts.js",
-      "sha256": "500b374736fc7a8566ae0cd2c327debe17dd2649244886f0170ff7a410a1a5f0"
+      "sha256": "fd1153e1226bc1eddd3b01d572f6139f22b5a97dec4b8c09292eb6c5b1dba333"
     },
     {
       "path": "dist/archive-contract.js",
-      "sha256": "1693d98ca15e7c3bb21854d8b766cde4278aeeda037f4377d0fa15812977b44e"
+      "sha256": "645bf63fff5bcfcd8f26a227e15fa3a82cfcee9c8946074bf136eeaf9f306626"
     },
     {
       "path": "dist/reads.js",
-      "sha256": "b7b38adcef34753a75d5579e46ffd65d7b1919b2229ec9ef6a6a8c57f93bdc1e"
+      "sha256": "6b78c7484497a3de8e7f532cc5799d8bdb93a37b14f44548fabb6b181ebd2b32"
     },
     {
       "path": "dist/vendor.js",
-      "sha256": "7fe0808ee700d6956589bda92d55cb3bd3a085f2d156721c94e36ee40812d4ce"
+      "sha256": "1b1f197f66314a820f97643cb44cfcf512d89904586c65c00349a46fc57fdcb5"
     },
     {
       "path": "dist/credentials.js",
-      "sha256": "faee482ddaca88c358376f27cf23bb468320619b3994c2ff21c42669b56a80cb"
+      "sha256": "a882960fc83a6944d6b099c517b8a93221ecef6533107d370dfdbb4dbec1c50e"
     },
     {
       "path": "dist/private-file.js",
-      "sha256": "e8421333f0ff83bfb60b925cf7e201c3a9923bd9bb4ec4b120915241a73d522c"
+      "sha256": "521e4de6a5a78302558292e0da2b81fa36f0e24df083394b099756084405dfca"
     },
     {
       "path": "dist/errors.js",
@@ -123,14 +123,112 @@
         },
         "properties": {
           "allowWrites": {
-            "const": false,
             "type": "boolean"
           },
           "operations": {
             "type": "array",
-            "maxItems": 0,
+            "uniqueItems": true,
             "items": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "OP-002",
+                "OP-003",
+                "OP-004",
+                "OP-005",
+                "OP-007",
+                "OP-008",
+                "OP-009",
+                "OP-010",
+                "OP-011",
+                "OP-013",
+                "OP-019",
+                "OP-022",
+                "OP-023",
+                "OP-025",
+                "OP-026",
+                "OP-027",
+                "OP-028",
+                "OP-029",
+                "OP-030",
+                "OP-032",
+                "OP-034",
+                "OP-035",
+                "OP-036",
+                "OP-039",
+                "OP-040",
+                "OP-041",
+                "OP-042",
+                "OP-043",
+                "OP-044",
+                "OP-045",
+                "OP-046",
+                "OP-047",
+                "OP-048",
+                "OP-049",
+                "OP-051",
+                "OP-052",
+                "OP-054",
+                "OP-055",
+                "OP-057",
+                "OP-058",
+                "OP-059",
+                "OP-060",
+                "OP-063",
+                "OP-064",
+                "OP-065",
+                "OP-066",
+                "OP-070",
+                "OP-071",
+                "OP-072",
+                "OP-073",
+                "OP-074",
+                "OP-076",
+                "OP-077.import",
+                "OP-080",
+                "OP-082",
+                "OP-083",
+                "OP-085",
+                "OP-087",
+                "OP-088",
+                "OP-089",
+                "OP-092",
+                "OP-093",
+                "OP-094",
+                "OP-095",
+                "OP-096",
+                "OP-097",
+                "OP-099",
+                "OP-100",
+                "OP-102",
+                "OP-104",
+                "OP-105",
+                "OP-107",
+                "OP-109",
+                "OP-110",
+                "OP-113",
+                "OP-115",
+                "OP-116",
+                "OP-117",
+                "OP-119",
+                "OP-120",
+                "OP-121",
+                "OP-122",
+                "OP-123",
+                "OP-124",
+                "OP-126",
+                "OP-127",
+                "OP-128",
+                "OP-129",
+                "OP-130",
+                "OP-131",
+                "OP-132",
+                "OP-133",
+                "OP-136",
+                "OP-137",
+                "OP-140",
+                "OP-142",
+                "OP-143"
+              ]
             }
           }
         }
@@ -1125,7 +1223,7 @@
     "help": "Managed Technitium reads. Run artium-axi technitium-axi <command> --help for selectors.\nAuthenticated reads return a protected result reference; retrieve it once with the same identity and current credential.\nWrites and local configuration are unavailable.\n"
   },
   "adapterBoundary": {
-    "nativeWrites": "read-only upstream design",
+    "nativeWrites": "Published native writes are not admitted by the host; reads remain forced read-only.",
     "unsafeOverrides": [
       "config",
       "profile",

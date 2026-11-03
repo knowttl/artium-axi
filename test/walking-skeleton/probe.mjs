@@ -229,7 +229,7 @@ try {
       assert.equal(statSync(logs).mode & 0o777, 0o700)
       console.log(JSON.stringify({ pinnedVectra: '0.1.14', profile: 'local and Artium parity', dryRun: 'zero mutations',
         execute: 'one confirmed canary write', nativeLog: 'durable mode 0600 after runner cleanup', live: 'unverified' }))
-      console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', pinnedFalcon: '1.0.0-rc.2', parity: 'read, pagination, empty and malformed-response stdout/stderr/exit match', live: 'unverified' }))
+      console.log(JSON.stringify({ runtime: process.version, bundle: 'no sibling assets or node_modules', pinnedFalcon: '1.0.0-rc.3', parity: 'read, pagination, empty and malformed-response stdout/stderr/exit match', live: 'unverified' }))
     }
   } finally { await new Promise((resolve, reject) => proxy.close(error => error ? reject(error) : resolve())) }
 } finally { rmSync(directory, { recursive: true, force: true }) }

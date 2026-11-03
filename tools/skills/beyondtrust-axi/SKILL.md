@@ -482,7 +482,7 @@ npx -y @knowttl/beyondtrust-axi domain update --help
 
 ## scim user create
 
-Preview scim user create; POST /scim/v3/users; requires file-profile permission for scim.user.create; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. Deactivation is identified in the preview..
+Preview scim user create; POST /scim/v3/users; requires file-profile permission for scim.user.create; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. Inactive creation is identified in the preview when active is false..
 
 | Flag | Meaning |
 |---|---|
@@ -1211,7 +1211,7 @@ Read computer list (GET /v3/Computers).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1255,7 +1255,7 @@ Read computer view (GET /v3/Computers/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1273,7 +1273,7 @@ Read computer command log (GET /v3/Computers/{id}/CommandLog).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Only all is accepted: the export documents no row columns for this command |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1294,7 +1294,7 @@ Read computer logs (GET /v3/Computers/{id}/Logs).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1315,7 +1315,7 @@ Read group list (GET /v3/Groups).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1347,7 +1347,7 @@ Read group view (GET /v3/Groups/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Only all is accepted: the export documents no row columns for this command |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1365,7 +1365,7 @@ Read policy list (GET /v3/Policies).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1393,7 +1393,7 @@ Read policy view (GET /v3/Policies/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Only all is accepted: the export documents no row columns for this command |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1411,7 +1411,7 @@ Read policy revisions (GET /v3/Policies/{id}/Revisions).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1432,7 +1432,7 @@ Read policy assigned groups (GET /v3/Policies/{id}/AssignedGroups).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1453,7 +1453,7 @@ Read policy windows application groups (GET /PolicyEditor/v3/Policy/{policyId}/W
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1478,7 +1478,7 @@ Read policy macos application groups (GET /PolicyEditor/v3/Policy/{policyId}/Mac
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1503,7 +1503,7 @@ Read user list (GET /v3/Users).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1531,7 +1531,7 @@ Read user show (GET /v3/Users/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1549,7 +1549,7 @@ Read role list (GET /v3/Roles).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1569,7 +1569,7 @@ Read role show (GET /v3/Roles/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1587,7 +1587,7 @@ Read global role list (GET /v3/GlobalRoles).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1612,7 +1612,7 @@ Read global role show (GET /v3/GlobalRoles/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1630,7 +1630,7 @@ Read domain list (GET /v3/AcceptedDomains).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1650,7 +1650,7 @@ Read domain show (GET /v3/AcceptedDomains/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1668,7 +1668,7 @@ Read api account list (GET /v3/ApiAccounts).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1688,7 +1688,7 @@ Read auth provider show (GET /v3/AuthenticationProvider).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 
@@ -1705,7 +1705,7 @@ Read scim resource types; optional positional type: user|role (default: list all
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1727,7 +1727,7 @@ Read scim schemas (GET /scim/v3/Schemas).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1747,7 +1747,7 @@ Read scim config (GET /scim/v3/ServiceProviderConfig).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 
@@ -1764,7 +1764,7 @@ Read scim role list (GET /scim/v3/Roles).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1785,7 +1785,7 @@ Read scim user list (GET /scim/v3/users).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1806,7 +1806,7 @@ Read scim user show (GET /scim/v3/users/{userID}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1818,19 +1818,19 @@ npx -y @knowttl/beyondtrust-axi scim user show --help
 
 ## event list
 
-Read event list (GET /v3/Events/FromStartDate).
+Read event list ingested after --since: at most the first 1000 events, sorted newest first by event time, not a time-bounded history; use event search for events on a host between two times (GET /v3/Events/FromStartDate).
 
 | Flag | Meaning |
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields (compact) and fullFields (--full) in --help |
 | --full | Show complete redacted ECS event objects instead of compact columns |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
 | --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
 | --cursor | Resume an opaque cursor with the same profile, command and filters |
-| --since | UTC start time (default: 24 hours before end; maximum window: 31 days) |
+| --since | UTC ingestion-time start, e.g. 2026-10-30T00:00:00Z (default: 24 hours ago; at most 31 days ago); only the first 1000 events ingested after it are returned |
 
 ```sh
 npx -y @knowttl/beyondtrust-axi event list
@@ -1845,7 +1845,7 @@ Read event search (GET /v3/Events/search).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields (compact) and fullFields (--full) in --help |
 | --full | Show complete redacted ECS event objects instead of compact columns |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1855,13 +1855,14 @@ Read event search (GET /v3/Events/search).
 | --until | UTC end time (default: now) |
 | --group | ComputerGroups; arrays use comma-separated values |
 | --os | OperatingSystem (required); arrays use comma-separated values |
-| --action | Events EventAction; arrays use comma-separated values |
+| --action | Events EventAction; arrays use comma-separated values; the live API may return no rows for valid actions, so verify results |
 | --code | Events EventCode; arrays use comma-separated values |
 | --type | Events EventType; arrays use comma-separated values |
 | --app-type | Application ApplicationType; arrays use comma-separated values |
 | --host | Computers HostName; arrays use comma-separated values |
 | --domain | Computers HostDomain; arrays use comma-separated values |
 | --user | Users UserName; arrays use comma-separated values |
+| --user-domain | Users UserDomain; arrays use comma-separated values |
 | --workstyle | Policies WorkstyleName; arrays use comma-separated values |
 | --app-group | Policies ApplicationGroupName; arrays use comma-separated values |
 | --on-demand | Policies OnDemandRule; arrays use comma-separated values |
@@ -1879,13 +1880,13 @@ Read audit activity list (GET /v3/ActivityAudits).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
 | --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
 | --cursor | Resume an opaque cursor with the same profile, command and filters |
-| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --sort | Sort property and order, e.g. created:desc; keys: created, user, entity, auditType, changedBy, details (default: created:desc) |
 | --user | Filter User (string) |
 | --details | Filter Details (string) |
 | --created-dates | Filter Created Dates (array; comma-separated) |
@@ -1907,13 +1908,10 @@ Read audit activity show (GET /v3/ActivityAudits/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource int64 |
-| --limit | Maximum rows, 1-1000 (default: 50) |
-| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
-| --cursor | Resume an opaque cursor with the same profile, command and filters |
 
 ```sh
 npx -y @knowttl/beyondtrust-axi audit activity show --id <int64>
@@ -1928,13 +1926,13 @@ Read audit activity details (GET /v3/ActivityAudits/Details).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
 | --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
 | --cursor | Resume an opaque cursor with the same profile, command and filters |
-| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --sort | Sort property and order, e.g. created:desc; keys: created, user, entity, auditType, changedBy, details (default: created:desc) |
 | --user | Filter User (string) |
 | --details | Filter Details (string) |
 | --created-dates | Filter Created Dates (array; comma-separated) |
@@ -1956,7 +1954,7 @@ Read audit auth request list (GET /v3/AuthorizationRequestAudits).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1991,7 +1989,7 @@ Read audit auth request show (GET /v3/AuthorizationRequestAudits/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource int64 |
@@ -2012,7 +2010,7 @@ Read admin request list (GET /v3/AdminAccessRequest).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -2040,7 +2038,7 @@ Read admin request show (GET /v3/AdminAccessRequest/{requestId}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -2061,7 +2059,7 @@ Read auth request list (GET /v3/AuthorizationRequest).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -2086,7 +2084,7 @@ Read auth request show (GET /v3/AuthorizationRequest/{systemId}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource string |

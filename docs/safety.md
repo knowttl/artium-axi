@@ -274,7 +274,7 @@ Local synthetic verification does not establish live appliance commissioning.
 
 ## Technitium DNS
 
-The pinned Technitium package supports reads only; administrator settings cannot enable writes.
+Artium currently admits Technitium reads only; administrator settings cannot enable its published native write capabilities.
 Artium admits the reads and discovery commands in the [reviewed inventory](../tools/inventories/technitium-axi.json), including JSON reads and native text, CSV and ZIP exports.
 Caller-controlled credentials, endpoints, local profiles, result paths and file inputs are unavailable.
 The server returns exported bytes as attachments and never executes or extracts them.
