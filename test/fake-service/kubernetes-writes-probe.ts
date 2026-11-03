@@ -176,7 +176,7 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.ok((await evidence()).requests.every(row => row.canaryReceived))
     assert.doesNotMatch(JSON.stringify(db.prepare('SELECT * FROM audit').all()), /CANARY-|ARTIUM_SECRET_/)
     for (const scope of readdirSync(workflow)) assert.deepEqual(readdirSync(join(workflow, scope)).filter(name => name !== 'requests'), [])
-    console.log(JSON.stringify({ kubernetes: '0.1.2', writes: 'default off and native exact confirmation', scope: 'caller, family and revision',
+    console.log(JSON.stringify({ kubernetes: '0.1.3', writes: 'default off and native exact confirmation', scope: 'caller, family and revision',
       restart: 'saved native requests retained', replay: 'atomic native claims preserved', failures: 'stale, partial and lost response', cleanup: 'per-call profiles removed' }))
   } finally { await app.close(); db.close(); await runner.shutdown() }
 })

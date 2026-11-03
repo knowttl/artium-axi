@@ -1098,6 +1098,20 @@ test('Kubernetes mutation workflows default off and require the administrator sw
       return settings.allowWrites === true && settings.collectionDelete !== true;
     }), 'Master switch enabled bulk deletion');
     check(await page.eval(() => document.querySelector('main').innerText.includes('server-dry-run')), 'Native workflow settings guidance missing');
+    await page.fill('[name=nativeSettings]', JSON.stringify({ allowWrites: true, sessions: {
+      grants: { 'synthetic-development-user': ['exec', 'logs'] }, lifetimeSeconds: 300, outputBytes: 65536,
+    } }));
+    await page.click('form:has([name=nativeSettings]) button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form:has([name=nativeSettings]) [name=expectedRevision][value="3"]');
+    await page.open(base + '/admin/tools/kubernetes-axi?tab=advanced');
+    await page.wait('[name=nativeSettings]');
+    check(await page.eval(() => {
+      const settings = JSON.parse(document.querySelector('[name=nativeSettings]').value);
+      return settings.allowWrites === true && settings.collectionDelete !== true
+        && JSON.stringify(settings.sessions.grants['synthetic-development-user']) === JSON.stringify(['exec', 'logs'])
+        && settings.sessions.lifetimeSeconds === 300 && settings.sessions.outputBytes === 65536;
+    }), 'Explicit session grants or limits did not persist');
   `)
 })
 

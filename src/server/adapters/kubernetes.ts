@@ -11,8 +11,8 @@ import { writePolicy } from './write-policy.js'
 
 export const kubernetesProfile = new CredentialProfile(inventory.credentialSchema, 'kubernetes-axi')
 export const kubernetesWritePolicy = writePolicy({
-  unlocks: 'Prepare resource mutations, inspect saved previews, confirm exact digests and explicitly request server dry run.',
-  blocked: 'Bulk deletion additionally requires collectionDelete=true in advanced native settings. Direct mutations, local configuration, file inputs, execution, credential issuance and streaming sessions remain unavailable.' })
+  unlocks: 'Prepare resource mutations, inspect saved previews, confirm exact digests and explicitly request server dry run. Bounded byte operations additionally require explicit per-caller session-kind grants in advanced native settings.',
+  blocked: 'Bulk deletion additionally requires collectionDelete=true in advanced native settings. Use owned workspaces for file input and sessions for bounded execution/copy. Direct mutations, local configuration, interactive execution, tunnels and credential issuance remain unavailable.' })
 
 interface Invocation {
   native: boolean

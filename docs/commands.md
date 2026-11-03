@@ -25,7 +25,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi proxmox-axi [<args>]` | Read ordinary Proxmox routes with a managed API token; writes and byte transports are unavailable. |
 | `artium-axi technitium-axi [<args>]` | Read Technitium DNS data with managed credentials and authenticated one-time result retrieval. |
 | `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |
-| `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources, logs and passive authorization reviews, or use administrator-enabled [native mutation workflows](safety.md#kubernetes-reads), with managed credentials and pinned kubectl. |
+| `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources or use administrator-enabled [mutation and bounded byte workflows](safety.md#kubernetes-reads), caller-owned workspaces and managed credentials with pinned kubectl. |
 | `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts, check authentication and run [confirmed managed commands](#ssh). |
 | `artium-axi --managed-session <command> [<args>]` | Supply and persist caller-owned sessions through private pipes; see `artium-axi --managed-session --help`. |
 | `artium-axi falcon-axi [<args>]` | Run Falcon commands with managed credentials; [tool reference](https://github.com/knowttl/falcon-axi#readme). |
@@ -40,6 +40,18 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi beyondtrust-axi [<args>]` | Inspect BeyondTrust PM Cloud Endpoint Privilege Management with managed credentials; [tool reference](https://www.npmjs.com/package/@knowttl/beyondtrust-axi). |
 | `artium-axi checkpoint-axi [<args>]` | Investigate Check Point Email Security with managed regional credentials; [tool reference](https://www.npmjs.com/package/@knowttl/checkpoint-axi). |
 | `artium-axi gh-axi [<args>]` | Read and update GitHub data with managed credentials; [tool reference](https://www.npmjs.com/package/gh-axi). |
+
+Kubernetes workspace and byte-session commands have local help through `artium-axi kubernetes-axi workspace --help` and `session --help`.
+Use `workspace create <directory>` to upload a regular file tree with immutable byte counts and digests.
+Use `session start exec -- exec <pod> -- <command>` for bounded execution, or add `--workspace <id>` and use `workspace:<path>` in a native file argument.
+Start returns a native preview; inspect it and run `session confirm <id> --digest <exact-digest>` without adding a second generic confirmation.
+`session show <id> --wait` reports the final remote exit code, while `session output <id> --after <sequence> --wait` retrieves bounded stdout/stderr chunks with sequence and byte offsets.
+Use `--stdin-file <file>` for at most 512 KiB of inline input, or `--input-workspace <id> --input-path <path>` for a staged input artifact up to 100 MiB.
+For copy, use `session start cp --workspace <id> -- cp workspace:<path> <pod>:/absolute/path` or `session start cp -- cp <pod>:/absolute/path artifact:<path>`, then confirm the returned digest.
+`session artifact <id> <path> --output <absolute-file>` and `workspace download <id> <path> --output <absolute-file>` save exact bytes with verified hashes into a new file in a private directory.
+Every kind needs its explicit administrator caller grant; mutation kinds also require Allow writes.
+Use `session list` to recover a lost start reply, `session cancel <id> --confirm` to stop work and discard results, and `workspace delete <id>` to remove staged files.
+No command automatically reconnects, replays an uncertain operation or resumes after a server restart.
 
 For Azure DevOps, the [reviewed ADO inventory](../tools/inventories/ado-axi.json) owns accepted commands, aliases and flags; see the [capability boundary](safety.md#write-gates-by-tool) for permissions and unsupported transfers.
 Use `artium-axi ado-axi query run <saved-query-id-or-path>` for saved queries, and `area list` or `iteration list` for classification paths.

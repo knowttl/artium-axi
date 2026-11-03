@@ -4,8 +4,8 @@
     "integrity": "sha512-uY/8DRC7yG8s5tEtRYcVVXK0fY/q2NfmqzBTuiuhVkm24qY+4mbVMYfan7Fyk0FdxB+1O2k6GHwOMiS73TCM3g=="
   },
   "@knowttl/kubernetes-axi": {
-    "version": "0.1.2",
-    "integrity": "sha512-7o2jalepVul06VX00l2Z3IX8Pv/c27ezewDdch+j9KkvFtK20YQf28eBWgsHK/IhhfINl1nL8h5w0SPKPhl7kQ=="
+    "version": "0.1.3",
+    "integrity": "sha512-HdIwNTtKC0edpIMN0zqfEGhR+D+QnQGTNWe9i20cKOiNc63CpP3/j0XKOH14jVTE3drcu2jTIfRcpqh7VChR8Q=="
   },
   "@knowttl/gitea-axi": {
     "version": "0.1.1",

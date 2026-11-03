@@ -2,12 +2,12 @@
   "generatedBy": "scripts/kubernetes-inventory.ts",
   "tool": "kubernetes-axi",
   "package": "@knowttl/kubernetes-axi",
-  "version": "0.1.2",
-  "integrity": "sha512-7o2jalepVul06VX00l2Z3IX8Pv/c27ezewDdch+j9KkvFtK20YQf28eBWgsHK/IhhfINl1nL8h5w0SPKPhl7kQ==",
+  "version": "0.1.3",
+  "integrity": "sha512-HdIwNTtKC0edpIMN0zqfEGhR+D+QnQGTNWe9i20cKOiNc63CpP3/j0XKOH14jVTE3drcu2jTIfRcpqh7VChR8Q==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "addf7bb2ded3cde94e37a8f768ce503ccf42e97594b6901f741d529e0c364ae8"
+      "sha256": "3b5982385e06199a6f4ecdbb1a280888ea8a55a49313a64f7cc306f9f799151a"
     },
     {
       "path": "axi-credential.schema.json",
@@ -39,7 +39,7 @@
     },
     {
       "path": "dist/cli.js",
-      "sha256": "8033823b68377c10ba589b4767af627989921743b64dc9fdf395a2682802c6fb"
+      "sha256": "8dd9dd99250fb4fb9ebeb32cc9a63e26801f38690f38c689d347ff8e9e78025d"
     },
     {
       "path": "dist/credentials.d.ts",
@@ -67,11 +67,11 @@
     },
     {
       "path": "dist/grammar.d.ts",
-      "sha256": "bd78b61f8156919b54c02525c0f1d4b431b8253ed5df73d9e2cd9e89a6aba92a"
+      "sha256": "108b3eedec31e44323b877d22269673423e2e4e0a29d32302232ecd5c3d40ab9"
     },
     {
       "path": "dist/grammar.js",
-      "sha256": "206d456fd39517f7251ec3dff95819ae982a3a5f6dc340803ef693f7e443fe09"
+      "sha256": "25459ae5b3397f9e9aa29df5f9258dde0c1ddcb50070cfbdc28662cc9a659274"
     },
     {
       "path": "dist/hosted-session.d.ts",
@@ -83,11 +83,11 @@
     },
     {
       "path": "dist/metadata-pin.d.ts",
-      "sha256": "f7047c98d86600252ad3c0178097bda9e05ba4c91d26f555a86d4dc0b4f6a9c4"
+      "sha256": "13c6a65db39f72a53ec0646d56a4f3f458ee8476b83a77f2596f93496f8500ad"
     },
     {
       "path": "dist/metadata-pin.js",
-      "sha256": "0891e30773cb0b588825be0e21ca9115d2840f8cb249063ba25c17be65f2dfb8"
+      "sha256": "8d83c744ed8abc322a116dccdab17766bc764340fa91781d0a06aaf2cbd61a33"
     },
     {
       "path": "dist/mutations.d.ts",
@@ -95,7 +95,7 @@
     },
     {
       "path": "dist/mutations.js",
-      "sha256": "eab8859c274cb38398af8884dd9e962441b773e5b8ae134f1137f6872725a5e6"
+      "sha256": "dd4481fc68b7fca6e8e384664741eda9b396262f50623af68757f4bd01d7d8c5"
     },
     {
       "path": "dist/native.d.ts",
@@ -135,7 +135,7 @@
     },
     {
       "path": "dist/redaction.js",
-      "sha256": "da57b95e7fc6ecc9ab1d364f6f9c678fc43889790c14e56746ab009573f9fed3"
+      "sha256": "d3514b22bc3d997394a5a272b8cd4f7375a1ccfdb04a995a374f270972c50385"
     },
     {
       "path": "dist/remote-session.d.ts",
@@ -159,7 +159,7 @@
     },
     {
       "path": "dist/runner.js",
-      "sha256": "099bd42df35f4beb71eeb3f03f9f64739d0010ac35c5868a68afc4efb66b52fc"
+      "sha256": "197c41a2140c1688e4c43395dd067fea89b95462ffb1bc298301a9c03dcd422a"
     },
     {
       "path": "dist/workspace-tar.d.ts",
@@ -179,7 +179,7 @@
     },
     {
       "path": "skills/kubernetes-axi/SKILL.md",
-      "sha256": "7cd7a7562a35b205aa093ca51e928fe7a77d115924a8fa7a45ce7e77311b0570"
+      "sha256": "9f377d05d6e3bd8d931ba365cfa75a181b5a751cfa2e8c124b67dd842f8c0213"
     }
   ],
   "credentialSchema": {
@@ -378,7 +378,7 @@
       "update"
     ],
     "nativeWrites": "administrator-enabled prepare/preview/confirm and server-dry-run; direct mutations refused",
-    "streams": "false only; authenticated sessions are a separate capability"
+    "streams": "bounded byte sessions require explicit per-caller kind grants; mutation kinds also require Allow writes"
   },
   "commands": [
     {
@@ -2581,12 +2581,23 @@
       "prepare -- <mutation>",
       "preview <request-key>",
       "confirm <request-key> --digest <exact-digest>",
-      "server-dry-run -- <mutation>"
+      "server-dry-run -- <mutation>",
+      "workspace create <directory>",
+      "workspace show <id>",
+      "workspace download <id> <path> --output <absolute-file>",
+      "workspace delete <id>",
+      "session list",
+      "session start <kind> [--workspace <id>] [--stdin-file <file>] -- <native arguments>",
+      "session show <id> [--wait]",
+      "session output <id> [--after <sequence>] [--wait]",
+      "session confirm <id> --digest <exact-digest>",
+      "session cancel <id> --confirm",
+      "session artifact <id> <path> --output <absolute-file>"
     ],
     "example": [
       "get",
       "pods"
     ],
-    "help": "Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported; saved strict leaf pins are unavailable.\nAdministrator-enabled mutations require prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>; server-dry-run -- <mutation> is separately explicit.\nLocal configuration, impersonation, file input, execution, credential issuance and streaming sessions are unavailable.\n"
+    "help": "Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported; saved strict leaf pins are unavailable.\nAdministrator-enabled mutations require prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>; server-dry-run -- <mutation> is separately explicit.\nUse workspace create to stage regular files and session start for one bounded operation. Every session kind needs an explicit caller grant in administrator native settings; mutation kinds also require Allow writes.\nUse session show/output/confirm/cancel and session artifact for owned recovery and verified bytes. Workspace references use workspace:<path>; copy downloads use artifact:<path>.\nLocal configuration, impersonation, interactive execution, credential issuance and tunnels remain unavailable.\n"
   }
 }

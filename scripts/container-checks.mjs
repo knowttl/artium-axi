@@ -69,6 +69,12 @@ try {
       await command('docker', ['run', '--name', kubernetesWrites, '--pull', 'never', '--init', '--network', 'none', '--read-only',
         '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
         '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/dist/test/fake-service/kubernetes-writes-probe.js'])
+      const kubernetesSessions = `${builder}-kubernetes-sessions`
+      recoveryContainers.push(kubernetesSessions)
+      await command('docker', ['run', '--name', kubernetesSessions, '--pull', 'never', '--init', '--network', 'none', '--read-only',
+        '--memory', '6g', '--memory-swap', '6g', '--pids-limit', '192',
+        '--tmpfs', '/tmp:rw,nosuid,nodev,size=536870912,mode=1777',
+        '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/dist/test/fake-service/kubernetes-sessions-probe.js'])
       const gitea = `${builder}-gitea`
       recoveryContainers.push(gitea)
       await command('docker', ['run', '--name', gitea, '--pull', 'never', '--init', '--network', 'none', '--read-only',

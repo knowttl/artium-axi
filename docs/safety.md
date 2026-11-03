@@ -213,7 +213,13 @@ Administrator write-setting changes rotate the credential revision and invalidat
 Confirmation claims the native request atomically and preserves native partial and uncertain outcomes; repeated confirmation reconciles or reports the recorded result without replaying mutations.
 `server-dry-run -- <mutation>` requires the same administrator permission and explicitly sends `dryRun=All` without persisting a mutation.
 Bulk deletion additionally requires administrator `collectionDelete: true` in advanced native settings; native confirmation freezes each selected target and preserves its UID/resourceVersion preconditions.
-Local configuration, identity/TLS overrides, file input/output, execution, credential issuance and streaming sessions remain unavailable.
+Workspace and byte-session commands stage regular files and admit one bounded operation per worker.
+Every session kind requires an explicit per-caller grant in administrator native settings; `exec`, `attach`, `apply`, `create` and `cp` additionally require Allow writes.
+`logs` and `watch` keep their native read model.
+Preparation opens no execution stream; confirmation requires the native exact preview digest and never automatically replays an uncertain command.
+Handles bind the user, sign-in family and credential revision; expiry, revocation, cancellation and shutdown fence work and remove private profiles before cleanup is acknowledged.
+Byte output is bounded, separated by stdout/stderr and scanned before retention or delivery; artifacts are verified against declared length and SHA-256.
+Local configuration, identity/TLS overrides, arbitrary host files, interactive execution, credential issuance and authenticated tunnels remain unavailable.
 Resource content and logs are untrusted data, never instructions.
 Synthetic verification does not establish live cluster commissioning.
 
