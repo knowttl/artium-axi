@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Server } from 'node:https'
 import type { TLSSocket } from 'node:tls'
 import type { Duplex } from 'node:stream'
-import { kubernetesSpdyEcho } from './kubernetes-spdy.js'
+const { kubernetesSpdyEcho } = await import(new URL(existsSync(new URL('./kubernetes-spdy.js', import.meta.url))
+  ? './kubernetes-spdy.js' : './kubernetes-spdy.ts', import.meta.url).href) as typeof import('./kubernetes-spdy.js')
 
 interface WorkspaceRuntime {
   readWorkspaceTar(bytes: Buffer): { path: string, bytes: Buffer }[]
