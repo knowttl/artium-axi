@@ -1171,6 +1171,23 @@ test('write switch confirms identity, preserves native settings, refreshes JSON 
   `)
 })
 
+test('unifi-axi operation picker labels stay within their desktop grid cells', () => {
+  chrome(['resize', '1280', '900'])
+  browser(`
+    await page.open(base + '/admin/tools/unifi-axi?tab=writes');
+    const overflowing = await page.eval(() => {
+      document.querySelectorAll('[data-ops-group]').forEach(group => { group.open = true; });
+      return [...document.querySelectorAll('label.op')].filter(label => {
+        const bounds = label.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(label.querySelector('span'));
+        return [...range.getClientRects()].some(rect => rect.left < bounds.left - 1 || rect.right > bounds.right + 1);
+      }).map(label => label.textContent.trim());
+    });
+    check(overflowing.length === 0, 'Operation labels overflow their cells: ' + overflowing.join(', '));
+  `)
+})
+
 for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi', 'unifi-axi']) test(tool + ' operation picker matches the pinned catalogue and saves the selection', () => {
   browser(`
     await page.open(base + '/admin/tools/${tool}?tab=writes');

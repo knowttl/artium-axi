@@ -715,6 +715,7 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
 .ops-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 20px; padding: 8px 12px 12px 36px; border-top: 1px solid var(--border); }
 :where(.content) label.op { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; margin: 0; font-size: var(--fs-sm); font-weight: 400; }
 :where(.content) label.op input { margin: 0; }
+.op span { overflow-wrap: anywhere; }
 .op code { color: var(--text-faint); font-size: 11px; overflow-wrap: anywhere; }
 .op .badge { height: 18px; padding: 0 6px; font-size: 10.5px; }
 .ops-empty { margin: 0; color: var(--text-muted); font-size: var(--fs-sm); }
