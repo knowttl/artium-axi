@@ -77,6 +77,25 @@ test('Gitea uploads opaque attachment bytes with a managed leaf', async () => {
   expect(await toolInput('gitea-axi', ['issue', 'upload', '42', '--file=' + path])).toEqual({ args: ['issue', 'upload', '42', '--file=asset.bin'],
     files: [{ name: 'asset.bin', size: bytes.length, contentBase64: bytes.toString('base64') }] })
 })
+
+test('Technitium retains empty environment and file secrets in parameters and baseline (R3)', async () => {
+  const secret = join(directory, 'technitium-empty-secret')
+  const path = join(directory, 'technitium-empty.json')
+  writeFileSync(secret, '', { mode: 0o600 })
+  vi.stubEnv('TECHNITIUM_INPUT_EMPTY', '')
+  writeFileSync(path, JSON.stringify({
+    parameters: { proxyPassword: { env: 'TECHNITIUM_INPUT_EMPTY' }, tsigKeys: [{ sharedSecret: { file: secret } }] },
+    baseline: { proxyPassword: { file: secret }, tsigKeys: [{ sharedSecret: { env: 'TECHNITIUM_INPUT_EMPTY' } }] },
+  }), { mode: 0o600 })
+  try {
+    const request = await toolInput('technitium-axi', ['settings', 'set', '--input-file', path])
+    expect(JSON.parse(Buffer.from(request.files![0].contentBase64, 'base64').toString('utf8'))).toEqual({
+      parameters: { proxyPassword: { env: 'TECHNITIUM_INPUT_EMPTY' }, tsigKeys: [{ sharedSecret: { env: 'TECHNITIUM_INPUT_FILE_0' } }] },
+      baseline: { proxyPassword: { env: 'TECHNITIUM_INPUT_FILE_1' }, tsigKeys: [{ sharedSecret: { env: 'TECHNITIUM_INPUT_EMPTY' } }] },
+      secrets: { TECHNITIUM_INPUT_EMPTY: '', TECHNITIUM_INPUT_FILE_0: '', TECHNITIUM_INPUT_FILE_1: '' },
+    })
+  } finally { vi.unstubAllEnvs() }
+})
 test('Gitea secret stdin remains a separate payload', async () => {
   vi.spyOn(process, 'stdin', 'get').mockReturnValue(Readable.from(['CANARY-protected-value']) as typeof process.stdin)
   const args = ['secret', 'set', 'SYNTHETIC', '--input', '-']

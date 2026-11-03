@@ -86,6 +86,7 @@ export async function runTool<Credential>(
     let reservation: ReturnType<ProtectedResults['reserve']> | undefined
     let failure: Extract<AuditEvent, { event: 'run-terminal' }>['failure']
     let privateBytes: Buffer | undefined
+    let completed: RunnerResult | undefined
     try {
       const reference = adapter.prepareForCaller ? undefined : await resolver.resolve(userId, adapter.name)
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
@@ -146,6 +147,7 @@ export async function runTool<Credential>(
         if (prepared.proxmox) throw new ArtiumError('UNSUPPORTED_INPUT')
         return invoke()
       })
+      if (!prepared.preview) completed = { ...result, outputBytes: { ...result.outputBytes } }
       if (protectedResult?.source === 'projection' && result.exitCode === 0) privateBytes = Buffer.from(result.stdout)
       if (privateBytes && reservation && reference) {
         authenticate(db, token)
@@ -179,22 +181,27 @@ export async function runTool<Credential>(
       reservation?.cancel()
       recordApiDecision('refused')
       const runnerError = error instanceof RunnerError ? error : undefined
-      if (write && journal?.auditId && runnerError?.processStarted) {
-        result = unknownWriteResult(await journal.auditId(), runnerError.durationMs ?? Date.now() - started,
-          runnerError.outputBytes ?? { stdout: 0, stderr: 0 })
+      const execution = completed ?? (runnerError?.processStarted ? runnerError : undefined)
+      if (write && journal?.auditId && execution && !completed) {
+        result = unknownWriteResult(await journal.auditId(), execution.durationMs ?? Date.now() - started,
+          execution.outputBytes ?? { stdout: 0, stderr: 0 })
       } else {
-        if (write && runnerError?.processStarted && ['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT_LIMIT', 'UNKNOWN_OUTCOME', 'TEMP_UNAVAILABLE'].includes(runnerError.code)) {
+        const unknownOutcome = !!write && !!execution && (!!completed || !!runnerError
+          && ['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT_LIMIT', 'UNKNOWN_OUTCOME', 'TEMP_UNAVAILABLE'].includes(runnerError.code))
+        if (write && unknownOutcome) {
           const command = ['artium-axi', adapter.name, ...write.checkArgs].map(value =>
             /^[a-zA-Z0-9_./:=,+@%-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`).join(' ')
-          error = Object.assign(new RunnerError('UNKNOWN_OUTCOME', `Unknown outcome for ${write.operation} ${write.target}.`,
+          error = Object.assign(new RunnerError(completed && error instanceof ArtiumError ? error.code : 'UNKNOWN_OUTCOME',
+            `Unknown outcome for ${write.operation} ${write.target}.`,
             `The operation may have changed state and was not retried. Check current state before trying again: ${command}${write.afterCheck ? `. ${write.afterCheck}` : ''}`),
-          { durationMs: runnerError.durationMs, outputBytes: runnerError.outputBytes, processStarted: runnerError.processStarted,
-            truncated: runnerError.truncated })
+          { durationMs: execution.durationMs, outputBytes: execution.outputBytes, processStarted: true,
+            truncated: execution.truncated })
         }
         audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(false) ?? 'unknown',
-          outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR', exitCode: null,
-          durationMs: runnerError?.durationMs ?? Date.now() - started,
-          outputBytes: runnerError?.outputBytes ?? { stdout: 0, stderr: 0 }, failure })
+          outcome: unknownOutcome ? 'UNKNOWN_OUTCOME' : error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR',
+          errorCode: completed && error instanceof ArtiumError ? error.code : undefined, exitCode: completed?.exitCode ?? null,
+          durationMs: execution?.durationMs ?? Date.now() - started,
+          outputBytes: execution?.outputBytes ?? { stdout: 0, stderr: 0 }, failure })
         throw error
       }
     } finally { privateBytes?.fill(0) }

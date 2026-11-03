@@ -118,7 +118,7 @@ export function createTechnitiumAdapter(source: SecretSource, writeLog?: string)
       if (call.body) {
         prepared.files.push({ name: 'technitium-input.mjs', content: inputLauncher })
         Object.assign(prepared.environment, call.body.secrets)
-        prepared.secrets.push(...Object.values(call.body.secrets ?? {}))
+        prepared.secrets.push(...Object.values(call.body.secrets ?? {}).filter(value => value.length > 0))
       }
       return { ...prepared, executable: process.execPath, args: childArgs, invocation: call.invocation,
         beforeSpawn: () => {

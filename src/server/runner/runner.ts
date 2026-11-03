@@ -241,6 +241,7 @@ async function execute(
   }
   let kubernetesProfile: string | undefined
   const privateChunks: Buffer[] = []
+  let result: RunnerResult | undefined
   try {
     if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
     try {
@@ -300,7 +301,7 @@ async function execute(
       args = [...args.slice(0, argumentIndex), flag, '4', ...args.slice(argumentIndex)]
     }
     if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
-    const result = await new Promise<RunnerResult>((resolve, reject) => {
+    result = await new Promise<RunnerResult>((resolve, reject) => {
       const streams = {
         stdout: { chunks: [] as Buffer[], retained: 0, observed: 0 },
         stderr: { chunks: [] as Buffer[], retained: 0, observed: 0 },
@@ -511,20 +512,13 @@ async function execute(
     }
     if (result.exitCode === 0 && limits.protectedResult) {
       const { name, receive } = limits.protectedResult
+      const file = await open(join(directories.XDG_CONFIG_HOME, name), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
       try {
-        const file = await open(join(directories.XDG_CONFIG_HOME, name), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
-        try {
-          const info = await file.stat()
-          if (!info.isFile() || info.uid !== process.getuid?.() || (info.mode & 0o077) !== 0) throw new RunnerError('TEMP_UNAVAILABLE')
-          if (info.size > protectedResultLimits.bytes) throw new RunnerError('OUTPUT_LIMIT')
-          receive(await file.readFile())
-        } finally { await file.close() }
-      } catch (error) {
-        throw Object.assign(error instanceof RunnerError ? error : new RunnerError('TEMP_UNAVAILABLE'), {
-          processStarted: true, durationMs: performance.now() - started,
-          outputBytes: result.outputBytes, truncated: result.truncated,
-        })
-      }
+        const info = await file.stat()
+        if (!info.isFile() || info.uid !== process.getuid?.() || (info.mode & 0o077) !== 0) throw new RunnerError('TEMP_UNAVAILABLE')
+        if (info.size > protectedResultLimits.bytes) throw new RunnerError('OUTPUT_LIMIT')
+        receive(await file.readFile())
+      } finally { await file.close() }
     }
     if (result.exitCode === 0 && limits.protectedPipe && 'flag' in limits.protectedPipe && privateChunks.length) {
       const bytes = Buffer.concat(privateChunks)
@@ -532,6 +526,12 @@ async function execute(
     }
     result.durationMs = performance.now() - started
     return result
+  } catch (error) {
+    if (!result) throw error
+    throw Object.assign(error instanceof RunnerError ? error : new RunnerError('TEMP_UNAVAILABLE'), {
+      processStarted: true, durationMs: performance.now() - started,
+      outputBytes: result.outputBytes, truncated: result.truncated,
+    })
   } finally {
     for (const chunk of privateChunks) chunk.fill(0)
     if (kubernetesProfile) {
