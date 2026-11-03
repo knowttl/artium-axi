@@ -99,7 +99,7 @@ export class Client {
     const failure = errorResponseSchema.safeParse(result.body)
     if (failure.success) {
       const { code, message, next } = failure.data.error
-      throw new ArtiumError(code, message, next, failure.data.error.requestId)
+      throw Object.assign(new ArtiumError(code, message, next, failure.data.error.requestId), { recovery: failure.data.error.recovery })
     }
     if (result.status !== 200 && result.status !== 204) throw new ArtiumError('INVALID_RESPONSE')
     if ((path === '/v1/auth/login' || path === '/v1/auth/device') && result.serverVersion && result.serverVersion !== cliVersion) {
@@ -126,7 +126,7 @@ export class Client {
     let result: unknown
     try { result = await this.request(path, method, input, session.accessToken) }
     catch (error) {
-      if (!(error instanceof ArtiumError) || error.code !== 'TOKEN_EXPIRED') throw error
+      if (!(error instanceof ArtiumError) || error.code !== 'TOKEN_EXPIRED' || error.recovery) throw error
       const fresh = await this.sessions.locked(() => this.refresh(session), this.cancellation.signal)
       result = await this.request(path, method, input, fresh.accessToken)
     }
@@ -172,7 +172,8 @@ export class Client {
                 chunks.push(chunk)
               }
               const failure = errorResponseSchema.safeParse(JSON.parse(Buffer.concat(chunks).toString('utf8')))
-              if (failure.success) throw new ArtiumError(failure.data.error.code, failure.data.error.message, failure.data.error.next)
+              if (failure.success) throw Object.assign(new ArtiumError(failure.data.error.code, failure.data.error.message, failure.data.error.next),
+                { recovery: failure.data.error.recovery })
               throw new ArtiumError('INVALID_RESPONSE')
             }
             await consume(response, signal)

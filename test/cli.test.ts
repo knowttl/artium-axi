@@ -815,6 +815,21 @@ test('managed mode rejects a session bound to another server before network acce
   expect(requests).toEqual([])
 })
 
+test.each([
+  { mode: 'stored', invoke: (args: string[]) => cli(args) },
+  { mode: 'managed', invoke: (args: string[]) => managedCli(args) },
+])('$mode sessions retain completed mutation recovery without refreshing or replaying', async ({ invoke }) => {
+  const recovery = { receipt: { auditId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', operation: 'OP-080' as const,
+    status: 'ok' as const, credential: 'consumed' as const }, exitCode: 0, durationMs: 10,
+  outputBytes: { stdout: 100, stderr: 0 }, truncated: { stdout: false, stderr: false } }
+  response = { status: 401, body: errorResponse(Object.assign(new ArtiumError('TOKEN_EXPIRED'), { recovery }), 'synthetic-mutation') }
+  requests = []
+  const result = await invoke(['tools'])
+  expect(result).toMatchObject({ code: 1, stderr: '' })
+  expect(decode(result.stdout)).toMatchObject({ error: { code: 'TOKEN_EXPIRED', recovery } })
+  expect(requests.map(request => request.path)).toEqual(['/v1/tools'])
+})
+
 test('managed mode scans server error text before printing it', async () => {
   response = { status: 401, body: errorResponse(new ArtiumError('TOKEN_INVALID', managedTokens.refreshToken), 'synthetic-error') }
   expect(await managedCli(['tools']))

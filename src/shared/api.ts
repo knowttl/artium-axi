@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { kubernetesSessionPolicy } from './kubernetes.js'
 import { giteaWriteOperations, giteaTransferOperations, giteaTransferBytes } from './gitea-writes.js'
 import { errors } from './errors.js'
+import { completedMutationSchema } from './mutation-outcome.js'
 import ghInventory from '../../tools/inventories/gh-axi.json' with { type: 'json' }
 import falconInventory from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import unifiInventory from '../../tools/inventories/unifi-axi.json' with { type: 'json' }
@@ -672,6 +673,7 @@ export const errorResponseSchema = z.strictObject({
     next: z.string().min(1),
     requestId: z.string().min(1),
     diagnostic: diagnosticSchema.optional(),
+    recovery: completedMutationSchema.optional(),
   }),
 })
 export const runResponseSchema = z.union([runSuccessSchema, errorResponseSchema])

@@ -10,6 +10,8 @@ import { CredentialProfile } from './credential-profile.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 import { writePolicy } from './write-policy.js'
 import { technitiumInput } from '../../shared/technitium-input.js'
+import { decode } from '@toon-format/toon'
+import { mutationReceiptSchema } from '../../shared/mutation-outcome.js'
 
 export const technitiumProfile = new CredentialProfile(inventory.credentialSchema, 'technitium-axi')
 const nativePolicy = writePolicy({ supportedOperations: inventory.writeOperations,
@@ -131,6 +133,12 @@ export function createTechnitiumAdapter(source: SecretSource, writeLog?: string)
           ? call.resultSource === 'file'
             ? { source: 'file', name: 'technitium-result.bin', flag: '--result-file', operation: call.operation }
             : { source: 'projection', operation: call.operation } : undefined,
+        mutationReceipt: call.effect === 'write' ? stdout => {
+          let document: unknown
+          try { document = stdout.trimStart().startsWith('{') ? JSON.parse(stdout) : decode(stdout) } catch { return }
+          const receipt = mutationReceiptSchema.safeParse(document)
+          if (receipt.success && receipt.data.operation === call.operation) return receipt.data
+        } : undefined,
         ...(call.effect === 'write' ? { write: { operation: call.operation!,
           target: inventory.writeContracts.find(contract => contract.id === call.operation?.split('.')[0])!.path,
           checkArgs: [...call.invocation.command.split(' '), '--help'],

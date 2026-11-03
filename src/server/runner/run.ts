@@ -120,7 +120,7 @@ export async function runTool<Credential>(
             outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
         }
         const invoke = (overrides: Partial<RunnerLimits> = {}) => runner.run(identity.userId, prepared.executable, prepared.args, preparedJournal.environment,
-          prepared.secrets, { ...prepared.limits, publicContent: prepared.publicContent, kubernetesRequests,
+          prepared.secrets, { ...prepared.limits, publicContent: prepared.publicContent, kubernetesRequests, mutationReceipt: prepared.mutationReceipt,
             unifiScope: adapter.name === 'unifi-axi' ? nativeScope : undefined, trustedIpc: prepared.trustedIpc, signal: context.signal,
             credentialTrust: reference ? readCredentialTrust(db, reference) : [],
             protectedResult: protectedResult?.source === 'file'
@@ -182,7 +182,8 @@ export async function runTool<Credential>(
       recordApiDecision('refused')
       const runnerError = error instanceof RunnerError ? error : undefined
       const execution = completed ?? (runnerError?.processStarted ? runnerError : undefined)
-      if (write && journal?.auditId && execution && !completed) {
+      const recovery = completed?.completedMutation ?? runnerError?.recovery
+      if (write && journal?.auditId && execution && !completed && !recovery) {
         result = unknownWriteResult(await journal.auditId(), execution.durationMs ?? Date.now() - started,
           execution.outputBytes ?? { stdout: 0, stderr: 0 })
       } else {
@@ -191,15 +192,19 @@ export async function runTool<Credential>(
         if (write && unknownOutcome) {
           const command = ['artium-axi', adapter.name, ...write.checkArgs].map(value =>
             /^[a-zA-Z0-9_./:=,+@%-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`).join(' ')
-          error = Object.assign(new RunnerError(completed && error instanceof ArtiumError ? error.code : 'UNKNOWN_OUTCOME',
+          const failure = Object.assign(new RunnerError(completed && error instanceof ArtiumError ? error.code : 'UNKNOWN_OUTCOME',
             `Unknown outcome for ${write.operation} ${write.target}.`,
-            `The operation may have changed state and was not retried. Check current state before trying again: ${command}${write.afterCheck ? `. ${write.afterCheck}` : ''}`),
+            recovery ? `Native audit ID ${recovery.receipt.auditId}; native status ${recovery.receipt.status}. Keep the original input and confirmation. Reconcile this audit ID with the original binding or inspect state with a trusted read; never replay.`
+              : `The operation may have changed state and was not retried. Check current state before trying again: ${command}${write.afterCheck ? `. ${write.afterCheck}` : ''}`),
           { durationMs: execution.durationMs, outputBytes: execution.outputBytes, processStarted: true,
-            truncated: execution.truncated })
+            truncated: execution.truncated, recovery })
+          Object.defineProperty(failure, 'cause', { value: error })
+          error = failure
         }
         audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(false) ?? 'unknown',
           outcome: unknownOutcome ? 'UNKNOWN_OUTCOME' : error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR',
-          errorCode: completed && error instanceof ArtiumError ? error.code : undefined, exitCode: completed?.exitCode ?? null,
+          errorCode: completed && error instanceof ArtiumError ? error.code : undefined, exitCode: recovery?.exitCode ?? completed?.exitCode ?? null,
+          nativeAuditId: recovery?.receipt.auditId, completedMutation: recovery,
           durationMs: execution?.durationMs ?? Date.now() - started,
           outputBytes: execution?.outputBytes ?? { stdout: 0, stderr: 0 }, failure })
         throw error
@@ -209,7 +214,7 @@ export async function runTool<Credential>(
     const outcome = errorCode === 'OUTCOME_UNKNOWN' ? 'UNKNOWN_OUTCOME' : 'completed'
     audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(result.exitCode === 0, result.stdout) ?? 'unknown',
       outcome, exitCode: result.exitCode,
-      nativeAuditId: await journal?.auditId?.(),
+      nativeAuditId: result.completedMutation?.receipt.auditId ?? await journal?.auditId?.(), completedMutation: result.completedMutation,
       errorCode,
       durationMs: result.durationMs, outputBytes: result.outputBytes, failure })
     return result

@@ -14,7 +14,9 @@ import { createTechnitiumAdapter } from '../../src/server/adapters/technitium.js
 import awxInventory from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
-import { decode } from '@toon-format/toon'
+import { decode, encode } from '@toon-format/toon'
+import { errorResponse } from '../../src/shared/errors.js'
+import { errorResponseSchema } from '../../src/shared/api.js'
 import type { Adapter } from '../../src/server/adapters/types.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import type { AuditRecord } from '../../src/server/audit/audit.js'
@@ -75,6 +77,7 @@ beforeEach(async () => {
 afterEach(async () => {
   vi.restoreAllMocks()
   vi.mocked(filesystem.open).mockImplementation(actualFilesystem.open)
+  vi.mocked(filesystem.rm).mockImplementation(actualFilesystem.rm)
   vi.useRealTimers()
   await runner.shutdown()
   db.close()
@@ -429,47 +432,6 @@ test.each([
   expect(JSON.stringify(failure) + lines.join('')).not.toMatch(/CANARY-private-site|CANARY-private-body|CANARY-unifi-key/)
 })
 
-test.each([
-  { failure: 'oversized', script: "fs.writeFileSync(process.argv[2], Buffer.alloc(5 * 1024 * 1024), { mode: 0o600 })" },
-  { failure: 'missing', script: '' },
-  { failure: 'stat', script: "fs.writeFileSync(process.argv[2], 'private', { mode: 0o600 })", fileFailure: 'stat' as const },
-  { failure: 'read', script: "fs.writeFileSync(process.argv[2], 'private', { mode: 0o600 })", fileFailure: 'readFile' as const },
-  { failure: 'close', script: "fs.writeFileSync(process.argv[2], 'private', { mode: 0o600 })", fileFailure: 'close' as const },
-])('Technitium completed writes require reconciliation after $failure protected results (R2)', async ({ script, fileFailure }) => {
-  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'technitium-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'technitium-axi')")
-  const credential = { origin: 'https://synthetic.invalid', auth: 'token', tokenKind: 'api', token: 'CANARY-technitium-token' }
-  const store = createCredentialStore(db, provider)
-  store.replaceCredential('technitium-axi', credential, 0, 'synthetic-user', Date.now())
-  const grants = { allowWrites: true, operations: ['OP-080'] }
-  const technitium = createTechnitiumAdapter({ getCredential: async () => credential,
-    getSettings: () => ({ writes: grants, hostWrites: grants }) }, join(directory, 'technitium-writes'))
-  const mutation = join(directory, 'synthetic-mutation')
-  vi.spyOn(filesystem, 'open').mockImplementation(async (...input) => {
-    const handle = await actualFilesystem.open(...input)
-    if (fileFailure && String(input[0]).endsWith('/technitium-result.bin')) {
-      const close = handle.close.bind(handle)
-      vi.spyOn(handle, fileFailure).mockImplementation(async () => {
-        if (fileFailure === 'close') await close()
-        throw new Error('synthetic result custody failure')
-      })
-    }
-    return handle
-  })
-  const execution = { ...technitium, async prepare(...input: Parameters<typeof technitium.prepare>) {
-    return { ...await technitium.prepare(...input), executable: process.execPath,
-      args: ['-e', `const fs=require('node:fs'); fs.writeFileSync(${JSON.stringify(mutation)}, 'applied'); ${script}`, '--'],
-      fileArguments: [] }
-  } }
-  const args = ['settings', 'set', '--input-file', 'input.json', '--execute',
-    '--confirm', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.' + 'a'.repeat(64)]
-  const files = [{ name: 'input.json', contentBase64: Buffer.from(JSON.stringify({ parameters: { dnsServerDomain: 'synthetic.test' } })).toString('base64') }]
-  await expect(runTool(db, audit, runner, token, { args, files }, execution, new SharedIdentityResolver(store),
-    { ...context, protectedResults: new ProtectedResults() })).rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME',
-    next: expect.stringContaining('Reconcile with the native audit ID') })
-  expect(readFileSync(mutation, 'utf8')).toBe('applied')
-  expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get())
-    .toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'unknown' })
-})
 
 test('Technitium executes empty operation secrets without disabling nonempty secret scanning (R3)', async () => {
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'technitium-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'technitium-axi')")
@@ -509,54 +471,115 @@ test('Technitium executes empty operation secrets without disabling nonempty sec
     leaking, identities, { ...context, requestId: 'nonempty' })).rejects.toMatchObject({ code: 'SECRET_IN_OUTPUT' })
 })
 
+const nativeReceipt = {
+  status: 'ok', operation: 'OP-132', auditId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', credential: 'consumed',
+  cluster: {
+    scope: 'selected node', completion: 'selected-node state only',
+    effects: 'Promote selected secondary and remove old primary membership; force skips old primary synchronization and deletion',
+    uncertainty: 'Remote nodes may retain cluster configuration; verify them with explicit trusted profiles',
+  },
+}
+
 test.each([
-  { failure: 'token revocation', code: 'TOKEN_INVALID', revoke: () => { db.exec('UPDATE tokens SET revoked_at = 1') } },
-  { failure: 'tool revocation', code: 'TOOL_DISABLED', revoke: () => { db.exec("UPDATE tools SET enabled = 0 WHERE name = 'technitium-axi'") } },
-  { failure: 'role revocation', code: 'TOOL_NOT_GRANTED', revoke: () => { db.exec("DELETE FROM role_tools WHERE tool = 'technitium-axi'") } },
-  { failure: 'user revocation', code: 'USER_DISABLED', revoke: () => { db.exec("UPDATE users SET disabled = 1 WHERE id = 'synthetic-user'") } },
-  { failure: 'credential rotation', code: 'NOT_FOUND', revoke: () => { db.exec("UPDATE credentials SET revision = revision + 1 WHERE tool = 'technitium-axi'") } },
-  { failure: 'credential removal', code: 'CREDENTIAL_NOT_CONFIGURED', revoke: () => { db.exec("DELETE FROM credentials WHERE tool = 'technitium-axi'") } },
-  { failure: 'reservation invalidation', code: 'NOT_FOUND', revoke: (results: ProtectedResults) => { results.clear() } },
-])('Technitium keeps $failure refusals and write recovery context during publication (R4)', async ({ code, revoke }) => {
-  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'technitium-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'technitium-axi')")
-  const credential = { origin: 'https://synthetic.invalid', auth: 'token', tokenKind: 'api', token: 'CANARY-technitium-token' }
-  const store = createCredentialStore(db, provider)
-  const reference = store.replaceCredential('technitium-axi', credential, 0, 'synthetic-user', Date.now())
-  const grants = { allowWrites: true, operations: ['OP-080'] }
-  const technitium = createTechnitiumAdapter({ getCredential: async () => credential,
-    getSettings: () => ({ writes: grants, hostWrites: grants }) }, join(directory, 'technitium-writes'))
-  const mutation = join(directory, 'synthetic-mutation')
-  const execution = { ...technitium, async prepare(...input: Parameters<typeof technitium.prepare>) {
-    return { ...await technitium.prepare(...input), executable: process.execPath,
-      args: ['-e', `const fs=require('node:fs'); fs.writeFileSync(${JSON.stringify(mutation)}, 'applied');
-        fs.writeFileSync(process.argv[2], 'CANARY-private-result', {mode:0o600}); console.log('{}');`, '--'], fileArguments: [] }
-  } }
-  const results = new ProtectedResults()
-  vi.spyOn(filesystem, 'open').mockImplementation(async (...input) => {
-    const handle = await actualFilesystem.open(...input)
-    if (String(input[0]).endsWith('/technitium-result.bin')) revoke(results)
-    return handle
-  })
-  const args = ['settings', 'set', '--input-file', 'input.json', '--execute',
-    '--confirm', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.' + 'a'.repeat(64)]
-  const files = [{ name: 'input.json', contentBase64: Buffer.from('{"parameters":{}}').toString('base64') }]
-  const failure = await runTool(db, audit, runner, token, { args, files }, execution, new SharedIdentityResolver(store),
-    { ...context, protectedResults: results }).catch(error => error)
-  expect(failure).toMatchObject({ code, processStarted: true, message: expect.stringContaining('Unknown outcome'),
-    next: expect.stringContaining('Reconcile with the native audit ID'), outputBytes: { stdout: 3, stderr: 0 } })
-  expect(readFileSync(mutation, 'utf8')).toBe('applied')
-  expect(db.prepare("SELECT outcome, action, error_code, exit_code, stdout_bytes FROM audit WHERE event = 'run-terminal'").get())
-    .toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'unknown', error_code: code, exit_code: 0, stdout_bytes: 3 })
-  expect(db.prepare("SELECT outcome FROM audit WHERE event = 'protected-result'").all()).toEqual([])
-  expect(JSON.stringify(failure) + lines.join('')).not.toContain('CANARY-private-result')
-  const scope = { userId: 'synthetic-user', credential: reference, operation: 'OP-080' }
-  results.reserve(scope)
-  results.reserve(scope)
-  results.reserve(scope)
-  results.reserve(scope)
-  expect(() => results.reserve(scope)).toThrow(expect.objectContaining({ code: 'TOO_MANY_CALLS' }))
-  results.clear()
-})
+  { failure: 'result open', code: 'UNKNOWN_OUTCOME', fileFailure: 'open' as const, cause: { cause: { code: 'EIO' } } },
+  { failure: 'result stat', code: 'UNKNOWN_OUTCOME', fileFailure: 'stat' as const, cause: { cause: { code: 'EIO' } } },
+  { failure: 'result read', code: 'UNKNOWN_OUTCOME', fileFailure: 'readFile' as const, cause: { cause: { code: 'EIO' } } },
+  { failure: 'result close', code: 'UNKNOWN_OUTCOME', fileFailure: 'close' as const, cause: { cause: { code: 'EIO' } } },
+  { failure: 'result size', code: 'UNKNOWN_OUTCOME', size: 5 * 1024 * 1024, cause: { code: 'OUTPUT_LIMIT' } },
+  { failure: 'call cleanup', code: 'UNKNOWN_OUTCOME', cleanup: 'call', cause: { cause: { errors: [{ code: 'EROFS' }] } } },
+  { failure: 'profile cleanup', code: 'UNKNOWN_OUTCOME', cleanup: 'profile', cause: { cause: { errors: [{ code: 'EROFS' }] } } },
+  { failure: 'profile temporary cleanup', code: 'UNKNOWN_OUTCOME', cleanup: 'profile-tmp', cause: { cause: { errors: [{ code: 'EROFS' }] } } },
+  { failure: 'read and cleanup', code: 'UNKNOWN_OUTCOME', fileFailure: 'readFile' as const, cleanup: 'call', cause: { cause: { errors: [{ code: 'EROFS' }] } } },
+  { failure: 'token revocation', code: 'TOKEN_INVALID', revoke: () => { db.exec('UPDATE tokens SET revoked_at = 1') }, cause: { code: 'TOKEN_INVALID' } },
+  { failure: 'token expiry', code: 'TOKEN_EXPIRED', revoke: () => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(Date.now() + tokenDefaults.accessMs) }, cause: { code: 'TOKEN_EXPIRED' } },
+  { failure: 'tool revocation', code: 'TOOL_DISABLED', revoke: () => { db.exec("UPDATE tools SET enabled = 0 WHERE name = 'technitium-axi'") }, cause: { code: 'TOOL_DISABLED' } },
+  { failure: 'role revocation', code: 'TOOL_NOT_GRANTED', revoke: () => { db.exec("DELETE FROM role_tools WHERE tool = 'technitium-axi'") }, cause: { code: 'TOOL_NOT_GRANTED' } },
+  { failure: 'user revocation', code: 'USER_DISABLED', revoke: () => { db.exec("UPDATE users SET disabled = 1 WHERE id = 'synthetic-user'") }, cause: { code: 'USER_DISABLED' } },
+  { failure: 'credential rotation', code: 'NOT_FOUND', revoke: () => { db.exec("UPDATE credentials SET revision = revision + 1 WHERE tool = 'technitium-axi'") }, cause: { code: 'NOT_FOUND' } },
+  { failure: 'credential removal', code: 'CREDENTIAL_NOT_CONFIGURED', revoke: () => { db.exec("DELETE FROM credentials WHERE tool = 'technitium-axi'") }, cause: { code: 'CREDENTIAL_NOT_CONFIGURED' } },
+  { failure: 'reservation invalidation', code: 'NOT_FOUND', revoke: (results: ProtectedResults) => { results.clear() }, cause: { code: 'NOT_FOUND' } },
+].flatMap(point => [{ ...point, format: 'json' }, { ...point, format: 'toon' }]))(
+  'Technitium retains one safe completed outcome after $failure ($format, R4/R5/R6)', async point => {
+    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'technitium-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'technitium-axi')")
+    const credential = { origin: 'https://synthetic.invalid', auth: 'token', tokenKind: 'api', token: 'CANARY-technitium-token' }
+    const store = createCredentialStore(db, provider)
+    const reference = store.replaceCredential('technitium-axi', credential, 0, 'synthetic-user', Date.now())
+    const grants = { allowWrites: true, operations: ['OP-132'] }
+    const technitium = createTechnitiumAdapter({ getCredential: async () => credential,
+      getSettings: () => ({ writes: grants, hostWrites: grants }) }, join(directory, 'technitium-writes'))
+    const mutation = join(directory, 'synthetic-mutation')
+    const workflows = join(directory, 'requests')
+    const document = { ...nativeReceipt, result: { path: '/private/CANARY-private-path', bytes: 20, sha256: 'a'.repeat(64) },
+      response: { token: 'CANARY-private-response' }, cluster: { ...nativeReceipt.cluster,
+        affectedNodes: [{ id: 1, name: 'CANARY-private-node', type: 'Secondary' }] } }
+    const stdout = (point.format === 'json' ? JSON.stringify(document) : encode(document)) + '\n'
+    const execution = { ...technitium, async prepare(...input: Parameters<typeof technitium.prepare>) {
+      const prepared = await technitium.prepare(...input)
+      const script = [
+        "const fs=require('node:fs');",
+        'fs.writeFileSync(' + JSON.stringify(mutation) + ", 'applied');",
+        'fs.writeFileSync(process.argv[2], Buffer.alloc(' + String(point.size ?? 20) + "), {mode:0o600});",
+        "fs.writeFileSync(process.env.KUBERNETES_AXI_CONFIG+'.tmp', 'private', {mode:0o600});",
+        'process.stdout.write(' + JSON.stringify(stdout) + ');',
+      ].join('\n')
+      return { ...prepared, executable: process.execPath, args: ['-e', script, '--'], fileArguments: [],
+        kubernetesWorkflowRoot: workflows, files: [...prepared.files, { name: 'kubernetes-axi/config.json', content: '{}' }] }
+    } }
+    const results = new ProtectedResults()
+    const storageError = Object.assign(new Error('synthetic result failure'), { code: 'EIO' })
+    const cleanupError = Object.assign(new Error('synthetic cleanup failure'), { code: 'EROFS' })
+    vi.spyOn(filesystem, 'open').mockImplementation(async (...input) => {
+      const resultFile = String(input[0]).endsWith('/technitium-result.bin')
+      if (resultFile && point.fileFailure === 'open') throw storageError
+      const handle = await actualFilesystem.open(...input)
+      if (resultFile) {
+        point.revoke?.(results)
+        if (point.fileFailure && point.fileFailure !== 'open') {
+          const close = handle.close.bind(handle)
+          vi.spyOn(handle, point.fileFailure).mockImplementation(async () => {
+            if (point.fileFailure === 'close') await close()
+            throw storageError
+          })
+        }
+      }
+      return handle
+    })
+    vi.spyOn(filesystem, 'rm').mockImplementation(async (...input) => {
+      const path = String(input[0])
+      if (point.cleanup === 'call' && path.includes('/calls/artium-call-')
+        || point.cleanup === 'profile' && path.startsWith(workflows) && path.endsWith('.json')
+        || point.cleanup === 'profile-tmp' && path.startsWith(workflows) && path.endsWith('.json.tmp')) throw cleanupError
+      return actualFilesystem.rm(...input)
+    })
+    const args = ['admin', 'cluster', 'secondary', 'promote', '--input-file', 'input.json', '--execute',
+      '--confirm', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.' + 'a'.repeat(64)]
+    const files = [{ name: 'input.json', contentBase64: Buffer.from('{"parameters":{}}').toString('base64') }]
+    const failure = await runTool(db, audit, runner, token, { args, files }, execution, new SharedIdentityResolver(store),
+      { ...context, protectedResults: results }).catch(error => error)
+    expect(failure).toMatchObject({ code: point.code, processStarted: true, recovery: {
+      receipt: nativeReceipt, exitCode: 0, outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 },
+    }, next: expect.stringContaining(nativeReceipt.auditId) })
+    expect(failure.cause).toMatchObject(point.cause)
+    const response = errorResponse(failure, context.requestId)
+    expect(response.error.recovery).toBe(failure.recovery)
+    expect(errorResponseSchema.parse(JSON.parse(JSON.stringify(response))).error.recovery).toEqual(failure.recovery)
+    expect(readFileSync(mutation, 'utf8')).toBe('applied')
+    const record = db.prepare("SELECT outcome, action, native_audit_id, native_journal_result, exit_code FROM audit WHERE event = 'run-terminal'").get() as {
+      outcome: string, action: string, native_audit_id: string, native_journal_result: string, exit_code: number,
+    }
+    expect(record).toMatchObject({ outcome: 'UNKNOWN_OUTCOME', action: 'unknown', native_audit_id: nativeReceipt.auditId, exit_code: 0 })
+    expect(JSON.parse(record.native_journal_result)).toEqual(failure.recovery)
+    expect(db.prepare("SELECT outcome FROM audit WHERE event = 'protected-result'").all()).toEqual([])
+    expect(JSON.stringify(response) + lines.join('')).not.toContain('CANARY-private')
+    const scope = { userId: 'synthetic-user', credential: reference, operation: 'OP-132' }
+    results.reserve(scope)
+    results.reserve(scope)
+    results.reserve(scope)
+    results.reserve(scope)
+    expect(() => results.reserve(scope)).toThrow(expect.objectContaining({ code: 'TOO_MANY_CALLS' }))
+    results.clear()
+  },
+)
 
 test('a classified write ending on a signal records an unknown outcome', async () => {
   const execution = { ...adapter, async prepare(...input: Parameters<typeof adapter.prepare>) {
