@@ -85,6 +85,25 @@ test.each(['job', 'workflow', 'project-update', 'inventory-update', 'ad-hoc', 's
 }, 60_000)
 
 test.each([
+  { text: '', lines: 0 },
+  { text: '\n', lines: 1 },
+  { text: 'first', lines: 1 },
+  { text: 'first\n', lines: 1 },
+  { text: 'first\nsecond', lines: 2 },
+])('AWX stdout download counts lines including empty output (R3): $text', async ({ text, lines }) => {
+  await withReadService(async ({ app, run, send, headers }) => {
+    await send(`/__awx/stdout-response?status=200&text=${encodeURIComponent(text)}`, 'POST')
+    const response = await run(['job', 'stdout', '42', '--type', 'project-update', '--download', '42.log'])
+    expect(response.json(), response.body).toMatchObject({ exitCode: 0, stderr: '' })
+    const output = decode(response.json().stdout) as { result: { path: string } }
+    expect(output).toMatchObject({ job_stdout_download: { bytes: Buffer.byteLength(text), lines } })
+    const downloaded = await app.inject({ method: 'GET', url: output.result.path, headers })
+    expect(downloaded.statusCode, downloaded.body).toBe(200)
+    expect(downloaded.body).toBe(text)
+  })
+}, 60_000)
+
+test.each([
   { status: 403, code: 'FORBIDDEN' },
   { status: 404, code: 'NOT_FOUND' },
 ])('AWX stdout download reports controller refusal $status without a result', async ({ status, code }) => {

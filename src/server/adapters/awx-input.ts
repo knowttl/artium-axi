@@ -105,7 +105,7 @@ if (download !== undefined) {
       if (response.status !== 200) return response;
       const text = redactLog(await response.text());
       writeFileSync(resultFile, text, { mode: 0o600, flag: 'wx' });
-      const lines = text.split('\\n').length - (text.endsWith('\\n') ? 1 : 0);
+      const lines = text === '' ? 0 : text.split('\\n').length - (text.endsWith('\\n') ? 1 : 0);
       downloaded = { bytes: Buffer.byteLength(text), lines };
       return new Response(JSON.stringify({ content: '', range: { start: 0, end: lines, absolute_end: lines } }), { status: 200, headers: { 'content-type': 'application/json' } });
     };

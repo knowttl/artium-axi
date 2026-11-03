@@ -20,6 +20,7 @@ let awxBulkDeleteResponse = 'valid'
 let awxTokenResponse = 'valid'
 let awxStdoutPadding = 0
 let awxStdoutStatus = 200
+let awxStdoutText
 let githubDeviceScenario = 'success'
 let githubDevicePolls = 0
 let falconRedirect = 'none'
@@ -312,6 +313,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     awxTokenResponse = 'valid'
     awxStdoutPadding = 0
     awxStdoutStatus = 200
+    awxStdoutText = undefined
     res.end('{}')
     return
   }
@@ -340,6 +342,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   }
   if (url.pathname === '/__awx/stdout-response' && req.method === 'POST') {
     awxStdoutStatus = Number(url.searchParams.get('status'))
+    awxStdoutText = url.searchParams.get('text') ?? undefined
     res.end('{}'); return
   }
   if (url.pathname === '/__awx/bulk-delete-response' && req.method === 'POST') {
@@ -610,7 +613,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           res.writeHead(awxStdoutStatus); res.end(JSON.stringify({ detail: 'Synthetic stdout download refused.' })); return
         }
         res.setHeader('content-type', 'text/plain')
-        res.end(lines.join('\n') + '\nAuthorization: Bearer CANARY-awx-token\n' + 'x'.repeat(awxStdoutPadding)); return
+        res.end(awxStdoutText ?? lines.join('\n') + '\nAuthorization: Bearer CANARY-awx-token\n' + 'x'.repeat(awxStdoutPadding)); return
       }
       const start = url.searchParams.has('tail') ? Math.max(0, lines.length - Number(url.searchParams.get('tail')))
         : Number(url.searchParams.get('start_line') ?? 0)
