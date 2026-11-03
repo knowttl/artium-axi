@@ -8,6 +8,7 @@ import { kubernetesFile, kubernetesHostedCommands, kubernetesSessionStart, kuber
 import { ArtiumError } from '../shared/errors.js'
 import { artifactDestination } from './artifact-save.js'
 import type { Client } from './http.js'
+import { DEFAULT_REQUEST_DEADLINE_MS } from './http.js'
 import inventory from '../../tools/inventories/kubernetes-axi.json' with { type: 'json' }
 
 const workspaceSchema = z.object({ id: z.uuid(), expiresAt: z.number(),
@@ -85,10 +86,10 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
   const current = () => client ??= createClient()
   const base = `/v1/tools/kubernetes-axi/${group === 'workspace' ? 'workspaces' : 'sessions'}`
   // Refresh only a passive identity read; each effectful request is sent once.
-  const call = async (path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', input?: unknown) => {
+  const call = async (path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', input?: unknown, deadlineMs?: number) => {
     const client = current()
     await client.authenticated('/v1/me', 'GET')
-    return client.transferSession(token => client.request(path, method, input, token))
+    return client.transferSession(token => client.request(path, method, input, token, false, undefined, deadlineMs))
   }
   if (route === 'workspace create') {
     if (positionals.length !== 1) throw new ArtiumError('INVALID_INPUT')
@@ -153,6 +154,11 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
   if (action === 'confirm') {
     const digest = validated(z.string().regex(/^[a-f0-9]{64}$/), flags.get('--digest'))
     print(await call(path + '/confirm', 'POST', { digest })); return true
+  }
+  if (route === 'session show' && flags.has('--wait')) {
+    const session = validated(sessionSchema, await call(path, 'GET'), 'INVALID_RESPONSE')
+    const deadlineMs = Math.max(0, session.expiresAt - Date.now()) + DEFAULT_REQUEST_DEADLINE_MS
+    print(await call(path + '?wait=true', 'GET', undefined, deadlineMs)); return true
   }
   const query = new URLSearchParams()
   if (flags.has('--wait')) query.set('wait', 'true')

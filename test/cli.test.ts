@@ -12,13 +12,14 @@ import { join } from 'node:path'
 import type { TLSSocket } from 'node:tls'
 import { build } from 'esbuild'
 import { decode } from '@toon-format/toon'
-import { afterAll, beforeAll, expect, test } from 'vitest'
+import { afterAll, beforeAll, expect, test, vi } from 'vitest'
 import { copyClientInput } from './fixtures/client-inputs.js'
 import { createTestCertificates } from './fake-service/certificates.mjs'
 import { createKubernetesAdapter } from '../src/server/adapters/kubernetes.js'
 import { hostedStatus } from '../src/server/adapters/hosted-status.js'
 import { SessionStore } from '../src/cli/session.js'
 import { Client, DEFAULT_REQUEST_DEADLINE_MS } from '../src/cli/http.js'
+import { kubernetesHosted } from '../src/cli/kubernetes.js'
 import { cliVersion } from '../src/shared/version.js'
 import { ArtiumError, errorResponse, errors } from '../src/shared/errors.js'
 
@@ -138,6 +139,47 @@ test.each([
     expect(requests.map(request => request.path)).toEqual(paths)
     expect(requests.at(-1)?.token).toBe(token)
   } finally { doctorResponses = undefined }
+})
+
+test.each([false, true])('Kubernetes waiting reads survive 120 seconds and remain cancellable: cancel=%s (R1)', async cancel => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  const id = '11111111-1111-4111-8111-111111111111'
+  const path = `/v1/tools/kubernetes-axi/sessions/${id}`
+  const status = { id, expiresAt: Date.now() + 300_000, state: 'running' }
+  const completed = { ...status, state: 'exited', exitCode: 0 }
+  const client = new Client({ ARTIUM_AXI_URL: url, ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'),
+    XDG_CONFIG_HOME: mkdtempSync(join(directory, 'kubernetes-wait-')) })
+  client.sessions.write({ status: 'authenticated', accessToken: 'CANARY-wait', refreshToken: 'CANARY-refresh',
+    accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000 })
+  doctorResponses = {
+    '/v1/me': { status: 200, body: {} },
+    [path]: { status: 200, body: status },
+    [path + '?wait=true']: { status: 200, body: completed },
+  }
+  const waiting = Promise.withResolvers<void>(), release = Promise.withResolvers<void>()
+  beforeReply = async requestPath => {
+    if (requestPath === path + '?wait=true') { waiting.resolve(); await release.promise }
+  }
+  requests = []
+  const output: string[] = []
+  let settled = false
+  const result = kubernetesHosted(['session', 'show', id, '--wait', '--json'], () => client, text => output.push(text))
+    .then(value => { settled = true; return value }, error => { settled = true; return error })
+  try {
+    await waiting.promise
+    await vi.advanceTimersByTimeAsync(120_000)
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(settled).toBe(false)
+    if (cancel) client.cancel()
+    else release.resolve()
+    if (cancel) expect(await result).toMatchObject({ code: 'SERVER_UNAVAILABLE' })
+    else { expect(await result).toBe(true); expect(output.map(text => JSON.parse(text))).toEqual([completed]) }
+    expect(requests.filter(request => request.path === path + '?wait=true')).toHaveLength(1)
+    expect(requests.every(request => request.body === undefined)).toBe(true)
+  } finally {
+    release.resolve(); client.cancel(); await result
+    beforeReply = undefined; doctorResponses = undefined; vi.useRealTimers()
+  }
 })
 
 test('concurrent callers refresh an expired stored token once', async () => {

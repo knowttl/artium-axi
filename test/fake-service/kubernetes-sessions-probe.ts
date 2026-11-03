@@ -172,17 +172,24 @@ await withFakeService(async ({ directory, port, send }) => {
     for (const kind of ['create', 'apply'] as const) {
       const manifest = Buffer.from(JSON.stringify({ apiVersion: 'v1', kind: 'ConfigMap',
         metadata: { name: `synthetic-session-${kind}`, namespace: 'synthetic' }, data: { mode: 'workspace' } }))
+      const files = [
+        { path: 'object.json', content: manifest },
+        { path: 'bundle/object.json', content: manifest },
+        { path: 'bundle/kustomization.yaml', content: Buffer.from('resources:\n  - object.json\n') },
+      ]
       const staged = await request('/v1/tools/kubernetes-axi/workspaces', 'POST', {
-        files: [{ path: 'object.json', bytes: manifest.length, sha256: createHash('sha256').update(manifest).digest('hex') }],
+        files: files.map(file => ({ path: file.path, bytes: file.content.length, sha256: createHash('sha256').update(file.content).digest('hex') })),
       })
       assert.equal(staged.statusCode, 200, staged.body)
       const workspace = staged.json().id as string
-      assert.equal((await app.inject({ method: 'PUT', url: `/v1/tools/kubernetes-axi/workspaces/${workspace}/files/object.json`,
-        headers: { ...headers, 'content-type': 'application/octet-stream' }, payload: manifest })).statusCode, 200)
-      const operation = await start(kind, [kind, '-f', 'workspace:object.json', '--validate=false'], { workspace })
-      const settled = await confirm(operation)
-      assert.equal(settled.state, 'exited', JSON.stringify(settled))
-      await cancel(operation.id)
+      for (const file of files) assert.equal((await app.inject({ method: 'PUT', url: `/v1/tools/kubernetes-axi/workspaces/${workspace}/files/${file.path}`,
+        headers: { ...headers, 'content-type': 'application/octet-stream' }, payload: file.content })).statusCode, 200)
+      for (const flags of [['-f', 'workspace:object.json'], ['-f=workspace:object.json'], ['-k=workspace:bundle']]) {
+        const operation = await start(kind, [kind, ...flags, '--validate=false'], { workspace })
+        const settled = await confirm(operation)
+        assert.equal(settled.state, 'exited', JSON.stringify(settled))
+        await cancel(operation.id)
+      }
       await request('/v1/tools/kubernetes-axi/workspaces/' + workspace, 'DELETE')
     }
     const bounded = await confirm(await start('exec', ['exec', 'synthetic-pod', '--', 'true'], { limits: { outputBytes: 5 } }))

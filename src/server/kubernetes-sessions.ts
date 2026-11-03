@@ -125,7 +125,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
           const commandSeparator = argv.indexOf('--', argv[0] === 'prepare' ? 2 : 0)
           argv = argv.map((arg, index) => {
             if (commandSeparator >= 0 && index > commandSeparator) return arg
-            const flag = /^(--(?:filename|kustomize|patch-file)=|-[fk])(.+)$/.exec(arg)
+            const flag = /^(--(?:filename|kustomize|patch-file)=|-[fk]=?)(.+)$/.exec(arg)
             return flag ? flag[1] + materialize(flag[2]) : input.kind === 'cp'
               || ['-f', '--filename', '-k', '--kustomize', '--patch-file'].includes(argv[index - 1]) ? materialize(arg) : arg
           })

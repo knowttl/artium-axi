@@ -52,8 +52,8 @@ export class Client {
   }
 
   async request(path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', input: undefined, token: undefined, bytes: true): Promise<Buffer>
-  async request(path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', input?: unknown, token?: string, bytes?: false, headers?: Record<string, string>): Promise<unknown>
-  async request(path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', input?: unknown, token?: string, bytes = false, headers: Record<string, string> = {}): Promise<unknown> {
+  async request(path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', input?: unknown, token?: string, bytes?: false, headers?: Record<string, string>, deadlineMs?: number): Promise<unknown>
+  async request(path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', input?: unknown, token?: string, bytes = false, headers: Record<string, string> = {}, deadlineMs = this.requestDeadlineMs): Promise<unknown> {
     this.requestId = undefined
     this.certificateVerified = false
     let ca: string[] | undefined
@@ -61,7 +61,7 @@ export class Client {
     catch { throw new ArtiumError('CLIENT_CONFIG_INVALID') }
     const body = input === undefined ? undefined : Buffer.isBuffer(input) ? input : JSON.stringify(input)
     const controller = new AbortController()
-    const deadline = setTimeout(() => controller.abort(), this.requestDeadlineMs)
+    const deadline = setTimeout(() => controller.abort(), deadlineMs)
     const url = new URL(`${this.serverUrl}${path}`)
     const result = await new Promise<{ status: number, body: unknown, serverVersion?: string }>((resolve, reject) => {
       const request = (url.protocol === 'https:' ? httpsRequest : httpRequest)(url, {
