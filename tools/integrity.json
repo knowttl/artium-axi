@@ -16,8 +16,8 @@
     "integrity": "sha512-SkSVJ7XhdXtP3jdo6dkRhooN0Hl9RaQDark4YYniUEYRTBuHWlB2sDz38gi9EDQle0BzwwCsEIv/YPv2iiUXJA=="
   },
   "@knowttl/unifi-axi": {
-    "version": "0.1.1",
-    "integrity": "sha512-GbxXzfDGDK1aGLuDJvy1t6KPTmaI6vhMm1rUHL2ce1SJKVgUA8/bQO325pw8jYgR5NbkV+zEo9uw2J3AtAiDCw=="
+    "version": "0.1.3",
+    "integrity": "sha512-XkGWH4kPfZ8+bnMhoUEk4FxA+yVUb0DM+V+yCyGtw42JSqbC/NYhqz/3HCNHNRK6easZigdIWFoMXmKcoPdZRg=="
   },
   "@knowttl/proxmox-axi": {
     "version": "0.1.1",

@@ -53,6 +53,11 @@ try {
       await command('docker', ['run', '--name', falconWrites, '--pull', 'never', '--init', '--network', 'none', '--read-only',
         '--sysctl', 'net.ipv4.ip_unprivileged_port_start=0', '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
         '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/dist/test/fake-service/falcon-writes-probe.js'])
+      const unifi = `${builder}-unifi`
+      recoveryContainers.push(unifi)
+      await command('docker', ['run', '--name', unifi, '--pull', 'never', '--init', '--network', 'none', '--read-only',
+        '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
+        '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/dist/test/fake-service/unifi-probe.js'])
       const ssh = `${builder}-ssh`
       recoveryContainers.push(ssh)
       await command('docker', ['run', '--name', ssh, '--pull', 'never', '--init', '--network', 'none', '--read-only',

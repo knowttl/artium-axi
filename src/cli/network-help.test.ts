@@ -4,14 +4,17 @@ import { expect, test } from 'vitest'
 import { rewriteSuggestions } from './rewrite.js'
 
 test.each([
-  { tool: 'unifi-axi', bin: 'dist/bin.js', args: ['info', '--help'], command: 'info', flags: ['help'] },
-  { tool: 'unifi-axi', bin: 'dist/bin.js', args: ['--help'], command: '', flags: ['help', 'site'] },
-  { tool: 'unifi-axi', bin: 'dist/bin.js', args: ['commands'], command: '', flags: ['help', 'site'] },
+  { tool: 'unifi-axi', bin: 'dist/bin.js', args: ['info', '--help'], command: 'info', flags: ['full', 'help'] },
+  { tool: 'unifi-axi', bin: 'dist/bin.js', args: ['--help'], command: '', flags: ['full', 'help', 'site'] },
+  { tool: 'unifi-axi', bin: 'dist/bin.js', args: ['commands'], command: '', flags: ['full', 'help', 'site'] },
+  { tool: 'unifi-axi', bin: 'dist/bin.js', args: ['network', '--help'], command: 'network', flags: ['help'] },
+  { tool: 'unifi-axi', bin: 'dist/bin.js', args: ['network', 'create', '--help'], command: 'network create',
+    flags: ['body-file', 'confirm', 'execute', 'help', 'request-id', 'site'] },
   { tool: 'proxmox-axi', bin: 'bin/proxmox-axi.mjs', args: ['get', '/version', '--help'], command: 'get /version',
     flags: ['catalogue', 'fields', 'format', 'full', 'help', 'limit'] },
   { tool: 'proxmox-axi', bin: 'bin/proxmox-axi.mjs', args: ['get', '/version', '--help', '--format', 'json'], command: 'get /version',
     flags: ['catalogue', 'fields', 'format', 'full', 'help', 'limit'] },
-])('$tool normalizes published help $args against admitted reads', ({ tool, bin, args, command, flags }) => {
+])('$tool normalizes published help $args against admitted commands', ({ tool, bin, args, command, flags }) => {
   const native = execFileSync(process.execPath, [`tools/node_modules/@knowttl/${tool}/${bin}`, ...args], { encoding: 'utf8' })
   const output = rewriteSuggestions(native, tool)
   const document = (output.trimStart().startsWith('{') ? JSON.parse(output) : decode(output)) as {
@@ -22,7 +25,7 @@ test.each([
   expect(Object.keys(document.flags).sort()).toEqual(flags)
   expect(document.examples).toEqual([`${hosted} --help`])
   expect(document.commands ?? []).not.toContain('profile configure')
-  expect(document.commands ?? []).not.toContain('acl-rule create')
+  if (tool === 'proxmox-axi') expect(document.commands ?? []).not.toContain('acl-rule create')
   expect(document.commands ?? []).not.toContain('home')
   expect(document.help).not.toContain('Ask an administrator to update the managed credential.')
   expect(rewriteSuggestions(output, tool)).toBe(output)

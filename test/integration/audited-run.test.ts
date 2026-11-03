@@ -9,6 +9,7 @@ import type { MockInstance } from 'vitest'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
 import { createGhAdapter } from '../../src/server/adapters/gh.js'
 import { createAwxAdapter } from '../../src/server/adapters/awx.js'
+import { createUnifiAdapter } from '../../src/server/adapters/unifi.js'
 import awxInventory from '../../tools/inventories/awx-axi.json' with { type: 'json' }
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
@@ -23,7 +24,7 @@ import { SharedIdentityResolver } from '../../src/server/policy/identity-resolve
 import { ProtectedResults } from '../../src/server/protected-results.js'
 import { runTool } from '../../src/server/runner/run.js'
 import { Runner, RunnerError } from '../../src/server/runner/runner.js'
-import { openStore } from '../../src/server/store/db.js'
+import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { issueTestAccessToken } from '../fixtures/tokens.js'
@@ -389,6 +390,41 @@ test('known-secret output produces a safe terminal with observed byte counts', a
     .rejects.toMatchObject({ code: 'SECRET_IN_OUTPUT' })
   expect(db.prepare("SELECT * FROM audit WHERE event = 'run-terminal'").get()).toMatchObject({ outcome: 'SECRET_IN_OUTPUT', exit_code: null, stdout_bytes: 13, stderr_bytes: 0 })
   expect(lines.join('')).not.toContain('CANARY-secret')
+})
+
+test.each([
+  { upload: false, inline: false }, { upload: true, inline: false },
+  { upload: false, inline: true }, { upload: true, inline: true },
+])('UniFi interrupted execution retains request reconciliation with upload=$upload inline=$inline (R2)', async ({ upload, inline }) => {
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'unifi-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'unifi-axi')")
+  const unifi = createUnifiAdapter({
+    getCredential: async () => ({ origin: 'https://synthetic.invalid', apiKey: 'CANARY-unifi-key' }),
+    getSettings: () => ({ writes: { allowWrites: true, operations: ['createNetwork'] } }),
+  }, join(directory, 'unifi-writes'))
+  const store = createCredentialStore(db, provider)
+  store.replaceCredential('unifi-axi', { origin: 'https://synthetic.invalid', apiKey: 'CANARY-unifi-key' },
+    0, 'synthetic-user', Date.now())
+  const identities = new SharedIdentityResolver(store)
+  const execution = { ...unifi, async prepare(...input: Parameters<typeof unifi.prepare>) {
+    return { ...await unifi.prepare(...input), executable: fakeTool.executable,
+      args: [...fakeTool.args, 'signal'], fileArguments: [] }
+  } }
+  const args = ['network', 'create', '--site', 'CANARY-private-site', '--execute',
+    ...(inline ? [`--confirm=${'a'.repeat(64)}`, '--request-id=synthetic-request']
+      : ['--confirm', 'a'.repeat(64), '--request-id', 'synthetic-request']),
+    ...(upload ? ['--body-file', 'body.json'] : [])]
+  const files = upload ? [{ name: 'body.json', contentBase64: Buffer.from('{"name":"CANARY-private-body"}').toString('base64') }] : undefined
+  const failure = await runTool(db, audit, runner, token, { args, files }, execution, identities, context).catch(error => error)
+  expect(failure).toMatchObject({ code: 'UNKNOWN_OUTCOME',
+    message: 'Unknown outcome for network create managed UniFi resource.',
+    next: expect.stringContaining('artium-axi unifi-axi write reconcile --request-id synthetic-request') })
+  const recovery = await unifi.prepare(['write', 'reconcile', '--request-id', 'synthetic-request'],
+    { id: 'synthetic-unifi', tool: 'unifi-axi', revision: 1 })
+  expect(recovery.effect).toBe('read')
+  expect(recovery.write).toBeUndefined()
+  expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get())
+    .toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'unknown' })
+  expect(JSON.stringify(failure) + lines.join('')).not.toMatch(/CANARY-private-site|CANARY-private-body|CANARY-unifi-key/)
 })
 
 test('a classified write ending on a signal records an unknown outcome', async () => {

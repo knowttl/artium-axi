@@ -5,6 +5,7 @@ import { promisify } from 'node:util'
 import { decode } from '@toon-format/toon'
 import { expect, test } from 'vitest'
 import { createApp } from '../../src/server/app.js'
+import { createUnifiAdapter } from '../../src/server/adapters/unifi.js'
 import { createNetworkReadAdapter } from '../../src/server/adapters/network-reads.js'
 import { createGiteaAdapter } from '../../src/server/adapters/gitea.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -53,7 +54,7 @@ async function withTool(item: Case, check: (fixture: {
     Object.assign(toolSkillPaths, { [item.tool]: join(process.cwd(), 'tools/node_modules/@knowttl', item.tool, item.skill) })
     const app = createApp({ db, runner, audit: new Audit(db), environment: {}, credentialStore: store,
       resolver: new SharedIdentityResolver(store), adapters: [item.tool === 'gitea-axi' ? createGiteaAdapter(new EmbeddedSecretSource(store))
-        : createNetworkReadAdapter(item.tool, new EmbeddedSecretSource(store))] })
+        : item.tool === 'unifi-axi' ? createUnifiAdapter(new EmbeddedSecretSource(store)) : createNetworkReadAdapter(item.tool, new EmbeddedSecretSource(store))] })
     try {
       const url = await app.listen({ host: '127.0.0.1', port: 0 })
       const token = issueTestAccessToken(db, 'synthetic-development-user')

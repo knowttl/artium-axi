@@ -21,7 +21,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi download --operation <operation> --selector <selector> --type <type> --destination <absolute-new-path> [--transfer <id> --execute --confirm <exact-confirm>] [--password-stdin\|--sso]` | Preview or explicitly verify and save administrator-enabled artifacts; see the [supported capability boundaries](safety.md) and `artium-axi download --help` for operations and guards. |
 | `artium-axi setup --host <claude\|codex\|opencode\|pi> [--hook] [--force]` | Install skills for the signed-in account's granted tools and optional ambient context for Claude Code, Codex or OpenCode on Linux. |
 | `artium-axi session-context` | Emit current tool grants without session identity, or an explicit unavailable diagnostic; exits 0 so hosts can deliver failure context. |
-| `artium-axi unifi-axi [<args>]` | Read implemented UniFi application, inventory and policy commands with managed credentials. |
+| `artium-axi unifi-axi [<args>]` | Read UniFi data and preview administrator-selected native writes; execute with exact confirmation and a stable request ID. |
 | `artium-axi proxmox-axi [<args>]` | Read ordinary Proxmox routes with a managed API token; writes and byte transports are unavailable. |
 | `artium-axi technitium-axi [<args>]` | Read Technitium DNS data with managed credentials and authenticated one-time result retrieval. |
 | `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |

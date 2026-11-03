@@ -214,7 +214,8 @@ Use the **Write permissions** tab (`?tab=writes`) on a tool page to change write
 Writes default to off; the master **Allow writes** switch is absent on fixed read-only tools, which show the reason instead.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
 For AWX, use **Allow writes** and review the [AWX write boundary](safety.md#write-gates-by-tool) for its scope, preview requirements, legacy settings and operations awaiting support.
-For Gitea, GitHub, Graph, Falcon, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
+For UniFi, Gitea, GitHub, Graph, Falcon, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
+See the [UniFi capability boundary](safety.md#network-appliance-reads) for required operation and variant grants.
 See the [Falcon capability boundary](safety.md#write-gates-by-tool) for exact lifecycle grants and the independent RTR profile opt-in and command restriction.
 For BeyondTrust, the separate **Allow deletes** toggle can be saved while writes are off; see the [delete gates](safety.md#beyondtrust-endpoint-privilege-management) before enabling it.
 Check Point name-only event actions use exact `event.action.<name>` entries added through native settings or the write-access API, based on `event show`; no wildcard is accepted.
@@ -324,9 +325,9 @@ This filter does not change stored outcomes: a non-zero tool exit can still have
 When a normal managed run exits non-zero, its terminal record stores the tool's own bounded failure code in `error_code` from a recognized `code:` or `error_code:` line, falling back to an Azure `AADSTS` provider code found in the output.
 Audit records exclude failure messages, help text and tool output; a normal managed run with no recognizable code leaves `error_code` empty while keeping its exit code.
 Records contain actor, UTC time, event, outcome, request ID, redacted arguments and safe execution metadata.
-Each non-secret upload accepted by command input validation emits an `upload` event before credential preparation and tool execution.
+Each upload accepted by command input validation emits an `upload` event before credential preparation and tool execution, except for the protected inputs below.
 Its `arguments` contains the redacted command and file metadata: uploaded leaf name, decoded byte size and server-computed SHA-256, never the original local path or file contents.
-Gitea protected secret inputs emit no upload event, so their file names, sizes and digests are excluded from audit.
+UniFi JSON bodies and Gitea protected secret inputs emit no upload event, so their file names, sizes and digests are excluded from audit.
 An upload event's `success` outcome records input acceptance, not successful tool execution or a completed upstream write.
 Select a record in the table to open its detail panel, which shows its key fields and every persisted field.
 The `/admin/audit?record=<id>` link opens a retained record without JavaScript, even if it is outside the current list filters; an absent or expired record shows **Record not found**.
@@ -358,7 +359,8 @@ This records journal activity, including mutation intents, rather than guarantee
 LDAP runs report `read` from its inventory's read-only declaration.
 Falcon passive calls and RTR previews report `read`; native RTR journal activity reports `write` and missing or incomplete evidence remains `unknown`.
 Search and MalQuery submissions do not emit RTR journals, so their classified mutation audit remains `unknown` without that evidence, even when a job/request ID is returned.
-ADO, AWX, Gitea and ordinary Kubernetes calls use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
+ADO, AWX, UniFi, Gitea and ordinary Kubernetes calls use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
+UniFi previews, receipt inspection and reconciliation are classified as reads; see its [native write boundary](safety.md#network-appliance-reads).
 Gitea previews and reconciliation calls are classified as reads; see its [native write boundary](safety.md#gitea-reads).
 Kubernetes preparation and saved previews report `read`; confirmation and server dry run are write-classified calls.
 Kubernetes byte sessions instead emit `run-start` and `run-terminal` records with the operation kind, exit code and output byte counts, without a read/write `action` classification.

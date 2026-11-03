@@ -7,6 +7,7 @@ import { hybridProfile } from '../adapters/hybrid.js'
 import { beyondtrustProfile } from '../adapters/beyondtrust.js'
 import { checkpointProfile } from '../adapters/checkpoint.js'
 import { networkProfiles } from '../adapters/network-reads.js'
+import { unifiProfile } from '../adapters/unifi.js'
 import { technitiumProfile } from '../adapters/technitium.js'
 import { giteaProfile } from '../adapters/gitea.js'
 import { kubernetesProfile } from '../adapters/kubernetes.js'
@@ -20,7 +21,8 @@ export function editorProfile(tool: ToolName, profile?: CredentialProfile): Cred
   if (tool === 'kubernetes-axi') return kubernetesProfile
   if (tool === 'technitium-axi') return technitiumProfile
   if (tool === 'gitea-axi') return giteaProfile
-  if (tool === 'unifi-axi' || tool === 'proxmox-axi') return networkProfiles[tool]
+  if (tool === 'unifi-axi') return unifiProfile
+  if (tool === 'proxmox-axi') return networkProfiles[tool]
   if (tool === 'beyondtrust-axi') return beyondtrustProfile
   if (tool === 'checkpoint-axi') return checkpointProfile
   if (tool === 'ado-axi') return adoProfile
