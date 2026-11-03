@@ -7,7 +7,7 @@ import type { PreparedCall } from '../adapters/types.js'
 import { proxmoxProfile } from '../adapters/proxmox.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkToolPolicy } from '../policy/policy.js'
-import { toolFailureCode } from '../health/diagnostic.js'
+import { toolFailure, toolFailureCode } from '../health/diagnostic.js'
 import type { ProtectedResults, ResultScope } from '../protected-results.js'
 import type { CredentialReference } from '../store/credential-store.js'
 import { readCredentialTrust, type CredentialTrust } from '../store/trusted-certificates.js'
@@ -37,8 +37,11 @@ export async function acquireProxmox(runner: Runner, user: string, prepared: Pre
         const result = proxmoxResult(bytes, binding); payload = result.payload
         prepared.secrets.push(...result.secrets)
         return result.secrets
-      } } }, {}, prepared.files, beforeSpawn)
-  if (result.exitCode !== 0) throw new ArtiumError('UPSTREAM_AUTH_FAILED', 'Automatic Proxmox sign-in failed.', 'Check the managed username and password, or configure a PVE API token.')
+      } } }, {}, prepared.files, beforeSpawn).catch(error => {
+    if (error instanceof RunnerError) error.processStarted = false
+    throw error
+  })
+  if (result.exitCode !== 0) throw toolFailure(result.stdout, result.stderr, result.exitCode, 'proxmox-axi')
   if (payload && typeof payload === 'object' && 'state' in payload && payload.state === 'challenge') {
     payload = undefined
     throw new ArtiumError('UPSTREAM_AUTH_FAILED', 'This Proxmox account requires an interactive authentication challenge.', 'TFA accounts cannot sign in automatically. Configure a PVE API token instead.')
