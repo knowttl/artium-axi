@@ -5,7 +5,8 @@ import { ArtiumError } from '../../shared/errors.js'
 
 export interface SshHost { id: string, address: string, port: number, username: string }
 interface Binding extends SshHost { approved_host_keys: string, allowed_addresses: string, credential_id: string,
-  host_revision: number, binding_revision: number, credential_revision: number }
+  host_revision: number, binding_revision: number, credential_revision: number,
+  read_only: number, command_seconds: number, output_bytes: number, idle_minutes: number }
 
 // Reusing a deleted handle must not make an old administrative draft current again.
 export function nextSshRevision(db: Database.Database, table: 'ssh_hosts' | 'ssh_credentials', id: string, revision: number, create = false): number {
@@ -42,12 +43,13 @@ export class SshHosts {
     return revision
   }
 
-  private bindings(userId: string): Binding[] {
+  private bindings(userId: string, sudo = false): Binding[] {
     return this.db.prepare(`SELECT h.id, h.address, h.port, h.approved_host_keys, h.allowed_addresses,
-      b.username, b.credential_id, h.revision AS host_revision, b.revision AS binding_revision, c.revision AS credential_revision
+      b.username, b.credential_id, h.revision AS host_revision, b.revision AS binding_revision, c.revision AS credential_revision,
+      h.read_only, h.command_seconds, h.output_bytes, h.idle_minutes
       FROM ssh_hosts h JOIN ssh_bindings b ON b.host_id = h.id JOIN ssh_credentials c ON c.id = b.credential_id
       JOIN ssh_grants g ON g.host_id = h.id WHERE g.user_id = ? AND g.shell = 1 AND h.enabled = 1
-      AND b.sudo = 0 ORDER BY h.id`).all(userId) as Binding[]
+      AND b.sudo = ? AND (? = 0 OR g.sudo = 1) ORDER BY h.id`).all(userId, Number(sudo), Number(sudo)) as Binding[]
   }
 
   list(userId: string): SshHost[] {
@@ -60,9 +62,14 @@ export class SshHosts {
     return () => { if (read() !== snapshot) throw new ArtiumError('CREDENTIAL_INVALID') }
   }
 
-  profile(userId: string, hostId: string): Record<string, unknown> {
-    const binding = this.bindings(userId).find(host => host.id === hostId)
+  executionBinding(userId: string, hostId: string, sudo = false): Binding {
+    const binding = this.bindings(userId, sudo).find(host => host.id === hostId)
     if (!binding) throw new ArtiumError('NOT_FOUND')
+    return binding
+  }
+
+  profile(userId: string, hostId: string, sudo = false): Record<string, unknown> {
+    const binding = this.executionBinding(userId, hostId, sudo)
     const row = this.db.prepare("SELECT * FROM ssh_credentials WHERE id = ? AND tool = 'ssh-axi'").get(binding.credential_id) as EncryptedCredential | undefined
     if (!row) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
     const plaintext = decryptCredential(row, this.provider.getKey())

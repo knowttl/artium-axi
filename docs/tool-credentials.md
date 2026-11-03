@@ -88,7 +88,9 @@ All changes require administrator identity, recent confirmation and the displaye
 Host and credential changes are audited without key or passphrase content.
 See [SSH rotation](runbook.md#ssh-rotation) for key replacement, server-key overlap and deletion.
 After an approved binding is available, use `artium-axi ssh-axi host list`, `host show <host>` and `doctor <host>`.
-See [SSH read boundaries](safety.md#ssh-reads).
+To authorize arbitrary commands, enable **Allow writes** on the tool and clear **Keep this host read only** on the selected host.
+Retain explicit caller shell grants; sudo also requires its separate caller grant, account and credential.
+See [SSH command usage](commands.md#ssh), the [capability boundary](safety.md#ssh-reads) and [execution recovery](runbook.md#ssh-execution-recovery-and-retention).
 
 #### Kubernetes
 

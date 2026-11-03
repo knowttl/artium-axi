@@ -167,7 +167,7 @@ export function openStore(file: string, provider: KeyProvider = new EnvironmentK
       if (rotation && rotation.new_key_id !== key.id) {
         throw new MasterKeyMismatch(rotation.new_key_id)
       }
-      const rows = db.prepare('SELECT * FROM credentials UNION ALL SELECT * FROM provider_credentials UNION ALL SELECT * FROM ssh_credentials').all() as EncryptedCredential[]
+      const rows = db.prepare('SELECT * FROM credentials UNION ALL SELECT * FROM provider_credentials UNION ALL SELECT * FROM ssh_credentials UNION ALL SELECT * FROM ssh_execution_results').all() as EncryptedCredential[]
       if (!metadata && existingStore && !rotation && rows.length === 0) throw new ArtiumError('MASTER_KEY_INVALID')
       for (const row of rows) decryptCredential(row, key).fill(0)
       if (!metadata) db.prepare('INSERT INTO store_metadata (id, master_key_id) VALUES (1, ?)').run(key.id)

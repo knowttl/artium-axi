@@ -717,12 +717,14 @@ test.each([
   expect(page.body).not.toContain('Credential saved')
 })
 
-test('generic credential administration cannot create SSH identities or enable its writes', async () => {
+test('SSH write settings cannot create a generic credential or dedicated identity', async () => {
   for (const method of ['PUT', 'PATCH'] as const) {
     await failure(await request(method, '/ssh-axi/credential', { expectedRevision: 0, expectedToolRevision: 1,
       value: { privateKey: 'CANARY-not-a-tenant-credential' } }), 'INVALID_INPUT')
   }
-  await failure(await request('PATCH', '/ssh-axi', { expectedRevision: 1, nativeSettings: { allowWrites: true } }), 'INVALID_INPUT')
+  const settings = await request('PATCH', '/ssh-axi', { expectedRevision: 1, nativeSettings: { allowWrites: true } })
+  expect(settings.status).toBe(200)
+  expect((await settings.json()).writeAccess.enabled).toBe(true)
   expect(store.findCredential('ssh-axi')).toBeUndefined()
   expect(db.prepare('SELECT * FROM ssh_credentials').all()).toEqual([])
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-not-a-tenant-credential')
@@ -1239,7 +1241,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'technitium-axi', capable: false, enabled: false, reason: 'The pinned Technitium package supports reads only.' },
       { name: 'gitea-axi', capable: true, enabled: false, reason: null },
       { name: 'kubernetes-axi', capable: true, enabled: false, reason: null },
-      { name: 'ssh-axi', capable: false, enabled: false, reason: 'SSH discovery and authentication use dedicated host grants and encrypted ordinary bindings.' },
+      { name: 'ssh-axi', capable: true, enabled: false, reason: null },
     ])
   for (const tool of tools) {
     const detail = await request('GET', `/${tool.name}`)

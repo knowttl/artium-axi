@@ -318,7 +318,7 @@ export const falconRtrSettingsSchema = z.strictObject({ enabled: z.boolean(),
 export const ghWriteOperations = ghInventory.commands.filter(route => route.effect === 'write').map(route => route.command)
 export const falconWriteOperations = falconInventory.commands.filter(route => route.effect === 'write').map(route => route.command)
 export const nativeSettingsSchemas = {
-  'ssh-axi': z.strictObject({}),
+  'ssh-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
   'gitea-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.enum(giteaWriteOperations)).min(1).max(giteaWriteOperations.length) }).optional() }),
   'kubernetes-axi': z.strictObject({ allowWrites: z.boolean().optional(), collectionDelete: z.boolean().optional() }),
@@ -358,7 +358,7 @@ export const nativeSettingsSchemas = {
 export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Record<string, unknown>): boolean {
   if (!settings || typeof settings !== 'object') return false
   if (tool === 'gitea-axi') return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
-  if (tool === 'ssh-axi') return false
+  if (tool === 'ssh-axi') return settings.allowWrites === true
   if (tool === 'ldap-axi' || tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'technitium-axi') return false
   if (tool === 'falcon-axi') return settings.writes === undefined ? settings.allowWrites === true
     : (settings.writes as { allowWrites?: unknown }).allowWrites === true

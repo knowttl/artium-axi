@@ -26,7 +26,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi technitium-axi [<args>]` | Read Technitium DNS data with managed credentials and authenticated one-time result retrieval. |
 | `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |
 | `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources, logs and passive authorization reviews, or use administrator-enabled [native mutation workflows](safety.md#kubernetes-reads), with managed credentials and pinned kubectl. |
-| `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts and check authentication through dedicated ordinary bindings without remote execution. |
+| `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts, check authentication and run [confirmed managed commands](#ssh). |
 | `artium-axi --managed-session <command> [<args>]` | Supply and persist caller-owned sessions through private pipes; see `artium-axi --managed-session --help`. |
 | `artium-axi falcon-axi [<args>]` | Run Falcon commands with managed credentials; [tool reference](https://github.com/knowttl/falcon-axi#readme). |
 | `artium-axi vectra-axi [<args>]` | Run Vectra commands with managed credentials; [tool reference](https://www.npmjs.com/package/@knowttl/vectra-axi). |
@@ -216,3 +216,22 @@ Inspect `wait.terminal` and `wait.reason` even on exit 0; a timeout or budget st
 Use `--timeout 50` or less to leave startup and output time within Artium's [runner limit](../src/server/config.ts).
 A wait using the native maximum timeout may be cut off with `TIMEOUT` before its final snapshot returns; read `task show` again rather than resubmitting an action.
 The [client request deadline](../src/cli/http.ts) does not extend the runner limit.
+
+## SSH
+
+Discover available hosts with `artium-axi ssh-axi host list`, inspect one with `host show <host>` and check authentication without running a remote command with `doctor <host>`.
+After [administrator setup](tool-credentials.md#ssh), run a confirmed command:
+
+```sh
+artium-axi ssh-axi exec synthetic-host --command 'uname -s' --confirm
+```
+
+Every arbitrary command requires `--confirm`, including commands intended only to read remote state.
+`--sudo` uses the separately approved sudo binding under the [SSH capability boundary](safety.md#ssh-reads).
+`--timeout 30s` selects a deadline from 1s to 600s, default 60s, within the host ceiling.
+`--output-limit <bytes>` accepts 0-1048576, default 65536, within the host ceiling; managed output samples have a separate [retention cap](runbook.md#ssh-execution-recovery-and-retention).
+By default the CLI waits for a terminal result; `--detach` returns the current execution status after submission.
+Ctrl-C stops waiting without canceling the remote command.
+Use `artium-axi ssh-axi execution show` to inspect the latest local receipt, `execution show <id>` for a known execution or `execution show --request-key <key>` for a saved request key.
+See [SSH recovery and retention](runbook.md#ssh-execution-recovery-and-retention) before acting on an interrupted or uncertain result.
+Use `--json` for JSON status and `--help` on either execution command for accepted flags.

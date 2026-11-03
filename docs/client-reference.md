@@ -133,7 +133,7 @@ artium-axi falcon-axi --help
 ```
 
 The first prints local Artium help without signing in or contacting the server.
-The second forwards `--help` through the authenticated upstream adapter.
+The second forwards `--help` through the authenticated upstream adapter, except that SSH top-level and execution help are handled locally by the bundled client.
 A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-axi --help` for its command list.
 A bare `artium-axi vectra-axi` reads bounded live detection context; use `artium-axi vectra-axi --help` for its command list.
 `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
@@ -397,6 +397,7 @@ The caller supplies inherited pipes or sockets: fd 3 for session input on authen
 Stdin remains available for tool input; stdout and stderr retain their normal command formats.
 Do not pass tokens in arguments or environment variables, connect fd 4 to a log or public output, or redirect either private channel to a disk file.
 The CLI refuses regular files as private channels and never reads, creates, locks, updates or deletes `session.json` in this mode.
+SSH execution still saves private command-free recovery receipts locally, including in managed mode; see [receipt custody and recovery](runbook.md#ssh-execution-recovery-and-retention).
 
 For authenticated calls, send one UTF-8 JSON object of at most 64 KiB to fd 3, then close the input pipe:
 

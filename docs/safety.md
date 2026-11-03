@@ -171,7 +171,19 @@ Every server public key must be independently verified and every resolved addres
 Ambient SSH agents, local profiles, host paths, caller-selected identities and trust overrides are unavailable.
 Calls waiting for a runner slot recheck tool access and the selected host, binding, credential and caller access before opening a transport.
 Changes to the selected SSH configuration refuse queued calls with `CREDENTIAL_INVALID`; discover the current granted hosts and retry only after the administrator has completed the change.
-Execution, sudo execution, reusable connections and retained execution results remain unavailable.
+Confirmed one-shot commands use the [managed execution workflow](commands.md#ssh).
+Administrator **Allow writes**, a writable host and current caller grants are all required; writes default off.
+An active server `SSH_AXI_READ_ONLY` override still blocks execution.
+`--sudo` selects its distinct approved account and credential, requires a separate caller grant and uses non-interactive passwordless sudo.
+The server validates commands for protected material before journaling and passes command text through private IPC rather than child process arguments.
+Preparation signs the caller, session family, exact input and binding revisions for ten minutes without dispatching a command.
+The CLI durably saves a private command-free receipt before submitting the signed request key; each accepted key claims one execution before any transport opens.
+Interrupted or uncertain submissions are never automatically retried.
+Commands respect the host deadline and output ceilings; credentials and output are excluded from ordinary audit events.
+See [SSH recovery and retention](runbook.md#ssh-execution-recovery-and-retention) for uncertain outcomes, private receipts and stored results.
+Policy, binding, credential, identity or session revocation interrupts active commands before the administrative response acknowledges the change; remote effects already performed cannot be undone.
+Execution recovery requires the original caller and session family plus current host access, and remains readable when writes are disabled.
+Native Windows private receipt custody, reusable connections, cancellation and audit exports remain unavailable.
 See [SSH credential setup](tool-credentials.md#ssh) for provisioning and [SSH rotation](runbook.md#ssh-rotation) for replacement and deletion.
 Use the signed-in CLI's `doctor <host>` for a granted host, rather than the generic shared-credential health test.
 
@@ -228,7 +240,7 @@ Local fake-service checks do not establish live server acceptance.
 | Technitium DNS | See the [read-only capability boundary](#technitium-dns). |
 | Gitea | See the [native write capability boundary](#gitea-reads). |
 | Kubernetes | See the [native mutation capability boundary](#kubernetes-reads). |
-| SSH | See the [discovery and authentication boundary](#ssh-reads). |
+| SSH | See the [discovery, authentication and execution boundary](#ssh-reads). |
 | GitHub | Reviewed reads plus exact administrator-selected collaboration and repository writes, off by default, using classic or fine-grained PATs, admin-connected device-flow OAuth tokens or GitHub App installation tokens on GitHub.com, `*.ghe.com` or GHES. Artium previews each write without sending it; repeat the exact request with its returned `--confirm` value to execute. Installation tokens cannot access gists or user-only endpoints. Deletes, secret set, merge --admin, API non-GET, GraphQL escape paths, local git, setup/update, watch, downloads and local files stay blocked. Issue lock/unlock is unsupported by the pinned upstream combination; repo-edit visibility is unavailable. Only gist create/edit with `--filename` accepts stdin. Repository commands require `-R OWNER/NAME`; URL selectors and host-qualified repository names are refused. Repo creation requires a positional `OWNER/NAME`; project writes require `--owner OWNER` for recovery scope. Repo list/create, gist commands, search repos and api reject the `-R` selector. The bare dashboard and `home` remain refused because pinned gh-axi swallows dashboard read errors. SSH keys authenticate git transport, never the API used by gh-axi. See [GitHub setup](tool-credentials.md#github) for the operation tiers, device flow and token lifecycle. |
 | Azure | Reviewed resource mutations; administrator `allowWrites: true` plus native command gates. |
 | Graph | Native mutations only with administrator `writes.allowWrites: true` and an explicit operations allow-list, plus native gates. |

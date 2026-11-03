@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { request as httpsRequest } from 'node:https'
 import { rootCertificates } from 'node:tls'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import type { TLSSocket } from 'node:tls'
 import type { IncomingMessage } from 'node:http'
 import { errorResponseSchema, loginResponseSchema } from '../shared/api.js'
@@ -22,6 +22,7 @@ export class Client {
   readonly serverUrl: string
   readonly serverUrlSource: 'ARTIUM_AXI_URL' | 'config.json'
   readonly caFile?: string
+  get executionReceiptDirectory(): string { return dirname(sessionPath(process.platform, this.environment)) }
   private readonly storedSessions?: SessionStore
   get sessions(): SessionStore {
     if (!this.storedSessions) throw new ArtiumError('INVALID_INPUT', 'Session-file operations are unavailable in managed mode.')
@@ -29,7 +30,7 @@ export class Client {
   }
   certificateVerified = false
   requestId?: string
-  constructor(environment = process.env, private readonly managed?: ManagedSession,
+  constructor(private readonly environment = process.env, private readonly managed?: ManagedSession,
     private readonly requestDeadlineMs = DEFAULT_REQUEST_DEADLINE_MS) {
     try {
       const config = !managed && (environment.ARTIUM_AXI_URL === undefined || environment.ARTIUM_AXI_CA_FILE === undefined)

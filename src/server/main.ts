@@ -67,7 +67,9 @@ async function main() {
     try { initializeNativeWriteLog(writeLog) }
     catch { log('error', 'retention', { code: 'AUDIT_UNAVAILABLE', target: 'vectra-axi-initialize' }) }
     const sshHosts = new SshHosts(db, provider)
-    const app = createApp({ db, audit, runner, credentialStore: store, sshHosts, providerCredentials: new ProviderCredentials(db, provider), resolver: new SharedIdentityResolver(store),
+    const app = createApp({ db, audit, runner, credentialStore: store, sshHosts,
+      sshExecution: { provider, writeLog: join(dirname(database), 'tool-logs', 'ssh-axi', 'writes.log') },
+      providerCredentials: new ProviderCredentials(db, provider), resolver: new SharedIdentityResolver(store),
       adapters: [createSshAdapter(sshHosts, join(dirname(database), 'tool-logs', 'ssh-axi', 'writes.log')),
         createFalconAdapter(source, join(dirname(database), 'tool-logs', 'falcon-axi', 'writes.log')),
         createVectraAdapter(source, writeLog),

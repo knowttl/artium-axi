@@ -15,6 +15,7 @@ import { ManagedSession } from './managed-session.js'
 import { update } from './update.js'
 import { download } from './download.js'
 import { sessionContext } from './session-context.js'
+import { sshExecution } from './ssh.js'
 
 let managed: ManagedSession | undefined
 let failureContext = 'main'
@@ -147,6 +148,7 @@ async function main(args: string[]) {
   if (!home && (listing || whoami ? !detail && args.length !== 1 : !toolSchema.safeParse(command).success)) {
     throw new ArtiumError('INVALID_INPUT', 'Unknown command, argument or flag.', 'Use artium-axi --help for commands or artium-axi <command> --help for valid flags.')
   }
+  if (command === 'ssh-axi' && await sshExecution(args.slice(1), () => new Client(process.env, managed), text => output('stdout', text))) return
   const input = home || listing || whoami ? undefined : await toolInput(command!, args.slice(1))
   const client = new Client(process.env, managed)
   const homeSession = home && !managed ? client.sessions.read() : undefined
