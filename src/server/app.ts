@@ -47,6 +47,7 @@ import { errorDiagnostic } from './error-diagnostic.js'
 import { RunnerError } from './runner/runner.js'
 import { ProtectedResults } from './protected-results.js'
 import { hasSshConfiguration, type SshHosts } from './store/ssh-hosts.js'
+import { registerSshExecutions, type SshExecutionOptions } from './ssh-executions.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
@@ -54,6 +55,7 @@ export function createApp(options: {
   credentialStore?: MutableCredentialStore,
   providerCredentials?: ProviderCredentials,
   sshHosts?: SshHosts,
+  sshExecution?: SshExecutionOptions,
   ssoFetch?: SsoFetch,
   artifactStore?: ArtifactStore,
 }) {
@@ -248,6 +250,8 @@ export function createApp(options: {
     return reply.code(204).send()
   })
   registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health, credentialProfiles, sshHosts: options.sshHosts }, options.providerCredentials)
+  if (options.sshHosts && options.sshExecution) registerSshExecutions(app, { ...options.sshExecution,
+    db, hosts: options.sshHosts, runner, audit, environment })
   registerOverviewPage(app, db)
   registerUsersPage(app, db)
   registerRolesPages(app, db)

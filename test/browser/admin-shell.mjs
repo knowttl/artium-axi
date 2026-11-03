@@ -492,6 +492,23 @@ test('SSH dedicated administration provisions credentials, verified hosts and re
   `)
 })
 
+test('SSH write permissions default off and save without creating shared credentials', () => {
+  chrome(['resize', '420', '900'])
+  browser(`
+    await page.open(base + '/admin/tools/ssh-axi?tab=writes');
+    await page.wait('[data-write-access]');
+    check(await page.eval(() => !document.querySelector('[data-write-access] [role=switch]').checked), 'SSH writes enabled by default');
+    check(await page.eval(() => document.querySelector('[data-write-access]').innerText.includes('a writable host and current caller grants')), 'SSH host policy guidance missing');
+    await page.click('[data-write-access] [role=switch]');
+    await page.click('form[action$="/write-access"] button:not([form])');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/write-access"] [name=expectedRevision][value="2"]');
+    check(await page.eval(async () => (await (await fetch('/v1/admin/tools/ssh-axi')).json()).writeAccess.enabled), 'SSH write setting did not persist');
+    check(await page.eval(async () => !(await (await fetch('/v1/admin/tools/ssh-axi/credential')).json()).configured), 'Enabling writes created a credential');
+    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'SSH write page overflows at 420px');
+  `)
+})
+
 test('Kubernetes certificate editor saves separate fields and requires a key when the certificate changes', () => {
   browser(`
     await page.open(base + '/admin/tools/kubernetes-axi?tab=credential');

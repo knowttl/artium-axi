@@ -88,6 +88,10 @@ All changes require administrator identity, recent confirmation and the displaye
 Host and credential changes are audited without key or passphrase content.
 See [SSH rotation](runbook.md#ssh-rotation) for key replacement, server-key overlap and deletion.
 After an approved binding is available, use `artium-axi ssh-axi host list`, `host show <host>` and `doctor <host>`.
+To authorize arbitrary commands, enable **Allow writes** on the tool and clear **Keep this host read only** on the selected host.
+Retain explicit caller shell grants; sudo also requires its separate caller grant, account and credential.
+Every command requires `exec <host> --command <text> --confirm`; `--sudo` uses non-interactive passwordless sudo only.
+Use `execution show` to recover the private receipt after an interrupted submission, and inspect remote state before preparing another uncertain command.
 See [SSH read boundaries](safety.md#ssh-reads).
 
 #### Kubernetes

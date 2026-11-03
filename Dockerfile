@@ -23,6 +23,7 @@ COPY skill ./skill
 COPY bin ./bin
 COPY --chmod=0755 libexec/ado-axi/az ./libexec/ado-axi/az
 COPY tools/inventories ./tools/inventories
+RUN ln -s /opt/tools/node_modules tools/node_modules
 COPY scripts/build-cli.mjs ./scripts/build-cli.mjs
 COPY scripts/native-smoke.mjs ./scripts/native-smoke.mjs
 COPY scripts/falcon-smoke.mjs ./scripts/falcon-smoke.mjs

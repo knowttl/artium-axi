@@ -10,9 +10,16 @@ import type { SshHosts } from '../store/ssh-hosts.js'
 import type { Adapter } from './types.js'
 import type { RunnerInput } from '../runner/input.js'
 
-const profile = new CredentialProfile(inventory.credentialSchema, 'ssh-axi')
-export const sshReadPolicy = writePolicy({ reason: 'SSH discovery and authentication use dedicated host grants and encrypted ordinary bindings.',
-  unlocks: 'No write actions.', blocked: 'Execution, sudo and reusable connections are unavailable.' })
+export const sshProfile = new CredentialProfile(inventory.credentialSchema, 'ssh-axi')
+export function verifySshArtifact(executable: string): void {
+  for (const source of inventory.sources) {
+    const path = new URL('../' + source.path, pathToFileURL(executable))
+    if (createHash('sha256').update(readFileSync(path)).digest('hex') !== source.sha256) throw new ArtiumError('CREDENTIAL_INVALID')
+  }
+}
+export const sshWritePolicy = writePolicy({
+  unlocks: 'Confirmed one-shot execution requires Allow writes, a writable host and current caller grants. Sudo additionally requires its distinct approved account and credential.',
+  blocked: 'Reusable connections, cancellation and audit exports remain unavailable. Credentials and host trust cannot be overridden in arguments.' })
 
 function invocation(args: readonly string[], input?: RunnerInput) {
   if (input?.stdin !== undefined || input?.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
@@ -30,23 +37,20 @@ function invocation(args: readonly string[], input?: RunnerInput) {
 
 export function createSshAdapter(hosts: SshHosts, writeLog: string, executable: string = toolPaths['ssh-axi']): Adapter<unknown> {
   if (inventory.credentialSchema['x-protocol-revision'] !== 1) throw new ArtiumError('CREDENTIAL_INVALID')
-  return { name: 'ssh-axi', executable, credentialSchema: profile.credentialSchema,
+  return { name: 'ssh-axi', executable, credentialSchema: sshProfile.credentialSchema,
     timeoutMs: inventory.requirements.timeoutMs, blockedFlags: [], allowedFlagValues: {},
     sensitiveArguments: () => ({ flags: [], positions: [] }),
     validateArgs: (args, input) => { invocation(args, input) },
     async prepare() { throw new ArtiumError('TOOL_NOT_GRANTED') },
     async prepareForCaller(args, userId, input) {
       const call = invocation(args, input)
-      for (const source of inventory.sources) {
-        const path = new URL('../' + source.path, pathToFileURL(executable))
-        if (createHash('sha256').update(readFileSync(path)).digest('hex') !== source.sha256) throw new ArtiumError('CREDENTIAL_INVALID')
-      }
+      verifySshArtifact(executable)
       const beforeSpawn = call.offline ? undefined : hosts.dispatchGuard(userId, call.host)
       const visible = call.offline ? [] : hosts.list(userId)
       const selected = call.host ? visible.filter(host => host.id === call.host) : visible
       if (call.host && !call.offline && !selected.length) throw new ArtiumError('NOT_FOUND')
       const credentials = call.command === 'doctor' && !call.offline
-        ? profile.prepare('ssh-axi', hosts.profile(userId, call.host!), writeLog, true)
+        ? sshProfile.prepare('ssh-axi', hosts.profile(userId, call.host!), writeLog, true)
         : { environment: {}, files: [], secrets: [] }
       return { executable: process.execPath, args: [executable, ...args], ...credentials,
         beforeSpawn,

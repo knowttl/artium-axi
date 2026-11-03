@@ -171,7 +171,20 @@ Every server public key must be independently verified and every resolved addres
 Ambient SSH agents, local profiles, host paths, caller-selected identities and trust overrides are unavailable.
 Calls waiting for a runner slot recheck tool access and the selected host, binding, credential and caller access before opening a transport.
 Changes to the selected SSH configuration refuse queued calls with `CREDENTIAL_INVALID`; discover the current granted hosts and retry only after the administrator has completed the change.
-Execution, sudo execution, reusable connections and retained execution results remain unavailable.
+Confirmed one-shot commands use `artium-axi ssh-axi exec <host> --command <text> --confirm`.
+Administrator **Allow writes**, a writable host and current caller grants are all required; writes default off.
+`--sudo` selects its distinct approved account and credential, requires a separate caller grant and uses non-interactive passwordless sudo.
+The server validates commands for protected material before journaling and passes command text through private IPC rather than child process arguments.
+Preparation signs the caller, session family, exact input and binding revisions for ten minutes without dispatching a command.
+The CLI durably saves a private command-free receipt before submitting the signed request key; each accepted key claims one execution before any transport opens.
+`execution show` without a selector recovers the latest local receipt; an explicit execution ID or `--request-key` also works.
+Interrupted or uncertain submissions are never automatically retried, and restarting the server marks unfinished executions unknown without replay.
+Inspect remote state before preparing another command after an uncertain result.
+Commands have a 1-600 second deadline within the host ceiling, and retain at most 8192 bytes of encrypted output per stream for 14 days.
+Sanitized exact command metadata, ownership, endpoint and binding revisions remain for 90 days; credentials and output are excluded from ordinary audit events.
+Policy, binding, credential, identity or session revocation interrupts active commands before the administrative response acknowledges the change; remote effects already performed cannot be undone.
+Execution recovery requires the original caller and session family plus current host access, and remains readable when writes are disabled.
+Native Windows private receipt custody, reusable connections, cancellation and audit exports remain unavailable.
 See [SSH credential setup](tool-credentials.md#ssh) for provisioning and [SSH rotation](runbook.md#ssh-rotation) for replacement and deletion.
 Use the signed-in CLI's `doctor <host>` for a granted host, rather than the generic shared-credential health test.
 
