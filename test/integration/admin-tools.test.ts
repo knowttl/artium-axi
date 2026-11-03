@@ -365,9 +365,11 @@ test('Kubernetes Advanced guidance describes admitted workflows and remaining ex
     headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
   expect(page.statusCode).toBe(200)
   expect(page.body).toContain('Caller-owned workspaces support file inputs.')
-  expect(page.body).toContain('Bounded watch, logs, exec, attach, apply, create and cp sessions require explicit per-user sessions.grants; no sessions are granted by default.')
+  expect(page.body).toContain('Bounded watch, logs, exec, attach, apply, create, cp and port-forward sessions require explicit per-user sessions.grants; no sessions are granted by default.')
   expect(page.body).toContain('Mutating sessions additionally require Allow writes and native exact-digest confirmation; watch and logs remain reads.')
-  expect(page.body).toContain('Credential issuance, port-forward tunnels and interactive/editor/helper execution remain unavailable.')
+  expect(page.body).toContain('Port forwarding uses authenticated tunnels with loopback-only client listeners.')
+  expect(page.body).toContain('Service-account token issuance additionally requires {&quot;acquireCredential&quot;: true}; tokens are delivered once through credential --credential-fd to a private pipe.')
+  expect(page.body).toContain('Interactive/editor/helper execution remains unavailable.')
   expect(page.body).not.toContain('File inputs, execution, credential issuance and streaming sessions remain unavailable.')
 })
 
