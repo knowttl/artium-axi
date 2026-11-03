@@ -212,3 +212,49 @@ test.each([
     expect(audit().filter(row => (row as { outcome: string }).outcome === 'UNKNOWN_OUTCOME')).toHaveLength(1)
   })
 }, 60_000)
+
+const acceptance = [
+  { kind: 'association', args: ['inventory', 'group-add-host', '42', '--host', '7'], method: 'POST', path: '/api/v2/groups/42/hosts/' },
+  { kind: 'security association', args: ['team', 'user-add', '42', '--user', '7'], method: 'POST', path: '/api/v2/teams/42/users/' },
+  { kind: 'bulk', args: ['inventory', 'host-bulk-create', '--inventory', '7', '--hosts-file', 'hosts.json'], method: 'POST', path: '/api/v2/bulk/host_create/',
+    input: { files: [upload('hosts.json', '[{"name":"synthetic-host","variables":"token: CANARY-host-variable"}]')] } },
+  { kind: 'destructive', args: ['inventory', 'delete', '42'], method: 'DELETE', path: '/api/v2/inventories/42/' },
+] as { kind: string, args: string[], method: string, path: string, input?: RunInput }[]
+
+test.each(acceptance)('AWX $kind write is refused without a controller request while the tenant switch is off (S14)', async ({ args, input }) => {
+  await withAwx(async ({ run, setWrites, evidence }) => {
+    setWrites(false)
+    for (const flag of ['--dry-run', '--confirm']) {
+      const refused = await run([...args, flag], input)
+      expect(refused.json(), refused.body).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+    }
+    expect((await evidence()).requests).toEqual([])
+  })
+}, 60_000)
+
+test.each(acceptance)('AWX $kind write previews, then reports the controller denial without changing state (S14)', async ({ args, input, method, path }) => {
+  await withAwx(async ({ run, send, evidence }) => {
+    const preview = await run([...args, '--dry-run'], input)
+    expect(preview.json(), preview.body).toMatchObject({ exitCode: 0, stdout: expect.stringContaining('dry_run') })
+    expect((await evidence()).mutations).toBe(0)
+    await send('/__awx/configuration-permission?enabled=false', 'POST')
+    const denied = await run([...args, '--confirm'], input)
+    expect(denied.json(), denied.body).toMatchObject({ exitCode: 1, stdout: expect.stringContaining('FORBIDDEN') })
+    expect((await evidence()).requests.filter(request => request.method === method && request.path === path)).toHaveLength(1)
+    await send('/__awx/configuration-permission?enabled=true', 'POST')
+    const confirmed = await run([...args, '--confirm'], input)
+    expect(confirmed.json(), confirmed.body).toMatchObject({ exitCode: 0 })
+    expect((await evidence()).requests.filter(request => request.method === method && request.path === path)).toHaveLength(2)
+  })
+}, 60_000)
+
+test.each(acceptance)('AWX $kind write keeps private input out of responses, audit and runner files (S14)', async ({ args, input }) => {
+  await withAwx(async ({ run, lines, directory, evidence }) => {
+    const response = await run([...args, '--confirm'], input)
+    expect(response.json(), response.body).toMatchObject({ exitCode: 0 })
+    expect(response.body).not.toContain('CANARY-')
+    expect(lines.join('\n')).not.toContain('CANARY-')
+    expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    expect((await evidence()).requests.every(request => request.canaryReceived)).toBe(true)
+  })
+}, 60_000)

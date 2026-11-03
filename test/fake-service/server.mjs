@@ -18,6 +18,9 @@ let awxConfigurationAllowed = true
 let awxDropWrite = false
 let awxBulkDeleteResponse = 'valid'
 let awxTokenResponse = 'valid'
+let awxStdoutPadding = 0
+let awxStdoutStatus = 200
+let awxStdoutText
 let githubDeviceScenario = 'success'
 let githubDevicePolls = 0
 let falconRedirect = 'none'
@@ -308,6 +311,9 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     awxDropWrite = false
     awxBulkDeleteResponse = 'valid'
     awxTokenResponse = 'valid'
+    awxStdoutPadding = 0
+    awxStdoutStatus = 200
+    awxStdoutText = undefined
     res.end('{}')
     return
   }
@@ -328,6 +334,15 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   }
   if (url.pathname === '/__awx/token-response' && req.method === 'POST') {
     awxTokenResponse = url.searchParams.get('mode') ?? 'valid'
+    res.end('{}'); return
+  }
+  if (url.pathname === '/__awx/stdout-padding' && req.method === 'POST') {
+    awxStdoutPadding = Number(url.searchParams.get('bytes') ?? 0)
+    res.end('{}'); return
+  }
+  if (url.pathname === '/__awx/stdout-response' && req.method === 'POST') {
+    awxStdoutStatus = Number(url.searchParams.get('status'))
+    awxStdoutText = url.searchParams.get('text') ?? undefined
     res.end('{}'); return
   }
   if (url.pathname === '/__awx/bulk-delete-response' && req.method === 'POST') {
@@ -583,10 +598,23 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       }
       res.end(JSON.stringify({ count: 1, next: null, results: [{ id: 42, name: 'Synthetic AWX job', status: 'running', type: 'job' }] })); return
     }
-    if (/^\/api\/v2\/(project_updates|ad_hoc_commands)\/42\/stdout\/$/.test(url.pathname)) {
+    if (url.pathname === '/api/v2/jobs/42/job_events/') {
+      res.end(JSON.stringify({ count: 1, next: null, results: [{ id: 5, event: 'runner_on_failed', host_name: 'synthetic-host', task: 'Synthetic task', failed: true, changed: false }] })); return
+    }
+    if (/^\/api\/v2\/(jobs|workflow_jobs|project_updates|inventory_updates|ad_hoc_commands|system_jobs)\/42\/stdout\/$/.test(url.pathname)) {
       const project = resources.get('/api/v2/projects/42/')
       const lines = ['Fetching repository', `fatal: unable to access '${project?.scm_url}'`,
         'Documentation: https://docs.example/help?section=git#retry', 'Fetch failed']
+      if (url.searchParams.get('format') === 'txt_download') {
+        if (!['text/plain', '*/*', 'text/*'].includes(req.headers.accept)) {
+          res.writeHead(406); res.end(JSON.stringify({ detail: 'Could not satisfy the request Accept header.' })); return
+        }
+        if (awxStdoutStatus !== 200) {
+          res.writeHead(awxStdoutStatus); res.end(JSON.stringify({ detail: 'Synthetic stdout download refused.' })); return
+        }
+        res.setHeader('content-type', 'text/plain')
+        res.end(awxStdoutText ?? lines.join('\n') + '\nAuthorization: Bearer CANARY-awx-token\n' + 'x'.repeat(awxStdoutPadding)); return
+      }
       const start = url.searchParams.has('tail') ? Math.max(0, lines.length - Number(url.searchParams.get('tail')))
         : Number(url.searchParams.get('start_line') ?? 0)
       const end = Math.min(lines.length, Number(url.searchParams.get('end_line') ?? lines.length))

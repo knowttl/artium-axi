@@ -96,6 +96,11 @@ Create a project with `artium-axi awx-axi project create synthetic-project --org
 Use `project edit <id|name>` with the same SCM flags to update it; see [client input handling](client-reference.md#command-surface-and-subcommands) for URL file input and the [AWX safety boundary](safety.md#write-gates-by-tool) for URL restrictions and credential guidance.
 `project sync <id|name> --confirm` starts an update; add `--wait` to wait for completion.
 Inspect it with `project updates <id|name>` and `job stdout <update-id> --type project-update`, optionally using `--tail` or `--lines`.
+`job stdout <id> --download <name>` delivers the whole redacted log as a protected `result.path` in the decoded tool stdout; retrieve it with an authenticated GET under the [AWX result security boundary](safety.md#write-gates-by-tool).
+The name only labels the result: use 1-64 ASCII letters, digits, dots, underscores or hyphens, starting with a letter or digit.
+Downloads cannot combine with `--tail`, `--lines`, `--full` or `--ansi`; see [result limits and recovery](runbook.md#retention-and-export) for oversized or unavailable logs.
+The pinned `awx-axi` accepts `--fields` on 17 list commands, `--full` and `--ansi` on `job stdout`, and `--type` on `job events` but applies its fixed output, so Artium admits them as no-ops for parity.
+Waits (`job watch`, and `--wait` on launch and sync commands) last at most 50 seconds within the runner lifetime; omit `--timeout` for that default, larger values are refused, and `job watch <id>` resumes a wait that ended early.
 Project notification associations use `project notification-add|notification-remove <id|name> --notification-template <id|name> --event started|success|error` with the preview and confirmation flow.
 `project copy <id|name> --name synthetic-copy` and `project delete <id|name>` use that flow too.
 Project list/show and updates remain available with writes disabled; after an unknown write outcome, follow [AWX recovery guidance](runbook.md#retention-and-export) and reconcile list/show before retrying, including the new name after a rename.

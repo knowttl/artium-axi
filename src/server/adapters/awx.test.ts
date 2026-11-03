@@ -221,14 +221,16 @@ test('token revocation recovery does not treat the token ID as a user ID', async
   expect((await adapter().prepare(call.write!.checkArgs, reference)).effect).toBe('read')
 })
 
-test.each(fixedSchemaLists)('%s list refuses unsupported field projection', command => {
-  expect(() => adapter().validateArgs([command, 'list', '--fields', 'id,name'])).toThrow()
-  expect(() => adapter().validateArgs([command, 'list', '--fields=id,name'])).toThrow()
+test.each(fixedSchemaLists)('%s list passes the pinned fields flag through as a read', async command => {
+  for (const flags of [['--fields', 'id,name'], ['--fields=id,name']]) {
+    const call = await adapter().prepare([command, 'list', ...flags], reference)
+    expect(call).toMatchObject({ args: [command, 'list', '--fields=id,name'], effect: 'read' })
+  }
 })
 
-test('job events refuses the ignored run type selector', () => {
-  expect(() => adapter().validateArgs(['job', 'events', '42', '--type', 'workflow'])).toThrow()
-  expect(() => adapter().validateArgs(['job', 'events', '42', '--type=workflow'])).toThrow()
+test.each([['--type', 'workflow'], ['--type=workflow']])('job events passes the pinned run type selector through as a read: %s', async (...flags) => {
+  const call = await adapter().prepare(['job', 'events', '42', ...flags], reference)
+  expect(call).toMatchObject({ args: ['job', 'events', '42', '--type=workflow'], effect: 'read' })
 })
 
 test('job events preserves implemented filters', async () => {
@@ -300,7 +302,6 @@ test.each([
   ['template', 'launch', '42', '--credential-passwords-file', '/server.json'],
   ['job', 'stdout', '42', '--download', './42.log'],
   ['job', 'stdout', '42', '--download=./42.log'],
-  ['job', 'stdout', '42', '--full'], ['job', 'stdout', '42', '--ansi'],
 ].map(args => ({ args })))('unsafe arguments are refused: $args', ({ args }) => {
   expect(() => adapter().validateArgs(args)).toThrow()
 })
@@ -334,31 +335,23 @@ test('published AWX top-level help advertises managed commands without selectors
   expect(help).not.toMatch(/--(?:origin|profile|config|verify-ssl)|auth login|\bupdate\b/)
 })
 
-test('managed job stdout help advertises implemented output modes', () => {
+test('managed job stdout help advertises every output mode with a managed download', () => {
   const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', 'job', 'stdout', '--help'], { encoding: 'utf8' })
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
-  expect(help).toContain('artium-axi awx-axi job stdout <id> [--tail <n> | --lines <a-b>]')
-  expect(help).not.toMatch(/--(?:download|full|ansi)\b/)
+  expect(help).toContain('artium-axi awx-axi job stdout <id> [--tail <n> | --lines <a-b>] [--full] [--download <name>]')
+  expect(help).toContain('protected result')
+  expect(help).not.toMatch(/--download <path>|--download \.\//)
 })
 
-test.each(fixedSchemaLists)('%s list help advertises fixed output without field projection', command => {
-  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', command, 'list', '--help'], { encoding: 'utf8' })
+test('job list help advertises the fields flag the pinned help documents', () => {
+  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', 'job', 'list', '--help'], { encoding: 'utf8' })
   expect(result.status).toBe(0)
-  const help = rewriteSuggestions(result.stdout, 'awx-axi')
-  expect(help).toContain(`artium-axi awx-axi ${command} list`)
-  expect(help).not.toContain('--fields')
+  expect(rewriteSuggestions(result.stdout, 'awx-axi')).toContain('artium-axi awx-axi job list [--status <s>]')
+  expect(rewriteSuggestions(result.stdout, 'awx-axi')).toContain('[--fields <fields>]')
 })
 
-test('job events help omits the ignored run type selector', () => {
-  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', 'job', 'events', '--help'], { encoding: 'utf8' })
-  expect(result.status).toBe(0)
-  const help = rewriteSuggestions(result.stdout, 'awx-axi')
-  expect(help).toContain('artium-axi awx-axi job events <id>')
-  expect(help).not.toContain('--type')
-})
-
-test('oversized job stdout suggests managed events instead of a download', async () => {
+test('oversized job stdout suggests the managed download or failing events', async () => {
   const plan = jobDomain.subcommands.find(route => route.name === 'stdout')!.plan({ args: ['42'], flags: { type: 'job' },
     context: { env: {}, createTransport: () => { throw new Error('Unexpected network access') } } })
   plan.next()
@@ -371,7 +364,7 @@ test('oversized job stdout suggests managed events instead of a download', async
   const output = rewriteSuggestions(result.output, 'awx-axi')
   expect(decode(output)).toMatchObject({ code: 'OUTPUT_TOO_LARGE' })
   expect(output).toContain('artium-axi awx-axi job events 42 --failed')
-  expect(output).not.toMatch(/--(?:download|full|ansi)\b/)
+  expect(output).toContain('artium-axi awx-axi job stdout 42 --download 42.log')
 })
 
 test.each(inventory.discovery.commands.filter(command => !['auth status', 'doctor'].includes(command)))('%s noun-level help lists only managed commands', async command => {
@@ -433,4 +426,43 @@ test.each(['job', 'ad-hoc'])('%s stdout rewrites only the generated footer', nou
   expect(rewritten).toBe(expected)
   expect(rewriteSuggestions(rewritten, 'awx-axi')).toBe(expected)
   expect(rewriteSuggestions(output, 'awx-axi', true)).toBe(output)
+})
+
+test.each([
+  { command: ['job', 'watch', '42'], timeout: '--timeout=50' },
+  { command: ['job', 'launch', '42', '--wait', '--confirm'], timeout: '--timeout=50' },
+  { command: ['job', 'watch', '42', '--timeout', '7'], timeout: '--timeout=7' },
+])('waits are bounded by the runner lifetime: $command', async ({ command, timeout }) => {
+  const call = await adapter(true).prepare(command, reference)
+  expect(call.args.filter(arg => arg.startsWith('--timeout'))).toEqual([timeout])
+})
+
+test.each(['0', '51', '600', '3600', '1e1', '-1', 'soon'])('a wait of --timeout %s is refused with resume guidance', async timeout => {
+  await expect(adapter(true).prepare(['job', 'watch', '42', '--timeout', timeout], reference)).rejects.toMatchObject({
+    code: 'INVALID_INPUT', message: 'Waits last from 1 to 50 seconds.', next: expect.stringContaining('job watch') })
+  await expect(adapter(true).prepare(['project', 'sync', '42', '--wait', '--timeout', timeout, '--confirm'], reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+})
+
+test('an approval timeout is not a wait and keeps its own value', async () => {
+  const call = await adapter(true).prepare(['workflow', 'node-add-approval', '42', '--name', 'Synthetic', '--timeout', '3600', '--confirm'], reference)
+  expect(call.args).toContain('--timeout=3600')
+})
+
+test.each([
+  { flags: ['--download', '../42.log'] },
+  { flags: ['--download', '/tmp/42.log'] },
+  { flags: ['--download', '.hidden'] },
+  { flags: ['--download', 'a'.repeat(65)] },
+  { flags: ['--download', '42.log', '--tail', '5'] },
+  { flags: ['--download', '42.log', '--lines', '1-2'] },
+  { flags: ['--download', '42.log', '--full'] },
+  { flags: ['--download', '42.log', '--ansi'] },
+])('stdout download refuses caller-selected paths and range flags: $flags', async ({ flags }) => {
+  await expect(adapter().prepare(['job', 'stdout', '42', ...flags], reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+})
+
+test('stdout download is a read delivered as a managed protected result without a caller path', async () => {
+  const call = await adapter().prepare(['job', 'stdout', '42', '--download', '42.log'], reference)
+  expect(call).toMatchObject({ protectedResult: { source: 'file', operation: 'stdout-download', flag: '--artium-result' } })
+  expect(call.args).toContain('--download=42.log')
 })

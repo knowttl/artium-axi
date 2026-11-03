@@ -257,33 +257,33 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 
 | Command or flag | Upstream effect | Artium status | Slice | Target authorization |
 | --- | --- | --- | --- | --- |
-| inventory host bulk-create | configuration write | blocked | d | write |
-| inventory host bulk-delete | destructive | blocked | d | write |
-| inventory group create | configuration write | blocked | b | write |
-| inventory group edit | configuration write | blocked | b | write |
-| inventory group delete | destructive | blocked | d | write |
-| inventory group add-host | configuration write | blocked | b | write |
-| inventory group add host | configuration write | blocked | b | write |
-| inventory group remove-host | configuration write | blocked | b | write |
-| inventory group remove host | configuration write | blocked | b | write |
-| inventory group add-child | configuration write | blocked | b | write |
-| inventory group add child | configuration write | blocked | b | write |
-| inventory group remove-child | configuration write | blocked | b | write |
-| inventory group remove child | configuration write | blocked | b | write |
-| inventory source create | configuration write | blocked | b | write |
-| inventory source edit | configuration write | blocked | b | write |
-| inventory source delete | destructive | blocked | d | write |
-| inventory source credential-add | security administration | blocked | e | write |
-| inventory source credential add | security administration | blocked | e | write |
-| inventory source credential-remove | security administration | blocked | e | write |
-| inventory source credential remove | security administration | blocked | e | write |
-| inventory source notification-add | configuration write | blocked | b | write |
-| inventory source notification add | configuration write | blocked | b | write |
-| inventory source notification-remove | configuration write | blocked | b | write |
-| inventory source notification remove | configuration write | blocked | b | write |
-| inventory host create | configuration write | blocked | b | write |
-| inventory host edit | configuration write | blocked | b | write |
-| inventory host delete | destructive | blocked | d | write |
+| inventory host bulk-create | configuration write | managed equivalent | d | write |
+| inventory host bulk-delete | destructive | managed equivalent | d | write |
+| inventory group create | configuration write | managed equivalent | b | write |
+| inventory group edit | configuration write | managed equivalent | b | write |
+| inventory group delete | destructive | managed equivalent | d | write |
+| inventory group add-host | configuration write | managed equivalent | b | write |
+| inventory group add host | configuration write | managed equivalent | b | write |
+| inventory group remove-host | configuration write | managed equivalent | b | write |
+| inventory group remove host | configuration write | managed equivalent | b | write |
+| inventory group add-child | configuration write | managed equivalent | b | write |
+| inventory group add child | configuration write | managed equivalent | b | write |
+| inventory group remove-child | configuration write | managed equivalent | b | write |
+| inventory group remove child | configuration write | managed equivalent | b | write |
+| inventory source create | configuration write | managed equivalent | b | write |
+| inventory source edit | configuration write | managed equivalent | b | write |
+| inventory source delete | destructive | managed equivalent | d | write |
+| inventory source credential-add | security administration | managed equivalent | e | write |
+| inventory source credential add | security administration | managed equivalent | e | write |
+| inventory source credential-remove | security administration | managed equivalent | e | write |
+| inventory source credential remove | security administration | managed equivalent | e | write |
+| inventory source notification-add | configuration write | managed equivalent | b | write |
+| inventory source notification add | configuration write | managed equivalent | b | write |
+| inventory source notification-remove | configuration write | managed equivalent | b | write |
+| inventory source notification remove | configuration write | managed equivalent | b | write |
+| inventory host create | configuration write | managed equivalent | b | write |
+| inventory host edit | configuration write | managed equivalent | b | write |
+| inventory host delete | destructive | managed equivalent | d | write |
 
 ## Flags by command
 
@@ -306,7 +306,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### job show
 
@@ -326,9 +326,9 @@ See command controls above.
 | --help | boolean | supported | f | read | none |
 | --tail | value | supported | f | read | none |
 | --lines | value | supported | f | read | none |
-| --full | boolean | blocked | f | read | none |
-| --download | value | blocked | f | read | output file |
-| --ansi | boolean | blocked | f | read | none |
+| --full | boolean | supported | f | read | none |
+| --download | value | supported | f | read | output file |
+| --ansi | boolean | supported | f | read | none |
 | --type | value | supported | f | read | none |
 
 ### job events
@@ -344,7 +344,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --type | value | blocked | f | read | none |
+| --type | value | supported | f | read | none |
 
 ### job hosts
 
@@ -359,7 +359,7 @@ See command controls above.
 
 ### job launch
 
-See command controls above.
+Artium runner has a bounded lifetime: waits last at most 50 seconds, the default; larger --timeout values are refused and job watch resumes the wait
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
@@ -404,7 +404,7 @@ See command controls above.
 
 ### job watch
 
-Artium runner has a bounded lifetime; use --timeout 50 or less
+Artium runner has a bounded lifetime: waits last at most 50 seconds, the default; larger --timeout values are refused and job watch resumes
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
@@ -587,7 +587,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### template show
 
@@ -607,7 +607,7 @@ See command controls above.
 
 ### template launch
 
-See command controls above.
+Artium runner has a bounded lifetime: waits last at most 50 seconds, the default; larger --timeout values are refused and job watch resumes the wait
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
@@ -895,7 +895,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### workflow show
 
@@ -915,7 +915,7 @@ See command controls above.
 
 ### workflow launch
 
-See command controls above.
+Artium runner has a bounded lifetime: waits last at most 50 seconds, the default; larger --timeout values are refused and job watch resumes the wait
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
@@ -1185,7 +1185,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### organization show
 
@@ -1217,7 +1217,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### system-job-template show
 
@@ -1250,7 +1250,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### system-job show
 
@@ -1359,7 +1359,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### credential show
 
@@ -1411,7 +1411,7 @@ See command controls above.
 
 ### ad-hoc launch
 
-See command controls above.
+Artium runner has a bounded lifetime: waits last at most 50 seconds, the default; larger --timeout values are refused and job watch resumes the wait
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
@@ -1441,7 +1441,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### ad-hoc show
 
@@ -1564,7 +1564,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### project show
 
@@ -1606,7 +1606,7 @@ See command controls above.
 
 ### project sync
 
-See command controls above.
+Artium runner has a bounded lifetime: waits last at most 50 seconds, the default; larger --timeout values are refused and job watch resumes the wait
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
@@ -1853,7 +1853,7 @@ See command controls above.
 
 ### inventory sync
 
-See command controls above.
+Artium runner has a bounded lifetime: waits last at most 50 seconds, the default; larger --timeout values are refused and job watch resumes the wait
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
@@ -2202,7 +2202,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### schedule show
 
@@ -2278,7 +2278,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### execution-environment show
 
@@ -2366,7 +2366,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### user show
 
@@ -2395,7 +2395,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### notification show
 
@@ -2483,7 +2483,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### notification-template show
 
@@ -2515,7 +2515,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### activity-stream show
 
@@ -2608,7 +2608,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### team show
 
@@ -2720,7 +2720,7 @@ See command controls above.
 | --limit | value | supported | f | read | none |
 | --all | boolean | supported | f | read | none |
 | --max-rows | value | supported | f | read | none |
-| --fields | value | blocked | f | read | none |
+| --fields | value | supported | f | read | none |
 
 ### role show
 
@@ -2829,7 +2829,7 @@ Artium materializes private runner configuration. There is no client-owned upstr
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | f | read | none |
+| --help | boolean | not applicable | f | read | none |
 
 ### doctor
 
@@ -2845,6 +2845,6 @@ The deployment pins awx-axi through tools/package.json and integrity.json. Upgra
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | f | read | none |
-| --check | boolean | blocked | f | read | none |
+| --help | boolean | not applicable | f | read | none |
+| --check | boolean | not applicable | f | read | none |
 

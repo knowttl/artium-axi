@@ -263,6 +263,8 @@ The accepted limitation is tracked in [awx-axi #75](https://github.com/knowttl/a
 AWX token creation retains newly minted PAT bytes through the existing protected-result channel, with only metadata and a result reference in routine output and audit; token bytes never enter routine logs or journals.
 The authenticated download requires the requesting user, current tool access, the same selected credential ID/revision and the token-create operation; it expires after five minutes, is consumed once and uses `Cache-Control: no-store`.
 Failed, denied, malformed and uncertain creation return no result reference.
+AWX `job stdout --download <name>` is a read that uses the same retrieval scope and lifetime with the stdout-download operation: the runner writes the redacted log to a private managed file, never to a caller-selected path, and routine output carries download metadata and a one-time result reference rather than log contents.
+Oversized logs are cut off while streaming with no result; see [result limits and recovery](runbook.md#retention-and-export).
 The new PAT does not replace the managed credential.
 Managed logout uses explicit `user token-revoke <numeric-token-id>` with the tenant writes switch, preview, confirmation and audit because managed accounts do not retain a verified current PAT ID.
 The account remains configured after revocation; deleting an account does not revoke its PAT.

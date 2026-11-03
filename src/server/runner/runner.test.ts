@@ -110,7 +110,7 @@ test('protected result capture retains exact bytes before private call cleanup',
 test.each([
   { script: "fs.writeFileSync(process.argv[2], 'confidential', { mode: 0o644 })", code: 'TEMP_UNAVAILABLE' },
   { script: "fs.symlinkSync('private.bin', process.argv[2])", code: 'TEMP_UNAVAILABLE' },
-  { script: "fs.writeFileSync(process.argv[2], Buffer.alloc(1024 * 1024 + 1), { mode: 0o600 })", code: 'OUTPUT_LIMIT' },
+  { script: "fs.writeFileSync(process.argv[2], Buffer.alloc(4 * 1024 * 1024 + 1), { mode: 0o600 })", code: 'OUTPUT_LIMIT' },
 ])('protected result capture refuses unsafe file contract: $code / $script', async ({ script, code }) => {
   const captured: Buffer[] = []
   await expect(run(process.execPath, ['-e', `const fs = require('node:fs'); ${script}`, '--'], {}, [],
