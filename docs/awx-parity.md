@@ -60,9 +60,7 @@ Managed account PAT/password entry stays in Artium's existing credential storage
 Global `--config` refers to managed runner configuration and has no caller file-upload equivalent.
 `auth login --allow-http` has no equivalent because managed AWX accounts require HTTPS.
 `--playbook` names a file inside an AWX project, not an uploaded runner file.
-`job stdout --download <name>` is supported as a managed artifact: the value only labels a one-time protected result holding the bounded redacted log, and it never selects a server path.
-The pinned `--fields`, `job stdout --full`/`--ansi` and `job events --type` flags are accepted; the pinned handlers apply fixed output and ignore them, so Artium does the same.
-Waits last at most 50 seconds, the default, because the runner has a bounded lifetime; larger `--timeout` values are refused and `job watch` resumes a wait.
+See the [client command reference](commands.md) for managed stdout downloads, admitted output flags and bounded waits.
 
 ## Delivery slices
 

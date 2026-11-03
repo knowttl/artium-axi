@@ -542,6 +542,7 @@ An oversized result returns `OUTPUT_LIMIT`; for a read, narrow the native query 
 An AWX `job stdout --download` above the result size returns `OUTPUT_TOO_LARGE`; read ranges with `--lines` or the failing tasks with `job events --failed`.
 A consumed, expired, wrong-user, wrong-operation or superseded-credential reference returns `NOT_FOUND`.
 For Technitium, repeat the permitted read to obtain a new reference.
+For an unavailable AWX stdout result, repeat `job stdout <id> --download <name>` to obtain a new reference; controller permission denials or missing jobs return an upstream error without a result.
 Retrieval also rechecks authentication and current tool access, so reauthenticate or ask an administrator to restore access when those checks fail.
 For AWX, a missing token result does not undo token creation: inspect controller token state before retrying a failed, malformed or uncertain creation, or one whose result is no longer retrievable.
 The pinned CLI has no token-list command; use the controller's token administration to reconcile, and revoke an unwanted token through the [managed revoke flow](commands.md) when its numeric ID is known.
