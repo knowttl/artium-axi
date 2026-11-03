@@ -15,6 +15,7 @@ import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './auth/local.js'
 import { hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, verifyAccessToken, verifyAccessFamily, verifyPasswordToken } from './auth/tokens.js'
 import { kubernetesBinding, kubernetesOwner } from './policy/kubernetes.js'
+import { ProxmoxAccess, proxmoxTrust } from './runner/proxmox.js'
 import { loginSchema, reauthSchema, refreshSchema } from '../shared/api.js'
 import { AuthAttempts } from './auth/attempts.js'
 import { browserCookie, browserPage, registerBrowser } from './auth/browser.js'
@@ -74,6 +75,7 @@ export function createApp(options: {
   if (proxies.some(address => !isIP(address))) throw new Error('Trusted proxies must be explicit IP addresses')
   const authenticate = verifyAccessToken
   const protectedResults = new ProtectedResults()
+  const proxmox = new ProxmoxAccess(db, resolver, runner, protectedResults)
   const localAuth = new LocalAuthProvider(db)
   const authAttempts = new AuthAttempts(db, audit)
   audit.recoverInterrupted()
@@ -84,7 +86,11 @@ export function createApp(options: {
   const browser = registerBrowser(app, db, audit, authAttempts, (session, origin) => sso.endSession(session, origin))
   const device = registerDevice(app, db, audit)
   const sso = registerSso(app, db, audit, options.providerCredentials, options.ssoFetch, device)
-  const health = new ToolHealth(db, audit, runner, adapters, options.credentialStore)
+  const health = new ToolHealth(db, audit, runner, adapters, options.credentialStore, proxmox)
+  const reconcileProxmox = async () => { await proxmox.reconcile() }
+  const proxmoxMonitor = setInterval(() => { void reconcileProxmox().catch(() => {}) }, 1000)
+  proxmoxMonitor.unref()
+  app.addHook('onSend', reconcileProxmox)
   const kubernetes = adapters.find(adapter => adapter.name === 'kubernetes-axi')
   if (kubernetes) {
     const workspaces = registerKubernetesWorkspaces(app, db, resolver, kubernetes, audit)
@@ -266,7 +272,7 @@ export function createApp(options: {
   registerAdminPages(app, db, credentialProfiles, runner.trustedCertificates)
   registerAuditPage(app, db, audit)
   registerTransfers(app, db, audit, runner, resolver, adapters, options.artifactStore)
-  for (const tool of ['technitium-axi', 'awx-axi', 'kubernetes-axi'] as const) app.get<{ Params: { operation: string, id: string } }>(`/v1/results/${tool}/:operation/:id`, async (request, reply) => {
+  for (const tool of ['technitium-axi', 'awx-axi', 'kubernetes-axi', 'proxmox-axi'] as const) app.get<{ Params: { operation: string, id: string } }>(`/v1/results/${tool}/:operation/:id`, async (request, reply) => {
     if (tool === 'awx-axi' && !['token-create', 'stdout-download'].includes(request.params.operation)) throw new ArtiumError('NOT_FOUND')
     if (tool === 'kubernetes-axi' && request.params.operation !== 'token-create') throw new ArtiumError('NOT_FOUND')
     const userId = authenticate(db, bearer(request.headers.authorization))
@@ -279,7 +285,8 @@ export function createApp(options: {
       if (settings.allowWrites !== true || settings.acquireCredential !== true) throw new ArtiumError('FLAG_BLOCKED')
     }
     const bytes = protectedResults.take(request.params.id, { userId, credential, operation: request.params.operation,
-      ...(tool === 'kubernetes-axi' ? { familyId: verifyAccessFamily(db, bearer(request.headers.authorization)) } : {}) })
+      ...(['kubernetes-axi', 'proxmox-axi'].includes(tool) ? { familyId: verifyAccessFamily(db, bearer(request.headers.authorization)) } : {}),
+      ...(tool === 'proxmox-axi' ? { trustRevision: proxmoxTrust(db, credential) } : {}) })
     return reply.header('cache-control', 'no-store').header('content-disposition', 'attachment; filename="result.bin"')
       .header('x-content-type-options', 'nosniff').header('x-artium-content-sha256', createHash('sha256').update(bytes).digest('hex'))
       .type('application/octet-stream').send(bytes)
@@ -305,11 +312,14 @@ export function createApp(options: {
     reply.raw.once('close', disconnect)
     try {
       const result = await runTool(db, audit, runner, bearer(request.headers.authorization), request.body,
-        adapter, resolver, { requestId: request.id, clientAddress: request.ip, signal: controller.signal, protectedResults }, authenticate)
+        adapter, resolver, { requestId: request.id, clientAddress: request.ip, signal: controller.signal, protectedResults, proxmox }, authenticate)
       const { stdout, stderr, exitCode, durationMs, outputBytes, truncated } = result
       return { source: adapter.name, stdout, stderr, exitCode, durationMs, outputBytes, truncated }
     } finally { reply.raw.off('close', disconnect) }
   })
-  app.addHook('preClose', async () => { await runner.shutdown(); await health.stop(); protectedResults.clear() })
+  app.addHook('preClose', async () => {
+    clearInterval(proxmoxMonitor)
+    await proxmox.close(); await runner.shutdown(); await health.stop(); protectedResults.clear()
+  })
   return app
 }

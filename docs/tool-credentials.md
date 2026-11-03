@@ -126,20 +126,28 @@ Grant each attachment download operation separately; uploads retain native opera
 
 #### Proxmox
 
-At `/admin/tools/proxmox-axi`, enter the HTTPS origin without a path, select API-token authentication, and supply the full token identity and token secret.
+At `/admin/tools/proxmox-axi`, enter the HTTPS origin without a path and store one managed credential.
+API-token authentication is preferred: supply the full token identity and token secret.
+Alternatively, select password authentication and supply the Proxmox username including its realm and the password.
 Use an identity authorized for the intended cluster and virtual machine reads.
-The [reviewed Proxmox inventory](../tools/inventories/proxmox-axi.json) owns the pinned profile schema; the [host profile restrictions](../src/server/adapters/credential-profile.ts) admit API tokens only, excluding password and ticket authentication.
+The [reviewed Proxmox inventory](../tools/inventories/proxmox-axi.json) owns the pinned profile schema; the [host profile restrictions](../src/server/adapters/credential-profile.ts) permit only API-token or password credentials to be stored.
+Authorized Artium users have no separate Proxmox sign-in step; stored passwords sign in automatically.
+See the [custody amendment](credential-standard.md#proxmox-memory-authentication-and-protected-result-amendment) for ticket caching, password handling and authentication failure rules.
+TFA-enabled accounts cannot use automatic password sign-in; configure an API token instead.
+The token-forbidden password and TFA management operations require the stored username/password branch and its upstream privileges.
 For a credential-specific CA bundle, paste PEM contents into `caBundle`, never a server file path; Artium materializes it privately for each call.
 Alternatively, the advanced `certificatePin` object binds a certificate fingerprint to the exact origin and cannot be combined with `caBundle`; follow the editor's schema requirements.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
 After saving, testing, enabling and granting the tool, use `artium-axi proxmox-axi get /version` for the first managed read.
-Ordinary writes require exact operation IDs in native `writes.operations` and the independent host grant list controlled by **Write permissions**.
+JSON writes require exact operation IDs in native `writes.operations` and the independent host grant list controlled by **Write permissions**.
 For example, starting a virtual machine requires `OP-POST-f879c7c9f8` in both lists and the host **Allow writes** switch enabled.
 Set native `writes.operations` on **Advanced**; selecting host grants does not silently grant native permission.
 Use `create /nodes/{node}/qemu/{vmid}/status/start --api-node <node> --api-vmid <id> --preview`, then repeat the identical command with the exact returned `--confirm` instead of `--preview`.
+Native batches require explicit native and host grants for their node-relative read children; ordinary reads do not require write grants.
 For sensitive operation fields, follow the [private Proxmox stdin contract](client-reference.md#command-surface-and-subcommands).
 These values exist for one invocation and are removed with its private inputs; authentication credentials still come only from the managed profile.
-Ticket/password authentication, protected-result operations and stream transports are not yet available.
+Secret-producing JSON writes deliver one-time private results; follow the [private result retrieval contract](client-reference.md#proxmox-private-results).
+Supplied tickets, caller-managed sign-in, managed transfers and duplex streams are not available.
 See [write safety and recovery](safety.md#network-appliance-reads) before enabling writes.
 
 #### Check Point Email Security

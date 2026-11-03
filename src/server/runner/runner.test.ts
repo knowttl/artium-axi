@@ -7,6 +7,7 @@ import { fakeTool } from '../../../test/fake-tool/tool.js'
 import { adoPathPrefix, runtimePath } from '../config.js'
 import { Runner } from './runner.js'
 import { logRun } from './log.js'
+import { proxmoxResult } from './proxmox-result.js'
 
 let root: string
 let runner: Runner
@@ -105,6 +106,36 @@ test('protected result capture retains exact bytes before private call cleanup',
   expect(result.stdout).toBe('metadata\n')
   expect(captured).toEqual(Buffer.from([0, 255, 10]))
   expect(await readdir(root)).toEqual([])
+})
+
+async function s4PrivateCall(mode: 'safe' | 'echo' | 'malformed') {
+  const binding = { origin: 'https://synthetic.invalid', identity: 'automation@pve', operation: 'synthetic-operation',
+    request: 'synthetic-request', actor: 'synthetic-actor', credentialRevision: 'synthetic:1' }
+  let payload: unknown
+  const script = `const fs = require('node:fs');
+    const value = {version:1,binding:JSON.parse(process.env.BINDING),payload:{value:process.env.CANARY_VALUE}};
+    const bytes = Buffer.from(JSON.stringify(value)), header = Buffer.alloc(4); header.writeUInt32BE(bytes.length);
+    fs.writeSync(Number(process.env.PROXMOX_AXI_RESULT_FD), process.env.MODE === 'malformed' ? Buffer.from('bad') : Buffer.concat([header,bytes]));
+    console.log(JSON.stringify({message:process.env.MODE === 'echo' ? process.env.CANARY_VALUE : 'completed'}));`
+  const result = run(process.execPath, ['-e', script], { BINDING: JSON.stringify(binding), MODE: mode, CANARY_VALUE: 'CANARY-minted-value' }, [], {
+    publicContent: stdout => Object.values(JSON.parse(stdout)) as string[],
+    protectedPipe: { environment: 'PROXMOX_AXI_RESULT_FD', receive(bytes) {
+      const result = proxmoxResult(bytes, binding); payload = result.payload; return result.secrets
+    } },
+  })
+  return { result: await result, payload }
+}
+
+test('S4 private channel preserves private minted values outside public output', async () => {
+  const { result, payload } = await s4PrivateCall('safe')
+  expect(result.stdout).toBe('{"message":"completed"}\n')
+  expect(payload).toEqual({ value: 'CANARY-minted-value' })
+})
+
+test.each([
+  ['echo', 'SECRET_IN_OUTPUT'], ['malformed', 'UNKNOWN_OUTCOME'],
+] as const)('S4 private channel refuses %s before public delivery', async (mode, code) => {
+  await expect(s4PrivateCall(mode)).rejects.toMatchObject({ code })
 })
 
 test('protected pipe capture keeps exact bytes separate from public streams', async () => {

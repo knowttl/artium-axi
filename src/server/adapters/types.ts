@@ -16,6 +16,7 @@ export interface TemporaryFile {
 }
 
 export interface PreparedCall {
+  proxmox?: { origin: string, identity: string, password: boolean, authenticate: boolean }
   // Native-generated protocol metadata stays intact; every selected provider value is still scanned.
   publicContent?: PublicContent
   // Dedicated identities can change while the call queues or its private files are materialized.
@@ -32,7 +33,7 @@ export interface PreparedCall {
   fileArguments?: readonly number[]
   effect?: 'read' | 'write'
   protectedResult?: { operation: string } & ({ source: 'projection' } | { source: 'file', name: string, flag: string }
-    | { source: 'pipe', flag: string, argumentIndex: number })
+    | { source: 'pipe', flag: string, argumentIndex: number } | { source: 'proxmox' })
   write?: { operation: string, target: string, checkArgs: string[], afterCheck?: string }
   preview?: { operation: string, target: string, confirm: string }
   limits: { timeoutMs: number, terminationGraceMs?: number, runtime?: 'python', nodeHeapMiB?: number, systemCaBundle?: boolean | { endpoint: string }, privateOutput?: PrivateOutput }

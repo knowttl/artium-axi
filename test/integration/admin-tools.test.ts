@@ -774,6 +774,18 @@ test('SSH write settings cannot create a generic credential or dedicated identit
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-not-a-tenant-credential')
 })
 
+test('Proxmox administrator stores one password credential without exposing its secret', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('proxmox-axi')
+  const credential = { origin: 'https://cluster.example', auth: 'password', userId: 'automation@pve', password: 'CANARY-proxmox-password' }
+  const response = await replace('proxmox-axi', credential)
+  expect(JSON.stringify(response)).not.toContain(credential.password)
+  expect(store.readCredential(store.findCredential('proxmox-axi')!)).toEqual(credential)
+  const { password: _password, ...identity } = credential
+  expect((await save('proxmox-axi', identity, 1)).status).toBe(200)
+  await failure(await save('proxmox-axi', { ...identity, userId: 'different@pve' }, 2), 'INVALID_INPUT')
+  expect(store.readCredential(store.findCredential('proxmox-axi')!)).toEqual(credential)
+})
+
 test('Proxmox token identity changes require a replacement secret', async () => {
   db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('proxmox-axi')
   await replace('proxmox-axi')

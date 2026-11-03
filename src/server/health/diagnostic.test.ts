@@ -30,6 +30,7 @@ test.each([
   ['error_code: "RATE_LIMITED"', 'RATE_LIMITED'],
   ["code: 'ACCESS_DENIED'", 'ACCESS_DENIED'],
   ['message: AADSTS7000215: CANARY-message', 'AADSTS7000215'],
+  ['{"error":{"code":"AUTH_REQUIRED","message":"CANARY-message"}}', 'AUTH_REQUIRED'],
 ])('extracts only the bounded failure code from %s', (text, code) => {
   expect(toolFailureCode(text, '')).toBe(code)
   expect(toolFailureCode('', text)).toBe(code)
@@ -43,6 +44,9 @@ test.each([
   'code: PERMISSION-DENIED',
   `code: ${'A'.repeat(81)}`,
   'code:',
+  '{"error":{"code":"PERMISSION DENIED"}}',
+  `{"error":{"code":"${'A'.repeat(81)}"}}`,
+  '{"error":{"code":42}}',
   '',
 ])('stores nothing for output without a recognizable code: %s', text => {
   expect(toolFailureCode(text, '')).toBeUndefined()
@@ -109,6 +113,9 @@ test.each([
   const text = `code: ${toolCode}\nmessage: ${message}`
   expect(toolFailure(text, '', 1)).toMatchObject({ code, diagnostic: { stage, toolCode, message: text } })
   expect(toolFailure('', text, 1)).toMatchObject({ code, diagnostic: { stage, toolCode, message: text } })
+  const json = JSON.stringify({ error: { code: toolCode, message } })
+  expect(toolFailure(json, '', 1)).toMatchObject({ code, diagnostic: { stage, toolCode, message: json } })
+  expect(toolFailure('', json, 1)).toMatchObject({ code, diagnostic: { stage, toolCode, message: json } })
 })
 
 test('preserves redacted response diagnostics without changing secret suppression', () => {

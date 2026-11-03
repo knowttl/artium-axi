@@ -471,6 +471,35 @@
         "OP-GET-48e0b9a8fa": { "label": "Scan CIFS storage with protected credentials" },
         "OP-GET-649f0e57fc": { "label": "Scan backup storage with protected credentials" }
       } },
+      { "title": "Credentials and two-factor configuration", "operations": {
+        "OP-PUT-58526f2846": { "label": "Change user password" },
+        "OP-POST-daaf2db49a": { "label": "Create two-factor configuration with private result" },
+        "OP-DELETE-931ab3181e": { "label": "Delete two-factor configuration", "risk": ["delete"] },
+        "OP-PUT-c8c0c420be": { "label": "Update two-factor configuration" },
+        "OP-POST-774b7e437e": { "label": "Create API token with private result" },
+        "OP-PUT-cda6ced4ac": { "label": "Update API token with private result" }
+      } },
+      { "title": "Private console and migration setup", "operations": {
+        "OP-POST-45ae134aef": { "label": "Prepare container migration with private result" },
+        "OP-POST-129daba473": { "label": "Prepare container terminal with private result" },
+        "OP-POST-660f98e613": { "label": "Prepare container VNC with private result" },
+        "OP-POST-cb6766cea8": { "label": "Prepare virtual-machine migration with private result" },
+        "OP-POST-792d5f0b19": { "label": "Prepare virtual-machine terminal with private result" },
+        "OP-POST-7b3d9d8def": { "label": "Prepare virtual-machine VNC with private result" },
+        "OP-POST-04add518d5": { "label": "Prepare node terminal with private result" },
+        "OP-POST-9db93dca1d": { "label": "Prepare node VNC shell with private result" }
+      } },
+      { "title": "Batch read dependencies", "operations": {
+        "OP-GET-2b0a4d1f88": { "label": "Read containers within a batch" },
+        "OP-GET-ee0e17bebb": { "label": "Read virtual machines within a batch" },
+        "OP-GET-565126bd4f": { "label": "Read node status within a batch" },
+        "OP-GET-26fbb96ac4": { "label": "Read node storage within a batch" },
+        "OP-GET-a514de012d": { "label": "Read storage status within a batch" },
+        "OP-GET-d9cb0ebe59": { "label": "Read tasks within a batch" },
+        "OP-GET-56c10e173f": { "label": "Read task log within a batch" },
+        "OP-GET-32aec68edd": { "label": "Read task status within a batch" },
+        "OP-GET-22c6caf285": { "label": "Read node version within a batch" }
+      } },
       { "title": "Task control and batches", "operations": {
         "OP-DELETE-d6b1eb65f2": { "label": "Cancel task" },
         "OP-POST-c4fdd6f30b": { "label": "Execute reviewed node-relative batch", "risk": ["bulk"] }

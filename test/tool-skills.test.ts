@@ -50,7 +50,9 @@ test.each(toolSchema.options)('%s overlay preserves tool guidance with managed c
     expect(skill).toContain('independent administrator hostWrites operation list')
     expect(skill).toContain('--confirm <id.fingerprint>')
     expect(skill).toContain('journal reconcile <id>')
-    expect(skill).toContain('Protected results and in-memory authentication are assigned to the next capability slice')
+    expect(skill).toContain('users need no separate Proxmox sign-in')
+    expect(skill).toContain('result take <operation> <id>')
+    expect(skill).toContain('TFA accounts cannot sign in automatically')
     return
   }
   expect(skill).toContain('Artium supplies the managed credentials')

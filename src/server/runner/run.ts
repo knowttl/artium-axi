@@ -11,7 +11,7 @@ import { verifyAccessToken, verifyAccessFamily } from '../auth/tokens.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { RunnerError } from './runner.js'
-import type { Runner, RunnerResult } from './runner.js'
+import type { Runner, RunnerResult, RunnerLimits } from './runner.js'
 import { toolFailure, toolFailureCode } from '../health/diagnostic.js'
 import { readCredentialTrust } from '../store/trusted-certificates.js'
 import { hostedStatus } from '../adapters/hosted-status.js'
@@ -19,12 +19,14 @@ import { logRun } from './log.js'
 import { adoApiAudit } from '../adapters/ado-api.js'
 import type { ProtectedResults } from '../protected-results.js'
 import { kubernetesCredentialRequest } from './kubernetes-requests.js'
+import { proxmoxTrust, type ProxmoxAccess } from './proxmox.js'
 
 export interface RunContext {
   requestId: string
   clientAddress: string | null
   signal?: AbortSignal
   protectedResults?: ProtectedResults
+  proxmox?: ProxmoxAccess
 }
 
 function unknownWriteResult(auditId: string, durationMs: number, outputBytes: RunnerResult['outputBytes']): RunnerResult {
@@ -83,6 +85,7 @@ export async function runTool<Credential>(
     let journal: Awaited<ReturnType<typeof prepareRunJournal>> | undefined
     let reservation: ReturnType<ProtectedResults['reserve']> | undefined
     let failure: Extract<AuditEvent, { event: 'run-terminal' }>['failure']
+    let privateBytes: Buffer | undefined
     try {
       const reference = adapter.prepareForCaller ? undefined : await resolver.resolve(userId, adapter.name)
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
@@ -91,20 +94,16 @@ export async function runTool<Credential>(
         root: prepared.kubernetesWorkflowRoot,
         scope: createHash('sha256').update(JSON.stringify({ userId, family: verifyAccessFamily(db, token), reference })).digest('hex'),
       } : undefined
-      const nativeScope = ['unifi-axi', 'proxmox-axi'].includes(adapter.name) && reference
+      const nativeScope = adapter.name === 'unifi-axi' && reference
         ? createHash('sha256').update(JSON.stringify({ userId, family: verifyAccessFamily(db, token), reference })).digest('hex') : undefined
-      if (adapter.name === 'proxmox-axi' && reference) {
-        prepared.environment.PROXMOX_AXI_ACTOR = nativeScope!
-        prepared.environment.PROXMOX_AXI_CREDENTIAL_REVISION = `${reference.id}:${reference.revision}`
-      }
       const protectedResult = prepared.protectedResult?.source === 'pipe' && kubernetesRequests
         && !await kubernetesCredentialRequest(kubernetesRequests.root, kubernetesRequests.scope, args[1])
         ? undefined : prepared.protectedResult
-      let privateBytes: Buffer | undefined
       if (protectedResult) {
         if (!context.protectedResults || !reference) throw new ArtiumError('UNSUPPORTED_INPUT')
         reservation = context.protectedResults.reserve({ userId, credential: reference, operation: protectedResult.operation,
-          ...(protectedResult.source === 'pipe' ? { familyId: verifyAccessFamily(db, token) } : {}) })
+          ...(['pipe', 'proxmox'].includes(protectedResult.source) ? { familyId: verifyAccessFamily(db, token) } : {}),
+          ...(protectedResult.source === 'proxmox' ? { trustRevision: proxmoxTrust(db, reference) } : {}) })
       }
       write = prepared.write
       const preparedJournal = await prepareRunJournal(prepared.environment, adapter.name, prepared.effect, write)
@@ -119,14 +118,14 @@ export async function runTool<Credential>(
           return { stdout, stderr: '', exitCode: 0, durationMs: Date.now() - started,
             outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
         }
-        return runner.run(identity.userId, prepared.executable, prepared.args, preparedJournal.environment,
+        const invoke = (overrides: Partial<RunnerLimits> = {}) => runner.run(identity.userId, prepared.executable, prepared.args, preparedJournal.environment,
           prepared.secrets, { ...prepared.limits, publicContent: prepared.publicContent, kubernetesRequests,
             unifiScope: adapter.name === 'unifi-axi' ? nativeScope : undefined, trustedIpc: prepared.trustedIpc, signal: context.signal,
             credentialTrust: reference ? readCredentialTrust(db, reference) : [],
             protectedResult: protectedResult?.source === 'file'
               ? { ...protectedResult, receive: bytes => { privateBytes = bytes } } : undefined,
             protectedPipe: protectedResult?.source === 'pipe'
-              ? { ...protectedResult, receive: bytes => { privateBytes = Buffer.from(bytes) } } : undefined },
+              ? { ...protectedResult, receive: bytes => { privateBytes = Buffer.from(bytes) } } : undefined, ...overrides },
           { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => {
             authenticate(db, token)
             if (prepared.beforeSpawn) {
@@ -140,6 +139,12 @@ export async function runTool<Credential>(
               if (current?.revision !== reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
             }
           }, prepared.pathPrefix)
+        if (prepared.proxmox && reference && context.proxmox) {
+          return context.proxmox.execute({ userId, familyId: verifyAccessFamily(db, token), credential: reference,
+            requestId: context.requestId, signal: context.signal }, prepared, invoke, bytes => { privateBytes = bytes })
+        }
+        if (prepared.proxmox) throw new ArtiumError('UNSUPPORTED_INPUT')
+        return invoke()
       })
       if (protectedResult?.source === 'projection' && result.exitCode === 0) privateBytes = Buffer.from(result.stdout)
       if (privateBytes && reservation && reference) {
@@ -149,7 +154,7 @@ export async function runTool<Credential>(
         authenticate(db, token)
         checkToolPolicy(db, userId, adapter.name)
         if (current.id !== reference.id || current.revision !== reference.revision) throw new ArtiumError('NOT_FOUND')
-        const json = args.includes('--json')
+        const json = result.stdout.trimStart().startsWith('{')
         const projection = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
         const resultReference = reservation.commit(privateBytes)
         projection.result = resultReference
@@ -192,7 +197,7 @@ export async function runTool<Credential>(
           outputBytes: runnerError?.outputBytes ?? { stdout: 0, stderr: 0 }, failure })
         throw error
       }
-    }
+    } finally { privateBytes?.fill(0) }
     const errorCode = result.exitCode === 0 ? null : toolFailureCode(result.stdout, result.stderr) ?? null
     const outcome = errorCode === 'OUTCOME_UNKNOWN' ? 'UNKNOWN_OUTCOME' : 'completed'
     audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(result.exitCode === 0, result.stdout) ?? 'unknown',

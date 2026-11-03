@@ -58,7 +58,7 @@ function prefixLengths(bytes: Uint8Array): Uint32Array {
 
 /** One scanner per call. Check output before persistence or delivery, even after the cap.
  * A true result is permanent and requires the caller to discard both output streams.
- * Only supplied values and their canonical encodings are known, not upstream-minted tokens.
+ * Supplied and registered minted values are checked with their canonical encodings.
  */
 export class SecretScanner {
   readonly #patterns: { bytes: Buffer, prefixes: Uint32Array }[]
@@ -67,6 +67,7 @@ export class SecretScanner {
   readonly #valuePatterns: readonly RegExp[]
   readonly #chunks: Record<OutputStream, Buffer[]> = { stdout: [], stderr: [] }
   #projectedBytes = 0
+  readonly #mintedSecrets: string[] = []
 
   constructor(private readonly secrets: readonly string[], private readonly output?: PrivateOutput,
     private readonly publicContent?: PublicContent) {
@@ -80,6 +81,8 @@ export class SecretScanner {
       stderr: new Uint32Array(this.#patterns.length),
     }
   }
+
+  registerSecrets(values: readonly string[]): void { this.#mintedSecrets.push(...values) }
 
   scan(stream: OutputStream, chunk: Uint8Array): boolean {
     if (this.#matched) return true
@@ -111,7 +114,7 @@ export class SecretScanner {
     if (this.publicContent) {
       try {
         const values = this.publicContent(Buffer.concat(this.#chunks.stdout).toString('utf8'), Buffer.concat(this.#chunks.stderr).toString('utf8'))
-        this.#matched ||= values.some(value => new SecretScanner(this.secrets).scan('stdout', Buffer.from(value)))
+        this.#matched ||= values.some(value => new SecretScanner([...this.secrets, ...this.#mintedSecrets]).scan('stdout', Buffer.from(value)))
       } catch { this.#matched = true }
       this.#chunks.stdout = []; this.#chunks.stderr = []
       return this.#matched

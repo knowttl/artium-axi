@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 
 type Route = { command: string, flags: Record<string, string>, effect: string, operation?: string, stream?: boolean,
-  operationId?: string, method?: string, path?: string, sensitiveInputs?: string[] }
-type ProxmoxContract = { id: string, callable: boolean, allowtoken?: number, policy: {
+  operationId?: string, method?: string, path?: string, sensitiveInputs?: string[], privateResult?: boolean }
+type ProxmoxContract = { id: string, path: string, callable: boolean, allowtoken?: number, policy: {
   effect: string, transport: string, secrets: string, sensitiveInputs?: string[] } }
 type UniFiRoute = { command: string, effect: string, status: string, vendorOperationId: string,
   contracts: { version: string, parameters: { name: string }[], requestBody?: { content: { 'application/json': { schema: { $ref: string } } } } }[] }
@@ -12,13 +12,15 @@ const read = (tool: string, path: string): string => readFileSync(new URL(`node_
 const { catalogue } = await import(new URL('node_modules/@knowttl/unifi-axi/dist/catalogue.js', root).href) as { catalogue: UniFiRoute[] }
 const proxmox = JSON.parse(read('proxmox-axi', 'artium-invocations.json')) as { commands: Route[] }
 const proxmoxContracts = (JSON.parse(read('proxmox-axi', 'dist/contracts.json')) as { contracts: ProxmoxContract[] }).contracts
-const proxmoxWrites = proxmoxContracts.filter(contract => contract.callable && ['write', 'batch'].includes(contract.policy.effect)
-  && contract.policy.transport === 'json' && contract.policy.secrets !== 'private-result' && contract.allowtoken !== 0)
-const proxmoxWriteOperations = [...new Set(proxmoxWrites.map(contract => contract.id))].sort()
+const proxmoxOperations = proxmoxContracts.filter(contract => contract.callable && contract.policy.transport === 'json'
+  && (['write', 'batch'].includes(contract.policy.effect)
+    || contract.policy.effect === 'read' && contract.path.startsWith('/nodes/{node}/')))
+const proxmoxWriteOperations = [...new Set(proxmoxOperations.map(contract => contract.id))].sort()
 const proxmoxCommands = proxmox.commands.filter(entry => !entry.stream && (entry.effect === 'read'
   ? !['auth', 'config', 'profile'].includes(entry.command.split(' ')[0])
   : entry.operationId && proxmoxWriteOperations.includes(entry.operationId))).map(entry => ({ ...entry,
-    sensitiveInputs: [...new Set(proxmoxWrites.filter(contract => contract.id === entry.operationId)
+    privateResult: proxmoxOperations.some(contract => contract.id === entry.operationId && contract.policy.secrets === 'private-result'),
+    sensitiveInputs: [...new Set(proxmoxOperations.filter(contract => contract.id === entry.operationId)
       .flatMap(contract => contract.policy.sensitiveInputs ?? []))],
     flags: { ...entry.flags, ...(entry.effect === 'write' ? { 'protected-input': 'boolean' } : {}) } }))
 const pins = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8')) as Record<string, { version: string, integrity: string }>
@@ -68,7 +70,7 @@ for (const [tool, spec] of Object.entries(specifications)) {
   const commands = spec.commands.map(entry => ({ command: entry.command, effect: entry.effect,
     ...(entry.operation ? { operation: entry.operation } : {}),
     ...(tool === 'proxmox-axi' ? { ...(entry.operationId ? { operationId: entry.operationId, method: entry.method, path: entry.path } : {}),
-      sensitiveInputs: entry.sensitiveInputs ?? [] } : {}),
+      sensitiveInputs: entry.sensitiveInputs ?? [], ...(entry.privateResult ? { privateResult: true } : {}) } : {}),
     flags: Object.fromEntries(Object.entries(entry.flags).filter(([name]) => !overrides.includes(name)
       && !(tool === 'proxmox-axi' && entry.sensitiveInputs?.includes(name.replace(/^api-/, ''))))) }))
   const data = { generatedBy: 'scripts/network-read-inventory.ts', tool, package: pkg.name, version: pkg.version, integrity: pins[pkg.name].integrity,
@@ -78,12 +80,12 @@ for (const [tool, spec] of Object.entries(specifications)) {
     adapterBoundary: { unsafeOverrides: overrides,
       ...(tool === 'unifi-axi' ? { inputFileFlags: ['body-file'] } : {}),
       nativeWrites: tool === 'unifi-axi' ? 'native preview, exact grants, confirmation and durable request IDs'
-        : 'ordinary JSON writes with independent native/host grants, exact single-use preview confirmation and durable journals',
+        : 'JSON writes with independent native/host grants, exact single-use preview confirmation, protected results and durable journals',
       blockedCommands: ['setup', 'update', 'auth', 'config', 'profile'] },
     commands, discovery: { commands: commands.map(entry => entry.command).filter(Boolean), example: spec.example,
       help: tool === 'unifi-axi'
         ? 'UniFi managed reads and native write previews. Run each command with --help for selectors and limits.\nExecution requires administrator Allow writes and exact native operation/variant grants; preview first, then repeat with --execute --confirm <confirmation> --request-id <stable-id>.\nUpload private JSON through --body-file. Use write show/reconcile with the same request ID after uncertainty; never resend automatically.\nLocal configuration, credential overrides, secret export and byte transports are unavailable in hosted execution.\n'
-        : 'Proxmox managed reads and ordinary JSON writes. Run each command with --help for selectors and limits.\nWrites require both native profile operations and administrator host operation grants, off by default. Use --preview, then repeat identical inputs with --confirm <confirmation>.\nUse --protected-input with bounded private stdin {api,secrets}; sensitive values require PVE_INPUT_ env SecretRefs and never arguments or host files.\nUse journal show/reconcile <id> and journal-bound task status/log/wait after uncertainty; never resend a consumed confirmation.\nProtected results and memory authentication belong to the next capability slice; managed transfers and duplex streams follow separately and remain unavailable here.\n' } }
+        : 'Proxmox managed reads and JSON writes. Run each command with --help for selectors and limits.\nWrites require both native profile operations and administrator host operation grants, off by default. Use --preview, then repeat identical inputs with --confirm <confirmation>.\nThe administrator saves an API token (preferred) or username/password; users have no separate Proxmox login. Password tickets are acquired automatically and cached in memory for at most five minutes. TFA accounts require an API token.\nUse --protected-input with bounded private stdin {api,secrets}; sensitive values require PVE_INPUT_ env SecretRefs and never arguments or host files.\nProtected results are retrieved once through result take <operation> <id> into an inherited private pipe.\nUse journal show/reconcile <id> and journal-bound task status/log/wait after uncertainty; never resend a consumed confirmation.\nManaged transfers and duplex streams remain unavailable.\n' } }
   const output = JSON.stringify(data, null, 2) + '\n'
   const target = new URL(`inventories/${tool}.json`, root)
   if (process.argv.includes('--write')) writeFileSync(target, output)

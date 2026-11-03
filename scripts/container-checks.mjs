@@ -63,6 +63,11 @@ try {
       await command('docker', ['run', '--name', proxmox, '--pull', 'never', '--init', '--network', 'none', '--read-only',
         '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
         '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/dist/test/fake-service/proxmox-probe.js'])
+      const proxmoxCustody = `${builder}-proxmox-custody`
+      recoveryContainers.push(proxmoxCustody)
+      await command('docker', ['run', '--name', proxmoxCustody, '--pull', 'never', '--init', '--network', 'none', '--read-only',
+        '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
+        '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/dist/test/fake-service/proxmox-custody-probe.js'])
       const ssh = `${builder}-ssh`
       recoveryContainers.push(ssh)
       await command('docker', ['run', '--name', ssh, '--pull', 'never', '--init', '--network', 'none', '--read-only',

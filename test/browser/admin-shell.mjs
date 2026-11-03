@@ -432,6 +432,25 @@ test('sign-in settings can save a client secret and requires a replacement when 
   `)
 })
 
+test('Proxmox stored password administration saves one credential without a separate login step', () => {
+  browser(`
+    await page.open(base + '/admin/tools/proxmox-axi');
+    check(await page.eval(() => JSON.stringify([...document.querySelector('[data-profile-field=auth]').options].filter(option => option.value).map(option => JSON.parse(option.value))) === JSON.stringify(['api-token', 'password'])), 'Unexpected authentication choices');
+    await page.fill('[data-profile-field=origin]', 'https://synthetic.invalid');
+    await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"password"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
+    await page.fill('[data-profile-field=userId]', 'automation@pve');
+    await page.fill('[data-profile-field=password]', 'CANARY-proxmox-browser-password');
+    await page.click('form[action$="/credential"] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
+    check(await page.eval(() => document.querySelector('[data-profile-field=password]').value === '' && !document.documentElement.outerHTML.includes('CANARY-proxmox-browser-password')), 'Password redisplayed');
+    check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"password"' && document.querySelector('[data-profile-field=userId]').value === 'automation@pve'), 'Selected identity was not saved');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('signs in automatically') && !document.querySelector('form[action*="/connect"]')), 'Automatic authentication guidance missing');
+    await page.fill('[data-profile-field=userId]', 'different@pve');
+    check(await page.eval(() => document.querySelector('[data-profile-field=password]').required), 'Changed username did not require a new password');
+  `)
+})
+
 test('SSH administration explains dedicated identities without offering generic credential or trust overrides', () => {
   chrome(['resize', '420', '900'])
   browser(`

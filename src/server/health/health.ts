@@ -12,7 +12,8 @@ import { falconManifest } from '../adapters/falcon.js'
 import { hostedGhOutput } from '../adapters/gh-output.js'
 import type { Audit } from '../audit/audit.js'
 import { healthDefaults } from '../config.js'
-import { RunnerError, type Runner } from '../runner/runner.js'
+import { RunnerError, type Runner, type RunnerLimits } from '../runner/runner.js'
+import type { ProxmoxAccess } from '../runner/proxmox.js'
 import { logRun } from '../runner/log.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
 import { readCredentialTrust } from '../store/trusted-certificates.js'
@@ -46,7 +47,7 @@ export class ToolHealth {
 
   constructor(private readonly db: Database.Database, private readonly audit: Audit,
     private readonly runner: Runner, private readonly adapters: readonly Adapter<unknown>[],
-    private readonly store?: MutableCredentialStore) {}
+    private readonly store?: MutableCredentialStore, private readonly proxmox?: ProxmoxAccess) {}
 
   // Every tool is due on the first tick; the background slot cap staggers them.
   start(): void {
@@ -206,15 +207,21 @@ export class ToolHealth {
         const preparedJournal = await prepareRunJournal(prepared.environment, tool, prepared.effect)
         journal = preparedJournal
         // Per-tool accounting leaves background reads governed by the global slots.
-        let result = await logRun({ requestId, tool }, () => runner.run(background ? `${actor}:${tool}` : actor, prepared.executable, prepared.args, preparedJournal.environment, prepared.secrets,
-          { ...prepared.limits, credentialTrust }, {}, prepared.files, () => {
+        const beforeSpawn = () => {
+            prepared.beforeSpawn?.()
             authorize?.()
             if (background && this.required.get(tool) !== reference.revision
               && !(db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number }).enabled) {
               throw new ArtiumError('TOOL_DISABLED')
             }
             if (store?.findCredential(tool)?.revision !== reference.revision) throw new ArtiumError('REVISION_CONFLICT')
-          }, prepared.pathPrefix))
+          }
+        const invoke = (limits: Partial<RunnerLimits> = {}) => runner.run(background ? `${actor}:${tool}` : actor,
+          prepared.executable, prepared.args, preparedJournal.environment, prepared.secrets,
+          { ...prepared.limits, publicContent: prepared.publicContent, credentialTrust, ...limits }, {}, prepared.files, beforeSpawn, prepared.pathPrefix)
+        let result = await logRun({ requestId, tool }, () => prepared.proxmox && this.proxmox
+          ? this.proxmox.health(actor, reference, requestId, prepared, beforeSpawn, invoke) : invoke())
+        if (prepared.proxmox) secrets.push(...prepared.secrets)
         if (tool === 'gh-axi') result = hostedGhOutput(prepared.invocation, result)
         exitCode = result.exitCode
         durationMs = result.durationMs
