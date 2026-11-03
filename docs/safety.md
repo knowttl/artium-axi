@@ -169,21 +169,22 @@ Generic tenant credentials cannot configure or override SSH bindings.
 Ordinary accounts and credentials never fall back to sudo bindings.
 Every server public key must be independently verified and every resolved address must belong to the administrator-approved literal address set.
 Ambient SSH agents, local profiles, host paths, caller-selected identities and trust overrides are unavailable.
-Calls waiting for a runner slot recheck tool access and the selected host, binding, credential and caller access before opening a transport.
-Changes to the selected SSH configuration refuse queued calls with `CREDENTIAL_INVALID`; discover the current granted hosts and retry only after the administrator has completed the change.
-Confirmed one-shot commands use the [managed execution workflow](commands.md#ssh).
+Calls waiting for a runner slot recheck tool access and the selected host, binding, credential and caller access before dispatch.
+Changes to the selected SSH configuration refuse queued discovery and authentication calls with `CREDENTIAL_INVALID`; discover the current granted hosts and retry only after the administrator has completed the change.
+Confirmed commands use the [managed execution workflow](commands.md#ssh), with either a one-shot or explicitly selected reusable transport.
 Administrator **Allow writes**, a writable host and current caller grants are all required; writes default off.
 An active server `SSH_AXI_READ_ONLY` override still blocks execution.
 `--sudo` selects its distinct approved account and credential, requires a separate caller grant and uses non-interactive passwordless sudo.
 The server validates commands for protected material before journaling and passes command text through private IPC rather than child process arguments.
 Preparation signs the caller, session family, exact input and binding revisions for ten minutes without dispatching a command.
-The CLI durably saves a private command-free receipt before submitting the signed request key; each accepted key claims one execution before any transport opens.
+The CLI durably saves a private command-free receipt before submitting the signed request key; each accepted key claims one execution before command dispatch.
 Interrupted or uncertain submissions are never automatically retried.
 Commands respect the host deadline and output ceilings; credentials and output are excluded from ordinary audit events.
 See [SSH recovery and retention](runbook.md#ssh-execution-recovery-and-retention) for uncertain outcomes, private receipts and stored results.
 Policy, binding, credential, identity or session revocation interrupts active commands before the administrative response acknowledges the change; remote effects already performed cannot be undone.
 Execution recovery requires the original caller and session family plus current host access, and remains readable when writes are disabled.
 Reusable connections belong to one user and session family, require matching host and ordinary/sudo bindings, and never reconnect automatically.
+Opening a connection only authenticates and remains available when writes are disabled; dispatching commands still requires the execution write gates above.
 Only one command may be active per connection; another command returns `CONNECTION_BUSY` before dispatch.
 Connections default to 10 minutes idle, accept 1-60 minutes within the host ceiling, and have an 8-hour maximum age, four per user and sixteen globally including authentication in progress.
 The maximum age also fences active work; local teardown does not prove that remote descendants stopped.

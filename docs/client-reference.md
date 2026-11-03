@@ -133,7 +133,7 @@ artium-axi falcon-axi --help
 ```
 
 The first prints local Artium help without signing in or contacting the server.
-The second forwards `--help` through the authenticated upstream adapter, except that SSH top-level and execution help are handled locally by the bundled client.
+The second forwards `--help` through the authenticated upstream adapter, except that SSH top-level, execution and connection help are handled locally by the bundled client.
 A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-axi --help` for its command list.
 A bare `artium-axi vectra-axi` reads bounded live detection context; use `artium-axi vectra-axi --help` for its command list.
 `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
