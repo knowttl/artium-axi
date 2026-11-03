@@ -13,6 +13,7 @@ Contents:
 - [Scripted administrator sessions](#scripted-administrator-sessions)
 - [Roles, credentials and health](#roles-credentials-and-health)
 - [Falcon RTR execution](#falcon-rtr-execution)
+- [SSH execution recovery and retention](#ssh-execution-recovery-and-retention)
 - [Retention and export](#retention-and-export)
 - [First administrator and offline recovery](#first-administrator-and-offline-recovery)
 - [Offline master key rotation](#offline-master-key-rotation)
@@ -544,6 +545,30 @@ After an uncertain outcome, inspect native session/audit history and durable jou
 Keep existing Falcon journals intact for audit reconciliation and [retention and export](#retention-and-export).
 See [supported Falcon capabilities](safety.md) and [upstream permissions and licensing](tool-credentials.md#falcon).
 
+### SSH execution recovery and retention
+
+After an interrupted or uncertain SSH submission, use the [execution status commands](commands.md#ssh) before taking further action.
+Never automatically resubmit the command; inspect remote state before preparing another command, including after an `unknown`, `timed_out` or `cancelled` outcome.
+A server restart marks unfinished executions `unknown` without replaying them.
+Recovery follows the [current caller and session-family access boundary](safety.md#ssh-reads); signing in again does not restore access to an earlier family's results.
+`NOT_FOUND` can mean an unsubmitted preparation, unavailable ownership/access or expired metadata, and does not establish that no remote effect occurred.
+After an administrative change interrupts a command, inspect remote state under the same recovery guidance.
+
+The CLI saves command-free receipts in `artium-axi/ssh-executions/` under the [client session base directory](client-reference.md#client-settings), including for managed sessions.
+The directory is mode 0700 and receipt files are mode 0600; unsafe ownership, permissions or symlink ancestry refuse custody with `SESSION_STORAGE_UNAVAILABLE` before new submission.
+Each receipt contains the server URL, host and signed request key; filenames use the request key's SHA-256, and `latest.json` selects the latest locally saved preparation.
+A receipt proves local preparation was saved, not that submission or execution succeeded.
+For concurrent commands, retain explicit request keys or execution IDs instead of relying on `latest.json`.
+Receipts are not automatically pruned, and another server URL returns `SESSION_SERVER_MISMATCH` when recovering the latest receipt.
+
+The SQLite `ssh_executions` table retains sanitized exact commands, ownership, endpoint and binding revisions and terminal metadata for 90 days after completion.
+`ssh_execution_results` retains encrypted output samples of at most 8192 bytes per stream for 14 days after storage.
+Cleanup runs at startup, hourly and on authenticated SSH execution requests; expired output leaves metadata and stream counts available until metadata expiry.
+Ordinary audit events exclude command content, credentials and output; execution status reads record `ssh-execution-read` audit events.
+There is no dedicated SSH execution export or cancellation command.
+SSH credentials and retained output participate in master-key rotation and database backup/restore; protect snapshots under the [backup retention policy](#backup-restore-and-upgrade-rollback).
+Restore invalidates the original sessions, so restored execution metadata preserves history without granting a newly signed-in family access to the old results.
+
 ## Retention and export
 
 Technitium and AWX protected results stay in process memory and are not persisted or backed up.
@@ -753,7 +778,7 @@ The backup directory must already exist and be protected from other users.
 The command uses SQLite online backup with a pinned read snapshot, so it can run while the server writes, including when the server holds its maintenance lock.
 It validates schema, integrity, foreign keys, the active key ID and every encrypted credential before publishing a new mode-0600 file.
 It refuses to replace an existing destination.
-The backup includes encrypted platform credentials, password hashes, accounts, roles, retained audit data and retained failure diagnostics, and must be treated as sensitive data.
+The backup includes encrypted platform and SSH credentials, retained SSH execution metadata and encrypted output, password hashes, accounts, roles, retained audit data and retained failure diagnostics, and must be treated as sensitive data.
 Never copy only a live `artium.db` file: committed changes can still be in its WAL.
 The master key is never bundled with the backup.
 Save the printed full SHA-256 key ID, backup timestamp and the source image digest in a protected recovery inventory.
