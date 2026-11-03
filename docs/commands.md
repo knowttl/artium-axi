@@ -26,7 +26,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi proxmox-axi result take <operation> <id>` | Retrieve a one-time private result through `PROXMOX_AXI_RESULT_FD`; follow the [private delivery contract](client-reference.md#proxmox-private-results). |
 | `artium-axi proxmox-axi stream limits` | Inspect authenticated host byte, staging, deadline and concurrency limits. |
 | `artium-axi proxmox-axi stream -- transfer\|duplex <native arguments>` | Use [private managed byte channels](client-reference.md#proxmox-managed-streams) for reviewed transfers and console/migration operations. |
-| `artium-axi technitium-axi [<args>]` | Read Technitium DNS data with managed credentials and authenticated one-time result retrieval. |
+| `artium-axi technitium-axi [<args>]` | Read Technitium DNS data and use native confirmed writes with managed credentials and private result retrieval. |
 | `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |
 | `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources or use administrator-enabled [mutation and bounded byte workflows](safety.md#kubernetes-reads), caller-owned workspaces and managed credentials with pinned kubectl. |
 | `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts, check authentication and run [confirmed managed commands](#ssh). |
@@ -216,12 +216,22 @@ See [bulk outcome recovery](runbook.md#retention-and-export) for partial or inte
 ## Technitium DNS
 
 Run `artium-axi tools show technitium-axi` for admitted commands and each command with `--help` for its required selectors.
+For native write inputs, pass `--input-file <absolute-private-file>` containing the package's typed JSON envelope (`parameters`, optional `baseline`, `upload` and `encoding`).
+The client uploads the file privately; native `upload.file` and app `parameters.config.file` paths refer to local private files whose bytes are uploaded with the envelope, never server paths.
+Files must be owned regular files with mode 0600, without symlinks; limits are 1 MiB per file, 4 MiB total and eight files per request.
+Operation secrets use explicit `TECHNITIUM_INPUT_*` environment SecretRefs or private local file SecretRefs; the client resolves them into the private envelope's `secrets` map, limited to 64 KiB total.
+Direct API callers supply that map and uploaded logical asset names explicitly; the server never resolves caller-selected environment names or file paths.
+With both exact grants enabled, preview `artium-axi technitium-axi allowed add --input-file <absolute-private-file> --json`, then repeat the same input with `--execute --confirm <preview.digest>`.
+Keep the original input and confirmation for `--reconcile <audit-id> --confirm <original-digest>`; reconciliation never retries the write.
+`dns-client resolve` uses the same typed input and native preview/confirmation flow; only `parameters.import: true` requires the `OP-077.import` write grant.
+Successful write executions return native response bytes through the same private result retrieval used by reads; preview receipts remain public protocol metadata.
 Native boolean parameters take explicit `true` or `false` values; `--include-zones` also accepts the native empty selection.
 Successful authenticated reads return their normal safe projection and an operation-bound `result` reference.
 For JSON reads, result downloads contain only the package's redacted projection, encoded as JSON or TOON according to the invocation's `--json` flag; native text, CSV and ZIP downloads contain the exported bytes.
 Retrieve `result.path` once with an authenticated GET to the Artium server using an Artium bearer token for the same user, with a current tool grant and the same credential revision.
 This retrieval is separate from `artium-axi download`; the CLI does not automatically save the result.
 Failed or incomplete reads remain failures; do not infer empty data.
+If a write outcome is unknown, do not replay it; follow the [recovery boundary](safety.md#technitium-dns).
 For authentication or managed-configuration failures, ask an administrator to update the stored credential and connection settings.
 See the [capability boundary](safety.md#technitium-dns) and [retention, limits and retrieval failures](runbook.md#retention-and-export).
 

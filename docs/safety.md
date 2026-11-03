@@ -274,9 +274,14 @@ Local synthetic verification does not establish live appliance commissioning.
 
 ## Technitium DNS
 
-Artium currently admits Technitium reads only; administrator settings cannot enable its published native write capabilities.
-Artium admits the reads and discovery commands in the [reviewed inventory](../tools/inventories/technitium-axi.json), including JSON reads and native text, CSV and ZIP exports.
-Caller-controlled credentials, endpoints, local profiles, result paths and file inputs are unavailable.
+Artium admits the reads, discovery commands and 96 native write grants in the [reviewed inventory](../tools/inventories/technitium-axi.json), including conditional `OP-077.import`.
+Host Write permission defaults off and selects exact operations independently of the managed profile's native `writes.allowWrites` and operation grants; both gates apply before credential access, including previews and reconciliation.
+Native previews bind the selected credential, TLS settings, input, secret values, baseline and upload digest; execution requires the exact confirmation and uses durable host-owned journals to prevent replay.
+Selected-field setters require the native exact baseline and a single-writer window because the upstream API has no atomic conditional setter.
+`user login`, its `auth login` alias, explicit `user`/`pass`/`totp` acquisition in `user create-token`, `--reconcile-profile`, caller credentials, endpoints, profiles, state overrides and result destinations are refused before credential access.
+The selected Standard/session bearer form of `user create-token` remains available with its exact grants.
+Each invocation starts with fresh private directories; stable names preserve native confirmation binding without retaining credentials or worker state between calls.
+Changed-binding cluster recovery remains an unknown outcome; inspect state through a separately trusted read and never replay the mutation.
 The server returns exported bytes as attachments and never executes or extracts them.
 See [credential setup](tool-credentials.md#technitium-dns) and [command usage](commands.md#technitium-dns).
 Local fake-service checks do not establish live server acceptance.
@@ -289,7 +294,7 @@ Local fake-service checks do not establish live server acceptance.
 | LDAP | Fixed read-only. |
 | UniFi | Exact native operation and variant grants plus native preview, confirmation and stable request ID; see [network appliance access](#network-appliance-reads). |
 | Proxmox | See [network appliance access](#network-appliance-reads) for native write grants, confirmation, private results and managed streams. |
-| Technitium DNS | See the [read-only capability boundary](#technitium-dns). |
+| Technitium DNS | See the [native write capability boundary](#technitium-dns). |
 | Gitea | See the [native write capability boundary](#gitea-reads). |
 | Kubernetes | See the [native mutation capability boundary](#kubernetes-reads). |
 | SSH | See the [discovery, authentication and execution boundary](#ssh-reads). |
@@ -375,6 +380,7 @@ Requests, bounded tool input and uploads travel to the server; enabled tools con
 See [SSH reads](#ssh-reads) for host-specific identity and access requirements.
 Audit excludes injected credentials, request bodies, stdin, uploaded contents and output streams; see [upload audit metadata](admin-guide.md#audit-screen-and-api) for retained file metadata.
 Technitium authenticated reads store only the package's redacted projection for JSON reads; native text, CSV and ZIP downloads keep their bytes in private per-call files and bounded process memory.
+Native write response bytes use that private file and memory custody, including issued tokens and settings secrets; public output contains native protocol metadata and an expiring result reference.
 Their one-time result references require the same user, operation and current credential revision, with current access checked again at retrieval.
 Only the result identifier, operation, byte count and SHA-256 enter the result audit event; confidential bytes never enter logs or audit.
 See [result retention and limits](runbook.md#retention-and-export).

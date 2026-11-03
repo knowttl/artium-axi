@@ -9,6 +9,7 @@ import { inputLimits, runRequestSchema } from '../shared/api.js'
 import type { RunInput } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { inputFileFlags, normalizeGiteaFileArguments, validateFileInput } from '../shared/file-input.js'
+import { technitiumToolInput } from './technitium-input.js'
 
 async function readBounded(stream: Readable, limit: number, stdinAlternative?: string): Promise<Buffer> {
   const chunks: Buffer[] = []
@@ -34,6 +35,10 @@ async function readBounded(stream: Readable, limit: number, stdinAlternative?: s
 // Only reviewed file flags upload local contents; other paths remain arguments.
 export async function toolInput(tool: string, original: string[]) {
   if (!runRequestSchema.safeParse({ args: original }).success) throw new ArtiumError('INVALID_INPUT')
+  if (tool === 'technitium-axi') {
+    const prepared = await technitiumToolInput(original)
+    if (prepared) return prepared
+  }
   const args = tool === 'gitea-axi' ? normalizeGiteaFileArguments(original) : [...original]
   const input: RunInput = {}
   if (tool === 'proxmox-axi' && args.includes('--protected-input') && !args.includes('--help')) {

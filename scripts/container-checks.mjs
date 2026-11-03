@@ -48,6 +48,11 @@ try {
     if (!flag) await command(process.execPath, ['scripts/mg-headless-check.mjs'], { ...env, ARTIUM_TEST_IMAGE: image })
     await command(process.execPath, ['scripts/fake-services.mjs', ...probe], { ...env, ARTIUM_TEST_IMAGE: image })
     if (flag === '--production') {
+      const technitiumWrites = `${builder}-technitium-writes`
+      recoveryContainers.push(technitiumWrites)
+      await command('docker', ['run', '--name', technitiumWrites, '--pull', 'never', '--init', '--network', 'none', '--read-only',
+        '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
+        '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/dist/test/fake-service/technitium-writes-probe.js'])
       const falconWrites = `${builder}-falcon-writes`
       recoveryContainers.push(falconWrites)
       await command('docker', ['run', '--name', falconWrites, '--pull', 'never', '--init', '--network', 'none', '--read-only',

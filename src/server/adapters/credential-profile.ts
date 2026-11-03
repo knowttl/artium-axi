@@ -10,7 +10,7 @@ import type { ToolName } from '../store/credential-store.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { Adapter, PreparedCall } from './types.js'
-import { toolAllowsWrites, falconWriteOperations, proxmoxWriteOperations } from '../../shared/api.js'
+import { toolAllowsWrites, falconWriteOperations, proxmoxWriteOperations, technitiumWriteOperations } from '../../shared/api.js'
 import { CredentialInput, credentialFormats, standardCredentialFormats } from './credential-input.js'
 import applicationMode from '../../shared/mg-application-mode.json' with { type: 'json' }
 import { kubernetesSessionPolicy } from '../../shared/kubernetes.js'
@@ -73,7 +73,11 @@ export class CredentialProfile {
       this.inputSchema.required = ['origin', 'auth', 'tokenKind', 'token']
       this.inputSchema.properties.origin.format = 'canonical-https-origin'
       this.inputSchema.properties.caFile = { type: 'string', minLength: 1, title: 'Trusted CA PEM', description: 'PEM certificate contents, not a file path.' }
-      delete this.inputSchema.properties.writes
+      this.inputSchema.properties.writes.properties.operations.items.enum = technitiumWriteOperations
+      this.inputSchema.properties.writes.properties.operations.maxItems = technitiumWriteOperations.length
+      this.inputSchema.properties.hostWrites = { type: 'object', additionalProperties: false, required: ['allowWrites', 'operations'],
+        properties: { allowWrites: { type: 'boolean' }, operations: { type: 'array', maxItems: technitiumWriteOperations.length,
+          items: { type: 'string', enum: technitiumWriteOperations } } } }
     }
     if (tool === 'gitea-axi') {
       delete this.inputSchema.properties.allowInsecureHttp
@@ -298,7 +302,7 @@ export class CredentialProfile {
     if (tool === 'kubernetes-axi') delete parsed.value.acquireCredential
     if (tool === 'awx-axi') delete parsed.value.allowConfigurationWrites
     if (tool === 'falcon-axi') delete parsed.value.writes
-    if (tool === 'proxmox-axi') delete parsed.value.hostWrites
+    if (tool === 'proxmox-axi' || tool === 'technitium-axi') delete parsed.value.hostWrites
     const environment: Record<string, string> = {}
     if (tool === 'beyondtrust-axi') environment.BEYONDTRUST_AXI_CONFIG = '/proc/self/cwd/beyondtrust-axi/config.json'
     const secrets: string[] = []

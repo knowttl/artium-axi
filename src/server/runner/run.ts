@@ -94,7 +94,7 @@ export async function runTool<Credential>(
         root: prepared.kubernetesWorkflowRoot,
         scope: createHash('sha256').update(JSON.stringify({ userId, family: verifyAccessFamily(db, token), reference })).digest('hex'),
       } : undefined
-      const nativeScope = adapter.name === 'unifi-axi' && reference
+      const nativeScope = (adapter.name === 'unifi-axi' || adapter.name === 'technitium-axi') && reference
         ? createHash('sha256').update(JSON.stringify({ userId, family: verifyAccessFamily(db, token), reference })).digest('hex') : undefined
       const protectedResult = prepared.protectedResult?.source === 'pipe' && kubernetesRequests
         && !await kubernetesCredentialRequest(kubernetesRequests.root, kubernetesRequests.scope, args[1])

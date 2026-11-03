@@ -2,6 +2,7 @@ import { parseArgs } from 'node:util'
 import { toolManifests } from './tool-manifests.js'
 import { ArtiumError } from './errors.js'
 import type { RunInput } from './api.js'
+import { technitiumInput } from './technitium-input.js'
 
 export function normalizeGiteaFileArguments(args: readonly string[]): string[] {
   const fileFlags = inputFileFlags('gitea-axi', args)
@@ -62,6 +63,13 @@ export function validateFileInput(tool: string, args: readonly string[], input: 
       if (!flags.includes(token.slice(2).split('=')[0]) || !token.startsWith('--')) continue
       names.add(equals < 0 ? args[++index] : token.slice(equals + 1))
     }
+  }
+  if (tool === 'technitium-axi' && names.size === 1) {
+    const manifest = toolManifests['technitium-axi']
+    const route = manifest.commands.find(route => route.command.split(' ').every((word, index) => args[index] === word))
+    if (!route?.operation) throw new ArtiumError('INVALID_INPUT')
+    technitiumInput(route.operation, [...names][0], input)
+    return
   }
   if (input.files?.some(file => !names.has(file.name))) throw new ArtiumError('UNSUPPORTED_INPUT')
 }

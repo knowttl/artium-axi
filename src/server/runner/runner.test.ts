@@ -29,6 +29,38 @@ afterEach(async () => {
 const fake = (args: string[], environment = {}, secrets: string[] = []) =>
   run(fakeTool.executable, [...fakeTool.args, ...args], environment, secrets)
 
+test('confirmation-bound file names remain stable while every call starts with empty private state', async () => {
+  const script = `const fs=require('node:fs'); const path=require('node:path');
+    const marker=path.join(process.env.XDG_STATE_HOME,'marker');
+    console.log(JSON.stringify({cwd:process.cwd(),existed:fs.existsSync(marker)}));
+    fs.writeFileSync(marker,'private',{mode:0o600});`
+  const limits = { directoryScope: 'a'.repeat(64) }
+  const first = await run(process.execPath, ['-e', script], {}, [], limits)
+  expect(await readdir(root)).toEqual([])
+  const second = await run(process.execPath, ['-e', script], {}, [], limits)
+  const other = await runner.run('another-synthetic-user', process.execPath, ['-e', script], {}, [], limits)
+  expect(JSON.parse(first.stdout)).toEqual({ cwd: JSON.parse(second.stdout).cwd, existed: false })
+  expect(JSON.parse(second.stdout).existed).toBe(false)
+  expect(JSON.parse(other.stdout).cwd).not.toBe(JSON.parse(first.stdout).cwd)
+  expect(await readdir(root)).toEqual([])
+})
+
+test('overlapping confirmation scopes are refused and cancellation releases fresh-directory custody', async () => {
+  const controller = new AbortController()
+  const limits = { directoryScope: 'b'.repeat(64), signal: controller.signal }
+  let started!: () => void
+  const ready = new Promise<void>(resolve => { started = resolve })
+  const first = run(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {}, [], limits, {}, [], started).catch(error => error)
+  await ready
+  try {
+    await expect(run(process.execPath, ['-e', 'process.exit(0)'], {}, [], { directoryScope: limits.directoryScope }))
+      .rejects.toMatchObject({ code: 'TOO_MANY_CALLS' })
+  } finally { controller.abort() }
+  expect(await first).toMatchObject({ code: 'CANCELLED' })
+  expect(await readdir(root)).toEqual([])
+  expect((await run(process.execPath, ['-e', "console.log('fresh')"], {}, [], { directoryScope: limits.directoryScope })).stdout).toBe('fresh\n')
+})
+
 test('only the allow-listed absolute prefix can precede the runtime PATH', async () => {
   const result = await run(process.execPath, ['-e', 'console.log(process.env.PATH)'], { PATH: '/incorrect' }, [], {}, {}, [], undefined, adoPathPrefix)
   expect(result.stdout).toBe(`${adoPathPrefix}:${runtimePath}\n`)

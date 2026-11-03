@@ -41,7 +41,7 @@ async function withTechnitium(check: (fixture: {
     Object.assign(toolPaths, { 'technitium-axi': join(process.cwd(), 'tools/node_modules/@knowttl/technitium-axi/bin/technitium-axi.js') })
     Object.assign(toolSkillPaths, { 'technitium-axi': join(process.cwd(), 'tools/node_modules/@knowttl/technitium-axi/README.md') })
     const app = createApp({ db, runner, audit: new Audit(db), environment: {}, credentialStore: store,
-      resolver: new SharedIdentityResolver(store), adapters: [createTechnitiumAdapter(new EmbeddedSecretSource(store))] })
+      resolver: new SharedIdentityResolver(store), adapters: [createTechnitiumAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))] })
     try {
       const url = await app.listen({ host: '127.0.0.1', port: 0 })
       const token = issueTestAccessToken(db, actor)

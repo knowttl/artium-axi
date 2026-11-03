@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import type { Serializable, ChildProcessWithoutNullStreams } from 'node:child_process'
 import { constants } from 'node:fs'
 import { chmod, mkdir, mkdtemp, open, readdir, rename, rm } from 'node:fs/promises'
@@ -25,6 +26,8 @@ import { acquireFalconRtrLock } from './falcon-rtr-lock.js'
 import { kubernetesRequestProfile } from './kubernetes-requests.js'
 
 export interface RunnerLimits {
+  // A native confirmation may bind file names. The directory is still empty on every call.
+  directoryScope?: string
   publicContent?: import('./scan.js').PublicContent
   unifiScope?: string
   kubernetesRequests?: { root: string, scope: string }
@@ -73,6 +76,7 @@ function decode(bytes: Buffer, truncated: boolean): string {
 
 // One server owns one runner. Admission covers setup, child execution and cleanup.
 export class Runner {
+  private readonly directoryScopes = new Set<string>()
   private readonly active = new Map<symbol, { userId: string, controller: AbortController, result: Promise<unknown> }>()
   private closed = false
   private readonly queue: { userId: string, admit: () => void, reject: (code: 'CANCELLED' | 'RUNNER_CLOSED' | 'TOO_MANY_CALLS') => void }[] = []
@@ -114,10 +118,16 @@ export class Runner {
       return Promise.reject(error)
     }
     return this.runManaged(userId, limits.signal, async signal => {
-      const custody = limits.falconRtrDevice ? await acquireFalconRtrLock(this.root,
-        executable === process.execPath ? args[0] : executable, limits.falconRtrDevice) : undefined
-      try { return await execute(this.root, executable, args, environment, secrets, { ...limits, signal }, input, files, beforeSpawn, this.trustedCa, pathPrefix) }
-      finally { custody?.close() }
+      if (limits.directoryScope !== undefined && !/^[a-f0-9]{64}$/.test(limits.directoryScope)) throw new TypeError('Invalid directory scope')
+      const directoryScope = limits.directoryScope && createHash('sha256').update(JSON.stringify([userId, limits.directoryScope])).digest('hex')
+      if (directoryScope && this.directoryScopes.has(directoryScope)) throw new RunnerError('TOO_MANY_CALLS')
+      if (directoryScope) this.directoryScopes.add(directoryScope)
+      try {
+        const custody = limits.falconRtrDevice ? await acquireFalconRtrLock(this.root,
+          executable === process.execPath ? args[0] : executable, limits.falconRtrDevice) : undefined
+        try { return await execute(this.root, executable, args, environment, secrets, { ...limits, directoryScope, signal }, input, files, beforeSpawn, this.trustedCa, pathPrefix) }
+        finally { custody?.close() }
+      } finally { if (directoryScope) this.directoryScopes.delete(directoryScope) }
     })
   }
 
@@ -218,7 +228,9 @@ async function execute(
   if (!Number.isSafeInteger(terminationGraceMs) || terminationGraceMs <= 0) throw new RangeError('Termination grace must be a positive integer')
   const scanner = new SecretScanner(secrets, limits.privateOutput, limits.publicContent)
   const started = performance.now()
-  const directory = await mkdtemp(join(root, 'artium-call-')).catch(() => {
+  const directory = await (limits.directoryScope
+    ? mkdir(join(root, 'artium-call-' + limits.directoryScope), { mode: 0o700 }).then(() => join(root, 'artium-call-' + limits.directoryScope))
+    : mkdtemp(join(root, 'artium-call-'))).catch(() => {
     throw new RunnerError('TEMP_UNAVAILABLE')
   })
   const directories = {

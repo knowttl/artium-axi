@@ -41,6 +41,8 @@ const kubernetesConfigMaps = new Map(['synthetic-config', 'synthetic-second'].ma
 const giteaIssue = { id: 42, number: 42, title: 'Synthetic issue', state: 'open', body: 'Synthetic issue body',
   user: { id: 1, login: 'synthetic-reader' }, token: 'CANARY-upstream-token' }
 let giteaDropWrite = false
+let technitiumDropWrite = false
+let technitiumBlocking = false
 const giteaValues = new Map()
 const giteaBytes = Buffer.from([0, 255, 13, 10, 127, 1])
 const giteaAssets = [{ id: 77, uuid: '11111111-1111-4111-8111-111111111111', name: 'asset.bin', size: giteaBytes.length }]
@@ -174,16 +176,34 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.end(JSON.stringify(value))
     return
   }
-  if (['/api/status', '/api/user/session/get', '/api/zones/export', '/api/logs/export', '/api/admin/ldap/get', '/api/admin/cluster/primary/transferConfig'].includes(url.pathname)) {
+  if (url.pathname === '/__technitium/drop-write') { technitiumDropWrite = true; res.end('{}'); return }
+  if (['/api/status', '/api/user/session/get', '/api/zones/export', '/api/logs/export', '/api/admin/ldap/get', '/api/admin/cluster/primary/transferConfig',
+    '/api/allowed/add', '/api/dnsClient/resolve', '/api/admin/sessions/createToken', '/api/settings/get', '/api/settings/set',
+    '/api/apps/config/set', '/api/zones/import', '/api/admin/users/create', '/api/user/createToken'].includes(url.pathname)) {
     const canaryReceived = req.headers.authorization === 'Bearer CANARY-technitium-token'
     let body = ''
     req.on('data', chunk => { body += chunk })
     req.on('end', () => {
-      requests.push({ method: req.method, path: url.pathname, canaryReceived, fields: Object.fromEntries(new URLSearchParams(body)) })
+      requests.push({ method: req.method, path: url.pathname, canaryReceived, fields: Object.fromEntries(new URLSearchParams(body)),
+        ...(url.pathname === '/api/zones/import' ? { uploadedText: body } : {}) })
       if (req.method !== 'POST' || (url.pathname !== '/api/status' && !canaryReceived)) { res.writeHead(401); res.end('{}'); return }
       if (url.pathname === '/api/status') res.end(JSON.stringify({ status: 'ok', server: 'Technitium DNS', hasDefaultCredentials: false, ssoEnabled: false }))
       else if (url.pathname === '/api/user/session/get') res.end(JSON.stringify({ status: 'ok', username: 'synthetic-reader', token: 'CANARY-returned-session', tokenName: 'synthetic-api', info: { version: '14.0', permissions: { zones: { canView: true } } } }))
       else if (url.pathname === '/api/admin/ldap/get') res.end(JSON.stringify({ status: 'ok', response: { ldapEnabled: false, ldapBindPassword: 'CANARY-ldap-password' } }))
+      else if (url.pathname === '/api/allowed/add') {
+        if (technitiumDropWrite) { technitiumDropWrite = false; req.socket.destroy(); return }
+        res.end(JSON.stringify({ status: 'ok', response: { domain: 'synthetic.test' } }))
+      }
+      else if (url.pathname === '/api/dnsClient/resolve') res.end(JSON.stringify({ status: 'ok', response: { result: { answers: [] } } }))
+      else if (url.pathname === '/api/admin/sessions/createToken') res.end(JSON.stringify({ status: 'ok', response: {
+        username: 'synthetic-user', tokenName: 'synthetic-token', token: 'CANARY-technitium-minted' } }))
+      else if (url.pathname === '/api/settings/get') res.end(JSON.stringify({ status: 'ok', response: { enableBlocking: technitiumBlocking } }))
+      else if (url.pathname === '/api/settings/set') {
+        technitiumBlocking = new URLSearchParams(body).get('enableBlocking') === 'true'
+        res.end(JSON.stringify({ status: 'ok', response: { enableBlocking: technitiumBlocking } }))
+      }
+      else if (url.pathname === '/api/user/createToken') res.end(JSON.stringify({ status: 'ok', username: 'synthetic-user', token: 'CANARY-technitium-selected-session-minted' }))
+      else if (['/api/apps/config/set', '/api/zones/import', '/api/admin/users/create'].includes(url.pathname)) res.end(JSON.stringify({ status: 'ok', response: {} }))
       else if (url.pathname === '/api/zones/export') {
         res.setHeader('content-type', 'text/plain')
         res.end('synthetic.test. IN TXT "CANARY-technitium-token"\n')
