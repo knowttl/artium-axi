@@ -65,11 +65,11 @@ test('per-user capacity is reserved before execution and released by cancellatio
   expect(results.take(final.id, scope)).toEqual(Buffer.from('next'))
 })
 
-test('result bytes over the one MiB bound cannot be published', () => {
+test('result bytes over the four MiB bound cannot be published', () => {
   vi.useFakeTimers()
   const results = new ProtectedResults()
   const pending = results.reserve(scope)
-  expect(() => pending.commit(Buffer.alloc(1024 * 1024 + 1))).toThrow(expect.objectContaining({ code: 'OUTPUT_LIMIT' }))
+  expect(() => pending.commit(Buffer.alloc(4 * 1024 * 1024 + 1))).toThrow(expect.objectContaining({ code: 'OUTPUT_LIMIT' }))
   pending.cancel()
   const next = results.reserve(scope).commit(Buffer.from('bounded'))
   expect(results.take(next.id, scope)).toEqual(Buffer.from('bounded'))

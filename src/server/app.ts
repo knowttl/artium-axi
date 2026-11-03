@@ -254,7 +254,7 @@ export function createApp(options: {
   registerAuditPage(app, db, audit)
   registerTransfers(app, db, audit, runner, resolver, adapters, options.artifactStore)
   for (const tool of ['technitium-axi', 'awx-axi'] as const) app.get<{ Params: { operation: string, id: string } }>(`/v1/results/${tool}/:operation/:id`, async (request, reply) => {
-    if (tool === 'awx-axi' && request.params.operation !== 'token-create') throw new ArtiumError('NOT_FOUND')
+    if (tool === 'awx-axi' && !['token-create', 'stdout-download'].includes(request.params.operation)) throw new ArtiumError('NOT_FOUND')
     const userId = authenticate(db, bearer(request.headers.authorization))
     checkToolPolicy(db, userId, tool)
     const credential = await resolver.resolve(userId, tool)

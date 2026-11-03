@@ -289,6 +289,7 @@
       "update"
     ],
     "nativeWrites": "host-classified",
+    "waitTimeoutSeconds": 50,
     "structuredInputFlags": [
       "extra-vars",
       "variables",
@@ -350,7 +351,7 @@
       "--limit",
       "1"
     ],
-    "help": "awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. One tenant switch, default off, gates previews and execution; reads and help remain available. AWX permissions still apply. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. Use protected local files for sensitive URLs. Credential inputs-file and password-file accept stdin (-). Server file paths and unsafe overrides remain blocked. Use job watch --timeout 50 or less. Token creation returns a protected result reference, never token bytes. Save its path using an authenticated GET within five minutes; it is consumed once and requires the same caller, current access and managed credential revision. Managed logout uses user token-revoke <numeric-token-id> with preview and confirmation; account removal does not revoke a PAT.\n"
+    "help": "awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. One tenant switch, default off, gates previews and execution; reads and help remain available. AWX permissions still apply. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. Use protected local files for sensitive URLs. Credential inputs-file and password-file accept stdin (-). Server file paths and unsafe overrides remain blocked. Waits (job watch and --wait) last at most 50 seconds, the default; larger --timeout values are refused. Resume with job watch. job stdout --download <name> returns a protected result reference to the bounded redacted log, consumed once like a token. Token creation returns a protected result reference, never token bytes. Save its path using an authenticated GET within five minutes; it is consumed once and requires the same caller, current access and managed credential revision. Managed logout uses user token-revoke <numeric-token-id> with preview and confirmation; account removal does not revoke a PAT.\n"
   },
   "suggestionFields": [
     "help"
@@ -369,7 +370,8 @@
         "since": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -397,6 +399,9 @@
         "help": "boolean",
         "tail": "value",
         "lines": "value",
+        "full": "boolean",
+        "download": "value",
+        "ansi": "boolean",
         "type": "value"
       },
       "positionals": {
@@ -416,7 +421,8 @@
         "task": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "type": "value"
       },
       "positionals": {
         "names": [
@@ -753,7 +759,8 @@
         "search": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -1183,7 +1190,8 @@
         "search": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -1600,7 +1608,8 @@
         "search": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -1644,7 +1653,8 @@
         "search": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -1689,7 +1699,8 @@
         "status": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -1840,7 +1851,8 @@
         "organization": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -1952,7 +1964,8 @@
         "search": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -2122,7 +2135,8 @@
         "search": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -3008,7 +3022,8 @@
         "disabled": "boolean",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -3111,7 +3126,8 @@
         "type": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -3231,7 +3247,8 @@
         "search": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -3267,7 +3284,8 @@
         "system-job": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -3387,7 +3405,8 @@
         "organization": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -3426,7 +3445,8 @@
         "credential": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -3556,7 +3576,8 @@
         "organization": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],
@@ -3715,7 +3736,8 @@
         "type": "value",
         "limit": "value",
         "all": "boolean",
-        "max-rows": "value"
+        "max-rows": "value",
+        "fields": "value"
       },
       "positionals": {
         "names": [],

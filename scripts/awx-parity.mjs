@@ -31,6 +31,26 @@ const security = (domain, name) => ['user', 'team', 'role', 'credential'].includ
   || /credential|^(?:user|admin|team)-(?:add|remove)$/.test(name)
   || name === 'copy' && ['project', 'execution-environment', 'notification-template'].includes(domain)
 const conditionalSecurity = new Set(['inventory source-create', 'inventory source-edit', 'project create', 'project edit', 'execution-environment create', 'execution-environment edit', 'notification-template create', 'notification-template edit'])
+// Every upstream flag name needs an explicit reviewed form; an unlisted name fails generation until it is reviewed here.
+const flagForms = {
+  control: ['help', 'confirm', 'dry-run', 'check'],
+  pagination: ['limit', 'all', 'max-rows'],
+  output: ['fields', 'tail', 'lines', 'full', 'ansi', 'download'],
+  filter: ['status', 'type', 'since', 'host', 'task', 'search', 'failed', 'failed-only', 'include-decided', 'event', 'kind'],
+  wait: ['wait', 'timeout', 'interval'],
+  selector: ['template', 'workflow', 'inventory', 'project', 'organization', 'user', 'team', 'credential', 'credential-type', 'execution-environment',
+    'instance-group', 'label', 'notification-template', 'child', 'source', 'source-project', 'job', 'workflow-job', 'project-update', 'inventory-update',
+    'ad-hoc', 'system-job', 'on', 'to', 'operation', 'default-environment'],
+  payload: ['name', 'description', 'playbook', 'scm-type', 'scm-branch', 'job-type', 'verbosity', 'diff', 'tags', 'skip-tags', 'job-tags', 'max-hosts',
+    'host-filter', 'update-on-launch', 'no-update-on-launch', 'enabled', 'disabled', 'facts', 'rrule', 'image', 'pull', 'scope', 'username', 'first-name',
+    'last-name', 'email', 'is-superuser', 'is-system-auditor', 'no-superuser', 'no-system-auditor', 'notification-type', 'module-name', 'module'],
+  structured: inventory.adapterBoundary.structuredInputFlags,
+  file: ['inputs-file', 'password-file', 'credential-passwords-file', 'hosts-file', 'configuration-file', 'config-file', 'messages-file'],
+  client: ['allow-http'],
+}
+const formOf = new Map(Object.entries(flagForms).flatMap(([form, names]) => names.map(name => [name, form])))
+const unreviewedFlags = [...new Set(DOMAINS.flatMap(domain => domain.subcommands.flatMap(route => route.flags.map(flag => flag.name))))].filter(name => !formOf.has(name))
+if (unreviewedFlags.length) throw new Error(`Unreviewed AWX flag forms: ${unreviewedFlags.join(', ')}; classify them in flagForms in scripts/awx-parity.mjs`)
 const sensitiveNames = new Set(['inputs-file', 'password-file', 'credential-passwords-file', 'configuration-file', 'config-file', 'messages-file', 'extra-vars', 'variables', 'source-vars', 'module-args', 'args', 'scm-url'])
 const inputDetails = (command, name) => {
   const file = name.endsWith('-file') || name === 'extra-vars' || name === 'scm-url'
@@ -38,7 +58,7 @@ const inputDetails = (command, name) => {
   return {
     secret: sensitiveNames.has(name), file, stdin,
     ...(file || sensitiveNames.has(name) ? { delivery: 'TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths' } : {}),
-    ...(name === 'download' ? { outputFile: true, delivery: 'Managed artifact download required; never a caller-selected server path' } : {}),
+    ...(name === 'download' ? { outputFile: true, delivery: 'Managed artifact: the value only labels a one-time protected result holding the bounded redacted log; never a caller-selected server path' } : {}),
     ...(name === 'playbook' ? { note: 'AWX project-relative playbook name, not a runner file upload' } : {}),
   }
 }
@@ -49,7 +69,7 @@ const flagsFor = (command, specs, effect, slice, status) => specs.map(flag => {
   const authorization = ['auth login', 'auth logout'].includes(command) ? 'write' : authorizationFor(flagEffect)
   const allowed = routes.get(command)?.flags[flag.name] !== undefined
   const blockedInput = flag.name.endsWith('-file') && !inventory.adapterBoundary.inputFileFlags.includes(flag.name)
-  return { ...flag, effect: flagEffect, status: flag.name === 'allow-http' ? 'not applicable' : status === 'supported' && allowed && !blockedInput ? 'supported' : status === 'managed equivalent' ? status : 'blocked',
+  return { ...flag, effect: flagEffect, status: flag.name === 'allow-http' ? 'not applicable' : status === 'supported' && allowed && !blockedInput ? 'supported' : ['managed equivalent', 'not applicable'].includes(status) ? status : 'blocked',
     targetSlice: input.file || input.secret ? 'c' : securityInput ? 'e' : !allowed && status === 'supported' && effect !== 'configuration write' ? 'f' : slice,
     authorization, requiredAdminControl: targetPolicy[authorization], ...input,
     ...(flagEffect === 'configuration write' && status === 'supported' && allowed && !blockedInput ? { currentAdminControl: configurationControl } : {}),
@@ -78,7 +98,7 @@ const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
     ...(command === 'user token-revoke' ? { note: 'Upstream DELETE tagged security, so the native security gate applies rather than the delete gate; target authorization is write', dependentSlices: ['d'] } : {}),
     ...(command === 'user token-create' ? { note: 'Confirmed creation delivers the PAT through an authenticated one-time protected result, scoped to the caller and current managed credential revision, expiring after five minutes; no token bytes in routine output or audit' } : {}),
     ...(command === 'inventory host-bulk-delete' ? { note: 'The pinned CLI reports any 2xx as deleted; Artium returns PARTIAL_OUTCOME with unconfirmed_hosts unless the controller confirms every requested host' } : {}),
-    ...(command === 'job watch' ? { note: 'Artium runner has a bounded lifetime; use --timeout 50 or less' } : {}),
+    ...(command === 'job watch' || route.flags.some(flag => flag.name === 'wait') ? { note: `Artium runner has a bounded lifetime: waits last at most ${inventory.adapterBoundary.waitTimeoutSeconds} seconds, the default; larger --timeout values are refused and ${command === 'job watch' ? 'job watch resumes' : 'job watch resumes the wait'}` } : {}),
     flags: flagsFor(command, [{ name: 'help', takesValue: false, description: 'Command help' }, ...route.flags], effect, targetSlice, status) }
 }))
 
@@ -115,11 +135,24 @@ const aliases = commands.filter(route => /^inventory (host|group|source)-/.test(
   const [noun, ...parts] = suffix.split('-')
   const spellings = [`inventory ${noun} ${parts.join('-')}`]
   if (noun !== 'host' && parts.length > 1) spellings.push(`inventory ${noun} ${parts.join(' ')}`)
-  return spellings.map(command => ({ command, canonicalCommand: route.command, effect: route.effect, status: 'blocked', targetSlice: route.targetSlice,
-    authorization: route.authorization, requiredAdminControl: route.requiredAdminControl, reason: 'Upstream nested alias; Artium accepts only canonical inventory leaf spelling',
-    ...(noun !== 'host' && parts.length > 1 ? { upstreamException: 'Pinned router joins every trailing token into the action for non-CRUD group/source aliases, including flags and values. Use canonical spelling for working invocations; slice f must track this upstream limitation.' } : {}),
-    flags: route.flags.map(flag => ({ ...flag, status: 'blocked' })) }))
+  return spellings.map(command => ({ command, canonicalCommand: route.command, effect: route.effect, status: 'managed equivalent', targetSlice: route.targetSlice,
+    authorization: route.authorization, requiredAdminControl: route.requiredAdminControl, reason: `Artium rejects the upstream nested spelling with the canonical command list; ${route.command} is the managed equivalent with identical flags, effect and authorization`,
+    ...(noun !== 'host' && parts.length > 1 ? { upstreamException: 'Pinned router joins every trailing token into the action for non-CRUD group/source aliases, including flags and values. Use canonical spelling for working invocations.' } : {}),
+    flags: route.flags }))
 })
+// Reviewed decisions: changing the upstream surface must change these numbers and digest in the same diff as its classification.
+const reviewedSurface = { commands: 215, aliases: 27, flagOccurrences: 1052, routerSha256: 'e08ea3de7f2232b47e603772ca5baf86bc2907823d3e49dcedf7eb2d574f4393', surfaceSha256: '382775bb36c2711185342fb4625ef0d86aa311a223cdd9a92f7729d97f158477' }
+const surfaceLines = [...DOMAINS.flatMap(domain => domain.subcommands.flatMap(route => [`${domain.name} ${route.name} ${JSON.stringify(route.positionals)}`,
+  ...route.flags.map(flag => `${domain.name} ${route.name} --${flag.name} ${flag.takesValue}`)])), ...aliases.map(alias => `${alias.command} => ${alias.canonicalCommand}`)].sort()
+const measuredSurface = { commands: commands.length, aliases: aliases.length, flagOccurrences: commands.reduce((count, route) => count + route.flags.length, 0),
+  routerSha256: createHash('sha256').update(String(DOMAINS.find(domain => domain.name === 'inventory').run)).digest('hex'),
+  surfaceSha256: createHash('sha256').update(surfaceLines.join('\n')).digest('hex') }
+if (JSON.stringify(measuredSurface) !== JSON.stringify(reviewedSurface)) throw new Error(`Unreviewed AWX surface change: ${JSON.stringify(measuredSurface)}; review new commands, flags, aliases, input forms and conditional effects, then update reviewedSurface in scripts/awx-parity.mjs`)
+const credentialInputs = new Set(['credential', 'configuration-file', 'config-file', 'messages-file', 'inputs-file', 'password-file', 'credential-passwords-file'])
+const reviewedOperationalCredentialUse = new Set(['job launch', 'template launch', 'ad-hoc launch'])
+const unreviewedConditional = commands.filter(route => route.effect !== 'read' && route.effect !== 'client-local' && route.flags.some(flag => credentialInputs.has(flag.name))
+  && route.effect !== 'security administration' && !route.conditionalEffect && !reviewedOperationalCredentialUse.has(route.command)).map(route => route.command)
+if (unreviewedConditional.length) throw new Error(`Unreviewed conditional security effect: ${unreviewedConditional.join(', ')}`)
 const globals = globalNames.map(name => ({ name, takesValue: true, effect: 'client-local', status: 'managed equivalent', targetSlice: 'f',
   authorization: 'read', requiredAdminControl: targetPolicy.read, reason: name === 'config' ? 'Server materializes private config; upstream file path override blocked'
     : name === 'profile' ? 'Select an Artium managed account; upstream profile override blocked'

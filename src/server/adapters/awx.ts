@@ -64,6 +64,20 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
     if (name.endsWith('-file') && !(value === '-' && (name === 'password-file' || name === 'inputs-file' && positionals[0] === 'credential')
       && input.stdin !== undefined) && !input.files?.some(file => file.name === value)) throw new ArtiumError('UNSUPPORTED_INPUT')
   }
+  // The runner lifetime bounds waits: poll at most 50 seconds, then resume with job watch.
+  if (route.command === 'job watch' || flags.has('wait')) {
+    const timeout = flags.get('timeout')
+    if (timeout === undefined) flags.set('timeout', String(inventory.adapterBoundary.waitTimeoutSeconds))
+    else if (!/^[1-9]\d*$/.test(String(timeout)) || Number(timeout) > inventory.adapterBoundary.waitTimeoutSeconds) throw new ArtiumError('INVALID_INPUT',
+      `Waits last from 1 to ${inventory.adapterBoundary.waitTimeoutSeconds} seconds.`,
+      'Omit --timeout for the default, then resume with job watch if the job is still running.')
+  }
+  // The download value labels a managed artifact; it is never a server path.
+  const download = flags.get('download')
+  if (download !== undefined && (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(String(download)) || ['tail', 'lines', 'full', 'ansi'].some(name => flags.has(name)))) {
+    throw new ArtiumError('INVALID_INPUT', 'job stdout --download takes a plain name of up to 64 characters and no range or format flags.',
+      'Use --download <name>; the log is delivered through a protected result reference, not written to a path.')
+  }
   const rest = positionals.slice(route.command.split(' ').length)
   const stdinFlags = [...flags].filter(([, value]) => value === '-').map(([name]) => name)
   if (input.stdin !== undefined && (stdinFlags.length !== 1 || !(stdinFlags[0] === 'password-file'
@@ -145,11 +159,13 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const privateInput = structured.length || input?.files?.length || input?.stdin !== undefined
       const privateRead = !call.invocation.help && ['inventory show', 'inventory constructed-show', 'project show', 'activity-stream show'].includes(call.invocation.command)
       const tokenCreate = call.effect === 'write' && call.invocation.command === 'user token-create'
-      const bridge = privateInput || privateRead || tokenCreate
+      const stdoutDownload = call.invocation.command === 'job stdout' && call.args.some(arg => arg.startsWith('--download='))
+      const bridge = privateInput || privateRead || tokenCreate || stdoutDownload
       const output = bridge ? awxPrivateOutput(input ?? {}, structured, call.args) : undefined
       if (output) profile.files.push({ name: 'awx-input.json', content: JSON.stringify({ values: structured, output }) })
       return { executable: bridge ? process.execPath : toolPaths['awx-axi'], ...call,
-        ...(tokenCreate ? { protectedResult: { source: 'file' as const, operation: 'token-create', name: 'awx-token.txt', flag: '--artium-token-result' } } : {}),
+        ...(tokenCreate ? { protectedResult: { source: 'file' as const, operation: 'token-create', name: 'awx-token.txt', flag: '--artium-result' } } : {}),
+        ...(stdoutDownload ? { protectedResult: { source: 'file' as const, operation: 'stdout-download', name: 'awx-stdout.log', flag: '--artium-result' } } : {}),
         ...(bridge ? { args: [...prefix, ...call.args], fileArguments: call.fileArguments.map(index => index + prefix.length) } : {}),
         ...profile, limits: { timeoutMs: runnerLimits.timeoutMs, ...(output ? { privateOutput: output } : {}) } }
     },

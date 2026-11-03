@@ -1,4 +1,5 @@
 import type { RunnerInput } from '../runner/input.js'
+import { protectedResultLimits } from '../config.js'
 import { privateOutput, protocolOutputFields } from '../runner/scan.js'
 
 const inputFields = {
@@ -16,8 +17,11 @@ const { pathToFileURL } = await import('node:url');
 const { createRequire } = await import('node:module');
 const executable = process.argv[1];
 const argv = process.argv.slice(2);
-const resultIndex = argv.indexOf('--artium-token-result');
-const tokenResult = resultIndex < 0 ? undefined : argv.splice(resultIndex, 2)[1];
+const resultIndex = argv.indexOf('--artium-result');
+const resultFile = resultIndex < 0 ? undefined : argv.splice(resultIndex, 2)[1];
+// The value is only a label for the managed artifact; it never names a file.
+const downloadIndex = argv.findIndex(arg => arg.startsWith('--download='));
+const download = downloadIndex < 0 ? undefined : argv.splice(downloadIndex, 1)[0].slice('--download='.length);
 const require = createRequire(executable);
 const awxModule = require.resolve('awx-axi');
 const { decode, encode } = await import(pathToFileURL(require.resolve('@toon-format/toon')).href);
@@ -56,13 +60,58 @@ const redact = (value, key = '', depth = 0) => {
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, child]) => [name, redact(child, name, depth + 1)]));
   return value;
 };
+let downloaded;
+let exceeded = false;
+const limit = ${protectedResultLimits.bytes};
 const output = stream => ({ write(chunk) {
+  if (downloaded) return;
+  if (exceeded && stream === process.stdout) {
+    stream.write(encode({ error: 'Job output exceeds the managed download limit of ' + limit + ' bytes', code: 'OUTPUT_TOO_LARGE',
+      help: ['Run awx-axi job stdout <id> --lines 1-200 to read a range', 'Run awx-axi job events <id> --failed for the failing tasks only'] }) + '\\n');
+    return;
+  }
   stream.write(encode({ ...redact(decode(String(chunk))), input: fields }) + '\\n');
 } });
 const { main } = await import(pathToFileURL(awxModule).href);
 const bulkDelete = argv[0] === 'inventory' && argv[1] === 'host-bulk-delete';
 let guardedTransport;
-if (tokenResult || bulkDelete) {
+if (download !== undefined) {
+  const { resolveController, requireCredential } = await import(new URL('./core/auth.js', pathToFileURL(awxModule)).href);
+  const { HttpTransport, isReadOnly } = await import(new URL('./core/transport.js', pathToFileURL(awxModule)).href);
+  const { createTlsFetch } = await import(new URL('./core/tls-fetch.js', pathToFileURL(awxModule)).href);
+  const { redact: redactLog } = await import(new URL('./core/redact.js', pathToFileURL(awxModule)).href);
+  const http = await import('node:http');
+  const https = await import('node:https');
+  guardedTransport = (env, signal, diagnostics) => {
+    const config = resolveController(env, {});
+    const credential = requireCredential(env, {});
+    // Abort the response as soon as it passes the limit so memory stays bounded.
+    const send = (url, init, callback) => (new URL(url).protocol === 'http:' ? http : https).request(url, init, incoming => {
+      let seen = 0;
+      incoming.on('data', chunk => {
+        seen += chunk.length;
+        if (seen > limit && !exceeded) { exceeded = true; incoming.destroy(new Error('download limit')); }
+      });
+      callback(incoming);
+    });
+    const baseFetch = createTlsFetch(config.verifySsl, send);
+    // The log goes only to the private result file; upstream sees an empty range.
+    const fetch = async (url, init) => {
+      const target = new URL(url);
+      if (!/\\/stdout\\/$/.test(target.pathname)) return baseFetch(url, init);
+      target.searchParams.set('format', 'txt_download');
+      const response = await baseFetch(target.toString(), init);
+      if (response.status !== 200) return response;
+      const text = redactLog(await response.text());
+      writeFileSync(resultFile, text, { mode: 0o600, flag: 'wx' });
+      const lines = text.split('\\n').length - (text.endsWith('\\n') ? 1 : 0);
+      downloaded = { bytes: Buffer.byteLength(text), lines };
+      return new Response(JSON.stringify({ content: '', range: { start: 0, end: lines, absolute_end: lines } }), { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+    return new HttpTransport({ baseUrl: config.baseUrl, apiBasePath: config.apiBasePath, verifySsl: config.verifySsl,
+      authorization: 'Bearer ' + credential.token, readOnly: isReadOnly(env), env, signal, diagnostics, fetch });
+  };
+} else if (resultFile || bulkDelete) {
   const { createTransport } = await import(new URL('./core/auth.js', pathToFileURL(awxModule)).href);
   const { AwxAxiError } = await import(new URL('./core/errors.js', pathToFileURL(awxModule)).href);
   guardedTransport = (env, signal, diagnostics) => {
@@ -93,7 +142,7 @@ if (tokenResult || bulkDelete) {
         throw new AwxAxiError('Controller returned no usable token metadata. Inspect existing tokens before retrying.', 'INVALID_RESPONSE');
       }
       // Upstream discards this secret; retain it only through the private result channel.
-      writeFileSync(tokenResult, body.token, { mode: 0o600, flag: 'wx' });
+      writeFileSync(resultFile, body.token, { mode: 0o600, flag: 'wx' });
       return { ...response, body: { id: body.id, scope: body.scope } };
     };
     return transport;
@@ -101,6 +150,10 @@ if (tokenResult || bulkDelete) {
 }
 await main({ argv, env: process.env, stdout: output(process.stdout), stderr: output(process.stderr),
   ...(guardedTransport ? { createTransport: guardedTransport } : {}) });
+if (downloaded) {
+  process.stdout.write(encode({ job_stdout_download: { id: argv[2], name: download, ...downloaded },
+    help: ['The redacted log is available once through the protected result path below'] }) + '\\n');
+}
 `
 
 export function awxPrivateOutput(input: RunnerInput, structured: readonly (readonly [number, string])[], args: readonly string[]) {

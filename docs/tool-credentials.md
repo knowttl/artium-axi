@@ -490,7 +490,7 @@ See the [AWX write boundary](safety.md#write-gates-by-tool) for the single tenan
 Use [browser administration](admin-guide.md#browser-administration) to change the controls and the [command reference](commands.md) for preview and confirmation behavior.
 Artium manages origin, TLS and credential selectors, and refuses standalone auth login/logout, setup, config, profile and update commands.
 See [client input handling](client-reference.md#command-surface-and-subcommands) for AWX structured values, protected local files and supported stdin forms.
-Use `job watch --timeout 50` or less to stay within the runner timeout.
+Waits are bounded to 50 seconds to stay within the runner timeout; Artium applies that default and refuses larger `--timeout` values, so resume with `job watch`.
 For an interrupted write, inspect current state using the returned read-back guidance before retrying.
 Local fake-service checks do not establish live controller acceptance.
 
