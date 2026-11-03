@@ -240,7 +240,8 @@ The package retains its version, schema and contract-conflict checks.
 Proxmox admits ordinary read routes and offline inventory discovery from the pinned invocation contract.
 Use `artium-axi unifi-axi info --help` or `artium-axi proxmox-axi get /version --help`, and `artium-axi tools show <tool>` for admitted commands.
 See credential setup for [UniFi](tool-credentials.md#unifi) and [Proxmox](tool-credentials.md#proxmox), including managed authentication and TLS settings.
-Credentials, endpoints, profiles, local configuration, session authentication and byte transports cannot be selected by callers.
+Credentials, endpoints, profiles, local configuration and session authentication cannot be selected by callers.
+UniFi byte transports remain unavailable; Proxmox byte routes use the managed stream workflow below.
 UniFi admits all implemented native writes under administrator Allow writes, off by default, and exact vendor operation grants, including required management or action variant grants.
 Native previews do not mutate; execution requires the matching `--confirm`, `--execute` and a stable `--request-id`.
 Upload one private JSON body with `--body-file`; server paths, stdin and hosted secret export are unavailable.
@@ -263,7 +264,12 @@ The bounded native protocol separates generated receipt metadata from provider v
 Secret-producing writes require the native private result channel before dispatch and return one-time references instead of secret values in routine output.
 The [approved credential custody amendment](credential-standard.md#proxmox-memory-authentication-and-protected-result-amendment) owns authentication caching, result binding, scanning and revocation requirements.
 Use [private CLI retrieval](client-reference.md#proxmox-private-results) and follow the [retention and recovery guidance](runbook.md#retention-and-export).
-Managed transfers and duplex streams remain unavailable.
+Reviewed transfers and duplex routes use [authenticated private byte channels](client-reference.md#proxmox-managed-streams), outside ordinary run input.
+Read transfers remain available with writes off; effectful setup and uploads require the same exact native/host grants and consumed-once confirmations.
+SPICE stays in the existing one-shot memory result store; console and migration payloads are not text-redacted, logged or persisted.
+Uploads are verified in private staging before provider execution; failed cleanup retains capacity rather than permitting an unbounded fallback.
+One stream per user and sixteen globally are also subject to Runner admission, and live delivery rechecks the current family, credential, access and trust.
+Byte quotas, message bounds and expiry terminate the call; cancellation never authorizes reconnection or confirmation replay.
 Local synthetic verification does not establish live appliance commissioning.
 
 ## Technitium DNS
@@ -282,7 +288,7 @@ Local fake-service checks do not establish live server acceptance.
 | Falcon | See the [Falcon boundary](#azure-falcon-and-vectra-reads) for passive reads, exact lifecycle grants and native RTR opt-in/confirmation. |
 | LDAP | Fixed read-only. |
 | UniFi | Exact native operation and variant grants plus native preview, confirmation and stable request ID; see [network appliance access](#network-appliance-reads). |
-| Proxmox | See [network appliance access](#network-appliance-reads) for JSON write grants, confirmation, private results and pending capabilities. |
+| Proxmox | See [network appliance access](#network-appliance-reads) for native write grants, confirmation, private results and managed streams. |
 | Technitium DNS | See the [read-only capability boundary](#technitium-dns). |
 | Gitea | See the [native write capability boundary](#gitea-reads). |
 | Kubernetes | See the [native mutation capability boundary](#kubernetes-reads). |

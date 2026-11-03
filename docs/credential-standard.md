@@ -322,7 +322,7 @@ This amendment authorizes no persistent Proxmox worker and does not extend the S
    Only host-selected state with fresh authorization and binding checks may supplement the selected per-call profile.
    Session identifiers grant no bearer authority, and no new SecretRef kind is introduced.
    Authentication grants no write permission; existing native operation grants, administrator write settings and native confirmation remain required.
-5. Native protected results use a pre-established inherited private pipe or socket, with no native output-file fallback.
+5. Native S4 protected results use a pre-established inherited private pipe or socket, with no native output-file fallback.
    Before accepting a result, the host validates the frame version, 65536-byte JSON payload bound and expected origin, identity, operation, request, actor and credential-revision bindings.
    Protected bytes may enter only the existing process-memory result channel, retaining its five-minute lifetime, four results per user, sixteen globally and single-use retrieval.
    Retrieval requires the same user, sign-in family, operation and credential revision, with current tool, credential and trust authorization.
@@ -339,6 +339,14 @@ This amendment authorizes no persistent Proxmox worker and does not extend the S
    Already dispatched remote work can have an uncertain outcome; cleanup does not promise reversal.
 8. Production admission requires synthetic conformance for automatic acquisition and expiry, TFA refusal, caller/family and credential/trust isolation, absence of fallback, capacity, private framing and single-use retrieval, secrecy, targeted revocation of idle and active state, failure cleanup and restart without retained credentials.
    This amendment alone does not establish implementation conformance or live appliance commissioning.
+
+The managed Proxmox S5 routes preserve this credential custody: they add no authentication kind, additional password retention or persistent provider worker.
+Genuine duplex setup frames may be validated and committed to the existing one-shot memory store while their owning operation remains active, so the caller can complete its inner protocol.
+The S4 frame size and six native binding checks remain unchanged, and minted setup values are registered before provider text can be released.
+SPICE configuration is a different native representation: exact raw text bytes, never a fabricated S4 JSON frame.
+The host accepts it only from its selected SPICE operation, checks native completion, byte count and SHA-256, and registers configuration values before accepting public metadata.
+It uses the existing result store's 4 MiB bound, five-minute lifetime, four-per-user/sixteen-global capacity, current caller/family/credential/trust checks and one-shot retrieval, delivering only to the caller's validated private byte destination.
+Opaque console and migration messages stay on the active private byte channel, are never text-redacted or persisted, and are fenced with the owning native call.
 
 ### Per-tool host-facing schemas
 

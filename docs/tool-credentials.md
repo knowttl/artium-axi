@@ -147,7 +147,9 @@ Native batches require explicit native and host grants for their node-relative r
 For sensitive operation fields, follow the [private Proxmox stdin contract](client-reference.md#command-surface-and-subcommands).
 These values exist for one invocation and are removed with its private inputs; authentication credentials still come only from the managed profile.
 Secret-producing JSON writes deliver one-time private results; follow the [private result retrieval contract](client-reference.md#proxmox-private-results).
-Supplied tickets, caller-managed sign-in, managed transfers and duplex streams are not available.
+Managed read transfers use the same credential and work with writes off.
+Uploads, SPICE setup and duplex require their exact native and host operation grants; use the [managed stream CLI](client-reference.md#proxmox-managed-streams) with native preview and confirmation.
+Supplied tickets, caller-managed sign-in, server-file selection and arbitrary forwarding remain unavailable.
 See [write safety and recovery](safety.md#network-appliance-reads) before enabling writes.
 
 #### Check Point Email Security

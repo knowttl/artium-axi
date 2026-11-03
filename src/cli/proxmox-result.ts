@@ -19,6 +19,7 @@ export async function proxmoxPrivateResult(createClient: () => Client, supplied:
     throw new ArtiumError('INVALID_INPUT')
   }
   await deliverPrivateResult(createClient, { tool: 'proxmox-axi', operation: args[2], id: args[3],
-    fd: process.env.PROXMOX_AXI_RESULT_FD, json }, output)
+    fd: process.env.PROXMOX_AXI_RESULT_FD, json,
+    ...(inventory.streamCommands.some(route => route.operationId === args[2] && /\/(spiceproxy|spiceshell)$/.test(route.path)) ? { maxBytes: 4 * 1024 * 1024 } : {}) }, output)
   return true
 }

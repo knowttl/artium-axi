@@ -16,7 +16,8 @@ export interface TemporaryFile {
 }
 
 export interface PreparedCall {
-  proxmox?: { origin: string, identity: string, password: boolean, authenticate: boolean }
+  proxmox?: { origin: string, identity: string, password: boolean, authenticate: boolean,
+    stream?: { duplex: boolean, spice: boolean, upload: boolean, preview: boolean, operation: string } }
   // Native-generated protocol metadata stays intact; every selected provider value is still scanned.
   publicContent?: PublicContent
   // Dedicated identities can change while the call queues or its private files are materialized.

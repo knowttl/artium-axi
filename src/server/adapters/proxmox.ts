@@ -5,7 +5,8 @@ import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { RunnerInput } from '../runner/input.js'
-import type { Adapter } from './types.js'
+import type { Adapter, PreparedCall } from './types.js'
+import type { CredentialReference } from '../store/credential-store.js'
 import { CredentialProfile } from './credential-profile.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 import { writePolicy } from './write-policy.js'
@@ -17,8 +18,8 @@ interface Command {
 const commands: Command[] = inventory.commands
 const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
 const nativePolicy = writePolicy({ supportedOperations: inventory.writeOperations,
-  unlocks: 'JSON writes with independent native profile and host grants, exact single-use confirmation, protected results and durable recovery.',
-  blocked: 'Managed streams, caller credentials, separate PVE sign-in and host files remain unavailable.' })
+  unlocks: 'JSON and managed byte writes with independent native profile and host grants, exact single-use confirmation, private results and durable recovery.',
+  blocked: 'Caller credentials, separate PVE sign-in, server file selection and session overrides remain unavailable. Byte routes require stream --.' })
 export const proxmoxWritePolicy = {
   read: (settings: Record<string, unknown>) => nativePolicy.read({ ...settings, writes: settings.hostWrites }),
   update(settings: Record<string, unknown>, input: Parameters<typeof nativePolicy.update>[1]) {
@@ -84,7 +85,7 @@ function requireOperations(route: Command, values: Record<string, unknown>, allo
   return privateResult
 }
 
-function argumentsForCall(args: readonly string[], input: RunnerInput = {}) {
+function argumentsForCall(args: readonly string[], input: RunnerInput = {}, streaming = false) {
   if (input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (args.some(arg => arg.startsWith('--') && inventory.adapterBoundary.unsafeOverrides.includes(arg.slice(2).split('=')[0]))) throw new ArtiumError('FLAG_BLOCKED')
   const version = args.length === 1 && ['--version', '-v', '-V'].includes(args[0])
@@ -97,8 +98,9 @@ function argumentsForCall(args: readonly string[], input: RunnerInput = {}) {
   else if (words[0] === 'schema' && words[1] === 'set') words[1] = 'put'
   const command = words.join(' ') || 'home'
   const groupHelp = args.includes('--help') && commands.some(route => route.command.startsWith(command + ' '))
+  const selected: Command[] = streaming ? inventory.streamCommands : commands
   const route = version ? { command: 'version', effect: 'read', sensitiveInputs: [], flags: {} } as Command
-    : commands.find(route => route.command === command) ?? (groupHelp ? { command, effect: 'read', sensitiveInputs: [],
+    : selected.find(route => route.command === command) ?? (!streaming && groupHelp ? { command, effect: 'read', sensitiveInputs: [],
       flags: { help: 'boolean', format: 'value' } } : undefined)
   if (!route) throw invalidCommand('proxmox-axi', args, inventory.discovery.commands)
   const normalized = version ? [...args] : [...words, ...(journalId ? [journalId] : [])]
@@ -137,7 +139,7 @@ function argumentsForCall(args: readonly string[], input: RunnerInput = {}) {
 }
 
 const generatedFields = new Set(['id', 'status', 'operation', 'confirmation', 'expiresInSeconds', 'reconciliation', 'children', 'help', 'usage', 'flags', 'examples', 'purpose', 'parameters', 'policy',
-  'session', 'error', 'journal', 'credential', 'compatibility', 'bin', 'description', 'node', 'wait'])
+  'session', 'error', 'journal', 'credential', 'compatibility', 'bin', 'description', 'node', 'wait', 'transfer', 'transport'])
 function providerContent(stdout: string, stderr: string): string[] {
   if (!stdout.trim() || stdout.trim() === inventory.version) return [stderr]
   const output = (stdout.trimStart().startsWith('{') ? JSON.parse(stdout) : decode(stdout)) as Record<string, unknown>
@@ -163,15 +165,20 @@ function providerContent(stdout: string, stderr: string): string[] {
   return content
 }
 
-export function createProxmoxAdapter(source: SecretSource, writeLog?: string): Adapter<unknown> {
-  return { name: 'proxmox-axi', executable: toolPaths['proxmox-axi'], credentialProfile: proxmoxProfile,
-    credentialSchema: proxmoxProfile.credentialSchema, timeoutMs: runnerLimits.timeoutMs,
-    blockedFlags: inventory.adapterBoundary.unsafeOverrides.map(name => '--' + name), allowedFlagValues: {},
-    sensitiveArguments: args => ({ flags: args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0]), positions: args.map((_, index) => index) }),
-    sensitiveInput: () => true,
-    validateArgs: (args, input) => { argumentsForCall(args, input) },
-    async prepare(args, reference, input) {
-      const call = argumentsForCall(args, input)
+export interface ProxmoxAdapter extends Adapter<unknown> {
+  prepareStream(args: readonly string[], reference: CredentialReference, input?: RunnerInput): Promise<PreparedCall>
+  inspectStream(args: readonly string[], reference: CredentialReference, input?: RunnerInput): ProxmoxStreamSelection
+}
+export type ProxmoxStreamSelection = NonNullable<NonNullable<PreparedCall['proxmox']>['stream']> & { write: boolean }
+function streamSelection(call: ReturnType<typeof argumentsForCall>): ProxmoxStreamSelection {
+  return { duplex: call.route.command.startsWith('duplex '), spice: /\/(spiceproxy|spiceshell)$/.test(call.route.path ?? ''),
+    upload: call.route.path?.endsWith('/upload') === true, preview: call.write && !call.executing,
+    operation: call.route.operationId!, write: call.write }
+}
+export function createProxmoxAdapter(source: SecretSource, writeLog?: string): ProxmoxAdapter {
+  const check = (args: readonly string[], reference: CredentialReference, input?: RunnerInput, streaming = false) => {
+      const call = argumentsForCall(args, input, streaming)
+      if (streaming && call.invocation.help) throw new ArtiumError('INVALID_INPUT')
       if (reference.tool !== 'proxmox-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const state = proxmoxWritePolicy.read(source.getSettings?.(reference) ?? {})
       if (call.write) {
@@ -180,6 +187,10 @@ export function createProxmoxAdapter(source: SecretSource, writeLog?: string): A
       }
       if ((call.write || !call.invocation.help && (call.invocation.command.startsWith('journal ') || call.args.includes('--journal')))
         && (!writeLog || !isAbsolute(writeLog))) throw new ArtiumError('TEMP_UNAVAILABLE')
+      return { call, state }
+  }
+  const prepare = async (args: readonly string[], reference: CredentialReference, input?: RunnerInput, streaming = false): Promise<PreparedCall> => {
+      const { call, state } = check(args, reference, input, streaming)
       const value = await source.getCredential(reference)
       const prepared = proxmoxProfile.prepare('proxmox-axi', value, writeLog, !state.enabled)
       if (call.body) {
@@ -188,18 +199,28 @@ export function createProxmoxAdapter(source: SecretSource, writeLog?: string): A
         Object.assign(prepared.environment, call.body.secrets)
         prepared.secrets.push(...Object.values(call.body.secrets))
       }
-      // Native operation help can exceed its own output cap; hosted help uses the admitted inventory.
       const childArgs = call.invocation.help ? ['--help', ...(call.args.includes('json') ? ['--format', 'json'] : [])] : call.args
+      const stream = streaming ? streamSelection(call) : undefined
       return { ...prepared, args: [toolPaths['proxmox-axi'], ...childArgs], executable: process.execPath,
         effect: call.effect, invocation: call.invocation, publicContent: providerContent,
         proxmox: { origin: String((value as Record<string, unknown>).origin),
           identity: String((value as Record<string, unknown>).tokenId ?? (value as Record<string, unknown>).userId),
           password: (value as Record<string, unknown>).auth === 'password',
           authenticate: !call.invocation.help && call.route.command !== 'version'
-            && call.route.command !== 'inventory' && !call.route.command.startsWith('schema ') },
-        ...(call.executing && call.privateResult ? { protectedResult: { source: 'proxmox' as const, operation: call.route.operationId! } } : {}),
+            && call.route.command !== 'inventory' && !call.route.command.startsWith('schema '),
+          ...(stream ? { stream } : {}) },
+        ...(call.executing && call.privateResult && !stream?.spice ? { protectedResult: { source: 'proxmox' as const, operation: call.route.operationId! } } : {}),
         ...(call.executing ? { write: { operation: call.route.operationId!, target: call.route.path!, checkArgs: ['journal', 'reconcile', call.id!] } } : {}),
         environment: { ...prepared.environment, PROXMOX_AXI_CONFIG: '/proc/self/cwd/proxmox-axi/config.json',
           PROXMOX_AXI_HOST_OPERATIONS: JSON.stringify(state.allowedOperations) }, limits: { timeoutMs: runnerLimits.timeoutMs } }
-    } }
+  }
+  return { name: 'proxmox-axi', executable: toolPaths['proxmox-axi'], credentialProfile: proxmoxProfile,
+    credentialSchema: proxmoxProfile.credentialSchema, timeoutMs: runnerLimits.timeoutMs,
+    blockedFlags: inventory.adapterBoundary.unsafeOverrides.map(name => '--' + name), allowedFlagValues: {},
+    sensitiveArguments: args => ({ flags: args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0]), positions: args.map((_, index) => index) }),
+    sensitiveInput: () => true,
+    validateArgs: (args, input) => { argumentsForCall(args, input) },
+    prepare: (args, reference, input) => prepare(args, reference, input),
+    inspectStream: (args, reference, input) => streamSelection(check(args, reference, input, true).call),
+    prepareStream: (args, reference, input) => prepare(args, reference, input, true) }
 }

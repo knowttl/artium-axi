@@ -10,6 +10,7 @@ import { rewriteSuggestions } from './rewrite.js'
 import { setup } from './setup.js'
 import { toolInput } from './input.js'
 import { proxmoxPrivateResult } from './proxmox-result.js'
+import { proxmoxStream } from './proxmox-stream.js'
 import { ssoLogin } from './device.js'
 import { cliVersion } from '../shared/version.js'
 import { ManagedSession } from './managed-session.js'
@@ -153,6 +154,7 @@ async function main(args: string[]) {
   if (command === 'ssh-axi' && await sshExecution(args.slice(1), () => new Client(process.env, managed), text => output('stdout', text))) return
   if (command === 'kubernetes-axi' && await kubernetesHosted(args.slice(1), () => new Client(process.env, managed), (text, stream = 'stdout') => output(stream, text))) return
   if (command === 'proxmox-axi' && await proxmoxPrivateResult(() => new Client(process.env, managed), args.slice(1), text => output('stdout', text))) return
+  if (command === 'proxmox-axi' && await proxmoxStream(() => new Client(process.env, managed), args.slice(1), output)) return
   const input = home || listing || whoami ? undefined : await toolInput(command!, args.slice(1))
   const client = new Client(process.env, managed)
   const homeSession = home && !managed ? client.sessions.read() : undefined

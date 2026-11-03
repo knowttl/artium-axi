@@ -371,6 +371,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
   const monitor = setInterval(() => { void reconcile().catch(() => {}) }, 1000)
   monitor.unref(); app.addHook('onSend', reconcile)
   app.server.on('upgrade', (request, socket, head) => {
+    if (!request.url?.startsWith(prefix + '/')) return
     void (async () => {
       const match = new RegExp(`^${prefix}/([a-f0-9-]{36})/tunnel$`).exec(request.url ?? '')
       const key = request.headers['sec-websocket-key'], version = request.headers['x-artium-cli-version']

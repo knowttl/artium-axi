@@ -1104,4 +1104,5 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   }
 })
 const byteEvidence = kubernetesBytes(server, record => requests.push(record))
+server.on('upgrade', (request, socket, head) => proxmox.upgrade(request, socket, head))
 server.listen(Number(process.argv[3] ?? 443), '0.0.0.0', () => console.log(`artium-test-ready ${server.address().port}`))
