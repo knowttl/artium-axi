@@ -114,7 +114,7 @@ try {
     const listing = await cli(['tools'])
     assert.equal(listing.code, 0, listing.stdout + listing.stderr)
     // Discovery is independent of background health-check timing.
-    assert.match(listing.stdout, /^  falcon-axi,[^,\r\n]+,"1\.0\.0-rc\.2",/m)
+    assert.match(listing.stdout, /^  falcon-axi,[^,\r\n]+,"1\.0\.0-rc\.3",/m)
     const home = await cli([])
     assert.equal(home.code, 0, home.stdout + home.stderr)
     assert.match(home.stdout, /user: "synthetic-admin"/)
