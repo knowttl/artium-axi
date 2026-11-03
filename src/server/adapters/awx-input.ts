@@ -77,7 +77,8 @@ const bulkDelete = argv[0] === 'inventory' && argv[1] === 'host-bulk-delete';
 let guardedTransport;
 if (download !== undefined) {
   const { resolveController, requireCredential } = await import(new URL('./core/auth.js', pathToFileURL(awxModule)).href);
-  const { HttpTransport, isReadOnly } = await import(new URL('./core/transport.js', pathToFileURL(awxModule)).href);
+  const { HttpTransport, isReadOnly, interpretText } = await import(new URL('./core/transport.js', pathToFileURL(awxModule)).href);
+  const { errorForResponse } = await import(new URL('./core/errors.js', pathToFileURL(awxModule)).href);
   const { createTlsFetch } = await import(new URL('./core/tls-fetch.js', pathToFileURL(awxModule)).href);
   const { redact: redactLog } = await import(new URL('./core/redact.js', pathToFileURL(awxModule)).href);
   const http = await import('node:http');
@@ -100,7 +101,7 @@ if (download !== undefined) {
       const target = new URL(url);
       if (!/\\/stdout\\/$/.test(target.pathname)) return baseFetch(url, init);
       target.searchParams.set('format', 'txt_download');
-      const response = await baseFetch(target.toString(), init);
+      const response = await baseFetch(target.toString(), { ...init, headers: { ...init.headers, Accept: 'text/plain' } });
       if (response.status !== 200) return response;
       const text = redactLog(await response.text());
       writeFileSync(resultFile, text, { mode: 0o600, flag: 'wx' });
@@ -108,8 +109,14 @@ if (download !== undefined) {
       downloaded = { bytes: Buffer.byteLength(text), lines };
       return new Response(JSON.stringify({ content: '', range: { start: 0, end: lines, absolute_end: lines } }), { status: 200, headers: { 'content-type': 'application/json' } });
     };
-    return new HttpTransport({ baseUrl: config.baseUrl, apiBasePath: config.apiBasePath, verifySsl: config.verifySsl,
+    const transport = new HttpTransport({ baseUrl: config.baseUrl, apiBasePath: config.apiBasePath, verifySsl: config.verifySsl,
       authorization: 'Bearer ' + credential.token, readOnly: isReadOnly(env), env, signal, diagnostics, fetch });
+    transport.getText = async (route, query) => {
+      const response = await transport.get(route, query);
+      if (response.status !== 200) throw errorForResponse(response, { subject: 'Job stdout download' });
+      return interpretText(response);
+    };
+    return transport;
   };
 } else if (resultFile || bulkDelete) {
   const { createTransport } = await import(new URL('./core/auth.js', pathToFileURL(awxModule)).href);

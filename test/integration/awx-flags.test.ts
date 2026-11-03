@@ -63,9 +63,9 @@ test.each([
   })
 }, 60_000)
 
-test('AWX stdout download is a one-time protected result of the bounded redacted log', async () => {
+test.each(['job', 'workflow', 'project-update', 'inventory-update', 'ad-hoc', 'system'])('AWX %s stdout download is a one-time protected result of the bounded redacted log', async type => {
   await withReadService(async ({ app, db, run, lines, directory, headers }) => {
-    const response = await run(['job', 'stdout', '42', '--type', 'project-update', '--download', '42.log'])
+    const response = await run(['job', 'stdout', '42', '--type', type, '--download', '42.log'])
     expect(response.json(), response.body).toMatchObject({ exitCode: 0, stderr: '' })
     const output = decode(response.json().stdout) as { job_stdout_download: Record<string, unknown>, result: { path: string, operation: string } }
     expect(output).toMatchObject({ job_stdout_download: { id: '42', name: '42.log', lines: 5 }, result: { operation: 'stdout-download' } })
@@ -80,6 +80,21 @@ test('AWX stdout download is a one-time protected result of the bounded redacted
     expect(downloaded.headers['cache-control']).toBe('no-store')
     expect((await app.inject({ method: 'GET', url: output.result.path, headers })).statusCode).toBe(404)
     expect(lines.join('\n') + JSON.stringify(db.prepare("SELECT * FROM audit WHERE tool = 'awx-axi'").all())).not.toMatch(/CANARY-|Fetch failed/)
+    expect(readdirSync(join(directory, 'calls'))).toEqual([])
+  })
+}, 60_000)
+
+test.each([
+  { status: 403, code: 'FORBIDDEN' },
+  { status: 404, code: 'NOT_FOUND' },
+])('AWX stdout download reports controller refusal $status without a result', async ({ status, code }) => {
+  await withReadService(async ({ run, send, db, directory }) => {
+    await send(`/__awx/stdout-response?status=${status}`, 'POST')
+    const response = await run(['job', 'stdout', '42', '--type', 'project-update', '--download', '42.log'])
+    expect(response.json(), response.body).toMatchObject({ exitCode: 1 })
+    expect(decode(response.json().stdout)).toMatchObject({ code, error: 'Job stdout download: Synthetic stdout download refused.' })
+    expect(response.body).not.toMatch(/TEMP_UNAVAILABLE|job_stdout_download|CANARY-/)
+    expect(db.prepare("SELECT * FROM audit WHERE event = 'protected-result'").all()).toEqual([])
     expect(readdirSync(join(directory, 'calls'))).toEqual([])
   })
 }, 60_000)
