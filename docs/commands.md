@@ -44,12 +44,14 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 Kubernetes workspace and byte-session commands have local help through `artium-axi kubernetes-axi workspace --help` and `session --help`.
 Use `workspace create <directory>` to upload a regular file tree with immutable byte counts and digests.
 Use `session start exec -- exec <pod> -- <command>` for bounded execution, or add `--workspace <id>` and use `workspace:<path>` in a native file argument.
-Start returns a native preview; inspect it and run `session confirm <id> --digest <exact-digest>` without adding a second generic confirmation.
+Mutation starts return a native preview; inspect it and run `session confirm <id> --digest <exact-digest>` without adding a second generic confirmation.
+Read sessions start immediately: use `session start logs -- logs <pod> --follow` or `session start watch -- get pods --watch-only` without confirmation.
 `session show <id> --wait` reports the final remote exit code, while `session output <id> --after <sequence> --wait` retrieves bounded stdout/stderr chunks with sequence and byte offsets.
 Use `--stdin-file <file>` for at most 512 KiB of inline input, or `--input-workspace <id> --input-path <path>` for a staged input artifact up to 100 MiB.
 For copy, use `session start cp --workspace <id> -- cp workspace:<path> <pod>:/absolute/path` or `session start cp -- cp <pod>:/absolute/path artifact:<path>`, then confirm the returned digest.
+Copy requires `tar` in the container.
 `session artifact <id> <path> --output <absolute-file>` and `workspace download <id> <path> --output <absolute-file>` save exact bytes with verified hashes into a new file in a private directory.
-Every kind needs its explicit administrator caller grant; mutation kinds also require Allow writes.
+See the [Kubernetes capability boundary](safety.md#kubernetes-reads) for workspace access and session grants.
 Use `session list` to recover a lost start reply, `session cancel <id> --confirm` to stop work and discard results, and `workspace delete <id>` to remove staged files.
 No command automatically reconnects, replays an uncertain operation or resumes after a server restart.
 

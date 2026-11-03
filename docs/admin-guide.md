@@ -358,9 +358,11 @@ This records journal activity, including mutation intents, rather than guarantee
 LDAP runs report `read` from its inventory's read-only declaration.
 Falcon passive calls and RTR previews report `read`; native RTR journal activity reports `write` and missing or incomplete evidence remains `unknown`.
 Search and MalQuery submissions do not emit RTR journals, so their classified mutation audit remains `unknown` without that evidence, even when a job/request ID is returned.
-ADO, AWX, Gitea and Kubernetes use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
+ADO, AWX, Gitea and ordinary Kubernetes calls use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
 Gitea previews and reconciliation calls are classified as reads; see its [native write boundary](safety.md#gitea-reads).
 Kubernetes preparation and saved previews report `read`; confirmation and server dry run are write-classified calls.
+Kubernetes byte sessions instead emit `run-start` and `run-terminal` records with the operation kind, exit code and output byte counts, without a read/write `action` classification.
+Workspace and session controls emit `admin-change` records with `kubernetes-workspace-*` or `kubernetes-session-*` actions and the owned handle as `target_id`; refused workspace or session requests emit `denial` records.
 Identifiable raw ADO API mutations also emit an `ado-api` decision record; the [API contract](../src/shared/api.ts) owns its argument fields.
 The decision is `allowed` immediately before runner admission or `refused` on validation, policy or credential refusal.
 The record identifies the authenticated user when available; execution outcome remains in the normal run-terminal record.
