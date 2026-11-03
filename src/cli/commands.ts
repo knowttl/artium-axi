@@ -150,7 +150,7 @@ async function main(args: string[]) {
     throw new ArtiumError('INVALID_INPUT', 'Unknown command, argument or flag.', 'Use artium-axi --help for commands or artium-axi <command> --help for valid flags.')
   }
   if (command === 'ssh-axi' && await sshExecution(args.slice(1), () => new Client(process.env, managed), text => output('stdout', text))) return
-  if (command === 'kubernetes-axi' && await kubernetesHosted(args.slice(1), () => new Client(process.env, managed), text => output('stdout', text))) return
+  if (command === 'kubernetes-axi' && await kubernetesHosted(args.slice(1), () => new Client(process.env, managed), (text, stream = 'stdout') => output(stream, text))) return
   const input = home || listing || whoami ? undefined : await toolInput(command!, args.slice(1))
   const client = new Client(process.env, managed)
   const homeSession = home && !managed ? client.sessions.read() : undefined

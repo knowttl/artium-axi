@@ -877,6 +877,30 @@ test('bundle rewrites only complete suggestion streams and preserves the upstrea
 })
 
 test.each([
+  { args: ['--help'], command: 'session start' },
+  { args: ['workspace', '--help'], command: 'workspace create' },
+  { args: ['session', '--help'], command: 'session start' },
+])('Kubernetes workspace and session help works before connection configuration: $args', async ({ args, command }) => {
+  requests = []
+  const result = await cli(['kubernetes-axi', ...args, '--json'], { ARTIUM_AXI_URL: 'invalid' })
+  expect(result.code).toBe(0)
+  const help = JSON.parse(result.stdout) as { commands: string[] }
+  expect(help.commands).toEqual(expect.arrayContaining([expect.stringMatching(new RegExp('^' + command))]))
+  expect(requests).toEqual([])
+})
+
+test.each([
+  ['session', 'start', 'exec', '--timeout', '1801', '--', 'exec', 'synthetic-pod', '--', 'true'],
+  ['session', 'list', '--workspace', 'synthetic'],
+  ['workspace', 'show', '../outside'],
+])('Kubernetes hosted controls validate before client construction: %j', async (...args) => {
+  requests = []
+  expect(await cli(['kubernetes-axi', ...args], { ARTIUM_AXI_URL: 'invalid' }))
+    .toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT') })
+  expect(requests).toEqual([])
+})
+
+test.each([
   ['--help'], ['-h'], ['--help=true'],
   ['get', '--help=true'], ['get', '-h=true'], ['get', '-h=t'],
   ['get', '--help=false', '--help=true'],

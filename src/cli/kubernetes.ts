@@ -30,18 +30,21 @@ async function fileBytes(path: string, limit = 100 * 1024 * 1024) {
   } finally { await file.close() }
 }
 
-export async function kubernetesHosted(args: string[], createClient: () => Client, write: (text: string) => void): Promise<boolean> {
+export async function kubernetesHosted(args: string[], createClient: () => Client, write: (text: string, stream?: 'stdout' | 'stderr') => void): Promise<boolean> {
   let prefix = 0
   while (args[prefix] === '--json') prefix++
   const [group, action, ...rest] = args.slice(prefix)
   if (!['workspace', 'session'].includes(group ?? '')) {
     if (args.includes('--help') && args.every(arg => ['--help', '--json'].includes(arg))) {
-      const help = { usage: 'artium-axi kubernetes-axi <command> [flags]',
+      const help = { command: 'artium-axi kubernetes-axi', usage: 'artium-axi kubernetes-axi <command> [flags]',
         commands: inventory.discovery.commands,
+        flags: ['--namespace <name>', '--json', '--help'],
         help: ['Reads use managed credentials. Mutations require administrator Allow writes, off by default.',
+          'Use prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>.',
           'Byte sessions also require explicit caller/session-kind grants. Each session is one bounded operation.',
           'Use each command with --help. Interactive execution, tunnels and credential issuance remain unavailable.'] }
-      write((args.includes('--json') ? JSON.stringify(help) : encode(help)) + '\n'); return true
+      const text = (args.includes('--json') ? JSON.stringify(help) : encode(help)) + '\n'
+      write(text); write(text, 'stderr'); return true
     }
     return false
   }
