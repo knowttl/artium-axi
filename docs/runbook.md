@@ -589,7 +589,7 @@ Restore invalidates the original sessions, so restored execution metadata preser
 
 ## Retention and export
 
-Technitium and AWX protected results stay in process memory and are not persisted or backed up.
+Technitium, AWX and Kubernetes protected results stay in process memory and are not persisted or backed up.
 The executable limits are owned by `protectedResultLimits` in [server configuration](../src/server/config.ts); consult it for result size, per-user and server-wide capacity, and reference lifetime.
 Consuming, canceling, clearing or expiring a result releases its stored bytes and expiration timer; server restart removes all pending results.
 At capacity, new result-producing calls return `TOO_MANY_CALLS`; retrieve outstanding results or wait for expiration before retrying.
@@ -602,7 +602,7 @@ Retrieval also rechecks authentication and current tool access, so reauthenticat
 For AWX, a missing token result does not undo token creation: inspect controller token state before retrying a failed, malformed or uncertain creation, or one whose result is no longer retrievable.
 The pinned CLI has no token-list command; use the controller's token administration to reconcile, and revoke an unwanted token through the [managed revoke flow](commands.md) when its numeric ID is known.
 After an interrupted user rename, reconcile with `user list` and `user show <new-username>` before retrying.
-See [AWX result retrieval](commands.md) and its [security boundary](safety.md#write-gates-by-tool), or [Technitium result retrieval](commands.md#technitium-dns) and its [confidentiality boundary](safety.md#storage-and-execution-boundaries).
+See [AWX result retrieval](commands.md) and its [security boundary](safety.md#write-gates-by-tool), [Technitium result retrieval](commands.md#technitium-dns) and its [confidentiality boundary](safety.md#storage-and-execution-boundaries), or [Kubernetes credential delivery](commands.md) and its [capability boundary](safety.md#kubernetes-reads).
 
 SQLite audit retention runs at startup and daily, deleting events strictly older than the captured 90-day cutoff in batches of at most 500.
 Each batch commits its count and cutoff with the deletion.
@@ -642,8 +642,9 @@ Forwarding data is opaque traffic and is never retained as session output or aud
 For service-account token issuance, additionally enable `acquireCredential: true` in advanced native settings.
 Keep it disabled unless token acquisition is intended.
 Tokens use native prepare/preview/confirm and a separate private runner pipe; ordinary stdout/stderr and audit contain no token bytes.
-Deliver the protected reference once with `credential --credential-fd` to a private writable pipe or socket numbered 5 or higher.
-The reference expires after five minutes and requires the original caller, sign-in family, credential revision and current write/acquisition settings.
+Use the [credential delivery command](commands.md) to consume the protected reference.
+The reference uses the `protectedResultLimits` lifetime above; retrieval requires the original caller, sign-in family, credential revision and current write/acquisition settings.
+An otherwise valid reference from a different sign-in family returns `NOT_FOUND`; disabling writes or credential acquisition returns `FLAG_BLOCKED`.
 Do not retry an uncertain native token request or a failed consuming delivery; reconcile the saved native outcome before issuing another credential.
 Completed copy artifacts remain private until session expiry or cancellation and are scanned and hash-verified before delivery.
 Use `session list` after a lost start reply and `session show` or `session output` after an interrupted confirmation; inspect remote state before creating another uncertain operation.
