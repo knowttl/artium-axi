@@ -442,7 +442,7 @@ The write-access endpoint rejects changes for LDAP with the fixed read-only reas
 See the [Falcon capability boundary](safety.md#write-gates-by-tool) for exact lifecycle grants and independent RTR execution gates.
 
 For shared-credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
-See [SSH setup](tool-credentials.md#ssh) for the dedicated host administration limitation.
+SSH uses the [dedicated rotation flow](#ssh-rotation) rather than the shared-credential editor.
 Follow the [credential editor guidance](admin-guide.md#browser-administration) for guided fields and combined certificate PEM uploads.
 Use “Test connection” on the tool page to test the replacement with the fixed harmless read before enabling it; see [Connection tab save-and-test behavior](admin-guide.md#browser-administration) for testing during a save.
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
@@ -488,6 +488,18 @@ At most two background checks run at once, including replacement checks; work de
 Manual tests and background checks share the one-check-per-tool exclusion and runner admission rules.
 The schedule is fixed, not operator-configurable; [healthDefaults](../src/server/config.ts) owns the executable constants.
 Use “Test connection” on the tool page for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
+
+### SSH rotation
+
+Use [SSH setup](tool-credentials.md#ssh) to manage dedicated keys and host trust.
+To replace a key at `/admin/ssh/credentials`, supply the private key and any required passphrase again; omitted passphrases are not retained.
+Replacement advances the encrypted credential revision and never returns stored secrets.
+For server-key rotation, independently verify the replacement, save it alongside the old key on `/admin/ssh`, check authentication with `artium-axi ssh-axi doctor <host>` as a granted caller, then remove the retired key after acceptance.
+At most two approved server keys may overlap, and all resolved addresses must remain approved.
+Reload after each save to obtain the current revision; a stale edit must be reviewed against the latest state before resubmission.
+Deleting a credential removes all its account bindings; deleting a host removes its bindings and caller grants.
+Recreating either ID advances its retired revision, so old drafts remain stale.
+Local fake-service checks do not establish live host acceptance; upstream key installation and retirement remain owner operations.
 
 ### Troubleshoot a failed tool call
 

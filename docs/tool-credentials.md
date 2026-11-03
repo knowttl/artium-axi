@@ -79,17 +79,14 @@ After saving, testing, enabling and granting the tool, use `artium-axi unifi-axi
 SSH uses a dedicated encrypted credential store and per-host ordinary account bindings, with caller-specific shell grants.
 The generic tenant credential editor cannot configure SSH.
 Open **Manage hosts, account bindings and grants** on the SSH tool page, or `/admin/ssh`.
-Save a dedicated encrypted key at `/admin/ssh/credentials`; passphrases are optional, and replacements require all secret fields again.
+Save a dedicated encrypted key at `/admin/ssh/credentials`; passphrases are optional.
 Register a disabled, read-only host with independently verified exact server public keys, approved literal addresses and a verification reference.
 At most two server keys may overlap during rotation; every resolved address must remain in the approved address set.
 Choose an ordinary account and credential, enable the host, then grant each intended caller host access as well as the existing tool role.
 Sudo bindings require a different account and credential and never substitute for an ordinary binding.
 All changes require administrator identity, recent confirmation and the displayed current revision; reload after each save before another edit.
-Key replacement advances its encrypted credential revision; deleting a key removes its account bindings, while deleting a host removes its bindings and caller grants.
 Host and credential changes are audited without key or passphrase content.
-Recreating a deleted host or credential ID advances its retired revision, so an old draft cannot become current again.
-Calls waiting for a runner slot recheck host, binding, credential and caller access before opening a transport.
-Remote execution, sudo execution and reusable connections remain unavailable.
+See [SSH rotation](runbook.md#ssh-rotation) for key replacement, server-key overlap and deletion.
 After an approved binding is available, use `artium-axi ssh-axi host list`, `host show <host>` and `doctor <host>`.
 See [SSH read boundaries](safety.md#ssh-reads).
 
