@@ -39,7 +39,9 @@ export interface RunnerLimits {
   signal?: AbortSignal
   credentialTrust?: readonly CredentialTrust[]
   protectedResult?: { name: string, flag: string, receive: (bytes: Buffer) => void }
-  protectedPipe?: { flag: string, argumentIndex: number, receive: (bytes: Buffer) => void }
+  protectedPipe?: ({ flag: string, argumentIndex: number } | { environment: string }) & {
+    receive: (bytes: Buffer) => readonly string[] | void
+  }
   privateOutput?: PrivateOutput
 }
 
@@ -279,7 +281,7 @@ async function execute(
       if (!inputFileSchema.shape.name.safeParse(limits.protectedResult.name).success) throw new RunnerError('INVALID_INPUT')
       args = [...args, limits.protectedResult.flag, join(directories.XDG_CONFIG_HOME, limits.protectedResult.name)]
     }
-    if (limits.protectedPipe) {
+    if (limits.protectedPipe && 'flag' in limits.protectedPipe) {
       const { argumentIndex, flag } = limits.protectedPipe
       args = [...args.slice(0, argumentIndex), flag, '4', ...args.slice(argumentIndex)]
     }
@@ -296,6 +298,7 @@ async function execute(
       let killTimer: NodeJS.Timeout | undefined
       let cleanupDone = false
       let closed = false
+      let finished = false
       let exitCode: number | null = null
       const python = limits.runtime === 'python' || executable === toolPaths['falcon-axi']
       const launcher = `import os,resource,sys; resource.setrlimit(resource.RLIMIT_AS, (${runnerLimits.pythonAddressSpaceBytes}, ${runnerLimits.pythonAddressSpaceBytes})); os.execv(sys.argv[1], sys.argv[1:])`
@@ -306,6 +309,7 @@ async function execute(
         cwd: directories.XDG_CONFIG_HOME,
         env: {
           ...environment,
+          ...(limits.protectedPipe && 'environment' in limits.protectedPipe ? { [limits.protectedPipe.environment]: '4' } : {}),
           ...(trustPem ? {
             NODE_EXTRA_CA_CERTS: join(directories.XDG_CONFIG_HOME, 'artium-trusted-ca.pem'),
             REQUESTS_CA_BUNDLE: join(directories.XDG_CONFIG_HOME, 'artium-trusted-ca.pem'),
@@ -395,9 +399,16 @@ async function execute(
       })
       // close follows exit and stream drainage, including failed executable lookup.
       const finish = () => {
-        if (!closed || !cleanupDone) return
+        if (!closed || !cleanupDone || finished) return
+        finished = true
         clearTimeout(timeout)
         limits.signal?.removeEventListener('abort', cancel)
+        if (limits.protectedPipe && 'environment' in limits.protectedPipe && (privateChunks.length || exitCode === 0)) {
+          const bytes = Buffer.concat(privateChunks)
+          try { scanner.registerSecrets(limits.protectedPipe.receive(bytes) ?? []) }
+          catch { failure ??= new RunnerError('UNKNOWN_OUTCOME') }
+          finally { bytes.fill(0) }
+        }
         if (secretDetected || scanner.finish()) {
           failure = new RunnerError('SECRET_IN_OUTPUT')
         } else if (spawnError) {
@@ -471,7 +482,7 @@ async function execute(
         receive(await file.readFile())
       } finally { await file.close() }
     }
-    if (result.exitCode === 0 && limits.protectedPipe && privateChunks.length) {
+    if (result.exitCode === 0 && limits.protectedPipe && 'flag' in limits.protectedPipe && privateChunks.length) {
       const bytes = Buffer.concat(privateChunks)
       try { limits.protectedPipe.receive(bytes) } finally { bytes.fill(0) }
     }

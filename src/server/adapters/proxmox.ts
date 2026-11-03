@@ -12,13 +12,13 @@ import { writePolicy } from './write-policy.js'
 
 interface Command {
   command: string, effect: string, operationId?: string, method?: string, path?: string,
-  sensitiveInputs: string[], flags: Record<string, string | undefined>
+  sensitiveInputs: string[], privateResult?: boolean, flags: Record<string, string | undefined>
 }
 const commands: Command[] = inventory.commands
 const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
 const nativePolicy = writePolicy({ supportedOperations: inventory.writeOperations,
-  unlocks: 'Ordinary JSON writes with independent native profile and host operation grants, exact single-use confirmation and durable recovery.',
-  blocked: 'Protected results, memory authentication, managed streams, caller credentials and host files remain unavailable.' })
+  unlocks: 'JSON writes with independent native profile and host grants, exact single-use confirmation, protected results and durable recovery.',
+  blocked: 'Managed streams, caller credentials, separate PVE sign-in and host files remain unavailable.' })
 export const proxmoxWritePolicy = {
   read: (settings: Record<string, unknown>) => nativePolicy.read({ ...settings, writes: settings.hostWrites }),
   update(settings: Record<string, unknown>, input: Parameters<typeof nativePolicy.update>[1]) {
@@ -44,7 +44,7 @@ function protectedInput(text: string): { api: Record<string, unknown>, secrets: 
 }
 
 function requireOperations(route: Command, values: Record<string, unknown>, allowed: readonly string[],
-  secrets: Record<string, string>, budget = { count: 0 }, depth = 0): void {
+  secrets: Record<string, string>, budget = { count: 0 }, depth = 0): boolean {
   if (!route.operationId || !allowed.includes(route.operationId) || ++budget.count > 64 || depth > 4) throw new ArtiumError('FLAG_BLOCKED')
   for (const name of route.sensitiveInputs) if (Object.hasOwn(values, name)) {
     const ref = values[name] as { env?: unknown }
@@ -53,7 +53,8 @@ function requireOperations(route: Command, values: Record<string, unknown>, allo
       throw new ArtiumError('FLAG_BLOCKED')
     }
   }
-  if (route.path !== '/nodes/{node}/execute') return
+  let privateResult = route.privateResult === true
+  if (route.path !== '/nodes/{node}/execute') return privateResult
   if (typeof values.commands !== 'string' || Buffer.byteLength(values.commands) > 32768) throw new ArtiumError('INVALID_INPUT')
   let children: unknown
   try { children = JSON.parse(values.commands) } catch { throw new ArtiumError('INVALID_INPUT') }
@@ -78,8 +79,9 @@ function requireOperations(route: Command, values: Record<string, unknown>, allo
     })
     if (!target) throw new ArtiumError('FLAG_BLOCKED')
     if (Object.keys(child.args ?? {}).some(name => Object.hasOwn(pathValues, name))) throw new ArtiumError('INVALID_INPUT')
-    requireOperations(target, { ...pathValues, ...child.args }, allowed, secrets, budget, depth + 1)
+    privateResult = requireOperations(target, { ...pathValues, ...child.args }, allowed, secrets, budget, depth + 1) || privateResult
   }
+  return privateResult
 }
 
 function argumentsForCall(args: readonly string[], input: RunnerInput = {}) {
@@ -129,8 +131,8 @@ function argumentsForCall(args: readonly string[], input: RunnerInput = {}) {
   }
   if (seen.has('journal') && !uuid.test(seen.get('journal')!)) throw new ArtiumError('INVALID_INPUT')
   if (!help && command.startsWith('journal ') && !journalId) throw new ArtiumError('INVALID_INPUT')
-  if (write) requireOperations(route, values, inventory.writeOperations, body?.secrets ?? {})
-  return { args: normalized, body, route, values, write, executing, id: confirmation?.split('.')[0],
+  const privateResult = write && requireOperations(route, values, inventory.writeOperations, body?.secrets ?? {})
+  return { args: normalized, body, route, values, write, executing, privateResult, id: confirmation?.split('.')[0],
     effect: executing ? 'write' as const : 'read' as const, invocation: { command: route.command, help } }
 }
 
@@ -190,6 +192,12 @@ export function createProxmoxAdapter(source: SecretSource, writeLog?: string): A
       const childArgs = call.invocation.help ? ['--help', ...(call.args.includes('json') ? ['--format', 'json'] : [])] : call.args
       return { ...prepared, args: [toolPaths['proxmox-axi'], ...childArgs], executable: process.execPath,
         effect: call.effect, invocation: call.invocation, publicContent: providerContent,
+        proxmox: { origin: String((value as Record<string, unknown>).origin),
+          identity: String((value as Record<string, unknown>).tokenId ?? (value as Record<string, unknown>).userId),
+          password: (value as Record<string, unknown>).auth === 'password',
+          authenticate: !call.invocation.help && call.route.command !== 'version'
+            && call.route.command !== 'inventory' && !call.route.command.startsWith('schema ') },
+        ...(call.executing && call.privateResult ? { protectedResult: { source: 'proxmox' as const, operation: call.route.operationId! } } : {}),
         ...(call.executing ? { write: { operation: call.route.operationId!, target: call.route.path!, checkArgs: ['journal', 'reconcile', call.id!] } } : {}),
         environment: { ...prepared.environment, PROXMOX_AXI_CONFIG: '/proc/self/cwd/proxmox-axi/config.json',
           PROXMOX_AXI_HOST_OPERATIONS: JSON.stringify(state.allowedOperations) }, limits: { timeoutMs: runnerLimits.timeoutMs } }

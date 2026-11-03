@@ -22,7 +22,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi setup --host <claude\|codex\|opencode\|pi> [--hook] [--force]` | Install skills for the signed-in account's granted tools and optional ambient context for Claude Code, Codex or OpenCode on Linux. |
 | `artium-axi session-context` | Emit current tool grants without session identity, or an explicit unavailable diagnostic; exits 0 so hosts can deliver failure context. |
 | `artium-axi unifi-axi [<args>]` | Read UniFi data and preview administrator-selected native writes; execute with exact confirmation and a stable request ID. |
-| `artium-axi proxmox-axi [<args>]` | Read Proxmox and perform ordinary writes with independent native/host grants, preview confirmation and durable journal/task recovery. |
+| `artium-axi proxmox-axi [<args>]` | Use managed authentication for reads and JSON writes, with independent grants, native confirmation, private results and durable recovery. |
 | `artium-axi technitium-axi [<args>]` | Read Technitium DNS data with managed credentials and authenticated one-time result retrieval. |
 | `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |
 | `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources or use administrator-enabled [mutation and bounded byte workflows](safety.md#kubernetes-reads), caller-owned workspaces and managed credentials with pinned kubectl. |

@@ -92,10 +92,13 @@ export class CredentialProfile {
         this.inputSchema.properties.hostWrites = { type: 'object', additionalProperties: false, required: ['allowWrites', 'operations'],
           properties: { allowWrites: { type: 'boolean' }, operations: { type: 'array', maxItems: proxmoxWriteOperations.length,
             items: { type: 'string', enum: proxmoxWriteOperations } } } }
-        this.inputSchema.properties.auth = { const: 'api-token' }
-        this.inputSchema.required = ['origin', 'auth', 'tokenId', 'token']
-        this.inputSchema.oneOf = [this.inputSchema.oneOf[0]]
-        for (const name of ['userId', 'ticket', 'csrfPreventionToken', 'password', 'otp']) delete this.inputSchema.properties[name]
+        this.inputSchema.properties.auth = { enum: ['api-token', 'password'] }
+        this.inputSchema.required = ['origin', 'auth']
+        this.inputSchema.oneOf = [
+          { ...this.inputSchema.oneOf[0], required: ['tokenId', 'token'] },
+          { ...this.inputSchema.oneOf[2], required: ['userId', 'password'] },
+        ]
+        for (const name of ['ticket', 'csrfPreventionToken', 'otp']) delete this.inputSchema.properties[name]
         this.inputSchema.properties.caBundle.description = 'Trusted CA certificate PEM contents, materialized privately for each call. Do not enter a server file path.'
       }
     }
@@ -335,6 +338,24 @@ export class CredentialProfile {
       ...(tool === 'kubernetes-axi' ? { appendTrustedCaAt: ['profiles', 'artium', 'certificateAuthority'] } : {}), content: JSON.stringify({
       version: 1, defaultProfile: 'artium', profiles: { artium: parsed.value },
     }) }] }
+  }
+
+  // Only the approved host broker may derive a per-call ticket profile from its selected password profile.
+  proxmoxTicket(prepared: Pick<PreparedCall, 'environment' | 'files' | 'secrets'>, ticket: string, csrf: string): void {
+    const file = prepared.files.find(file => file.name === 'proxmox-axi/config.json')!
+    const configuration = JSON.parse(String(file.content))
+    const profile = configuration.profiles.artium
+    if (profile.auth !== 'password') throw new ArtiumError('CREDENTIAL_INVALID')
+    const reference = profile.password
+    profile.auth = 'ticket'
+    profile.ticket = reference
+    profile.csrfPreventionToken = { env: 'ARTIUM_SECRET_1' }
+    delete profile.password
+    if (!this.validateProfile(profile)) throw new ArtiumError('CREDENTIAL_INVALID')
+    prepared.environment[reference.env] = ticket
+    prepared.environment.ARTIUM_SECRET_1 = csrf
+    prepared.secrets.push(ticket, csrf)
+    file.content = JSON.stringify(configuration)
   }
 
   // The editor shows all possible fields. Conditional requirements remain owned

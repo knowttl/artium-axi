@@ -27,6 +27,15 @@ export function hostedStatus(tool: string, invocation: PreparedCall['invocation'
       const json = result.stdout.trimStart().startsWith('{')
       const document = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
       delete document.credential
+      const code = document.error && typeof document.error === 'object' && 'code' in document.error ? document.error.code : undefined
+      if (code === 'AUTH_SESSION_REQUIRED') document.help = [
+        'This operation forbids API tokens. Ask an administrator to configure an authorized username/password credential for automatic sign-in.',
+        'TFA accounts cannot sign in automatically; use an API token for operations that permit tokens.',
+      ]
+      if (code === 'AUTH_REQUIRED' || code === 'AUTH_SESSION_INVALID') document.help = [
+        'Artium manages Proxmox sign-in. Ask an administrator to verify the stored credential; users have no separate Proxmox login.',
+        'The operation was not retried. Never replay a consumed write confirmation; reconcile its durable journal before further action.',
+      ]
       result = { ...result, stdout: (json ? JSON.stringify(document) : encode(document)) + '\n' }
     } catch { throw new ArtiumError('INVALID_RESPONSE') }
   }

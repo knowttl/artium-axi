@@ -659,7 +659,14 @@ Use owned `journal show/reconcile <id>` and task status/log/wait with `--journal
 Native reconciliation records observations and may retain uncertainty; inspect provider state before preparing a new mutation.
 Records bind caller, sign-in family and credential/settings revision; changing policy or credentials requires a new preview and owner scope.
 There is no automatic pruning of native claims; monitor their growth and preserve unresolved records.
-Protected results, in-memory authentication and byte transports remain unavailable.
+The administrator stores one API token or username/password credential; users have no additional PVE sign-in step.
+Password authentication acquires and reuses ready ticket/CSRF state only in server memory, for at most five minutes, then reacquires automatically.
+TFA-enabled accounts must use an API token.
+Issued tickets and protected results are excluded from profiles, databases, journals and backups; resolved passwords are never retained beyond their call.
+Credential, authorization, family and trust changes fence affected calls and clear retained state, and restart starts empty.
+One-shot private results expire after five minutes; see [retrieval](client-reference.md#proxmox-private-results).
+An interrupted private delivery does not authorize recreating a credential or replaying a consumed confirmation.
+Byte transports remain unavailable.
 
 UniFi keeps native request claims and observations in private directories beneath `<database directory>/tool-logs/unifi-axi/writes.log/`.
 Keep these durable records with the database; removing them discards native request-ID replay protection.

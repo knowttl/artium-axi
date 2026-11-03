@@ -220,6 +220,21 @@ Before submitting the write again, follow the returned read commands and inspect
 Keep `--full` on recovery API GET commands so long changed values are not truncated, including both `Check current state before trying again` and `Verify with` suggestions.
 Runner-generated recovery for Sentinel incident updates and comment creation first resolves the incident ID with the suggested `incident show` command, then uses that ID in the suggested API GET to inspect all incident fields or the comments collection.
 
+### Proxmox private results
+
+Proxmox authentication comes from the administrator-managed API token or username/password profile.
+Users sign in only to Artium; stored passwords acquire tickets automatically and TFA accounts require an API token.
+Secret-producing JSON writes return safe metadata and a one-time result reference.
+Use `artium-axi proxmox-axi result take <operation> <id>` with `PROXMOX_AXI_RESULT_FD` set to an inherited writable private pipe or socket numbered 5 or higher.
+Standard streams, regular files and reserved descriptors are refused before retrieving the result.
+The CLI delivers the original native S4 frame, a four-byte big-endian length followed by at most 65536 bytes of JSON containing version, binding and private payload.
+Routine output reports only delivery metadata, byte count and SHA-256.
+The CLI verifies the authenticated response length and hash before writing to the private descriptor and never retries interrupted delivery.
+Retrieval expires after five minutes and requires the original user, sign-in family, operation and credential revision with current tool access and trust.
+Results disappear on retrieval, expiry, relevant revocation or restart.
+An unavailable result or failed delivery does not authorize recreating a credential or replaying its consumed native confirmation.
+See [credential custody](credential-standard.md#proxmox-memory-authentication-and-protected-result-amendment) and [recovery](runbook.md#retention-and-export).
+
 ### Check Point email and attachment saving
 
 Use `artium-axi download` after the [shared artifact-mount prerequisites](runbook.md#scope-and-prerequisites) and the [Check Point administrator selections](tool-credentials.md#check-point-email-security) pass.

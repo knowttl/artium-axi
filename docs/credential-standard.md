@@ -301,6 +301,45 @@ They cover profile and SecretRef reuse until close, private paths and selected-c
 These checks establish custody primitives only: they do not implement or establish production connection admission, private IPC authorization, revocation fencing, or packaged ssh-axi conformance.
 An opting-in integration MUST additionally verify those behaviors, including ownership isolation and targeted revocation without closing another caller's connection, before claiming conformance.
 
+### Proxmox memory authentication and protected-result amendment
+
+Status: APPROVED by the owner on 2026-11-03 for the admitted Proxmox integration.
+The default per-call private HOME, XDG directories, profile writer and SecretRef rules remain unchanged.
+This amendment authorizes no persistent Proxmox worker and does not extend the SSH connection-lifetime approval.
+
+1. An administrator stores one Proxmox credential in the existing protected managed credential profile: a PVE API token, which is preferred, or a username and password.
+   Secret storage retains mode 0600 and the existing SecretRef and shared profile-writer boundaries.
+   Callers supply no authentication credentials, endpoint, profile or host state through arguments or ambient environment variables.
+2. Authorized Artium users need no separate Proxmox sign-in step.
+   API tokens authenticate each call directly.
+   For a stored username and password, Artium signs in automatically on first use and reacquires automatically after expiry.
+   API-token failures never fall back to password, ticket or another identity.
+   TFA-enabled accounts cannot use automatic password sign-in; challenge responses are discarded and the administrator is directed to an API token.
+3. Only issued ready tickets and CSRF values may be cached in server-process memory, for at most five minutes after acquisition, with at most four sessions per authenticated user and sixty-four server-wide.
+   The stored password remains in the managed credential profile; resolved passwords and other caller-input secrets are never retained beyond their call or written alongside tickets.
+   Tickets and CSRF values are never persisted to profiles, files, databases, disk caches, journals, backups or keyrings and do not survive server restart.
+4. Cached state binds the authenticated user, sign-in family, selected credential ID and revision, PVE HTTPS origin, PVE identity and host-trust revision.
+   Only host-selected state with fresh authorization and binding checks may supplement the selected per-call profile.
+   Session identifiers grant no bearer authority, and no new SecretRef kind is introduced.
+   Authentication grants no write permission; existing native operation grants, administrator write settings and native confirmation remain required.
+5. Native protected results use a pre-established inherited private pipe or socket, with no native output-file fallback.
+   Before accepting a result, the host validates the frame version, 65536-byte JSON payload bound and expected origin, identity, operation, request, actor and credential-revision bindings.
+   Protected bytes may enter only the existing process-memory result channel, retaining its five-minute lifetime, four results per user, sixteen globally and single-use retrieval.
+   Retrieval requires the same user, sign-in family, operation and credential revision, with current tool, credential and trust authorization.
+   The CLI validates its private writable destination before retrieval and delivers bytes only there.
+   Broken or uncertain delivery never triggers automatic mutation replay or result recreation.
+6. Resolved inputs and retained or minted credentials and protected values are registered for output scanning before any public delivery or persistence.
+   Routine command output, stdout, stderr, audit and journals contain only safe metadata and opaque result references.
+   Known-secret protection remains available until every dependent active call settles, including failure and cancellation.
+   The published structured-protocol distinction between generated metadata and provider values still applies.
+7. Cancellation, expiry, authentication failure, relevant authorization or trust revocation, credential revision changes, sign-in-family invalidation and shutdown fence further use and release affected retained state.
+   Queued affected calls are discarded and active affected calls cancelled or terminated before relevant revocation is acknowledged.
+   Cleanup releases timers, buffers, listeners and references after dependent calls settle; release is best effort and is not a secure-erasure guarantee.
+   Restart begins with no retained authentication sessions or protected results and removes abandoned per-call private directories before admission.
+   Already dispatched remote work can have an uncertain outcome; cleanup does not promise reversal.
+8. Production admission requires synthetic conformance for automatic acquisition and expiry, TFA refusal, caller/family and credential/trust isolation, absence of fallback, capacity, private framing and single-use retrieval, secrecy, targeted revocation of idle and active state, failure cleanup and restart without retained credentials.
+   This amendment alone does not establish implementation conformance or live appliance commissioning.
+
 ### Per-tool host-facing schemas
 
 The Falcon adapter uses the pinned TypeScript credential schema and Artium's private profile writer.

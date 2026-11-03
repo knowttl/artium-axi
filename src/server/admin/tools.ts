@@ -56,7 +56,7 @@ const publicFields = {
   'technitium-axi': ['origin', 'auth', 'tokenKind', 'username', 'tlsServerName'],
   'gitea-axi': ['origin', 'tokenOrigin'],
   'unifi-axi': ['origin', 'siteId', 'apiContract'],
-  'proxmox-axi': ['origin', 'auth', 'tokenId'],
+  'proxmox-axi': ['origin', 'auth', 'tokenId', 'userId'],
   'gh-axi': ['origin', 'auth', 'appId', 'installationId', 'repositories', 'permissions', 'login', 'accessTokenExpiresAt'],
   'beyondtrust-axi': ['host', 'clientId'],
   'checkpoint-axi': ['region', 'clientId', 'saas', 'scope'],
@@ -76,7 +76,7 @@ const legacySecretFields = {
   'technitium-axi': ['token'],
   'gitea-axi': ['token'],
   'unifi-axi': ['apiKey'],
-  'proxmox-axi': ['token'],
+  'proxmox-axi': ['token', 'password'],
   'gh-axi': ['token', 'privateKey', 'accessToken'],
   'checkpoint-axi': ['clientSecret'],
   'beyondtrust-axi': ['clientSecret'],
@@ -386,7 +386,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       let next = value
       if (saving) {
         const stored = reference ? credentialStore().readCredential(reference) as Record<string, unknown> : {}
-        const sameIdentity = ['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org', 'appId', 'installationId', 'tokenId', 'tokenKind', 'clientCertificate'].every(key => stored[key] === value[key])
+        const sameIdentity = ['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org', 'appId', 'installationId', 'tokenId', 'userId', 'tokenKind', 'clientCertificate'].every(key => stored[key] === value[key])
         const secrets = credentialProfiles[tool]?.fields().filter(field => field.schema['x-secret'] && field.schema['x-ephemeral'] !== true)
           .map(field => field.name) ?? legacySecretFields[tool]
         const retained = sameIdentity ? Object.fromEntries(secrets.filter(key => Object.hasOwn(stored, key)).map(key => [key, stored[key]])) : {}

@@ -354,29 +354,52 @@
   },
   "writeOperations": [
     "OP-DELETE-5e826ea6b0",
+    "OP-DELETE-931ab3181e",
     "OP-DELETE-d6b1eb65f2",
     "OP-DELETE-db1a319dfa",
     "OP-DELETE-eccba53f33",
+    "OP-GET-22c6caf285",
+    "OP-GET-26fbb96ac4",
+    "OP-GET-2b0a4d1f88",
+    "OP-GET-32aec68edd",
     "OP-GET-48e0b9a8fa",
+    "OP-GET-565126bd4f",
+    "OP-GET-56c10e173f",
     "OP-GET-649f0e57fc",
+    "OP-GET-a514de012d",
+    "OP-GET-d9cb0ebe59",
+    "OP-GET-ee0e17bebb",
+    "OP-POST-04add518d5",
     "OP-POST-05ab7d9156",
     "OP-POST-0c0c166e83",
     "OP-POST-0c3592c269",
     "OP-POST-1199595650",
+    "OP-POST-129daba473",
     "OP-POST-1f4b20b40f",
     "OP-POST-2bc4d554ca",
     "OP-POST-345014c6ff",
     "OP-POST-411b1766e9",
+    "OP-POST-45ae134aef",
+    "OP-POST-660f98e613",
     "OP-POST-73c42b39fb",
+    "OP-POST-774b7e437e",
+    "OP-POST-792d5f0b19",
+    "OP-POST-7b3d9d8def",
     "OP-POST-97afa7ebdb",
+    "OP-POST-9db93dca1d",
     "OP-POST-c4fdd6f30b",
+    "OP-POST-cb6766cea8",
     "OP-POST-cc95340692",
+    "OP-POST-daaf2db49a",
     "OP-POST-eb7989b072",
     "OP-POST-efaca33d25",
     "OP-POST-f879c7c9f8",
     "OP-POST-f9dce48db7",
     "OP-PUT-224f55de4f",
     "OP-PUT-41cd6542bd",
+    "OP-PUT-58526f2846",
+    "OP-PUT-c8c0c420be",
+    "OP-PUT-cda6ced4ac",
     "OP-PUT-efde0d0880"
   ],
   "adapterBoundary": {
@@ -390,7 +413,7 @@
       "session",
       "body-file"
     ],
-    "nativeWrites": "ordinary JSON writes with independent native/host grants, exact single-use preview confirmation and durable journals",
+    "nativeWrites": "JSON writes with independent native/host grants, exact single-use preview confirmation, protected results and durable journals",
     "blockedCommands": [
       "setup",
       "update",
@@ -470,6 +493,25 @@
       "flags": {
         "help": "boolean",
         "format": "value"
+      }
+    },
+    {
+      "command": "delete /access/tfa/{userid}/{id}",
+      "effect": "write",
+      "operationId": "OP-DELETE-931ab3181e",
+      "method": "DELETE",
+      "path": "/access/tfa/{userid}/{id}",
+      "sensitiveInputs": [
+        "password"
+      ],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "api-id": "value",
+        "api-userid": "value",
+        "protected-input": "boolean"
       }
     },
     {
@@ -588,6 +630,51 @@
       }
     },
     {
+      "command": "create /access/tfa/{userid}",
+      "effect": "write",
+      "operationId": "OP-POST-daaf2db49a",
+      "method": "POST",
+      "path": "/access/tfa/{userid}",
+      "sensitiveInputs": [
+        "challenge",
+        "password",
+        "totp",
+        "value"
+      ],
+      "privateResult": true,
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "api-description": "value",
+        "api-type": "value",
+        "api-userid": "value",
+        "protected-input": "boolean"
+      }
+    },
+    {
+      "command": "create /access/users/{userid}/token/{tokenid}",
+      "effect": "write",
+      "operationId": "OP-POST-774b7e437e",
+      "method": "POST",
+      "path": "/access/users/{userid}/token/{tokenid}",
+      "sensitiveInputs": [],
+      "privateResult": true,
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "api-comment": "value",
+        "api-expire": "value",
+        "api-privsep": "value",
+        "api-tokenid": "value",
+        "api-userid": "value",
+        "protected-input": "boolean"
+      }
+    },
+    {
       "command": "create /nodes/{node}/certificates/custom",
       "effect": "write",
       "operationId": "OP-POST-cc95340692",
@@ -622,6 +709,26 @@
         "confirm": "value",
         "api-commands": "value",
         "api-node": "value",
+        "protected-input": "boolean"
+      }
+    },
+    {
+      "command": "create /nodes/{node}/lxc/{vmid}/mtunnel",
+      "effect": "write",
+      "operationId": "OP-POST-45ae134aef",
+      "method": "POST",
+      "path": "/nodes/{node}/lxc/{vmid}/mtunnel",
+      "sensitiveInputs": [],
+      "privateResult": true,
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "api-bridges": "value",
+        "api-node": "value",
+        "api-storages": "value",
+        "api-vmid": "value",
         "protected-input": "boolean"
       }
     },
@@ -728,6 +835,65 @@
         "preview": "boolean",
         "confirm": "value",
         "api-node": "value",
+        "api-vmid": "value",
+        "protected-input": "boolean"
+      }
+    },
+    {
+      "command": "create /nodes/{node}/lxc/{vmid}/termproxy",
+      "effect": "write",
+      "operationId": "OP-POST-129daba473",
+      "method": "POST",
+      "path": "/nodes/{node}/lxc/{vmid}/termproxy",
+      "sensitiveInputs": [],
+      "privateResult": true,
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "api-node": "value",
+        "api-vmid": "value",
+        "protected-input": "boolean"
+      }
+    },
+    {
+      "command": "create /nodes/{node}/lxc/{vmid}/vncproxy",
+      "effect": "write",
+      "operationId": "OP-POST-660f98e613",
+      "method": "POST",
+      "path": "/nodes/{node}/lxc/{vmid}/vncproxy",
+      "sensitiveInputs": [],
+      "privateResult": true,
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "api-height": "value",
+        "api-node": "value",
+        "api-vmid": "value",
+        "api-websocket": "value",
+        "api-width": "value",
+        "protected-input": "boolean"
+      }
+    },
+    {
+      "command": "create /nodes/{node}/qemu/{vmid}/mtunnel",
+      "effect": "write",
+      "operationId": "OP-POST-cb6766cea8",
+      "method": "POST",
+      "path": "/nodes/{node}/qemu/{vmid}/mtunnel",
+      "sensitiveInputs": [],
+      "privateResult": true,
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "api-bridges": "value",
+        "api-node": "value",
+        "api-storages": "value",
         "api-vmid": "value",
         "protected-input": "boolean"
       }
@@ -866,6 +1032,80 @@
       }
     },
     {
+      "command": "create /nodes/{node}/qemu/{vmid}/termproxy",
+      "effect": "write",
+      "operationId": "OP-POST-792d5f0b19",
+      "method": "POST",
+      "path": "/nodes/{node}/qemu/{vmid}/termproxy",
+      "sensitiveInputs": [],
+      "privateResult": true,
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "api-node": "value",
+        "api-serial": "value",
+        "api-vmid": "value",
+        "protected-input": "boolean"
+      }
+    },
+    {
+      "command": "create /nodes/{node}/qemu/{vmid}/vncproxy",
+      "effect": "write",
+      "operationId": "OP-POST-7b3d9d8def",
+      "method": "POST",
+      "path": "/nodes/{node}/qemu/{vmid}/vncproxy",
+      "sensitiveInputs": [],
+      "privateResult": true,
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "api-generate-password": "value",
+        "api-node": "value",
+        "api-vmid": "value",
+        "api-websocket": "value",
+        "protected-input": "boolean"
+      }
+    },
+    {
+      "command": "create /nodes/{node}/termproxy",
+      "effect": "write",
+      "operationId": "OP-POST-04add518d5",
+      "method": "POST",
+      "path": "/nodes/{node}/termproxy",
+      "sensitiveInputs": [],
+      "privateResult": true,
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "api-node": "value",
+        "protected-input": "boolean"
+      }
+    },
+    {
+      "command": "create /nodes/{node}/vncshell",
+      "effect": "write",
+      "operationId": "OP-POST-9db93dca1d",
+      "method": "POST",
+      "path": "/nodes/{node}/vncshell",
+      "sensitiveInputs": [],
+      "privateResult": true,
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "api-node": "value",
+        "api-websocket": "value",
+        "protected-input": "boolean"
+      }
+    },
+    {
       "command": "create /pools",
       "effect": "write",
       "operationId": "OP-POST-73c42b39fb",
@@ -879,6 +1119,69 @@
         "confirm": "value",
         "api-comment": "value",
         "api-poolid": "value",
+        "protected-input": "boolean"
+      }
+    },
+    {
+      "command": "set /access/password",
+      "effect": "write",
+      "operationId": "OP-PUT-58526f2846",
+      "method": "PUT",
+      "path": "/access/password",
+      "sensitiveInputs": [
+        "confirmation-password",
+        "password"
+      ],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "api-userid": "value",
+        "protected-input": "boolean"
+      }
+    },
+    {
+      "command": "set /access/tfa/{userid}/{id}",
+      "effect": "write",
+      "operationId": "OP-PUT-c8c0c420be",
+      "method": "PUT",
+      "path": "/access/tfa/{userid}/{id}",
+      "sensitiveInputs": [
+        "password"
+      ],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "api-description": "value",
+        "api-enable": "value",
+        "api-id": "value",
+        "api-userid": "value",
+        "protected-input": "boolean"
+      }
+    },
+    {
+      "command": "set /access/users/{userid}/token/{tokenid}",
+      "effect": "write",
+      "operationId": "OP-PUT-cda6ced4ac",
+      "method": "PUT",
+      "path": "/access/users/{userid}/token/{tokenid}",
+      "sensitiveInputs": [],
+      "privateResult": true,
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "preview": "boolean",
+        "confirm": "value",
+        "api-comment": "value",
+        "api-expire": "value",
+        "api-privsep": "value",
+        "api-tokenid": "value",
+        "api-userid": "value",
+        "api-delete": "value",
+        "api-regenerate": "value",
         "protected-input": "boolean"
       }
     },
@@ -8250,20 +8553,27 @@
       "task wait",
       "journal show",
       "journal reconcile",
+      "delete /access/tfa/{userid}/{id}",
       "delete /nodes/{node}/lxc/{vmid}",
       "delete /nodes/{node}/qemu/{vmid}",
       "delete /nodes/{node}/tasks/{upid}",
       "delete /pools",
       "get /nodes/{node}/scan/cifs",
       "get /nodes/{node}/scan/pbs",
+      "create /access/tfa/{userid}",
+      "create /access/users/{userid}/token/{tokenid}",
       "create /nodes/{node}/certificates/custom",
       "create /nodes/{node}/execute",
+      "create /nodes/{node}/lxc/{vmid}/mtunnel",
       "create /nodes/{node}/lxc/{vmid}/status/reboot",
       "create /nodes/{node}/lxc/{vmid}/status/resume",
       "create /nodes/{node}/lxc/{vmid}/status/shutdown",
       "create /nodes/{node}/lxc/{vmid}/status/start",
       "create /nodes/{node}/lxc/{vmid}/status/stop",
       "create /nodes/{node}/lxc/{vmid}/status/suspend",
+      "create /nodes/{node}/lxc/{vmid}/termproxy",
+      "create /nodes/{node}/lxc/{vmid}/vncproxy",
+      "create /nodes/{node}/qemu/{vmid}/mtunnel",
       "create /nodes/{node}/qemu/{vmid}/status/reboot",
       "create /nodes/{node}/qemu/{vmid}/status/reset",
       "create /nodes/{node}/qemu/{vmid}/status/resume",
@@ -8271,7 +8581,14 @@
       "create /nodes/{node}/qemu/{vmid}/status/start",
       "create /nodes/{node}/qemu/{vmid}/status/stop",
       "create /nodes/{node}/qemu/{vmid}/status/suspend",
+      "create /nodes/{node}/qemu/{vmid}/termproxy",
+      "create /nodes/{node}/qemu/{vmid}/vncproxy",
+      "create /nodes/{node}/termproxy",
+      "create /nodes/{node}/vncshell",
       "create /pools",
+      "set /access/password",
+      "set /access/tfa/{userid}/{id}",
+      "set /access/users/{userid}/token/{tokenid}",
       "set /nodes/{node}/lxc/{vmid}/config",
       "set /nodes/{node}/qemu/{vmid}/config",
       "set /pools",
@@ -8991,6 +9308,6 @@
       "get",
       "/version"
     ],
-    "help": "Proxmox managed reads and ordinary JSON writes. Run each command with --help for selectors and limits.\nWrites require both native profile operations and administrator host operation grants, off by default. Use --preview, then repeat identical inputs with --confirm <confirmation>.\nUse --protected-input with bounded private stdin {api,secrets}; sensitive values require PVE_INPUT_ env SecretRefs and never arguments or host files.\nUse journal show/reconcile <id> and journal-bound task status/log/wait after uncertainty; never resend a consumed confirmation.\nProtected results and memory authentication belong to the next capability slice; managed transfers and duplex streams follow separately and remain unavailable here.\n"
+    "help": "Proxmox managed reads and JSON writes. Run each command with --help for selectors and limits.\nWrites require both native profile operations and administrator host operation grants, off by default. Use --preview, then repeat identical inputs with --confirm <confirmation>.\nThe administrator saves an API token (preferred) or username/password; users have no separate Proxmox login. Password tickets are acquired automatically and cached in memory for at most five minutes. TFA accounts require an API token.\nUse --protected-input with bounded private stdin {api,secrets}; sensitive values require PVE_INPUT_ env SecretRefs and never arguments or host files.\nProtected results are retrieved once through result take <operation> <id> into an inherited private pipe.\nUse journal show/reconcile <id> and journal-bound task status/log/wait after uncertainty; never resend a consumed confirmation.\nManaged transfers and duplex streams remain unavailable.\n"
   }
 }
