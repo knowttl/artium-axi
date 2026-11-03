@@ -687,7 +687,7 @@ test('role listing uses bounded stable pagination', async () => {
   expect(first.roles.map(role => role.id)).toEqual(['a'])
   expect(first.nextCursor).toBe('a')
   const second = adminRolesResponseSchema.parse(await (await roleRequest('GET', '?limit=1&cursor=a')).json())
-  expect(second.roles[0]).toMatchObject({ id: 'synthetic-role', tools: ['ado-axi', 'awx-axi', 'az-axi', 'beyondtrust-axi', 'checkpoint-axi', 'falcon-axi', 'gh-axi', 'gitea-axi', 'hybrid-axi', 'kubernetes-axi', 'ldap-axi', 'mg-axi', 'proxmox-axi', 'ssh-axi', 'technitium-axi', 'tenable-axi', 'unifi-axi', 'vectra-axi'] })
+  expect(second.roles[0]).toMatchObject({ id: 'synthetic-role', tools: ['ado-axi', 'awx-axi', 'az-axi', 'beyondtrust-axi', 'checkpoint-axi', 'falcon-axi', 'gh-axi', 'gitea-axi', 'hybrid-axi', 'kubernetes-axi', 'ldap-axi', 'mg-axi', 'proxmox-axi', 'shodan-axi', 'ssh-axi', 'technitium-axi', 'tenable-axi', 'unifi-axi', 'vectra-axi'] })
   expect(second.nextCursor).toBeNull()
   await failure(await roleRequest('GET', '?limit=101'), 'INVALID_INPUT')
 })
@@ -818,6 +818,7 @@ test('user detail combines overlapping role grants and reports disabled access w
     { name: 'ldap-axi', enabled: false, roleIds: ['synthetic-role'] },
     { name: 'mg-axi', enabled: false, roleIds: ['synthetic-role'] },
     { name: 'proxmox-axi', enabled: false, roleIds: ['synthetic-role'] },
+    { name: 'shodan-axi', enabled: false, roleIds: ['synthetic-role'] },
     { name: 'ssh-axi', enabled: false, roleIds: ['synthetic-role'] },
     { name: 'technitium-axi', enabled: false, roleIds: ['synthetic-role'] },
     { name: 'tenable-axi', enabled: false, roleIds: ['synthetic-role'] },

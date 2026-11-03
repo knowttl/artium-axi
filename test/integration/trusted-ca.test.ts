@@ -18,6 +18,7 @@ import { createCheckpointAdapter } from '../../src/server/adapters/checkpoint.js
 import { createUnifiAdapter } from '../../src/server/adapters/unifi.js'
 import { createProxmoxAdapter } from '../../src/server/adapters/proxmox.js'
 import { createTechnitiumAdapter } from '../../src/server/adapters/technitium.js'
+import { createShodanAdapter } from '../../src/server/adapters/shodan.js'
 import { createGiteaAdapter } from '../../src/server/adapters/gitea.js'
 import { createKubernetesAdapter } from '../../src/server/adapters/kubernetes.js'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
@@ -38,6 +39,7 @@ test.each(toolSchema.options.filter(tool => tool !== 'ssh-axi').flatMap(tool => 
     const credentials = {
       'kubernetes-axi': { origin: 'https://cluster.example', auth: 'token', certificateAuthority: pem, token: 'CANARY-kubernetes-token' },
       'technitium-axi': { origin: 'https://dns.example', auth: 'token', tokenKind: 'api', token: 'CANARY-technitium-token', caFile: pem },
+      'shodan-axi': { origin: 'https://api.shodan.io', auth: 'api-key', apiKey: 'CANARY-shodan-key' },
       'gitea-axi': { origin: 'https://forge.example', tokenOrigin: 'https://forge.example', token: 'CANARY-gitea-token' },
       'unifi-axi': { origin: 'https://controller.example', apiKey: 'CANARY-unifi-key' },
       'proxmox-axi': { origin: 'https://cluster.example', auth: 'api-token', tokenId: 'reader@pve!automation', token: 'CANARY-proxmox-token' },
@@ -59,6 +61,7 @@ test.each(toolSchema.options.filter(tool => tool !== 'ssh-axi').flatMap(tool => 
     const adapters = {
       'kubernetes-axi': await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js')),
       'technitium-axi': createTechnitiumAdapter(source),
+      'shodan-axi': createShodanAdapter(source),
       'gitea-axi': createGiteaAdapter(source),
       'unifi-axi': createUnifiAdapter(source),
       'proxmox-axi': createProxmoxAdapter(source),
@@ -76,7 +79,7 @@ test.each(toolSchema.options.filter(tool => tool !== 'ssh-axi').flatMap(tool => 
       'ldap-axi': createLdapAdapter(source),
     }
     const args = { 'kubernetes-axi': ['get', 'pods'], 'beyondtrust-axi': ['doctor'], 'gh-axi': ['api', '/rate_limit'], 'checkpoint-axi': ['doctor'], 'hybrid-axi': ['quota'], 'tenable-axi': ['card', 'list'], 'awx-axi': ['job', 'list'], 'falcon-axi': ['auth', 'status'], 'vectra-axi': ['health', 'list'],
-      'gitea-axi': ['doctor'], 'unifi-axi': ['info'], 'proxmox-axi': ['get', '/version'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list'], 'technitium-axi': ['status'] }
+      'gitea-axi': ['doctor'], 'unifi-axi': ['info'], 'proxmox-axi': ['get', '/version'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list'], 'technitium-axi': ['status'], 'shodan-axi': ['info'] }
     const call = await adapters[tool].prepare(args[tool], { id: 'synthetic-credential', tool, revision: 1 })
     const runner = await Runner.create(join(directory, 'calls'), trustSource === 'server' ? loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }) : undefined)
     const node = `const fs = require('node:fs'); console.log(JSON.stringify({

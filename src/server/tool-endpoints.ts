@@ -18,7 +18,7 @@ export function toolEndpoints(tool: ToolName, credential: Record<string, unknown
   }
   if (tool === 'hybrid-axi') return [new URL('https://hybrid-analysis.com')]
   if (tool === 'tenable-axi') return [new URL('https://cloud.tenable.com')]
-  if (tool === 'vectra-axi' || tool === 'awx-axi' || tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'technitium-axi' || tool === 'gitea-axi') return [new URL(String(credential.origin))]
+  if (tool === 'vectra-axi' || tool === 'awx-axi' || tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'technitium-axi' || tool === 'shodan-axi' || tool === 'gitea-axi') return [new URL(String(credential.origin))]
   if (tool === 'ldap-axi') return [new URL(String(credential.url))]
   if (tool === 'ado-axi') return [
     ...(credential.auth === 'client-secret' ? ['login.microsoftonline.com'] : []),

@@ -22,6 +22,7 @@ import { checkpointCredentialSchema, checkpointWritePolicy } from '../adapters/c
 import { proxmoxProfile, proxmoxWritePolicy } from '../adapters/proxmox.js'
 import { unifiProfile, unifiWritePolicy } from '../adapters/unifi.js'
 import { technitiumProfile, technitiumWritePolicy } from '../adapters/technitium.js'
+import { shodanProfile, shodanWritePolicy } from '../adapters/shodan.js'
 import { giteaProfile, giteaWritePolicy } from '../adapters/gitea.js'
 import { kubernetesProfile, kubernetesWritePolicy } from '../adapters/kubernetes.js'
 import { sshWritePolicy } from '../adapters/ssh.js'
@@ -47,13 +48,14 @@ export interface ToolAdminOptions {
   sshHosts?: SshHosts
 }
 
-const credentialSchemas = { 'ssh-axi': z.never(), 'kubernetes-axi': kubernetesProfile.credentialSchema, 'gitea-axi': giteaProfile.credentialSchema, 'technitium-axi': technitiumProfile.credentialSchema, 'unifi-axi': unifiProfile.credentialSchema, 'proxmox-axi': proxmoxProfile.credentialSchema, 'beyondtrust-axi': beyondtrustCredentialSchema, 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
+const credentialSchemas = { 'shodan-axi': shodanProfile.credentialSchema, 'ssh-axi': z.never(), 'kubernetes-axi': kubernetesProfile.credentialSchema, 'gitea-axi': giteaProfile.credentialSchema, 'technitium-axi': technitiumProfile.credentialSchema, 'unifi-axi': unifiProfile.credentialSchema, 'proxmox-axi': proxmoxProfile.credentialSchema, 'beyondtrust-axi': beyondtrustCredentialSchema, 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
 const writePolicies = { 'ssh-axi': sshWritePolicy, 'kubernetes-axi': kubernetesWritePolicy, 'gitea-axi': giteaWritePolicy, 'unifi-axi': unifiWritePolicy, 'proxmox-axi': proxmoxWritePolicy, 'beyondtrust-axi': beyondtrustWritePolicy, 'gh-axi': ghWritePolicy, 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
-  'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy, 'hybrid-axi': hybridWritePolicy, 'technitium-axi': technitiumWritePolicy }
+  'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy, 'hybrid-axi': hybridWritePolicy, 'technitium-axi': technitiumWritePolicy, 'shodan-axi': shodanWritePolicy }
 const publicFields = {
   'ssh-axi': [],
   'kubernetes-axi': ['origin', 'auth', 'namespace', 'certificateAuthority', 'clientCertificate'],
   'technitium-axi': ['origin', 'auth', 'tokenKind', 'username', 'tlsServerName'],
+  'shodan-axi': ['origin', 'auth'],
   'gitea-axi': ['origin', 'tokenOrigin'],
   'unifi-axi': ['origin', 'siteId', 'apiContract'],
   'proxmox-axi': ['origin', 'auth', 'tokenId', 'userId'],
@@ -74,6 +76,7 @@ const legacySecretFields = {
   'ssh-axi': [],
   'kubernetes-axi': ['token', 'privateKey'],
   'technitium-axi': ['token'],
+  'shodan-axi': ['apiKey'],
   'gitea-axi': ['token'],
   'unifi-axi': ['apiKey'],
   'proxmox-axi': ['token', 'password'],

@@ -14,6 +14,7 @@ import { createHybridAdapter } from './adapters/hybrid.js'
 import { createBeyondtrustAdapter } from './adapters/beyondtrust.js'
 import { createCheckpointAdapter } from './adapters/checkpoint.js'
 import { createTechnitiumAdapter } from './adapters/technitium.js'
+import { createShodanAdapter } from './adapters/shodan.js'
 import { createProxmoxAdapter } from './adapters/proxmox.js'
 import { createUnifiAdapter } from './adapters/unifi.js'
 import { createGiteaAdapter } from './adapters/gitea.js'
@@ -78,6 +79,7 @@ async function main() {
         createMgAdapter(source, join(dirname(database), 'tool-logs', 'mg-axi', 'writes.log')),
         createLdapAdapter(source), createAdoAdapter(source, azureTokens), createGhAdapter(source),
         createTechnitiumAdapter(source, join(dirname(database), 'tool-logs', 'technitium-axi', 'writes.log')),
+        createShodanAdapter(source),
         createAwxAdapter(source), createTenableAdapter(source, join(dirname(database), 'tool-logs', 'tenable-axi', 'writes.log')),
         createHybridAdapter(source, join(dirname(database), 'tool-logs', 'hybrid-axi', 'writes.log')),
         createBeyondtrustAdapter(source, join(dirname(database), 'tool-logs', 'beyondtrust-axi', 'writes.log')),
