@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { fstatSync, readSync, writeSync } from 'node:fs'
+import { fstatSync, readvSync, writeSync } from 'node:fs'
 import { Socket } from 'node:net'
 import { encode } from '@toon-format/toon'
 import { ArtiumError } from '../shared/errors.js'
@@ -18,7 +18,7 @@ export function privateDescriptor(value: string | undefined, readable = false): 
       if (sink.dev === other.dev && sink.ino === other.ino) throw new Error('Reserved pipe')
     }
     writeSync(fd, Buffer.alloc(0))
-    if (readable) readSync(fd, Buffer.alloc(0), 0, 0, null)
+    if (readable) readvSync(fd, [Buffer.alloc(0)])
   } catch { throw new ArtiumError('INVALID_INPUT', 'Supply an inherited writable private pipe on a descriptor of at least 5.') }
   return fd
 }

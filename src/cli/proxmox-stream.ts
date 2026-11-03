@@ -94,7 +94,7 @@ export async function proxmoxStream(createClient: () => Client, supplied: string
   process.once('SIGINT', cancel); process.once('SIGTERM', cancel)
   try {
     if (path) {
-      source = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW)
+      source = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
       const info = await source.stat()
       if (!info.isFile() || info.size > 250 * 1024 ** 2) throw new ArtiumError('INVALID_INPUT')
       const hash = createHash('sha256')
