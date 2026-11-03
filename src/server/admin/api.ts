@@ -22,7 +22,7 @@ import { listUserSessions, revokeUserSession } from '../auth/user-sessions.js'
 
 type PublicUser = z.infer<typeof adminUserSchema>
 
-export function registerAdmin(app: FastifyInstance, db: Database.Database, audit: Audit, authAttempts: AuthAttempts, tools: ToolAdminOptions, providerCredentials?: ProviderCredentials): void {
+export function registerAdmin(app: FastifyInstance, db: Database.Database, audit: Audit, authAttempts: AuthAttempts, tools: ToolAdminOptions, providerCredentials?: ProviderCredentials): (request: FastifyRequest) => string {
   db.function('unicode_lower', { deterministic: true }, (value: string | null) => value === null ? null : value.toLowerCase())
   function authorize(request: FastifyRequest): string {
     const token = /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''
@@ -353,4 +353,5 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
       db.prepare('UPDATE roles SET revision = revision + 1, updated_at = ?, updated_by = ? WHERE id = ?').run(now, actor, id)
     })
   } })
+  return authorize
 }

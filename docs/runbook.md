@@ -565,7 +565,13 @@ The SQLite `ssh_executions` table retains sanitized exact commands, ownership, e
 `ssh_execution_results` retains encrypted output samples of at most 8192 bytes per stream for 14 days after storage.
 Cleanup runs at startup, hourly and on authenticated SSH execution requests; expired output leaves metadata and stream counts available until metadata expiry.
 Ordinary audit events exclude command content, credentials and output; execution status reads record `ssh-execution-read` audit events.
-There is no dedicated SSH execution export or cancellation command.
+Use `execution cancel <id> --confirm` to request cancellation, and inspect remote state before another uncertain command.
+Use `/admin/ssh/audit` for administrator-only escaped output inspection and paginated metadata-only exports.
+Execution, connection and audit reads and every export are recorded.
+Retained connection events expire after 90 days and do not contain credentials or output.
+Active pruning does not remove snapshots; before commissioning, define and test snapshot and recovery-key disposal that respects both retention windows.
+Reusable transports are private to one caller and login family, use a separate worker and profile, and are discarded on restart.
+Policy and identity changes fence affected workers and remove their private profiles before acknowledgement.
 SSH credentials and retained output participate in master-key rotation and database backup/restore; protect snapshots under the [backup retention policy](#backup-restore-and-upgrade-rollback).
 Restore invalidates the original sessions, so restored execution metadata preserves history without granting a newly signed-in family access to the old results.
 

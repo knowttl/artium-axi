@@ -249,9 +249,9 @@ export function createApp(options: {
       { requestId: request.id, clientAddress: request.ip }, Date.now(), token)
     return reply.code(204).send()
   })
-  registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health, credentialProfiles, sshHosts: options.sshHosts }, options.providerCredentials)
+  const authorizeAdmin = registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health, credentialProfiles, sshHosts: options.sshHosts }, options.providerCredentials)
   if (options.sshHosts && options.sshExecution) registerSshExecutions(app, { ...options.sshExecution,
-    db, hosts: options.sshHosts, runner, audit, environment })
+    db, hosts: options.sshHosts, runner, audit, environment, authorizeAdmin })
   registerOverviewPage(app, db)
   registerUsersPage(app, db)
   registerRolesPages(app, db)

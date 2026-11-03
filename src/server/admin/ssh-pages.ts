@@ -16,7 +16,7 @@ export function registerSshPages(app: FastifyInstance, db: Database.Database, au
   const json = (prefix: string, name: string, label: string, value: string[]) => field(`${prefix}-${name}`, label,
     attrs => `<textarea ${attrs} name="${name}" data-type="json" rows="3" required>${escape(JSON.stringify(value))}</textarea>`)
   const proof = '<input type="hidden" name="confirm" data-type="boolean" value="true">'
-  const links = '<p><a href="/admin/ssh">Hosts, bindings and grants</a> · <a href="/admin/ssh/credentials">Encrypted credentials</a> · <a href="/admin/tools/ssh-axi">Tool access</a></p>'
+  const links = '<p><a href="/admin/ssh">Hosts, bindings and grants</a> · <a href="/admin/ssh/credentials">Encrypted credentials</a> · <a href="/admin/ssh/audit">Execution audit</a> · <a href="/admin/tools/ssh-axi">Tool access</a></p>'
   const parent = { href: '/admin/tools/ssh-axi', label: 'SSH' }
   app.get('/admin/ssh', async (request, reply) => {
     authorize(request)
@@ -55,7 +55,7 @@ export function registerSshPages(app: FastifyInstance, db: Database.Database, au
         `data-confirm-name="${escape(host.id)}"`, 'btn btn-danger')
       return card(host.id, `Revision ${host.revision}`, `<div class="card-body"><details><summary>Edit trust and policy</summary>${hostForm(host)}</details><h3>Account binding</h3>${binding}<h3>Caller grant</h3>${grant}<div class="actions">${remove}</div></div>`)
     }).join('')
-    return browserPage(reply, 'SSH hosts', links + '<p>Verify server public keys through an independent trusted route before registration. Ordinary and sudo bindings require different accounts and credentials. Confirmed execution requires Allow writes, a writable host and current caller grants. Changing policy or grants interrupts active commands; inspect remote state before preparing another uncertain command. Reusable connections remain unavailable.</p>' +
+    return browserPage(reply, 'SSH hosts', links + '<p>Verify server public keys through an independent trusted route before registration. Ordinary and sudo bindings require different accounts and credentials. Confirmed execution requires Allow writes, a writable host and current caller grants. Changing policy or grants fences connections and interrupts active commands; inspect remote state before preparing another uncertain command.</p>' +
       hostSections + card('Register host', 'New hosts start disabled and read only.', `<div class="card-body">${hostForm()}</div>`) +
       card('Current bindings and grants', 'Reload after each save to use the current host revision.', `<div class="card-body"><pre>${escape(JSON.stringify({ bindings: data.bindings, grants: data.grants }, null, 2))}</pre></div>`),
       readBrowserSession(db, request.cookies[browserCookie] ?? ''), undefined, { parent, helpTopic: 'Tools' })

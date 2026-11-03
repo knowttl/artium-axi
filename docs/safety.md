@@ -183,7 +183,13 @@ Commands respect the host deadline and output ceilings; credentials and output a
 See [SSH recovery and retention](runbook.md#ssh-execution-recovery-and-retention) for uncertain outcomes, private receipts and stored results.
 Policy, binding, credential, identity or session revocation interrupts active commands before the administrative response acknowledges the change; remote effects already performed cannot be undone.
 Execution recovery requires the original caller and session family plus current host access, and remains readable when writes are disabled.
-Native Windows private receipt custody, reusable connections, cancellation and audit exports remain unavailable.
+Reusable connections belong to one user and session family, require matching host and ordinary/sudo bindings, and never reconnect automatically.
+Only one command may be active per connection; another command returns `CONNECTION_BUSY` before dispatch.
+Connections default to 10 minutes idle, accept 1-60 minutes within the host ceiling, and have an 8-hour maximum age, four per user and sixteen globally including authentication in progress.
+The maximum age also fences active work; local teardown does not prove that remote descendants stopped.
+Inspection does not extend idle expiry; timeout changes recompute expiry from the existing idle start.
+Connection close is idempotent for its owner; closing active work requires `--confirm` and requests cancellation.
+Native Windows protected-file custody remains unavailable.
 See [SSH credential setup](tool-credentials.md#ssh) for provisioning and [SSH rotation](runbook.md#ssh-rotation) for replacement and deletion.
 Use the signed-in CLI's `doctor <host>` for a granted host, rather than the generic shared-credential health test.
 
