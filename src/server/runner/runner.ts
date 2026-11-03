@@ -15,6 +15,7 @@ import { ArtiumError } from '../../shared/errors.js'
 import { inputFileSchema } from '../../shared/api.js'
 import { validateInput, writeInput } from './input.js'
 import type { RunnerInput } from './input.js'
+import type { Readable } from 'node:stream'
 import type { TemporaryFile } from '../adapters/types.js'
 import type { CredentialTrust } from '../store/trusted-certificates.js'
 import { certificateEndpoint } from '../certificate-endpoint.js'
@@ -36,6 +37,7 @@ export interface RunnerLimits {
   signal?: AbortSignal
   credentialTrust?: readonly CredentialTrust[]
   protectedResult?: { name: string, flag: string, receive: (bytes: Buffer) => void }
+  protectedPipe?: { flag: string, argumentIndex: number, receive: (bytes: Buffer) => void }
   privateOutput?: PrivateOutput
 }
 
@@ -220,6 +222,7 @@ async function execute(
     XDG_RUNTIME_DIR: join(directory, 'runtime'),
   }
   let kubernetesProfile: string | undefined
+  const privateChunks: Buffer[] = []
   try {
     if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
     try {
@@ -268,6 +271,10 @@ async function execute(
       if (!inputFileSchema.shape.name.safeParse(limits.protectedResult.name).success) throw new RunnerError('INVALID_INPUT')
       args = [...args, limits.protectedResult.flag, join(directories.XDG_CONFIG_HOME, limits.protectedResult.name)]
     }
+    if (limits.protectedPipe) {
+      const { argumentIndex, flag } = limits.protectedPipe
+      args = [...args.slice(0, argumentIndex), flag, '4', ...args.slice(argumentIndex)]
+    }
     if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
     const result = await new Promise<RunnerResult>((resolve, reject) => {
       const streams = {
@@ -307,8 +314,17 @@ async function execute(
           ...(kubernetesProfile ? { KUBERNETES_AXI_CONFIG: kubernetesProfile } : {}),
           NODE_OPTIONS: `--max-old-space-size=${limits.nodeHeapMiB ?? runnerLimits.nodeHeapMiB}${credentialTrust.length ? ` --require=${join(directories.XDG_CONFIG_HOME, 'artium-tls.cjs')}` : ''}`,
         },
-        stdio: limits.trustedIpc === undefined ? ['pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe', 'ipc'],
+        stdio: limits.protectedPipe ? ['pipe', 'pipe', 'pipe', limits.trustedIpc === undefined ? 'ignore' : 'ipc', 'pipe']
+          : limits.trustedIpc === undefined ? ['pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe', 'ipc'],
       }) as ChildProcessWithoutNullStreams
+      const privatePipe = limits.protectedPipe ? child.stdio[4] as Readable : undefined
+      let privateBytes = 0
+      privatePipe?.on('data', (chunk: Buffer) => {
+        privateBytes += chunk.length
+        if (privateBytes > protectedResultLimits.bytes) { failure ??= new RunnerError('OUTPUT_LIMIT'); terminate() }
+        else privateChunks.push(Buffer.from(chunk))
+      })
+      privatePipe?.on('error', () => { failure ??= new RunnerError('TEMP_UNAVAILABLE'); terminate() })
       if (limits.trustedIpc !== undefined) child.once('spawn', () => {
         child.send!(limits.trustedIpc!, error => { if (error) child.kill('SIGTERM') })
       })
@@ -327,6 +343,7 @@ async function execute(
             // Escaped sessions can hold inherited pipes open after the group is gone.
             child.stdout.destroy()
             child.stderr.destroy()
+            privatePipe?.destroy()
             finish()
           }, terminationGraceMs)
         } else {
@@ -446,9 +463,14 @@ async function execute(
         receive(await file.readFile())
       } finally { await file.close() }
     }
+    if (result.exitCode === 0 && limits.protectedPipe && privateChunks.length) {
+      const bytes = Buffer.concat(privateChunks)
+      try { limits.protectedPipe.receive(bytes) } finally { bytes.fill(0) }
+    }
     result.durationMs = performance.now() - started
     return result
   } finally {
+    for (const chunk of privateChunks) chunk.fill(0)
     if (kubernetesProfile) {
       await rm(kubernetesProfile, { force: true })
       await rm(`${kubernetesProfile}.tmp`, { force: true })

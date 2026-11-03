@@ -61,6 +61,7 @@ export class CredentialProfile {
     this.inputSchema = this.hostSchema(schema)
     if (tool === 'kubernetes-axi') {
       this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow Kubernetes mutation workflows' }
+      this.inputSchema.properties.acquireCredential = { type: 'boolean', title: 'Allow private Kubernetes token acquisition' }
       this.inputSchema.properties.sessions = z.toJSONSchema(kubernetesSessionPolicy)
       this.inputSchema.properties.collectionDelete = { type: 'boolean', title: 'Allow Kubernetes bulk deletion',
         description: 'Requires Allow writes and native frozen-target confirmation. Off by default.' }
@@ -287,6 +288,7 @@ export class CredentialProfile {
     if (tool === 'falcon-axi' || tool === 'awx-axi' || tool === 'kubernetes-axi') delete parsed.value.allowWrites
     if (tool === 'kubernetes-axi') delete parsed.value.collectionDelete
     if (tool === 'kubernetes-axi') delete parsed.value.sessions
+    if (tool === 'kubernetes-axi') delete parsed.value.acquireCredential
     if (tool === 'awx-axi') delete parsed.value.allowConfigurationWrites
     if (tool === 'falcon-axi') delete parsed.value.writes
     const environment: Record<string, string> = {}

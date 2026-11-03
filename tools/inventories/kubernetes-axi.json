@@ -1915,6 +1915,29 @@
       }
     },
     {
+      "command": "create token",
+      "effect": "write",
+      "flags": {
+        "allow-missing-template-keys": "boolean",
+        "audience": "value",
+        "bound-object-kind": "value",
+        "bound-object-name": "value",
+        "bound-object-uid": "value",
+        "disable-compression": "boolean",
+        "duration": "value",
+        "help": "boolean",
+        "log-flush-frequency": "value",
+        "match-server-version": "boolean",
+        "namespace": "value",
+        "output": "value",
+        "request-timeout": "value",
+        "show-managed-fields": "boolean",
+        "v": "value",
+        "vmodule": "value",
+        "warnings-as-errors": "boolean"
+      }
+    },
+    {
       "command": "debug",
       "effect": "write",
       "flags": {
@@ -2592,12 +2615,14 @@
       "session output <id> [--after <sequence>] [--wait]",
       "session confirm <id> --digest <exact-digest>",
       "session cancel <id> --confirm",
-      "session artifact <id> <path> --output <absolute-file>"
+      "session artifact <id> <path> --output <absolute-file>",
+      "tunnel <session-id> --port <remote-port> [--port <remote-port>]",
+      "credential <result-id> --credential-fd <private-pipe-fd>"
     ],
     "example": [
       "get",
       "pods"
     ],
-    "help": "Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported; saved strict leaf pins are unavailable.\nAdministrator-enabled mutations require prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>; server-dry-run -- <mutation> is separately explicit.\nUse workspace create to stage regular files and session start for one bounded operation. Every session kind needs an explicit caller grant in administrator native settings; mutation kinds also require Allow writes.\nUse session show/output/confirm/cancel and session artifact for owned recovery and verified bytes. Workspace references use workspace:<path>; copy downloads use artifact:<path>.\nLocal configuration, impersonation, interactive execution, credential issuance and tunnels remain unavailable.\n"
+    "help": "Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported; saved strict leaf pins are unavailable.\nAdministrator-enabled mutations require prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>; server-dry-run -- <mutation> is separately explicit.\nUse workspace create to stage regular files and session start for one bounded operation. Every session kind needs an explicit caller grant in administrator native settings; mutation kinds also require Allow writes.\nUse session show/output/confirm/cancel and session artifact for owned recovery and verified bytes. Workspace references use workspace:<path>; copy downloads use artifact:<path>.\nLogs and watch sessions start immediately as reads; other session kinds require native preview and exact-digest confirmation.\nUse an explicitly granted port-forward session with tunnel <session-id> --port <remote-port> for authenticated forwarding to local 127.0.0.1 listeners.\nService-account token issuance requires Allow writes and acquireCredential=true; use native prepare/preview/confirm, then credential <result-id> --credential-fd <fd> for one-shot delivery to a private writable pipe or socket numbered 5 or higher.\nLocal configuration, impersonation and interactive execution remain unavailable.\n"
   }
 }

@@ -18,6 +18,7 @@ import { hostedStatus } from '../adapters/hosted-status.js'
 import { logRun } from './log.js'
 import { adoApiAudit } from '../adapters/ado-api.js'
 import type { ProtectedResults } from '../protected-results.js'
+import { kubernetesCredentialRequest } from './kubernetes-requests.js'
 
 export interface RunContext {
   requestId: string
@@ -90,10 +91,14 @@ export async function runTool<Credential>(
         root: prepared.kubernetesWorkflowRoot,
         scope: createHash('sha256').update(JSON.stringify({ userId, family: verifyAccessFamily(db, token), reference })).digest('hex'),
       } : undefined
+      const protectedResult = prepared.protectedResult?.source === 'pipe' && kubernetesRequests
+        && !await kubernetesCredentialRequest(kubernetesRequests.root, kubernetesRequests.scope, args[1])
+        ? undefined : prepared.protectedResult
       let privateBytes: Buffer | undefined
-      if (prepared.protectedResult) {
+      if (protectedResult) {
         if (!context.protectedResults || !reference) throw new ArtiumError('UNSUPPORTED_INPUT')
-        reservation = context.protectedResults.reserve({ userId, credential: reference, operation: prepared.protectedResult.operation })
+        reservation = context.protectedResults.reserve({ userId, credential: reference, operation: protectedResult.operation,
+          ...(protectedResult.source === 'pipe' ? { familyId: verifyAccessFamily(db, token) } : {}) })
       }
       write = prepared.write
       const preparedJournal = await prepareRunJournal(prepared.environment, adapter.name, prepared.effect, write)
@@ -111,8 +116,10 @@ export async function runTool<Credential>(
         return runner.run(identity.userId, prepared.executable, prepared.args, preparedJournal.environment,
           prepared.secrets, { ...prepared.limits, kubernetesRequests, trustedIpc: prepared.trustedIpc, signal: context.signal,
             credentialTrust: reference ? readCredentialTrust(db, reference) : [],
-            protectedResult: prepared.protectedResult?.source === 'file'
-              ? { ...prepared.protectedResult, receive: bytes => { privateBytes = bytes } } : undefined },
+            protectedResult: protectedResult?.source === 'file'
+              ? { ...protectedResult, receive: bytes => { privateBytes = bytes } } : undefined,
+            protectedPipe: protectedResult?.source === 'pipe'
+              ? { ...protectedResult, receive: bytes => { privateBytes = Buffer.from(bytes) } } : undefined },
           { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => {
             authenticate(db, token)
             if (prepared.beforeSpawn) {
@@ -126,7 +133,7 @@ export async function runTool<Credential>(
             }
           }, prepared.pathPrefix)
       })
-      if (prepared.protectedResult?.source === 'projection' && result.exitCode === 0) privateBytes = Buffer.from(result.stdout)
+      if (protectedResult?.source === 'projection' && result.exitCode === 0) privateBytes = Buffer.from(result.stdout)
       if (privateBytes && reservation && reference) {
         authenticate(db, token)
         checkToolPolicy(db, userId, adapter.name)

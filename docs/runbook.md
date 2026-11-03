@@ -626,6 +626,15 @@ Keep Allow writes off until the intended mutation kinds are authorized; read-onl
 Each session owns one operation and one worker, with no reusable transport or later command on that worker.
 Sessions retain at most 1 MiB of stdout/stderr within a 64 MiB observed-output limit, have a five-minute default and thirty-minute maximum lifetime, and reserve four slots per user and eight globally including retained results.
 Cancel unused sessions to release a slot; expiry, revocation, shutdown and cancellation terminate workers and remove private profiles before cleanup is acknowledged.
+To allow port forwarding, add `port-forward` to the intended caller's grants and enable Allow writes.
+Confirm the native preview before attaching `tunnel`; only approved remote ports are accepted and client listeners bind to 127.0.0.1.
+Forwarding data is opaque traffic and is never retained as session output or audit content.
+For service-account token issuance, additionally enable `acquireCredential: true` in advanced native settings.
+Keep it disabled unless token acquisition is intended.
+Tokens use native prepare/preview/confirm and a separate private runner pipe; ordinary stdout/stderr and audit contain no token bytes.
+Deliver the protected reference once with `credential --credential-fd` to a private writable pipe or socket numbered 5 or higher.
+The reference expires after five minutes and requires the original caller, sign-in family, credential revision and current write/acquisition settings.
+Do not retry an uncertain native token request or a failed consuming delivery; reconcile the saved native outcome before issuing another credential.
 Completed copy artifacts remain private until session expiry or cancellation and are scanned and hash-verified before delivery.
 Use `session list` after a lost start reply and `session show` or `session output` after an interrupted confirmation; inspect remote state before creating another uncertain operation.
 These temporary handles and results do not survive restart, and a missing handle does not prove that remote work was undone.

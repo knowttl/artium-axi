@@ -1095,11 +1095,11 @@ test('Kubernetes mutation workflows default off and require the administrator sw
     await page.wait('[name=nativeSettings]');
     check(await page.eval(() => {
       const settings = JSON.parse(document.querySelector('[name=nativeSettings]').value);
-      return settings.allowWrites === true && settings.collectionDelete !== true;
+      return settings.allowWrites === true && settings.collectionDelete !== true && settings.acquireCredential !== true;
     }), 'Master switch enabled bulk deletion');
     check(await page.eval(() => document.querySelector('main').innerText.includes('server-dry-run')), 'Native workflow settings guidance missing');
-    await page.fill('[name=nativeSettings]', JSON.stringify({ allowWrites: true, sessions: {
-      grants: { 'synthetic-development-user': ['exec', 'logs'] }, lifetimeSeconds: 300, outputBytes: 65536,
+    await page.fill('[name=nativeSettings]', JSON.stringify({ allowWrites: true, acquireCredential: true, sessions: {
+      grants: { 'synthetic-development-user': ['exec', 'logs', 'port-forward'] }, lifetimeSeconds: 300, outputBytes: 65536,
     } }));
     await page.click('form:has([name=nativeSettings]) button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
@@ -1108,8 +1108,8 @@ test('Kubernetes mutation workflows default off and require the administrator sw
     await page.wait('[name=nativeSettings]');
     check(await page.eval(() => {
       const settings = JSON.parse(document.querySelector('[name=nativeSettings]').value);
-      return settings.allowWrites === true && settings.collectionDelete !== true
-        && JSON.stringify(settings.sessions.grants['synthetic-development-user']) === JSON.stringify(['exec', 'logs'])
+      return settings.allowWrites === true && settings.collectionDelete !== true && settings.acquireCredential === true
+        && JSON.stringify(settings.sessions.grants['synthetic-development-user']) === JSON.stringify(['exec', 'logs', 'port-forward'])
         && settings.sessions.lifetimeSeconds === 300 && settings.sessions.outputBytes === 65536;
     }), 'Explicit session grants or limits did not persist');
   `)

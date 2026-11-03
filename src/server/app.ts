@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { isIP } from 'node:net'
 import Fastify from 'fastify'
 import { ZodError } from 'zod'
@@ -13,7 +13,8 @@ import type { ToolName } from './store/credential-store.js'
 import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './auth/local.js'
-import { hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, verifyAccessToken, verifyPasswordToken } from './auth/tokens.js'
+import { hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, verifyAccessToken, verifyAccessFamily, verifyPasswordToken } from './auth/tokens.js'
+import { kubernetesBinding, kubernetesOwner } from './policy/kubernetes.js'
 import { loginSchema, reauthSchema, refreshSchema } from '../shared/api.js'
 import { AuthAttempts } from './auth/attempts.js'
 import { browserCookie, browserPage, registerBrowser } from './auth/browser.js'
@@ -87,7 +88,7 @@ export function createApp(options: {
   const kubernetes = adapters.find(adapter => adapter.name === 'kubernetes-axi')
   if (kubernetes) {
     const workspaces = registerKubernetesWorkspaces(app, db, resolver, kubernetes, audit)
-    registerKubernetesSessions(app, db, resolver, kubernetes, runner, audit, workspaces)
+    registerKubernetesSessions(app, db, resolver, kubernetes, runner, audit, workspaces, proxies)
   }
   app.addHook('onReady', async () => { health.start() })
   app.setErrorHandler<FastifyError>((error, request, reply) => {
@@ -265,16 +266,23 @@ export function createApp(options: {
   registerAdminPages(app, db, credentialProfiles, runner.trustedCertificates)
   registerAuditPage(app, db, audit)
   registerTransfers(app, db, audit, runner, resolver, adapters, options.artifactStore)
-  for (const tool of ['technitium-axi', 'awx-axi'] as const) app.get<{ Params: { operation: string, id: string } }>(`/v1/results/${tool}/:operation/:id`, async (request, reply) => {
+  for (const tool of ['technitium-axi', 'awx-axi', 'kubernetes-axi'] as const) app.get<{ Params: { operation: string, id: string } }>(`/v1/results/${tool}/:operation/:id`, async (request, reply) => {
     if (tool === 'awx-axi' && !['token-create', 'stdout-download'].includes(request.params.operation)) throw new ArtiumError('NOT_FOUND')
+    if (tool === 'kubernetes-axi' && request.params.operation !== 'token-create') throw new ArtiumError('NOT_FOUND')
     const userId = authenticate(db, bearer(request.headers.authorization))
     checkToolPolicy(db, userId, tool)
     const credential = await resolver.resolve(userId, tool)
     authenticate(db, bearer(request.headers.authorization))
     checkToolPolicy(db, userId, tool)
-    const bytes = protectedResults.take(request.params.id, { userId, credential, operation: request.params.operation })
+    if (tool === 'kubernetes-axi') {
+      const { settings } = kubernetesBinding(db, kubernetesOwner(db, request))
+      if (settings.allowWrites !== true || settings.acquireCredential !== true) throw new ArtiumError('FLAG_BLOCKED')
+    }
+    const bytes = protectedResults.take(request.params.id, { userId, credential, operation: request.params.operation,
+      ...(tool === 'kubernetes-axi' ? { familyId: verifyAccessFamily(db, bearer(request.headers.authorization)) } : {}) })
     return reply.header('cache-control', 'no-store').header('content-disposition', 'attachment; filename="result.bin"')
-      .header('x-content-type-options', 'nosniff').type('application/octet-stream').send(bytes)
+      .header('x-content-type-options', 'nosniff').header('x-artium-content-sha256', createHash('sha256').update(bytes).digest('hex'))
+      .type('application/octet-stream').send(bytes)
   })
   app.post<{ Params: { tool: string } }>('/v1/tools/:tool/run', async (request, reply) => {
     const name = toolSchema.safeParse(request.params.tool)

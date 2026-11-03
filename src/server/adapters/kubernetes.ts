@@ -12,7 +12,7 @@ import { writePolicy } from './write-policy.js'
 export const kubernetesProfile = new CredentialProfile(inventory.credentialSchema, 'kubernetes-axi')
 export const kubernetesWritePolicy = writePolicy({
   unlocks: 'Prepare resource mutations, inspect saved previews, confirm exact digests and explicitly request server dry run. Bounded byte operations additionally require explicit per-caller session-kind grants in advanced native settings.',
-  blocked: 'Bulk deletion additionally requires collectionDelete=true in advanced native settings. Use owned workspaces for file input and sessions for bounded execution/copy. Direct mutations, local configuration, interactive execution, tunnels and credential issuance remain unavailable.' })
+  blocked: 'Bulk deletion additionally requires collectionDelete=true; service-account token issuance requires acquireCredential=true and private-pipe delivery. Use owned workspaces for file input and explicitly granted sessions for bounded execution, copy and authenticated port forwarding. Direct mutations, local configuration and interactive execution remain unavailable.' })
 
 interface Invocation {
   native: boolean
@@ -37,12 +37,14 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
     if (!parser) throw new ArtiumError('SPAWN_FAILED')
     let parsed: Invocation
     // Native parsing consults this switch synchronously; dispatch uses its own child environment.
-    const previous = process.env.KUBERNETES_AXI_READ_ONLY
-    try { process.env.KUBERNETES_AXI_READ_ONLY = 'false'; parsed = parser([...args]) }
+    const previous = process.env.KUBERNETES_AXI_READ_ONLY, previousAcquisition = process.env.KUBERNETES_AXI_ACQUIRE_CREDENTIAL
+    try { process.env.KUBERNETES_AXI_READ_ONLY = 'false'; process.env.KUBERNETES_AXI_ACQUIRE_CREDENTIAL = 'true'; parsed = parser([...args]) }
     catch { throw new ArtiumError('INVALID_INPUT') }
     finally {
       if (previous === undefined) delete process.env.KUBERNETES_AXI_READ_ONLY
       else process.env.KUBERNETES_AXI_READ_ONLY = previous
+      if (previousAcquisition === undefined) delete process.env.KUBERNETES_AXI_ACQUIRE_CREDENTIAL
+      else process.env.KUBERNETES_AXI_ACQUIRE_CREDENTIAL = previousAcquisition
     }
     const command = (parsed.native ? 'native -- ' : '') + (parsed.home ? 'home' : parsed.command.path)
     const workflow = parsed.workflow?.kind
@@ -58,7 +60,7 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
     for (const name of parsed.flags.keys()) if (!Object.hasOwn(route.flags, name)) throw new ArtiumError('FLAG_BLOCKED')
     const invocation = { command: workflow === 'prepare' || workflow === 'server-dry-run'
       ? `${workflow} -- ${parsed.command.path}` : workflow ?? command, help: parsed.help }
-    return { args: [...args], invocation, workflow: parsed.help ? undefined : workflow }
+    return { args: [...args], invocation, workflow: parsed.help ? undefined : workflow, acquisition: parsed.command.path === 'create token' && !parsed.help }
   }
   return { name: 'kubernetes-axi', executable, credentialProfile: kubernetesProfile,
     credentialSchema: kubernetesProfile.credentialSchema, timeoutMs: inventory.requirements.timeoutMs,
@@ -67,18 +69,24 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { argumentsForCall(args, input) },
     async prepare(args, reference, input) {
-      const { workflow, ...call } = argumentsForCall(args, input)
+      const { workflow, acquisition, ...call } = argumentsForCall(args, input)
       if (reference.tool !== 'kubernetes-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const settings = source.getSettings?.(reference) ?? {}
       const writable = workflow && workflow !== 'preview'
       if (writable && !kubernetesWritePolicy.read(settings).enabled) throw new ArtiumError('FLAG_BLOCKED')
+      if (acquisition && settings.acquireCredential !== true) throw new ArtiumError('FLAG_BLOCKED')
       if (workflow && !workflowRoot) throw new ArtiumError('TEMP_UNAVAILABLE')
       const value = await source.getCredential(reference)
       const profile = kubernetesProfile.prepare('kubernetes-axi', value, undefined, !writable)
       return { ...call, executable: process.execPath, args: [executable, ...call.args],
         effect: workflow === 'confirm' || workflow === 'server-dry-run' ? 'write' : 'read',
         ...(workflow ? { kubernetesWorkflowRoot: workflowRoot } : {}),
-        ...profile, environment: { ...profile.environment, KUBERNETES_AXI_COLLECTION_DELETE: String(Boolean(writable && settings.collectionDelete === true)) },
+        ...(workflow === 'confirm' && settings.acquireCredential === true ? { protectedResult: {
+          source: 'pipe' as const, operation: 'token-create', flag: '--credential-fd', argumentIndex: 1,
+        } } : {}),
+        ...profile, environment: { ...profile.environment,
+          KUBERNETES_AXI_ACQUIRE_CREDENTIAL: String(Boolean(writable && settings.acquireCredential === true)),
+          KUBERNETES_AXI_COLLECTION_DELETE: String(Boolean(writable && settings.collectionDelete === true)) },
         limits: { timeoutMs: inventory.requirements.timeoutMs, systemCaBundle: { endpoint: (value as { origin: string }).origin } } }
     } }
 }

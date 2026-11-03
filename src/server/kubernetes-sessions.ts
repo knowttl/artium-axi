@@ -20,10 +20,16 @@ import { SecretScanner } from './runner/scan.js'
 import type { Runner } from './runner/runner.js'
 import { readCredentialTrust } from './store/trusted-certificates.js'
 import { verifyAccessToken } from './auth/tokens.js'
+import type { Duplex } from 'node:stream'
+import { attachKubernetesTunnel } from './kubernetes-tunnels.js'
+import { acceptsCliVersion } from '../shared/version.js'
 
 const messageSchema = z.discriminatedUnion('event', [
   z.strictObject({ event: z.literal('prepared'), preview: z.record(z.string(), z.unknown()) }),
   z.strictObject({ event: z.literal('running') }),
+  z.strictObject({ event: z.literal('ports'), ports: z.array(z.strictObject({
+    remote: z.number().int().min(1).max(65535), local: z.number().int().min(1).max(65535),
+  })).min(1).max(8) }),
   z.strictObject({ event: z.literal('output'), channel: z.enum(['stdout', 'stderr']), base64: z.string().max(2 * 1024 * 1024) }),
   z.strictObject({ event: z.literal('result'), value: z.unknown() }),
   z.strictObject({ event: z.literal('artifacts'), files: z.array(kubernetesFile).max(100)
@@ -41,11 +47,13 @@ interface Session {
   preview?: Record<string, unknown>, digest?: string, confirmed: boolean, exitCode?: number, code?: string,
   artifacts?: z.infer<typeof kubernetesFile>[], result?: unknown, chunks: Chunk[], sequence: number,
   offsets: { stdout: number, stderr: number }, retained: number, limit: number, truncated: boolean,
+  approvedPorts: number[], ports: Map<number, number>, tunnelPeers: Set<Duplex>,
+  usedConnections: Set<string>, activeConnections: Set<string>, portsReady: Promise<void>, portsAcknowledge: () => void,
 }
 
 // A worker owns one operation through preview and confirmation, never a reusable connection.
 export function registerKubernetesSessions(app: FastifyInstance, db: Database.Database, resolver: IdentityResolver,
-  adapter: Adapter<unknown>, runner: Runner, audit: Audit, workspaces: ReturnType<typeof registerKubernetesWorkspaces>) {
+  adapter: Adapter<unknown>, runner: Runner, audit: Audit, workspaces: ReturnType<typeof registerKubernetesWorkspaces>, trustedProxies: readonly string[] = []) {
   const sessions = new Map<string, Session>()
   const root = join(dirname(db.name), 'tool-logs', 'kubernetes-axi', 'byte-sessions')
   const initialized = (async () => {
@@ -64,14 +72,14 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     outcome: 'success', action: 'kubernetes-session-' + action, targetId: session.id })
   async function stop(session: Session, state: 'cancelled' | 'expired' | 'failed') {
     if (active(session)) session.state = state
-    session.controller.abort(); session.acknowledge(); session.changed.emit('change')
+    session.controller.abort(); session.acknowledge(); session.portsAcknowledge(); session.changed.emit('change')
     await session.job
     await Promise.allSettled([...session.active])
     session.chunks = []; session.retained = 0; session.preview = undefined; session.result = undefined
     session.artifacts = undefined
     await rm(session.directory, { recursive: true, force: true })
   }
-  async function selected(request: FastifyRequest, id: string) {
+  async function selected(request: Pick<FastifyRequest, 'headers'>, id: string) {
     const owner = kubernetesOwner(db, request)
     const session = sessions.get(id)
     if (!session || session.owner.user !== owner.user || session.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
@@ -82,6 +90,8 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     expiresAt: session.expiresAt, nextSequence: session.sequence, exitCode: session.exitCode ?? null,
     stdoutEOF: !active(session), stderrEOF: !active(session),
     outputBytes: session.offsets, truncated: session.truncated, limits: { outputBytes: session.limit },
+    ...(session.kind === 'port-forward' ? { remotePorts: session.approvedPorts,
+      tunnelReady: session.state === 'running' && session.approvedPorts.length > 0 && session.ports.size === session.approvedPorts.length } : {}),
     ...(session.preview ? { preview: session.preview } : {}), ...(session.code ? { code: session.code } : {}),
     ...(session.result ? { result: session.result } : {}), ...(session.artifacts ? { artifacts: session.artifacts } : {}) })
   async function execute(session: Session, input: Input, request: FastifyRequest) {
@@ -174,6 +184,17 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
               if (metadataScanner.scan('stdout', Buffer.from(JSON.stringify(event)))) throw new Error('Credential metadata')
               if (event.event === 'prepared') {
                 if (session.state !== 'starting' || typeof event.preview.digest !== 'string' || !/^[a-f0-9]{64}$/.test(event.preview.digest)) throw new Error('Preview state')
+                if (session.kind === 'port-forward') {
+                  const { execution } = z.object({ execution: z.object({ argv: z.array(z.string()) }) }).parse(event.preview)
+                  const end = execution.argv.indexOf('--namespace')
+                  const ports = execution.argv.slice(2, end).map(value => {
+                    const match = /^0:([1-9][0-9]{0,4})$/.exec(value)
+                    if (!match || Number(match[1]) > 65535) throw new Error('Invalid native port')
+                    return Number(match[1])
+                  })
+                  if (execution.argv[0] !== 'port-forward' || end < 3 || !ports.length || ports.length > 8 || new Set(ports).size !== ports.length) throw new Error('Invalid native ports')
+                  session.approvedPorts = ports
+                }
                 const display = (value: unknown): unknown => typeof value === 'string'
                   ? value.replaceAll(join(session.directory, 'workspace') + '/', 'workspace:').replaceAll(session.directory, '[private session]')
                   : Array.isArray(value) ? value.map(display) : value !== null && typeof value === 'object'
@@ -182,6 +203,13 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
                   help: [`artium-axi kubernetes-axi session confirm ${session.id} --digest ${event.preview.digest}`] }
                 session.digest = event.preview.digest; session.state = 'prepared'; session.acknowledge()
               } else if (event.event === 'running') { session.state = 'running'; session.acknowledge() }
+              else if (event.event === 'ports') {
+                if (session.kind !== 'port-forward' || session.state !== 'running' || !session.confirmed
+                  || event.ports.some(port => !session.approvedPorts.includes(port.remote))
+                  || new Set(event.ports.map(port => port.remote)).size !== event.ports.length) throw new Error('Unexpected native ports')
+                session.ports = new Map(event.ports.map(port => [port.remote, port.local]))
+                if (session.ports.size === session.approvedPorts.length) session.portsAcknowledge()
+              }
               else if (event.event === 'result') session.result = event.value
               else if (event.event === 'artifacts') session.artifacts = event.files
               else if (event.event === 'exit') { session.exitCode = event.exitCode; session.state = event.exitCode === 0 ? 'exited' : 'failed' }
@@ -215,7 +243,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
           clientAddress: request.ip, outcome: session.state === 'exited' ? 'completed' : 'interrupted',
           exitCode: session.exitCode ?? null, durationMs: Date.now() - session.startedAt, outputBytes: session.offsets })
       } catch { session.state = 'failed'; session.code = 'AUDIT_UNAVAILABLE' }
-      session.acknowledge(); session.changed.emit('change')
+      session.acknowledge(); session.portsAcknowledge(); session.changed.emit('change')
     }
   }
   app.get(prefix, async (request, reply) => {
@@ -239,10 +267,13 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     if (sessions.size >= runnerLimits.globalCalls || [...sessions.values()].filter(entry => entry.owner.user === owner.user).length >= runnerLimits.userCalls) throw new ArtiumError('TOO_MANY_CALLS')
     const directory = join(root, 'session-' + randomUUID())
     let acknowledge!: () => void
+    let portsAcknowledge!: () => void
     const session: Session = { id: randomUUID(), owner, kind: input.kind, binding: binding.hash, directory, state: 'starting',
       expiresAt: Date.now() + lifetime * 1000, startedAt: Date.now(), controller: new AbortController(), job: Promise.resolve(),
       changed: new EventEmitter(), active: new Set(), ready: new Promise(resolve => { acknowledge = resolve }), acknowledge: () => acknowledge(),
       confirmed: false, chunks: [], sequence: 1, offsets: { stdout: 0, stderr: 0 }, retained: 0, limit, truncated: false,
+      approvedPorts: [], ports: new Map(), tunnelPeers: new Set(), usedConnections: new Set(), activeConnections: new Set(),
+      portsReady: new Promise(resolve => { portsAcknowledge = resolve }), portsAcknowledge: () => portsAcknowledge(),
       timer: setTimeout(() => {}, 0) }
     clearTimeout(session.timer)
     sessions.set(session.id, session)
@@ -262,10 +293,14 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
   })
   app.get<{ Params: { id: string } }>(`${prefix}/:id`, async (request, reply) => {
     const session = await selected(request, request.params.id)
-    const parsed = z.strictObject({ wait: z.enum(['true', 'false']).default('false') }).safeParse(request.query)
+    const parsed = z.strictObject({ wait: z.enum(['true', 'false', 'ready']).default('false') }).safeParse(request.query)
     if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
+    if (parsed.data.wait === 'ready') {
+      if (session.kind !== 'port-forward' || !session.confirmed) throw new ArtiumError('INVALID_INPUT')
+      await session.portsReady
+    }
     if (parsed.data.wait === 'true' || !active(session)) await session.job
-    access(session); record(request, session, 'show')
+    await selected(request, session.id); record(request, session, 'show')
     return reply.header('cache-control', 'no-store').send(view(session))
   })
   app.post<{ Params: { id: string } }>(`${prefix}/:id/confirm`, async (request, reply) => {
@@ -293,7 +328,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       })
     }
     if (!active(session)) await session.job
-    access(session)
+    await selected(request, session.id)
     record(request, session, 'output')
     return reply.header('cache-control', 'no-store').send({ ...view(session), chunks: session.chunks.filter(chunk => chunk.sequence > parsed.data.after) })
   })
@@ -332,6 +367,40 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
   }
   const monitor = setInterval(() => { void reconcile().catch(() => {}) }, 1000)
   monitor.unref(); app.addHook('onSend', reconcile)
+  app.server.on('upgrade', (request, socket, head) => {
+    void (async () => {
+      const match = new RegExp(`^${prefix}/([a-f0-9-]{36})/tunnel$`).exec(request.url ?? '')
+      const key = request.headers['sec-websocket-key'], version = request.headers['x-artium-cli-version']
+      if (!match || request.method !== 'GET' || request.headers.upgrade?.toLowerCase() !== 'websocket'
+        || request.headers['sec-websocket-version'] !== '13' || typeof key !== 'string'
+        || !/^[A-Za-z0-9+/]{22}==$/.test(key) || Buffer.from(key, 'base64').length !== 16 || request.headers.origin) throw new ArtiumError('INVALID_INPUT')
+      if (version !== undefined && (typeof version !== 'string' || !acceptsCliVersion(version))) throw new ArtiumError('CLI_OUTDATED')
+      if (!trustedProxies.includes(request.socket.remoteAddress ?? '') && Object.keys(request.headers).some(name =>
+        name === 'forwarded' || name.startsWith('x-forwarded-'))) throw new ArtiumError('PROXY_HEADERS_UNTRUSTED')
+      const session = await selected(request, match[1])
+      if (session.kind !== 'port-forward' || session.state !== 'running' || !session.approvedPorts.length
+        || session.ports.size !== session.approvedPorts.length || session.tunnelPeers.size >= 4) throw new ArtiumError('INVALID_INPUT')
+      audit.record({ event: 'admin-change', userId: session.owner.user, tool: 'kubernetes-axi', requestId: randomUUID(),
+        clientAddress: request.socket.remoteAddress ?? null, outcome: 'success', action: 'kubernetes-session-tunnel', targetId: session.id })
+      const accept = createHash('sha1').update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64')
+      socket.write(`HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Accept: ${accept}\r\nX-Artium-Remote-Ports: ${session.approvedPorts.join(',')}\r\n\r\n`)
+      session.tunnelPeers.add(socket)
+      const drained = attachKubernetesTunnel(socket, head, session.id, session.ports, session.usedConnections,
+        session.activeConnections, session.controller.signal, () => {
+          kubernetesOwner(db, request); access(session)
+        })
+      session.active.add(drained)
+      void drained.then(() => { session.tunnelPeers.delete(socket); session.active.delete(drained) })
+    })().catch(error => {
+      try {
+        let userId: string | null = null
+        try { userId = verifyAccessToken(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? '') } catch { /* Unverified callers remain unattributed. */ }
+        audit.record({ event: 'denial', userId, tool: 'kubernetes-axi', requestId: randomUUID(),
+          clientAddress: request.socket.remoteAddress ?? null, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
+        socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
+      } catch { socket.destroy() }
+    })
+  })
   app.addHook('onError', async (request, _reply, error) => {
     if (!request.url.startsWith('/v1/tools/kubernetes-axi/')) return
     let userId: string | null = null

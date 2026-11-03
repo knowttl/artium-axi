@@ -6,11 +6,13 @@ export const kubernetesHostedCommands = [
   'session show <id> [--wait]', 'session output <id> [--after <sequence>] [--wait]',
   'session confirm <id> --digest <exact-digest>', 'session cancel <id> --confirm',
   'session artifact <id> <path> --output <absolute-file>',
+  'tunnel <session-id> --port <remote-port> [--port <remote-port>]',
+  'credential <result-id> --credential-fd <private-pipe-fd>',
 ] as const
 
-export const kubernetesSessionKind = z.enum(['watch', 'logs', 'exec', 'attach', 'apply', 'create', 'cp'])
+export const kubernetesSessionKind = z.enum(['watch', 'logs', 'exec', 'attach', 'apply', 'create', 'cp', 'port-forward'])
 export const kubernetesSessionPolicy = z.strictObject({
-  grants: z.record(z.string().min(1).max(128), z.array(kubernetesSessionKind).max(7)),
+  grants: z.record(z.string().min(1).max(128), z.array(kubernetesSessionKind).max(8)),
   lifetimeSeconds: z.number().int().min(1).max(1800).optional(),
   outputBytes: z.number().int().min(1).max(1048576).optional(),
 })
@@ -20,6 +22,11 @@ export const kubernetesWorkspacePath = z.string().min(1).max(1024).refine(path =
     && !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part)))
 export const kubernetesFile = z.strictObject({ path: kubernetesWorkspacePath,
   bytes: z.number().int().min(0).max(100 * 1024 * 1024), sha256: z.string().regex(/^[a-f0-9]{64}$/) })
+export const kubernetesSessionView = z.object({ id: z.uuid(), expiresAt: z.number(),
+  state: z.enum(['starting', 'prepared', 'running', 'exited', 'failed', 'cancelled', 'expired']),
+  artifacts: z.array(kubernetesFile).optional(), remotePorts: z.array(z.number().int().min(1).max(65535)).optional(),
+  tunnelReady: z.boolean().optional(),
+}).passthrough()
 export const kubernetesWorkspaceManifest = z.strictObject({ files: z.array(kubernetesFile).min(1).max(100),
   lifetimeSeconds: z.number().int().min(1).max(1800).default(300) })
 export const kubernetesSessionStart = z.strictObject({ kind: kubernetesSessionKind,
