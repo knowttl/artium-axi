@@ -208,6 +208,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
         sensitive: { flags: ['--command'], positions: [] } }, () => {
         if (db.prepare('SELECT 1 FROM ssh_executions WHERE request_key=?').get(body.requestKey)) throw duplicateClaim
         if (claims.expires <= Date.now()) throw new ArtiumError('INVALID_INPUT')
+        if (admitted.input.connection) connections.assertAvailable(owner, admitted.input.host, admitted.input.connection, admitted.input.sudo)
         db.prepare(`INSERT INTO ssh_executions VALUES (@id, @request_key, @input_hash, @user_id, @family_id, @host_id,
           @account, @binding, @command, @sudo, @request_id, @started_at, @finished_at, @outcome, @metadata)`).run(row)
         created = true
