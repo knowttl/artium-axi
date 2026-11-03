@@ -5,6 +5,7 @@ import { createServer } from 'node:https'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, expect, test } from 'vitest'
+import { createUnifiAdapter } from './unifi.js'
 import { createNetworkReadAdapter } from './network-reads.js'
 import { toolPaths } from '../config.js'
 import { Runner } from '../runner/runner.js'
@@ -61,7 +62,7 @@ test.each([
     const credential = { origin: `https://${host}:${(server.address() as { port: number }).port}`, apiKey: 'CANARY-unifi-key', tls: {
       connectAddress: '127.0.0.1', trustedCertificatePem: pem, peerFingerprintSha256: new X509Certificate(pem).fingerprint256.replaceAll(':', ''),
     } }
-    const adapter = createNetworkReadAdapter('unifi-axi', { getCredential: async () => credential })
+    const adapter = createUnifiAdapter({ getCredential: async () => credential })
     const call = await adapter.prepare(['info'], { id: 'synthetic', tool: 'unifi-axi', revision: 1 })
     const result = await runner.run('synthetic', call.executable, call.args, call.environment, call.secrets, call.limits, {}, call.files)
     if (success) {
@@ -85,13 +86,13 @@ test.each([
 })
 
 test.each([[], ['--help'], ['--site', 'synthetic-site']])('UniFi retains the empty-command dashboard for %j', async (...args) => {
-  const call = await createNetworkReadAdapter('unifi-axi', source).prepare(args, { id: 'synthetic', tool: 'unifi-axi', revision: 1 })
+  const call = await createUnifiAdapter(source).prepare(args, { id: 'synthetic', tool: 'unifi-axi', revision: 1 })
   expect(call.args.slice(1)).toEqual(args)
   expect(call.invocation?.command).toBe('home')
 })
 
 test.each([['home'], ['home', '--help']])('UniFi rejects the unsupported explicit home command %j', (...args) => {
-  expect(() => createNetworkReadAdapter('unifi-axi', source).validateArgs(args)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
+  expect(() => createUnifiAdapter(source).validateArgs(args)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
 })
 
 test.each(['status', 'log', 'wait'])('Proxmox task %s rejects journal input', action => {

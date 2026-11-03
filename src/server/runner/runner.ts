@@ -25,6 +25,7 @@ import { acquireFalconRtrLock } from './falcon-rtr-lock.js'
 import { kubernetesRequestProfile } from './kubernetes-requests.js'
 
 export interface RunnerLimits {
+  unifiScope?: string
   kubernetesRequests?: { root: string, scope: string }
   falconRtrDevice?: string
   trustedIpc?: Serializable
@@ -250,6 +251,12 @@ async function execute(
         const handle = await open(temporary, 'wx', 0o600)
         try {
           let content = file.content
+          if (limits.unifiScope && file.name === 'unifi-axi/config.json') {
+            if (!/^[a-f0-9]{64}$/.test(limits.unifiScope)) throw new Error('Invalid UniFi identity scope')
+            const profile = JSON.parse(Buffer.from(content).toString('utf8'))
+            content = JSON.stringify({ ...profile, defaultProfile: limits.unifiScope,
+              profiles: { [limits.unifiScope]: profile.profiles.artium } })
+          }
           if (file.appendTrustedCaAt && trustPem) {
             const profile = JSON.parse(Buffer.from(content).toString('utf8')) as Record<string, unknown>
             let parent = profile

@@ -2,16 +2,16 @@
   "generatedBy": "scripts/network-read-inventory.ts",
   "tool": "unifi-axi",
   "package": "@knowttl/unifi-axi",
-  "version": "0.1.1",
-  "integrity": "sha512-GbxXzfDGDK1aGLuDJvy1t6KPTmaI6vhMm1rUHL2ce1SJKVgUA8/bQO325pw8jYgR5NbkV+zEo9uw2J3AtAiDCw==",
+  "version": "0.1.3",
+  "integrity": "sha512-XkGWH4kPfZ8+bnMhoUEk4FxA+yVUb0DM+V+yCyGtw42JSqbC/NYhqz/3HCNHNRK6easZigdIWFoMXmKcoPdZRg==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "7c68c8ed8bc1b2c85c85fba6c9a61b1c6282db7cedc1e122eaedcf7df6f9fa36"
+      "sha256": "eb32e08ed35de38126061da8ab82a90e327a3b026b647a16ef6a8419c9df5359"
     },
     {
       "path": "dist/application.js",
-      "sha256": "20a33f9354d4fa0a23e2fabab6eaca7cf0531ee8fd43f5ca9885bf4108da0a11"
+      "sha256": "3b842c8277a78deef69418e7f4a2eca7f4e541ba73bcf1225d03545ecf5c66fa"
     },
     {
       "path": "dist/axi-credential.schema.json",
@@ -47,7 +47,7 @@
     },
     {
       "path": "dist/integrations.js",
-      "sha256": "39d52ef54c8673690210a8891ac0b942b0662a5dd1595ed46d23ac635f2698a7"
+      "sha256": "7f5bb92fe8f08fbfe2757aa564caca51bacbd09bb34e3aa872be8cd47e790d5f"
     },
     {
       "path": "dist/normalization-ledger.json",
@@ -83,7 +83,7 @@
     },
     {
       "path": "dist/validation.js",
-      "sha256": "274942346bfc8e86e966ca0f9283b6184dbaa836d2647761dfeefffee03ae6bd"
+      "sha256": "c59ae0b34215e3eeec097008adc3e8ad620a155d1aa0059fd32f547b722df914"
     },
     {
       "path": "dist/version.js",
@@ -95,11 +95,11 @@
     },
     {
       "path": "dist/writes.js",
-      "sha256": "690317365bd2288874c8b87c9953b75176982cdde34cc4610d55d1fa39be50bf"
+      "sha256": "83704067865fc4e3ae033d9fb3fb767a69b4111f929efce810ca05de918abbfb"
     },
     {
       "path": "dist/SKILL.md",
-      "sha256": "5392275d301bc300b068534dc60bbc61e2bb1bf4f464db4fa1fe0fb55d136a1f"
+      "sha256": "5306b0157e3a8909be29504920efbc4495035350485c9222de5cd82265bc6212"
     },
     {
       "path": "evidence/sources/network-10.6.109-openapi.json",
@@ -228,6 +228,50 @@
       }
     }
   },
+  "writeOperations": [
+    "adoptDevice",
+    "createAclRule",
+    "createDnsPolicy",
+    "createFirewallPolicy",
+    "createFirewallZone",
+    "createNetwork",
+    "createNetwork:GATEWAY",
+    "createNetwork:SWITCH",
+    "createNetwork:UNMANAGED",
+    "createTrafficMatchingList",
+    "createVouchers",
+    "createWifiBroadcast",
+    "deleteAclRule",
+    "deleteDnsPolicy",
+    "deleteFirewallPolicy",
+    "deleteFirewallZone",
+    "deleteNetwork",
+    "deleteTrafficMatchingList",
+    "deleteVoucher",
+    "deleteVouchers",
+    "deleteWifiBroadcast",
+    "executeAdoptedDeviceAction",
+    "executeAdoptedDeviceAction:RESTART",
+    "executeConnectedClientAction",
+    "executeConnectedClientAction:AUTHORIZE_GUEST_ACCESS",
+    "executeConnectedClientAction:UNAUTHORIZE_GUEST_ACCESS",
+    "executePortAction",
+    "executePortAction:POWER_CYCLE",
+    "patchFirewallPolicy",
+    "removeDevice",
+    "updateAclRule",
+    "updateAclRuleOrdering",
+    "updateDnsPolicy",
+    "updateFirewallPolicy",
+    "updateFirewallPolicyOrdering",
+    "updateFirewallZone",
+    "updateNetwork",
+    "updateNetwork:GATEWAY",
+    "updateNetwork:SWITCH",
+    "updateNetwork:UNMANAGED",
+    "updateTrafficMatchingList",
+    "updateWifiBroadcast"
+  ],
   "adapterBoundary": {
     "unsafeOverrides": [
       "config",
@@ -237,9 +281,12 @@
       "api-key",
       "allow-insecure-http",
       "session",
+      "secret-output"
+    ],
+    "inputFileFlags": [
       "body-file"
     ],
-    "nativeWrites": "not admitted",
+    "nativeWrites": "native preview, exact grants, confirmation and durable request IDs",
     "blockedCommands": [
       "setup",
       "update",
@@ -254,7 +301,8 @@
       "effect": "read",
       "flags": {
         "help": "boolean",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
@@ -268,415 +316,946 @@
       "command": "doctor",
       "effect": "read",
       "flags": {
-        "help": "boolean"
+        "help": "boolean",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "write show",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "request-id": "value"
+      }
+    },
+    {
+      "command": "write reconcile",
+      "effect": "read",
+      "flags": {
+        "help": "boolean",
+        "request-id": "value"
       }
     },
     {
       "command": "info",
       "effect": "read",
+      "operation": "getInfo",
       "flags": {
-        "help": "boolean"
+        "help": "boolean",
+        "full": "boolean"
       }
     },
     {
       "command": "site list",
       "effect": "read",
+      "operation": "getSiteOverviewPage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "country list",
       "effect": "read",
+      "operation": "getCountries",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
-        "filter": "value"
+        "filter": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "dpi application list",
       "effect": "read",
+      "operation": "getDpiApplications",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
-        "filter": "value"
+        "filter": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "dpi category list",
       "effect": "read",
+      "operation": "getDpiApplicationCategories",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
-        "filter": "value"
+        "filter": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "device pending list",
       "effect": "read",
+      "operation": "getPendingDevicePage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
-        "filter": "value"
+        "filter": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "acl-rule list",
       "effect": "read",
+      "operation": "getAclRulePage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "acl-rule create",
+      "effect": "write",
+      "operation": "createAclRule",
+      "flags": {
+        "help": "boolean",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
       }
     },
     {
       "command": "acl-rule order show",
       "effect": "read",
+      "operation": "getAclRuleOrdering",
       "flags": {
         "help": "boolean",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "acl-rule order set",
+      "effect": "write",
+      "operation": "updateAclRuleOrdering",
+      "flags": {
+        "help": "boolean",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
+      }
+    },
+    {
+      "command": "acl-rule delete",
+      "effect": "write",
+      "operation": "deleteAclRule",
+      "flags": {
+        "help": "boolean",
+        "acl-rule-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value"
       }
     },
     {
       "command": "acl-rule show",
       "effect": "read",
+      "operation": "getAclRule",
       "flags": {
         "help": "boolean",
         "acl-rule-id": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "acl-rule update",
+      "effect": "write",
+      "operation": "updateAclRule",
+      "flags": {
+        "help": "boolean",
+        "acl-rule-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
       }
     },
     {
       "command": "client list",
       "effect": "read",
+      "operation": "getConnectedClientOverviewPage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "client show",
       "effect": "read",
+      "operation": "getConnectedClientDetails",
       "flags": {
         "help": "boolean",
         "client-id": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "client action",
+      "effect": "write",
+      "operation": "executeConnectedClientAction",
+      "flags": {
+        "help": "boolean",
+        "client-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
       }
     },
     {
       "command": "device-tag list",
       "effect": "read",
+      "operation": "getDeviceTagPage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "device list",
       "effect": "read",
+      "operation": "getAdoptedDeviceOverviewPage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "device adopt",
+      "effect": "write",
+      "operation": "adoptDevice",
+      "flags": {
+        "help": "boolean",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
+      }
+    },
+    {
+      "command": "device remove",
+      "effect": "write",
+      "operation": "removeDevice",
+      "flags": {
+        "help": "boolean",
+        "site": "value",
+        "device-id": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value"
       }
     },
     {
       "command": "device show",
       "effect": "read",
+      "operation": "getAdoptedDeviceDetails",
       "flags": {
         "help": "boolean",
         "site": "value",
-        "device-id": "value"
+        "device-id": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "device action",
+      "effect": "write",
+      "operation": "executeAdoptedDeviceAction",
+      "flags": {
+        "help": "boolean",
+        "site": "value",
+        "device-id": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
+      }
+    },
+    {
+      "command": "device interfaces ports action",
+      "effect": "write",
+      "operation": "executePortAction",
+      "flags": {
+        "help": "boolean",
+        "port-idx": "value",
+        "site": "value",
+        "device-id": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
       }
     },
     {
       "command": "device statistics latest",
       "effect": "read",
+      "operation": "getAdoptedDeviceLatestStatistics",
       "flags": {
         "help": "boolean",
         "site": "value",
-        "device-id": "value"
+        "device-id": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "dns policy list",
       "effect": "read",
+      "operation": "getDnsPolicyPage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "dns policy create",
+      "effect": "write",
+      "operation": "createDnsPolicy",
+      "flags": {
+        "help": "boolean",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
+      }
+    },
+    {
+      "command": "dns policy delete",
+      "effect": "write",
+      "operation": "deleteDnsPolicy",
+      "flags": {
+        "help": "boolean",
+        "dns-policy-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value"
       }
     },
     {
       "command": "dns policy show",
       "effect": "read",
+      "operation": "getDnsPolicy",
       "flags": {
         "help": "boolean",
         "dns-policy-id": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "dns policy update",
+      "effect": "write",
+      "operation": "updateDnsPolicy",
+      "flags": {
+        "help": "boolean",
+        "dns-policy-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
       }
     },
     {
       "command": "firewall policy list",
       "effect": "read",
+      "operation": "getFirewallPolicies",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "firewall policy create",
+      "effect": "write",
+      "operation": "createFirewallPolicy",
+      "flags": {
+        "help": "boolean",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
       }
     },
     {
       "command": "firewall policy order show",
       "effect": "read",
+      "operation": "getFirewallPolicyOrdering",
       "flags": {
         "help": "boolean",
         "source-firewall-zone-id": "value",
         "destination-firewall-zone-id": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "firewall policy order set",
+      "effect": "write",
+      "operation": "updateFirewallPolicyOrdering",
+      "flags": {
+        "help": "boolean",
+        "source-firewall-zone-id": "value",
+        "destination-firewall-zone-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
+      }
+    },
+    {
+      "command": "firewall policy delete",
+      "effect": "write",
+      "operation": "deleteFirewallPolicy",
+      "flags": {
+        "help": "boolean",
+        "firewall-policy-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value"
       }
     },
     {
       "command": "firewall policy show",
       "effect": "read",
+      "operation": "getFirewallPolicy",
       "flags": {
         "help": "boolean",
         "firewall-policy-id": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "firewall policy patch",
+      "effect": "write",
+      "operation": "patchFirewallPolicy",
+      "flags": {
+        "help": "boolean",
+        "firewall-policy-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
+      }
+    },
+    {
+      "command": "firewall policy update",
+      "effect": "write",
+      "operation": "updateFirewallPolicy",
+      "flags": {
+        "help": "boolean",
+        "firewall-policy-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
       }
     },
     {
       "command": "firewall zone list",
       "effect": "read",
+      "operation": "getFirewallZones",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "firewall zone create",
+      "effect": "write",
+      "operation": "createFirewallZone",
+      "flags": {
+        "help": "boolean",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
+      }
+    },
+    {
+      "command": "firewall zone delete",
+      "effect": "write",
+      "operation": "deleteFirewallZone",
+      "flags": {
+        "help": "boolean",
+        "firewall-zone-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value"
       }
     },
     {
       "command": "firewall zone show",
       "effect": "read",
+      "operation": "getFirewallZone",
       "flags": {
         "help": "boolean",
         "firewall-zone-id": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "firewall zone update",
+      "effect": "write",
+      "operation": "updateFirewallZone",
+      "flags": {
+        "help": "boolean",
+        "firewall-zone-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
+      }
+    },
+    {
+      "command": "hotspot voucher delete-many",
+      "effect": "write",
+      "operation": "deleteVouchers",
+      "flags": {
+        "help": "boolean",
+        "filter": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value"
       }
     },
     {
       "command": "hotspot voucher list",
       "effect": "read",
+      "operation": "getVouchers",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "hotspot voucher create",
+      "effect": "write",
+      "operation": "createVouchers",
+      "flags": {
+        "help": "boolean",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
+      }
+    },
+    {
+      "command": "hotspot voucher delete",
+      "effect": "write",
+      "operation": "deleteVoucher",
+      "flags": {
+        "help": "boolean",
+        "voucher-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value"
       }
     },
     {
       "command": "hotspot voucher show",
       "effect": "read",
+      "operation": "getVoucher",
       "flags": {
         "help": "boolean",
         "voucher-id": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "network list",
       "effect": "read",
+      "operation": "getNetworksOverviewPage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "network create",
+      "effect": "write",
+      "operation": "createNetwork",
+      "flags": {
+        "help": "boolean",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
+      }
+    },
+    {
+      "command": "network delete",
+      "effect": "write",
+      "operation": "deleteNetwork",
+      "flags": {
+        "help": "boolean",
+        "network-id": "value",
+        "force": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value"
       }
     },
     {
       "command": "network show",
       "effect": "read",
+      "operation": "getNetworkDetails",
       "flags": {
         "help": "boolean",
         "network-id": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "network update",
+      "effect": "write",
+      "operation": "updateNetwork",
+      "flags": {
+        "help": "boolean",
+        "network-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
       }
     },
     {
       "command": "network references",
       "effect": "read",
+      "operation": "getNetworkReferences",
       "flags": {
         "help": "boolean",
         "network-id": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "radius profile list",
       "effect": "read",
+      "operation": "getRadiusProfileOverviewPage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "switching lag list",
       "effect": "read",
+      "operation": "getLagPage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "switching lag show",
       "effect": "read",
+      "operation": "getLag",
       "flags": {
         "help": "boolean",
         "lag-id": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "switching mc-lag-domain list",
       "effect": "read",
+      "operation": "getMcLagDomainPage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "switching mc-lag-domain show",
       "effect": "read",
+      "operation": "getMcLagDomain",
       "flags": {
         "help": "boolean",
         "mc-lag-domain-id": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "switching switch-stack list",
       "effect": "read",
+      "operation": "getSwitchStackPage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "switching switch-stack show",
       "effect": "read",
+      "operation": "getSwitchStack",
       "flags": {
         "help": "boolean",
         "switch-stack-id": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "traffic-list list",
       "effect": "read",
+      "operation": "getTrafficMatchingLists",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "traffic-list create",
+      "effect": "write",
+      "operation": "createTrafficMatchingList",
+      "flags": {
+        "help": "boolean",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
+      }
+    },
+    {
+      "command": "traffic-list delete",
+      "effect": "write",
+      "operation": "deleteTrafficMatchingList",
+      "flags": {
+        "help": "boolean",
+        "traffic-matching-list-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value"
       }
     },
     {
       "command": "traffic-list show",
       "effect": "read",
+      "operation": "getTrafficMatchingList",
       "flags": {
         "help": "boolean",
         "traffic-matching-list-id": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "traffic-list update",
+      "effect": "write",
+      "operation": "updateTrafficMatchingList",
+      "flags": {
+        "help": "boolean",
+        "traffic-matching-list-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
       }
     },
     {
       "command": "vpn server list",
       "effect": "read",
+      "operation": "getVpnServerPage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "vpn site-to-site-tunnel list",
       "effect": "read",
+      "operation": "getSiteToSiteVpnTunnelPage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "wan list",
       "effect": "read",
+      "operation": "getWansOverviewPage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
       }
     },
     {
       "command": "wifi broadcast list",
       "effect": "read",
+      "operation": "getWifiBroadcastPage",
       "flags": {
         "help": "boolean",
         "offset": "value",
         "limit": "value",
         "filter": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "wifi broadcast create",
+      "effect": "write",
+      "operation": "createWifiBroadcast",
+      "flags": {
+        "help": "boolean",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
+      }
+    },
+    {
+      "command": "wifi broadcast delete",
+      "effect": "write",
+      "operation": "deleteWifiBroadcast",
+      "flags": {
+        "help": "boolean",
+        "wifi-broadcast-id": "value",
+        "force": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value"
       }
     },
     {
       "command": "wifi broadcast show",
       "effect": "read",
+      "operation": "getWifiBroadcastDetails",
       "flags": {
         "help": "boolean",
         "wifi-broadcast-id": "value",
-        "site": "value"
+        "site": "value",
+        "full": "boolean"
+      }
+    },
+    {
+      "command": "wifi broadcast update",
+      "effect": "write",
+      "operation": "updateWifiBroadcast",
+      "flags": {
+        "help": "boolean",
+        "wifi-broadcast-id": "value",
+        "site": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "request-id": "value",
+        "body-file": "value"
       }
     }
   ],
@@ -684,6 +1263,8 @@
     "commands": [
       "commands",
       "doctor",
+      "write show",
+      "write reconcile",
       "info",
       "site list",
       "country list",
@@ -691,25 +1272,51 @@
       "dpi category list",
       "device pending list",
       "acl-rule list",
+      "acl-rule create",
       "acl-rule order show",
+      "acl-rule order set",
+      "acl-rule delete",
       "acl-rule show",
+      "acl-rule update",
       "client list",
       "client show",
+      "client action",
       "device-tag list",
       "device list",
+      "device adopt",
+      "device remove",
       "device show",
+      "device action",
+      "device interfaces ports action",
       "device statistics latest",
       "dns policy list",
+      "dns policy create",
+      "dns policy delete",
       "dns policy show",
+      "dns policy update",
       "firewall policy list",
+      "firewall policy create",
       "firewall policy order show",
+      "firewall policy order set",
+      "firewall policy delete",
       "firewall policy show",
+      "firewall policy patch",
+      "firewall policy update",
       "firewall zone list",
+      "firewall zone create",
+      "firewall zone delete",
       "firewall zone show",
+      "firewall zone update",
+      "hotspot voucher delete-many",
       "hotspot voucher list",
+      "hotspot voucher create",
+      "hotspot voucher delete",
       "hotspot voucher show",
       "network list",
+      "network create",
+      "network delete",
       "network show",
+      "network update",
       "network references",
       "radius profile list",
       "switching lag list",
@@ -719,16 +1326,22 @@
       "switching switch-stack list",
       "switching switch-stack show",
       "traffic-list list",
+      "traffic-list create",
+      "traffic-list delete",
       "traffic-list show",
+      "traffic-list update",
       "vpn server list",
       "vpn site-to-site-tunnel list",
       "wan list",
       "wifi broadcast list",
-      "wifi broadcast show"
+      "wifi broadcast create",
+      "wifi broadcast delete",
+      "wifi broadcast show",
+      "wifi broadcast update"
     ],
     "example": [
       "info"
     ],
-    "help": "unifi-axi managed reads. Run unifi-axi info --help for selectors and limits.\nWrites, local configuration, input files and byte transports are unavailable.\n"
+    "help": "UniFi managed reads and native write previews. Run each command with --help for selectors and limits.\nExecution requires administrator Allow writes and exact native operation/variant grants; preview first, then repeat with --execute --confirm <confirmation> --request-id <stable-id>.\nUpload private JSON through --body-file. Use write show/reconcile with the same request ID after uncertainty; never resend automatically.\nLocal configuration, credential overrides, secret export and byte transports are unavailable in hosted execution.\n"
   }
 }

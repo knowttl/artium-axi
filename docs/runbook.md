@@ -651,6 +651,14 @@ Use `session list` after a lost start reply and `session show` or `session outpu
 These temporary handles and results do not survive restart, and a missing handle does not prove that remote work was undone.
 Local downloads require a new absolute filename in an existing private directory and publish only after byte count and digest verification.
 
+UniFi keeps native request claims and observations in private directories beneath `<database directory>/tool-logs/unifi-axi/writes.log/`.
+Keep these durable records with the database; removing them discards native request-ID replay protection.
+The native records contain hashes and sanitized selectors, never uploaded JSON bodies or credential values.
+Records are scoped to caller, sign-in family and credential/settings revision; only the same current scope can inspect or reconcile its receipt.
+Disabling writes blocks execution immediately, while recovery remains read-only; a policy revision change requires a fresh preview and scope.
+Read-only reconciliation can retain an unknown outcome and never resends a claimed request.
+There is no automatic pruning of these native records; monitor their growth and do not delete unresolved claims as routine cleanup.
+
 Gitea keeps its shared dispatch journal at `<database directory>/tool-logs/gitea-axi/writes.log` and native receipts and attempt guards in the adjacent `write-receipts/` directory.
 These files survive calls and restarts and are not automatically pruned; preserve them together when backing up or recovering write state so replay protection remains intact.
 After an uncertain Gitea result, including native `WRITE_OUTCOME_UNKNOWN`, use `artium-axi gitea-axi write reconcile UUID` with the preview's confirmation UUID to inspect the receipt and current remote observations.

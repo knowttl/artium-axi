@@ -1171,7 +1171,7 @@ test('write switch confirms identity, preserves native settings, refreshes JSON 
   `)
 })
 
-for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi']) test(tool + ' operation picker matches the pinned catalogue and saves the selection', () => {
+for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi', 'unifi-axi']) test(tool + ' operation picker matches the pinned catalogue and saves the selection', () => {
   browser(`
     await page.open(base + '/admin/tools/${tool}?tab=writes');
     const initial = await page.eval(async () => (await (await fetch('/v1/admin/tools/${tool}')).json()));

@@ -38,8 +38,15 @@ test.each(toolSchema.options)('%s overlay preserves tool guidance with managed c
     expect(skill).toContain('Pending workflow commands, local workflows and credential routes are unavailable.')
     return
   }
-  if (tool === 'unifi-axi' || tool === 'proxmox-axi') {
-    expect(skill).toContain(tool === 'unifi-axi' ? 'info --help' : 'get /version --help')
+  if (tool === 'unifi-axi') {
+    expect(skill).toContain('--execute --confirm <digest> --request-id <stable-id>')
+    expect(skill).toContain('createNetwork and createNetwork:UNMANAGED')
+    expect(skill).toContain('write reconcile --request-id <id>')
+    expect(skill).toContain('Writes default to preview without mutation.')
+    return
+  }
+  if (tool === 'proxmox-axi') {
+    expect(skill).toContain('get /version --help')
     expect(skill).toContain('Writes, local configuration, file input and byte transports are unavailable.')
     return
   }

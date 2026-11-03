@@ -1,4 +1,3 @@
-import unifi from '../../../tools/inventories/unifi-axi.json' with { type: 'json' }
 import proxmox from '../../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
@@ -9,10 +8,9 @@ import { CredentialProfile } from './credential-profile.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 import { writePolicy } from './write-policy.js'
 
-const inventories = { 'unifi-axi': unifi, 'proxmox-axi': proxmox }
+const inventories = { 'proxmox-axi': proxmox }
 type NetworkTool = keyof typeof inventories
 export const networkProfiles = {
-  'unifi-axi': new CredentialProfile(unifi.credentialSchema, 'unifi-axi'),
   'proxmox-axi': new CredentialProfile(proxmox.credentialSchema, 'proxmox-axi'),
 }
 export const networkReadPolicy = writePolicy({ reason: 'This adapter admits ordinary reads only.',
@@ -68,31 +66,7 @@ export function createNetworkReadAdapter(tool: NetworkTool, source: SecretSource
       if (reference.tool !== tool) throw new ArtiumError('CREDENTIAL_INVALID')
       const credential = await source.getCredential(reference)
       const prepared = profile.prepare(tool, credential, undefined, true)
-      const nodeArgs: string[] = []
-      if (tool === 'unifi-axi') {
-        const value = credential as { origin: string, tls?: { connectAddress?: string } }
-        if (value.tls?.connectAddress) {
-          const origin = new URL(value.origin)
-          const hostname = origin.hostname.replace(/^\[|\]$/g, '')
-          prepared.files.push({ name: 'unifi-axi/connect.cjs', content: `
-const tls = require('node:tls');
-const { connect } = require('node:net');
-const original = tls.connect;
-const address = ${JSON.stringify(value.tls.connectAddress)};
-const hostname = ${JSON.stringify(hostname)};
-const port = ${Number(origin.port || 443)};
-tls.connect = function (options, ...args) {
-  if (options.host === address && Number(options.port) === port) {
-    options = { ...options, host: hostname, socket: connect({ host: address, port }) };
-  }
-  return original.call(this, options, ...args);
-};
-require('node:module').syncBuiltinESMExports();
-` })
-          nodeArgs.push('--require', './unifi-axi/connect.cjs')
-        }
-      }
-      return { ...call, executable: process.execPath, args: [...nodeArgs, toolPaths[tool], ...call.args], effect: 'read',
+      return { ...call, executable: process.execPath, args: [toolPaths[tool], ...call.args], effect: 'read',
         ...prepared, limits: { timeoutMs: runnerLimits.timeoutMs } }
     } }
 }

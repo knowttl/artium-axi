@@ -82,12 +82,12 @@ export class CredentialProfile {
       for (const name of ['origin', 'tokenOrigin']) this.inputSchema.properties[name] = { type: 'string', format: 'canonical-https-origin' }
     }
     if (tool === 'unifi-axi' || tool === 'proxmox-axi') {
-      delete this.inputSchema.properties.writes
       this.inputSchema.properties.origin = { type: 'string', format: 'canonical-https-origin' }
       if (tool === 'unifi-axi') {
         this.inputSchema.required = ['origin', 'apiKey']
         delete this.inputSchema.properties.allowSecretExport
       } else {
+        delete this.inputSchema.properties.writes
         this.inputSchema.properties.auth = { const: 'api-token' }
         this.inputSchema.required = ['origin', 'auth', 'tokenId', 'token']
         this.inputSchema.oneOf = [this.inputSchema.oneOf[0]]

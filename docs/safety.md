@@ -240,8 +240,15 @@ The package retains its version, schema and contract-conflict checks.
 Proxmox admits ordinary read routes and offline inventory discovery from the pinned invocation contract.
 Use `artium-axi unifi-axi info --help` or `artium-axi proxmox-axi get /version --help`, and `artium-axi tools show <tool>` for admitted commands.
 See credential setup for [UniFi](tool-credentials.md#unifi) and [Proxmox](tool-credentials.md#proxmox), including managed authentication and TLS settings.
-Credentials, endpoints, profiles, local configuration, file inputs, session authentication and byte transports cannot be selected by callers.
-These adapters admit reads only; administrator settings cannot enable writes in this admission slice.
+Credentials, endpoints, profiles, local configuration, session authentication and byte transports cannot be selected by callers.
+UniFi admits all implemented native writes under administrator Allow writes, off by default, and exact vendor operation grants, including required management or action variant grants.
+Native previews do not mutate; execution requires the matching `--confirm`, `--execute` and a stable `--request-id`.
+Upload one private JSON body with `--body-file`; server paths, stdin and hosted secret export are unavailable.
+Confirmation binds the payload, observed state, caller, sign-in family and current credential/settings revision.
+Native durable claims prevent repeated request IDs from resending a mutation, including after rejection or an uncertain response.
+Use `artium-axi unifi-axi write show --request-id <id>` and `write reconcile --request-id <id>` for read-only recovery.
+Reconciliation can retain an unknown outcome; inspect remote state before preparing another write.
+Proxmox remains read-only through its adapter in this admission slice.
 Local synthetic verification does not establish live appliance commissioning.
 
 ## Technitium DNS
@@ -259,7 +266,8 @@ Local fake-service checks do not establish live server acceptance.
 | --- | --- |
 | Falcon | See the [Falcon boundary](#azure-falcon-and-vectra-reads) for passive reads, exact lifecycle grants and native RTR opt-in/confirmation. |
 | LDAP | Fixed read-only. |
-| UniFi / Proxmox | Ordinary reads only; writes and byte transports unavailable through these adapters. |
+| UniFi | Exact native operation and variant grants plus native preview, confirmation and stable request ID; see [network appliance access](#network-appliance-reads). |
+| Proxmox | Ordinary reads only; writes and byte transports unavailable through this adapter. |
 | Technitium DNS | See the [read-only capability boundary](#technitium-dns). |
 | Gitea | See the [native write capability boundary](#gitea-reads). |
 | Kubernetes | See the [native mutation capability boundary](#kubernetes-reads). |

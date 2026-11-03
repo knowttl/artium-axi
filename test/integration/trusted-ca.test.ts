@@ -15,6 +15,7 @@ import { createTenableAdapter } from '../../src/server/adapters/tenable.js'
 import { createHybridAdapter } from '../../src/server/adapters/hybrid.js'
 import { createBeyondtrustAdapter } from '../../src/server/adapters/beyondtrust.js'
 import { createCheckpointAdapter } from '../../src/server/adapters/checkpoint.js'
+import { createUnifiAdapter } from '../../src/server/adapters/unifi.js'
 import { createNetworkReadAdapter } from '../../src/server/adapters/network-reads.js'
 import { createTechnitiumAdapter } from '../../src/server/adapters/technitium.js'
 import { createGiteaAdapter } from '../../src/server/adapters/gitea.js'
@@ -59,7 +60,7 @@ test.each(toolSchema.options.filter(tool => tool !== 'ssh-axi').flatMap(tool => 
       'kubernetes-axi': await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js')),
       'technitium-axi': createTechnitiumAdapter(source),
       'gitea-axi': createGiteaAdapter(source),
-      'unifi-axi': createNetworkReadAdapter('unifi-axi', source),
+      'unifi-axi': createUnifiAdapter(source),
       'proxmox-axi': createNetworkReadAdapter('proxmox-axi', source),
       'gh-axi': createGhAdapter(source),
       'beyondtrust-axi': createBeyondtrustAdapter(source, log),

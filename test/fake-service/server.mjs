@@ -8,8 +8,10 @@ import { beyondtrustResponse } from './beyondtrust.mjs'
 import { checkpointResponse } from './checkpoint.mjs'
 const { kubernetesBytes } = await import(existsSync(new URL('./kubernetes-bytes.js', import.meta.url))
   ? './kubernetes-bytes.js' : './kubernetes-bytes.ts')
+const { unifiController } = await import(existsSync(new URL('./unifi.js', import.meta.url)) ? './unifi.js' : './unifi.ts')
 
 const requests = []
+const unifi = unifiController(event => requests.push(event))
 const resources = new Map()
 const awxAssociations = new Map()
 const awxTokens = new Map([[7, 'CANARY-awx-minted-token']])
@@ -60,6 +62,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   ca: readFileSync(join(certs, 'ca.crt')), requestCert: true, rejectUnauthorized: false }, (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
+  if (unifi(req, res, url)) return
   if (url.pathname === '/__kubernetes/bytes') { res.end(JSON.stringify(byteEvidence())); return }
   if (url.pathname === '/__kubernetes/credentials') { res.end(JSON.stringify({ requests: kubernetesTokenRequests })); return }
   if (url.pathname === '/__kubernetes/control') {
@@ -257,13 +260,11 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     else { res.writeHead(405); res.end('{}') }
     return
   }
-  if (url.pathname === '/proxy/network/integration/v1/info' || url.pathname === '/api2/json/version') {
-    const canaryReceived = url.pathname === '/proxy/network/integration/v1/info' ? req.headers['x-api-key'] === 'CANARY-unifi-key'
-      : req.headers.authorization === 'PVEAPIToken=reader@pve!automation=CANARY-proxmox-token'
+  if (url.pathname === '/api2/json/version') {
+    const canaryReceived = req.headers.authorization === 'PVEAPIToken=reader@pve!automation=CANARY-proxmox-token'
     requests.push({ method: req.method, path: url.pathname, canaryReceived })
     if (req.method !== 'GET' || !canaryReceived) { res.writeHead(401); res.end('{}'); return }
-    res.end(JSON.stringify(url.pathname === '/proxy/network/integration/v1/info' ? { applicationVersion: '10.6.109' }
-      : { data: { version: '9.2.0', release: '1', repoid: 'synthetic-build' } }))
+    res.end(JSON.stringify({ data: { version: '9.2.0', release: '1', repoid: 'synthetic-build' } }))
     return
   }
   if (url.pathname === '/__github/device') {

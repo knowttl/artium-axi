@@ -73,6 +73,11 @@ Its optional `connectAddress` selects the connection IP while certificate identi
 Certificate chain, validity, identity and fingerprint verification remain required.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
 After saving, testing, enabling and granting the tool, use `artium-axi unifi-axi info` for the first managed read.
+For writes, use an API key authorized for the intended vendor operations, enable **Allow writes** and select the exact operation and management/action variant grants on **Write permissions**.
+For example, unmanaged network creation needs both `createNetwork` and `createNetwork:UNMANAGED`.
+Preview first with a private JSON `--body-file`, then execute the identical request with `--execute --confirm <digest> --request-id <stable-id>`.
+Changing credentials or write settings requires a new preview.
+See [write safety and recovery](safety.md#network-appliance-reads) before enabling writes.
 
 #### SSH
 
