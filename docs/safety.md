@@ -274,7 +274,7 @@ Local synthetic verification does not establish live appliance commissioning.
 
 ## Technitium DNS
 
-Artium admits the reads, discovery commands and 96 native write grants in the [reviewed inventory](../tools/inventories/technitium-axi.json), including conditional `OP-077.import`.
+Artium admits the reads, discovery commands and native write grants in the [reviewed inventory](../tools/inventories/technitium-axi.json), including conditional `OP-077.import`.
 Host Write permission defaults off and selects exact operations independently of the managed profile's native `writes.allowWrites` and operation grants; both gates apply before credential access, including previews and reconciliation.
 Native previews bind the selected credential, TLS settings, input, secret values, baseline and upload digest; execution requires the exact confirmation and uses durable host-owned journals to prevent replay.
 Selected-field setters require the native exact baseline and a single-writer window because the upstream API has no atomic conditional setter.

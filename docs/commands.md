@@ -222,7 +222,7 @@ Files must be owned regular files with mode 0600, without symlinks; limits are 1
 Operation secrets use explicit `TECHNITIUM_INPUT_*` environment SecretRefs or private local file SecretRefs; the client resolves them into the private envelope's `secrets` map, limited to 64 KiB total.
 Direct API callers supply that map and uploaded logical asset names explicitly; the server never resolves caller-selected environment names or file paths.
 With both exact grants enabled, preview `artium-axi technitium-axi allowed add --input-file <absolute-private-file> --json`, then repeat the same input with `--execute --confirm <preview.digest>`.
-Keep the original input and confirmation for `--reconcile <audit-id> --confirm <original-digest>`; reconciliation never retries the write.
+Keep the original input and confirmation for `--reconcile <audit-id> --confirm <original-digest>` where native reconciliation is supported; see [recovery and journal custody](runbook.md#retention-and-export).
 `dns-client resolve` uses the same typed input and native preview/confirmation flow; only `parameters.import: true` requires the `OP-077.import` write grant.
 Successful write executions return native response bytes through the same private result retrieval used by reads; preview receipts remain public protocol metadata.
 Native boolean parameters take explicit `true` or `false` values; `--include-zones` also accepts the native empty selection.
@@ -231,7 +231,7 @@ For JSON reads, result downloads contain only the package's redacted projection,
 Retrieve `result.path` once with an authenticated GET to the Artium server using an Artium bearer token for the same user, with a current tool grant and the same credential revision.
 This retrieval is separate from `artium-axi download`; the CLI does not automatically save the result.
 Failed or incomplete reads remain failures; do not infer empty data.
-If a write outcome is unknown, do not replay it; follow the [recovery boundary](safety.md#technitium-dns).
+If a write outcome is unknown, follow the [recovery guidance](runbook.md#retention-and-export).
 For authentication or managed-configuration failures, ask an administrator to update the stored credential and connection settings.
 See the [capability boundary](safety.md#technitium-dns) and [retention, limits and retrieval failures](runbook.md#retention-and-export).
 

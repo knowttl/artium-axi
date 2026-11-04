@@ -599,7 +599,7 @@ An oversized result returns `OUTPUT_LIMIT`; for a read, narrow the native query 
 An AWX `job stdout --download` above the result size returns `OUTPUT_TOO_LARGE`; read ranges with `--lines` or the failing tasks with `job events --failed`.
 A consumed, expired, wrong-user, wrong-operation or superseded-credential reference returns `NOT_FOUND`.
 For Technitium, repeat the permitted read to obtain a new reference.
-Never repeat a Technitium mutation to recover an expired result; retain the original confirmation and use native reconciliation or trusted read inspection as described in the [write boundary](safety.md#technitium-dns).
+Never repeat a Technitium mutation to recover an expired result; follow the recovery guidance below.
 For an unavailable AWX stdout result, repeat `job stdout <id> --download <name>` to obtain a new reference; controller permission denials or missing jobs return an upstream error without a result.
 Retrieval also rechecks authentication and current tool access, so reauthenticate or ask an administrator to restore access when those checks fail.
 For AWX, a missing token result does not undo token creation: inspect controller token state before retrying a failed, malformed or uncertain creation, or one whose result is no longer retrievable.
@@ -624,6 +624,18 @@ Keep their shared journals and adjacent lock files intact, including across rest
 Check Point's shared journal uses audit IDs rather than the legacy Vectra intent-key format and remains outside automatic retention.
 Successful reads for these tools report `read`; executed writes report `write` only when the output's native audit ID matches an intent in the journal, otherwise `unknown`.
 Tenable's adjacent `profiles/` directory stores stable configuration files containing secret references; secret values remain in per-call environment variables.
+
+Technitium retains native intent and outcome entries at `<database directory>/tool-logs/technitium-axi/writes.log.d/<confirmation-digest>.json`.
+Preserve this private directory with database backups; deleting entries discards replay protection, and no automatic retention prunes them.
+Entries retain operation identity, state and keyed hashes, plus preflight topology for cluster recovery; input secrets and response bytes are not journaled.
+Keep the original input, confirmation digest and native audit ID after any uncertain write or failed result delivery.
+When a validated completed receipt is available but later publication, private-file handling, cleanup or terminal auditing fails, the Artium error's `recovery.receipt` preserves the native audit ID, status and recovery fields without response bytes.
+Use that receipt even when the outer error reports an access or credential refusal; completion does not restore result access or authorize replay.
+When terminal auditing succeeds, `native_audit_id` and `native_journal_result` retain the same completed outcome for administrator inspection.
+For operations supporting native postcondition reconciliation, use the [reconciliation command](commands.md#technitium-dns) with the original input and binding; both current host and native write grants remain required.
+Reconciliation never resends the mutation and cannot recover private response bytes.
+Other operations require trusted read inspection of the selected target; changed-binding cluster recovery remains subject to the [capability boundary](safety.md#technitium-dns).
+After timeout or cancellation, a cleanup failure remains secondary to the original uncertainty guidance; never replay a mutation or obtain a fresh preview to bypass its journal claim.
 
 Kubernetes native mutation requests persist under `<database directory>/tool-logs/kubernetes-axi/workflow/` in private scopes bound to caller, sign-in family and credential revision.
 Each call removes its temporary SecretRef profile after process settlement; the native request plan, signing key, atomic claim and outcome remain together without copying claims between call directories.

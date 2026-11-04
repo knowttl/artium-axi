@@ -359,7 +359,8 @@ This records journal activity, including mutation intents, rather than guarantee
 LDAP runs report `read` from its inventory's read-only declaration.
 Falcon passive calls and RTR previews report `read`; native RTR journal activity reports `write` and missing or incomplete evidence remains `unknown`.
 Search and MalQuery submissions do not emit RTR journals, so their classified mutation audit remains `unknown` without that evidence, even when a job/request ID is returned.
-ADO, AWX, UniFi, Gitea and ordinary Kubernetes calls use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
+ADO, AWX, UniFi, Technitium, Gitea and ordinary Kubernetes calls use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
+Technitium previews and reconciliation are read-classified; retained completed-mutation metadata and native audit IDs follow the [recovery guidance](runbook.md#retention-and-export).
 UniFi previews, receipt inspection and reconciliation are classified as reads; see its [native write boundary](safety.md#network-appliance-reads).
 Gitea previews and reconciliation calls are classified as reads; see its [native write boundary](safety.md#gitea-reads).
 Kubernetes preparation and saved previews report `read`; confirmation and server dry run are write-classified calls.
