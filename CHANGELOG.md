@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.34](https://github.com/knowttl/artium-axi/compare/v0.0.33...v0.0.34) (2026-11-04)
+
+
+### Features
+
+* bundle proxmox-axi 0.1.3 and expose firewall option reads ([#307](https://github.com/knowttl/artium-axi/issues/307)) ([f40f50a](https://github.com/knowttl/artium-axi/commit/f40f50a07b6d6d8e1df49492008808ece93dd51c))
+
 ## [0.0.33](https://github.com/knowttl/artium-axi/compare/v0.0.32...v0.0.33) (2026-11-04)
 
 
