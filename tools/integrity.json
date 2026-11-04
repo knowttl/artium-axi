@@ -20,8 +20,8 @@
     "integrity": "sha512-XkGWH4kPfZ8+bnMhoUEk4FxA+yVUb0DM+V+yCyGtw42JSqbC/NYhqz/3HCNHNRK6easZigdIWFoMXmKcoPdZRg=="
   },
   "@knowttl/proxmox-axi": {
-    "version": "0.1.2",
-    "integrity": "sha512-Ol4Q82UE/70GgriSCfvDQvnnQOIr/beddlNwZolu3bJiN9fZyU0pvJlC22uXrZB+/zb96OaYgYkjhUonXnvoaA=="
+    "version": "0.1.3",
+    "integrity": "sha512-5JtlI0Drtc7/x+2Ss/fjGs3WHUdAD1xgOgqK9ziEA8Vh5n45QhlBZT0ivHyJQ5hsl1qcxHWF24PT1WR1PtlBrA=="
   },
   "@knowttl/technitium-axi": {
     "version": "0.1.1",

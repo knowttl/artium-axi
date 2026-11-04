@@ -12,13 +12,27 @@ const read = (tool: string, path: string): string => readFileSync(new URL(`node_
 const { catalogue } = await import(new URL('node_modules/@knowttl/unifi-axi/dist/catalogue.js', root).href) as { catalogue: UniFiRoute[] }
 const proxmox = JSON.parse(read('proxmox-axi', 'artium-invocations.json')) as { commands: Route[] }
 const proxmoxContracts = (JSON.parse(read('proxmox-axi', 'dist/contracts.json')) as { contracts: ProxmoxContract[] }).contracts
+const reviewedWrites = JSON.parse(readFileSync(new URL('inventories/write-operations.json', root), 'utf8')) as {
+  'proxmox-axi': { groups: { operations: Record<string, unknown> }[] } }
+const reviewedProxmoxOperations = new Set(reviewedWrites['proxmox-axi'].groups.flatMap(group => Object.keys(group.operations)))
+const reviewedProxmoxReads = new Set(['task status', 'task log', 'task wait', 'journal show', 'journal reconcile',
+  'home', 'doctor', 'help', 'ls', 'inventory', 'ls /cluster/resources', 'ls /cluster/status', 'ls /nodes',
+  'ls /nodes/{node}/lxc', 'ls /nodes/{node}/qemu', 'ls /nodes/{node}/storage', 'ls /nodes/{node}/tasks',
+  'ls /nodes/{node}/tasks/{upid}/log', 'ls /storage', 'get /access/permissions', 'get /cluster/nextid',
+  'get /cluster/resources', 'get /cluster/status', 'get /nodes', 'get /nodes/{node}/lxc', 'get /nodes/{node}/qemu',
+  'get /nodes/{node}/status', 'get /nodes/{node}/storage', 'get /nodes/{node}/storage/{storage}/status',
+  'get /nodes/{node}/tasks', 'get /nodes/{node}/tasks/{upid}/log', 'get /nodes/{node}/tasks/{upid}/status',
+  'get /nodes/{node}/version', 'get /storage', 'get /version', 'get /cluster/firewall/options',
+  'get /nodes/{node}/firewall/options', 'get /nodes/{node}/lxc/{vmid}/firewall/options',
+  'get /nodes/{node}/qemu/{vmid}/firewall/options'])
 const proxmoxOperations = proxmoxContracts.filter(contract => contract.callable
+  && reviewedProxmoxOperations.has(contract.id)
   && (['write', 'batch'].includes(contract.policy.effect)
     || contract.policy.transport === 'json' && contract.policy.effect === 'read' && contract.path.startsWith('/nodes/{node}/')))
 const proxmoxWriteOperations = [...new Set(proxmoxOperations.map(contract => contract.id))].sort()
 const proxmoxJsonOperations = proxmoxOperations.filter(contract => contract.policy.transport === 'json').map(contract => contract.id)
 const proxmoxCommands = proxmox.commands.filter(entry => !entry.stream && (entry.effect === 'read'
-  ? !['auth', 'config', 'profile'].includes(entry.command.split(' ')[0])
+  ? !entry.privateResult && (entry.command.startsWith('schema ') || reviewedProxmoxReads.has(entry.command))
   : entry.operationId && proxmoxJsonOperations.includes(entry.operationId))).map(entry => ({ ...entry,
     privateResult: proxmoxOperations.some(contract => contract.id === entry.operationId && contract.policy.secrets === 'private-result'),
     sensitiveInputs: [...new Set(proxmoxOperations.filter(contract => contract.id === entry.operationId)

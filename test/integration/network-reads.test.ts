@@ -101,7 +101,7 @@ test.each([
     const command = `artium-axi proxmox-axi schema ${words.join(' ')}`
     expect(document.command).toBe(command)
     expect(document.usage).toBe(`${command} [flags]`)
-    expect(document.flags).toEqual({ catalogue: 'value', format: 'value', help: 'boolean' })
+    expect(document.flags).toEqual({ catalogue: 'value', format: 'value', help: 'boolean', offset: 'value', view: 'value' })
     expect(document.examples).toEqual([`${command} --help`])
     expect((await evidence()).requests).toEqual([])
   })

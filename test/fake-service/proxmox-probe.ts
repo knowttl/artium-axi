@@ -193,7 +193,7 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.doesNotMatch(records + JSON.stringify(db.prepare('SELECT * FROM audit').all()), /CANARY-|Original description|CLI configuration|Interrupted configuration/)
     assert.deepEqual(readdirSync(join(directory, 'calls')), [])
     assert.equal((await evidence()).secretReceived, true)
-    console.log(JSON.stringify({ proxmox: '0.1.2', grants: 'independent native and host exact operations', confirmation: 'one-shot, concurrent and revision-bound',
+    console.log(JSON.stringify({ proxmox: '0.1.3', grants: 'independent native and host exact operations', confirmation: 'one-shot, concurrent and revision-bound',
       recovery: 'durable journal, tasks, rejection, uncertainty, child cancellation and restart without resend', input: 'private SecretRefs and short-secret protocol compatibility', cleanup: 'verified' }))
   } finally { await app.close(); db.close(); await runner.shutdown() }
 })
