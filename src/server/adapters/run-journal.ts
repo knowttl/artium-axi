@@ -17,16 +17,12 @@ interface RunJournal {
 const journalVariables = ['AZ_AXI_WRITE_LOG', 'MG_AXI_WRITE_LOG', 'VECTRA_AXI_WRITE_LOG', 'FALCON_AXI_WRITE_LOG']
 
 export async function prepareRunJournal(environment: Record<string, string>, tool: ToolName, effect?: 'read' | 'write', write?: PreparedCall['write']): Promise<RunJournal> {
-  if (tool === 'gitea-axi' || tool === 'kubernetes-axi' || tool === 'unifi-axi' || tool === 'proxmox-axi') {
+  if (tool === 'gitea-axi' || tool === 'kubernetes-axi' || tool === 'unifi-axi' || tool === 'proxmox-axi' || tool === 'technitium-axi') {
     if (!effect) throw new TypeError('Missing classified native effect')
     return { environment, action: async succeeded => effect === 'read' ? 'read' : succeeded ? 'write' : 'unknown' }
   }
   if (tool === 'ssh-axi') {
     if (effect !== 'read') throw new TypeError('Missing SSH read-only admission contract')
-    return { environment, action: async (): Promise<RunAction> => 'read' }
-  }
-  if (tool === 'technitium-axi') {
-    if (effect !== 'read') throw new TypeError('Missing read-only admission contract')
     return { environment, action: async (): Promise<RunAction> => 'read' }
   }
   if (tool === 'beyondtrust-axi') {

@@ -63,7 +63,7 @@ export class ManagedSession {
     const session = this.session
     try { return await request(session.accessToken) }
     catch (error) {
-      if (!(error instanceof ArtiumError) || error.code !== 'TOKEN_EXPIRED' || !this.session.refreshToken) throw error
+      if (!(error instanceof ArtiumError) || error.code !== 'TOKEN_EXPIRED' || error.recovery || !this.session.refreshToken) throw error
     }
     if (!this.refreshing && this.session.accessToken === session.accessToken) {
       this.refreshing = (async () => {

@@ -60,6 +60,26 @@
     {
       "path": "dist/errors.js",
       "sha256": "c3aa8ddd51dcf129b42dc4dbd09385b4279b45b9647060babc770a002843424b"
+    },
+    {
+      "path": "dist/write-contracts.js",
+      "sha256": "f47ea275cb3b8f49f79af74720052cfe9a9485f414a8e9c20f43dda5c19dfec2"
+    },
+    {
+      "path": "dist/writes.js",
+      "sha256": "d6d4930fcc2c52caf4de7f6b07e1f72023b0b5cc8e1b7f13693f59c8ae2466d8"
+    },
+    {
+      "path": "dist/configuration.js",
+      "sha256": "09fcb674f64dd9f8e0210e81724715928fe9f3dca431d03bc8a54857ed45b79d"
+    },
+    {
+      "path": "dist/cluster.js",
+      "sha256": "704afae0762c47e355966c2ced280145bbafd78ac62d51167daed2a870c0493c"
+    },
+    {
+      "path": "dist/routing.js",
+      "sha256": "124cf913a1ca173680836bf438f08bd9612b3dd98f295b98f28cb27d06aa1a9b"
     }
   ],
   "credentialSchema": {
@@ -280,6 +300,723 @@
       }
     }
   },
+  "writeOperations": [
+    "OP-003",
+    "OP-004",
+    "OP-005",
+    "OP-007",
+    "OP-008",
+    "OP-009",
+    "OP-010",
+    "OP-011",
+    "OP-013",
+    "OP-019",
+    "OP-022",
+    "OP-023",
+    "OP-025",
+    "OP-026",
+    "OP-027",
+    "OP-028",
+    "OP-029",
+    "OP-030",
+    "OP-032",
+    "OP-034",
+    "OP-035",
+    "OP-036",
+    "OP-039",
+    "OP-040",
+    "OP-041",
+    "OP-042",
+    "OP-043",
+    "OP-044",
+    "OP-045",
+    "OP-046",
+    "OP-047",
+    "OP-048",
+    "OP-049",
+    "OP-051",
+    "OP-052",
+    "OP-054",
+    "OP-055",
+    "OP-057",
+    "OP-058",
+    "OP-059",
+    "OP-060",
+    "OP-063",
+    "OP-064",
+    "OP-065",
+    "OP-066",
+    "OP-070",
+    "OP-071",
+    "OP-072",
+    "OP-073",
+    "OP-074",
+    "OP-076",
+    "OP-077.import",
+    "OP-080",
+    "OP-082",
+    "OP-083",
+    "OP-085",
+    "OP-087",
+    "OP-088",
+    "OP-089",
+    "OP-092",
+    "OP-093",
+    "OP-094",
+    "OP-095",
+    "OP-096",
+    "OP-097",
+    "OP-099",
+    "OP-100",
+    "OP-102",
+    "OP-104",
+    "OP-105",
+    "OP-107",
+    "OP-109",
+    "OP-110",
+    "OP-113",
+    "OP-115",
+    "OP-116",
+    "OP-117",
+    "OP-119",
+    "OP-120",
+    "OP-121",
+    "OP-122",
+    "OP-123",
+    "OP-124",
+    "OP-126",
+    "OP-127",
+    "OP-128",
+    "OP-129",
+    "OP-130",
+    "OP-131",
+    "OP-132",
+    "OP-133",
+    "OP-136",
+    "OP-137",
+    "OP-140",
+    "OP-142",
+    "OP-143"
+  ],
+  "writeContracts": [
+    {
+      "id": "OP-119",
+      "command": "admin cluster init",
+      "path": "/api/admin/cluster/init",
+      "secrets": []
+    },
+    {
+      "id": "OP-120",
+      "command": "admin cluster primary delete",
+      "path": "/api/admin/cluster/primary/delete",
+      "secrets": []
+    },
+    {
+      "id": "OP-121",
+      "command": "admin cluster primary join",
+      "path": "/api/admin/cluster/primary/join",
+      "secrets": []
+    },
+    {
+      "id": "OP-122",
+      "command": "admin cluster primary remove-secondary",
+      "path": "/api/admin/cluster/primary/removeSecondary",
+      "secrets": []
+    },
+    {
+      "id": "OP-123",
+      "command": "admin cluster primary delete-secondary",
+      "path": "/api/admin/cluster/primary/deleteSecondary",
+      "secrets": []
+    },
+    {
+      "id": "OP-124",
+      "command": "admin cluster primary update-secondary",
+      "path": "/api/admin/cluster/primary/updateSecondary",
+      "secrets": []
+    },
+    {
+      "id": "OP-126",
+      "command": "admin cluster primary set-options",
+      "path": "/api/admin/cluster/primary/setOptions",
+      "secrets": []
+    },
+    {
+      "id": "OP-127",
+      "command": "admin cluster init-join",
+      "path": "/api/admin/cluster/initJoin",
+      "secrets": [
+        "primaryNodePassword",
+        "primaryNodeTotp"
+      ]
+    },
+    {
+      "id": "OP-128",
+      "command": "admin cluster secondary leave",
+      "path": "/api/admin/cluster/secondary/leave",
+      "secrets": []
+    },
+    {
+      "id": "OP-129",
+      "command": "admin cluster secondary notify",
+      "path": "/api/admin/cluster/secondary/notify",
+      "secrets": []
+    },
+    {
+      "id": "OP-130",
+      "command": "admin cluster secondary resync",
+      "path": "/api/admin/cluster/secondary/resync",
+      "secrets": []
+    },
+    {
+      "id": "OP-131",
+      "command": "admin cluster secondary update-primary",
+      "path": "/api/admin/cluster/secondary/updatePrimary",
+      "secrets": []
+    },
+    {
+      "id": "OP-132",
+      "command": "admin cluster secondary promote",
+      "path": "/api/admin/cluster/secondary/promote",
+      "secrets": []
+    },
+    {
+      "id": "OP-133",
+      "command": "admin cluster update-ip-address",
+      "path": "/api/admin/cluster/updateIpAddress",
+      "secrets": []
+    },
+    {
+      "id": "OP-087",
+      "command": "dhcp lease remove",
+      "path": "/api/dhcp/leases/remove",
+      "secrets": []
+    },
+    {
+      "id": "OP-088",
+      "command": "dhcp lease convert-to-reserved",
+      "path": "/api/dhcp/leases/convertToReserved",
+      "secrets": []
+    },
+    {
+      "id": "OP-089",
+      "command": "dhcp lease convert-to-dynamic",
+      "path": "/api/dhcp/leases/convertToDynamic",
+      "secrets": []
+    },
+    {
+      "id": "OP-092",
+      "command": "dhcp scope set",
+      "path": "/api/dhcp/scopes/set",
+      "secrets": []
+    },
+    {
+      "id": "OP-093",
+      "command": "dhcp scope add-reserved-lease",
+      "path": "/api/dhcp/scopes/addReservedLease",
+      "secrets": []
+    },
+    {
+      "id": "OP-094",
+      "command": "dhcp scope remove-reserved-lease",
+      "path": "/api/dhcp/scopes/removeReservedLease",
+      "secrets": []
+    },
+    {
+      "id": "OP-095",
+      "command": "dhcp scope enable",
+      "path": "/api/dhcp/scopes/enable",
+      "secrets": []
+    },
+    {
+      "id": "OP-096",
+      "command": "dhcp scope disable",
+      "path": "/api/dhcp/scopes/disable",
+      "secrets": []
+    },
+    {
+      "id": "OP-097",
+      "command": "dhcp scope delete",
+      "path": "/api/dhcp/scopes/delete",
+      "secrets": []
+    },
+    {
+      "id": "OP-003",
+      "command": "user create-token",
+      "path": "/api/user/createToken",
+      "secrets": [
+        "pass",
+        "totp"
+      ]
+    },
+    {
+      "id": "OP-004",
+      "command": "user create-single-use-token",
+      "path": "/api/user/createSingleUseToken",
+      "secrets": []
+    },
+    {
+      "id": "OP-005",
+      "command": "user logout",
+      "path": "/api/user/logout",
+      "secrets": []
+    },
+    {
+      "id": "OP-007",
+      "command": "user session delete",
+      "path": "/api/user/session/delete",
+      "secrets": []
+    },
+    {
+      "id": "OP-008",
+      "command": "user change-password",
+      "path": "/api/user/changePassword",
+      "secrets": [
+        "pass",
+        "newPass",
+        "totp"
+      ]
+    },
+    {
+      "id": "OP-009",
+      "command": "user 2fa init",
+      "path": "/api/user/2fa/init",
+      "secrets": []
+    },
+    {
+      "id": "OP-010",
+      "command": "user 2fa enable",
+      "path": "/api/user/2fa/enable",
+      "secrets": [
+        "totp"
+      ]
+    },
+    {
+      "id": "OP-011",
+      "command": "user 2fa disable",
+      "path": "/api/user/2fa/disable",
+      "secrets": []
+    },
+    {
+      "id": "OP-013",
+      "command": "user profile set",
+      "path": "/api/user/profile/set",
+      "secrets": []
+    },
+    {
+      "id": "OP-099",
+      "command": "admin session create-token",
+      "path": "/api/admin/sessions/createToken",
+      "secrets": []
+    },
+    {
+      "id": "OP-100",
+      "command": "admin session delete",
+      "path": "/api/admin/sessions/delete",
+      "secrets": []
+    },
+    {
+      "id": "OP-102",
+      "command": "admin user create",
+      "path": "/api/admin/users/create",
+      "secrets": [
+        "pass"
+      ]
+    },
+    {
+      "id": "OP-104",
+      "command": "admin user set",
+      "path": "/api/admin/users/set",
+      "secrets": [
+        "newPass"
+      ]
+    },
+    {
+      "id": "OP-105",
+      "command": "admin user delete",
+      "path": "/api/admin/users/delete",
+      "secrets": []
+    },
+    {
+      "id": "OP-107",
+      "command": "admin group create",
+      "path": "/api/admin/groups/create",
+      "secrets": []
+    },
+    {
+      "id": "OP-110",
+      "command": "admin group delete",
+      "path": "/api/admin/groups/delete",
+      "secrets": []
+    },
+    {
+      "id": "OP-113",
+      "command": "admin permission set",
+      "path": "/api/admin/permissions/set",
+      "secrets": []
+    },
+    {
+      "id": "OP-115",
+      "command": "admin sso set",
+      "path": "/api/admin/sso/set",
+      "secrets": [
+        "ssoClientSecret"
+      ]
+    },
+    {
+      "id": "OP-116",
+      "command": "admin sso user create",
+      "path": "/api/admin/sso/users/create",
+      "secrets": []
+    },
+    {
+      "id": "OP-117",
+      "command": "admin sso user set",
+      "path": "/api/admin/sso/users/set",
+      "secrets": []
+    },
+    {
+      "id": "OP-142",
+      "command": "admin ldap set",
+      "path": "/api/admin/ldap/set",
+      "secrets": [
+        "ldapBindPassword"
+      ]
+    },
+    {
+      "id": "OP-019",
+      "command": "dashboard stats delete-all",
+      "path": "/api/dashboard/stats/deleteAll",
+      "secrets": []
+    },
+    {
+      "id": "OP-054",
+      "command": "cache delete",
+      "path": "/api/cache/delete",
+      "secrets": []
+    },
+    {
+      "id": "OP-055",
+      "command": "cache flush",
+      "path": "/api/cache/flush",
+      "secrets": []
+    },
+    {
+      "id": "OP-057",
+      "command": "allowed add",
+      "path": "/api/allowed/add",
+      "secrets": []
+    },
+    {
+      "id": "OP-058",
+      "command": "allowed delete",
+      "path": "/api/allowed/delete",
+      "secrets": []
+    },
+    {
+      "id": "OP-059",
+      "command": "allowed flush",
+      "path": "/api/allowed/flush",
+      "secrets": []
+    },
+    {
+      "id": "OP-060",
+      "command": "allowed import",
+      "path": "/api/allowed/import",
+      "secrets": []
+    },
+    {
+      "id": "OP-063",
+      "command": "blocked add",
+      "path": "/api/blocked/add",
+      "secrets": []
+    },
+    {
+      "id": "OP-064",
+      "command": "blocked delete",
+      "path": "/api/blocked/delete",
+      "secrets": []
+    },
+    {
+      "id": "OP-065",
+      "command": "blocked flush",
+      "path": "/api/blocked/flush",
+      "secrets": []
+    },
+    {
+      "id": "OP-066",
+      "command": "blocked import",
+      "path": "/api/blocked/import",
+      "secrets": []
+    },
+    {
+      "id": "OP-022",
+      "command": "zone create",
+      "path": "/api/zones/create",
+      "secrets": [
+        "proxyPassword"
+      ]
+    },
+    {
+      "id": "OP-023",
+      "command": "zone import",
+      "path": "/api/zones/import",
+      "secrets": []
+    },
+    {
+      "id": "OP-025",
+      "command": "zone clone",
+      "path": "/api/zones/clone",
+      "secrets": []
+    },
+    {
+      "id": "OP-026",
+      "command": "zone convert",
+      "path": "/api/zones/convert",
+      "secrets": []
+    },
+    {
+      "id": "OP-027",
+      "command": "zone enable",
+      "path": "/api/zones/enable",
+      "secrets": []
+    },
+    {
+      "id": "OP-028",
+      "command": "zone disable",
+      "path": "/api/zones/disable",
+      "secrets": []
+    },
+    {
+      "id": "OP-029",
+      "command": "zone delete",
+      "path": "/api/zones/delete",
+      "secrets": []
+    },
+    {
+      "id": "OP-030",
+      "command": "zone resync",
+      "path": "/api/zones/resync",
+      "secrets": []
+    },
+    {
+      "id": "OP-032",
+      "command": "zone options set",
+      "path": "/api/zones/options/set",
+      "secrets": []
+    },
+    {
+      "id": "OP-034",
+      "command": "zone permission set",
+      "path": "/api/zones/permissions/set",
+      "secrets": []
+    },
+    {
+      "id": "OP-035",
+      "command": "zone dnssec sign",
+      "path": "/api/zones/dnssec/sign",
+      "secrets": [
+        "pemKskPrivateKey",
+        "pemZskPrivateKey"
+      ]
+    },
+    {
+      "id": "OP-036",
+      "command": "zone dnssec unsign",
+      "path": "/api/zones/dnssec/unsign",
+      "secrets": []
+    },
+    {
+      "id": "OP-039",
+      "command": "zone dnssec properties convert-to-nsec",
+      "path": "/api/zones/dnssec/properties/convertToNSEC",
+      "secrets": []
+    },
+    {
+      "id": "OP-040",
+      "command": "zone dnssec properties convert-to-nsec3",
+      "path": "/api/zones/dnssec/properties/convertToNSEC3",
+      "secrets": []
+    },
+    {
+      "id": "OP-041",
+      "command": "zone dnssec properties update-nsec3-params",
+      "path": "/api/zones/dnssec/properties/updateNSEC3Params",
+      "secrets": []
+    },
+    {
+      "id": "OP-042",
+      "command": "zone dnssec properties update-dns-key-ttl",
+      "path": "/api/zones/dnssec/properties/updateDnsKeyTtl",
+      "secrets": []
+    },
+    {
+      "id": "OP-044",
+      "command": "zone dnssec properties update-private-key",
+      "path": "/api/zones/dnssec/properties/updatePrivateKey",
+      "secrets": []
+    },
+    {
+      "id": "OP-045",
+      "command": "zone dnssec properties delete-private-key",
+      "path": "/api/zones/dnssec/properties/deletePrivateKey",
+      "secrets": []
+    },
+    {
+      "id": "OP-046",
+      "command": "zone dnssec properties publish-all-private-keys",
+      "path": "/api/zones/dnssec/properties/publishAllPrivateKeys",
+      "secrets": []
+    },
+    {
+      "id": "OP-047",
+      "command": "zone dnssec properties rollover-dns-key",
+      "path": "/api/zones/dnssec/properties/rolloverDnsKey",
+      "secrets": []
+    },
+    {
+      "id": "OP-048",
+      "command": "zone dnssec properties retire-dns-key",
+      "path": "/api/zones/dnssec/properties/retireDnsKey",
+      "secrets": []
+    },
+    {
+      "id": "OP-140",
+      "command": "zone dnssec properties activate-ksk-dns-key",
+      "path": "/api/zones/dnssec/properties/activateKskDnsKey",
+      "secrets": []
+    },
+    {
+      "id": "OP-043",
+      "command": "zone dnssec properties add-private-key",
+      "path": "/api/zones/dnssec/properties/addPrivateKey",
+      "secrets": [
+        "pemPrivateKey"
+      ]
+    },
+    {
+      "id": "OP-049",
+      "command": "zone record add",
+      "path": "/api/zones/records/add",
+      "secrets": [
+        "proxyPassword"
+      ]
+    },
+    {
+      "id": "OP-051",
+      "command": "zone record update",
+      "path": "/api/zones/records/update",
+      "secrets": [
+        "proxyPassword"
+      ]
+    },
+    {
+      "id": "OP-052",
+      "command": "zone record delete",
+      "path": "/api/zones/records/delete",
+      "secrets": [
+        "proxyPassword"
+      ]
+    },
+    {
+      "id": "OP-077",
+      "command": "dns-client resolve",
+      "path": "/api/dnsClient/resolve",
+      "secrets": []
+    },
+    {
+      "id": "OP-080",
+      "command": "settings set",
+      "path": "/api/settings/set",
+      "secrets": [
+        "webServiceTlsCertificatePassword",
+        "dnsTlsCertificatePassword",
+        "proxyPassword"
+      ]
+    },
+    {
+      "id": "OP-082",
+      "command": "settings force-update-block-lists",
+      "path": "/api/settings/forceUpdateBlockLists",
+      "secrets": []
+    },
+    {
+      "id": "OP-083",
+      "command": "settings temporary-disable-blocking",
+      "path": "/api/settings/temporaryDisableBlocking",
+      "secrets": []
+    },
+    {
+      "id": "OP-070",
+      "command": "app download-and-install",
+      "path": "/api/apps/downloadAndInstall",
+      "secrets": []
+    },
+    {
+      "id": "OP-071",
+      "command": "app download-and-update",
+      "path": "/api/apps/downloadAndUpdate",
+      "secrets": []
+    },
+    {
+      "id": "OP-074",
+      "command": "app uninstall",
+      "path": "/api/apps/uninstall",
+      "secrets": []
+    },
+    {
+      "id": "OP-076",
+      "command": "app config set",
+      "path": "/api/apps/config/set",
+      "secrets": [
+        "config"
+      ]
+    },
+    {
+      "id": "OP-072",
+      "command": "app install",
+      "path": "/api/apps/install",
+      "secrets": []
+    },
+    {
+      "id": "OP-073",
+      "command": "app update",
+      "path": "/api/apps/update",
+      "secrets": []
+    },
+    {
+      "id": "OP-085",
+      "command": "settings restore",
+      "path": "/api/settings/restore",
+      "secrets": []
+    },
+    {
+      "id": "OP-136",
+      "command": "log delete",
+      "path": "/api/logs/delete",
+      "secrets": []
+    },
+    {
+      "id": "OP-137",
+      "command": "log delete-all",
+      "path": "/api/logs/deleteAll",
+      "secrets": []
+    },
+    {
+      "id": "OP-109",
+      "command": "admin group set",
+      "path": "/api/admin/groups/set",
+      "secrets": []
+    },
+    {
+      "id": "OP-143",
+      "command": "admin ldap test",
+      "path": "/api/admin/ldap/test",
+      "secrets": [
+        "ldapBindPassword"
+      ]
+    }
+  ],
   "commands": [
     {
       "command": "",
@@ -292,7 +1029,8 @@
     },
     {
       "command": "schema",
-      "effect": "read",
+      "effect": "local",
+      "nativeInput": false,
       "flags": {
         "json": "boolean",
         "help": "boolean"
@@ -300,7 +1038,8 @@
     },
     {
       "command": "inventory",
-      "effect": "read",
+      "effect": "local",
+      "nativeInput": false,
       "flags": {
         "json": "boolean",
         "help": "boolean"
@@ -310,6 +1049,7 @@
       "command": "status",
       "effect": "read",
       "operation": "OP-001",
+      "nativeInput": false,
       "flags": {
         "json": "boolean",
         "help": "boolean"
@@ -319,6 +1059,7 @@
       "command": "user session get",
       "effect": "read",
       "operation": "OP-006",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -327,7 +1068,8 @@
     },
     {
       "command": "auth status",
-      "effect": "read",
+      "effect": "local",
+      "nativeInput": false,
       "flags": {
         "json": "boolean",
         "help": "boolean"
@@ -336,6 +1078,7 @@
     {
       "command": "doctor",
       "effect": "read",
+      "nativeInput": false,
       "flags": {
         "json": "boolean",
         "help": "boolean"
@@ -345,6 +1088,7 @@
       "command": "user profile get",
       "effect": "read",
       "operation": "OP-012",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -361,6 +1105,7 @@
       "command": "user check-for-update",
       "effect": "read",
       "operation": "OP-014",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -377,6 +1122,7 @@
       "command": "dashboard metrics json",
       "effect": "read",
       "operation": "OP-015",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -393,6 +1139,7 @@
       "command": "dashboard metrics text",
       "effect": "read",
       "operation": "OP-016",
+      "nativeInput": false,
       "resultSource": "file",
       "flags": {
         "json": "boolean",
@@ -409,6 +1156,7 @@
       "command": "dashboard stats get",
       "effect": "read",
       "operation": "OP-017",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -431,6 +1179,7 @@
       "command": "dashboard stats get-top",
       "effect": "read",
       "operation": "OP-018",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -455,6 +1204,7 @@
       "command": "zone list",
       "effect": "read",
       "operation": "OP-020",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -476,6 +1226,7 @@
       "command": "zone catalog list",
       "effect": "read",
       "operation": "OP-021",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -493,6 +1244,7 @@
       "command": "zone export",
       "effect": "read",
       "operation": "OP-024",
+      "nativeInput": false,
       "resultSource": "file",
       "flags": {
         "json": "boolean",
@@ -511,6 +1263,7 @@
       "command": "zone options get",
       "effect": "read",
       "operation": "OP-031",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -531,6 +1284,7 @@
       "command": "zone permission get",
       "effect": "read",
       "operation": "OP-033",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -550,6 +1304,7 @@
       "command": "zone dnssec view-ds",
       "effect": "read",
       "operation": "OP-037",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -568,6 +1323,7 @@
       "command": "zone dnssec properties get",
       "effect": "read",
       "operation": "OP-038",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -586,6 +1342,7 @@
       "command": "zone record get",
       "effect": "read",
       "operation": "OP-050",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -606,6 +1363,7 @@
       "command": "cache list",
       "effect": "read",
       "operation": "OP-053",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -624,6 +1382,7 @@
       "command": "allowed list",
       "effect": "read",
       "operation": "OP-056",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -643,6 +1402,7 @@
       "command": "allowed export",
       "effect": "read",
       "operation": "OP-061",
+      "nativeInput": false,
       "resultSource": "file",
       "flags": {
         "json": "boolean",
@@ -660,6 +1420,7 @@
       "command": "blocked list",
       "effect": "read",
       "operation": "OP-062",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -679,6 +1440,7 @@
       "command": "blocked export",
       "effect": "read",
       "operation": "OP-067",
+      "nativeInput": false,
       "resultSource": "file",
       "flags": {
         "json": "boolean",
@@ -696,6 +1458,7 @@
       "command": "app list",
       "effect": "read",
       "operation": "OP-068",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -713,6 +1476,7 @@
       "command": "app list-store-apps",
       "effect": "read",
       "operation": "OP-069",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -730,6 +1494,7 @@
       "command": "app config get",
       "effect": "read",
       "operation": "OP-075",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -748,6 +1513,7 @@
       "command": "dns-client health-check",
       "effect": "read",
       "operation": "OP-078",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -767,6 +1533,7 @@
       "command": "settings get",
       "effect": "read",
       "operation": "OP-079",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -783,6 +1550,7 @@
       "command": "settings get-tsig-key-names",
       "effect": "read",
       "operation": "OP-081",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -799,6 +1567,7 @@
       "command": "settings backup",
       "effect": "read",
       "operation": "OP-084",
+      "nativeInput": false,
       "resultSource": "file",
       "flags": {
         "json": "boolean",
@@ -829,6 +1598,7 @@
       "command": "dhcp lease list",
       "effect": "read",
       "operation": "OP-086",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -845,6 +1615,7 @@
       "command": "dhcp scope list",
       "effect": "read",
       "operation": "OP-090",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -861,6 +1632,7 @@
       "command": "dhcp scope get",
       "effect": "read",
       "operation": "OP-091",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -878,6 +1650,7 @@
       "command": "admin session list",
       "effect": "read",
       "operation": "OP-098",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -895,6 +1668,7 @@
       "command": "admin user list",
       "effect": "read",
       "operation": "OP-101",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -912,6 +1686,7 @@
       "command": "admin user get",
       "effect": "read",
       "operation": "OP-103",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -931,6 +1706,7 @@
       "command": "admin group list",
       "effect": "read",
       "operation": "OP-106",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -948,6 +1724,7 @@
       "command": "admin group get",
       "effect": "read",
       "operation": "OP-108",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -967,6 +1744,7 @@
       "command": "admin permission list",
       "effect": "read",
       "operation": "OP-111",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -984,6 +1762,7 @@
       "command": "admin permission get",
       "effect": "read",
       "operation": "OP-112",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -1002,6 +1781,7 @@
       "command": "admin sso get",
       "effect": "read",
       "operation": "OP-114",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -1019,6 +1799,7 @@
       "command": "admin cluster state",
       "effect": "read",
       "operation": "OP-118",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -1037,6 +1818,7 @@
       "command": "admin cluster primary transfer-config",
       "effect": "read",
       "operation": "OP-125",
+      "nativeInput": false,
       "resultSource": "file",
       "flags": {
         "json": "boolean",
@@ -1055,6 +1837,7 @@
       "command": "log list",
       "effect": "read",
       "operation": "OP-134",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -1072,6 +1855,7 @@
       "command": "log download",
       "effect": "read",
       "operation": "OP-135",
+      "nativeInput": false,
       "resultSource": "file",
       "flags": {
         "json": "boolean",
@@ -1091,6 +1875,7 @@
       "command": "log query",
       "effect": "read",
       "operation": "OP-138",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -1122,6 +1907,7 @@
       "command": "log export",
       "effect": "read",
       "operation": "OP-139",
+      "nativeInput": false,
       "resultSource": "file",
       "flags": {
         "json": "boolean",
@@ -1150,6 +1936,7 @@
       "command": "admin ldap get",
       "effect": "read",
       "operation": "OP-141",
+      "nativeInput": false,
       "resultSource": "projection",
       "flags": {
         "json": "boolean",
@@ -1161,6 +1948,1446 @@
         "max-pages": "value",
         "max-elapsed-ms": "value",
         "include-groups": "value"
+      }
+    },
+    {
+      "command": "admin cluster init",
+      "effect": "write",
+      "operation": "OP-119",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin cluster primary delete",
+      "effect": "write",
+      "operation": "OP-120",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin cluster primary join",
+      "effect": "write",
+      "operation": "OP-121",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin cluster primary remove-secondary",
+      "effect": "write",
+      "operation": "OP-122",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin cluster primary delete-secondary",
+      "effect": "write",
+      "operation": "OP-123",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin cluster primary update-secondary",
+      "effect": "write",
+      "operation": "OP-124",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin cluster primary set-options",
+      "effect": "write",
+      "operation": "OP-126",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin cluster init-join",
+      "effect": "write",
+      "operation": "OP-127",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin cluster secondary leave",
+      "effect": "write",
+      "operation": "OP-128",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin cluster secondary notify",
+      "effect": "write",
+      "operation": "OP-129",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin cluster secondary resync",
+      "effect": "write",
+      "operation": "OP-130",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin cluster secondary update-primary",
+      "effect": "write",
+      "operation": "OP-131",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin cluster secondary promote",
+      "effect": "write",
+      "operation": "OP-132",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin cluster update-ip-address",
+      "effect": "write",
+      "operation": "OP-133",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "dhcp lease remove",
+      "effect": "write",
+      "operation": "OP-087",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "dhcp lease convert-to-reserved",
+      "effect": "write",
+      "operation": "OP-088",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "dhcp lease convert-to-dynamic",
+      "effect": "write",
+      "operation": "OP-089",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "dhcp scope set",
+      "effect": "write",
+      "operation": "OP-092",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "dhcp scope add-reserved-lease",
+      "effect": "write",
+      "operation": "OP-093",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "dhcp scope remove-reserved-lease",
+      "effect": "write",
+      "operation": "OP-094",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "dhcp scope enable",
+      "effect": "write",
+      "operation": "OP-095",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "dhcp scope disable",
+      "effect": "write",
+      "operation": "OP-096",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "dhcp scope delete",
+      "effect": "write",
+      "operation": "OP-097",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "user create-token",
+      "effect": "write",
+      "operation": "OP-003",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "user create-single-use-token",
+      "effect": "write",
+      "operation": "OP-004",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "user logout",
+      "effect": "write",
+      "operation": "OP-005",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "user session delete",
+      "effect": "write",
+      "operation": "OP-007",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "user change-password",
+      "effect": "write",
+      "operation": "OP-008",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "user 2fa init",
+      "effect": "write",
+      "operation": "OP-009",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "user 2fa enable",
+      "effect": "write",
+      "operation": "OP-010",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "user 2fa disable",
+      "effect": "write",
+      "operation": "OP-011",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "user profile set",
+      "effect": "write",
+      "operation": "OP-013",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin session create-token",
+      "effect": "write",
+      "operation": "OP-099",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin session delete",
+      "effect": "write",
+      "operation": "OP-100",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin user create",
+      "effect": "write",
+      "operation": "OP-102",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin user set",
+      "effect": "write",
+      "operation": "OP-104",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin user delete",
+      "effect": "write",
+      "operation": "OP-105",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin group create",
+      "effect": "write",
+      "operation": "OP-107",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin group delete",
+      "effect": "write",
+      "operation": "OP-110",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin permission set",
+      "effect": "write",
+      "operation": "OP-113",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin sso set",
+      "effect": "write",
+      "operation": "OP-115",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin sso user create",
+      "effect": "write",
+      "operation": "OP-116",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin sso user set",
+      "effect": "write",
+      "operation": "OP-117",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin ldap set",
+      "effect": "write",
+      "operation": "OP-142",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "dashboard stats delete-all",
+      "effect": "write",
+      "operation": "OP-019",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "cache delete",
+      "effect": "write",
+      "operation": "OP-054",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "cache flush",
+      "effect": "write",
+      "operation": "OP-055",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "allowed add",
+      "effect": "write",
+      "operation": "OP-057",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "allowed delete",
+      "effect": "write",
+      "operation": "OP-058",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "allowed flush",
+      "effect": "write",
+      "operation": "OP-059",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "allowed import",
+      "effect": "write",
+      "operation": "OP-060",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "blocked add",
+      "effect": "write",
+      "operation": "OP-063",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "blocked delete",
+      "effect": "write",
+      "operation": "OP-064",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "blocked flush",
+      "effect": "write",
+      "operation": "OP-065",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "blocked import",
+      "effect": "write",
+      "operation": "OP-066",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone create",
+      "effect": "write",
+      "operation": "OP-022",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone import",
+      "effect": "write",
+      "operation": "OP-023",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone clone",
+      "effect": "write",
+      "operation": "OP-025",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone convert",
+      "effect": "write",
+      "operation": "OP-026",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone enable",
+      "effect": "write",
+      "operation": "OP-027",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone disable",
+      "effect": "write",
+      "operation": "OP-028",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone delete",
+      "effect": "write",
+      "operation": "OP-029",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone resync",
+      "effect": "write",
+      "operation": "OP-030",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone options set",
+      "effect": "write",
+      "operation": "OP-032",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone permission set",
+      "effect": "write",
+      "operation": "OP-034",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone dnssec sign",
+      "effect": "write",
+      "operation": "OP-035",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone dnssec unsign",
+      "effect": "write",
+      "operation": "OP-036",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone dnssec properties convert-to-nsec",
+      "effect": "write",
+      "operation": "OP-039",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone dnssec properties convert-to-nsec3",
+      "effect": "write",
+      "operation": "OP-040",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone dnssec properties update-nsec3-params",
+      "effect": "write",
+      "operation": "OP-041",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone dnssec properties update-dns-key-ttl",
+      "effect": "write",
+      "operation": "OP-042",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone dnssec properties update-private-key",
+      "effect": "write",
+      "operation": "OP-044",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone dnssec properties delete-private-key",
+      "effect": "write",
+      "operation": "OP-045",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone dnssec properties publish-all-private-keys",
+      "effect": "write",
+      "operation": "OP-046",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone dnssec properties rollover-dns-key",
+      "effect": "write",
+      "operation": "OP-047",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone dnssec properties retire-dns-key",
+      "effect": "write",
+      "operation": "OP-048",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone dnssec properties activate-ksk-dns-key",
+      "effect": "write",
+      "operation": "OP-140",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone dnssec properties add-private-key",
+      "effect": "write",
+      "operation": "OP-043",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone record add",
+      "effect": "write",
+      "operation": "OP-049",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone record update",
+      "effect": "write",
+      "operation": "OP-051",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "zone record delete",
+      "effect": "write",
+      "operation": "OP-052",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "dns-client resolve",
+      "effect": "conditional",
+      "operation": "OP-077",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "settings set",
+      "effect": "write",
+      "operation": "OP-080",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "settings force-update-block-lists",
+      "effect": "write",
+      "operation": "OP-082",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "settings temporary-disable-blocking",
+      "effect": "write",
+      "operation": "OP-083",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "app download-and-install",
+      "effect": "write",
+      "operation": "OP-070",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "app download-and-update",
+      "effect": "write",
+      "operation": "OP-071",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "app uninstall",
+      "effect": "write",
+      "operation": "OP-074",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "app config set",
+      "effect": "write",
+      "operation": "OP-076",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "app install",
+      "effect": "write",
+      "operation": "OP-072",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "app update",
+      "effect": "write",
+      "operation": "OP-073",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "settings restore",
+      "effect": "write",
+      "operation": "OP-085",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "log delete",
+      "effect": "write",
+      "operation": "OP-136",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "log delete-all",
+      "effect": "write",
+      "operation": "OP-137",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin group set",
+      "effect": "write",
+      "operation": "OP-109",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
+      }
+    },
+    {
+      "command": "admin ldap test",
+      "effect": "write",
+      "operation": "OP-143",
+      "nativeInput": true,
+      "resultSource": "projection",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean",
+        "input-file": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "reconcile": "value"
       }
     }
   ],
@@ -1215,15 +3442,114 @@
       "log download",
       "log query",
       "log export",
-      "admin ldap get"
+      "admin ldap get",
+      "admin cluster init",
+      "admin cluster primary delete",
+      "admin cluster primary join",
+      "admin cluster primary remove-secondary",
+      "admin cluster primary delete-secondary",
+      "admin cluster primary update-secondary",
+      "admin cluster primary set-options",
+      "admin cluster init-join",
+      "admin cluster secondary leave",
+      "admin cluster secondary notify",
+      "admin cluster secondary resync",
+      "admin cluster secondary update-primary",
+      "admin cluster secondary promote",
+      "admin cluster update-ip-address",
+      "dhcp lease remove",
+      "dhcp lease convert-to-reserved",
+      "dhcp lease convert-to-dynamic",
+      "dhcp scope set",
+      "dhcp scope add-reserved-lease",
+      "dhcp scope remove-reserved-lease",
+      "dhcp scope enable",
+      "dhcp scope disable",
+      "dhcp scope delete",
+      "user create-token",
+      "user create-single-use-token",
+      "user logout",
+      "user session delete",
+      "user change-password",
+      "user 2fa init",
+      "user 2fa enable",
+      "user 2fa disable",
+      "user profile set",
+      "admin session create-token",
+      "admin session delete",
+      "admin user create",
+      "admin user set",
+      "admin user delete",
+      "admin group create",
+      "admin group delete",
+      "admin permission set",
+      "admin sso set",
+      "admin sso user create",
+      "admin sso user set",
+      "admin ldap set",
+      "dashboard stats delete-all",
+      "cache delete",
+      "cache flush",
+      "allowed add",
+      "allowed delete",
+      "allowed flush",
+      "allowed import",
+      "blocked add",
+      "blocked delete",
+      "blocked flush",
+      "blocked import",
+      "zone create",
+      "zone import",
+      "zone clone",
+      "zone convert",
+      "zone enable",
+      "zone disable",
+      "zone delete",
+      "zone resync",
+      "zone options set",
+      "zone permission set",
+      "zone dnssec sign",
+      "zone dnssec unsign",
+      "zone dnssec properties convert-to-nsec",
+      "zone dnssec properties convert-to-nsec3",
+      "zone dnssec properties update-nsec3-params",
+      "zone dnssec properties update-dns-key-ttl",
+      "zone dnssec properties update-private-key",
+      "zone dnssec properties delete-private-key",
+      "zone dnssec properties publish-all-private-keys",
+      "zone dnssec properties rollover-dns-key",
+      "zone dnssec properties retire-dns-key",
+      "zone dnssec properties activate-ksk-dns-key",
+      "zone dnssec properties add-private-key",
+      "zone record add",
+      "zone record update",
+      "zone record delete",
+      "dns-client resolve",
+      "settings set",
+      "settings force-update-block-lists",
+      "settings temporary-disable-blocking",
+      "app download-and-install",
+      "app download-and-update",
+      "app uninstall",
+      "app config set",
+      "app install",
+      "app update",
+      "settings restore",
+      "log delete",
+      "log delete-all",
+      "admin group set",
+      "admin ldap test"
     ],
     "example": [
       "status"
     ],
-    "help": "Managed Technitium reads. Run artium-axi technitium-axi <command> --help for selectors.\nAuthenticated reads return a protected result reference; retrieve it once with the same identity and current credential.\nWrites and local configuration are unavailable.\n"
+    "help": "Managed Technitium reads and native writes. Run artium-axi technitium-axi <command> --help for selectors.\nAuthenticated results are private and single-use. Writes require host Write permission, an exact native grant, preview and exact confirmation.\nLogin acquisition, explicit create-token acquisition, alternate reconciliation profiles and local configuration are unavailable.\n"
   },
   "adapterBoundary": {
-    "nativeWrites": "Published native writes are not admitted by the host; reads remain forced read-only.",
+    "nativeWrites": "Independent host and native grants; native confirmation and durable host journals.",
+    "inputFileFlags": [
+      "input-file"
+    ],
     "unsafeOverrides": [
       "config",
       "profile",
@@ -1232,7 +3558,7 @@
       "api-key",
       "allow-insecure-http",
       "result-file",
-      "input-file"
+      "reconcile-profile"
     ]
   }
 }

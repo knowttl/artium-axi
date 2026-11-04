@@ -1294,7 +1294,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'gh-axi', capable: true, enabled: false, reason: null },
       { name: 'unifi-axi', capable: true, enabled: false, reason: null },
       { name: 'proxmox-axi', capable: true, enabled: false, reason: null },
-      { name: 'technitium-axi', capable: false, enabled: false, reason: 'Artium currently admits Technitium reads only.' },
+      { name: 'technitium-axi', capable: true, enabled: false, reason: null },
       { name: 'gitea-axi', capable: true, enabled: false, reason: null },
       { name: 'kubernetes-axi', capable: true, enabled: false, reason: null },
       { name: 'ssh-axi', capable: true, enabled: false, reason: null },

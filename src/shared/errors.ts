@@ -93,6 +93,7 @@ export const errors = Object.fromEntries(Object.entries(definitions).map(([code,
   }
 
 export class ArtiumError extends Error {
+  recovery?: import('./mutation-outcome.js').CompletedMutation
   diagnostic?: Diagnostic
   readonly source: 'artium-axi'
   readonly next: string
@@ -118,5 +119,6 @@ export interface Diagnostic {
 }
 
 export function errorResponse(error: ArtiumError, requestId: string) {
-  return { error: { code: error.code, source: error.source, message: error.message, next: error.next, requestId: error.requestId ?? requestId } }
+  return { error: { code: error.code, source: error.source, message: error.message, next: error.next, requestId: error.requestId ?? requestId,
+    ...(error.recovery ? { recovery: error.recovery } : {}) } }
 }

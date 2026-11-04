@@ -9,6 +9,7 @@ import { mgWritePolicy } from '../src/server/adapters/mg.js'
 import { tenableWritePolicy } from '../src/server/adapters/tenable.js'
 import { vectraWritePolicy } from '../src/server/adapters/vectra.js'
 import { proxmoxWritePolicy } from '../src/server/adapters/proxmox.js'
+import { technitiumWritePolicy } from '../src/server/adapters/technitium.js'
 
 type WriteOperationMap = Record<string, { groups: { operations: Record<string, unknown> }[] }>
 const reviewed = writeOperations as WriteOperationMap
@@ -23,6 +24,7 @@ const policies = {
   'gh-axi': ghWritePolicy,
   'falcon-axi': falconWritePolicy,
   'proxmox-axi': proxmoxWritePolicy,
+  'technitium-axi': technitiumWritePolicy,
 }
 
 // A new upstream operation fails here until someone reviews it and adds its label, group and risk tags.

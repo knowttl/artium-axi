@@ -1,4 +1,356 @@
 {
+  "technitium-axi": {
+    "groups": [
+      {
+        "title": "Administration",
+        "operations": {
+          "OP-119": {
+            "label": "admin cluster init"
+          },
+          "OP-120": {
+            "label": "admin cluster primary delete"
+          },
+          "OP-121": {
+            "label": "admin cluster primary join"
+          },
+          "OP-122": {
+            "label": "admin cluster primary remove-secondary"
+          },
+          "OP-123": {
+            "label": "admin cluster primary delete-secondary"
+          },
+          "OP-124": {
+            "label": "admin cluster primary update-secondary"
+          },
+          "OP-126": {
+            "label": "admin cluster primary set-options"
+          },
+          "OP-127": {
+            "label": "admin cluster init-join"
+          },
+          "OP-128": {
+            "label": "admin cluster secondary leave"
+          },
+          "OP-129": {
+            "label": "admin cluster secondary notify"
+          },
+          "OP-130": {
+            "label": "admin cluster secondary resync"
+          },
+          "OP-131": {
+            "label": "admin cluster secondary update-primary"
+          },
+          "OP-132": {
+            "label": "admin cluster secondary promote"
+          },
+          "OP-133": {
+            "label": "admin cluster update-ip-address"
+          },
+          "OP-099": {
+            "label": "admin session create-token"
+          },
+          "OP-100": {
+            "label": "admin session delete"
+          },
+          "OP-102": {
+            "label": "admin user create"
+          },
+          "OP-104": {
+            "label": "admin user set"
+          },
+          "OP-105": {
+            "label": "admin user delete"
+          },
+          "OP-107": {
+            "label": "admin group create"
+          },
+          "OP-110": {
+            "label": "admin group delete"
+          },
+          "OP-113": {
+            "label": "admin permission set"
+          },
+          "OP-115": {
+            "label": "admin sso set"
+          },
+          "OP-116": {
+            "label": "admin sso user create"
+          },
+          "OP-117": {
+            "label": "admin sso user set"
+          },
+          "OP-142": {
+            "label": "admin ldap set"
+          },
+          "OP-109": {
+            "label": "admin group set"
+          },
+          "OP-143": {
+            "label": "admin ldap test"
+          }
+        }
+      },
+      {
+        "title": "DHCP",
+        "operations": {
+          "OP-087": {
+            "label": "dhcp lease remove"
+          },
+          "OP-088": {
+            "label": "dhcp lease convert-to-reserved"
+          },
+          "OP-089": {
+            "label": "dhcp lease convert-to-dynamic"
+          },
+          "OP-092": {
+            "label": "dhcp scope set"
+          },
+          "OP-093": {
+            "label": "dhcp scope add-reserved-lease"
+          },
+          "OP-094": {
+            "label": "dhcp scope remove-reserved-lease"
+          },
+          "OP-095": {
+            "label": "dhcp scope enable"
+          },
+          "OP-096": {
+            "label": "dhcp scope disable"
+          },
+          "OP-097": {
+            "label": "dhcp scope delete"
+          }
+        }
+      },
+      {
+        "title": "Users and sessions",
+        "operations": {
+          "OP-003": {
+            "label": "user create-token"
+          },
+          "OP-004": {
+            "label": "user create-single-use-token"
+          },
+          "OP-005": {
+            "label": "user logout"
+          },
+          "OP-007": {
+            "label": "user session delete"
+          },
+          "OP-008": {
+            "label": "user change-password"
+          },
+          "OP-009": {
+            "label": "user 2fa init"
+          },
+          "OP-010": {
+            "label": "user 2fa enable"
+          },
+          "OP-011": {
+            "label": "user 2fa disable"
+          },
+          "OP-013": {
+            "label": "user profile set"
+          }
+        }
+      },
+      {
+        "title": "Dashboard",
+        "operations": {
+          "OP-019": {
+            "label": "dashboard stats delete-all"
+          }
+        }
+      },
+      {
+        "title": "Cache",
+        "operations": {
+          "OP-054": {
+            "label": "cache delete"
+          },
+          "OP-055": {
+            "label": "cache flush"
+          }
+        }
+      },
+      {
+        "title": "Allowed domains",
+        "operations": {
+          "OP-057": {
+            "label": "allowed add"
+          },
+          "OP-058": {
+            "label": "allowed delete"
+          },
+          "OP-059": {
+            "label": "allowed flush"
+          },
+          "OP-060": {
+            "label": "allowed import"
+          }
+        }
+      },
+      {
+        "title": "Blocked domains",
+        "operations": {
+          "OP-063": {
+            "label": "blocked add"
+          },
+          "OP-064": {
+            "label": "blocked delete"
+          },
+          "OP-065": {
+            "label": "blocked flush"
+          },
+          "OP-066": {
+            "label": "blocked import"
+          }
+        }
+      },
+      {
+        "title": "Zones",
+        "operations": {
+          "OP-022": {
+            "label": "zone create"
+          },
+          "OP-023": {
+            "label": "zone import"
+          },
+          "OP-025": {
+            "label": "zone clone"
+          },
+          "OP-026": {
+            "label": "zone convert"
+          },
+          "OP-027": {
+            "label": "zone enable"
+          },
+          "OP-028": {
+            "label": "zone disable"
+          },
+          "OP-029": {
+            "label": "zone delete"
+          },
+          "OP-030": {
+            "label": "zone resync"
+          },
+          "OP-032": {
+            "label": "zone options set"
+          },
+          "OP-034": {
+            "label": "zone permission set"
+          },
+          "OP-035": {
+            "label": "zone dnssec sign"
+          },
+          "OP-036": {
+            "label": "zone dnssec unsign"
+          },
+          "OP-039": {
+            "label": "zone dnssec properties convert-to-nsec"
+          },
+          "OP-040": {
+            "label": "zone dnssec properties convert-to-nsec3"
+          },
+          "OP-041": {
+            "label": "zone dnssec properties update-nsec3-params"
+          },
+          "OP-042": {
+            "label": "zone dnssec properties update-dns-key-ttl"
+          },
+          "OP-044": {
+            "label": "zone dnssec properties update-private-key"
+          },
+          "OP-045": {
+            "label": "zone dnssec properties delete-private-key"
+          },
+          "OP-046": {
+            "label": "zone dnssec properties publish-all-private-keys"
+          },
+          "OP-047": {
+            "label": "zone dnssec properties rollover-dns-key"
+          },
+          "OP-048": {
+            "label": "zone dnssec properties retire-dns-key"
+          },
+          "OP-140": {
+            "label": "zone dnssec properties activate-ksk-dns-key"
+          },
+          "OP-043": {
+            "label": "zone dnssec properties add-private-key"
+          },
+          "OP-049": {
+            "label": "zone record add"
+          },
+          "OP-051": {
+            "label": "zone record update"
+          },
+          "OP-052": {
+            "label": "zone record delete"
+          }
+        }
+      },
+      {
+        "title": "DNS client",
+        "operations": {
+          "OP-077.import": {
+            "label": "Resolve and import records"
+          }
+        }
+      },
+      {
+        "title": "Settings",
+        "operations": {
+          "OP-080": {
+            "label": "settings set"
+          },
+          "OP-082": {
+            "label": "settings force-update-block-lists"
+          },
+          "OP-083": {
+            "label": "settings temporary-disable-blocking"
+          },
+          "OP-085": {
+            "label": "settings restore"
+          }
+        }
+      },
+      {
+        "title": "Applications",
+        "operations": {
+          "OP-070": {
+            "label": "app download-and-install"
+          },
+          "OP-071": {
+            "label": "app download-and-update"
+          },
+          "OP-074": {
+            "label": "app uninstall"
+          },
+          "OP-076": {
+            "label": "app config set"
+          },
+          "OP-072": {
+            "label": "app install"
+          },
+          "OP-073": {
+            "label": "app update"
+          }
+        }
+      },
+      {
+        "title": "Logs",
+        "operations": {
+          "OP-136": {
+            "label": "log delete"
+          },
+          "OP-137": {
+            "label": "log delete-all"
+          }
+        }
+      }
+    ]
+  },
   "vectra-axi": {
     "groups": [
       { "title": "Detections", "family": "qux", "operations": {

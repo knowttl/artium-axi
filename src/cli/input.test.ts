@@ -11,12 +11,90 @@ const directory = mkdtempSync(join(tmpdir(), 'artium-input-'))
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers() })
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
+test('Technitium uploads typed inputs and local configuration bytes without forwarding local paths', async () => {
+  const config = join(directory, 'technitium.config')
+  const path = join(directory, 'technitium.json')
+  const bytes = Buffer.from(' { "opaque": "CANARY-private" }\r\n')
+  writeFileSync(config, bytes, { mode: 0o600 })
+  writeFileSync(path, JSON.stringify({ parameters: { name: 'synthetic-app', config: { file: config } } }), { mode: 0o600 })
+  const request = await toolInput('technitium-axi', ['app', 'config', 'set', '--input-file=' + path])
+  expect(request.args).toEqual(['app', 'config', 'set', '--input-file', 'input.json'])
+  expect(JSON.parse(Buffer.from(request.files![0].contentBase64, 'base64').toString('utf8'))).toEqual({
+    parameters: { name: 'synthetic-app', config: { file: 'config.bin' } }, secrets: {},
+  })
+  expect(Buffer.from(request.files![1].contentBase64, 'base64')).toEqual(bytes)
+})
+
+test('Technitium local operation SecretRefs become explicit private input values', async () => {
+  const secret = join(directory, 'technitium-secret')
+  const path = join(directory, 'technitium-secret.json')
+  writeFileSync(secret, 'CANARY-exact-secret\n', { mode: 0o600 })
+  writeFileSync(path, JSON.stringify({ parameters: { user: 'synthetic-user', pass: { file: secret } } }), { mode: 0o600 })
+  const request = await toolInput('technitium-axi', ['admin', 'user', 'create', '--input-file', path])
+  expect(JSON.parse(Buffer.from(request.files![0].contentBase64, 'base64').toString('utf8'))).toEqual({
+    parameters: { user: 'synthetic-user', pass: { env: 'TECHNITIUM_INPUT_FILE_0' } },
+    secrets: { TECHNITIUM_INPUT_FILE_0: 'CANARY-exact-secret\n' },
+  })
+  expect(request.args).toEqual(['admin', 'user', 'create', '--input-file', 'input.json'])
+})
+
+test.each(['user', 'pass', 'totp'])('Technitium refuses create-token acquisition field %s before resolving its SecretRef', async field => {
+  const path = join(directory, `technitium-acquisition-${field}.json`)
+  writeFileSync(path, JSON.stringify({ parameters: { tokenName: 'synthetic-token', [field]: { file: '/unavailable/private-file' } } }), { mode: 0o600 })
+  await expect(toolInput('technitium-axi', ['user', 'create-token', '--input-file', path])).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+})
+
+test.each([
+  { name: 'TECHNITIUM_INPUT_FILE_0', parametersFirst: true, envelope: false },
+  { name: 'TECHNITIUM_INPUT_FILE_1', parametersFirst: false, envelope: false },
+  { name: 'TECHNITIUM_INPUT_FILE_0', parametersFirst: true, envelope: true },
+  { name: 'TECHNITIUM_INPUT_FILE_1', parametersFirst: false, envelope: true },
+])('Technitium preserves caller secret names across parameters and baseline (R1): %j', async ({ name, parametersFirst, envelope }) => {
+  const secret = join(directory, 'technitium-collision-secret')
+  const path = join(directory, 'technitium-collision.json')
+  writeFileSync(secret, 'CANARY-file-secret', { mode: 0o600 })
+  vi.stubEnv(name, 'CANARY-caller-secret')
+  const caller = { env: name }
+  const local = { file: secret }
+  writeFileSync(path, JSON.stringify({
+    parameters: { tsigKeys: [{ sharedSecret: parametersFirst ? local : caller }] },
+    baseline: { tsigKeys: [{ sharedSecret: parametersFirst ? caller : local }] },
+    ...(envelope ? { secrets: { [name]: 'CANARY-caller-secret' } } : {}),
+  }), { mode: 0o600 })
+  try {
+    const request = await toolInput('technitium-axi', ['settings', 'set', '--input-file', path])
+    const body = JSON.parse(Buffer.from(request.files![0].contentBase64, 'base64').toString('utf8'))
+    expect(body.secrets[name]).toBe('CANARY-caller-secret')
+    expect(body.secrets[body.parameters.tsigKeys[0].sharedSecret.env]).toBe(parametersFirst ? 'CANARY-file-secret' : 'CANARY-caller-secret')
+    expect(body.secrets[body.baseline.tsigKeys[0].sharedSecret.env]).toBe(parametersFirst ? 'CANARY-caller-secret' : 'CANARY-file-secret')
+  } finally { vi.unstubAllEnvs() }
+})
+
 test('Gitea uploads opaque attachment bytes with a managed leaf', async () => {
   const path = join(directory, 'asset.bin')
   const bytes = Buffer.from([0, 255, 13, 10])
   writeFileSync(path, bytes)
   expect(await toolInput('gitea-axi', ['issue', 'upload', '42', '--file=' + path])).toEqual({ args: ['issue', 'upload', '42', '--file=asset.bin'],
     files: [{ name: 'asset.bin', size: bytes.length, contentBase64: bytes.toString('base64') }] })
+})
+
+test('Technitium retains empty environment and file secrets in parameters and baseline (R3)', async () => {
+  const secret = join(directory, 'technitium-empty-secret')
+  const path = join(directory, 'technitium-empty.json')
+  writeFileSync(secret, '', { mode: 0o600 })
+  vi.stubEnv('TECHNITIUM_INPUT_EMPTY', '')
+  writeFileSync(path, JSON.stringify({
+    parameters: { proxyPassword: { env: 'TECHNITIUM_INPUT_EMPTY' }, tsigKeys: [{ sharedSecret: { file: secret } }] },
+    baseline: { proxyPassword: { file: secret }, tsigKeys: [{ sharedSecret: { env: 'TECHNITIUM_INPUT_EMPTY' } }] },
+  }), { mode: 0o600 })
+  try {
+    const request = await toolInput('technitium-axi', ['settings', 'set', '--input-file', path])
+    expect(JSON.parse(Buffer.from(request.files![0].contentBase64, 'base64').toString('utf8'))).toEqual({
+      parameters: { proxyPassword: { env: 'TECHNITIUM_INPUT_EMPTY' }, tsigKeys: [{ sharedSecret: { env: 'TECHNITIUM_INPUT_FILE_0' } }] },
+      baseline: { proxyPassword: { env: 'TECHNITIUM_INPUT_FILE_1' }, tsigKeys: [{ sharedSecret: { env: 'TECHNITIUM_INPUT_EMPTY' } }] },
+      secrets: { TECHNITIUM_INPUT_EMPTY: '', TECHNITIUM_INPUT_FILE_0: '', TECHNITIUM_INPUT_FILE_1: '' },
+    })
+  } finally { vi.unstubAllEnvs() }
 })
 test('Gitea secret stdin remains a separate payload', async () => {
   vi.spyOn(process, 'stdin', 'get').mockReturnValue(Readable.from(['CANARY-protected-value']) as typeof process.stdin)

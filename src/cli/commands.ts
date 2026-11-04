@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import { encode } from '@toon-format/toon'
 import { loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema, transferWarningFor } from '../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import { Client } from './http.js'
@@ -216,7 +217,9 @@ function printError(error: unknown) {
     output('stdout', `warning: ${JSON.stringify(transferWarningFor(process.argv[process.argv.indexOf('--operation') + 1] ?? ''))}\n`)
   }
   output('stdout', `error:\n${Object.entries(response.error).filter(([key, value]) => key !== 'requestId' || value)
-    .map(([key, value]) => `  ${key}: ${JSON.stringify(value)}`).join('\n')}\n`)
+    .map(([key, value]) => key === 'recovery'
+      ? `  recovery:\n${encode(value).split('\n').map(line => '    ' + line).join('\n')}`
+      : `  ${key}: ${JSON.stringify(value)}`).join('\n')}\n`)
   process.exitCode = errors[response.error.code].exitCode
 }
 

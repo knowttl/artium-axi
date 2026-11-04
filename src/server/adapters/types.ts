@@ -20,6 +20,7 @@ export interface PreparedCall {
     stream?: { duplex: boolean, spice: boolean, upload: boolean, preview: boolean, operation: string } }
   // Native-generated protocol metadata stays intact; every selected provider value is still scanned.
   publicContent?: PublicContent
+  mutationReceipt?: import('../runner/runner.js').RunnerLimits['mutationReceipt']
   // Dedicated identities can change while the call queues or its private files are materialized.
   beforeSpawn?: () => void
   kubernetesWorkflowRoot?: string
@@ -37,7 +38,7 @@ export interface PreparedCall {
     | { source: 'pipe', flag: string, argumentIndex: number } | { source: 'proxmox' })
   write?: { operation: string, target: string, checkArgs: string[], afterCheck?: string }
   preview?: { operation: string, target: string, confirm: string }
-  limits: { timeoutMs: number, terminationGraceMs?: number, runtime?: 'python', nodeHeapMiB?: number, systemCaBundle?: boolean | { endpoint: string }, privateOutput?: PrivateOutput }
+  limits: { timeoutMs: number, directoryScope?: string, terminationGraceMs?: number, runtime?: 'python', nodeHeapMiB?: number, systemCaBundle?: boolean | { endpoint: string }, privateOutput?: PrivateOutput }
 }
 
 export interface Adapter<Credential> {

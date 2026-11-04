@@ -92,7 +92,7 @@ Write capabilities below require administrator opt-in.
 | Check Point Email Security | Email investigation and response | Reads; selected writes/saves | [Credentials](docs/tool-credentials.md#check-point-email-security) |
 | UniFi | Network application, inventory and policy investigation | Managed reads and administrator-selected native writes | [Capabilities](docs/safety.md#network-appliance-reads) |
 | Proxmox | Cluster and virtual machine investigation | Managed reads and byte streams; administrator-selected native writes and private results | [Capabilities](docs/safety.md#network-appliance-reads) |
-| Technitium DNS | DNS investigation and exports | Managed authenticated reads with protected result retrieval | [Capabilities](docs/safety.md#technitium-dns) |
+| Technitium DNS | DNS investigation, exports and native writes | Managed reads and confirmed writes with private results and independent grants | [Capabilities](docs/safety.md#technitium-dns) |
 | Gitea | Repository, issue and pull request investigation and updates | Managed token, exact write grants and native preview/confirmation | [Capabilities](docs/safety.md#gitea-reads) |
 
 [Reviewed inventories](tools/inventories) own the pinned command boundary.

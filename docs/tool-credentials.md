@@ -533,7 +533,8 @@ The [reviewed Technitium inventory](../tools/inventories/technitium-axi.json) ow
 Enter a canonical HTTPS `origin`, `auth: token`, the token's actual `tokenKind` (`api`, `session` or `single-use`) and the token value in the managed credential editor.
 Artium encrypts the value and supplies a private SecretRef for each invocation.
 Changing the origin, authentication or token kind requires a replacement secret.
-Optional `caFile` contains trusted CA PEM contents, and `tlsServerName` selects the name verified by native reads, manual preflight and certificate inspection.
+Optional `caFile` contains trusted CA PEM contents, and `tlsServerName` selects the name verified by native calls, manual preflight and certificate inspection.
+For writes, configure native `writes: {"allowWrites":true,"operations":["OP-057"]}` and separately enable Write permission with the exact host operation grants; see the [write boundary](safety.md#technitium-dns).
 The connection test uses authenticated `user session get`; the unauthenticated `status` read alone does not validate a token.
 
 See [Technitium commands and result retrieval](commands.md#technitium-dns), the [supported capability boundary](safety.md#technitium-dns) and [result retention](runbook.md#retention-and-export).

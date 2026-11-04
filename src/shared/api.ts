@@ -2,10 +2,12 @@ import { z } from 'zod'
 import { kubernetesSessionPolicy } from './kubernetes.js'
 import { giteaWriteOperations, giteaTransferOperations, giteaTransferBytes } from './gitea-writes.js'
 import { errors } from './errors.js'
+import { completedMutationSchema } from './mutation-outcome.js'
 import ghInventory from '../../tools/inventories/gh-axi.json' with { type: 'json' }
 import falconInventory from '../../tools/inventories/falcon-axi.json' with { type: 'json' }
 import unifiInventory from '../../tools/inventories/unifi-axi.json' with { type: 'json' }
 import proxmoxInventory from '../../tools/inventories/proxmox-axi.json' with { type: 'json' }
+import technitiumInventory from '../../tools/inventories/technitium-axi.json' with { type: 'json' }
 
 export const inputLimits = {
   requestBytes: 16 * 1024 * 1024,
@@ -322,6 +324,7 @@ export const ghWriteOperations = ghInventory.commands.filter(route => route.effe
 export const falconWriteOperations = falconInventory.commands.filter(route => route.effect === 'write').map(route => route.command)
 export const unifiWriteOperations = unifiInventory.writeOperations
 export const proxmoxWriteOperations = proxmoxInventory.writeOperations
+export const technitiumWriteOperations = technitiumInventory.writeOperations
 export const nativeSettingsSchemas = {
   'ssh-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
   'gitea-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
@@ -347,7 +350,11 @@ export const nativeSettingsSchemas = {
     operations: z.array(z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/)).min(1).max(64) }).optional() }),
   'awx-axi': z.strictObject({ allowWrites: z.boolean().optional(), allowConfigurationWrites: z.boolean().optional() }),
   'ldap-axi': z.strictObject({}),
-  'technitium-axi': z.strictObject({}),
+  'technitium-axi': z.strictObject({
+    writes: z.strictObject({ allowWrites: z.boolean(), operations: z.array(z.enum(technitiumWriteOperations)).max(technitiumWriteOperations.length) }).optional(),
+    hostWrites: z.strictObject({ allowWrites: z.boolean(),
+      operations: z.array(z.enum(technitiumWriteOperations)).max(technitiumWriteOperations.length) }).optional(),
+  }),
   'ado-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
   'mg-axi': z.strictObject({ enabledPacks: z.array(z.enum(['entra', 'security', 'mail'])).min(1).max(3)
     .refine(packs => packs.includes('entra') && new Set(packs).size === packs.length).optional(),
@@ -370,8 +377,8 @@ export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Rec
   if (!settings || typeof settings !== 'object') return false
   if (tool === 'gitea-axi' || tool === 'unifi-axi') return (settings.writes as { allowWrites?: unknown } | undefined)?.allowWrites === true
   if (tool === 'ssh-axi') return settings.allowWrites === true
-  if (tool === 'proxmox-axi') return (settings.hostWrites as { allowWrites?: unknown } | undefined)?.allowWrites === true
-  if (tool === 'ldap-axi' || tool === 'technitium-axi') return false
+  if (tool === 'proxmox-axi' || tool === 'technitium-axi') return (settings.hostWrites as { allowWrites?: unknown } | undefined)?.allowWrites === true
+  if (tool === 'ldap-axi') return false
   if (tool === 'falcon-axi') return settings.writes === undefined ? settings.allowWrites === true
     : (settings.writes as { allowWrites?: unknown }).allowWrites === true
   if (tool === 'gh-axi' || tool === 'mg-axi' || tool === 'vectra-axi' || tool === 'tenable-axi' || tool === 'hybrid-axi' || tool === 'checkpoint-axi' || tool === 'beyondtrust-axi') {
@@ -666,6 +673,7 @@ export const errorResponseSchema = z.strictObject({
     next: z.string().min(1),
     requestId: z.string().min(1),
     diagnostic: diagnosticSchema.optional(),
+    recovery: completedMutationSchema.optional(),
   }),
 })
 export const runResponseSchema = z.union([runSuccessSchema, errorResponseSchema])
