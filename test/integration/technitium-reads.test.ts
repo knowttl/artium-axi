@@ -5,7 +5,7 @@ import * as filesystem from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { decode } from '@toon-format/toon'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createTechnitiumAdapter } from '../../src/server/adapters/technitium.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -25,7 +25,10 @@ import { withFakeService } from '../fake-service/fixture.js'
 const actor = 'synthetic-development-user'
 vi.mock('node:fs/promises', { spy: true })
 const actualFilesystem = await vi.importActual<typeof filesystem>('node:fs/promises')
+// Background health reads must not race request evidence or runner cleanup assertions.
+beforeEach(() => { vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }) })
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
   vi.mocked(filesystem.open).mockImplementation(actualFilesystem.open)
 })
