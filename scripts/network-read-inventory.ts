@@ -31,13 +31,19 @@ const proxmoxOperations = proxmoxContracts.filter(contract => contract.callable
     || contract.policy.transport === 'json' && contract.policy.effect === 'read' && contract.path.startsWith('/nodes/{node}/')))
 const proxmoxWriteOperations = [...new Set(proxmoxOperations.map(contract => contract.id))].sort()
 const proxmoxJsonOperations = proxmoxOperations.filter(contract => contract.policy.transport === 'json').map(contract => contract.id)
+const reviewedProxmoxConfigFields: Record<string, string[]> = {
+  'set /nodes/{node}/lxc/{vmid}/config': ['cores', 'description', 'digest', 'hostname', 'memory', 'node', 'onboot', 'vmid'],
+  'set /nodes/{node}/qemu/{vmid}/config': ['cores', 'description', 'digest', 'memory', 'name', 'node', 'onboot', 'vmid'],
+}
 const proxmoxCommands = proxmox.commands.filter(entry => !entry.stream && (entry.effect === 'read'
   ? !entry.privateResult && (entry.command.startsWith('schema ') || reviewedProxmoxReads.has(entry.command))
   : entry.operationId && proxmoxJsonOperations.includes(entry.operationId))).map(entry => ({ ...entry,
     privateResult: proxmoxOperations.some(contract => contract.id === entry.operationId && contract.policy.secrets === 'private-result'),
     sensitiveInputs: [...new Set(proxmoxOperations.filter(contract => contract.id === entry.operationId)
       .flatMap(contract => contract.policy.sensitiveInputs ?? []))],
-    flags: { ...entry.flags, ...(entry.effect === 'write' ? { 'protected-input': 'boolean' } : {}) } }))
+    flags: { ...Object.fromEntries(Object.entries(entry.flags).filter(([name]) => !reviewedProxmoxConfigFields[entry.command]
+      || !name.startsWith('api-') || reviewedProxmoxConfigFields[entry.command].includes(name.slice(4)))),
+      ...(entry.effect === 'write' ? { 'protected-input': 'boolean' } : {}) } }))
 const pins = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8')) as Record<string, { version: string, integrity: string }>
 const unsafeOverrides = ['config', 'profile', 'origin', 'token', 'api-key', 'allow-insecure-http', 'session', 'body-file']
 const qualifiedGrants: Record<string, string> = { 'network create': 'management', 'network update': 'management',
