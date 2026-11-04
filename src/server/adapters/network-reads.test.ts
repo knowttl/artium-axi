@@ -99,3 +99,15 @@ test.each(['status', 'log', 'wait'])('Proxmox task %s rejects malformed journal 
   const adapter = createProxmoxAdapter(source)
   expect(() => adapter.validateArgs(['task', action, '--journal', 'synthetic-intent'])).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
 })
+
+test.each(['/cluster/firewall/options', '/nodes/{node}/firewall/options',
+  '/nodes/{node}/lxc/{vmid}/firewall/options', '/nodes/{node}/qemu/{vmid}/firewall/options'])(
+  'Proxmox admits firewall options read %s', path => {
+    expect(() => createProxmoxAdapter(source).validateArgs(['get', path])).not.toThrow()
+  })
+
+test.each([['get', '/nodes/{node}/network'], ['ls', '/nodes/{node}/network'],
+  ['get', '/cluster/firewall/rules'], ['ls', '/cluster/firewall/aliases'],
+  ['set', '/cluster/firewall/options']])('Proxmox refuses unreviewed private reads and new writes %j', (...args) => {
+  expect(() => createProxmoxAdapter(source).validateArgs(args)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
+})

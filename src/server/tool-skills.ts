@@ -92,6 +92,7 @@ The administrator stores one API token (preferred) or username/password; users n
 Password tickets are acquired automatically and reused in memory for at most five minutes, with automatic reacquisition after expiry.
 TFA accounts cannot sign in automatically and require an API token; API-token failures never fall back to password.
 Use artium-axi proxmox-axi get /version --help and artium-axi tools show proxmox-axi for admitted commands.
+Firewall option reads are available at cluster, node, QEMU and LXC scopes; private firewall and node-network reads are unavailable.
 Ordinary reads work with writes off.
 Both the native profile writes.operations and the independent administrator hostWrites operation list must grant every mutation and batch child.
 Grant node-relative read dependencies explicitly for batches; ordinary reads do not require write grants.

@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { decode } from '@toon-format/toon'
-import { expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createUnifiAdapter } from '../../src/server/adapters/unifi.js'
 import { createProxmoxAdapter } from '../../src/server/adapters/proxmox.js'
@@ -30,6 +30,10 @@ const cases = [
     executable: 'dist/cli.js', skill: 'generated/SKILL.md', secret: 'CANARY-gitea-token' },
 ] as const
 type Case = typeof cases[number]
+
+// Background health reads must not race request evidence or runner cleanup assertions.
+beforeEach(() => { vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] }) })
+afterEach(() => { vi.useRealTimers() })
 
 async function withTool(item: Case, check: (fixture: {
   app: ReturnType<typeof createApp>, db: ReturnType<typeof openStore>, headers: { authorization: string },
@@ -101,7 +105,7 @@ test.each([
     const command = `artium-axi proxmox-axi schema ${words.join(' ')}`
     expect(document.command).toBe(command)
     expect(document.usage).toBe(`${command} [flags]`)
-    expect(document.flags).toEqual({ catalogue: 'value', format: 'value', help: 'boolean' })
+    expect(document.flags).toEqual({ catalogue: 'value', format: 'value', help: 'boolean', offset: 'value', view: 'value' })
     expect(document.examples).toEqual([`${command} --help`])
     expect((await evidence()).requests).toEqual([])
   })

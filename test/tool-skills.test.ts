@@ -53,6 +53,7 @@ test.each(toolSchema.options)('%s overlay preserves tool guidance with managed c
     expect(skill).toContain('users need no separate Proxmox sign-in')
     expect(skill).toContain('result take <operation> <id>')
     expect(skill).toContain('TFA accounts cannot sign in automatically')
+    expect(skill).toContain('private firewall and node-network reads are unavailable')
     return
   }
   expect(skill).toContain('Artium supplies the managed credentials')
