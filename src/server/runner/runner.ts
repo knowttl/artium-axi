@@ -49,7 +49,7 @@ export interface RunnerLimits {
   }
   bytePipe?: { environment: string, connect: (socket: Duplex, signal: AbortSignal) => Promise<void> }
   privateOutput?: PrivateOutput
-  mutationReceipt?: (stdout: string) => MutationReceipt | undefined | Promise<MutationReceipt | undefined>
+  mutationReceipt?: (stdout: string, capture: (receipt: MutationReceipt) => void) => void | Promise<void>
 }
 
 export interface RunnerResult {
@@ -495,10 +495,12 @@ async function execute(
         })
       })
       if (!result.truncated.stdout && limits.mutationReceipt) {
-        const receipt = await limits.mutationReceipt(result.stdout)
-        if (receipt) result.completedMutation = Object.freeze({ receipt, exitCode: result.exitCode,
-          durationMs: performance.now() - started, outputBytes: Object.freeze({ ...result.outputBytes }),
-          truncated: Object.freeze({ ...result.truncated }) })
+        const execution = result
+        await limits.mutationReceipt(execution.stdout, receipt => {
+          execution.completedMutation = Object.freeze({ receipt, exitCode: execution.exitCode,
+            durationMs: performance.now() - started, outputBytes: Object.freeze({ ...execution.outputBytes }),
+            truncated: Object.freeze({ ...execution.truncated }) })
+        })
       }
       if (result.exitCode !== 0) {
         const original = new Error(result.stderr)

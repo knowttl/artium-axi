@@ -17,7 +17,7 @@ import { technitiumInput, technitiumObject } from '../../shared/technitium-input
 import { inputLimits } from '../../shared/api.js'
 import { RunnerError } from '../runner/runner.js'
 import { decode } from '@toon-format/toon'
-import { mutationReceiptSchema } from '../../shared/mutation-outcome.js'
+import { mutationReceiptSchema, type MutationReceipt } from '../../shared/mutation-outcome.js'
 
 export const technitiumProfile = new CredentialProfile(inventory.credentialSchema, 'technitium-axi')
 const nativePolicy = writePolicy({ supportedOperations: inventory.writeOperations,
@@ -104,7 +104,7 @@ function argumentsForCall(args: readonly string[], input: RunnerInput = {}) {
     effect: write && seen.has('execute') ? 'write' as const : 'read' as const }
 }
 
-async function journalReceipt(call: ReturnType<typeof argumentsForCall>, writeLog: string, tokenKind: unknown) {
+async function journalReceipt(call: ReturnType<typeof argumentsForCall>, writeLog: string, tokenKind: unknown, capture: (receipt: MutationReceipt) => void) {
   const handle = await open(join(`${writeLog}.d`, `${call.confirm}.json`), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
   let bytes: Buffer | undefined
   try {
@@ -122,11 +122,12 @@ async function journalReceipt(call: ReturnType<typeof argumentsForCall>, writeLo
     const cluster = entry.clusterBefore
       ? (await import(pathToFileURL(join(dirname(toolPaths['technitium-axi']), '../dist/cluster.js')).href))
         .clusterPreview(call.operation, call.body!.parameters, { clusterNodes: [] }) : undefined
-    return mutationReceiptSchema.parse({ auditId: entry.auditId, operation: entry.operation,
+    const receipt = mutationReceiptSchema.parse({ auditId: entry.auditId, operation: entry.operation,
       status: entry.state === 'completed' ? 'ok' : entry.state,
       ...(tokenKind === 'single-use' && ['completed', 'partial'].includes(entry.state) ? { credential: 'consumed' } : {}),
       ...(entry.state === 'revoke-failed' ? { revoked: false, localRemoved: entry.localRemoved } : {}), cluster,
       journal: { digest: entry.digest, state: entry.state, postconditionHash: entry.postconditionHash, resyncSerial: entry.resyncSerial } })
+    capture(receipt)
   } finally { bytes?.fill(0); await handle.close() }
 }
 
@@ -166,14 +167,14 @@ export function createTechnitiumAdapter(source: SecretSource, writeLog?: string)
           ? call.resultSource === 'file'
             ? { source: 'file', name: 'technitium-result.bin', flag: '--result-file', operation: call.operation }
             : { source: 'projection', operation: call.operation } : undefined,
-        mutationReceipt: call.effect === 'write' ? async stdout => {
+        mutationReceipt: call.effect === 'write' ? async (stdout, capture) => {
           let document: unknown
           try { document = stdout.trimStart().startsWith('{') ? JSON.parse(stdout) : decode(stdout) } catch { return }
           const receipt = mutationReceiptSchema.safeParse(document)
-          if (receipt.success && receipt.data.operation === call.operation) return receipt.data
+          if (receipt.success && receipt.data.operation === call.operation) return capture(receipt.data)
           if (technitiumObject(document) && technitiumObject(document.error)
             && ['CONFIG_INVALID', 'CONFIG_INSECURE'].includes(String(document.error.code))) {
-            try { return await journalReceipt(call, writeLog!, technitiumObject(credential) ? credential.tokenKind : undefined) }
+            try { await journalReceipt(call, writeLog!, technitiumObject(credential) ? credential.tokenKind : undefined, capture) }
             catch (error) {
               const failure = new RunnerError('UNKNOWN_OUTCOME')
               Object.defineProperty(failure, 'cause', { value: error })

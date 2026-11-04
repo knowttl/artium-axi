@@ -1,10 +1,11 @@
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync } from 'node:fs'
+import * as filesystem from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { decode } from '@toon-format/toon'
-import { expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createTechnitiumAdapter } from '../../src/server/adapters/technitium.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -22,11 +23,18 @@ import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { withFakeService } from '../fake-service/fixture.js'
 
 const actor = 'synthetic-development-user'
+vi.mock('node:fs/promises', { spy: true })
+const actualFilesystem = await vi.importActual<typeof filesystem>('node:fs/promises')
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.mocked(filesystem.open).mockImplementation(actualFilesystem.open)
+})
 async function withTechnitium(check: (fixture: {
   app: ReturnType<typeof createApp>, db: ReturnType<typeof openStore>, store: ReturnType<typeof createCredentialStore>,
   headers: { authorization: string }, directory: string,
   cli: (args: string[]) => Promise<{ stdout: string, stderr: string }>,
   evidence: () => Promise<{ requests: { method: string, path: string, canaryReceived: boolean, fields: Record<string, string> }[] }>,
+  failures: Error[], journalCloseFailure?: Error,
 }) => Promise<void>, nativeResultFailure?: string) {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
@@ -42,16 +50,29 @@ async function withTechnitium(check: (fixture: {
     Object.assign(toolPaths, { 'technitium-axi': join(process.cwd(), 'tools/node_modules/@knowttl/technitium-axi/bin/technitium-axi.js') })
     Object.assign(toolSkillPaths, { 'technitium-axi': join(process.cwd(), 'tools/node_modules/@knowttl/technitium-axi/README.md') })
     const adapter = createTechnitiumAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
+    const journalCloseFailure = nativeResultFailure === 'journal-close'
+      ? Object.assign(new Error('synthetic journal close failure'), { code: 'EIO' }) : undefined
+    if (journalCloseFailure) vi.spyOn(filesystem, 'open').mockImplementation(async (...input) => {
+      const handle = await actualFilesystem.open(...input)
+      if (String(input[0]).startsWith(join(directory, 'writes.log.d') + '/')) {
+        const close = handle.close.bind(handle)
+        vi.spyOn(handle, 'close').mockImplementation(async () => { await close(); throw journalCloseFailure })
+      }
+      return handle
+    })
     if (nativeResultFailure) {
       const prepare = adapter.prepare.bind(adapter)
       adapter.prepare = async (...input) => {
         const call = await prepare(...input)
-        return { ...call, args: [join(process.cwd(), 'test/fake-tool/technitium-publication-fault.mjs'), nativeResultFailure, ...call.args],
+        return { ...call, args: [join(process.cwd(), 'test/fake-tool/technitium-publication-fault.mjs'),
+          nativeResultFailure === 'journal-close' ? 'rename' : nativeResultFailure, ...call.args],
           fileArguments: call.fileArguments?.map(index => index + 2) }
       }
     }
     const app = createApp({ db, runner, audit: new Audit(db), environment: {}, credentialStore: store,
       resolver: new SharedIdentityResolver(store), adapters: [adapter] })
+    const failures: Error[] = []
+    app.addHook('onError', async (_request, _reply, error) => { failures.push(error) })
     try {
       const url = await app.listen({ host: '127.0.0.1', port: 0 })
       const token = issueTestAccessToken(db, actor)
@@ -59,7 +80,7 @@ async function withTechnitium(check: (fixture: {
       new SessionStore(url, join(directory, 'artium-axi/session.json')).write({ status: 'authenticated',
         accessToken: token, refreshToken: 'CANARY-refresh', accessExpiresAt: Date.now() + 3_600_000,
         familyExpiresAt: Date.now() + 43_200_000 })
-      await check({ app, db, store, directory, headers: { authorization: `Bearer ${token}` },
+      await check({ app, db, store, directory, failures, journalCloseFailure, headers: { authorization: `Bearer ${token}` },
         cli: args => promisify(execFile)(process.execPath, [bundle, ...args], { timeout: 10_000,
           env: { PATH: process.env.PATH, HOME: directory, XDG_CONFIG_HOME: directory, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' } }),
         evidence: async () => JSON.parse(await send('/__evidence')) })
@@ -72,11 +93,11 @@ async function withTechnitium(check: (fixture: {
   })
 }
 
-test.each(['destination', 'open', 'writeFile', 'sync', 'close', 'rename', 'parent-open', 'parent-sync', 'parent-close']
+test.each(['destination', 'open', 'writeFile', 'sync', 'close', 'rename', 'parent-open', 'parent-sync', 'parent-close', 'journal-close']
   .flatMap(failure => [{ failure, format: 'JSON', flags: ['--json'], parse: JSON.parse },
     { failure, format: 'TOON', flags: [], parse: decode }] ))(
   'native $failure publication failure retains completed journal recovery ($format, R7)', async item => {
-    await withTechnitium(async ({ app, db, directory, headers, evidence }) => {
+    await withTechnitium(async ({ app, db, directory, headers, evidence, failures, journalCloseFailure }) => {
       const writes = { allowWrites: true, operations: ['OP-080'] }
       db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?')
         .run(JSON.stringify({ writes, hostWrites: writes }), 'technitium-axi')
@@ -97,6 +118,7 @@ test.each(['destination', 'open', 'writeFile', 'sync', 'close', 'rename', 'paren
         exitCode: 2, receipt: { auditId: journal.auditId, status: 'ok', operation: 'OP-080',
           journal: { state: 'completed', digest: preview.preview.digest, postconditionHash: journal.postconditionHash } },
       } })
+      expect((failures[0] as Error & { cause?: { cause?: unknown } })?.cause?.cause).toBe(journalCloseFailure)
       expect((await evidence()).requests.filter(request => request.path === '/api/settings/set'))
         .toEqual([{ method: 'POST', path: '/api/settings/set', canaryReceived: true, fields: { enableBlocking: 'true' } }])
       const record = db.prepare("SELECT outcome, native_audit_id, native_journal_result FROM audit WHERE event = 'run-terminal' ORDER BY id DESC LIMIT 1").get() as {
