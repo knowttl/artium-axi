@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.33](https://github.com/knowttl/artium-axi/compare/v0.0.32...v0.0.33) (2026-11-04)
+
+
+### Features
+
+* support confirmed Technitium native writes ([#305](https://github.com/knowttl/artium-axi/issues/305)) ([e104130](https://github.com/knowttl/artium-axi/commit/e10413046f25ceab52e9357b8b221147743c3ca0))
+
 ## [0.0.32](https://github.com/knowttl/artium-axi/compare/v0.0.31...v0.0.32) (2026-11-03)
 
 
