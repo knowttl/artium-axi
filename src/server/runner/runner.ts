@@ -49,7 +49,7 @@ export interface RunnerLimits {
   }
   bytePipe?: { environment: string, connect: (socket: Duplex, signal: AbortSignal) => Promise<void> }
   privateOutput?: PrivateOutput
-  mutationReceipt?: (stdout: string) => MutationReceipt | undefined
+  mutationReceipt?: (stdout: string) => MutationReceipt | undefined | Promise<MutationReceipt | undefined>
 }
 
 export interface RunnerResult {
@@ -245,6 +245,7 @@ async function execute(
   let kubernetesProfile: string | undefined
   const privateChunks: Buffer[] = []
   let result: RunnerResult | undefined
+  let pending: Error | undefined
   try {
     try {
       if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
@@ -493,8 +494,8 @@ async function execute(
           finish()
         })
       })
-      if (result.exitCode === 0 && !result.truncated.stdout && limits.mutationReceipt) {
-        const receipt = limits.mutationReceipt(result.stdout)
+      if (!result.truncated.stdout && limits.mutationReceipt) {
+        const receipt = await limits.mutationReceipt(result.stdout)
         if (receipt) result.completedMutation = Object.freeze({ receipt, exitCode: result.exitCode,
           durationMs: performance.now() - started, outputBytes: Object.freeze({ ...result.outputBytes }),
           truncated: Object.freeze({ ...result.truncated }) })
@@ -536,6 +537,9 @@ async function execute(
       }
       result.durationMs = performance.now() - started
       return result
+    } catch (error) {
+      if (error instanceof Error) pending = error
+      throw error
     } finally {
       for (const chunk of privateChunks) chunk.fill(0)
       const cleanup = await Promise.allSettled([
@@ -543,7 +547,11 @@ async function execute(
         rm(directory, { recursive: true, force: true }),
       ])
       const failures = cleanup.filter(result => result.status === 'rejected').map(result => result.reason)
-      if (failures.length) throw new AggregateError(failures, 'Private call cleanup failed')
+      if (failures.length) {
+        const failure = new AggregateError(failures, 'Private call cleanup failed')
+        if (pending) Object.defineProperty(pending, 'cleanupFailure', { value: failure })
+        else throw failure
+      }
     }
   } catch (error) {
     if (!result) throw error

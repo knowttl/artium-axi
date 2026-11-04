@@ -8,6 +8,12 @@ export const mutationReceiptSchema = z.object({
   mutation: z.literal('suppressed').optional(),
   revoked: z.boolean().optional(),
   localRemoved: z.boolean().optional(),
+  journal: z.object({
+    digest: z.string().regex(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\.[a-f0-9]{64}$/),
+    state: z.enum(['completed', 'partial', 'reconciled', 'revoke-failed']),
+    postconditionHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+    resyncSerial: z.number().int().nonnegative().optional(),
+  }).readonly().optional(),
   cluster: z.object({
     scope: z.enum(['selected node', 'named node via vendor proxy']),
     completion: z.enum(['scheduled, not synchronized', 'selected-node state only']),

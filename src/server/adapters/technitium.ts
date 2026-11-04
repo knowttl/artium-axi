@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto'
-import { isAbsolute } from 'node:path'
+import { constants } from 'node:fs'
+import { open } from 'node:fs/promises'
+import { dirname, isAbsolute, join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { z } from 'zod'
 import inventory from '../../../tools/inventories/technitium-axi.json' with { type: 'json' }
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
@@ -9,7 +13,9 @@ import type { Adapter } from './types.js'
 import { CredentialProfile } from './credential-profile.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 import { writePolicy } from './write-policy.js'
-import { technitiumInput } from '../../shared/technitium-input.js'
+import { technitiumInput, technitiumObject } from '../../shared/technitium-input.js'
+import { inputLimits } from '../../shared/api.js'
+import { RunnerError } from '../runner/runner.js'
 import { decode } from '@toon-format/toon'
 import { mutationReceiptSchema } from '../../shared/mutation-outcome.js'
 
@@ -51,7 +57,7 @@ function argumentsForCall(args: readonly string[], input: RunnerInput = {}) {
   if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) {
     if (input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
     return { args: [...args], invocation: { command: 'version', help: false }, operation: undefined, resultSource: undefined,
-      write: false, executing: false, body: undefined, effect: 'read' as const }
+      write: false, executing: false, body: undefined, confirm: undefined, effect: 'read' as const }
   }
   const firstFlag = args.findIndex(arg => arg.startsWith('-'))
   const words = firstFlag < 0 ? args : args.slice(0, firstFlag)
@@ -94,8 +100,34 @@ function argumentsForCall(args: readonly string[], input: RunnerInput = {}) {
   if (executing && !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\.[a-f0-9]{64}$/.test(values.get('confirm') ?? '')) throw new ArtiumError('INVALID_INPUT')
   if (seen.has('reconcile') && !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(values.get('reconcile') ?? '')) throw new ArtiumError('INVALID_INPUT')
   return { args: normalized, invocation: { command: command || 'home', help }, operation,
-    resultSource: route.resultSource, write, executing, body,
+    resultSource: route.resultSource, write, executing, body, confirm: values.get('confirm'),
     effect: write && seen.has('execute') ? 'write' as const : 'read' as const }
+}
+
+async function journalReceipt(call: ReturnType<typeof argumentsForCall>, writeLog: string, tokenKind: unknown) {
+  const handle = await open(join(`${writeLog}.d`, `${call.confirm}.json`), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
+  let bytes: Buffer | undefined
+  try {
+    const info = await handle.stat()
+    if (!info.isFile() || info.uid !== process.getuid?.() || (info.mode & 0o077) !== 0 || info.size > inputLimits.requestBytes) throw new RunnerError('UNKNOWN_OUTCOME')
+    bytes = await handle.readFile()
+    if (bytes.length > inputLimits.requestBytes) throw new RunnerError('UNKNOWN_OUTCOME')
+    const receiptFields = mutationReceiptSchema.unwrap().shape
+    const entry = receiptFields.journal.unwrap().unwrap().extend({
+      auditId: receiptFields.auditId,
+      operation: z.literal(call.operation!), digest: z.literal(call.confirm!),
+      localRemoved: z.boolean().optional(),
+      clusterBefore: z.object({ clusterNodes: z.array(z.unknown()) }).optional(),
+    }).parse(JSON.parse(bytes.toString('utf8')))
+    const cluster = entry.clusterBefore
+      ? (await import(pathToFileURL(join(dirname(toolPaths['technitium-axi']), '../dist/cluster.js')).href))
+        .clusterPreview(call.operation, call.body!.parameters, { clusterNodes: [] }) : undefined
+    return mutationReceiptSchema.parse({ auditId: entry.auditId, operation: entry.operation,
+      status: entry.state === 'completed' ? 'ok' : entry.state,
+      ...(tokenKind === 'single-use' && ['completed', 'partial'].includes(entry.state) ? { credential: 'consumed' } : {}),
+      ...(entry.state === 'revoke-failed' ? { revoked: false, localRemoved: entry.localRemoved } : {}), cluster,
+      journal: { digest: entry.digest, state: entry.state, postconditionHash: entry.postconditionHash, resyncSerial: entry.resyncSerial } })
+  } finally { bytes?.fill(0); await handle.close() }
 }
 
 export function createTechnitiumAdapter(source: SecretSource, writeLog?: string): Adapter<unknown> {
@@ -114,7 +146,8 @@ export function createTechnitiumAdapter(source: SecretSource, writeLog?: string)
       if (call.write && (!state.enabled || !state.allowedOperations.includes(call.operation!)
         || native?.allowWrites !== true || !native.operations?.includes(call.operation!))) throw new ArtiumError('FLAG_BLOCKED')
       if (call.body && (!writeLog || !isAbsolute(writeLog))) throw new ArtiumError('TEMP_UNAVAILABLE')
-      const prepared = technitiumProfile.prepare('technitium-axi', await source.getCredential(reference), writeLog, !state.enabled)
+      const credential = await source.getCredential(reference)
+      const prepared = technitiumProfile.prepare('technitium-axi', credential, writeLog, !state.enabled)
       const nativeArgs = [toolPaths['technitium-axi'], ...call.args]
       const childArgs = call.body ? ['technitium-input.mjs', ...nativeArgs] : nativeArgs
       if (call.body) {
@@ -133,11 +166,20 @@ export function createTechnitiumAdapter(source: SecretSource, writeLog?: string)
           ? call.resultSource === 'file'
             ? { source: 'file', name: 'technitium-result.bin', flag: '--result-file', operation: call.operation }
             : { source: 'projection', operation: call.operation } : undefined,
-        mutationReceipt: call.effect === 'write' ? stdout => {
+        mutationReceipt: call.effect === 'write' ? async stdout => {
           let document: unknown
           try { document = stdout.trimStart().startsWith('{') ? JSON.parse(stdout) : decode(stdout) } catch { return }
           const receipt = mutationReceiptSchema.safeParse(document)
           if (receipt.success && receipt.data.operation === call.operation) return receipt.data
+          if (technitiumObject(document) && technitiumObject(document.error)
+            && ['CONFIG_INVALID', 'CONFIG_INSECURE'].includes(String(document.error.code))) {
+            try { return await journalReceipt(call, writeLog!, technitiumObject(credential) ? credential.tokenKind : undefined) }
+            catch (error) {
+              const failure = new RunnerError('UNKNOWN_OUTCOME')
+              Object.defineProperty(failure, 'cause', { value: error })
+              throw failure
+            }
+          }
         } : undefined,
         ...(call.effect === 'write' ? { write: { operation: call.operation!,
           target: inventory.writeContracts.find(contract => contract.id === call.operation?.split('.')[0])!.path,

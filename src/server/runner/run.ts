@@ -87,6 +87,22 @@ export async function runTool<Credential>(
     let failure: Extract<AuditEvent, { event: 'run-terminal' }>['failure']
     let privateBytes: Buffer | undefined
     let completed: RunnerResult | undefined
+    const recordTerminal = (event: Extract<AuditEvent, { event: 'run-terminal' }> & { outputBytes: RunnerResult['outputBytes'] }, primary?: unknown) => {
+      try { audit.record(event) }
+      catch (error) {
+        reservation?.cancel()
+        if (primary instanceof Error) {
+          Object.defineProperty(primary, 'auditFailure', { value: error })
+          return
+        }
+        const failure = Object.assign(new RunnerError('AUDIT_UNAVAILABLE', undefined, event.completedMutation
+          ? `Native audit ID ${event.completedMutation.receipt.auditId}; native status ${event.completedMutation.receipt.status}. Keep the original input and confirmation. Inspect the native journal and trusted state; never replay.` : undefined),
+        { recovery: event.completedMutation, durationMs: event.durationMs, outputBytes: event.outputBytes,
+          truncated: completed?.truncated ?? { stdout: false, stderr: false }, processStarted: !!completed || !!event.completedMutation })
+        Object.defineProperty(failure, 'cause', { value: error })
+        throw failure
+      }
+    }
     try {
       const reference = adapter.prepareForCaller ? undefined : await resolver.resolve(userId, adapter.name)
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
@@ -148,6 +164,10 @@ export async function runTool<Credential>(
         return invoke()
       })
       if (!prepared.preview) completed = { ...result, outputBytes: { ...result.outputBytes } }
+      if (result.exitCode !== 0 && result.completedMutation) throw Object.assign(new RunnerError('UNKNOWN_OUTCOME'), {
+        processStarted: true, durationMs: result.durationMs, outputBytes: result.outputBytes, truncated: result.truncated,
+        recovery: result.completedMutation,
+      })
       if (protectedResult?.source === 'projection' && result.exitCode === 0) privateBytes = Buffer.from(result.stdout)
       if (privateBytes && reservation && reference) {
         authenticate(db, token)
@@ -201,18 +221,18 @@ export async function runTool<Credential>(
           Object.defineProperty(failure, 'cause', { value: error })
           error = failure
         }
-        audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(false) ?? 'unknown',
+        recordTerminal({ ...identity, event: 'run-terminal', action: await journal?.action(false) ?? 'unknown',
           outcome: unknownOutcome ? 'UNKNOWN_OUTCOME' : error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR',
           errorCode: completed && error instanceof ArtiumError ? error.code : undefined, exitCode: recovery?.exitCode ?? completed?.exitCode ?? null,
           nativeAuditId: recovery?.receipt.auditId, completedMutation: recovery,
           durationMs: execution?.durationMs ?? Date.now() - started,
-          outputBytes: execution?.outputBytes ?? { stdout: 0, stderr: 0 }, failure })
+          outputBytes: execution?.outputBytes ?? { stdout: 0, stderr: 0 }, failure }, error)
         throw error
       }
     } finally { privateBytes?.fill(0) }
     const errorCode = result.exitCode === 0 ? null : toolFailureCode(result.stdout, result.stderr) ?? null
     const outcome = errorCode === 'OUTCOME_UNKNOWN' ? 'UNKNOWN_OUTCOME' : 'completed'
-    audit.record({ ...identity, event: 'run-terminal', action: await journal?.action(result.exitCode === 0, result.stdout) ?? 'unknown',
+    recordTerminal({ ...identity, event: 'run-terminal', action: await journal?.action(result.exitCode === 0, result.stdout) ?? 'unknown',
       outcome, exitCode: result.exitCode,
       nativeAuditId: result.completedMutation?.receipt.auditId ?? await journal?.auditId?.(), completedMutation: result.completedMutation,
       errorCode,

@@ -20,7 +20,7 @@ export interface PreparedCall {
     stream?: { duplex: boolean, spice: boolean, upload: boolean, preview: boolean, operation: string } }
   // Native-generated protocol metadata stays intact; every selected provider value is still scanned.
   publicContent?: PublicContent
-  mutationReceipt?: (stdout: string) => import('../../shared/mutation-outcome.js').MutationReceipt | undefined
+  mutationReceipt?: import('../runner/runner.js').RunnerLimits['mutationReceipt']
   // Dedicated identities can change while the call queues or its private files are materialized.
   beforeSpawn?: () => void
   kubernetesWorkflowRoot?: string

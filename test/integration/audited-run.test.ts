@@ -37,6 +37,7 @@ vi.mock('node:fs/promises', { spy: true })
 vi.mock('node:child_process', { spy: true })
 
 const actualFilesystem = await vi.importActual<typeof filesystem>('node:fs/promises')
+const actualChildProcess = await vi.importActual<typeof childProcess>('node:child_process')
 
 let directory: string
 let db: Database.Database
@@ -78,6 +79,7 @@ afterEach(async () => {
   vi.restoreAllMocks()
   vi.mocked(filesystem.open).mockImplementation(actualFilesystem.open)
   vi.mocked(filesystem.rm).mockImplementation(actualFilesystem.rm)
+  vi.mocked(childProcess.spawn).mockImplementation(actualChildProcess.spawn)
   vi.useRealTimers()
   await runner.shutdown()
   db.close()
@@ -489,7 +491,11 @@ test.each([
   { failure: 'call cleanup', code: 'UNKNOWN_OUTCOME', cleanup: 'call', cause: { cause: { errors: [{ code: 'EROFS' }] } } },
   { failure: 'profile cleanup', code: 'UNKNOWN_OUTCOME', cleanup: 'profile', cause: { cause: { errors: [{ code: 'EROFS' }] } } },
   { failure: 'profile temporary cleanup', code: 'UNKNOWN_OUTCOME', cleanup: 'profile-tmp', cause: { cause: { errors: [{ code: 'EROFS' }] } } },
-  { failure: 'read and cleanup', code: 'UNKNOWN_OUTCOME', fileFailure: 'readFile' as const, cleanup: 'call', cause: { cause: { errors: [{ code: 'EROFS' }] } } },
+  { failure: 'read and cleanup', code: 'UNKNOWN_OUTCOME', fileFailure: 'readFile' as const, cleanup: 'call', cause: { cause: { code: 'EIO', cleanupFailure: { errors: [{ code: 'EROFS' }] } } } },
+  { failure: 'terminal audit', code: 'AUDIT_UNAVAILABLE', terminalAudit: true, audit: [], published: [{ outcome: 'success' }],
+    cause: { code: 'AUDIT_UNAVAILABLE', cause: { code: 'SQLITE_CONSTRAINT_TRIGGER' } } },
+  { failure: 'read and terminal audit', code: 'UNKNOWN_OUTCOME', fileFailure: 'readFile' as const, terminalAudit: true, audit: [], secondaryAuditCode: 'AUDIT_UNAVAILABLE',
+    cause: { cause: { code: 'EIO' } } },
   { failure: 'token revocation', code: 'TOKEN_INVALID', revoke: () => { db.exec('UPDATE tokens SET revoked_at = 1') }, cause: { code: 'TOKEN_INVALID' } },
   { failure: 'token expiry', code: 'TOKEN_EXPIRED', revoke: () => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(Date.now() + tokenDefaults.accessMs) }, cause: { code: 'TOKEN_EXPIRED' } },
   { failure: 'tool revocation', code: 'TOOL_DISABLED', revoke: () => { db.exec("UPDATE tools SET enabled = 0 WHERE name = 'technitium-axi'") }, cause: { code: 'TOOL_DISABLED' } },
@@ -526,6 +532,7 @@ test.each([
         kubernetesWorkflowRoot: workflows, files: [...prepared.files, { name: 'kubernetes-axi/config.json', content: '{}' }] }
     } }
     const results = new ProtectedResults()
+    if (point.terminalAudit) db.exec("CREATE TRIGGER fail_terminal BEFORE INSERT ON audit WHEN NEW.event = 'run-terminal' BEGIN SELECT RAISE(ABORT, 'synthetic full storage'); END")
     const storageError = Object.assign(new Error('synthetic result failure'), { code: 'EIO' })
     const cleanupError = Object.assign(new Error('synthetic cleanup failure'), { code: 'EROFS' })
     vi.spyOn(filesystem, 'open').mockImplementation(async (...input) => {
@@ -560,16 +567,18 @@ test.each([
       receipt: nativeReceipt, exitCode: 0, outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 },
     }, next: expect.stringContaining(nativeReceipt.auditId) })
     expect(failure.cause).toMatchObject(point.cause)
+    expect(failure.auditFailure?.code).toBe(point.secondaryAuditCode)
     const response = errorResponse(failure, context.requestId)
     expect(response.error.recovery).toBe(failure.recovery)
     expect(errorResponseSchema.parse(JSON.parse(JSON.stringify(response))).error.recovery).toEqual(failure.recovery)
     expect(readFileSync(mutation, 'utf8')).toBe('applied')
-    const record = db.prepare("SELECT outcome, action, native_audit_id, native_journal_result, exit_code FROM audit WHERE event = 'run-terminal'").get() as {
+    const records = db.prepare("SELECT outcome, action, native_audit_id, native_journal_result, exit_code FROM audit WHERE event = 'run-terminal'").all() as {
       outcome: string, action: string, native_audit_id: string, native_journal_result: string, exit_code: number,
-    }
-    expect(record).toMatchObject({ outcome: 'UNKNOWN_OUTCOME', action: 'unknown', native_audit_id: nativeReceipt.auditId, exit_code: 0 })
-    expect(JSON.parse(record.native_journal_result)).toEqual(failure.recovery)
-    expect(db.prepare("SELECT outcome FROM audit WHERE event = 'protected-result'").all()).toEqual([])
+    }[]
+    expect(records.map(record => ({ ...record, native_journal_result: JSON.parse(record.native_journal_result) })))
+      .toEqual(point.audit ?? [{ outcome: 'UNKNOWN_OUTCOME', action: 'unknown', native_audit_id: nativeReceipt.auditId,
+        native_journal_result: failure.recovery, exit_code: 0 }])
+    expect(db.prepare("SELECT outcome FROM audit WHERE event = 'protected-result'").all()).toEqual(point.published ?? [])
     expect(JSON.stringify(response) + lines.join('')).not.toContain('CANARY-private')
     const scope = { userId: 'synthetic-user', credential: reference, operation: 'OP-132' }
     results.reserve(scope)
@@ -578,6 +587,53 @@ test.each([
     results.reserve(scope)
     expect(() => results.reserve(scope)).toThrow(expect.objectContaining({ code: 'TOO_MANY_CALLS' }))
     results.clear()
+  },
+)
+
+test.each([
+  { interruption: 'TIMEOUT', interrupt: async (_controller: AbortController) => { await vi.advanceTimersByTimeAsync(1000) } },
+  { interruption: 'CANCELLED', interrupt: async (controller: AbortController) => { controller.abort() } },
+].flatMap(point => ['call', 'profile', 'profile-tmp'].map(cleanup => ({ ...point, cleanup }))))(
+  '$interruption stays primary when $cleanup cleanup fails (R6/R8)', async point => {
+    const store = createCredentialStore(db, provider)
+    store.replaceCredential('falcon-axi', {}, 0, 'synthetic-user', Date.now())
+    const workflows = join(directory, 'requests')
+    const execution = { ...adapter, async prepare(...input: Parameters<typeof adapter.prepare>) {
+      const prepared = await adapter.prepare(...input)
+      return { ...prepared, executable: process.execPath,
+        args: ['-e', "require('node:fs').writeFileSync(process.env.KUBERNETES_AXI_CONFIG+'.tmp', 'private'); console.log('ready'); setInterval(() => {}, 1000)"],
+        environment: { ...prepared.environment, VECTRA_AXI_WRITE_LOG: join(directory, 'writes.log') },
+        effect: 'write' as const, write: { operation: 'synthetic-write', target: 'synthetic-target', checkArgs: ['print', 'synthetic-state'] },
+        limits: { timeoutMs: 1000 }, kubernetesWorkflowRoot: workflows,
+        files: [...prepared.files, { name: 'kubernetes-axi/config.json', content: '{}' }] }
+    } }
+    let started!: () => void
+    const ready = new Promise<void>(resolve => { started = resolve })
+    vi.spyOn(childProcess, 'spawn').mockImplementation((executable, args, options) => {
+      const child = actualChildProcess.spawn(executable, args ?? [], options)
+      child.stdout?.once('data', started)
+      return child
+    })
+    const cleanupError = Object.assign(new Error('synthetic cleanup failure'), { code: 'EROFS' })
+    vi.spyOn(filesystem, 'rm').mockImplementation(async (...input) => {
+      const path = String(input[0])
+      if (point.cleanup === 'call' && path.includes('/calls/artium-call-')
+        || point.cleanup === 'profile' && path.startsWith(workflows) && path.endsWith('.json')
+        || point.cleanup === 'profile-tmp' && path.startsWith(workflows) && path.endsWith('.json.tmp')) throw cleanupError
+      return actualFilesystem.rm(...input)
+    })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const controller = new AbortController()
+    const pending = runTool(db, audit, runner, token, { args: ['print'] }, execution, new SharedIdentityResolver(store),
+      { ...context, signal: controller.signal }).catch(error => error)
+    await ready
+    await point.interrupt(controller)
+    const failure = await pending
+    expect(failure).toMatchObject({ code: 'UNKNOWN_OUTCOME', processStarted: true,
+      next: expect.stringContaining('artium-axi falcon-axi print synthetic-state'),
+      cause: { code: point.interruption, processStarted: true, cleanupFailure: { errors: [cleanupError] } } })
+    expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get())
+      .toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'unknown' })
   },
 )
 

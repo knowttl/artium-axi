@@ -150,7 +150,9 @@ export class Audit {
       }).immediate()
     } catch (error) {
       if (mutationFailed) throw error
-      throw new ArtiumError('AUDIT_UNAVAILABLE')
+      const failure = new ArtiumError('AUDIT_UNAVAILABLE')
+      Object.defineProperty(failure, 'cause', { value: error })
+      throw failure
     }
     for (const record of result.records) this.emit(record)
     return { value: result.value, record: result.records[0]! }

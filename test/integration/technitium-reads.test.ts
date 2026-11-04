@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
+import { decode } from '@toon-format/toon'
 import { expect, test } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createTechnitiumAdapter } from '../../src/server/adapters/technitium.js'
@@ -26,7 +27,7 @@ async function withTechnitium(check: (fixture: {
   headers: { authorization: string }, directory: string,
   cli: (args: string[]) => Promise<{ stdout: string, stderr: string }>,
   evidence: () => Promise<{ requests: { method: string, path: string, canaryReceived: boolean, fields: Record<string, string> }[] }>,
-}) => Promise<void>) {
+}) => Promise<void>, nativeResultFailure?: string) {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
@@ -40,8 +41,17 @@ async function withTechnitium(check: (fixture: {
     const previousSkill = toolSkillPaths['technitium-axi']
     Object.assign(toolPaths, { 'technitium-axi': join(process.cwd(), 'tools/node_modules/@knowttl/technitium-axi/bin/technitium-axi.js') })
     Object.assign(toolSkillPaths, { 'technitium-axi': join(process.cwd(), 'tools/node_modules/@knowttl/technitium-axi/README.md') })
+    const adapter = createTechnitiumAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
+    if (nativeResultFailure) {
+      const prepare = adapter.prepare.bind(adapter)
+      adapter.prepare = async (...input) => {
+        const call = await prepare(...input)
+        return { ...call, args: [join(process.cwd(), 'test/fake-tool/technitium-publication-fault.mjs'), nativeResultFailure, ...call.args],
+          fileArguments: call.fileArguments?.map(index => index + 2) }
+      }
+    }
     const app = createApp({ db, runner, audit: new Audit(db), environment: {}, credentialStore: store,
-      resolver: new SharedIdentityResolver(store), adapters: [createTechnitiumAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))] })
+      resolver: new SharedIdentityResolver(store), adapters: [adapter] })
     try {
       const url = await app.listen({ host: '127.0.0.1', port: 0 })
       const token = issueTestAccessToken(db, actor)
@@ -61,6 +71,44 @@ async function withTechnitium(check: (fixture: {
     }
   })
 }
+
+test.each(['destination', 'open', 'writeFile', 'sync', 'close', 'rename', 'parent-open', 'parent-sync', 'parent-close']
+  .flatMap(failure => [{ failure, format: 'JSON', flags: ['--json'], parse: JSON.parse },
+    { failure, format: 'TOON', flags: [], parse: decode }] ))(
+  'native $failure publication failure retains completed journal recovery ($format, R7)', async item => {
+    await withTechnitium(async ({ app, db, directory, headers, evidence }) => {
+      const writes = { allowWrites: true, operations: ['OP-080'] }
+      db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?')
+        .run(JSON.stringify({ writes, hostWrites: writes }), 'technitium-axi')
+      const files = [{ name: 'input.json', contentBase64: Buffer.from(JSON.stringify({
+        parameters: { enableBlocking: true }, baseline: { enableBlocking: false },
+      })).toString('base64') }]
+      const args = ['settings', 'set', '--input-file', 'input.json', ...item.flags]
+      const previewResponse = await app.inject({ method: 'POST', url: '/v1/tools/technitium-axi/run', headers, payload: { args, files } })
+      expect(previewResponse.json()).toMatchObject({ exitCode: 0 })
+      const preview = item.parse(previewResponse.json().stdout) as { preview: { digest: string } }
+      const response = await app.inject({ method: 'POST', url: '/v1/tools/technitium-axi/run', headers,
+        payload: { args: [...args, '--execute', '--confirm', preview.preview.digest], files } })
+      expect(response.statusCode).toBe(504)
+      const journal = JSON.parse(readFileSync(join(directory, 'writes.log.d', preview.preview.digest + '.json'), 'utf8'))
+      expect(journal.state).toBe('completed')
+      const failure = response.json().error
+      expect(failure).toMatchObject({ code: 'UNKNOWN_OUTCOME', next: expect.stringContaining(journal.auditId), recovery: {
+        exitCode: 2, receipt: { auditId: journal.auditId, status: 'ok', operation: 'OP-080',
+          journal: { state: 'completed', digest: preview.preview.digest, postconditionHash: journal.postconditionHash } },
+      } })
+      expect((await evidence()).requests.filter(request => request.path === '/api/settings/set'))
+        .toEqual([{ method: 'POST', path: '/api/settings/set', canaryReceived: true, fields: { enableBlocking: 'true' } }])
+      const record = db.prepare("SELECT outcome, native_audit_id, native_journal_result FROM audit WHERE event = 'run-terminal' ORDER BY id DESC LIMIT 1").get() as {
+        outcome: string, native_audit_id: string, native_journal_result: string,
+      }
+      expect(record).toMatchObject({ outcome: 'UNKNOWN_OUTCOME', native_audit_id: journal.auditId })
+      expect(JSON.parse(record.native_journal_result)).toEqual(failure.recovery)
+      expect(response.body).not.toMatch(/CANARY-|artium-call-|technitium-result\.bin/)
+      expect(readdirSync(join(directory, 'calls'))).toEqual([])
+    }, item.failure)
+  },
+)
 
 const reads = [
   { kind: 'JSON', args: ['user', 'session', 'get'], operation: 'OP-006', path: '/api/user/session/get', fields: { includeInfo: 'true' },
