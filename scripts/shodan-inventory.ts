@@ -10,7 +10,7 @@ const pins = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8')) a
 if (pkg.name !== '@knowttl/shodan-axi' || pkg.version !== pins[pkg.name]?.version) throw new Error('Shodan package mismatch')
 const upstream = JSON.parse(readFileSync(source('command-inventory.json'), 'utf8')) as { commands: Command[] }
 const unsafeOverrides = ['config', 'profile', 'origin', 'auth', 'api-key', 'key', 'token', 'env', 'file', 'input-file', 'result-file', 'filename', 'save', 'write-log', 'body-file']
-const admitted = new Map([['', 'OP-045'], ['doctor', 'OP-045'], ['info', 'OP-045'], ['account profile', 'OP-039']])
+const admitted = new Map([['', 'OP-045'], ['info', 'OP-045'], ['account profile', 'OP-039']])
 for (const [command, operation] of admitted) {
   if (!upstream.commands.some(entry => entry.command === command && entry.operation === operation && entry.effect === 'read')) throw new Error(`Shodan catalogue mismatch: ${command}`)
 }

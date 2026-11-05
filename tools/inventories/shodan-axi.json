@@ -251,15 +251,6 @@
       }
     },
     {
-      "command": "doctor",
-      "effect": "read",
-      "operation": "OP-045",
-      "flags": {
-        "json": "boolean",
-        "help": "boolean"
-      }
-    },
-    {
       "command": "version",
       "effect": "read",
       "flags": {
@@ -271,7 +262,6 @@
     "commands": [
       "account profile",
       "info",
-      "doctor",
       "version"
     ],
     "example": [

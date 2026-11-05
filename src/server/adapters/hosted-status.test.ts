@@ -12,7 +12,7 @@ import { execFileSync } from 'node:child_process'
 const result = { stdout: '', stderr: '', exitCode: 0, durationMs: 1, outputBytes: { stdout: 100, stderr: 0 },
   timedOut: false, truncated: { stdout: false, stderr: false } }
 
-test.each([false, true].flatMap(json => ['home', 'info', 'account profile', 'doctor', 'version']
+test.each([false, true].flatMap(json => ['home', 'info', 'account profile', 'version']
   .map(command => ({ json, command }))))('Shodan $command help advertises only hosted routes, JSON=$json (r1)', ({ json, command }) => {
   const stdout = execFileSync(process.execPath, ['tools/node_modules/@knowttl/shodan-axi/bin/shodan-axi.js',
     ...(command === 'home' ? [] : command.split(' ')), '--help', ...(json ? ['--json'] : [])], { encoding: 'utf8' })
@@ -20,7 +20,7 @@ test.each([false, true].flatMap(json => ['home', 'info', 'account profile', 'doc
   const document = json ? JSON.parse(output.stdout) : decode(output.stdout)
   expect(document).toEqual({ command: `artium-axi shodan-axi${command === 'home' ? '' : ' ' + command}`,
     flags: command === 'version' ? { help: 'boolean' } : { json: 'boolean', help: 'boolean' },
-    commands: command === 'home' ? ['account profile', 'info', 'doctor', 'version'] : [],
+    commands: command === 'home' ? ['account profile', 'info', 'version'] : [],
     help: ['Read Shodan account information with managed credentials. Local configuration and writes are unavailable.\n'] })
 })
 
