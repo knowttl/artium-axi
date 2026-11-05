@@ -66,6 +66,15 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   ca: readFileSync(join(certs, 'ca.crt')), requestCert: true, rejectUnauthorized: false }, (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
+  if (url.pathname === '/shodan/banners') {
+    const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
+    if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
+    res.write(JSON.stringify({ ip_str: '192.0.2.1', port: 443, transport: 'tcp', timestamp: '2026-01-01T00:00:00Z', data: 'synthetic',
+      api_key: 'CANARY-upstream-secret', metadata: { token: 'CANARY-minted-secret' } }) + '\n')
+    res.write(JSON.stringify({ event: 'debug', discarded: 2 }) + '\n')
+    return
+  }
   if (url.pathname === '/192.0.2.1') {
     requests.push({ method: req.method, path: url.pathname, parameters: [...url.searchParams.keys()] })
     res.end(JSON.stringify({ ip: '192.0.2.1', ports: [443], cpes: [], hostnames: [], tags: [], vulns: [] }))
