@@ -1,6 +1,8 @@
 import { isAbsolute } from 'node:path'
 import { z } from 'zod'
 import inventory from '../../../tools/inventories/mg-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
+import { mgReadCommands } from './reviewed-reads.js'
 import { inputFileSchema, nativeSettingsSchemas } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { writePolicy } from './write-policy.js'
@@ -108,6 +110,9 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
     allowedFlagValues: {}, sensitiveArguments: args => ({ flags: mgManifest.sensitiveFlags.map(name => `--${name}`),
       positions: args.slice(0, 3).join(' ') === 'security hunting query' ? args.map((_, index) => index) : [] }),
     validateArgs: (args, input) => { mgArguments(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(
+      inventory.commands.map(route => ({ ...route, effect: mgReadCommands.has(route.command) ? 'read' : 'write' })),
+      (a, i) => mgArguments(a, i).invocation.command, args, input),
     prepare,
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'mg-axi' || !scope.selection.operation.startsWith('mail.')

@@ -2,6 +2,8 @@ import { isAbsolute } from 'node:path'
 import { z } from 'zod'
 import { nativeSettingsSchemas } from '../../shared/api.js'
 import inventory from '../../../tools/inventories/vectra-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
+import { vectraReadCommands } from './reviewed-reads.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { writePolicy } from './write-policy.js'
 import { runnerLimits, toolPaths } from '../config.js'
@@ -70,6 +72,9 @@ export function createVectraAdapter(source: SecretSource, writeLog: string,
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: vectraManifest.unsafeOverrides.map(name => `--${name}`),
     allowedFlagValues: {}, sensitiveArguments: () => ({ flags: ['--note'], positions: [] }),
     validateArgs: (args, input) => { vectraArguments(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(
+      inventory.commands.map(route => ({ ...route, effect: vectraReadCommands.has(route.command) ? 'read' : 'write' })),
+      (a, i) => vectraArguments(a, i).invocation.command, args, input),
     async prepare(args, reference, input) {
       const normalized = vectraArguments(args, input)
       if (reference.tool !== 'vectra-axi') throw new ArtiumError('CREDENTIAL_INVALID')

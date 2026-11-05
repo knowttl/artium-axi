@@ -149,7 +149,15 @@ export function createGiteaAdapter(source: SecretSource, writeLog?: string): Ada
       return 'secretInput' in call && Boolean(call.secretInput)
     },
     validateArgs: (args, input) => { giteaArguments(args, input) },
-    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => giteaArguments(a, i).invocation.command, args, input),
+    classify(args, input) {
+      const result = classifyCommand(inventory.commands, (a, i) => giteaArguments(a, i).invocation.command, args, input)
+      if (result.command !== 'api') return result
+      const methodIndex = args.findIndex(arg => arg === '--method' || arg === '-X')
+      const methodFlag = args.find(arg => arg.startsWith('--method=') || arg.startsWith('-X') && arg.length > 2)
+      const method = methodIndex >= 0 ? args[methodIndex + 1] : methodFlag?.startsWith('--') ? methodFlag.slice(9) : methodFlag?.slice(2)
+      const write = method !== undefined ? method.toUpperCase() !== 'GET' : /^(POST|PUT|PATCH|DELETE)$/i.test(args[1] ?? '')
+      return write ? { ...result, effect: 'write' } : result
+    },
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'gitea-axi' || transferTool(scope.selection.operation) !== 'gitea-axi'
         || reference.revision !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
