@@ -60,16 +60,20 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
   const clear = (session: Session) => {
     clearTimeout(session.timer); session.spool.clear(); sessions.delete(session.id); capacity.release(session.id)
   }
-  const finish = (session: Session, state: 'closed' | 'failed' | 'expired') => session.cleaning ??= (async () => {
-    clearTimeout(session.timer)
-    session.worker = undefined
-    if (session.state !== 'stopping') session.state = state
-    await rm(session.directory, { recursive: true, force: true })
-    session.cleaned = true; capacity.stopped(session.id)
-    session.retainedUntil = Date.now() + session.limits.retentionSeconds * 1000
-    session.timer = setTimeout(() => clear(session), session.limits.retentionSeconds * 1000).unref()
-    session.changed.emit('change'); session.changed.emit('closed')
-  })()
+  const finish = (session: Session, state: 'closed' | 'failed' | 'expired') => {
+    // stop() publishes its terminal state before cleanup wakes waiters.
+    if (session.state === 'stopping') return
+    return session.cleaning ??= (async () => {
+      clearTimeout(session.timer)
+      session.worker = undefined
+      session.state = state
+      await rm(session.directory, { recursive: true, force: true })
+      session.cleaned = true; capacity.stopped(session.id)
+      session.retainedUntil = Date.now() + session.limits.retentionSeconds * 1000
+      session.timer = setTimeout(() => clear(session), session.limits.retentionSeconds * 1000).unref()
+      session.changed.emit('change'); session.changed.emit('closed')
+    })()
+  }
   const stop = async (session: Session, state: 'closed' | 'failed' | 'expired', discard = false) => {
     session.discard ||= discard
     if (!session.stopping) session.stopping = (async () => {

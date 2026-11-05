@@ -52,7 +52,7 @@ async function sessionFixture() {
   } }
 }
 
-test('lease expiry preserves the worker terminal summary and retained events', async () => {
+test('lease expiry status wait returns expired with the worker summary and retained events', async () => {
   const fixture = await sessionFixture()
   const { app, directory, headers, prefix, input } = fixture
   try {
@@ -63,7 +63,8 @@ test('lease expiry preserves the worker terminal summary and retained events', a
     expect(started.statusCode, started.body).toBe(200)
     const id = started.json().id
     const ended = await app.inject({ method: 'GET', url: `${prefix}/${id}?waitMs=5000`, headers })
-    expect(ended.json()).toMatchObject({ cleaned: true, summary: { stopReason: 'stopped', count: 1, partialRecordCount: 0 } })
+    expect(ended.json()).toMatchObject({ state: 'expired', cleaned: true, expiresAt: started.json().expiresAt,
+      summary: { stopReason: 'stopped', count: 1, partialRecordCount: 0 } })
     const retained = await app.inject({ method: 'POST', url: `${prefix}/${id}/read`, headers, payload: { limit: 10 } })
     expect(retained.statusCode, retained.body).toBe(200)
     expect(retained.json().items).toEqual([{ sequence: 1, value: { profile: 'artium', isolated: true, value: 'synthetic' } }])
