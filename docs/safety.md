@@ -43,12 +43,14 @@ Tool lists, generated help and skills include only commands permitted by the tok
 Tools with no permitted commands are omitted, and tool lists report the effective read-only state.
 GitHub discovery also reflects its administrator operation allow-list.
 Other adapter-internal operation allow-lists, including UniFi, Falcon, Gitea, Technitium, Proxmox and Kubernetes credential acquisition, remain execution safeguards; reflecting them in discovery is a follow-up.
-Permitted leaf commands retain their native argument help; leaf help outside the token's scope is refused.
+Permitted native leaf commands retain their native argument help; locally generated Kubernetes hosted help filters command and session-kind listings to the same permitted set as discovery.
+Leaf help outside the token's scope is refused.
 Native output and error messages may mention other commands.
 Identity responses expose the creator's identity, delegation label, expiry and currently permitted command scope instead of roles or administrator capability.
 Ambient session context uses the filtered tool list and excludes identity and session metadata.
 Account management, administration and reauthentication remain denied with `DELEGATED_SCOPE_DENIED` (HTTP 403), even when the creator has administrator capability.
-Delegated SSH access, hosted sessions, streams and `artium-axi download` transfers remain unavailable in this slice.
+Delegated Kubernetes workspaces, sessions and tunnels are available under the grants below.
+Delegated SSH access, Proxmox streams and `artium-axi download` transfers remain unavailable in this slice.
 Refresh and logout remain available; logging out revokes that exchanged session family, while token revocation invalidates all its families.
 Delegated access ends on expiry, revocation, creator disablement or password change.
 Tokens from SSO creators pause after seven days without a successful SSO sign-in or SSO identity confirmation; administrators can set the window from one to 30 days on `/admin/tokens`.
@@ -60,7 +62,13 @@ Existing SSO creators without a recorded sign-in must sign in once before their 
 Command picks are exact and normalized through the adapter resolver to canonical operations at minting; wildcard patterns are refused and remain a follow-up.
 Adapter classifiers resolve canonical command names and reviewed read/write effects for scope enforcement before upstream credential access.
 Proxmox batches require authorization for every nested operation as well as the outer command.
-Selecting a Kubernetes mutation also authorizes preparation, server dry-run, preview and confirmation for that operation; preview and confirmation resolve the saved request's underlying operation against the current grant.
+Selecting a native Kubernetes resource mutation also authorizes preparation, server dry-run, preview and confirmation for that operation; preview and confirmation resolve the saved request's underlying operation against the current grant.
+Kubernetes session starts require an exact pick for each kind, such as `session start exec` or `session start port-forward`, or a tool-wide grant.
+Workspace creation, inspection and deletion, session list/show/output/confirm/cancel and tunnels each require their own exact pick or a tool-wide grant; a session-start pick does not grant these session controls.
+Workspace downloads and session artifact retrieval require their own exact pick and are refused under read-only tokens.
+Read-only tokens cannot start any session or create a workspace, including for logs and watch sessions.
+Session kinds retain their administrator grants and write settings; credential-producing operations additionally require their exact pick.
+Delegated workspaces and sessions are limited to two per creator per surface, leaving capacity for the creator, and are bound to the exchanged family so revocation ends that family's work.
 Unknown commands, parsing failures and dynamic or conditional inventory effects default to write; reviewed read-command labels remain reads even when those commands have outside effects.
 Read-only tokens refuse write-classified commands, including previews and Kubernetes prepare/preview workflows, but do not prevent all outbound data or spending.
 Hybrid Analysis quick scans, for example, still send samples or URLs to a third party as reads.
@@ -71,7 +79,7 @@ The [delegation policy](../src/server/auth/delegations.ts) owns the reviewed exa
 Issued upstream credentials can outlive the delegated token and must be revoked separately.
 Ordinary data results, including AWX stdout downloads and Technitium zone, allowed/blocked and log exports, remain available within the authorized command scope.
 Delegated protected results are bound to the exchanged session family; another exchange of the same reusable token cannot retrieve them.
-Dedicated download classification is deferred to slice 7d, where minting must select the exact transfer operation while retaining existing administrative grants, confirmation and integrity checks.
+Delegated `artium-axi download` support is deferred to slice 7d, where minting must select the exact transfer operation while retaining existing administrative grants, confirmation and integrity checks.
 The [shared classifier](../src/server/adapters/classify.ts) and [adapter regression tests](../src/server/adapters/classify.test.ts) define and exercise the classification boundary.
 
 ## BeyondTrust Endpoint Privilege Management

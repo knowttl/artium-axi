@@ -11,6 +11,8 @@ import type { ToolName } from '../store/credential-store.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
 import type { RunnerInput } from '../runner/input.js'
+import { kubernetesHostedRoutes } from '../../shared/kubernetes.js'
+import { authorizeKubernetesOwner } from '../policy/kubernetes.js'
 
 const exactCommands: Partial<Record<ToolName, readonly string[]>> = {
   'awx-axi': ['user token-create'],
@@ -69,16 +71,18 @@ export function checkDelegation(scopeJson: string, readOnly: boolean, adapter: A
   const exact = grants.some(item => item.commands?.includes(command))
   const wide = grants.some(item => item.commands === undefined)
   const credentialCommand = exactCommands[tool]?.includes(command)
+  const download = tool === 'kubernetes-axi' && ['workspace download', 'session artifact'].includes(command)
   const escapeHatch = escapeHatches[tool]?.includes(command)
-  if ((!wide && !exact) || ((credentialCommand || escapeHatch || /^(?:api|native)(?: |$)/.test(command)) && !exact) || (readOnly && (effect !== 'read' || credentialCommand))) {
+  if ((!wide && !exact) || ((credentialCommand || download || escapeHatch || /^(?:api|native)(?: |$)/.test(command)) && !exact) || (readOnly && (effect !== 'read' || credentialCommand || download))) {
     throw new ArtiumError('DELEGATED_SCOPE_DENIED')
   }
 }
 
-function commandRoutes(tool: ToolName) {
+function commandRoutes(tool: ToolName): { command: string, effect?: string, canonicalCommand?: string }[] {
   type Route = { command: string, effect?: string, canonicalCommand?: string }
   const manifest = toolManifests[tool] as { commands: Route[], writeCommands?: Route[], workflows?: Route[] }
-  return [...manifest.commands, ...manifest.writeCommands ?? [], ...manifest.workflows ?? []]
+  return [...manifest.commands, ...manifest.writeCommands ?? [], ...manifest.workflows ?? [],
+    ...(tool === 'kubernetes-axi' ? kubernetesHostedRoutes : [])]
 }
 
 export function resolveDelegatedCommand(command: string, adapter: Adapter<unknown>): string {
@@ -86,7 +90,7 @@ export function resolveDelegatedCommand(command: string, adapter: Adapter<unknow
   if (!exactCommand.test(command)) throw new ArtiumError('INVALID_INPUT')
   const invocation = commandInvocations(adapter.name, command)[0]
   const resolved = classifyDelegatedCommand(adapter, [...invocation.split(' '), '--help']).command
-  if (resolved === 'unknown' || resolved === 'home') throw new ArtiumError('INVALID_INPUT')
+  if (resolved === 'unknown' || resolved === 'home' || adapter.name === 'kubernetes-axi' && resolved === 'session start') throw new ArtiumError('INVALID_INPUT')
   return resolved
 }
 
@@ -135,7 +139,7 @@ export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter:
     const classification = classifyDelegatedCommand(adapter, route.command.split(' '))
     return commandInvocations(tool, route.command).flatMap(command => {
       try {
-        adapter.validateArgs([...command.split(' '), '--help'])
+        if (!(tool === 'kubernetes-axi' && kubernetesHostedRoutes.some(route => route.command === command))) adapter.validateArgs([...command.split(' '), '--help'])
         authorize(classification)
         return [command]
       }
@@ -152,7 +156,11 @@ export function delegatedDiscovery(db: Database.Database, userId: string, delega
     const row = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(adapter.name) as { native_settings: string }
     const readOnly = delegation.readOnly || !toolAllowsWrites(adapter.name, JSON.parse(row.native_settings))
     const commands = delegatedCommands(delegation.scopeJson, delegation.readOnly, adapter,
-      classification => authorizeDelegatedOperation(db, userId, delegation, adapter, classification))
+      classification => {
+        if (adapter.name === 'kubernetes-axi' && kubernetesHostedRoutes.some(route => route.command === classification.command)) {
+          authorizeKubernetesOwner(db, { user: userId, delegation }, adapter, classification.command)
+        } else authorizeDelegatedOperation(db, userId, delegation, adapter, classification)
+      })
     return commands.length ? [{ adapter, readOnly, commands }] : []
   })
 }

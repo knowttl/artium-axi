@@ -31,7 +31,7 @@ async function fileBytes(path: string, limit = 100 * 1024 * 1024) {
   } finally { await file.close() }
 }
 
-export async function kubernetesHosted(args: string[], createClient: () => Client, write: (text: string, stream?: 'stdout' | 'stderr') => void): Promise<boolean> {
+export async function kubernetesHosted(args: string[], createClient: () => Client, write: (text: string, stream?: 'stdout' | 'stderr') => void, permittedCommands?: readonly string[]): Promise<boolean> {
   let prefix = 0
   while (args[prefix] === '--json') prefix++
   if (args[prefix] === 'tunnel') return kubernetesTunnel(createClient, [...args.slice(prefix), ...(prefix ? ['--json'] : [])], text => write(text))
@@ -40,7 +40,7 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
   if (!['workspace', 'session'].includes(group ?? '')) {
     if (args.includes('--help') && args.every(arg => ['--help', '--json'].includes(arg))) {
       const help = { command: 'artium-axi kubernetes-axi', usage: 'artium-axi kubernetes-axi <command> [flags]',
-        commands: inventory.discovery.commands,
+        commands: permittedCommands ?? inventory.discovery.commands,
         flags: ['--namespace <name>', '--json', '--help'],
         help: ['Reads use managed credentials. Mutations require administrator Allow writes, off by default.',
           'Use prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>.',
@@ -55,9 +55,12 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
   const { flags, positionals, native, help, route } = kubernetesHostedArguments(rest, group, action)
   const print = (value: unknown) => write((prefix || flags.has('--json') ? JSON.stringify(value) : encode(value)) + '\n')
   if (help) {
-    print({ usage: `artium-axi kubernetes-axi ${group} <command> [flags]`, commands: kubernetesHostedCommands.filter(command => command.startsWith(group)),
+    const kinds = (permittedCommands ?? []).filter(command => command.startsWith('session start ')).map(command => command.slice('session start '.length))
+    print({ usage: `artium-axi kubernetes-axi ${group} <command> [flags]`, commands: kubernetesHostedCommands.filter(command => command.startsWith(group)
+      && (permittedCommands === undefined || (command.startsWith('session start ') ? kinds.length > 0 : permittedCommands.includes(command.split(' ').slice(0, 2).join(' '))))),
       flags: '--json, --help; start: --workspace <id>, --stdin-file <file> or --input-workspace <id> --input-path <path>, --timeout 1-1800, --output-limit 1-1048576',
-      help: ['Native arguments follow --. Session start prepends prepare -- for mutation kinds; inspect its preview, then confirm the exact digest.',
+      help: permittedCommands ? (group === 'session' && kinds.length ? [`Kinds: ${kinds.join(', ')}. Every kind needs its explicit caller grant; mutations additionally need Allow writes.`] : [])
+        : ['Native arguments follow --. Session start prepends prepare -- for mutation kinds; inspect its preview, then confirm the exact digest.',
         'Kinds: watch, logs, exec, attach, apply, create, cp, port-forward. Every kind needs its explicit caller grant; mutations additionally need Allow writes.',
         'Logs and watch start immediately as reads. Other kinds return a native preview for exact-digest confirmation.',
         'For port-forward use session show <id> --ready, then tunnel <id> --port <approved-remote-port>. Local listeners bind only 127.0.0.1.',
@@ -96,8 +99,8 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
     const workspace = validated(workspaceSchema, await call(base, 'POST', manifest), 'INVALID_RESPONSE')
     try {
       for (const file of files) await call(`${base}/${workspace.id}/files/${file.path.split('/').map(encodeURIComponent).join('/')}`, 'PUT', await fileBytes(join(root, file.path)))
-      print(validated(workspaceSchema, await call(`${base}/${workspace.id}`, 'GET'), 'INVALID_RESPONSE'))
-    } catch (error) { try { await call(`${base}/${workspace.id}`, 'DELETE') } catch { /* Expiry also removes staged files. */ }; throw error }
+      print(validated(workspaceSchema, await call(`${base}/${workspace.id}?operation=create`, 'GET'), 'INVALID_RESPONSE'))
+    } catch (error) { try { await call(`${base}/${workspace.id}?operation=create`, 'DELETE') } catch { /* Expiry also removes staged files. */ }; throw error }
     return true
   }
   if (route === 'session list') {
@@ -119,7 +122,8 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
   const id = validated(z.uuid(), positionals[0]), path = `${base}/${id}`
   if (route === 'workspace download' || route === 'session artifact') {
     if (positionals.length !== 2 || !flags.has('--output')) throw new ArtiumError('INVALID_INPUT')
-    const status = group === 'workspace' ? validated(workspaceSchema, await call(path, 'GET'), 'INVALID_RESPONSE') : validated(sessionSchema, await call(path, 'GET'), 'INVALID_RESPONSE')
+    const metadataPath = path + '?operation=' + action
+    const status = group === 'workspace' ? validated(workspaceSchema, await call(metadataPath, 'GET'), 'INVALID_RESPONSE') : validated(sessionSchema, await call(metadataPath, 'GET'), 'INVALID_RESPONSE')
     const file = (group === 'workspace' ? (status as z.infer<typeof workspaceSchema>).files : (status as z.infer<typeof sessionSchema>).artifacts)?.find(file => file.path === positionals[1])
     if (!file) throw new ArtiumError('NOT_FOUND')
     const destination = await artifactDestination(flags.get('--output')!)

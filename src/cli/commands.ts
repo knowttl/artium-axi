@@ -20,6 +20,7 @@ import { download } from './download.js'
 import { sessionContext } from './session-context.js'
 import { sshExecution } from './ssh.js'
 import { kubernetesHosted } from './kubernetes.js'
+import { kubernetesHostedRoutes, resolveKubernetesHostedCommand } from '../shared/kubernetes.js'
 import { tokenCommand } from './token.js'
 import { readStoredSession } from './session.js'
 
@@ -80,6 +81,13 @@ async function main(args: string[]) {
         const tool = tools.find(tool => tool.name === name)
         if (!tool) throw new ArtiumError('TOOL_NOT_GRANTED')
         if (toolDiscovery && !prefixHelp && toolWords.length > 0 && !(toolWords.length === 1 && ['commands', 'home', 'help'].includes(toolWords[0]))) {
+          const hostedArgs = args.slice(1).map(arg => arg === '-h' ? '--help' : arg)
+          const hosted = name === 'kubernetes-axi' ? resolveKubernetesHostedCommand(hostedArgs) : undefined
+          if (hosted && kubernetesHostedRoutes.some(route => route.command === hosted)) {
+            if (!tool.commands?.includes(hosted)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+            await kubernetesHosted(hostedArgs, () => client, (text, stream = 'stdout') => output(stream, text), tool.commands)
+            return
+          }
           const parsed = runSuccessSchema.safeParse(await client.authenticated(`/v1/tools/${name}/run`, 'POST', { args: args.slice(1) }))
           if (!parsed.success || parsed.data.source !== name) throw new ArtiumError('INVALID_RESPONSE')
           const { truncated } = parsed.data

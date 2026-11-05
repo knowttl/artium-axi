@@ -68,6 +68,13 @@ classify('PUT', `/v1/admin/tools/awx-axi/origin /v1/admin/tools/:tool/credential
 classify('PATCH', `/v1/admin/token-settings /v1/admin/tools/:tool/write-access /v1/admin/tools/:tool /v1/admin/tools/:tool/credential
   /v1/admin/sso/providers/:id/activation /v1/admin/sso/providers/:id /v1/admin/sso/providers/:id/credential
   /v1/admin/sso/role-rules/:id /v1/admin/users/:id /v1/admin/roles/:id`, 'denied')
+classify('GET', `/v1/tools/kubernetes-axi/workspaces/:id /v1/tools/kubernetes-axi/workspaces/:id/files/*
+  /v1/tools/kubernetes-axi/sessions /v1/tools/kubernetes-axi/sessions/:id
+  /v1/tools/kubernetes-axi/sessions/:id/output /v1/tools/kubernetes-axi/sessions/:id/artifacts/*`, 'public')
+classify('POST', `/v1/tools/kubernetes-axi/workspaces /v1/tools/kubernetes-axi/sessions
+  /v1/tools/kubernetes-axi/sessions/:id/confirm`, 'public')
+classify('DELETE', `/v1/tools/kubernetes-axi/workspaces/:id /v1/tools/kubernetes-axi/sessions/:id`, 'public')
+classify('PUT', '/v1/tools/kubernetes-axi/workspaces/:id/files/*', 'public')
 
 test('administrator-created delegated sessions cannot use admin, reauthentication or password routes', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'artium-delegated-'))
@@ -140,7 +147,7 @@ test('administrator-created delegated sessions cannot use admin, reauthenticatio
       expect(status, path).toBe(403)
       const tool = path.includes('kubernetes-axi') ? 'kubernetes-axi' : 'proxmox-axi'
       expect(db.prepare('SELECT event, outcome FROM audit WHERE tool = ? AND id > ? ORDER BY id').all(tool, cursor), path)
-        .toEqual([{ event: 'denial', outcome: 'DELEGATED_SCOPE_DENIED' }])
+        .toEqual([{ event: 'denial', outcome: tool === 'kubernetes-axi' ? 'TOOL_DISABLED' : 'DELEGATED_SCOPE_DENIED' }])
     }
   } finally {
     await app.close()

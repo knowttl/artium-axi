@@ -14,7 +14,9 @@ export const kubernetesHostedCommands = [
 export const kubernetesHostedRoutes = kubernetesHostedCommands.map(usage => {
   const command = usage.split(' ').slice(0, /^(tunnel|credential) /.test(usage) ? 1 : 2).join(' ')
   return { command, effect: ['workspace show', 'workspace download', 'session list', 'session show', 'session output', 'session artifact'].includes(command) ? 'read' : 'write' }
-})
+}).filter(route => route.command !== 'session start').concat(
+  ['watch', 'logs', 'exec', 'attach', 'apply', 'create', 'cp', 'port-forward']
+    .map(kind => ({ command: `session start ${kind}`, effect: 'write' })))
 
 export function resolveKubernetesHostedCommand(args: readonly string[]): string | undefined {
   let prefix = 0
@@ -22,6 +24,11 @@ export function resolveKubernetesHostedCommand(args: readonly string[]): string 
   const [group, action, ...rest] = args.slice(prefix)
   if (['tunnel', 'credential'].includes(group)) return group
   if (!['workspace', 'session'].includes(group)) return undefined
+  if (group === 'session' && action === 'start') {
+    const kind = rest[0]
+    if (kind === '--help' || kind === undefined) return 'session start'
+    return kubernetesHostedRoutes.find(route => route.command === `session start ${kind}`)?.command
+  }
   const { route: command, help } = kubernetesHostedArguments(rest, group, action)
   if (help && (action === undefined || action === '--help')) return group
   return kubernetesHostedRoutes.find(route => route.command === command)?.command

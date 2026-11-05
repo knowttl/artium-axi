@@ -26,6 +26,8 @@ import { SessionStore, sessionPath } from '../../src/cli/session.js'
 import { createTestClientCertificate } from './certificates.mjs'
 import { openKubernetesTunnel } from '../../src/cli/kubernetes-tunnel.js'
 import { toolPaths } from '../../src/server/config.js'
+import { createDelegation, revokeDelegation } from '../../src/server/auth/delegations.js'
+import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 
 assert.ok(!readFileSync('/proc/net/route', 'utf8').split('\n').slice(1).some(line => line.split(/\s+/)[1] === '00000000'))
 const nativeCodec = await import(pathToFileURL(createRequire(realpathSync(toolPaths['kubernetes-axi'])).resolve('@toon-format/toon')).href) as { decode: (text: string) => unknown }
@@ -98,6 +100,19 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.match((await output(watched.id)).chunks.map(chunk => Buffer.from(chunk.base64, 'base64').toString()).join(''), /synthetic-pod/)
     await cancel(watched.id)
     await policy(true)
+    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
+    const delegated = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+      scope: { tools: [{ tool: 'kubernetes-axi' }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
+    const delegatedHeaders = { authorization: `Bearer ${exchangeDelegation(db, delegated.token).accessToken}` }
+    const delegatedStart = await app.inject({ method: 'POST', url: prefix, headers: delegatedHeaders,
+      payload: { kind: 'exec', argv: ['prepare', '--', 'exec', 'synthetic-pod', '--', 'synthetic-hold'] } })
+    assert.equal(delegatedStart.statusCode, 200, delegatedStart.body)
+    assert.equal(delegatedStart.json().state, 'prepared')
+    const ownerStart = await start('exec', ['exec', 'synthetic-pod', '--', 'synthetic-hold'])
+    revokeDelegation(db, delegated.id, 'synthetic-development-user', false)
+    assert.equal((await request(`${prefix}/${ownerStart.id}`)).json().state, 'prepared')
+    assert.equal((await app.inject({ url: `${prefix}/${delegatedStart.json().id}`, headers: delegatedHeaders })).statusCode, 401)
+    await cancel(ownerStart.id)
     const ordinary = await start('exec', ['exec', 'synthetic-pod', '--', 'printf', 'synthetic'])
     assert.match(ordinary.preview!.digest, /^[a-f0-9]{64}$/)
     assert.match(JSON.stringify(ordinary), new RegExp(`session confirm ${ordinary.id} --digest`))

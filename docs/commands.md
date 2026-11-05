@@ -65,7 +65,7 @@ Use `credential <result-id> --credential-fd <fd>` with an already open private w
 Only that pipe receives token bytes; public output reports metadata.
 References bind the issuing sign-in family and can be consumed once; see the [retention runbook](runbook.md#retention-and-export) for expiry and uncertain issuance or delivery recovery.
 `session artifact <id> <path> --output <absolute-file>` and `workspace download <id> <path> --output <absolute-file>` save exact bytes with verified hashes into a new file in a private directory.
-See the [Kubernetes capability boundary](safety.md#kubernetes-reads) for workspace access and session grants.
+See the [Kubernetes capability boundary](safety.md#kubernetes-reads) for workspace access and session grants, and the [delegated scope rules](safety.md#delegated-sessions) when selecting these commands for a temporary token.
 Use `session list` to recover a lost start reply, `session cancel <id> --confirm` to stop work and discard results, and `workspace delete <id>` to remove staged files.
 No command automatically reconnects, replays an uncertain operation or resumes after a server restart.
 

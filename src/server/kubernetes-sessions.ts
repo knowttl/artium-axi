@@ -12,7 +12,8 @@ import { ArtiumError } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
 import type { Audit } from './audit/audit.js'
 import { runnerLimits, runtimePath } from './config.js'
-import { kubernetesBinding, kubernetesOwner, type KubernetesOwner } from './policy/kubernetes.js'
+import { authorizeKubernetesOwner, kubernetesBinding, kubernetesOwner, type KubernetesOwner } from './policy/kubernetes.js'
+import { checkDelegation, classifyDelegatedCommand, credentialIssuingCommand } from './auth/delegations.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import type { registerKubernetesWorkspaces } from './kubernetes-workspaces.js'
 import { kubernetesByteLease, sendKubernetesBytes } from './kubernetes-workspaces.js'
@@ -67,7 +68,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     if (kubernetesBinding(db, session.owner, session.kind).hash !== session.binding) throw new ArtiumError('REVISION_CONFLICT')
   }
   const record = (request: FastifyRequest, session: Session, action: string) => audit.record({ event: 'admin-change',
-    userId: session.owner.user, tool: 'kubernetes-axi', requestId: request.id, clientAddress: request.ip,
+    userId: session.owner.user, delegationId: session.owner.delegation?.id, tool: 'kubernetes-axi', requestId: request.id, clientAddress: request.ip,
     outcome: 'success', action: 'kubernetes-session-' + action, targetId: session.id })
   async function stop(session: Session, state: 'cancelled' | 'expired' | 'failed') {
     if (active(session)) session.state = state
@@ -78,8 +79,9 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     session.artifacts = undefined
     await rm(session.directory, { recursive: true, force: true })
   }
-  async function selected(request: Pick<FastifyRequest, 'headers'>, id: string) {
+  async function selected(request: Pick<FastifyRequest, 'headers'>, id: string, command: string) {
     const owner = kubernetesOwner(db, request)
+    authorizeKubernetesOwner(db, owner, adapter, command)
     const session = sessions.get(id)
     if (!session || session.owner.user !== owner.user || session.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
     try { access(session) } catch (error) { await stop(session, 'cancelled'); throw error }
@@ -124,11 +126,11 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
           }
           await writeFile(path, content, { mode: 0o600, flag: 'wx' })
         }
-        if (input.inputArtifact) await workspaces.materializeFile(request, input.inputArtifact.workspace, input.inputArtifact.path, join(session.directory, 'stdin.bin'))
+        if (input.inputArtifact) await workspaces.materializeFile(request, input.inputArtifact.workspace, input.inputArtifact.path, join(session.directory, 'stdin.bin'), `session start ${input.kind}`)
         let argv = input.argv
         if (input.workspace) {
           const destination = join(session.directory, 'workspace')
-          await workspaces.materialize(request, input.workspace, destination)
+          await workspaces.materialize(request, input.workspace, destination, `session start ${input.kind}`)
           const materialize = (value: string) => value.split(',').map(value => value.startsWith('workspace:')
             ? join(destination, kubernetesWorkspacePath.parse(value.slice(10))) : value).join(',')
           const commandSeparator = argv.indexOf('--', argv[0] === 'prepare' ? 2 : 0)
@@ -232,7 +234,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
           child.stdout!.off('data', unexpected); child.stderr!.off('data', unexpected)
           scanner = undefined; metadataScanner = undefined; session.child = undefined
         }
-      })
+      }, !!session.owner.delegation)
     } catch (error) { if (active(session)) { session.state = 'failed'; session.code ??= error instanceof ArtiumError ? error.code : 'SESSION_FAILED' } }
     finally {
       if (session.kind === 'port-forward') {
@@ -242,7 +244,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       try {
         if (session.state !== 'exited') await rm(session.directory, { recursive: true, force: true })
         else for (const name of await readdir(session.directory)) if (name !== 'artifacts') await rm(join(session.directory, name), { recursive: true, force: true })
-        audit.record({ event: 'run-terminal', userId: session.owner.user, tool: 'kubernetes-axi', requestId: request.id,
+        audit.record({ event: 'run-terminal', userId: session.owner.user, delegationId: session.owner.delegation?.id, tool: 'kubernetes-axi', requestId: request.id,
           clientAddress: request.ip, outcome: session.state === 'exited' ? 'completed' : 'interrupted',
           exitCode: session.exitCode ?? null, durationMs: Date.now() - session.startedAt, outputBytes: session.offsets })
       } catch { session.state = 'failed'; session.code = 'AUDIT_UNAVAILABLE' }
@@ -251,6 +253,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
   }
   app.get(prefix, async (request, reply) => {
     const owner = kubernetesOwner(db, request)
+    authorizeKubernetesOwner(db, owner, adapter, 'session list')
     await reconcile()
     const owned = [...sessions.values()].filter(session => session.owner.user === owner.user && session.owner.family === owner.family)
     return reply.header('cache-control', 'no-store').send({ sessions: owned.map(session => ({ id: session.id,
@@ -260,14 +263,22 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     const owner = kubernetesOwner(db, request)
     const parsed = kubernetesSessionStart.safeParse(request.body)
     if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
-    const input = parsed.data, binding = kubernetesBinding(db, owner, input.kind), policy = binding.settings.sessions!
+    const input = parsed.data
+    authorizeKubernetesOwner(db, owner, adapter, `session start ${input.kind}`)
+    if (owner.delegation && input.kind === 'create') {
+      const operation = classifyDelegatedCommand(adapter, input.argv)
+      if (credentialIssuingCommand(adapter.name, operation.command)) checkDelegation(owner.delegation.scopeJson, owner.delegation.readOnly, adapter, operation.command, 'write')
+    }
+    const binding = kubernetesBinding(db, owner, input.kind), policy = binding.settings.sessions!
     const writing = !['watch', 'logs'].includes(input.kind), command = input.kind === 'watch' ? 'get' : input.kind
     if (writing ? input.argv[0] !== 'prepare' || input.argv[1] !== '--' || input.argv[2] !== command : input.argv[0] !== command) throw new ArtiumError('INVALID_INPUT')
     const lifetime = input.limits.lifetimeSeconds ?? Math.min(300, policy.lifetimeSeconds ?? 1800)
     const limit = input.limits.outputBytes ?? policy.outputBytes ?? 1048576
     if (lifetime > (policy.lifetimeSeconds ?? 1800) || limit > (policy.outputBytes ?? 1048576)) throw new ArtiumError('INVALID_INPUT')
     await initialized
-    if (sessions.size >= runnerLimits.globalCalls || [...sessions.values()].filter(entry => entry.owner.user === owner.user).length >= runnerLimits.userCalls) throw new ArtiumError('TOO_MANY_CALLS')
+    const owned = [...sessions.values()].filter(entry => entry.owner.user === owner.user)
+    if (sessions.size >= runnerLimits.globalCalls || owned.length >= runnerLimits.userCalls ||
+      owner.delegation && owned.filter(entry => entry.owner.delegation).length >= 2) throw new ArtiumError('TOO_MANY_CALLS')
     const directory = join(root, 'session-' + randomUUID())
     let acknowledge!: () => void
     let portsAcknowledge!: () => void
@@ -283,7 +294,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     try {
       await mkdir(directory, { mode: 0o700 })
       access(session)
-      audit.record({ event: 'run-start', userId: owner.user, tool: 'kubernetes-axi', requestId: request.id,
+      audit.record({ event: 'run-start', userId: owner.user, delegationId: owner.delegation?.id, tool: 'kubernetes-axi', requestId: request.id,
         clientAddress: request.ip, outcome: 'started', args: [input.kind], sensitive: { flags: [], positions: [] } })
       session.job = execute(session, input, request)
       session.timer = setTimeout(() => { void stop(session, 'expired').then(() => sessions.delete(session.id)) }, lifetime * 1000)
@@ -295,19 +306,21 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     } catch (error) { await stop(session, 'failed'); sessions.delete(session.id); throw error }
   })
   app.get<{ Params: { id: string } }>(`${prefix}/:id`, async (request, reply) => {
-    const session = await selected(request, request.params.id)
-    const parsed = z.strictObject({ wait: z.enum(['true', 'false', 'ready']).default('false') }).safeParse(request.query)
+    const parsed = z.strictObject({ wait: z.enum(['true', 'false', 'ready']).default('false'),
+      operation: z.enum(['show', 'artifact', 'tunnel']).default('show') }).safeParse(request.query)
     if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
+    const command = parsed.data.operation === 'tunnel' ? 'tunnel' : `session ${parsed.data.operation}`
+    const session = await selected(request, request.params.id, command)
     if (parsed.data.wait === 'ready') {
       if (session.kind !== 'port-forward' || !session.confirmed) throw new ArtiumError('INVALID_INPUT')
       await session.portsReady
     }
     if (parsed.data.wait === 'true' || !active(session)) await session.job
-    await selected(request, session.id); record(request, session, 'show')
+    await selected(request, session.id, command); record(request, session, parsed.data.operation)
     return reply.header('cache-control', 'no-store').send(view(session))
   })
   app.post<{ Params: { id: string } }>(`${prefix}/:id/confirm`, async (request, reply) => {
-    const session = await selected(request, request.params.id)
+    const session = await selected(request, request.params.id, 'session confirm')
     const parsed = z.strictObject({ digest: z.string().regex(/^[a-f0-9]{64}$/) }).safeParse(request.body)
     if (!parsed.success || parsed.data.digest !== session.digest) throw new ArtiumError('INVALID_INPUT')
     record(request, session, 'confirm')
@@ -319,7 +332,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     return reply.header('cache-control', 'no-store').send(view(session))
   })
   app.get<{ Params: { id: string } }>(`${prefix}/:id/output`, async (request, reply) => {
-    const session = await selected(request, request.params.id)
+    const session = await selected(request, request.params.id, 'session output')
     const parsed = z.strictObject({ after: z.coerce.number().int().min(0).default(0), wait: z.enum(['true', 'false']).default('false') }).safeParse(request.query)
     if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
     if (parsed.data.wait === 'true' && active(session) && !session.chunks.some(chunk => chunk.sequence > parsed.data.after)) {
@@ -331,18 +344,18 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       })
     }
     if (!active(session)) await session.job
-    await selected(request, session.id)
+    await selected(request, session.id, 'session output')
     record(request, session, 'output')
     return reply.header('cache-control', 'no-store').send({ ...view(session), chunks: session.chunks.filter(chunk => chunk.sequence > parsed.data.after) })
   })
   app.delete<{ Params: { id: string } }>(`${prefix}/:id`, async (request, reply) => {
-    const session = await selected(request, request.params.id)
+    const session = await selected(request, request.params.id, 'session cancel')
     await stop(session, 'cancelled'); record(request, session, 'cancel')
     sessions.delete(session.id); clearTimeout(session.timer)
     return reply.code(204).send()
   })
   app.get<{ Params: { id: string, '*': string } }>(`${prefix}/:id/artifacts/*`, async (request, reply) => {
-    const session = await selected(request, request.params.id)
+    const session = await selected(request, request.params.id, 'session artifact')
     const { bytes, sha256 } = await kubernetesByteLease(session, async () => {
       await session.job; access(session)
       const file = session.artifacts?.find(file => file.path === request.params['*'])
@@ -381,10 +394,10 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       if (version !== undefined && (typeof version !== 'string' || !acceptsCliVersion(version))) throw new ArtiumError('CLI_OUTDATED')
       if (!trustedProxies.includes(request.socket.remoteAddress ?? '') && Object.keys(request.headers).some(name =>
         name === 'forwarded' || name.startsWith('x-forwarded-'))) throw new ArtiumError('PROXY_HEADERS_UNTRUSTED')
-      const session = await selected(request, match[1])
+      const session = await selected(request, match[1], 'tunnel')
       if (session.kind !== 'port-forward' || session.state !== 'running' || !session.approvedPorts.length
         || session.ports.size !== session.approvedPorts.length || session.tunnels.size >= 4) throw new ArtiumError('INVALID_INPUT')
-      audit.record({ event: 'admin-change', userId: session.owner.user, tool: 'kubernetes-axi', requestId: randomUUID(),
+      audit.record({ event: 'admin-change', userId: session.owner.user, delegationId: session.owner.delegation?.id, tool: 'kubernetes-axi', requestId: randomUUID(),
         clientAddress: request.socket.remoteAddress ?? null, outcome: 'success', action: 'kubernetes-session-tunnel', targetId: session.id })
       const accept = createHash('sha1').update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').digest('base64')
       socket.write(`HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Accept: ${accept}\r\nX-Artium-Remote-Ports: ${session.approvedPorts.join(',')}\r\n\r\n`)
@@ -397,9 +410,9 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       void drained.then(() => { session.tunnels.delete(drained); session.active.delete(drained) })
     })().catch(error => {
       try {
-        let userId: string | null = null
-        try { userId = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? '').userId } catch { /* Unverified callers remain unattributed. */ }
-        audit.record({ event: 'denial', userId, tool: 'kubernetes-axi', requestId: randomUUID(),
+        let userId: string | null = null, delegationId: string | undefined
+        try { const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''); userId = principal.userId; delegationId = principal.delegation?.id } catch { /* Unverified callers remain unattributed. */ }
+        audit.record({ event: 'denial', userId, delegationId, tool: 'kubernetes-axi', requestId: randomUUID(),
           clientAddress: request.socket.remoteAddress ?? null, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
         socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
       } catch { socket.destroy() }
@@ -407,9 +420,9 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
   })
   app.addHook('onError', async (request, _reply, error) => {
     if (!request.url.startsWith('/v1/tools/kubernetes-axi/')) return
-    let userId: string | null = null
-    try { userId = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? '').userId } catch { /* Unverified callers remain unattributed. */ }
-    audit.record({ event: 'denial', userId, tool: 'kubernetes-axi', requestId: request.id,
+    let userId: string | null = null, delegationId: string | undefined
+    try { const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''); userId = principal.userId; delegationId = principal.delegation?.id } catch { /* Unverified callers remain unattributed. */ }
+    audit.record({ event: 'denial', userId, delegationId, tool: 'kubernetes-axi', requestId: request.id,
       clientAddress: request.ip, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
   })
   app.addHook('preClose', async () => {

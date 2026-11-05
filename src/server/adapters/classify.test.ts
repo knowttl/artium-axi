@@ -152,7 +152,7 @@ test.each([
   ['workspace download', ['workspace', 'download', '11111111-1111-4111-8111-111111111111', 'file', '--output', '/synthetic/file'], 'read'],
   ['workspace delete', ['workspace', 'delete', '11111111-1111-4111-8111-111111111111'], 'write'],
   ['session list', ['--json', 'session', 'list'], 'read'],
-  ['session start', ['session', 'start', 'exec', '--', 'exec', 'synthetic', '--', 'true'], 'write'],
+  ['session start exec', ['session', 'start', 'exec', '--', 'exec', 'synthetic', '--', 'true'], 'write'],
   ['session show', ['session', 'show', '11111111-1111-4111-8111-111111111111', '--wait'], 'read'],
   ['session output', ['session', 'output', '11111111-1111-4111-8111-111111111111', '--after', '1'], 'read'],
   ['session confirm', ['session', 'confirm', '11111111-1111-4111-8111-111111111111', '--digest', 'a'.repeat(64)], 'write'],
