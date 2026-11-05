@@ -72,11 +72,6 @@ export function rewriteSuggestions(output: string, tool: string, truncated = fal
   if (truncated) return output
   if (tool === 'gh-axi') return rewriteGhSuggestions(output, invocation, truncated)
   if (tool === 'kubernetes-axi') return output
-  if (tool === 'shodan-axi' && invocation?.help) {
-    const json = output.trimStart().startsWith('{')
-    return (json ? JSON.stringify : encode)({ command: `artium-axi shodan-axi ${invocation.command === 'home' ? '' : invocation.command}`.trim(),
-      help: [shodan.discovery.help] }) + '\n'
-  }
   if (tool === 'technitium-axi') {
     try {
       const json = output.trimStart().startsWith('{')

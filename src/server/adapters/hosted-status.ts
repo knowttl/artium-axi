@@ -8,9 +8,25 @@ import falcon from '../../../tools/inventories/falcon-axi.json' with { type: 'js
 import kubernetes from '../../../tools/inventories/kubernetes-axi.json' with { type: 'json' }
 import ssh from '../../../tools/inventories/ssh-axi.json' with { type: 'json' }
 import proxmox from '../../../tools/inventories/proxmox-axi.json' with { type: 'json' }
+import shodan from '../../../tools/inventories/shodan-axi.json' with { type: 'json' }
 
 // Status metadata describes the hosted credential, never the server's local layout.
 export function hostedStatus(tool: string, invocation: PreparedCall['invocation'], result: RunnerResult): RunnerResult {
+  if (tool === 'shodan-axi' && invocation && (invocation.help || invocation.command === 'home') && result.exitCode === 0) {
+    if (result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('INVALID_RESPONSE')
+    const json = result.stdout.trimStart().startsWith('{')
+    try {
+      const document = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
+      const command = `artium-axi shodan-axi${invocation.command === 'home' ? '' : ' ' + invocation.command}`
+      if (invocation.help) return { ...result, stdout: (json ? JSON.stringify : encode)({ command,
+        flags: shodan.commands.find(route => (route.command || 'home') === invocation.command)?.flags,
+        commands: invocation.command === 'home' ? shodan.discovery.commands : [],
+        help: [shodan.discovery.help] }) + '\n' }
+      document.bin = command
+      document.help = ['Run `artium-axi shodan-axi info` or `artium-axi shodan-axi account profile` to inspect account information.']
+      return { ...result, stdout: (json ? JSON.stringify : encode)(document) + '\n' }
+    } catch { throw new ArtiumError('INVALID_RESPONSE') }
+  }
   if (tool === 'proxmox-axi' && invocation?.help && result.exitCode === 0) {
     const route = proxmox.commands.find(route => route.command === invocation.command)
     const document = { command: `artium-axi proxmox-axi${invocation.command === 'home' ? '' : ' ' + invocation.command}`,

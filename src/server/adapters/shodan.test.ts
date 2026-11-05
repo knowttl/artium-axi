@@ -2,11 +2,25 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { toolPaths } from '../config.js'
 import { createShodanAdapter, shodanProfile } from './shodan.js'
+import { resolveDelegatedCommand } from '../auth/delegations.js'
+import { execFileSync } from 'node:child_process'
+import { decode } from '@toon-format/toon'
 
 const reference = { id: 'synthetic-credential', tool: 'shodan-axi' as const, revision: 1 }
 const previousPath = toolPaths['shodan-axi']
 beforeEach(() => { Object.assign(toolPaths, { 'shodan-axi': join(process.cwd(), 'tools/node_modules/@knowttl/shodan-axi/bin/shodan-axi.js') }) })
 afterEach(() => { Object.assign(toolPaths, { 'shodan-axi': previousPath }) })
+
+test('version supports exact delegation and packaged help (r2)', async () => {
+  const adapter = createShodanAdapter({ getCredential: async () => ({ auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' }) })
+  expect(resolveDelegatedCommand('version', adapter)).toBe('version')
+  expect(adapter.classify(['version', '--help'])).toEqual({ command: 'version', effect: 'read' })
+  const call = await adapter.prepare(['version', '--help'], reference)
+  expect(decode(execFileSync(call.executable, call.args, { encoding: 'utf8' }))).toEqual({
+    command: 'version', help: 'version - print the packaged version',
+  })
+  expect(execFileSync(call.executable, [toolPaths['shodan-axi'], 'version'], { encoding: 'utf8' })).toBe('0.1.1\n')
+})
 
 test.each([
   ['host', 'search'], ['profile', 'set', 'other', '--env', 'KEY'], ['info', '--profile', 'other'],

@@ -262,7 +262,9 @@
     {
       "command": "version",
       "effect": "read",
-      "flags": {}
+      "flags": {
+        "help": "boolean"
+      }
     }
   ],
   "discovery": {

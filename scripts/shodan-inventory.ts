@@ -17,7 +17,7 @@ for (const [command, operation] of admitted) {
 const commands = [...upstream.commands.filter(entry => admitted.has(entry.command))
   .map(entry => ({ command: entry.command, effect: 'read', operation: admitted.get(entry.command),
     flags: Object.fromEntries(entry.flags.filter(flag => ['--json', '--help'].includes(flag)).map(flag => [flag.slice(2), 'boolean'])) })),
-  { command: 'version', effect: 'read', operation: undefined, flags: {} }]
+  { command: 'version', effect: 'read', operation: undefined, flags: { help: 'boolean' } }]
 const sources = ['package.json', 'command-inventory.json', 'axi-credential.schema.json', 'bin/shodan-axi.js',
   ...readdirSync(source('dist/')).filter(name => name.endsWith('.js')).sort().map(name => `dist/${name}`),
   'skills/shodan-axi/SKILL.md'].map(path => ({ path,
