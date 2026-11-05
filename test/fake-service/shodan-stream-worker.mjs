@@ -39,9 +39,6 @@ channel.on('data', chunk => {
       send({ type: 'event', requestId: 'event-1', event: { profile: profile.defaultProfile,
         isolated: process.env.CANARY_AMBIENT === undefined && process.env.SSL_CERT_FILE === undefined, value: message.confirmation === 'leak' ? process.env[reference]
           : message.confirmation === 'trust' ? (process.env.NODE_EXTRA_CA_CERTS ? readFileSync(process.env.NODE_EXTRA_CA_CERTS, 'utf8') : 'no-configured-ca') : 'synthetic' } })
-    } else if (message.type === 'extend') {
-      if (message.admission !== admission) process.exit(1)
-      send({ type: 'extended', requestId: message.requestId, deadlineMs: message.deadlineMs })
     } else if (message.type === 'stop') {
       send({ type: 'closed', requestId: message.requestId, stopReason: waitingForStop ? 'cancelled' : 'stopped', count: waitingForStop ? 0 : 1, bytes: waitingForStop ? 0 : 1,
         partialRecordCount: 0, debugDiscarded: 0, bounds })
