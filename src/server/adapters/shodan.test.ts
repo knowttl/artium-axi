@@ -4,8 +4,7 @@ import { toolPaths } from '../config.js'
 import { createShodanAdapter, shodanProfile } from './shodan.js'
 import { delegatedCommands, resolveDelegatedCommand } from '../auth/delegations.js'
 import { execFileSync } from 'node:child_process'
-import { decode } from '@toon-format/toon'
-import { SecretScanner } from '../runner/scan.js'
+import { decode, encode } from '@toon-format/toon'
 
 const reference = { id: 'synthetic-credential', tool: 'shodan-axi' as const, revision: 1 }
 const previousPath = toolPaths['shodan-axi']
@@ -67,26 +66,19 @@ test('only the selected API key is written to an isolated profile', async () => 
   } })
 })
 
-test.each([
-  ['', ''],
-  ['', 'Request failed\n'],
-  ['{"error":{"code":"REQUEST_FAILED","message":"Synthetic failure"}}', ''],
-  ['error:\n  code: REQUEST_FAILED\n  message: Synthetic failure\n', ''],
-])('failed Shodan reads do not become secret detections (R2): %s', async (stdout, stderr) => {
+test.each(['json', 'toon'])('Shodan host success validation accepts complete %s responses above 1 MiB (R3)', async format => {
   const adapter = createShodanAdapter({ getCredential: async () => ({ auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' }) })
   const call = await adapter.prepare(['host', '192.0.2.1'], reference)
-  const scanner = new SecretScanner(call.secrets, undefined, call.publicContent)
-  scanner.scan('stdout', Buffer.from(stdout))
-  scanner.scan('stderr', Buffer.from(stderr))
-  expect(scanner.finish()).toBe(false)
+  const value = { host: { ip_str: '192.0.2.1', ports: [443], data: [] },
+    banners: [{ ip_str: '192.0.2.1', port: 443, transport: 'tcp', timestamp: '2026-01-01T00:00:00', data: 'x'.repeat(2 * 1024 * 1024) }], historyRequested: true }
+  const stdout = format === 'json' ? JSON.stringify(value) : encode(value)
+  expect(() => call.limits.validateOutput!(stdout)).not.toThrow()
 })
 
-test.each(['stdout', 'stderr'] as const)('failed Shodan reads still detect secrets in %s (R2)', async stream => {
+test.each(['{', '{}', '{"error":{"code":"REQUEST_FAILED"}}'])('Shodan success validation rejects invalid output: %s', async stdout => {
   const adapter = createShodanAdapter({ getCredential: async () => ({ auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' }) })
   const call = await adapter.prepare(['host', '192.0.2.1'], reference)
-  const scanner = new SecretScanner(call.secrets, undefined, call.publicContent)
-  scanner.scan(stream, Buffer.from('{"error":{"code":"REQUEST_FAILED","message":"CANARY-shodan-key"}}'))
-  expect(scanner.finish()).toBe(true)
+  expect(() => call.limits.validateOutput!(stdout)).toThrow()
 })
 
 test.each([
