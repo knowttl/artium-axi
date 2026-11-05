@@ -25,6 +25,18 @@ export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
 }
 
+export function delegationPaused(db: Database.Database, userId: string, now = Date.now()): boolean {
+  const row = db.prepare(`SELECT users.source, users.last_sso_sign_in_at, delegation_settings.sso_window_ms
+    FROM users CROSS JOIN delegation_settings WHERE users.id = ? AND delegation_settings.id = 1`).get(userId) as
+    { source: string, last_sso_sign_in_at: number | null, sso_window_ms: number }
+  return row.source === 'sso' && (row.last_sso_sign_in_at === null || row.last_sso_sign_in_at + row.sso_window_ms <= now)
+}
+
+function requireActiveDelegation(db: Database.Database, userId: string, now: number): void {
+  if (delegationPaused(db, userId, now)) throw new ArtiumError('TOKEN_INVALID',
+    'This token is paused until its creator signs in again via SSO.', 'Ask the creator to sign in again via SSO.')
+}
+
 export function verifyAccessToken(db: Database.Database, token: string, now = Date.now()): string {
   return verifyUndelegated(db, token, ['access'], now).user_id
 }
@@ -69,6 +81,7 @@ function verifyToken(db: Database.Database, token: string, types: readonly strin
   if (row.delegation_id !== null && (row.creator_id !== row.user_id || row.delegation_revoked_at !== null)) throw new ArtiumError('TOKEN_INVALID')
   if (row.expires_at <= now || row.family_expires_at <= now || (row.delegation_expires_at !== null && row.delegation_expires_at <= now)) throw new ArtiumError('TOKEN_EXPIRED')
   if (row.disabled) throw new ArtiumError('USER_DISABLED')
+  if (row.delegation_id !== null) requireActiveDelegation(db, row.user_id, now)
   return row
 }
 
@@ -147,6 +160,7 @@ export function refreshTokens(db: Database.Database, token: string, audit: Audit
         throw new ArtiumError('TOKEN_INVALID')
       }
       if (row.disabled) throw new ArtiumError('USER_DISABLED')
+      if (row.delegation_id !== null) requireActiveDelegation(db, row.user_id, now)
       db.prepare('UPDATE tokens SET consumed_at = ? WHERE hash = ?').run(now, hashToken(token))
       return issuePair(db, row.family_id, row.user_id, row.family_expires_at, now)
     }
@@ -188,6 +202,7 @@ export function exchangeDelegation(db: Database.Database, token: string, now = D
     throw new ArtiumError('TOKEN_INVALID')
   }
   if (row.expires_at <= now) throw new ArtiumError('TOKEN_EXPIRED')
+  requireActiveDelegation(db, row.creator_id, now)
   if (row.single_use) db.prepare('UPDATE delegations SET consumed_at = ? WHERE id = ?').run(now, row.id)
   const familyId = randomUUID()
   db.prepare('INSERT INTO session_families (id, user_id, created_at, expires_at, delegation_id) VALUES (?, ?, ?, ?, ?)')

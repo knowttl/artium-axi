@@ -602,7 +602,9 @@ document.addEventListener('submit', async event => {
     }
     if (form.hasAttribute('data-token-settings')) {
       body.maxLifetimeMs = Math.floor(Number(body.maxLifetimeHours) * 3600000);
+      body.ssoWindowMs = Math.round(Number(body.ssoWindowDays) * 86400000);
       delete body.maxLifetimeHours;
+      delete body.ssoWindowDays;
     }
     if (form.querySelector('[name=roleIds]')) body.roleIds = fields.getAll('roleIds');
     const send = () => fetch(form.action, { method: form.dataset.method || 'POST',

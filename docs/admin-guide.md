@@ -115,7 +115,7 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/roles` | List roles with their tools, member and SSO rule counts, and create a role. |
 | `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete an unused role by typing its name. |
 | `/admin/audit` | Filter, page through and export authentication, administration and tool-call records, and open one in a detail panel. |
-| `/admin/tokens` | Set the token lifetime cap, review all temporary access tokens, and revoke individual tokens or all tokens; see [minting rollout](safety.md#delegated-sessions). |
+| `/admin/tokens` | Set the token lifetime cap and SSO sign-in window, review all temporary access tokens, and revoke individual tokens or all tokens; see [minting rollout](safety.md#delegated-sessions). |
 | `/admin/settings/sign-in` | Review the sign-in mode, break-glass readiness and pending invitations, and add providers; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 | `/admin/settings/sign-in/:id` | Provider Setup checklist, Credential, Role rules and Settings tabs, and the Enable sign-in control. |
 | `/admin/settings/sign-in/:id/matches/:ruleId` | Who matches a role rule, from saved sign-in claims. |
@@ -189,7 +189,8 @@ When creation is enabled, select tool-wide access or exact commands, read-only a
 Creation requires recent identity confirmation and displays the token once.
 Account lists your tokens and lets you revoke them; administrators can review everyone's tokens and revoke individual tokens or all tokens on `/admin/tokens`.
 Revoking a token also ends its exchanged sessions.
-See [delegated sessions](safety.md#delegated-sessions) for scope boundaries and rollout status.
+Set the SSO sign-in window on `/admin/tokens`; Account and the administrator token list show when tokens are paused awaiting the creator's SSO sign-in.
+See [delegated sessions](safety.md#delegated-sessions) for the SSO pause and recovery rules, scope boundaries and rollout status.
 
 Users with temporary passwords must change them first.
 Archiving disables sign-in, revokes all sessions and hides the user from the users table while retaining identity, role membership and audit history.

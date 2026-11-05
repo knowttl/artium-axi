@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { migrate } from '../store/db.js'
-import { hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, requireRecentAuth, revokeUserSessions, verifyAccessFamily, verifyAccessToken, verifyPasswordToken, verifyPrincipal } from './tokens.js'
+import { exchangeDelegation, hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, requireRecentAuth, revokeUserSessions, verifyAccessFamily, verifyAccessToken, verifyPasswordToken, verifyPrincipal } from './tokens.js'
 import { Audit } from '../audit/audit.js'
 import { issueTestAccessToken } from '../../../test/fixtures/tokens.js'
 import { createBrowserSession, readBrowserSession } from './sessions.js'
@@ -16,6 +16,37 @@ beforeEach(() => {
   db.prepare("INSERT INTO users (id, username, display_name, password_hash) VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash')").run()
 })
 afterEach(() => { db.close(); vi.unstubAllEnvs(); vi.restoreAllMocks() })
+
+test('SSO inactivity pauses exchange, verification and refresh without consuming credentials, and sign-in resumes them', () => {
+  const day = 86400000
+  db.prepare("UPDATE users SET source = 'sso', password_hash = NULL, must_change = 0, last_sso_sign_in_at = ?").run(now - 7 * day + 1)
+  db.prepare(`INSERT INTO delegations (id, creator_id, token_hash, label, scope_json, read_only, single_use, created_at, expires_at)
+    VALUES ('delegation', 'synthetic-user', ?, 'Synthetic', '{}', 1, 0, ?, ?)`).run(hashToken('synthetic-delegation'), now, now + day)
+  const session = exchangeDelegation(db, 'synthetic-delegation', now)
+  expect(verifyPrincipal(db, session.accessToken, now).delegation?.id).toBe('delegation')
+  const audit = new Audit(db)
+  const context = { requestId: 'synthetic-refresh', clientAddress: '192.0.2.1' }
+  for (const action of [() => exchangeDelegation(db, 'synthetic-delegation', now + 1),
+    () => verifyPrincipal(db, session.accessToken, now + 1), () => refreshTokens(db, session.refreshToken, audit, context, now + 1)]) {
+    expect(action).toThrow('paused until its creator signs in again via SSO')
+  }
+  db.prepare('UPDATE users SET last_sso_sign_in_at = ?').run(now + 1)
+  expect(exchangeDelegation(db, 'synthetic-delegation', now + 1).status).toBe('authenticated')
+  expect(verifyPrincipal(db, session.accessToken, now + 1).delegation?.id).toBe('delegation')
+  expect(refreshTokens(db, session.refreshToken, audit, context, now + 1).status).toBe('authenticated')
+})
+
+test('the configured SSO window applies to SSO creators but not local creators', () => {
+  const day = 86400000
+  db.exec('UPDATE users SET must_change = 0; UPDATE delegation_settings SET sso_window_ms = 86400000')
+  db.prepare(`INSERT INTO delegations (id, creator_id, token_hash, label, scope_json, read_only, single_use, created_at, expires_at)
+    VALUES ('delegation', 'synthetic-user', ?, 'Synthetic', '{}', 1, 0, ?, ?)`).run(hashToken('synthetic-delegation'), now, now + day)
+  expect(exchangeDelegation(db, 'synthetic-delegation', now).status).toBe('authenticated')
+  db.prepare("UPDATE users SET source = 'sso', password_hash = NULL, last_sso_sign_in_at = ?").run(now - day)
+  expect(() => exchangeDelegation(db, 'synthetic-delegation', now)).toThrow('paused until its creator signs in again via SSO')
+  db.exec('UPDATE delegation_settings SET sso_window_ms = 172800000')
+  expect(exchangeDelegation(db, 'synthetic-delegation', now).status).toBe('authenticated')
+})
 
 test('fixture stores only a SHA-256 hash and verifier returns the owning user', () => {
   const token = issueTestAccessToken(db, 'synthetic-user', now)

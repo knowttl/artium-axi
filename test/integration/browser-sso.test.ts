@@ -17,7 +17,7 @@ import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { seedToolUser, issueTestAccessToken } from '../fixtures/tokens.js'
 import { seedBrowserSso, seedSsoInvitation, seedSsoRules, ssoStart, syntheticObject, syntheticTenant } from '../fixtures/sso.js'
 import { createBrowserSession } from '../../src/server/auth/sessions.js'
-import { requireRecentAuth, verifyAccessToken } from '../../src/server/auth/tokens.js'
+import { delegationPaused, exchangeDelegation, hashToken, requireRecentAuth, verifyAccessToken } from '../../src/server/auth/tokens.js'
 
 let directory: string
 let db: Database.Database
@@ -63,6 +63,16 @@ async function signedIn() {
   return response.cookies.find(cookie => cookie.name === browserCookie)!.value
 }
 
+test('successful SSO sign-in resumes a paused delegation', async () => {
+  const now = Date.now()
+  vi.spyOn(Date, 'now').mockReturnValue(now)
+  db.prepare(`INSERT INTO delegations (id, creator_id, token_hash, label, scope_json, read_only, single_use, created_at, expires_at)
+    VALUES ('synthetic-delegation', 'synthetic-browser-sso', ?, 'Synthetic', '{}', 1, 0, ?, ?)`).run(hashToken('synthetic-token'), now, now + 600000)
+  expect(() => exchangeDelegation(db, 'synthetic-token')).toThrow('paused until its creator signs in again via SSO')
+  await signedIn()
+  expect(exchangeDelegation(db, 'synthetic-token').status).toBe('authenticated')
+})
+
 test('SSO reauth requires a new provider login and updates only the initiating session', async () => {
   const first = await signedIn()
   const second = await signedIn()
@@ -77,6 +87,18 @@ test('SSO reauth requires a new provider login and updates only the initiating s
   expect(db.prepare("SELECT authentication_method, provider_id, subject, user_id FROM audit WHERE event = 'reauth'").get())
     .toEqual({ authentication_method: 'sso', provider_id: 'synthetic-entra', subject: `${syntheticTenant}:${syntheticObject}`, user_id: 'synthetic-browser-sso' })
   expect((await finish(transaction)).body).toContain('SSO_STATE_INVALID')
+})
+
+test('successful SSO reauth renews the delegation inactivity deadline', async () => {
+  const now = Date.now()
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(now)
+  const sessionToken = await signedIn()
+  db.prepare('UPDATE delegation_settings SET sso_window_ms = 86400000 WHERE id = 1').run()
+  clock.mockReturnValue(now + 1000)
+  fake.token.claims = { auth_time: Math.floor((now + 1000) / 1000) }
+  expect((await finish(await start(ssoStart + '?reauth=1', sessionToken))).statusCode).toBe(200)
+  expect(delegationPaused(db, 'synthetic-browser-sso', now + 86400000)).toBe(false)
+  expect(delegationPaused(db, 'synthetic-browser-sso', now + 86401000)).toBe(true)
 })
 
 test.each([

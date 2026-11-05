@@ -203,6 +203,7 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
           if (bound.id !== proof.identityId || bound.subject !== subject || bound.issuer !== transaction.provider.issuer ||
             bound.provider_id !== transaction.provider.id) throw new ArtiumError('SSO_STATE_INVALID')
           db.prepare('UPDATE sessions SET reauthenticated_at = ? WHERE id = ?').run(authTime.data * 1000, session.id)
+          db.prepare('UPDATE users SET last_sso_sign_in_at = ? WHERE id = ?').run(Date.now(), session.user_id)
         })
         return browserPage(reply, 'Identity confirmed', '<a class="btn btn-primary" href="/reauth?complete=1">Continue to Artium</a>', undefined,
           'Your identity has been confirmed.', { mark: { icon: 'check', tone: 'ok' } })
@@ -255,6 +256,7 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
         for (const rule of matching) db.prepare('INSERT OR IGNORE INTO user_roles (user_id, role_id, origin) VALUES (?, ?, ?)')
           .run(userId, rule.role_id, rule.id)
         if (added.length || removed.length) events.push({ ...event, event: 'role-sync', userId, subject: subject!, outcome: 'success', added, removed })
+        db.prepare('UPDATE users SET last_sso_sign_in_at = ? WHERE id = ?').run(Date.now(), userId)
         events.push({ ...event, userId, subject, outcome: 'success' })
         const created = createBrowserSession(db, userId!, csrfSecret)
         const bound = db.prepare('SELECT id FROM identities WHERE user_id = ? AND provider_id = ? AND issuer = ? AND subject = ?')
