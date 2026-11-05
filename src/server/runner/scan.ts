@@ -68,6 +68,7 @@ export class SecretScanner {
   readonly #chunks: Record<OutputStream, Buffer[]> = { stdout: [], stderr: [] }
   #projectedBytes = 0
   readonly #mintedSecrets: string[] = []
+  readonly #delegationTail: Record<OutputStream, string> = { stdout: '', stderr: '' }
 
   constructor(private readonly secrets: readonly string[], private readonly output?: PrivateOutput,
     private readonly publicContent?: PublicContent) {
@@ -86,6 +87,9 @@ export class SecretScanner {
 
   scan(stream: OutputStream, chunk: Uint8Array): boolean {
     if (this.#matched) return true
+    const text = this.#delegationTail[stream] + Buffer.from(chunk).toString('latin1')
+    if (/artd_[A-Za-z0-9_-]{43}/.test(text)) return this.#matched = true
+    this.#delegationTail[stream] = text.slice(-47)
     if (this.output || this.publicContent) this.#chunks[stream].push(Buffer.from(chunk))
     if (this.publicContent) {
       // A reviewed structured protocol must be complete before its provider values can be selected.

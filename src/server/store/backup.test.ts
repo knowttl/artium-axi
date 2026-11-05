@@ -9,7 +9,8 @@ import { backupStore, restoreStore } from './backup.js'
 import { createCredentialStore, migrate, openStore } from './db.js'
 import { EnvironmentKeyProvider } from './key-provider.js'
 import { acquireMaintenanceLock } from './maintenance-lock.js'
-import { issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, verifyAccessToken, verifyPasswordToken } from '../auth/tokens.js'
+import { exchangeDelegation, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, verifyAccessToken, verifyPasswordToken } from '../auth/tokens.js'
+import { createDelegation } from '../auth/delegations.js'
 import { createBrowserSession, readBrowserSession } from '../auth/sessions.js'
 import { Audit } from '../audit/audit.js'
 import { build } from 'esbuild'
@@ -102,6 +103,19 @@ test('backup refuses to replace an existing destination', async () => {
   writeFileSync(output, 'sentinel')
   await expect(backupStore(file, output, provider)).rejects.toMatchObject({ code: 'BACKUP_FAILED' })
   expect(readFileSync(output, 'utf8')).toBe('sentinel')
+})
+
+test('restore cannot revive an issued delegated token from a backup', async () => {
+  const source = openStore(file, provider)
+  source.exec("UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'; UPDATE delegation_settings SET minting_enabled = 1")
+  const { token } = createDelegation(source, 'synthetic-user', { label: 'Synthetic', scope: { tools: [{ tool: 'falcon-axi' }] },
+    readOnly: true, reusable: true, expiresAt: Date.now() + 600_000 })
+  await backupStore(file, output, provider)
+  source.close()
+  restoreStore(output, restored, provider)
+  const db = openStore(restored, provider)
+  try { expect(() => exchangeDelegation(db, token)).toThrow(expect.objectContaining({ code: 'TOKEN_INVALID' })) }
+  finally { db.close() }
 })
 
 test.each(['key', 'credential', 'schema', 'missing-table', 'foreign-key', 'corrupt-file'])('restore rejects %s failure without publishing a database', async failure => {

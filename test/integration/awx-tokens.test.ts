@@ -1,4 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
 import { join } from 'node:path'
 import { decode } from '@toon-format/toon'
 import { expect, test, vi } from 'vitest'
@@ -12,6 +14,7 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
+import { copyClientInput } from '../fixtures/client-inputs.js'
 
 async function withTokenService(check: (context: {
   app: ReturnType<typeof createApp>, db: ReturnType<typeof openStore>, store: ReturnType<typeof createCredentialStore>,
@@ -47,6 +50,76 @@ async function withTokenService(check: (context: {
     finally { vi.useRealTimers(); await app.close(); db.close() }
   })
 }
+
+test('delegated AWX credential creation requires an exact writable pick', async () => {
+  await withTokenService(async ({ app, db, headers, directory }) => {
+    db.exec(`UPDATE delegation_settings SET minting_enabled = 1;
+      UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+    const proof = { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }
+    const url = await app.listen({ host: '127.0.0.1', port: 0 })
+    const bundle = copyClientInput('bundle', join(directory, 'delegated-client.mjs'))
+    const cli = async (config: string, args: string[], input = '') => {
+      const child = spawn(process.execPath, [bundle, ...args], { env: { PATH: process.env.PATH, XDG_CONFIG_HOME: join(directory, config),
+        ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' }, stdio: ['pipe', 'pipe', 'pipe'] })
+      let stdout = ''; let stderr = ''
+      child.stdout.on('data', chunk => { stdout += chunk })
+      child.stderr.on('data', chunk => { stderr += chunk })
+      child.stdin.end(input)
+      const [code] = await once(child, 'close')
+      return { code, stdout, stderr, argv: child.spawnargs }
+    }
+    const create = async (commands: string[] | undefined, readOnly: boolean) => app.inject({ method: 'POST', url: '/v1/account/tokens', headers: proof,
+      payload: { label: 'Synthetic', scope: { tools: [{ tool: 'awx-axi', ...(commands ? { commands } : {}) }] },
+        readOnly, reusable: false, expiresAt: Date.now() + 600_000 } })
+    const wildcard = await create(['user *'], false)
+    expect(wildcard.statusCode).toBe(400)
+    for (const [config, commands, readOnly, allowed] of [
+      ['wide', undefined, false, false], ['readonly', ['user token-create'], true, false], ['exact', ['user token-create'], false, true],
+    ] as const) {
+      const minted = await create(commands ? [...commands] : undefined, readOnly)
+      expect(minted.statusCode).toBe(200)
+      const token = minted.json().token as string
+      const login = await cli(config, ['login', '--token-stdin'], `${token}\n`)
+      expect(login.code).toBe(0)
+      expect((login.stdout + login.stderr + login.argv.join(' ')).includes(token)).toBe(false)
+      if (allowed) {
+        expect((await cli(config, ['awx-axi', 'user', 'token-create', '42', '--help'])).code).toBe(0)
+        expect((await cli(config, ['awx-axi', 'user', 'token-create', '42', '--dry-run'])).code).toBe(0)
+        expect(db.prepare("SELECT outcome FROM audit WHERE event = 'credential-issue' ORDER BY id").all())
+          .toEqual([{ outcome: 'attempt' }, { outcome: 'preview' }, { outcome: 'attempt' }, { outcome: 'preview' }])
+      }
+      const result = await cli(config, ['awx-axi', 'user', 'token-create', '42', '--confirm'])
+      expect((result.stdout + result.stderr + result.argv.join(' ')).includes(token)).toBe(false)
+      expect(result.code).toBe(allowed ? 0 : 1)
+      if (!allowed) expect(result.stdout).toContain('DELEGATED_SCOPE_DENIED')
+      else expect(result.stdout).toContain('token-create')
+    }
+    expect(db.prepare("SELECT target_id, outcome FROM audit WHERE event = 'credential-issue' AND outcome = 'success'").all())
+      .toEqual([{ target_id: 'user token-create', outcome: 'success' }])
+  })
+})
+
+test('read-only delegated AWX stdout remains retrievable as data (R8)', async () => {
+  await withTokenService(async ({ app, db, headers, send }) => {
+    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
+    const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+    const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
+      headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { label: 'Synthetic',
+        scope: { tools: [{ tool: 'awx-axi' }] }, readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 } })
+    expect(minted.statusCode).toBe(200)
+    const exchanged = await app.inject({ method: 'POST', url: '/v1/auth/delegated', payload: { token: minted.json().token } })
+    const delegated = { authorization: `Bearer ${exchanged.json().accessToken}` }
+    await send('/__awx/stdout-response?status=200&text=synthetic%20log%0A', 'POST')
+    const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers: delegated,
+      payload: { args: ['job', 'stdout', '42', '--type', 'project-update', '--download', '42.log'] } })
+    expect(response.json()).toMatchObject({ exitCode: 0 })
+    const { result } = decode(response.json().stdout) as { result: { path: string } }
+    const downloaded = await app.inject({ url: result.path, headers: delegated })
+    expect(downloaded.statusCode).toBe(200)
+    expect(downloaded.body).toBe('synthetic log\n')
+  })
+})
 
 test.each(['read', 'write'])('AWX %s PAT creation delivers bytes once to the authorized caller (S10)', async scope => {
   await withTokenService(async ({ app, db, store, headers, send, run, lines, directory }) => {

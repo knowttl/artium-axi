@@ -12,6 +12,7 @@ import type { SensitiveArguments } from './redact.js'
 
 interface Context {
   userId: string | null
+  delegationId?: string | null
   tool: ToolName | null
   requestId: string
   // The HTTP owner supplies the verified address, never a raw forwarded header.
@@ -33,7 +34,8 @@ export type AuditEvent = Context & (
     failure?: { diagnostic: Diagnostic | undefined, secrets: readonly string[] } } & Partial<Omit<CredentialTestEvidence, 'errorCode'>>)
   | { event: 'denial', outcome: ErrorCode }
   | { event: 'sign-in' | 'reauth' | 'password-change', outcome: Outcome, authenticationMethod?: 'sso' | 'local' | 'break-glass', providerId?: string, subject?: string }
-  | { event: 'lockout' | 'token-reuse', outcome: Outcome }
+  | { event: 'credential-issue', outcome: Outcome | 'attempt' | 'preview', targetId?: string }
+  | { event: 'lockout' | 'token-reuse' | 'token-create' | 'token-exchange' | 'token-revoke' | 'delegation-access', outcome: Outcome, targetId?: string }
   | { event: 'device-approve' | 'device-deny', outcome: Outcome, requestingAddress: string }
   | { event: 'sign-out', outcome: Outcome, action?: string, targetId?: string }
   | ({ event: 'credential-test' | 'health-check', outcome: Outcome, action?: string } & CredentialTestEvidence)
@@ -119,7 +121,7 @@ export class Audit {
       values.id = cursor[2]!
     }
     if (input.failed === '1') clauses.push("event = 'run-terminal' AND (exit_code IS NULL OR exit_code <> 0 OR outcome <> 'completed')")
-    for (const [filter, column] of [['requestId', 'request_id'], ['user', 'user_id'], ['tool', 'tool'], ['event', 'event'], ['outcome', 'outcome'], ['errorCode', 'error_code']] as const) {
+    for (const [filter, column] of [['requestId', 'request_id'], ['user', 'user_id'], ['tool', 'tool'], ['event', 'event'], ['outcome', 'outcome'], ['errorCode', 'error_code'], ['delegationId', 'delegation_id']] as const) {
       if (input[filter] !== undefined) {
         clauses.push(`${column} = @${filter}`)
         values[filter] = input[filter]!
@@ -131,9 +133,8 @@ export class Audit {
         values[filter] = Date.parse(input[filter]!)
       }
     }
-    const stored = this.db.prepare(`SELECT * FROM audit WHERE ${clauses.join(' AND ')}
-      ORDER BY occurred_at DESC, id DESC LIMIT @limit`).all(values) as (AuditRecord & { delegation_id: string | null })[]
-    const rows = stored.map(({ delegation_id: _delegationId, ...record }) => record)
+    const rows = this.db.prepare(`SELECT * FROM audit WHERE ${clauses.join(' AND ')}
+      ORDER BY occurred_at DESC, id DESC LIMIT @limit`).all(values) as AuditRecord[]
     const records = rows.slice(0, input.limit)
     const last = records.at(-1)
     return { records, nextCursor: rows.length > input.limit ? `${ceiling}:${last!.occurred_at}:${last!.id}` : null }
@@ -167,7 +168,7 @@ export class Audit {
       ORDER BY id`).all() as AuditRecord[]
     for (const start of starts) {
       this.record({ event: 'run-terminal', userId: start.user_id, tool: start.tool,
-        requestId: start.request_id, clientAddress: start.client_address, outcome: 'interrupted', action: 'unknown',
+        requestId: start.request_id, clientAddress: start.client_address, delegationId: start.delegation_id, outcome: 'interrupted', action: 'unknown',
         exitCode: null, durationMs: Math.max(0, this.clock() - start.occurred_at), outputBytes: { stdout: null, stderr: null },
         credentialRevision: start.credential_revision, checkedAt: null, errorCode: null })
     }
@@ -205,6 +206,18 @@ export class Audit {
           const deletedCount = this.db.prepare(`DELETE FROM audit WHERE id IN (
             SELECT id FROM audit WHERE occurred_at < ? ORDER BY occurred_at, id LIMIT ?
           )`).run(cutoff, retentionBatch).changes
+          const expired = this.db.prepare(`SELECT id FROM delegations WHERE expires_at < ?
+            AND NOT EXISTS (SELECT 1 FROM audit WHERE audit.delegation_id = delegations.id) LIMIT ?`).all(cutoff, retentionBatch) as { id: string }[]
+          for (const { id } of expired) {
+            const families = this.db.prepare('SELECT id FROM session_families WHERE delegation_id = ?').all(id) as { id: string }[]
+            for (const family of families) {
+              this.db.prepare('DELETE FROM recent_auth_tickets WHERE family_id = ?').run(family.id)
+              this.db.prepare('DELETE FROM tokens WHERE family_id = ?').run(family.id)
+              this.db.prepare('DELETE FROM sessions WHERE family_id = ?').run(family.id)
+              this.db.prepare('DELETE FROM session_families WHERE id = ?').run(family.id)
+            }
+            this.db.prepare('DELETE FROM delegations WHERE id = ?').run(id)
+          }
           return this.insert({ event: 'maintenance', userId: null, tool: null,
             requestId: `retention-${now}`, clientAddress: null, outcome: 'success', cutoff, deletedCount })
         }).immediate()
@@ -257,7 +270,7 @@ export class Audit {
       native_audit_id: transfer?.native_audit_id ?? terminal?.nativeAuditId ?? null,
       native_journal_result: transfer?.native_journal_result ?? (terminal?.completedMutation ? JSON.stringify(terminal.completedMutation) : null),
       client_save_outcome: transfer?.client_save_outcome ?? null,
-      delegation_id: null,
+      delegation_id: event.delegationId ?? null,
     }
     const inserted = this.db.prepare(`INSERT INTO audit (${Object.keys(row).join(', ')})
       VALUES (${Object.keys(row).map(key => `@${key}`).join(', ')})`).run(row)

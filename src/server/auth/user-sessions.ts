@@ -13,7 +13,7 @@ export function listUserSessions(db: Database.Database, userId: string, currentF
     FROM session_families f LEFT JOIN sessions s ON s.family_id = f.id
     LEFT JOIN (SELECT family_id, max(expires_at) AS expires_at FROM tokens
       WHERE revoked_at IS NULL AND consumed_at IS NULL GROUP BY family_id) t ON t.family_id = f.id
-    WHERE f.user_id = ? AND f.revoked_at IS NULL AND f.expires_at > ?
+    WHERE f.user_id = ? AND f.delegation_id IS NULL AND f.revoked_at IS NULL AND f.expires_at > ?
       AND ((s.id IS NOT NULL AND s.revoked_at IS NULL AND s.expires_at > ? AND s.last_seen_at + ? > ?)
         OR (s.id IS NULL AND t.expires_at > ?))
     ORDER BY f.created_at DESC, f.id`).all(currentFamily, now, currentFamily, now, browserDefaults.idleMs, userId, now, now, browserDefaults.idleMs, now, now) as
@@ -22,7 +22,7 @@ export function listUserSessions(db: Database.Database, userId: string, currentF
 }
 
 export function revokeUserSession(db: Database.Database, userId: string, familyId: string, now: number): void {
-  if (!db.prepare('SELECT 1 FROM session_families WHERE id = ? AND user_id = ?').get(familyId, userId)) {
+  if (!db.prepare('SELECT 1 FROM session_families WHERE id = ? AND user_id = ? AND delegation_id IS NULL').get(familyId, userId)) {
     throw new ArtiumError('NOT_FOUND')
   }
   revokeFamily(db, familyId, now)

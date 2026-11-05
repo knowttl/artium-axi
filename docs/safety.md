@@ -34,14 +34,27 @@ Local integration tests execute installed commands and plugin exports; actual ag
 
 ## Delegated sessions
 
-Temporary delegated access is not available for use yet; the principal boundary, storage and adapter command classifiers are present without token issuance or redemption commands, API endpoints or browser controls.
-Delegated sessions are denied protected operations, including discovery, help, tool execution, downloads, account management, administration and reauthentication, even when the creator has administrator capability.
-Bearer requests return `DELEGATED_SCOPE_DENIED` (HTTP 403) for an otherwise valid delegated session; use an ordinary signed-in session for these operations.
-Refresh and logout remain available for valid session tokens, but refreshing a delegated family does not grant access to protected operations.
+Delegated token creation, exchange, listing and revocation are implemented, but minting remains disabled by default until slice 8.
+Disabling minting stops new tokens without invalidating previously issued tokens; they remain exchangeable until expired, revoked or consumed.
+See [delegated token usage](client-reference.md#delegated-tokens) for CLI sign-in and token management.
+Delegated tool execution follows the token's tool scope and the creator's current grants, with existing administrator write gates, upstream permissions and confirmation requirements still enforced.
+Tool lists include only selected tools and mark read-only tokens accordingly; command-scoped discovery and filtered help remain later slices.
+Identity and skills endpoints, account management, administration and reauthentication remain denied with `DELEGATED_SCOPE_DENIED` (HTTP 403), even when the creator has administrator capability.
+Delegated SSH access, hosted sessions, streams and `artium-axi download` transfers remain unavailable in this slice.
+Refresh and logout remain available; logging out revokes that exchanged session family, while token revocation invalidates all its families.
+Delegated access ends on expiry, revocation, creator disablement or password change.
+The seven-day SSO freshness pause is deferred to slice 6.
 
-Adapter classifiers resolve canonical command names and reviewed read/write effects for future scope enforcement; they do not change existing execution, grants, confirmation checks or discovery.
+Adapter classifiers resolve canonical command names and reviewed read/write effects for scope enforcement.
 Unknown commands, parsing failures and dynamic or conditional inventory effects default to write; reviewed read-command labels remain reads even when those commands have outside effects.
-Kubernetes write commands and workflows, including prepare and preview, classify as writes so future read-only delegation cannot obtain confirmation values.
+Read-only tokens refuse write-classified commands, including previews and Kubernetes prepare/preview workflows, but do not prevent all outbound data or spending.
+Hybrid Analysis quick scans, for example, still send samples or URLs to a third party as reads.
+Tool-wide grants exclude credential-producing commands and broad API escape hatches; those require exact selections, and credential-producing commands additionally require a writable token.
+Technitium `settings backup`, `settings set`, `settings restore` and `admin cluster primary transfer-config` are included in the credential-producing boundary because they can return secrets.
+The [delegation policy](../src/server/auth/delegations.ts) owns the reviewed exact-selection set.
+Issued upstream credentials can outlive the delegated token and must be revoked separately.
+Ordinary data results, including AWX stdout downloads and Technitium zone, allowed/blocked and log exports, remain available within delegated tool access.
+Delegated protected results are bound to the exchanged session family; another exchange of the same reusable token cannot retrieve them.
 Dedicated download classification is deferred to slice 7d, where minting must select the exact transfer operation while retaining existing administrative grants, confirmation and integrity checks.
 The [shared classifier](../src/server/adapters/classify.ts) and [adapter regression tests](../src/server/adapters/classify.test.ts) define and exercise the classification boundary.
 

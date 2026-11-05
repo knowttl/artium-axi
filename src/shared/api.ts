@@ -187,6 +187,15 @@ export const meResponseSchema = z.strictObject({ username: z.string(), displayNa
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int(), sessionExpiresAt: z.number().int() })
 const accountId = z.string().min(1)
 export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi', 'tenable-axi', 'hybrid-axi', 'checkpoint-axi', 'beyondtrust-axi', 'gh-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi', 'gitea-axi', 'kubernetes-axi', 'ssh-axi'])
+export const delegationScopeSchema = z.strictObject({
+  tools: z.array(z.strictObject({ tool: toolSchema, commands: z.array(z.string().min(1).max(200)).min(1).max(100).optional() })).min(1).max(36),
+})
+export const createDelegationSchema = z.strictObject({
+  label: z.string().trim().min(1).max(100), scope: delegationScopeSchema,
+  readOnly: z.boolean(), reusable: z.boolean(), expiresAt: z.number().int().positive(),
+})
+export const delegatedExchangeSchema = z.strictObject({ token: z.string().regex(/^artd_[A-Za-z0-9_-]{43}$/) })
+export const createdDelegationSchema = z.strictObject({ id: z.uuid(), token: z.string().regex(/^artd_[A-Za-z0-9_-]{43}$/), expiresAt: z.number().int() })
 // GET /v1/skills returns one authenticated, no-store snapshot of the account's
 // role-granted tools and their managed skills, including disabled tools and tools
 // without runtime adapters. Any unavailable skill fails the whole snapshot.
@@ -284,6 +293,7 @@ const auditCursorSchema = z.string().max(50).regex(/^\d{1,16}:\d{1,16}:\d{1,16}$
     return [ceiling, time, id].every(Number.isSafeInteger) && ceiling > 0 && id > 0 && id <= ceiling && time <= 8_640_000_000_000_000
   })
 const auditFiltersSchema = z.strictObject({
+  delegationId: z.string().min(1).max(100).optional(),
   requestId: z.string().min(1).max(100).optional(),
   failed: z.enum(['0', '1']).optional(),
   user: z.string().min(1).max(256).optional(), tool: toolSchema.optional(),
@@ -302,6 +312,7 @@ export const adminAuditExportRoute = { method: 'GET', path: '/v1/admin/audit/exp
 // bodySha256 and bodyBytes in arguments. Body content is never part of that journal.
 export const adminAuditRecordSchema = z.strictObject({
   id: z.number().int().positive(), occurred_at: z.number().int(), event: z.string(), user_id: z.string().nullable(),
+  delegation_id: z.string().nullable(),
   tool: toolSchema.nullable(), arguments: z.string().nullable(), request_id: z.string(),
   exit_code: z.number().int().nullable(), duration_ms: z.number().int().nullable(),
   stdout_bytes: z.number().int().nullable(), stderr_bytes: z.number().int().nullable(),

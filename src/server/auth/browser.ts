@@ -47,7 +47,8 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
   const provider = new LocalAuthProvider(db)
   const context = (request: FastifyRequest) => ({ requestId: request.id, clientAddress: request.ip })
   const session = (request: FastifyRequest) => readBrowserSession(db, request.cookies[browserCookie] ?? '')
-  const isBrowser = (request: FastifyRequest) => request.url.startsWith('/auth/sso/') || request.url.startsWith('/admin/') || request.url.startsWith('/v1/account/') || pages.includes(request.url.split('?')[0]!) ||
+  const isBrowser = (request: FastifyRequest) => request.url.startsWith('/auth/sso/') || request.url.startsWith('/admin/') ||
+    request.url.startsWith('/v1/account/') && !(/^\/v1\/account\/tokens(?:\/[^/]+\/revoke)?$/.test(request.url.split('?')[0]!) && request.headers.authorization) || pages.includes(request.url.split('?')[0]!) ||
     Boolean(request.cookies?.[browserCookie] && !request.headers.authorization && request.url.startsWith('/v1/'))
 
   app.addHook('onRequest', async (request, reply) => {

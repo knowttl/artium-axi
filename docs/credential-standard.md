@@ -316,6 +316,7 @@ This amendment authorizes no persistent Proxmox worker and does not extend the S
    API-token failures never fall back to password, ticket or another identity.
    TFA-enabled accounts cannot use automatic password sign-in; challenge responses are discarded and the administrator is directed to an API token.
 3. Only issued ready tickets and CSRF values may be cached in server-process memory, for at most five minutes after acquisition, with at most four sessions per authenticated user and sixty-four server-wide.
+   Delegated families share the creator's capacity and may occupy at most two pending or cached sessions in total.
    The stored password remains in the managed credential profile; resolved passwords and other caller-input secrets are never retained beyond their call or written alongside tickets.
    Tickets and CSRF values are never persisted to profiles, files, databases, disk caches, journals, backups or keyrings and do not survive server restart.
 4. Cached state binds the authenticated user, sign-in family, selected credential ID and revision, PVE HTTPS origin, PVE identity and host-trust revision.

@@ -178,6 +178,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   }
   if (url.pathname === '/__technitium/drop-write') { technitiumDropWrite = true; res.end('{}'); return }
   if (['/api/status', '/api/user/session/get', '/api/zones/export', '/api/logs/export', '/api/admin/ldap/get', '/api/admin/cluster/primary/transferConfig',
+    '/api/settings/backup', '/api/allowed/export', '/api/blocked/export', '/api/logs/download',
     '/api/allowed/add', '/api/dnsClient/resolve', '/api/admin/sessions/createToken', '/api/settings/get', '/api/settings/set',
     '/api/apps/config/set', '/api/zones/import', '/api/admin/users/create', '/api/user/createToken'].includes(url.pathname)) {
     const canaryReceived = req.headers.authorization === 'Bearer CANARY-technitium-token'
@@ -210,6 +211,9 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       } else if (url.pathname === '/api/logs/export') {
         res.setHeader('content-type', 'text/csv')
         res.end('name,result\r\nsynthetic.test,CANARY-confidential-result\r\n')
+      } else if (['/api/allowed/export', '/api/blocked/export', '/api/logs/download'].includes(url.pathname)) {
+        res.setHeader('content-type', 'text/plain')
+        res.end('synthetic.test\n')
       } else {
         res.setHeader('content-type', 'application/zip')
         res.setHeader('last-modified', 'Mon, 02 Nov 2026 00:00:00 GMT')

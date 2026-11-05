@@ -340,6 +340,8 @@ Apply filters, then choose **CSV** or **JSON lines** from **Export** to export e
 `GET /v1/admin/audit/export?format=csv` (or `format=jsonl`) accepts the same filters, excluding `limit` and `cursor`.
 Exports are newest first and exclude records inserted after the download begins.
 Both formats contain the same safe persisted fields as `ARTIUM_AXI_AUDIT_STDOUT`, never credentials, tokens or tool output.
+Delegated calls include the creator's user ID and `delegation_id`; the API and exports accept the `delegationId` filter.
+See [delegated capability boundaries](safety.md#delegated-sessions) for minting rollout and [token API usage](client-reference.md#delegated-tokens) for administrator listing and revocation, including revoke-all.
 CSV quotes non-null values and leaves null fields empty; JSON lines preserves JSON types and nulls.
 The [API contracts](../src/shared/api.ts) own the persisted field definitions (`adminAuditRecordSchema`) and transfer evidence rules (`transferAuditSchema` and `transferEvidenceSchema`).
 For hosted download availability, see the [supported capability boundaries](safety.md).

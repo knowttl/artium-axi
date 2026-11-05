@@ -8,7 +8,7 @@ import { loginResponseSchema } from '../shared/api.js'
 import type { LoginResponse } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 
-export type StoredSession = LoginResponse & { loginGeneration: string }
+export type StoredSession = LoginResponse & { loginGeneration: string, delegated?: boolean }
 
 export function sessionPath(platform = process.platform, environment = process.env, home = homedir()) {
   const paths = platform === 'win32' ? win32 : { join }
@@ -67,20 +67,22 @@ export class SessionStore {
       if (this.platform === 'win32') this.acl(this.file, false)
       const stat = statSync(this.file)
       if (!stat.isFile() || (this.platform !== 'win32' && ((stat.mode & 0o777) !== 0o600 || (statSync(this.directory).mode & 0o777) !== 0o700))) throw new Error()
-      const { serverUrl, loginGeneration, ...tokens } = JSON.parse(readFileSync(this.file, 'utf8'))
+      const { serverUrl, loginGeneration, delegated, ...tokens } = JSON.parse(readFileSync(this.file, 'utf8'))
       if (serverUrl !== this.serverUrl) throw new ArtiumError('SESSION_SERVER_MISMATCH')
-      return { ...loginResponseSchema.parse(tokens), loginGeneration: z.uuid().parse(loginGeneration) }
+      return { ...loginResponseSchema.parse(tokens), loginGeneration: z.uuid().parse(loginGeneration),
+        ...(delegated === undefined ? {} : { delegated: z.boolean().parse(delegated) }) }
     } catch (error) {
       if (error instanceof ArtiumError) throw error
       throw new ArtiumError('SESSION_STORAGE_UNAVAILABLE')
     }
   }
 
-  write(session: LoginResponse, loginGeneration: string = randomUUID()): StoredSession {
+  write(session: LoginResponse, loginGeneration: string = randomUUID(), delegated?: boolean): StoredSession {
     this.secureDirectory()
     const temporary = join(this.directory, `${randomUUID()}.tmp`)
     try {
-      const stored = { ...loginResponseSchema.parse(session), loginGeneration: z.uuid().parse(loginGeneration) }
+      const stored = { ...loginResponseSchema.parse(session), loginGeneration: z.uuid().parse(loginGeneration),
+        ...(delegated === undefined ? {} : { delegated }) }
       const file = openSync(temporary, 'wx', 0o600)
       try {
         if (this.platform === 'win32') this.acl(temporary, false)

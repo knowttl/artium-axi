@@ -89,6 +89,7 @@ export function restoreStore(input: string, file: string, provider: KeyProvider)
     db = openStore(restored, provider)
     db.transaction(() => {
       db!.exec('DELETE FROM recent_auth_tickets; DELETE FROM tokens; DELETE FROM sessions; DELETE FROM session_families;')
+      db!.prepare('UPDATE delegations SET revoked_at = ? WHERE revoked_at IS NULL').run(Date.now())
     }).immediate()
     db.pragma('wal_checkpoint(TRUNCATE)')
     db.close()

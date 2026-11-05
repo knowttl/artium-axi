@@ -59,6 +59,27 @@ test('a different sign-in family cannot consume the issuing family private resul
   expect(results.take(reference.id, issuer)).toEqual(Buffer.from('CANARY-issued-credential'))
 })
 
+test('delegated sessions and the creator cannot consume each other’s private results', () => {
+  const results = new ProtectedResults()
+  const delegated = { ...scope, familyId: 'delegated-family', delegated: true, familyOnly: true }
+  const ownerResult = results.reserve(scope).commit(Buffer.from('owner result'))
+  const delegatedResult = results.reserve(delegated).commit(Buffer.from('delegated result'))
+  expect(() => results.take(ownerResult.id, delegated)).toThrow(expect.objectContaining({ code: 'NOT_FOUND' }))
+  expect(() => results.take(delegatedResult.id, scope)).toThrow(expect.objectContaining({ code: 'NOT_FOUND' }))
+  expect(results.take(ownerResult.id, scope)).toEqual(Buffer.from('owner result'))
+  expect(results.take(delegatedResult.id, delegated)).toEqual(Buffer.from('delegated result'))
+})
+
+test('delegated result reservations leave capacity for the creator', () => {
+  const results = new ProtectedResults()
+  const delegated = { ...scope, familyId: 'delegated-family', delegated: true }
+  const first = results.reserve(delegated)
+  const second = results.reserve(delegated)
+  expect(() => results.reserve(delegated)).toThrow(expect.objectContaining({ code: 'TOO_MANY_CALLS' }))
+  const owner = results.reserve(scope)
+  first.cancel(); second.cancel(); owner.cancel()
+})
+
 test('per-user capacity is reserved before execution and released by cancellation or consumption', () => {
   vi.useFakeTimers()
   const results = new ProtectedResults()

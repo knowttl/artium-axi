@@ -13,7 +13,7 @@ export const fakeTool = {
 
 // Generic runner/API scenarios use the fixture's commands, with the real profile writer.
 // Published Falcon command admission is tested by the adapter and isolated service probes.
-export function createRunnerTestAdapter(source: SecretSource): Adapter<unknown> {
+export function createRunnerTestAdapter(source: SecretSource, runFake: boolean | { readyFile: string } = false): Adapter<unknown> {
   const adapter = createFalconAdapter(source)
   const validateArgs = (args: readonly string[], input: RunnerInput = {}) => {
     if (input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
@@ -27,6 +27,9 @@ export function createRunnerTestAdapter(source: SecretSource): Adapter<unknown> 
     async prepare(args: readonly string[], reference: Parameters<typeof adapter.prepare>[1], input?: RunnerInput) {
     validateArgs(args, input)
     const prepared = await adapter.prepare(['detection', 'list'], reference)
-    return { ...prepared, args: [...args], invocation: undefined }
+    const fake = typeof runFake === 'object' ? { executable: fakeTool.executable, args: [...fakeTool.args, 'sleep', '60000'],
+      environment: { ...prepared.environment, ARTIUM_TEST_READY_FILE: runFake.readyFile } }
+      : runFake ? { executable: fakeTool.executable, args: [...fakeTool.args, 'print', 'synthetic result'] } : { args: [...args] }
+    return { ...prepared, ...fake, invocation: undefined }
   } }
 }

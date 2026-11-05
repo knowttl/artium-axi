@@ -11,6 +11,8 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi --version`, `-v`, `-V` | Print only the client package version without configuration or sign-in. |
 | `artium-axi login --username <username> [--password-stdin]` | Sign in with a local account using protected password input. |
 | `artium-axi login --sso` | Sign in through browser approval of the terminal code. |
+| `artium-axi login --token-stdin` | Exchange a delegated token using protected stdin. |
+| `artium-axi token create\|list\|revoke` | Manage delegated tokens; minting is disabled by default. See [delegated tokens](client-reference.md#delegated-tokens). |
 | `artium-axi passwd [--password-stdin]` | Change the account password, then sign in again. |
 | `artium-axi logout` | Remove local tokens and attempt server-session revocation. |
 | `artium-axi whoami` | Show identity, roles, session expiry and server. |
@@ -96,6 +98,7 @@ For AWX, the [generated parity matrix](awx-parity-matrix.md) compares pinned ups
 With the [tenant write switch](safety.md#write-gates-by-tool) enabled, use `--dry-run` to preview a configuration command, then `--confirm` to execute it.
 Configuration commands without `--help`, `--dry-run` or `--confirm` are refused; operational commands without `--confirm` remain previews.
 Previews are read-classified, and `--dry-run` takes precedence over `--confirm`.
+Delegated read-only sessions refuse previews of commands classified as writes, including AWX configuration previews.
 Run a command with `--help` for its reviewed flags and required AWX resource permissions.
 AWX `--help` returns native help before private input handling; unused structured values are ignored and local input files are not read.
 See its [scope and managed equivalents](awx-parity.md) for client-local exceptions and planned delivery slices, and the [write boundary](safety.md#write-gates-by-tool) for current permissions.

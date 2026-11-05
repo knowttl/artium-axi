@@ -141,6 +141,49 @@ test.each([
   } finally { doctorResponses = undefined }
 })
 
+test.each([
+  { outcome: 'created', reply: { status: 200, body: { id: '11111111-1111-4111-8111-111111111111',
+    token: `artd_${'A'.repeat(43)}`, expiresAt: 1_800_000_600_000 } }, code: 0, secret: `artd_${'A'.repeat(43)}\n` },
+  { outcome: 'expired', reply: { status: 401, body: errorResponse(new ArtiumError('TOKEN_EXPIRED'), 'synthetic-error') }, code: 1, secret: '' },
+  { outcome: 'unavailable', reply: { status: 503, body: errorResponse(new ArtiumError('SERVER_UNAVAILABLE'), 'synthetic-error') }, code: 1, secret: '' },
+])('idle SSO token creation refreshes before approval and never replays minting: $outcome (R6)', async ({ reply, code, secret }) => {
+  const configuration = mkdtempSync(join(directory, 'token-sso-'))
+  new SessionStore(url, join(configuration, 'artium-axi', 'session.json')).write({
+    status: 'authenticated', accessToken: 'CANARY-old', refreshToken: 'CANARY-refresh',
+    accessExpiresAt: Date.now() - 1, familyExpiresAt: Date.now() + 43200_000,
+  })
+  responseSequence = [
+    { status: 200, body: { status: 'authenticated', accessToken: 'CANARY-new', refreshToken: 'CANARY-new-refresh',
+      accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000 } },
+    { status: 200, body: { deviceCode: 'CANARY-device-code', userCode: 'ABCD-EFGH', verificationUri: url + '/device',
+      expiresAt: Date.now() + 600_000, intervalMs: 1000 } },
+    { status: 200, body: { ticket: 'CANARY-ticket', expiresAt: Date.now() + 300_000 } },
+    reply,
+  ]
+  requests = []
+  try {
+    const child = spawn(process.execPath, [bundle, 'token', 'create', '--label', 'Synthetic', '--tool', 'falcon-axi',
+      '--expires', new Date(Date.now() + 600_000).toISOString(), '--sso', '--token-fd', '3'], {
+      env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'), XDG_CONFIG_HOME: configuration },
+      stdio: ['ignore', 'pipe', 'pipe', 'pipe'],
+    })
+    let stdout = '', stderr = '', privateOutput = ''
+    child.stdout!.on('data', bytes => { stdout += bytes })
+    child.stderr!.on('data', bytes => { stderr += bytes })
+    child.stdio[3]!.on('data', bytes => { privateOutput += bytes })
+    const [exitCode] = await once(child, 'close')
+    expect(exitCode, stdout + stderr).toBe(code)
+    expect(privateOutput).toBe(secret)
+    expect(requests.map(({ path, token }) => ({ path, token }))).toEqual([
+      { path: '/v1/auth/refresh', token: undefined },
+      { path: '/v1/auth/reauth', token: 'Bearer CANARY-new' },
+      { path: '/v1/auth/reauth', token: 'Bearer CANARY-new' },
+      { path: '/v1/account/tokens', token: 'Bearer CANARY-new' },
+    ])
+    expect(requests[2].body).toEqual({ deviceCode: 'CANARY-device-code' })
+  } finally { responseSequence = undefined }
+})
+
 test.each([false, true])('Kubernetes waiting reads survive 120 seconds and remain cancellable: cancel=%s (R1)', async cancel => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
   const id = '11111111-1111-4111-8111-111111111111'
@@ -1520,8 +1563,9 @@ test.each([
   })
 
 test.each([
-  { args: ['missing'], token: 'missing', choices: 'Valid commands: gh-axi, setup, session-context, tools, whoami, login, passwd, logout, doctor, update, download, falcon-axi, vectra-axi, ldap-axi, ado-axi, awx-axi, tenable-axi, hybrid-axi, beyondtrust-axi, checkpoint-axi, az-axi, mg-axi' },
+  { args: ['missing'], token: 'missing', choices: 'Valid commands: gh-axi, setup, session-context, tools, whoami, login, token, passwd, logout, doctor, update, download, falcon-axi, vectra-axi, ldap-axi, ado-axi, awx-axi, tenable-axi, hybrid-axi, beyondtrust-axi, checkpoint-axi, az-axi, mg-axi' },
   { args: ['download', '--oops'], token: '--oops', choices: 'Valid flags for download: --help, --operation, --selector, --type, --destination' },
+  { args: ['token', 'create', '--oops'], token: '--oops', choices: 'Valid flags: --help, --label, --tool, --expires' },
   { args: ['download', 'Limit'], token: 'Limit', choices: 'Valid flags for download: --help, --operation, --selector, --type, --destination' },
   { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, -v, -V, --managed-session' },
   { args: ['tools', 'shwo'], token: 'shwo', choices: 'Valid subcommands: show <tool>' },

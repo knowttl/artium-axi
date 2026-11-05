@@ -161,6 +161,30 @@ test('fourth concurrent user call succeeds', async () => {
     .resolves.toMatchObject({ exitCode: 0, stdout: 'admitted' })
 })
 
+test('delegated calls leave runner capacity for their creator', async () => {
+  const latch = () => {
+    let resolve!: () => void
+    const promise = new Promise<void>(done => { resolve = done })
+    return { promise, resolve }
+  }
+  const release = [latch(), latch()]
+  const started = [latch(), latch()]
+  const calls = release.map((gate, index) => runner.runManaged('a', undefined, async () => {
+    started[index].resolve()
+    await gate.promise
+  }, true))
+  await Promise.all(started.map(gate => gate.promise))
+  let admitted = false
+  const pending = runner.runManaged('a', undefined, async () => { admitted = true; return 'delegated' }, true)
+  await expect(runner.runManaged('a', undefined, async () => 'owner')).resolves.toBe('owner')
+  expect(admitted).toBe(false)
+  release[0].resolve()
+  await calls[0]
+  await expect(pending).resolves.toBe('delegated')
+  release[1].resolve()
+  await calls[1]
+})
+
 test('fifth call waits and runs when a slot frees within the bound', async () => {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
   const calls = occupy(['a', 'a', 'a', 'a'])

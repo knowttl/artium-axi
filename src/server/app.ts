@@ -4,7 +4,7 @@ import Fastify from 'fastify'
 import { ZodError } from 'zod'
 import type Database from 'better-sqlite3'
 import type { FastifyError } from 'fastify'
-import { certificateDetailsSchema, certificateInspectionSchema, inputLimits, passwordChangeSchema, toolSchema, toolsResponseSchema, toolAllowsWrites } from '../shared/api.js'
+import { certificateDetailsSchema, certificateInspectionSchema, createDelegationSchema, delegatedExchangeSchema, inputLimits, passwordChangeSchema, runRequestSchema, toolSchema, toolsResponseSchema, toolAllowsWrites } from '../shared/api.js'
 import { ArtiumError, cliOutdatedUpdateNext, errorResponse, errors } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
 import { loadCredentialProfile } from './adapters/credential-profile.js'
@@ -13,13 +13,14 @@ import type { ToolName } from './store/credential-store.js'
 import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './auth/local.js'
-import { hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, verifyAccessToken, verifyAccessFamily, verifyPasswordToken } from './auth/tokens.js'
-import { kubernetesBinding, kubernetesOwner } from './policy/kubernetes.js'
+import { exchangeDelegation, hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, requireRecentAuth, verifyAccessToken, verifyPasswordToken, verifyPrincipal } from './auth/tokens.js'
+import { createDelegation, delegationIncludesTool, revokeDelegation } from './auth/delegations.js'
+import { kubernetesBinding } from './policy/kubernetes.js'
 import { ProxmoxAccess, proxmoxTrust } from './runner/proxmox.js'
 import { registerProxmoxStreams } from './proxmox-streams.js'
 import type { ProxmoxAdapter } from './adapters/proxmox.js'
 import { loginSchema, reauthSchema, refreshSchema } from '../shared/api.js'
-import { AuthAttempts } from './auth/attempts.js'
+import { AuthAttempts, AuthRateLimits } from './auth/attempts.js'
 import { browserCookie, browserPage, registerBrowser } from './auth/browser.js'
 import { readBrowserSession, type BrowserSession } from './auth/sessions.js'
 import { registerAdmin } from './admin/api.js'
@@ -78,15 +79,29 @@ export function createApp(options: {
   if (proxies.some(address => !isIP(address))) throw new Error('Trusted proxies must be explicit IP addresses')
   const authenticate = verifyAccessToken
   const protectedResults = new ProtectedResults()
+  const delegatedReads = new Map<AbortController, string>()
   const proxmox = new ProxmoxAccess(db, resolver, runner, protectedResults)
   const localAuth = new LocalAuthProvider(db)
   const authAttempts = new AuthAttempts(db, audit)
+  const delegatedAttempts = new AuthRateLimits()
   audit.recoverInterrupted()
   const app = Fastify({ bodyLimit: inputLimits.requestBytes, logger: false,
     genReqId: () => randomUUID(), requestIdHeader: false,
     trustProxy: address => proxies.includes(address) })
   if (options.onRoute) app.addHook('onRoute', route => options.onRoute!(route.method, route.url))
   const bearer = (authorization: string | undefined) => /^Bearer ([^\s]+)$/.exec(authorization ?? '')?.[1] ?? ''
+  app.addHook('onRequest', async request => {
+    const token = bearer(request.headers.authorization)
+    if (!token) return
+    let outcome: 'success' | import('../shared/errors.js').ErrorCode = 'success'
+    try { verifyPrincipal(db, token) } catch (error) { outcome = error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' }
+    const delegation = db.prepare(`SELECT delegations.id, delegations.creator_id FROM tokens
+      JOIN session_families ON session_families.id = tokens.family_id
+      JOIN delegations ON delegations.id = session_families.delegation_id
+      WHERE tokens.hash = ? AND tokens.type = 'access'`).get(hashToken(token)) as { id: string, creator_id: string } | undefined
+    if (delegation) audit.record({ event: 'delegation-access', userId: delegation.creator_id,
+      delegationId: delegation.id, tool: null, requestId: request.id, clientAddress: request.ip, outcome })
+  })
   const browser = registerBrowser(app, db, audit, authAttempts, (session, origin) => sso.endSession(session, origin))
   const device = registerDevice(app, db, audit)
   const sso = registerSso(app, db, audit, options.providerCredentials, options.ssoFetch, device)
@@ -95,6 +110,11 @@ export function createApp(options: {
   const proxmoxMonitor = setInterval(() => { void reconcileProxmox().catch(() => {}) }, 1000)
   proxmoxMonitor.unref()
   app.addHook('onSend', reconcileProxmox)
+  app.addHook('onSend', async () => {
+    for (const [controller, token] of delegatedReads) {
+      try { verifyPrincipal(db, token) } catch { controller.abort() }
+    }
+  })
   const proxmoxAdapter = adapters.find(adapter => adapter.name === 'proxmox-axi')
   if (proxmoxAdapter && 'prepareStream' in proxmoxAdapter && 'inspectStream' in proxmoxAdapter) {
     registerProxmoxStreams(app, db, resolver, proxmoxAdapter as ProxmoxAdapter, runner, proxmox, protectedResults, audit, environment, proxies)
@@ -155,7 +175,7 @@ export function createApp(options: {
   app.addHook('onRequest', async (request, reply) => {
     reply.header('x-artium-request-id', request.id)
     const path = request.url.split('?')[0]
-    const login = path === '/v1/auth/login' || path === '/v1/auth/device' || path === '/v1/auth/device/poll'
+    const login = path === '/v1/auth/login' || path === '/v1/auth/delegated' || path === '/v1/auth/device' || path === '/v1/auth/device/poll'
     if (login) reply.header('X-Artium-Cli-Version', cliVersion)
     const version = request.headers['x-artium-cli-version']
     if (path.startsWith('/v1/') && !login && version !== undefined &&
@@ -186,8 +206,9 @@ export function createApp(options: {
     })
   }
   app.get('/v1/tools', async request => {
-    const userId = authenticate(db, bearer(request.headers.authorization))
-    const tools = grantedAdapters(userId).map(adapter => {
+    const principal = verifyPrincipal(db, bearer(request.headers.authorization))
+    const { userId, delegation } = principal
+    const tools = grantedAdapters(userId).filter(adapter => !delegation || delegationIncludesTool(delegation.scopeJson, adapter.name)).map(adapter => {
       const row = db.prepare(`SELECT native_settings AS nativeSettings, credentials.revision AS configured,
         tool_health.status AS health, tool_health.error_code AS errorCode
         FROM tools LEFT JOIN credentials ON credentials.tool = tools.name
@@ -197,7 +218,7 @@ export function createApp(options: {
       const configured = adapter.name === 'ssh-axi' ? hasSshConfiguration(db, userId)
         : Boolean(row.configured) && !(reference && isAwxOriginOnly(adapter.name, options.credentialStore!.readCredential(reference)))
       return { name: adapter.name, version: toolManifests[adapter.name].version,
-        readOnly: !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: configured ? adapter.name === 'ssh-axi' ? 'unknown' : row.health ?? (health.checking(adapter.name) ? 'checking' : 'unknown') : 'unconfigured',
+        readOnly: !!delegation?.readOnly || !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: configured ? adapter.name === 'ssh-axi' ? 'unknown' : row.health ?? (health.checking(adapter.name) ? 'checking' : 'unknown') : 'unconfigured',
         ...(adapter.name !== 'ssh-axi' && configured && row.health === 'error' && row.errorCode ? { errorCode: row.errorCode } : {}) }
     })
     return toolsResponseSchema.parse({ tools })
@@ -240,6 +261,56 @@ export function createApp(options: {
       authenticationMethod: localAuthenticationMethod(db, identity.userId),
       requestId: request.id, clientAddress: request.ip }, () => issueLoginTokens(db, identity.userId)).value
   })
+  app.post('/v1/auth/delegated', async (request, reply) => {
+    let row: { id: string, creator_id: string } | undefined
+    try {
+      delegatedAttempts.admitAddress(request.ip)
+      const body = delegatedExchangeSchema.safeParse(request.body)
+      if (!body.success) throw new ArtiumError('INVALID_INPUT')
+      row = db.prepare('SELECT id, creator_id FROM delegations WHERE token_hash = ?').get(hashToken(body.data.token)) as typeof row
+      const event = { event: 'token-exchange' as const, userId: row?.creator_id ?? null, delegationId: row?.id ?? null,
+        tool: null, requestId: request.id, clientAddress: request.ip }
+      const result = audit.change({ ...event, outcome: 'success' }, () => exchangeDelegation(db, body.data.token)).value
+      return reply.header('cache-control', 'no-store').send(result)
+    } catch (error) {
+      audit.record({ event: 'token-exchange', userId: row?.creator_id ?? null, delegationId: row?.id ?? null,
+        tool: null, requestId: request.id, clientAddress: request.ip, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
+      throw error
+    }
+  })
+  app.post('/v1/account/tokens', async (request, reply) => {
+    const token = bearer(request.headers.authorization)
+    let userId: string | null = null
+    try {
+      userId = authenticate(db, token)
+      const ticket = request.headers['x-artium-reauth-ticket']
+      requireRecentAuth(db, token, typeof ticket === 'string' ? ticket : '')
+      const input = createDelegationSchema.safeParse(request.body)
+      if (!input.success) throw new ArtiumError('INVALID_INPUT')
+      const id = randomUUID()
+      const creator = userId
+      const result = audit.change({ event: 'token-create', userId, delegationId: id, tool: null, targetId: id,
+        requestId: request.id, clientAddress: request.ip, outcome: 'success' }, () => createDelegation(db, creator, input.data, id)).value
+      return reply.header('cache-control', 'no-store').send(result)
+    } catch (error) {
+      audit.record({ event: 'token-create', userId, tool: null, requestId: request.id, clientAddress: request.ip,
+        outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
+      throw error
+    }
+  })
+  app.get('/v1/account/tokens', async request => {
+    const userId = authenticate(db, bearer(request.headers.authorization))
+    return { tokens: db.prepare(`SELECT id, label, scope_json AS scopeJson, read_only AS readOnly, single_use AS singleUse,
+      created_at AS createdAt, expires_at AS expiresAt, revoked_at AS revokedAt, consumed_at AS consumedAt
+      FROM delegations WHERE creator_id = ? ORDER BY created_at DESC, id`).all(userId) }
+  })
+  app.post<{ Params: { id: string } }>('/v1/account/tokens/:id/revoke', async (request, reply) => {
+    const userId = authenticate(db, bearer(request.headers.authorization))
+    audit.change({ event: 'token-revoke', userId, delegationId: request.params.id, tool: null, targetId: request.params.id,
+      requestId: request.id, clientAddress: request.ip, outcome: 'success' },
+    () => revokeDelegation(db, request.params.id, userId, false))
+    return reply.code(204).send()
+  })
   app.post('/v1/auth/reauth', async (request, reply) => {
     if (!request.headers.authorization && request.cookies[browserCookie]) {
       const until = await browser.reauthenticate(request)
@@ -278,6 +349,27 @@ export function createApp(options: {
     return reply.code(204).send()
   })
   const authorizeAdmin = registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health, credentialProfiles, sshHosts: options.sshHosts }, options.providerCredentials)
+  app.get('/v1/admin/tokens', async request => {
+    authorizeAdmin(request)
+    return { tokens: db.prepare(`SELECT id, creator_id AS creatorId, label, scope_json AS scopeJson, read_only AS readOnly,
+      single_use AS singleUse, created_at AS createdAt, expires_at AS expiresAt, revoked_at AS revokedAt, consumed_at AS consumedAt
+      FROM delegations ORDER BY created_at DESC, id`).all() }
+  })
+  app.post<{ Params: { id: string } }>('/v1/admin/tokens/:id/revoke', async (request, reply) => {
+    const userId = authorizeAdmin(request)
+    audit.change({ event: 'token-revoke', userId, delegationId: request.params.id, tool: null, targetId: request.params.id,
+      requestId: request.id, clientAddress: request.ip, outcome: 'success' },
+    () => revokeDelegation(db, request.params.id, userId, true))
+    return reply.code(204).send()
+  })
+  app.post('/v1/admin/tokens/revoke-all', async (request, reply) => {
+    const userId = authorizeAdmin(request)
+    const rows = db.prepare('SELECT id FROM delegations WHERE revoked_at IS NULL').all() as { id: string }[]
+    if (rows.length) audit.change(rows.map(({ id }) => ({ event: 'token-revoke' as const, userId, delegationId: id,
+      tool: null, targetId: id, requestId: request.id, clientAddress: request.ip, outcome: 'success' as const })),
+    () => { for (const row of rows) revokeDelegation(db, row.id, userId, true) })
+    return reply.code(204).send()
+  })
   if (options.sshHosts && options.sshExecution) registerSshExecutions(app, { ...options.sshExecution,
     db, hosts: options.sshHosts, runner, audit, environment, authorizeAdmin })
   registerOverviewPage(app, db)
@@ -289,17 +381,20 @@ export function createApp(options: {
   for (const tool of ['technitium-axi', 'awx-axi', 'kubernetes-axi', 'proxmox-axi'] as const) app.get<{ Params: { operation: string, id: string } }>(`/v1/results/${tool}/:operation/:id`, async (request, reply) => {
     if (tool === 'awx-axi' && !['token-create', 'stdout-download'].includes(request.params.operation)) throw new ArtiumError('NOT_FOUND')
     if (tool === 'kubernetes-axi' && request.params.operation !== 'token-create') throw new ArtiumError('NOT_FOUND')
-    const userId = authenticate(db, bearer(request.headers.authorization))
+    const token = bearer(request.headers.authorization)
+    const principal = verifyPrincipal(db, token)
+    const { userId, delegation, familyId } = principal
+    if (delegation && !delegationIncludesTool(delegation.scopeJson, tool)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
     checkToolPolicy(db, userId, tool)
     const credential = await resolver.resolve(userId, tool)
-    authenticate(db, bearer(request.headers.authorization))
+    verifyPrincipal(db, token)
     checkToolPolicy(db, userId, tool)
     if (tool === 'kubernetes-axi') {
-      const { settings } = kubernetesBinding(db, kubernetesOwner(db, request))
+      const { settings } = kubernetesBinding(db, { user: userId, family: familyId })
       if (settings.allowWrites !== true || settings.acquireCredential !== true) throw new ArtiumError('FLAG_BLOCKED')
     }
     const bytes = protectedResults.take(request.params.id, { userId, credential, operation: request.params.operation,
-      ...(['kubernetes-axi', 'proxmox-axi'].includes(tool) ? { familyId: verifyAccessFamily(db, bearer(request.headers.authorization)) } : {}),
+      ...(delegation || ['kubernetes-axi', 'proxmox-axi'].includes(tool) ? { familyId, familyOnly: !!delegation } : {}),
       ...(tool === 'proxmox-axi' ? { trustRevision: proxmoxTrust(db, credential) } : {}) })
     return reply.header('cache-control', 'no-store').header('content-disposition', 'attachment; filename="result.bin"')
       .header('x-content-type-options', 'nosniff').header('x-artium-content-sha256', createHash('sha256').update(bytes).digest('hex'))
@@ -324,12 +419,23 @@ export function createApp(options: {
     const controller = new AbortController()
     const disconnect = () => { if (!reply.raw.writableFinished) controller.abort() }
     reply.raw.once('close', disconnect)
+    let expiry: NodeJS.Timeout | undefined
+    try {
+      const token = bearer(request.headers.authorization)
+      const principal = verifyPrincipal(db, token)
+      const input = runRequestSchema.safeParse(request.body)
+      if (principal.delegation && input.success && adapter.classify(input.data.args, input.data).effect === 'read') {
+        delegatedReads.set(controller, token)
+        expiry = setTimeout(() => controller.abort(), Math.min(2_147_483_647, Math.max(0, principal.delegation.expiresAt - Date.now())))
+        expiry.unref()
+      }
+    } catch { /* The run path records authentication and validation failures. */ }
     try {
       const result = await runTool(db, audit, runner, bearer(request.headers.authorization), request.body,
         adapter, resolver, { requestId: request.id, clientAddress: request.ip, signal: controller.signal, protectedResults, proxmox }, authenticate)
       const { stdout, stderr, exitCode, durationMs, outputBytes, truncated } = result
       return { source: adapter.name, stdout, stderr, exitCode, durationMs, outputBytes, truncated }
-    } finally { reply.raw.off('close', disconnect) }
+    } finally { reply.raw.off('close', disconnect); delegatedReads.delete(controller); clearTimeout(expiry) }
   })
   app.addHook('preClose', async () => {
     clearInterval(proxmoxMonitor)

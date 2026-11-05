@@ -116,13 +116,7 @@ export class Client {
       token => this.request(path, method, input, token),
       refreshToken => this.request('/v1/auth/refresh', 'POST', { refreshToken }),
     )
-    let session = previous ? this.reload(previous) : this.sessions.read()
-    if (!session) throw new ArtiumError('TOKEN_INVALID', undefined, 'Run artium-axi login --username <username> --password-stdin.')
-    if (session.status === 'password-change-required') throw new ArtiumError('PASSWORD_CHANGE_REQUIRED')
-    if (session.accessExpiresAt <= Date.now() + ACCESS_EXPIRY_SKEW_MS) {
-      const expiring = session
-      session = await this.sessions.locked(() => this.refresh(expiring), this.cancellation.signal)
-    }
+    const session = await this.freshSession(previous)
     let result: unknown
     try { result = await this.request(path, method, input, session.accessToken) }
     catch (error) {
@@ -132,6 +126,17 @@ export class Client {
     }
     if (previous) this.reload(previous)
     return result
+  }
+
+  async freshSession(previous?: StoredSession) {
+    let session = previous ? this.reload(previous) : this.sessions.read()
+    if (!session) throw new ArtiumError('TOKEN_INVALID', undefined, 'Run artium-axi login --username <username> --password-stdin.')
+    if (session.status === 'password-change-required') throw new ArtiumError('PASSWORD_CHANGE_REQUIRED')
+    if (session.accessExpiresAt <= Date.now() + ACCESS_EXPIRY_SKEW_MS) {
+      const expiring = session
+      session = await this.sessions.locked(() => this.refresh(expiring), this.cancellation.signal)
+    }
+    return session
   }
 
   // Transfers never refresh/replay a request, including an ambiguous execute or
@@ -198,7 +203,7 @@ export class Client {
     if (current.accessToken !== previous.accessToken) return current
     const result = loginResponseSchema.safeParse(await this.request('/v1/auth/refresh', 'POST', { refreshToken: current.refreshToken }))
     if (!result.success || result.data.status !== 'authenticated') throw new ArtiumError('INVALID_RESPONSE')
-    return this.sessions.write(result.data, previous.loginGeneration) as Extract<StoredSession, { status: 'authenticated' }>
+    return this.sessions.write(result.data, previous.loginGeneration, previous.delegated) as Extract<StoredSession, { status: 'authenticated' }>
   }
 
   private reload(previous: StoredSession) {
