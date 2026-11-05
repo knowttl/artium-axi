@@ -53,7 +53,7 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | Azure DevOps (`ado-axi`) | Organization, optional default project and either a PAT or tenant ID, client ID and client secret. | `project list --limit 1`. |
 | GitHub (`gh-axi`) | GitHub HTTPS origin and one shared PAT, device-flow OAuth token or GitHub App installation credential. | `api /rate_limit`. |
 | AWX (`awx-axi`) | Controller HTTPS origin and either an existing personal access token or a username and password used once to mint one. | `job list --limit 1`; job read permissions are required. |
-| Tenable One (`tenable-axi`) | Access key and secret key; the origin is fixed to `https://cloud.tenable.com`. | `card list --limit 1`; exposure-view read access is required. |
+| Tenable One (`tenable-axi`) | Access key and secret key; the origin is fixed to `https://cloud.tenable.com`. | `tag category list --limit 1`; needs only a valid key pair, with no Tenable One license or Exposure Management privilege. |
 | Check Point Email Security (`checkpoint-axi`) | Region, client ID, client secret, optional SaaS and scope. | `doctor`; regional authentication and one bounded email search. |
 | UniFi (`unifi-axi`) | See [UniFi setup](#unifi). | `info`. |
 | Proxmox (`proxmox-axi`) | See [Proxmox setup](#proxmox). | `get /version`. |
@@ -193,8 +193,8 @@ Missing or mismatched upstream SHA-256 fails closed; attachment ZIP HTTP 200 can
 
 At `/admin/tools/tenable-axi`, enter `accessKey` and `secretKey` in the secret fields.
 The origin is fixed to `https://cloud.tenable.com`; both keys are stored encrypted and injected as private SecretRefs.
-The credential test runs `card list --limit 1`; the identity needs exposure-view read access.
-Other investigation commands need the corresponding upstream permissions.
+The credential test runs `tag category list --limit 1`, which verifies the key pair without requiring a Tenable One license or Exposure Management privilege.
+Investigation commands such as `card list` need the corresponding upstream licenses and permissions, for example exposure-view read access.
 Writes stay off until an administrator enables the tool's write switch and selects supported operation IDs.
 Business writes and export-job creation retain the native preview, `--execute`, exact preview `--confirm` and durable journal gates.
 Unknown write outcomes must be reconciled using the native audit ID and read-back guidance, never replayed blindly.

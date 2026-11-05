@@ -19,7 +19,7 @@ import type { CredentialReference, MutableCredentialStore, ToolName } from '../s
 import { readCredentialTrust } from '../store/trusted-certificates.js'
 import { isAwxOriginOnly } from '../store/credential-store.js'
 
-const healthReads = { 'kubernetes-axi': ['get', 'pods'], 'gitea-axi': ['doctor'], 'technitium-axi': ['user', 'session', 'get'], 'unifi-axi': ['info'], 'proxmox-axi': ['get', '/version'], 'beyondtrust-axi': ['doctor'], 'gh-axi': ['api', '/rate_limit'], 'checkpoint-axi': ['doctor'], 'hybrid-axi': ['quota'], 'falcon-axi': falconManifest.healthRead, 'vectra-axi': ['health', 'list'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list', '--limit', '1'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list', '--limit', '1'], 'awx-axi': ['job', 'list', '--limit', '1'], 'tenable-axi': ['card', 'list', '--limit', '1'] }
+const healthReads = { 'kubernetes-axi': ['get', 'pods'], 'gitea-axi': ['doctor'], 'technitium-axi': ['user', 'session', 'get'], 'unifi-axi': ['info'], 'proxmox-axi': ['get', '/version'], 'beyondtrust-axi': ['doctor'], 'gh-axi': ['api', '/rate_limit'], 'checkpoint-axi': ['doctor'], 'hybrid-axi': ['quota'], 'falcon-axi': falconManifest.healthRead, 'vectra-axi': ['health', 'list'], 'az-axi': ['account', 'list'], 'mg-axi': ['entra', 'user', 'list', '--limit', '1'], 'ldap-axi': ['auth', 'status'], 'ado-axi': ['project', 'list', '--limit', '1'], 'awx-axi': ['job', 'list', '--limit', '1'], 'tenable-axi': ['tag', 'category', 'list', '--limit', '1'] }
 
 // Manual tests and background reads share exclusion, runner admission and cache writes.
 export class ToolHealth {

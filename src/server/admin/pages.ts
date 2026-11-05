@@ -47,7 +47,7 @@ const testGuide = {
   'proxmox-axi': 'Proxmox get /version',
   'gh-axi': 'GitHub api /rate_limit',
   'hybrid-axi': 'Hybrid Analysis quota',
-  'tenable-axi': 'Tenable card list --limit 1',
+  'tenable-axi': 'Tenable tag category list --limit 1',
   'beyondtrust-axi': 'BeyondTrust doctor (authentication and bounded About read)',
   'checkpoint-axi': 'Check Point doctor (authentication and bounded email search)',
   'awx-axi': 'AWX job list --limit 1',
