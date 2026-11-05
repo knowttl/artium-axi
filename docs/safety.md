@@ -51,7 +51,8 @@ Ambient session context uses the filtered tool list and excludes identity and se
 Account management, administration and reauthentication remain denied with `DELEGATED_SCOPE_DENIED` (HTTP 403), even when the creator has administrator capability.
 Delegated Kubernetes workspaces, sessions and tunnels are available under the grants below.
 Delegated SSH connections and executions follow the [SSH capability boundary](#ssh-reads).
-Proxmox streams and `artium-axi download` transfers remain unavailable in this slice.
+Delegated Proxmox streams, `stream limits` and `result take` are available under the [Proxmox boundary](#network-appliance-reads).
+`artium-axi download` transfers remain unavailable in this slice.
 Refresh and logout remain available; logging out revokes that exchanged session family, while token revocation invalidates all its families.
 Delegated access ends on expiry, revocation, creator disablement or password change.
 Tokens from SSO creators pause after seven days without a successful SSO sign-in or SSO identity confirmation; administrators can set the window from one to 30 days on `/admin/tokens`.
@@ -328,11 +329,12 @@ Use [private CLI retrieval](client-reference.md#proxmox-private-results) and fol
 Reviewed transfers and duplex routes use [authenticated private byte channels](client-reference.md#proxmox-managed-streams), outside ordinary run input.
 Delegated sessions require a writable grant for managed streams, and credential-producing streams require an exact command grant.
 Delegated guest `agent/file-read` and `file-restore/download` streams require an exact operation grant and a writable token; tool-wide grants do not permit them.
-Delegated credential-producing operations and batches also require `result take` access before dispatch so their protected results can be delivered.
-Read transfers remain available with writes off; effectful setup and uploads require the same exact native/host grants and consumed-once confirmations.
+Delegated operations that produce protected results, including stream setup and batch children, also require `result take` access before dispatch so their protected results can be delivered.
+Read transfers remain available with the administrator's Allow writes switch off; effectful setup and uploads require the same exact native/host grants and consumed-once confirmations.
 SPICE stays in the existing one-shot memory result store; console and migration payloads are not text-redacted, logged or persisted.
 Uploads are verified in private staging before provider execution; failed cleanup retains capacity rather than permitting an unbounded fallback.
-Two streams per user, at most one delegated, and sixteen globally are also subject to Runner admission, and live delivery rechecks the current family, credential, access and trust.
+Streams retain the [shared and delegated capacity limits](runbook.md#retention-and-export) and Runner admission, and live delivery rechecks the current family, credential, access and trust.
+Revoking a delegated token terminates its live streams while the creator's own streams continue.
 Byte quotas, message bounds and expiry terminate the call; cancellation never authorizes reconnection or confirmation replay.
 Local synthetic verification does not establish live appliance commissioning.
 
