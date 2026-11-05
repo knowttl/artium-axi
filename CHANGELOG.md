@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.35](https://github.com/knowttl/artium-axi/compare/v0.0.34...v0.0.35) (2026-11-05)
+
+
+### Features
+
+* add command-scoped delegated access and filtered discovery ([#313](https://github.com/knowttl/artium-axi/issues/313)) ([9db515c](https://github.com/knowttl/artium-axi/commit/9db515c1303d8efb6f3a6c49d4ff45474bc8c250))
+* add scoped delegated tokens and tool execution ([#312](https://github.com/knowttl/artium-axi/issues/312)) ([9be4395](https://github.com/knowttl/artium-axi/commit/9be43959ee58ac5988c365d23d311afed99a5175))
+* **server:** add browser management for delegated tokens ([#314](https://github.com/knowttl/artium-axi/issues/314)) ([baab621](https://github.com/knowttl/artium-axi/commit/baab6219594f67e436fa1461ab7c8c1c2f32f6bb))
+* **server:** add command effect classification across adapters ([#311](https://github.com/knowttl/artium-axi/issues/311)) ([e59b5ef](https://github.com/knowttl/artium-axi/commit/e59b5efdbc29eace08b3fa1b8caa28da3226f576))
+* **server:** establish delegation principals and deny protected access ([#309](https://github.com/knowttl/artium-axi/issues/309)) ([b3dad54](https://github.com/knowttl/artium-axi/commit/b3dad54ce6a97d1fc054b4c09e246c9a505ffba0))
+* **server:** pause delegated tokens after SSO inactivity ([#315](https://github.com/knowttl/artium-axi/issues/315)) ([3be590d](https://github.com/knowttl/artium-axi/commit/3be590d9419cad0976059b59e1cea7d97e1c95f3))
+
 ## [0.0.34](https://github.com/knowttl/artium-axi/compare/v0.0.33...v0.0.34) (2026-11-04)
 
 
