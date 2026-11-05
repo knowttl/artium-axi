@@ -243,11 +243,20 @@ See the [capability boundary](safety.md#technitium-dns) and [retention, limits a
 Run `artium-axi shodan-axi info` for API plan and credit information or `artium-axi shodan-axi account profile` for the account profile.
 The bare `artium-axi shodan-axi` also performs the account-information read.
 These reads accept `--json` and `--help`; `--help` shows bounded hosted discovery without an account read.
-Host, search, DNS, InternetDB, query and trends catalogues, organization and dataset listings, and scan and alert reads are available through the reviewed inventory.
-Search and domain lookups consume query credits and require an exact operation grant and a query credit budget; use command help for the required flags.
+For host investigation, counts, search and domain lookups:
+
+```sh
+artium-axi shodan-axi host 192.0.2.1 --json
+artium-axi shodan-axi count 'port:443' --json
+artium-axi shodan-axi search 'port:443' --allow-operation OP-003 --query-credit-budget 1 --json
+artium-axi shodan-axi domain example.test --allow-operation OP-040 --query-credit-budget 1 --json
+```
+
+Use `artium-axi shodan-axi host --help` or `search --help` for command-specific flags.
+See the [supported boundary](safety.md#shodan) for available read families and credit requirements.
 Use `artium-axi shodan-axi version` to print the packaged version or `version --help` for help; `version` does not accept `--json`.
 For authentication failures, ask an administrator to replace the managed key using [Shodan credential setup](tool-credentials.md#shodan).
-See the [supported boundary](safety.md#shodan) and [package recovery](runbook.md#roles-credentials-and-health).
+See [package recovery](runbook.md#roles-credentials-and-health) for inventory or package mismatches.
 
 ## Check Point Email Security
 
