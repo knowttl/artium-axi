@@ -15,6 +15,38 @@ import { SharedIdentityResolver } from '../../src/server/policy/identity-resolve
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 
 test.each([
+  'transfer get /nodes/{node}/qemu/{vmid}/agent/file-read',
+  'transfer get /nodes/{node}/storage/{storage}/file-restore/download',
+])('delegated %s admits only writable exact grants (R1)', async command => {
+  const directory = mkdtempSync(join(tmpdir(), 'artium-proxmox-delegated-download-'))
+  const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+  const db = openStore(join(directory, 'store.db'), provider), store = createCredentialStore(db, provider)
+  const user = 'synthetic-development-user'
+  await seedToolUser(db)
+  db.exec("UPDATE tools SET enabled=1 WHERE name='proxmox-axi'; UPDATE delegation_settings SET minting_enabled=1")
+  store.replaceCredential('proxmox-axi', { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }, 0, user, Date.now())
+  const adapter = createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
+  const app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db), adapters: [adapter],
+    environment: {}, resolver: new SharedIdentityResolver(store), credentialStore: store })
+  const start = (token: string) => app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/streams',
+    headers: { authorization: `Bearer ${token}` }, payload: { args: command.split(' ') } })
+  try {
+    const wide = createDelegation(db, user, { label: 'Tool wide', scope: { tools: [{ tool: 'proxmox-axi' }] },
+      readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
+    expect((await start(exchangeDelegation(db, wide.token).accessToken)).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+    const readOnly = createDelegation(db, user, { label: 'Read only', scope: { tools: [{ tool: 'proxmox-axi', commands: [command] }] },
+      readOnly: true, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
+    expect((await start(exchangeDelegation(db, readOnly.token).accessToken)).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+    const exact = createDelegation(db, user, { label: 'Exact download', scope: { tools: [{ tool: 'proxmox-axi', commands: [command] }] },
+      readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
+    const token = exchangeDelegation(db, exact.token).accessToken
+    const tools = await app.inject({ url: '/v1/tools', headers: { authorization: `Bearer ${token}` } })
+    expect(tools.json().tools.find((tool: { name: string }) => tool.name === 'proxmox-axi').commands).toContain(command)
+    expect((await start(token)).statusCode).toBe(200)
+  } finally { await app.close(); db.close(); rmSync(directory, { recursive: true, force: true }) }
+})
+
+test.each([
   ['duplex create /nodes/{node}/lxc/{vmid}/mtunnel', 'OP-POST-45ae134aef'],
   ['transfer create /nodes/{node}/lxc/{vmid}/spiceproxy', 'OP-POST-9a334b54b5'],
   ['duplex create /nodes/{node}/lxc/{vmid}/termproxy', 'OP-POST-129daba473'],

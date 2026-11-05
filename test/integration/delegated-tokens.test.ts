@@ -256,6 +256,30 @@ const nestedInput = JSON.stringify({ api: { node: 'synthetic-node', commands: JS
 const batchConfirmation = `00000000-0000-4000-8000-000000000001.${'a'.repeat(64)}`
 
 test.each([
+  { commands: ['create /access/users/{userid}/token/{tokenid}'],
+    request: { args: ['create', '/access/users/{userid}/token/{tokenid}', '--api-userid', 'automation@pve', '--api-tokenid', 'issued', '--confirm', batchConfirmation] } },
+  { commands: ['create /nodes/{node}/execute', 'get /nodes/{node}/version', 'create /nodes/{node}/qemu/{vmid}/vncproxy'],
+    request: { args: [...batchRoute, '--protected-input', '--confirm', batchConfirmation], stdin: custodyInput } },
+])('Proxmox private-result $commands refuses dispatch without result access (review-2)', async ({ commands, request }) => {
+  await app.close()
+  db.prepare('UPDATE tools SET enabled = 1, native_settings = ? WHERE name = ?').run(JSON.stringify({
+    hostWrites: { allowWrites: true, operations: proxmoxInventory.writeOperations },
+    writes: { operations: proxmoxInventory.writeOperations },
+  }), 'proxmox-axi')
+  credentials.replaceCredential('proxmox-axi', { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' },
+    0, 'synthetic-development-user', Date.now())
+  const adapter = createProxmoxAdapter(new EmbeddedSecretSource(credentials), join(directory, 'writes.log'))
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-private-result')), audit: new Audit(db),
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+    scope: { tools: [{ tool: 'proxmox-axi', commands }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 600000 }, [adapter])
+  const response = await app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/run',
+    headers: { authorization: `Bearer ${exchangeDelegation(db, minted.token).accessToken}` }, payload: request })
+  expect(response.statusCode).toBe(403)
+  expect(response.json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+})
+
+test.each([
   { label: 'custody preview with protected input', commands: ['create /nodes/{node}/execute', 'get /nodes/{node}/version'], readOnly: false,
     request: { args: [...batchRoute, '--protected-input', '--preview'], stdin: custodyInput }, code: 'DELEGATED_SCOPE_DENIED' },
   { label: 'custody confirmation with flags', commands: ['create /nodes/{node}/execute', 'get /nodes/{node}/version'], readOnly: false,

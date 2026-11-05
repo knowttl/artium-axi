@@ -135,6 +135,33 @@ await withFakeService(async ({ directory, port, send }) => {
     const download = ['transfer', 'get', '/nodes/{node}/storage/{storage}/file-restore/download', '--api-node', 'node', '--api-storage', 'local',
       '--api-volume', 'local:backup/synthetic.vma', '--api-filepath', '/', '--response-format', 'download']
     assert.deepEqual((await success(download)).bytes, Buffer.from([0, 255, 10, 13, 128, 1]))
+    db.exec('UPDATE delegation_settings SET minting_enabled=1')
+    const downloadAdapter = createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'journal', 'writes.log'))
+    await send('/__proxmox/control?mode=')
+    for (const [args, expected] of [[guest, Buffer.from('hello ☃')], [download, Buffer.from([0, 255, 10, 13, 128, 1])]] as const) {
+      const command = args.slice(0, 3).join(' ')
+      for (const [label, commands, readOnly] of [
+        ['exact', [command], false], ['wide', undefined, false], ['read-only', [command], true],
+      ] as const) {
+        const delegated = createDelegation(db, 'synthetic-development-user', { label, scope: { tools: [{ tool: 'proxmox-axi', commands: commands && [...commands] }] },
+          readOnly, reusable: false, expiresAt: Date.now() + 60000 }, [downloadAdapter])
+        const config = join(directory, `download-${delegated.id}`)
+        new SessionStore(address, sessionPath(process.platform, { ...environment, XDG_CONFIG_HOME: config })).write(exchangeDelegation(db, delegated.token))
+        const result = await cli(args, { config })
+        if (label === 'exact') {
+          assert.equal(result.code, 0, result.stdout + result.stderr)
+          assert.deepEqual(result.bytes, expected)
+          const transfer = JSON.parse(result.stdout).transfer
+          assert.equal(transfer.bytes, expected.length)
+          assert.equal(transfer.sha256, createHash('sha256').update(expected).digest('hex'))
+          assert.deepEqual(db.prepare("SELECT outcome FROM audit WHERE delegation_id=? AND event='run-terminal'").all(delegated.id), [{ outcome: 'completed' }])
+        } else {
+          assert.notEqual(result.code, 0)
+          assert.match(result.stdout + result.stderr, /DELEGATED_SCOPE_DENIED/)
+          assert.equal(result.bytes.length, 0)
+        }
+      }
+    }
     const spice = ['transfer', 'create', '/nodes/{node}/qemu/{vmid}/spiceproxy', '--api-node', 'node', '--api-vmid', '100', '--response-format', 'spiceconfig']
     assert.notEqual((await cli([...spice, '--preview'])).code, 0)
     await writes(true)

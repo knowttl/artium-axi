@@ -84,11 +84,11 @@ export function checkDelegation(scopeJson: string, readOnly: boolean, adapter: A
   const wide = grants.some(item => item.commands === undefined)
   const credentialCommand = exactCommands[tool]?.includes(command)
   const download = tool === 'kubernetes-axi' && ['workspace download', 'session artifact'].includes(command)
-  const pendingProxmoxDownload = tool === 'proxmox-axi' && ['transfer get /nodes/{node}/qemu/{vmid}/agent/file-read',
+    || tool === 'proxmox-axi' && ['transfer get /nodes/{node}/qemu/{vmid}/agent/file-read',
     'transfer get /nodes/{node}/storage/{storage}/file-restore/download'].includes(command)
   const proxmoxStream = tool === 'proxmox-axi' && proxmox.streamCommands.some(route => route.command === command)
   const escapeHatch = escapeHatches[tool]?.includes(command)
-  if (pendingProxmoxDownload || (!wide && !exact) || ((credentialCommand || download || escapeHatch || /^(?:api|native)(?: |$)/.test(command)) && !exact) || (readOnly && (effect !== 'read' || credentialCommand || download || proxmoxStream))) {
+  if ((!wide && !exact) || ((credentialCommand || download || escapeHatch || /^(?:api|native)(?: |$)/.test(command)) && !exact) || (readOnly && (effect !== 'read' || credentialCommand || download || proxmoxStream))) {
     throw new ArtiumError('DELEGATED_SCOPE_DENIED')
   }
   if (tool === 'ssh-axi' && command === 'exec' && !help) {
