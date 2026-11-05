@@ -14,6 +14,7 @@ import { toolAllowsWrites, falconWriteOperations, proxmoxWriteOperations, techni
 import { CredentialInput, credentialFormats, standardCredentialFormats } from './credential-input.js'
 import applicationMode from '../../shared/mg-application-mode.json' with { type: 'json' }
 import { kubernetesSessionPolicy } from '../../shared/kubernetes.js'
+import { shodanStreamPolicy } from '../../shared/shodan-stream.js'
 export { isCanonicalHttpsOrigin } from './credential-input.js'
 
 type Schema = Record<string, any>
@@ -80,6 +81,7 @@ export class CredentialProfile {
           items: { type: 'string', enum: technitiumWriteOperations } } } }
     }
     if (tool === 'shodan-axi') {
+      this.inputSchema.properties.sessions = z.toJSONSchema(shodanStreamPolicy)
       this.inputSchema.required = ['auth', 'origin', 'apiKey']
       this.inputSchema.properties.auth = { const: 'api-key' }
       this.inputSchema.properties.origin = { type: 'string', const: 'https://api.shodan.io' }
@@ -304,6 +306,7 @@ export class CredentialProfile {
     // These administrator switches are host policy, not upstream profile fields.
     if (tool === 'falcon-axi' || tool === 'awx-axi' || tool === 'kubernetes-axi') delete parsed.value.allowWrites
     if (tool === 'kubernetes-axi') delete parsed.value.collectionDelete
+    if (tool === 'shodan-axi') delete parsed.value.sessions
     if (tool === 'kubernetes-axi') delete parsed.value.sessions
     if (tool === 'kubernetes-axi') delete parsed.value.acquireCredential
     if (tool === 'awx-axi') delete parsed.value.allowConfigurationWrites

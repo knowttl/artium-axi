@@ -100,6 +100,7 @@ export class Runner {
   private constructor(private readonly root: string, private readonly trustedCa?: TrustedCaBundle) {}
 
   get trustedCertificates(): readonly TrustedCertificate[] { return this.trustedCa?.certificates ?? [] }
+  get configuredCaPem(): string | undefined { return this.trustedCa?.pem }
 
   caBundleFor(endpoint: string, credentialTrust: readonly CredentialTrust[]): string {
     return runtimeTrust({ systemCaBundle: { endpoint }, credentialTrust }, this.trustedCa).trustPem
