@@ -1296,7 +1296,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'unifi-axi', capable: true, enabled: false, reason: null },
       { name: 'proxmox-axi', capable: true, enabled: false, reason: null },
       { name: 'technitium-axi', capable: true, enabled: false, reason: null },
-      { name: 'shodan-axi', capable: false, enabled: false, reason: 'Only account reads are available.' },
+      { name: 'shodan-axi', capable: false, enabled: false, reason: 'Only reads are available.' },
       { name: 'gitea-axi', capable: true, enabled: false, reason: null },
       { name: 'kubernetes-axi', capable: true, enabled: false, reason: null },
       { name: 'ssh-axi', capable: true, enabled: false, reason: null },

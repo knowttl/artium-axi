@@ -357,8 +357,11 @@ Local fake-service checks do not establish live server acceptance.
 
 ## Shodan
 
-Shodan is limited to account reads and packaged version/help discovery through the [reviewed inventory](../tools/inventories/shodan-axi.json).
-Host lookup, search, scans, alerts, organization operations, streams, dataset downloads and writes are unavailable.
+Shodan permits account and investigation reads through the [reviewed inventory](../tools/inventories/shodan-axi.json).
+These include host, count and search reads, DNS and InternetDB lookups, query and trends catalogues, organization and dataset listings, scan, alert and notifier reads, and tools headers and public-IP discovery.
+Search and domain lookups consume query credits and require an exact operation grant and query credit budget; see [command examples](commands.md#shodan).
+InternetDB host lookups run without loading the stored API key.
+Streams, scan submission, alert changes, dataset downloads and writes are unavailable.
 Local configuration, credential and endpoint overrides, stdin, uploaded files and result-file destinations are refused before credential access.
 Help exposes only admitted routes; the standalone `doctor` alias is not admitted.
 The adapter verifies reviewed package-source hashes and the packaged version before loading credentials; a mismatch returns `SPAWN_FAILED`.

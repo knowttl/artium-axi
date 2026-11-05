@@ -222,13 +222,388 @@
       }
     }
   },
+  "ipv6Schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "ip": {
+        "type": "string"
+      },
+      "addressFamily": {
+        "anyOf": [
+          {
+            "type": "number",
+            "const": 4
+          },
+          {
+            "type": "number",
+            "const": 6
+          }
+        ]
+      },
+      "attribution": {
+        "type": "string",
+        "const": "egress address of execution location"
+      }
+    },
+    "required": [
+      "ip",
+      "addressFamily",
+      "attribution"
+    ],
+    "additionalProperties": false
+  },
+  "publicFacets": [
+    "port",
+    "country",
+    "country_name",
+    "city",
+    "org",
+    "asn",
+    "domain",
+    "isp",
+    "os",
+    "product",
+    "version",
+    "http.title",
+    "http.component",
+    "ssl.version",
+    "ssl.cert.subject.cn",
+    "ssl.cert.pubkey.bits",
+    "key",
+    "vuln",
+    "vuln.verified",
+    "tag"
+  ],
+  "datasetSchemas": [
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "scope": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "description"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "items",
+        "count"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "sha1": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "name",
+              "size"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "items",
+        "count"
+      ],
+      "additionalProperties": false
+    }
+  ],
   "commands": [
+    {
+      "command": "data list",
+      "effect": "read",
+      "operation": "OP-034",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "scope": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "description"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "size": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "sha1": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "size"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "items",
+          "count"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "dataset": "value"
+      }
+    },
+    {
+      "command": "alert stats",
+      "effect": "read",
+      "operation": "CLI-025",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "networks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "facet": {
+                  "type": "string"
+                },
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "facet",
+                "value",
+                "count"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "aggregation": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "partial"
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "continuation": {
+            "type": "object",
+            "properties": {
+              "network": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "network",
+              "page"
+            ],
+            "additionalProperties": false
+          },
+          "saved": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "sha256": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "bytes",
+              "sha256"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "networks",
+          "total",
+          "items",
+          "count",
+          "aggregation",
+          "complete"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "facets": "value",
+        "limit": "value"
+      }
+    },
     {
       "command": "account profile",
       "effect": "read",
       "operation": "OP-039",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "member": {
+            "type": "boolean"
+          },
+          "credits": {
+            "type": "number"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "member",
+          "credits",
+          "display_name",
+          "created"
+        ],
+        "additionalProperties": false
+      },
       "flags": {
         "json": "boolean",
+        "output": "value",
         "help": "boolean"
       }
     },
@@ -236,15 +611,3800 @@
       "command": "info",
       "effect": "read",
       "operation": "OP-045",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "plan": {
+            "type": "string"
+          },
+          "query_credits": {
+            "type": "number"
+          },
+          "scan_credits": {
+            "type": "number"
+          },
+          "monitored_ips": {
+            "type": "number"
+          },
+          "usage_limits": {
+            "type": "object",
+            "properties": {
+              "query_credits": {
+                "type": "number"
+              },
+              "scan_credits": {
+                "type": "number"
+              },
+              "monitored_ips": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "query_credits",
+              "scan_credits",
+              "monitored_ips"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "plan",
+          "query_credits",
+          "scan_credits",
+          "monitored_ips",
+          "usage_limits"
+        ],
+        "additionalProperties": false
+      },
       "flags": {
         "json": "boolean",
+        "output": "value",
         "help": "boolean"
+      }
+    },
+    {
+      "command": "host",
+      "effect": "read",
+      "operation": "OP-001",
+      "arguments": [
+        {
+          "name": "ip"
+        }
+      ],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": "object",
+            "properties": {
+              "ip_str": {
+                "type": "string"
+              },
+              "ports": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "ip_str": {
+                      "type": "string"
+                    },
+                    "port": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "transport": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "string"
+                    },
+                    "hostnames": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "domains": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "org": {
+                      "type": "string"
+                    },
+                    "isp": {
+                      "type": "string"
+                    },
+                    "asn": {
+                      "type": "string"
+                    },
+                    "product": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "country_code": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "country_name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "city": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "latitude": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "longitude": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "ssl": {
+                      "type": "object",
+                      "properties": {
+                        "cert": {
+                          "type": "object",
+                          "properties": {
+                            "pubkey": {
+                              "type": "object",
+                              "properties": {
+                                "bits": {
+                                  "type": "number"
+                                },
+                                "type": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "bits",
+                                "type"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "metadata": {
+                      "type": "object",
+                      "properties": {
+                        "truncated": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ip_str",
+                    "port",
+                    "transport",
+                    "timestamp"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "hostnames": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "domains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "org": {
+                "type": "string"
+              },
+              "isp": {
+                "type": "string"
+              },
+              "asn": {
+                "type": "string"
+              },
+              "last_update": {
+                "type": "string"
+              },
+              "country_code": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "country_name": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "city": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "latitude": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "longitude": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "ip_str",
+              "ports",
+              "data"
+            ],
+            "additionalProperties": false
+          },
+          "banners": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ip_str": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "transport": {
+                  "type": "string"
+                },
+                "timestamp": {
+                  "type": "string"
+                },
+                "data": {
+                  "type": "string"
+                },
+                "hostnames": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "domains": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "org": {
+                  "type": "string"
+                },
+                "isp": {
+                  "type": "string"
+                },
+                "asn": {
+                  "type": "string"
+                },
+                "product": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                },
+                "location": {
+                  "type": "object",
+                  "properties": {
+                    "country_code": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "country_name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "city": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "latitude": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "longitude": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "ssl": {
+                  "type": "object",
+                  "properties": {
+                    "cert": {
+                      "type": "object",
+                      "properties": {
+                        "pubkey": {
+                          "type": "object",
+                          "properties": {
+                            "bits": {
+                              "type": "number"
+                            },
+                            "type": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "bits",
+                            "type"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "metadata": {
+                  "type": "object",
+                  "properties": {
+                    "truncated": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "ip_str",
+                "port",
+                "transport",
+                "timestamp"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "historyRequested": {
+            "type": "boolean"
+          },
+          "vendorTruncations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fullHistoricalPayload": {
+            "type": "boolean",
+            "const": false
+          },
+          "display": {
+            "type": "string"
+          },
+          "saved": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "appendedBytes": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "appendedSha256": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "appendedBytes",
+              "appendedSha256"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "host",
+          "banners",
+          "historyRequested"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value",
+        "history": "boolean",
+        "minify": "value",
+        "format": "value"
+      }
+    },
+    {
+      "command": "count",
+      "effect": "read",
+      "operation": "OP-002",
+      "arguments": [
+        {
+          "name": "query"
+        }
+      ],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "facets": {
+            "type": "object",
+            "properties": {
+              "port": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "country": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "country_name": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "city": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "org": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "asn": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "domain": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "isp": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "os": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "product": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "version": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "http.title": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "http.component": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "ssl.version": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "ssl.cert.subject.cn": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "ssl.cert.pubkey.bits": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "key": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "vuln": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "vuln.verified": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "tag": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "total"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value",
+        "facets": "value"
+      }
+    },
+    {
+      "command": "stats",
+      "effect": "read",
+      "operation": "OP-002",
+      "arguments": [
+        {
+          "name": "query"
+        }
+      ],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "facets": {
+            "type": "object",
+            "properties": {
+              "port": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "country": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "country_name": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "city": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "org": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "asn": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "domain": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "isp": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "os": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "product": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "version": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "http.title": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "http.component": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "ssl.version": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "ssl.cert.subject.cn": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "ssl.cert.pubkey.bits": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "key": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "vuln": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "vuln.verified": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "tag": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "buckets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "facet": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "value",
+                "count",
+                "facet"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "saved": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "appendedBytes": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "appendedSha256": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "appendedBytes",
+              "appendedSha256"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "total",
+          "facets",
+          "buckets",
+          "count"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value",
+        "facets": "value",
+        "limit": "value"
+      }
+    },
+    {
+      "command": "search",
+      "effect": "read",
+      "operation": "OP-003",
+      "arguments": [
+        {
+          "name": "query"
+        }
+      ],
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value",
+        "allow-operation": "value",
+        "query-credit-budget": "value",
+        "page": "value",
+        "offset": "value",
+        "minify": "value",
+        "limit": "value",
+        "max-pages": "value",
+        "fields": "value",
+        "full": "boolean",
+        "separator": "value",
+        "color": "boolean",
+        "no-color": "boolean"
+      }
+    },
+    {
+      "command": "search facets",
+      "effect": "read",
+      "operation": "OP-004",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "items",
+          "count"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "search filters",
+      "effect": "read",
+      "operation": "OP-005",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "items",
+          "count"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "search tokens",
+      "effect": "read",
+      "operation": "OP-006",
+      "arguments": [
+        {
+          "name": "query"
+        }
+      ],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "ports": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "hostnames": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ips": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "countries": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "domains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "asns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "string": {
+            "type": "string"
+          },
+          "filters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "attributes",
+          "errors",
+          "string",
+          "filters"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "ports",
+      "effect": "read",
+      "operation": "OP-007",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "items",
+          "count"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "scan protocols",
+      "effect": "read",
+      "operation": "OP-008",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "afp": {
+            "type": "string"
+          },
+          "ajp": {
+            "type": "string"
+          },
+          "amqp": {
+            "type": "string"
+          },
+          "andromouse": {
+            "type": "string"
+          },
+          "apple-airport-admin": {
+            "type": "string"
+          },
+          "ard": {
+            "type": "string"
+          },
+          "bacnet": {
+            "type": "string"
+          },
+          "bgp": {
+            "type": "string"
+          },
+          "cassandra": {
+            "type": "string"
+          },
+          "checkpoint": {
+            "type": "string"
+          },
+          "coap": {
+            "type": "string"
+          },
+          "codesys": {
+            "type": "string"
+          },
+          "couchdb": {
+            "type": "string"
+          },
+          "dahua-dvr": {
+            "type": "string"
+          },
+          "db2": {
+            "type": "string"
+          },
+          "dnp3": {
+            "type": "string"
+          },
+          "dns-udp": {
+            "type": "string"
+          },
+          "docker": {
+            "type": "string"
+          },
+          "elasticsearch": {
+            "type": "string"
+          },
+          "epmd": {
+            "type": "string"
+          },
+          "ethernetip": {
+            "type": "string"
+          },
+          "fox": {
+            "type": "string"
+          },
+          "ftp": {
+            "type": "string"
+          },
+          "ftp-ssl": {
+            "type": "string"
+          },
+          "gopher": {
+            "type": "string"
+          },
+          "hart-ip": {
+            "type": "string"
+          },
+          "hbase": {
+            "type": "string"
+          },
+          "http": {
+            "type": "string"
+          },
+          "http-simple-new": {
+            "type": "string"
+          },
+          "https": {
+            "type": "string"
+          },
+          "https-simple-new": {
+            "type": "string"
+          },
+          "icap": {
+            "type": "string"
+          },
+          "iec-104": {
+            "type": "string"
+          },
+          "ike": {
+            "type": "string"
+          },
+          "imap": {
+            "type": "string"
+          },
+          "imap-ssl": {
+            "type": "string"
+          },
+          "ipmi": {
+            "type": "string"
+          },
+          "ipp": {
+            "type": "string"
+          },
+          "iscsi": {
+            "type": "string"
+          },
+          "knx": {
+            "type": "string"
+          },
+          "ldap": {
+            "type": "string"
+          },
+          "ldap-ssl": {
+            "type": "string"
+          },
+          "memcached": {
+            "type": "string"
+          },
+          "mikrotik-routeros": {
+            "type": "string"
+          },
+          "modbus": {
+            "type": "string"
+          },
+          "mongodb": {
+            "type": "string"
+          },
+          "mqtt": {
+            "type": "string"
+          },
+          "ms-sql": {
+            "type": "string"
+          },
+          "mysql": {
+            "type": "string"
+          },
+          "netbios": {
+            "type": "string"
+          },
+          "nntp": {
+            "type": "string"
+          },
+          "ntp": {
+            "type": "string"
+          },
+          "opc-ua": {
+            "type": "string"
+          },
+          "openvpn": {
+            "type": "string"
+          },
+          "oracle": {
+            "type": "string"
+          },
+          "pcworx": {
+            "type": "string"
+          },
+          "pop3": {
+            "type": "string"
+          },
+          "pop3-ssl": {
+            "type": "string"
+          },
+          "postgresql": {
+            "type": "string"
+          },
+          "pptp": {
+            "type": "string"
+          },
+          "qconn": {
+            "type": "string"
+          },
+          "rdp": {
+            "type": "string"
+          },
+          "redis": {
+            "type": "string"
+          },
+          "rethinkdb": {
+            "type": "string"
+          },
+          "rlogin": {
+            "type": "string"
+          },
+          "rsync": {
+            "type": "string"
+          },
+          "rtsp": {
+            "type": "string"
+          },
+          "s7": {
+            "type": "string"
+          },
+          "samsung-dvr": {
+            "type": "string"
+          },
+          "sip": {
+            "type": "string"
+          },
+          "smb": {
+            "type": "string"
+          },
+          "smtp": {
+            "type": "string"
+          },
+          "smtp-ssl": {
+            "type": "string"
+          },
+          "snmp": {
+            "type": "string"
+          },
+          "socks": {
+            "type": "string"
+          },
+          "ssh": {
+            "type": "string"
+          },
+          "steam-a2s": {
+            "type": "string"
+          },
+          "telnet": {
+            "type": "string"
+          },
+          "tftp": {
+            "type": "string"
+          },
+          "tls": {
+            "type": "string"
+          },
+          "tor-requests": {
+            "type": "string"
+          },
+          "ubiquiti-discover": {
+            "type": "string"
+          },
+          "upnp": {
+            "type": "string"
+          },
+          "ventrilo": {
+            "type": "string"
+          },
+          "vnc": {
+            "type": "string"
+          },
+          "weblogic-t3": {
+            "type": "string"
+          },
+          "ws-discovery": {
+            "type": "string"
+          },
+          "x11": {
+            "type": "string"
+          },
+          "zookeeper": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "scan list",
+      "effect": "read",
+      "operation": "OP-011",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "created": {
+                  "type": "string"
+                },
+                "status_check": {
+                  "type": "string"
+                },
+                "credits_left": {
+                  "type": "number"
+                },
+                "size": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "id",
+                "status"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pagination": {
+            "type": "string",
+            "const": "undocumented"
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "pagination",
+          "complete"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "scan status",
+      "effect": "read",
+      "operation": "OP-012",
+      "arguments": [
+        {
+          "name": "id"
+        }
+      ],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "created": {
+            "type": "string"
+          },
+          "polling": {
+            "type": "string",
+            "enum": [
+              "timeout",
+              "error",
+              "complete",
+              "attempt-limit"
+            ]
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "polling"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value",
+        "poll-attempts": "value",
+        "poll-interval-ms": "value"
+      }
+    },
+    {
+      "command": "domain",
+      "effect": "read",
+      "operation": "OP-040",
+      "arguments": [
+        {
+          "name": "domain"
+        }
+      ],
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value",
+        "allow-operation": "value",
+        "query-credit-budget": "value",
+        "history": "boolean",
+        "type": "value",
+        "page": "value",
+        "offset": "value",
+        "limit": "value",
+        "max-pages": "value",
+        "details": "boolean"
+      }
+    },
+    {
+      "command": "dns resolve",
+      "effect": "read",
+      "operation": "OP-041",
+      "arguments": [
+        {
+          "name": "names"
+        }
+      ],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "propertyNames": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*$"
+        },
+        "additionalProperties": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "dns reverse",
+      "effect": "read",
+      "operation": "OP-042",
+      "arguments": [
+        {
+          "name": "ips"
+        }
+      ],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "propertyNames": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F:.]+$"
+        },
+        "additionalProperties": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "tools headers",
+      "effect": "read",
+      "operation": "OP-043",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "Accept": {
+            "type": "string"
+          },
+          "Accept-Encoding": {
+            "type": "string"
+          },
+          "Accept-Language": {
+            "type": "string"
+          },
+          "Connection": {
+            "type": "string"
+          },
+          "Host": {
+            "type": "string"
+          },
+          "User-Agent": {
+            "type": "string"
+          },
+          "Via": {
+            "type": "string"
+          },
+          "X-Forwarded-For": {
+            "type": "string"
+          },
+          "X-Forwarded-Proto": {
+            "type": "string"
+          },
+          "X-Real-IP": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "myip",
+      "effect": "read",
+      "operation": "OP-044",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ip": {
+            "type": "string"
+          },
+          "addressFamily": {
+            "anyOf": [
+              {
+                "type": "number",
+                "const": 4
+              },
+              {
+                "type": "number",
+                "const": 6
+              }
+            ]
+          },
+          "attribution": {
+            "type": "string",
+            "const": "egress address of execution location"
+          }
+        },
+        "required": [
+          "ip",
+          "addressFamily",
+          "attribution"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value",
+        "ipv6": "boolean"
+      }
+    },
+    {
+      "command": "internetdb host",
+      "effect": "read",
+      "operation": "OP-059",
+      "arguments": [
+        {
+          "name": "ip"
+        }
+      ],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ip": {
+            "type": "string"
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "cpes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hostnames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "vulns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ip",
+          "ports",
+          "cpes",
+          "hostnames",
+          "tags",
+          "vulns"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "query list",
+      "effect": "read",
+      "operation": "OP-031",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "query": {
+                  "type": "string"
+                },
+                "votes": {
+                  "type": "number"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "timestamp": {
+                  "type": "string"
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "title",
+                "query"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "page": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "count",
+          "total",
+          "page",
+          "complete"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value",
+        "page": "value",
+        "sort": "value",
+        "order": "value"
+      }
+    },
+    {
+      "command": "query search",
+      "effect": "read",
+      "operation": "OP-032",
+      "arguments": [
+        {
+          "name": "query"
+        }
+      ],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "query": {
+                  "type": "string"
+                },
+                "votes": {
+                  "type": "number"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "timestamp": {
+                  "type": "string"
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "title",
+                "query"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "page": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "count",
+          "total",
+          "page",
+          "complete"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value",
+        "page": "value"
+      }
+    },
+    {
+      "command": "query tags",
+      "effect": "read",
+      "operation": "OP-033",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "value",
+                "count"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "count",
+          "total",
+          "complete"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value",
+        "size": "value"
+      }
+    },
+    {
+      "command": "trends filters",
+      "effect": "read",
+      "operation": "OP-055",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sourceFamily": {
+            "type": "string",
+            "const": "trends"
+          }
+        },
+        "required": [
+          "items",
+          "sourceFamily"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "trends facets",
+      "effect": "read",
+      "operation": "OP-056",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sourceFamily": {
+            "type": "string",
+            "const": "trends"
+          }
+        },
+        "required": [
+          "items",
+          "sourceFamily"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "alert info",
+      "effect": "read",
+      "operation": "OP-014",
+      "arguments": [
+        {
+          "name": "id"
+        }
+      ],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "filters": {
+            "type": "object",
+            "properties": {
+              "ip": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "ip"
+            ],
+            "additionalProperties": false
+          },
+          "created": {
+            "type": "string"
+          },
+          "expiration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size": {
+            "type": "number"
+          },
+          "notifiers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "triggers": {
+            "type": "object",
+            "properties": {
+              "any": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "new_service": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "open_database": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "industrial_control_system": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "vulnerable": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "malware": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "ssl_expired": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "ssl_self_signed": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "uncommon": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "uncommon_plus": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "vulnerable_unverified": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              },
+              "internet_scanner": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "filters"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "alert list",
+      "effect": "read",
+      "operation": "OP-017",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "filters": {
+                  "type": "object",
+                  "properties": {
+                    "ip": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "ip"
+                  ],
+                  "additionalProperties": false
+                },
+                "created": {
+                  "type": "string"
+                },
+                "expiration": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "size": {
+                  "type": "number"
+                },
+                "notifiers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "triggers": {
+                  "type": "object",
+                  "properties": {
+                    "any": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false
+                    },
+                    "new_service": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false
+                    },
+                    "open_database": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false
+                    },
+                    "industrial_control_system": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false
+                    },
+                    "vulnerable": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false
+                    },
+                    "malware": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false
+                    },
+                    "ssl_expired": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false
+                    },
+                    "ssl_self_signed": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false
+                    },
+                    "uncommon": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false
+                    },
+                    "uncommon_plus": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false
+                    },
+                    "vulnerable_unverified": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false
+                    },
+                    "internet_scanner": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "filters"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "items",
+          "count"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value",
+        "expired": "value"
+      }
+    },
+    {
+      "command": "alert triggers",
+      "effect": "read",
+      "operation": "OP-018",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "rule": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "rule",
+                "description"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "items",
+          "count"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "notifier list",
+      "effect": "read",
+      "operation": "OP-025",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "description": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "provider"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "count"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "notifier providers",
+      "effect": "read",
+      "operation": "OP-026",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "object",
+            "properties": {
+              "required": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "required"
+            ],
+            "additionalProperties": false
+          },
+          "telegram": {
+            "type": "object",
+            "properties": {
+              "required": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "required"
+            ],
+            "additionalProperties": false
+          },
+          "webhook": {
+            "type": "object",
+            "properties": {
+              "required": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "required"
+            ],
+            "additionalProperties": false
+          },
+          "slack": {
+            "type": "object",
+            "properties": {
+              "required": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "required"
+            ],
+            "additionalProperties": false
+          },
+          "gitter": {
+            "type": "object",
+            "properties": {
+              "required": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "required"
+            ],
+            "additionalProperties": false
+          },
+          "pagerduty": {
+            "type": "object",
+            "properties": {
+              "required": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "required"
+            ],
+            "additionalProperties": false
+          },
+          "phone": {
+            "type": "object",
+            "properties": {
+              "required": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "required"
+            ],
+            "additionalProperties": false
+          },
+          "pushover": {
+            "type": "object",
+            "properties": {
+              "required": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "required"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "notifier get",
+      "effect": "read",
+      "operation": "OP-029",
+      "arguments": [
+        {
+          "name": "id"
+        }
+      ],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "provider"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
+      }
+    },
+    {
+      "command": "org info",
+      "effect": "read",
+      "operation": "OP-036",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "created": {
+            "type": "string"
+          },
+          "admins": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "username": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "username",
+                "email"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "username": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "username",
+                "email"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "upgrade_type": {
+            "type": "string"
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "logo": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "admins",
+          "members",
+          "domains",
+          "logo"
+        ],
+        "additionalProperties": false
+      },
+      "flags": {
+        "json": "boolean",
+        "output": "value",
+        "help": "boolean",
+        "max-requests": "value",
+        "max-bytes": "value",
+        "timeout": "value"
       }
     },
     {
       "command": "",
       "effect": "read",
       "operation": "OP-045",
+      "arguments": [],
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "bin": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "account": {
+            "type": "object",
+            "properties": {
+              "plan": {
+                "type": "string"
+              },
+              "query_credits": {
+                "type": "number"
+              },
+              "scan_credits": {
+                "type": "number"
+              },
+              "monitored_ips": {
+                "type": "number"
+              },
+              "usage_limits": {
+                "type": "object",
+                "properties": {
+                  "query_credits": {
+                    "type": "number"
+                  },
+                  "scan_credits": {
+                    "type": "number"
+                  },
+                  "monitored_ips": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "query_credits",
+                  "scan_credits",
+                  "monitored_ips"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "plan",
+              "query_credits",
+              "scan_credits",
+              "monitored_ips",
+              "usage_limits"
+            ],
+            "additionalProperties": false
+          },
+          "help": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "bin",
+          "description",
+          "account",
+          "help"
+        ],
+        "additionalProperties": false
+      },
       "flags": {
         "json": "boolean",
         "help": "boolean"
@@ -253,6 +4413,7 @@
     {
       "command": "version",
       "effect": "read",
+      "arguments": [],
       "flags": {
         "help": "boolean"
       }
@@ -260,14 +4421,45 @@
   ],
   "discovery": {
     "commands": [
+      "data list",
+      "alert stats",
       "account profile",
       "info",
+      "host",
+      "count",
+      "stats",
+      "search",
+      "search facets",
+      "search filters",
+      "search tokens",
+      "ports",
+      "scan protocols",
+      "scan list",
+      "scan status",
+      "domain",
+      "dns resolve",
+      "dns reverse",
+      "tools headers",
+      "myip",
+      "internetdb host",
+      "query list",
+      "query search",
+      "query tags",
+      "trends filters",
+      "trends facets",
+      "alert info",
+      "alert list",
+      "alert triggers",
+      "notifier list",
+      "notifier providers",
+      "notifier get",
+      "org info",
       "version"
     ],
     "example": [
       "info"
     ],
-    "help": "Read Shodan account information with managed credentials. Local configuration and writes are unavailable.\n"
+    "help": "Read Shodan account and investigation data with managed credentials. Search and domain lookups consume query credits. Local configuration and writes are unavailable.\n"
   },
   "adapterBoundary": {
     "nativeWrites": "not admitted",

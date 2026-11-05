@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { fakeTool } from '../../../test/fake-tool/tool.js'
-import { adoPathPrefix, runtimePath } from '../config.js'
+import { adoPathPrefix, runnerLimits, runtimePath } from '../config.js'
 import { Runner } from './runner.js'
 import { logRun } from './log.js'
 import { proxmoxResult } from './proxmox-result.js'
@@ -89,6 +89,61 @@ test('public runner preserves fake-tool streams, nonzero exit status and result 
   expect(result.outputBytes).toEqual({ stdout: Buffer.byteLength(result.stdout), stderr: Buffer.byteLength(result.stderr) })
   expect(result.timedOut).toBe(false)
   expect(result.truncated).toEqual({ stdout: false, stderr: false })
+})
+
+const validateJsonOutput = (stdout: string) => { JSON.parse(stdout) }
+
+test('success validation preserves native failures with partial output (review-2)', async () => {
+  const result = await run(process.execPath, ['-e', "process.stdout.write('{'); process.exitCode = 1"], {}, [],
+    { validateOutput: validateJsonOutput })
+  expect(result).toMatchObject({ stdout: '{', exitCode: 1 })
+})
+
+test.each([
+  ['signal', "process.kill(process.pid, 'SIGTERM')", 'PROCESS_SIGNAL'],
+  ['timeout', 'setInterval(() => {}, 1000)', 'TIMEOUT'],
+])('success validation preserves partial output on %s (review-2)', async (_, terminal, expected) => {
+  const execution = run(process.execPath, ['-e', `require('node:fs').writeSync(1, '{'); ${terminal}`], {}, [],
+    { validateOutput: validateJsonOutput, timeoutMs: 5000 })
+  await expect(execution).rejects.toMatchObject({ code: expected, outputBytes: { stdout: 1, stderr: 0 } })
+})
+
+test('success validation preserves cancellation after partial output (review-2)', async () => {
+  const controller = new AbortController()
+  const script = `require('node:fs').writeSync(1, '{');
+    const channel = new (require('node:net').Socket)({fd:Number(process.env.TEST_BYTE_FD),readable:true,writable:true});
+    channel.write('ready');`
+  await expect(run(process.execPath, ['-e', script], {}, [], {
+    validateOutput: validateJsonOutput, signal: controller.signal,
+    bytePipe: { environment: 'TEST_BYTE_FD', async connect(socket) {
+      for await (const chunk of socket) { controller.abort(); break }
+    } },
+  })).rejects.toMatchObject({ code: 'CANCELLED', outputBytes: { stdout: 1, stderr: 0 } })
+})
+
+test.each(['stdout', 'stderr'])('failed validated executions still scan %s for secrets (review-2)', async stream => {
+  await expect(run(process.execPath, ['-e', `process.${stream}.write('CANARY-failure'); process.exitCode = 1`], {},
+    ['CANARY-failure'], { validateOutput: validateJsonOutput })).rejects.toMatchObject({ code: 'SECRET_IN_OUTPUT' })
+})
+
+test('success validation receives complete output beyond the retained stream cap (R3)', async () => {
+  const size = 10 * 1024 * 1024
+  const result = await run(process.execPath, ['-e', `process.stdout.write(JSON.stringify('x'.repeat(${size})))`], {}, [], {
+    validateOutput: validateJsonOutput,
+  })
+  expect(result.exitCode).toBe(0)
+  expect(result.stdout).toBe('"' + 'x'.repeat(runnerLimits.outputBytesPerStream - 1))
+  expect(result.truncated).toEqual({ stdout: true, stderr: false })
+})
+
+test('validated output exceeding the runner flood limit reports OUTPUT_LIMIT (R3)', async () => {
+  await expect(run(process.execPath, ['-e', `process.stdout.write(Buffer.alloc(${runnerLimits.floodBytes}, 'x'))`], {}, [],
+    { validateOutput: validateJsonOutput })).rejects.toMatchObject({ code: 'OUTPUT_LIMIT' })
+})
+
+test('successful malformed output is withheld by validation', async () => {
+  await expect(run(process.execPath, ['-e', "process.stdout.write('{')"], {}, [],
+    { validateOutput: validateJsonOutput })).rejects.toMatchObject({ code: 'SECRET_IN_OUTPUT' })
 })
 
 test('security shell metacharacters remain literal arguments', async () => {

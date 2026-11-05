@@ -4,7 +4,7 @@ import { toolPaths } from '../config.js'
 import { createShodanAdapter, shodanProfile } from './shodan.js'
 import { delegatedCommands, resolveDelegatedCommand } from '../auth/delegations.js'
 import { execFileSync } from 'node:child_process'
-import { decode } from '@toon-format/toon'
+import { decode, encode } from '@toon-format/toon'
 
 const reference = { id: 'synthetic-credential', tool: 'shodan-axi' as const, revision: 1 }
 const previousPath = toolPaths['shodan-axi']
@@ -23,19 +23,33 @@ test('version supports exact delegation and packaged help (r2)', async () => {
   expect(execFileSync(call.executable, [toolPaths['shodan-axi'], 'version'], { encoding: 'utf8' })).toBe('0.1.1\n')
 })
 
-test('tool-wide delegation discovers only the minimal account commands', () => {
+test('tool-wide delegation discovers reviewed reads', () => {
   const adapter = createShodanAdapter({ getCredential: async () => { throw new Error('credential accessed') } })
   expect(delegatedCommands(JSON.stringify({ tools: [{ tool: 'shodan-axi' }] }), true, adapter))
-    .toEqual(['account profile', 'info', 'version'])
+    .toEqual(['account profile', 'alert info', 'alert list', 'alert stats', 'alert triggers', 'count', 'data list',
+      'dns resolve', 'dns reverse', 'domain', 'host', 'info', 'internetdb host', 'myip', 'notifier get', 'notifier list',
+      'notifier providers', 'org info', 'ports', 'query list', 'query search', 'query tags', 'scan list', 'scan protocols',
+      'scan status', 'search', 'search facets', 'search filters', 'search tokens', 'stats', 'tools headers',
+      'trends facets', 'trends filters', 'version'])
   expect(() => resolveDelegatedCommand('doctor', adapter)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
+})
+
+test('exact read delegation discovers only selected investigation commands', () => {
+  const adapter = createShodanAdapter({ getCredential: async () => { throw new Error('credential accessed') } })
+  const scope = JSON.stringify({ tools: [{ tool: 'shodan-axi', commands: ['host', 'search'] }] })
+  expect(resolveDelegatedCommand('host', adapter)).toBe('host')
+  expect(delegatedCommands(scope, true, adapter)).toEqual(['host', 'search'])
+  expect(adapter.classify(['host', '192.0.2.1'])).toEqual({ command: 'host', effect: 'read' })
+  expect(adapter.classify(['search', 'port:443', '--allow-operation', 'OP-003', '--query-credit-budget', '1']))
+    .toEqual({ command: 'search', effect: 'read' })
 })
 
 test.each([
   ['host', 'search'], ['profile', 'set', 'other', '--env', 'KEY'], ['info', '--profile', 'other'],
   ['info', '--origin=https://example.invalid'], ['account', 'profile', '--config', '/tmp/config'],
-  ['host', '192.0.2.1'], ['stream'], ['scan', 'submit', '192.0.2.1'],
-  ['alert', 'create', 'synthetic', '192.0.2.1'], ['alert', 'remove', 'synthetic'], ['org', 'info'],
-  ['data', 'list'], ['info', '--filename', '/tmp/result'],
+  ['stream'], ['scan', 'submit', '192.0.2.1'],
+  ['alert', 'create', 'synthetic', '192.0.2.1'], ['alert', 'remove', 'synthetic'],
+  ['data', 'download', 'synthetic', 'file'], ['info', '--filename', '/tmp/result'],
   ['doctor'], ['doctor', '--help'], ['doctor', '--json'],
 ])('disallowed arguments %s are refused before reading the credential', async (...args) => {
   const adapter = createShodanAdapter({ getCredential: async () => { throw new Error('credential accessed') } })
@@ -50,6 +64,21 @@ test('only the selected API key is written to an isolated profile', async () => 
   expect(JSON.parse(String(call.files[0].content))).toEqual({ version: 1, defaultProfile: 'artium', profiles: {
     artium: { auth: 'api-key', origin: 'https://api.shodan.io', apiKey: { env: 'ARTIUM_SECRET_0' } },
   } })
+})
+
+test.each(['json', 'toon'])('Shodan host success validation accepts complete %s responses above 1 MiB (R3)', async format => {
+  const adapter = createShodanAdapter({ getCredential: async () => ({ auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' }) })
+  const call = await adapter.prepare(['host', '192.0.2.1'], reference)
+  const value = { host: { ip_str: '192.0.2.1', ports: [443], data: [] },
+    banners: [{ ip_str: '192.0.2.1', port: 443, transport: 'tcp', timestamp: '2026-01-01T00:00:00', data: 'x'.repeat(2 * 1024 * 1024) }], historyRequested: true }
+  const stdout = format === 'json' ? JSON.stringify(value) : encode(value)
+  expect(() => call.limits.validateOutput!(stdout)).not.toThrow()
+})
+
+test.each(['{', '{}', '{"error":{"code":"REQUEST_FAILED"}}'])('Shodan success validation rejects invalid output: %s', async stdout => {
+  const adapter = createShodanAdapter({ getCredential: async () => ({ auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' }) })
+  const call = await adapter.prepare(['host', '192.0.2.1'], reference)
+  expect(() => call.limits.validateOutput!(stdout)).toThrow()
 })
 
 test.each([

@@ -31,6 +31,7 @@ export interface RunnerLimits {
   // A native confirmation may bind file names. The directory is still empty on every call.
   directoryScope?: string
   publicContent?: import('./scan.js').PublicContent
+  validateOutput?: (stdout: string) => void
   unifiScope?: string
   kubernetesRequests?: { root: string, scope: string }
   falconRtrDevice?: string
@@ -232,6 +233,7 @@ async function execute(
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new RangeError('Timeout must be a positive integer')
   if (!Number.isSafeInteger(terminationGraceMs) || terminationGraceMs <= 0) throw new RangeError('Termination grace must be a positive integer')
   const scanner = new SecretScanner(secrets, limits.privateOutput, limits.publicContent)
+  const validationChunks: Buffer[] = []
   const started = performance.now()
   const directory = await (limits.directoryScope
     ? mkdir(join(root, 'artium-call-' + limits.directoryScope), { mode: 0o700 }).then(() => join(root, 'artium-call-' + limits.directoryScope))
@@ -431,6 +433,7 @@ async function execute(
               failure ??= new RunnerError('OUTPUT_LIMIT')
               terminate()
             }
+            if (limits.validateOutput && stream === 'stdout' && !failure && !secretDetected) validationChunks.push(Buffer.from(chunk))
             if (secretDetected) return
             const count = Math.min(chunk.length, cap - output.retained)
             if (count > 0) output.chunks.push(Buffer.from(chunk.subarray(0, count)))
@@ -462,6 +465,11 @@ async function execute(
             failure.spawnError = spawnError
           } else if (!failure && exitCode === null) {
             failure = new RunnerError('PROCESS_SIGNAL')
+          }
+          if (!failure && exitCode === 0 && limits.validateOutput) {
+            try {
+              limits.validateOutput(Buffer.concat(validationChunks).toString('utf8'))
+            } catch { failure = new RunnerError('SECRET_IN_OUTPUT') }
           }
           const truncated = {
             stdout: streams.stdout.observed > cap,
