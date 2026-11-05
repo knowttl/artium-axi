@@ -95,7 +95,8 @@ test.each(toolSchema.options.filter(tool => tool !== 'ssh-axi').flatMap(tool => 
     try {
       const result = await runner.run('synthetic-user', process.execPath, ['-e', node],
         { ...call.environment, ARTIUM_TEST_CA_FILES: JSON.stringify(call.files.filter(file => file.appendTrustedCa).map(file => file.name)) },
-        call.secrets, { ...call.limits, ...(trustSource === 'credential' ? { credentialTrust: [{
+        // This child emits CA diagnostics, not a native command response.
+        call.secrets, { ...call.limits, validateOutput: undefined, ...(trustSource === 'credential' ? { credentialTrust: [{
           endpoint: tool === 'kubernetes-axi' ? 'https://cluster.example/' : 'https://appliance.test/', pem, fingerprint: 'synthetic', leafFingerprint: 'synthetic', mode: ['gh-axi', 'kubernetes-axi'].includes(tool) ? 'ca' as const : 'pin' as const,
         }] } : {}) }, {}, call.files)
       expect(result.exitCode, result.stderr).toBe(0)

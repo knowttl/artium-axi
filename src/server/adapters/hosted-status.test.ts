@@ -19,9 +19,14 @@ test.each([false, true].flatMap(json => ['home', 'info', 'account profile', 'ver
   const output = hostedStatus('shodan-axi', { command, help: true }, { ...result, stdout })
   const document = json ? JSON.parse(output.stdout) : decode(output.stdout)
   expect(document).toEqual({ command: `artium-axi shodan-axi${command === 'home' ? '' : ' ' + command}`,
-    flags: command === 'version' ? { help: 'boolean' } : { json: 'boolean', help: 'boolean' },
-    commands: command === 'home' ? ['account profile', 'info', 'version'] : [],
-    help: ['Read Shodan account information with managed credentials. Local configuration and writes are unavailable.\n'] })
+    flags: command === 'version' ? { help: 'boolean' } : command === 'home'
+      ? { json: 'boolean', help: 'boolean' } : { json: 'boolean', help: 'boolean', output: 'value' },
+    commands: command === 'home' ? ['data list', 'alert stats', 'account profile', 'info', 'host', 'count', 'stats',
+      'search', 'search facets', 'search filters', 'search tokens', 'ports', 'scan protocols', 'scan list', 'scan status',
+      'domain', 'dns resolve', 'dns reverse', 'tools headers', 'myip', 'internetdb host', 'query list', 'query search',
+      'query tags', 'trends filters', 'trends facets', 'alert info', 'alert list', 'alert triggers', 'notifier list',
+      'notifier providers', 'notifier get', 'org info', 'version'] : [],
+    help: ['Read Shodan account and investigation data with managed credentials. Search and domain lookups consume query credits. Local configuration and writes are unavailable.\n'] })
 })
 
 test.each([encode, JSON.stringify])('Shodan bare account discovery retains account data and supported suggestions (r1)', serialize => {
