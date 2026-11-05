@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util'
 import { isAbsolute } from 'node:path'
 import inventory from '../../../tools/inventories/gitea-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
 import type { SecretSource } from '../store/secret-source.js'
@@ -148,6 +149,7 @@ export function createGiteaAdapter(source: SecretSource, writeLog?: string): Ada
       return 'secretInput' in call && Boolean(call.secretInput)
     },
     validateArgs: (args, input) => { giteaArguments(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => giteaArguments(a, i).invocation.command, args, input),
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'gitea-axi' || transferTool(scope.selection.operation) !== 'gitea-axi'
         || reference.revision !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')

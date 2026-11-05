@@ -1,6 +1,7 @@
 import { isAbsolute } from 'node:path'
 import { decode } from '@toon-format/toon'
 import inventory from '../../../tools/inventories/proxmox-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
 import type { SecretSource } from '../store/secret-source.js'
@@ -220,6 +221,7 @@ export function createProxmoxAdapter(source: SecretSource, writeLog?: string): P
     sensitiveArguments: args => ({ flags: args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0]), positions: args.map((_, index) => index) }),
     sensitiveInput: () => true,
     validateArgs: (args, input) => { argumentsForCall(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => argumentsForCall(a, i).invocation.command, args, input),
     prepare: (args, reference, input) => prepare(args, reference, input),
     inspectStream: (args, reference, input) => streamSelection(check(args, reference, input, true).call),
     prepareStream: (args, reference, input) => prepare(args, reference, input, true) }

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import inventory from '../../../tools/inventories/ssh-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { toolPaths } from '../config.js'
 import { CredentialProfile } from './credential-profile.js'
@@ -41,6 +42,7 @@ export function createSshAdapter(hosts: SshHosts, writeLog: string, executable: 
     timeoutMs: inventory.requirements.timeoutMs, blockedFlags: [], allowedFlagValues: {},
     sensitiveArguments: () => ({ flags: [], positions: [] }),
     validateArgs: (args, input) => { invocation(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => invocation(a, i).command, args, input),
     async prepare() { throw new ArtiumError('TOOL_NOT_GRANTED') },
     async prepareForCaller(args, userId, input) {
       const call = invocation(args, input)

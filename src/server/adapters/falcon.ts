@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import inventory from '../../../tools/inventories/falcon-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { writePolicy } from './write-policy.js'
 import { toolPaths } from '../config.js'
@@ -56,6 +57,7 @@ export function createFalconAdapter(source: SecretSource, writeLog = defaultWrit
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => '--' + name),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { validateFalconArgs(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => validateFalconArgs(a, i).command, args, input),
     async prepare(args, reference, input) {
       const call = parseFalconArgs(args, input)
       if (reference.tool !== 'falcon-axi') throw new ArtiumError('CREDENTIAL_INVALID')

@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join } from 'node:path'
 import inventory from '../../../tools/inventories/tenable-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
@@ -71,6 +72,7 @@ export function createTenableAdapter(source: SecretSource, writeLog: string): Ad
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { tenableArguments(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => tenableArguments(a, i).invocation.command, args, input),
     async prepare(args, reference, input) {
       const normalized = tenableArguments(args, input)
       if (reference.tool !== 'tenable-axi') throw new ArtiumError('CREDENTIAL_INVALID')

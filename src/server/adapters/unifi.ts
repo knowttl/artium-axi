@@ -1,5 +1,6 @@
 import { isAbsolute } from 'node:path'
 import inventory from '../../../tools/inventories/unifi-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
 import type { SecretSource } from '../store/secret-source.js'
@@ -85,6 +86,7 @@ export function createUnifiAdapter(source: SecretSource, writeLog?: string): Ada
       positions: args.map((_, index) => index) }),
     sensitiveInput: (_args, input) => Boolean(input?.files?.length),
     validateArgs: (args, input) => { argumentsForCall(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => argumentsForCall(a, i).invocation.command, args, input),
     async prepare(args, reference, input) {
       const call = argumentsForCall(args, input)
       if (reference.tool !== 'unifi-axi') throw new ArtiumError('CREDENTIAL_INVALID')
