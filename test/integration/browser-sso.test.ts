@@ -95,6 +95,7 @@ test('successful SSO reauth renews the delegation inactivity deadline', async ()
   const sessionToken = await signedIn()
   db.prepare('UPDATE delegation_settings SET sso_window_ms = 86400000 WHERE id = 1').run()
   clock.mockReturnValue(now + 1000)
+  fake.token.claims = { auth_time: Math.floor((now + 1000) / 1000) }
   expect((await finish(await start(ssoStart + '?reauth=1', sessionToken))).statusCode).toBe(200)
   expect(delegationPaused(db, 'synthetic-browser-sso', now + 86400000)).toBe(false)
   expect(delegationPaused(db, 'synthetic-browser-sso', now + 86401000)).toBe(true)
