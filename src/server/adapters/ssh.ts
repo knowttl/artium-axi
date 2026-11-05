@@ -26,7 +26,7 @@ export const sshWritePolicy = writePolicy({
 
 function managedInvocation(args: readonly string[], executable: string) {
   const command = resolveSshManagedCommand(args)
-  if (!command) return undefined
+  if (!command || !inventory.managedCommands.some(route => route.command === command)) return undefined
   const { parseArguments } = createRequire(import.meta.url)(fileURLToPath(new URL('./arguments.js', pathToFileURL(executable)))) as {
     parseArguments(args: string[]): unknown
   }
