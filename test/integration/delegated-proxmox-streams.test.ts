@@ -23,7 +23,7 @@ test.each([
   const db = openStore(join(directory, 'store.db'), provider), store = createCredentialStore(db, provider)
   const user = 'synthetic-development-user'
   await seedToolUser(db)
-  db.exec("UPDATE tools SET enabled=1 WHERE name='proxmox-axi'; UPDATE delegation_settings SET minting_enabled=1")
+  db.exec("UPDATE tools SET enabled=1 WHERE name='proxmox-axi'")
   store.replaceCredential('proxmox-axi', { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }, 0, user, Date.now())
   const adapter = createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
   const app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db), adapters: [adapter],
@@ -64,7 +64,7 @@ test.each([
   const db = openStore(join(directory, 'store.db'), provider), store = createCredentialStore(db, provider)
   const user = 'synthetic-development-user'
   await seedToolUser(db)
-  db.exec("UPDATE tools SET enabled=1 WHERE name='proxmox-axi'; UPDATE delegation_settings SET minting_enabled=1")
+  db.exec("UPDATE tools SET enabled=1 WHERE name='proxmox-axi'")
   db.prepare("UPDATE tools SET native_settings=? WHERE name='proxmox-axi'").run(JSON.stringify({
     hostWrites: { allowWrites: true, operations: [operation] },
   }))
@@ -99,7 +99,7 @@ test('delegated streams reserve owner capacity and revocation preserves owner le
   const db = openStore(join(directory, 'store.db'), provider), store = createCredentialStore(db, provider)
   const user = 'synthetic-development-user'
   await seedToolUser(db)
-  db.exec("UPDATE tools SET enabled=1 WHERE name='proxmox-axi'; UPDATE delegation_settings SET minting_enabled=1")
+  db.exec("UPDATE tools SET enabled=1 WHERE name='proxmox-axi'")
   store.replaceCredential('proxmox-axi', { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }, 0, user, Date.now())
   const adapter = createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
   const app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db), adapters: [adapter],

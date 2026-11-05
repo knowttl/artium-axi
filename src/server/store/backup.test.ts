@@ -107,7 +107,7 @@ test('backup refuses to replace an existing destination', async () => {
 
 test('restore cannot revive an issued delegated token from a backup', async () => {
   const source = openStore(file, provider)
-  source.exec("UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'; UPDATE delegation_settings SET minting_enabled = 1")
+  source.exec("UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
   const { token } = createDelegation(source, 'synthetic-user', { label: 'Synthetic', scope: { tools: [{ tool: 'falcon-axi' }] },
     readOnly: true, reusable: true, expiresAt: Date.now() + 600_000 }, [])
   await backupStore(file, output, provider)

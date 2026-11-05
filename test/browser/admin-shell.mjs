@@ -42,9 +42,8 @@ function browser(script) {
     ${script}`)
 }
 
-beforeEach(async context => {
+beforeEach(async () => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
-    env: { ...process.env, ARTIUM_TEST_TOKEN_MINTING: context.name === 'ordinary users can create temporary tokens after recent authentication expires' ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -85,25 +84,25 @@ async function expireConfirmation() {
   assert.equal(response.status, 200)
 }
 
-test('token settings refuse enabling minting before slice 8', () => {
+test('administrators can disable and re-enable token creation', () => {
   browser(`
     await page.open(base + '/admin/tokens');
-    check(await page.eval(() => document.querySelector('[name=mintingEnabled]').disabled), 'Minting switch is available');
-    check(await page.eval(() => document.querySelector('#minting-unavailable').textContent.includes('not available yet')), 'Rollout restriction is unexplained');
-    const refusal = await page.eval(async () => {
-      const csrf = document.querySelector('form[data-token-settings] [name=_csrf]').value;
-      const response = await fetch('/v1/admin/token-settings', { method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ _csrf: csrf, mintingEnabled: true, maxLifetimeMs: 3600000 }) });
-      return { status: response.status, body: await response.json() };
-    });
-    check(refusal.status === 403 && refusal.body.error.message.includes('not available yet'), 'API allowed minting');
+    check(await page.eval(() => document.querySelector('[name=mintingEnabled]').checked), 'Minting is not enabled by default');
+    await page.click('[name=mintingEnabled]');
     await page.fill('[name=maxLifetimeHours]', '2');
     await page.click('form[data-token-settings] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=maxLifetimeHours][value="2"]');
     await page.open(base + '/account');
-    check(await page.eval(() => !document.querySelector('form[data-create-token]')), 'Minting became available');
+    check(await page.eval(() => !document.querySelector('form[data-create-token]')), 'Minting remained available');
+    await page.open(base + '/admin/tokens');
+    check(await page.eval(() => !document.querySelector('[name=mintingEnabled]').checked), 'Disabled setting was not saved');
+    await page.click('[name=mintingEnabled]');
+    await page.click('form[data-token-settings] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=mintingEnabled]:checked');
+    await page.open(base + '/account');
+    check(await page.eval(() => !!document.querySelector('form[data-create-token]')), 'Minting did not become available');
   `)
 })
 
@@ -1856,7 +1855,7 @@ test('ordinary account shows role tools and usable CLI guidance and can revoke i
         return range.getClientRects().length === 1;
       });
     }), 'Session dates or revoke controls wrap into fragments at 420px');
-    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Session table overflows the page');
+    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Account page overflows the page');
     await page.click('form[action^="/v1/account/sessions/"]:not([action="/v1/account/sessions/revoke"]) button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');

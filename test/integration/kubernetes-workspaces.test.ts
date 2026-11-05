@@ -175,7 +175,6 @@ test('session kinds require explicit caller grants before any worker is admitted
 })
 
 function delegated(commands?: string[], readOnly = false) {
-  db.exec('UPDATE delegation_settings SET minting_enabled = 1')
   const grant = createDelegation(db, user, { label: 'Synthetic', scope: { tools: [{ tool: 'kubernetes-axi', ...(commands ? { commands } : {}) }] },
     readOnly, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
   const session = exchangeDelegation(db, grant.token)

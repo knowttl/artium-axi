@@ -34,6 +34,18 @@ function seedIdentity() {
   `)
 }
 
+it('enables minting on upgrade and preserves a later administrator disable on reopen', () => {
+  db.exec('UPDATE delegation_settings SET minting_enabled = 0, max_lifetime_ms = 3600000; DELETE FROM migrations WHERE version = 30')
+  db.close()
+  db = openStore(file, provider)
+  expect(db.prepare('SELECT minting_enabled, max_lifetime_ms FROM delegation_settings').get())
+    .toEqual({ minting_enabled: 1, max_lifetime_ms: 3600000 })
+  db.exec('UPDATE delegation_settings SET minting_enabled = 0')
+  db.close()
+  db = openStore(file, provider)
+  expect(db.prepare('SELECT minting_enabled FROM delegation_settings').get()).toEqual({ minting_enabled: 0 })
+})
+
 it('migrates an empty store and persists the identity relationships on reopen', () => {
   seedIdentity()
   db.exec(`
@@ -49,7 +61,7 @@ it('migrates an empty store and persists the identity relationships on reopen', 
   `)
   db.close()
   db = openStore(file, provider)
-  expect(db.prepare('SELECT version FROM migrations ORDER BY version').all()).toEqual([{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }, { version: 5 }, { version: 6 }, { version: 7 }, { version: 8 }, { version: 9 }, { version: 10 }, { version: 11 }, { version: 12 }, { version: 13 }, { version: 14 }, { version: 15 }, { version: 16 }, { version: 17 }, { version: 18 }, { version: 19 }, { version: 20 }, { version: 21 }, { version: 22 }, { version: 23 }, { version: 24 }, { version: 25 }, { version: 26 }, { version: 27 }, { version: 28 }, { version: 29 }])
+  expect(db.prepare('SELECT version FROM migrations ORDER BY version').all()).toEqual([{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }, { version: 5 }, { version: 6 }, { version: 7 }, { version: 8 }, { version: 9 }, { version: 10 }, { version: 11 }, { version: 12 }, { version: 13 }, { version: 14 }, { version: 15 }, { version: 16 }, { version: 17 }, { version: 18 }, { version: 19 }, { version: 20 }, { version: 21 }, { version: 22 }, { version: 23 }, { version: 24 }, { version: 25 }, { version: 26 }, { version: 27 }, { version: 28 }, { version: 29 }, { version: 30 }])
   expect(db.prepare(`SELECT tool FROM user_roles JOIN role_tools USING (role_id) WHERE user_id = 'person'`).all())
     .toEqual([{ tool: 'falcon-axi' }])
   expect(db.prepare('SELECT source, administrator, revision FROM users WHERE id = ?').get('person'))

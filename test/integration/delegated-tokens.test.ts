@@ -51,7 +51,7 @@ beforeEach(async () => {
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') })
   db = openStore(join(directory, 'db', 'artium.db'), provider)
   await seedToolUser(db)
-  db.exec("UPDATE users SET administrator = 1; UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'; UPDATE delegation_settings SET minting_enabled = 1")
+  db.exec("UPDATE users SET administrator = 1; UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
   credentials = createCredentialStore(db, provider)
   credentials.replaceCredential('falcon-axi', { clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' }, 0, 'synthetic-development-user', Date.now())
   auditLines = []
@@ -497,7 +497,12 @@ test('read-only token limits real CLI calls and revocation stops the session', a
 test('disabling minting preserves existing tokens and revoke-all ends them', async () => {
   expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
   const token = await mint(['--reusable'])
-  db.exec('UPDATE delegation_settings SET minting_enabled = 0')
+  const signIn = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password } })
+  const headers = { authorization: `Bearer ${signIn.json().accessToken}` }
+  const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password } })
+  const adminHeaders = { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }
+  expect((await app.inject({ method: 'PATCH', url: '/v1/admin/token-settings', headers: adminHeaders,
+    payload: { mintingEnabled: false, maxLifetimeMs: 30 * 86400000 } })).statusCode).toBe(200)
   const refused = await cli(['token', 'create', '--label', 'Synthetic', '--tool', 'falcon-axi', '--expires',
     new Date(Date.now() + 600_000).toISOString(), '--password-stdin', '--token-fd', '3'], `${password}\n`, 'owner', true)
   expect(refused.code).toBe(1)
@@ -506,10 +511,7 @@ test('disabling minting preserves existing tokens and revoke-all ends them', asy
   expect(secondLogin.code).toBe(0)
   expect((secondLogin.stdout + secondLogin.stderr + secondLogin.argv.join(' ')).includes(token)).toBe(false)
   expect((await cli(['falcon-axi', 'detection', 'list'], '', 'agent')).code).toBe(0)
-  const signIn = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password } })
-  const headers = { authorization: `Bearer ${signIn.json().accessToken}` }
-  const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password } })
-  const revoke = await app.inject({ method: 'POST', url: '/v1/admin/tokens/revoke-all', headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket } })
+  const revoke = await app.inject({ method: 'POST', url: '/v1/admin/tokens/revoke-all', headers: adminHeaders })
   expect(revoke.statusCode).toBe(204)
   expect((await cli(['falcon-axi', 'detection', 'list'], '', 'agent')).stdout).toContain('TOKEN_INVALID')
   expect((await cli(['login', '--token-stdin'], `${token}\n`, 'other')).code).toBe(1)

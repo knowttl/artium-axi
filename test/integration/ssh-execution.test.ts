@@ -55,7 +55,6 @@ function provision() {
 }
 
 function delegated(commands?: string[], readOnly = false) {
-  db.exec('UPDATE delegation_settings SET minting_enabled=1')
   const adapter = createSshAdapter(hosts, join(directory, 'writes.log'))
   const token = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic', scope: { tools: [{ tool: 'ssh-axi',
     ...(commands ? { commands } : {}) }] }, readOnly, reusable: true, expiresAt: Date.now() + 600000 }, [adapter])

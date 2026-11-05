@@ -173,7 +173,6 @@ await withFakeService(async ({ directory, port, send }) => {
     const revision = store.findCredential('kubernetes-axi')!
     store.replaceCredential('kubernetes-axi', credential, revision.revision!, 'synthetic-development-user', Date.now())
     assert.equal((await result(['preview', revisionPlan.request])).value.error.code, 'REQUEST_NOT_FOUND')
-    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
     const delegated = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic workflow',
       scope: { tools: [{ tool: 'kubernetes-axi', commands: ['create configmap'] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
     const scopedHeaders = { authorization: `Bearer ${exchangeDelegation(db, delegated.token).accessToken}` }

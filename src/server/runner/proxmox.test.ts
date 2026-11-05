@@ -40,7 +40,7 @@ async function withAccess(check: (execute: (delegated: boolean) => Promise<Runne
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
   const db = openStore(join(root, 'store.db'), provider)
   await seedToolUser(db)
-  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'proxmox-axi'; UPDATE delegation_settings SET minting_enabled = 1")
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'proxmox-axi'")
   const store = createCredentialStore(db, provider), userId = 'synthetic-development-user'
   const password = { origin: 'https://synthetic.invalid', auth: 'password', userId: 'automation@pve', password: 'CANARY-password' }
   const credential = store.replaceCredential('proxmox-axi', password, 0, userId, Date.now())

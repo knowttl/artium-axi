@@ -311,7 +311,6 @@ try {
     'R4: closed connection metadata must not retain workers, listeners or secret-scanner buffers')
   assert.equal((await execution('prepare', { ...input, connection: reusable.id })).json().error.code, 'CONNECTION_CLOSED')
   assert.equal(counts.transports, reusedTransport)
-  db.exec('UPDATE delegation_settings SET minting_enabled=1')
   const tokenAdapter = createSshAdapter(hosts, join(directory, 'writes.log'))
   const mint = () => createDelegation(db, 'synthetic-development-user', { label: 'Synthetic', scope: { tools: [{ tool: 'ssh-axi' }] },
     readOnly: false, reusable: true, expiresAt: Date.now() + 600000 }, [tokenAdapter])
