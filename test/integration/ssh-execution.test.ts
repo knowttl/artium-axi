@@ -13,7 +13,7 @@ import { encryptCredential } from '../../src/server/store/crypto.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 import { createSshAdapter } from '../../src/server/adapters/ssh.js'
-import { createDelegation, revokeDelegation } from '../../src/server/auth/delegations.js'
+import { createDelegation, delegatedDiscovery, revokeDelegation } from '../../src/server/auth/delegations.js'
 import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 
 let directory: string
@@ -86,11 +86,24 @@ test.each([
   { commands: ['exec', 'execution cancel'] },
 ])('SSH exec refuses incomplete workflow scope $commands before preparation or submission (R1)', async ({ commands }) => {
   provision()
-  const token = delegated(commands)
+  const token = delegated(['exec', 'execution show', 'execution cancel'])
+  const scopeJson = JSON.stringify({ tools: [{ tool: 'ssh-axi', commands }] })
+  db.prepare('UPDATE delegations SET scope_json=? WHERE id=?').run(scopeJson, token.id)
   expect((await post('prepare', input, token.headers)).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
   expect((await post('submit', { requestKey: 'synthetic', input }, token.headers)).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
   expect(db.prepare('SELECT * FROM ssh_executions').all()).toEqual([])
   expect(db.prepare("SELECT * FROM audit WHERE event='run-start'").all()).toEqual([])
+  expect(delegatedDiscovery(db, 'synthetic-development-user', { scopeJson, readOnly: false },
+    [createSshAdapter(hosts, join(directory, 'writes.log'))]).flatMap(tool => tool.commands)).not.toContain('exec')
+})
+
+test.each([
+  { commands: ['exec'], missing: 'ssh-axi:execution show, ssh-axi:execution cancel' },
+  { commands: ['exec', 'execution show'], missing: 'ssh-axi:execution cancel' },
+  { commands: ['exec', 'execution cancel'], missing: 'ssh-axi:execution show' },
+])('SSH mint refuses incomplete exec picks $commands and names missing picks (R3)', ({ commands, missing }) => {
+  expect(() => delegated(commands)).toThrow(`SSH exec requires missing picks: ${missing}.`)
+  expect(db.prepare('SELECT * FROM delegations').all()).toEqual([])
 })
 
 test('SSH exec with explicit workflow grants permits preparation and follow-up routes (R1)', async () => {

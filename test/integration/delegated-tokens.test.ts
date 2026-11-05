@@ -115,6 +115,7 @@ test('token --command refuses wildcard selections without storing a token (R12)'
 
 test.each([
   { command: 'exec', grants: ['exec', 'execution show', 'execution cancel'] },
+  { command: 'exec', grants: ['exec'] },
   { command: 'connection open', grants: ['connection open'] },
   { command: 'connection list', grants: ['connection list'] },
   { command: 'connection show', grants: ['connection show'] },
@@ -123,7 +124,7 @@ test.each([
   { command: 'execution list', grants: ['execution list'] },
   { command: 'execution show', grants: ['execution show'] },
   { command: 'execution cancel', grants: ['execution cancel'] },
-])('granted managed SSH $command help preserves native output (R2)', async ({ command, grants }) => {
+])('granted managed SSH $command help preserves native output with $grants (R2, R3)', async ({ command, grants }) => {
   await app.close()
   db.exec(`UPDATE tools SET enabled = 1, native_settings = '{"allowWrites":true}' WHERE name = 'ssh-axi'`)
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') })
@@ -134,8 +135,10 @@ test.each([
     resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
-    scope: { tools: [{ tool: 'ssh-axi', commands: grants }] }, readOnly: false, reusable: false,
+    scope: { tools: [{ tool: 'ssh-axi' }] }, readOnly: false, reusable: false,
     expiresAt: Date.now() + 600_000 }, [adapter])
+  db.prepare('UPDATE delegations SET scope_json = ? WHERE id = ?')
+    .run(JSON.stringify({ tools: [{ tool: 'ssh-axi', commands: grants }] }), minted.id)
   expect((await cli(['login', '--token-stdin'], `${minted.token}\n`, 'agent')).code).toBe(0)
   const args = [...command.split(' '), '--help']
   const native = await runner.run('synthetic-development-user', process.execPath, [adapter.executable, ...args], {}, [],

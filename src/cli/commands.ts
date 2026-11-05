@@ -78,8 +78,6 @@ async function main(args: string[]) {
       if (tools.some(tool => tool.commands === undefined)) throw new ArtiumError('INVALID_RESPONSE')
       const name = toolDiscovery ? command : help === 'tools show' ? args.slice(2).find(arg => toolSchema.safeParse(arg).success) : undefined
       if (name) {
-        const tool = tools.find(tool => tool.name === name)
-        if (!tool) throw new ArtiumError('TOOL_NOT_GRANTED')
         if (toolDiscovery && !prefixHelp && toolWords.length > 0 && !(toolWords.length === 1 && ['commands', 'home', 'help'].includes(toolWords[0]))) {
           const hostedArgs = args.slice(1).map(arg => arg === '-h' ? '--help' : arg)
           const hosted = name === 'kubernetes-axi' ? resolveKubernetesHostedCommand(hostedArgs) : undefined
@@ -98,6 +96,8 @@ async function main(args: string[]) {
           process.exitCode = parsed.data.exitCode
           return
         }
+        const tool = tools.find(tool => tool.name === name)
+        if (!tool) throw new ArtiumError('TOOL_NOT_GRANTED')
         output('stdout', args.includes('--json') ? JSON.stringify({ tool: tool.name, commands: tool.commands }) + '\n' : toolView(tool))
       } else output('stdout', toolsView(tools))
       return
