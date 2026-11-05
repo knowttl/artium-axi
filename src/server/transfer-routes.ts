@@ -12,7 +12,7 @@ import type { Adapter } from './adapters/types.js'
 import { ArtifactStore } from './artifacts.js'
 import type { ArtifactArchive, ArtifactReservation } from './artifacts.js'
 import type { Audit } from './audit/audit.js'
-import { hashToken, requireRecentAuth, verifyAccessToken } from './auth/tokens.js'
+import { hashToken, requireRecentAuth, verifyAccessToken, verifyPrincipal } from './auth/tokens.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import { previewNativeArtifact, executeNativeArtifact } from './runner/artifact.js'
 import type { Runner } from './runner/runner.js'
@@ -76,10 +76,11 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
     const identity = db.prepare('SELECT user_id, family_id FROM tokens WHERE hash = ?').get(hashToken(tokenFor(request))) as
       { user_id: string, family_id: string } | undefined
     const entry = entries.get(input.transferId)
-    if (!entry) throw new ArtiumError('TOKEN_INVALID')
+    if (!entry || identity?.user_id !== entry.reservation.scope.userId || identity.family_id !== entry.reservation.scope.sessionFamilyId) {
+      verifyAccessToken(db, tokenFor(request))
+      throw new ArtiumError('TOKEN_INVALID')
+    }
     const scope = entry.reservation.scope
-    // An unrelated caller must not be able to cancel the owner's transfer.
-    if (identity?.user_id !== scope.userId || identity.family_id !== scope.sessionFamilyId) throw new ArtiumError('TOKEN_INVALID')
     try { checkTransferScope(scope, ownerFor(request), revision(transferTool(scope.selection.operation)), { selection: input.selection, targetDigest: input.targetDigest }); access(scope) }
     catch (error) { await discard(entry); throw error }
     return entry
@@ -225,7 +226,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
         if (reply.raw.headersSent) { reply.raw.destroy(); return reply }
         if (error instanceof ArtiumError && !reply.raw.headersSent) {
           let userId: string | null = null
-          try { userId = verifyAccessToken(db, tokenFor(request)) } catch { /* Unauthenticated denials retain no actor. */ }
+          try { userId = verifyPrincipal(db, tokenFor(request)).userId } catch { /* Unauthenticated denials retain no actor. */ }
           audit.record({ event: 'denial', userId, tool, requestId: request.id,
             clientAddress: request.ip, outcome: error.code })
         }

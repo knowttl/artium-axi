@@ -332,7 +332,13 @@ test('JSON-lines export includes all filtered pages and only safe persisted fiel
   expect(response.headers.get('cache-control')).toBe('no-store')
   const text = await response.text()
   expect(text).not.toContain('CANARY-secret')
-  expect(text.trimEnd().split('\n').map(line => JSON.parse(line))).toEqual(records.reverse())
+  expect(text).not.toContain('"delegation_id"')
+  const stored = db.prepare('SELECT * FROM audit WHERE id = ?')
+  const publicRecords = records.reverse().map(record => {
+    const { delegation_id: _delegationId, ...publicRecord } = stored.get(record.id) as typeof record & { delegation_id: string | null }
+    return publicRecord
+  })
+  expect(text.trimEnd().split('\n').map(line => JSON.parse(line))).toEqual(publicRecords)
 })
 
 test('CSV export quotes commas, quotes and newlines without changing field values', async () => {

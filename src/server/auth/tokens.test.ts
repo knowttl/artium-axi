@@ -1,9 +1,10 @@
 import Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { migrate } from '../store/db.js'
-import { hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, requireRecentAuth, revokeUserSessions, verifyAccessToken } from './tokens.js'
+import { hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, requireRecentAuth, revokeUserSessions, verifyAccessFamily, verifyAccessToken, verifyPasswordToken, verifyPrincipal } from './tokens.js'
 import { Audit } from '../audit/audit.js'
 import { issueTestAccessToken } from '../../../test/fixtures/tokens.js'
+import { createBrowserSession, readBrowserSession } from './sessions.js'
 
 let db: Database.Database
 const now = 1_800_000_000_000
@@ -14,7 +15,7 @@ beforeEach(() => {
   migrate(db)
   db.prepare("INSERT INTO users (id, username, display_name, password_hash) VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash')").run()
 })
-afterEach(() => { db.close(); vi.unstubAllEnvs() })
+afterEach(() => { db.close(); vi.unstubAllEnvs(); vi.restoreAllMocks() })
 
 test('fixture stores only a SHA-256 hash and verifier returns the owning user', () => {
   const token = issueTestAccessToken(db, 'synthetic-user', now)
@@ -22,6 +23,53 @@ test('fixture stores only a SHA-256 hash and verifier returns the owning user', 
   expect(db.prepare('SELECT hash, expires_at FROM tokens').get()).toEqual({ hash: hashToken(token), expires_at: now + 3_600_000 })
   expect(db.prepare('SELECT created_at, expires_at FROM session_families').get()).toEqual({ created_at: now, expires_at: now + 43_200_000 })
   expect(hashToken(token)).not.toBe(token)
+})
+
+test('delegated sessions expose a principal but refuse ordinary verification and recent authentication', () => {
+  vi.spyOn(Date, 'now').mockReturnValue(now)
+  const token = issueTestAccessToken(db, 'synthetic-user', now)
+  db.prepare(`INSERT INTO delegations (id, creator_id, token_hash, label, scope_json, read_only, single_use, created_at, expires_at)
+    VALUES ('delegation', 'synthetic-user', 'synthetic-hash', 'Synthetic', '{}', 1, 1, ?, ?)`).run(now, now + 10000)
+  db.exec("UPDATE session_families SET delegation_id = 'delegation'")
+  expect(verifyPrincipal(db, token, now)).toEqual({ userId: 'synthetic-user', familyId: expect.any(String),
+    delegation: { id: 'delegation', scopeJson: '{}', readOnly: true, expiresAt: now + 10000 } })
+  for (const verify of [() => verifyAccessToken(db, token, now), () => verifyAccessFamily(db, token),
+    () => verifyPasswordToken(db, token, now), () => issueRecentAuthTicket(db, token, now),
+    () => requireRecentAuth(db, token, 'synthetic-ticket', now)]) {
+    expect(verify).toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
+  }
+})
+
+test.each([
+  ['revoked', 'UPDATE delegations SET revoked_at = 1', 'TOKEN_INVALID'],
+  ['expired', `UPDATE delegations SET expires_at = ${now}`, 'TOKEN_EXPIRED'],
+  ['disabled creator', 'UPDATE users SET disabled = 1', 'USER_DISABLED'],
+] as const)('principal rejects a %s delegation', (_label, sql, code) => {
+  const token = issueTestAccessToken(db, 'synthetic-user', now)
+  db.prepare(`INSERT INTO delegations (id, creator_id, token_hash, label, scope_json, read_only, single_use, created_at, expires_at)
+    VALUES ('delegation', 'synthetic-user', 'synthetic-hash', 'Synthetic', '{}', 1, 1, ?, ?)`).run(now, now + 10000)
+  db.exec("UPDATE session_families SET delegation_id = 'delegation'")
+  db.exec(sql)
+  expect(() => verifyPrincipal(db, token, now)).toThrow(expect.objectContaining({ code }))
+})
+
+test('browser sessions cannot use a delegated family', () => {
+  const session = createBrowserSession(db, 'synthetic-user', 'synthetic-csrf', now)
+  db.prepare(`INSERT INTO delegations (id, creator_id, token_hash, label, scope_json, read_only, single_use, created_at, expires_at)
+    VALUES ('delegation', 'synthetic-user', 'synthetic-hash', 'Synthetic', '{}', 1, 1, ?, ?)`).run(now, now + 10000)
+  db.exec("UPDATE session_families SET delegation_id = 'delegation'")
+  expect(() => readBrowserSession(db, session.id, now)).toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
+})
+
+test('a revoked delegation cannot refresh its session', () => {
+  db.exec('UPDATE users SET must_change = 0')
+  const session = issueLoginTokens(db, 'synthetic-user', now)
+  if (session.status !== 'authenticated') throw new Error('Expected ordinary session')
+  db.prepare(`INSERT INTO delegations (id, creator_id, token_hash, label, scope_json, read_only, single_use, created_at, expires_at, revoked_at)
+    VALUES ('delegation', 'synthetic-user', 'synthetic-hash', 'Synthetic', '{}', 1, 1, ?, ?, ?)`).run(now, now + 10000, now)
+  db.exec("UPDATE session_families SET delegation_id = 'delegation'")
+  expect(() => refreshTokens(db, session.refreshToken, new Audit(db), { requestId: 'synthetic-refresh', clientAddress: '192.0.2.1' }, now))
+    .toThrow(expect.objectContaining({ code: 'TOKEN_INVALID' }))
 })
 
 test('recent-auth confirmation replaces the previous ticket and survives refresh within its family', () => {

@@ -53,6 +53,7 @@ const definitions = {
   NOT_FOUND: { status: 404, message: 'The endpoint does not exist.', next: 'Use a supported API endpoint and tool name.' },
   AUDIT_UNAVAILABLE: { status: 503, message: 'The audit event could not be stored.', next: 'Ask the administrator to check audit storage capacity and availability.' },
   TOKEN_INVALID: { status: 401, message: 'The token is invalid or revoked.', next: 'Sign in again to obtain a valid token.' },
+  DELEGATED_SCOPE_DENIED: { status: 403, message: 'This operation is unavailable to delegated sessions.', next: 'Use an authorized session for this operation.' },
   TOKEN_EXPIRED: { status: 401, message: 'The token has expired.', next: 'Sign in again.' },
   USER_DISABLED: { status: 403, message: 'The user is disabled.', next: 'Ask the administrator to enable the user.' },
   TOOL_DISABLED: { status: 403, message: 'The tool is disabled.', next: 'Ask the administrator to enable the tool.' },

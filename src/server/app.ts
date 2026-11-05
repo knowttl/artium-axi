@@ -64,6 +64,7 @@ export function createApp(options: {
   sshExecution?: SshExecutionOptions,
   ssoFetch?: SsoFetch,
   artifactStore?: ArtifactStore,
+  onRoute?: (method: string | string[], url: string) => void,
 }) {
   const { db, audit, runner, resolver, adapters, environment = process.env } = options
   const credentialProfiles: Partial<Record<ToolName, CredentialProfile>> = Object.fromEntries(toolSchema.options.flatMap(tool => {
@@ -84,6 +85,7 @@ export function createApp(options: {
   const app = Fastify({ bodyLimit: inputLimits.requestBytes, logger: false,
     genReqId: () => randomUUID(), requestIdHeader: false,
     trustProxy: address => proxies.includes(address) })
+  if (options.onRoute) app.addHook('onRoute', route => options.onRoute!(route.method, route.url))
   const bearer = (authorization: string | undefined) => /^Bearer ([^\s]+)$/.exec(authorization ?? '')?.[1] ?? ''
   const browser = registerBrowser(app, db, audit, authAttempts, (session, origin) => sso.endSession(session, origin))
   const device = registerDevice(app, db, audit)

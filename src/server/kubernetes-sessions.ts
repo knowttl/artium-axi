@@ -19,7 +19,7 @@ import { kubernetesByteLease, sendKubernetesBytes } from './kubernetes-workspace
 import { SecretScanner } from './runner/scan.js'
 import type { Runner } from './runner/runner.js'
 import { readCredentialTrust } from './store/trusted-certificates.js'
-import { verifyAccessToken } from './auth/tokens.js'
+import { verifyPrincipal } from './auth/tokens.js'
 import { attachKubernetesTunnel } from './kubernetes-tunnels.js'
 import { acceptsCliVersion } from '../shared/version.js'
 
@@ -398,7 +398,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     })().catch(error => {
       try {
         let userId: string | null = null
-        try { userId = verifyAccessToken(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? '') } catch { /* Unverified callers remain unattributed. */ }
+        try { userId = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? '').userId } catch { /* Unverified callers remain unattributed. */ }
         audit.record({ event: 'denial', userId, tool: 'kubernetes-axi', requestId: randomUUID(),
           clientAddress: request.socket.remoteAddress ?? null, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
         socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
@@ -408,7 +408,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
   app.addHook('onError', async (request, _reply, error) => {
     if (!request.url.startsWith('/v1/tools/kubernetes-axi/')) return
     let userId: string | null = null
-    try { userId = verifyAccessToken(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? '') } catch { /* Unverified callers remain unattributed. */ }
+    try { userId = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? '').userId } catch { /* Unverified callers remain unattributed. */ }
     audit.record({ event: 'denial', userId, tool: 'kubernetes-axi', requestId: request.id,
       clientAddress: request.ip, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
   })

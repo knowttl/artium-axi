@@ -48,7 +48,8 @@ const transfer = {
 test('transfer audit persists typed metadata with separate archive and client-save evidence', () => {
   const record = audit.record({ ...context, tool: 'hybrid-axi', event: 'transfer', outcome: 'preview',
     credentialRevision: 3, transfer })
-  expect(adminAuditRecordSchema.parse(record)).toEqual(record)
+  const { delegation_id: _delegationId, ...apiRecord } = record
+  expect(adminAuditRecordSchema.parse(apiRecord)).toEqual(apiRecord)
   expect(record).toMatchObject({ ...transfer, credential_revision: 3, arguments: null })
   expect(db.prepare('SELECT * FROM audit WHERE id = ?').get(record.id)).toEqual(record)
   const delivered = audit.record({ ...context, tool: 'hybrid-axi', event: 'transfer', outcome: 'delivery-completed',
