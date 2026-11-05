@@ -24,9 +24,21 @@ export const sshWritePolicy = writePolicy({
   unlocks: 'Confirmed one-shot execution requires Allow writes, a writable host and current caller grants. Sudo additionally requires its distinct approved account and credential.',
   blocked: 'Credentials and host trust cannot be overridden in arguments. No automatic reconnection or replay; interactive SSH channels and forwarding are unavailable.' })
 
-function invocation(args: readonly string[], input?: RunnerInput) {
+function managedInvocation(args: readonly string[], executable: string) {
+  const command = resolveSshManagedCommand(args)
+  if (!command) return undefined
+  const { parseArguments } = createRequire(import.meta.url)(fileURLToPath(new URL('./arguments.js', pathToFileURL(executable)))) as {
+    parseArguments(args: string[]): unknown
+  }
+  parseArguments([...args])
+  return { command }
+}
+
+function invocation(args: readonly string[], executable: string, input?: RunnerInput) {
   if (input?.stdin !== undefined || input?.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (args.some(arg => arg.startsWith('-') && !['--help', '--json', '--version', '-v', '-V'].includes(arg))) throw new ArtiumError('FLAG_BLOCKED')
+  const managed = args.includes('--help') ? managedInvocation(args, executable) : undefined
+  if (managed) return { ...managed, host: undefined, help: true, offline: true }
   const words = args.filter(arg => !arg.startsWith('-'))
   const command = words[0] === 'doctor' ? 'doctor' : words.slice(0, 2).join(' ') || 'home'
   const route = inventory.commands.find(route => route.command === command)
@@ -43,22 +55,18 @@ export function createSshAdapter(hosts: SshHosts, writeLog: string, executable: 
   return { name: 'ssh-axi', executable, credentialSchema: sshProfile.credentialSchema,
     timeoutMs: inventory.requirements.timeoutMs, blockedFlags: [], allowedFlagValues: {},
     sensitiveArguments: () => ({ flags: [], positions: [] }),
-    validateArgs: (args, input) => { invocation(args, input) },
+    validateArgs: (args, input) => { invocation(args, executable, input) },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand([...inventory.commands, ...inventory.managedCommands], (a, i) => {
-      const command = resolveSshManagedCommand(a)
-      if (!command) {
-        const call = invocation(a, i)
+      const managed = managedInvocation(a, executable)
+      if (!managed) {
+        const call = invocation(a, executable, i)
         return a.length === 1 && ['--version', '-v', '-V'].includes(a[0]) ? { command: 'version' } : call
       }
-      const { parseArguments } = createRequire(import.meta.url)(fileURLToPath(new URL('./arguments.js', pathToFileURL(executable)))) as {
-        parseArguments(args: string[]): unknown
-      }
-      parseArguments([...a])
-      return { command }
+      return managed
     }, args, input),
     async prepare() { throw new ArtiumError('TOOL_NOT_GRANTED') },
     async prepareForCaller(args, userId, input) {
-      const call = invocation(args, input)
+      const call = invocation(args, executable, input)
       verifySshArtifact(executable)
       const beforeSpawn = call.offline ? undefined : hosts.dispatchGuard(userId, call.host)
       const visible = call.offline ? [] : hosts.list(userId)
