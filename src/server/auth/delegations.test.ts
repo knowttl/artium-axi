@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { join } from 'node:path'
-import { checkDelegation, delegatedCommands, resolveDelegatedPattern } from './delegations.js'
+import { checkDelegation, classifyDelegatedCommand, delegatedCommands, resolveDelegatedPattern } from './delegations.js'
 import { createAzAdapter } from '../adapters/az.js'
 import { createAdoAdapter } from '../adapters/ado.js'
 import { createAwxAdapter } from '../adapters/awx.js'
@@ -14,6 +14,7 @@ import { createCheckpointAdapter } from '../adapters/checkpoint.js'
 import { createBeyondtrustAdapter } from '../adapters/beyondtrust.js'
 import { createProxmoxAdapter } from '../adapters/proxmox.js'
 import { createKubernetesAdapter } from '../adapters/kubernetes.js'
+import { createGhAdapter } from '../adapters/gh.js'
 
 const source = { getCredential: async () => { throw new Error('Unexpected credential access') } }
 const writeLog = join(process.cwd(), 'synthetic-writes.log')
@@ -162,5 +163,20 @@ test('wildcards match complete command words', () => {
   const scope = JSON.stringify({ tools: [{ tool: 'awx-axi', commands: ['job *'] }] })
   expect(() => checkDelegation(scope, false, 'awx-axi', 'job list', 'read')).not.toThrow()
   expect(() => checkDelegation(scope, false, 'awx-axi', 'job-template list', 'read'))
+    .toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
+})
+
+test.each([
+  { tool: 'kubernetes-axi', args: ['prepare', '--', 'create', 'token', '--help'] },
+  { tool: 'kubernetes-axi', args: ['server-dry-run', '--', 'create', 'token', '--help'] },
+  { tool: 'kubernetes-axi', args: ['native', '--', 'get', '--help'] },
+  { tool: 'gh-axi', args: ['api', '--help'] },
+] as const)('canonical $tool $args remains excluded from wildcard grants (R15)', async ({ tool, args }) => {
+  const adapter = tool === 'gh-axi' ? createGhAdapter(source)
+    : await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'))
+  const scope = JSON.stringify({ tools: [{ tool, commands: ['*'] }] })
+  const classification = classifyDelegatedCommand(adapter, args)
+  expect(classification.command).not.toBe('unknown')
+  expect(() => checkDelegation(scope, false, tool, classification.command, classification.effect))
     .toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
 })

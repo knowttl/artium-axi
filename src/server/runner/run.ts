@@ -8,7 +8,7 @@ import type { Adapter, PreparedCall } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
 import type { Audit, AuditEvent } from '../audit/audit.js'
 import { verifyAccessFamily, verifyAccessToken, verifyPrincipal } from '../auth/tokens.js'
-import { checkDelegation, credentialIssuingCommand, delegatedDiscovery } from '../auth/delegations.js'
+import { checkDelegation, classifyDelegatedCommand, credentialIssuingCommand, delegatedDiscovery } from '../auth/delegations.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { RunnerError } from './runner.js'
@@ -91,7 +91,7 @@ export async function runTool<Credential>(
       adapter.validateArgs(args, input)
       validateFileInput(adapter.name, args, input)
       if (principal?.delegation) {
-        const classification = adapter.classify(args, input)
+        const classification = classifyDelegatedCommand(adapter, args, input)
         checkDelegation(principal.delegation.scopeJson, readOnly, adapter.name, classification.command, classification.effect)
         if (credentialIssuingCommand(adapter.name, classification.command)) credentialCommand = classification.command
       }
@@ -109,7 +109,7 @@ export async function runTool<Credential>(
       if (authenticate === verifyAccessToken) {
         const current = verifyPrincipal(db, token)
         if (current.delegation) {
-          const classification = adapter.classify(args, input)
+          const classification = classifyDelegatedCommand(adapter, args, input)
           checkDelegation(current.delegation.scopeJson, current.delegation.readOnly, adapter.name, classification.command, classification.effect)
           if (confirmedCredentialCommand) checkDelegation(current.delegation.scopeJson, current.delegation.readOnly,
             adapter.name, confirmedCredentialCommand, 'write')

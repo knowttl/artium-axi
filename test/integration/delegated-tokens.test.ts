@@ -21,7 +21,8 @@ import { createKubernetesAdapter } from '../../src/server/adapters/kubernetes.js
 import { createProxmoxAdapter } from '../../src/server/adapters/proxmox.js'
 import { createAzAdapter } from '../../src/server/adapters/az.js'
 import { createGhAdapter } from '../../src/server/adapters/gh.js'
-import { createDelegation } from '../../src/server/auth/delegations.js'
+import { createAdoAdapter } from '../../src/server/adapters/ado.js'
+import { checkDelegation, classifyDelegatedCommand, createDelegation } from '../../src/server/auth/delegations.js'
 import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 import { decode } from '@toon-format/toon'
 import { SessionStore } from '../../src/cli/session.js'
@@ -242,6 +243,48 @@ test.each([
   const output = decode(response.json().stdout) as { commands: string[] }
   expect(output.commands).toContain(allowed)
   expect(output.commands).not.toContain('auth status')
+})
+
+test.each([
+  { tool: 'kubernetes-axi', selection: 'prepare -- apply', canonical: 'apply', execution: ['prepare', '--', 'apply', '--help'], discovered: 'prepare -- apply' },
+  { tool: 'kubernetes-axi', selection: 'server-dry-run -- apply', canonical: 'apply', execution: ['server-dry-run', '--', 'apply', '--help'], discovered: 'server-dry-run -- apply' },
+  { tool: 'kubernetes-axi', selection: 'prepare -- create token', canonical: 'create token', execution: ['prepare', '--', 'create', 'token', '--help'], discovered: 'prepare -- create token' },
+  { tool: 'kubernetes-axi', selection: 'server-dry-run -- create token', canonical: 'create token', execution: ['server-dry-run', '--', 'create', 'token', '--help'], discovered: 'server-dry-run -- create token' },
+  { tool: 'kubernetes-axi', selection: 'native -- get', canonical: 'native -- get', execution: ['native', '--', 'get', '--help'], discovered: 'native -- get' },
+  { tool: 'kubernetes-axi', selection: 'create *', canonical: 'create *', execution: ['prepare', '--', 'create', 'deployment', '--help'], discovered: 'prepare -- create deployment' },
+  { tool: 'ado-axi', selection: 'wi list', canonical: 'work-item list', execution: ['wi', 'list', '--help'], discovered: 'work-item list' },
+  { tool: 'ado-axi', selection: 'prs *', canonical: 'pr *', execution: ['prs', 'list', '--help'], discovered: 'pr list' },
+  { tool: 'gh-axi', selection: 'issue list', canonical: 'issue list', execution: ['issue', 'list', '-R', 'synthetic/repository', '--help'], discovered: 'issue list' },
+  { tool: 'az-axi', selection: 'role assignment list', canonical: 'rbac list', execution: ['role', 'assignment', 'list', '--help'], discovered: 'rbac list' },
+  { tool: 'proxmox-axi', selection: 'post /access/users/{userid}/token/{tokenid}', canonical: 'create /access/users/{userid}/token/{tokenid}', execution: ['post', '/access/users/{userid}/token/{tokenid}', '--help'], discovered: 'create /access/users/{userid}/token/{tokenid}' },
+] as const)('$tool normalizes $selection from mint through execution and discovery (R15)', async ({ tool, selection, canonical, execution, discovered }) => {
+  await app.close()
+  db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
+  db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'kubernetes-axi';
+    UPDATE tools SET native_settings = '{"hostWrites":{"allowWrites":true,"operations":[]}}' WHERE name = 'proxmox-axi'`)
+  const source = new EmbeddedSecretSource(credentials)
+  const adapters = [createAdoAdapter(source), createGhAdapter(source), createAzAdapter(source, join(directory, 'writes.log')),
+    createProxmoxAdapter(source), await createKubernetesAdapter(source,
+      join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), join(directory, 'requests'))]
+  const adapter = adapters.find(item => item.name === tool)!
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-canonical')), audit: new Audit(db),
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+  const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password } })
+  const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
+    headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { label: 'Synthetic',
+      scope: { tools: [{ tool, commands: [selection] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 600_000 } })
+  expect(minted.statusCode, minted.body).toBe(200)
+  const stored = db.prepare('SELECT scope_json FROM delegations WHERE id = ?').get(minted.json().id) as { scope_json: string }
+  expect(JSON.parse(stored.scope_json)).toEqual({ tools: [{ tool, commands: [canonical] }] })
+  const classification = classifyDelegatedCommand(adapter, execution)
+  expect(() => checkDelegation(stored.scope_json, false, tool, classification.command, classification.effect)).not.toThrow()
+  const exchanged = exchangeDelegation(db, minted.json().token)
+  const delegated = { authorization: `Bearer ${exchanged.accessToken}` }
+  const run = await app.inject({ method: 'POST', url: `/v1/tools/${tool}/run`, headers: delegated, payload: { args: [...execution] } })
+  expect(run.json()).toMatchObject({ error: { code: 'CREDENTIAL_NOT_CONFIGURED' } })
+  const tools = await app.inject({ url: '/v1/tools', headers: delegated })
+  expect(tools.json().tools[0].commands).toContain(discovered)
 })
 
 test('Kubernetes token preparation requires an exact writable pick before resolving credentials', async () => {

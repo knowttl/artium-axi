@@ -10,6 +10,7 @@ import kubernetes from '../../../tools/inventories/kubernetes-axi.json' with { t
 import type { ToolName } from '../store/credential-store.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
+import type { RunnerInput } from '../runner/input.js'
 
 const exactCommands: Partial<Record<ToolName, readonly string[]>> = {
   'awx-axi': ['user token-create'],
@@ -27,6 +28,11 @@ const commandPattern = /^(?:[^\s*]+(?: [^\s*]+)*(?: \*)?|\*)$/
 
 function commandOperation(tool: ToolName, command: string): string {
   return tool === 'kubernetes-axi' ? command.replace(/^(?:prepare|server-dry-run) -- /, '') : command
+}
+
+export function classifyDelegatedCommand(adapter: Adapter<unknown>, args: readonly string[], input?: RunnerInput) {
+  const classification = adapter.classify(args, input)
+  return { ...classification, command: commandOperation(adapter.name, classification.command) }
 }
 
 function commandInvocations(tool: ToolName, command: string): string[] {
@@ -56,11 +62,10 @@ export function createDelegation(db: Database.Database, creatorId: string, input
 export function checkDelegation(scopeJson: string, readOnly: boolean, tool: ToolName, command: string, effect: 'read' | 'write') {
   const scope = delegationScopeSchema.parse(JSON.parse(scopeJson))
   const grants = scope.tools.filter(item => item.tool === tool)
-  const operation = commandOperation(tool, command)
-  const exact = grants.some(item => item.commands?.includes(operation))
-  const wildcard = operation !== 'unknown' && grants.some(item => item.commands?.some(pattern => pattern === '*' || pattern.endsWith(' *') && operation.startsWith(pattern.slice(0, -1))))
+  const exact = grants.some(item => item.commands?.includes(command))
+  const wildcard = command !== 'unknown' && grants.some(item => item.commands?.some(pattern => pattern === '*' || pattern.endsWith(' *') && command.startsWith(pattern.slice(0, -1))))
   const wide = grants.some(item => item.commands === undefined)
-  const credentialCommand = exactCommands[tool]?.includes(operation)
+  const credentialCommand = exactCommands[tool]?.includes(command)
   const escapeHatch = escapeHatches[tool]?.includes(command)
   const tokenWorkflow = tool === 'kubernetes-axi' && ['preview', 'confirm'].includes(command)
     && grants.some(item => item.commands?.includes('create token'))
@@ -84,8 +89,8 @@ export function resolveDelegatedPattern(pattern: string, adapter: Adapter<unknow
       if (!suffix.length) return []
       return commandInvocations(adapter.name, route.command).flatMap(invocation => {
         const candidate = invocation.slice(0, -route.command.length) + [...words, ...suffix].join(' ')
-        const resolved = commandOperation(adapter.name, adapter.classify([...candidate.split(' '), '--help']).command)
-        if (resolved === 'unknown' || resolved === 'home' || resolved !== adapter.classify(route.command.split(' ')).command
+        const resolved = classifyDelegatedCommand(adapter, [...candidate.split(' '), '--help']).command
+        if (resolved === 'unknown' || resolved === 'home' || resolved !== classifyDelegatedCommand(adapter, route.command.split(' ')).command
           || !resolved.endsWith(' ' + suffix.join(' '))) return []
         return [resolved.split(' ').slice(0, -suffix.length).join(' ')]
       })
@@ -93,7 +98,7 @@ export function resolveDelegatedPattern(pattern: string, adapter: Adapter<unknow
     if (prefixes.size !== 1 || prefixes.has('')) throw new ArtiumError('INVALID_INPUT')
     return [...prefixes][0] + ' *'
   }
-  const resolved = adapter.classify(pattern.split(' ')).command
+  const resolved = classifyDelegatedCommand(adapter, pattern.split(' ')).command
   if (resolved === 'unknown' || resolved === 'home') throw new ArtiumError('INVALID_INPUT')
   return resolved
 }
@@ -102,7 +107,7 @@ export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter:
   const tool = adapter.name
   return [...new Set(commandRoutes(tool).flatMap(route => {
     if (!route.command || route.command === 'home' || route.effect === 'blocked') return []
-    const classification = adapter.classify(route.command.split(' '))
+    const classification = classifyDelegatedCommand(adapter, route.command.split(' '))
     return commandInvocations(tool, route.command).flatMap(command => {
       try {
         adapter.validateArgs([...command.split(' '), '--help'])
@@ -133,8 +138,7 @@ export function delegationIncludesTool(scopeJson: string, tool: ToolName): boole
 }
 
 export function credentialIssuingCommand(tool: ToolName, command: string): boolean {
-  const operation = commandOperation(tool, command)
-  return exactCommands[tool]?.includes(operation) ?? false
+  return exactCommands[tool]?.includes(command) ?? false
 }
 
 export function revokeDelegation(db: Database.Database, id: string, actorId: string, administrator: boolean, now = Date.now()) {
