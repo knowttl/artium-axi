@@ -8,7 +8,7 @@ import type { Adapter, PreparedCall } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
 import type { Audit, AuditEvent } from '../audit/audit.js'
 import { verifyAccessFamily, verifyAccessToken, verifyPrincipal } from '../auth/tokens.js'
-import { checkDelegation, credentialIssuingCommand, delegatedCommands, delegationIncludesTool } from '../auth/delegations.js'
+import { checkDelegation, credentialIssuingCommand, delegatedDiscovery } from '../auth/delegations.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { RunnerError } from './runner.js'
@@ -78,12 +78,12 @@ export async function runTool<Credential>(
       if (/artd_[A-Za-z0-9_-]{43}/.test(JSON.stringify({ args, stdin: input.stdin, names: input.files?.map(file => file.name) }))
         || input.files?.some(file => /artd_[A-Za-z0-9_-]{43}/.test(Buffer.from(file.contentBase64, 'base64').toString('latin1')))) throw new ArtiumError('INVALID_INPUT')
       if (principal?.delegation) {
-        if (!delegationIncludesTool(principal.delegation.scopeJson, adapter.name)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
-        const commands = delegatedCommands(principal.delegation.scopeJson, readOnly, adapter)
+        const discovery = delegatedDiscovery(db, userId, principal.delegation, [adapter])[0]
+        if (!discovery) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         if (args.length === 0 || args.length === 1 && ['--help', '-h'].includes(args[0])) {
           adapter.validateArgs(args.length ? args : ['--help'], input)
           validateFileInput(adapter.name, args, input)
-          const stdout = encode({ tool: adapter.name, commands }) + '\n'
+          const stdout = encode({ tool: adapter.name, commands: discovery.commands }) + '\n'
           return { stdout, stderr: '', exitCode: 0, durationMs: Date.now() - started,
             outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
         }

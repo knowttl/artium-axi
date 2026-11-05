@@ -204,7 +204,7 @@ test('revocation aborts an in-flight delegated read', async () => {
 
 test.each(['get /version', 'create /access/users/{userid}/token/{tokenid}'])('minting preserves the exact Proxmox route %s (R1)', async command => {
   await app.close()
-  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'proxmox-axi'")
+  db.exec(`UPDATE tools SET enabled = 1, native_settings = '{"hostWrites":{"allowWrites":true,"operations":[]}}' WHERE name = 'proxmox-axi'`)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-proxmox')), audit: new Audit(db),
     adapters: [createProxmoxAdapter(new EmbeddedSecretSource(credentials))], environment: {},
     resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })

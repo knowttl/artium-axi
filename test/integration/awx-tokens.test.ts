@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { decode } from '@toon-format/toon'
 import { parse } from 'yaml'
 import { toolView } from '../../src/cli/views.js'
+import { meResponseSchema } from '../../src/shared/api.js'
 import { expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createAwxAdapter } from '../../src/server/adapters/awx.js'
@@ -192,6 +193,51 @@ test.each([{ commands: undefined }, { commands: ['*'] }])('read-only broad AWX d
     expect(skills.json().skills[0].content).not.toContain('user token-create')
     const help = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers: delegated, payload: { args: ['--help'] } })
     expect((decode(help.json().stdout) as { commands: string[] }).commands).toEqual(tool.commands)
+  })
+})
+
+test.each([
+  { commands: ['job *'] },
+  { commands: ['job list', 'job cancel'] },
+  { commands: undefined },
+])('delegated AWX discovery follows current write and tool policy (R11, R13): $commands', async ({ commands }) => {
+  await withTokenService(async ({ app, db, headers }) => {
+    db.exec(`UPDATE delegation_settings SET minting_enabled = 1;
+      UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+    const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
+      headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { label: 'Synthetic',
+        scope: { tools: [{ tool: 'awx-axi', commands }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 600_000 } })
+    const exchanged = await app.inject({ method: 'POST', url: '/v1/auth/delegated', payload: { token: minted.json().token } })
+    const delegated = { authorization: `Bearer ${exchanged.json().accessToken}` }
+    const writable = await app.inject({ url: '/v1/tools', headers: delegated })
+    expect(writable.json().tools[0]).toMatchObject({ readOnly: false, commands: expect.arrayContaining(['job list', 'job cancel']) })
+    const writableSkills = await app.inject({ url: '/v1/skills', headers: delegated })
+    expect(writableSkills.json().skills[0].content).toContain('`artium-axi awx-axi job cancel`')
+    const writableHelp = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers: delegated, payload: { args: ['--help'] } })
+    expect((decode(writableHelp.json().stdout) as { commands: string[] }).commands).toContain('job cancel')
+
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":false}' WHERE name = 'awx-axi'`)
+    const tools = await app.inject({ url: '/v1/tools', headers: delegated })
+    const tool = tools.json().tools[0]
+    expect(tool.readOnly).toBe(true)
+    expect(tool.commands).toContain('job list')
+    expect(tool.commands).not.toContain('job cancel')
+    const identity = await app.inject({ url: '/v1/me', headers: delegated })
+    expect(meResponseSchema.parse(identity.json())).toMatchObject({ delegation: { scope: { tools: [{ tool: 'awx-axi', commands: tool.commands }] } } })
+    expect(toolView(tool)).not.toContain('job cancel')
+    const skills = await app.inject({ url: '/v1/skills', headers: delegated })
+    expect(skills.json().skills[0].content).toContain('`artium-axi awx-axi job list`')
+    expect(skills.json().skills[0].content).not.toContain('job cancel')
+    const help = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers: delegated, payload: { args: ['--help'] } })
+    expect((decode(help.json().stdout) as { commands: string[] }).commands).toEqual(tool.commands)
+
+    db.exec("UPDATE tools SET enabled = 0 WHERE name = 'awx-axi'")
+    expect((await app.inject({ url: '/v1/tools', headers: delegated })).json().tools).toEqual([])
+    expect((await app.inject({ url: '/v1/skills', headers: delegated })).json().skills).toEqual([])
+    expect((await app.inject({ url: '/v1/me', headers: delegated })).json().delegation.scope.tools).toEqual([])
+    const disabledHelp = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers: delegated, payload: { args: ['--help'] } })
+    expect(disabledHelp.json()).toMatchObject({ error: { code: 'TOOL_DISABLED' } })
   })
 })
 

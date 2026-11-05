@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { z } from 'zod'
-import { createDelegationSchema, delegationScopeSchema } from '../../shared/api.js'
+import { createDelegationSchema, delegationScopeSchema, toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { hashToken, revokeFamily } from './tokens.js'
@@ -112,6 +112,20 @@ export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter:
       catch { return [] }
     })
   }))].sort()
+}
+
+export function delegatedDiscovery(db: Database.Database, userId: string, delegation: { scopeJson: string, readOnly: boolean }, adapters: readonly Adapter<unknown>[]) {
+  return adapters.flatMap(adapter => {
+    if (!delegationIncludesTool(delegation.scopeJson, adapter.name)) return []
+    try { checkToolPolicy(db, userId, adapter.name) }
+    catch (error) {
+      if (error instanceof ArtiumError && ['TOOL_DISABLED', 'TOOL_NOT_GRANTED'].includes(error.code)) return []
+      throw error
+    }
+    const row = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(adapter.name) as { native_settings: string }
+    const readOnly = delegation.readOnly || !toolAllowsWrites(adapter.name, JSON.parse(row.native_settings))
+    return [{ adapter, readOnly, commands: delegatedCommands(delegation.scopeJson, readOnly, adapter) }]
+  })
 }
 
 export function delegationIncludesTool(scopeJson: string, tool: ToolName): boolean {
