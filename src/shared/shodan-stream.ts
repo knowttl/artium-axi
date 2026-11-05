@@ -19,3 +19,5 @@ export const shodanStreamSelector = z.strictObject({ flag: z.string().regex(/^--
 export const shodanStreamStart = z.strictObject({ operation: z.string().regex(/^OP-\d{3}$/),
   selector: shodanStreamSelector, bounds: shodanWorkerBounds, limits: shodanStreamBounds,
   acceptUnknownCost: z.literal(true) })
+export const shodanStreamRead = z.strictObject({ continuation: z.string().min(1).max(256).optional(), limit: positive(1000).default(100),
+  waitMs: z.number().int().min(0).max(30000).default(0) })

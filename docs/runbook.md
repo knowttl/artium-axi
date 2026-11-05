@@ -643,6 +643,15 @@ Reconciliation never resends the mutation and cannot recover private response by
 Other operations require trusted read inspection of the selected target; changed-binding cluster recovery remains subject to the [capability boundary](safety.md#technitium-dns).
 After timeout or cancellation, a cleanup failure remains secondary to the original uncertainty guidance; never replay a mutation or obtain a fresh preview to bypass its journal claim.
 
+Shodan stream sessions keep bounded output in server memory; events expire individually according to the effective retention policy, and capacity pressure evicts the oldest unread events with loss reported on the next read.
+After worker cleanup, unread events remain available until their individual expiry, while session metadata remains until `retainedUntil`.
+Stopping or expiry releases the active session slot after cleanup, but reserved event and byte capacity remains held until session retention ends, even if all output has been read.
+For `TOO_MANY_CALLS`, stop unused active sessions, wait for retained sessions to expire, or ask an administrator to review the [session quotas](tool-credentials.md#shodan).
+Relevant policy, credential, trust or sign-in-family changes invalidate pending plans and discard active sessions and their output.
+Shutdown discards all sessions; restart never resumes them or restores their output and removes abandoned `session-*` directories under `<database directory>/tool-logs/shodan-axi/sessions/`.
+Private worker files are removed after worker settlement; the directory is temporary state, not a recoverable output archive.
+Use the [session commands](commands.md#shodan) to inspect status, consume output and stop a session.
+
 Kubernetes native mutation requests persist under `<database directory>/tool-logs/kubernetes-axi/workflow/` in private scopes bound to caller, sign-in family and credential revision.
 Each call removes its temporary SecretRef profile after process settlement; the native request plan, signing key, atomic claim and outcome remain together without copying claims between call directories.
 These plans can contain original resource payloads, including Secret data; protect the directory with the database and inspect only through the caller's saved preview.
