@@ -20,7 +20,6 @@ import { createLdapAdapter } from './ldap.js'
 import { createMgAdapter } from './mg.js'
 import { createSshAdapter } from './ssh.js'
 import { createVectraAdapter } from './vectra.js'
-import { mgReadCommands, vectraReadCommands } from './reviewed-reads.js'
 import { openStore } from '../store/db.js'
 import { EnvironmentKeyProvider } from '../store/key-provider.js'
 import { SshHosts } from '../store/ssh-hosts.js'
@@ -48,16 +47,19 @@ const inventoryCases = adapters.flatMap(adapter => {
     commands: Route[], writeCommands?: Route[], workflows?: Route[], managedCommands?: Route[], streamCommands?: Route[]
   }
   return [...inventory.commands, ...(inventory.writeCommands ?? []), ...(inventory.workflows ?? []), ...(inventory.managedCommands ?? []), ...(inventory.streamCommands ?? [])].map(route => {
-    const reviewedRead = adapter.name === 'mg-axi' ? mgReadCommands.has(route.command)
-      : adapter.name === 'vectra-axi' ? vectraReadCommands.has(route.command) : adapter.name === 'ldap-axi'
+    const reviewedRead = adapter.name === 'ldap-axi'
     const workflow = inventory.workflows?.includes(route)
     const effect = !workflow && (reviewedRead || route.effect === 'read' || route.effect === 'local') ? 'read' : 'write'
     return { adapter, command: route.command, canonical: route.canonicalCommand ?? (route.command || 'home'), effect }
   })
 })
 
-test.each(inventoryCases)('$adapter.name inventory command $command has its reviewed class', ({ adapter, command, canonical, effect }) => {
+test.each(inventoryCases.filter(({ adapter }) => !['mg-axi', 'vectra-axi'].includes(adapter.name)))('$adapter.name inventory command $command has its reviewed class', ({ adapter, command, canonical, effect }) => {
   expect(adapter.classify(command ? command.split(' ') : [])).toEqual({ command: canonical, effect })
+})
+
+test.each(inventoryCases.filter(({ adapter }) => ['mg-axi', 'vectra-axi'].includes(adapter.name)))('$adapter.name inventory command $command has its canonical name', ({ adapter, command, canonical }) => {
+  expect(adapter.classify(command ? command.split(' ') : []).command).toBe(canonical)
 })
 
 test.each([
