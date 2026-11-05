@@ -59,8 +59,8 @@ interface Owner extends ResultScope { familyId: string, trustRevision: string }
 interface Context {
   userId: string, familyId: string, credential: CredentialReference, requestId: string, signal?: AbortSignal, delegated?: boolean
 }
-interface Cached { owner: Owner, value: Session, deadline: number, timer: NodeJS.Timeout }
-interface Pending { owner: Owner, controller: AbortController, users: number, job: Promise<Session> }
+interface Cached { owner: Owner, delegated: boolean, value: Session, deadline: number, timer: NodeJS.Timeout }
+interface Pending { owner: Owner, delegated: boolean, controller: AbortController, users: number, job: Promise<Session> }
 interface Active { valid: () => boolean, controller: AbortController, done: Promise<void> }
 
 // Only ready tickets and CSRF values cross call boundaries; private profiles and passwords do not.
@@ -142,8 +142,9 @@ export class ProxmoxAccess {
     this.remove(key)
     let pending = this.pending.get(key)
     if (!pending) {
-      if (this.sessions.size + this.pending.size >= 64 || [...this.sessions.values(), ...this.pending.values()]
-        .filter(entry => entry.owner.userId === owner.userId).length >= 4) throw new ArtiumError('TOO_MANY_CALLS')
+      const owned = [...this.sessions.values(), ...this.pending.values()].filter(entry => entry.owner.userId === owner.userId)
+      if (this.sessions.size + this.pending.size >= 64 || owned.length >= 4
+        || delegated && owned.filter(entry => entry.delegated).length >= 2) throw new ArtiumError('TOO_MANY_CALLS')
       const controller = new AbortController()
       const job = acquireProxmox(this.runner, owner.userId, prepared, readCredentialTrust(this.db, owner.credential),
         controller.signal, () => { if (this.closed || !this.valid(owner)) throw new ArtiumError('CREDENTIAL_INVALID') }, delegated)
@@ -151,13 +152,13 @@ export class ProxmoxAccess {
           if (controller.signal.aborted || !this.valid(owner)) throw new RunnerError('CANCELLED')
           const lifetime = Math.min(300000, value.expires - Date.now())
           const timer = setTimeout(() => { this.remove(key); void this.reconcile().catch(() => {}) }, lifetime).unref()
-          this.sessions.set(key, { owner, value, timer, deadline: this.now() + lifetime })
+          this.sessions.set(key, { owner, delegated, value, timer, deadline: this.now() + lifetime })
           return value
         }).finally(() => {
           if (controller.signal.aborted) this.remove(key)
           if (this.pending.get(key) === entry) this.pending.delete(key)
         })
-      const entry: Pending = { owner, controller, users: 0, job }
+      const entry: Pending = { owner, delegated, controller, users: 0, job }
       this.pending.set(key, entry); pending = entry
     }
     const entry = pending

@@ -100,6 +100,27 @@ test('delegated AWX credential creation requires an exact writable pick', async 
   })
 })
 
+test('read-only delegated AWX stdout remains retrievable as data (R8)', async () => {
+  await withTokenService(async ({ app, db, headers, send }) => {
+    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
+    const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+    const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
+      headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { label: 'Synthetic',
+        scope: { tools: [{ tool: 'awx-axi' }] }, readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 } })
+    expect(minted.statusCode).toBe(200)
+    const exchanged = await app.inject({ method: 'POST', url: '/v1/auth/delegated', payload: { token: minted.json().token } })
+    const delegated = { authorization: `Bearer ${exchanged.json().accessToken}` }
+    await send('/__awx/stdout-response?status=200&text=synthetic%20log%0A', 'POST')
+    const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers: delegated,
+      payload: { args: ['job', 'stdout', '42', '--type', 'project-update', '--download', '42.log'] } })
+    expect(response.json()).toMatchObject({ exitCode: 0 })
+    const { result } = decode(response.json().stdout) as { result: { path: string } }
+    const downloaded = await app.inject({ url: result.path, headers: delegated })
+    expect(downloaded.statusCode).toBe(200)
+    expect(downloaded.body).toBe('synthetic log\n')
+  })
+})
+
 test.each(['read', 'write'])('AWX %s PAT creation delivers bytes once to the authorized caller (S10)', async scope => {
   await withTokenService(async ({ app, db, store, headers, send, run, lines, directory }) => {
     const args = ['user', 'token-create', '42', '--scope', scope]

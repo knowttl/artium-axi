@@ -12,7 +12,8 @@ import type { ToolName } from '../store/credential-store.js'
 const exactCommands: Partial<Record<ToolName, readonly string[]>> = {
   'awx-axi': ['user token-create'],
   'kubernetes-axi': ['create token'],
-  'technitium-axi': ['user create-token', 'user create-single-use-token', 'admin session create-token'],
+  'technitium-axi': ['user create-token', 'user create-single-use-token', 'admin session create-token',
+    'settings backup', 'settings set', 'settings restore', 'admin cluster primary transfer-config'],
   'proxmox-axi': proxmox.commands.filter(command => command.privateResult).map(command => command.command),
 }
 const escapeHatches: Partial<Record<ToolName, readonly string[]>> = {

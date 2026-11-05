@@ -446,6 +446,7 @@ Tokens are single-use by default; `--reusable` permits multiple exchanges until 
 `--write` opts into writes that the creator and administrator can currently perform.
 Tool-wide grants exclude credential-issuing commands and broad API escape hatches.
 Use `--exact <tool:command>` to select one of those commands explicitly.
+Technitium `settings backup`, `settings set`, `settings restore` and `admin cluster primary transfer-config` can return credentials and require exact writable selections.
 Credentials issued by a selected command can outlive the delegated token and must be revoked separately.
 Use `artium-axi token list` and `artium-axi token revoke <id>` to manage tokens.
 
@@ -457,7 +458,8 @@ Use a separate OS user, container, or host when that separation matters.
 Delegated access follows the creator's current grants and ends on expiry, revocation, creator disablement, or password change.
 Read-only blocks commands classified as writes, including previews, but does not prevent every outbound transmission or expense.
 For example, Hybrid Analysis quick scans send a sample or URL to a third party even though they are classified as reads.
-Delegated SSH access, hosted sessions, streams and downloads remain unavailable in this slice.
+Ordinary data results, including AWX stdout downloads and Technitium zone, allowed/blocked and log exports, remain available within delegated tool access.
+Delegated SSH access, hosted sessions, streams and `artium-axi download` transfers remain unavailable in this slice.
 
 The bearer API creates tokens with `POST /v1/account/tokens`, requiring an `x-artium-reauth-ticket` from recent authentication.
 Its JSON body contains `label`, `scope` with a `tools` array, `readOnly`, `reusable`, and the numeric `expiresAt` in Unix milliseconds.

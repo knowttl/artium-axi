@@ -146,6 +146,67 @@ const reads = [
     bytes: Buffer.from('504b0506000000000000000000000000000000000000', 'hex') },
 ]
 
+async function delegationHeaders(app: ReturnType<typeof createApp>, headers: { authorization: string }, commands: string[] | undefined, readOnly: boolean) {
+  const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+  const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
+    headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket },
+    payload: { label: 'Synthetic', scope: { tools: [{ tool: 'technitium-axi', commands }] }, readOnly, reusable: false, expiresAt: Date.now() + 600_000 } })
+  expect(minted.statusCode, minted.body).toBe(200)
+  const exchanged = await app.inject({ method: 'POST', url: '/v1/auth/delegated', payload: { token: minted.json().token } })
+  expect(exchanged.statusCode, exchanged.body).toBe(200)
+  return { authorization: `Bearer ${exchanged.json().accessToken}` }
+}
+
+const credentialReads = [
+  { command: 'settings backup', args: ['settings', 'backup'], operation: 'OP-084', bytes: reads[3].bytes },
+  { command: 'admin cluster primary transfer-config', args: ['admin', 'cluster', 'primary', 'transfer-config'], operation: 'OP-125', bytes: reads[3].bytes },
+]
+
+test.each(credentialReads.flatMap(operation => [
+  { ...operation, grant: 'tool-wide', commands: undefined, readOnly: false },
+  { ...operation, grant: 'read-only exact', commands: [operation.command], readOnly: true },
+]))('delegated Technitium $command refuses $grant access before dispatch (R8)', async ({ args, commands, readOnly }) => {
+  await withTechnitium(async ({ app, db, headers, evidence }) => {
+    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
+    const delegated = await delegationHeaders(app, headers, commands, readOnly)
+    const response = await app.inject({ method: 'POST', url: '/v1/tools/technitium-axi/run', headers: delegated, payload: { args } })
+    expect(response.json()).toMatchObject({ error: { code: 'DELEGATED_SCOPE_DENIED' } })
+    expect((await evidence()).requests).toEqual([])
+  })
+})
+
+test.each(credentialReads)('delegated Technitium $command delivers an exact writable result (R8)', async ({ command, args, operation, bytes }) => {
+  await withTechnitium(async ({ app, db, headers }) => {
+    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
+    const delegated = await delegationHeaders(app, headers, [command], false)
+    const response = await app.inject({ method: 'POST', url: '/v1/tools/technitium-axi/run', headers: delegated, payload: { args } })
+    expect(response.json()).toMatchObject({ exitCode: 0 })
+    const { result } = decode(response.json().stdout) as { result: { path: string, operation: string } }
+    expect(result.operation).toBe(operation)
+    const downloaded = await app.inject({ url: result.path, headers: delegated })
+    expect(downloaded.statusCode).toBe(200)
+    expect(downloaded.rawPayload).toEqual(bytes)
+    expect((await app.inject({ url: result.path, headers: delegated })).json().error.code).toBe('NOT_FOUND')
+  })
+})
+
+test.each([
+  { args: ['zone', 'export', '--zone', 'synthetic.test'], bytes: reads[1].bytes },
+  { args: ['allowed', 'export'], bytes: Buffer.from('synthetic.test\n') },
+  { args: ['blocked', 'export'], bytes: Buffer.from('synthetic.test\n') },
+  { args: ['log', 'download', '--file-name', 'synthetic.log'], bytes: Buffer.from('synthetic.test\n') },
+  { args: ['log', 'export', '--name', 'synthetic', '--class-path', 'synthetic.reader'], bytes: reads[2].bytes },
+])('read-only delegated Technitium data remains retrievable: $args (R8)', async ({ args, bytes }) => {
+  await withTechnitium(async ({ app, db, headers }) => {
+    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
+    const delegated = await delegationHeaders(app, headers, undefined, true)
+    const response = await app.inject({ method: 'POST', url: '/v1/tools/technitium-axi/run', headers: delegated, payload: { args } })
+    expect(response.json()).toMatchObject({ exitCode: 0 })
+    const { result } = decode(response.json().stdout) as { result: { path: string } }
+    expect((await app.inject({ url: result.path, headers: delegated })).rawPayload).toEqual(bytes)
+  })
+})
+
 test.each(reads)('Technitium $kind bytes remain private until one authenticated retrieval', async item => {
   await withTechnitium(async ({ cli, app, headers, directory, db, evidence }) => {
     const output = await cli(['technitium-axi', ...item.args, '--json'])
