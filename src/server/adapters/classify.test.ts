@@ -24,6 +24,8 @@ import { mgReadCommands, vectraReadCommands } from './reviewed-reads.js'
 import { openStore } from '../store/db.js'
 import { EnvironmentKeyProvider } from '../store/key-provider.js'
 import { SshHosts } from '../store/ssh-hosts.js'
+import { kubernetesHostedCommands } from '../../shared/kubernetes.js'
+import proxmoxInventory from '../../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 
 const source = { getCredential: async () => ({}) }
 const log = '/tmp/synthetic-classifier.log'
@@ -36,16 +38,16 @@ const adapters = [createAwxAdapter(source), createAzAdapter(source, log), create
   createTenableAdapter(source, log), createUnifiAdapter(source, log), createAdoAdapter(source), createGhAdapter(source),
   await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js')),
   createLdapAdapter(source), createMgAdapter(source, log), createVectraAdapter(source, log),
-  createSshAdapter(new SshHosts(db, provider), log)]
+  createSshAdapter(new SshHosts(db, provider), log, join(process.cwd(), 'tools/node_modules/@knowttl/ssh-axi/dist/hosted.js'))]
 afterAll(() => { db.close(); rmSync(directory, { recursive: true, force: true }) })
 afterEach(() => { vi.unstubAllEnvs() })
 
 type Route = { command: string, effect?: string, canonicalCommand?: string }
 const inventoryCases = adapters.flatMap(adapter => {
   const inventory = JSON.parse(readFileSync(new URL(`../../../tools/inventories/${adapter.name}.json`, import.meta.url), 'utf8')) as {
-    commands: Route[], writeCommands?: Route[], workflows?: Route[]
+    commands: Route[], writeCommands?: Route[], workflows?: Route[], managedCommands?: Route[], streamCommands?: Route[]
   }
-  return [...inventory.commands, ...(inventory.writeCommands ?? []), ...(inventory.workflows ?? [])].map(route => {
+  return [...inventory.commands, ...(inventory.writeCommands ?? []), ...(inventory.workflows ?? []), ...(inventory.managedCommands ?? []), ...(inventory.streamCommands ?? [])].map(route => {
     const reviewedRead = adapter.name === 'mg-axi' ? mgReadCommands.has(route.command)
       : adapter.name === 'vectra-axi' ? vectraReadCommands.has(route.command) : adapter.name === 'ldap-axi'
     const workflow = inventory.workflows?.includes(route)
@@ -56,6 +58,70 @@ const inventoryCases = adapters.flatMap(adapter => {
 
 test.each(inventoryCases)('$adapter.name inventory command $command has its reviewed class', ({ adapter, command, canonical, effect }) => {
   expect(adapter.classify(command ? command.split(' ') : [])).toEqual({ command: canonical, effect })
+})
+
+test.each([
+  ['exec', ['exec', 'synthetic', '--command', 'true', '--confirm'], 'write'],
+  ['connection open', ['connection', 'open', 'synthetic'], 'read'],
+  ['connection list', ['--json', 'connection', 'list'], 'read'],
+  ['connection show', ['connection', 'show', '11111111-1111-4111-8111-111111111111'], 'read'],
+  ['connection set', ['connection', 'set', '11111111-1111-4111-8111-111111111111', '--idle-timeout', '5m'], 'read'],
+  ['connection close', ['connection', 'close', '11111111-1111-4111-8111-111111111111', '--confirm'], 'write'],
+  ['execution list', ['--json', 'execution', 'list'], 'read'],
+  ['execution show', ['execution', 'show', '--request-key', '11111111-1111-4111-8111-111111111111'], 'read'],
+  ['execution cancel', ['execution', 'cancel', '11111111-1111-4111-8111-111111111111', '--confirm'], 'write'],
+] as const)('SSH managed %s resolves arguments', (command, args, effect) => {
+  expect(adapters.find(adapter => adapter.name === 'ssh-axi')!.classify(args)).toEqual({ command, effect })
+})
+
+test.each(proxmoxInventory.streamCommands)('Proxmox hosted stream resolves $command', route => {
+  expect(adapters.find(adapter => adapter.name === 'proxmox-axi')!.classify(['stream', '--json', '--', ...route.command.split(' '), '--help']))
+    .toEqual({ command: route.command, effect: route.effect })
+})
+
+test.each([
+  ['stream limits', ['stream', 'limits', '--json'], 'read'],
+  ['result take', ['result', 'take', proxmoxInventory.writeOperations[0], '11111111-1111-4111-8111-111111111111', '--json'], 'write'],
+] as const)('Proxmox hosted %s resolves arguments', (command, args, effect) => {
+  expect(adapters.find(adapter => adapter.name === 'proxmox-axi')!.classify(args)).toEqual({ command, effect })
+})
+
+test.each([
+  ['workspace create', ['workspace', 'create', '/synthetic'], 'write'],
+  ['workspace show', ['workspace', 'show', '11111111-1111-4111-8111-111111111111'], 'read'],
+  ['workspace download', ['workspace', 'download', '11111111-1111-4111-8111-111111111111', 'file', '--output', '/synthetic/file'], 'read'],
+  ['workspace delete', ['workspace', 'delete', '11111111-1111-4111-8111-111111111111'], 'write'],
+  ['session list', ['--json', 'session', 'list'], 'read'],
+  ['session start', ['session', 'start', 'exec', '--', 'exec', 'synthetic', '--', 'true'], 'write'],
+  ['session show', ['session', 'show', '11111111-1111-4111-8111-111111111111', '--wait'], 'read'],
+  ['session output', ['session', 'output', '11111111-1111-4111-8111-111111111111', '--after', '1'], 'read'],
+  ['session confirm', ['session', 'confirm', '11111111-1111-4111-8111-111111111111', '--digest', 'a'.repeat(64)], 'write'],
+  ['session cancel', ['session', 'cancel', '11111111-1111-4111-8111-111111111111', '--confirm'], 'write'],
+  ['session artifact', ['session', 'artifact', '11111111-1111-4111-8111-111111111111', 'file', '--output', '/synthetic/file'], 'read'],
+  ['tunnel', ['--json', 'tunnel', '11111111-1111-4111-8111-111111111111', '--port', '8080'], 'write'],
+  ['credential', ['credential', '11111111-1111-4111-8111-111111111111', '--credential-fd', '5'], 'write'],
+] as const)('Kubernetes hosted %s resolves arguments', (command, args, effect) => {
+  expect(adapters.find(adapter => adapter.name === 'kubernetes-axi')!.classify(args)).toEqual({ command, effect })
+})
+
+test.each(kubernetesHostedCommands.map(usage => {
+  const words = usage.split(' ')
+  const command = words.slice(0, ['tunnel', 'credential'].includes(words[0]) ? 1 : 2).join(' ')
+  return { command, args: [...command.split(' '), '--help'] }
+}))('Kubernetes hosted help resolves $command', ({ command, args }) => {
+  expect(adapters.find(adapter => adapter.name === 'kubernetes-axi')!.classify(args).command).toBe(command)
+})
+
+test.each([
+  ['ssh-axi', ['connection', 'synthetic-unknown']],
+  ['proxmox-axi', ['stream', '--', 'synthetic-unknown']],
+  ['proxmox-axi', ['result', 'synthetic-unknown']],
+  ['kubernetes-axi', ['session', 'synthetic-unknown']],
+  ['kubernetes-axi', ['workspace', 'synthetic-unknown']],
+  ['kubernetes-axi', ['session', 'list', '--synthetic-unknown']],
+  ['proxmox-axi', ['stream', '--', 'transfer', 'get', '/nodes/{node}/tasks/{upid}/log', '--synthetic-unknown']],
+] as const)('%s hosted unknown command remains write', (tool, args) => {
+  expect(adapters.find(adapter => adapter.name === tool)!.classify(args)).toEqual({ command: 'unknown', effect: 'write' })
 })
 
 test.each([

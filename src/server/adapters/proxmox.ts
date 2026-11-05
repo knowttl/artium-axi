@@ -3,6 +3,7 @@ import { decode } from '@toon-format/toon'
 import inventory from '../../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 import { classifyCommand } from './classify.js'
 import { ArtiumError } from '../../shared/errors.js'
+import { proxmoxHostedRoutes, resolveProxmoxResult, resolveProxmoxStream } from '../../shared/proxmox-commands.js'
 import { runnerLimits, toolPaths } from '../config.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { RunnerInput } from '../runner/input.js'
@@ -221,7 +222,19 @@ export function createProxmoxAdapter(source: SecretSource, writeLog?: string): P
     sensitiveArguments: args => ({ flags: args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0]), positions: args.map((_, index) => index) }),
     sensitiveInput: () => true,
     validateArgs: (args, input) => { argumentsForCall(args, input) },
-    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => argumentsForCall(a, i).invocation.command, args, input),
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand([...inventory.commands, ...inventory.streamCommands, ...proxmoxHostedRoutes], (a, i) => {
+      if (a[0] === 'result') {
+        resolveProxmoxResult(a)
+        return 'result take'
+      }
+      if (a[0] === 'stream') {
+        const { separator, options, args, route } = resolveProxmoxStream(a)
+        if (separator < 0 && options.length === 1 && options[0] === 'limits') return 'stream limits'
+        if (separator < 0 || options.length || !route) throw new ArtiumError('INVALID_INPUT')
+        return route.effect === 'read' ? argumentsForCall(args, i, true).invocation.command : route.command
+      }
+      return argumentsForCall(a, i, ['transfer', 'duplex'].includes(a[0])).invocation.command
+    }, args, input),
     prepare: (args, reference, input) => prepare(args, reference, input),
     inspectStream: (args, reference, input) => streamSelection(check(args, reference, input, true).call),
     prepareStream: (args, reference, input) => prepare(args, reference, input, true) }

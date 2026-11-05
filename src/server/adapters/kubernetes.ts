@@ -3,6 +3,7 @@ import { pathToFileURL } from 'node:url'
 import inventory from '../../../tools/inventories/kubernetes-axi.json' with { type: 'json' }
 import { classifyCommand } from './classify.js'
 import { ArtiumError } from '../../shared/errors.js'
+import { kubernetesHostedRoutes, resolveKubernetesHostedCommand } from '../../shared/kubernetes.js'
 import { toolPaths } from '../config.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { RunnerInput } from '../runner/input.js'
@@ -70,8 +71,8 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { argumentsForCall(args, input) },
     classify(args, input) {
-      const routes = [...inventory.commands, ...inventory.writeCommands, ...inventory.workflows.map(route => ({ ...route, effect: 'write' }))]
-      return classifyCommand(routes, (a, i) => argumentsForCall(a, i).invocation.command, args, input)
+      const routes = [...inventory.commands, ...inventory.writeCommands, ...inventory.workflows.map(route => ({ ...route, effect: 'write' })), ...kubernetesHostedRoutes]
+      return classifyCommand(routes, (a, i) => resolveKubernetesHostedCommand(a) ?? argumentsForCall(a, i).invocation.command, args, input)
     },
     async prepare(args, reference, input) {
       const { workflow, acquisition, ...call } = argumentsForCall(args, input)

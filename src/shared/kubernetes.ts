@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ArtiumError } from './errors.js'
 
 export const kubernetesHostedCommands = [
   'workspace create <directory>', 'workspace show <id>', 'workspace download <id> <path> --output <absolute-file>', 'workspace delete <id>',
@@ -9,6 +10,47 @@ export const kubernetesHostedCommands = [
   'tunnel <session-id> --port <remote-port> [--port <remote-port>]',
   'credential <result-id> --credential-fd <private-pipe-fd>',
 ] as const
+
+export const kubernetesHostedRoutes = kubernetesHostedCommands.map(usage => {
+  const command = usage.split(' ').slice(0, /^(tunnel|credential) /.test(usage) ? 1 : 2).join(' ')
+  return { command, effect: ['workspace show', 'workspace download', 'session list', 'session show', 'session output', 'session artifact'].includes(command) ? 'read' : 'write' }
+})
+
+export function resolveKubernetesHostedCommand(args: readonly string[]): string | undefined {
+  let prefix = 0
+  while (args[prefix] === '--json') prefix++
+  const [group, action, ...rest] = args.slice(prefix)
+  if (['tunnel', 'credential'].includes(group)) return group
+  if (!['workspace', 'session'].includes(group)) return undefined
+  const { route: command } = kubernetesHostedArguments(rest, group, action)
+  return kubernetesHostedRoutes.find(route => route.command === command)?.command
+}
+
+export function kubernetesHostedArguments(rest: readonly string[], group: string, action?: string) {
+  const separator = rest.indexOf('--'), controls = separator === -1 ? rest : rest.slice(0, separator)
+  const native = separator === -1 ? [] : rest.slice(separator + 1)
+  const flags = new Map<string, string>(), positionals: string[] = []
+  const booleans = ['--json', '--help', '--wait', '--ready', '--confirm']
+  const values = ['--workspace', '--stdin-file', '--input-workspace', '--input-path', '--timeout', '--output-limit', '--digest', '--after', '--output']
+  for (let index = 0; index < controls.length; index++) {
+    const word = controls[index]
+    if (booleans.includes(word)) { if (flags.has(word)) throw new ArtiumError('INVALID_INPUT'); flags.set(word, 'true') }
+    else if (values.includes(word)) {
+      if (flags.has(word) || controls[index + 1] === undefined || controls[index + 1].startsWith('--')) throw new ArtiumError('INVALID_INPUT')
+      flags.set(word, controls[++index])
+    } else if (word.startsWith('-')) throw new ArtiumError('INVALID_INPUT')
+    else positionals.push(word)
+  }
+  const help = action === '--help' || flags.has('--help') || action === undefined
+  const allowed: Record<string, string[]> = { 'workspace create': [], 'workspace show': [], 'workspace delete': [],
+    'workspace download': ['--output'], 'session list': [], 'session start': values.filter(flag => !['--digest', '--after', '--output'].includes(flag)),
+    'session show': ['--wait', '--ready'], 'session output': ['--after', '--wait'], 'session confirm': ['--digest'],
+    'session cancel': ['--confirm'], 'session artifact': ['--output'] }
+  const route = `${group} ${action}`
+  if (!help && (!allowed[route] || [...flags.keys()].some(flag => flag !== '--json' && !allowed[route].includes(flag))
+    || route !== 'session start' && separator !== -1 || flags.has('--wait') && flags.has('--ready'))) throw new ArtiumError('INVALID_INPUT')
+  return { flags, positionals, native, help, route }
+}
 
 export const kubernetesSessionKind = z.enum(['watch', 'logs', 'exec', 'attach', 'apply', 'create', 'cp', 'port-forward'])
 export const kubernetesSessionPolicy = z.strictObject({

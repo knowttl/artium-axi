@@ -6,7 +6,7 @@ import { setTimeout } from 'node:timers/promises'
 import { commands, parseArguments } from '../../tools/node_modules/@knowttl/ssh-axi/dist/arguments.js'
 import { z } from 'zod'
 import { SshError } from '../../tools/node_modules/@knowttl/ssh-axi/dist/errors.js'
-import { sshExecutionStatus, sshPreparation } from '../shared/ssh-execution.js'
+import { resolveSshManagedCommand, sshExecutionStatus, sshPreparation } from '../shared/ssh-execution.js'
 import { ArtiumError } from '../shared/errors.js'
 import type { Client } from './http.js'
 
@@ -66,8 +66,8 @@ export async function sshExecution(args: string[], createClient: () => Client, w
     write((args.includes('--json') ? JSON.stringify(value) : encode(value)) + '\n')
     return true
   }
-  const command = args[prefix] === 'exec' ? 'exec' : args.slice(prefix, prefix + 2).join(' ')
-  if (!(command === 'exec' || command.startsWith('execution ') || command.startsWith('connection '))) return false
+  const command = resolveSshManagedCommand(args)
+  if (!command) return false
   const flags = ['--json', '--help', ...Object.keys(commands[command]?.flags ?? {}).map(flag => `--${flag}`)].join(', ')
   let parsed: ReturnType<typeof parseArguments>
   try { parsed = parseArguments(args) }
