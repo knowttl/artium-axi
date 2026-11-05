@@ -36,7 +36,7 @@ Local integration tests execute installed commands and plugin exports; actual ag
 
 Delegated token creation, exchange, listing and revocation are implemented, but minting is unavailable until slice 8.
 The administrator's creation switch is unavailable, and attempts to enable minting through the settings API are refused with a not-available-yet message; the lifetime cap can still be changed for new tokens.
-Disabling minting stops new tokens without invalidating previously issued tokens; they remain exchangeable until expired, revoked or consumed.
+Disabling minting stops new tokens without invalidating previously issued tokens; exchange still requires an unexpired, unrevoked, unconsumed token and an enabled creator, subject to the SSO pause below.
 See [delegated token usage](client-reference.md#delegated-tokens) for CLI sign-in and token management.
 Delegated tool execution follows the token's tool and command scope and the creator's current grants, with existing administrator write gates, upstream permissions and confirmation requirements still enforced.
 Tool lists, generated help and skills include only commands permitted by the token, the creator's current grants, tool enablement, delegated read-only restriction and administrator Allow writes switch.
@@ -51,7 +51,11 @@ Account management, administration and reauthentication remain denied with `DELE
 Delegated SSH access, hosted sessions, streams and `artium-axi download` transfers remain unavailable in this slice.
 Refresh and logout remain available; logging out revokes that exchanged session family, while token revocation invalidates all its families.
 Delegated access ends on expiry, revocation, creator disablement or password change.
-The seven-day SSO freshness pause is deferred to slice 6.
+Tokens from SSO creators pause after seven days without a successful SSO sign-in or SSO identity confirmation; administrators can set the window from one to 30 days on `/admin/tokens`.
+The current window applies to existing tokens as well as new ones; local creators are unaffected.
+Paused tokens refuse exchange, delegated access and refresh with `TOKEN_INVALID` (HTTP 401), instructing the agent to ask the creator to sign in again via SSO.
+The pause does not consume the presented token or refresh credential and does not extend expiry; otherwise-valid credentials resume after the creator successfully signs in or confirms their identity via SSO.
+Existing SSO creators without a recorded sign-in must sign in once before their tokens can be used.
 
 Command picks are exact and normalized through the adapter resolver to canonical operations at minting; wildcard patterns are refused and remain a follow-up.
 Adapter classifiers resolve canonical command names and reviewed read/write effects for scope enforcement before upstream credential access.

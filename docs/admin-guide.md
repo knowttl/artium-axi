@@ -189,10 +189,8 @@ When creation is enabled, select tool-wide access or exact commands, read-only a
 Creation requires recent identity confirmation and displays the token once.
 Account lists your tokens and lets you revoke them; administrators can review everyone's tokens and revoke individual tokens or all tokens on `/admin/tokens`.
 Revoking a token also ends its exchanged sessions.
-Tokens created by an SSO account pause after seven days without an SSO sign-in, or the administrator's configured window of one to 30 days.
-They resume after the creator signs in via SSO; local accounts are unaffected.
-Existing SSO accounts without a recorded sign-in must sign in once before their tokens can be used.
-See [delegated sessions](safety.md#delegated-sessions) for scope boundaries and rollout status.
+Set the SSO sign-in window on `/admin/tokens`; Account and the administrator token list show when tokens are paused awaiting the creator's SSO sign-in.
+See [delegated sessions](safety.md#delegated-sessions) for the SSO pause and recovery rules, scope boundaries and rollout status.
 
 Users with temporary passwords must change them first.
 Archiving disables sign-in, revokes all sessions and hides the user from the users table while retaining identity, role membership and audit history.
