@@ -9,6 +9,9 @@ export function classifyCommand(
   args: readonly string[],
   input?: RunnerInput,
 ): { command: string, effect: 'read' | 'write' } {
+  const exact = routes.find(item => item.command === args.join(' '))
+  if (exact) return { command: exact.canonicalCommand ?? exact.command,
+    effect: exact.effect === 'read' || exact.effect === 'local' ? 'read' : 'write' }
   let command: string
   try { command = resolve(args, input) }
   catch { return { command: args.join(' '), effect: 'write' } }

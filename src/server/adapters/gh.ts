@@ -1,4 +1,5 @@
 import inventory from '../../../tools/inventories/gh-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { createHash } from 'node:crypto'
 import { ArtiumError } from '../../shared/errors.js'
 import { ghWriteOperations } from '../../shared/api.js'
@@ -219,6 +220,7 @@ export function createGhAdapter(source: SecretSource, tokens = new GithubAppToke
         .filter((index, ordinal) => !(numericSelector && ordinal === 0 && /^\d+$/.test(args[index]))) }
     },
     validateArgs: (args, input) => { ghArguments(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => ghArguments(a, i).invocation.command, args, input),
     invalidateCredential: reference => tokens.replace(reference.id, reference.revision ?? 0),
     async prepare(args, reference, input): Promise<PreparedCall> {
       const call = ghArguments(args, input)
