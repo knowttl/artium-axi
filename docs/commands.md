@@ -29,7 +29,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi proxmox-axi stream limits` | Inspect authenticated host byte, staging, deadline and concurrency limits. |
 | `artium-axi proxmox-axi stream -- transfer\|duplex <native arguments>` | Use [private managed byte channels](client-reference.md#proxmox-managed-streams) for reviewed transfers and console/migration operations. |
 | `artium-axi technitium-axi [<args>]` | Read Technitium DNS data and use native confirmed writes with managed credentials and private result retrieval. |
-| `artium-axi shodan-axi [<args>]` | Read Shodan account and investigation data or preview a stream plan with managed credentials; see [usage](#shodan). |
+| `artium-axi shodan-axi [<args>]` | Read Shodan account and investigation data or run a bounded stream session with managed credentials; see [usage](#shodan). |
 | `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |
 | `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources or use administrator-enabled [mutation and bounded byte workflows](safety.md#kubernetes-reads), caller-owned workspaces and managed credentials with pinned kubectl. |
 | `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts, check authentication and run [confirmed managed commands](#ssh). |
@@ -261,6 +261,11 @@ Use `artium-axi shodan-axi stream session preview --help` for the full set of bo
 The required `--accept-unknown-cost` acknowledges that cost cannot be determined; the response reports the selected operation, selector, bounds and effective limits with `status: preview` and `cost: unknown`.
 Optional `--events`, `--bytes`, `--retention` and `--lease` values may lower administrator ceilings; retention and lease values are in seconds, while timeout values are in milliseconds.
 The required `--limit`, `--max-bytes` and `--timeout` must fit the effective event, byte and lease limits.
+To start, repeat the preview arguments with `start` and `--confirm` set to the returned confirmation.
+Stream sessions require an owner session and are unavailable to delegated tokens.
+Use `stream session status <id>`, `stream session read <id>` and `stream session stop <id>` to inspect, consume and stop the session.
+Each read returns a continuation for the next read, along with any lost records; `--wait` waits for new output.
+Sessions expire at their bounded deadline and retained output expires according to policy.
 Exceeding a ceiling returns `INVALID_INPUT`; exhausted preview capacity returns `TOO_MANY_CALLS`, so retry after another preview finishes or ask an administrator to review quotas.
 For authentication failures, ask an administrator to replace the managed key using [Shodan credential setup](tool-credentials.md#shodan).
 See [package recovery](runbook.md#roles-credentials-and-health) for inventory or package mismatches.

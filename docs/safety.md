@@ -362,7 +362,8 @@ These include host, count and search reads, DNS and InternetDB lookups, query an
 Search and domain lookups consume query credits and require an exact operation grant and query credit budget; see [command examples](commands.md#shodan).
 InternetDB host lookups run without loading the stored API key.
 An explicitly granted stream preview validates selectors and bounded resource limits against the pinned package without opening a stream.
-Starting streams, scan submission, alert changes, dataset downloads and writes are unavailable.
+Confirmed stream sessions run with fixed deadlines and bounded retained output; see [commands](commands.md#shodan).
+Scan submission, alert changes, dataset downloads and writes are unavailable.
 Local configuration, credential and endpoint overrides, stdin, uploaded files and result-file destinations are refused before credential access.
 Help exposes only admitted routes; the standalone `doctor` alias is not admitted.
 The adapter verifies reviewed package-source hashes and the packaged version before loading credentials; a mismatch returns `SPAWN_FAILED`.
