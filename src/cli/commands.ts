@@ -12,6 +12,7 @@ import { setup } from './setup.js'
 import { toolInput } from './input.js'
 import { proxmoxPrivateResult } from './proxmox-result.js'
 import { proxmoxStream } from './proxmox-stream.js'
+import { resolveProxmoxStream } from '../shared/proxmox-commands.js'
 import { ssoLogin } from './device.js'
 import { cliVersion } from '../shared/version.js'
 import { ManagedSession } from './managed-session.js'
@@ -81,6 +82,23 @@ async function main(args: string[]) {
         const tool = tools.find(tool => tool.name === name)
         if (toolDiscovery && !prefixHelp && toolWords.length > 0 && !(toolWords.length === 1 && ['commands', 'home', 'help'].includes(toolWords[0]))) {
           const hostedArgs = args.slice(1).map(arg => arg === '-h' ? '--help' : arg)
+          if (name === 'proxmox-axi' && hostedArgs[0] === 'result') {
+            if (!tool?.commands?.includes('result take')) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+            await proxmoxPrivateResult(() => client, hostedArgs, text => output('stdout', text))
+            return
+          }
+          if (name === 'proxmox-axi' && hostedArgs[0] === 'stream') {
+            if (!tool) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+            const stream = resolveProxmoxStream(hostedArgs)
+            if (stream.separator < 0 && stream.options.includes('--help')) {
+              if (stream.options.includes('limits') && !tool.commands?.includes('stream limits')) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+              output('stdout', toolView({ ...tool, commands: tool.commands?.filter(command => command === 'stream limits' || /^(transfer|duplex) /.test(command)) }))
+              return
+            }
+            if (!stream.route || !tool.commands?.includes(stream.route.command)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+            await proxmoxStream(() => client, hostedArgs, output)
+            return
+          }
           const hosted = name === 'kubernetes-axi' ? resolveKubernetesHostedCommand(hostedArgs) : undefined
           if (hosted && kubernetesHostedRoutes.some(route => route.command === hosted)) {
             if (!tool?.commands?.includes(hosted)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')

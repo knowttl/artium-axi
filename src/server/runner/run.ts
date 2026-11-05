@@ -8,7 +8,7 @@ import type { Adapter, PreparedCall } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
 import type { Audit, AuditEvent } from '../audit/audit.js'
 import { verifyAccessFamily, verifyAccessToken, verifyPrincipal } from '../auth/tokens.js'
-import { authorizeDelegatedCall, credentialIssuingCommand, delegatedDiscovery, delegatedDiscoveryRequest, delegationIncludesTool } from '../auth/delegations.js'
+import { authorizeDelegatedCall, authorizeDelegatedOperation, credentialIssuingCommand, delegatedDiscovery, delegatedDiscoveryRequest, delegationIncludesTool } from '../auth/delegations.js'
 import type { CredentialReference } from '../store/credential-store.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkToolPolicy } from '../policy/policy.js'
@@ -115,15 +115,6 @@ export async function runTool<Credential>(
     const identity = { userId, delegationId, tool: adapter.name, requestId: context.requestId, clientAddress: context.clientAddress }
     const family = () => familyId ?? verifyAccessFamily(db, token)
     for (const command of credentialCommands) audit.record({ ...identity, event: 'credential-issue', targetId: command, outcome: 'attempt' })
-    const recheck = () => {
-      if (authenticate === verifyAccessToken) {
-        const current = verifyPrincipal(db, token)
-        if (current.delegation) {
-          authorizeDelegatedCall(db, current.userId, current.delegation, adapter, args, input, continuationCommand)
-        }
-      } else authenticate(db, token)
-      checkToolPolicy(db, userId, adapter.name)
-    }
     for (const file of adapter.sensitiveInput?.(args, input) ? [] : input.files ?? []) {
       const bytes = Buffer.from(file.contentBase64, 'base64')
       audit.record({ ...identity, event: 'upload', outcome: 'success', args, sensitive: adapter.sensitiveArguments(args),
@@ -169,10 +160,23 @@ export async function runTool<Credential>(
       const protectedResult = prepared.protectedResult?.source === 'pipe' && kubernetesRequests
         && !credentialConfirmation
         ? undefined : prepared.protectedResult
+      const recheck = () => {
+        if (authenticate === verifyAccessToken) {
+          const current = verifyPrincipal(db, token)
+          if (current.delegation) {
+            authorizeDelegatedCall(db, current.userId, current.delegation, adapter, args, input, continuationCommand)
+            if (adapter.name === 'proxmox-axi' && protectedResult) {
+              authorizeDelegatedOperation(db, current.userId, current.delegation, adapter, { command: 'result take', effect: 'write' })
+            }
+          }
+        } else authenticate(db, token)
+        checkToolPolicy(db, userId, adapter.name)
+      }
       if (prepared.preview || prepared.invocation?.help || !protectedResult && prepared.effect === 'read') {
         for (const command of credentialCommands) audit.record({ ...identity, event: 'credential-issue', targetId: command, outcome: 'preview' })
       }
       if (protectedResult) {
+        if (adapter.name === 'proxmox-axi') recheck()
         if (!context.protectedResults || !reference) throw new ArtiumError('UNSUPPORTED_INPUT')
         reservation = context.protectedResults.reserve({ userId, credential: reference, operation: protectedResult.operation,
           delegated: !!delegationId,

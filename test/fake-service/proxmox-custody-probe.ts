@@ -12,7 +12,7 @@ import { Runner } from '../../src/server/runner/runner.js'
 import { ProxmoxAccess } from '../../src/server/runner/proxmox.js'
 import { ProtectedResults } from '../../src/server/protected-results.js'
 import { exchangeDelegation, verifyAccessFamily } from '../../src/server/auth/tokens.js'
-import { createDelegation } from '../../src/server/auth/delegations.js'
+import { createDelegation, revokeDelegation } from '../../src/server/auth/delegations.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
@@ -189,6 +189,31 @@ await withFakeService(async ({ directory, port, send }) => {
       assert.equal(refused.json().error.code, 'DELEGATED_SCOPE_DENIED', refused.body)
     }
     assert.equal((await evidence()).applied, beforeScopedBatch)
+    for (const [args, stdin, commands] of [
+      [token, undefined, ['create /access/users/{userid}/token/{tokenid}']],
+      [batch, batchInput, ['create /nodes/{node}/execute', 'get /nodes/{node}/version', 'create /nodes/{node}/qemu/{vmid}/vncproxy']],
+    ] as const) {
+      const setupOnly = createDelegation(db, 'synthetic-development-user', { label: 'Setup only',
+        scope: { tools: [{ tool: 'proxmox-axi', commands: [...commands] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
+      const setupHeaders = { authorization: `Bearer ${exchangeDelegation(db, setupOnly.token).accessToken}` }
+      const plan = await success([...args, '--preview'], stdin, setupHeaders), before = (await evidence()).applied
+      const refused = await invoke([...args, '--confirm', plan.confirmation], stdin, setupHeaders)
+      assert.equal(refused.statusCode, 403, refused.body)
+      assert.equal(refused.json().error.code, 'DELEGATED_SCOPE_DENIED')
+      assert.equal((await evidence()).applied, before)
+      revokeDelegation(db, setupOnly.id, 'synthetic-development-user', false)
+      await app.inject({ url: '/health/live' })
+      const complete = createDelegation(db, 'synthetic-development-user', { label: 'Setup and result',
+        scope: { tools: [{ tool: 'proxmox-axi', commands: [...commands, 'result take'] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
+      const completeHeaders = { authorization: `Bearer ${exchangeDelegation(db, complete.token).accessToken}` }
+      const allowedPlan = await success([...args, '--preview'], stdin, completeHeaders)
+      const issued = await success([...args, '--confirm', allowedPlan.confirmation], stdin, completeHeaders)
+      const result = await app.inject({ url: issued.result!.path, headers: completeHeaders })
+      assert.equal(result.statusCode, 200, result.body)
+      assert.equal((await evidence()).applied, before + 1)
+      revokeDelegation(db, complete.id, 'synthetic-development-user', false)
+      await app.inject({ url: '/health/live' })
+    }
     const batchPlan = await success([...batch, '--preview'], batchInput)
     const batchResult = await success([...batch, '--confirm', batchPlan.confirmation], batchInput)
     const batchPrivate = await app.inject({ url: batchResult.result!.path, headers })

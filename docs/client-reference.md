@@ -241,6 +241,7 @@ See [credential custody](credential-standard.md#proxmox-memory-authentication-an
 ### Proxmox managed streams
 
 Run `artium-axi proxmox-axi stream limits` to inspect authenticated host-selected quotas.
+See the [runbook](runbook.md#retention-and-export) for shared and delegated capacity limits, and the [Proxmox boundary](safety.md#network-appliance-reads) for delegated scope requirements.
 Use `artium-axi proxmox-axi stream -- transfer|duplex <native arguments>` for the reviewed byte routes; normal run requests do not admit stream operations.
 The [reviewed inventory](../tools/inventories/proxmox-axi.json)'s `streamCommands` owns the route list; append `--help` to a selected stream command for its accepted flags.
 `--json` before the separator selects JSON metadata, including `stream limits --json`; native `--format toon|json` remains available after the separator.
@@ -256,7 +257,6 @@ The native 1 MiB message bound and each direction's byte/hash checks apply indep
 For uploads, `--input-file` selects an absolute local regular file; its path is never sent to the server.
 The client holds the opened source while hashing and sending, the server verifies private staging before native execution, and the native preview/confirmation binds that source's count and digest.
 Use identical bytes and native arguments for preview and confirmation; changing a source requires a fresh preview.
-Uploads and effectful setup retain exact independent operation grants and native one-shot confirmation; read transfers work with writes off.
 Cancellation, expiry or relevant revocation closes delivery and the provider process, removes partial staging and releases capacity only after cleanup.
 
 ### Check Point email and attachment saving

@@ -19,7 +19,7 @@ import type { Client } from './http.js'
 
 const limitSchema = z.object({ bytes: z.number().int().positive().max(8 * 1024 ** 3), streamMs: z.number().int().positive().max(1800000),
   duplexBytes: z.number().int().positive().max(64 * 1024 ** 2), uploadBytes: z.number().int().positive().max(250 * 1024 ** 2),
-  spiceBytes: z.number().int().positive().max(4 * 1024 ** 2), idleMs: z.number().int().positive(), perUser: z.literal(1), total: z.literal(16), frameBytes: z.literal(1048576) })
+  spiceBytes: z.number().int().positive().max(4 * 1024 ** 2), idleMs: z.number().int().positive(), perUser: z.union([z.literal(1), z.literal(2)]), total: z.literal(16), frameBytes: z.literal(1048576) })
 const leaseSchema = z.object({ id: z.uuid(), expiresAt: z.number().int(), limits: limitSchema,
   selection: z.object({ duplex: z.boolean(), spice: z.boolean(), upload: z.boolean(), preview: z.boolean(), write: z.boolean(), operation: z.string() }) })
 

@@ -692,7 +692,8 @@ Values must be positive safe integers; invalid settings prevent stream registrat
 Duplex direction payloads are additionally limited to the smaller of the transfer quota and 64 MiB, with 1 MiB native messages.
 Private-result-producing streams are bounded to five minutes; password-authenticated calls also end when their selected ticket expires and never reacquire inside an active operation.
 Uploads are bounded to the smaller of the transfer quota and the existing 250 MiB per-source staging bound; SPICE is bounded to the smaller of the transfer quota and the 4 MiB private-result limit.
-Proxmox admits at most four staged sources and 1 GiB reserved in total, plus one stream per user and sixteen globally.
+Proxmox admits at most four staged sources and 1 GiB reserved in total, plus two streams per user and sixteen globally.
+Delegated sessions together may hold at most one stream per creator, leaving a slot for the creator's own work.
 Provision this additional staging capacity beside the database before enabling uploads; private `byte-streams` directories are removed after each call and abandoned owned directories are removed before startup admission.
 Cleanup must finish before reservations are released, and an interrupted upload or console retains native recovery rather than replaying a mutation.
 Use [stream limits and private descriptors](client-reference.md#proxmox-managed-streams) to inspect the effective contract.

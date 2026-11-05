@@ -16,6 +16,8 @@ import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { SessionStore, sessionPath } from '../../src/cli/session.js'
 import { seedToolUser } from '../fixtures/tokens.js'
+import { createDelegation, revokeDelegation } from '../../src/server/auth/delegations.js'
+import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 import inventory from '../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 
 assert.ok(!readFileSync('/proc/net/route', 'utf8').split('\n').slice(1).some(line => line.split(/\s+/)[1] === '00000000'))
@@ -37,13 +39,15 @@ await withFakeService(async ({ directory, port, send }) => {
     const address = await app.listen({ host: '127.0.0.1', port: 0 })
     const environment = { ...process.env, ARTIUM_AXI_URL: address, ARTIUM_AXI_TEST_HTTP: '1', XDG_CONFIG_HOME: join(directory, 'client') }
     new SessionStore(address, sessionPath(process.platform, environment)).write(session)
-    const cli = (args: string[], options: { input?: Buffer, invalidFd?: boolean, aliasSetup?: boolean, onBytes?: () => void, onSetup?: () => void } = {}) => new Promise<{
+    const cli = (args: string[], options: { input?: Buffer, invalidFd?: boolean, aliasSetup?: boolean, onBytes?: () => void, onSetup?: () => void, config?: string, onStart?: (cancel: () => void) => void } = {}) => new Promise<{
       code: number | null, stdout: string, stderr: string, bytes: Buffer, setup: Buffer
     }>((resolve, reject) => {
       const child = spawn(process.execPath, ['/work/dist/cli/artium-axi.mjs', 'proxmox-axi', 'stream', '--', ...args, '--format', 'json'], {
-        env: { ...environment, PROXMOX_AXI_STREAM_FD: options.invalidFd ? '1' : '5', PROXMOX_AXI_RESULT_FD: options.aliasSetup ? '5' : '6' },
+        env: { ...environment, XDG_CONFIG_HOME: options.config ?? environment.XDG_CONFIG_HOME,
+          PROXMOX_AXI_STREAM_FD: options.invalidFd ? '1' : '5', PROXMOX_AXI_RESULT_FD: options.aliasSetup ? '5' : '6' },
         stdio: ['ignore', 'pipe', 'pipe', 'ignore', 'ignore', 'pipe', 'pipe'],
       })
+      options.onStart?.(() => child.kill('SIGTERM'))
       const bytes: Buffer[] = [], setup: Buffer[] = []
       let stdout = '', stderr = '', fed = false, notified = false
       child.stdout!.on('data', chunk => { stdout += chunk }); child.stderr!.on('data', chunk => { stderr += chunk })
@@ -131,6 +135,33 @@ await withFakeService(async ({ directory, port, send }) => {
     const download = ['transfer', 'get', '/nodes/{node}/storage/{storage}/file-restore/download', '--api-node', 'node', '--api-storage', 'local',
       '--api-volume', 'local:backup/synthetic.vma', '--api-filepath', '/', '--response-format', 'download']
     assert.deepEqual((await success(download)).bytes, Buffer.from([0, 255, 10, 13, 128, 1]))
+    db.exec('UPDATE delegation_settings SET minting_enabled=1')
+    const downloadAdapter = createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'journal', 'writes.log'))
+    await send('/__proxmox/control?mode=')
+    for (const [args, expected] of [[guest, Buffer.from('hello ☃')], [download, Buffer.from([0, 255, 10, 13, 128, 1])]] as const) {
+      const command = args.slice(0, 3).join(' ')
+      for (const [label, commands, readOnly] of [
+        ['exact', [command], false], ['wide', undefined, false], ['read-only', [command], true],
+      ] as const) {
+        const delegated = createDelegation(db, 'synthetic-development-user', { label, scope: { tools: [{ tool: 'proxmox-axi', commands: commands && [...commands] }] },
+          readOnly, reusable: false, expiresAt: Date.now() + 60000 }, [downloadAdapter])
+        const config = join(directory, `download-${delegated.id}`)
+        new SessionStore(address, sessionPath(process.platform, { ...environment, XDG_CONFIG_HOME: config })).write(exchangeDelegation(db, delegated.token))
+        const result = await cli(args, { config })
+        if (label === 'exact') {
+          assert.equal(result.code, 0, result.stdout + result.stderr)
+          assert.deepEqual(result.bytes, expected)
+          const transfer = JSON.parse(result.stdout).transfer
+          assert.equal(transfer.bytes, expected.length)
+          assert.equal(transfer.sha256, createHash('sha256').update(expected).digest('hex'))
+          assert.deepEqual(db.prepare("SELECT outcome FROM audit WHERE delegation_id=? AND event='run-terminal'").all(delegated.id), [{ outcome: 'completed' }])
+        } else {
+          assert.notEqual(result.code, 0)
+          assert.match(result.stdout + result.stderr, /DELEGATED_SCOPE_DENIED/)
+          assert.equal(result.bytes.length, 0)
+        }
+      }
+    }
     const spice = ['transfer', 'create', '/nodes/{node}/qemu/{vmid}/spiceproxy', '--api-node', 'node', '--api-vmid', '100', '--response-format', 'spiceconfig']
     assert.notEqual((await cli([...spice, '--preview'])).code, 0)
     await writes(true)
@@ -191,7 +222,7 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.equal(JSON.parse(await send('/__proxmox/evidence')).applied, beforeDrop + 1)
     const reservations = await Promise.all([app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/streams', headers, payload: { args: png } }),
       app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/streams', headers, payload: { args: png } })])
-    assert.deepEqual(reservations.map(response => response.statusCode).sort(), [200, 429])
+    assert.deepEqual(reservations.map(response => response.statusCode).sort(), [200, 200])
     const reserved = reservations.find(response => response.statusCode === 200)!
     assert.equal(reserved.statusCode, 200, reserved.body)
     assert.equal((await app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/streams', headers, payload: { args: png } })).statusCode, 429)
@@ -200,6 +231,8 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.equal((await app.inject({ method: 'DELETE', url: `/v1/tools/proxmox-axi/streams/${reserved.json().id}`,
       headers: { authorization: `Bearer ${other.json().accessToken}` } })).statusCode, 404)
     assert.equal((await app.inject({ method: 'DELETE', url: `/v1/tools/proxmox-axi/streams/${reserved.json().id}`, headers })).statusCode, 204)
+    const second = reservations.find(response => response.json().id !== reserved.json().id)!
+    assert.equal((await app.inject({ method: 'DELETE', url: `/v1/tools/proxmox-axi/streams/${second.json().id}`, headers })).statusCode, 204)
     const blockedPlan = await success([...duplex, '--preview']), opened = JSON.parse(await send('/__proxmox/evidence')).opened
     let setupReady!: () => void
     const ready = new Promise<void>(resolve => { setupReady = resolve })
@@ -210,6 +243,26 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.notEqual((await held).code, 0)
     await send(`/__proxmox/sockets?closed=${opened + 1}`)
     await grants(['proxmox-axi'])
+    db.exec('UPDATE delegation_settings SET minting_enabled=1')
+    const delegatedAdapter = createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'journal', 'writes.log'))
+    const delegation = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic', scope: { tools: [{ tool: 'proxmox-axi',
+      commands: ['transfer get /nodes/{node}/rrd'] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [delegatedAdapter])
+    const delegatedConfig = join(directory, 'delegated')
+    new SessionStore(address, sessionPath(process.platform, { ...environment, XDG_CONFIG_HOME: delegatedConfig })).write(exchangeDelegation(db, delegation.token))
+    await send('/__proxmox/control?mode=hold-stream')
+    let ownerReady!: () => void, delegatedReady!: () => void, cancelOwner!: () => void, ownerFinished = false
+    const ownerReading = new Promise<void>(resolve => { ownerReady = resolve })
+    const delegatedReading = new Promise<void>(resolve => { delegatedReady = resolve })
+    const ownerStream = cli(png, { onBytes: ownerReady, onStart: cancel => { cancelOwner = cancel } }).then(result => { ownerFinished = true; return result })
+    const delegatedStream = cli(png, { config: delegatedConfig, onBytes: delegatedReady })
+    await Promise.all([ownerReading, delegatedReading])
+    revokeDelegation(db, delegation.id, 'synthetic-development-user', false)
+    await app.inject({ url: '/health/live' })
+    assert.notEqual((await delegatedStream).code, 0)
+    assert.equal(ownerFinished, false)
+    cancelOwner()
+    assert.notEqual((await ownerStream).code, 0)
+    await send('/__proxmox/control?mode=')
     let readReady!: () => void
     const reading = new Promise<void>(resolve => { readReady = resolve })
     await send('/__proxmox/control?mode=hold-stream')

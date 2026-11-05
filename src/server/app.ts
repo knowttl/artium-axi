@@ -14,7 +14,7 @@ import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './auth/local.js'
 import { exchangeDelegation, hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, requireRecentAuth, verifyAccessToken, verifyPasswordToken, verifyPrincipal } from './auth/tokens.js'
-import { createDelegation, delegatedDiscovery, delegationIncludesTool, revokeDelegation } from './auth/delegations.js'
+import { authorizeDelegatedOperation, createDelegation, delegatedDiscovery, delegationIncludesTool, revokeDelegation } from './auth/delegations.js'
 import { kubernetesBinding } from './policy/kubernetes.js'
 import { ProxmoxAccess, proxmoxTrust } from './runner/proxmox.js'
 import { registerProxmoxStreams } from './proxmox-streams.js'
@@ -428,6 +428,11 @@ export function createApp(options: {
     const { userId, delegation, familyId } = principal
     if (delegation && !delegationIncludesTool(delegation.scopeJson, tool)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
     checkToolPolicy(db, userId, tool)
+    if (delegation && tool === 'proxmox-axi') {
+      const adapter = adapters.find(adapter => adapter.name === tool)
+      if (!adapter) throw new ArtiumError('TOOL_DISABLED')
+      authorizeDelegatedOperation(db, userId, delegation, adapter, { command: 'result take', effect: 'write' })
+    }
     const credential = await resolver.resolve(userId, tool)
     verifyPrincipal(db, token)
     checkToolPolicy(db, userId, tool)

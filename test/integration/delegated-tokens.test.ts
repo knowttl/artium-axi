@@ -256,6 +256,30 @@ const nestedInput = JSON.stringify({ api: { node: 'synthetic-node', commands: JS
 const batchConfirmation = `00000000-0000-4000-8000-000000000001.${'a'.repeat(64)}`
 
 test.each([
+  { commands: ['create /access/users/{userid}/token/{tokenid}'],
+    request: { args: ['create', '/access/users/{userid}/token/{tokenid}', '--api-userid', 'automation@pve', '--api-tokenid', 'issued', '--confirm', batchConfirmation] } },
+  { commands: ['create /nodes/{node}/execute', 'get /nodes/{node}/version', 'create /nodes/{node}/qemu/{vmid}/vncproxy'],
+    request: { args: [...batchRoute, '--protected-input', '--confirm', batchConfirmation], stdin: custodyInput } },
+])('Proxmox private-result $commands refuses dispatch without result access (review-2)', async ({ commands, request }) => {
+  await app.close()
+  db.prepare('UPDATE tools SET enabled = 1, native_settings = ? WHERE name = ?').run(JSON.stringify({
+    hostWrites: { allowWrites: true, operations: proxmoxInventory.writeOperations },
+    writes: { operations: proxmoxInventory.writeOperations },
+  }), 'proxmox-axi')
+  credentials.replaceCredential('proxmox-axi', { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' },
+    0, 'synthetic-development-user', Date.now())
+  const adapter = createProxmoxAdapter(new EmbeddedSecretSource(credentials), join(directory, 'writes.log'))
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-private-result')), audit: new Audit(db),
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+    scope: { tools: [{ tool: 'proxmox-axi', commands }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 600000 }, [adapter])
+  const response = await app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/run',
+    headers: { authorization: `Bearer ${exchangeDelegation(db, minted.token).accessToken}` }, payload: request })
+  expect(response.statusCode).toBe(403)
+  expect(response.json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+})
+
+test.each([
   { label: 'custody preview with protected input', commands: ['create /nodes/{node}/execute', 'get /nodes/{node}/version'], readOnly: false,
     request: { args: [...batchRoute, '--protected-input', '--preview'], stdin: custodyInput }, code: 'DELEGATED_SCOPE_DENIED' },
   { label: 'custody confirmation with flags', commands: ['create /nodes/{node}/execute', 'get /nodes/{node}/version'], readOnly: false,
@@ -342,6 +366,20 @@ test.each([
   const managed = await cli(['--managed-session', 'gh-axi', 'issue', command, '--help'], '', 'agent', false, {}, { accessToken: session.accessToken })
   expect(managed.code, managed.stdout).toBe(code)
   expect(managed.stdout).toContain(text)
+})
+
+test.each(['stream', 'result'])('delegated Proxmox %s help refuses an ungranted tool', async command => {
+  expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
+  const token = await mint()
+  expect((await cli(['login', '--token-stdin'], `${token}\n`, 'agent')).code).toBe(0)
+  const session = new SessionStore(url, join(directory, 'agent', 'artium-axi', 'session.json')).read()
+  if (session?.status !== 'authenticated') throw new Error('Expected delegated session')
+  const stored = await cli(['proxmox-axi', command, '--help'], '', 'agent')
+  const managed = await cli(['--managed-session', 'proxmox-axi', command, '--help'], '', 'agent', false, {}, { accessToken: session.accessToken })
+  for (const result of [stored, managed]) {
+    expect(result.code, result.stdout).toBe(1)
+    expect(result.stdout).toContain('DELEGATED_SCOPE_DENIED')
+  }
 })
 
 test.each([
@@ -535,6 +573,25 @@ test.each(['get /version', 'create /access/users/{userid}/token/{tokenid}'])('mi
   const exchanged = exchangeDelegation(db, minted.json().token)
   const tools = await app.inject({ url: '/v1/tools', headers: { authorization: `Bearer ${exchanged.accessToken}` } })
   expect(tools.json().tools[0].commands).toContain(command)
+})
+
+test('managed Proxmox stream help requires the selected operation', async () => {
+  await app.close()
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'proxmox-axi'")
+  const adapter = createProxmoxAdapter(new EmbeddedSecretSource(credentials))
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-proxmox-help')), audit: new Audit(db),
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const delegation = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+    scope: { tools: [{ tool: 'proxmox-axi', commands: ['transfer get /nodes/{node}/rrd'] }] },
+    readOnly: false, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
+  const session = exchangeDelegation(db, delegation.token)
+  const allowed = await cli(['--managed-session', 'proxmox-axi', 'stream', '--', 'transfer', 'get', '/nodes/{node}/rrd', '--help'], '', 'agent', false, {}, session)
+  expect(allowed.code, allowed.stdout).toBe(0)
+  expect(allowed.stdout).toContain('transfer get /nodes/{node}/rrd')
+  const refused = await cli(['--managed-session', 'proxmox-axi', 'stream', 'limits', '--help'], '', 'agent', false, {}, session)
+  expect(refused.stdout).toContain('DELEGATED_SCOPE_DENIED')
+  expect(refused.code).toBe(1)
 })
 
 test.each([
