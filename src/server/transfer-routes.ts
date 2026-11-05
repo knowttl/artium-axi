@@ -12,7 +12,7 @@ import type { Adapter } from './adapters/types.js'
 import { ArtifactStore } from './artifacts.js'
 import type { ArtifactArchive, ArtifactReservation } from './artifacts.js'
 import type { Audit } from './audit/audit.js'
-import { hashToken, requireRecentAuth, verifyAccessToken, verifyPrincipal } from './auth/tokens.js'
+import { hashToken, requireRecentAuth, verifyPrincipal } from './auth/tokens.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import { previewNativeArtifact, executeNativeArtifact } from './runner/artifact.js'
 import type { Runner } from './runner/runner.js'
@@ -48,13 +48,14 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
   const tokenFor = (request: FastifyRequest) => /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''
   function ownerFor(request: FastifyRequest): TransferOwner {
     const token = tokenFor(request)
-    const userId = verifyAccessToken(db, token)
-    const ticket = request.headers['x-artium-reauth-ticket']
-    requireRecentAuth(db, token, typeof ticket === 'string' ? ticket : '')
-    const family = db.prepare('SELECT family_id FROM tokens WHERE hash = ?').get(hashToken(token)) as { family_id: string }
-    // The proof was verified above, including its bounded lifetime. This value is
-    // only used by the common access check; it is never a replacement for proof.
-    return { userId, sessionFamilyId: family.family_id, reauthenticatedAt: Date.now() }
+    const principal = verifyPrincipal(db, token)
+    if (!principal.delegation) {
+      const ticket = request.headers['x-artium-reauth-ticket']
+      requireRecentAuth(db, token, typeof ticket === 'string' ? ticket : '')
+    }
+    // Undelegated proof is checked above; delegated access is checked against
+    // the selected operation by the common access check.
+    return { userId: principal.userId, sessionFamilyId: principal.familyId, reauthenticatedAt: Date.now() }
   }
   function revision(tool: ReturnType<typeof transferTool>): number {
     const row = db.prepare('SELECT revision FROM credentials WHERE tool = ?').get(tool) as { revision: number } | undefined
@@ -77,7 +78,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
       { user_id: string, family_id: string } | undefined
     const entry = entries.get(input.transferId)
     if (!entry || identity?.user_id !== entry.reservation.scope.userId || identity.family_id !== entry.reservation.scope.sessionFamilyId) {
-      verifyAccessToken(db, tokenFor(request))
+      verifyPrincipal(db, tokenFor(request))
       throw new ArtiumError('TOKEN_INVALID')
     }
     const scope = entry.reservation.scope
@@ -136,7 +137,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
           checkTransferAccess(db, owner, input.selection.operation)
           const scope = createTransferScope(owner, revision(tool), input)
           store ??= ArtifactStore.create(audit).catch(error => { store = undefined; throw error })
-          const reservation = await (await store).reserve(scope, context(request, controller.signal))
+          const reservation = await (await store).reserve(scope, { ...context(request, controller.signal), delegationId: verifyPrincipal(db, tokenFor(request)).delegation?.id })
           entry = { reservation, delivered: false, receipt: false,
             timer: setTimeout(() => { void discard(entry!).catch(() => {}) }, Math.max(0, scope.expiresAt - Date.now())) }
           entry.timer.unref()
@@ -176,7 +177,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
             || receipt.archive.archiveSha256 !== entry.archive.archiveSha256) throw new ArtiumError('INVALID_INPUT')
           const prior = db.prepare("SELECT * FROM audit WHERE transfer_id = ? AND outcome = 'delivery-completed' ORDER BY id DESC LIMIT 1")
             .get(scope.transferId) as Record<string, unknown>
-          audit.record({ event: 'transfer', userId: scope.userId, tool, requestId: request.id,
+          audit.record({ event: 'transfer', userId: scope.userId, delegationId: verifyPrincipal(db, tokenFor(request)).delegation?.id, tool, requestId: request.id,
             clientAddress: request.ip, credentialRevision: scope.credentialRevision, outcome: 'delivery-completed',
             transfer: { transfer_id: scope.transferId, session_family_id: scope.sessionFamilyId,
               transfer_operation: scope.selection.operation, artifact_type: scope.selection.type,
@@ -225,9 +226,9 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
         if (entry && !entry.delivered) await discard(entry)
         if (reply.raw.headersSent) { reply.raw.destroy(); return reply }
         if (error instanceof ArtiumError && !reply.raw.headersSent) {
-          let userId: string | null = null
-          try { userId = verifyPrincipal(db, tokenFor(request)).userId } catch { /* Unauthenticated denials retain no actor. */ }
-          audit.record({ event: 'denial', userId, tool, requestId: request.id,
+          let principal: ReturnType<typeof verifyPrincipal> | undefined
+          try { principal = verifyPrincipal(db, tokenFor(request)) } catch { /* Unauthenticated denials retain no actor. */ }
+          audit.record({ event: 'denial', userId: principal?.userId ?? null, delegationId: principal?.delegation?.id, tool, requestId: request.id,
             clientAddress: request.ip, outcome: error.code })
         }
         throw error

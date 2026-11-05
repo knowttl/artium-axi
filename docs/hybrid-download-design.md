@@ -53,7 +53,7 @@ Pure stream-through would require a new upstream sink contract and would risk se
 2. Run native preview using that reserved output path, with no artifact request.
    Return native warnings and the exact native confirmation string, plus transfer ID, expiry and the client's chosen new destination.
    Keep the server path stable between preview and execution; native confirmation is never regenerated or silently substituted.
-3. The execute request supplies the transfer ID, original exact `--confirm`, explicit `--execute` and recent identity confirmation.
+3. The execute request supplies the transfer ID, original exact `--confirm`, explicit `--execute` and identity proof when required by the [download authentication boundary](safety.md#delegated-sessions).
    Bind the reservation to user, session family, credential revision, operation, selector, type, client destination and native output path.
    Reject changed scope, expired reservation or duplicate execution; recheck authentication and current tool/write policy immediately before spawn.
    Build a fresh native managed profile permitting only this operation for this request.
@@ -89,8 +89,9 @@ Deletion failure blocks new artifact admission and raises an operator-visible cl
 Downloads are guarded writes despite their upstream GET methods.
 Expose each native download operation in the existing write switch's `supportedOperations`, `allowedOperations`, `unlocks` and `blocked` descriptions, off by default and never implicitly enabled by other Hybrid Analysis writes.
 Administrator configuration continues to require current administrator authority, recent authentication and expected revision, with CSRF protection for browser changes.
-Each user still needs tool policy access plus a fresh per-request scope and recent identity confirmation using the existing 15-minute recent-auth window in `src/server/config.ts`.
-Recent authentication is an additional hosted requirement, not a substitute for preview, execute or exact target confirmation.
+Each user still needs tool policy access plus a fresh per-request scope.
+The [capability boundary](safety.md#delegated-sessions) owns delegated download authorization and its recent-authentication exception; `src/server/config.ts` owns the recent-auth window for full sessions.
+Authentication never substitutes for preview, execute or exact target confirmation.
 The user's local destination is bound in hosted scope alongside native confirmation of the reserved server destination.
 Credential rotation, policy revocation, sign-out and session revocation invalidate pending transfers and prevent retrieval.
 
@@ -118,7 +119,7 @@ AV/EDR exceptions are operator policy, not changes Artium makes automatically.
 
 | Threat | Mitigation and remaining boundary |
 |---|---|
-| Accidental download or agent-driven write | Off-by-default operation selection, recent authentication, explicit warning, immutable scope, native preview/execute/exact-confirm and journal. |
+| Accidental download or agent-driven write | Off-by-default operation selection, [download authentication boundary](safety.md#delegated-sessions), explicit warning, immutable scope, native preview/execute/exact-confirm and journal. |
 | Cross-user disclosure, stolen link or replay | Authenticated owner/session-bound one-shot retrieval, policy rechecks, short expiry, no public URL/cache/range/retry. |
 | Malicious archive, archive bomb or accidental execution | Opaque unchanged bytes, no parsing/extraction/rendering/scanning/execution, private noexec mount; noexec alone is not an execution sandbox. |
 | Path/header injection or overwrite | Service-generated server paths, regular-file checks, ignored upstream filename, client no-clobber publication and destination binding. |

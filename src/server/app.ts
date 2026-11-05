@@ -4,7 +4,7 @@ import Fastify from 'fastify'
 import { z, ZodError } from 'zod'
 import type Database from 'better-sqlite3'
 import type { FastifyError } from 'fastify'
-import { certificateDetailsSchema, certificateInspectionSchema, createDelegationSchema, delegatedExchangeSchema, inputLimits, passwordChangeSchema, runRequestSchema, toolSchema, toolsResponseSchema, toolAllowsWrites } from '../shared/api.js'
+import { certificateDetailsSchema, certificateInspectionSchema, createDelegationSchema, delegatedExchangeSchema, inputLimits, passwordChangeSchema, runRequestSchema, toolSchema, toolsResponseSchema, toolAllowsWrites, transferSelectionSchema, transferTool } from '../shared/api.js'
 import { ArtiumError, cliOutdatedUpdateNext, errorResponse, errors } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
 import { loadCredentialProfile } from './adapters/credential-profile.js'
@@ -236,7 +236,10 @@ export function createApp(options: {
       return { skills: granted.map(tool => ({ name: tool.name, content: loadToolSkill(tool.name) })) }
     }
     return { skills: delegatedDiscovery(db, userId, delegation, adapters).map(({ adapter, commands }) => {
-      return { name: adapter.name, content: `---\nname: ${adapter.name}\ndescription: Use permitted ${adapter.name} commands through Artium.\n---\n\n# ${adapter.name}\n\nRun each command with --help for required arguments.\n\nPermitted commands:\n${commands.map(command => `- \`artium-axi ${adapter.name} ${command}\``).join('\n')}\n` }
+      const invocations = commands.map(command => transferSelectionSchema.options.some(option =>
+        option.shape.operation.value === command && transferTool(option.shape.operation.value) === adapter.name)
+        ? `artium-axi download --operation ${command}` : `artium-axi ${adapter.name} ${command}`)
+      return { name: adapter.name, content: `---\nname: ${adapter.name}\ndescription: Use permitted ${adapter.name} commands through Artium.\n---\n\n# ${adapter.name}\n\nRun each command with --help for required arguments.\n\nPermitted commands:\n${invocations.map(command => `- \`${command}\``).join('\n')}\n` }
     }) }
   })
   app.get('/v1/me', async request => {

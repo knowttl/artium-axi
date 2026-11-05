@@ -186,7 +186,7 @@ export class Audit {
       const transfer = transferAuditSchema.parse(Object.fromEntries(Object.keys(transferAuditSchema.shape)
         .map(key => [key, prior[key as keyof AuditRecord]])))
       this.record({ event: 'transfer', userId: prior.user_id, tool: prior.tool,
-        requestId: prior.request_id, clientAddress: prior.client_address, outcome: 'interrupted',
+        requestId: prior.request_id, clientAddress: prior.client_address, delegationId: prior.delegation_id, outcome: 'interrupted',
         credentialRevision: prior.credential_revision!, transfer: { ...transfer,
           archive_bytes: null, archive_sha256: null, client_save_outcome: 'unconfirmed' } })
     }

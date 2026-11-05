@@ -42,8 +42,9 @@ Delegated tool execution follows the token's tool and command scope and the crea
 Tool lists, generated help and skills include only commands permitted by the token, the creator's current grants, tool enablement, delegated read-only restriction and administrator Allow writes switch.
 Tools with no permitted commands are omitted, and tool lists report the effective read-only state.
 GitHub and Proxmox stream discovery also reflect their administrator operation allow-lists.
-Other adapter-internal operation allow-lists, including UniFi, Falcon, Gitea, Technitium, ordinary Proxmox JSON operations and Kubernetes credential acquisition, remain execution safeguards; reflecting them in discovery is a follow-up.
+For ordinary tool commands, other adapter-internal operation allow-lists, including UniFi, Falcon, Gitea, Technitium, ordinary Proxmox JSON operations and Kubernetes credential acquisition, remain execution safeguards; reflecting them in discovery is a follow-up.
 Permitted native leaf commands retain their native argument help; locally generated Kubernetes hosted help filters command and session-kind listings to the same permitted set as discovery.
+Download help, including help for a selected transfer leaf, shows the hosted download interface with only permitted operations and their selector, type and destination requirements.
 Leaf help outside the token's scope is refused.
 Native output and error messages may mention other commands.
 Identity responses expose the creator's identity, delegation label, expiry and currently permitted command scope instead of roles or administrator capability.
@@ -52,7 +53,6 @@ Account management, administration and reauthentication remain denied with `DELE
 Delegated Kubernetes workspaces, sessions and tunnels are available under the grants below.
 Delegated SSH connections and executions follow the [SSH capability boundary](#ssh-reads).
 Delegated Proxmox streams, `stream limits` and `result take` are available under the [Proxmox boundary](#network-appliance-reads).
-`artium-axi download` transfers remain unavailable in this slice.
 Refresh and logout remain available; logging out revokes that exchanged session family, while token revocation invalidates all its families.
 Delegated access ends on expiry, revocation, creator disablement or password change.
 Tokens from SSO creators pause after seven days without a successful SSO sign-in or SSO identity confirmation; administrators can set the window from one to 30 days on `/admin/tokens`.
@@ -81,7 +81,9 @@ The [delegation policy](../src/server/auth/delegations.ts) owns the reviewed exa
 Issued upstream credentials can outlive the delegated token and must be revoked separately.
 Ordinary data results, including AWX stdout downloads and Technitium zone, allowed/blocked and log exports, remain available within the authorized command scope.
 Delegated protected results are bound to the exchanged session family; another exchange of the same reusable token cannot retrieve them.
-Delegated `artium-axi download` support is deferred to slice 7d, where minting must select the exact transfer operation while retaining existing administrative grants, confirmation and integrity checks.
+Delegated `artium-axi download` requires a writable token with the exact transfer operation selected at minting.
+Tool-wide grants and read-only tokens do not authorize downloads.
+Recent authentication is waived only for these transfers; the administrator's operation grant, confirmation and SHA-256 checks remain required, and transfer audit records identify the token.
 The [shared classifier](../src/server/adapters/classify.ts) and [adapter regression tests](../src/server/adapters/classify.test.ts) define and exercise the classification boundary.
 
 ## BeyondTrust Endpoint Privilege Management
@@ -204,7 +206,7 @@ Secret values are excluded from arguments, public output and audit; see [upload 
 Secret readback verifies name identity; variables are non-secret and retain native value readback, including empty values.
 Attachment uploads accept opaque caller files through `--file` or `--attach`, within Artium's 1 MiB per-file, 4 MiB total and eight-file input limits.
 Use `artium-axi download` for separately selected `gitea.issue.download`, `gitea.pr.download` or `gitea.release.download`, type `attachment` and selector `OWNER/REPO/ITEM-OR-TAG/ASSET-ID`.
-Downloads require recent authentication, host-owned exact confirmation and independent byte and SHA-256 verification, with a 10000000-byte limit.
+Downloads require host-owned exact confirmation and independent byte and SHA-256 verification, with a 10000000-byte limit; see the [delegated download boundary](#delegated-sessions) for the recent-authentication exception.
 Release tags may contain slashes; asset IDs select exactly one attachment.
 Ordinary tool-run downloads and server-controlled paths are unavailable.
 See [journal custody and recovery](runbook.md#retention-and-export) before handling an uncertain mutation.

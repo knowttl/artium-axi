@@ -1,11 +1,11 @@
 import { resolve } from 'node:path'
 import { encode } from '@toon-format/toon'
-import { loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema, transferWarningFor } from '../shared/api.js'
+import { loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema, transferSelectionSchema, transferTool, transferWarningFor } from '../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import { Client } from './http.js'
 import { readPassword } from './password.js'
 import { doctor } from './doctor.js'
-import { commandHelp, helpCommand, validateArguments } from './help.js'
+import { commandHelp, delegatedDownloadHelp, helpCommand, validateArguments } from './help.js'
 import { identityView, toolsView, toolView } from './views.js'
 import { rewriteSuggestions } from './rewrite.js'
 import { setup } from './setup.js'
@@ -60,14 +60,19 @@ async function main(args: string[]) {
   const toolDiscovery = toolSchema.safeParse(command).success && (prefixHelp || toolWords.length === 0
     || args.slice(1).some(arg => ['--help', '-h'].includes(arg)) || toolWords[0] === 'help'
     || toolWords.length === 1 && ['commands', 'home'].includes(toolWords[0]))
-  const scopedHelp = toolDiscovery || help && ['home', 'tools', 'tools show'].includes(help)
+  const scopedHelp = toolDiscovery || help && ['home', 'tools', 'tools show', 'download'].includes(help)
   if (help && !scopedHelp) { output('stdout', commandHelp(help)); return }
   if (managedMode) {
     if (['passwd', 'logout', 'setup', 'update', 'session-context'].includes(args[0])) {
       throw new ArtiumError('INVALID_INPUT', 'This command is unavailable in managed session mode.',
         'The caller manages session persistence, password changes and revocation.')
     }
-    managed = await ManagedSession.read(args[0] === 'login')
+    try { managed = await ManagedSession.read(args[0] === 'login') }
+    catch (error) {
+      if (help !== 'download' || !(error instanceof ArtiumError) || error.code !== 'INVALID_INPUT') throw error
+      output('stdout', commandHelp(help))
+      return
+    }
   }
   if (scopedHelp && (managed || readStoredSession()?.session.delegated)) {
     const client = new Client(process.env, managed)
@@ -77,6 +82,16 @@ async function main(args: string[]) {
     if (delegated) {
       const { tools } = toolsResponseSchema.parse(await client.authenticated('/v1/tools', 'GET'))
       if (tools.some(tool => tool.commands === undefined)) throw new ArtiumError('INVALID_RESPONSE')
+      const downloadOperation = toolDiscovery ? transferSelectionSchema.options.map(option => option.shape.operation.value)
+        .find(operation => transferTool(operation) === command
+          && operation === (toolWords[0] === 'help' ? toolWords.slice(1) : toolWords).join(' ')) : undefined
+      if (help === 'download' || downloadOperation) {
+        const operations = transferSelectionSchema.options.map(option => option.shape.operation.value)
+          .filter(operation => tools.some(tool => tool.name === transferTool(operation) && tool.commands?.includes(operation)))
+        if (downloadOperation && !operations.includes(downloadOperation)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+        output('stdout', delegatedDownloadHelp(operations))
+        return
+      }
       const name = toolDiscovery ? command : help === 'tools show' ? args.slice(2).find(arg => toolSchema.safeParse(arg).success) : undefined
       if (name) {
         const tool = tools.find(tool => tool.name === name)

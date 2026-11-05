@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { z } from 'zod'
-import { transferLimits, transferPrepareSchema, transferScopeSchema, transferTool } from '../shared/api.js'
+import { delegationScopeSchema, transferLimits, transferPrepareSchema, transferScopeSchema, transferTool } from '../shared/api.js'
 import type { TransferScope } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { hybridWritePolicy } from './adapters/hybrid.js'
@@ -11,6 +11,7 @@ import { mgWritePolicy } from './adapters/mg.js'
 import { giteaWritePolicy } from './adapters/gitea.js'
 import { authDefaults } from './config.js'
 import { checkToolPolicy } from './policy/policy.js'
+import { verifyFamilyPrincipal } from './auth/tokens.js'
 
 export interface TransferOwner {
   userId: string
@@ -68,10 +69,21 @@ export function checkTransferAccess(db: Database.Database, owner: TransferOwner,
   const family = db.prepare(`SELECT 1 FROM session_families WHERE id = ? AND user_id = ?
     AND revoked_at IS NULL AND expires_at > ?`).get(owner.sessionFamilyId, owner.userId, now)
   if (!family) throw new ArtiumError('TOKEN_INVALID')
-  if (owner.reauthenticatedAt === null || owner.reauthenticatedAt > now
+  const principal = verifyFamilyPrincipal(db, owner.sessionFamilyId, now)
+  if (principal.userId !== owner.userId) throw new ArtiumError('TOKEN_INVALID')
+  if (principal.delegation) {
+    const scope = delegationScopeSchema.parse(JSON.parse(principal.delegation.scopeJson))
+    if (principal.delegation.readOnly || !scope.tools.some(item => item.tool === transferTool(operation) && item.commands?.includes(operation))) {
+      throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+    }
+  } else if (owner.reauthenticatedAt === null || owner.reauthenticatedAt > now
     || owner.reauthenticatedAt + authDefaults.recentAuthMs <= now) throw new ArtiumError('REAUTH_REQUIRED')
+  checkTransferPolicy(db, owner.userId, operation)
+}
+
+export function checkTransferPolicy(db: Database.Database, userId: string, operation: TransferScope['selection']['operation']): void {
   const name = transferTool(operation)
-  checkToolPolicy(db, owner.userId, name)
+  checkToolPolicy(db, userId, name)
   const tool = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(name) as { native_settings: string }
   const settings = JSON.parse(tool.native_settings)
   if (name === 'mg-axi' && !settings.enabledPacks?.includes('mail')) throw new ArtiumError('FLAG_BLOCKED')

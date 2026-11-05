@@ -140,7 +140,7 @@ export class ArtifactStore {
     return next
   }
 
-  async reserve(input: TransferScope, context: Pick<RunContext, 'requestId' | 'clientAddress'>): Promise<ArtifactReservation> {
+  async reserve(input: TransferScope, context: Pick<RunContext, 'requestId' | 'clientAddress'> & { delegationId?: string }): Promise<ArtifactReservation> {
     const scope = transferScopeSchema.parse(input)
     return this.serialized(async () => {
       if (this.closed) throw new ArtiumError('RUNNER_CLOSED')
@@ -152,7 +152,7 @@ export class ArtifactStore {
       const bytes = await this.inventory()
       if (host.freeBytes + bytes < (this.entries.size + 1) * transferLimits.artifactBytes) unavailable()
       const record = (outcome: z.infer<typeof transferOutcomeSchema>, evidence?: NativeArtifactIdentity, archive?: ArtifactArchive) => {
-        this.audit.record({ event: 'transfer', userId: scope.userId, tool: transferTool(scope.selection.operation), requestId: context.requestId,
+        this.audit.record({ event: 'transfer', userId: scope.userId, delegationId: context.delegationId, tool: transferTool(scope.selection.operation), requestId: context.requestId,
           clientAddress: context.clientAddress, outcome, credentialRevision: scope.credentialRevision,
           transfer: { transfer_id: scope.transferId, session_family_id: scope.sessionFamilyId,
             transfer_operation: scope.selection.operation, artifact_type: scope.selection.type, artifact_selector: transferAuditSelector(scope),
