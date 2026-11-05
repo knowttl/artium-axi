@@ -7,6 +7,8 @@ import type { Adapter } from './types.js'
 import { CredentialProfile } from './credential-profile.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 import { writePolicy } from './write-policy.js'
+import { classifyCommand } from './classify.js'
+import { verifyShodanPackage } from './shodan-package.js'
 
 export const shodanProfile = new CredentialProfile(inventory.credentialSchema, 'shodan-axi')
 export const shodanWritePolicy = writePolicy({ reason: 'Only account reads are available.',
@@ -39,10 +41,12 @@ export function createShodanAdapter(source: SecretSource): Adapter<unknown> {
     credentialSchema: shodanProfile.credentialSchema, timeoutMs: runnerLimits.timeoutMs,
     blockedFlags: inventory.adapterBoundary.unsafeOverrides.map(name => `--${name}`), allowedFlagValues: {},
     sensitiveArguments: args => ({ flags: args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0]), positions: [] }),
+    classify: (args, input) => classifyCommand(inventory.commands, (a, i) => argumentsForRead(a, i).invocation, args, input),
     validateArgs: (args, input) => { argumentsForRead(args, input) },
     async prepare(args, reference, input) {
       const call = argumentsForRead(args, input)
       if (reference.tool !== 'shodan-axi') throw new ArtiumError('CREDENTIAL_INVALID')
+      verifyShodanPackage()
       return { executable: process.execPath, args: [toolPaths['shodan-axi'], ...call.args], invocation: call.invocation,
         effect: 'read', ...shodanProfile.prepare('shodan-axi', await source.getCredential(reference), undefined, true),
         limits: { timeoutMs: runnerLimits.timeoutMs } }

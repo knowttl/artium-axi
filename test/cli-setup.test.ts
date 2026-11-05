@@ -30,8 +30,7 @@ const server = createServer((request, reply) => {
   }
   reply.setHeader('content-type', 'application/json')
   reply.end(JSON.stringify(skillResponse ?? { skills: granted.map(name => ({ name,
-    content: loadToolSkill(name, name === 'shodan-axi' && process.env.SHODAN_AXI_PACKAGE_DIR
-      ? join(process.env.SHODAN_AXI_PACKAGE_DIR, 'skills/shodan-axi/SKILL.md') : toolSkillPaths[name].replace(/^\/opt\//, '')) })) }))
+    content: loadToolSkill(name, toolSkillPaths[name].replace(/^\/opt\//, '')) })) }))
 })
 beforeAll(async () => {
   copyClientInput('bundle', bundle)

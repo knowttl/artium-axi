@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { once } from 'node:events'
-import { expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test } from 'vitest'
 import { toolSchema } from '../../src/shared/api.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
@@ -19,6 +19,7 @@ import { createUnifiAdapter } from '../../src/server/adapters/unifi.js'
 import { createProxmoxAdapter } from '../../src/server/adapters/proxmox.js'
 import { createTechnitiumAdapter } from '../../src/server/adapters/technitium.js'
 import { createShodanAdapter } from '../../src/server/adapters/shodan.js'
+import { toolPaths } from '../../src/server/config.js'
 import { createGiteaAdapter } from '../../src/server/adapters/gitea.js'
 import { createKubernetesAdapter } from '../../src/server/adapters/kubernetes.js'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
@@ -30,6 +31,9 @@ import { createLdapService } from '../fake-service/ldap.mjs'
 import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-transport.js'
 
 const identity = { tenantId: azureTestTenant, clientId: '22222222-2222-4222-8222-222222222222' }
+const previousShodanPath = toolPaths['shodan-axi']
+beforeEach(() => { Object.assign(toolPaths, { 'shodan-axi': join(process.cwd(), 'tools/node_modules/@knowttl/shodan-axi/bin/shodan-axi.js') }) })
+afterEach(() => { Object.assign(toolPaths, { 'shodan-axi': previousShodanPath }) })
 const profile = (tool: 'mg-axi' | 'vectra-axi') => loadCredentialProfile(tool,
   join(process.cwd(), `tools/node_modules/@knowttl/${tool}/axi-credential.schema.json`))!
 

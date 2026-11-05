@@ -1,8 +1,7 @@
 import { execFile } from 'node:child_process'
-import { readdirSync, writeFileSync } from 'node:fs'
+import { cpSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { pathToFileURL } from 'node:url'
 import { expect, test } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createShodanAdapter } from '../../src/server/adapters/shodan.js'
@@ -19,9 +18,32 @@ import { copyClientInput } from '../fixtures/client-inputs.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { withFakeService } from '../fake-service/fixture.js'
 
+test('a package inventory mismatch is refused before credential access', async () => {
+  const packageRoot = join(process.cwd(), 'tools/node_modules/@knowttl/shodan-axi')
+  await withFakeService(async ({ directory }) => {
+    const previousPath = toolPaths['shodan-axi']
+    let credentialReads = 0
+    const adapter = createShodanAdapter({ getCredential: async () => {
+      credentialReads++
+      return { auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' }
+    } })
+    const reference = { id: 'synthetic-credential', tool: 'shodan-axi' as const, revision: 1 }
+    try {
+      Object.assign(toolPaths, { 'shodan-axi': join(packageRoot, 'bin/shodan-axi.js') })
+      await adapter.prepare(['info'], reference)
+      expect(credentialReads).toBe(1)
+      const altered = join(directory, 'altered-package')
+      cpSync(packageRoot, altered, { recursive: true, dereference: true })
+      writeFileSync(join(altered, 'command-inventory.json'), '{}')
+      Object.assign(toolPaths, { 'shodan-axi': join(altered, 'bin/shodan-axi.js') })
+      await expect(adapter.prepare(['info'], reference)).rejects.toMatchObject({ code: 'SPAWN_FAILED' })
+      expect(credentialReads).toBe(1)
+    } finally { Object.assign(toolPaths, { 'shodan-axi': previousPath }) }
+  })
+})
+
 test('packaged account reads use the managed profile through the real runner', async () => {
-  const packageRoot = process.env.SHODAN_AXI_PACKAGE_DIR
-  if (!packageRoot) throw new Error('SHODAN_AXI_PACKAGE_DIR must name the installed package')
+  const packageRoot = join(process.cwd(), 'tools/node_modules/@knowttl/shodan-axi')
   await withFakeService(async ({ directory, port, send }) => {
     const bootstrap = join(directory, 'shodan-fake-route.mjs')
     const executable = join(packageRoot, 'bin/shodan-axi.js')
@@ -34,7 +56,6 @@ https.request = (url, options, callback) => {
   return request(url, options, callback)
 }
 syncBuiltinESMExports()
-await import(${JSON.stringify(pathToFileURL(executable).href)})
 `)
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
@@ -45,14 +66,20 @@ await import(${JSON.stringify(pathToFileURL(executable).href)})
     db.prepare("UPDATE tools SET enabled = 1 WHERE name = 'shodan-axi'").run()
     const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
     const previousPath = toolPaths['shodan-axi']
-    Object.assign(toolPaths, { 'shodan-axi': bootstrap })
+    Object.assign(toolPaths, { 'shodan-axi': executable })
     const source = new EmbeddedSecretSource(store)
     let credentialReads = 0
-    const app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {},
-      resolver: new SharedIdentityResolver(store), adapters: [createShodanAdapter({ getCredential: reference => {
+    const adapter = createShodanAdapter({ getCredential: reference => {
         credentialReads++
         return source.getCredential(reference)
-      } })] })
+      } })
+    const prepare = adapter.prepare.bind(adapter)
+    adapter.prepare = async (...input) => {
+      const call = await prepare(...input)
+      return { ...call, args: ['--import', bootstrap, ...call.args] }
+    }
+    const app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {},
+      resolver: new SharedIdentityResolver(store), adapters: [adapter] })
     try {
       const url = await app.listen({ host: '127.0.0.1', port: 0 })
       const token = issueTestAccessToken(db, 'synthetic-development-user')
@@ -72,7 +99,7 @@ await import(${JSON.stringify(pathToFileURL(executable).href)})
           ARTIUM_AXI_TEST_HTTP: '1', SHODAN_AXI_API_KEY: 'CANARY-conflicting-key' } })
       const info = await cli(['info'])
       const account = await cli(['account', 'profile'])
-      expect((await cli(['version'], false)).stdout.trim()).toBe('0.1.0')
+      expect((await cli(['version'], false)).stdout.trim()).toBe('0.1.1')
       expect(JSON.parse(info.stdout)).toMatchObject({ plan: 'synthetic', query_credits: 20, scan_credits: 98 })
       expect(JSON.parse(account.stdout)).toMatchObject({ member: false, credits: 7 })
       expect(info.stdout + info.stderr + account.stdout + account.stderr).not.toContain('CANARY-')
