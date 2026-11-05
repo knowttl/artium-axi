@@ -1,4 +1,5 @@
 import inventory from '../../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { toolAllowsWrites, transferTool } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
@@ -82,6 +83,7 @@ export function createCheckpointAdapter(source: SecretSource, writeLog: string):
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { checkpointArguments(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => checkpointArguments(a, i).invocation.command, args, input),
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'checkpoint-axi' || transferTool(scope.selection.operation) !== reference.tool
         || reference.revision !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')

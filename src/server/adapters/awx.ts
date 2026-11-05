@@ -1,4 +1,5 @@
 import inventory from '../../../tools/inventories/awx-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { writePolicy } from './write-policy.js'
 import { runnerLimits, toolPaths } from '../config.js'
@@ -138,6 +139,7 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
     sensitiveArguments: args => ({ flags: Object.keys(Object.assign({}, ...inventory.commands.map(route => route.flags))).map(name => `--${name}`),
       positions: args.map((_, index) => index).filter(index => index > 1) }),
     validateArgs: (args, input) => { awxArguments(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => awxArguments(a, i).invocation.command, args, input),
     async prepare(args, reference, input) {
       const normalized = awxArguments(args, input)
       if (reference.tool !== 'awx-axi') throw new ArtiumError('CREDENTIAL_INVALID')
