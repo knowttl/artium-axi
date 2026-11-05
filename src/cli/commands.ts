@@ -85,7 +85,7 @@ async function main(args: string[]) {
           const hosted = name === 'kubernetes-axi' ? resolveKubernetesHostedCommand(hostedArgs) : undefined
           if (hosted && kubernetesHostedRoutes.some(route => route.command === hosted)) {
             if (!tool.commands?.includes(hosted)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
-            await kubernetesHosted(hostedArgs, () => client, (text, stream = 'stdout') => output(stream, text))
+            await kubernetesHosted(hostedArgs, () => client, (text, stream = 'stdout') => output(stream, text), tool.commands)
             return
           }
           const parsed = runSuccessSchema.safeParse(await client.authenticated(`/v1/tools/${name}/run`, 'POST', { args: args.slice(1) }))

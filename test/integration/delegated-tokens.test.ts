@@ -310,6 +310,37 @@ test.each([
   expect(managed.stdout).toContain(text)
 })
 
+test.each([
+  { selection: 'workspace show', args: ['workspace', 'show'], commands: ['workspace show <id>'], help: [] },
+  { selection: 'session start exec', args: ['session', 'start', 'exec'],
+    commands: ['session start <kind> [--workspace <id>] [--stdin-file <file>] -- <native arguments>'],
+    help: ['Kinds: exec. Every kind needs its explicit caller grant; mutations additionally need Allow writes.'] },
+])('delegated hosted help only advertises permitted commands and kinds: $selection', async ({ selection, args, commands, help }) => {
+  await app.close()
+  db.prepare("UPDATE tools SET enabled=1, native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ allowWrites: true, sessions: { grants: { 'synthetic-development-user': ['exec'] } } }))
+  const adapter = await createKubernetesAdapter(new EmbeddedSecretSource(credentials),
+    join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), join(directory, 'requests'))
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-hosted-help')), audit: new Audit(db),
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const grant = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+    scope: { tools: [{ tool: 'kubernetes-axi', commands: [selection] }] }, readOnly: false, reusable: false,
+    expiresAt: Date.now() + 600_000 }, [adapter])
+  const session = exchangeDelegation(db, grant.token)
+  new SessionStore(url, join(directory, 'agent', 'artium-axi', 'session.json')).write(session, undefined, true)
+  for (const format of [[], ['--json']]) {
+    const stored = await cli(['kubernetes-axi', ...args, '--help', ...format], '', 'agent')
+    const managed = await cli(['--managed-session', 'kubernetes-axi', ...args, '--help', ...format], '', 'agent', false, {}, { accessToken: session.accessToken })
+    for (const result of [stored, managed]) {
+      expect(result.code, result.stdout).toBe(0)
+      const output = (format.length ? JSON.parse(result.stdout) : decode(result.stdout)) as { commands: string[], help: string[] }
+      expect(output.commands).toEqual(commands)
+      expect(output.help).toEqual(help)
+    }
+  }
+})
+
 test('read-only token limits real CLI calls and revocation stops the session', async () => {
   expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
   const token = await mint()
