@@ -8,7 +8,7 @@ import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import type { z } from 'zod'
 import { ArtiumError } from '../shared/errors.js'
-import { kubernetesBinding, kubernetesOwner, type KubernetesOwner } from './policy/kubernetes.js'
+import { authorizeKubernetesOwner, kubernetesBinding, kubernetesOwner, type KubernetesOwner } from './policy/kubernetes.js'
 import { kubernetesWorkspaceManifest as manifestSchema, kubernetesWorkspacePath as workspacePath } from '../shared/kubernetes.js'
 import type { Audit } from './audit/audit.js'
 import { runnerLimits } from './config.js'
@@ -54,9 +54,13 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     return path
   })()
   app.addHook('onReady', async () => { await root })
-  const ownerFor = (request: FastifyRequest) => kubernetesOwner(db, request)
+  const ownerFor = (request: FastifyRequest, command?: string) => {
+    const owner = kubernetesOwner(db, request)
+    if (command) authorizeKubernetesOwner(owner, adapter, command)
+    return owner
+  }
   const record = (request: FastifyRequest, owner: KubernetesOwner, id: string, action: string) =>
-    audit.record({ event: 'admin-change', userId: owner.user, tool: 'kubernetes-axi', requestId: request.id,
+    audit.record({ event: 'admin-change', userId: owner.user, delegationId: owner.delegation?.id, tool: 'kubernetes-axi', requestId: request.id,
       clientAddress: request.ip, outcome: 'success', action: 'kubernetes-workspace-' + action, targetId: id })
   function access(workspace: Workspace) {
     if (workspace.controller.signal.aborted || workspace.expiresAt <= Date.now()) throw new ArtiumError('TOKEN_EXPIRED')
@@ -72,8 +76,8 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     })()
     return workspace.closing
   }
-  async function selected(request: FastifyRequest, id: string) {
-    const owner = ownerFor(request)
+  async function selected(request: FastifyRequest, id: string, command = 'workspace show') {
+    const owner = ownerFor(request, command)
     const workspace = workspaces.get(id)
     if (!workspace || workspace.owner.user !== owner.user || workspace.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
     try { access(workspace) }
@@ -90,7 +94,7 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     ready: [...workspace.files.values()].every(file => file.state === 'ready') })
   const prefix = '/v1/tools/kubernetes-axi/workspaces'
   app.post(prefix, async (request, reply) => {
-    const owner = ownerFor(request)
+    const owner = ownerFor(request, 'workspace create')
     const parsed = manifestSchema.safeParse(request.body)
     if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
     const { files, lifetimeSeconds } = parsed.data
@@ -104,7 +108,9 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     if (new SecretScanner(prepared.secrets).scan('stdout', Buffer.from(JSON.stringify(files)))) throw new ArtiumError('SECRET_IN_OUTPUT')
     const id = randomUUID()
     const directory = join(await root, 'workspace-' + id)
-    if (workspaces.size >= runnerLimits.globalCalls || [...workspaces.values()].filter(entry => entry.owner.user === owner.user).length >= runnerLimits.userCalls) throw new ArtiumError('TOO_MANY_CALLS')
+    const owned = [...workspaces.values()].filter(entry => entry.owner.user === owner.user)
+    if (workspaces.size >= runnerLimits.globalCalls || owned.length >= runnerLimits.userCalls ||
+      owner.delegation && owned.filter(entry => entry.owner.delegation).length >= 2) throw new ArtiumError('TOO_MANY_CALLS')
     const binding = kubernetesBinding(db, owner)
     if (binding.credential.id !== credential.id || binding.credential.revision !== credential.revision) throw new ArtiumError('REVISION_CONFLICT')
     mkdirSync(directory, { mode: 0o700 })
@@ -123,7 +129,7 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     return reply.header('cache-control', 'no-store').send(view(workspace))
   })
   app.delete<{ Params: { id: string } }>(`${prefix}/:id`, async (request, reply) => {
-    const workspace = await selected(request, request.params.id)
+    const workspace = await selected(request, request.params.id, 'workspace delete')
     await discard(workspace)
     record(request, workspace.owner, workspace.id, 'delete')
     return reply.code(204).send()
@@ -133,7 +139,7 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
   app.register(async routes => {
     routes.addContentTypeParser('application/octet-stream', (_request, payload, done) => done(null, payload))
     routes.put<{ Params: { id: string, '*': string } }>(`${prefix}/:id/files/*`, async (request, reply) => {
-      const workspace = await selected(request, request.params.id)
+      const workspace = await selected(request, request.params.id, 'workspace create')
       const file = workspace.files.get(request.params['*'])
       if (!file || file.state !== 'empty' || !(request.body instanceof Readable)) throw new ArtiumError('INVALID_INPUT')
       file.state = 'uploading'
@@ -173,7 +179,7 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     })
   })
   app.get<{ Params: { id: string, '*': string } }>(`${prefix}/:id/files/*`, async (request, reply) => {
-    const workspace = await selected(request, request.params.id)
+    const workspace = await selected(request, request.params.id, 'workspace download')
     const { bytes, sha256 } = await kubernetesByteLease(workspace, async () => {
       const file = workspace.files.get(request.params['*'])
       if (!file || file.state !== 'ready' || request.headers.range) throw new ArtiumError('INVALID_INPUT')
@@ -195,13 +201,19 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     ownerFor(request); access(workspace)
     return sendKubernetesBytes(reply, workspace, bytes, sha256)
   })
-  app.addHook('onSend', async (_request, _reply, payload) => {
+  const reconcile = async () => {
     for (const workspace of workspaces.values()) {
       try { access(workspace) } catch { await discard(workspace) }
     }
+  }
+  const monitor = setInterval(() => { void reconcile().catch(() => {}) }, 1000)
+  monitor.unref()
+  app.addHook('onSend', async (_request, _reply, payload) => {
+    await reconcile()
     return payload
   })
   app.addHook('preClose', async () => {
+    clearInterval(monitor)
     await Promise.all([...workspaces.values()].map(discard))
     await rm(await root, { recursive: true, force: true })
   })

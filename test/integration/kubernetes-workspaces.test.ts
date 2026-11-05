@@ -13,6 +13,9 @@ import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
+import { createDelegation, revokeDelegation } from '../../src/server/auth/delegations.js'
+import { exchangeDelegation } from '../../src/server/auth/tokens.js'
+import type { Adapter } from '../../src/server/adapters/types.js'
 
 const prefix = '/v1/tools/kubernetes-axi/workspaces'
 const user = 'synthetic-development-user'
@@ -24,6 +27,7 @@ let directory: string
 let db: Database.Database
 let app: ReturnType<typeof createApp>
 let headers: { authorization: string }
+let adapter: Adapter<unknown>
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
@@ -35,7 +39,7 @@ beforeEach(async () => {
   const credentials = createCredentialStore(db, key)
   credentials.replaceCredential('kubernetes-axi', { origin: 'https://127.0.0.1:1', auth: 'token',
     namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, 0, user, Date.now())
-  const adapter = await createKubernetesAdapter(new EmbeddedSecretSource(credentials), join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), join(directory, 'requests'))
+  adapter = await createKubernetesAdapter(new EmbeddedSecretSource(credentials), join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), join(directory, 'requests'))
   app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')),
     resolver: new SharedIdentityResolver(credentials), adapters: [adapter], credentialStore: credentials, environment: {} })
   headers = { authorization: `Bearer ${issueTestAccessToken(db, user)}` }
@@ -166,4 +170,65 @@ test('session kinds require explicit caller grants before any worker is admitted
   const refused = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/sessions', headers,
     payload: { kind: 'logs', argv: ['logs', 'synthetic-pod', '--follow'] } })
   expect(refused.json().error.code).toBe('TOOL_NOT_GRANTED')
+})
+
+function delegated(commands?: string[], readOnly = false) {
+  db.exec('UPDATE delegation_settings SET minting_enabled = 1')
+  const grant = createDelegation(db, user, { label: 'Synthetic', scope: { tools: [{ tool: 'kubernetes-axi', ...(commands ? { commands } : {}) }] },
+    readOnly, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
+  return { id: grant.id, headers: { authorization: `Bearer ${exchangeDelegation(db, grant.token).accessToken}` } }
+}
+
+test('delegated session kinds are independently scoped and read-only refuses setup', async () => {
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ allowWrites: true, sessions: { grants: { [user]: ['exec', 'port-forward'] } } }))
+  const scoped = delegated(['session start exec'])
+  const readOnly = delegated(undefined, true)
+  const wide = delegated()
+  const session = (auth: typeof headers, kind: string, argv: string[]) => app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/sessions', headers: auth, payload: { kind, argv } })
+  const port = await session(scoped.headers, 'port-forward', ['prepare', '--', 'port-forward', 'pod', '0:80'])
+  expect(port.json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+  const denied = await session(readOnly.headers, 'exec', ['prepare', '--', 'exec', 'pod', '--', 'true'])
+  expect(denied.json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+  const workspace = await app.inject({ method: 'POST', url: prefix, headers: readOnly.headers, payload: { files: [descriptor('input')] } })
+  expect(workspace.json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+  const tools = await app.inject({ url: '/v1/tools', headers: scoped.headers })
+  const commands = tools.json().tools.find((tool: { name: string }) => tool.name === 'kubernetes-axi').commands
+  expect(commands).toContain('session start exec')
+  expect(commands).not.toContain('session start port-forward')
+  const wideTools = await app.inject({ url: '/v1/tools', headers: wide.headers })
+  const wideCommands = wideTools.json().tools.find((tool: { name: string }) => tool.name === 'kubernetes-axi').commands
+  expect(wideCommands).toEqual(expect.arrayContaining(['session start watch', 'session start logs', 'session start exec',
+    'session start attach', 'session start apply', 'session start create', 'session start cp', 'session start port-forward']))
+  const readTools = await app.inject({ url: '/v1/tools', headers: readOnly.headers })
+  const readCommands = readTools.json().tools.find((tool: { name: string }) => tool.name === 'kubernetes-axi').commands
+  expect(readCommands.filter((command: string) => command.startsWith('session start '))).toEqual([])
+})
+
+test('delegated workspaces reserve owner capacity and revocation leaves the owner workspace intact', async () => {
+  const grant = delegated()
+  const make = (auth: typeof headers) => app.inject({ method: 'POST', url: prefix, headers: auth, payload: { files: [descriptor('input')] } })
+  const first = await make(grant.headers)
+  const second = await make(grant.headers)
+  expect(first.statusCode).toBe(200)
+  expect(second.statusCode).toBe(200)
+  expect((await make(grant.headers)).json().error.code).toBe('TOO_MANY_CALLS')
+  const owner = await make(headers)
+  expect(owner.statusCode).toBe(200)
+  revokeDelegation(db, grant.id, user, false)
+  expect((await app.inject({ url: `${prefix}/${first.json().id}`, headers: grant.headers })).statusCode).toBe(401)
+  expect((await app.inject({ url: `${prefix}/${owner.json().id}`, headers })).statusCode).toBe(200)
+  expect((await make(headers)).statusCode).toBe(200)
+})
+
+test('a create session requires an exact credential-issuing pick before credential access', async () => {
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ allowWrites: true, acquireCredential: true, sessions: { grants: { [user]: ['create'] } } }))
+  const wide = delegated()
+  const exact = delegated(['session start create', 'create token'])
+  db.exec("DELETE FROM credentials WHERE tool='kubernetes-axi'")
+  const start = (auth: typeof headers) => app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/sessions', headers: auth,
+    payload: { kind: 'create', argv: ['prepare', '--', 'create', 'token', 'synthetic-account'] } })
+  expect((await start(wide.headers)).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+  expect((await start(exact.headers)).json().error.code).toBe('CREDENTIAL_NOT_CONFIGURED')
 })
