@@ -8,7 +8,7 @@ import type { Adapter, PreparedCall } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
 import type { Audit, AuditEvent } from '../audit/audit.js'
 import { verifyAccessFamily, verifyAccessToken, verifyPrincipal } from '../auth/tokens.js'
-import { checkDelegation, credentialIssuingCommand } from '../auth/delegations.js'
+import { checkDelegation, credentialIssuingCommand, delegatedCommands, delegationIncludesTool } from '../auth/delegations.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { RunnerError } from './runner.js'
@@ -80,6 +80,13 @@ export async function runTool<Credential>(
       adapter.validateArgs(args, input)
       validateFileInput(adapter.name, args, input)
       if (principal?.delegation) {
+        if (!delegationIncludesTool(principal.delegation.scopeJson, adapter.name)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+        const commands = delegatedCommands(principal.delegation.scopeJson, readOnly, adapter)
+        if (commands && (args.length === 0 || args.length === 1 && args[0] === '--help')) {
+          const stdout = encode({ tool: adapter.name, commands }) + '\n'
+          return { stdout, stderr: '', exitCode: 0, durationMs: Date.now() - started,
+            outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
+        }
         const classification = adapter.classify(args, input)
         checkDelegation(principal.delegation.scopeJson, readOnly, adapter.name, classification.command, classification.effect)
         if (credentialIssuingCommand(adapter.name, classification.command)) credentialCommand = classification.command

@@ -14,7 +14,7 @@ import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './auth/local.js'
 import { exchangeDelegation, hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, requireRecentAuth, verifyAccessToken, verifyPasswordToken, verifyPrincipal } from './auth/tokens.js'
-import { createDelegation, delegationIncludesTool, revokeDelegation } from './auth/delegations.js'
+import { createDelegation, delegatedCommands, delegationIncludesTool, revokeDelegation } from './auth/delegations.js'
 import { kubernetesBinding } from './policy/kubernetes.js'
 import { ProxmoxAccess, proxmoxTrust } from './runner/proxmox.js'
 import { registerProxmoxStreams } from './proxmox-streams.js'
@@ -217,23 +217,28 @@ export function createApp(options: {
       const reference = adapter.name === 'awx-axi' ? options.credentialStore?.findCredential(adapter.name) : undefined
       const configured = adapter.name === 'ssh-axi' ? hasSshConfiguration(db, userId)
         : Boolean(row.configured) && !(reference && isAwxOriginOnly(adapter.name, options.credentialStore!.readCredential(reference)))
-      return { name: adapter.name, version: toolManifests[adapter.name].version,
+      const commands = delegation && delegatedCommands(delegation.scopeJson, delegation.readOnly, adapter)
+      return { name: adapter.name, version: toolManifests[adapter.name].version, ...(commands ? { commands } : {}),
         readOnly: !!delegation?.readOnly || !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: configured ? adapter.name === 'ssh-axi' ? 'unknown' : row.health ?? (health.checking(adapter.name) ? 'checking' : 'unknown') : 'unconfigured',
         ...(adapter.name !== 'ssh-axi' && configured && row.health === 'error' && row.errorCode ? { errorCode: row.errorCode } : {}) }
     })
     return toolsResponseSchema.parse({ tools })
   })
   app.get('/v1/skills', async (request, reply) => {
-    const userId = authenticate(db, bearer(request.headers.authorization))
+    const { userId, delegation } = verifyPrincipal(db, bearer(request.headers.authorization))
     const granted = db.prepare(`SELECT DISTINCT role_tools.tool AS name FROM user_roles
       JOIN role_tools ON role_tools.role_id = user_roles.role_id
       WHERE user_roles.user_id = ? ORDER BY role_tools.tool`).all(userId) as { name: ToolName }[]
     reply.header('cache-control', 'no-store')
-    return { skills: granted.map(tool => ({ name: tool.name, content: loadToolSkill(tool.name) })) }
+    return { skills: granted.filter(tool => !delegation || delegationIncludesTool(delegation.scopeJson, tool.name)).map(tool => {
+      const adapter = adapters.find(item => item.name === tool.name)
+      const commands = delegation && (adapter ? delegatedCommands(delegation.scopeJson, delegation.readOnly, adapter) : [])
+      return { name: tool.name, content: commands ? `# ${tool.name}\n\nPermitted commands:\n${commands.map(command => `- ${command}`).join('\n')}\n` : loadToolSkill(tool.name) }
+    }) }
   })
   app.get('/v1/me', async request => {
     const token = bearer(request.headers.authorization)
-    const userId = authenticate(db, token)
+    const { userId, delegation } = verifyPrincipal(db, token)
     const user = db.prepare('SELECT username, display_name, administrator FROM users WHERE id = ?').get(userId) as
       { username: string, display_name: string, administrator: number }
     const roles = db.prepare('SELECT DISTINCT name FROM roles JOIN user_roles ON roles.id = user_roles.role_id WHERE user_roles.user_id = ? ORDER BY name')
@@ -241,6 +246,13 @@ export function createApp(options: {
     const expiry = db.prepare(`SELECT tokens.expires_at, session_families.expires_at AS session_expires_at FROM tokens
       JOIN session_families ON session_families.id = tokens.family_id WHERE hash = ?`).get(hashToken(token)) as
       { expires_at: number, session_expires_at: number }
+    if (delegation) {
+      const row = db.prepare('SELECT label FROM delegations WHERE id = ?').get(delegation.id) as { label: string }
+      const granted = grantedAdapters(userId)
+      return { username: user.username, displayName: user.display_name, delegation: { label: row.label, expiresAt: delegation.expiresAt,
+        scope: { tools: JSON.parse(delegation.scopeJson).tools.filter((item: { tool: ToolName }) => granted.some(adapter => adapter.name === item.tool)) } },
+      accessExpiresAt: expiry.expires_at, sessionExpiresAt: expiry.session_expires_at }
+    }
     return { username: user.username, displayName: user.display_name, administrator: Boolean(user.administrator),
       roles: roles.map(role => role.name), accessExpiresAt: expiry.expires_at, sessionExpiresAt: expiry.session_expires_at }
   })
@@ -287,6 +299,20 @@ export function createApp(options: {
       requireRecentAuth(db, token, typeof ticket === 'string' ? ticket : '')
       const input = createDelegationSchema.safeParse(request.body)
       if (!input.success) throw new ArtiumError('INVALID_INPUT')
+      for (const item of input.data.scope.tools) {
+        if (!item.commands) continue
+        const adapter = adapters.find(adapter => adapter.name === item.tool)
+        if (!adapter) throw new ArtiumError('INVALID_INPUT')
+        item.commands = item.commands.map(pattern => {
+          if (!/^(?:[a-z0-9-]+(?: [a-z0-9-]+)*(?: \*)?|\*)$/.test(pattern)) throw new ArtiumError('INVALID_INPUT')
+          if (pattern === '*') return pattern
+          const wildcard = pattern.endsWith(' *')
+          const words = (wildcard ? pattern.slice(0, -2) : pattern).split(' ')
+          const resolved = adapter.classify(wildcard ? [...words, '--help'] : words).command
+          if (resolved === 'unknown' || resolved === 'home') throw new ArtiumError('INVALID_INPUT')
+          return resolved + (wildcard ? ' *' : '')
+        })
+      }
       const id = randomUUID()
       const creator = userId
       const result = audit.change({ event: 'token-create', userId, delegationId: id, tool: null, targetId: id,

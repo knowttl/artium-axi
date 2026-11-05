@@ -73,7 +73,7 @@ test('delegated AWX credential creation requires an exact writable pick', async 
       payload: { label: 'Synthetic', scope: { tools: [{ tool: 'awx-axi', ...(commands ? { commands } : {}) }] },
         readOnly, reusable: false, expiresAt: Date.now() + 600_000 } })
     const wildcard = await create(['user *'], false)
-    expect(wildcard.statusCode).toBe(400)
+    expect(wildcard.statusCode).toBe(200)
     for (const [config, commands, readOnly, allowed] of [
       ['wide', undefined, false, false], ['readonly', ['user token-create'], true, false], ['exact', ['user token-create'], false, true],
     ] as const) {
@@ -84,6 +84,13 @@ test('delegated AWX credential creation requires an exact writable pick', async 
       expect(login.code).toBe(0)
       expect((login.stdout + login.stderr + login.argv.join(' ')).includes(token)).toBe(false)
       if (allowed) {
+        const discovery = await cli(config, ['tools', 'show', 'awx-axi'])
+        expect(discovery.stdout).toContain('user token-create')
+        expect(discovery.stdout).not.toContain('job list')
+        const rootHelp = await cli(config, ['awx-axi', '--help'])
+        expect(rootHelp.stdout).toContain('user token-create')
+        expect(rootHelp.stdout).not.toContain('job list')
+        expect((await cli(config, ['session-context'])).stdout).toContain('awx-axi')
         expect((await cli(config, ['awx-axi', 'user', 'token-create', '42', '--help'])).code).toBe(0)
         expect((await cli(config, ['awx-axi', 'user', 'token-create', '42', '--dry-run'])).code).toBe(0)
         expect(db.prepare("SELECT outcome FROM audit WHERE event = 'credential-issue' ORDER BY id").all())
@@ -118,6 +125,35 @@ test('read-only delegated AWX stdout remains retrievable as data (R8)', async ()
     const downloaded = await app.inject({ url: result.path, headers: delegated })
     expect(downloaded.statusCode).toBe(200)
     expect(downloaded.body).toBe('synthetic log\n')
+  })
+})
+
+test('command-scoped discovery and enforcement follow the delegated grant', async () => {
+  await withTokenService(async ({ app, db, headers }) => {
+    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
+    const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+    const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
+      headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { label: 'Synthetic',
+        scope: { tools: [{ tool: 'awx-axi', commands: ['job list'] }] }, readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 } })
+    const exchanged = await app.inject({ method: 'POST', url: '/v1/auth/delegated', payload: { token: minted.json().token } })
+    const delegated = { authorization: `Bearer ${exchanged.json().accessToken}` }
+    const tools = await app.inject({ url: '/v1/tools', headers: delegated })
+    expect(tools.json().tools[0].commands).toEqual(['job list'])
+    const skills = await app.inject({ url: '/v1/skills', headers: delegated })
+    expect(skills.body).toContain('job list')
+    expect(skills.body).not.toContain('user token-create')
+    const me = await app.inject({ url: '/v1/me', headers: delegated })
+    expect(me.json()).toMatchObject({ delegation: { label: 'Synthetic' } })
+    expect(me.json()).not.toHaveProperty('roles')
+    const help = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers: delegated, payload: { args: ['--help'] } })
+    expect(help.body).toContain('job list')
+    expect(help.body).not.toContain('user token-create')
+    db.exec("DELETE FROM credentials WHERE tool = 'awx-axi'")
+    const denied = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers: delegated, payload: { args: ['user', 'list'] } })
+    expect(denied.json()).toMatchObject({ error: { code: 'DELEGATED_SCOPE_DENIED' } })
+    db.exec("DELETE FROM role_tools WHERE tool = 'awx-axi'")
+    expect((await app.inject({ url: '/v1/me', headers: delegated })).json().delegation.scope.tools).toEqual([])
+    expect((await app.inject({ url: '/v1/tools', headers: delegated })).json().tools).toEqual([])
   })
 })
 

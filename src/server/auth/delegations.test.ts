@@ -25,3 +25,19 @@ test.each(credentialOutputs)('Technitium $command accepts an exact writable dele
   const scope = JSON.stringify({ tools: [{ tool: 'technitium-axi', commands: [command] }] })
   expect(() => checkDelegation(scope, false, 'technitium-axi', command, effect)).not.toThrow()
 })
+
+test.each([
+  { tool: 'gh-axi', command: 'api' },
+  { tool: 'kubernetes-axi', command: 'native -- get' },
+] as const)('wildcard excludes the $command escape hatch', ({ tool, command }) => {
+  const scope = JSON.stringify({ tools: [{ tool, commands: ['*'] }] })
+  expect(() => checkDelegation(scope, false, tool, command, 'read'))
+    .toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
+})
+
+test('wildcards match complete command words', () => {
+  const scope = JSON.stringify({ tools: [{ tool: 'awx-axi', commands: ['job *'] }] })
+  expect(() => checkDelegation(scope, false, 'awx-axi', 'job list', 'read')).not.toThrow()
+  expect(() => checkDelegation(scope, false, 'awx-axi', 'job-template list', 'read'))
+    .toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
+})

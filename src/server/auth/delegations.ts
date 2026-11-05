@@ -8,6 +8,8 @@ import { hashToken, revokeFamily } from './tokens.js'
 import proxmox from '../../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 import kubernetes from '../../../tools/inventories/kubernetes-axi.json' with { type: 'json' }
 import type { ToolName } from '../store/credential-store.js'
+import { toolManifests } from '../../shared/tool-manifests.js'
+import type { Adapter } from '../adapters/types.js'
 
 const exactCommands: Partial<Record<ToolName, readonly string[]>> = {
   'awx-axi': ['user token-create'],
@@ -29,7 +31,7 @@ export function createDelegation(db: Database.Database, creatorId: string, input
   if (input.expiresAt <= now || input.expiresAt - now > settings.max_lifetime_ms) throw new ArtiumError('INVALID_INPUT')
   for (const item of input.scope.tools) {
     checkToolPolicy(db, creatorId, item.tool)
-    if (item.commands?.some(command => !exactCommands[item.tool]?.includes(command) && !escapeHatches[item.tool]?.includes(command))) throw new ArtiumError('INVALID_INPUT')
+    if (item.commands?.some(command => !/^(?:[a-z0-9-]+(?: [a-z0-9-]+)*(?: \*)?|\*)$/.test(command))) throw new ArtiumError('INVALID_INPUT')
   }
   const active = db.prepare('SELECT count(*) AS count FROM delegations WHERE creator_id = ? AND revoked_at IS NULL AND expires_at > ?')
     .get(creatorId, now) as { count: number }
@@ -46,14 +48,28 @@ export function checkDelegation(scopeJson: string, readOnly: boolean, tool: Tool
   const grants = scope.tools.filter(item => item.tool === tool)
   const operation = tool === 'kubernetes-axi' ? command.replace(/^(?:prepare|server-dry-run) -- /, '') : command
   const exact = grants.some(item => item.commands?.includes(operation))
+  const wildcard = operation !== 'unknown' && grants.some(item => item.commands?.some(pattern => pattern === '*' || pattern.endsWith(' *') && operation.startsWith(pattern.slice(0, -1))))
   const wide = grants.some(item => item.commands === undefined)
   const credentialCommand = exactCommands[tool]?.includes(operation)
   const escapeHatch = escapeHatches[tool]?.includes(command)
   const tokenWorkflow = tool === 'kubernetes-axi' && ['preview', 'confirm'].includes(command)
     && grants.some(item => item.commands?.includes('create token'))
-  if ((!wide && !exact && !tokenWorkflow) || ((credentialCommand || escapeHatch) && !exact) || (readOnly && (effect !== 'read' || credentialCommand))) {
+  if ((!wide && !exact && !wildcard && !tokenWorkflow) || ((credentialCommand || escapeHatch || /^(?:api|native)(?: |$)/.test(command)) && !exact) || (readOnly && (effect !== 'read' || credentialCommand))) {
     throw new ArtiumError('DELEGATED_SCOPE_DENIED')
   }
+}
+
+export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter: Adapter<unknown>): string[] | undefined {
+  const tool = adapter.name
+  const grants = delegationScopeSchema.parse(JSON.parse(scopeJson)).tools.filter(item => item.tool === tool)
+  if (grants.some(item => !item.commands)) return undefined
+  const manifest = toolManifests[tool] as { commands: { command: string, effect?: string }[], writeCommands?: { command: string, effect?: string }[], workflows?: { command: string, effect?: string }[] }
+  return [...new Set([...manifest.commands, ...manifest.writeCommands ?? [], ...manifest.workflows ?? []].flatMap(route => {
+    if (!route.command || route.command === 'home') return []
+    const classification = adapter.classify(route.command.split(' '))
+    try { checkDelegation(scopeJson, readOnly, tool, classification.command, classification.effect); return [route.command] }
+    catch { return [] }
+  }))].sort()
 }
 
 export function delegationIncludesTool(scopeJson: string, tool: ToolName): boolean {

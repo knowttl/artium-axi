@@ -446,6 +446,10 @@ The creator chooses an expiry within the administrator's cap and confirms their 
 Tokens are single-use by default; `--reusable` permits multiple exchanges until expiry or revocation.
 `--write` opts into writes that the creator and administrator can currently perform.
 Use repeatable `--tool` flags for tool-wide grants, and `--exact '<tool:command>'` for a reviewed exact selection such as `--exact 'awx-axi:user token-create' --write`.
+Use repeatable `--command '<tool:pattern>'` to restrict a tool to exact commands or a trailing wildcard word, for example `--command 'awx-axi:job *'`.
+Wildcards match command words and exclude API and native escape hatches and credential-producing commands, which require an exact selection.
+API and native selections can reach many operations and are broad.
+Command-scoped sessions receive filtered tool discovery, root help and skills, while native command help and error messages may mention other commands.
 Exact selections can be used alone or alongside tool-wide grants; see the [credential-producing boundary](safety.md#delegated-sessions) before selecting them.
 SSO creators use `--sso` instead of `--password-stdin` and approve the displayed browser code.
 Use `artium-axi token list` and `artium-axi token revoke <id>` to manage tokens.
