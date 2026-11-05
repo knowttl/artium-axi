@@ -11,6 +11,7 @@ import type { Adapter } from './adapters/types.js'
 import type { Audit } from './audit/audit.js'
 import { inspectShodanStream } from './adapters/shodan-stream.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
+import { log } from './log.js'
 import { shodanBinding, shodanOwner, type ShodanOwner } from './policy/shodan-stream.js'
 import type { CredentialReference } from './store/credential-store.js'
 import type { Runner } from './runner/runner.js'
@@ -189,6 +190,9 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
         await finish(session, 'failed')
         audit.record({ event: 'run-terminal', userId: owner.user, tool: 'shodan-axi', requestId: session.id, clientAddress,
           outcome: 'interrupted', action: 'unknown', exitCode: null, durationMs: Date.now() - startedAt, outputBytes: { stdout: null, stderr: null } })
+      }).catch(error => {
+        log('error', 'shodan-session-terminal', { requestId: session.id,
+          code: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
       })
       return view(session)
     } catch (error) { capacity.release(plan.id); await rm(plan.directory, { recursive: true, force: true }); throw error }
