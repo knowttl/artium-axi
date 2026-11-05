@@ -113,8 +113,8 @@ async function ready(input: Pick<TransferScope, 'selection' | 'targetDigest'> = 
 }
 function events() { return db.prepare("SELECT outcome, client_save_outcome, archive_bytes FROM audit WHERE event = 'transfer' ORDER BY id").all() as
   { outcome: string, client_save_outcome: string, archive_bytes: number | null }[] }
-async function cli(args: string[], started?: (child: ChildProcess) => void, managed = false, delegated = false) {
-  const child = spawn(process.execPath, [join(directory, 'artium-axi.mjs'), ...(managed ? ['--managed-session'] : []), 'download', ...args, ...(delegated ? [] : ['--password-stdin'])],
+async function cli(args: string[], started?: (child: ChildProcess) => void, managed = false, delegated = false, command = 'download') {
+  const child = spawn(process.execPath, [join(directory, 'artium-axi.mjs'), ...(managed ? ['--managed-session'] : []), command, ...args, ...(delegated ? [] : ['--password-stdin'])],
     { env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1', XDG_CONFIG_HOME: directory },
       stdio: ['pipe', 'pipe', 'pipe', 'pipe', 'pipe'] })
   let stdout = ''
@@ -189,6 +189,30 @@ test('delegated download help lists only authorized operations', async () => {
   expect(help.code).toBe(0)
   expect(help.stdout).toContain('hash-download-bin')
   expect(help.stdout).not.toContain('report-download-bin')
+})
+
+test('delegated skills advertise hosted downloads and native reads through their own CLI surfaces (R2)', async () => {
+  const { headers: delegatedHeaders } = delegated(['quota', 'hash-download-bin'])
+  const response = await fetch(`${url}/v1/skills`, { headers: delegatedHeaders })
+  expect(response.status).toBe(200)
+  const { skills } = await response.json()
+  expect(skills[0].content).toContain('`artium-axi download --operation hash-download-bin`')
+  expect(skills[0].content).toContain('`artium-axi hybrid-axi quota`')
+  expect(skills[0].content).not.toContain('artium-axi hybrid-axi hash-download-bin')
+})
+
+test.each([
+  { command: 'download', args: ['--operation', 'hash-download-bin', '--help'], code: 0, text: 'usage: artium-axi download' },
+  { command: 'hybrid-axi', args: ['hash-download-bin', '--help'], code: 0, text: 'usage: artium-axi download' },
+  { command: 'hybrid-axi', args: ['hash-download-bin', '-h'], code: 0, text: 'usage: artium-axi download' },
+  { command: 'hybrid-axi', args: ['help', 'hash-download-bin'], code: 0, text: 'usage: artium-axi download' },
+  { command: 'hybrid-axi', args: ['report-download-bin', '--help'], code: 1, text: 'DELEGATED_SCOPE_DENIED' },
+])('delegated transfer help uses the download surface with scope checks: $args (R2)', async ({ command, args, code, text }) => {
+  const { session } = delegated(['hash-download-bin'])
+  token = session.accessToken
+  const help = await cli(args, undefined, true, true, command)
+  expect(help.code, help.stdout + help.stderr).toBe(code)
+  expect(help.stdout).toContain(text)
 })
 
 test('delegated discovery hides downloads when the administrator revokes the operation', async () => {

@@ -82,9 +82,13 @@ async function main(args: string[]) {
     if (delegated) {
       const { tools } = toolsResponseSchema.parse(await client.authenticated('/v1/tools', 'GET'))
       if (tools.some(tool => tool.commands === undefined)) throw new ArtiumError('INVALID_RESPONSE')
-      if (help === 'download') {
+      const downloadOperation = toolDiscovery ? transferSelectionSchema.options.map(option => option.shape.operation.value)
+        .find(operation => transferTool(operation) === command
+          && operation === (toolWords[0] === 'help' ? toolWords.slice(1) : toolWords).join(' ')) : undefined
+      if (help === 'download' || downloadOperation) {
         const operations = transferSelectionSchema.options.map(option => option.shape.operation.value)
           .filter(operation => tools.some(tool => tool.name === transferTool(operation) && tool.commands?.includes(operation)))
+        if (downloadOperation && !operations.includes(downloadOperation)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         output('stdout', `usage: artium-axi download --operation <operation> --selector <selector> --type <type> --destination <absolute-new-path> [--transfer <id> --execute --confirm <exact-confirm>]\noperations: ${operations.length ? operations.join(', ') : 'none available'}\nPreview first, then repeat the selection and destination with the transfer ID and exact confirmation.\n`)
         return
       }
