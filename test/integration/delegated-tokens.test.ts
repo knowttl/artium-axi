@@ -93,7 +93,42 @@ test('token --command mints a wildcard selection (R12)', async () => {
     new Date(Date.now() + 600_000).toISOString(), '--password-stdin', '--token-fd', '3'], `${password}\n`, 'owner', true)
   expect(minted.code, minted.stdout).toBe(0)
   const row = db.prepare('SELECT scope_json FROM delegations').get() as { scope_json: string }
-  expect(JSON.parse(row.scope_json)).toEqual({ tools: [{ tool: 'falcon-axi', commands: ['detection *'] }] })
+  expect(JSON.parse(row.scope_json)).toMatchObject({ tools: [{ tool: 'falcon-axi', commands: [
+    { pattern: 'detection *', operations: expect.arrayContaining(['detection list']) },
+  ] }] })
+})
+
+test.each([
+  { pattern: 'defender alerts *', invocation: 'defender alerts get', operation: 'defender alerts get' },
+  { pattern: 'defender alerts *', invocation: 'defender alerts update', operation: 'security alert update' },
+  { pattern: 'monitor *', invocation: 'monitor activity-log list', operation: 'activity list' },
+  { pattern: 'security *', invocation: 'security alert list', operation: 'defender alerts' },
+  { pattern: 'security *', invocation: 'security secure-scores list', operation: 'defender score' },
+])('minted $pattern stores and authorizes canonical $operation (R24)', async ({ pattern, invocation, operation }) => {
+  await app.close()
+  db.prepare('UPDATE tools SET enabled = 1, native_settings = ? WHERE name = ?').run('{"allowWrites":true}', 'az-axi')
+  const adapter = createAzAdapter(new EmbeddedSecretSource(credentials), join(directory, 'writes.log'))
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-wildcards')), audit: new Audit(db),
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  const owner = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+  const recent = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: owner, payload: { password } })
+  const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
+    headers: { ...owner, 'x-artium-reauth-ticket': recent.json().ticket }, payload: { label: 'Synthetic',
+      scope: { tools: [{ tool: 'az-axi', commands: [pattern] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 600_000 } })
+  expect(minted.statusCode, minted.body).toBe(200)
+  const stored = db.prepare('SELECT scope_json FROM delegations WHERE id = ?').get(minted.json().id) as { scope_json: string }
+  expect(JSON.parse(stored.scope_json)).toMatchObject({ tools: [{ tool: 'az-axi', commands: [
+    { pattern, operations: expect.arrayContaining([operation]) },
+  ] }] })
+  expect(() => checkDelegation(stored.scope_json, false, adapter, 'sub list', 'read'))
+    .toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
+  const exchanged = exchangeDelegation(db, minted.json().token)
+  const headers = { authorization: `Bearer ${exchanged.accessToken}` }
+  const run = await app.inject({ method: 'POST', url: '/v1/tools/az-axi/run', headers,
+    payload: { args: [...invocation.split(' '), '--help'] } })
+  expect(run.json()).toMatchObject({ error: { code: 'CREDENTIAL_NOT_CONFIGURED' } })
+  const tools = await app.inject({ url: '/v1/tools', headers })
+  expect(tools.json().tools[0].commands).toContain(operation)
 })
 
 test.each<{ tool: ToolName, command: string, args: string[], parse?: (text: string) => unknown, code?: number,
@@ -121,7 +156,7 @@ test.each<{ tool: ToolName, command: string, args: string[], parse?: (text: stri
     adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
-    scope: { tools: [{ tool, commands: [command] }] }, readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 })
+    scope: { tools: [{ tool, commands: [command] }] }, readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
   expect((await cli(['login', '--token-stdin'], `${minted.token}\n`, 'agent')).code).toBe(0)
   const result = await cli([...args], '', 'agent')
   expect(result.code, result.stdout).toBe(code)
@@ -184,11 +219,12 @@ test.each([
     hostWrites: { allowWrites: true, operations: proxmoxInventory.writeOperations },
     writes: { allowWrites: true, operations: proxmoxInventory.writeOperations },
   }), 'proxmox-axi')
+  const adapter = createProxmoxAdapter(new EmbeddedSecretSource(credentials), join(directory, 'writes.log'))
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-batch')), audit: new Audit(db),
-    adapters: [createProxmoxAdapter(new EmbeddedSecretSource(credentials), join(directory, 'writes.log'))], environment: {},
+    adapters: [adapter], environment: {},
     resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
-    scope: { tools: [{ tool: 'proxmox-axi', commands }] }, readOnly, reusable: false, expiresAt: Date.now() + 600_000 })
+    scope: { tools: [{ tool: 'proxmox-axi', commands }] }, readOnly, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
   const exchanged = exchangeDelegation(db, minted.token)
   const response = await app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/run',
     headers: { authorization: `Bearer ${exchanged.accessToken}` }, payload: request })
@@ -209,7 +245,7 @@ test.each<{ tool: 'proxmox-axi' | 'unifi-axi', args: string[], allowed: string, 
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-listings')), audit: new Audit(db),
     adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic', scope: { tools: [{ tool }] },
-    readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 })
+    readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
   const exchanged = exchangeDelegation(db, minted.token)
   const response = await app.inject({ method: 'POST', url: `/v1/tools/${tool}/run`,
     headers: { authorization: `Bearer ${exchanged.accessToken}` }, payload: { args } })
@@ -228,12 +264,13 @@ test.each([
     0, 'synthetic-development-user', Date.now())
   db.prepare('UPDATE tools SET enabled = 1, native_settings = ? WHERE name = ?')
     .run(JSON.stringify({ writes: { allowWrites: true, operations: ['issue create'] } }), 'gh-axi')
+  const adapter = createGhAdapter(new EmbeddedSecretSource(credentials))
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-leaf-help')), audit: new Audit(db),
-    adapters: [createGhAdapter(new EmbeddedSecretSource(credentials))], environment: {},
+    adapters: [adapter], environment: {},
     resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
-    scope: { tools: [{ tool: 'gh-axi', commands: ['issue create'] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 600_000 })
+    scope: { tools: [{ tool: 'gh-axi', commands: ['issue create'] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
   expect((await cli(['login', '--token-stdin'], `${minted.token}\n`, 'agent')).code).toBe(0)
   const result = await cli(['gh-axi', 'issue', command, '--help'], '', 'agent')
   expect(result.code, result.stdout).toBe(code)
@@ -385,7 +422,7 @@ test.each([
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-help')), audit: new Audit(db),
     adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
-    scope: { tools: [{ tool, commands: [pattern] }] }, readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 })
+    scope: { tools: [{ tool, commands: [pattern] }] }, readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
   const exchanged = exchangeDelegation(db, minted.token)
   const response = await app.inject({ method: 'POST', url: `/v1/tools/${tool}/run`,
     headers: { authorization: `Bearer ${exchanged.accessToken}` }, payload: { args: [...args] } })
@@ -401,9 +438,9 @@ test.each([
   { tool: 'kubernetes-axi', selection: 'prepare -- create token', canonical: 'create token', execution: ['prepare', '--', 'create', 'token', '--help'], discovered: 'prepare -- create token' },
   { tool: 'kubernetes-axi', selection: 'server-dry-run -- create token', canonical: 'create token', execution: ['server-dry-run', '--', 'create', 'token', '--help'], discovered: 'server-dry-run -- create token' },
   { tool: 'kubernetes-axi', selection: 'native -- get', canonical: 'native -- get', execution: ['native', '--', 'get', '--help'], discovered: 'native -- get' },
-  { tool: 'kubernetes-axi', selection: 'create *', canonical: 'create *', execution: ['prepare', '--', 'create', 'deployment', '--help'], discovered: 'prepare -- create deployment' },
+  { tool: 'kubernetes-axi', selection: 'create *', canonical: expect.objectContaining({ pattern: 'create *', operations: expect.arrayContaining(['create deployment']) }), execution: ['prepare', '--', 'create', 'deployment', '--help'], discovered: 'prepare -- create deployment' },
   { tool: 'ado-axi', selection: 'wi list', canonical: 'work-item list', execution: ['wi', 'list', '--help'], discovered: 'work-item list' },
-  { tool: 'ado-axi', selection: 'prs *', canonical: 'pr *', execution: ['prs', 'list', '--help'], discovered: 'pr list' },
+  { tool: 'ado-axi', selection: 'prs *', canonical: expect.objectContaining({ pattern: 'prs *', operations: expect.arrayContaining(['pr list']) }), execution: ['prs', 'list', '--help'], discovered: 'pr list' },
   { tool: 'gh-axi', selection: 'issue list', canonical: 'issue list', execution: ['issue', 'list', '-R', 'synthetic/repository', '--help'], discovered: 'issue list' },
   { tool: 'az-axi', selection: 'role assignment list', canonical: 'rbac list', execution: ['role', 'assignment', 'list', '--help'], discovered: 'rbac list' },
   { tool: 'proxmox-axi', selection: 'post /access/users/{userid}/token/{tokenid}', canonical: 'create /access/users/{userid}/token/{tokenid}', execution: ['post', '/access/users/{userid}/token/{tokenid}', '--help'], discovered: 'create /access/users/{userid}/token/{tokenid}' },
@@ -481,7 +518,7 @@ test.each([
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-continuations')), audit: new Audit(db),
     adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
-    scope: { tools: [{ tool: 'kubernetes-axi', commands: [grant] }] }, readOnly, reusable: false, expiresAt: Date.now() + 600_000 })
+    scope: { tools: [{ tool: 'kubernetes-axi', commands: [grant] }] }, readOnly, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
   const exchanged = exchangeDelegation(db, minted.token)
   const scope = createHash('sha256').update(JSON.stringify({ userId: 'synthetic-development-user',
     family: verifyPrincipal(db, exchanged.accessToken).familyId, reference })).digest('hex')

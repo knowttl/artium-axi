@@ -14,7 +14,7 @@ import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './auth/local.js'
 import { exchangeDelegation, hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, requireRecentAuth, verifyAccessToken, verifyPasswordToken, verifyPrincipal } from './auth/tokens.js'
-import { createDelegation, delegatedDiscovery, delegationIncludesTool, resolveDelegatedPattern, revokeDelegation } from './auth/delegations.js'
+import { createDelegation, delegatedDiscovery, delegationIncludesTool, revokeDelegation } from './auth/delegations.js'
 import { kubernetesBinding } from './policy/kubernetes.js'
 import { ProxmoxAccess, proxmoxTrust } from './runner/proxmox.js'
 import { registerProxmoxStreams } from './proxmox-streams.js'
@@ -301,16 +301,10 @@ export function createApp(options: {
       requireRecentAuth(db, token, typeof ticket === 'string' ? ticket : '')
       const input = createDelegationSchema.safeParse(request.body)
       if (!input.success) throw new ArtiumError('INVALID_INPUT')
-      for (const item of input.data.scope.tools) {
-        if (!item.commands) continue
-        const adapter = adapters.find(adapter => adapter.name === item.tool)
-        if (!adapter) throw new ArtiumError('INVALID_INPUT')
-        item.commands = item.commands.map(pattern => resolveDelegatedPattern(pattern, adapter))
-      }
       const id = randomUUID()
       const creator = userId
       const result = audit.change({ event: 'token-create', userId, delegationId: id, tool: null, targetId: id,
-        requestId: request.id, clientAddress: request.ip, outcome: 'success' }, () => createDelegation(db, creator, input.data, id)).value
+        requestId: request.id, clientAddress: request.ip, outcome: 'success' }, () => createDelegation(db, creator, input.data, adapters, id)).value
       return reply.header('cache-control', 'no-store').send(result)
     } catch (error) {
       audit.record({ event: 'token-create', userId, tool: null, requestId: request.id, clientAddress: request.ip,

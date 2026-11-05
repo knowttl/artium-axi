@@ -77,7 +77,7 @@ test.each([
   { adapter: createBeyondtrustAdapter(source, writeLog), pattern: 'admin-request *', command: 'admin-request list' },
 ])('$pattern preserves its namespace instead of resolving a default leaf (R2)', ({ adapter, pattern, command }) => {
   const resolved = resolveDelegatedPattern(pattern, adapter)
-  expect(resolved).toBe(pattern)
+  expect(resolved).toMatchObject({ pattern, operations: expect.arrayContaining([command]) })
   const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: [resolved] }] })
   const classification = adapter.classify(command.split(' '))
   expect(() => checkDelegation(scope, false, adapter, classification.command, classification.effect)).not.toThrow()
@@ -88,19 +88,19 @@ test.each([
   { adapter: createAdoAdapter(source), allowed: 'pr list', blocked: ['pipeline runs artifact download', 'config show'] },
   { adapter: createMgAdapter(source, writeLog), allowed: 'entra user list', blocked: ['mail message export', 'profile list'] },
 ])('$adapter.name discovery excludes routes unavailable through the adapter (R4)', ({ adapter, allowed, blocked }) => {
-  const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: ['*'] }] })
+  const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: [resolveDelegatedPattern('*', adapter)] }] })
   const commands = delegatedCommands(scope, false, adapter)
   expect(commands).toContain(allowed)
   for (const command of blocked) expect(commands).not.toContain(command)
 })
 
 test.each([
-  { pattern: 'wi *', expected: 'work-item *' },
-  { pattern: 'prs *', expected: 'pr *' },
-  { pattern: 'work-item links *', expected: 'work-item link *' },
-  { pattern: 'wi links *', expected: 'work-item link *' },
+  { pattern: 'wi *', expected: 'work-item list' },
+  { pattern: 'prs *', expected: 'pr list' },
+  { pattern: 'work-item links *', expected: 'work-item link list' },
+  { pattern: 'wi links *', expected: 'work-item link list' },
 ])('$pattern resolves its supported alias namespace (R7)', ({ pattern, expected }) => {
-  expect(resolveDelegatedPattern(pattern, createAdoAdapter(source))).toBe(expected)
+  expect(resolveDelegatedPattern(pattern, createAdoAdapter(source))).toMatchObject({ pattern, operations: expect.arrayContaining([expected]) })
 })
 
 test.each(['get /version', 'create /access/users/{userid}/token/{tokenid}'])('Proxmox exact route %s is accepted (R1)', pattern => {
@@ -120,7 +120,8 @@ test('Proxmox wildcard still excludes credential issuance (R1)', () => {
 })
 
 test('Proxmox wildcard resolves the post namespace alias (R7)', () => {
-  expect(resolveDelegatedPattern('post *', createProxmoxAdapter(source))).toBe('create *')
+  expect(resolveDelegatedPattern('post *', createProxmoxAdapter(source)))
+    .toMatchObject({ pattern: 'post *', operations: expect.arrayContaining(['create /nodes/{node}/execute']) })
 })
 
 test('wildcard prefixes cannot consume descendant words as positional arguments (R7)', () => {
@@ -128,15 +129,29 @@ test('wildcard prefixes cannot consume descendant words as positional arguments 
     .toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
 })
 
+test('wildcard execution and discovery use the stored operation set (R24)', () => {
+  const adapter = createAzAdapter(source, writeLog)
+  const scope = JSON.stringify({ tools: [{ tool: adapter.name,
+    commands: [{ pattern: 'defender alerts *', operations: ['security alert update'] }] }] })
+  expect(() => checkDelegation(scope, false, adapter, 'security alert update', 'write')).not.toThrow()
+  expect(() => checkDelegation(scope, false, adapter, 'defender alerts get', 'read'))
+    .toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
+  const discovered = delegatedCommands(scope, false, adapter)
+  expect(discovered).toContain('security alert update')
+  expect(discovered).not.toContain('defender alerts get')
+})
+
 test.each([
   { pattern: 'monitor *', invocation: 'monitor activity-log list', canonical: 'activity list' },
   { pattern: 'security *', invocation: 'security alert list', canonical: 'defender alerts' },
   { pattern: 'security *', invocation: 'security secure-scores list', canonical: 'defender score' },
   { pattern: 'defender *', invocation: 'defender alerts update', canonical: 'security alert update' },
-])('Azure $pattern retains renamed descendant $invocation (R19)', ({ pattern, invocation, canonical }) => {
+  { pattern: 'defender alerts *', invocation: 'defender alerts get', canonical: 'defender alerts get' },
+  { pattern: 'defender alerts *', invocation: 'defender alerts update', canonical: 'security alert update' },
+])('Azure $pattern retains renamed descendant $invocation (R19, R24)', ({ pattern, invocation, canonical }) => {
   const adapter = createAzAdapter(source, writeLog)
   const resolved = resolveDelegatedPattern(pattern, adapter)
-  expect(resolved).toBe(pattern)
+  expect(resolved).toMatchObject({ pattern, operations: expect.arrayContaining([canonical]) })
   const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: [resolved] }] })
   const classification = classifyDelegatedCommand(adapter, [...invocation.split(' '), '--help'])
   expect(classification.command).toBe(canonical)
@@ -156,7 +171,7 @@ test.each([
 ])('Kubernetes $workflow -- $pattern grants canonical descendants (R16)', async ({ workflow, pattern, descendant }) => {
   const adapter = await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'))
   const resolved = resolveDelegatedPattern(`${workflow} -- ${pattern}`, adapter)
-  expect(resolved).toBe(pattern)
+  expect(resolved).toMatchObject({ pattern, operations: expect.arrayContaining([descendant]) })
   const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: [resolved] }] })
   const classification = classifyDelegatedCommand(adapter, [workflow, '--', ...descendant.split(' '), '--help'])
   expect(classification.command).toBe(descendant)
@@ -194,7 +209,7 @@ test.each([
       INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
       INSERT INTO tools (name, enabled, pinned_version, native_settings) VALUES ('kubernetes-axi', 1, 'synthetic', '{"allowWrites":true}');
       INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'kubernetes-axi')`)
-    const delegation = { scopeJson: JSON.stringify({ tools: [{ tool: adapter.name, commands: [grant] }] }), readOnly: false }
+    const delegation = { scopeJson: JSON.stringify({ tools: [{ tool: adapter.name, commands: [resolveDelegatedPattern(grant, adapter)] }] }), readOnly: false }
     const key = '00000000-0000-4000-8000-000000000001'
     expect(authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, ['prepare', '--', ...operation.split(' '), '--help']))
       .toEqual([{ command: operation, effect: 'write' }])
@@ -217,7 +232,7 @@ test.each([
 ])('Kubernetes $pattern resolves through mutation workflows (R9)', async ({ pattern, descendant }) => {
   const adapter = await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'))
   const resolved = resolveDelegatedPattern(pattern, adapter)
-  expect(resolved).toBe(pattern)
+  expect(resolved).toMatchObject({ pattern, operations: expect.arrayContaining([descendant]) })
   const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: [resolved] }] })
   expect(delegatedCommands(scope, false, adapter)).toContain(`prepare -- ${descendant}`)
   expect(delegatedCommands(scope, false, adapter)).toContain(`server-dry-run -- ${descendant}`)
@@ -230,8 +245,9 @@ test.each([
   { commands: undefined, readOnly: false, writes: ['job cancel'] },
   { commands: ['*'], readOnly: false, writes: ['job cancel'] },
 ])('AWX discovery filters broad grants with readOnly=$readOnly (R10)', ({ commands, readOnly, writes }) => {
-  const scope = JSON.stringify({ tools: [{ tool: 'awx-axi', commands }] })
-  const permitted = delegatedCommands(scope, readOnly, createAwxAdapter(source))
+  const adapter = createAwxAdapter(source)
+  const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: commands?.map(pattern => resolveDelegatedPattern(pattern, adapter)) }] })
+  const permitted = delegatedCommands(scope, readOnly, adapter)
   expect(permitted).toContain('job list')
   expect(permitted.filter(command => command === 'job cancel')).toEqual(writes)
   expect(permitted).not.toContain('user token-create')
@@ -253,8 +269,9 @@ test.each(credentialOutputs.flatMap(operation => [
   { ...operation, grant: 'wildcard', commands: ['*'], readOnly: false },
   { ...operation, grant: 'read-only exact', commands: [operation.command], readOnly: true },
 ]))('Technitium $command rejects a $grant delegation (R8)', ({ command, effect, commands, readOnly }) => {
-  const scope = JSON.stringify({ tools: [{ tool: 'technitium-axi', commands }] })
-  expect(() => checkDelegation(scope, readOnly, createTechnitiumAdapter(source), command, effect))
+  const adapter = createTechnitiumAdapter(source)
+  const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: commands?.map(pattern => resolveDelegatedPattern(pattern, adapter)) }] })
+  expect(() => checkDelegation(scope, readOnly, adapter, command, effect))
     .toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
 })
 
@@ -267,16 +284,16 @@ test.each([
   { tool: 'gh-axi', command: 'api' },
   { tool: 'kubernetes-axi', command: 'native -- get' },
 ] as const)('wildcard excludes the $command escape hatch', async ({ tool, command }) => {
-  const scope = JSON.stringify({ tools: [{ tool, commands: ['*'] }] })
   const adapter = tool === 'gh-axi' ? createGhAdapter(source)
     : await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'))
+  const scope = JSON.stringify({ tools: [{ tool, commands: [resolveDelegatedPattern('*', adapter)] }] })
   expect(() => checkDelegation(scope, false, adapter, command, 'read'))
     .toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
 })
 
 test('wildcards match complete command words', () => {
-  const scope = JSON.stringify({ tools: [{ tool: 'awx-axi', commands: ['job *'] }] })
   const adapter = createAwxAdapter(source)
+  const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: [resolveDelegatedPattern('job *', adapter)] }] })
   expect(() => checkDelegation(scope, false, adapter, 'job list', 'read')).not.toThrow()
   expect(() => checkDelegation(scope, false, adapter, 'job-template list', 'read'))
     .toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
@@ -290,7 +307,7 @@ test.each([
 ] as const)('canonical $tool $args remains excluded from wildcard grants (R15)', async ({ tool, args }) => {
   const adapter = tool === 'gh-axi' ? createGhAdapter(source)
     : await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'))
-  const scope = JSON.stringify({ tools: [{ tool, commands: ['*'] }] })
+  const scope = JSON.stringify({ tools: [{ tool, commands: [resolveDelegatedPattern('*', adapter)] }] })
   const classification = classifyDelegatedCommand(adapter, args)
   expect(classification.command).not.toBe('unknown')
   expect(() => checkDelegation(scope, false, adapter, classification.command, classification.effect))

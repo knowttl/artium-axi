@@ -40,21 +40,24 @@ function commandInvocations(tool: ToolName, command: string): string[] {
     ? [`prepare -- ${command}`, `server-dry-run -- ${command}`] : [command]
 }
 
-export function createDelegation(db: Database.Database, creatorId: string, input: z.infer<typeof createDelegationSchema>, id = randomUUID(), now = Date.now()) {
+export function createDelegation(db: Database.Database, creatorId: string, input: z.infer<typeof createDelegationSchema>, adapters: readonly Adapter<unknown>[], id = randomUUID(), now = Date.now()) {
   const settings = db.prepare('SELECT minting_enabled, max_lifetime_ms FROM delegation_settings WHERE id = 1').get() as
     { minting_enabled: number, max_lifetime_ms: number }
   if (!settings.minting_enabled) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
   if (input.expiresAt <= now || input.expiresAt - now > settings.max_lifetime_ms) throw new ArtiumError('INVALID_INPUT')
-  for (const item of input.scope.tools) {
+  const scope = { tools: input.scope.tools.map(item => {
     checkToolPolicy(db, creatorId, item.tool)
-    if (item.commands?.some(command => !commandPattern.test(command))) throw new ArtiumError('INVALID_INPUT')
-  }
+    if (!item.commands) return item
+    const adapter = adapters.find(adapter => adapter.name === item.tool)
+    if (!adapter) throw new ArtiumError('INVALID_INPUT')
+    return { ...item, commands: item.commands.map(pattern => resolveDelegatedPattern(pattern, adapter)) }
+  }) }
   const active = db.prepare('SELECT count(*) AS count FROM delegations WHERE creator_id = ? AND revoked_at IS NULL AND expires_at > ?')
     .get(creatorId, now) as { count: number }
   if (active.count >= 20) throw new ArtiumError('TOO_MANY_CALLS')
   const token = `artd_${randomBytes(32).toString('base64url')}`
   db.prepare(`INSERT INTO delegations (id, creator_id, token_hash, label, scope_json, read_only, single_use, created_at, expires_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, creatorId, hashToken(token), input.label, JSON.stringify(input.scope),
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, creatorId, hashToken(token), input.label, JSON.stringify(scope),
     Number(input.readOnly), Number(!input.reusable), now, input.expiresAt)
   return { id, token, expiresAt: input.expiresAt }
 }
@@ -64,8 +67,7 @@ export function checkDelegation(scopeJson: string, readOnly: boolean, adapter: A
   const scope = delegationScopeSchema.parse(JSON.parse(scopeJson))
   const grants = scope.tools.filter(item => item.tool === tool)
   const exact = grants.some(item => item.commands?.includes(command))
-  const wildcard = command !== 'unknown' && grants.some(item => item.commands?.some(pattern => pattern === '*'
-    || pattern.endsWith(' *') && wildcardDescendants(pattern, adapter, command).some(item => item.command === command)))
+  const wildcard = command !== 'unknown' && grants.some(item => item.commands?.some(selection => typeof selection !== 'string' && selection.operations.includes(command)))
   const wide = grants.some(item => item.commands === undefined)
   const credentialCommand = exactCommands[tool]?.includes(command)
   const escapeHatch = escapeHatches[tool]?.includes(command)
@@ -75,34 +77,32 @@ export function checkDelegation(scopeJson: string, readOnly: boolean, adapter: A
 }
 
 function commandRoutes(tool: ToolName) {
-  const manifest = toolManifests[tool] as { commands: { command: string, effect?: string, canonicalCommand?: string }[], writeCommands?: { command: string, effect?: string, canonicalCommand?: string }[], workflows?: { command: string, effect?: string, canonicalCommand?: string }[] }
+  type Route = { command: string, effect?: string, canonicalCommand?: string, aliases?: string[] }
+  const manifest = toolManifests[tool] as { commands: Route[], writeCommands?: Route[], workflows?: Route[] }
   return [...manifest.commands, ...manifest.writeCommands ?? [], ...manifest.workflows ?? []]
 }
 
-function wildcardDescendants(pattern: string, adapter: Adapter<unknown>, operation?: string) {
-  const words = commandOperation(adapter.name, pattern.slice(0, -2)).split(' ')
-  return commandRoutes(adapter.name).flatMap(route => {
-    if (operation !== undefined && commandOperation(adapter.name, route.canonicalCommand ?? route.command) !== operation) return []
-    const suffix = route.command.split(' ').slice(words.length)
-    if (!suffix.length) return []
-    return commandInvocations(adapter.name, route.command).flatMap(invocation => {
-      const candidate = invocation.slice(0, -route.command.length) + [...words, ...suffix].join(' ')
-      const resolved = classifyDelegatedCommand(adapter, [...candidate.split(' '), '--help']).command
-      if (resolved === 'unknown' || resolved === 'home' || resolved !== classifyDelegatedCommand(adapter, route.command.split(' ')).command) return []
-      const prefix = resolved.endsWith(' ' + suffix.join(' '))
-        ? resolved.split(' ').slice(0, -suffix.length).join(' ') : words.join(' ')
-      return [{ command: resolved, prefix }]
-    })
-  })
-}
-
-export function resolveDelegatedPattern(pattern: string, adapter: Adapter<unknown>): string {
+export function resolveDelegatedPattern(pattern: string, adapter: Adapter<unknown>): string | { pattern: string, operations: string[] } {
   if (!commandPattern.test(pattern)) throw new ArtiumError('INVALID_INPUT')
-  if (pattern === '*') return pattern
-  if (pattern.endsWith(' *')) {
-    const prefixes = new Set(wildcardDescendants(pattern, adapter).map(item => item.prefix))
-    if (prefixes.size !== 1 || prefixes.has('')) throw new ArtiumError('INVALID_INPUT')
-    return [...prefixes][0] + ' *'
+  if (pattern === '*' || pattern.endsWith(' *')) {
+    const words = commandOperation(adapter.name, pattern.slice(0, -2)).split(' ')
+    const manifest = toolManifests[adapter.name] as { aliases?: Record<string, string> }
+    words[0] = manifest.aliases?.[words[0]] ?? words[0]
+    const namespace = words.join(' ')
+    const group = classifyDelegatedCommand(adapter, [...words, '--help']).command
+    const routes = commandRoutes(adapter.name)
+    const namespaces = [namespace, ...(routes.some(route => route.command.startsWith(group + ' ')) ? [group] : [])]
+    const operations = [...new Set(routes.flatMap(route => {
+      if (!route.command || route.command === 'home' || route.effect === 'blocked') return []
+      return [route.command, ...route.aliases ?? []]
+        .filter(command => pattern === '*' || namespaces.some(prefix => command.startsWith(prefix + ' ')))
+        .flatMap(command => commandInvocations(adapter.name, command))
+        .map(command => classifyDelegatedCommand(adapter, [...command.split(' '), '--help']).command)
+        .filter(command => !['unknown', 'home'].includes(command) && !exactCommands[adapter.name]?.includes(command)
+          && !escapeHatches[adapter.name]?.includes(command) && !/^(?:api|native)(?: |$)/.test(command))
+    }))].sort()
+    if (!operations.length) throw new ArtiumError('INVALID_INPUT')
+    return { pattern: commandOperation(adapter.name, pattern), operations }
   }
   const resolved = classifyDelegatedCommand(adapter, pattern.split(' ')).command
   if (resolved === 'unknown' || resolved === 'home') throw new ArtiumError('INVALID_INPUT')
@@ -137,6 +137,7 @@ export function authorizeDelegatedCall(db: Database.Database, userId: string,
 }
 
 export function delegatedDiscoveryRequest(adapter: Adapter<unknown>, args: readonly string[], input?: RunnerInput): boolean {
+  if (!args.length) return true
   const { command } = classifyDelegatedCommand(adapter, args, input)
   if (['home', 'help', 'commands', 'inventory'].includes(command)) return true
   return args.some(arg => ['--help', '-h'].includes(arg))

@@ -185,15 +185,20 @@ export const ssoReauthResponseSchema = z.union([deviceStartResponseSchema,
   z.strictObject({ status: z.literal('pending') }), reauthResponseSchema])
 const accountId = z.string().min(1)
 export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi', 'tenable-axi', 'hybrid-axi', 'checkpoint-axi', 'beyondtrust-axi', 'gh-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi', 'gitea-axi', 'kubernetes-axi', 'ssh-axi'])
-export const delegationScopeSchema = z.strictObject({
+const delegationInputScopeSchema = z.strictObject({
   tools: z.array(z.strictObject({ tool: toolSchema, commands: z.array(z.string().min(1).max(200)).min(1).max(100).optional() })).min(1).max(36),
+})
+export const delegationScopeSchema = delegationInputScopeSchema.extend({
+  tools: z.array(delegationInputScopeSchema.shape.tools.element.extend({ commands: z.array(z.union([
+    z.string().min(1).max(200), z.strictObject({ pattern: z.string().min(1).max(200), operations: z.array(z.string().min(1)) }),
+  ])).min(1).max(100).optional() })).min(1).max(36),
 })
 export const meResponseSchema = z.union([z.strictObject({ username: z.string(), displayName: z.string(),
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int(), sessionExpiresAt: z.number().int() }),
 z.strictObject({ username: z.string(), displayName: z.string(), delegation: z.strictObject({ label: z.string(), expiresAt: z.number().int(), scope: delegationScopeSchema.extend({ tools: z.array(delegationScopeSchema.shape.tools.element.extend({ commands: z.array(z.string()) })).max(36) }) }),
   accessExpiresAt: z.number().int(), sessionExpiresAt: z.number().int() })])
 export const createDelegationSchema = z.strictObject({
-  label: z.string().trim().min(1).max(100), scope: delegationScopeSchema,
+  label: z.string().trim().min(1).max(100), scope: delegationInputScopeSchema,
   readOnly: z.boolean(), reusable: z.boolean(), expiresAt: z.number().int().positive(),
 })
 export const delegatedExchangeSchema = z.strictObject({ token: z.string().regex(/^artd_[A-Za-z0-9_-]{43}$/) })
