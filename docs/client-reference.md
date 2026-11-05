@@ -448,6 +448,8 @@ Tokens are single-use by default; `--reusable` permits multiple exchanges until 
 Use repeatable `--tool` flags for tool-wide grants, and `--exact '<tool:command>'` for a reviewed exact selection such as `--exact 'awx-axi:user token-create' --write`.
 Use repeatable `--command '<tool:pattern>'` to restrict a tool to exact commands or a trailing wildcard word, for example `--command 'awx-axi:job *'`.
 Wildcards match command words and exclude API and native escape hatches and credential-producing commands, which require an exact selection.
+Selecting a Kubernetes mutation also grants preview and confirmation of saved requests for that same operation.
+Continuations for other operations and all mutation workflows in read-only sessions are refused.
 API and native selections can reach many operations and are broad.
 Command-scoped sessions receive server-filtered tool discovery, CLI help and skills.
 Permitted leaf commands retain their argument help; leaf help outside the token's scope is refused.

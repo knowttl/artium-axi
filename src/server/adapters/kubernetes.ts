@@ -23,7 +23,7 @@ interface Invocation {
   positionals: string[]
   help: boolean
   home: boolean
-  workflow?: { kind: 'prepare' | 'preview' | 'confirm' | 'server-dry-run' }
+  workflow?: { kind: 'prepare' | 'server-dry-run' } | { kind: 'preview' | 'confirm', key: string }
 }
 type Parser = (args: string[]) => Invocation
 
@@ -62,7 +62,7 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
     for (const name of parsed.flags.keys()) if (!Object.hasOwn(route.flags, name)) throw new ArtiumError('FLAG_BLOCKED')
     const invocation = { command: workflow === 'prepare' || workflow === 'server-dry-run'
       ? `${workflow} -- ${parsed.command.path}` : workflow ?? command, help: parsed.help }
-    return { args: [...args], invocation, workflow: parsed.help ? undefined : workflow, acquisition: parsed.command.path === 'create token' && !parsed.help }
+    return { args: [...args], invocation, workflow: parsed.help ? undefined : parsed.workflow, acquisition: parsed.command.path === 'create token' && !parsed.help }
   }
   return { name: 'kubernetes-axi', executable, credentialProfile: kubernetesProfile,
     credentialSchema: kubernetesProfile.credentialSchema, timeoutMs: inventory.requirements.timeoutMs,
@@ -70,6 +70,13 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { argumentsForCall(args, input) },
+    kubernetesContinuation(args, input) {
+      const { invocation, workflow } = argumentsForCall(args, input)
+      if (invocation.help && (invocation.command === 'preview' || invocation.command === 'confirm')) {
+        return { command: invocation.command, help: true }
+      }
+      if (workflow && 'key' in workflow) return { command: workflow.kind, help: false, root: workflowRoot, key: workflow.key }
+    },
     classify(args, input) {
       const routes = [...inventory.commands, ...inventory.writeCommands, ...inventory.workflows.map(route => ({ ...route, effect: 'write' })), ...kubernetesHostedRoutes]
       return classifyCommand(routes, (a, i) => {
@@ -78,7 +85,8 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
       }, args, input)
     },
     async prepare(args, reference, input) {
-      const { workflow, acquisition, ...call } = argumentsForCall(args, input)
+      const { workflow: selectedWorkflow, acquisition, ...call } = argumentsForCall(args, input)
+      const workflow = selectedWorkflow?.kind
       if (reference.tool !== 'kubernetes-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const settings = source.getSettings?.(reference) ?? {}
       const writable = workflow && workflow !== 'preview'

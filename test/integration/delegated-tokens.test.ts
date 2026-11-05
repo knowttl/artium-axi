@@ -3,6 +3,9 @@ import { once } from 'node:events'
 import { mkdtempSync, rmSync, watch } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { createHash, createHmac } from 'node:crypto'
+import { pathToFileURL } from 'node:url'
 import type { Readable, Writable } from 'node:stream'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test } from 'vitest'
@@ -26,7 +29,8 @@ import { createSshAdapter } from '../../src/server/adapters/ssh.js'
 import { createUnifiAdapter } from '../../src/server/adapters/unifi.js'
 import { SshHosts } from '../../src/server/store/ssh-hosts.js'
 import { checkDelegation, classifyDelegatedCommand, createDelegation } from '../../src/server/auth/delegations.js'
-import { exchangeDelegation } from '../../src/server/auth/tokens.js'
+import { exchangeDelegation, verifyPrincipal } from '../../src/server/auth/tokens.js'
+import { ArtiumError } from '../../src/shared/errors.js'
 import { decode } from '@toon-format/toon'
 import { SessionStore } from '../../src/cli/session.js'
 import type { ToolName } from '../../src/server/store/credential-store.js'
@@ -455,6 +459,48 @@ test('Kubernetes token preparation requires an exact writable pick before resolv
     expect((result.stdout + result.stderr).includes(minted.secret)).toBe(false)
     expect(result.stdout).toContain(expected)
   }
+})
+
+test.each([
+  { grant: 'apply', operation: 'apply', readOnly: false, code: 'CREDENTIAL_NOT_CONFIGURED' },
+  { grant: 'create *', operation: 'create configmap', readOnly: false, code: 'CREDENTIAL_NOT_CONFIGURED' },
+  { grant: 'set *', operation: 'set env', readOnly: false, code: 'CREDENTIAL_NOT_CONFIGURED' },
+  { grant: 'apply', operation: 'create configmap', readOnly: false, code: 'DELEGATED_SCOPE_DENIED' },
+  { grant: 'create *', operation: 'create token', readOnly: false, code: 'DELEGATED_SCOPE_DENIED' },
+  { grant: 'create token', operation: 'create token', readOnly: false, code: 'CREDENTIAL_NOT_CONFIGURED' },
+  { grant: 'apply', operation: 'apply', readOnly: true, code: 'DELEGATED_SCOPE_DENIED' },
+  { grant: 'preview', operation: 'apply', readOnly: false, code: 'DELEGATED_SCOPE_DENIED' },
+])('$grant authorizes saved $operation continuations before secret access, readOnly=$readOnly (R23)', async ({ grant, operation, readOnly, code }) => {
+  await app.close()
+  const root = join(directory, 'requests')
+  const reference = credentials.replaceCredential('kubernetes-axi', { origin: 'https://cluster.synthetic.test', auth: 'token',
+    namespace: 'synthetic', certificateAuthority: 'CANARY-CA', token: 'CANARY-kubernetes-token' }, 0, 'synthetic-development-user', Date.now())
+  db.prepare('UPDATE tools SET enabled = 1, native_settings = ? WHERE name = ?').run('{"allowWrites":true}', 'kubernetes-axi')
+  const adapter = await createKubernetesAdapter({ getCredential: async () => { throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED') },
+    getSettings: () => ({ allowWrites: true }) }, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), root)
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-continuations')), audit: new Audit(db),
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+    scope: { tools: [{ tool: 'kubernetes-axi', commands: [grant] }] }, readOnly, reusable: false, expiresAt: Date.now() + 600_000 })
+  const exchanged = exchangeDelegation(db, minted.token)
+  const scope = createHash('sha256').update(JSON.stringify({ userId: 'synthetic-development-user',
+    family: verifyPrincipal(db, exchanged.accessToken).familyId, reference })).digest('hex')
+  const key = '00000000-0000-4000-8000-000000000001'
+  const requestDirectory = join(root, scope, 'requests', key)
+  await mkdir(requestDirectory, { recursive: true, mode: 0o700 })
+  const signingKey = Buffer.alloc(32, 5).toString('hex')
+  const plan = { version: 1, key, binding: 'b'.repeat(64), namespace: 'synthetic', command: operation,
+    awaitDeletion: false, snapshots: [], changes: [], display: { command: operation, namespace: 'synthetic', selected: [], changes: [] } }
+  const digest = createHmac('sha256', signingKey).update(JSON.stringify(plan)).digest('hex')
+  await writeFile(join(requestDirectory, 'key'), signingKey, { mode: 0o600 })
+  await writeFile(join(requestDirectory, 'request.json'), JSON.stringify({ plan, digest, state: 'prepared', results: [] }), { mode: 0o600 })
+  const native = await import(pathToFileURL(join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/dist/mutations.js')).href)
+  await native.preview({ config: join(root, scope, 'synthetic.json'), workflow: { kind: 'preview', key } })
+  const headers = { authorization: `Bearer ${exchanged.accessToken}` }
+  const preview = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/run', headers, payload: { args: ['preview', key] } })
+  expect(preview.json()).toMatchObject({ error: { code } })
+  const confirm = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/run', headers, payload: { args: ['confirm', key, '--digest', digest] } })
+  expect(confirm.json()).toMatchObject({ error: { code } })
 })
 
 test.each(['expiry', 'role removal', 'creator disabled', 'password change'] as const)(

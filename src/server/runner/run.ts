@@ -8,7 +8,8 @@ import type { Adapter, PreparedCall } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
 import type { Audit, AuditEvent } from '../audit/audit.js'
 import { verifyAccessFamily, verifyAccessToken, verifyPrincipal } from '../auth/tokens.js'
-import { authorizeDelegatedCall, authorizeDelegatedOperation, credentialIssuingCommand, delegatedDiscovery, delegatedDiscoveryRequest } from '../auth/delegations.js'
+import { authorizeDelegatedCall, credentialIssuingCommand, delegatedDiscovery, delegatedDiscoveryRequest, delegationIncludesTool } from '../auth/delegations.js'
+import type { CredentialReference } from '../store/credential-store.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { RunnerError } from './runner.js'
@@ -19,7 +20,7 @@ import { hostedStatus } from '../adapters/hosted-status.js'
 import { logRun } from './log.js'
 import { adoApiAudit } from '../adapters/ado-api.js'
 import type { ProtectedResults } from '../protected-results.js'
-import { kubernetesCredentialRequest } from './kubernetes-requests.js'
+import { kubernetesRequestCommand } from './kubernetes-requests.js'
 import { proxmoxTrust, type ProxmoxAccess } from './proxmox.js'
 
 export interface RunContext {
@@ -49,6 +50,9 @@ export async function runTool<Credential>(
     let familyId: string | undefined
     let readOnly = false
     let credentialCommands: string[] = []
+    let reference: CredentialReference | undefined
+    let continuation: ReturnType<NonNullable<Adapter<unknown>['kubernetesContinuation']>>
+    let continuationCommand: string | undefined
     let args: string[]
     let input: { stdin?: string, files?: { name: string, contentBase64: string }[] }
     const started = Date.now()
@@ -89,8 +93,17 @@ export async function runTool<Credential>(
       }
       adapter.validateArgs(args, input)
       validateFileInput(adapter.name, args, input)
+      continuation = adapter.kubernetesContinuation?.(args, input)
       if (principal?.delegation) {
-        const operations = authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input)
+        if (continuation && !continuation.help) {
+          if (readOnly || !delegationIncludesTool(principal.delegation.scopeJson, adapter.name)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+          if (!continuation.root) throw new ArtiumError('TEMP_UNAVAILABLE')
+          reference = await resolver.resolve(userId, adapter.name)
+          const scope = createHash('sha256').update(JSON.stringify({ userId, family: familyId ?? verifyAccessFamily(db, token), reference })).digest('hex')
+          continuationCommand = await kubernetesRequestCommand(continuation.root, scope, continuation.key)
+          if (!continuationCommand) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+        }
+        const operations = authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand)
         credentialCommands = [...new Set(operations.filter(operation => credentialIssuingCommand(adapter.name, operation.command)).map(operation => operation.command))]
       }
     } catch (error) {
@@ -102,14 +115,11 @@ export async function runTool<Credential>(
     const identity = { userId, delegationId, tool: adapter.name, requestId: context.requestId, clientAddress: context.clientAddress }
     const family = () => familyId ?? verifyAccessFamily(db, token)
     for (const command of credentialCommands) audit.record({ ...identity, event: 'credential-issue', targetId: command, outcome: 'attempt' })
-    let confirmedCredentialCommand: string | undefined
     const recheck = () => {
       if (authenticate === verifyAccessToken) {
         const current = verifyPrincipal(db, token)
         if (current.delegation) {
-          authorizeDelegatedCall(db, current.userId, current.delegation, adapter, args, input)
-          if (confirmedCredentialCommand) authorizeDelegatedOperation(db, current.userId, current.delegation,
-            adapter, { command: confirmedCredentialCommand, effect: 'write' })
+          authorizeDelegatedCall(db, current.userId, current.delegation, adapter, args, input, continuationCommand)
         }
       } else authenticate(db, token)
       checkToolPolicy(db, userId, adapter.name)
@@ -143,7 +153,7 @@ export async function runTool<Credential>(
       }
     }
     try {
-      const reference = adapter.prepareForCaller ? undefined : await resolver.resolve(userId, adapter.name)
+      if (!adapter.prepareForCaller) reference ??= await resolver.resolve(userId, adapter.name)
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
         : await adapter.prepare(args, reference!, input)
       if (readOnly) prepared.environment = { ...prepared.environment, [`${adapter.name.toUpperCase().replaceAll('-', '_')}_READ_ONLY`]: 'true' }
@@ -154,13 +164,8 @@ export async function runTool<Credential>(
       const nativeScope = (adapter.name === 'unifi-axi' || adapter.name === 'technitium-axi') && reference
         ? createHash('sha256').update(JSON.stringify({ userId, family: family(), reference })).digest('hex') : undefined
       const credentialConfirmation = prepared.invocation?.command === 'confirm' && !prepared.invocation.help && kubernetesRequests
-        && await kubernetesCredentialRequest(kubernetesRequests.root, kubernetesRequests.scope, args[1])
-      if (delegationId && credentialConfirmation) {
-        confirmedCredentialCommand = 'create token'
-        credentialCommands = ['create token']
-        recheck()
-        audit.record({ ...identity, event: 'credential-issue', targetId: confirmedCredentialCommand, outcome: 'attempt' })
-      }
+        && continuation && !continuation.help && credentialIssuingCommand(adapter.name,
+          continuationCommand ?? await kubernetesRequestCommand(kubernetesRequests.root, kubernetesRequests.scope, continuation.key) ?? '')
       const protectedResult = prepared.protectedResult?.source === 'pipe' && kubernetesRequests
         && !credentialConfirmation
         ? undefined : prepared.protectedResult

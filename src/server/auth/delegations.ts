@@ -69,9 +69,7 @@ export function checkDelegation(scopeJson: string, readOnly: boolean, adapter: A
   const wide = grants.some(item => item.commands === undefined)
   const credentialCommand = exactCommands[tool]?.includes(command)
   const escapeHatch = escapeHatches[tool]?.includes(command)
-  const tokenWorkflow = tool === 'kubernetes-axi' && ['preview', 'confirm'].includes(command)
-    && grants.some(item => item.commands?.includes('create token'))
-  if ((!wide && !exact && !wildcard && !tokenWorkflow) || ((credentialCommand || escapeHatch || /^(?:api|native)(?: |$)/.test(command)) && !exact) || (readOnly && (effect !== 'read' || credentialCommand))) {
+  if ((!wide && !exact && !wildcard) || ((credentialCommand || escapeHatch || /^(?:api|native)(?: |$)/.test(command)) && !exact) || (readOnly && (effect !== 'read' || credentialCommand))) {
     throw new ArtiumError('DELEGATED_SCOPE_DENIED')
   }
 }
@@ -125,8 +123,14 @@ export function authorizeDelegatedOperation(db: Database.Database, userId: strin
 }
 
 export function authorizeDelegatedCall(db: Database.Database, userId: string,
-  delegation: { scopeJson: string, readOnly: boolean }, adapter: Adapter<unknown>, args: readonly string[], input?: RunnerInput) {
-  const operations = [classifyDelegatedCommand(adapter, args, input), ...(adapter.nestedOperations?.(args, input) ?? [])
+  delegation: { scopeJson: string, readOnly: boolean }, adapter: Adapter<unknown>, args: readonly string[], input?: RunnerInput, continuationCommand?: string) {
+  const classification = continuationCommand === undefined ? classifyDelegatedCommand(adapter, args, input)
+    : { command: continuationCommand, effect: 'write' as const }
+  if (adapter.kubernetesContinuation?.(args, input)?.help) {
+    if (!delegatedDiscovery(db, userId, delegation, [adapter])[0]?.commands.includes(classification.command)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+    return []
+  }
+  const operations = [classification, ...(adapter.nestedOperations?.(args, input) ?? [])
     .map(operation => ({ ...operation, command: commandOperation(adapter.name, operation.command) }))]
   for (const operation of operations) authorizeDelegatedOperation(db, userId, delegation, adapter, operation)
   return operations
@@ -143,8 +147,9 @@ export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter:
   authorize = (classification: { command: string, effect: 'read' | 'write' }) =>
     checkDelegation(scopeJson, readOnly, adapter, classification.command, classification.effect)): string[] {
   const tool = adapter.name
-  return [...new Set(commandRoutes(tool).flatMap(route => {
+  const commands = commandRoutes(tool).flatMap(route => {
     if (!route.command || route.command === 'home' || route.effect === 'blocked') return []
+    if (tool === 'kubernetes-axi' && ['preview', 'confirm'].includes(route.command)) return []
     const classification = classifyDelegatedCommand(adapter, route.command.split(' '))
     return commandInvocations(tool, route.command).flatMap(command => {
       try {
@@ -154,7 +159,9 @@ export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter:
       }
       catch { return [] }
     })
-  }))].sort()
+  })
+  if (tool === 'kubernetes-axi' && commands.some(command => command.startsWith('prepare -- '))) commands.push('preview', 'confirm')
+  return [...new Set(commands)].sort()
 }
 
 export function delegatedDiscovery(db: Database.Database, userId: string, delegation: { scopeJson: string, readOnly: boolean }, adapters: readonly Adapter<unknown>[]) {

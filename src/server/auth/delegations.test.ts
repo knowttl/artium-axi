@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { migrate } from '../store/db.js'
-import { authorizeDelegatedOperation, checkDelegation, classifyDelegatedCommand, delegatedCommands, delegatedDiscovery, resolveDelegatedPattern } from './delegations.js'
+import { authorizeDelegatedCall, authorizeDelegatedOperation, checkDelegation, classifyDelegatedCommand, delegatedCommands, delegatedDiscovery, resolveDelegatedPattern } from './delegations.js'
 import { createAzAdapter } from '../adapters/az.js'
 import { createAdoAdapter } from '../adapters/ado.js'
 import { createAwxAdapter } from '../adapters/awx.js'
@@ -170,11 +170,41 @@ test.each(['apply', 'create token'])('Kubernetes %s discovery advertises admitte
   const adapter = await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'))
   const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: [command] }] })
   expect(delegatedCommands(scope, false, adapter)).toEqual(expect.arrayContaining([
-    `prepare -- ${command}`, `server-dry-run -- ${command}`,
+    `prepare -- ${command}`, `server-dry-run -- ${command}`, 'preview', 'confirm',
   ]))
   expect(delegatedCommands(scope, false, adapter)).not.toContain(command)
   expect(delegatedCommands(scope, true, adapter)).not.toContain(`prepare -- ${command}`)
   expect(delegatedCommands(scope, true, adapter)).not.toContain(`server-dry-run -- ${command}`)
+  expect(delegatedCommands(scope, true, adapter)).not.toContain('preview')
+  expect(delegatedCommands(scope, true, adapter)).not.toContain('confirm')
+})
+
+test.each([
+  { grant: 'apply', operation: 'apply' },
+  { grant: 'create *', operation: 'create configmap' },
+  { grant: 'set *', operation: 'set env' },
+])('$grant authorizes its full $operation workflow (R23)', async ({ grant, operation }) => {
+  const adapter = await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'))
+  const db = new Database(':memory:')
+  try {
+    migrate(db)
+    db.exec(`INSERT INTO users (id, username, display_name, password_hash)
+      VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash');
+      INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
+      INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
+      INSERT INTO tools (name, enabled, pinned_version, native_settings) VALUES ('kubernetes-axi', 1, 'synthetic', '{"allowWrites":true}');
+      INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'kubernetes-axi')`)
+    const delegation = { scopeJson: JSON.stringify({ tools: [{ tool: adapter.name, commands: [grant] }] }), readOnly: false }
+    const key = '00000000-0000-4000-8000-000000000001'
+    expect(authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, ['prepare', '--', ...operation.split(' '), '--help']))
+      .toEqual([{ command: operation, effect: 'write' }])
+    expect(authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, ['preview', key], undefined, operation))
+      .toEqual([{ command: operation, effect: 'write' }])
+    expect(authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, ['confirm', key, '--digest', 'a'.repeat(64)], undefined, operation))
+      .toEqual([{ command: operation, effect: 'write' }])
+    expect(delegatedDiscovery(db, 'synthetic-user', delegation, [adapter])[0].commands).toEqual(expect.arrayContaining(['preview', 'confirm']))
+    expect(delegatedCommands(JSON.stringify({ tools: [{ tool: adapter.name, commands: ['preview', 'confirm'] }] }), false, adapter)).toEqual([])
+  } finally { db.close() }
 })
 
 test.each([
