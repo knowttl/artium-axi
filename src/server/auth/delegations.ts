@@ -23,6 +23,7 @@ const escapeHatches: Partial<Record<ToolName, readonly string[]>> = {
   'hybrid-axi': ['api get'], 'mg-axi': ['api get'], 'vectra-axi': ['api get'],
   'kubernetes-axi': kubernetes.commands.map(command => command.command).filter(command => command.startsWith('native -- ')),
 }
+const commandPattern = /^(?:[^\s*]+(?: [^\s*]+)*(?: \*)?|\*)$/
 
 export function createDelegation(db: Database.Database, creatorId: string, input: z.infer<typeof createDelegationSchema>, id = randomUUID(), now = Date.now()) {
   const settings = db.prepare('SELECT minting_enabled, max_lifetime_ms FROM delegation_settings WHERE id = 1').get() as
@@ -31,7 +32,7 @@ export function createDelegation(db: Database.Database, creatorId: string, input
   if (input.expiresAt <= now || input.expiresAt - now > settings.max_lifetime_ms) throw new ArtiumError('INVALID_INPUT')
   for (const item of input.scope.tools) {
     checkToolPolicy(db, creatorId, item.tool)
-    if (item.commands?.some(command => !/^(?:[a-z0-9-]+(?: [a-z0-9-]+)*(?: \*)?|\*)$/.test(command))) throw new ArtiumError('INVALID_INPUT')
+    if (item.commands?.some(command => !commandPattern.test(command))) throw new ArtiumError('INVALID_INPUT')
   }
   const active = db.prepare('SELECT count(*) AS count FROM delegations WHERE creator_id = ? AND revoked_at IS NULL AND expires_at > ?')
     .get(creatorId, now) as { count: number }
@@ -65,16 +66,17 @@ function commandRoutes(tool: ToolName) {
 }
 
 export function resolveDelegatedPattern(pattern: string, adapter: Adapter<unknown>): string {
-  if (!/^(?:[a-z0-9-]+(?: [a-z0-9-]+)*(?: \*)?|\*)$/.test(pattern)) throw new ArtiumError('INVALID_INPUT')
+  if (!commandPattern.test(pattern)) throw new ArtiumError('INVALID_INPUT')
   if (pattern === '*') return pattern
   if (pattern.endsWith(' *')) {
-    const prefix = pattern.slice(0, -1)
+    const words = pattern.slice(0, -2).split(' ')
     const prefixes = new Set(commandRoutes(adapter.name).flatMap(route => {
-      if (!route.command.startsWith(prefix)) return []
-      const resolved = adapter.classify(route.command.split(' ')).command
-      if (resolved === 'unknown' || resolved === 'home') return []
-      const suffixLength = route.command.slice(prefix.length).split(' ').length
-      return [resolved.split(' ').slice(0, -suffixLength).join(' ')]
+      const suffix = route.command.split(' ').slice(words.length)
+      if (!suffix.length) return []
+      const resolved = adapter.classify([...words, ...suffix, '--help']).command
+      if (resolved === 'unknown' || resolved === 'home' || resolved !== adapter.classify(route.command.split(' ')).command
+        || !resolved.endsWith(' ' + suffix.join(' '))) return []
+      return [resolved.split(' ').slice(0, -suffix.length).join(' ')]
     }))
     if (prefixes.size !== 1 || prefixes.has('')) throw new ArtiumError('INVALID_INPUT')
     return [...prefixes][0] + ' *'
@@ -91,12 +93,16 @@ export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter:
   return [...new Set(commandRoutes(tool).flatMap(route => {
     if (!route.command || route.command === 'home' || route.effect === 'blocked') return []
     const classification = adapter.classify(route.command.split(' '))
-    try {
-      adapter.validateArgs([...route.command.split(' '), '--help'])
-      checkDelegation(scopeJson, readOnly, tool, classification.command, classification.effect)
-      return [route.command]
-    }
-    catch { return [] }
+    const commands = tool === 'kubernetes-axi' && kubernetes.writeCommands.some(item => item.command === route.command)
+      ? [`prepare -- ${route.command}`, `server-dry-run -- ${route.command}`] : [route.command]
+    return commands.flatMap(command => {
+      try {
+        adapter.validateArgs([...command.split(' '), '--help'])
+        checkDelegation(scopeJson, readOnly, tool, classification.command, classification.effect)
+        return [command]
+      }
+      catch { return [] }
+    })
   }))].sort()
 }
 

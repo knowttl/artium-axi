@@ -14,10 +14,16 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { copyClientInput } from '../fixtures/client-inputs.js'
-import { seedToolUser } from '../fixtures/tokens.js'
+import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { createRunnerTestAdapter } from '../fake-tool/tool.js'
 import { createBrowserSession } from '../../src/server/auth/sessions.js'
 import { createKubernetesAdapter } from '../../src/server/adapters/kubernetes.js'
+import { createProxmoxAdapter } from '../../src/server/adapters/proxmox.js'
+import { createAzAdapter } from '../../src/server/adapters/az.js'
+import { createGhAdapter } from '../../src/server/adapters/gh.js'
+import { createDelegation } from '../../src/server/auth/delegations.js'
+import { exchangeDelegation } from '../../src/server/auth/tokens.js'
+import { decode } from '@toon-format/toon'
 import { SessionStore } from '../../src/cli/session.js'
 
 let directory: string
@@ -185,6 +191,48 @@ test('revocation aborts an in-flight delegated read', async () => {
   const result = await read
   expect(result.code).toBe(1)
   expect(result.stdout).toContain('CANCELLED')
+})
+
+test.each(['get /version', 'create /access/users/{userid}/token/{tokenid}'])('minting preserves the exact Proxmox route %s (R1)', async command => {
+  await app.close()
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'proxmox-axi'")
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-proxmox')), audit: new Audit(db),
+    adapters: [createProxmoxAdapter(new EmbeddedSecretSource(credentials))], environment: {},
+    resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+  const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password } })
+  const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
+    headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { label: 'Synthetic',
+      scope: { tools: [{ tool: 'proxmox-axi', commands: [command] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 600_000 } })
+  expect(minted.statusCode, minted.body).toBe(200)
+  const exchanged = exchangeDelegation(db, minted.json().token)
+  const tools = await app.inject({ url: '/v1/tools', headers: { authorization: `Bearer ${exchanged.accessToken}` } })
+  expect(tools.json().tools[0].commands).toContain(command)
+})
+
+test.each([
+  { tool: 'az-axi', args: [], pattern: 'group *', allowed: 'group list' },
+  { tool: 'az-axi', args: ['--help'], pattern: 'group *', allowed: 'group list' },
+  { tool: 'az-axi', args: ['-h'], pattern: 'group *', allowed: 'group list' },
+  { tool: 'gh-axi', args: [], pattern: 'repo list', allowed: 'repo list' },
+  { tool: 'gh-axi', args: ['--help'], pattern: 'repo list', allowed: 'repo list' },
+  { tool: 'gh-axi', args: ['-h'], pattern: 'repo list', allowed: 'repo list' },
+] as const)('$tool root discovery $args remains filtered before credential access (R8)', async ({ tool, args, pattern, allowed }) => {
+  await app.close()
+  db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
+  const source = new EmbeddedSecretSource(credentials)
+  const adapter = tool === 'az-axi' ? createAzAdapter(source, join(directory, 'writes.log')) : createGhAdapter(source)
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-help')), audit: new Audit(db),
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+    scope: { tools: [{ tool, commands: [pattern] }] }, readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 })
+  const exchanged = exchangeDelegation(db, minted.token)
+  const response = await app.inject({ method: 'POST', url: `/v1/tools/${tool}/run`,
+    headers: { authorization: `Bearer ${exchanged.accessToken}` }, payload: { args: [...args] } })
+  expect(response.statusCode, response.body).toBe(200)
+  const output = decode(response.json().stdout) as { commands: string[] }
+  expect(output.commands).toContain(allowed)
+  expect(output.commands).not.toContain('auth status')
 })
 
 test('Kubernetes token preparation requires an exact writable pick before resolving credentials', async () => {

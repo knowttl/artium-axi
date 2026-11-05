@@ -77,16 +77,20 @@ export async function runTool<Credential>(
       input = { stdin: parsed.data.stdin, files: parsed.data.files }
       if (/artd_[A-Za-z0-9_-]{43}/.test(JSON.stringify({ args, stdin: input.stdin, names: input.files?.map(file => file.name) }))
         || input.files?.some(file => /artd_[A-Za-z0-9_-]{43}/.test(Buffer.from(file.contentBase64, 'base64').toString('latin1')))) throw new ArtiumError('INVALID_INPUT')
-      adapter.validateArgs(args, input)
-      validateFileInput(adapter.name, args, input)
       if (principal?.delegation) {
         if (!delegationIncludesTool(principal.delegation.scopeJson, adapter.name)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         const commands = delegatedCommands(principal.delegation.scopeJson, readOnly, adapter)
-        if (commands && (args.length === 0 || args.length === 1 && args[0] === '--help')) {
+        if (commands && (args.length === 0 || args.length === 1 && ['--help', '-h'].includes(args[0]))) {
+          adapter.validateArgs(args.length ? args : ['--help'], input)
+          validateFileInput(adapter.name, args, input)
           const stdout = encode({ tool: adapter.name, commands }) + '\n'
           return { stdout, stderr: '', exitCode: 0, durationMs: Date.now() - started,
             outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
         }
+      }
+      adapter.validateArgs(args, input)
+      validateFileInput(adapter.name, args, input)
+      if (principal?.delegation) {
         const classification = adapter.classify(args, input)
         checkDelegation(principal.delegation.scopeJson, readOnly, adapter.name, classification.command, classification.effect)
         if (credentialIssuingCommand(adapter.name, classification.command)) credentialCommand = classification.command

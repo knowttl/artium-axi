@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest'
+import { join } from 'node:path'
 import { checkDelegation, delegatedCommands, resolveDelegatedPattern } from './delegations.js'
 import { createAzAdapter } from '../adapters/az.js'
 import { createAdoAdapter } from '../adapters/ado.js'
@@ -11,20 +12,23 @@ import { createHybridAdapter } from '../adapters/hybrid.js'
 import { createTenableAdapter } from '../adapters/tenable.js'
 import { createCheckpointAdapter } from '../adapters/checkpoint.js'
 import { createBeyondtrustAdapter } from '../adapters/beyondtrust.js'
+import { createProxmoxAdapter } from '../adapters/proxmox.js'
+import { createKubernetesAdapter } from '../adapters/kubernetes.js'
 
 const source = { getCredential: async () => { throw new Error('Unexpected credential access') } }
+const writeLog = join(process.cwd(), 'synthetic-writes.log')
 
 test.each([
-  { adapter: createAzAdapter(source, 'synthetic-writes.log'), pattern: 'group *', command: 'group list' },
+  { adapter: createAzAdapter(source, writeLog), pattern: 'group *', command: 'group list' },
   { adapter: createAdoAdapter(source), pattern: 'pr *', command: 'pr create' },
-  { adapter: createMgAdapter(source, 'synthetic-writes.log'), pattern: 'entra user *', command: 'entra user list' },
-  { adapter: createVectraAdapter(source, 'synthetic-writes.log'), pattern: 'detection *', command: 'detection list' },
+  { adapter: createMgAdapter(source, writeLog), pattern: 'entra user *', command: 'entra user list' },
+  { adapter: createVectraAdapter(source, writeLog), pattern: 'detection *', command: 'detection list' },
   { adapter: createLdapAdapter(source), pattern: 'entry *', command: 'entry search' },
   { adapter: createTechnitiumAdapter(source), pattern: 'user session *', command: 'user session get' },
-  { adapter: createHybridAdapter(source, 'synthetic-writes.log'), pattern: 'feed *', command: 'feed latest' },
-  { adapter: createTenableAdapter(source, 'synthetic-writes.log'), pattern: 'asset *', command: 'asset list' },
-  { adapter: createCheckpointAdapter(source, 'synthetic-writes.log'), pattern: 'email *', command: 'email search' },
-  { adapter: createBeyondtrustAdapter(source, 'synthetic-writes.log'), pattern: 'admin-request *', command: 'admin-request list' },
+  { adapter: createHybridAdapter(source, writeLog), pattern: 'feed *', command: 'feed latest' },
+  { adapter: createTenableAdapter(source, writeLog), pattern: 'asset *', command: 'asset list' },
+  { adapter: createCheckpointAdapter(source, writeLog), pattern: 'email *', command: 'email search' },
+  { adapter: createBeyondtrustAdapter(source, writeLog), pattern: 'admin-request *', command: 'admin-request list' },
 ])('$pattern preserves its namespace instead of resolving a default leaf (R2)', ({ adapter, pattern, command }) => {
   const resolved = resolveDelegatedPattern(pattern, adapter)
   expect(resolved).toBe(pattern)
@@ -36,12 +40,57 @@ test.each([
 test.each([
   { adapter: createAwxAdapter(source), allowed: 'job list', blocked: ['auth login', 'setup', 'update'] },
   { adapter: createAdoAdapter(source), allowed: 'pr list', blocked: ['pipeline runs artifact download', 'config show'] },
-  { adapter: createMgAdapter(source, 'synthetic-writes.log'), allowed: 'entra user list', blocked: ['mail message export', 'profile list'] },
+  { adapter: createMgAdapter(source, writeLog), allowed: 'entra user list', blocked: ['mail message export', 'profile list'] },
 ])('$adapter.name discovery excludes routes unavailable through the adapter (R4)', ({ adapter, allowed, blocked }) => {
   const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: ['*'] }] })
   const commands = delegatedCommands(scope, false, adapter)
   expect(commands).toContain(allowed)
   for (const command of blocked) expect(commands).not.toContain(command)
+})
+
+test.each([
+  { pattern: 'wi *', expected: 'work-item *' },
+  { pattern: 'prs *', expected: 'pr *' },
+  { pattern: 'work-item links *', expected: 'work-item link *' },
+  { pattern: 'wi links *', expected: 'work-item link *' },
+])('$pattern resolves its supported alias namespace (R7)', ({ pattern, expected }) => {
+  expect(resolveDelegatedPattern(pattern, createAdoAdapter(source))).toBe(expected)
+})
+
+test.each(['get /version', 'create /access/users/{userid}/token/{tokenid}'])('Proxmox exact route %s is accepted (R1)', pattern => {
+  const adapter = createProxmoxAdapter(source)
+  expect(resolveDelegatedPattern(pattern, adapter)).toBe(pattern)
+  const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: [pattern] }] })
+  const classification = adapter.classify(pattern.split(' '))
+  expect(() => checkDelegation(scope, false, adapter.name, classification.command, classification.effect)).not.toThrow()
+})
+
+test('Proxmox wildcard still excludes credential issuance (R1)', () => {
+  const adapter = createProxmoxAdapter(source)
+  const pattern = resolveDelegatedPattern('create *', adapter)
+  const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: [pattern] }] })
+  expect(() => checkDelegation(scope, false, adapter.name, 'create /access/users/{userid}/token/{tokenid}', 'write'))
+    .toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
+})
+
+test('Proxmox wildcard resolves the post namespace alias (R7)', () => {
+  expect(resolveDelegatedPattern('post *', createProxmoxAdapter(source))).toBe('create *')
+})
+
+test('wildcard prefixes cannot consume descendant words as positional arguments (R7)', () => {
+  expect(() => resolveDelegatedPattern('pr list *', createAdoAdapter(source)))
+    .toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
+})
+
+test.each(['apply', 'create token'])('Kubernetes %s discovery advertises admitted mutation workflows (R6)', async command => {
+  const adapter = await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'))
+  const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: [command] }] })
+  expect(delegatedCommands(scope, false, adapter)).toEqual(expect.arrayContaining([
+    `prepare -- ${command}`, `server-dry-run -- ${command}`,
+  ]))
+  expect(delegatedCommands(scope, false, adapter)).not.toContain(command)
+  expect(delegatedCommands(scope, true, adapter)).not.toContain(`prepare -- ${command}`)
+  expect(delegatedCommands(scope, true, adapter)).not.toContain(`server-dry-run -- ${command}`)
 })
 
 const credentialOutputs = [
