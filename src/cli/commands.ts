@@ -20,6 +20,7 @@ import { download } from './download.js'
 import { sessionContext } from './session-context.js'
 import { sshExecution } from './ssh.js'
 import { kubernetesHosted } from './kubernetes.js'
+import { tokenCommand } from './token.js'
 
 let managed: ManagedSession | undefined
 let failureContext = 'main'
@@ -67,6 +68,7 @@ async function main(args: string[]) {
   if (command === 'session-context') { output('stdout', await sessionContext()); return }
   if (command === 'update') { output('stdout', await update()); return }
   if (command === 'download') { await download(args.slice(1), text => output('stdout', text), managed); return }
+  if (command === 'token') { await tokenCommand(args.slice(1), text => output('stdout', text), managed); return }
   if (command === 'setup') { output('stdout', await setup(args.slice(1))); return }
   if (command === 'doctor') {
     if (args.length !== 1) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi doctor.')
@@ -76,6 +78,26 @@ async function main(args: string[]) {
   }
   if (command === 'login' || command === 'passwd') {
     const remaining = args.slice(1)
+    if (command === 'login' && (remaining.length === 1 && remaining[0] === '--token-stdin' || remaining.length === 0 && process.env.ARTIUM_AXI_TOKEN !== undefined)) {
+      if (managed && process.env.ARTIUM_AXI_TOKEN !== undefined) throw new ArtiumError('INVALID_INPUT', 'Token environment values are refused in managed mode.')
+      const client = new Client(process.env, managed)
+      const signIn = async () => {
+        if (!managed) {
+          const current = client.sessions.read()
+          if (current && !current.delegated) throw new ArtiumError('INVALID_INPUT', 'A full session already exists in this configuration directory.', 'Use a separate XDG_CONFIG_HOME for the delegated session.')
+        }
+        const token = remaining.length ? await readPassword(true) : process.env.ARTIUM_AXI_TOKEN!
+        if (!/^artd_[A-Za-z0-9_-]{43}$/.test(token)) throw new ArtiumError('INVALID_INPUT')
+        managed?.protect(token)
+        const result = loginResponseSchema.safeParse(await client.request('/v1/auth/delegated', 'POST', { token }))
+        if (!result.success || result.data.status !== 'authenticated') throw new ArtiumError('INVALID_RESPONSE')
+        if (managed) await managed.emit(client.serverUrl, result.data)
+        else { client.sessions.write(result.data, undefined, true); client.sessions.writeClientConfig(client.caFile) }
+      }
+      if (managed) await signIn(); else await client.sessions.locked(signIn)
+      output('stdout', 'status: authenticated\nnext: artium-axi tools\n')
+      return
+    }
     if (managed && process.env.ARTIUM_AXI_PASSWORD !== undefined) {
       throw new ArtiumError('INVALID_INPUT', 'Password environment values are refused in managed mode.',
         'Unset ARTIUM_AXI_PASSWORD; use --password-stdin for local sign-in or --sso.')

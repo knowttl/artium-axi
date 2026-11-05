@@ -3,7 +3,7 @@ import { ArtiumError } from '../shared/errors.js'
 import type { CredentialReference } from './store/credential-store.js'
 import { protectedResultLimits } from './config.js'
 
-export interface ResultScope { userId: string, credential: CredentialReference, operation: string, familyId?: string, trustRevision?: string }
+export interface ResultScope { userId: string, credential: CredentialReference, operation: string, familyId?: string, familyOnly?: boolean, delegated?: boolean, trustRevision?: string }
 
 // Confidential bytes stay in bounded process memory and require current access on retrieval.
 export class ProtectedResults {
@@ -29,6 +29,7 @@ export class ProtectedResults {
     if (this.entries.size >= protectedResultLimits.total || [...this.entries.values()].filter(entry => entry.scope.userId === scope.userId).length >= protectedResultLimits.perUser) {
       throw new ArtiumError('TOO_MANY_CALLS')
     }
+    if (scope.delegated && [...this.entries.values()].filter(entry => entry.scope.userId === scope.userId && entry.scope.delegated).length >= 2) throw new ArtiumError('TOO_MANY_CALLS')
     const id = randomUUID()
     const entry: { scope: ResultScope, bytes?: Buffer, expires: number, timer: NodeJS.Timeout } = {
       scope: { ...scope, credential: { ...scope.credential } }, expires: Date.now() + protectedResultLimits.lifetimeMs,
@@ -51,6 +52,7 @@ export class ProtectedResults {
     const entry = this.entries.get(id)
     if (entry && entry.expires <= Date.now()) this.remove(id)
     if (!entry?.bytes || entry.expires <= Date.now() || entry.scope.userId !== scope.userId
+      || scope.familyOnly && entry.scope.familyId !== scope.familyId
       || entry.scope.familyId !== undefined && entry.scope.familyId !== scope.familyId
       || entry.scope.trustRevision !== undefined && entry.scope.trustRevision !== scope.trustRevision
       || entry.scope.operation !== scope.operation || entry.scope.credential.tool !== scope.credential.tool

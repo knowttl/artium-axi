@@ -48,8 +48,7 @@ const transfer = {
 test('transfer audit persists typed metadata with separate archive and client-save evidence', () => {
   const record = audit.record({ ...context, tool: 'hybrid-axi', event: 'transfer', outcome: 'preview',
     credentialRevision: 3, transfer })
-  const { delegation_id: _delegationId, ...apiRecord } = record
-  expect(adminAuditRecordSchema.parse(apiRecord)).toEqual(apiRecord)
+  expect(adminAuditRecordSchema.parse(record)).toEqual(record)
   expect(record).toMatchObject({ ...transfer, credential_revision: 3, arguments: null })
   expect(db.prepare('SELECT * FROM audit WHERE id = ?').get(record.id)).toEqual(record)
   const delivered = audit.record({ ...context, tool: 'hybrid-axi', event: 'transfer', outcome: 'delivery-completed',
@@ -184,6 +183,18 @@ test.each([
   now += day
   expect(audit.maintain()).toBe(1)
   expect(lines.map(line => JSON.parse(line))).toEqual(db.prepare("SELECT * FROM audit WHERE event = 'maintenance' ORDER BY id").all())
+})
+
+test('delegation retention preserves audit references and removes old expired tokens after audit retention', () => {
+  db.prepare(`INSERT INTO delegations (id, creator_id, token_hash, label, scope_json, read_only, single_use, created_at, expires_at)
+    VALUES ('synthetic-delegation', 'person', 'synthetic-hash', 'Synthetic', '{}', 1, 1, ?, ?)`)
+    .run(now - 92 * day, now - 91 * day)
+  audit.record({ ...context, event: 'delegation-access', delegationId: 'synthetic-delegation', outcome: 'success' })
+  audit.maintain()
+  expect(db.prepare('SELECT id FROM delegations').all()).toEqual([{ id: 'synthetic-delegation' }])
+  now += 91 * day
+  audit.maintain()
+  expect(db.prepare('SELECT id FROM delegations').all()).toEqual([])
 })
 
 test('retention commits earlier batches and rolls back only the failed batch', () => {

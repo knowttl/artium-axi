@@ -893,6 +893,7 @@ Restore refuses a running destination or a nonempty destination directory.
 The maintenance lock file and its journal are the only permitted existing files; never delete them to bypass a running owner.
 Restore validates SQLite integrity, foreign keys, supported migration history, the required key ID and authenticated credentials on a private copy before publication.
 It migrates that copy to the restoring image's schema, removes all saved CLI access, refresh and password-change tokens, browser sessions, session families and reauthentication tickets, then publishes a durable mode-0600 database.
+It also revokes every delegated token, including reusable tokens that had not yet been exchanged.
 Thus even a token revoked after backup cannot authenticate after restore.
 The source backup is unchanged.
 Start the matching image with the new volume and key, sign in again, and check credentials, roles and retained audit data before switching traffic.

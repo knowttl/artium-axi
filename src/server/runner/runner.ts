@@ -27,6 +27,7 @@ import { kubernetesRequestProfile } from './kubernetes-requests.js'
 import type { CompletedMutation, MutationReceipt } from '../../shared/mutation-outcome.js'
 
 export interface RunnerLimits {
+  delegated?: boolean
   // A native confirmation may bind file names. The directory is still empty on every call.
   directoryScope?: string
   publicContent?: import('./scan.js').PublicContent
@@ -80,14 +81,15 @@ function decode(bytes: Buffer, truncated: boolean): string {
 // One server owns one runner. Admission covers setup, child execution and cleanup.
 export class Runner {
   private readonly directoryScopes = new Set<string>()
-  private readonly active = new Map<symbol, { userId: string, controller: AbortController, result: Promise<unknown> }>()
+  private readonly active = new Map<symbol, { userId: string, delegated: boolean, controller: AbortController, result: Promise<unknown> }>()
   private closed = false
-  private readonly queue: { userId: string, admit: () => void, reject: (code: 'CANCELLED' | 'RUNNER_CLOSED' | 'TOO_MANY_CALLS') => void }[] = []
+  private readonly queue: { userId: string, delegated: boolean, admit: () => void, reject: (code: 'CANCELLED' | 'RUNNER_CLOSED' | 'TOO_MANY_CALLS') => void }[] = []
 
   private drain(): void {
     while (!this.closed && this.queue.length && this.active.size < runnerLimits.globalCalls) {
       const index = this.queue.findIndex(pending =>
-        [...this.active.values()].filter(call => call.userId === pending.userId).length < runnerLimits.userCalls)
+        [...this.active.values()].filter(call => call.userId === pending.userId).length < runnerLimits.userCalls
+        && (!pending.delegated || [...this.active.values()].filter(call => call.userId === pending.userId && call.delegated).length < 2))
       if (index === -1) return
       const [next] = this.queue.splice(index, 1)
       next.admit()
@@ -131,10 +133,10 @@ export class Runner {
         try { return await execute(this.root, executable, args, environment, secrets, { ...limits, directoryScope, signal }, input, files, beforeSpawn, this.trustedCa, pathPrefix) }
         finally { custody?.close() }
       } finally { if (directoryScope) this.directoryScopes.delete(directoryScope) }
-    })
+    }, limits.delegated)
   }
 
-  runManaged<T>(userId: string, signal: AbortSignal | undefined, operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  runManaged<T>(userId: string, signal: AbortSignal | undefined, operation: (signal: AbortSignal) => Promise<T>, delegated = false): Promise<T> {
     if (!userId) return Promise.reject(new TypeError('An authenticated user is required'))
     if (this.closed) return Promise.reject(new RunnerError('RUNNER_CLOSED'))
     if (signal?.aborted) return Promise.reject(new RunnerError('CANCELLED'))
@@ -144,7 +146,7 @@ export class Runner {
         signal?.removeEventListener('abort', cancel)
       }
       const pending = {
-        userId,
+        userId, delegated,
         admit: () => {
           cleanup()
           const key = Symbol()
@@ -154,7 +156,7 @@ export class Runner {
             this.active.delete(key)
             this.drain()
           })
-          this.active.set(key, { userId, controller, result })
+          this.active.set(key, { userId, delegated, controller, result })
           resolve(result)
         },
         reject: (code: 'CANCELLED' | 'RUNNER_CLOSED' | 'TOO_MANY_CALLS') => {

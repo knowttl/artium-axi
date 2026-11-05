@@ -15,7 +15,6 @@ import { createKubernetesAdapter } from '../../src/server/adapters/kubernetes.js
 import { createProxmoxAdapter } from '../../src/server/adapters/proxmox.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { createBrowserSession } from '../../src/server/auth/sessions.js'
-import { toolSchema } from '../../src/shared/api.js'
 
 // Each registration must be reviewed here before a delegated session can reach it.
 const classified = new Map<string, 'public' | 'denied'>()
@@ -28,12 +27,14 @@ function classify(methods: string, paths: string, policy: 'public' | 'denied') {
 classify('GET', `/ /login /auth/sso/:provider/start /auth/sso/:provider/callback /device
   /health/live /health/ready /cli/artium-axi.mjs /cli/artium-axi.mjs.sha256
   /admin/assets/confirm.js /admin/assets/style.css`, 'public')
-classify('POST', `/login /logout /device /v1/auth/device /v1/auth/device/poll /v1/auth/login /v1/auth/refresh /v1/auth/logout`, 'public')
+classify('POST', `/login /logout /device /v1/auth/device /v1/auth/device/poll /v1/auth/login /v1/auth/delegated /v1/auth/refresh /v1/auth/logout /v1/tools/:tool/run`, 'public')
+classify('GET', `/v1/tools /v1/results/technitium-axi/:operation/:id /v1/results/awx-axi/:operation/:id
+  /v1/results/kubernetes-axi/:operation/:id /v1/results/proxmox-axi/:operation/:id`, 'public')
 classify('GET', `/account /password /reauth /v1/account/sessions
   /admin /admin/ssh /admin/ssh/credentials /admin/ssh/audit /admin/settings/sign-in
   /admin/settings/sign-in/:id /admin/settings/sign-in/:id/matches/:ruleId /admin/invitations
   /admin/audit /admin/users /admin/users/:id /admin/roles /admin/roles/:id /admin/credentials /admin/tools /admin/tools/:tool
-  /v1/tools /v1/skills /v1/me /v1/tools/proxmox-axi/streams/limits
+  /v1/skills /v1/me /v1/account/tokens /v1/admin/tokens /v1/tools/proxmox-axi/streams/limits
   /v1/tools/kubernetes-axi/workspaces/:id /v1/tools/kubernetes-axi/workspaces/:id/files/*
   /v1/tools/kubernetes-axi/sessions /v1/tools/kubernetes-axi/sessions/:id
   /v1/tools/kubernetes-axi/sessions/:id/output /v1/tools/kubernetes-axi/sessions/:id/artifacts/*
@@ -41,12 +42,11 @@ classify('GET', `/account /password /reauth /v1/account/sessions
   /v1/admin/ssh/hosts /v1/admin/ssh/credentials /v1/admin/ssh/audit /v1/admin/ssh/audit/export
   /v1/admin/sso/providers /v1/admin/sso/providers/:id/credential /v1/admin/sso/role-rules /v1/admin/sso/invitations
   /v1/admin/audit /v1/admin/audit/export /v1/admin/users /v1/admin/users/:id /v1/admin/users/:id/sessions
-  /v1/admin/roles /v1/admin/roles/:id /v1/admin/roles/:id/members
-  /v1/results/technitium-axi/:operation/:id /v1/results/awx-axi/:operation/:id
-  /v1/results/kubernetes-axi/:operation/:id /v1/results/proxmox-axi/:operation/:id`, 'denied')
+  /v1/admin/roles /v1/admin/roles/:id /v1/admin/roles/:id/members`, 'denied')
 classify('POST', `/password /reauth /v1/account/sessions/:sessionId/revoke /v1/account/sessions/revoke
   /v1/auth/reauth /v1/auth/password /v1/tools/proxmox-axi/streams /v1/tools/kubernetes-axi/workspaces
-  /v1/tools/kubernetes-axi/sessions /v1/tools/kubernetes-axi/sessions/:id/confirm /v1/tools/:tool/run
+  /v1/account/tokens /v1/account/tokens/:id/revoke /v1/admin/tokens/:id/revoke /v1/admin/tokens/revoke-all
+  /v1/tools/kubernetes-axi/sessions /v1/tools/kubernetes-axi/sessions/:id/confirm
   /v1/admin/tools/:tool/certificates/inspect /v1/admin/tools/:tool/certificates/trust
   /v1/admin/tools/gh-axi/device /v1/admin/tools/gh-axi/device/cancel /v1/admin/tools/gh-axi/device/poll
   /v1/admin/tools/:tool/test /v1/admin/ssh/hosts /v1/admin/ssh/binding /v1/admin/ssh/grant
@@ -121,12 +121,6 @@ test('administrator-created delegated sessions cannot use admin, reauthenticatio
         expect(response.statusCode, route).toBe(403)
         if (method !== 'HEAD') expect(response.json().error.code, route).toBe('DELEGATED_SCOPE_DENIED')
       }
-    }
-    for (const tool of toolSchema.options) {
-      const response = await app.inject({ method: 'POST', url: `/v1/tools/${tool}/run`,
-        headers: { authorization: `Bearer ${token}` }, payload: { args: ['--help'] } })
-      expect(response.statusCode, tool).toBe(403)
-      expect(response.json().error.code, tool).toBe('DELEGATED_SCOPE_DENIED')
     }
     await app.listen({ host: '127.0.0.1', port: 0 })
     const address = app.server.address()

@@ -402,6 +402,7 @@ Installation does not establish that an agent host has loaded the skill.
 | `ARTIUM_AXI_URL` | HTTPS base URL without credentials, query or fragment; overrides the saved URL. Required in managed mode. |
 | `ARTIUM_AXI_CA_FILE` | Optional readable PEM CA file added to Node's certificate trust; overrides the saved CA path. |
 | `ARTIUM_AXI_PASSWORD` | Ordinary login password source when `--password-stdin` is absent, before the terminal prompt; refused for [managed sign-in](#externally-managed-client-sessions). |
+| `ARTIUM_AXI_TOKEN` | Delegated token for `login` only; refused in managed mode. |
 | `ARTIUM_AXI_CURRENT_PASSWORD` | Current password for an ordinary password change, before the terminal prompt. |
 | `XDG_CONFIG_HOME` | Session-file base on Linux/macOS; otherwise `~/.config`. |
 | `APPDATA` | Session-file base on Windows, whose execution remains unverified. |
@@ -409,7 +410,8 @@ Installation does not establish that an agent host has loaded the skill.
 
 Use `login --password-stdin` or `passwd --password-stdin` to supply the login or new password through stdin.
 Stdin removes one final LF or CRLF and preserves all other spaces and Unicode.
-Password arguments are refused; tokens are never printed to stdout or stderr.
+Password and token arguments are refused.
+Delegated token creation displays the token once on a terminal, or sends it to the private descriptor selected by `--token-fd`.
 Ordinary password changes also require the current password through the terminal prompt or `ARTIUM_AXI_CURRENT_PASSWORD`.
 Clear password environment values after use.
 
@@ -417,7 +419,8 @@ By default, sessions live in `artium-axi/session.json` under the applicable base
 Ordinary password and SSO login save the server URL and optional absolute CA file path in the adjacent `config.json`, with the same private write protections.
 For the first login, or to save settings for an existing session, set `ARTIUM_AXI_URL` and any required `ARTIUM_AXI_CA_FILE`, then sign in again.
 Later commands use those saved settings when the corresponding environment variables are unset, including commands run by installed hooks and skills.
-Agent hosts must use the same configuration directory, and any saved CA file must remain readable at its saved path.
+Agent hosts that share a full session use the same configuration directory, and any saved CA file must remain readable at its saved path.
+Give a delegated agent a separate configuration directory so its login cannot overwrite an existing session.
 `doctor` reports whether the address came from `ARTIUM_AXI_URL` or `config.json`.
 Logout keeps these connection settings; managed mode neither reads nor writes them.
 Callers that manage their own tokens can instead use [externally managed client sessions](#externally-managed-client-sessions).
@@ -431,6 +434,38 @@ Certificate verification remains enforced even with `NODE_TLS_REJECT_UNAUTHORIZE
 For ordinary authenticated requests other than password changes and `download`, stored access tokens refresh under the session lock before use when expired or within 30 seconds of expiry.
 An explicit pre-execution `TOKEN_EXPIRED` response still permits one serialized refresh and retry.
 A network failure or uncertain command outcome is never retried automatically.
+
+### Delegated tokens
+
+Minting is disabled by default while delegated support is being completed.
+When enabled, a signed-in user can create a token with `artium-axi token create --label <label> --tool <tool> --expires <ISO-date> --password-stdin --token-fd <fd>`.
+Use an inherited private pipe or socket for the token descriptor, or omit it when writing to a terminal.
+The token appears once and is stored only as a hash by the server.
+The creator chooses an expiry within the administrator's cap, normally 30 days, and confirms their identity during creation.
+Tokens are single-use by default; `--reusable` permits multiple exchanges until expiry or revocation.
+`--write` opts into writes that the creator and administrator can currently perform.
+Tool-wide grants exclude credential-issuing commands and broad API escape hatches.
+Use `--exact <tool:command>` to select one of those commands explicitly.
+Credentials issued by a selected command can outlive the delegated token and must be revoked separately.
+Use `artium-axi token list` and `artium-axi token revoke <id>` to manage tokens.
+
+Pass the token through stdin to `artium-axi login --token-stdin` in the agent's separate configuration directory.
+`ARTIUM_AXI_TOKEN` is also read at ordinary login, but is refused in managed mode.
+An existing full session blocks delegated login; choose a separate `XDG_CONFIG_HOME`.
+Separate configuration directories do not protect a full session from another process running as the same operating-system user.
+Use a separate OS user, container, or host when that separation matters.
+Delegated access follows the creator's current grants and ends on expiry, revocation, creator disablement, or password change.
+Read-only blocks commands classified as writes, including previews, but does not prevent every outbound transmission or expense.
+For example, Hybrid Analysis quick scans send a sample or URL to a third party even though they are classified as reads.
+Delegated SSH access, hosted sessions, streams and downloads remain unavailable in this slice.
+
+The bearer API creates tokens with `POST /v1/account/tokens`, requiring an `x-artium-reauth-ticket` from recent authentication.
+Its JSON body contains `label`, `scope` with a `tools` array, `readOnly`, `reusable`, and the numeric `expiresAt` in Unix milliseconds.
+Each tool entry has a `tool` name and may have a `commands` array of exact credential-issuing commands or broad API escape hatches.
+To combine a tool-wide grant and an exact pick, include separate entries for that tool.
+`GET /v1/account/tokens` lists the creator's tokens, and `POST /v1/account/tokens/<id>/revoke` revokes one.
+`POST /v1/auth/delegated` exchanges a token supplied in the JSON `token` field for a normal access and refresh pair.
+Administrators with recent authentication can list all tokens at `GET /v1/admin/tokens`, revoke one at `POST /v1/admin/tokens/<id>/revoke`, or revoke all at `POST /v1/admin/tokens/revoke-all`.
 
 ### Externally managed client sessions
 

@@ -133,6 +133,12 @@ export function revokeFamily(db: Database.Database, familyId: string, now: numbe
 }
 
 export function refreshTokens(db: Database.Database, token: string, audit: Audit, context: AuditContext, now = Date.now()): TokenPair {
+  const delegation = db.prepare(`SELECT delegations.id, delegations.creator_id FROM tokens
+    JOIN session_families ON session_families.id = tokens.family_id
+    JOIN delegations ON delegations.id = session_families.delegation_id
+    WHERE tokens.hash = ? AND tokens.type = 'refresh'`).get(hashToken(token)) as { id: string, creator_id: string } | undefined
+  if (delegation) audit.record({ ...context, event: 'delegation-access', userId: delegation.creator_id,
+    delegationId: delegation.id, tool: null, outcome: 'success' })
   const result = db.transaction(() => {
     const row = findSessionToken(db, token, ['refresh'])
     if (row.expires_at <= now || row.family_expires_at <= now || (row.delegation_expires_at !== null && row.delegation_expires_at <= now)) throw new ArtiumError('TOKEN_EXPIRED')
@@ -152,12 +158,31 @@ export function refreshTokens(db: Database.Database, token: string, audit: Audit
 
 export function logout(db: Database.Database, token: string, audit: Audit, context: AuditContext, now = Date.now()): void {
   const row = findSessionToken(db, token, ['access', 'refresh'])
-  audit.change({ ...context, event: 'sign-out', userId: row.user_id, tool: null, outcome: 'success' },
+  audit.change({ ...context, event: 'sign-out', userId: row.user_id, delegationId: row.delegation_id, tool: null, outcome: 'success' },
     () => revokeFamily(db, row.family_id, now))
 }
 
 export function revokeUserSessions(db: Database.Database, userId: string, now: number): void {
+  db.prepare('UPDATE delegations SET revoked_at = ? WHERE creator_id = ? AND revoked_at IS NULL').run(now, userId)
   db.prepare('UPDATE session_families SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').run(now, userId)
   db.prepare('UPDATE tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').run(now, userId)
   db.prepare('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').run(now, userId)
+}
+
+// The caller owns the transaction so exchange and its audit record commit together.
+export function exchangeDelegation(db: Database.Database, token: string, now = Date.now()): TokenPair {
+  const row = db.prepare(`SELECT delegations.id, delegations.creator_id, delegations.expires_at,
+    delegations.revoked_at, delegations.single_use, delegations.consumed_at, users.disabled, users.must_change
+    FROM delegations JOIN users ON users.id = delegations.creator_id WHERE token_hash = ?`).get(hashToken(token)) as
+    { id: string, creator_id: string, expires_at: number, revoked_at: number | null, single_use: number,
+      consumed_at: number | null, disabled: number, must_change: number } | undefined
+  if (!row || row.revoked_at !== null || row.disabled || row.must_change || (row.single_use && row.consumed_at !== null)) {
+    throw new ArtiumError('TOKEN_INVALID')
+  }
+  if (row.expires_at <= now) throw new ArtiumError('TOKEN_EXPIRED')
+  if (row.single_use) db.prepare('UPDATE delegations SET consumed_at = ? WHERE id = ?').run(now, row.id)
+  const familyId = randomUUID()
+  db.prepare('INSERT INTO session_families (id, user_id, created_at, expires_at, delegation_id) VALUES (?, ?, ?, ?, ?)')
+    .run(familyId, row.creator_id, now, row.expires_at, row.id)
+  return issuePair(db, familyId, row.creator_id, row.expires_at, now)
 }
