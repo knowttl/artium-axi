@@ -7,12 +7,13 @@ import { z } from 'zod'
 import { toolAllowsWrites } from '../shared/api.js'
 import { sshExecutionInput, sshExecutionStatus, type SshExecutionInput } from '../shared/ssh-execution.js'
 import { ArtiumError } from '../shared/errors.js'
-import { verifyAccessToken, verifyAccessFamily, verifyPrincipal } from './auth/tokens.js'
+import { verifyFamilyPrincipal, verifyPrincipal } from './auth/tokens.js'
+import { authorizeDelegatedOperation } from './auth/delegations.js'
 import { checkToolPolicy } from './policy/policy.js'
 import { sshBinding, type SshOwner as Owner } from './policy/ssh.js'
 import { SshConnections } from './ssh-connections.js'
 import { registerSshAudit } from './admin/ssh-audit.js'
-import { sshProfile, verifySshArtifact } from './adapters/ssh.js'
+import { createSshAdapter, sshProfile, verifySshArtifact } from './adapters/ssh.js'
 import { toolPaths } from './config.js'
 import { decryptCredential, encryptCredential, type EncryptedCredential } from './store/crypto.js'
 import type { SshHosts } from './store/ssh-hosts.js'
@@ -41,17 +42,29 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
 }): void {
   const { db, hosts, runner, audit, provider, writeLog, environment, executable = toolPaths['ssh-axi'] } = options
   const connections = new SshConnections(db, hosts, writeLog, executable)
+  const adapter = createSshAdapter(hosts, writeLog, executable)
+  const delegationId = (family: string) => (db.prepare('SELECT delegation_id FROM session_families WHERE id = ?').get(family) as { delegation_id: string | null }).delegation_id
   const active = new Map<string, { controller: AbortController, guard: () => void, done: Promise<void>, connection?: string }>()
   const parse = <T>(schema: z.ZodType<T>, value: unknown): T => {
     const result = schema.safeParse(value)
     if (!result.success) throw new ArtiumError('INVALID_INPUT')
     return result.data
   }
-  const identity = (request: FastifyRequest): Owner => {
+  const authorize = (owner: Owner, command: string, effect: 'read' | 'write', setup = false) => {
+    const principal = verifyFamilyPrincipal(db, owner.family)
+    if (principal.userId !== owner.user) throw new ArtiumError('TOKEN_INVALID')
+    checkToolPolicy(db, owner.user, 'ssh-axi')
+    if (principal.delegation) {
+      if (setup && principal.delegation.readOnly) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+      authorizeDelegatedOperation(db, owner.user, principal.delegation, adapter, { command, effect })
+    }
+    return principal.delegation
+  }
+  const identity = (request: FastifyRequest, command: string, effect: 'read' | 'write' = 'read', setup = false): Owner => {
     const token = /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''
-    const user = verifyAccessToken(db, token)
-    checkToolPolicy(db, user, 'ssh-axi')
-    const family = verifyAccessFamily(db, token)
+    const principal = verifyPrincipal(db, token)
+    const { userId: user, familyId: family } = principal
+    authorize({ user, family }, command, effect, setup)
     prune()
     return { user, family }
   }
@@ -138,7 +151,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
         row.host_id, admitted.input.connection, admitted.input.sudo, { command, timeout: admitted.input.timeout,
           outputLimit: Math.min(admitted.input.outputLimit, 8192) }, controller.signal, runner, guard)
         : JSON.parse((await runner.run(row.user_id, process.execPath, [executable, 'exec', row.host_id, '--confirm', '--json'],
-        admitted.profile.environment, admitted.profile.secrets, { timeoutMs: (admitted.input.timeout + 18) * 1000,
+        admitted.profile.environment, admitted.profile.secrets, { timeoutMs: (admitted.input.timeout + 18) * 1000, delegated: !!delegationId(row.family_id),
           signal: controller.signal, trustedIpc: { revision: 1, hosts: [{ id: row.host_id, address: admitted.state.selected.address,
             port: admitted.state.selected.port, username: row.account }], execution: { command,
             timeout: admitted.input.timeout, outputLimit: Math.min(admitted.input.outputLimit, 8192) } } }, {}, admitted.profile.files, guard)).stdout)
@@ -156,7 +169,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
     const plain = Buffer.from(JSON.stringify({ stdout, stderr }))
     try {
       const encrypted = encryptCredential(row.id, 'ssh-axi', plain, provider.getKey())
-      audit.change({ event: 'run-terminal', userId: row.user_id, tool: 'ssh-axi', requestId: row.request_id,
+      audit.change({ event: 'run-terminal', userId: row.user_id, delegationId: delegationId(row.family_id), tool: 'ssh-axi', requestId: row.request_id,
         clientAddress: null, outcome: result.outcome === 'unknown' ? 'interrupted' : 'completed',
         action: result.outcome === 'unknown' ? 'unknown' : 'write', exitCode: typeof result.remoteExit === 'number' ? result.remoteExit : null,
         durationMs: Date.now() - row.started_at, outputBytes: { stdout: (stdout as { receivedBytes?: number } | undefined)?.receivedBytes ?? null,
@@ -170,14 +183,15 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
     } finally { plain.fill(0); active.delete(row.id) }
   }
   app.post('/v1/ssh/prepare', async request => {
-    const owner = identity(request)
+    const owner = identity(request, 'exec', 'write')
     const admitted = await admit(owner, request.body)
+    authorize(owner, 'exec', 'write')
     const body = Buffer.from(JSON.stringify({ version: 1, keyId: provider.getKey().id, nonce: randomUUID(), ...owner,
       input: hash(admitted.input), binding: admitted.state.hash, expires: Date.now() + 600000 })).toString('base64url')
     return { requestKey: `${body}.${sign(body)}`, host: admitted.input.host }
   })
   app.post('/v1/ssh/submit', async request => {
-    const owner = identity(request)
+    const owner = identity(request, 'exec', 'write')
     const body = parse(z.object({ requestKey: z.string().min(1).max(4096), input: sshExecutionInput }).strict(), request.body)
     const existing = db.prepare('SELECT id FROM ssh_executions WHERE request_key=?').get(body.requestKey) as { id: string } | undefined
     if (existing) {
@@ -188,6 +202,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
     }
     const claims = verifyKey(body.requestKey, owner)
     const admitted = await admit(owner, body.input)
+    authorize(owner, 'exec', 'write')
     if (claims.input !== hash(admitted.input) || claims.binding !== admitted.state.hash) throw new ArtiumError('REVISION_CONFLICT')
     if (claims.expires <= Date.now()) throw new ArtiumError('INVALID_INPUT', 'Unused execution preparation expired; prepare again only after inspecting remote state.')
     let created = false
@@ -203,7 +218,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
       }) }
     const duplicateClaim = Symbol()
     try {
-      audit.change({ event: 'run-start', userId: owner.user, tool: 'ssh-axi', requestId: row.request_id,
+      audit.change({ event: 'run-start', userId: owner.user, delegationId: delegationId(owner.family), tool: 'ssh-axi', requestId: row.request_id,
         clientAddress: request.ip, outcome: 'started', args: ['exec', row.host_id, '--command', row.command, '--confirm'],
         sensitive: { flags: ['--command'], positions: [] } }, () => {
         if (db.prepare('SELECT 1 FROM ssh_executions WHERE request_key=?').get(body.requestKey)) throw duplicateClaim
@@ -217,7 +232,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
     const claimed = owned(owner, { requestKey: body.requestKey })
     if (created) {
       const controller = new AbortController()
-      const guard = () => { if (controller.signal.aborted) throw new ArtiumError('CANCELLED'); if (binding(owner, admitted.input).hash !== row.binding) throw new ArtiumError('REVISION_CONFLICT') }
+      const guard = () => { if (controller.signal.aborted) throw new ArtiumError('CANCELLED'); authorize(owner, 'exec', 'write'); if (binding(owner, admitted.input).hash !== row.binding) throw new ArtiumError('REVISION_CONFLICT') }
       const done = execute(row, admitted, controller, guard)
       active.set(row.id, { controller, guard, done, connection: admitted.input.connection })
       void done.catch(() => {})
@@ -225,19 +240,22 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
     return view(claimed)
   })
   app.post('/v1/ssh/show', async request => {
-    const owner = identity(request)
+    const owner = identity(request, 'execution show')
     const selector = parse(z.object({ id: z.string().optional(), requestKey: z.string().max(4096).optional(), full: z.boolean().default(false) }).strict()
       .refine(value => Boolean(value.id) !== Boolean(value.requestKey)), request.body)
     prune()
     const row = owned(owner, selector)
-    audit.record({ event: 'admin-change', userId: owner.user, tool: 'ssh-axi', requestId: request.id,
+    audit.record({ event: 'admin-change', userId: owner.user, delegationId: delegationId(owner.family), tool: 'ssh-axi', requestId: request.id,
       clientAddress: request.ip, outcome: 'success', action: 'ssh-execution-read', targetId: row.id })
     return view(row)
   })
-  const recordRead = (request: FastifyRequest, userId: string, action: string, targetId = 'ssh-executions') => audit.record({
-    event: 'admin-change', userId, tool: 'ssh-axi', requestId: request.id, clientAddress: request.ip, outcome: 'success', action, targetId })
+  const recordRead = (request: FastifyRequest, userId: string, action: string, targetId = 'ssh-executions') => {
+    const token = /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''
+    const delegation = token ? verifyPrincipal(db, token).delegation : null
+    audit.record({ event: 'admin-change', userId, delegationId: delegation?.id ?? null, tool: 'ssh-axi', requestId: request.id, clientAddress: request.ip, outcome: 'success', action, targetId })
+  }
   app.post('/v1/ssh/list', async request => {
-    const owner = identity(request)
+    const owner = identity(request, 'execution list')
     parse(z.object({}).strict(), request.body)
     const rows = db.prepare('SELECT * FROM ssh_executions WHERE user_id=? AND family_id=? ORDER BY started_at DESC,id DESC')
       .all(owner.user, owner.family) as Row[]
@@ -249,7 +267,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
       help: ['artium-axi ssh-axi execution show <id> --full'] }
   })
   app.post('/v1/ssh/cancel', async request => {
-    const owner = identity(request)
+    const owner = identity(request, 'execution cancel', 'write')
     const body = parse(z.object({ id: z.string(), confirm: z.literal(true) }).strict(), request.body)
     const row = owned(owner, body)
     const job = active.get(row.id)
@@ -259,18 +277,18 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
   })
   const idle = z.number().int().min(1).max(60)
   app.post('/v1/ssh/connection/open', async request => {
-    const owner = identity(request)
+    const owner = identity(request, 'connection open', 'read', true)
     const body = parse(z.object({ host: sshExecutionInput.shape.host, idle: idle.default(10), sudo: z.boolean().default(false) }).strict(), request.body)
     return connections.open(owner, body.host, body.idle, body.sudo)
   })
   app.post('/v1/ssh/connection/list', async request => {
-    const owner = identity(request); parse(z.object({}).strict(), request.body)
+    const owner = identity(request, 'connection list'); parse(z.object({}).strict(), request.body)
     await connections.reconcile()
     recordRead(request, owner.user, 'ssh-connection-list')
     return connections.list(owner)
   })
   app.post('/v1/ssh/connection/show', async request => {
-    const owner = identity(request)
+    const owner = identity(request, 'connection show')
     const body = parse(z.object({ id: z.string() }).strict(), request.body)
     await connections.reconcile()
     const result = connections.show(owner, body.id)
@@ -278,7 +296,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
     return result
   })
   app.post('/v1/ssh/connection/set', async request => {
-    const owner = identity(request)
+    const owner = identity(request, 'connection set', 'read', true)
     const body = parse(z.object({ id: z.string(), idle }).strict(), request.body)
     await connections.reconcile()
     const result = await connections.set(owner, body.id, body.idle)
@@ -286,7 +304,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
     return result
   })
   app.post('/v1/ssh/connection/close', async request => {
-    const owner = identity(request)
+    const owner = identity(request, 'connection close', 'write')
     const body = parse(z.object({ id: z.string(), confirm: z.boolean().default(false) }).strict(), request.body)
     const result = await connections.close(owner, body.id, body.confirm)
     for (const job of active.values()) if (job.connection === body.id) { job.controller.abort('user'); await job.done }
@@ -308,8 +326,9 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
   app.addHook('onError', async (request, _reply, error) => {
     if (!request.url.startsWith('/v1/ssh/')) return
     let userId: string | null = null
-    try { userId = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? '').userId } catch { /* Anonymous denial. */ }
-    audit.record({ event: 'denial', userId, tool: 'ssh-axi', requestId: request.id, clientAddress: request.ip,
+    let delegated: string | null = null
+    try { const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''); userId = principal.userId; delegated = principal.delegation?.id ?? null } catch { /* Anonymous denial. */ }
+    audit.record({ event: 'denial', userId, delegationId: delegated, tool: 'ssh-axi', requestId: request.id, clientAddress: request.ip,
       outcome: error instanceof ArtiumError ? error.code : 'INVALID_INPUT' })
   })
   app.addHook('preClose', async () => {

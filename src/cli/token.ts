@@ -11,7 +11,7 @@ import type { ManagedSession } from './managed-session.js'
 export async function tokenCommand(args: string[], output: (text: string) => void, managed?: ManagedSession) {
   const action = args[0]
   if (args.includes('--help')) {
-    output('usage: artium-axi token create --label <label> --tool <tool> --expires <ISO-date> [--write] [--reusable] [--command <tool:command>] [--exact <tool:command>] [--token-fd <fd>] [--password-stdin|--sso]\n       artium-axi token list\n       artium-axi token revoke <id>\nCommand picks are exact. Wildcards are not supported yet. API and native selections are broad and require an exact pick.\nRead-only blocks writes, but some reads send data externally or incur costs.\n')
+    output('usage: artium-axi token create --label <label> --tool <tool> --expires <ISO-date> [--write] [--reusable] [--command <tool:command>] [--exact <tool:command>] [--token-fd <fd>] [--password-stdin|--sso]\n       artium-axi token list\n       artium-axi token revoke <id>\nCommand picks are exact. Wildcards are not supported yet. API and native selections are broad and require an exact pick.\nRead-only blocks writes, but some reads send data externally or incur costs.\nSSH write access reaches every host and sudo grant available to the creator.\n')
     return
   }
   if (managed) throw new ArtiumError('INVALID_INPUT', 'Token management is unavailable in managed mode.')

@@ -11,9 +11,12 @@ import { SecretScanner } from './runner/scan.js'
 import type { Runner } from './runner/runner.js'
 import type { SshHosts } from './store/ssh-hosts.js'
 import inventory from '../../tools/inventories/ssh-axi.json' with { type: 'json' }
+import { verifyFamilyPrincipal } from './auth/tokens.js'
+
+const DELEGATED_CONNECTION_LIMIT = 2
 
 interface Connection {
-  id: string, owner: SshOwner, host: string, sudo: boolean, binding: string, child?: ChildProcess,
+  id: string, owner: SshOwner, host: string, sudo: boolean, binding: string, delegated: boolean, child?: ChildProcess,
   state: 'opening' | 'idle' | 'active' | 'closed', idle: number, started: number, idleStart: number, wall: number,
   timer?: NodeJS.Timeout, closing?: Promise<void>, done: Promise<void>, finish: () => void, directory: string,
   pending: Map<string, { resolve: (value: Record<string, unknown>) => void, reject: (error: Error) => void }>,
@@ -113,12 +116,16 @@ export class SshConnections {
     if (idle > state.selected.idle_minutes) throw new ArtiumError('INVALID_INPUT')
     const live = [...this.entries.values()].filter(entry => entry.state !== 'closed' || entry.closing)
     if (live.length >= 16 || live.filter(entry => entry.owner.user === owner.user).length >= 4) throw new ArtiumError('TOO_MANY_CALLS')
+    const delegated = !!verifyFamilyPrincipal(this.db, owner.family).delegation
+    if (delegated && live.filter(entry => entry.owner.user === owner.user && entry.delegated).length >= DELEGATED_CONNECTION_LIMIT) {
+      throw new ArtiumError('TOO_MANY_CALLS', 'Delegated SSH connections are limited to two per creator.', 'Close a delegated connection before opening another.')
+    }
     verifySshArtifact(this.executable)
     const prepared = sshProfile.prepare('ssh-axi', this.hosts.profile(owner.user, host, sudo), this.writeLog, true)
     let finish!: () => void
     const done = new Promise<void>(resolve => { finish = resolve })
     const now = performance.now()
-    const connection: Connection = { id: `conn_${randomUUID()}`, owner, host, sudo, binding: state.hash,
+    const connection: Connection = { id: `conn_${randomUUID()}`, owner, host, sudo, binding: state.hash, delegated,
       state: 'opening', idle, started: now, idleStart: now, wall: Date.now(), done, finish, pending: new Map(),
       directory: mkdtempSync(join(this.root, 'connection-')) }
     this.entries.set(connection.id, connection)
@@ -241,7 +248,7 @@ export class SshConnections {
         admittedSignal.addEventListener('abort', shutdown, { once: true })
         try { this.record(connection, 'execution'); return { ...await this.request(connection, 'exec', settings), connectionId: id } }
         finally { admittedSignal.removeEventListener('abort', shutdown) }
-      })
+      }, !!verifyFamilyPrincipal(this.db, owner.family).delegation)
     } finally {
       clearTimeout(deadline); signal.removeEventListener('abort', cancel)
       if (connection.child?.connected && !connection.closing) { connection.state = 'idle'; connection.idleStart = performance.now(); this.schedule(connection) }

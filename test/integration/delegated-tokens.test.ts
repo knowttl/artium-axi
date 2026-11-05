@@ -87,6 +87,22 @@ async function mint(extra: string[] = []) {
   return result.secret
 }
 
+test('minting writable SSH access warns about all granted hosts and sudo', async () => {
+  await app.close()
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'ssh-axi'")
+  const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') })
+  const hosts = new SshHosts(db, provider)
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-ssh')), audit: new Audit(db),
+    adapters: [createSshAdapter(hosts, join(directory, 'writes.log'))], environment: {},
+    resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
+  const result = await cli(['token', 'create', '--label', 'Synthetic', '--tool', 'ssh-axi', '--expires',
+    new Date(Date.now() + 600_000).toISOString(), '--write', '--password-stdin', '--token-fd', '3'], `${password}\n`, 'owner', true)
+  expect(result.code, result.stdout).toBe(0)
+  expect(result.stdout).toContain('SSH write access reaches every host and sudo grant available to the creator.')
+})
+
 test('token --command refuses wildcard selections without storing a token (R12)', async () => {
   expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
   const minted = await cli(['token', 'create', '--label', 'Synthetic', '--command', 'falcon-axi:detection *', '--expires',
@@ -95,6 +111,61 @@ test('token --command refuses wildcard selections without storing a token (R12)'
   expect(minted.stdout).toContain('Wildcards are not supported yet.')
   expect(minted.secret).toBe('')
   expect(db.prepare('SELECT count(*) AS count FROM delegations').get()).toEqual({ count: 0 })
+})
+
+test.each([
+  { command: 'exec', grants: ['exec', 'execution show', 'execution cancel'] },
+  { command: 'exec', grants: ['exec'] },
+  { command: 'connection open', grants: ['connection open'] },
+  { command: 'connection list', grants: ['connection list'] },
+  { command: 'connection show', grants: ['connection show'] },
+  { command: 'connection set', grants: ['connection set'] },
+  { command: 'connection close', grants: ['connection close'] },
+  { command: 'execution list', grants: ['execution list'] },
+  { command: 'execution show', grants: ['execution show'] },
+  { command: 'execution cancel', grants: ['execution cancel'] },
+])('granted managed SSH $command help preserves native output with $grants (R2, R3)', async ({ command, grants }) => {
+  await app.close()
+  db.exec(`UPDATE tools SET enabled = 1, native_settings = '{"allowWrites":true}' WHERE name = 'ssh-axi'`)
+  const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') })
+  const adapter = createSshAdapter(new SshHosts(db, provider), join(directory, 'writes.log'),
+    join(process.cwd(), 'tools/node_modules/@knowttl/ssh-axi/dist/hosted.js'))
+  const runner = await Runner.create(join(directory, 'calls-ssh-help'))
+  app = createApp({ db, runner, audit: new Audit(db), adapters: [adapter], environment: {},
+    resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+    scope: { tools: [{ tool: 'ssh-axi' }] }, readOnly: false, reusable: false,
+    expiresAt: Date.now() + 600_000 }, [adapter])
+  db.prepare('UPDATE delegations SET scope_json = ? WHERE id = ?')
+    .run(JSON.stringify({ tools: [{ tool: 'ssh-axi', commands: grants }] }), minted.id)
+  expect((await cli(['login', '--token-stdin'], `${minted.token}\n`, 'agent')).code).toBe(0)
+  const args = [...command.split(' '), '--help']
+  const native = await runner.run('synthetic-development-user', process.execPath, [adapter.executable, ...args], {}, [],
+    { timeoutMs: adapter.timeoutMs, trustedIpc: { revision: 1, hosts: [] } })
+  expect(native.exitCode, native.stdout + native.stderr).toBe(0)
+  const result = await cli(['ssh-axi', ...args], '', 'agent')
+  expect(result.code, result.stdout + result.stderr).toBe(0)
+  expect(result.stdout).toBe(native.stdout)
+  expect(result.stderr).toBe(native.stderr)
+})
+
+test('non-granted managed SSH command help is refused (R2)', async () => {
+  await app.close()
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'ssh-axi'")
+  const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') })
+  const adapter = createSshAdapter(new SshHosts(db, provider), join(directory, 'writes.log'),
+    join(process.cwd(), 'tools/node_modules/@knowttl/ssh-axi/dist/hosted.js'))
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-ssh-help')), audit: new Audit(db),
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+    scope: { tools: [{ tool: 'ssh-axi', commands: ['execution list'] }] }, readOnly: true, reusable: false,
+    expiresAt: Date.now() + 600_000 }, [adapter])
+  expect((await cli(['login', '--token-stdin'], `${minted.token}\n`, 'agent')).code).toBe(0)
+  const result = await cli(['ssh-axi', 'connection', 'list', '--help'], '', 'agent')
+  expect(result.code).toBe(1)
+  expect(result.stdout).toContain('DELEGATED_SCOPE_DENIED')
 })
 
 test.each([

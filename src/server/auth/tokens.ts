@@ -56,6 +56,23 @@ export function verifyPrincipal(db: Database.Database, token: string, now = Date
   } }
 }
 
+export function verifyFamilyPrincipal(db: Database.Database, familyId: string, now = Date.now()) {
+  const row = db.prepare(`SELECT f.user_id, f.expires_at, f.revoked_at, u.disabled, f.delegation_id,
+    d.creator_id, d.scope_json, d.read_only, d.expires_at AS delegation_expires_at, d.revoked_at AS delegation_revoked_at
+    FROM session_families f JOIN users u ON u.id = f.user_id LEFT JOIN delegations d ON d.id = f.delegation_id
+    WHERE f.id = ?`).get(familyId) as { user_id: string, expires_at: number, revoked_at: number | null, disabled: number,
+      delegation_id: string | null, creator_id: string | null, scope_json: string | null, read_only: number | null,
+      delegation_expires_at: number | null, delegation_revoked_at: number | null } | undefined
+  if (!row || row.revoked_at !== null || (row.delegation_id !== null &&
+    (row.creator_id !== row.user_id || row.delegation_revoked_at !== null))) throw new ArtiumError('TOKEN_INVALID')
+  if (row.expires_at <= now || (row.delegation_expires_at !== null && row.delegation_expires_at <= now)) throw new ArtiumError('TOKEN_EXPIRED')
+  if (row.disabled) throw new ArtiumError('USER_DISABLED')
+  if (row.delegation_id !== null) requireActiveDelegation(db, row.user_id, now)
+  return { userId: row.user_id, familyId, delegation: row.delegation_id === null ? null : {
+    id: row.delegation_id, scopeJson: row.scope_json!, readOnly: !!row.read_only, expiresAt: row.delegation_expires_at!,
+  } }
+}
+
 function verifyUndelegated(db: Database.Database, token: string, types: readonly string[], now: number) {
   const row = verifyToken(db, token, types, now)
   if (row.delegation_id !== null) throw new ArtiumError('DELEGATED_SCOPE_DENIED')

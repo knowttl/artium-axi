@@ -41,6 +41,7 @@ export function hostedStatus(tool: string, invocation: PreparedCall['invocation'
   }
   if (tool === 'ssh-axi' && invocation && result.exitCode === 0) {
     if (result.truncated.stdout || result.truncated.stderr) throw new ArtiumError('INVALID_RESPONSE')
+    if (invocation.help && ssh.managedCommands.some(route => route.command === invocation.command)) return result
     const json = result.stdout.trimStart().startsWith('{')
     try {
       const document = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>

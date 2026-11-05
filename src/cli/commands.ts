@@ -79,12 +79,11 @@ async function main(args: string[]) {
       const name = toolDiscovery ? command : help === 'tools show' ? args.slice(2).find(arg => toolSchema.safeParse(arg).success) : undefined
       if (name) {
         const tool = tools.find(tool => tool.name === name)
-        if (!tool) throw new ArtiumError('TOOL_NOT_GRANTED')
         if (toolDiscovery && !prefixHelp && toolWords.length > 0 && !(toolWords.length === 1 && ['commands', 'home', 'help'].includes(toolWords[0]))) {
           const hostedArgs = args.slice(1).map(arg => arg === '-h' ? '--help' : arg)
           const hosted = name === 'kubernetes-axi' ? resolveKubernetesHostedCommand(hostedArgs) : undefined
           if (hosted && kubernetesHostedRoutes.some(route => route.command === hosted)) {
-            if (!tool.commands?.includes(hosted)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+            if (!tool?.commands?.includes(hosted)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
             await kubernetesHosted(hostedArgs, () => client, (text, stream = 'stdout') => output(stream, text), tool.commands)
             return
           }
@@ -98,6 +97,7 @@ async function main(args: string[]) {
           process.exitCode = parsed.data.exitCode
           return
         }
+        if (!tool) throw new ArtiumError('TOOL_NOT_GRANTED')
         output('stdout', args.includes('--json') ? JSON.stringify({ tool: tool.name, commands: tool.commands }) + '\n' : toolView(tool))
       } else output('stdout', toolsView(tools))
       return

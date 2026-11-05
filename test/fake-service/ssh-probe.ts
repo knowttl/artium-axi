@@ -25,6 +25,8 @@ import { sshExecutionStatus } from '../../src/shared/ssh-execution.js'
 import { backupStore, restoreStore } from '../../src/server/store/backup.js'
 import { rotateKey } from '../../src/server/store/rotate-key.js'
 import { decryptCredential, type EncryptedCredential } from '../../src/server/store/crypto.js'
+import { createDelegation } from '../../src/server/auth/delegations.js'
+import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 
 // All authenticated native probes run inside one owned --network none container.
 assert.ok(!readFileSync('/proc/net/route', 'utf8').split('\n').slice(1).some(line => line.split(/\s+/)[1] === '00000000'))
@@ -309,6 +311,42 @@ try {
     'R4: closed connection metadata must not retain workers, listeners or secret-scanner buffers')
   assert.equal((await execution('prepare', { ...input, connection: reusable.id })).json().error.code, 'CONNECTION_CLOSED')
   assert.equal(counts.transports, reusedTransport)
+  db.exec('UPDATE delegation_settings SET minting_enabled=1')
+  const tokenAdapter = createSshAdapter(hosts, join(directory, 'writes.log'))
+  const mint = () => createDelegation(db, 'synthetic-development-user', { label: 'Synthetic', scope: { tools: [{ tool: 'ssh-axi' }] },
+    readOnly: false, reusable: true, expiresAt: Date.now() + 600000 }, [tokenAdapter])
+  const firstToken = mint()
+  const secondToken = mint()
+  const firstDelegate = { authorization: `Bearer ${exchangeDelegation(db, firstToken.token).accessToken}` }
+  const secondDelegate = { authorization: `Bearer ${exchangeDelegation(db, secondToken.token).accessToken}` }
+  const firstConnection = await openConnection({}, firstDelegate)
+  const secondConnection = await openConnection({}, secondDelegate)
+  const delegateLimit = await execution('connection/open', { host: 'granted' }, firstDelegate)
+  assert.equal(delegateLimit.json().error.code, 'TOO_MANY_CALLS')
+  assert.match(delegateLimit.json().error.message, /two per creator/)
+  const ownerConnections = [await openConnection(), await openConnection()]
+  const startHeld = async (identity: typeof headers, connection: string) => {
+    const selected = { ...input, command: 'synthetic-hold', connection }
+    const preparation = await execution('prepare', selected, identity)
+    assert.equal(preparation.statusCode, 200, preparation.body)
+    const started = once(events, 'command', { signal: AbortSignal.timeout(20000) })
+    const submitted = await execution('submit', { requestKey: preparation.json().requestKey, input: selected }, identity)
+    assert.equal(submitted.statusCode, 200, submitted.body)
+    await started
+    return submitted.json() as { id: string }
+  }
+  const delegatedHeld = await startHeld(firstDelegate, firstConnection.id)
+  const ownerHeld = await startHeld(headers, ownerConnections[0].id)
+  const revoked = await app.inject({ method: 'POST', url: `/v1/account/tokens/${firstToken.id}/revoke`, headers })
+  assert.equal(revoked.statusCode, 204, revoked.body)
+  assert.notEqual((db.prepare('SELECT outcome FROM ssh_executions WHERE id = ?').get(delegatedHeld.id) as { outcome: string }).outcome, 'running')
+  assert.equal((await execution('connection/show', { id: secondConnection.id }, secondDelegate)).json().state, 'idle')
+  assert.equal((await execution('show', { id: ownerHeld.id })).json().outcome, 'running')
+  assert.equal((await execution('connection/show', { id: firstConnection.id }, firstDelegate)).json().error.code, 'TOKEN_INVALID')
+  await execution('cancel', { id: ownerHeld.id, confirm: true })
+  await closeConnection(secondConnection.id, secondDelegate)
+  await Promise.all(ownerConnections.map(connection => closeConnection(connection.id, headers, true)))
+  db.exec('UPDATE delegation_settings SET minting_enabled=0')
   const activeClose = await openConnection()
   const activeStarted = once(events, 'command', { signal: AbortSignal.timeout(20000) })
   const closedExecution = await submit(await prepare('synthetic-hold', { connection: activeClose.id }))
