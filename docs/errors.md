@@ -59,6 +59,7 @@ Azure token-acquisition diagnostics retain supported provider codes.
 | NOT_FOUND | artium-axi | 404 | 1 | The endpoint does not exist. | Use a supported API endpoint and tool name. |
 | AUDIT_UNAVAILABLE | artium-axi | 503 | 1 | The audit event could not be stored. | Ask the administrator to check audit storage capacity and availability. |
 | TOKEN_INVALID | artium-axi | 401 | 1 | The token is invalid or revoked. | Sign in again to obtain a valid token. |
+| DELEGATED_SCOPE_DENIED | artium-axi | 403 | 1 | This operation is unavailable to delegated sessions. | Use an authorized session for this operation. |
 | TOKEN_EXPIRED | artium-axi | 401 | 1 | The token has expired. | Sign in again. |
 | USER_DISABLED | artium-axi | 403 | 1 | The user is disabled. | Ask the administrator to enable the user. |
 | TOOL_DISABLED | artium-axi | 403 | 1 | The tool is disabled. | Ask the administrator to enable the tool. |

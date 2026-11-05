@@ -12,7 +12,7 @@ import type { Adapter } from './adapters/types.js'
 import { ArtifactStore } from './artifacts.js'
 import type { ArtifactArchive, ArtifactReservation } from './artifacts.js'
 import type { Audit } from './audit/audit.js'
-import { hashToken, requireRecentAuth, verifyAccessToken } from './auth/tokens.js'
+import { hashToken, requireRecentAuth, verifyAccessToken, verifyPrincipal } from './auth/tokens.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import { previewNativeArtifact, executeNativeArtifact } from './runner/artifact.js'
 import type { Runner } from './runner/runner.js'
@@ -225,7 +225,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
         if (reply.raw.headersSent) { reply.raw.destroy(); return reply }
         if (error instanceof ArtiumError && !reply.raw.headersSent) {
           let userId: string | null = null
-          try { userId = verifyAccessToken(db, tokenFor(request)) } catch { /* Unauthenticated denials retain no actor. */ }
+          try { userId = verifyPrincipal(db, tokenFor(request)).userId } catch { /* Unauthenticated denials retain no actor. */ }
           audit.record({ event: 'denial', userId, tool, requestId: request.id,
             clientAddress: request.ip, outcome: error.code })
         }

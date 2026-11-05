@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { toolAllowsWrites } from '../shared/api.js'
 import { sshExecutionInput, sshExecutionStatus, type SshExecutionInput } from '../shared/ssh-execution.js'
 import { ArtiumError } from '../shared/errors.js'
-import { verifyAccessToken, verifyAccessFamily } from './auth/tokens.js'
+import { verifyAccessToken, verifyAccessFamily, verifyPrincipal } from './auth/tokens.js'
 import { checkToolPolicy } from './policy/policy.js'
 import { sshBinding, type SshOwner as Owner } from './policy/ssh.js'
 import { SshConnections } from './ssh-connections.js'
@@ -308,7 +308,7 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
   app.addHook('onError', async (request, _reply, error) => {
     if (!request.url.startsWith('/v1/ssh/')) return
     let userId: string | null = null
-    try { userId = verifyAccessToken(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? '') } catch { /* Anonymous denial. */ }
+    try { userId = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? '').userId } catch { /* Anonymous denial. */ }
     audit.record({ event: 'denial', userId, tool: 'ssh-axi', requestId: request.id, clientAddress: request.ip,
       outcome: error instanceof ArtiumError ? error.code : 'INVALID_INPUT' })
   })

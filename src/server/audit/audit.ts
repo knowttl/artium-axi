@@ -71,6 +71,7 @@ export interface AuditRecord extends Pick<z.infer<typeof adminAuditRecordSchema>
   authentication_method: string | null
   provider_id: string | null
   subject: string | null
+  delegation_id?: string | null
 }
 
 const dayMs = 24 * 60 * 60 * 1000
@@ -130,8 +131,9 @@ export class Audit {
         values[filter] = Date.parse(input[filter]!)
       }
     }
-    const rows = this.db.prepare(`SELECT * FROM audit WHERE ${clauses.join(' AND ')}
-      ORDER BY occurred_at DESC, id DESC LIMIT @limit`).all(values) as AuditRecord[]
+    const stored = this.db.prepare(`SELECT * FROM audit WHERE ${clauses.join(' AND ')}
+      ORDER BY occurred_at DESC, id DESC LIMIT @limit`).all(values) as (AuditRecord & { delegation_id: string | null })[]
+    const rows = stored.map(({ delegation_id: _delegationId, ...record }) => record)
     const records = rows.slice(0, input.limit)
     const last = records.at(-1)
     return { records, nextCursor: rows.length > input.limit ? `${ceiling}:${last!.occurred_at}:${last!.id}` : null }
@@ -255,6 +257,7 @@ export class Audit {
       native_audit_id: transfer?.native_audit_id ?? terminal?.nativeAuditId ?? null,
       native_journal_result: transfer?.native_journal_result ?? (terminal?.completedMutation ? JSON.stringify(terminal.completedMutation) : null),
       client_save_outcome: transfer?.client_save_outcome ?? null,
+      delegation_id: null,
     }
     const inserted = this.db.prepare(`INSERT INTO audit (${Object.keys(row).join(', ')})
       VALUES (${Object.keys(row).map(key => `@${key}`).join(', ')})`).run(row)

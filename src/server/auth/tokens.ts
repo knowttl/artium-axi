@@ -26,34 +26,54 @@ export function hashToken(token: string): string {
 }
 
 export function verifyAccessToken(db: Database.Database, token: string, now = Date.now()): string {
-  return verifyToken(db, token, ['access'], now).user_id
+  return verifyUndelegated(db, token, ['access'], now).user_id
 }
 
 export function verifyAccessFamily(db: Database.Database, token: string): string {
-  return verifyToken(db, token, ['access'], Date.now()).family_id
+  return verifyUndelegated(db, token, ['access'], Date.now()).family_id
 }
 
 export function verifyPasswordToken(db: Database.Database, token: string, now = Date.now()) {
-  return verifyToken(db, token, ['access', 'password-change'], now)
+  return verifyUndelegated(db, token, ['access', 'password-change'], now)
+}
+
+export function verifyPrincipal(db: Database.Database, token: string, now = Date.now()) {
+  const row = verifyToken(db, token, ['access'], now)
+  return { userId: row.user_id, familyId: row.family_id, delegation: row.delegation_id === null ? null : {
+    id: row.delegation_id, scopeJson: row.scope_json!, readOnly: !!row.read_only, expiresAt: row.delegation_expires_at!,
+  } }
+}
+
+function verifyUndelegated(db: Database.Database, token: string, types: readonly string[], now: number) {
+  const row = verifyToken(db, token, types, now)
+  if (row.delegation_id !== null) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+  return row
 }
 
 function verifyToken(db: Database.Database, token: string, types: readonly string[], now: number) {
   const row = db.prepare(`
-    SELECT tokens.user_id, tokens.family_id, tokens.type, tokens.expires_at, users.disabled, session_families.expires_at AS family_expires_at FROM tokens
+    SELECT tokens.user_id, tokens.family_id, tokens.type, tokens.expires_at, users.disabled, session_families.expires_at AS family_expires_at,
+      session_families.delegation_id, delegations.scope_json, delegations.read_only,
+      delegations.expires_at AS delegation_expires_at, delegations.revoked_at AS delegation_revoked_at,
+      delegations.creator_id FROM tokens
     JOIN session_families ON session_families.id = tokens.family_id
     JOIN users ON users.id = tokens.user_id
+    LEFT JOIN delegations ON delegations.id = session_families.delegation_id
     WHERE tokens.hash = ?
       AND tokens.revoked_at IS NULL AND tokens.consumed_at IS NULL
       AND session_families.revoked_at IS NULL
-  `).get(hashToken(token)) as { user_id: string, family_id: string, type: string, expires_at: number, family_expires_at: number, disabled: number } | undefined
+  `).get(hashToken(token)) as { user_id: string, family_id: string, type: string, expires_at: number, family_expires_at: number, disabled: number,
+    delegation_id: string | null, scope_json: string | null, read_only: number | null, delegation_expires_at: number | null,
+    delegation_revoked_at: number | null, creator_id: string | null } | undefined
   if (!row || !types.includes(row.type)) throw new ArtiumError('TOKEN_INVALID')
-  if (row.expires_at <= now || row.family_expires_at <= now) throw new ArtiumError('TOKEN_EXPIRED')
+  if (row.delegation_id !== null && (row.creator_id !== row.user_id || row.delegation_revoked_at !== null)) throw new ArtiumError('TOKEN_INVALID')
+  if (row.expires_at <= now || row.family_expires_at <= now || (row.delegation_expires_at !== null && row.delegation_expires_at <= now)) throw new ArtiumError('TOKEN_EXPIRED')
   if (row.disabled) throw new ArtiumError('USER_DISABLED')
   return row
 }
 
 export function issueRecentAuthTicket(db: Database.Database, accessToken: string, now = Date.now()) {
-  const row = verifyToken(db, accessToken, ['access'], now)
+  const row = verifyUndelegated(db, accessToken, ['access'], now)
   const ticket = randomBytes(32).toString('base64url')
   const expiresAt = Math.min(now + authDefaults.recentAuthMs, row.family_expires_at)
   db.prepare(`INSERT INTO recent_auth_tickets (family_id, hash, expires_at) VALUES (?, ?, ?)
@@ -63,7 +83,7 @@ export function issueRecentAuthTicket(db: Database.Database, accessToken: string
 }
 
 export function requireRecentAuth(db: Database.Database, accessToken: string, ticket: string, now = Date.now()): string {
-  const row = verifyToken(db, accessToken, ['access'], now)
+  const row = verifyUndelegated(db, accessToken, ['access'], now)
   const proof = db.prepare('SELECT expires_at FROM recent_auth_tickets WHERE family_id = ? AND hash = ?')
     .get(row.family_id, hashToken(ticket)) as { expires_at: number } | undefined
   if (!proof || proof.expires_at <= now) throw new ArtiumError('REAUTH_REQUIRED')
@@ -90,15 +110,19 @@ export function issueLoginTokens(db: Database.Database, userId: string, now = Da
 function findSessionToken(db: Database.Database, token: string, types: readonly string[]) {
   const row = db.prepare(`SELECT tokens.type, tokens.family_id, tokens.user_id, tokens.expires_at,
     tokens.consumed_at, tokens.revoked_at, session_families.expires_at AS family_expires_at,
-    session_families.revoked_at AS family_revoked_at, users.disabled FROM tokens
+    session_families.revoked_at AS family_revoked_at, users.disabled, session_families.delegation_id,
+    delegations.creator_id, delegations.expires_at AS delegation_expires_at, delegations.revoked_at AS delegation_revoked_at FROM tokens
     JOIN session_families ON session_families.id = tokens.family_id JOIN users ON users.id = tokens.user_id
+    LEFT JOIN delegations ON delegations.id = session_families.delegation_id
     WHERE tokens.hash = ?`).get(hashToken(token)) as {
       type: string, family_id: string, user_id: string, expires_at: number, consumed_at: number | null,
       revoked_at: number | null, family_expires_at: number, family_revoked_at: number | null, disabled: number,
+      delegation_id: string | null, creator_id: string | null, delegation_expires_at: number | null, delegation_revoked_at: number | null,
     } | undefined
   if (!row || !types.includes(row.type) || row.revoked_at !== null || row.family_revoked_at !== null) {
     throw new ArtiumError('TOKEN_INVALID')
   }
+  if (row.delegation_id !== null && (row.creator_id !== row.user_id || row.delegation_revoked_at !== null)) throw new ArtiumError('TOKEN_INVALID')
   return row
 }
 
@@ -111,7 +135,7 @@ export function revokeFamily(db: Database.Database, familyId: string, now: numbe
 export function refreshTokens(db: Database.Database, token: string, audit: Audit, context: AuditContext, now = Date.now()): TokenPair {
   const result = db.transaction(() => {
     const row = findSessionToken(db, token, ['refresh'])
-    if (row.expires_at <= now || row.family_expires_at <= now) throw new ArtiumError('TOKEN_EXPIRED')
+    if (row.expires_at <= now || row.family_expires_at <= now || (row.delegation_expires_at !== null && row.delegation_expires_at <= now)) throw new ArtiumError('TOKEN_EXPIRED')
     if (row.consumed_at !== null) return { reused: row }
     if (row.disabled) throw new ArtiumError('USER_DISABLED')
     db.prepare('UPDATE tokens SET consumed_at = ? WHERE hash = ?').run(now, hashToken(token))
