@@ -417,7 +417,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       return
     }
     if (req.method === 'GET' && url.pathname === '/tags/categories') {
-      res.end(JSON.stringify({ categories: [], pagination: { total: 0, offset: 0, limit: 100 } })); return
+      res.end(JSON.stringify({ categories: [], pagination: { total: 0, offset: Number(url.searchParams.get('offset') ?? 0), limit: Number(url.searchParams.get('limit') ?? 100) } })); return
     }
     if (req.method === 'POST' && url.pathname === '/api/v1/t1/inventory/export/assets') {
       mutations++

@@ -417,7 +417,7 @@ After an unknown write outcome, inspect state using returned guidance before ret
 | LDAP | Bind identity with directory read access |
 | Azure DevOps project list | Identity permitted to view the organization/project |
 | AWX job list | Token identity with job read access |
-| Tenable One card list | See [Tenable One credential permissions](tool-credentials.md#tenable-one). |
+| Tenable One tag category list | See [Tenable One credential permissions](tool-credentials.md#tenable-one). |
 | Hybrid Analysis quota | A valid API key; resource permissions vary by key level. See [Hybrid Analysis setup](tool-credentials.md#hybrid-analysis). |
 | Check Point doctor | Regional authentication and one bounded email search. See [Check Point setup and commissioning](tool-credentials.md#check-point-email-security). |
 
