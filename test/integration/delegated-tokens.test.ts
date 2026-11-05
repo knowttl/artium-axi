@@ -87,6 +87,22 @@ async function mint(extra: string[] = []) {
   return result.secret
 }
 
+test('minting writable SSH access warns about all granted hosts and sudo', async () => {
+  await app.close()
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'ssh-axi'")
+  const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') })
+  const hosts = new SshHosts(db, provider)
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-ssh')), audit: new Audit(db),
+    adapters: [createSshAdapter(hosts, join(directory, 'writes.log'))], environment: {},
+    resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
+  const result = await cli(['token', 'create', '--label', 'Synthetic', '--tool', 'ssh-axi', '--expires',
+    new Date(Date.now() + 600_000).toISOString(), '--write', '--password-stdin', '--token-fd', '3'], `${password}\n`, 'owner', true)
+  expect(result.code, result.stdout).toBe(0)
+  expect(result.stdout).toContain('SSH write access reaches every host and sudo grant available to the creator.')
+})
+
 test('token --command refuses wildcard selections without storing a token (R12)', async () => {
   expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
   const minted = await cli(['token', 'create', '--label', 'Synthetic', '--command', 'falcon-axi:detection *', '--expires',

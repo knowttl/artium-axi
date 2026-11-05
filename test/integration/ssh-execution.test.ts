@@ -12,6 +12,9 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { encryptCredential } from '../../src/server/store/crypto.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { seedToolUser } from '../fixtures/tokens.js'
+import { createSshAdapter } from '../../src/server/adapters/ssh.js'
+import { createDelegation, revokeDelegation } from '../../src/server/auth/delegations.js'
+import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 
 let directory: string
 let db: Database.Database
@@ -50,6 +53,39 @@ function provision() {
   db.exec(`INSERT INTO ssh_bindings (host_id,username,credential_id,sudo) VALUES ('synthetic-host','ordinary','ordinary-key',0);
     INSERT INTO ssh_grants (user_id,host_id,shell,sudo) VALUES ('synthetic-development-user','synthetic-host',1,0)`)
 }
+
+function delegated(commands?: string[], readOnly = false) {
+  db.exec('UPDATE delegation_settings SET minting_enabled=1')
+  const adapter = createSshAdapter(hosts, join(directory, 'writes.log'))
+  const token = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic', scope: { tools: [{ tool: 'ssh-axi',
+    ...(commands ? { commands } : {}) }] }, readOnly, reusable: true, expiresAt: Date.now() + 600000 }, [adapter])
+  return { id: token.id, headers: { authorization: `Bearer ${exchangeDelegation(db, token.token).accessToken}` } }
+}
+
+test('read-only SSH delegation refuses setup and execution before credentials are loaded', async () => {
+  const token = delegated(undefined, true)
+  for (const [route, payload] of [['prepare', input], ['submit', { requestKey: 'synthetic', input }],
+    ['connection/open', { host: 'synthetic-host' }], ['connection/set', { id: 'synthetic', idle: 10 }]] as const) {
+    expect((await post(route, payload, token.headers)).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+  }
+  expect(db.prepare('SELECT * FROM ssh_executions').all()).toEqual([])
+  expect(db.prepare('SELECT * FROM ssh_connection_events').all()).toEqual([])
+})
+
+test('SSH exact command picks authorize only the selected routes', async () => {
+  const token = delegated(['execution list'])
+  expect((await post('list', {}, token.headers)).json().count).toBe(0)
+  expect((await post('connection/list', {}, token.headers)).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+  expect((await post('prepare', input, token.headers)).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+  expect(db.prepare("SELECT delegation_id, action FROM audit WHERE action='ssh-execution-list'").get()).toEqual({ delegation_id: token.id, action: 'ssh-execution-list' })
+})
+
+test('revoked SSH delegation cannot access its routes while the owner remains signed in', async () => {
+  const token = delegated()
+  revokeDelegation(db, token.id, 'synthetic-development-user', false)
+  expect((await post('connection/list', {}, token.headers)).json().error.code).toBe('TOKEN_INVALID')
+  expect((await post('connection/list', {})).json().count).toBe(0)
+})
 
 test('preparation signs input without creating a dispatch claim', async () => {
   provision()

@@ -238,6 +238,9 @@ Reusable connections belong to one user and session family, require matching hos
 Opening a connection only authenticates and remains available when writes are disabled; dispatching commands still requires the execution write gates above.
 Only one command may be active per connection; another command returns `CONNECTION_BUSY` before dispatch.
 Connections default to 10 minutes idle, accept 1-60 minutes within the host ceiling, and have an 8-hour maximum age, four per user and sixteen globally including authentication in progress.
+Across a creator's delegated sessions, at most two SSH connections may be open at once, leaving two slots for the creator.
+Delegated read-only sessions cannot prepare or dispatch commands, open connections, or change connection timeouts.
+Writable delegated SSH access reaches every host granted to the creator, including separate sudo grants; command picks restrict the SSH operation, not the text of a remote command.
 The maximum age also fences active work; local teardown does not prove that remote descendants stopped.
 Inspection does not extend idle expiry; timeout changes recompute expiry from the existing idle start.
 Connection close is idempotent for its owner; closing active work requires `--confirm` and requests cancellation.

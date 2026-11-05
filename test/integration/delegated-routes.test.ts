@@ -28,6 +28,8 @@ classify('GET', `/ /login /auth/sso/:provider/start /auth/sso/:provider/callback
   /health/live /health/ready /cli/artium-axi.mjs /cli/artium-axi.mjs.sha256
   /admin/assets/confirm.js /admin/assets/style.css`, 'public')
 classify('POST', `/login /logout /device /v1/auth/device /v1/auth/device/poll /v1/auth/login /v1/auth/delegated /v1/auth/refresh /v1/auth/logout /v1/tools/:tool/run`, 'public')
+classify('POST', `/v1/ssh/prepare /v1/ssh/submit /v1/ssh/show /v1/ssh/list /v1/ssh/cancel
+  /v1/ssh/connection/open /v1/ssh/connection/list /v1/ssh/connection/show /v1/ssh/connection/set /v1/ssh/connection/close`, 'public')
 classify('GET', `/v1/tools /v1/skills /v1/me /v1/results/technitium-axi/:operation/:id /v1/results/awx-axi/:operation/:id
   /v1/results/kubernetes-axi/:operation/:id /v1/results/proxmox-axi/:operation/:id`, 'public')
 classify('GET', `/account /password /reauth /v1/account/sessions
@@ -54,9 +56,7 @@ classify('POST', `/password /reauth /v1/account/sessions/:sessionId/revoke /v1/a
   /v1/admin/sso/providers /v1/admin/sso/role-rules /v1/admin/sso/invitations
   /v1/admin/sso/invitations/:id/resend /v1/admin/sso/invitations/:id/revoke
   /v1/admin/users /v1/admin/users/:id/sessions/:sessionId/revoke /v1/admin/users/:id/sessions/revoke
-  /v1/admin/users/:id/archive /v1/admin/users/:id/unlock /v1/admin/users/:id/password-reset /v1/admin/roles
-  /v1/ssh/prepare /v1/ssh/submit /v1/ssh/show /v1/ssh/list /v1/ssh/cancel
-  /v1/ssh/connection/open /v1/ssh/connection/list /v1/ssh/connection/show /v1/ssh/connection/set /v1/ssh/connection/close`, 'denied')
+  /v1/admin/users/:id/archive /v1/admin/users/:id/unlock /v1/admin/users/:id/password-reset /v1/admin/roles`, 'denied')
 for (const tool of ['hybrid', 'checkpoint', 'mg', 'beyondtrust', 'gitea']) {
   classify('POST', ['prepare', 'execute', 'retrieve', 'receipt', 'cancel', 'status'].map(action => `/v1/transfers/${tool}/${action}`).join(' '), 'denied')
 }

@@ -7,6 +7,7 @@ import { checkToolPolicy } from '../policy/policy.js'
 import { hashToken, revokeFamily } from './tokens.js'
 import proxmox from '../../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 import kubernetes from '../../../tools/inventories/kubernetes-axi.json' with { type: 'json' }
+import ssh from '../../../tools/inventories/ssh-axi.json' with { type: 'json' }
 import type { ToolName } from '../store/credential-store.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
@@ -80,14 +81,15 @@ export function checkDelegation(scopeJson: string, readOnly: boolean, adapter: A
 
 function commandRoutes(tool: ToolName): { command: string, effect?: string, canonicalCommand?: string }[] {
   type Route = { command: string, effect?: string, canonicalCommand?: string }
-  const manifest = toolManifests[tool] as { commands: Route[], writeCommands?: Route[], workflows?: Route[] }
-  return [...manifest.commands, ...manifest.writeCommands ?? [], ...manifest.workflows ?? [],
+  const manifest = toolManifests[tool] as { commands: Route[], writeCommands?: Route[], workflows?: Route[], managedCommands?: Route[] }
+  return [...manifest.commands, ...manifest.writeCommands ?? [], ...manifest.workflows ?? [], ...manifest.managedCommands ?? [],
     ...(tool === 'kubernetes-axi' ? kubernetesHostedRoutes : [])]
 }
 
 export function resolveDelegatedCommand(command: string, adapter: Adapter<unknown>): string {
   if (command.includes('*')) throw new ArtiumError('INVALID_INPUT', 'Wildcards are not supported yet.', 'Select exact commands or use --tool for tool-wide access.')
   if (!exactCommand.test(command)) throw new ArtiumError('INVALID_INPUT')
+  if (adapter.name === 'ssh-axi' && ssh.managedCommands.some(route => route.command === command)) return command
   const invocation = commandInvocations(adapter.name, command)[0]
   const resolved = classifyDelegatedCommand(adapter, [...invocation.split(' '), '--help']).command
   if (resolved === 'unknown' || resolved === 'home' || adapter.name === 'kubernetes-axi' && resolved === 'session start') throw new ArtiumError('INVALID_INPUT')
@@ -136,10 +138,13 @@ export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter:
   const commands = commandRoutes(tool).flatMap(route => {
     if (!route.command || route.command === 'home' || route.effect === 'blocked') return []
     if (tool === 'kubernetes-axi' && ['preview', 'confirm'].includes(route.command)) return []
-    const classification = classifyDelegatedCommand(adapter, route.command.split(' '))
+    const managed = tool === 'ssh-axi' && ssh.managedCommands.some(item => item.command === route.command)
+    const classification = managed ? { command: route.command, effect: route.effect === 'write' ? 'write' as const : 'read' as const }
+      : classifyDelegatedCommand(adapter, route.command.split(' '))
     return commandInvocations(tool, route.command).flatMap(command => {
       try {
-        if (!(tool === 'kubernetes-axi' && kubernetesHostedRoutes.some(route => route.command === command))) adapter.validateArgs([...command.split(' '), '--help'])
+        if (!managed && !(tool === 'kubernetes-axi' && kubernetesHostedRoutes.some(route => route.command === command))) adapter.validateArgs([...command.split(' '), '--help'])
+        if (managed && readOnly && ['connection open', 'connection set'].includes(command)) return []
         authorize(classification)
         return [command]
       }
