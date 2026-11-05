@@ -66,6 +66,16 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   ca: readFileSync(join(certs, 'ca.crt')), requestCert: true, rejectUnauthorized: false }, (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
+  if (url.pathname === '/api-info' || url.pathname === '/account/profile') {
+    const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
+    if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
+    res.end(JSON.stringify(url.pathname === '/api-info'
+      ? { plan: 'synthetic', query_credits: 20, scan_credits: 98, monitored_ips: 256,
+        usage_limits: { query_credits: -1, scan_credits: -1, monitored_ips: -1 } }
+      : { member: false, credits: 7, display_name: null, created: '2026-01-01' }))
+    return
+  }
   if (unifi(req, res, url)) return
   if (proxmox(req, res, url)) return
   if (url.pathname === '/__kubernetes/bytes') { res.end(JSON.stringify(byteEvidence())); return }

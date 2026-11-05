@@ -60,6 +60,7 @@ type ToolName = z.infer<typeof toolSchema>
 export const toolProducts: Record<ToolName, { name: string, mark: string }> = {
   'ssh-axi': { name: 'SSH', mark: 'SH' },
   'technitium-axi': { name: 'Technitium DNS', mark: 'TD' },
+  'shodan-axi': { name: 'Shodan', mark: 'SD' },
   'gitea-axi': { name: 'Gitea', mark: 'GT' },
   'kubernetes-axi': { name: 'Kubernetes', mark: 'K8' },
   'unifi-axi': { name: 'UniFi', mark: 'UN' },

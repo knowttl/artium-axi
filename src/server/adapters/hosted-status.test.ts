@@ -7,9 +7,31 @@ import { createAdoAdapter } from './ado.js'
 import { createLdapAdapter } from './ldap.js'
 import { AzureTokenCache } from './azure-token-cache.js'
 import { FakeTokenTransport, azureTestTenant } from '../../../test/fixtures/azure-token-transport.js'
+import { execFileSync } from 'node:child_process'
 
 const result = { stdout: '', stderr: '', exitCode: 0, durationMs: 1, outputBytes: { stdout: 100, stderr: 0 },
   timedOut: false, truncated: { stdout: false, stderr: false } }
+
+test.each([false, true].flatMap(json => ['home', 'info', 'account profile', 'version']
+  .map(command => ({ json, command }))))('Shodan $command help advertises only hosted routes, JSON=$json (r1)', ({ json, command }) => {
+  const stdout = execFileSync(process.execPath, ['tools/node_modules/@knowttl/shodan-axi/bin/shodan-axi.js',
+    ...(command === 'home' ? [] : command.split(' ')), '--help', ...(json ? ['--json'] : [])], { encoding: 'utf8' })
+  const output = hostedStatus('shodan-axi', { command, help: true }, { ...result, stdout })
+  const document = json ? JSON.parse(output.stdout) : decode(output.stdout)
+  expect(document).toEqual({ command: `artium-axi shodan-axi${command === 'home' ? '' : ' ' + command}`,
+    flags: command === 'version' ? { help: 'boolean' } : { json: 'boolean', help: 'boolean' },
+    commands: command === 'home' ? ['account profile', 'info', 'version'] : [],
+    help: ['Read Shodan account information with managed credentials. Local configuration and writes are unavailable.\n'] })
+})
+
+test.each([encode, JSON.stringify])('Shodan bare account discovery retains account data and supported suggestions (r1)', serialize => {
+  const output = hostedStatus('shodan-axi', { command: 'home', help: false }, { ...result,
+    stdout: serialize({ bin: '/synthetic/shodan-axi', account: { plan: 'synthetic', query_credits: 20 },
+      help: ['Run shodan-axi host 192.0.2.1', 'Run shodan-axi search synthetic'] }) })
+  const document = serialize === JSON.stringify ? JSON.parse(output.stdout) : decode(output.stdout)
+  expect(document).toEqual({ bin: 'artium-axi shodan-axi', account: { plan: 'synthetic', query_credits: 20 },
+    help: ['Run `artium-axi shodan-axi info` or `artium-axi shodan-axi account profile` to inspect account information.'] })
+})
 
 test.each([
   { format: 'TOON', serialize: encode, parse: decode },

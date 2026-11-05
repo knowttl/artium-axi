@@ -347,6 +347,16 @@ The server returns exported bytes as attachments and never executes or extracts 
 See [credential setup](tool-credentials.md#technitium-dns) and [command usage](commands.md#technitium-dns).
 Local fake-service checks do not establish live server acceptance.
 
+## Shodan
+
+Shodan is limited to account reads and packaged version/help discovery through the [reviewed inventory](../tools/inventories/shodan-axi.json).
+Host lookup, search, scans, alerts, organization operations, streams, dataset downloads and writes are unavailable.
+Local configuration, credential and endpoint overrides, stdin, uploaded files and result-file destinations are refused before credential access.
+Help exposes only admitted routes; the standalone `doctor` alias is not admitted.
+The adapter verifies reviewed package-source hashes and the packaged version before loading credentials; a mismatch returns `SPAWN_FAILED`.
+See [package recovery](runbook.md#roles-credentials-and-health) if verification fails.
+See [credential setup](tool-credentials.md#shodan), [commands](commands.md#shodan) and [explicit-only health checks](runbook.md#roles-credentials-and-health).
+
 ## Write gates by tool
 
 | Tool | Write capability and unlock |

@@ -9,6 +9,7 @@ import { checkpointProfile } from '../adapters/checkpoint.js'
 import { proxmoxProfile } from '../adapters/proxmox.js'
 import { unifiProfile } from '../adapters/unifi.js'
 import { technitiumProfile } from '../adapters/technitium.js'
+import { shodanProfile } from '../adapters/shodan.js'
 import { giteaProfile } from '../adapters/gitea.js'
 import { kubernetesProfile } from '../adapters/kubernetes.js'
 import { nativeSettingsSchemas } from '../../shared/api.js'
@@ -20,6 +21,7 @@ export function editorProfile(tool: ToolName, profile?: CredentialProfile): Cred
   if (tool === 'ssh-axi') return new CredentialProfile({ type: 'object', additionalProperties: false, properties: {} })
   if (tool === 'kubernetes-axi') return kubernetesProfile
   if (tool === 'technitium-axi') return technitiumProfile
+  if (tool === 'shodan-axi') return shodanProfile
   if (tool === 'gitea-axi') return giteaProfile
   if (tool === 'unifi-axi') return unifiProfile
   if (tool === 'proxmox-axi') return proxmoxProfile
@@ -73,6 +75,11 @@ const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
     origin: 'Cluster HTTPS origin without a path, query or embedded credentials. Changing it requires new secrets.',
     auth: 'Choose a managed token or client certificate. Changing authentication requires new secrets.',
     namespace: 'Optional default namespace. Read commands can select another namespace within the identity permissions.',
+  },
+  'shodan-axi': {
+    origin: 'Shodan API HTTPS origin.',
+    auth: 'Use API key authentication.',
+    apiKey: 'Enter the API key. Leave blank to keep the stored key for the same identity.',
   },
   'technitium-axi': {
     origin: 'Technitium HTTPS origin without a path, query or user information. Changing it requires a replacement token.',

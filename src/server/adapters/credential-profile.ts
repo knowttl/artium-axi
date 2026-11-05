@@ -79,6 +79,12 @@ export class CredentialProfile {
         properties: { allowWrites: { type: 'boolean' }, operations: { type: 'array', maxItems: technitiumWriteOperations.length,
           items: { type: 'string', enum: technitiumWriteOperations } } } }
     }
+    if (tool === 'shodan-axi') {
+      this.inputSchema.required = ['auth', 'origin', 'apiKey']
+      this.inputSchema.properties.auth = { const: 'api-key' }
+      this.inputSchema.properties.origin = { type: 'string', const: 'https://api.shodan.io' }
+      delete this.inputSchema.properties.streamOrigin
+    }
     if (tool === 'gitea-axi') {
       delete this.inputSchema.properties.allowInsecureHttp
       delete this.inputSchema.if
@@ -293,7 +299,7 @@ export class CredentialProfile {
   }
 
   prepare(tool: ToolName, value: unknown, writeLog: string | undefined, readOnly: boolean): Pick<PreparedCall, 'environment' | 'files' | 'secrets'> {
-    if (!['ldap-axi', 'awx-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi', 'gitea-axi', 'kubernetes-axi'].includes(tool) && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
+    if (!['ldap-axi', 'awx-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi', 'shodan-axi', 'gitea-axi', 'kubernetes-axi'].includes(tool) && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
     const parsed = this.parsed(value)
     // These administrator switches are host policy, not upstream profile fields.
     if (tool === 'falcon-axi' || tool === 'awx-axi' || tool === 'kubernetes-axi') delete parsed.value.allowWrites

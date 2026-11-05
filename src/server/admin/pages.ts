@@ -21,6 +21,7 @@ import { toolEndpoints } from '../tool-endpoints.js'
 const settingsGuide = {
   'ssh-axi': 'Writes default off. Confirmed execution additionally requires a writable host and current caller grants; sudo needs its distinct approved account and credential. Receipts prevent replay and execution show recovers a result. Reusable connections belong to one user and session. Audit reads and metadata exports are available at /admin/ssh/audit.',
   'technitium-axi': 'Host Write permission and native writes.allowWrites with exact operation grants are independent and default off. Native previews require both grants. Use private input files and exact confirmation. Protected results expire after five minutes and require the same user, current tool grant and credential revision.',
+  'shodan-axi': 'Only account reads are available. Use {}.',
   'gitea-axi': 'Writes default off. Use Allow writes and select exact native operation IDs, then require caller preview and confirmation. Secret values use protected --input; opaque attachments use --file or --attach and managed download grants. Local workflows remain unavailable.',
   'kubernetes-axi': 'Writes default off. Use {"allowWrites": true} for native prepare, offline preview, exact-digest confirmation and explicit server-dry-run. Bulk deletion additionally requires {"collectionDelete": true}. Saving write settings invalidates earlier prepared requests. Caller-owned workspaces support file inputs. Bounded watch, logs, exec, attach, apply, create, cp and port-forward sessions require explicit per-user sessions.grants; no sessions are granted by default. Mutating sessions additionally require Allow writes and native exact-digest confirmation; watch and logs remain reads. Port forwarding uses authenticated tunnels with loopback-only client listeners. Service-account token issuance additionally requires {"acquireCredential": true}; tokens are delivered once through credential --credential-fd to a private pipe. Interactive/editor/helper execution remains unavailable.',
   'unifi-axi': 'writes.allowWrites defaults off. Select exact vendor operation IDs in writes.operations, including the required management/action variant grants. Writes preview first; execution requires --execute, the matching --confirm and a stable --request-id. Use write show/reconcile after uncertainty; never resend a claimed request.',
@@ -41,6 +42,7 @@ const settingsGuide = {
 const testGuide = {
   'ssh-axi': 'doctor <granted-host> through the signed-in CLI; no shared tenant credential test is available',
   'technitium-axi': 'Technitium user session get (authenticated read)',
+  'shodan-axi': 'Shodan API information (authenticated read)',
   'gitea-axi': 'Gitea doctor',
   'kubernetes-axi': 'Kubernetes pod read',
   'unifi-axi': 'UniFi info',

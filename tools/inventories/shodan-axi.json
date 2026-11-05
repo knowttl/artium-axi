@@ -1,0 +1,292 @@
+{
+  "generatedBy": "scripts/shodan-inventory.ts",
+  "tool": "shodan-axi",
+  "package": "@knowttl/shodan-axi",
+  "version": "0.1.1",
+  "integrity": "sha512-6IuXgK94SoXuhAYEMisRPbLmBWxWuPs+i4Y6alf8CUfWbp9IGrEQYsfsJimI/lE2HMmxPsDYN+qdDBmmIDpYlQ==",
+  "sources": [
+    {
+      "path": "package.json",
+      "sha256": "cc078135ff1c631894f0494480373b96840e6b68e8f22f09614e0b2edae1ffe0"
+    },
+    {
+      "path": "command-inventory.json",
+      "sha256": "96978681eac92dc26efb1e13f8709faf613b9d9ca8f2cf1d5741534be5cbc826"
+    },
+    {
+      "path": "axi-credential.schema.json",
+      "sha256": "de6d9c69684764aff693ea192fb40027b0e01fcae9c0b438b79042a8ebf54b4f"
+    },
+    {
+      "path": "bin/shodan-axi.js",
+      "sha256": "e13416f7293f82abfa6e18815a245a2348b8a65f5e78c7948c31efbac5086c48"
+    },
+    {
+      "path": "dist/alert-evidence.js",
+      "sha256": "5d98582331663d0f5fdeff3a4e6048c28200e0dddd82dc4f42f8093fa4954f2d"
+    },
+    {
+      "path": "dist/bulk-export.js",
+      "sha256": "5465a6fd832b6ee9e6fb8060ce9a1c56ac47a0c87b3fb9453b7e3404bd91be7c"
+    },
+    {
+      "path": "dist/bulk-transfer.js",
+      "sha256": "4b43b74040e233a76e52ac91c0bf4395b9a686fb25f2e6ead3f7915b1ed49717"
+    },
+    {
+      "path": "dist/bulk.js",
+      "sha256": "b4eec612c5b54f46a6f42559423b4ca88b01f0d35b210151e954c528b9dcfdaf"
+    },
+    {
+      "path": "dist/catalogue.js",
+      "sha256": "0fef6c76a51154e850c0bb506481ef1b7804b5ce354ea19987bc1e53c13e4210"
+    },
+    {
+      "path": "dist/cli.js",
+      "sha256": "782ab28970cd3836cb07d50361500d4d357456f9be51c2c4986b0c776edd801c"
+    },
+    {
+      "path": "dist/contracts.js",
+      "sha256": "fd212d61e31ef8bc6d46d9406872f9f9585c237b08ad5d96cb03392176b4695a"
+    },
+    {
+      "path": "dist/credentials.js",
+      "sha256": "56742cdc4fc41ef976ca050e4e161e55ae3584a8b207e11de8d19c0b75543327"
+    },
+    {
+      "path": "dist/discovery.js",
+      "sha256": "3692db2783fe9c72ada6140650593d4fd5f7fa371bf2788dbfc5b722ec063605"
+    },
+    {
+      "path": "dist/errors.js",
+      "sha256": "6f6fbbca339ba908f72199487090e5f9285eab4c284d7478133a065224791549"
+    },
+    {
+      "path": "dist/evidence.js",
+      "sha256": "ce9067725597489d297e6978505d37d633a0d52138dbb94126b41d5965383f55"
+    },
+    {
+      "path": "dist/geonet.js",
+      "sha256": "e3df1b8dfb51b845678360b80a4a3e4d604d3ac5d595640169ffa99705754279"
+    },
+    {
+      "path": "dist/hosted-worker.js",
+      "sha256": "e1248be87d0ce59500f84849c008f00ced97ceecb108788cb21449cd26561ab1"
+    },
+    {
+      "path": "dist/investigation.js",
+      "sha256": "d7f920440632827c4ebf3d18a164c973322c28d7c1a3e4141c3f1fede23e1099"
+    },
+    {
+      "path": "dist/mutation-catalogue.js",
+      "sha256": "e49a6965e8f4a65e3e2b55335ffa3bcc05cdfa3c4220dd2a3086c614dd3d1d2f"
+    },
+    {
+      "path": "dist/mutations.js",
+      "sha256": "76d534979d172c4d15b2afe87067078ae5ab38784a66c68f2d50c09adfc4494b"
+    },
+    {
+      "path": "dist/private-file.js",
+      "sha256": "36fbe9ec64be81af047dbe51bf87ad46325f17c94cd62134229e68370438ede2"
+    },
+    {
+      "path": "dist/radar.js",
+      "sha256": "67afbb21b5547b63aa414063bdbab9e310c162b54915121724ad9cb61a8ae6fb"
+    },
+    {
+      "path": "dist/redact.js",
+      "sha256": "bcb2b35f292e55262bd9b165b2f87557973638b777162b703701e45c88a2383a"
+    },
+    {
+      "path": "dist/scan-collect.js",
+      "sha256": "5c7f17cd7196f96462c64ee2b72a069f9bcd11427068b96c307441216e4a38ce"
+    },
+    {
+      "path": "dist/scan-results.js",
+      "sha256": "579919344d236fffb6c494a34c5cf789e45c0ff4dc8db0eb28df80fe4d308401"
+    },
+    {
+      "path": "dist/setup.js",
+      "sha256": "395b623497a98fc5d2be55bda09a9e88da80b8ef70a14f7f53837c63a036655c"
+    },
+    {
+      "path": "dist/stream-storage.js",
+      "sha256": "073da0a5b8904643c41eaac917d0a1d869814e35db72600892760fec96e9cf1c"
+    },
+    {
+      "path": "dist/stream.js",
+      "sha256": "a6f625b309edb530030295757827464530b9d3d2cccf8679a58f8f930c3a2f5a"
+    },
+    {
+      "path": "dist/vendor.js",
+      "sha256": "4f7e13e405021f820705f084f8df8e62ef40d02e487a22e26f4d087fdca01c45"
+    },
+    {
+      "path": "dist/version.js",
+      "sha256": "9ea24786f22bdfd6e0392b0bcf7cf242162ef9e45ad37435201d3a8c100e57d5"
+    },
+    {
+      "path": "dist/windows-acl.js",
+      "sha256": "00b73c1e301584d0a777ba0300adaa37e5288b4bc6e8ed80860d5cd2d6836bc1"
+    },
+    {
+      "path": "skills/shodan-axi/SKILL.md",
+      "sha256": "8a8d08d09ea8d46b96c00f7693951e781a67badd11ac2b995fe9b42b02119084"
+    }
+  ],
+  "credentialSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://github.com/knowttl/shodan-axi/axi-credential.schema.json",
+    "title": "Shodan credential profile",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "auth"
+    ],
+    "properties": {
+      "auth": {
+        "type": "string",
+        "enum": [
+          "api-key",
+          "none"
+        ]
+      },
+      "origin": {
+        "type": "string",
+        "pattern": "^https://[^/?#@]+$",
+        "default": "https://api.shodan.io"
+      },
+      "streamOrigin": {
+        "type": "string",
+        "pattern": "^https://[^/?#@]+$"
+      },
+      "apiKey": {
+        "$ref": "#/definitions/secretRef",
+        "x-secret": true,
+        "default": {
+          "env": "SHODAN_AXI_API_KEY"
+        }
+      }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "auth": {
+              "const": "none"
+            }
+          },
+          "required": [
+            "auth"
+          ]
+        },
+        "then": {
+          "not": {
+            "required": [
+              "apiKey"
+            ]
+          }
+        }
+      }
+    ],
+    "definitions": {
+      "secretRef": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "env"
+            ],
+            "properties": {
+              "env": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^(?:/|[A-Za-z]:[\\\\/]).+"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "commands": [
+    {
+      "command": "account profile",
+      "effect": "read",
+      "operation": "OP-039",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean"
+      }
+    },
+    {
+      "command": "info",
+      "effect": "read",
+      "operation": "OP-045",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean"
+      }
+    },
+    {
+      "command": "",
+      "effect": "read",
+      "operation": "OP-045",
+      "flags": {
+        "json": "boolean",
+        "help": "boolean"
+      }
+    },
+    {
+      "command": "version",
+      "effect": "read",
+      "flags": {
+        "help": "boolean"
+      }
+    }
+  ],
+  "discovery": {
+    "commands": [
+      "account profile",
+      "info",
+      "version"
+    ],
+    "example": [
+      "info"
+    ],
+    "help": "Read Shodan account information with managed credentials. Local configuration and writes are unavailable.\n"
+  },
+  "adapterBoundary": {
+    "nativeWrites": "not admitted",
+    "unsafeOverrides": [
+      "config",
+      "profile",
+      "origin",
+      "auth",
+      "api-key",
+      "key",
+      "token",
+      "env",
+      "file",
+      "input-file",
+      "result-file",
+      "filename",
+      "save",
+      "write-log",
+      "body-file"
+    ]
+  }
+}

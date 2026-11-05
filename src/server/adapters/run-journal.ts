@@ -25,6 +25,10 @@ export async function prepareRunJournal(environment: Record<string, string>, too
     if (effect !== 'read') throw new TypeError('Missing SSH read-only admission contract')
     return { environment, action: async (): Promise<RunAction> => 'read' }
   }
+  if (tool === 'shodan-axi') {
+    if (effect !== 'read') throw new TypeError('Missing read-only admission contract')
+    return { environment, action: async (): Promise<RunAction> => 'read' }
+  }
   if (tool === 'beyondtrust-axi') {
     const path = environment.BEYONDTRUST_AXI_WRITE_LOG
     if (!path || !effect) throw new TypeError('Missing native write journal contract')

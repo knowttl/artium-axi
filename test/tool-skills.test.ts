@@ -11,6 +11,10 @@ test.each(toolSchema.options)('%s overlay preserves tool guidance with managed c
     : tool === 'proxmox-axi' || tool === 'technitium-axi' || tool === 'ssh-axi' ? `tools/node_modules/@knowttl/${tool}/README.md` : tool === 'gitea-axi' ? 'tools/node_modules/@knowttl/gitea-axi/generated/SKILL.md' : source)
   expect(skill).toContain(`name: ${tool}`)
   expect(skill).toContain(`artium-axi ${tool}`)
+  if (tool === 'shodan-axi') {
+    expect(skill).toContain('account profile')
+    return
+  }
   if (tool === 'ssh-axi') {
     expect(skill).toContain('doctor <host>')
     expect(skill).toContain('every resolved address must belong to the approved literal address set')

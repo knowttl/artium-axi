@@ -14,6 +14,7 @@ import { rewriteGhSuggestions } from '../shared/gh-suggestions.js'
 import beyondtrust from '../../tools/inventories/beyondtrust-axi.json' with { type: 'json' }
 import checkpoint from '../../tools/inventories/checkpoint-axi.json' with { type: 'json' }
 import technitium from '../../tools/inventories/technitium-axi.json' with { type: 'json' }
+import shodan from '../../tools/inventories/shodan-axi.json' with { type: 'json' }
 import unifi from '../../tools/inventories/unifi-axi.json' with { type: 'json' }
 import proxmox from '../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 import gitea from '../../tools/inventories/gitea-axi.json' with { type: 'json' }
@@ -22,6 +23,7 @@ import kubernetes from '../../tools/inventories/kubernetes-axi.json' with { type
 const managedFlags: Record<string, string[]> = {
   'kubernetes-axi': kubernetes.adapterBoundary.unsafeOverrides,
   'technitium-axi': technitium.adapterBoundary.unsafeOverrides,
+  'shodan-axi': shodan.adapterBoundary.unsafeOverrides,
   'gitea-axi': gitea.adapterBoundary.unsafeOverrides,
   'unifi-axi': unifi.adapterBoundary.unsafeOverrides,
   'proxmox-axi': proxmox.adapterBoundary.unsafeOverrides,

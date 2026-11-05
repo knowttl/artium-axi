@@ -54,6 +54,7 @@ const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.allo
 const values = {
   'kubernetes-axi': { origin: 'https://cluster.example', auth: 'token', certificateAuthority: 'CANARY-CA-PEM', token: 'CANARY-kubernetes-token' },
   'technitium-axi': { origin: 'https://dns.example', auth: 'token', tokenKind: 'api', token: 'CANARY-technitium-token' },
+  'shodan-axi': { origin: 'https://api.shodan.io', auth: 'api-key', apiKey: 'CANARY-shodan-key' },
   'gitea-axi': { origin: 'https://forge.example', tokenOrigin: 'https://forge.example', token: 'CANARY-gitea-token' },
   'unifi-axi': { origin: 'https://controller.example', apiKey: 'CANARY-unifi-key' },
   'proxmox-axi': { origin: 'https://cluster.example', auth: 'api-token', tokenId: 'reader@pve!automation', token: 'CANARY-proxmox-token' },
@@ -1295,6 +1296,7 @@ test('admin list and detail expose write capability for every tool, including un
       { name: 'unifi-axi', capable: true, enabled: false, reason: null },
       { name: 'proxmox-axi', capable: true, enabled: false, reason: null },
       { name: 'technitium-axi', capable: true, enabled: false, reason: null },
+      { name: 'shodan-axi', capable: false, enabled: false, reason: 'Only account reads are available.' },
       { name: 'gitea-axi', capable: true, enabled: false, reason: null },
       { name: 'kubernetes-axi', capable: true, enabled: false, reason: null },
       { name: 'ssh-axi', capable: true, enabled: false, reason: null },
@@ -1655,6 +1657,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'unifi-axi', version: '0.1.3', health: { status: 'disabled' } },
     { name: 'proxmox-axi', version: '0.1.3', health: { status: 'disabled' } },
     { name: 'technitium-axi', version: '0.1.1', health: { status: 'disabled' } },
+    { name: 'shodan-axi', version: '0.1.1', health: { status: 'disabled' } },
     { name: 'gitea-axi', version: '0.1.4', health: { status: 'disabled' } },
     { name: 'kubernetes-axi', version: '0.1.3', health: { status: 'disabled' } },
     { name: 'ssh-axi', version: '0.1.2', health: { status: 'disabled' } },

@@ -184,7 +184,7 @@ export const ssoReauthSchema = z.union([z.strictObject({}), devicePollSchema])
 export const ssoReauthResponseSchema = z.union([deviceStartResponseSchema,
   z.strictObject({ status: z.literal('pending') }), reauthResponseSchema])
 const accountId = z.string().min(1)
-export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi', 'tenable-axi', 'hybrid-axi', 'checkpoint-axi', 'beyondtrust-axi', 'gh-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi', 'gitea-axi', 'kubernetes-axi', 'ssh-axi'])
+export const toolSchema = z.enum(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi', 'ado-axi', 'awx-axi', 'tenable-axi', 'hybrid-axi', 'checkpoint-axi', 'beyondtrust-axi', 'gh-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi', 'shodan-axi', 'gitea-axi', 'kubernetes-axi', 'ssh-axi'])
 export const delegationScopeSchema = z.strictObject({
   tools: z.array(z.strictObject({ tool: toolSchema, commands: z.array(z.string().min(1).max(200)).min(1).max(100).optional() })).min(1).max(36),
 })
@@ -368,6 +368,7 @@ export const nativeSettingsSchemas = {
     hostWrites: z.strictObject({ allowWrites: z.boolean(),
       operations: z.array(z.enum(technitiumWriteOperations)).max(technitiumWriteOperations.length) }).optional(),
   }),
+  'shodan-axi': z.strictObject({}),
   'ado-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
   'mg-axi': z.strictObject({ enabledPacks: z.array(z.enum(['entra', 'security', 'mail'])).min(1).max(3)
     .refine(packs => packs.includes('entra') && new Set(packs).size === packs.length).optional(),

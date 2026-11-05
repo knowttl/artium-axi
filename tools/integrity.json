@@ -27,6 +27,10 @@
     "version": "0.1.1",
     "integrity": "sha512-hwsNnF+heZnqrsJdp9Y0M+zsjElqnhoRameyZGBoNmc2njKK/a+SNMynED49S+Ywyw88dJxIXifIxeRMEmRR2A=="
   },
+  "@knowttl/shodan-axi": {
+    "version": "0.1.1",
+    "integrity": "sha512-6IuXgK94SoXuhAYEMisRPbLmBWxWuPs+i4Y6alf8CUfWbp9IGrEQYsfsJimI/lE2HMmxPsDYN+qdDBmmIDpYlQ=="
+  },
   "axi-sdk-js": {
     "version": "0.1.13",
     "integrity": "sha512-Ygh8qUN5kdwQ3ASw+BNzCKYpy5QYi18vfcEpqEOQOSrcyh6i4wChrPMtvVW0/3Sqho3xPH3CuFkP0QUma5oxxA=="

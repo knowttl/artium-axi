@@ -482,7 +482,12 @@ curl --fail "$@" "$ARTIUM_AXI_URL/health/ready"
 Both return `status: ok` when healthy; readiness returns HTTP 503 when local migration-table access fails.
 These checks do not test remote services or reload the key.
 Use doctor for the [CLI diagnostics](client-reference.md#toon-output-behavior), including separate TLS-verification and liveness results and cached tool health.
-The following shared-credential health schedule does not apply to SSH; use [per-host authentication checks](safety.md#ssh-reads).
+The following shared-credential health schedule does not apply to SSH or Shodan.
+For SSH, use [per-host authentication checks](safety.md#ssh-reads).
+Shodan account checks use `info` only on an explicit **Test connection** or save-and-test request; see the [Connection tab's default test selection](admin-guide.md#browser-administration).
+Startup, scheduled refresh, credential replacement alone and settings or trust changes do not trigger Shodan checks.
+After configuration changes, a current cached health result requires an explicit test.
+If Shodan package verification returns `SPAWN_FAILED`, restore the pinned package through the normal deployment process rather than bypassing the [integrity check](safety.md#shodan).
 Background checks for enabled configured tools with shared credentials become due on the first 10-second tick after startup, then normally 15 minutes after each check completes.
 Reachability failures (`UPSTREAM_NETWORK_FAILED`, `TIMEOUT`, `TEMP_UNAVAILABLE`) retry early: consecutive failures wait 1, 2, 4 and 8 minutes after completion, then stay at the normal 15-minute interval.
 Success resets the retry backoff; authentication, TLS and configuration failures use the normal interval.

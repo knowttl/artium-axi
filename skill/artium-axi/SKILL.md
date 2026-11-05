@@ -106,6 +106,7 @@ Tool reference links describe upstream commands; Artium controls availability, c
 | `artium-axi unifi-axi [<args>]` | See the [client command reference](https://github.com/knowttl/artium-axi/blob/main/docs/commands.md) for UniFi usage. |
 | `artium-axi proxmox-axi [<args>]` | See the [client command reference](https://github.com/knowttl/artium-axi/blob/main/docs/commands.md) for Proxmox usage. |
 | `artium-axi technitium-axi [<args>]` | See the [client command reference](https://github.com/knowttl/artium-axi/blob/main/docs/commands.md#technitium-dns) for Technitium usage. |
+| `artium-axi shodan-axi [<args>]` | See the [Shodan command reference](https://github.com/knowttl/artium-axi/blob/main/docs/commands.md#shodan). |
 | `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |
 | `artium-axi kubernetes-axi [<args>]` | See the [managed Kubernetes command reference](https://github.com/knowttl/artium-axi/blob/main/docs/commands.md). |
 | `artium-axi ssh-axi [<args>]` | See the [managed SSH command reference](https://github.com/knowttl/artium-axi/blob/main/docs/commands.md#ssh). |

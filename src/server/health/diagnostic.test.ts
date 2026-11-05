@@ -31,6 +31,8 @@ test.each([
   ["code: 'ACCESS_DENIED'", 'ACCESS_DENIED'],
   ['message: AADSTS7000215: CANARY-message', 'AADSTS7000215'],
   ['{"error":{"code":"AUTH_REQUIRED","message":"CANARY-message"}}', 'AUTH_REQUIRED'],
+  ['{"error":"INVALID_RESPONSE","message":"Invalid account response"}', 'INVALID_RESPONSE'],
+  ['error: INVALID_RESPONSE\nmessage: Invalid account response', 'INVALID_RESPONSE'],
 ])('extracts only the bounded failure code from %s', (text, code) => {
   expect(toolFailureCode(text, '')).toBe(code)
   expect(toolFailureCode('', text)).toBe(code)
@@ -47,6 +49,8 @@ test.each([
   '{"error":{"code":"PERMISSION DENIED"}}',
   `{"error":{"code":"${'A'.repeat(81)}"}}`,
   '{"error":{"code":42}}',
+  '{"error":"PERMISSION DENIED"}',
+  `{"error":"${'A'.repeat(81)}"}`,
   '',
 ])('stores nothing for output without a recognizable code: %s', text => {
   expect(toolFailureCode(text, '')).toBeUndefined()
@@ -57,6 +61,14 @@ test('preserves emitted provider and tool codes with mapped advice', () => {
     code: 'UPSTREAM_AUTH_FAILED', diagnostic: { toolCode: 'AUTH_FAILED', providerCode: 'AADSTS7000222',
       hint: expect.stringContaining('secret expired') },
   })
+})
+
+test.each(['stdout', 'stderr'].flatMap(stream => [
+  '{"error":"INVALID_RESPONSE","message":"Invalid account response"}',
+  'error: INVALID_RESPONSE\nmessage: Invalid account response',
+].map(text => ({ stream, text }))))('classifies Shodan scalar errors on $stream (r3)', ({ stream, text }) => {
+  expect(toolFailure(stream === 'stdout' ? text : '', stream === 'stderr' ? text : '', 1, 'shodan-axi'))
+    .toMatchObject({ code: 'UPSTREAM_RESPONSE_INVALID', diagnostic: { stage: 'response', toolCode: 'INVALID_RESPONSE' } })
 })
 
 test.each(['message', 'issuer'] as const)('retains structured context when %s exceeds the diagnostic budget', field => {
