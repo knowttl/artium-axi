@@ -255,18 +255,24 @@ artium-axi shodan-axi domain example.test --allow-operation OP-040 --query-credi
 Use `artium-axi shodan-axi host --help` or `search --help` for command-specific flags.
 See the [supported boundary](safety.md#shodan) for available read families and credit requirements.
 Use `artium-axi shodan-axi version` to print the packaged version or `version --help` for help; `version` does not accept `--json`.
-For stream preview access and quotas, ask an administrator to configure the [Shodan session policy](tool-credentials.md#shodan).
+For stream session access and quotas, ask an administrator to configure the [Shodan session policy](tool-credentials.md#shodan).
 For example, `artium-axi shodan-axi stream session preview --operation OP-047 --selector --asn --value AS64496 --limit 10 --max-bytes 4096 --timeout 10000 --idle-timeout 5000 --accept-unknown-cost --json` validates a native plan without starting a stream.
 Use `artium-axi shodan-axi stream session preview --help` for the full set of bounds.
 The required `--accept-unknown-cost` acknowledges that cost cannot be determined; the response reports the selected operation, selector, bounds and effective limits with `status: preview` and `cost: unknown`.
 Optional `--events`, `--bytes`, `--retention` and `--lease` values may lower administrator ceilings; retention and lease values are in seconds, while timeout values are in milliseconds.
 The required `--limit`, `--max-bytes` and `--timeout` must fit the effective event, byte and lease limits.
 To start, repeat the preview arguments with `start` and `--confirm` set to the returned confirmation.
-Stream sessions require an owner session and are unavailable to delegated tokens.
-Use `stream session status <id>`, `stream session read <id>` and `stream session stop <id>` to inspect, consume and stop the session.
-Each read returns a continuation for the next read, along with any lost records; `--wait` waits for new output.
-Sessions expire at their bounded deadline and retained output expires according to policy.
-Exceeding a ceiling returns `INVALID_INPUT`; exhausted preview capacity returns `TOO_MANY_CALLS`, so retry after another preview finishes or ask an administrator to review quotas.
+The confirmation is single-use, expires after fifteen minutes and is replaced by a new preview from the same sign-in family; obtain a fresh preview after a failed start.
+Use `artium-axi shodan-axi stream session status <id>`, `artium-axi shodan-axi stream session read <id>` and `artium-axi shodan-axi stream session stop <id>` to inspect, consume and stop the returned session ID.
+The first read omits `--continuation`; each later read must pass the most recently returned token as `--continuation <token>`.
+Reads consume output and rotate the continuation even when no items are returned, so save each response before reading again; consumed output cannot be replayed.
+Read accepts `--limit` to bound returned items and `--wait` to wait for new output or session cleanup.
+Responses report lost records and cumulative upstream loss; `complete: false` and `upstreamCompleteness: unverified` never establish complete upstream delivery, even after a clean stop.
+All session actions accept `--json`; the default output is TOON.
+The session's fixed `expiresAt` deadline starts at admission and is bounded by `--timeout` and the effective lease; lease extensions are unavailable.
+See [session retention and recovery](runbook.md#retention-and-export) for output expiry, cleanup and capacity recovery.
+Exceeding a ceiling returns `INVALID_INPUT`; exhausted preview or session capacity returns `TOO_MANY_CALLS`.
+For a missing or expired confirmation (`NOT_FOUND`), obtain a fresh preview; for changed arguments (`INVALID_INPUT`), repeat the exact preview arguments with the new confirmation.
 For authentication failures, ask an administrator to replace the managed key using [Shodan credential setup](tool-credentials.md#shodan).
 See [package recovery](runbook.md#roles-credentials-and-health) for inventory or package mismatches.
 
