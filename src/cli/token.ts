@@ -69,27 +69,26 @@ export async function tokenCommand(args: string[], output: (text: string) => voi
     output('warning: SSH write access reaches every host and sudo grant available to the creator.\n')
   }
   const client = new Client()
-  await client.transferSession(async accessToken => {
-    let proof: unknown
-    if (flags.has('--sso')) {
-      const start = deviceStartResponseSchema.parse(await client.request('/v1/auth/reauth', 'POST', {}, accessToken))
-      if (start.verificationUri !== client.serverUrl + '/device') throw new ArtiumError('INVALID_RESPONSE')
-      output(`status: approval-required\nopen: ${JSON.stringify(start.verificationUri)}\ncode: ${start.userCode}\n`)
-      while (Date.now() < start.expiresAt) {
-        try {
-          proof = ssoReauthResponseSchema.parse(await client.request('/v1/auth/reauth', 'POST', { deviceCode: start.deviceCode }, accessToken))
-          if (reauthResponseSchema.safeParse(proof).success) break
-        } catch (error) { if (!(error instanceof ArtiumError) || error.code !== 'DEVICE_POLL_LIMITED') throw error }
-        await delay(Math.min(start.intervalMs, Math.max(0, start.expiresAt - Date.now())))
-      }
-    } else {
-      const password = await readPassword(flags.has('--password-stdin'))
-      proof = await client.request('/v1/auth/reauth', 'POST', { password }, accessToken)
+  const { accessToken } = await client.freshSession()
+  let proof: unknown
+  if (flags.has('--sso')) {
+    const start = deviceStartResponseSchema.parse(await client.request('/v1/auth/reauth', 'POST', {}, accessToken))
+    if (start.verificationUri !== client.serverUrl + '/device') throw new ArtiumError('INVALID_RESPONSE')
+    output(`status: approval-required\nopen: ${JSON.stringify(start.verificationUri)}\ncode: ${start.userCode}\n`)
+    while (Date.now() < start.expiresAt) {
+      try {
+        proof = ssoReauthResponseSchema.parse(await client.request('/v1/auth/reauth', 'POST', { deviceCode: start.deviceCode }, accessToken))
+        if (reauthResponseSchema.safeParse(proof).success) break
+      } catch (error) { if (!(error instanceof ArtiumError) || error.code !== 'DEVICE_POLL_LIMITED') throw error }
+      await delay(Math.min(start.intervalMs, Math.max(0, start.expiresAt - Date.now())))
     }
-    const { ticket } = reauthResponseSchema.parse(proof)
-    const response = createdDelegationSchema.parse(await client.request('/v1/account/tokens', 'POST', { label, scope: { tools: [...tools, ...picks] },
-        readOnly: !flags.has('--write'), reusable: flags.has('--reusable'), expiresAt }, accessToken, false, { 'x-artium-reauth-ticket': ticket }))
-    writeSync(fd, `${response.token}\n`)
-    output(`status: created\nid: ${response.id}\nexpiresAt: ${new Date(response.expiresAt).toISOString()}\n`)
-  })
+  } else {
+    const password = await readPassword(flags.has('--password-stdin'))
+    proof = await client.request('/v1/auth/reauth', 'POST', { password }, accessToken)
+  }
+  const { ticket } = reauthResponseSchema.parse(proof)
+  const response = createdDelegationSchema.parse(await client.request('/v1/account/tokens', 'POST', { label, scope: { tools: [...tools, ...picks] },
+      readOnly: !flags.has('--write'), reusable: flags.has('--reusable'), expiresAt }, accessToken, false, { 'x-artium-reauth-ticket': ticket }))
+  writeSync(fd, `${response.token}\n`)
+  output(`status: created\nid: ${response.id}\nexpiresAt: ${new Date(response.expiresAt).toISOString()}\n`)
 }

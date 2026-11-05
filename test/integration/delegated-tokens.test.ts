@@ -18,6 +18,7 @@ import { seedToolUser } from '../fixtures/tokens.js'
 import { createRunnerTestAdapter } from '../fake-tool/tool.js'
 import { createBrowserSession } from '../../src/server/auth/sessions.js'
 import { createKubernetesAdapter } from '../../src/server/adapters/kubernetes.js'
+import { SessionStore } from '../../src/cli/session.js'
 
 let directory: string
 let db: Database.Database
@@ -65,6 +66,21 @@ async function mint(extra: string[] = []) {
   expect((result.stdout + result.stderr + result.argv.join(' ')).includes(result.secret)).toBe(false)
   return result.secret
 }
+
+test('token creation refreshes an idle owner before password reauthentication (R6)', async () => {
+  expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
+  const sessions = new SessionStore(url, join(directory, 'owner', 'artium-axi', 'session.json'))
+  const session = sessions.read()
+  if (session?.status !== 'authenticated') throw new Error('Expected ordinary session')
+  const { loginGeneration, delegated, ...tokens } = session
+  sessions.write({ ...tokens, accessExpiresAt: Date.now() - 1 }, loginGeneration, delegated)
+  db.prepare("UPDATE tokens SET expires_at = ? WHERE type = 'access'").run(Date.now() - 1)
+  const token = await mint()
+  expect((await cli(['login', '--token-stdin'], `${token}\n`, 'agent')).code).toBe(0)
+  expect(db.prepare("SELECT count(*) AS count FROM tokens WHERE type = 'refresh' AND consumed_at IS NOT NULL").get())
+    .toEqual({ count: 1 })
+  expect(db.prepare('SELECT count(*) AS count FROM delegations').get()).toEqual({ count: 1 })
+})
 
 test('read-only token limits real CLI calls and revocation stops the session', async () => {
   expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)

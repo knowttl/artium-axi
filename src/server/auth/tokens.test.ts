@@ -93,6 +93,32 @@ test('delegated refresh records success only for the first use', () => {
     .toEqual([{ outcome: 'success' }, { outcome: 'TOKEN_INVALID' }])
 })
 
+test('delegated refresh audit failure rolls back rotation and permits retry (R7)', () => {
+  db.exec('UPDATE users SET must_change = 0')
+  const session = issueLoginTokens(db, 'synthetic-user', now)
+  if (session.status !== 'authenticated') throw new Error('Expected ordinary session')
+  db.prepare(`INSERT INTO delegations (id, creator_id, token_hash, label, scope_json, read_only, single_use, created_at, expires_at)
+    VALUES ('delegation', 'synthetic-user', 'synthetic-hash', 'Synthetic', '{}', 1, 1, ?, ?)`).run(now, now + 10000)
+  db.exec(`UPDATE session_families SET delegation_id = 'delegation';
+    CREATE TRIGGER synthetic_audit_failure BEFORE INSERT ON audit
+      WHEN NEW.event = 'delegation-access' AND NEW.outcome = 'success'
+      BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END`)
+  const lines: string[] = []
+  const audit = new Audit(db, () => now, line => lines.push(line))
+  const context = { requestId: 'synthetic-refresh', clientAddress: '192.0.2.1' }
+  expect(() => refreshTokens(db, session.refreshToken, audit, context, now))
+    .toThrow(expect.objectContaining({ code: 'AUDIT_UNAVAILABLE' }))
+  expect(db.prepare('SELECT consumed_at, revoked_at FROM tokens WHERE hash = ?').get(hashToken(session.refreshToken)))
+    .toEqual({ consumed_at: null, revoked_at: null })
+  expect(db.prepare('SELECT count(*) AS count FROM tokens').get()).toEqual({ count: 2 })
+  expect(db.prepare('SELECT revoked_at FROM session_families').get()).toEqual({ revoked_at: null })
+  expect(lines.map(line => JSON.parse(line).outcome)).toEqual(['AUDIT_UNAVAILABLE'])
+  db.exec('DROP TRIGGER synthetic_audit_failure')
+  const rotated = refreshTokens(db, session.refreshToken, audit, context, now)
+  expect(verifyPrincipal(db, rotated.accessToken, now).delegation?.id).toBe('delegation')
+  expect(lines.map(line => JSON.parse(line).outcome)).toEqual(['AUDIT_UNAVAILABLE', 'success'])
+})
+
 test('recent-auth confirmation replaces the previous ticket and survives refresh within its family', () => {
   db.exec('UPDATE users SET must_change = 0')
   const session = issueLoginTokens(db, 'synthetic-user', now)

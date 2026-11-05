@@ -137,30 +137,31 @@ export function refreshTokens(db: Database.Database, token: string, audit: Audit
     JOIN session_families ON session_families.id = tokens.family_id
     JOIN delegations ON delegations.id = session_families.delegation_id
     WHERE tokens.hash = ? AND tokens.type = 'refresh'`).get(hashToken(token)) as { id: string, creator_id: string } | undefined
-  let pair: TokenPair
+  let reused: ReturnType<typeof findSessionToken> | undefined
   try {
-    const result = db.transaction(() => {
+    const rotate = () => {
       const row = findSessionToken(db, token, ['refresh'])
       if (row.expires_at <= now || row.family_expires_at <= now || (row.delegation_expires_at !== null && row.delegation_expires_at <= now)) throw new ArtiumError('TOKEN_EXPIRED')
-      if (row.consumed_at !== null) return { reused: row }
+      if (row.consumed_at !== null) {
+        reused = row
+        throw new ArtiumError('TOKEN_INVALID')
+      }
       if (row.disabled) throw new ArtiumError('USER_DISABLED')
       db.prepare('UPDATE tokens SET consumed_at = ? WHERE hash = ?').run(now, hashToken(token))
-      return { pair: issuePair(db, row.family_id, row.user_id, row.family_expires_at, now) }
-    }).immediate()
-    if (result.reused) {
-      audit.change({ ...context, event: 'token-reuse', userId: result.reused.user_id, delegationId: result.reused.delegation_id,
-        tool: null, outcome: 'TOKEN_INVALID' }, () => revokeFamily(db, result.reused.family_id, now))
-      throw new ArtiumError('TOKEN_INVALID')
+      return issuePair(db, row.family_id, row.user_id, row.family_expires_at, now)
     }
-    pair = result.pair!
+    return delegation ? audit.change({ ...context, event: 'delegation-access', userId: delegation.creator_id,
+      delegationId: delegation.id, tool: null, outcome: 'success' }, rotate).value : db.transaction(rotate).immediate()
   } catch (error) {
+    if (reused) {
+      const row = reused
+      audit.change({ ...context, event: 'token-reuse', userId: row.user_id, delegationId: row.delegation_id,
+        tool: null, outcome: 'TOKEN_INVALID' }, () => revokeFamily(db, row.family_id, now))
+    }
     if (delegation) audit.record({ ...context, event: 'delegation-access', userId: delegation.creator_id,
       delegationId: delegation.id, tool: null, outcome: error instanceof ArtiumError ? error.code : 'failure' })
     throw error
   }
-  if (delegation) audit.record({ ...context, event: 'delegation-access', userId: delegation.creator_id,
-    delegationId: delegation.id, tool: null, outcome: 'success' })
-  return pair
 }
 
 export function logout(db: Database.Database, token: string, audit: Audit, context: AuditContext, now = Date.now()): void {
