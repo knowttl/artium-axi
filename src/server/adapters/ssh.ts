@@ -46,7 +46,10 @@ export function createSshAdapter(hosts: SshHosts, writeLog: string, executable: 
     validateArgs: (args, input) => { invocation(args, input) },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand([...inventory.commands, ...inventory.managedCommands], (a, i) => {
       const command = resolveSshManagedCommand(a)
-      if (!command) return invocation(a, i)
+      if (!command) {
+        const call = invocation(a, i)
+        return a.length === 1 && ['--version', '-v', '-V'].includes(a[0]) ? { command: 'version' } : call
+      }
       const { parseArguments } = createRequire(import.meta.url)(fileURLToPath(new URL('./arguments.js', pathToFileURL(executable)))) as {
         parseArguments(args: string[]): unknown
       }

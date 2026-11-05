@@ -74,7 +74,34 @@ export function createVectraAdapter(source: SecretSource, writeLog: string,
     validateArgs: (args, input) => { vectraArguments(args, input) },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(
       inventory.commands.map(route => ({ ...route, effect: vectraReadCommands.has(route.command) ? 'read' : 'write' })),
-      (a, i) => ({ command: vectraArguments(a, i).invocation.command }), args, input),
+      (a, i) => {
+        const call = vectraArguments(a, i)
+        if (a.length === 1 && ['--version', '-v', '-V'].includes(a[0])) return { command: 'version' }
+        const route = inventory.commands.find(route => route.command === call.invocation.command)
+        if (!route) throw new ArtiumError('INVALID_INPUT')
+        const schema: Record<string, string | undefined> = route.flags
+        const seen = new Set<string>()
+        const words = a.findIndex(token => token.startsWith('-'))
+        const count = words === -1 ? a.length : words
+        const commandWords = route.command === 'home' && count === 0 ? 0 : route.command.split(' ').length
+        if (count !== commandWords && !(count === commandWords + 1 && route.command.endsWith(' show') && schema.id)) {
+          throw new ArtiumError('INVALID_INPUT')
+        }
+        for (let index = count; index < a.length; index++) {
+          const match = /^--([a-z-]+)(?:=(.*))?$/.exec(a[index])
+          if (!match) throw new ArtiumError('INVALID_INPUT')
+          const [, name, inline] = match
+          if (!Object.hasOwn(schema, name) || seen.has(name)) throw new ArtiumError('INVALID_INPUT')
+          seen.add(name)
+          if (schema[name] === 'boolean') {
+            if (inline !== undefined) throw new ArtiumError('INVALID_INPUT')
+          } else {
+            const value = inline ?? a[++index]
+            if (!value || value.startsWith('-') && value !== '-') throw new ArtiumError('INVALID_INPUT')
+          }
+        }
+        return call.invocation
+      }, args, input),
     async prepare(args, reference, input) {
       const normalized = vectraArguments(args, input)
       if (reference.tool !== 'vectra-axi') throw new ArtiumError('CREDENTIAL_INVALID')

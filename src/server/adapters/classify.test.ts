@@ -70,7 +70,7 @@ test.each(['--version', '-v'])('ado-axi preserves the canonical version command 
 
 test.each([
   'awx-axi', 'az-axi', 'beyondtrust-axi', 'checkpoint-axi', 'falcon-axi', 'gh-axi', 'gitea-axi',
-  'hybrid-axi', 'mg-axi', 'proxmox-axi', 'technitium-axi', 'tenable-axi', 'unifi-axi',
+  'hybrid-axi', 'mg-axi', 'proxmox-axi', 'technitium-axi', 'tenable-axi', 'unifi-axi', 'vectra-axi', 'ssh-axi',
 ].flatMap(tool => ['--version', '-v', '-V'].map(flag => ({ tool, flag }))))('$tool recognizes $flag as an informational read', ({ tool, flag }) => {
   const adapter = adapters.find(adapter => adapter.name === tool)!
   adapter.validateArgs([flag])
@@ -173,6 +173,15 @@ test.each(kubernetesHostedCommands.map(usage => {
 })
 
 test.each([
+  ['vectra-axi', ['--synthetic-unknown']],
+  ['vectra-axi', ['--synthetic-unknown=value']],
+  ['vectra-axi', ['--help', 'synthetic-unknown']],
+  ['vectra-axi', ['detection', 'list', 'synthetic-unknown']],
+  ['vectra-axi', ['detection', 'list', '--synthetic-unknown']],
+  ['vectra-axi', ['detection', 'list', '--limit']],
+  ['vectra-axi', ['detection', 'list', '--limit=']],
+  ['vectra-axi', ['detection', 'list', '--all=false']],
+  ['vectra-axi', ['detection', 'list', '--help', '--help']],
   ['ssh-axi', ['connection', 'synthetic-unknown']],
   ['proxmox-axi', ['stream', '--', 'synthetic-unknown']],
   ['proxmox-axi', ['result', 'synthetic-unknown']],
@@ -180,8 +189,18 @@ test.each([
   ['kubernetes-axi', ['workspace', 'synthetic-unknown']],
   ['kubernetes-axi', ['session', 'list', '--synthetic-unknown']],
   ['proxmox-axi', ['stream', '--', 'transfer', 'get', '/nodes/{node}/tasks/{upid}/log', '--synthetic-unknown']],
-] as const)('%s hosted unknown command remains write', (tool, args) => {
+] as const)('%s unrecognized input remains write', (tool, args) => {
   expect(adapters.find(adapter => adapter.name === tool)!.classify(args)).toEqual({ command: 'unknown', effect: 'write' })
+})
+
+test.each([
+  { args: ['--help'], command: 'home' },
+  { args: ['detection', 'list', '--limit', '10'], command: 'detection list' },
+  { args: ['detection', 'list', '--limit=10', '--help'], command: 'detection list' },
+  { args: ['host', 'show', '42', '--full'], command: 'host show' },
+  { args: ['host', 'show', '--id', '42'], command: 'host show' },
+])('Vectra recognizes read arguments $args', ({ args, command }) => {
+  expect(adapters.find(adapter => adapter.name === 'vectra-axi')!.classify(args)).toEqual({ command, effect: 'read' })
 })
 
 test.each([
