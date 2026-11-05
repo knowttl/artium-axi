@@ -41,8 +41,8 @@ See [delegated token usage](client-reference.md#delegated-tokens) for CLI sign-i
 Delegated tool execution follows the token's tool and command scope and the creator's current grants, with existing administrator write gates, upstream permissions and confirmation requirements still enforced.
 Tool lists, generated help and skills include only commands permitted by the token, the creator's current grants, tool enablement, delegated read-only restriction and administrator Allow writes switch.
 Tools with no permitted commands are omitted, and tool lists report the effective read-only state.
-GitHub discovery also reflects its administrator operation allow-list.
-Other adapter-internal operation allow-lists, including UniFi, Falcon, Gitea, Technitium, Proxmox and Kubernetes credential acquisition, remain execution safeguards; reflecting them in discovery is a follow-up.
+GitHub and Proxmox stream discovery also reflect their administrator operation allow-lists.
+Other adapter-internal operation allow-lists, including UniFi, Falcon, Gitea, Technitium, ordinary Proxmox JSON operations and Kubernetes credential acquisition, remain execution safeguards; reflecting them in discovery is a follow-up.
 Permitted native leaf commands retain their native argument help; locally generated Kubernetes hosted help filters command and session-kind listings to the same permitted set as discovery.
 Leaf help outside the token's scope is refused.
 Native output and error messages may mention other commands.
@@ -327,8 +327,9 @@ Secret-producing writes require the native private result channel before dispatc
 The [approved credential custody amendment](credential-standard.md#proxmox-memory-authentication-and-protected-result-amendment) owns authentication caching, result binding, scanning and revocation requirements.
 Use [private CLI retrieval](client-reference.md#proxmox-private-results) and follow the [retention and recovery guidance](runbook.md#retention-and-export).
 Reviewed transfers and duplex routes use [authenticated private byte channels](client-reference.md#proxmox-managed-streams), outside ordinary run input.
-Delegated sessions require a writable grant for managed streams, and credential-producing streams require an exact command grant.
+Delegated sessions require a writable token for managed streams, including previews, and credential-producing streams require an exact command grant.
 Delegated guest `agent/file-read` and `file-restore/download` streams require an exact operation grant and a writable token; tool-wide grants do not permit them.
+Remaining stream commands and `stream limits` require their own exact pick or a tool-wide grant; `stream limits` remains available to read-only tokens.
 Delegated operations that produce protected results, including stream setup and batch children, also require `result take` access before dispatch so their protected results can be delivered.
 Read transfers remain available with the administrator's Allow writes switch off; effectful setup and uploads require the same exact native/host grants and consumed-once confirmations.
 SPICE stays in the existing one-shot memory result store; console and migration payloads are not text-redacted, logged or persisted.

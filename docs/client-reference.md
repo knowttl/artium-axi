@@ -257,7 +257,6 @@ The native 1 MiB message bound and each direction's byte/hash checks apply indep
 For uploads, `--input-file` selects an absolute local regular file; its path is never sent to the server.
 The client holds the opened source while hashing and sending, the server verifies private staging before native execution, and the native preview/confirmation binds that source's count and digest.
 Use identical bytes and native arguments for preview and confirmation; changing a source requires a fresh preview.
-Uploads and effectful setup retain exact independent operation grants and native one-shot confirmation; read transfers work with writes off.
 Cancellation, expiry or relevant revocation closes delivery and the provider process, removes partial staging and releases capacity only after cleanup.
 
 ### Check Point email and attachment saving
