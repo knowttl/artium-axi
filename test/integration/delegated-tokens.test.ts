@@ -368,6 +368,20 @@ test.each([
   expect(managed.stdout).toContain(text)
 })
 
+test.each(['stream', 'result'])('delegated Proxmox %s help refuses an ungranted tool', async command => {
+  expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
+  const token = await mint()
+  expect((await cli(['login', '--token-stdin'], `${token}\n`, 'agent')).code).toBe(0)
+  const session = new SessionStore(url, join(directory, 'agent', 'artium-axi', 'session.json')).read()
+  if (session?.status !== 'authenticated') throw new Error('Expected delegated session')
+  const stored = await cli(['proxmox-axi', command, '--help'], '', 'agent')
+  const managed = await cli(['--managed-session', 'proxmox-axi', command, '--help'], '', 'agent', false, {}, { accessToken: session.accessToken })
+  for (const result of [stored, managed]) {
+    expect(result.code, result.stdout).toBe(1)
+    expect(result.stdout).toContain('DELEGATED_SCOPE_DENIED')
+  }
+})
+
 test.each([
   { selection: 'workspace create', args: ['workspace', 'create'], code: 0, text: 'artium-axi kubernetes-axi workspace <command>' },
   { selection: 'workspace show', args: ['workspace', 'show'], code: 0, text: 'artium-axi kubernetes-axi workspace <command>' },

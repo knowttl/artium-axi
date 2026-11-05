@@ -83,11 +83,12 @@ async function main(args: string[]) {
         if (toolDiscovery && !prefixHelp && toolWords.length > 0 && !(toolWords.length === 1 && ['commands', 'home', 'help'].includes(toolWords[0]))) {
           const hostedArgs = args.slice(1).map(arg => arg === '-h' ? '--help' : arg)
           if (name === 'proxmox-axi' && hostedArgs[0] === 'result') {
-            if (!tool.commands?.includes('result take')) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+            if (!tool?.commands?.includes('result take')) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
             await proxmoxPrivateResult(() => client, hostedArgs, text => output('stdout', text))
             return
           }
           if (name === 'proxmox-axi' && hostedArgs[0] === 'stream') {
+            if (!tool) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
             const stream = resolveProxmoxStream(hostedArgs)
             if (stream.separator < 0 && stream.options.includes('--help')) {
               if (stream.options.includes('limits') && !tool.commands?.includes('stream limits')) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
