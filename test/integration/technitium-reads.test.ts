@@ -178,6 +178,8 @@ test.each(credentialReads.flatMap(operation => [
 test.each(credentialReads)('delegated Technitium $command delivers an exact writable result (R8)', async ({ command, args, operation, bytes }) => {
   await withTechnitium(async ({ app, db, headers }) => {
     db.exec('UPDATE delegation_settings SET minting_enabled = 1')
+    db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?')
+      .run(JSON.stringify({ hostWrites: { allowWrites: true, operations: [] } }), 'technitium-axi')
     const delegated = await delegationHeaders(app, headers, [command], false)
     const response = await app.inject({ method: 'POST', url: '/v1/tools/technitium-axi/run', headers: delegated, payload: { args } })
     expect(response.json()).toMatchObject({ exitCode: 0 })

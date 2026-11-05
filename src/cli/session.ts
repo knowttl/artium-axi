@@ -46,6 +46,23 @@ export function restrictWindowsAcl(path: string, directory: boolean) {
   })
 }
 
+export function readStoredSession(file = sessionPath(), platform = process.platform, acl = restrictWindowsAcl) {
+  try {
+    if (!existsSync(file)) return undefined
+    if (platform === 'win32') acl(file, false)
+    const stat = statSync(file)
+    if (!stat.isFile() || (platform !== 'win32' && ((stat.mode & 0o777) !== 0o600 || (statSync(dirname(file)).mode & 0o777) !== 0o700))) throw new Error()
+    const { serverUrl, loginGeneration, delegated, ...tokens } = JSON.parse(readFileSync(file, 'utf8'))
+    return { serverUrl: z.string().parse(serverUrl), session: {
+      ...loginResponseSchema.parse(tokens), loginGeneration: z.uuid().parse(loginGeneration),
+      ...(delegated === undefined ? {} : { delegated: z.boolean().parse(delegated) }),
+    } }
+  } catch (error) {
+    if (error instanceof ArtiumError) throw error
+    throw new ArtiumError('SESSION_STORAGE_UNAVAILABLE')
+  }
+}
+
 export class SessionStore {
   readonly directory: string
   constructor(private readonly serverUrl: string, readonly file = sessionPath(),
@@ -62,19 +79,10 @@ export class SessionStore {
   }
 
   read(): StoredSession | undefined {
-    try {
-      if (!existsSync(this.file)) return undefined
-      if (this.platform === 'win32') this.acl(this.file, false)
-      const stat = statSync(this.file)
-      if (!stat.isFile() || (this.platform !== 'win32' && ((stat.mode & 0o777) !== 0o600 || (statSync(this.directory).mode & 0o777) !== 0o700))) throw new Error()
-      const { serverUrl, loginGeneration, delegated, ...tokens } = JSON.parse(readFileSync(this.file, 'utf8'))
-      if (serverUrl !== this.serverUrl) throw new ArtiumError('SESSION_SERVER_MISMATCH')
-      return { ...loginResponseSchema.parse(tokens), loginGeneration: z.uuid().parse(loginGeneration),
-        ...(delegated === undefined ? {} : { delegated: z.boolean().parse(delegated) }) }
-    } catch (error) {
-      if (error instanceof ArtiumError) throw error
-      throw new ArtiumError('SESSION_STORAGE_UNAVAILABLE')
-    }
+    const stored = readStoredSession(this.file, this.platform, this.acl)
+    if (!stored) return undefined
+    if (stored.serverUrl !== this.serverUrl) throw new ArtiumError('SESSION_SERVER_MISMATCH')
+    return stored.session
   }
 
   write(session: LoginResponse, loginGeneration: string = randomUUID(), delegated?: boolean): StoredSession {

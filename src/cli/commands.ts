@@ -1,5 +1,4 @@
 import { resolve } from 'node:path'
-import { existsSync } from 'node:fs'
 import { encode } from '@toon-format/toon'
 import { loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema, transferWarningFor } from '../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
@@ -22,7 +21,7 @@ import { sessionContext } from './session-context.js'
 import { sshExecution } from './ssh.js'
 import { kubernetesHosted } from './kubernetes.js'
 import { tokenCommand } from './token.js'
-import { sessionPath } from './session.js'
+import { readStoredSession } from './session.js'
 
 let managed: ManagedSession | undefined
 let failureContext = 'main'
@@ -68,7 +67,7 @@ async function main(args: string[]) {
     }
     managed = await ManagedSession.read(args[0] === 'login')
   }
-  if (scopedHelp && (managed || existsSync(sessionPath()))) {
+  if (scopedHelp && (managed || readStoredSession()?.session.delegated)) {
     const client = new Client(process.env, managed)
     const delegated = managed
       ? 'delegation' in meResponseSchema.parse(await client.authenticated('/v1/me', 'GET'))
