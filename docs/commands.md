@@ -6,8 +6,8 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 
 | Command | Purpose |
 | --- | --- |
-| `artium-axi` | Show identity, roles and available tools. |
-| `artium-axi --help [<command>]` | Show local client or tool-entry help without authentication. |
+| `artium-axi` | Show identity and available tools, with roles for full sessions or a delegation label for delegated sessions. |
+| `artium-axi --help [<command>]` | Show client or tool-entry help; delegated home and tool discovery require authentication. |
 | `artium-axi --version`, `-v`, `-V` | Print only the client package version without configuration or sign-in. |
 | `artium-axi login --username <username> [--password-stdin]` | Sign in with a local account using protected password input. |
 | `artium-axi login --sso` | Sign in through browser approval of the terminal code. |
@@ -15,9 +15,9 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi token create\|list\|revoke` | Manage delegated tokens; minting is disabled by default. See [delegated tokens](client-reference.md#delegated-tokens). |
 | `artium-axi passwd [--password-stdin]` | Change the account password, then sign in again. |
 | `artium-axi logout` | Remove local tokens and attempt server-session revocation. |
-| `artium-axi whoami` | Show identity, roles, session expiry and server. |
+| `artium-axi whoami` | Show identity, session expiry and server, with roles for full sessions or a delegation label for delegated sessions. |
 | `artium-axi tools` | List granted enabled tools with status and pinned versions. |
-| `artium-axi tools show <tool>` | Show one available tool, vetted upstream help and a first call. |
+| `artium-axi tools show <tool>` | Show one available tool, vetted upstream help and a first call; delegated sessions receive its permitted command list. |
 | `artium-axi doctor` | Check the server, certificate, token, client version and cached tool health, including the server's category for each failed tool. |
 | `artium-axi update` | Download and verify the server client, replace this file and retain a .bak backup; npm installs use npm instead. |
 | `artium-axi download --operation <operation> --selector <selector> --type <type> --destination <absolute-new-path> [--transfer <id> --execute --confirm <exact-confirm>] [--password-stdin\|--sso]` | Preview or explicitly verify and save administrator-enabled artifacts; see the [supported capability boundaries](safety.md) and `artium-axi download --help` for operations and guards. |
@@ -89,8 +89,7 @@ The required `--body` must be valid JSON within [the adapter's `ADO_API_BODY_MAX
 GET refuses `--body` and `--content-type`, and continues to accept `--host` and `--query`.
 See [audit decision records](admin-guide.md#audit-screen-and-api) for mutation journaling.
 
-`artium-axi --help falcon-axi` is local help; `artium-axi falcon-axi --help` authenticates and calls upstream.
-The [full client reference](client-reference.md#command-surface-and-subcommands) describes forwarding and supported input.
+The [full client reference](client-reference.md#command-surface-and-subcommands) describes help, delegated discovery, forwarding and supported input.
 GitHub PR details support field selection, for example `artium-axi gh-axi pr view 42 -R OWNER/NAME --fields number,title,mergeStateStatus,body`.
 The [reviewed GitHub inventory](../tools/inventories/gh-axi.json) owns the accepted command and flag boundary.
 

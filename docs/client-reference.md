@@ -133,8 +133,11 @@ artium-axi --help falcon-axi
 artium-axi falcon-axi --help
 ```
 
-The first prints local Artium help without signing in or contacting the server.
+Outside delegated sessions, the first prints local Artium help without signing in or contacting the server.
 The second forwards `--help` through the authenticated upstream adapter, except that SSH top-level, execution and connection help are handled locally by the bundled client.
+Delegated sessions authenticate both forms to obtain filtered command discovery; bare tool calls also return discovery instead of live dashboard data.
+See [delegated capability boundaries](safety.md#delegated-sessions) for filtering and leaf help behavior.
+For full sessions, bare tool calls retain their native behavior:
 A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-axi --help` for its command list.
 A bare `artium-axi vectra-axi` reads bounded live detection context; use `artium-axi vectra-axi --help` for its command list.
 `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
@@ -445,20 +448,9 @@ The token appears once and is stored only as a hash by the server.
 The creator chooses an expiry within the administrator's cap and confirms their identity during creation.
 Tokens are single-use by default; `--reusable` permits multiple exchanges until expiry or revocation.
 `--write` opts into writes that the creator and administrator can currently perform.
-Use repeatable `--tool` flags for tool-wide grants, and `--exact '<tool:command>'` for a reviewed exact selection such as `--exact 'awx-axi:user token-create' --write`.
+Use repeatable `--tool` flags for tool-wide grants.
 Use repeatable `--command '<tool:command>'` or `--exact '<tool:command>'` for exact command picks, for example `--command 'awx-axi:job list'`.
-Wildcard command patterns are a follow-up and are refused at minting in slice 4.
-API and native escape hatches and credential-producing commands require an exact selection even with tool-wide scope.
-Selecting a Kubernetes mutation also grants preview and confirmation of saved requests for that same operation.
-Continuations for other operations and all mutation workflows in read-only sessions are refused.
-API and native selections can reach many operations and are broad.
-Command-scoped sessions receive server-filtered tool discovery, CLI help and skills.
-Permitted leaf commands retain their argument help; leaf help outside the token's scope is refused.
-Discovery intersects token grants with the current tool enablement, delegated read-only restriction and administrator Allow writes switch.
-GitHub discovery also reflects its administrator operation allow-list.
-Other adapter-internal operation allow-lists, including UniFi, Falcon, Gitea, Technitium, Proxmox and Kubernetes credential acquisition, remain execution safeguards and are not reflected in slice 4 discovery.
-Reflecting those policies in discovery requires a shared pre-credential policy hook across those adapters and is deferred to a follow-up.
-Native output and error messages may mention other commands.
+For credential issuance, a selection such as `--exact 'awx-axi:user token-create' --write` opts into the reviewed operation.
 Exact selections can be used alone or alongside tool-wide grants; see the [credential-producing boundary](safety.md#delegated-sessions) before selecting them.
 SSO creators use `--sso` instead of `--password-stdin` and approve the displayed browser code.
 Use `artium-axi token list` and `artium-axi token revoke <id>` to manage tokens.
