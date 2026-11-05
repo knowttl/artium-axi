@@ -107,6 +107,33 @@ test.each([
 })
 
 test.each([
+  { method: 'POST', path: 'repos/example/project/issues', operation: 'issueCreateIssue' },
+  { method: 'PUT', path: 'repos/example/project/actions/secrets/name', operation: 'updateRepoSecret' },
+  { method: 'PATCH', path: 'repos/example/project/issues/1', operation: 'issueEditIssue' },
+  { method: 'DELETE', path: 'repos/example/project/issues/1', operation: 'issueDelete' },
+].flatMap(({ method, path, operation }) => [
+  [method, path], [path, '--method', method], [path, `--method=${method}`],
+  [path, '-X', method], [path, `-X${method}`],
+].flatMap(methodArgs => [
+  { suffix: ['--input', '-', '--allow-write', operation, '--preview'], input: { stdin: '{}' } },
+  { suffix: ['--input', '-', '--allow-write', operation, '--confirm', '11111111-1111-4111-8111-111111111111'], input: { stdin: '{}' } },
+  { suffix: ['--help'], input: {} },
+].map(({ suffix, input }) => ({ args: ['api', '--json', ...methodArgs, ...suffix], input })))))('Gitea API mutations use the parsed method with leading flags: $args', ({ args, input }) => {
+  const adapter = adapters.find(adapter => adapter.name === 'gitea-axi')!
+  adapter.validateArgs(args, input)
+  expect(adapter.classify(args, input)).toEqual({ command: 'api', effect: 'write' })
+})
+
+test.each([
+  ['api', '--json', 'repos/example/project/issues'],
+  ['api', '--json', 'GET', 'repos/example/project/issues'],
+  ['api', '--json', 'repos/example/project/issues', '--method=GET'],
+  ['api', '--json', 'repos/example/project/issues', '-XGET'],
+])('Gitea API reads remain reads with leading flags: %j', (...args) => {
+  expect(adapters.find(adapter => adapter.name === 'gitea-axi')!.classify(args)).toEqual({ command: 'api', effect: 'read' })
+})
+
+test.each([
   ['gh-axi', ['issue', 'list', '-R', 'synthetic/repo'], ['-R', 'synthetic/repo', 'issue', 'list'], 'issue list'],
   ['ado-axi', ['work-item', 'get', '42'], ['wi', 'view', '42'], 'work-item get'],
   ['ado-axi', ['work-item', 'list', '--project', 'synthetic'], ['--project', 'synthetic', 'work-item', 'list'], 'work-item list'],

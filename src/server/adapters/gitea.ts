@@ -56,6 +56,7 @@ function giteaArguments(args: readonly string[], input: RunnerInput = {}) {
   const help = parsed.values.help === true && !args.includes('--help=false')
   const positions = parsed.positionals
   const command = route.command || 'dashboard'
+  const method = String(positions.length === 2 ? positions[0] : parsed.values.method ?? 'GET')
   let rawMutation = false
   let rawSecret = false
   if (!help) {
@@ -82,7 +83,6 @@ function giteaArguments(args: readonly string[], input: RunnerInput = {}) {
       if (positions.length > 1 || positions.length && parsed.values.repo || !positions.length && !parsed.values.repo) throw new ArtiumError('INVALID_INPUT')
     } else if (command === 'api') {
       if (positions.length !== 1 && positions.length !== 2 || parsed.values.method && positions.length === 2) throw new ArtiumError('INVALID_INPUT')
-      const method = String(positions.length === 2 ? positions[0] : parsed.values.method ?? 'GET')
       if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) throw new ArtiumError('FLAG_BLOCKED')
       rawMutation = method !== 'GET'
       const raw = positions.at(-1)!
@@ -133,7 +133,7 @@ function giteaArguments(args: readonly string[], input: RunnerInput = {}) {
     fileArguments.push(index + 1)
   }
   if (!route.command && forwarded[0]?.startsWith('-R')) forwarded[0] = '--repo' + (forwarded[0].length > 2 ? '=' + forwarded[0].slice(2) : '')
-  return { args: forwarded, fileArguments, mutation, operations, secretInput: !help && (command === 'secret set' || rawSecret && rawMutation), confirmation: String(parsed.values.confirm ?? ''),
+  return { args: forwarded, fileArguments, mutation, operations, apiMutation: command === 'api' && method !== 'GET', secretInput: !help && (command === 'secret set' || rawSecret && rawMutation), confirmation: String(parsed.values.confirm ?? ''),
     effect: mutation && parsed.values.confirm ? 'write' as const : 'read' as const,
     invocation: { command: command === 'dashboard' ? 'home' : command, help } }
 }
@@ -150,13 +150,13 @@ export function createGiteaAdapter(source: SecretSource, writeLog?: string): Ada
     },
     validateArgs: (args, input) => { giteaArguments(args, input) },
     classify(args, input) {
-      const result = classifyCommand(inventory.commands, (a, i) => giteaArguments(a, i).invocation.command, args, input)
-      if (result.command !== 'api') return result
-      const methodIndex = args.findIndex(arg => arg === '--method' || arg === '-X')
-      const methodFlag = args.find(arg => arg.startsWith('--method=') || arg.startsWith('-X') && arg.length > 2)
-      const method = methodIndex >= 0 ? args[methodIndex + 1] : methodFlag?.startsWith('--') ? methodFlag.slice(9) : methodFlag?.slice(2)
-      const write = method !== undefined ? method.toUpperCase() !== 'GET' : /^(POST|PUT|PATCH|DELETE)$/i.test(args[1] ?? '')
-      return write ? { ...result, effect: 'write' } : result
+      let apiMutation = false
+      const result = classifyCommand(inventory.commands, (a, i) => {
+        const call = giteaArguments(a, i)
+        apiMutation = 'apiMutation' in call && call.apiMutation
+        return call.invocation.command
+      }, args, input)
+      return apiMutation ? { ...result, effect: 'write' } : result
     },
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'gitea-axi' || transferTool(scope.selection.operation) !== 'gitea-axi'
