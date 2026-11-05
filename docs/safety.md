@@ -244,7 +244,7 @@ Delegated read-only sessions cannot prepare or dispatch commands, open connectio
 Writable delegated SSH access reaches every host granted to the creator, including separate sudo grants; command picks restrict the SSH operation, not the text of a remote command.
 An exact `ssh-axi:exec` pick requires `ssh-axi:execution show` and `ssh-axi:execution cancel` picks unless the token includes tool-wide SSH access.
 Minting refuses incomplete picks with `INVALID_INPUT` naming the missing picks; dispatch and discovery also require these workflow permissions.
-Managed SSH command `--help` returns native text when that command is granted, without requiring the execution workflow's additional picks.
+Managed SSH command `--help` returns native text when authorized, without requiring the execution workflow's additional picks; command scope, creator tool access, delegated read-only restrictions and administrator Allow writes gates still apply.
 Expiry, SSO pause and revocation fence delegated connections and active executions; revoking one token stops its exchanged families' work without stopping the creator's or another token's work.
 The maximum age also fences active work; local teardown does not prove that remote descendants stopped.
 Inspection does not extend idle expiry; timeout changes recompute expiry from the existing idle start.
