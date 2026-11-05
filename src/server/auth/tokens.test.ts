@@ -15,7 +15,7 @@ beforeEach(() => {
   migrate(db)
   db.prepare("INSERT INTO users (id, username, display_name, password_hash) VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash')").run()
 })
-afterEach(() => { db.close(); vi.unstubAllEnvs() })
+afterEach(() => { db.close(); vi.unstubAllEnvs(); vi.restoreAllMocks() })
 
 test('fixture stores only a SHA-256 hash and verifier returns the owning user', () => {
   const token = issueTestAccessToken(db, 'synthetic-user', now)
@@ -26,6 +26,7 @@ test('fixture stores only a SHA-256 hash and verifier returns the owning user', 
 })
 
 test('delegated sessions expose a principal but refuse ordinary verification and recent authentication', () => {
+  vi.spyOn(Date, 'now').mockReturnValue(now)
   const token = issueTestAccessToken(db, 'synthetic-user', now)
   db.prepare(`INSERT INTO delegations (id, creator_id, token_hash, label, scope_json, read_only, single_use, created_at, expires_at)
     VALUES ('delegation', 'synthetic-user', 'synthetic-hash', 'Synthetic', '{}', 1, 1, ?, ?)`).run(now, now + 10000)
