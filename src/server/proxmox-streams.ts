@@ -83,6 +83,9 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
         'SELECT 1 FROM delegations WHERE id=? AND creator_id=? AND revoked_at IS NULL AND expires_at>?',
       ).get(delegation.id, userId, Date.now())) throw new ArtiumError('TOKEN_INVALID')
       authorizeDelegatedOperation(db, userId, delegation, adapter, classifyDelegatedCommand(adapter, lease.input.args, { stdin: lease.input.stdin }))
+      if (!lease.selection.preview && (lease.selection.duplex || lease.selection.spice)) {
+        authorizeDelegatedOperation(db, userId, delegation, adapter, { command: 'result take', effect: 'write' })
+      }
     }
   }
   const cleanup = (lease: Lease) => lease.cleaning ??= (async () => {
