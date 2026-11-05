@@ -103,7 +103,22 @@ export function resolveDelegatedPattern(pattern: string, adapter: Adapter<unknow
   return resolved
 }
 
-export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter: Adapter<unknown>): string[] {
+export function authorizeDelegatedOperation(db: Database.Database, userId: string,
+  delegation: { scopeJson: string, readOnly: boolean }, adapter: Adapter<unknown>,
+  classification: { command: string, effect: 'read' | 'write' }) {
+  checkToolPolicy(db, userId, adapter.name)
+  checkDelegation(delegation.scopeJson, delegation.readOnly, adapter.name, classification.command, classification.effect)
+  const row = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(adapter.name) as { native_settings: string }
+  const settings = JSON.parse(row.native_settings)
+  if (classification.effect === 'write' || credentialIssuingCommand(adapter.name, classification.command)) {
+    if (!toolAllowsWrites(adapter.name, settings)) throw new ArtiumError('FLAG_BLOCKED')
+    adapter.authorizeOperation?.(classification.command, settings)
+  }
+}
+
+export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter: Adapter<unknown>,
+  authorize = (classification: { command: string, effect: 'read' | 'write' }) =>
+    checkDelegation(scopeJson, readOnly, adapter.name, classification.command, classification.effect)): string[] {
   const tool = adapter.name
   return [...new Set(commandRoutes(tool).flatMap(route => {
     if (!route.command || route.command === 'home' || route.effect === 'blocked') return []
@@ -111,7 +126,7 @@ export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter:
     return commandInvocations(tool, route.command).flatMap(command => {
       try {
         adapter.validateArgs([...command.split(' '), '--help'])
-        checkDelegation(scopeJson, readOnly, tool, classification.command, classification.effect)
+        authorize(classification)
         return [command]
       }
       catch { return [] }
@@ -122,14 +137,11 @@ export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter:
 export function delegatedDiscovery(db: Database.Database, userId: string, delegation: { scopeJson: string, readOnly: boolean }, adapters: readonly Adapter<unknown>[]) {
   return adapters.flatMap(adapter => {
     if (!delegationIncludesTool(delegation.scopeJson, adapter.name)) return []
-    try { checkToolPolicy(db, userId, adapter.name) }
-    catch (error) {
-      if (error instanceof ArtiumError && ['TOOL_DISABLED', 'TOOL_NOT_GRANTED'].includes(error.code)) return []
-      throw error
-    }
     const row = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(adapter.name) as { native_settings: string }
     const readOnly = delegation.readOnly || !toolAllowsWrites(adapter.name, JSON.parse(row.native_settings))
-    return [{ adapter, readOnly, commands: delegatedCommands(delegation.scopeJson, readOnly, adapter) }]
+    const commands = delegatedCommands(delegation.scopeJson, delegation.readOnly, adapter,
+      classification => authorizeDelegatedOperation(db, userId, delegation, adapter, classification))
+    return commands.length ? [{ adapter, readOnly, commands }] : []
   })
 }
 

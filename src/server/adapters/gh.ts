@@ -16,6 +16,11 @@ export const ghManifest = { ...inventory, ...inventory.adapterBoundary }
 export const ghWritePolicy = writePolicy({ supportedOperations: ghWriteOperations,
   unlocks: 'Exact collaboration and repository operations, each off by default. Preview first, then repeat the same request with its --confirm value.',
   blocked: 'Deletes, secret set, merge --admin, API non-GET, local git commands, downloads and local file inputs remain unavailable.' })
+
+function authorizeOperation(command: string, settings: Record<string, unknown>) {
+  const state = ghWritePolicy.read(settings)
+  if (!state.enabled || !state.allowedOperations.includes(command)) throw new ArtiumError('FLAG_BLOCKED')
+}
 export const ghProfile = new CredentialProfile({ type: 'object', additionalProperties: false,
   required: ['origin', 'auth'], properties: {
     origin: { type: 'string', format: 'canonical-https-origin', default: 'https://github.com', title: 'GitHub origin',
@@ -221,15 +226,13 @@ export function createGhAdapter(source: SecretSource, tokens = new GithubAppToke
     },
     validateArgs: (args, input) => { ghArguments(args, input) },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => ghArguments(a, i).invocation, args, input),
+    authorizeOperation,
     invalidateCredential: reference => tokens.replace(reference.id, reference.revision ?? 0),
     async prepare(args, reference, input): Promise<PreparedCall> {
       const call = ghArguments(args, input)
       if (reference.tool !== 'gh-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const settings = source.getSettings?.(reference) ?? {}
-      if (call.mutation) {
-        const state = ghWritePolicy.read(settings)
-        if (!state.enabled || !state.allowedOperations.includes(call.mutation.route)) throw new ArtiumError('FLAG_BLOCKED')
-      }
+      if (call.mutation) authorizeOperation(call.mutation.route, settings)
       const parsed = ghCredentialSchema.safeParse(await source.getCredential(reference))
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
       const host = new URL(parsed.data.origin as string).host

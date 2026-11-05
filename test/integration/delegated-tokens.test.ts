@@ -289,7 +289,7 @@ test.each([
 
 test('Kubernetes token preparation requires an exact writable pick before resolving credentials', async () => {
   await app.close()
-  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'kubernetes-axi'")
+  db.exec(`UPDATE tools SET enabled = 1, native_settings = '{"allowWrites":true}' WHERE name = 'kubernetes-axi'`)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-kubernetes')), audit: new Audit(db),
     adapters: [await createKubernetesAdapter(new EmbeddedSecretSource(credentials),
       join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), join(directory, 'requests'))],

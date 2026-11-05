@@ -1,6 +1,8 @@
 import { expect, test } from 'vitest'
 import { join } from 'node:path'
-import { checkDelegation, classifyDelegatedCommand, delegatedCommands, resolveDelegatedPattern } from './delegations.js'
+import Database from 'better-sqlite3'
+import { migrate } from '../store/db.js'
+import { authorizeDelegatedOperation, checkDelegation, classifyDelegatedCommand, delegatedCommands, delegatedDiscovery, resolveDelegatedPattern } from './delegations.js'
 import { createAzAdapter } from '../adapters/az.js'
 import { createAdoAdapter } from '../adapters/ado.js'
 import { createAwxAdapter } from '../adapters/awx.js'
@@ -18,6 +20,49 @@ import { createGhAdapter } from '../adapters/gh.js'
 
 const source = { getCredential: async () => { throw new Error('Unexpected credential access') } }
 const writeLog = join(process.cwd(), 'synthetic-writes.log')
+
+test.each([
+  { adapter: createGhAdapter(source), settings: { writes: { allowWrites: true, operations: ['issue create'] } }, readOnly: false,
+    candidates: ['issue list', 'issue create', 'issue edit'], allowed: ['issue list', 'issue create'], enabled: true, granted: true },
+  { adapter: createGhAdapter(source), settings: { writes: { allowWrites: true, operations: ['issue create'] } }, readOnly: true,
+    candidates: ['issue list', 'issue create', 'issue edit'], allowed: ['issue list'], enabled: true, granted: true },
+  { adapter: createGhAdapter(source), settings: { writes: { allowWrites: false, operations: ['issue create'] } }, readOnly: false,
+    candidates: ['issue list', 'issue create', 'issue edit'], allowed: ['issue list'], enabled: true, granted: true },
+  { adapter: createAwxAdapter(source), settings: { allowWrites: true }, readOnly: false,
+    candidates: ['job list', 'job cancel', 'user token-create'], allowed: ['job list', 'job cancel'], enabled: true, granted: true },
+  { adapter: createAwxAdapter(source), settings: { allowWrites: false }, readOnly: false,
+    candidates: ['job list', 'job cancel', 'user token-create'], allowed: ['job list'], enabled: true, granted: true },
+  { adapter: createAdoAdapter(source), settings: { allowWrites: true }, readOnly: false,
+    candidates: ['pr list', 'pr create'], allowed: ['pr list', 'pr create'], enabled: true, granted: true },
+  { adapter: createGhAdapter(source), settings: { writes: { allowWrites: true, operations: ['issue create'] } }, readOnly: false,
+    candidates: ['issue list', 'issue create', 'issue edit'], allowed: [], enabled: false, granted: true },
+  { adapter: createGhAdapter(source), settings: { writes: { allowWrites: true, operations: ['issue create'] } }, readOnly: false,
+    candidates: ['issue list', 'issue create', 'issue edit'], allowed: [], enabled: true, granted: false },
+])('$adapter.name discovery matches execution authorization under $settings, readOnly=$readOnly, enabled=$enabled, granted=$granted (R17)',
+  ({ adapter, settings, readOnly, candidates, allowed, enabled, granted }) => {
+    const db = new Database(':memory:')
+    try {
+      migrate(db)
+      db.exec(`INSERT INTO users (id, username, display_name, password_hash)
+        VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash');
+        INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
+        INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role')`)
+      db.prepare('INSERT INTO tools (name, enabled, pinned_version, native_settings) VALUES (?, ?, ?, ?)')
+        .run(adapter.name, Number(enabled), 'synthetic-version', JSON.stringify(settings))
+      if (granted) db.prepare('INSERT INTO role_tools (role_id, tool) VALUES (?, ?)').run('synthetic-role', adapter.name)
+      const delegation = { scopeJson: JSON.stringify({ tools: [{ tool: adapter.name }] }), readOnly }
+      const discovered = delegatedDiscovery(db, 'synthetic-user', delegation, [adapter]).flatMap(item => item.commands)
+      const executable = candidates.filter(command => {
+        try {
+          authorizeDelegatedOperation(db, 'synthetic-user', delegation, adapter,
+            classifyDelegatedCommand(adapter, [...command.split(' '), '--help']))
+          return true
+        } catch { return false }
+      })
+      expect(executable).toEqual(allowed)
+      expect(discovered.filter(command => candidates.includes(command))).toEqual([...allowed].sort())
+    } finally { db.close() }
+  })
 
 test.each([
   { adapter: createAzAdapter(source, writeLog), pattern: 'group *', command: 'group list' },
