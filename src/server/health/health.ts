@@ -80,6 +80,7 @@ export class ToolHealth {
   }
 
   refresh(tool: ToolName, replaced = false): Promise<unknown> | undefined {
+    // Shodan reads require an explicit action, including after credential replacement.
     if (this.closed || tool === 'shodan-axi') return
     if (replaced) {
       this.queued.add(tool)

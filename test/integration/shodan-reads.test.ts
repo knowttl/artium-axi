@@ -2,11 +2,12 @@ import { execFile } from 'node:child_process'
 import { cpSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createShodanAdapter } from '../../src/server/adapters/shodan.js'
 import { Audit } from '../../src/server/audit/audit.js'
-import { toolPaths } from '../../src/server/config.js'
+import { healthDefaults, toolPaths } from '../../src/server/config.js'
+import { ToolHealth } from '../../src/server/health/health.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { loadTrustedCa } from '../../src/server/trusted-ca.js'
@@ -17,6 +18,27 @@ import { SessionStore } from '../../src/cli/session.js'
 import { copyClientInput } from '../fixtures/client-inputs.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { withFakeService } from '../fake-service/fixture.js'
+
+test('credential replacement and scheduled health checks do not probe Shodan', async () => {
+  await withFakeService(async ({ directory }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    const store = createCredentialStore(db, provider)
+    store.replaceCredential('shodan-axi', { auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' }, 0, 'synthetic-development-user', Date.now())
+    db.prepare("UPDATE tools SET enabled = 1 WHERE name = 'shodan-axi'").run()
+    const runner = await Runner.create(join(directory, 'calls'))
+    const health = new ToolHealth(db, new Audit(db), runner, [createShodanAdapter(new EmbeddedSecretSource(store))], store)
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    try {
+      await health.refresh('shodan-axi', true)
+      health.start()
+      await vi.advanceTimersByTimeAsync(healthDefaults.tickMs * 2)
+      expect(health.checking('shodan-axi')).toBe(false)
+      expect(db.prepare("SELECT event FROM audit WHERE tool = 'shodan-axi' AND event IN ('run-start', 'health-check')").all()).toEqual([])
+    } finally { await health.stop(); vi.useRealTimers(); await runner.shutdown(); db.close() }
+  })
+})
 
 test('a package inventory mismatch is refused before credential access', async () => {
   const packageRoot = join(process.cwd(), 'tools/node_modules/@knowttl/shodan-axi')
