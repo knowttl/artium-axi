@@ -2,6 +2,7 @@ import { isAbsolute } from 'node:path'
 import { z } from 'zod'
 import { nativeSettingsSchemas, toolAllowsWrites } from '../../shared/api.js'
 import inventory from '../../../tools/inventories/az-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { writePolicy } from './write-policy.js'
 import { runnerLimits, toolPaths } from '../config.js'
@@ -194,6 +195,7 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
         }),
     }),
     validateArgs: (args, input) => { azArguments(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => azArguments(a, i).invocation, args, input),
     async prepare(args, reference, input) {
       const normalized = azArguments(args, input)
       if (reference.tool !== 'az-axi' || !reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')

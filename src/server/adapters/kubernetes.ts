@@ -1,7 +1,9 @@
 import { existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import inventory from '../../../tools/inventories/kubernetes-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { ArtiumError } from '../../shared/errors.js'
+import { kubernetesHostedRoutes, resolveKubernetesHostedCommand } from '../../shared/kubernetes.js'
 import { toolPaths } from '../config.js'
 import type { SecretSource } from '../store/secret-source.js'
 import type { RunnerInput } from '../runner/input.js'
@@ -68,6 +70,13 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { argumentsForCall(args, input) },
+    classify(args, input) {
+      const routes = [...inventory.commands, ...inventory.writeCommands, ...inventory.workflows.map(route => ({ ...route, effect: 'write' })), ...kubernetesHostedRoutes]
+      return classifyCommand(routes, (a, i) => {
+        const command = resolveKubernetesHostedCommand(a)
+        return command ? { command, help: ['workspace', 'session'].includes(command) } : argumentsForCall(a, i).invocation
+      }, args, input)
+    },
     async prepare(args, reference, input) {
       const { workflow, acquisition, ...call } = argumentsForCall(args, input)
       if (reference.tool !== 'kubernetes-axi') throw new ArtiumError('CREDENTIAL_INVALID')

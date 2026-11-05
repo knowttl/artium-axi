@@ -1,4 +1,5 @@
 import inventory from '../../../tools/inventories/ldap-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { writePolicy } from './write-policy.js'
 import { runnerLimits, toolPaths } from '../config.js'
@@ -68,6 +69,7 @@ export function createLdapAdapter(source: SecretSource,
     sensitiveArguments: args => ({ flags: ldapManifest.sensitiveFlags.map(name => `--${name}`),
       positions: /^(entry show|user (show|groups)|group (show|members)|computer show)$/.test(args.slice(0, 2).join(' ')) ? [2] : [] }),
     validateArgs: (args, input) => { ldapArguments(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands.map(route => ({ ...route, effect: 'read' })), (a, i) => ldapArguments(a, i).invocation, args, input),
     async prepare(args, reference, input) {
       const normalized = ldapArguments(args, input)
       if (reference.tool !== 'ldap-axi') throw new ArtiumError('CREDENTIAL_INVALID')

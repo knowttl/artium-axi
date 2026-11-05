@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
-const { kubernetesHostedCommands } = await import(new URL('../src/shared/kubernetes.ts', import.meta.url).href) as typeof import('../src/shared/kubernetes.js')
+import { build } from 'esbuild'
+const compiled = await build({ entryPoints: ['src/shared/kubernetes.ts'], bundle: true, write: false, format: 'esm', platform: 'node' })
+const { kubernetesHostedCommands } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`) as typeof import('../src/shared/kubernetes.js')
 
 type Flag = { name: string, short: string, type: string, effect: string, default: string }
 type Command = { path: string, effect: string, flags: Flag[], aliases: string[], compatibilityLimit?: string }

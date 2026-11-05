@@ -5,6 +5,7 @@ import { dirname, isAbsolute, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
 import inventory from '../../../tools/inventories/technitium-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
 import type { SecretSource } from '../store/secret-source.js'
@@ -138,6 +139,7 @@ export function createTechnitiumAdapter(source: SecretSource, writeLog?: string)
     sensitiveArguments: args => ({ flags: args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0]), positions: [] }),
     sensitiveInput: () => true,
     validateArgs: (args, input) => { argumentsForCall(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => argumentsForCall(a, i).invocation, args, input),
     async prepare(args, reference, input) {
       const call = argumentsForCall(args, input)
       if (reference.tool !== 'technitium-axi') throw new ArtiumError('CREDENTIAL_INVALID')

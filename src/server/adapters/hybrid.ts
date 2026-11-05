@@ -1,4 +1,5 @@
 import inventory from '../../../tools/inventories/hybrid-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { toolAllowsWrites, transferWarning } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
@@ -77,6 +78,7 @@ export function createHybridAdapter(source: SecretSource, writeLog: string): Ada
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { hybridArguments(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => hybridArguments(a, i).invocation, args, input),
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'hybrid-axi' || reference.revision !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
       const parsed = hybridCredentialSchema.safeParse(await source.getCredential(reference))

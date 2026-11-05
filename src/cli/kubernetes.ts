@@ -4,7 +4,7 @@ import { constants } from 'node:fs'
 import { lstat, open, readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { z } from 'zod'
-import { kubernetesFile, kubernetesHostedCommands, kubernetesSessionStart, kubernetesWorkspaceManifest, kubernetesSessionView as sessionSchema } from '../shared/kubernetes.js'
+import { kubernetesFile, kubernetesHostedCommands, kubernetesHostedArguments, kubernetesSessionStart, kubernetesWorkspaceManifest, kubernetesSessionView as sessionSchema } from '../shared/kubernetes.js'
 import { kubernetesTunnel } from './kubernetes-tunnel.js'
 import { kubernetesCredential } from './kubernetes-credential.js'
 import { ArtiumError } from '../shared/errors.js'
@@ -52,22 +52,9 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
     }
     return false
   }
-  const separator = rest.indexOf('--'), controls = separator === -1 ? rest : rest.slice(0, separator)
-  const native = separator === -1 ? [] : rest.slice(separator + 1)
-  const flags = new Map<string, string>(), positionals: string[] = []
-  const booleans = ['--json', '--help', '--wait', '--ready', '--confirm']
-  const values = ['--workspace', '--stdin-file', '--input-workspace', '--input-path', '--timeout', '--output-limit', '--digest', '--after', '--output']
-  for (let index = 0; index < controls.length; index++) {
-    const word = controls[index]
-    if (booleans.includes(word)) { if (flags.has(word)) throw new ArtiumError('INVALID_INPUT'); flags.set(word, 'true') }
-    else if (values.includes(word)) {
-      if (flags.has(word) || controls[index + 1] === undefined || controls[index + 1].startsWith('--')) throw new ArtiumError('INVALID_INPUT')
-      flags.set(word, controls[++index])
-    } else if (word.startsWith('-')) throw new ArtiumError('INVALID_INPUT')
-    else positionals.push(word)
-  }
+  const { flags, positionals, native, help, route } = kubernetesHostedArguments(rest, group, action)
   const print = (value: unknown) => write((prefix || flags.has('--json') ? JSON.stringify(value) : encode(value)) + '\n')
-  if (action === '--help' || flags.has('--help') || action === undefined) {
+  if (help) {
     print({ usage: `artium-axi kubernetes-axi ${group} <command> [flags]`, commands: kubernetesHostedCommands.filter(command => command.startsWith(group)),
       flags: '--json, --help; start: --workspace <id>, --stdin-file <file> or --input-workspace <id> --input-path <path>, --timeout 1-1800, --output-limit 1-1048576',
       help: ['Native arguments follow --. Session start prepends prepare -- for mutation kinds; inspect its preview, then confirm the exact digest.',
@@ -80,13 +67,6 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
         'Downloads need a new absolute file in an existing private (0700) directory. Bytes and SHA-256 are verified before publication.'] })
     return true
   }
-  const allowed: Record<string, string[]> = { 'workspace create': [], 'workspace show': [], 'workspace delete': [],
-    'workspace download': ['--output'], 'session list': [], 'session start': values.filter(flag => !['--digest', '--after', '--output'].includes(flag)),
-    'session show': ['--wait', '--ready'], 'session output': ['--after', '--wait'], 'session confirm': ['--digest'],
-    'session cancel': ['--confirm'], 'session artifact': ['--output'] }
-  const route = `${group} ${action}`
-  if (!allowed[route] || [...flags.keys()].some(flag => flag !== '--json' && !allowed[route].includes(flag))
-    || route !== 'session start' && separator !== -1 || flags.has('--wait') && flags.has('--ready')) throw new ArtiumError('INVALID_INPUT')
   let client: Client | undefined
   const current = () => client ??= createClient()
   const base = `/v1/tools/kubernetes-axi/${group === 'workspace' ? 'workspaces' : 'sessions'}`

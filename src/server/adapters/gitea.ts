@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util'
 import { isAbsolute } from 'node:path'
 import inventory from '../../../tools/inventories/gitea-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
 import type { SecretSource } from '../store/secret-source.js'
@@ -55,6 +56,7 @@ function giteaArguments(args: readonly string[], input: RunnerInput = {}) {
   const help = parsed.values.help === true && !args.includes('--help=false')
   const positions = parsed.positionals
   const command = route.command || 'dashboard'
+  const method = String(positions.length === 2 ? positions[0] : parsed.values.method ?? 'GET')
   let rawMutation = false
   let rawSecret = false
   if (!help) {
@@ -81,7 +83,6 @@ function giteaArguments(args: readonly string[], input: RunnerInput = {}) {
       if (positions.length > 1 || positions.length && parsed.values.repo || !positions.length && !parsed.values.repo) throw new ArtiumError('INVALID_INPUT')
     } else if (command === 'api') {
       if (positions.length !== 1 && positions.length !== 2 || parsed.values.method && positions.length === 2) throw new ArtiumError('INVALID_INPUT')
-      const method = String(positions.length === 2 ? positions[0] : parsed.values.method ?? 'GET')
       if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) throw new ArtiumError('FLAG_BLOCKED')
       rawMutation = method !== 'GET'
       const raw = positions.at(-1)!
@@ -132,7 +133,7 @@ function giteaArguments(args: readonly string[], input: RunnerInput = {}) {
     fileArguments.push(index + 1)
   }
   if (!route.command && forwarded[0]?.startsWith('-R')) forwarded[0] = '--repo' + (forwarded[0].length > 2 ? '=' + forwarded[0].slice(2) : '')
-  return { args: forwarded, fileArguments, mutation, operations, secretInput: !help && (command === 'secret set' || rawSecret && rawMutation), confirmation: String(parsed.values.confirm ?? ''),
+  return { args: forwarded, fileArguments, mutation, operations, apiMutation: command === 'api' && method !== 'GET', secretInput: !help && (command === 'secret set' || rawSecret && rawMutation), confirmation: String(parsed.values.confirm ?? ''),
     effect: mutation && parsed.values.confirm ? 'write' as const : 'read' as const,
     invocation: { command: command === 'dashboard' ? 'home' : command, help } }
 }
@@ -148,6 +149,15 @@ export function createGiteaAdapter(source: SecretSource, writeLog?: string): Ada
       return 'secretInput' in call && Boolean(call.secretInput)
     },
     validateArgs: (args, input) => { giteaArguments(args, input) },
+    classify(args, input) {
+      let apiMutation = false
+      const result = classifyCommand(inventory.commands, (a, i) => {
+        const call = giteaArguments(a, i)
+        apiMutation = 'apiMutation' in call && Boolean(call.apiMutation)
+        return call.invocation
+      }, args, input)
+      return apiMutation ? { ...result, effect: 'write' } : result
+    },
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'gitea-axi' || transferTool(scope.selection.operation) !== 'gitea-axi'
         || reference.revision !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')

@@ -9,10 +9,10 @@ import type { Duplex } from 'node:stream'
 import { rootCertificates } from 'node:tls'
 import { encode, decode } from '@toon-format/toon'
 import { z } from 'zod'
-import inventory from '../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 import { ArtiumError, errors } from '../shared/errors.js'
 import { cliVersion } from '../shared/version.js'
 import { ProxmoxFrameMeter, ProxmoxStreamWire } from '../shared/proxmox-stream.js'
+import { resolveProxmoxStream } from '../shared/proxmox-commands.js'
 import { privateDescriptor, deliverPrivateResult } from './private-result.js'
 import { toolInput } from './input.js'
 import type { Client } from './http.js'
@@ -48,9 +48,7 @@ export async function openProxmoxStream(client: Client, id: string, token: strin
 export async function proxmoxStream(createClient: () => Client, supplied: string[], output: (stream: 'stdout' | 'stderr', text: string) => void): Promise<boolean> {
   if (supplied[0] !== 'stream') return false
   const usage = 'artium-axi proxmox-axi stream -- transfer|duplex <native arguments>'
-  const separator = supplied.indexOf('--'), local = supplied.slice(1, separator < 0 ? undefined : separator)
-  const json = local.includes('--json'), options = local.filter(arg => arg !== '--json')
-  if (local.filter(arg => arg === '--json').length > 1) throw new ArtiumError('INVALID_INPUT')
+  const { separator, json, options, args, route } = resolveProxmoxStream(supplied)
   const print = (value: unknown) => output('stdout', (json ? JSON.stringify(value) : encode(value)) + '\n')
   if (separator < 0 && options.length === 1 && options[0] === '--help') {
     print({ usage, help: ['Use stream limits for authenticated host bounds.',
@@ -66,8 +64,6 @@ export async function proxmoxStream(createClient: () => Client, supplied: string
     return true
   }
   if (separator < 0 || options.length) throw new ArtiumError('INVALID_INPUT', 'Use stream -- before native transfer or duplex arguments.', usage)
-  const args = supplied.slice(separator + 1)
-  const route = inventory.streamCommands.find(route => route.command === args.slice(0, 3).join(' '))
   if (!route) throw new ArtiumError('INVALID_INPUT', 'Select a reviewed managed transfer or duplex route.', usage)
   if (args.includes('--help')) { print({ usage, command: route.command, operation: route.operationId,
     flags: { ...route.flags, ...(route.path.endsWith('/upload') ? { 'input-file': 'absolute local source' } : {}) } }); return true }

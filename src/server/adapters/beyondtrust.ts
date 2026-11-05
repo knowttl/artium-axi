@@ -1,4 +1,5 @@
 import inventory from '../../../tools/inventories/beyondtrust-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { toolAllowsWrites, transferTool } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { runnerLimits, toolPaths } from '../config.js'
@@ -70,6 +71,7 @@ export function createBeyondtrustAdapter(source: SecretSource, writeLog: string)
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { beyondtrustArguments(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => beyondtrustArguments(a, i).invocation, args, input),
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'beyondtrust-axi' || transferTool(scope.selection.operation) !== reference.tool
         || reference.revision !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')

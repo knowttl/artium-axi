@@ -34,10 +34,16 @@ Local integration tests execute installed commands and plugin exports; actual ag
 
 ## Delegated sessions
 
-Temporary delegated access is not available for use yet; this slice adds the principal boundary and storage without token issuance or redemption commands, API endpoints or browser controls.
+Temporary delegated access is not available for use yet; the principal boundary, storage and adapter command classifiers are present without token issuance or redemption commands, API endpoints or browser controls.
 Delegated sessions are denied protected operations, including discovery, help, tool execution, downloads, account management, administration and reauthentication, even when the creator has administrator capability.
 Bearer requests return `DELEGATED_SCOPE_DENIED` (HTTP 403) for an otherwise valid delegated session; use an ordinary signed-in session for these operations.
 Refresh and logout remain available for valid session tokens, but refreshing a delegated family does not grant access to protected operations.
+
+Adapter classifiers resolve canonical command names and reviewed read/write effects for future scope enforcement; they do not change existing execution, grants, confirmation checks or discovery.
+Unknown commands, parsing failures and dynamic or conditional inventory effects default to write; reviewed read-command labels remain reads even when those commands have outside effects.
+Kubernetes write commands and workflows, including prepare and preview, classify as writes so future read-only delegation cannot obtain confirmation values.
+Dedicated download classification is deferred to slice 7d, where minting must select the exact transfer operation while retaining existing administrative grants, confirmation and integrity checks.
+The [shared classifier](../src/server/adapters/classify.ts) and [adapter regression tests](../src/server/adapters/classify.test.ts) define and exercise the classification boundary.
 
 ## BeyondTrust Endpoint Privilege Management
 

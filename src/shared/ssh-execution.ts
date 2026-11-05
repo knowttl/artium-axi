@@ -12,3 +12,10 @@ export const sshExecutionStatus = z.object({ id: z.string(), host: z.string(),
   remoteExit: z.number().int().nullable(), remoteSignal: z.string().nullable(),
   termination: z.enum(['remote-exit', 'deadline', 'unknown']),
 }).passthrough()
+
+export function resolveSshManagedCommand(args: readonly string[]): string | undefined {
+  let prefix = 0
+  while (['--json', '--help'].includes(args[prefix])) prefix++
+  const command = args[prefix] === 'exec' ? 'exec' : args.slice(prefix, prefix + 2).join(' ')
+  return command === 'exec' || command.startsWith('execution ') || command.startsWith('connection ') ? command : undefined
+}

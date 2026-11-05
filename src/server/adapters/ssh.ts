@@ -1,8 +1,11 @@
 import { createHash } from 'node:crypto'
+import { createRequire } from 'node:module'
 import { readFileSync } from 'node:fs'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import inventory from '../../../tools/inventories/ssh-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { ArtiumError } from '../../shared/errors.js'
+import { resolveSshManagedCommand } from '../../shared/ssh-execution.js'
 import { toolPaths } from '../config.js'
 import { CredentialProfile } from './credential-profile.js'
 import { writePolicy } from './write-policy.js'
@@ -41,6 +44,18 @@ export function createSshAdapter(hosts: SshHosts, writeLog: string, executable: 
     timeoutMs: inventory.requirements.timeoutMs, blockedFlags: [], allowedFlagValues: {},
     sensitiveArguments: () => ({ flags: [], positions: [] }),
     validateArgs: (args, input) => { invocation(args, input) },
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand([...inventory.commands, ...inventory.managedCommands], (a, i) => {
+      const command = resolveSshManagedCommand(a)
+      if (!command) {
+        const call = invocation(a, i)
+        return a.length === 1 && ['--version', '-v', '-V'].includes(a[0]) ? { command: 'version' } : call
+      }
+      const { parseArguments } = createRequire(import.meta.url)(fileURLToPath(new URL('./arguments.js', pathToFileURL(executable)))) as {
+        parseArguments(args: string[]): unknown
+      }
+      parseArguments([...a])
+      return { command }
+    }, args, input),
     async prepare() { throw new ArtiumError('TOOL_NOT_GRANTED') },
     async prepareForCaller(args, userId, input) {
       const call = invocation(args, input)

@@ -1,4 +1,5 @@
 import inventory from '../../../tools/inventories/ado-axi.json' with { type: 'json' }
+import { classifyCommand } from './classify.js'
 import { toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { writePolicy } from './write-policy.js'
@@ -191,6 +192,16 @@ export function createAdoAdapter(source: SecretSource, cache = new AzureTokenCac
     sensitiveArguments: args => ({ flags: ['--body', '--description', '--title', '--set', '--query', '--comment', '--definition', '--policy-json', '--artifacts', '--source-url'],
       positions: args.map((_, index) => index).filter(index => index > 0 && !args[index].startsWith('-')) }),
     validateArgs: (args, input) => { adoArguments(args, input) },
+    classify(args, input) {
+      let apiWrite = false
+      const result = classifyCommand(inventory.commands, (a, i) => {
+        const call = adoArguments(a, i)
+        const method = call.flags.get('method') ?? (/^(GET|POST|PATCH|PUT|DELETE|HEAD|OPTIONS)$/i.test(call.positionals[0] ?? '') ? call.positionals[0] : 'GET')
+        apiWrite = call.command === 'api' && method.toUpperCase() !== 'GET'
+        return call.invocation
+      }, args, input)
+      return apiWrite ? { ...result, effect: 'write' } : result
+    },
     async prepare(args, reference, input) {
       const call = adoArguments(args, input)
       if (reference.tool !== 'ado-axi') throw new ArtiumError('CREDENTIAL_INVALID')

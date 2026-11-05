@@ -99,8 +99,8 @@ async function withCheckpoint(check: (fixture: {
         return result
       }
       await check({ app, db, directory, post, cli, enable, run, evidence: async () => JSON.parse(await send('/__evidence')) })
-      expect(await readdir(join(directory, 'calls'))).toEqual([])
     } finally { await app.close(); db.close() }
+    expect(await readdir(join(directory, 'calls'))).toEqual([])
   })
 }
 
