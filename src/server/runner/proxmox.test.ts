@@ -59,7 +59,7 @@ async function withAccess(check: (execute: (delegated: boolean) => Promise<Runne
         ticket:'CANARY-ticket',csrfPreventionToken:'CANARY-csrf'};
       const bytes=Buffer.from(JSON.stringify({version:1,binding,payload})),header=Buffer.alloc(4);
       header.writeUInt32BE(bytes.length);writeSync(Number(process.env.PROXMOX_AXI_RESULT_FD),Buffer.concat([header,bytes]));`)
-    const profile = proxmoxProfile.prepare('proxmox-axi', password)
+    const profile = proxmoxProfile.prepare('proxmox-axi', password, undefined, true)
     call.files.push(...profile.files)
     Object.assign(call.environment, profile.environment)
     call.secrets.push(...profile.secrets)
