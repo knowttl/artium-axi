@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { join } from 'node:path'
 import { decode } from '@toon-format/toon'
+import { parse } from 'yaml'
 import { expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createAwxAdapter } from '../../src/server/adapters/awx.js'
@@ -140,8 +141,11 @@ test('command-scoped discovery and enforcement follow the delegated grant', asyn
     const tools = await app.inject({ url: '/v1/tools', headers: delegated })
     expect(tools.json().tools[0].commands).toEqual(['job list'])
     const skills = await app.inject({ url: '/v1/skills', headers: delegated })
-    expect(skills.body).toContain('job list')
-    expect(skills.body).not.toContain('user token-create')
+    const content = skills.json().skills[0].content as string
+    const [, frontmatter, body] = content.split('---\n')
+    expect(parse(frontmatter)).toEqual({ name: 'awx-axi', description: 'Use permitted awx-axi commands through Artium.' })
+    expect(body).toContain('`artium-axi awx-axi job list`')
+    expect(body).not.toContain('user token-create')
     const me = await app.inject({ url: '/v1/me', headers: delegated })
     expect(me.json()).toMatchObject({ delegation: { label: 'Synthetic' } })
     expect(me.json()).not.toHaveProperty('roles')

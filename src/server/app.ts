@@ -14,7 +14,7 @@ import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './auth/local.js'
 import { exchangeDelegation, hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, requireRecentAuth, verifyAccessToken, verifyPasswordToken, verifyPrincipal } from './auth/tokens.js'
-import { createDelegation, delegatedCommands, delegationIncludesTool, revokeDelegation } from './auth/delegations.js'
+import { createDelegation, delegatedCommands, delegationIncludesTool, resolveDelegatedPattern, revokeDelegation } from './auth/delegations.js'
 import { kubernetesBinding } from './policy/kubernetes.js'
 import { ProxmoxAccess, proxmoxTrust } from './runner/proxmox.js'
 import { registerProxmoxStreams } from './proxmox-streams.js'
@@ -233,7 +233,7 @@ export function createApp(options: {
     return { skills: granted.filter(tool => !delegation || delegationIncludesTool(delegation.scopeJson, tool.name)).map(tool => {
       const adapter = adapters.find(item => item.name === tool.name)
       const commands = delegation && (adapter ? delegatedCommands(delegation.scopeJson, delegation.readOnly, adapter) : [])
-      return { name: tool.name, content: commands ? `# ${tool.name}\n\nPermitted commands:\n${commands.map(command => `- ${command}`).join('\n')}\n` : loadToolSkill(tool.name) }
+      return { name: tool.name, content: commands ? `---\nname: ${tool.name}\ndescription: Use permitted ${tool.name} commands through Artium.\n---\n\n# ${tool.name}\n\nRun each command with --help for required arguments.\n\nPermitted commands:\n${commands.map(command => `- \`artium-axi ${tool.name} ${command}\``).join('\n')}\n` : loadToolSkill(tool.name) }
     }) }
   })
   app.get('/v1/me', async request => {
@@ -303,15 +303,7 @@ export function createApp(options: {
         if (!item.commands) continue
         const adapter = adapters.find(adapter => adapter.name === item.tool)
         if (!adapter) throw new ArtiumError('INVALID_INPUT')
-        item.commands = item.commands.map(pattern => {
-          if (!/^(?:[a-z0-9-]+(?: [a-z0-9-]+)*(?: \*)?|\*)$/.test(pattern)) throw new ArtiumError('INVALID_INPUT')
-          if (pattern === '*') return pattern
-          const wildcard = pattern.endsWith(' *')
-          const words = (wildcard ? pattern.slice(0, -2) : pattern).split(' ')
-          const resolved = adapter.classify(wildcard ? [...words, '--help'] : words).command
-          if (resolved === 'unknown' || resolved === 'home') throw new ArtiumError('INVALID_INPUT')
-          return resolved + (wildcard ? ' *' : '')
-        })
+        item.commands = item.commands.map(pattern => resolveDelegatedPattern(pattern, adapter))
       }
       const id = randomUUID()
       const creator = userId

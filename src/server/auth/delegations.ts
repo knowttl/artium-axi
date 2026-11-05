@@ -59,15 +59,43 @@ export function checkDelegation(scopeJson: string, readOnly: boolean, tool: Tool
   }
 }
 
+function commandRoutes(tool: ToolName) {
+  const manifest = toolManifests[tool] as { commands: { command: string, effect?: string }[], writeCommands?: { command: string, effect?: string }[], workflows?: { command: string, effect?: string }[] }
+  return [...manifest.commands, ...manifest.writeCommands ?? [], ...manifest.workflows ?? []]
+}
+
+export function resolveDelegatedPattern(pattern: string, adapter: Adapter<unknown>): string {
+  if (!/^(?:[a-z0-9-]+(?: [a-z0-9-]+)*(?: \*)?|\*)$/.test(pattern)) throw new ArtiumError('INVALID_INPUT')
+  if (pattern === '*') return pattern
+  if (pattern.endsWith(' *')) {
+    const prefix = pattern.slice(0, -1)
+    const prefixes = new Set(commandRoutes(adapter.name).flatMap(route => {
+      if (!route.command.startsWith(prefix)) return []
+      const resolved = adapter.classify(route.command.split(' ')).command
+      if (resolved === 'unknown' || resolved === 'home') return []
+      const suffixLength = route.command.slice(prefix.length).split(' ').length
+      return [resolved.split(' ').slice(0, -suffixLength).join(' ')]
+    }))
+    if (prefixes.size !== 1 || prefixes.has('')) throw new ArtiumError('INVALID_INPUT')
+    return [...prefixes][0] + ' *'
+  }
+  const resolved = adapter.classify(pattern.split(' ')).command
+  if (resolved === 'unknown' || resolved === 'home') throw new ArtiumError('INVALID_INPUT')
+  return resolved
+}
+
 export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter: Adapter<unknown>): string[] | undefined {
   const tool = adapter.name
   const grants = delegationScopeSchema.parse(JSON.parse(scopeJson)).tools.filter(item => item.tool === tool)
   if (grants.some(item => !item.commands)) return undefined
-  const manifest = toolManifests[tool] as { commands: { command: string, effect?: string }[], writeCommands?: { command: string, effect?: string }[], workflows?: { command: string, effect?: string }[] }
-  return [...new Set([...manifest.commands, ...manifest.writeCommands ?? [], ...manifest.workflows ?? []].flatMap(route => {
-    if (!route.command || route.command === 'home') return []
+  return [...new Set(commandRoutes(tool).flatMap(route => {
+    if (!route.command || route.command === 'home' || route.effect === 'blocked') return []
     const classification = adapter.classify(route.command.split(' '))
-    try { checkDelegation(scopeJson, readOnly, tool, classification.command, classification.effect); return [route.command] }
+    try {
+      adapter.validateArgs([...route.command.split(' '), '--help'])
+      checkDelegation(scopeJson, readOnly, tool, classification.command, classification.effect)
+      return [route.command]
+    }
     catch { return [] }
   }))].sort()
 }
