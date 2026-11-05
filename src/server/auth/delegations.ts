@@ -24,7 +24,7 @@ const escapeHatches: Partial<Record<ToolName, readonly string[]>> = {
   'hybrid-axi': ['api get'], 'mg-axi': ['api get'], 'vectra-axi': ['api get'],
   'kubernetes-axi': kubernetes.commands.map(command => command.command).filter(command => command.startsWith('native -- ')),
 }
-const commandPattern = /^(?:[^\s*]+(?: [^\s*]+)*(?: \*)?|\*)$/
+const exactCommand = /^[^\s*]+(?: [^\s*]+)*$/
 
 function commandOperation(tool: ToolName, command: string): string {
   return tool === 'kubernetes-axi' ? command.replace(/^(?:prepare|server-dry-run) -- /, '') : command
@@ -50,7 +50,7 @@ export function createDelegation(db: Database.Database, creatorId: string, input
     if (!item.commands) return item
     const adapter = adapters.find(adapter => adapter.name === item.tool)
     if (!adapter) throw new ArtiumError('INVALID_INPUT')
-    return { ...item, commands: item.commands.map(pattern => resolveDelegatedPattern(pattern, adapter)) }
+    return { ...item, commands: item.commands.map(command => resolveDelegatedCommand(command, adapter)) }
   }) }
   const active = db.prepare('SELECT count(*) AS count FROM delegations WHERE creator_id = ? AND revoked_at IS NULL AND expires_at > ?')
     .get(creatorId, now) as { count: number }
@@ -67,44 +67,25 @@ export function checkDelegation(scopeJson: string, readOnly: boolean, adapter: A
   const scope = delegationScopeSchema.parse(JSON.parse(scopeJson))
   const grants = scope.tools.filter(item => item.tool === tool)
   const exact = grants.some(item => item.commands?.includes(command))
-  const wildcard = command !== 'unknown' && grants.some(item => item.commands?.some(selection => typeof selection !== 'string' && selection.operations.includes(command)))
   const wide = grants.some(item => item.commands === undefined)
   const credentialCommand = exactCommands[tool]?.includes(command)
   const escapeHatch = escapeHatches[tool]?.includes(command)
-  if ((!wide && !exact && !wildcard) || ((credentialCommand || escapeHatch || /^(?:api|native)(?: |$)/.test(command)) && !exact) || (readOnly && (effect !== 'read' || credentialCommand))) {
+  if ((!wide && !exact) || ((credentialCommand || escapeHatch || /^(?:api|native)(?: |$)/.test(command)) && !exact) || (readOnly && (effect !== 'read' || credentialCommand))) {
     throw new ArtiumError('DELEGATED_SCOPE_DENIED')
   }
 }
 
 function commandRoutes(tool: ToolName) {
-  type Route = { command: string, effect?: string, canonicalCommand?: string, aliases?: string[] }
+  type Route = { command: string, effect?: string, canonicalCommand?: string }
   const manifest = toolManifests[tool] as { commands: Route[], writeCommands?: Route[], workflows?: Route[] }
   return [...manifest.commands, ...manifest.writeCommands ?? [], ...manifest.workflows ?? []]
 }
 
-export function resolveDelegatedPattern(pattern: string, adapter: Adapter<unknown>): string | { pattern: string, operations: string[] } {
-  if (!commandPattern.test(pattern)) throw new ArtiumError('INVALID_INPUT')
-  if (pattern === '*' || pattern.endsWith(' *')) {
-    const words = commandOperation(adapter.name, pattern.slice(0, -2)).split(' ')
-    const manifest = toolManifests[adapter.name] as { aliases?: Record<string, string> }
-    words[0] = manifest.aliases?.[words[0]] ?? words[0]
-    const namespace = words.join(' ')
-    const group = classifyDelegatedCommand(adapter, [...words, '--help']).command
-    const routes = commandRoutes(adapter.name)
-    const namespaces = [namespace, ...(routes.some(route => route.command.startsWith(group + ' ')) ? [group] : [])]
-    const operations = [...new Set(routes.flatMap(route => {
-      if (!route.command || route.command === 'home' || route.effect === 'blocked') return []
-      return [route.command, ...route.aliases ?? []]
-        .filter(command => pattern === '*' || namespaces.some(prefix => command.startsWith(prefix + ' ')))
-        .flatMap(command => commandInvocations(adapter.name, command))
-        .map(command => classifyDelegatedCommand(adapter, [...command.split(' '), '--help']).command)
-        .filter(command => !['unknown', 'home'].includes(command) && !exactCommands[adapter.name]?.includes(command)
-          && !escapeHatches[adapter.name]?.includes(command) && !/^(?:api|native)(?: |$)/.test(command))
-    }))].sort()
-    if (!operations.length) throw new ArtiumError('INVALID_INPUT')
-    return { pattern: commandOperation(adapter.name, pattern), operations }
-  }
-  const resolved = classifyDelegatedCommand(adapter, pattern.split(' ')).command
+export function resolveDelegatedCommand(command: string, adapter: Adapter<unknown>): string {
+  if (command.includes('*')) throw new ArtiumError('INVALID_INPUT', 'Wildcards are not supported yet.', 'Select exact commands or use --tool for tool-wide access.')
+  if (!exactCommand.test(command)) throw new ArtiumError('INVALID_INPUT')
+  const invocation = commandInvocations(adapter.name, command)[0]
+  const resolved = classifyDelegatedCommand(adapter, [...invocation.split(' '), '--help']).command
   if (resolved === 'unknown' || resolved === 'home') throw new ArtiumError('INVALID_INPUT')
   return resolved
 }

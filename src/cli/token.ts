@@ -11,7 +11,7 @@ import type { ManagedSession } from './managed-session.js'
 export async function tokenCommand(args: string[], output: (text: string) => void, managed?: ManagedSession) {
   const action = args[0]
   if (args.includes('--help')) {
-    output('usage: artium-axi token create --label <label> --tool <tool> --expires <ISO-date> [--write] [--reusable] [--command <tool:pattern>] [--exact <tool:command>] [--token-fd <fd>] [--password-stdin|--sso]\n       artium-axi token list\n       artium-axi token revoke <id>\nPatterns are exact commands or end in a separate * word. API and native selections are broad and require an exact pick.\nRead-only blocks writes, but some reads send data externally or incur costs.\n')
+    output('usage: artium-axi token create --label <label> --tool <tool> --expires <ISO-date> [--write] [--reusable] [--command <tool:command>] [--exact <tool:command>] [--token-fd <fd>] [--password-stdin|--sso]\n       artium-axi token list\n       artium-axi token revoke <id>\nCommand picks are exact. Wildcards are not supported yet. API and native selections are broad and require an exact pick.\nRead-only blocks writes, but some reads send data externally or incur costs.\n')
     return
   }
   if (managed) throw new ArtiumError('INVALID_INPUT', 'Token management is unavailable in managed mode.')
@@ -38,8 +38,8 @@ export async function tokenCommand(args: string[], output: (text: string) => voi
     if (values.length && !['--tool', '--command', '--exact'].includes(flag)) throw new ArtiumError('INVALID_INPUT')
     const value = ['--write', '--reusable', '--password-stdin', '--sso'].includes(flag) ? 'true' : args[++index]
     if (!value || value.startsWith('--')) throw new ArtiumError('INVALID_INPUT')
-    if (flag === '--exact' && value.includes('*')) throw new ArtiumError('INVALID_INPUT',
-      '--exact does not accept wildcards.', 'Use --command for trailing wildcard patterns.')
+    if (['--exact', '--command'].includes(flag) && value.includes('*')) throw new ArtiumError('INVALID_INPUT',
+      'Wildcards are not supported yet.', 'Select exact commands or use --tool for tool-wide access.')
     values.push(value)
     flags.set(flag, values)
   }

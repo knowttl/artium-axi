@@ -87,24 +87,23 @@ async function mint(extra: string[] = []) {
   return result.secret
 }
 
-test('token --command mints a wildcard selection (R12)', async () => {
+test('token --command refuses wildcard selections without storing a token (R12)', async () => {
   expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
   const minted = await cli(['token', 'create', '--label', 'Synthetic', '--command', 'falcon-axi:detection *', '--expires',
     new Date(Date.now() + 600_000).toISOString(), '--password-stdin', '--token-fd', '3'], `${password}\n`, 'owner', true)
-  expect(minted.code, minted.stdout).toBe(0)
-  const row = db.prepare('SELECT scope_json FROM delegations').get() as { scope_json: string }
-  expect(JSON.parse(row.scope_json)).toMatchObject({ tools: [{ tool: 'falcon-axi', commands: [
-    { pattern: 'detection *', operations: expect.arrayContaining(['detection list']) },
-  ] }] })
+  expect(minted.code, minted.stdout).toBe(2)
+  expect(minted.stdout).toContain('Wildcards are not supported yet.')
+  expect(minted.secret).toBe('')
+  expect(db.prepare('SELECT count(*) AS count FROM delegations').get()).toEqual({ count: 0 })
 })
 
 test.each([
-  { pattern: 'defender alerts *', invocation: 'defender alerts get', operation: 'defender alerts get' },
-  { pattern: 'defender alerts *', invocation: 'defender alerts update', operation: 'security alert update' },
-  { pattern: 'monitor *', invocation: 'monitor activity-log list', operation: 'activity list' },
-  { pattern: 'security *', invocation: 'security alert list', operation: 'defender alerts' },
-  { pattern: 'security *', invocation: 'security secure-scores list', operation: 'defender score' },
-])('minted $pattern stores and authorizes canonical $operation (R24)', async ({ pattern, invocation, operation }) => {
+  { pattern: '*' },
+  { pattern: 'defender alerts *' },
+  { pattern: 'monitor *' },
+  { pattern: 'security *' },
+  { pattern: 'security alert list *' },
+])('minting refuses $pattern and cannot store its scope (R25)', async ({ pattern }) => {
   await app.close()
   db.prepare('UPDATE tools SET enabled = 1, native_settings = ? WHERE name = ?').run('{"allowWrites":true}', 'az-axi')
   const adapter = createAzAdapter(new EmbeddedSecretSource(credentials), join(directory, 'writes.log'))
@@ -115,20 +114,9 @@ test.each([
   const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
     headers: { ...owner, 'x-artium-reauth-ticket': recent.json().ticket }, payload: { label: 'Synthetic',
       scope: { tools: [{ tool: 'az-axi', commands: [pattern] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 600_000 } })
-  expect(minted.statusCode, minted.body).toBe(200)
-  const stored = db.prepare('SELECT scope_json FROM delegations WHERE id = ?').get(minted.json().id) as { scope_json: string }
-  expect(JSON.parse(stored.scope_json)).toMatchObject({ tools: [{ tool: 'az-axi', commands: [
-    { pattern, operations: expect.arrayContaining([operation]) },
-  ] }] })
-  expect(() => checkDelegation(stored.scope_json, false, adapter, 'sub list', 'read'))
-    .toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
-  const exchanged = exchangeDelegation(db, minted.json().token)
-  const headers = { authorization: `Bearer ${exchanged.accessToken}` }
-  const run = await app.inject({ method: 'POST', url: '/v1/tools/az-axi/run', headers,
-    payload: { args: [...invocation.split(' '), '--help'] } })
-  expect(run.json()).toMatchObject({ error: { code: 'CREDENTIAL_NOT_CONFIGURED' } })
-  const tools = await app.inject({ url: '/v1/tools', headers })
-  expect(tools.json().tools[0].commands).toContain(operation)
+  expect(minted.statusCode, minted.body).toBe(400)
+  expect(minted.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: 'Wildcards are not supported yet.' } })
+  expect(db.prepare('SELECT count(*) AS count FROM delegations').get()).toEqual({ count: 0 })
 })
 
 test.each<{ tool: ToolName, command: string, args: string[], parse?: (text: string) => unknown, code?: number,
@@ -197,21 +185,21 @@ const nestedInput = JSON.stringify({ api: { node: 'synthetic-node', commands: JS
 const batchConfirmation = `00000000-0000-4000-8000-000000000001.${'a'.repeat(64)}`
 
 test.each([
-  { label: 'custody preview with protected input', commands: ['create *', 'get /nodes/{node}/version'], readOnly: false,
+  { label: 'custody preview with protected input', commands: ['create /nodes/{node}/execute', 'get /nodes/{node}/version'], readOnly: false,
     request: { args: [...batchRoute, '--protected-input', '--preview'], stdin: custodyInput }, code: 'DELEGATED_SCOPE_DENIED' },
-  { label: 'custody confirmation with flags', commands: ['create *', 'get /nodes/{node}/version'], readOnly: false,
+  { label: 'custody confirmation with flags', commands: ['create /nodes/{node}/execute', 'get /nodes/{node}/version'], readOnly: false,
     request: { args: [...batchRoute, '--api-node', 'synthetic-node', '--api-commands', custodyChildren, '--confirm', batchConfirmation] }, code: 'DELEGATED_SCOPE_DENIED' },
-  { label: 'nested update outside create grant', commands: ['create *'], readOnly: false,
+  { label: 'nested update outside batch grant', commands: ['create /nodes/{node}/execute'], readOnly: false,
     request: { args: [...batchRoute, '--protected-input', '--preview'], stdin: nestedInput }, code: 'DELEGATED_SCOPE_DENIED' },
-  { label: 'nested update covered by a sibling grant', commands: ['create *', 'set *'], readOnly: false,
+  { label: 'nested update covered by a sibling grant', commands: ['create /nodes/{node}/execute', 'set /nodes/{node}/qemu/{vmid}/config'], readOnly: false,
     request: { args: [...batchRoute, '--protected-input', '--preview'], stdin: nestedInput }, code: 'CREDENTIAL_NOT_CONFIGURED' },
-  { label: 'update confirmation outside create grant', commands: ['create *'], readOnly: false,
+  { label: 'update confirmation outside batch grant', commands: ['create /nodes/{node}/execute'], readOnly: false,
     request: { args: [...batchRoute, '--protected-input', '--confirm', batchConfirmation], stdin: updateInput }, code: 'DELEGATED_SCOPE_DENIED' },
-  { label: 'custody child picked exactly', commands: ['create *', 'get /nodes/{node}/version', 'create /nodes/{node}/qemu/{vmid}/vncproxy'], readOnly: false,
+  { label: 'custody child picked exactly', commands: ['create /nodes/{node}/execute', 'get /nodes/{node}/version', 'create /nodes/{node}/qemu/{vmid}/vncproxy'], readOnly: false,
     request: { args: [...batchRoute, '--protected-input', '--preview'], stdin: custodyInput }, code: 'CREDENTIAL_NOT_CONFIGURED' },
-  { label: 'update covered by a sibling grant', commands: ['create *', 'set *'], readOnly: false,
+  { label: 'update covered by a sibling grant', commands: ['create /nodes/{node}/execute', 'set /nodes/{node}/qemu/{vmid}/config'], readOnly: false,
     request: { args: [...batchRoute, '--protected-input', '--preview'], stdin: updateInput }, code: 'CREDENTIAL_NOT_CONFIGURED' },
-  { label: 'read-only batch', commands: ['create *', 'set *'], readOnly: true,
+  { label: 'read-only batch', commands: ['create /nodes/{node}/execute', 'set /nodes/{node}/qemu/{vmid}/config'], readOnly: true,
     request: { args: [...batchRoute, '--protected-input', '--preview'], stdin: updateInput }, code: 'DELEGATED_SCOPE_DENIED' },
 ])('Proxmox $label enforces child scope before credential resolution (custody probe, R22)', async ({ commands, readOnly, request, code }) => {
   await app.close()
@@ -264,7 +252,10 @@ test.each([
     0, 'synthetic-development-user', Date.now())
   db.prepare('UPDATE tools SET enabled = 1, native_settings = ? WHERE name = ?')
     .run(JSON.stringify({ writes: { allowWrites: true, operations: ['issue create'] } }), 'gh-axi')
-  const adapter = createGhAdapter(new EmbeddedSecretSource(credentials))
+  const native = createGhAdapter(new EmbeddedSecretSource(credentials))
+  const adapter = { ...native, async prepare(...args: Parameters<typeof native.prepare>) {
+    return { ...await native.prepare(...args), executable: join(process.cwd(), 'tools/node_modules/.bin/gh-axi') }
+  } }
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-leaf-help')), audit: new Audit(db),
     adapters: [adapter], environment: {},
     resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
@@ -408,9 +399,9 @@ test.each(['get /version', 'create /access/users/{userid}/token/{tokenid}'])('mi
 })
 
 test.each([
-  { tool: 'az-axi', args: [], pattern: 'group *', allowed: 'group list' },
-  { tool: 'az-axi', args: ['--help'], pattern: 'group *', allowed: 'group list' },
-  { tool: 'az-axi', args: ['-h'], pattern: 'group *', allowed: 'group list' },
+  { tool: 'az-axi', args: [], pattern: 'group list', allowed: 'group list' },
+  { tool: 'az-axi', args: ['--help'], pattern: 'group list', allowed: 'group list' },
+  { tool: 'az-axi', args: ['-h'], pattern: 'group list', allowed: 'group list' },
   { tool: 'gh-axi', args: [], pattern: 'repo list', allowed: 'repo list' },
   { tool: 'gh-axi', args: ['--help'], pattern: 'repo list', allowed: 'repo list' },
   { tool: 'gh-axi', args: ['-h'], pattern: 'repo list', allowed: 'repo list' },
@@ -438,9 +429,9 @@ test.each([
   { tool: 'kubernetes-axi', selection: 'prepare -- create token', canonical: 'create token', execution: ['prepare', '--', 'create', 'token', '--help'], discovered: 'prepare -- create token' },
   { tool: 'kubernetes-axi', selection: 'server-dry-run -- create token', canonical: 'create token', execution: ['server-dry-run', '--', 'create', 'token', '--help'], discovered: 'server-dry-run -- create token' },
   { tool: 'kubernetes-axi', selection: 'native -- get', canonical: 'native -- get', execution: ['native', '--', 'get', '--help'], discovered: 'native -- get' },
-  { tool: 'kubernetes-axi', selection: 'create *', canonical: expect.objectContaining({ pattern: 'create *', operations: expect.arrayContaining(['create deployment']) }), execution: ['prepare', '--', 'create', 'deployment', '--help'], discovered: 'prepare -- create deployment' },
+  { tool: 'kubernetes-axi', selection: 'prepare -- create deployment', canonical: 'create deployment', execution: ['prepare', '--', 'create', 'deployment', '--help'], discovered: 'prepare -- create deployment' },
   { tool: 'ado-axi', selection: 'wi list', canonical: 'work-item list', execution: ['wi', 'list', '--help'], discovered: 'work-item list' },
-  { tool: 'ado-axi', selection: 'prs *', canonical: expect.objectContaining({ pattern: 'prs *', operations: expect.arrayContaining(['pr list']) }), execution: ['prs', 'list', '--help'], discovered: 'pr list' },
+  { tool: 'ado-axi', selection: 'prs list', canonical: 'pr list', execution: ['prs', 'list', '--help'], discovered: 'pr list' },
   { tool: 'gh-axi', selection: 'issue list', canonical: 'issue list', execution: ['issue', 'list', '-R', 'synthetic/repository', '--help'], discovered: 'issue list' },
   { tool: 'az-axi', selection: 'role assignment list', canonical: 'rbac list', execution: ['role', 'assignment', 'list', '--help'], discovered: 'rbac list' },
   { tool: 'proxmox-axi', selection: 'post /access/users/{userid}/token/{tokenid}', canonical: 'create /access/users/{userid}/token/{tokenid}', execution: ['post', '/access/users/{userid}/token/{tokenid}', '--help'], discovered: 'create /access/users/{userid}/token/{tokenid}' },
@@ -500,10 +491,10 @@ test('Kubernetes token preparation requires an exact writable pick before resolv
 
 test.each([
   { grant: 'apply', operation: 'apply', readOnly: false, code: 'CREDENTIAL_NOT_CONFIGURED' },
-  { grant: 'create *', operation: 'create configmap', readOnly: false, code: 'CREDENTIAL_NOT_CONFIGURED' },
-  { grant: 'set *', operation: 'set env', readOnly: false, code: 'CREDENTIAL_NOT_CONFIGURED' },
+  { grant: 'create configmap', operation: 'create configmap', readOnly: false, code: 'CREDENTIAL_NOT_CONFIGURED' },
+  { grant: 'set env', operation: 'set env', readOnly: false, code: 'CREDENTIAL_NOT_CONFIGURED' },
   { grant: 'apply', operation: 'create configmap', readOnly: false, code: 'DELEGATED_SCOPE_DENIED' },
-  { grant: 'create *', operation: 'create token', readOnly: false, code: 'DELEGATED_SCOPE_DENIED' },
+  { grant: 'create configmap', operation: 'create token', readOnly: false, code: 'DELEGATED_SCOPE_DENIED' },
   { grant: 'create token', operation: 'create token', readOnly: false, code: 'CREDENTIAL_NOT_CONFIGURED' },
   { grant: 'apply', operation: 'apply', readOnly: true, code: 'DELEGATED_SCOPE_DENIED' },
   { grant: 'preview', operation: 'apply', readOnly: false, code: 'DELEGATED_SCOPE_DENIED' },

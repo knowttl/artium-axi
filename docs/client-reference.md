@@ -446,9 +446,9 @@ The creator chooses an expiry within the administrator's cap and confirms their 
 Tokens are single-use by default; `--reusable` permits multiple exchanges until expiry or revocation.
 `--write` opts into writes that the creator and administrator can currently perform.
 Use repeatable `--tool` flags for tool-wide grants, and `--exact '<tool:command>'` for a reviewed exact selection such as `--exact 'awx-axi:user token-create' --write`.
-Use repeatable `--command '<tool:pattern>'` to restrict a tool to exact commands or a trailing wildcard word, for example `--command 'awx-axi:job *'`.
-Wildcards match command words and exclude API and native escape hatches and credential-producing commands, which require an exact selection.
-Minting saves the wildcard pattern with its resolved canonical operations; later inventory additions do not expand that token's grant.
+Use repeatable `--command '<tool:command>'` or `--exact '<tool:command>'` for exact command picks, for example `--command 'awx-axi:job list'`.
+Wildcard command patterns are a follow-up and are refused at minting in slice 4.
+API and native escape hatches and credential-producing commands require an exact selection even with tool-wide scope.
 Selecting a Kubernetes mutation also grants preview and confirmation of saved requests for that same operation.
 Continuations for other operations and all mutation workflows in read-only sessions are refused.
 API and native selections can reach many operations and are broad.

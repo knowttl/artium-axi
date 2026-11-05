@@ -179,7 +179,7 @@ await withFakeService(async ({ directory, port, send }) => {
     await writes(true)
     db.exec('UPDATE delegation_settings SET minting_enabled = 1')
     const delegatedBatch = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic batch scope',
-      scope: { tools: [{ tool: 'proxmox-axi', commands: ['create *', 'get /nodes/{node}/version'] }] },
+      scope: { tools: [{ tool: 'proxmox-axi', commands: ['create /nodes/{node}/execute', 'get /nodes/{node}/version'] }] },
       readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
     const delegatedHeaders = { authorization: `Bearer ${exchangeDelegation(db, delegatedBatch.token).accessToken}` }
     const beforeScopedBatch = (await evidence()).applied

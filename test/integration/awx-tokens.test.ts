@@ -76,7 +76,8 @@ test('delegated AWX credential creation requires an exact writable pick', async 
       payload: { label: 'Synthetic', scope: { tools: [{ tool: 'awx-axi', ...(commands ? { commands } : {}) }] },
         readOnly, reusable: false, expiresAt: Date.now() + 600_000 } })
     const wildcard = await create(['user *'], false)
-    expect(wildcard.statusCode).toBe(200)
+    expect(wildcard.statusCode).toBe(400)
+    expect(wildcard.json().error.message).toBe('Wildcards are not supported yet.')
     for (const [config, commands, readOnly, allowed] of [
       ['wide', undefined, false, false], ['readonly', ['user token-create'], true, false], ['exact', ['user token-create'], false, true],
     ] as const) {
@@ -169,7 +170,7 @@ test('command-scoped discovery and enforcement follow the delegated grant', asyn
   })
 })
 
-test.each([{ commands: undefined }, { commands: ['*'] }])('read-only broad AWX discovery filters every command surface (R10): $commands', async ({ commands }) => {
+test.each([{ commands: undefined }, { commands: ['job list', 'job cancel', 'user token-create'] }])('read-only AWX discovery filters every command surface (R10): $commands', async ({ commands }) => {
   await withTokenService(async ({ app, db, headers }) => {
     db.exec('UPDATE delegation_settings SET minting_enabled = 1')
     const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
@@ -197,7 +198,7 @@ test.each([{ commands: undefined }, { commands: ['*'] }])('read-only broad AWX d
 })
 
 test.each([
-  { commands: ['job *'] },
+  { commands: ['job list', 'job cancel', 'job stdout'] },
   { commands: ['job list', 'job cancel'] },
   { commands: undefined },
 ])('delegated AWX discovery follows current write and tool policy (R11, R13): $commands', async ({ commands }) => {

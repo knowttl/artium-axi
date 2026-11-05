@@ -175,7 +175,7 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.equal((await result(['preview', revisionPlan.request])).value.error.code, 'REQUEST_NOT_FOUND')
     db.exec('UPDATE delegation_settings SET minting_enabled = 1')
     const delegated = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic workflow',
-      scope: { tools: [{ tool: 'kubernetes-axi', commands: ['create *'] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
+      scope: { tools: [{ tool: 'kubernetes-axi', commands: ['create configmap'] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
     const scopedHeaders = { authorization: `Bearer ${exchangeDelegation(db, delegated.token).accessToken}` }
     const scopedPlan = await success(['prepare', '--', 'create', 'configmap', 'synthetic-delegated', '--from-literal=mode=scoped'], scopedHeaders)
     const scopedPreview = await success(['preview', scopedPlan.request], scopedHeaders)
