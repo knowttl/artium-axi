@@ -135,7 +135,6 @@ await withFakeService(async ({ directory, port, send }) => {
     const download = ['transfer', 'get', '/nodes/{node}/storage/{storage}/file-restore/download', '--api-node', 'node', '--api-storage', 'local',
       '--api-volume', 'local:backup/synthetic.vma', '--api-filepath', '/', '--response-format', 'download']
     assert.deepEqual((await success(download)).bytes, Buffer.from([0, 255, 10, 13, 128, 1]))
-    db.exec('UPDATE delegation_settings SET minting_enabled=1')
     const downloadAdapter = createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'journal', 'writes.log'))
     await send('/__proxmox/control?mode=')
     for (const [args, expected] of [[guest, Buffer.from('hello ☃')], [download, Buffer.from([0, 255, 10, 13, 128, 1])]] as const) {
@@ -243,7 +242,6 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.notEqual((await held).code, 0)
     await send(`/__proxmox/sockets?closed=${opened + 1}`)
     await grants(['proxmox-axi'])
-    db.exec('UPDATE delegation_settings SET minting_enabled=1')
     const delegatedAdapter = createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'journal', 'writes.log'))
     const delegation = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic', scope: { tools: [{ tool: 'proxmox-axi',
       commands: ['transfer get /nodes/{node}/rrd'] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [delegatedAdapter])

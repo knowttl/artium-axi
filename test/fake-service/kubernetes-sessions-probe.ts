@@ -100,7 +100,6 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.match((await output(watched.id)).chunks.map(chunk => Buffer.from(chunk.base64, 'base64').toString()).join(''), /synthetic-pod/)
     await cancel(watched.id)
     await policy(true)
-    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
     const delegated = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
       scope: { tools: [{ tool: 'kubernetes-axi' }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
     const delegatedHeaders = { authorization: `Bearer ${exchangeDelegation(db, delegated.token).accessToken}` }

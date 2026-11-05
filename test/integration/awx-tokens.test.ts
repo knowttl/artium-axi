@@ -56,8 +56,7 @@ async function withTokenService(check: (context: {
 
 test('delegated AWX credential creation requires an exact writable pick', async () => {
   await withTokenService(async ({ app, db, headers, directory }) => {
-    db.exec(`UPDATE delegation_settings SET minting_enabled = 1;
-      UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
     const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
     const proof = { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }
     const url = await app.listen({ host: '127.0.0.1', port: 0 })
@@ -113,7 +112,6 @@ test('delegated AWX credential creation requires an exact writable pick', async 
 
 test('read-only delegated AWX stdout remains retrievable as data (R8)', async () => {
   await withTokenService(async ({ app, db, headers, send }) => {
-    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
     const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
     const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
       headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { label: 'Synthetic',
@@ -134,7 +132,6 @@ test('read-only delegated AWX stdout remains retrievable as data (R8)', async ()
 
 test('command-scoped discovery and enforcement follow the delegated grant', async () => {
   await withTokenService(async ({ app, db, headers }) => {
-    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
     const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
     const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
       headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { label: 'Synthetic',
@@ -172,7 +169,6 @@ test('command-scoped discovery and enforcement follow the delegated grant', asyn
 
 test.each([{ commands: undefined }, { commands: ['job list', 'job cancel', 'user token-create'] }])('read-only AWX discovery filters every command surface (R10): $commands', async ({ commands }) => {
   await withTokenService(async ({ app, db, headers }) => {
-    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
     const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
     const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
       headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { label: 'Synthetic',
@@ -203,8 +199,7 @@ test.each([
   { commands: undefined },
 ])('delegated AWX discovery follows current write and tool policy (R11, R13): $commands', async ({ commands }) => {
   await withTokenService(async ({ app, db, headers }) => {
-    db.exec(`UPDATE delegation_settings SET minting_enabled = 1;
-      UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
     const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
     const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
       headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { label: 'Synthetic',

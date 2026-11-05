@@ -85,21 +85,20 @@ test('token settings require a recently authenticated administrator and are audi
   now += authDefaults.recentAuthMs + 1
   expect((await change()).statusCode).toBe(401)
   now -= authDefaults.recentAuthMs + 1
-  const refused = await change(true)
-  expect(refused.statusCode).toBe(403)
-  expect(refused.json().error.message).toContain('not available yet')
-  expect(db.prepare('SELECT minting_enabled, max_lifetime_ms FROM delegation_settings').get()).toEqual({ minting_enabled: 0, max_lifetime_ms: 30 * 86400000 })
+  expect(db.prepare('SELECT minting_enabled, max_lifetime_ms FROM delegation_settings').get()).toEqual({ minting_enabled: 1, max_lifetime_ms: 30 * 86400000 })
   expect((await change(false, 86399999)).statusCode).toBe(400)
   expect((await change(false, 30 * 86400000 + 1)).statusCode).toBe(400)
   expect((await change()).statusCode).toBe(200)
   expect(db.prepare('SELECT minting_enabled, max_lifetime_ms, sso_window_ms FROM delegation_settings').get())
     .toEqual({ minting_enabled: 0, max_lifetime_ms: 3600000, sso_window_ms: 2 * 86400000 })
+  expect((await change(true)).statusCode).toBe(200)
+  expect(db.prepare('SELECT minting_enabled FROM delegation_settings').get()).toEqual({ minting_enabled: 1 })
   expect(db.prepare("SELECT action, user_id FROM audit WHERE event = 'admin-change' AND action = 'token-settings'").get())
     .toEqual({ action: 'token-settings', user_id: userId })
 })
 
 test('browser token creation and revocation use the signed-in account', async () => {
-  db.exec("UPDATE delegation_settings SET minting_enabled = 1; UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
   await signIn()
   const csrf = await token('/account')
   const send = (url: string, payload: object) => app.inject({ method: 'POST', url, headers: {

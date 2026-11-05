@@ -115,7 +115,7 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/roles` | List roles with their tools, member and SSO rule counts, and create a role. |
 | `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete an unused role by typing its name. |
 | `/admin/audit` | Filter, page through and export authentication, administration and tool-call records, and open one in a detail panel. |
-| `/admin/tokens` | Set the token lifetime cap and SSO sign-in window, review all temporary access tokens, and revoke individual tokens or all tokens; see [minting rollout](safety.md#delegated-sessions). |
+| `/admin/tokens` | Enable or disable token creation, set the lifetime cap and SSO sign-in window, review temporary access tokens, and revoke individual tokens or all tokens; see [delegated sessions](safety.md#delegated-sessions). |
 | `/admin/settings/sign-in` | Review the sign-in mode, break-glass readiness and pending invitations, and add providers; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 | `/admin/settings/sign-in/:id` | Provider Setup checklist, Credential, Role rules and Settings tabs, and the Enable sign-in control. |
 | `/admin/settings/sign-in/:id/matches/:ruleId` | Who matches a role rule, from saved sign-in claims. |
@@ -190,7 +190,7 @@ Creation requires recent identity confirmation and displays the token once.
 Account lists your tokens and lets you revoke them; administrators can review everyone's tokens and revoke individual tokens or all tokens on `/admin/tokens`.
 Revoking a token also ends its exchanged sessions.
 Set the SSO sign-in window on `/admin/tokens`; Account and the administrator token list show when tokens are paused awaiting the creator's SSO sign-in.
-See [delegated sessions](safety.md#delegated-sessions) for the SSO pause and recovery rules, scope boundaries and rollout status.
+See [delegated sessions](safety.md#delegated-sessions) for the SSO pause and recovery rules and scope boundaries.
 
 Users with temporary passwords must change them first.
 Archiving disables sign-in, revokes all sessions and hides the user from the users table while retaining identity, role membership and audit history.
@@ -351,7 +351,7 @@ Apply filters, then choose **CSV** or **JSON lines** from **Export** to export e
 Exports are newest first and exclude records inserted after the download begins.
 Both formats contain the same safe persisted fields as `ARTIUM_AXI_AUDIT_STDOUT`, never credentials, tokens or tool output.
 Delegated calls include the creator's user ID and `delegation_id`; the screen, API and exports accept the `delegationId` filter.
-See [delegated capability boundaries](safety.md#delegated-sessions) for minting rollout and [token API usage](client-reference.md#delegated-tokens) for administrator listing and revocation, including revoke-all.
+See [delegated capability boundaries](safety.md#delegated-sessions) for creation settings and their effect on existing tokens, and [token API usage](client-reference.md#delegated-tokens) for administrator listing and revocation.
 CSV quotes non-null values and leaves null fields empty; JSON lines preserves JSON types and nulls.
 The [API contracts](../src/shared/api.ts) own the persisted field definitions (`adminAuditRecordSchema`) and transfer evidence rules (`transferAuditSchema` and `transferEvidenceSchema`).
 For hosted download availability, see the [supported capability boundaries](safety.md).

@@ -745,6 +745,7 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .btn.side-close { display: inline-flex; margin-left: auto; }
   .btn.menu-open { display: inline-flex; margin-left: -6px; }
   .topbar { padding: 0 var(--gutter); }
+  .app.plain .topbar .brand { min-width: 0; overflow: hidden; white-space: nowrap; }
   .page-head { flex-wrap: wrap; }
   .account-menu.down .who { display: none; }
   .crumbs span, .crumbs > a, .learn .label { display: none; }

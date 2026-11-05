@@ -132,7 +132,6 @@ async function cli(args: string[], started?: (child: ChildProcess) => void, mana
 }
 
 function delegated(commands: string[] | undefined, readOnly = false) {
-  db.exec('UPDATE delegation_settings SET minting_enabled = 1')
   const grant = createDelegation(db, user, { label: 'Synthetic', scope: { tools: [{ tool: 'hybrid-axi', commands }] },
     readOnly, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
   const session = exchangeDelegation(db, grant.token)
