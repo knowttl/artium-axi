@@ -3,6 +3,7 @@
 Contents:
 
 - [Agent session context](#agent-session-context)
+- [Delegated sessions](#delegated-sessions)
 - [Microsoft Graph](#microsoft-graph)
 - [Azure, Falcon and Vectra reads](#azure-falcon-and-vectra-reads)
 - [Gitea reads](#gitea-reads)
@@ -30,6 +31,13 @@ Pi retains skill-only setup because this installer has no verified Pi session-co
 OpenCode support is bounded to the released 1.19.x plugin API referenced in the installation guide; an incompatible future plugin API is not claimed.
 No session-end capture is installed, because this integration reads authorization context and does not collect transcripts or activity.
 Local integration tests execute installed commands and plugin exports; actual agent-host loading and live model sessions remain unverified.
+
+## Delegated sessions
+
+Temporary delegated access is not available for use yet; this slice adds the principal boundary and storage without token issuance or redemption commands, API endpoints or browser controls.
+Delegated sessions are denied protected operations, including discovery, help, tool execution, downloads, account management, administration and reauthentication, even when the creator has administrator capability.
+Bearer requests return `DELEGATED_SCOPE_DENIED` (HTTP 403) for an otherwise valid delegated session; use an ordinary signed-in session for these operations.
+Refresh and logout remain available for valid session tokens, but refreshing a delegated family does not grant access to protected operations.
 
 ## BeyondTrust Endpoint Privilege Management
 
