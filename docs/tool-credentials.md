@@ -34,6 +34,7 @@ Contents:
 - [UniFi](#unifi)
 - [Proxmox](#proxmox)
 - [Technitium DNS](#technitium-dns)
+- [Shodan](#shodan)
 - [Gitea](#gitea)
 - [Kubernetes](#kubernetes)
 - [SSH](#ssh)
@@ -58,6 +59,7 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | UniFi (`unifi-axi`) | See [UniFi setup](#unifi). | `info`. |
 | Proxmox (`proxmox-axi`) | See [Proxmox setup](#proxmox). | `get /version`. |
 | Technitium DNS (`technitium-axi`) | See [Technitium setup](#technitium-dns). | `user session get`. |
+| Shodan (`shodan-axi`) | See [Shodan setup](#shodan). | `info`, only when explicitly requested; see [health behavior](runbook.md#roles-credentials-and-health). |
 | Gitea (`gitea-axi`) | See [Gitea setup](#gitea). | `doctor`. |
 | Kubernetes (`kubernetes-axi`) | See [Kubernetes setup](#kubernetes). | `get pods`. |
 | SSH (`ssh-axi`) | See [SSH setup](#ssh). | No shared credential test; check each granted host through the signed-in CLI. |
@@ -539,6 +541,15 @@ The connection test uses authenticated `user session get`; the unauthenticated `
 
 See [Technitium commands and result retrieval](commands.md#technitium-dns), the [supported capability boundary](safety.md#technitium-dns) and [result retention](runbook.md#retention-and-export).
 Local fake-service checks do not establish live server acceptance.
+
+#### Shodan
+
+In the managed credential editor, set `auth: api-key`, `origin: https://api.shodan.io` and enter the API key in `apiKey`.
+Artium encrypts the key and supplies an isolated private profile containing an environment SecretRef; callers do not configure local profiles or environment keys.
+The hosted schema requires that fixed origin and API key authentication; `streamOrigin` is unavailable.
+The [reviewed inventory](../tools/inventories/shodan-axi.json) owns the pinned upstream schema and command boundary; [hosted profile validation](../src/server/adapters/credential-profile.ts) owns these additional restrictions.
+See [commands](commands.md#shodan), the [capability boundary](safety.md#shodan) and [explicit connection testing](runbook.md#roles-credentials-and-health).
+Local fake-service evidence does not establish owner live acceptance.
 
 #### Hybrid Analysis
 

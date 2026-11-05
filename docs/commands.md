@@ -29,6 +29,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi proxmox-axi stream limits` | Inspect authenticated host byte, staging, deadline and concurrency limits. |
 | `artium-axi proxmox-axi stream -- transfer\|duplex <native arguments>` | Use [private managed byte channels](client-reference.md#proxmox-managed-streams) for reviewed transfers and console/migration operations. |
 | `artium-axi technitium-axi [<args>]` | Read Technitium DNS data and use native confirmed writes with managed credentials and private result retrieval. |
+| `artium-axi shodan-axi [<args>]` | Read Shodan account information with managed credentials; see [usage](#shodan). |
 | `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |
 | `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources or use administrator-enabled [mutation and bounded byte workflows](safety.md#kubernetes-reads), caller-owned workspaces and managed credentials with pinned kubectl. |
 | `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts, check authentication and run [confirmed managed commands](#ssh). |
@@ -236,6 +237,15 @@ Failed or incomplete reads remain failures; do not infer empty data.
 If a write outcome is unknown, follow the [recovery guidance](runbook.md#retention-and-export).
 For authentication or managed-configuration failures, ask an administrator to update the stored credential and connection settings.
 See the [capability boundary](safety.md#technitium-dns) and [retention, limits and retrieval failures](runbook.md#retention-and-export).
+
+## Shodan
+
+Run `artium-axi shodan-axi info` for API plan and credit information or `artium-axi shodan-axi account profile` for the account profile.
+The bare `artium-axi shodan-axi` also performs the account-information read.
+These reads accept `--json` and `--help`; `--help` shows bounded hosted discovery without an account read.
+Use `artium-axi shodan-axi version` to print the packaged version or `version --help` for help; `version` does not accept `--json`.
+For authentication failures, ask an administrator to replace the managed key using [Shodan credential setup](tool-credentials.md#shodan).
+See the [supported boundary](safety.md#shodan) and [package recovery](runbook.md#roles-credentials-and-health).
 
 ## Check Point Email Security
 

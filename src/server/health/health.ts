@@ -49,7 +49,7 @@ export class ToolHealth {
     private readonly runner: Runner, private readonly adapters: readonly Adapter<unknown>[],
     private readonly store?: MutableCredentialStore, private readonly proxmox?: ProxmoxAccess) {}
 
-  // Every tool is due on the first tick; the background slot cap staggers them.
+  // Eligible tools are due on the first tick; the background slot cap staggers them.
   start(): void {
     this.timer = setInterval(() => {
       for (const adapter of this.adapters) {
