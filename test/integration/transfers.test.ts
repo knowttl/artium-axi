@@ -248,9 +248,15 @@ test('replayed execution cannot send a second native download', async () => {
   expect(events().filter(event => event.outcome === 'ready')).toHaveLength(1)
 })
 
-test('retrieval requires current identity confirmation and immediately deletes denied owner bytes', async () => {
+test.each<[string, Record<string, unknown>]>([
+  ['execute', { execute: true, confirm: 'synthetic-confirmation' }],
+  ['retrieve', {}],
+  ['receipt', { archive: { archiveBytes: 1, archiveSha256: 'c'.repeat(64) }, saveOutcome: 'verified-save' }],
+  ['cancel', {}],
+  ['status', {}],
+])('%s requires current identity confirmation and immediately deletes denied owner bytes', async (action, input) => {
   const transfer = await ready()
-  const response = await post('retrieve', { ...body(), transferId: transfer.transferId }, { ...headers, 'x-artium-reauth-ticket': 'CANARY-invalid-ticket' })
+  const response = await post(action, { ...body(), transferId: transfer.transferId, ...input }, { ...headers, 'x-artium-reauth-ticket': 'CANARY-invalid-ticket' })
   expect(response.status).toBe(401)
   expect((await response.json()).error.code).toBe('REAUTH_REQUIRED')
   expect(await readdir(root)).toEqual([])

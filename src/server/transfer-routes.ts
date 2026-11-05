@@ -76,10 +76,11 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
     const identity = db.prepare('SELECT user_id, family_id FROM tokens WHERE hash = ?').get(hashToken(tokenFor(request))) as
       { user_id: string, family_id: string } | undefined
     const entry = entries.get(input.transferId)
-    if (!entry) throw new ArtiumError('TOKEN_INVALID')
+    if (!entry || identity?.user_id !== entry.reservation.scope.userId || identity.family_id !== entry.reservation.scope.sessionFamilyId) {
+      verifyAccessToken(db, tokenFor(request))
+      throw new ArtiumError('TOKEN_INVALID')
+    }
     const scope = entry.reservation.scope
-    // An unrelated caller must not be able to cancel the owner's transfer.
-    if (identity?.user_id !== scope.userId || identity.family_id !== scope.sessionFamilyId) throw new ArtiumError('TOKEN_INVALID')
     try { checkTransferScope(scope, ownerFor(request), revision(transferTool(scope.selection.operation)), { selection: input.selection, targetDigest: input.targetDigest }); access(scope) }
     catch (error) { await discard(entry); throw error }
     return entry
@@ -129,9 +130,9 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
         const parsed = route.input.safeParse(request.body)
         if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
         if (transferTool(parsed.data.selection.operation) !== tool) throw new ArtiumError('INVALID_INPUT')
-        const owner = ownerFor(request)
         if (route === transferRoutes.prepare) {
           const input = transferPrepareSchema.parse(parsed.data)
+          const owner = ownerFor(request)
           checkTransferAccess(db, owner, input.selection.operation)
           const scope = createTransferScope(owner, revision(tool), input)
           store ??= ArtifactStore.create(audit).catch(error => { store = undefined; throw error })
