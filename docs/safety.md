@@ -37,23 +37,34 @@ Local integration tests execute installed commands and plugin exports; actual ag
 Delegated token creation, exchange, listing and revocation are implemented, but minting remains disabled by default until slice 8.
 Disabling minting stops new tokens without invalidating previously issued tokens; they remain exchangeable until expired, revoked or consumed.
 See [delegated token usage](client-reference.md#delegated-tokens) for CLI sign-in and token management.
-Delegated tool execution follows the token's tool scope and the creator's current grants, with existing administrator write gates, upstream permissions and confirmation requirements still enforced.
-Tool lists include only selected tools and mark read-only tokens accordingly; command-scoped discovery and filtered help remain later slices.
-Identity and skills endpoints, account management, administration and reauthentication remain denied with `DELEGATED_SCOPE_DENIED` (HTTP 403), even when the creator has administrator capability.
+Delegated tool execution follows the token's tool and command scope and the creator's current grants, with existing administrator write gates, upstream permissions and confirmation requirements still enforced.
+Tool lists, generated help and skills include only commands permitted by the token, the creator's current grants, tool enablement, delegated read-only restriction and administrator Allow writes switch.
+Tools with no permitted commands are omitted, and tool lists report the effective read-only state.
+GitHub discovery also reflects its administrator operation allow-list.
+Other adapter-internal operation allow-lists, including UniFi, Falcon, Gitea, Technitium, Proxmox and Kubernetes credential acquisition, remain execution safeguards; reflecting them in discovery is a follow-up.
+Permitted leaf commands retain their native argument help; leaf help outside the token's scope is refused.
+Native output and error messages may mention other commands.
+Identity responses expose the creator's identity, delegation label, expiry and currently permitted command scope instead of roles or administrator capability.
+Ambient session context uses the filtered tool list and excludes identity and session metadata.
+Account management, administration and reauthentication remain denied with `DELEGATED_SCOPE_DENIED` (HTTP 403), even when the creator has administrator capability.
 Delegated SSH access, hosted sessions, streams and `artium-axi download` transfers remain unavailable in this slice.
 Refresh and logout remain available; logging out revokes that exchanged session family, while token revocation invalidates all its families.
 Delegated access ends on expiry, revocation, creator disablement or password change.
 The seven-day SSO freshness pause is deferred to slice 6.
 
-Adapter classifiers resolve canonical command names and reviewed read/write effects for scope enforcement.
+Command picks are exact and normalized through the adapter resolver to canonical operations at minting; wildcard patterns are refused and remain a follow-up.
+Adapter classifiers resolve canonical command names and reviewed read/write effects for scope enforcement before upstream credential access.
+Proxmox batches require authorization for every nested operation as well as the outer command.
+Selecting a Kubernetes mutation also authorizes preparation, server dry-run, preview and confirmation for that operation; preview and confirmation resolve the saved request's underlying operation against the current grant.
 Unknown commands, parsing failures and dynamic or conditional inventory effects default to write; reviewed read-command labels remain reads even when those commands have outside effects.
 Read-only tokens refuse write-classified commands, including previews and Kubernetes prepare/preview workflows, but do not prevent all outbound data or spending.
 Hybrid Analysis quick scans, for example, still send samples or URLs to a third party as reads.
-Tool-wide grants exclude credential-producing commands and broad API escape hatches; those require exact selections, and credential-producing commands additionally require a writable token.
+Tool-wide grants exclude credential-producing commands and broad API and native escape hatches; those require exact selections, and credential-producing commands additionally require a writable token.
+An exact API or native selection remains broad because it can reach many operations.
 Technitium `settings backup`, `settings set`, `settings restore` and `admin cluster primary transfer-config` are included in the credential-producing boundary because they can return secrets.
 The [delegation policy](../src/server/auth/delegations.ts) owns the reviewed exact-selection set.
 Issued upstream credentials can outlive the delegated token and must be revoked separately.
-Ordinary data results, including AWX stdout downloads and Technitium zone, allowed/blocked and log exports, remain available within delegated tool access.
+Ordinary data results, including AWX stdout downloads and Technitium zone, allowed/blocked and log exports, remain available within the authorized command scope.
 Delegated protected results are bound to the exchanged session family; another exchange of the same reusable token cannot retrieve them.
 Dedicated download classification is deferred to slice 7d, where minting must select the exact transfer operation while retaining existing administrative grants, confirmation and integrity checks.
 The [shared classifier](../src/server/adapters/classify.ts) and [adapter regression tests](../src/server/adapters/classify.test.ts) define and exercise the classification boundary.

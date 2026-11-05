@@ -14,7 +14,7 @@ import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './auth/local.js'
 import { exchangeDelegation, hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, requireRecentAuth, verifyAccessToken, verifyPasswordToken, verifyPrincipal } from './auth/tokens.js'
-import { createDelegation, delegationIncludesTool, revokeDelegation } from './auth/delegations.js'
+import { createDelegation, delegatedDiscovery, delegationIncludesTool, revokeDelegation } from './auth/delegations.js'
 import { kubernetesBinding } from './policy/kubernetes.js'
 import { ProxmoxAccess, proxmoxTrust } from './runner/proxmox.js'
 import { registerProxmoxStreams } from './proxmox-streams.js'
@@ -208,7 +208,9 @@ export function createApp(options: {
   app.get('/v1/tools', async request => {
     const principal = verifyPrincipal(db, bearer(request.headers.authorization))
     const { userId, delegation } = principal
-    const tools = grantedAdapters(userId).filter(adapter => !delegation || delegationIncludesTool(delegation.scopeJson, adapter.name)).map(adapter => {
+    const discovery = delegation ? delegatedDiscovery(db, userId, delegation, adapters)
+      : grantedAdapters(userId).map(adapter => ({ adapter, commands: undefined, readOnly: undefined }))
+    const tools = discovery.map(({ adapter, commands, readOnly }) => {
       const row = db.prepare(`SELECT native_settings AS nativeSettings, credentials.revision AS configured,
         tool_health.status AS health, tool_health.error_code AS errorCode
         FROM tools LEFT JOIN credentials ON credentials.tool = tools.name
@@ -217,23 +219,28 @@ export function createApp(options: {
       const reference = adapter.name === 'awx-axi' ? options.credentialStore?.findCredential(adapter.name) : undefined
       const configured = adapter.name === 'ssh-axi' ? hasSshConfiguration(db, userId)
         : Boolean(row.configured) && !(reference && isAwxOriginOnly(adapter.name, options.credentialStore!.readCredential(reference)))
-      return { name: adapter.name, version: toolManifests[adapter.name].version,
-        readOnly: !!delegation?.readOnly || !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: configured ? adapter.name === 'ssh-axi' ? 'unknown' : row.health ?? (health.checking(adapter.name) ? 'checking' : 'unknown') : 'unconfigured',
+      return { name: adapter.name, version: toolManifests[adapter.name].version, ...(commands ? { commands } : {}),
+        readOnly: readOnly ?? !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: configured ? adapter.name === 'ssh-axi' ? 'unknown' : row.health ?? (health.checking(adapter.name) ? 'checking' : 'unknown') : 'unconfigured',
         ...(adapter.name !== 'ssh-axi' && configured && row.health === 'error' && row.errorCode ? { errorCode: row.errorCode } : {}) }
     })
     return toolsResponseSchema.parse({ tools })
   })
   app.get('/v1/skills', async (request, reply) => {
-    const userId = authenticate(db, bearer(request.headers.authorization))
-    const granted = db.prepare(`SELECT DISTINCT role_tools.tool AS name FROM user_roles
-      JOIN role_tools ON role_tools.role_id = user_roles.role_id
-      WHERE user_roles.user_id = ? ORDER BY role_tools.tool`).all(userId) as { name: ToolName }[]
+    const { userId, delegation } = verifyPrincipal(db, bearer(request.headers.authorization))
     reply.header('cache-control', 'no-store')
-    return { skills: granted.map(tool => ({ name: tool.name, content: loadToolSkill(tool.name) })) }
+    if (!delegation) {
+      const granted = db.prepare(`SELECT DISTINCT role_tools.tool AS name FROM user_roles
+        JOIN role_tools ON role_tools.role_id = user_roles.role_id
+        WHERE user_roles.user_id = ? ORDER BY role_tools.tool`).all(userId) as { name: ToolName }[]
+      return { skills: granted.map(tool => ({ name: tool.name, content: loadToolSkill(tool.name) })) }
+    }
+    return { skills: delegatedDiscovery(db, userId, delegation, adapters).map(({ adapter, commands }) => {
+      return { name: adapter.name, content: `---\nname: ${adapter.name}\ndescription: Use permitted ${adapter.name} commands through Artium.\n---\n\n# ${adapter.name}\n\nRun each command with --help for required arguments.\n\nPermitted commands:\n${commands.map(command => `- \`artium-axi ${adapter.name} ${command}\``).join('\n')}\n` }
+    }) }
   })
   app.get('/v1/me', async request => {
     const token = bearer(request.headers.authorization)
-    const userId = authenticate(db, token)
+    const { userId, delegation } = verifyPrincipal(db, token)
     const user = db.prepare('SELECT username, display_name, administrator FROM users WHERE id = ?').get(userId) as
       { username: string, display_name: string, administrator: number }
     const roles = db.prepare('SELECT DISTINCT name FROM roles JOIN user_roles ON roles.id = user_roles.role_id WHERE user_roles.user_id = ? ORDER BY name')
@@ -241,6 +248,13 @@ export function createApp(options: {
     const expiry = db.prepare(`SELECT tokens.expires_at, session_families.expires_at AS session_expires_at FROM tokens
       JOIN session_families ON session_families.id = tokens.family_id WHERE hash = ?`).get(hashToken(token)) as
       { expires_at: number, session_expires_at: number }
+    if (delegation) {
+      const row = db.prepare('SELECT label FROM delegations WHERE id = ?').get(delegation.id) as { label: string }
+      const discovery = delegatedDiscovery(db, userId, delegation, adapters)
+      return { username: user.username, displayName: user.display_name, delegation: { label: row.label, expiresAt: delegation.expiresAt,
+        scope: { tools: discovery.map(({ adapter, commands }) => ({ tool: adapter.name, commands })) } },
+      accessExpiresAt: expiry.expires_at, sessionExpiresAt: expiry.session_expires_at }
+    }
     return { username: user.username, displayName: user.display_name, administrator: Boolean(user.administrator),
       roles: roles.map(role => role.name), accessExpiresAt: expiry.expires_at, sessionExpiresAt: expiry.session_expires_at }
   })
@@ -290,7 +304,7 @@ export function createApp(options: {
       const id = randomUUID()
       const creator = userId
       const result = audit.change({ event: 'token-create', userId, delegationId: id, tool: null, targetId: id,
-        requestId: request.id, clientAddress: request.ip, outcome: 'success' }, () => createDelegation(db, creator, input.data, id)).value
+        requestId: request.id, clientAddress: request.ip, outcome: 'success' }, () => createDelegation(db, creator, input.data, adapters, id)).value
       return reply.header('cache-control', 'no-store').send(result)
     } catch (error) {
       audit.record({ event: 'token-create', userId, tool: null, requestId: request.id, clientAddress: request.ip,

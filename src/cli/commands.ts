@@ -21,6 +21,7 @@ import { sessionContext } from './session-context.js'
 import { sshExecution } from './ssh.js'
 import { kubernetesHosted } from './kubernetes.js'
 import { tokenCommand } from './token.js'
+import { readStoredSession } from './session.js'
 
 let managed: ManagedSession | undefined
 let failureContext = 'main'
@@ -53,17 +54,51 @@ async function main(args: string[]) {
   const command = args[0]
   const help = helpCommand(prefixHelp ? [...args, '--help'] : args, prefixHelp)
   if (prefixHelp && !help) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi --help for commands.')
-  if (help) { output('stdout', commandHelp(help)); return }
-  if (args.length === 0) {
-    const bin = resolve(process.argv[1])
-    output('stdout', `bin: ${JSON.stringify(bin)}\ndescription: Run managed upstream tools through one local sign-in.\n`)
-  }
+  const toolWords = args.slice(1).filter(arg => !['--json', '--full', '--help', '-h'].includes(arg))
+  const toolDiscovery = toolSchema.safeParse(command).success && (prefixHelp || toolWords.length === 0
+    || args.slice(1).some(arg => ['--help', '-h'].includes(arg)) || toolWords[0] === 'help'
+    || toolWords.length === 1 && ['commands', 'home'].includes(toolWords[0]))
+  const scopedHelp = toolDiscovery || help && ['home', 'tools', 'tools show'].includes(help)
+  if (help && !scopedHelp) { output('stdout', commandHelp(help)); return }
   if (managedMode) {
     if (['passwd', 'logout', 'setup', 'update', 'session-context'].includes(args[0])) {
       throw new ArtiumError('INVALID_INPUT', 'This command is unavailable in managed session mode.',
         'The caller manages session persistence, password changes and revocation.')
     }
     managed = await ManagedSession.read(args[0] === 'login')
+  }
+  if (scopedHelp && (managed || readStoredSession()?.session.delegated)) {
+    const client = new Client(process.env, managed)
+    const delegated = managed
+      ? 'delegation' in meResponseSchema.parse(await client.authenticated('/v1/me', 'GET'))
+      : client.sessions.read()?.delegated
+    if (delegated) {
+      const { tools } = toolsResponseSchema.parse(await client.authenticated('/v1/tools', 'GET'))
+      if (tools.some(tool => tool.commands === undefined)) throw new ArtiumError('INVALID_RESPONSE')
+      const name = toolDiscovery ? command : help === 'tools show' ? args.slice(2).find(arg => toolSchema.safeParse(arg).success) : undefined
+      if (name) {
+        const tool = tools.find(tool => tool.name === name)
+        if (!tool) throw new ArtiumError('TOOL_NOT_GRANTED')
+        if (toolDiscovery && !prefixHelp && toolWords.length > 0 && !(toolWords.length === 1 && ['commands', 'home', 'help'].includes(toolWords[0]))) {
+          const parsed = runSuccessSchema.safeParse(await client.authenticated(`/v1/tools/${name}/run`, 'POST', { args: args.slice(1) }))
+          if (!parsed.success || parsed.data.source !== name) throw new ArtiumError('INVALID_RESPONSE')
+          const { truncated } = parsed.data
+          if (truncated.stdout || truncated.stderr) output('stderr', `artium-axi: output truncated (${['stdout', 'stderr'].filter(stream => truncated[stream as keyof typeof truncated]).join(', ')}).\n`)
+          output('stdout', parsed.data.stdout)
+          output('stderr', parsed.data.stderr)
+          if (parsed.data.exitCode !== 0 && client.requestId) output('stderr', `${parsed.data.stderr && !parsed.data.stderr.endsWith('\n') ? '\n' : ''}artium-axi: request_id ${client.requestId}\n`)
+          process.exitCode = parsed.data.exitCode
+          return
+        }
+        output('stdout', args.includes('--json') ? JSON.stringify({ tool: tool.name, commands: tool.commands }) + '\n' : toolView(tool))
+      } else output('stdout', toolsView(tools))
+      return
+    }
+  }
+  if (help) { output('stdout', commandHelp(help)); return }
+  if (args.length === 0) {
+    const bin = resolve(process.argv[1])
+    output('stdout', `bin: ${JSON.stringify(bin)}\ndescription: Run managed upstream tools through one local sign-in.\n`)
   }
   if (command === 'session-context') { output('stdout', await sessionContext()); return }
   if (command === 'update') { output('stdout', await update()); return }

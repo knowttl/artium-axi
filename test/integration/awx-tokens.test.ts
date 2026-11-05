@@ -3,6 +3,9 @@ import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { join } from 'node:path'
 import { decode } from '@toon-format/toon'
+import { parse } from 'yaml'
+import { toolView } from '../../src/cli/views.js'
+import { meResponseSchema } from '../../src/shared/api.js'
 import { expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createAwxAdapter } from '../../src/server/adapters/awx.js'
@@ -74,6 +77,7 @@ test('delegated AWX credential creation requires an exact writable pick', async 
         readOnly, reusable: false, expiresAt: Date.now() + 600_000 } })
     const wildcard = await create(['user *'], false)
     expect(wildcard.statusCode).toBe(400)
+    expect(wildcard.json().error.message).toBe('Wildcards are not supported yet.')
     for (const [config, commands, readOnly, allowed] of [
       ['wide', undefined, false, false], ['readonly', ['user token-create'], true, false], ['exact', ['user token-create'], false, true],
     ] as const) {
@@ -84,6 +88,13 @@ test('delegated AWX credential creation requires an exact writable pick', async 
       expect(login.code).toBe(0)
       expect((login.stdout + login.stderr + login.argv.join(' ')).includes(token)).toBe(false)
       if (allowed) {
+        const discovery = await cli(config, ['tools', 'show', 'awx-axi'])
+        expect(discovery.stdout).toContain('user token-create')
+        expect(discovery.stdout).not.toContain('job list')
+        const rootHelp = await cli(config, ['awx-axi', '--help'])
+        expect(rootHelp.stdout).toContain('user token-create')
+        expect(rootHelp.stdout).not.toContain('job list')
+        expect((await cli(config, ['session-context'])).stdout).toContain('awx-axi')
         expect((await cli(config, ['awx-axi', 'user', 'token-create', '42', '--help'])).code).toBe(0)
         expect((await cli(config, ['awx-axi', 'user', 'token-create', '42', '--dry-run'])).code).toBe(0)
         expect(db.prepare("SELECT outcome FROM audit WHERE event = 'credential-issue' ORDER BY id").all())
@@ -118,6 +129,116 @@ test('read-only delegated AWX stdout remains retrievable as data (R8)', async ()
     const downloaded = await app.inject({ url: result.path, headers: delegated })
     expect(downloaded.statusCode).toBe(200)
     expect(downloaded.body).toBe('synthetic log\n')
+  })
+})
+
+test('command-scoped discovery and enforcement follow the delegated grant', async () => {
+  await withTokenService(async ({ app, db, headers }) => {
+    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
+    const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+    const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
+      headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { label: 'Synthetic',
+        scope: { tools: [{ tool: 'awx-axi', commands: ['job list'] }] }, readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 } })
+    const exchanged = await app.inject({ method: 'POST', url: '/v1/auth/delegated', payload: { token: minted.json().token } })
+    const delegated = { authorization: `Bearer ${exchanged.json().accessToken}` }
+    const tools = await app.inject({ url: '/v1/tools', headers: delegated })
+    expect(tools.json().tools[0].commands).toEqual(['job list'])
+    const skills = await app.inject({ url: '/v1/skills', headers: delegated })
+    const content = skills.json().skills[0].content as string
+    const [, frontmatter, body] = content.split('---\n')
+    expect(parse(frontmatter)).toEqual({ name: 'awx-axi', description: 'Use permitted awx-axi commands through Artium.' })
+    expect(body).toContain('`artium-axi awx-axi job list`')
+    expect(body).not.toContain('user token-create')
+    const me = await app.inject({ url: '/v1/me', headers: delegated })
+    expect(me.json()).toMatchObject({ delegation: { label: 'Synthetic' } })
+    expect(me.json()).not.toHaveProperty('roles')
+    const help = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers: delegated, payload: { args: ['--help'] } })
+    expect(help.body).toContain('job list')
+    expect(help.body).not.toContain('user token-create')
+    db.exec("UPDATE tools SET enabled = 0 WHERE name = 'awx-axi'")
+    expect((await app.inject({ url: '/v1/skills', headers: delegated })).json().skills).toEqual([])
+    expect((await app.inject({ url: '/v1/tools', headers: delegated })).json().tools).toEqual([])
+    expect((await app.inject({ url: '/v1/me', headers: delegated })).json().delegation.scope.tools).toEqual([])
+    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+    db.exec("DELETE FROM credentials WHERE tool = 'awx-axi'")
+    const denied = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers: delegated, payload: { args: ['user', 'list'] } })
+    expect(denied.json()).toMatchObject({ error: { code: 'DELEGATED_SCOPE_DENIED' } })
+    db.exec("DELETE FROM role_tools WHERE tool = 'awx-axi'")
+    expect((await app.inject({ url: '/v1/me', headers: delegated })).json().delegation.scope.tools).toEqual([])
+    expect((await app.inject({ url: '/v1/tools', headers: delegated })).json().tools).toEqual([])
+    expect((await app.inject({ url: '/v1/skills', headers: delegated })).json().skills).toEqual([])
+  })
+})
+
+test.each([{ commands: undefined }, { commands: ['job list', 'job cancel', 'user token-create'] }])('read-only AWX discovery filters every command surface (R10): $commands', async ({ commands }) => {
+  await withTokenService(async ({ app, db, headers }) => {
+    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
+    const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+    const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
+      headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { label: 'Synthetic',
+        scope: { tools: [{ tool: 'awx-axi', commands }] }, readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 } })
+    const exchanged = await app.inject({ method: 'POST', url: '/v1/auth/delegated', payload: { token: minted.json().token } })
+    const delegated = { authorization: `Bearer ${exchanged.json().accessToken}` }
+    const tools = await app.inject({ url: '/v1/tools', headers: delegated })
+    const tool = tools.json().tools[0]
+    expect(tool.commands).toContain('job list')
+    expect(tool.commands).not.toContain('job cancel')
+    expect(tool.commands).not.toContain('user token-create')
+    const manifest = toolView(tool)
+    expect(manifest).toContain('job list')
+    expect(manifest).not.toContain('job cancel')
+    expect(manifest).not.toContain('user token-create')
+    const skills = await app.inject({ url: '/v1/skills', headers: delegated })
+    expect(skills.json().skills[0].content).toContain('`artium-axi awx-axi job list`')
+    expect(skills.json().skills[0].content).not.toContain('job cancel')
+    expect(skills.json().skills[0].content).not.toContain('user token-create')
+    const help = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers: delegated, payload: { args: ['--help'] } })
+    expect((decode(help.json().stdout) as { commands: string[] }).commands).toEqual(tool.commands)
+  })
+})
+
+test.each([
+  { commands: ['job list', 'job cancel', 'job stdout'] },
+  { commands: ['job list', 'job cancel'] },
+  { commands: undefined },
+])('delegated AWX discovery follows current write and tool policy (R11, R13): $commands', async ({ commands }) => {
+  await withTokenService(async ({ app, db, headers }) => {
+    db.exec(`UPDATE delegation_settings SET minting_enabled = 1;
+      UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+    const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
+      headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { label: 'Synthetic',
+        scope: { tools: [{ tool: 'awx-axi', commands }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 600_000 } })
+    const exchanged = await app.inject({ method: 'POST', url: '/v1/auth/delegated', payload: { token: minted.json().token } })
+    const delegated = { authorization: `Bearer ${exchanged.json().accessToken}` }
+    const writable = await app.inject({ url: '/v1/tools', headers: delegated })
+    expect(writable.json().tools[0]).toMatchObject({ readOnly: false, commands: expect.arrayContaining(['job list', 'job cancel']) })
+    const writableSkills = await app.inject({ url: '/v1/skills', headers: delegated })
+    expect(writableSkills.json().skills[0].content).toContain('`artium-axi awx-axi job cancel`')
+    const writableHelp = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers: delegated, payload: { args: ['--help'] } })
+    expect((decode(writableHelp.json().stdout) as { commands: string[] }).commands).toContain('job cancel')
+
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":false}' WHERE name = 'awx-axi'`)
+    const tools = await app.inject({ url: '/v1/tools', headers: delegated })
+    const tool = tools.json().tools[0]
+    expect(tool.readOnly).toBe(true)
+    expect(tool.commands).toContain('job list')
+    expect(tool.commands).not.toContain('job cancel')
+    const identity = await app.inject({ url: '/v1/me', headers: delegated })
+    expect(meResponseSchema.parse(identity.json())).toMatchObject({ delegation: { scope: { tools: [{ tool: 'awx-axi', commands: tool.commands }] } } })
+    expect(toolView(tool)).not.toContain('job cancel')
+    const skills = await app.inject({ url: '/v1/skills', headers: delegated })
+    expect(skills.json().skills[0].content).toContain('`artium-axi awx-axi job list`')
+    expect(skills.json().skills[0].content).not.toContain('job cancel')
+    const help = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers: delegated, payload: { args: ['--help'] } })
+    expect((decode(help.json().stdout) as { commands: string[] }).commands).toEqual(tool.commands)
+
+    db.exec("UPDATE tools SET enabled = 0 WHERE name = 'awx-axi'")
+    expect((await app.inject({ url: '/v1/tools', headers: delegated })).json().tools).toEqual([])
+    expect((await app.inject({ url: '/v1/skills', headers: delegated })).json().skills).toEqual([])
+    expect((await app.inject({ url: '/v1/me', headers: delegated })).json().delegation.scope.tools).toEqual([])
+    const disabledHelp = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers: delegated, payload: { args: ['--help'] } })
+    expect(disabledHelp.json()).toMatchObject({ error: { code: 'TOOL_DISABLED' } })
   })
 })
 

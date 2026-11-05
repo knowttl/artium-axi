@@ -47,7 +47,7 @@ async function withAccess(check: (execute: (delegated: boolean) => Promise<Runne
   const results = new ProtectedResults()
   const access = new ProxmoxAccess(db, new SharedIdentityResolver(store), runner, results)
   const delegation = createDelegation(db, userId, { label: 'Synthetic', scope: { tools: [{ tool: 'proxmox-axi' }] },
-    readOnly: true, reusable: true, expiresAt: Date.now() + 600_000 })
+    readOnly: true, reusable: true, expiresAt: Date.now() + 600_000 }, [])
   const execute = (delegated: boolean) => {
     const token = delegated ? exchangeDelegation(db, delegation.token).accessToken : issueTestAccessToken(db, userId)
     const familyId = verifyPrincipal(db, token).familyId

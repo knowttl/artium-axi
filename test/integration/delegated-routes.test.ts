@@ -28,13 +28,13 @@ classify('GET', `/ /login /auth/sso/:provider/start /auth/sso/:provider/callback
   /health/live /health/ready /cli/artium-axi.mjs /cli/artium-axi.mjs.sha256
   /admin/assets/confirm.js /admin/assets/style.css`, 'public')
 classify('POST', `/login /logout /device /v1/auth/device /v1/auth/device/poll /v1/auth/login /v1/auth/delegated /v1/auth/refresh /v1/auth/logout /v1/tools/:tool/run`, 'public')
-classify('GET', `/v1/tools /v1/results/technitium-axi/:operation/:id /v1/results/awx-axi/:operation/:id
+classify('GET', `/v1/tools /v1/skills /v1/me /v1/results/technitium-axi/:operation/:id /v1/results/awx-axi/:operation/:id
   /v1/results/kubernetes-axi/:operation/:id /v1/results/proxmox-axi/:operation/:id`, 'public')
 classify('GET', `/account /password /reauth /v1/account/sessions
   /admin /admin/ssh /admin/ssh/credentials /admin/ssh/audit /admin/settings/sign-in
   /admin/settings/sign-in/:id /admin/settings/sign-in/:id/matches/:ruleId /admin/invitations
   /admin/audit /admin/users /admin/users/:id /admin/roles /admin/roles/:id /admin/credentials /admin/tools /admin/tools/:tool
-  /v1/skills /v1/me /v1/account/tokens /v1/admin/tokens /v1/tools/proxmox-axi/streams/limits
+  /v1/account/tokens /v1/admin/tokens /v1/tools/proxmox-axi/streams/limits
   /v1/tools/kubernetes-axi/workspaces/:id /v1/tools/kubernetes-axi/workspaces/:id/files/*
   /v1/tools/kubernetes-axi/sessions /v1/tools/kubernetes-axi/sessions/:id
   /v1/tools/kubernetes-axi/sessions/:id/output /v1/tools/kubernetes-axi/sessions/:id/artifacts/*

@@ -8,7 +8,8 @@ import type { Adapter, PreparedCall } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
 import type { Audit, AuditEvent } from '../audit/audit.js'
 import { verifyAccessFamily, verifyAccessToken, verifyPrincipal } from '../auth/tokens.js'
-import { checkDelegation, credentialIssuingCommand } from '../auth/delegations.js'
+import { authorizeDelegatedCall, credentialIssuingCommand, delegatedDiscovery, delegatedDiscoveryRequest, delegationIncludesTool } from '../auth/delegations.js'
+import type { CredentialReference } from '../store/credential-store.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { RunnerError } from './runner.js'
@@ -19,7 +20,7 @@ import { hostedStatus } from '../adapters/hosted-status.js'
 import { logRun } from './log.js'
 import { adoApiAudit } from '../adapters/ado-api.js'
 import type { ProtectedResults } from '../protected-results.js'
-import { kubernetesCredentialRequest } from './kubernetes-requests.js'
+import { kubernetesRequestCommand } from './kubernetes-requests.js'
 import { proxmoxTrust, type ProxmoxAccess } from './proxmox.js'
 
 export interface RunContext {
@@ -48,7 +49,10 @@ export async function runTool<Credential>(
     let delegationId: string | null = null
     let familyId: string | undefined
     let readOnly = false
-    let credentialCommand: string | undefined
+    let credentialCommands: string[] = []
+    let reference: CredentialReference | undefined
+    let continuation: ReturnType<NonNullable<Adapter<unknown>['kubernetesContinuation']>>
+    let continuationCommand: string | undefined
     let args: string[]
     let input: { stdin?: string, files?: { name: string, contentBase64: string }[] }
     const started = Date.now()
@@ -77,12 +81,30 @@ export async function runTool<Credential>(
       input = { stdin: parsed.data.stdin, files: parsed.data.files }
       if (/artd_[A-Za-z0-9_-]{43}/.test(JSON.stringify({ args, stdin: input.stdin, names: input.files?.map(file => file.name) }))
         || input.files?.some(file => /artd_[A-Za-z0-9_-]{43}/.test(Buffer.from(file.contentBase64, 'base64').toString('latin1')))) throw new ArtiumError('INVALID_INPUT')
+      if (principal?.delegation && delegatedDiscoveryRequest(adapter, args, input)) {
+        const discovery = delegatedDiscovery(db, userId, principal.delegation, [adapter])[0]
+        if (!discovery) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+        adapter.validateArgs(args.length ? args : ['--help'], input)
+        validateFileInput(adapter.name, args, input)
+        const json = args.includes('--json') || args.includes('--format=json') || args.some((arg, index) => arg === '--format' && args[index + 1] === 'json')
+        const stdout = (json ? JSON.stringify : encode)({ tool: adapter.name, commands: discovery.commands }) + '\n'
+        return { stdout, stderr: '', exitCode: 0, durationMs: Date.now() - started,
+          outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
+      }
       adapter.validateArgs(args, input)
       validateFileInput(adapter.name, args, input)
+      continuation = adapter.kubernetesContinuation?.(args, input)
       if (principal?.delegation) {
-        const classification = adapter.classify(args, input)
-        checkDelegation(principal.delegation.scopeJson, readOnly, adapter.name, classification.command, classification.effect)
-        if (credentialIssuingCommand(adapter.name, classification.command)) credentialCommand = classification.command
+        if (continuation && !continuation.help) {
+          if (readOnly || !delegationIncludesTool(principal.delegation.scopeJson, adapter.name)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+          if (!continuation.root) throw new ArtiumError('TEMP_UNAVAILABLE')
+          reference = await resolver.resolve(userId, adapter.name)
+          const scope = createHash('sha256').update(JSON.stringify({ userId, family: familyId ?? verifyAccessFamily(db, token), reference })).digest('hex')
+          continuationCommand = await kubernetesRequestCommand(continuation.root, scope, continuation.key)
+          if (!continuationCommand) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+        }
+        const operations = authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand)
+        credentialCommands = [...new Set(operations.filter(operation => credentialIssuingCommand(adapter.name, operation.command)).map(operation => operation.command))]
       }
     } catch (error) {
       recordApiDecision('refused')
@@ -92,16 +114,12 @@ export async function runTool<Credential>(
     }
     const identity = { userId, delegationId, tool: adapter.name, requestId: context.requestId, clientAddress: context.clientAddress }
     const family = () => familyId ?? verifyAccessFamily(db, token)
-    if (credentialCommand) audit.record({ ...identity, event: 'credential-issue', targetId: credentialCommand, outcome: 'attempt' })
-    let confirmedCredentialCommand: string | undefined
+    for (const command of credentialCommands) audit.record({ ...identity, event: 'credential-issue', targetId: command, outcome: 'attempt' })
     const recheck = () => {
       if (authenticate === verifyAccessToken) {
         const current = verifyPrincipal(db, token)
         if (current.delegation) {
-          const classification = adapter.classify(args, input)
-          checkDelegation(current.delegation.scopeJson, current.delegation.readOnly, adapter.name, classification.command, classification.effect)
-          if (confirmedCredentialCommand) checkDelegation(current.delegation.scopeJson, current.delegation.readOnly,
-            adapter.name, confirmedCredentialCommand, 'write')
+          authorizeDelegatedCall(db, current.userId, current.delegation, adapter, args, input, continuationCommand)
         }
       } else authenticate(db, token)
       checkToolPolicy(db, userId, adapter.name)
@@ -135,7 +153,7 @@ export async function runTool<Credential>(
       }
     }
     try {
-      const reference = adapter.prepareForCaller ? undefined : await resolver.resolve(userId, adapter.name)
+      if (!adapter.prepareForCaller) reference ??= await resolver.resolve(userId, adapter.name)
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
         : await adapter.prepare(args, reference!, input)
       if (readOnly) prepared.environment = { ...prepared.environment, [`${adapter.name.toUpperCase().replaceAll('-', '_')}_READ_ONLY`]: 'true' }
@@ -146,17 +164,13 @@ export async function runTool<Credential>(
       const nativeScope = (adapter.name === 'unifi-axi' || adapter.name === 'technitium-axi') && reference
         ? createHash('sha256').update(JSON.stringify({ userId, family: family(), reference })).digest('hex') : undefined
       const credentialConfirmation = prepared.invocation?.command === 'confirm' && !prepared.invocation.help && kubernetesRequests
-        && await kubernetesCredentialRequest(kubernetesRequests.root, kubernetesRequests.scope, args[1])
-      if (delegationId && credentialConfirmation) {
-        confirmedCredentialCommand = credentialCommand = 'create token'
-        recheck()
-        audit.record({ ...identity, event: 'credential-issue', targetId: credentialCommand, outcome: 'attempt' })
-      }
+        && continuation && !continuation.help && credentialIssuingCommand(adapter.name,
+          continuationCommand ?? await kubernetesRequestCommand(kubernetesRequests.root, kubernetesRequests.scope, continuation.key) ?? '')
       const protectedResult = prepared.protectedResult?.source === 'pipe' && kubernetesRequests
         && !credentialConfirmation
         ? undefined : prepared.protectedResult
-      if (credentialCommand && (prepared.preview || prepared.invocation?.help || !protectedResult && prepared.effect === 'read')) {
-        audit.record({ ...identity, event: 'credential-issue', targetId: credentialCommand, outcome: 'preview' })
+      if (prepared.preview || prepared.invocation?.help || !protectedResult && prepared.effect === 'read') {
+        for (const command of credentialCommands) audit.record({ ...identity, event: 'credential-issue', targetId: command, outcome: 'preview' })
       }
       if (protectedResult) {
         if (!context.protectedResults || !reference) throw new ArtiumError('UNSUPPORTED_INPUT')
@@ -222,7 +236,7 @@ export async function runTool<Credential>(
         const json = result.stdout.trimStart().startsWith('{')
         const projection = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
         const resultReference = reservation.commit(privateBytes)
-        if (credentialCommand && result.exitCode === 0) audit.record({ ...identity, event: 'credential-issue', targetId: credentialCommand, outcome: 'success' })
+        if (result.exitCode === 0) for (const command of credentialCommands) audit.record({ ...identity, event: 'credential-issue', targetId: command, outcome: 'success' })
         projection.result = resultReference
         result.stdout = (json ? JSON.stringify(projection) : encode(projection)) + '\n'
         result.outputBytes.stdout = Buffer.byteLength(result.stdout)

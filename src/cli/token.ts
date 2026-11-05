@@ -11,7 +11,7 @@ import type { ManagedSession } from './managed-session.js'
 export async function tokenCommand(args: string[], output: (text: string) => void, managed?: ManagedSession) {
   const action = args[0]
   if (args.includes('--help')) {
-    output('usage: artium-axi token create --label <label> --tool <tool> --expires <ISO-date> [--write] [--reusable] [--exact <tool:command>] [--token-fd <fd>] [--password-stdin|--sso]\n       artium-axi token list\n       artium-axi token revoke <id>\nRead-only blocks writes, but some reads send data externally or incur costs.\n')
+    output('usage: artium-axi token create --label <label> --tool <tool> --expires <ISO-date> [--write] [--reusable] [--command <tool:command>] [--exact <tool:command>] [--token-fd <fd>] [--password-stdin|--sso]\n       artium-axi token list\n       artium-axi token revoke <id>\nCommand picks are exact. Wildcards are not supported yet. API and native selections are broad and require an exact pick.\nRead-only blocks writes, but some reads send data externally or incur costs.\n')
     return
   }
   if (managed) throw new ArtiumError('INVALID_INPUT', 'Token management is unavailable in managed mode.')
@@ -27,7 +27,7 @@ export async function tokenCommand(args: string[], output: (text: string) => voi
   if (action === 'list' || action === 'revoke') throw new ArtiumError('INVALID_INPUT', 'Invalid token command arguments.',
     action === 'list' ? 'Use artium-axi token list; valid flags: --help.' : 'Use artium-axi token revoke <id>; valid flags: --help.')
   if (action !== 'create') throw new ArtiumError('INVALID_INPUT', 'Invalid token command.', 'Use artium-axi token --help.')
-  const createFlags = ['--label', '--tool', '--expires', '--write', '--reusable', '--exact', '--token-fd', '--password-stdin', '--sso']
+  const createFlags = ['--label', '--tool', '--expires', '--write', '--reusable', '--command', '--exact', '--token-fd', '--password-stdin', '--sso']
   const flags = new Map<string, string[]>()
   for (let index = 1; index < args.length; index++) {
     const flag = args[index]
@@ -35,9 +35,11 @@ export async function tokenCommand(args: string[], output: (text: string) => voi
       flag.startsWith('-') && !/artd_[A-Za-z0-9_-]{43}/.test(flag) ? `Unknown flag ${flag.split('=')[0]} for token create.` : 'Unexpected argument for token create.',
       `Valid flags: --help, ${createFlags.join(', ')}.`)
     const values = flags.get(flag) ?? []
-    if (values.length && !['--tool', '--exact'].includes(flag)) throw new ArtiumError('INVALID_INPUT')
+    if (values.length && !['--tool', '--command', '--exact'].includes(flag)) throw new ArtiumError('INVALID_INPUT')
     const value = ['--write', '--reusable', '--password-stdin', '--sso'].includes(flag) ? 'true' : args[++index]
     if (!value || value.startsWith('--')) throw new ArtiumError('INVALID_INPUT')
+    if (['--exact', '--command'].includes(flag) && value.includes('*')) throw new ArtiumError('INVALID_INPUT',
+      'Wildcards are not supported yet.', 'Select exact commands or use --tool for tool-wide access.')
     values.push(value)
     flags.set(flag, values)
   }
@@ -50,7 +52,7 @@ export async function tokenCommand(args: string[], output: (text: string) => voi
     return tool.data
   }
   const tools = (flags.get('--tool') ?? []).map(tool => ({ tool: readTool(tool) }))
-  const picks = (flags.get('--exact') ?? []).map(value => {
+  const picks = [...flags.get('--exact') ?? [], ...flags.get('--command') ?? []].map(value => {
     const separator = value.indexOf(':')
     if (separator < 0) throw new ArtiumError('INVALID_INPUT')
     return { tool: readTool(value.slice(0, separator)), commands: [value.slice(separator + 1)] }

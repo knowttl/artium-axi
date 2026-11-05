@@ -133,8 +133,11 @@ artium-axi --help falcon-axi
 artium-axi falcon-axi --help
 ```
 
-The first prints local Artium help without signing in or contacting the server.
+Outside delegated sessions, the first prints local Artium help without signing in or contacting the server.
 The second forwards `--help` through the authenticated upstream adapter, except that SSH top-level, execution and connection help are handled locally by the bundled client.
+Delegated sessions authenticate both forms to obtain filtered command discovery; bare tool calls also return discovery instead of live dashboard data.
+See [delegated capability boundaries](safety.md#delegated-sessions) for filtering and leaf help behavior.
+For full sessions, bare tool calls retain their native behavior:
 A bare `artium-axi falcon-axi` reads recent detections; use `artium-axi falcon-axi --help` for its command list.
 A bare `artium-axi vectra-axi` reads bounded live detection context; use `artium-axi vectra-axi --help` for its command list.
 `artium-axi az-axi` and `artium-axi az-axi home` run the Azure dashboard with ARM authentication.
@@ -445,7 +448,9 @@ The token appears once and is stored only as a hash by the server.
 The creator chooses an expiry within the administrator's cap and confirms their identity during creation.
 Tokens are single-use by default; `--reusable` permits multiple exchanges until expiry or revocation.
 `--write` opts into writes that the creator and administrator can currently perform.
-Use repeatable `--tool` flags for tool-wide grants, and `--exact '<tool:command>'` for a reviewed exact selection such as `--exact 'awx-axi:user token-create' --write`.
+Use repeatable `--tool` flags for tool-wide grants.
+Use repeatable `--command '<tool:command>'` or `--exact '<tool:command>'` for exact command picks, for example `--command 'awx-axi:job list'`.
+For credential issuance, a selection such as `--exact 'awx-axi:user token-create' --write` opts into the reviewed operation.
 Exact selections can be used alone or alongside tool-wide grants; see the [credential-producing boundary](safety.md#delegated-sessions) before selecting them.
 SSO creators use `--sso` instead of `--password-stdin` and approve the displayed browser code.
 Use `artium-axi token list` and `artium-axi token revoke <id>` to manage tokens.

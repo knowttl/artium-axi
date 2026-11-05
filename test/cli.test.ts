@@ -837,7 +837,7 @@ test.each(['stdout', 'stderr'] as const)('managed mode withholds both streams wh
   response = { status: 200, body: { source: 'falcon-axi', stdout: 'safe output', stderr: 'safe diagnostic',
     [stream]: Buffer.from(managedTokens.accessToken).toString('base64'), exitCode: 0,
     durationMs: 1, outputBytes: { stdout: 50, stderr: 50 }, truncated: { stdout: false, stderr: false } } }
-  const result = await managedCli(['falcon-axi'])
+  const result = await managedCli(['falcon-axi', 'host', 'list'])
   expect(result).toMatchObject({ code: 1, stdout: expect.stringContaining('SECRET_IN_OUTPUT'), stderr: '', rotations: '' })
   expect(result.stdout).not.toContain('safe output')
   expect(result.stdout).not.toContain(Buffer.from(managedTokens.accessToken).toString('base64'))
@@ -900,7 +900,7 @@ test('managed rotation remains private when the retry echoes a rotated token', a
       durationMs: 1, outputBytes: { stdout: 50, stderr: 50 }, truncated: { stdout: false, stderr: false } } },
   ]
   try {
-    expect(await managedCli(['falcon-axi'])).toMatchObject({ code: 1, stdout: expect.stringContaining('SECRET_IN_OUTPUT'), stderr: '',
+    expect(await managedCli(['falcon-axi', 'host', 'list'])).toMatchObject({ code: 1, stdout: expect.stringContaining('SECRET_IN_OUTPUT'), stderr: '',
       rotations: `${JSON.stringify({ serverUrl: url, ...rotatedTokens })}\n` })
   } finally { responseSequence = undefined }
 })
@@ -1553,13 +1553,15 @@ test.each([
   ['tools', '--help', 'show', 'falcon-axi'],
   ['tools', 'show', '--help', 'falcon-axi'],
   ['tools', 'show', 'falcon-axi', '--help'],
-].flatMap(args => [{ args }, { args: ['--managed-session', ...args] }]))(
-  'tools show help accepts every help position offline: $args', async ({ args }) => {
+].flatMap(args => [{ args, managed: false }, { args, managed: true }]))(
+  'tools show help accepts every help position (managed=$managed): $args', async ({ args, managed }) => {
     requests = []
-    const result = await cli(args, { ARTIUM_AXI_URL: undefined })
+    response = { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
+      roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } }
+    const result = managed ? await managedCli(args) : await cli(args, { ARTIUM_AXI_URL: undefined })
     expect(result).toMatchObject({ code: 0, stderr: '' })
     expect(result.stdout).toContain('usage: artium-axi tools show <tool>')
-    expect(requests).toEqual([])
+    expect(requests.map(request => request.path)).toEqual(managed ? ['/v1/me'] : [])
   })
 
 test.each([

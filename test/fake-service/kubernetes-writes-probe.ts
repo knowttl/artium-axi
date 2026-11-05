@@ -14,6 +14,8 @@ import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 import { runnerLimits, toolPaths } from '../../src/server/config.js'
+import { createDelegation } from '../../src/server/auth/delegations.js'
+import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 
 assert.ok(!readFileSync('/proc/net/route', 'utf8').split('\n').slice(1).some(line => line.split(/\s+/)[1] === '00000000'))
 const nativeCodec = await import(pathToFileURL(createRequire(realpathSync(toolPaths['kubernetes-axi'])).resolve('@toon-format/toon')).href) as { decode: (text: string) => unknown }
@@ -49,8 +51,8 @@ await withFakeService(async ({ directory, port, send }) => {
       assert.doesNotMatch(response.body, /CANARY-|ARTIUM_SECRET_|\/opt\/tools|artium-call-/)
       return { code: response.json().exitCode as number, value: nativeCodec.decode(response.json().stdout) as Record<string, any> }
     }
-    const success = async (args: string[]) => {
-      const output = await result(args)
+    const success = async (args: string[], identity = headers) => {
+      const output = await result(args, identity)
       assert.equal(output.code, 0, JSON.stringify(output))
       return output.value
     }
@@ -171,6 +173,13 @@ await withFakeService(async ({ directory, port, send }) => {
     const revision = store.findCredential('kubernetes-axi')!
     store.replaceCredential('kubernetes-axi', credential, revision.revision!, 'synthetic-development-user', Date.now())
     assert.equal((await result(['preview', revisionPlan.request])).value.error.code, 'REQUEST_NOT_FOUND')
+    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
+    const delegated = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic workflow',
+      scope: { tools: [{ tool: 'kubernetes-axi', commands: ['create configmap'] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
+    const scopedHeaders = { authorization: `Bearer ${exchangeDelegation(db, delegated.token).accessToken}` }
+    const scopedPlan = await success(['prepare', '--', 'create', 'configmap', 'synthetic-delegated', '--from-literal=mode=scoped'], scopedHeaders)
+    const scopedPreview = await success(['preview', scopedPlan.request], scopedHeaders)
+    assert.equal((await success(['confirm', scopedPlan.request, '--digest', scopedPreview.digest], scopedHeaders)).complete, true)
     db.prepare("DELETE FROM role_tools WHERE tool = 'kubernetes-axi'").run()
     assert.equal((await invoke(['preview', prepared.request])).statusCode, 403)
     assert.ok((await evidence()).requests.every(row => row.canaryReceived))
