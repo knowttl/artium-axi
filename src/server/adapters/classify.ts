@@ -14,7 +14,7 @@ export function classifyCommand(
     effect: exact.effect === 'read' || exact.effect === 'local' ? 'read' : 'write' }
   let command: string
   try { command = resolve(args, input) }
-  catch { return { command: args.join(' '), effect: 'write' } }
+  catch { return { command: 'unknown', effect: 'write' } }
   const route = routes.find(item => (item.canonicalCommand ?? (item.command || 'home')) === command)
   return { command, effect: route && (route.effect === 'read' || route.effect === 'local') ? 'read' : 'write' }
 }

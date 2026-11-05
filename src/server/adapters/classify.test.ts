@@ -88,6 +88,11 @@ test.each(adapters)('$name classifies an unknown command as write', adapter => {
   expect(adapter.classify(['synthetic-unknown']).effect).toBe('write')
 })
 
+test('unresolved arguments are not returned as a command name', () => {
+  const adapter = adapters.find(item => item.name === 'gh-axi')!
+  expect(adapter.classify(['unknown', 'synthetic-value'])).toEqual({ command: 'unknown', effect: 'write' })
+})
+
 test.each(['gitea-axi', 'technitium-axi', 'unifi-axi'])('%s uses its parser home name for empty and help calls', tool => {
   const adapter = adapters.find(item => item.name === tool)!
   expect(adapter.classify([])).toEqual({ command: 'home', effect: 'read' })
