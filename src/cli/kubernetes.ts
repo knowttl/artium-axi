@@ -96,8 +96,8 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
     const workspace = validated(workspaceSchema, await call(base, 'POST', manifest), 'INVALID_RESPONSE')
     try {
       for (const file of files) await call(`${base}/${workspace.id}/files/${file.path.split('/').map(encodeURIComponent).join('/')}`, 'PUT', await fileBytes(join(root, file.path)))
-      print(validated(workspaceSchema, await call(`${base}/${workspace.id}`, 'GET'), 'INVALID_RESPONSE'))
-    } catch (error) { try { await call(`${base}/${workspace.id}`, 'DELETE') } catch { /* Expiry also removes staged files. */ }; throw error }
+      print(validated(workspaceSchema, await call(`${base}/${workspace.id}?operation=create`, 'GET'), 'INVALID_RESPONSE'))
+    } catch (error) { try { await call(`${base}/${workspace.id}?operation=create`, 'DELETE') } catch { /* Expiry also removes staged files. */ }; throw error }
     return true
   }
   if (route === 'session list') {
@@ -119,7 +119,8 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
   const id = validated(z.uuid(), positionals[0]), path = `${base}/${id}`
   if (route === 'workspace download' || route === 'session artifact') {
     if (positionals.length !== 2 || !flags.has('--output')) throw new ArtiumError('INVALID_INPUT')
-    const status = group === 'workspace' ? validated(workspaceSchema, await call(path, 'GET'), 'INVALID_RESPONSE') : validated(sessionSchema, await call(path, 'GET'), 'INVALID_RESPONSE')
+    const metadataPath = path + '?operation=' + action
+    const status = group === 'workspace' ? validated(workspaceSchema, await call(metadataPath, 'GET'), 'INVALID_RESPONSE') : validated(sessionSchema, await call(metadataPath, 'GET'), 'INVALID_RESPONSE')
     const file = (group === 'workspace' ? (status as z.infer<typeof workspaceSchema>).files : (status as z.infer<typeof sessionSchema>).artifacts)?.find(file => file.path === positionals[1])
     if (!file) throw new ArtiumError('NOT_FOUND')
     const destination = await artifactDestination(flags.get('--output')!)

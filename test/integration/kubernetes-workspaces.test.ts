@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
@@ -16,6 +16,8 @@ import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { createDelegation, revokeDelegation } from '../../src/server/auth/delegations.js'
 import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 import type { Adapter } from '../../src/server/adapters/types.js'
+import { Client } from '../../src/cli/http.js'
+import { kubernetesHosted } from '../../src/cli/kubernetes.js'
 
 const prefix = '/v1/tools/kubernetes-axi/workspaces'
 const user = 'synthetic-development-user'
@@ -176,8 +178,63 @@ function delegated(commands?: string[], readOnly = false) {
   db.exec('UPDATE delegation_settings SET minting_enabled = 1')
   const grant = createDelegation(db, user, { label: 'Synthetic', scope: { tools: [{ tool: 'kubernetes-axi', ...(commands ? { commands } : {}) }] },
     readOnly, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
-  return { id: grant.id, headers: { authorization: `Bearer ${exchangeDelegation(db, grant.token).accessToken}` } }
+  const session = exchangeDelegation(db, grant.token)
+  return { id: grant.id, session, headers: { authorization: `Bearer ${session.accessToken}` } }
 }
+
+test('an exact workspace create grant completes CLI creation and cleanup without show or delete', async () => {
+  const grant = delegated(['workspace create'])
+  const url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const client = new Client({ ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1', ARTIUM_AXI_CA_FILE: '', XDG_CONFIG_HOME: directory })
+  client.sessions.write(grant.session, undefined, true)
+  const source = join(directory, 'source')
+  await mkdir(source, { mode: 0o700 })
+  await writeFile(join(source, 'input.bin'), binary)
+  const output: string[] = []
+  await kubernetesHosted(['workspace', 'create', source, '--json'], () => client, text => output.push(text))
+  const workspace = JSON.parse(output.join(''))
+  expect(workspace.ready).toBe(true)
+  expect(workspace.files).toEqual([{ ...descriptor('input.bin'), state: 'ready' }])
+  expect((await app.inject({ url: `${prefix}/${workspace.id}`, headers: grant.headers })).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+  expect((await app.inject({ method: 'DELETE', url: `${prefix}/${workspace.id}`, headers: grant.headers })).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+  expect((await app.inject({ method: 'DELETE', url: `${prefix}/${workspace.id}?operation=create`, headers: grant.headers })).statusCode).toBe(204)
+})
+
+test('an exact workspace download grant completes CLI retrieval without show', async () => {
+  const grant = delegated(['workspace create', 'workspace download'])
+  const created = await app.inject({ method: 'POST', url: prefix, headers: grant.headers, payload: { files: [descriptor('input.bin')] } })
+  expect(created.statusCode, created.body).toBe(200)
+  const id = created.json().id
+  const uploaded = await app.inject({ method: 'PUT', url: `${prefix}/${id}/files/input.bin`,
+    headers: { ...grant.headers, 'content-type': 'application/octet-stream' }, payload: binary })
+  expect(uploaded.statusCode, uploaded.body).toBe(200)
+  const url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const client = new Client({ ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1', ARTIUM_AXI_CA_FILE: '', XDG_CONFIG_HOME: directory })
+  client.sessions.write(grant.session, undefined, true)
+  const destination = join(directory, 'saved')
+  await mkdir(destination, { mode: 0o700 })
+  await kubernetesHosted(['workspace', 'download', id, 'input.bin', '--output', join(destination, 'input.bin'), '--json'], () => client, () => {})
+  expect(await readFile(join(destination, 'input.bin'))).toEqual(binary)
+  expect((await app.inject({ url: `${prefix}/${id}`, headers: grant.headers })).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+})
+
+test.each([
+  { operation: 'artifact', command: 'session artifact', sibling: 'tunnel' },
+  { operation: 'tunnel', command: 'tunnel', sibling: 'artifact' },
+])('session $operation metadata does not require a show grant', async ({ operation, command, sibling }) => {
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ sessions: { grants: { [user]: ['logs'] } } }))
+  const grant = delegated(['session start logs', command])
+  const started = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/sessions', headers: grant.headers,
+    payload: { kind: 'logs', argv: ['logs', 'synthetic-pod', '--follow'] } })
+  expect(started.statusCode, started.body).toBe(200)
+  const path = `/v1/tools/kubernetes-axi/sessions/${started.json().id}`
+  const metadata = await app.inject({ url: `${path}?operation=${operation}`, headers: grant.headers })
+  expect(metadata.statusCode, metadata.body).toBe(200)
+  expect(metadata.json().id).toBe(started.json().id)
+  expect((await app.inject({ url: path, headers: grant.headers })).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+  expect((await app.inject({ url: `${path}?operation=${sibling}`, headers: grant.headers })).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+})
 
 test('delegated session kinds are independently scoped and read-only refuses setup', async () => {
   db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")

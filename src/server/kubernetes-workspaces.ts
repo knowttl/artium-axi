@@ -6,7 +6,7 @@ import { Readable } from 'node:stream'
 import { finished } from 'node:stream/promises'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import type { z } from 'zod'
+import { z } from 'zod'
 import { ArtiumError } from '../shared/errors.js'
 import { authorizeKubernetesOwner, kubernetesBinding, kubernetesOwner, type KubernetesOwner } from './policy/kubernetes.js'
 import { kubernetesWorkspaceManifest as manifestSchema, kubernetesWorkspacePath as workspacePath } from '../shared/kubernetes.js'
@@ -76,7 +76,7 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     })()
     return workspace.closing
   }
-  async function selected(request: FastifyRequest, id: string, command = 'workspace show') {
+  async function selected(request: FastifyRequest, id: string, command: string) {
     const owner = ownerFor(request, command)
     const workspace = workspaces.get(id)
     if (!workspace || workspace.owner.user !== owner.user || workspace.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
@@ -124,12 +124,16 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     return reply.header('cache-control', 'no-store').send(view(workspace))
   })
   app.get<{ Params: { id: string } }>(`${prefix}/:id`, async (request, reply) => {
-    const workspace = await selected(request, request.params.id)
-    record(request, workspace.owner, workspace.id, 'show')
+    const parsed = z.strictObject({ operation: z.enum(['create', 'download', 'show']).default('show') }).safeParse(request.query)
+    if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
+    const workspace = await selected(request, request.params.id, `workspace ${parsed.data.operation}`)
+    record(request, workspace.owner, workspace.id, parsed.data.operation)
     return reply.header('cache-control', 'no-store').send(view(workspace))
   })
   app.delete<{ Params: { id: string } }>(`${prefix}/:id`, async (request, reply) => {
-    const workspace = await selected(request, request.params.id, 'workspace delete')
+    const parsed = z.strictObject({ operation: z.enum(['create', 'delete']).default('delete') }).safeParse(request.query)
+    if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
+    const workspace = await selected(request, request.params.id, `workspace ${parsed.data.operation}`)
     await discard(workspace)
     record(request, workspace.owner, workspace.id, 'delete')
     return reply.code(204).send()
@@ -218,15 +222,15 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     await rm(await root, { recursive: true, force: true })
   })
   return {
-    async materializeFile(request: FastifyRequest, id: string, path: string, destination: string) {
-      const workspace = await selected(request, id)
+    async materializeFile(request: FastifyRequest, id: string, path: string, destination: string, command: string) {
+      const workspace = await selected(request, id, command)
       const file = workspace.files.get(path)
       if (!file || file.state !== 'ready') throw new ArtiumError('INVALID_INPUT')
       await copyFile(join(workspace.directory, file.path), destination, constants.COPYFILE_EXCL)
       access(workspace)
     },
-    async materialize(request: FastifyRequest, id: string, directory: string) {
-      const workspace = await selected(request, id)
+    async materialize(request: FastifyRequest, id: string, directory: string, command: string) {
+      const workspace = await selected(request, id, command)
       if (![...workspace.files.values()].every(file => file.state === 'ready')) throw new ArtiumError('INVALID_INPUT')
       for (const file of workspace.files.values()) {
         access(workspace)

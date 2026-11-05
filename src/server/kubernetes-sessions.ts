@@ -126,11 +126,11 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
           }
           await writeFile(path, content, { mode: 0o600, flag: 'wx' })
         }
-        if (input.inputArtifact) await workspaces.materializeFile(request, input.inputArtifact.workspace, input.inputArtifact.path, join(session.directory, 'stdin.bin'))
+        if (input.inputArtifact) await workspaces.materializeFile(request, input.inputArtifact.workspace, input.inputArtifact.path, join(session.directory, 'stdin.bin'), `session start ${input.kind}`)
         let argv = input.argv
         if (input.workspace) {
           const destination = join(session.directory, 'workspace')
-          await workspaces.materialize(request, input.workspace, destination)
+          await workspaces.materialize(request, input.workspace, destination, `session start ${input.kind}`)
           const materialize = (value: string) => value.split(',').map(value => value.startsWith('workspace:')
             ? join(destination, kubernetesWorkspacePath.parse(value.slice(10))) : value).join(',')
           const commandSeparator = argv.indexOf('--', argv[0] === 'prepare' ? 2 : 0)
@@ -306,15 +306,17 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     } catch (error) { await stop(session, 'failed'); sessions.delete(session.id); throw error }
   })
   app.get<{ Params: { id: string } }>(`${prefix}/:id`, async (request, reply) => {
-    const session = await selected(request, request.params.id, 'session show')
-    const parsed = z.strictObject({ wait: z.enum(['true', 'false', 'ready']).default('false') }).safeParse(request.query)
+    const parsed = z.strictObject({ wait: z.enum(['true', 'false', 'ready']).default('false'),
+      operation: z.enum(['show', 'artifact', 'tunnel']).default('show') }).safeParse(request.query)
     if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
+    const command = parsed.data.operation === 'tunnel' ? 'tunnel' : `session ${parsed.data.operation}`
+    const session = await selected(request, request.params.id, command)
     if (parsed.data.wait === 'ready') {
       if (session.kind !== 'port-forward' || !session.confirmed) throw new ArtiumError('INVALID_INPUT')
       await session.portsReady
     }
     if (parsed.data.wait === 'true' || !active(session)) await session.job
-    await selected(request, session.id, 'session show'); record(request, session, 'show')
+    await selected(request, session.id, command); record(request, session, parsed.data.operation)
     return reply.header('cache-control', 'no-store').send(view(session))
   })
   app.post<{ Params: { id: string } }>(`${prefix}/:id/confirm`, async (request, reply) => {

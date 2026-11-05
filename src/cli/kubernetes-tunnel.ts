@@ -129,10 +129,10 @@ export async function kubernetesTunnel(createClient: () => Client, supplied: str
   process.once('SIGINT', stop); process.once('SIGTERM', stop)
   try {
     await client.authenticated('/v1/me', 'GET')
-    const path = `/v1/tools/kubernetes-axi/sessions/${session}`
+    const path = `/v1/tools/kubernetes-axi/sessions/${session}?operation=tunnel`
     const status = kubernetesSessionView.safeParse(await client.transferSession(token => client.request(path, 'GET', undefined, token)))
     if (!status.success) throw new ArtiumError('INVALID_RESPONSE')
-    const ready = kubernetesSessionView.safeParse(await client.transferSession(token => client.request(path + '?wait=ready', 'GET', undefined, token,
+    const ready = kubernetesSessionView.safeParse(await client.transferSession(token => client.request(path + '&wait=ready', 'GET', undefined, token,
       false, undefined, Math.max(0, status.data.expiresAt - Date.now()) + DEFAULT_REQUEST_DEADLINE_MS)))
     if (!ready.success) throw new ArtiumError('INVALID_RESPONSE')
     if (!ready.data.tunnelReady || ready.data.state !== 'running') throw new ArtiumError('INVALID_INPUT', 'The confirmed port-forward session is not running.')
