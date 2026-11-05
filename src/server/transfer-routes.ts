@@ -129,9 +129,9 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
         const parsed = route.input.safeParse(request.body)
         if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
         if (transferTool(parsed.data.selection.operation) !== tool) throw new ArtiumError('INVALID_INPUT')
+        const owner = ownerFor(request)
         if (route === transferRoutes.prepare) {
           const input = transferPrepareSchema.parse(parsed.data)
-          const owner = ownerFor(request)
           checkTransferAccess(db, owner, input.selection.operation)
           const scope = createTransferScope(owner, revision(tool), input)
           store ??= ArtifactStore.create(audit).catch(error => { store = undefined; throw error })

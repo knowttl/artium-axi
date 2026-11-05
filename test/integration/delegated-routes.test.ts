@@ -15,6 +15,7 @@ import { createKubernetesAdapter } from '../../src/server/adapters/kubernetes.js
 import { createProxmoxAdapter } from '../../src/server/adapters/proxmox.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { createBrowserSession } from '../../src/server/auth/sessions.js'
+import { toolSchema } from '../../src/shared/api.js'
 
 // Each registration must be reviewed here before a delegated session can reach it.
 const classified = new Map<string, 'public' | 'denied'>()
@@ -94,22 +95,45 @@ test('administrator-created delegated sessions cannot use admin, reauthenticatio
     for (const route of registered) {
       if (classified.get(route) === 'public') continue
       const [method, template] = route.split(' ') as [string, string]
-      const path = template.replace(/:[^/]+/g, 'synthetic').replace('*', 'synthetic')
+      const path = template.replace(':tool', 'kubernetes-axi').replace(':operation', 'token-create')
+        .replace(/:[^/]+/g, 'synthetic').replace('*', 'synthetic')
+      const selections = {
+        hybrid: { operation: 'hash-download-bin', selector: 'a'.repeat(64), type: 'bin' },
+        checkpoint: { operation: 'email.download', selector: 'synthetic-email', type: 'email' },
+        mg: { operation: 'mail.message.export', selector: 'synthetic@example.test/message', type: 'mime' },
+        beyondtrust: { operation: 'api-definition.download', selector: 'api', type: 'yaml' },
+        gitea: { operation: 'gitea.release.download', selector: 'synthetic/repository/v1/1', type: 'attachment' },
+      }
+      const transfer = /^\/v1\/transfers\/(hybrid|checkpoint|mg|beyondtrust|gitea)\/(\w+)$/.exec(path)
+      const payload = transfer ? {
+        selection: selections[transfer[1] as keyof typeof selections], targetDigest: 'b'.repeat(64),
+        ...(transfer[2] === 'prepare' ? {} : { transferId: '00000000-0000-4000-8000-000000000001' }),
+        ...(transfer[2] === 'execute' ? { execute: true, confirm: 'synthetic-confirmation' } : {}),
+        ...(transfer[2] === 'receipt' ? { archive: { archiveBytes: 1, archiveSha256: 'c'.repeat(64) }, saveOutcome: 'verified-save' } : {}),
+      } : template === '/v1/tools/:tool/run' ? { args: ['--help'] } : {}
       const response = await app.inject({ method: method as 'GET', url: path,
-        headers: { authorization: `Bearer ${token}`, cookie: `artium-session=${browser.id}` },
-        ...(['GET', 'HEAD'].includes(method) ? {} : { payload: {} }) })
+        headers: { authorization: `Bearer ${token}`, cookie: `artium-session=${browser.id}`,
+          host: 'synthetic.test', origin: 'http://synthetic.test' },
+        ...(['GET', 'HEAD'].includes(method) ? {} : { payload }) })
       expect(response.statusCode, route).toBeGreaterThanOrEqual(300)
       expect(response.statusCode, route).toBeLessThan(500)
-      if (path.startsWith('/v1/admin/') || path === '/v1/auth/reauth' || path === '/v1/auth/password') {
+      if (path.startsWith('/v1/')) {
         expect(response.statusCode, route).toBe(403)
         if (method !== 'HEAD') expect(response.json().error.code, route).toBe('DELEGATED_SCOPE_DENIED')
       }
+    }
+    for (const tool of toolSchema.options) {
+      const response = await app.inject({ method: 'POST', url: `/v1/tools/${tool}/run`,
+        headers: { authorization: `Bearer ${token}` }, payload: { args: ['--help'] } })
+      expect(response.statusCode, tool).toBe(403)
+      expect(response.json().error.code, tool).toBe('DELEGATED_SCOPE_DENIED')
     }
     await app.listen({ host: '127.0.0.1', port: 0 })
     const address = app.server.address()
     if (!address || typeof address === 'string') throw new Error('Expected a TCP listener')
     for (const path of ['/v1/tools/kubernetes-axi/sessions/00000000-0000-0000-0000-000000000000/tunnel',
       '/v1/tools/proxmox-axi/streams/00000000-0000-0000-0000-000000000000/pipe']) {
+      const cursor = (db.prepare('SELECT COALESCE(MAX(id), 0) AS id FROM audit').get() as { id: number }).id
       const status = await new Promise<number | undefined>((resolve, reject) => {
         const call = request({ host: '127.0.0.1', port: address.port, path, headers: { authorization: `Bearer ${token}`,
           connection: 'Upgrade', upgrade: 'websocket', 'sec-websocket-version': '13',
@@ -120,6 +144,9 @@ test('administrator-created delegated sessions cannot use admin, reauthenticatio
         call.end()
       })
       expect(status, path).toBe(403)
+      const tool = path.includes('kubernetes-axi') ? 'kubernetes-axi' : 'proxmox-axi'
+      expect(db.prepare('SELECT event, outcome FROM audit WHERE tool = ? AND id > ? ORDER BY id').all(tool, cursor), path)
+        .toEqual([{ event: 'denial', outcome: 'DELEGATED_SCOPE_DENIED' }])
     }
   } finally {
     await app.close()
