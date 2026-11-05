@@ -42,7 +42,8 @@ const sources = ['package.json', 'command-inventory.json', 'axi-credential.schem
   sha256: createHash('sha256').update(readFileSync(source(path))).digest('hex') }))
 const output = JSON.stringify({ generatedBy: 'scripts/shodan-inventory.ts', tool: 'shodan-axi', package: pkg.name,
   ...pins[pkg.name], sources, credentialSchema: JSON.parse(readFileSync(source('axi-credential.schema.json'), 'utf8')), ipv6Schema, publicFacets, datasetSchemas,
-  commands,
+  commands, streamCommands: upstream.commands.filter(entry => entry.effect === 'stream').map(entry => ({ command: entry.command,
+    operation: entry.operation, selectors: entry.selectors ?? [], flags: entry.flags })),
   discovery: { commands: commands.map(entry => entry.command).filter(Boolean), example: ['info'],
     help: 'Read Shodan account and investigation data with managed credentials. Search and domain lookups consume query credits. Local configuration and writes are unavailable.\n' },
   adapterBoundary: { nativeWrites: 'not admitted', unsafeOverrides } }, null, 2) + '\n'

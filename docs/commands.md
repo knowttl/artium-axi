@@ -255,6 +255,9 @@ artium-axi shodan-axi domain example.test --allow-operation OP-040 --query-credi
 Use `artium-axi shodan-axi host --help` or `search --help` for command-specific flags.
 See the [supported boundary](safety.md#shodan) for available read families and credit requirements.
 Use `artium-axi shodan-axi version` to print the packaged version or `version --help` for help; `version` does not accept `--json`.
+An administrator can grant stream preview access and set session quotas.
+For example, `artium-axi shodan-axi stream session preview --operation OP-047 --selector --asn --value AS64496 --limit 10 --max-bytes 4096 --timeout 10000 --idle-timeout 5000 --accept-unknown-cost --json` validates a native plan without starting a stream.
+Use `artium-axi shodan-axi stream session preview --help` for the full set of bounds.
 For authentication failures, ask an administrator to replace the managed key using [Shodan credential setup](tool-credentials.md#shodan).
 See [package recovery](runbook.md#roles-credentials-and-health) for inventory or package mismatches.
 

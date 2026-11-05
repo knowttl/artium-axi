@@ -547,6 +547,8 @@ Local fake-service checks do not establish live server acceptance.
 In the managed credential editor, set `auth: api-key`, `origin: https://api.shodan.io` and enter the API key in `apiKey`.
 Artium encrypts the key and supplies an isolated private profile containing an environment SecretRef; callers do not configure local profiles or environment keys.
 The hosted schema requires that fixed origin and API key authentication; `streamOrigin` is unavailable.
+The optional `sessions` policy grants stream operation IDs per user and sets per-user, per-credential and total quotas, event and byte limits, retention and lease ceilings.
+This policy permits preview only; it does not start a stream.
 The [reviewed inventory](../tools/inventories/shodan-axi.json) owns the pinned upstream schema and command boundary; [hosted profile validation](../src/server/adapters/credential-profile.ts) owns these additional restrictions.
 See [commands](commands.md#shodan), the [capability boundary](safety.md#shodan) and [explicit connection testing](runbook.md#roles-credentials-and-health).
 Local fake-service evidence does not establish owner live acceptance.

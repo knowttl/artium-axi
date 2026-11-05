@@ -56,6 +56,7 @@ import { hasSshConfiguration, type SshHosts } from './store/ssh-hosts.js'
 import { registerSshExecutions, type SshExecutionOptions } from './ssh-executions.js'
 import { registerKubernetesWorkspaces } from './kubernetes-workspaces.js'
 import { registerKubernetesSessions } from './kubernetes-sessions.js'
+import { registerShodanStreamPreview } from './shodan-stream-preview.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
@@ -121,6 +122,8 @@ export function createApp(options: {
     registerProxmoxStreams(app, db, resolver, proxmoxAdapter as ProxmoxAdapter, runner, proxmox, protectedResults, audit, environment, proxies)
   }
   const kubernetes = adapters.find(adapter => adapter.name === 'kubernetes-axi')
+  const shodan = adapters.find(adapter => adapter.name === 'shodan-axi')
+  if (shodan) registerShodanStreamPreview(app, db, resolver, shodan, runner)
   if (kubernetes) {
     const workspaces = registerKubernetesWorkspaces(app, db, resolver, kubernetes, audit)
     registerKubernetesSessions(app, db, resolver, kubernetes, runner, audit, workspaces, proxies)
