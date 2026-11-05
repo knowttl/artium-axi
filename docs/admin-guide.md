@@ -351,8 +351,7 @@ Apply filters, then choose **CSV** or **JSON lines** from **Export** to export e
 Exports are newest first and exclude records inserted after the download begins.
 Both formats contain the same safe persisted fields as `ARTIUM_AXI_AUDIT_STDOUT`, never credentials, tokens or tool output.
 Delegated calls include the creator's user ID and `delegation_id`; the screen, API and exports accept the `delegationId` filter.
-Token creation is enabled by default; disabling it leaves existing tokens active, while Revoke all ends them.
-See [delegated capability boundaries](safety.md#delegated-sessions) and [token API usage](client-reference.md#delegated-tokens) for administrator listing and revocation.
+See [delegated capability boundaries](safety.md#delegated-sessions) for creation settings and their effect on existing tokens, and [token API usage](client-reference.md#delegated-tokens) for administrator listing and revocation.
 CSV quotes non-null values and leaves null fields empty; JSON lines preserves JSON types and nulls.
 The [API contracts](../src/shared/api.ts) own the persisted field definitions (`adminAuditRecordSchema`) and transfer evidence rules (`transferAuditSchema` and `transferEvidenceSchema`).
 For hosted download availability, see the [supported capability boundaries](safety.md).

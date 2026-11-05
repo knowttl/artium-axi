@@ -909,6 +909,9 @@ Do not assume a restored login still works.
 Before every upgrade, stop the server, take a pre-upgrade backup, and record the previous immutable image digest and matching key ID.
 Restore that backup into a separate rehearsal volume using the candidate image and matching key to test its migration before touching the live volume.
 Start the candidate only against the rehearsal volume and verify fresh login, credentials, role permissions and audit reads.
+Migration 030 enables delegated token creation once for both new and upgraded stores, including stores where it was previously disabled, while preserving the lifetime cap and SSO sign-in window.
+Administrators can disable creation on `/admin/tokens` after migration; that choice survives subsequent restarts.
+See [delegated sessions](safety.md#delegated-sessions) for the creation switch's effect on existing tokens and revocation.
 The Graph and Azure re-pin preserves retained tool configuration and credentials; no administrator edit is needed to refresh the displayed versions.
 When an upgraded tool pin activates its credential schema, stored credentials are not automatically converted.
 Replace any incompatible credential on its `/admin/tools/:tool` page using the current editor before enabling the tool; stored secrets remain hidden.

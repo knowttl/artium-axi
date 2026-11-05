@@ -474,7 +474,7 @@ See [Account token management](admin-guide.md#browser-administration) for the br
 `POST /v1/auth/delegated` exchanges a token supplied in the JSON `token` field for a normal access and refresh pair.
 Administrators with recent authentication can list all tokens at `GET /v1/admin/tokens`, revoke one at `POST /v1/admin/tokens/<id>/revoke`, or revoke all at `POST /v1/admin/tokens/revoke-all`.
 They can update token settings at `PATCH /v1/admin/token-settings` with JSON containing `mintingEnabled` (boolean) and `maxLifetimeMs` (a positive safe integer in milliseconds).
-Disabling creation leaves existing tokens active; revoke all to end them.
+See [delegated capability boundaries](safety.md#delegated-sessions) for the creation switch's effect on existing tokens and revocation.
 The optional `ssoWindowMs` field sets the SSO sign-in window in integer milliseconds; omitting it preserves the current setting.
 The [settings handler](../src/server/app.ts) owns its validation contract; see [SSO pause and recovery](safety.md#delegated-sessions) for the supported window and its effect on existing tokens.
 
