@@ -75,6 +75,9 @@ classify('POST', `/v1/tools/kubernetes-axi/workspaces /v1/tools/kubernetes-axi/s
   /v1/tools/kubernetes-axi/sessions/:id/confirm`, 'public')
 classify('DELETE', `/v1/tools/kubernetes-axi/workspaces/:id /v1/tools/kubernetes-axi/sessions/:id`, 'public')
 classify('PUT', '/v1/tools/kubernetes-axi/workspaces/:id/files/*', 'public')
+classify('GET', '/v1/tools/proxmox-axi/streams/limits', 'public')
+classify('POST', '/v1/tools/proxmox-axi/streams', 'public')
+classify('DELETE', '/v1/tools/proxmox-axi/streams/:id', 'public')
 
 test('administrator-created delegated sessions cannot use admin, reauthentication or password routes', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'artium-delegated-'))
@@ -147,7 +150,7 @@ test('administrator-created delegated sessions cannot use admin, reauthenticatio
       expect(status, path).toBe(403)
       const tool = path.includes('kubernetes-axi') ? 'kubernetes-axi' : 'proxmox-axi'
       expect(db.prepare('SELECT event, outcome FROM audit WHERE tool = ? AND id > ? ORDER BY id').all(tool, cursor), path)
-        .toEqual([{ event: 'denial', outcome: tool === 'kubernetes-axi' ? 'TOOL_DISABLED' : 'DELEGATED_SCOPE_DENIED' }])
+        .toEqual([{ event: 'denial', outcome: 'TOOL_DISABLED' }])
     }
   } finally {
     await app.close()

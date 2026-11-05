@@ -223,6 +223,10 @@ export function createProxmoxAdapter(source: SecretSource, writeLog?: string): P
     blockedFlags: inventory.adapterBoundary.unsafeOverrides.map(name => '--' + name), allowedFlagValues: {},
     sensitiveArguments: args => ({ flags: args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0]), positions: args.map((_, index) => index) }),
     sensitiveInput: () => true,
+    authorizeOperation(command, settings) {
+      const route = inventory.streamCommands.find(route => route.command === command)
+      if (route?.effect === 'write' && route.operationId && !proxmoxWritePolicy.read(settings).allowedOperations.includes(route.operationId)) throw new ArtiumError('FLAG_BLOCKED')
+    },
     validateArgs: (args, input) => { argumentsForCall(args, input) },
     nestedOperations(args, input) {
       const operations: { command: string, effect: 'read' | 'write' }[] = []

@@ -326,6 +326,8 @@ Secret-producing writes require the native private result channel before dispatc
 The [approved credential custody amendment](credential-standard.md#proxmox-memory-authentication-and-protected-result-amendment) owns authentication caching, result binding, scanning and revocation requirements.
 Use [private CLI retrieval](client-reference.md#proxmox-private-results) and follow the [retention and recovery guidance](runbook.md#retention-and-export).
 Reviewed transfers and duplex routes use [authenticated private byte channels](client-reference.md#proxmox-managed-streams), outside ordinary run input.
+Delegated sessions require a writable grant for managed streams, and credential-producing streams require an exact command grant.
+Delegated retrieval of stored files remains unavailable.
 Read transfers remain available with writes off; effectful setup and uploads require the same exact native/host grants and consumed-once confirmations.
 SPICE stays in the existing one-shot memory result store; console and migration payloads are not text-redacted, logged or persisted.
 Uploads are verified in private staging before provider execution; failed cleanup retains capacity rather than permitting an unbounded fallback.

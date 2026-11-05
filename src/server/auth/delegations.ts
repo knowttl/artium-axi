@@ -13,6 +13,7 @@ import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
 import type { RunnerInput } from '../runner/input.js'
 import { kubernetesHostedRoutes } from '../../shared/kubernetes.js'
+import { proxmoxHostedRoutes } from '../../shared/proxmox-commands.js'
 import { authorizeKubernetesOwner } from '../policy/kubernetes.js'
 
 const exactCommands: Partial<Record<ToolName, readonly string[]>> = {
@@ -20,7 +21,7 @@ const exactCommands: Partial<Record<ToolName, readonly string[]>> = {
   'kubernetes-axi': ['create token'],
   'technitium-axi': ['user create-token', 'user create-single-use-token', 'admin session create-token',
     'settings backup', 'settings set', 'settings restore', 'admin cluster primary transfer-config'],
-  'proxmox-axi': proxmox.commands.filter(command => command.privateResult).map(command => command.command),
+  'proxmox-axi': [...proxmox.commands, ...proxmox.streamCommands].filter(command => command.privateResult).map(command => command.command),
 }
 const escapeHatches: Partial<Record<ToolName, readonly string[]>> = {
   'ado-axi': ['api'], 'az-axi': ['api'], 'gitea-axi': ['api'], 'gh-axi': ['api'],
@@ -83,8 +84,11 @@ export function checkDelegation(scopeJson: string, readOnly: boolean, adapter: A
   const wide = grants.some(item => item.commands === undefined)
   const credentialCommand = exactCommands[tool]?.includes(command)
   const download = tool === 'kubernetes-axi' && ['workspace download', 'session artifact'].includes(command)
+  const pendingProxmoxDownload = tool === 'proxmox-axi' && ['transfer get /nodes/{node}/qemu/{vmid}/agent/file-read',
+    'transfer get /nodes/{node}/storage/{storage}/file-restore/download'].includes(command)
+  const proxmoxStream = tool === 'proxmox-axi' && proxmox.streamCommands.some(route => route.command === command)
   const escapeHatch = escapeHatches[tool]?.includes(command)
-  if ((!wide && !exact) || ((credentialCommand || download || escapeHatch || /^(?:api|native)(?: |$)/.test(command)) && !exact) || (readOnly && (effect !== 'read' || credentialCommand || download))) {
+  if (pendingProxmoxDownload || (!wide && !exact) || ((credentialCommand || download || escapeHatch || /^(?:api|native)(?: |$)/.test(command)) && !exact) || (readOnly && (effect !== 'read' || credentialCommand || download || proxmoxStream))) {
     throw new ArtiumError('DELEGATED_SCOPE_DENIED')
   }
   if (tool === 'ssh-axi' && command === 'exec' && !help) {
@@ -96,13 +100,15 @@ function commandRoutes(tool: ToolName): { command: string, effect?: string, cano
   type Route = { command: string, effect?: string, canonicalCommand?: string }
   const manifest = toolManifests[tool] as { commands: Route[], writeCommands?: Route[], workflows?: Route[], managedCommands?: Route[] }
   return [...manifest.commands, ...manifest.writeCommands ?? [], ...manifest.workflows ?? [], ...manifest.managedCommands ?? [],
-    ...(tool === 'kubernetes-axi' ? kubernetesHostedRoutes : [])]
+    ...(tool === 'kubernetes-axi' ? kubernetesHostedRoutes : []),
+    ...(tool === 'proxmox-axi' ? [...proxmox.streamCommands, ...proxmoxHostedRoutes] : [])]
 }
 
 export function resolveDelegatedCommand(command: string, adapter: Adapter<unknown>): string {
   if (command.includes('*')) throw new ArtiumError('INVALID_INPUT', 'Wildcards are not supported yet.', 'Select exact commands or use --tool for tool-wide access.')
   if (!exactCommand.test(command)) throw new ArtiumError('INVALID_INPUT')
   if (adapter.name === 'ssh-axi' && ssh.managedCommands.some(route => route.command === command)) return command
+  if (adapter.name === 'proxmox-axi' && proxmoxHostedRoutes.some(route => route.command === command)) return command
   const invocation = commandInvocations(adapter.name, command)[0]
   const resolved = classifyDelegatedCommand(adapter, [...invocation.split(' '), '--help']).command
   if (resolved === 'unknown' || resolved === 'home' || adapter.name === 'kubernetes-axi' && resolved === 'session start') throw new ArtiumError('INVALID_INPUT')
@@ -158,7 +164,8 @@ export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter:
       : classifyDelegatedCommand(adapter, route.command.split(' '))
     return commandInvocations(tool, route.command).flatMap(command => {
       try {
-        if (!managed && !(tool === 'kubernetes-axi' && kubernetesHostedRoutes.some(route => route.command === command))) adapter.validateArgs([...command.split(' '), '--help'])
+        if (!managed && !(tool === 'kubernetes-axi' && kubernetesHostedRoutes.some(route => route.command === command))
+          && !(tool === 'proxmox-axi' && (proxmoxHostedRoutes.some(route => route.command === command) || proxmox.streamCommands.some(route => route.command === command)))) adapter.validateArgs([...command.split(' '), '--help'])
         if (managed && readOnly && ['connection open', 'connection set'].includes(command)) return []
         authorize(classification)
         return [command]

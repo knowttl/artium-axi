@@ -241,6 +241,7 @@ See [credential custody](credential-standard.md#proxmox-memory-authentication-an
 ### Proxmox managed streams
 
 Run `artium-axi proxmox-axi stream limits` to inspect authenticated host-selected quotas.
+Each user may hold two streams, including at most one across their delegated sessions.
 Use `artium-axi proxmox-axi stream -- transfer|duplex <native arguments>` for the reviewed byte routes; normal run requests do not admit stream operations.
 The [reviewed inventory](../tools/inventories/proxmox-axi.json)'s `streamCommands` owns the route list; append `--help` to a selected stream command for its accepted flags.
 `--json` before the separator selects JSON metadata, including `stream limits --json`; native `--format toon|json` remains available after the separator.

@@ -537,6 +537,25 @@ test.each(['get /version', 'create /access/users/{userid}/token/{tokenid}'])('mi
   expect(tools.json().tools[0].commands).toContain(command)
 })
 
+test('managed Proxmox stream help requires the selected operation', async () => {
+  await app.close()
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'proxmox-axi'")
+  const adapter = createProxmoxAdapter(new EmbeddedSecretSource(credentials))
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-proxmox-help')), audit: new Audit(db),
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const delegation = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+    scope: { tools: [{ tool: 'proxmox-axi', commands: ['transfer get /nodes/{node}/rrd'] }] },
+    readOnly: false, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
+  const session = exchangeDelegation(db, delegation.token)
+  const allowed = await cli(['--managed-session', 'proxmox-axi', 'stream', '--', 'transfer', 'get', '/nodes/{node}/rrd', '--help'], '', 'agent', false, {}, session)
+  expect(allowed.code, allowed.stdout).toBe(0)
+  expect(allowed.stdout).toContain('transfer get /nodes/{node}/rrd')
+  const refused = await cli(['--managed-session', 'proxmox-axi', 'stream', 'limits', '--help'], '', 'agent', false, {}, session)
+  expect(refused.stdout).toContain('DELEGATED_SCOPE_DENIED')
+  expect(refused.code).toBe(1)
+})
+
 test.each([
   { tool: 'az-axi', args: [], pattern: 'group list', allowed: 'group list' },
   { tool: 'az-axi', args: ['--help'], pattern: 'group list', allowed: 'group list' },
