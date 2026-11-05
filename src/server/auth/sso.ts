@@ -203,6 +203,7 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
           if (bound.id !== proof.identityId || bound.subject !== subject || bound.issuer !== transaction.provider.issuer ||
             bound.provider_id !== transaction.provider.id) throw new ArtiumError('SSO_STATE_INVALID')
           db.prepare('UPDATE sessions SET reauthenticated_at = ? WHERE id = ?').run(authTime.data * 1000, session.id)
+          db.prepare('UPDATE users SET last_sso_sign_in_at = ? WHERE id = ?').run(Date.now(), session.user_id)
         })
         return browserPage(reply, 'Identity confirmed', '<a class="btn btn-primary" href="/reauth?complete=1">Continue to Artium</a>', undefined,
           'Your identity has been confirmed.', { mark: { icon: 'check', tone: 'ok' } })

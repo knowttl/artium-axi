@@ -602,7 +602,7 @@ document.addEventListener('submit', async event => {
     }
     if (form.hasAttribute('data-token-settings')) {
       body.maxLifetimeMs = Math.floor(Number(body.maxLifetimeHours) * 3600000);
-      body.ssoWindowMs = Number(body.ssoWindowDays) * 86400000;
+      body.ssoWindowMs = Math.round(Number(body.ssoWindowDays) * 86400000);
       delete body.maxLifetimeHours;
       delete body.ssoWindowDays;
     }
