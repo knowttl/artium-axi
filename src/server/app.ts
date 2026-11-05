@@ -379,13 +379,14 @@ export function createApp(options: {
   const authorizeAdmin = registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health, credentialProfiles, sshHosts: options.sshHosts }, options.providerCredentials)
   app.patch('/v1/admin/token-settings', async request => {
     const userId = authorizeAdmin(request)
-    const input = z.strictObject({ mintingEnabled: z.boolean(), maxLifetimeMs: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) }).safeParse(request.body)
+    const input = z.strictObject({ mintingEnabled: z.boolean(), maxLifetimeMs: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+      ssoWindowMs: z.number().int().min(86400000).max(2592000000).optional() }).safeParse(request.body)
     if (!input.success) throw new ArtiumError('INVALID_INPUT')
     if (input.data.mintingEnabled) throw new ArtiumError('DELEGATED_SCOPE_DENIED', 'Token creation is not available yet in this build.', 'Minting becomes available in slice 8.')
     audit.change({ event: 'admin-change', action: 'token-settings', targetId: 'delegation-settings', userId, tool: null,
       requestId: request.id, clientAddress: request.ip, outcome: 'success' }, () => {
-      db.prepare('UPDATE delegation_settings SET minting_enabled = 0, max_lifetime_ms = ? WHERE id = 1')
-        .run(input.data.maxLifetimeMs)
+      db.prepare('UPDATE delegation_settings SET minting_enabled = 0, max_lifetime_ms = ?, sso_window_ms = coalesce(?, sso_window_ms) WHERE id = 1')
+        .run(input.data.maxLifetimeMs, input.data.ssoWindowMs ?? null)
     })
     return { saved: true }
   })

@@ -5,6 +5,7 @@ import type { BrowserSession } from '../auth/sessions.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { delegatedCommands, resolveDelegatedCommand } from '../auth/delegations.js'
+import { delegationPaused } from '../auth/tokens.js'
 import { apiForm, apiFormTag, timestamp } from './forms.js'
 import { card } from './design/ui.js'
 import { escape } from './escape.js'
@@ -17,7 +18,7 @@ function tokenTable(db: Database.Database, csrf: string, userId?: string): strin
     : db.prepare('SELECT * FROM delegations ORDER BY created_at DESC').all()) as Token[]
   const prefix = userId ? '/v1/account/tokens' : '/v1/admin/tokens'
   if (!rows.length) return '<p class="empty">No tokens.</p>'
-  return `<div class="tbl-scroll"><table class="tbl stack-sm"><thead><tr><th>Label</th>${userId ? '' : '<th>Creator</th>'}<th>Access</th><th>Expires</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(row => `<tr><td>${escape(row.label)}<p class="mono">${escape(row.id)}</p></td>${userId ? '' : `<td>${escape(row.creator_id)}</td>`}<td>${row.read_only ? 'Read-only' : 'Writes allowed'} · ${row.single_use ? 'Single use' : 'Reusable'}<ul>${delegationScopeSchema.parse(JSON.parse(row.scope_json)).tools.map(item => `<li>${escape(item.tool)}: ${item.commands ? item.commands.map(escape).join(', ') : 'Tool-wide'}</li>`).join('')}</ul></td><td>${timestamp(row.expires_at)}</td><td>${row.revoked_at ? 'Revoked' : row.expires_at <= Date.now() ? 'Expired' : row.single_use && row.consumed_at ? 'Used' : 'Active'}</td><td>${row.revoked_at ? '' : apiForm(csrf, `${prefix}/${encodeURIComponent(row.id)}/revoke`, 'POST', 'Revoke', '', 'Revoke this token and its sessions?', '', 'btn btn-danger-outline btn-sm')}</td></tr>`).join('')}</tbody></table></div>`
+  return `<div class="tbl-scroll"><table class="tbl stack-sm"><thead><tr><th>Label</th>${userId ? '' : '<th>Creator</th>'}<th>Access</th><th>Expires</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(row => `<tr><td>${escape(row.label)}<p class="mono">${escape(row.id)}</p></td>${userId ? '' : `<td>${escape(row.creator_id)}</td>`}<td>${row.read_only ? 'Read-only' : 'Writes allowed'} · ${row.single_use ? 'Single use' : 'Reusable'}<ul>${delegationScopeSchema.parse(JSON.parse(row.scope_json)).tools.map(item => `<li>${escape(item.tool)}: ${item.commands ? item.commands.map(escape).join(', ') : 'Tool-wide'}</li>`).join('')}</ul></td><td>${timestamp(row.expires_at)}</td><td>${row.revoked_at ? 'Revoked' : row.expires_at <= Date.now() ? 'Expired' : delegationPaused(db, row.creator_id) ? 'Paused until creator signs in via SSO' : row.single_use && row.consumed_at ? 'Used' : 'Active'}</td><td>${row.revoked_at ? '' : apiForm(csrf, `${prefix}/${encodeURIComponent(row.id)}/revoke`, 'POST', 'Revoke', '', 'Revoke this token and its sessions?', '', 'btn btn-danger-outline btn-sm')}</td></tr>`).join('')}</tbody></table></div>`
 }
 
 export function accountTokens(db: Database.Database, current: BrowserSession, csrf: string, adapters: readonly Adapter<unknown>[]): string {
@@ -52,11 +53,13 @@ export function registerTokenPage(app: FastifyInstance, db: Database.Database): 
     requireBrowserAdmin(db, request.cookies[browserCookie] ?? '', false)
     const current = readBrowserSession(db, request.cookies[browserCookie]!)
     const csrf = reply.generateCsrf()
-    const settings = db.prepare('SELECT max_lifetime_ms FROM delegation_settings WHERE id = 1').get() as { max_lifetime_ms: number }
+    const settings = db.prepare('SELECT max_lifetime_ms, sso_window_ms FROM delegation_settings WHERE id = 1').get() as { max_lifetime_ms: number, sso_window_ms: number }
     const form = `${apiFormTag(csrf, '/v1/admin/token-settings', 'PATCH', 'Save these token settings?', 'data-token-settings')}
       <div class="card-body column"><label class="check"><input type="checkbox" name="mintingEnabled" data-type="boolean" disabled aria-describedby="minting-unavailable"> Allow token creation</label>
       <p id="minting-unavailable">Token creation is not available yet in this build. Minting becomes available in slice 8.</p>
       <label>Maximum lifetime in hours<input type="number" name="maxLifetimeHours" min="0.01" step="any" value="${settings.max_lifetime_ms / 3600000}" required></label>
+      <label>SSO sign-in window in days<input type="number" name="ssoWindowDays" min="1" max="30" step="any" value="${settings.sso_window_ms / 86400000}" required></label>
+      <p>Tokens from SSO accounts pause after this long without an SSO sign-in and resume when the creator signs in again.</p>
       <p>Disabling creation does not revoke existing tokens. The lifetime cap applies to new tokens.</p></div><div class="card-foot"><button class="btn btn-primary">Save settings</button></div></form>`
     const revokeAll = apiForm(csrf, '/v1/admin/tokens/revoke-all', 'POST', 'Revoke all tokens', '', 'Revoke all tokens and their sessions?', '', 'btn btn-danger-outline')
     return browserPage(reply, 'Temporary access tokens', card('Settings', 'Control new token creation.', form) + card('All tokens', 'Tokens created by all users.', tokenTable(db, csrf)) + card('Revoke all', 'End access for all tokens.', `<div class="card-body">${revokeAll}</div>`), current)

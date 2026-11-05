@@ -255,6 +255,7 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
         for (const rule of matching) db.prepare('INSERT OR IGNORE INTO user_roles (user_id, role_id, origin) VALUES (?, ?, ?)')
           .run(userId, rule.role_id, rule.id)
         if (added.length || removed.length) events.push({ ...event, event: 'role-sync', userId, subject: subject!, outcome: 'success', added, removed })
+        db.prepare('UPDATE users SET last_sso_sign_in_at = ? WHERE id = ?').run(Date.now(), userId)
         events.push({ ...event, userId, subject, outcome: 'success' })
         const created = createBrowserSession(db, userId!, csrfSecret)
         const bound = db.prepare('SELECT id FROM identities WHERE user_id = ? AND provider_id = ? AND issuer = ? AND subject = ?')

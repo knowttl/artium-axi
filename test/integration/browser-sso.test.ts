@@ -17,7 +17,7 @@ import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { seedToolUser, issueTestAccessToken } from '../fixtures/tokens.js'
 import { seedBrowserSso, seedSsoInvitation, seedSsoRules, ssoStart, syntheticObject, syntheticTenant } from '../fixtures/sso.js'
 import { createBrowserSession } from '../../src/server/auth/sessions.js'
-import { requireRecentAuth, verifyAccessToken } from '../../src/server/auth/tokens.js'
+import { exchangeDelegation, hashToken, requireRecentAuth, verifyAccessToken } from '../../src/server/auth/tokens.js'
 
 let directory: string
 let db: Database.Database
@@ -62,6 +62,16 @@ async function signedIn() {
   const response = await finish(await start())
   return response.cookies.find(cookie => cookie.name === browserCookie)!.value
 }
+
+test('successful SSO sign-in resumes a paused delegation', async () => {
+  const now = Date.now()
+  vi.spyOn(Date, 'now').mockReturnValue(now)
+  db.prepare(`INSERT INTO delegations (id, creator_id, token_hash, label, scope_json, read_only, single_use, created_at, expires_at)
+    VALUES ('synthetic-delegation', 'synthetic-browser-sso', ?, 'Synthetic', '{}', 1, 0, ?, ?)`).run(hashToken('synthetic-token'), now, now + 600000)
+  expect(() => exchangeDelegation(db, 'synthetic-token')).toThrow('paused until its creator signs in again via SSO')
+  await signedIn()
+  expect(exchangeDelegation(db, 'synthetic-token').status).toBe('authenticated')
+})
 
 test('SSO reauth requires a new provider login and updates only the initiating session', async () => {
   const first = await signedIn()
