@@ -188,6 +188,8 @@ test('delegated download help lists only authorized operations', async () => {
   const help = await cli(['--help'], undefined, true, true)
   expect(help.code).toBe(0)
   expect(help.stdout).toContain('hash-download-bin')
+  expect(help.stdout).toContain('hash-download-bin: --selector <SHA-256> --type bin')
+  expect(help.stdout).toContain('Linux private 0700 directory, no symlink components or overwrite')
   expect(help.stdout).not.toContain('report-download-bin')
 })
 
@@ -213,6 +215,20 @@ test.each([
   const help = await cli(args, undefined, true, true, command)
   expect(help.code, help.stdout + help.stderr).toBe(code)
   expect(help.stdout).toContain(text)
+})
+
+test.each([
+  { command: 'download', args: ['--help'] },
+  { command: 'hybrid-axi', args: ['report-download-memory', '--help'] },
+])('delegated help preserves selected download arguments on $command (R3)', async ({ command, args }) => {
+  db.exec(`UPDATE tools SET native_settings = '{"writes":{"allowWrites":true,"operations":["report-download-memory"]}}' WHERE name = 'hybrid-axi'`)
+  const { session } = delegated(['report-download-memory'])
+  token = session.accessToken
+  const help = await cli(args, undefined, true, true, command)
+  expect(help.code, help.stdout + help.stderr).toBe(0)
+  expect(help.stdout).toContain('report-download-memory: --selector <report-id> --type memory')
+  expect(help.stdout).toContain('--destination <absolute-new-path> (required; Linux private 0700 directory, no symlink components or overwrite)')
+  expect(help.stdout).not.toContain('hash-download-bin')
 })
 
 test('delegated discovery hides downloads when the administrator revokes the operation', async () => {

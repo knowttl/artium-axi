@@ -5,7 +5,7 @@ import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import { Client } from './http.js'
 import { readPassword } from './password.js'
 import { doctor } from './doctor.js'
-import { commandHelp, helpCommand, validateArguments } from './help.js'
+import { commandHelp, delegatedDownloadHelp, helpCommand, validateArguments } from './help.js'
 import { identityView, toolsView, toolView } from './views.js'
 import { rewriteSuggestions } from './rewrite.js'
 import { setup } from './setup.js'
@@ -89,7 +89,7 @@ async function main(args: string[]) {
         const operations = transferSelectionSchema.options.map(option => option.shape.operation.value)
           .filter(operation => tools.some(tool => tool.name === transferTool(operation) && tool.commands?.includes(operation)))
         if (downloadOperation && !operations.includes(downloadOperation)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
-        output('stdout', `usage: artium-axi download --operation <operation> --selector <selector> --type <type> --destination <absolute-new-path> [--transfer <id> --execute --confirm <exact-confirm>]\noperations: ${operations.length ? operations.join(', ') : 'none available'}\nPreview first, then repeat the selection and destination with the transfer ID and exact confirmation.\n`)
+        output('stdout', delegatedDownloadHelp(operations))
         return
       }
       const name = toolDiscovery ? command : help === 'tools show' ? args.slice(2).find(arg => toolSchema.safeParse(arg).success) : undefined
