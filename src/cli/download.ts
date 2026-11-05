@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import { encode } from '@toon-format/toon'
 import { ZodError } from 'zod'
-import { deviceStartResponseSchema, reauthResponseSchema, transferExecuteSchema, transferLimits,
+import { deviceStartResponseSchema, meResponseSchema, reauthResponseSchema, transferExecuteSchema, transferLimits,
   transferPrepareSchema, transferPreviewSchema, transferRoutesFor, transferTool, transferStatusSchema, transferWarningFor, ssoReauthResponseSchema } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import { artifactDestination } from './artifact-save.js'
@@ -46,7 +46,10 @@ export async function download(args: string[], output: (text: string) => void, m
   try {
     await client.transferSession(async token => {
       let proof: unknown
-      if (flags.has('--sso')) {
+      const delegated = 'delegation' in meResponseSchema.parse(await client.request('/v1/me', 'GET', undefined, token))
+      if (delegated) {
+        if (flags.has('--sso') || flags.has('--password-stdin')) throw new ArtiumError('INVALID_INPUT')
+      } else if (flags.has('--sso')) {
         const start = deviceStartResponseSchema.parse(await client.request('/v1/auth/reauth', 'POST', {}, token))
         if (start.verificationUri !== client.serverUrl + '/device') throw new ArtiumError('INVALID_RESPONSE')
         managed?.protect(start.deviceCode)
@@ -63,15 +66,15 @@ export async function download(args: string[], output: (text: string) => void, m
         managed?.protect(password)
         proof = await client.request('/v1/auth/reauth', 'POST', { password }, token)
       }
-      const { ticket } = reauthResponseSchema.parse(proof)
-      managed?.protect(ticket)
+      const ticket = delegated ? '' : reauthResponseSchema.parse(proof).ticket
+      if (ticket) managed?.protect(ticket)
       const request = (path: string, body: unknown) => client.request(path, 'POST', body, token, false,
         { 'x-artium-reauth-ticket': ticket })
       if (!execution) {
         const preview = transferPreviewSchema.parse(await request(transferRoutes.prepare.path, input.data))
         if (preview.targetDigest !== input.data.targetDigest) throw new ArtiumError('INVALID_RESPONSE')
         announce({ ...input.data.selection, destination, limits: transferLimits, ...preview, saveOutcome: 'unconfirmed',
-          next: 'Repeat this exact selection and destination with --transfer <transferId> --execute --confirm <exact confirm> and recent identity confirmation. No automatic retries.' })
+          next: `Repeat this exact selection and destination with --transfer <transferId> --execute --confirm <exact confirm>${delegated ? '' : ' and recent identity confirmation'}. No automatic retries.` })
         return
       }
       const retrieval = { ...input.data, transferId: execution.transferId }

@@ -58,7 +58,7 @@ classify('POST', `/password /reauth /v1/account/sessions/:sessionId/revoke /v1/a
   /v1/admin/users /v1/admin/users/:id/sessions/:sessionId/revoke /v1/admin/users/:id/sessions/revoke
   /v1/admin/users/:id/archive /v1/admin/users/:id/unlock /v1/admin/users/:id/password-reset /v1/admin/roles`, 'denied')
 for (const tool of ['hybrid', 'checkpoint', 'mg', 'beyondtrust', 'gitea']) {
-  classify('POST', ['prepare', 'execute', 'retrieve', 'receipt', 'cancel', 'status'].map(action => `/v1/transfers/${tool}/${action}`).join(' '), 'denied')
+  classify('POST', ['prepare', 'execute', 'retrieve', 'receipt', 'cancel', 'status'].map(action => `/v1/transfers/${tool}/${action}`).join(' '), 'public')
 }
 classify('DELETE', `/v1/tools/proxmox-axi/streams/:id /v1/tools/kubernetes-axi/workspaces/:id
   /v1/tools/kubernetes-axi/sessions/:id /v1/admin/tools/:tool/certificates

@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
 import { encode } from '@toon-format/toon'
-import { loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema, transferWarningFor } from '../shared/api.js'
+import { loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema, transferSelectionSchema, transferTool, transferWarningFor } from '../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import { Client } from './http.js'
 import { readPassword } from './password.js'
@@ -60,14 +60,19 @@ async function main(args: string[]) {
   const toolDiscovery = toolSchema.safeParse(command).success && (prefixHelp || toolWords.length === 0
     || args.slice(1).some(arg => ['--help', '-h'].includes(arg)) || toolWords[0] === 'help'
     || toolWords.length === 1 && ['commands', 'home'].includes(toolWords[0]))
-  const scopedHelp = toolDiscovery || help && ['home', 'tools', 'tools show'].includes(help)
+  const scopedHelp = toolDiscovery || help && ['home', 'tools', 'tools show', 'download'].includes(help)
   if (help && !scopedHelp) { output('stdout', commandHelp(help)); return }
   if (managedMode) {
     if (['passwd', 'logout', 'setup', 'update', 'session-context'].includes(args[0])) {
       throw new ArtiumError('INVALID_INPUT', 'This command is unavailable in managed session mode.',
         'The caller manages session persistence, password changes and revocation.')
     }
-    managed = await ManagedSession.read(args[0] === 'login')
+    try { managed = await ManagedSession.read(args[0] === 'login') }
+    catch (error) {
+      if (help !== 'download' || !(error instanceof ArtiumError) || error.code !== 'INVALID_INPUT') throw error
+      output('stdout', commandHelp(help))
+      return
+    }
   }
   if (scopedHelp && (managed || readStoredSession()?.session.delegated)) {
     const client = new Client(process.env, managed)
@@ -77,6 +82,12 @@ async function main(args: string[]) {
     if (delegated) {
       const { tools } = toolsResponseSchema.parse(await client.authenticated('/v1/tools', 'GET'))
       if (tools.some(tool => tool.commands === undefined)) throw new ArtiumError('INVALID_RESPONSE')
+      if (help === 'download') {
+        const operations = transferSelectionSchema.options.map(option => option.shape.operation.value)
+          .filter(operation => tools.some(tool => tool.name === transferTool(operation) && tool.commands?.includes(operation)))
+        output('stdout', `usage: artium-axi download --operation <operation> --selector <selector> --type <type> --destination <absolute-new-path> [--transfer <id> --execute --confirm <exact-confirm>]\noperations: ${operations.length ? operations.join(', ') : 'none available'}\nPreview first, then repeat the selection and destination with the transfer ID and exact confirmation.\n`)
+        return
+      }
       const name = toolDiscovery ? command : help === 'tools show' ? args.slice(2).find(arg => toolSchema.safeParse(arg).success) : undefined
       if (name) {
         const tool = tools.find(tool => tool.name === name)

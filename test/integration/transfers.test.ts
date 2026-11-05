@@ -15,7 +15,8 @@ import { createApp } from '../../src/server/app.js'
 import { ArtifactStore, artifactDefaults } from '../../src/server/artifacts.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { createHybridAdapter } from '../../src/server/adapters/hybrid.js'
-import { issueRecentAuthTicket } from '../../src/server/auth/tokens.js'
+import { exchangeDelegation, issueRecentAuthTicket } from '../../src/server/auth/tokens.js'
+import { createDelegation, revokeDelegation } from '../../src/server/auth/delegations.js'
 import { createBrowserSession } from '../../src/server/auth/sessions.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -40,6 +41,7 @@ let headers: Record<string, string>
 let variant: string
 let artifactSize: number
 let destination: string
+let adapter: ReturnType<typeof createHybridAdapter>
 const selection = { operation: 'hash-download-bin' as const, selector: 'a'.repeat(64), type: 'bin' as const }
 const reportSelections: TransferScope['selection'][] = [
   { operation: 'report-download-bin', selector: 'synthetic-report', type: 'bin' },
@@ -67,7 +69,7 @@ beforeEach(async () => {
     mountinfo: `1 2 0:1 / ${root} rw,nosuid,nodev,noexec - tmpfs tmpfs rw,size=1048576k`,
     filesystemType: 0x01021994, capacityBytes: transferLimits.reservedBytes, freeBytes: transferLimits.reservedBytes,
     memoryMax: artifactDefaults.containerBytes, memoryCurrent: 0, swapMax: 0, swapCurrent: 0 }) })
-  const adapter = createHybridAdapter(new EmbeddedSecretSource(credentials), join(directory, 'writes.log'))
+  adapter = createHybridAdapter(new EmbeddedSecretSource(credentials), join(directory, 'writes.log'))
   const prepare = adapter.prepareArtifact!.bind(adapter)
   variant = 'success'
   artifactSize = 257
@@ -111,8 +113,8 @@ async function ready(input: Pick<TransferScope, 'selection' | 'targetDigest'> = 
 }
 function events() { return db.prepare("SELECT outcome, client_save_outcome, archive_bytes FROM audit WHERE event = 'transfer' ORDER BY id").all() as
   { outcome: string, client_save_outcome: string, archive_bytes: number | null }[] }
-async function cli(args: string[], started?: (child: ChildProcess) => void, managed = false) {
-  const child = spawn(process.execPath, [join(directory, 'artium-axi.mjs'), ...(managed ? ['--managed-session'] : []), 'download', ...args, '--password-stdin'],
+async function cli(args: string[], started?: (child: ChildProcess) => void, managed = false, delegated = false) {
+  const child = spawn(process.execPath, [join(directory, 'artium-axi.mjs'), ...(managed ? ['--managed-session'] : []), 'download', ...args, ...(delegated ? [] : ['--password-stdin'])],
     { env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1', XDG_CONFIG_HOME: directory },
       stdio: ['pipe', 'pipe', 'pipe', 'pipe', 'pipe'] })
   let stdout = ''
@@ -128,6 +130,84 @@ async function cli(args: string[], started?: (child: ChildProcess) => void, mana
   expect(stdout + stderr).not.toContain(password)
   return { code, stdout, stderr }
 }
+
+function delegated(commands: string[] | undefined, readOnly = false) {
+  db.exec('UPDATE delegation_settings SET minting_enabled = 1')
+  const grant = createDelegation(db, user, { label: 'Synthetic', scope: { tools: [{ tool: 'hybrid-axi', commands }] },
+    readOnly, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
+  const session = exchangeDelegation(db, grant.token)
+  return { grant, session, headers: { authorization: `Bearer ${session.accessToken}`, 'content-type': 'application/json', 'accept-encoding': 'identity' } }
+}
+
+test.each([
+  { commands: undefined, readOnly: false },
+  { commands: ['report-download-bin'], readOnly: false },
+  { commands: ['hash-download-bin'], readOnly: true },
+])('delegated transfer refuses a scope without the exact writable operation: %j', async ({ commands, readOnly }) => {
+  const session = delegated(commands, readOnly)
+  expect((await post('prepare', body(), session.headers)).status).toBe(403)
+})
+
+test('exact delegated download verifies bytes, records the token and stops on revocation', async () => {
+  const { grant, session, headers: delegatedHeaders } = delegated(['hash-download-bin'])
+  const me = await fetch(`${url}/v1/me`, { headers: delegatedHeaders }).then(response => response.json())
+  expect(me.delegation.scope.tools[0].commands).toContain('hash-download-bin')
+  expect((await fetch(`${url}/v1/auth/reauth`, { method: 'POST', headers: delegatedHeaders, body: JSON.stringify({ password }) })).status).toBe(403)
+  const preparedResponse = await post('prepare', body(), delegatedHeaders)
+  expect(preparedResponse.status).toBe(200)
+  const prepared = await preparedResponse.json()
+  expect((await post('execute', { ...body(), transferId: prepared.transferId, execute: true, confirm: 'wrong' }, delegatedHeaders)).status).toBe(400)
+  const next = await post('prepare', body(), delegatedHeaders).then(response => response.json())
+  const executed = await post('execute', { ...body(), transferId: next.transferId, execute: true, confirm: next.confirm }, delegatedHeaders)
+  expect(executed.status).toBe(200)
+  const archive = (await executed.json()).archive
+  const retrieved = await post('retrieve', { ...body(), transferId: next.transferId }, delegatedHeaders)
+  expect(createHash('sha256').update(Buffer.from(await retrieved.arrayBuffer())).digest('hex')).toBe(archive.archiveSha256)
+  expect((await post('receipt', { ...body(), transferId: next.transferId, archive, saveOutcome: 'verified-save' }, delegatedHeaders)).status).toBe(204)
+  expect(db.prepare("SELECT DISTINCT delegation_id FROM audit WHERE event = 'transfer'").all()).toEqual([{ delegation_id: grant.id }])
+  revokeDelegation(db, grant.id, user, false)
+  expect((await post('prepare', body(), delegatedHeaders)).status).toBe(401)
+  expect(session.accessToken).not.toBe(token)
+})
+
+test('delegated CLI saves a selected download without identity confirmation', async () => {
+  const { session } = delegated(['hash-download-bin'])
+  token = session.accessToken
+  const args = ['--operation', selection.operation, '--selector', selection.selector, '--type', 'bin', '--destination', destination]
+  const first = await cli(args, undefined, true, true)
+  expect(first.code, first.stdout + first.stderr).toBe(0)
+  const preview = decode(first.stdout) as { transferId: string, confirm: string }
+  const second = await cli([...args, '--transfer', preview.transferId, '--execute', '--confirm', preview.confirm], undefined, true, true)
+  expect(second.code, second.stdout + second.stderr).toBe(0)
+  expect(await readFile(destination)).toEqual(Buffer.alloc(257, 0xa5))
+})
+
+test('delegated download help lists only authorized operations', async () => {
+  const { session } = delegated(['hash-download-bin'])
+  token = session.accessToken
+  const help = await cli(['--help'], undefined, true, true)
+  expect(help.code).toBe(0)
+  expect(help.stdout).toContain('hash-download-bin')
+  expect(help.stdout).not.toContain('report-download-bin')
+})
+
+test('delegated discovery hides downloads when the administrator revokes the operation', async () => {
+  const { headers: delegatedHeaders } = delegated(['hash-download-bin'])
+  db.exec(`UPDATE tools SET native_settings = '{"writes":{"allowWrites":true,"operations":[]}}' WHERE name = 'hybrid-axi'`)
+  const me = await fetch(`${url}/v1/me`, { headers: delegatedHeaders }).then(response => response.json())
+  expect(me.delegation.scope.tools).toEqual([])
+  const response = await post('prepare', body(), delegatedHeaders)
+  expect(response.status).toBe(400)
+  expect((await response.json()).error.code).toBe('FLAG_BLOCKED')
+})
+
+test('revocation cancels a prepared delegated transfer', async () => {
+  const { grant, headers: delegatedHeaders } = delegated(['hash-download-bin'])
+  const prepared = await post('prepare', body(), delegatedHeaders).then(response => response.json())
+  revokeDelegation(db, grant.id, user, false)
+  expect((await post('execute', { ...body(), transferId: prepared.transferId, execute: true, confirm: prepared.confirm }, delegatedHeaders)).status).toBe(401)
+  expect(await readdir(root)).toEqual([])
+})
 
 test('real HTTP retrieval is opaque, one-shot and records delivery separately from client save', async () => {
   const transfer = await ready()

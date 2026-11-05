@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { z } from 'zod'
-import { createDelegationSchema, delegationScopeSchema, toolAllowsWrites } from '../../shared/api.js'
+import { createDelegationSchema, delegationScopeSchema, toolAllowsWrites, transferSelectionSchema, transferTool } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { hashToken, revokeFamily } from './tokens.js'
@@ -15,6 +15,7 @@ import type { RunnerInput } from '../runner/input.js'
 import { kubernetesHostedRoutes } from '../../shared/kubernetes.js'
 import { proxmoxHostedRoutes } from '../../shared/proxmox-commands.js'
 import { authorizeKubernetesOwner } from '../policy/kubernetes.js'
+import { checkTransferPolicy } from '../transfer.js'
 
 const exactCommands: Partial<Record<ToolName, readonly string[]>> = {
   'awx-axi': ['user token-create'],
@@ -107,6 +108,7 @@ function commandRoutes(tool: ToolName): { command: string, effect?: string, cano
 export function resolveDelegatedCommand(command: string, adapter: Adapter<unknown>): string {
   if (command.includes('*')) throw new ArtiumError('INVALID_INPUT', 'Wildcards are not supported yet.', 'Select exact commands or use --tool for tool-wide access.')
   if (!exactCommand.test(command)) throw new ArtiumError('INVALID_INPUT')
+  if (transferSelectionSchema.options.some(option => option.shape.operation.value === command && transferTool(option.shape.operation.value) === adapter.name)) return command
   if (adapter.name === 'ssh-axi' && ssh.managedCommands.some(route => route.command === command)) return command
   if (adapter.name === 'proxmox-axi' && proxmoxHostedRoutes.some(route => route.command === command)) return command
   const invocation = commandInvocations(adapter.name, command)[0]
@@ -188,6 +190,15 @@ export function delegatedDiscovery(db: Database.Database, userId: string, delega
           authorizeKubernetesOwner(db, { user: userId, delegation }, adapter, classification.command)
         } else authorizeDelegatedOperation(db, userId, delegation, adapter, classification)
       })
+    if (!delegation.readOnly) {
+      const scope = delegationScopeSchema.parse(JSON.parse(delegation.scopeJson))
+      for (const option of transferSelectionSchema.options) {
+        const operation = option.shape.operation.value
+        if (transferTool(operation) !== adapter.name || !scope.tools.some(item => item.tool === adapter.name && item.commands?.includes(operation))) continue
+        try { checkTransferPolicy(db, userId, operation); commands.push(operation) } catch { /* Current policy hides unavailable transfers. */ }
+      }
+      commands.sort()
+    }
     return commands.length ? [{ adapter, readOnly, commands }] : []
   })
 }

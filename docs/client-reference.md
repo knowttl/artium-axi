@@ -12,7 +12,7 @@ Upload local JSON, CSV or policy files with `--file <local-path>`; the CLI sends
 For `API_RESPONSE_INVALID`, use the [response diagnostic guidance](runbook.md#scripted-administrator-sessions) to check API compatibility.
 
 Use `artium-axi download --operation policy.download --selector <uuid> --type content --destination <absolute-new-path>` for preview.
-Repeat the selection and destination with the returned --transfer, --execute and exact --confirm plus fresh identity confirmation.
+Repeat the selection and destination with the returned --transfer, --execute and exact --confirm plus fresh identity confirmation, unless using an exactly selected writable delegated operation.
 computer.log.download and policy.revision.download also use a UUID selector and type content.
 api-definition.download uses selector api and type yaml.
 Complete the [shared artifact-mount and controlled-client prerequisites](runbook.md#scope-and-prerequisites) before using downloads.
@@ -281,7 +281,8 @@ Preview launches no native downloader and makes no upstream request.
 Review the exact selection and new destination, then repeat them with `--transfer <transferId> --execute --confirm <exact-confirm>`.
 The host-owned confirmation binds the transfer ID, destination digest, credential revision, exact selection and absolute expiry.
 The native download executes once, verifies the upstream SHA-256 header and returns path, size and digest; Artium validates that response and independently verifies the private file bytes before delivery.
-The 50 MiB native cap, shared global capacity, ten-minute expiry, recent identity proof, revocation checks, one-shot delivery and private 0700 destination requirements remain enforced.
+The 50 MiB native cap, shared global capacity, ten-minute expiry, revocation checks, one-shot delivery and private 0700 destination requirements remain enforced.
+Recent identity proof is required except for an exactly selected writable delegated operation.
 Transfer audit records identify `checkpoint-axi`; native audit ID and native journal result are empty because this is host-owned evidence.
 The CLI checks delivered bytes again and sends a verified-save receipt; missing receipt remains unconfirmed.
 Save only, never extract or execute, and never retry an uncertain transfer automatically.
@@ -302,6 +303,8 @@ Preview supplies `--operation`, `--selector`, `--type` and `--destination` witho
 Review the warning, exact selection, local destination, limits, expiry and native confirmation returned by preview.
 Then repeat the exact selection and destination with `--transfer <transferId> --execute --confirm <exact-confirm>`.
 Both invocations require identity confirmation: use `--sso` for browser approval, or a local password through a terminal prompt or `--password-stdin`.
+An exactly selected writable delegated operation is exempt from identity confirmation; omit both flags when using a delegated session.
+The administrator's exact operation grant, confirmation and SHA-256 verification remain required.
 `ARTIUM_AXI_PASSWORD` is not a password source for this command.
 
 Retrieval writes a private temporary file, verifies the advertised size and archive SHA-256, then atomically publishes to the confirmed destination without overwrite or symlink traversal.
