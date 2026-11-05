@@ -82,6 +82,31 @@ async function expireConfirmation() {
   assert.equal(response.status, 200)
 }
 
+test('temporary token settings and creation work in the browser', () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi');
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=enabled][value=false]');
+    await page.open(base + '/admin/tokens');
+    await page.click('[name=mintingEnabled]');
+    await page.click('form[data-token-settings] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=mintingEnabled]:checked');
+    await page.open(base + '/account');
+    await page.fill('form[data-create-token] [name=label]', 'Synthetic token');
+    await page.click('[data-token-tool="falcon-axi"]');
+    await page.click('[data-token-command="falcon-axi"][value="detection list"]');
+    await page.click('form[data-create-token] button');
+    await page.wait('#created-token[open]');
+    check(await page.eval(() => document.querySelector('[data-created-token]').value.startsWith('artd_')), 'Token was not shown');
+    await page.click('[data-close-created-token]');
+    await page.wait('form[data-create-token]');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic token')), 'Token was not listed');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('detection list')), 'Exact selection was not retained alongside tool-wide access');
+  `)
+})
+
 test('People role links and stretched person and tool rows keep independent pointer targets', () => {
   browser(`
     check(await page.eval(() => {

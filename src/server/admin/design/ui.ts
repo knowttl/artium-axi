@@ -203,6 +203,7 @@ const navigation: { group?: string, href: string, label: string, icon: IconName 
   { group: 'Access', href: '/admin/invitations', label: 'Invitations', icon: 'mail' },
   { group: 'Tools', href: '/admin/tools', label: 'Tools', icon: 'box' },
   { group: 'Security', href: '/admin/settings/sign-in', label: 'Sign-in & SSO', icon: 'key' },
+  { group: 'Security', href: '/admin/tokens', label: 'Access tokens', icon: 'key' },
   { group: 'Security', href: '/admin/audit', label: 'Audit log', icon: 'list' },
 ]
 

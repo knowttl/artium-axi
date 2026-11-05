@@ -17,6 +17,7 @@ import { authDefaults } from '../config.js'
 import { listUserSessions, revokeUserSession } from './user-sessions.js'
 import { revokeUserSessions } from './tokens.js'
 import { accountContent, accountRoles } from '../admin/account.js'
+import type { Adapter } from '../adapters/types.js'
 
 export const browserCookie = 'artium-session'
 export const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite: 'strict' } as const
@@ -40,7 +41,7 @@ export function browserPage(reply: FastifyReply, title: string, content: string,
 }
 
 export function registerBrowser(app: FastifyInstance, db: Database.Database, audit: Audit, attempts: AuthAttempts,
-  providerSignOut: (session: BrowserSession, origin: string) => Promise<string | undefined>) {
+  providerSignOut: (session: BrowserSession, origin: string) => Promise<string | undefined>, adapters: readonly Adapter<unknown>[]) {
   app.register(cookie)
   app.register(formbody)
   app.register(csrf, { cookieOpts: cookieOptions })
@@ -157,7 +158,7 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
     const current = session(request)
     if (current.must_change) return reply.redirect('/password')
     const roles = accountRoles(db, current)
-    return browserPage(reply, 'Your account', accountContent(db, current, reply.generateCsrf(), `${request.protocol}://${request.host}`), current,
+    return browserPage(reply, 'Your account', accountContent(db, current, reply.generateCsrf(), `${request.protocol}://${request.host}`, adapters), current,
       `${current.display_name} (${current.username}) · ${current.source === 'sso' ? 'SSO sign-in' : 'Local password sign-in'} · ${roles.length === 1 ? 'Role' : 'Roles'}: ${roles.join(', ') || 'None'}`,
       { helpTopic: 'Account', actions: current.source === 'local' ? `<a class="btn btn-secondary" href="/password">${icon('key')}Change password</a>` : '' })
   })

@@ -6,6 +6,8 @@ import { status, toolProducts } from './design/status.js'
 import { escape } from './escape.js'
 import { sessionTable } from './session-table.js'
 import { transferLimits, transferWarning, transferWarningFor } from '../../shared/api.js'
+import type { Adapter } from '../adapters/types.js'
+import { accountTokens } from './delegated-tokens.js'
 
 const hosts = [['claude', 'Claude'], ['codex', 'Codex'], ['opencode', 'OpenCode'], ['pi', 'Pi']] as const
 const savingTools = ['hybrid-axi', 'checkpoint-axi', 'mg-axi', 'beyondtrust-axi']
@@ -15,7 +17,7 @@ export function accountRoles(db: Database.Database, current: BrowserSession): st
     WHERE user_roles.user_id = ? ORDER BY roles.name`).all(current.user_id) as { name: string }[]).map(role => role.name)
 }
 
-export function accountContent(db: Database.Database, current: BrowserSession, csrf: string, origin: string): string {
+export function accountContent(db: Database.Database, current: BrowserSession, csrf: string, origin: string, adapters: readonly Adapter<unknown>[]): string {
   const tools = db.prepare(`SELECT DISTINCT tools.name, tools.enabled FROM tools
     JOIN role_tools ON role_tools.tool = tools.name JOIN user_roles ON user_roles.role_id = role_tools.role_id
     WHERE user_roles.user_id = ? ORDER BY tools.name`).all(current.user_id) as { name: keyof typeof toolProducts, enabled: number }[]
@@ -79,7 +81,7 @@ chmod 755 artium-axi.mjs`
       ${transfers.length ? `<div class="table-scroll"><table><caption class="sr-only">Your latest 20 archive transfers</caption><thead><tr><th>Tool</th><th>Type</th><th>Selector</th><th>Bytes</th><th>Archive SHA-256</th><th>Native outcome</th><th>Delivery</th><th>Service outcome</th><th>Client save receipt</th></tr></thead><tbody>${transfers.map(row => `<tr><td>${escape(row.tool)}</td><td>${escape(row.artifact_type)}</td><td>${escape(row.artifact_selector)}</td><td>${row.archive_bytes ?? 'Unknown'}</td><td>${escape(row.archive_sha256 ?? 'Unknown')}</td><td>${escape(['checkpoint-axi', 'beyondtrust-axi'].includes(row.tool) ? 'Host-owned evidence; no native journal' : row.native_journal_result ?? 'Unknown')}</td><td>${row.delivered ? 'Completed' : 'Unconfirmed'}</td><td>${escape(row.outcome)}</td><td>${escape(row.client_save_outcome)}</td></tr>`).join('')}</tbody></table></div>` : '<p>No archive transfers recorded.</p>'}</div></details>` : ''
   return card('Your tools', 'From your roles. Ask an administrator to change your roles or configure a tool.', `<div class="card-body">${toolGrid}</div>`) +
     card('Set up the CLI', 'Linux with Node 24.11 or later, curl and sha256sum.', `<div class="card-body">${cli}</div>`) +
-    saving + sessionTable(csrf, '/v1/account/sessions', listUserSessions(db, current.user_id, current.family_id).sessions)
+    saving + accountTokens(db, current, csrf, adapters) + sessionTable(csrf, '/v1/account/sessions', listUserSessions(db, current.user_id, current.family_id).sessions)
 }
 
 function shellQuote(value: string): string {

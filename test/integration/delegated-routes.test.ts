@@ -33,7 +33,7 @@ classify('GET', `/v1/tools /v1/skills /v1/me /v1/results/technitium-axi/:operati
 classify('GET', `/account /password /reauth /v1/account/sessions
   /admin /admin/ssh /admin/ssh/credentials /admin/ssh/audit /admin/settings/sign-in
   /admin/settings/sign-in/:id /admin/settings/sign-in/:id/matches/:ruleId /admin/invitations
-  /admin/audit /admin/users /admin/users/:id /admin/roles /admin/roles/:id /admin/credentials /admin/tools /admin/tools/:tool
+  /admin/audit /admin/tokens /admin/users /admin/users/:id /admin/roles /admin/roles/:id /admin/credentials /admin/tools /admin/tools/:tool
   /v1/account/tokens /v1/admin/tokens /v1/tools/proxmox-axi/streams/limits
   /v1/tools/kubernetes-axi/workspaces/:id /v1/tools/kubernetes-axi/workspaces/:id/files/*
   /v1/tools/kubernetes-axi/sessions /v1/tools/kubernetes-axi/sessions/:id
@@ -65,7 +65,7 @@ classify('DELETE', `/v1/tools/proxmox-axi/streams/:id /v1/tools/kubernetes-axi/w
   /v1/admin/sso/role-rules/:id /v1/admin/roles/:id`, 'denied')
 classify('PUT', `/v1/admin/tools/awx-axi/origin /v1/admin/tools/:tool/credential /v1/admin/users/:id/roles
   /v1/admin/roles/:id/tools /v1/tools/kubernetes-axi/workspaces/:id/files/*`, 'denied')
-classify('PATCH', `/v1/admin/tools/:tool/write-access /v1/admin/tools/:tool /v1/admin/tools/:tool/credential
+classify('PATCH', `/v1/admin/token-settings /v1/admin/tools/:tool/write-access /v1/admin/tools/:tool /v1/admin/tools/:tool/credential
   /v1/admin/sso/providers/:id/activation /v1/admin/sso/providers/:id /v1/admin/sso/providers/:id/credential
   /v1/admin/sso/role-rules/:id /v1/admin/users/:id /v1/admin/roles/:id`, 'denied')
 

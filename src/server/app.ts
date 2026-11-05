@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { isIP } from 'node:net'
 import Fastify from 'fastify'
-import { ZodError } from 'zod'
+import { z, ZodError } from 'zod'
 import type Database from 'better-sqlite3'
 import type { FastifyError } from 'fastify'
 import { certificateDetailsSchema, certificateInspectionSchema, createDelegationSchema, delegatedExchangeSchema, inputLimits, passwordChangeSchema, runRequestSchema, toolSchema, toolsResponseSchema, toolAllowsWrites } from '../shared/api.js'
@@ -22,13 +22,14 @@ import type { ProxmoxAdapter } from './adapters/proxmox.js'
 import { loginSchema, reauthSchema, refreshSchema } from '../shared/api.js'
 import { AuthAttempts, AuthRateLimits } from './auth/attempts.js'
 import { browserCookie, browserPage, registerBrowser } from './auth/browser.js'
-import { readBrowserSession, type BrowserSession } from './auth/sessions.js'
+import { readBrowserSession, recentBrowserAuth, type BrowserSession } from './auth/sessions.js'
 import { registerAdmin } from './admin/api.js'
 import { registerOverviewPage } from './admin/overview.js'
 import { registerUsersPage } from './admin/users.js'
 import { registerRolesPages } from './admin/roles.js'
 import { registerAdminPages } from './admin/pages.js'
 import { registerAuditPage } from './admin/audit.js'
+import { registerTokenPage } from './admin/delegated-tokens.js'
 import { escape } from './admin/escape.js'
 import { copyValue } from './admin/design/ui.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
@@ -102,7 +103,7 @@ export function createApp(options: {
     if (delegation) audit.record({ event: 'delegation-access', userId: delegation.creator_id,
       delegationId: delegation.id, tool: null, requestId: request.id, clientAddress: request.ip, outcome })
   })
-  const browser = registerBrowser(app, db, audit, authAttempts, (session, origin) => sso.endSession(session, origin))
+  const browser = registerBrowser(app, db, audit, authAttempts, (session, origin) => sso.endSession(session, origin), adapters)
   const device = registerDevice(app, db, audit)
   const sso = registerSso(app, db, audit, options.providerCredentials, options.ssoFetch, device)
   const health = new ToolHealth(db, audit, runner, adapters, options.credentialStore, proxmox)
@@ -296,9 +297,16 @@ export function createApp(options: {
     const token = bearer(request.headers.authorization)
     let userId: string | null = null
     try {
-      userId = authenticate(db, token)
-      const ticket = request.headers['x-artium-reauth-ticket']
-      requireRecentAuth(db, token, typeof ticket === 'string' ? ticket : '')
+      if (!request.headers.authorization && request.cookies[browserCookie]) {
+        const current = readBrowserSession(db, request.cookies[browserCookie]!)
+        if (current.must_change) throw new ArtiumError('PASSWORD_CHANGE_REQUIRED')
+        if (!recentBrowserAuth(current)) throw new ArtiumError('REAUTH_REQUIRED')
+        userId = current.user_id
+      } else {
+        userId = authenticate(db, token)
+        const ticket = request.headers['x-artium-reauth-ticket']
+        requireRecentAuth(db, token, typeof ticket === 'string' ? ticket : '')
+      }
       const input = createDelegationSchema.safeParse(request.body)
       if (!input.success) throw new ArtiumError('INVALID_INPUT')
       const id = randomUUID()
@@ -313,18 +321,24 @@ export function createApp(options: {
     }
   })
   app.get('/v1/account/tokens', async request => {
-    const userId = authenticate(db, bearer(request.headers.authorization))
+    const userId = accountTokenUser(request)
     return { tokens: db.prepare(`SELECT id, label, scope_json AS scopeJson, read_only AS readOnly, single_use AS singleUse,
       created_at AS createdAt, expires_at AS expiresAt, revoked_at AS revokedAt, consumed_at AS consumedAt
       FROM delegations WHERE creator_id = ? ORDER BY created_at DESC, id`).all(userId) }
   })
   app.post<{ Params: { id: string } }>('/v1/account/tokens/:id/revoke', async (request, reply) => {
-    const userId = authenticate(db, bearer(request.headers.authorization))
+    const userId = accountTokenUser(request)
     audit.change({ event: 'token-revoke', userId, delegationId: request.params.id, tool: null, targetId: request.params.id,
       requestId: request.id, clientAddress: request.ip, outcome: 'success' },
     () => revokeDelegation(db, request.params.id, userId, false))
     return reply.code(204).send()
   })
+  function accountTokenUser(request: import('fastify').FastifyRequest): string {
+    if (request.headers.authorization || !request.cookies[browserCookie]) return authenticate(db, bearer(request.headers.authorization))
+    const current = readBrowserSession(db, request.cookies[browserCookie]!)
+    if (current.must_change) throw new ArtiumError('PASSWORD_CHANGE_REQUIRED')
+    return current.user_id
+  }
   app.post('/v1/auth/reauth', async (request, reply) => {
     if (!request.headers.authorization && request.cookies[browserCookie]) {
       const until = await browser.reauthenticate(request)
@@ -363,6 +377,17 @@ export function createApp(options: {
     return reply.code(204).send()
   })
   const authorizeAdmin = registerAdmin(app, db, audit, authAttempts, { adapters, runner, store: options.credentialStore, health, credentialProfiles, sshHosts: options.sshHosts }, options.providerCredentials)
+  app.patch('/v1/admin/token-settings', async request => {
+    const userId = authorizeAdmin(request)
+    const input = z.strictObject({ mintingEnabled: z.boolean(), maxLifetimeMs: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) }).safeParse(request.body)
+    if (!input.success) throw new ArtiumError('INVALID_INPUT')
+    audit.change({ event: 'admin-change', action: 'token-settings', targetId: 'delegation-settings', userId, tool: null,
+      requestId: request.id, clientAddress: request.ip, outcome: 'success' }, () => {
+      db.prepare('UPDATE delegation_settings SET minting_enabled = ?, max_lifetime_ms = ? WHERE id = 1')
+        .run(Number(input.data.mintingEnabled), input.data.maxLifetimeMs)
+    })
+    return { saved: true }
+  })
   app.get('/v1/admin/tokens', async request => {
     authorizeAdmin(request)
     return { tokens: db.prepare(`SELECT id, creator_id AS creatorId, label, scope_json AS scopeJson, read_only AS readOnly,
@@ -391,6 +416,7 @@ export function createApp(options: {
   registerRolesPages(app, db)
   registerAdminPages(app, db, credentialProfiles, runner.trustedCertificates)
   registerAuditPage(app, db, audit)
+  registerTokenPage(app, db)
   registerTransfers(app, db, audit, runner, resolver, adapters, options.artifactStore)
   for (const tool of ['technitium-axi', 'awx-axi', 'kubernetes-axi', 'proxmox-axi'] as const) app.get<{ Params: { operation: string, id: string } }>(`/v1/results/${tool}/:operation/:id`, async (request, reply) => {
     if (tool === 'awx-axi' && !['token-create', 'stdout-download'].includes(request.params.operation)) throw new ArtiumError('NOT_FOUND')
