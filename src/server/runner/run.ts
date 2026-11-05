@@ -92,13 +92,16 @@ export async function runTool<Credential>(
     }
     const identity = { userId, delegationId, tool: adapter.name, requestId: context.requestId, clientAddress: context.clientAddress }
     const family = () => familyId ?? verifyAccessFamily(db, token)
-    if (credentialCommand) audit.record({ ...identity, event: 'credential-issue', targetId: credentialCommand, outcome: 'success' })
+    if (credentialCommand) audit.record({ ...identity, event: 'credential-issue', targetId: credentialCommand, outcome: 'attempt' })
+    let confirmedCredentialCommand: string | undefined
     const recheck = () => {
       if (authenticate === verifyAccessToken) {
         const current = verifyPrincipal(db, token)
         if (current.delegation) {
           const classification = adapter.classify(args, input)
           checkDelegation(current.delegation.scopeJson, current.delegation.readOnly, adapter.name, classification.command, classification.effect)
+          if (confirmedCredentialCommand) checkDelegation(current.delegation.scopeJson, current.delegation.readOnly,
+            adapter.name, confirmedCredentialCommand, 'write')
         }
       } else authenticate(db, token)
       checkToolPolicy(db, userId, adapter.name)
@@ -142,9 +145,19 @@ export async function runTool<Credential>(
       } : undefined
       const nativeScope = (adapter.name === 'unifi-axi' || adapter.name === 'technitium-axi') && reference
         ? createHash('sha256').update(JSON.stringify({ userId, family: family(), reference })).digest('hex') : undefined
+      const credentialConfirmation = prepared.invocation?.command === 'confirm' && !prepared.invocation.help && kubernetesRequests
+        && await kubernetesCredentialRequest(kubernetesRequests.root, kubernetesRequests.scope, args[1])
+      if (delegationId && credentialConfirmation) {
+        confirmedCredentialCommand = credentialCommand = 'create token'
+        recheck()
+        audit.record({ ...identity, event: 'credential-issue', targetId: credentialCommand, outcome: 'attempt' })
+      }
       const protectedResult = prepared.protectedResult?.source === 'pipe' && kubernetesRequests
-        && !await kubernetesCredentialRequest(kubernetesRequests.root, kubernetesRequests.scope, args[1])
+        && !credentialConfirmation
         ? undefined : prepared.protectedResult
+      if (credentialCommand && (prepared.preview || prepared.invocation?.help || !protectedResult && prepared.effect === 'read')) {
+        audit.record({ ...identity, event: 'credential-issue', targetId: credentialCommand, outcome: 'preview' })
+      }
       if (protectedResult) {
         if (!context.protectedResults || !reference) throw new ArtiumError('UNSUPPORTED_INPUT')
         reservation = context.protectedResults.reserve({ userId, credential: reference, operation: protectedResult.operation,
@@ -188,7 +201,7 @@ export async function runTool<Credential>(
           }, prepared.pathPrefix)
         if (prepared.proxmox && reference && context.proxmox) {
           return context.proxmox.execute({ userId, familyId: family(), credential: reference,
-            requestId: context.requestId, signal: context.signal }, prepared, invoke, bytes => { privateBytes = bytes })
+            requestId: context.requestId, signal: context.signal, delegated: !!delegationId }, prepared, invoke, bytes => { privateBytes = bytes })
         }
         if (prepared.proxmox) throw new ArtiumError('UNSUPPORTED_INPUT')
         return invoke()
@@ -209,6 +222,7 @@ export async function runTool<Credential>(
         const json = result.stdout.trimStart().startsWith('{')
         const projection = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
         const resultReference = reservation.commit(privateBytes)
+        if (credentialCommand && result.exitCode === 0) audit.record({ ...identity, event: 'credential-issue', targetId: credentialCommand, outcome: 'success' })
         projection.result = resultReference
         result.stdout = (json ? JSON.stringify(projection) : encode(projection)) + '\n'
         result.outputBytes.stdout = Buffer.byteLength(result.stdout)

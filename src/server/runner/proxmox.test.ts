@@ -2,10 +2,11 @@ import { watch } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { PreparedCall } from '../adapters/types.js'
 import { acquireProxmox } from './proxmox.js'
 import { Runner } from './runner.js'
+import { runnerLimits } from '../config.js'
 
 let root: string
 let runner: Runner
@@ -15,6 +16,7 @@ beforeEach(async () => {
 })
 afterEach(async () => {
   await runner.shutdown()
+  vi.useRealTimers()
   await rm(root, { recursive: true, force: true })
 })
 
@@ -25,6 +27,20 @@ function prepared(script: string): PreparedCall {
   }, files: [{ name: 'auth.mjs', content: script }], secrets: [], limits: { timeoutMs: 5000 },
   proxmox: { origin: 'https://synthetic.invalid', identity: 'automation@pve', password: true, authenticate: true } }
 }
+
+test('delegated authentication cannot occupy a third creator slot', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  const first = new AbortController(), second = new AbortController()
+  const hold = (signal: AbortSignal) => new Promise<void>(resolve => signal.addEventListener('abort', () => resolve(), { once: true }))
+  const active = [runner.runManaged('synthetic-user', first.signal, hold, true),
+    runner.runManaged('synthetic-user', second.signal, hold, true)]
+  const pending = acquireProxmox(runner, 'synthetic-user', prepared('process.exit(1)'), [], undefined, () => {}, true)
+    .catch(error => error)
+  await vi.advanceTimersByTimeAsync(runnerLimits.admissionWaitMs)
+  expect(await pending).toMatchObject({ code: 'TOO_MANY_CALLS', processStarted: false })
+  first.abort(); second.abort()
+  await Promise.all(active)
+})
 
 test.each([
   ['AUTH_REQUIRED', 'UPSTREAM_AUTH_FAILED', 'authentication'],

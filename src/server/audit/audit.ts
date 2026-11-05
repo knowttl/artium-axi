@@ -34,7 +34,8 @@ export type AuditEvent = Context & (
     failure?: { diagnostic: Diagnostic | undefined, secrets: readonly string[] } } & Partial<Omit<CredentialTestEvidence, 'errorCode'>>)
   | { event: 'denial', outcome: ErrorCode }
   | { event: 'sign-in' | 'reauth' | 'password-change', outcome: Outcome, authenticationMethod?: 'sso' | 'local' | 'break-glass', providerId?: string, subject?: string }
-  | { event: 'lockout' | 'token-reuse' | 'token-create' | 'token-exchange' | 'token-revoke' | 'delegation-access' | 'credential-issue', outcome: Outcome, targetId?: string }
+  | { event: 'credential-issue', outcome: Outcome | 'attempt' | 'preview', targetId?: string }
+  | { event: 'lockout' | 'token-reuse' | 'token-create' | 'token-exchange' | 'token-revoke' | 'delegation-access', outcome: Outcome, targetId?: string }
   | { event: 'device-approve' | 'device-deny', outcome: Outcome, requestingAddress: string }
   | { event: 'sign-out', outcome: Outcome, action?: string, targetId?: string }
   | ({ event: 'credential-test' | 'health-check', outcome: Outcome, action?: string } & CredentialTestEvidence)

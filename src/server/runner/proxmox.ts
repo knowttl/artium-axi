@@ -28,11 +28,11 @@ function resultBinding(prepared: PreparedCall, operation: string): ProxmoxResult
 
 // Native acquisition is explicit inside the host; users never perform a separate PVE login.
 export async function acquireProxmox(runner: Runner, user: string, prepared: PreparedCall,
-  trust: readonly CredentialTrust[], signal: AbortSignal | undefined, beforeSpawn: () => void): Promise<Session> {
+  trust: readonly CredentialTrust[], signal: AbortSignal | undefined, beforeSpawn: () => void, delegated = false): Promise<Session> {
   let payload: unknown
   const binding = resultBinding(prepared, 'auth acquire')
   const result = await runner.run(user, prepared.executable, [prepared.args[0], 'auth', 'acquire', '--format', 'json'],
-    prepared.environment, prepared.secrets, { ...prepared.limits, publicContent: prepared.publicContent, signal, credentialTrust: trust,
+    prepared.environment, prepared.secrets, { ...prepared.limits, delegated, publicContent: prepared.publicContent, signal, credentialTrust: trust,
       protectedPipe: { environment: 'PROXMOX_AXI_RESULT_FD', receive(bytes) {
         const result = proxmoxResult(bytes, binding); payload = result.payload
         prepared.secrets.push(...result.secrets)
@@ -57,7 +57,7 @@ function selectProxmoxTicket(prepared: PreparedCall, session: Session): void {
 
 interface Owner extends ResultScope { familyId: string, trustRevision: string }
 interface Context {
-  userId: string, familyId: string, credential: CredentialReference, requestId: string, signal?: AbortSignal
+  userId: string, familyId: string, credential: CredentialReference, requestId: string, signal?: AbortSignal, delegated?: boolean
 }
 interface Cached { owner: Owner, value: Session, deadline: number, timer: NodeJS.Timeout }
 interface Pending { owner: Owner, controller: AbortController, users: number, job: Promise<Session> }
@@ -136,7 +136,7 @@ export class ProxmoxAccess {
     } finally { this.active.delete(entry); settle() }
   }
 
-  private async login(key: string, owner: Owner, prepared: PreparedCall, signal: AbortSignal): Promise<Session> {
+  private async login(key: string, owner: Owner, prepared: PreparedCall, signal: AbortSignal, delegated: boolean): Promise<Session> {
     const cached = this.sessions.get(key)
     if (cached && cached.deadline > this.now()) return cached.value
     this.remove(key)
@@ -146,7 +146,7 @@ export class ProxmoxAccess {
         .filter(entry => entry.owner.userId === owner.userId).length >= 4) throw new ArtiumError('TOO_MANY_CALLS')
       const controller = new AbortController()
       const job = acquireProxmox(this.runner, owner.userId, prepared, readCredentialTrust(this.db, owner.credential),
-        controller.signal, () => { if (this.closed || !this.valid(owner)) throw new ArtiumError('CREDENTIAL_INVALID') })
+        controller.signal, () => { if (this.closed || !this.valid(owner)) throw new ArtiumError('CREDENTIAL_INVALID') }, delegated)
         .then(value => {
           if (controller.signal.aborted || !this.valid(owner)) throw new RunnerError('CANCELLED')
           const lifetime = Math.min(300000, value.expires - Date.now())
@@ -201,7 +201,7 @@ export class ProxmoxAccess {
       origin: prepared.proxmox!.origin, identity: prepared.proxmox!.identity })).digest('hex')
     try {
       if (prepared.proxmox!.password && prepared.proxmox!.authenticate) {
-        const session = await this.login(key, owner, prepared, signal)
+        const session = await this.login(key, owner, prepared, signal, context.delegated ?? false)
         authExpires = this.sessions.get(key)?.deadline ?? this.now()
         selectProxmoxTicket(prepared, session)
       }

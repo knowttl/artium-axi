@@ -83,12 +83,20 @@ test('delegated AWX credential creation requires an exact writable pick', async 
       const login = await cli(config, ['login', '--token-stdin'], `${token}\n`)
       expect(login.code).toBe(0)
       expect((login.stdout + login.stderr + login.argv.join(' ')).includes(token)).toBe(false)
+      if (allowed) {
+        expect((await cli(config, ['awx-axi', 'user', 'token-create', '42', '--help'])).code).toBe(0)
+        expect((await cli(config, ['awx-axi', 'user', 'token-create', '42', '--dry-run'])).code).toBe(0)
+        expect(db.prepare("SELECT outcome FROM audit WHERE event = 'credential-issue' ORDER BY id").all())
+          .toEqual([{ outcome: 'attempt' }, { outcome: 'preview' }, { outcome: 'attempt' }, { outcome: 'preview' }])
+      }
       const result = await cli(config, ['awx-axi', 'user', 'token-create', '42', '--confirm'])
       expect((result.stdout + result.stderr + result.argv.join(' ')).includes(token)).toBe(false)
       expect(result.code).toBe(allowed ? 0 : 1)
       if (!allowed) expect(result.stdout).toContain('DELEGATED_SCOPE_DENIED')
       else expect(result.stdout).toContain('token-create')
     }
+    expect(db.prepare("SELECT target_id, outcome FROM audit WHERE event = 'credential-issue' AND outcome = 'success'").all())
+      .toEqual([{ target_id: 'user token-create', outcome: 'success' }])
   })
 })
 
