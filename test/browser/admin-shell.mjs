@@ -82,7 +82,7 @@ async function expireConfirmation() {
   assert.equal(response.status, 200)
 }
 
-test('temporary token settings and creation work in the browser', () => {
+test('ordinary users can create temporary tokens after recent authentication expires', async () => {
   browser(`
     await page.open(base + '/admin/tools/falcon-axi');
     await page.click('form:has([name=enabled]) button');
@@ -93,11 +93,25 @@ test('temporary token settings and creation work in the browser', () => {
     await page.click('form[data-token-settings] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=mintingEnabled]:checked');
+    await page.open(base + '/admin#nav');
+    await page.click('.account-menu summary');
+    await page.click('.account-menu form[action="/logout"] button');
+    await page.wait('[name=username]');
+    await page.fill('[name=username]', 'synthetic-ordinary');
+    await page.fill('[name=password]', 'CANARY-local-password');
+    await page.click('button');
+    await page.wait('form[data-create-token]');
+  `)
+  await expireConfirmation()
+  browser(`
     await page.open(base + '/account');
     await page.fill('form[data-create-token] [name=label]', 'Synthetic token');
     await page.click('[data-token-tool="falcon-axi"]');
     await page.click('[data-token-command="falcon-axi"][value="detection list"]');
     await page.click('form[data-create-token] button');
+    await page.wait('#reauth-dialog[open]');
+    await page.fill('#reauth-dialog [name=password]', 'CANARY-local-password');
+    await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('#created-token[open]');
     check(await page.eval(() => document.querySelector('[data-created-token]').value.startsWith('artd_')), 'Token was not shown');
     await page.click('[data-close-created-token]');
