@@ -50,7 +50,7 @@ const inventoryCases = adapters.flatMap(adapter => {
       : adapter.name === 'vectra-axi' ? vectraReadCommands.has(route.command) : adapter.name === 'ldap-axi'
     const workflow = inventory.workflows?.includes(route)
     const effect = !workflow && (reviewedRead || route.effect === 'read' || route.effect === 'local') ? 'read' : 'write'
-    return { adapter, command: route.command, canonical: route.canonicalCommand ?? route.command, effect }
+    return { adapter, command: route.command, canonical: route.canonicalCommand ?? (route.command || 'home'), effect }
   })
 })
 
@@ -86,6 +86,12 @@ test('Azure DevOps API method overrides do not turn mutations into reads', () =>
 
 test.each(adapters)('$name classifies an unknown command as write', adapter => {
   expect(adapter.classify(['synthetic-unknown']).effect).toBe('write')
+})
+
+test.each(['gitea-axi', 'technitium-axi', 'unifi-axi'])('%s uses its parser home name for empty and help calls', tool => {
+  const adapter = adapters.find(item => item.name === tool)!
+  expect(adapter.classify([])).toEqual({ command: 'home', effect: 'read' })
+  expect(adapter.classify(['--help'])).toEqual({ command: 'home', effect: 'read' })
 })
 
 test.each([

@@ -10,11 +10,11 @@ export function classifyCommand(
   input?: RunnerInput,
 ): { command: string, effect: 'read' | 'write' } {
   const exact = routes.find(item => item.command === args.join(' '))
-  if (exact) return { command: exact.canonicalCommand ?? exact.command,
+  if (exact) return { command: exact.canonicalCommand ?? (exact.command || 'home'),
     effect: exact.effect === 'read' || exact.effect === 'local' ? 'read' : 'write' }
   let command: string
   try { command = resolve(args, input) }
   catch { return { command: args.join(' '), effect: 'write' } }
-  const route = routes.find(item => (item.canonicalCommand ?? item.command) === command)
+  const route = routes.find(item => (item.canonicalCommand ?? (item.command || 'home')) === command)
   return { command, effect: route && (route.effect === 'read' || route.effect === 'local') ? 'read' : 'write' }
 }
