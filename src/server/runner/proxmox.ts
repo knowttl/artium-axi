@@ -47,7 +47,7 @@ export async function acquireProxmox(runner: Runner, user: string, prepared: Pre
     throw new ArtiumError('UPSTREAM_AUTH_FAILED', 'This Proxmox account requires an interactive authentication challenge.', 'TFA accounts cannot sign in automatically. Configure a PVE API token instead.')
   }
   const value = sessionSchema.safeParse(payload)
-  if (!value.success || value.data.expires <= Date.now() || value.data.expires > Date.now() + 300000) throw new ArtiumError('UPSTREAM_RESPONSE_INVALID')
+  if (!value.success || value.data.expires <= Date.now()) throw new ArtiumError('UPSTREAM_RESPONSE_INVALID')
   return { ticket: value.data.ticket, csrfPreventionToken: value.data.csrfPreventionToken, expires: value.data.expires }
 }
 

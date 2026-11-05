@@ -138,8 +138,10 @@ test('cancelling an authentication child does not mark the requested operation a
   } finally { watcher.close() }
 })
 
-test('automatic acquisition still returns a ready ticket from the private channel', async () => {
-  const expires = Date.now() + 240000
+test.each([0, 500])('automatic acquisition accepts a ready ticket after a %i ms wall-clock rollback (container-acceptance)', async rollback => {
+  const issuedAt = Date.now(), expires = issuedAt + 300000
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(issuedAt - rollback)
   const call = prepared(`import {writeSync} from 'node:fs';
     const binding={origin:'https://synthetic.invalid',identity:'automation@pve',operation:'auth acquire',
       request:process.env.PROXMOX_AXI_REQUEST_ID,actor:process.env.PROXMOX_AXI_ACTOR,
