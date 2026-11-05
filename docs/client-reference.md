@@ -450,6 +450,7 @@ Use repeatable `--command '<tool:pattern>'` to restrict a tool to exact commands
 Wildcards match command words and exclude API and native escape hatches and credential-producing commands, which require an exact selection.
 API and native selections can reach many operations and are broad.
 Command-scoped sessions receive server-filtered tool discovery, CLI help and skills.
+Permitted leaf commands retain their argument help; leaf help outside the token's scope is refused.
 Discovery intersects token grants with the current tool enablement, delegated read-only restriction and administrator Allow writes switch.
 GitHub discovery also reflects its administrator operation allow-list.
 Other adapter-internal operation allow-lists, including UniFi, Falcon, Gitea, Technitium, Proxmox and Kubernetes credential acquisition, remain execution safeguards and are not reflected in slice 4 discovery.

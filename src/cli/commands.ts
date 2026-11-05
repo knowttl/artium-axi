@@ -80,6 +80,17 @@ async function main(args: string[]) {
       if (name) {
         const tool = tools.find(tool => tool.name === name)
         if (!tool) throw new ArtiumError('TOOL_NOT_GRANTED')
+        if (toolDiscovery && !prefixHelp && toolWords.length > 0 && !(toolWords.length === 1 && ['commands', 'home', 'help'].includes(toolWords[0]))) {
+          const parsed = runSuccessSchema.safeParse(await client.authenticated(`/v1/tools/${name}/run`, 'POST', { args: args.slice(1) }))
+          if (!parsed.success || parsed.data.source !== name) throw new ArtiumError('INVALID_RESPONSE')
+          const { truncated } = parsed.data
+          if (truncated.stdout || truncated.stderr) output('stderr', `artium-axi: output truncated (${['stdout', 'stderr'].filter(stream => truncated[stream as keyof typeof truncated]).join(', ')}).\n`)
+          output('stdout', parsed.data.stdout)
+          output('stderr', parsed.data.stderr)
+          if (parsed.data.exitCode !== 0 && client.requestId) output('stderr', `${parsed.data.stderr && !parsed.data.stderr.endsWith('\n') ? '\n' : ''}artium-axi: request_id ${client.requestId}\n`)
+          process.exitCode = parsed.data.exitCode
+          return
+        }
         output('stdout', args.includes('--json') ? JSON.stringify({ tool: tool.name, commands: tool.commands }) + '\n' : toolView(tool))
       } else output('stdout', toolsView(tools))
       return

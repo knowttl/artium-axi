@@ -11,7 +11,8 @@ import { createProxmoxAdapter } from '../../src/server/adapters/proxmox.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { ProxmoxAccess } from '../../src/server/runner/proxmox.js'
 import { ProtectedResults } from '../../src/server/protected-results.js'
-import { verifyAccessFamily } from '../../src/server/auth/tokens.js'
+import { exchangeDelegation, verifyAccessFamily } from '../../src/server/auth/tokens.js'
+import { createDelegation } from '../../src/server/auth/delegations.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
@@ -176,6 +177,18 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.equal(deniedBatch.json().error.code, 'FLAG_BLOCKED')
     assert.equal((await evidence()).applied, beforeDeniedBatch)
     await writes(true)
+    db.exec('UPDATE delegation_settings SET minting_enabled = 1')
+    const delegatedBatch = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic batch scope',
+      scope: { tools: [{ tool: 'proxmox-axi', commands: ['create *', 'get /nodes/{node}/version'] }] },
+      readOnly: false, reusable: false, expiresAt: Date.now() + 60000 })
+    const delegatedHeaders = { authorization: `Bearer ${exchangeDelegation(db, delegatedBatch.token).accessToken}` }
+    const beforeScopedBatch = (await evidence()).applied
+    for (const mode of [['--preview'], ['--confirm', `00000000-0000-4000-8000-000000000001.${'a'.repeat(64)}`]]) {
+      const refused = await app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/run', headers: delegatedHeaders,
+        payload: { args: [...batch, ...mode], stdin: batchInput } })
+      assert.equal(refused.json().error.code, 'DELEGATED_SCOPE_DENIED', refused.body)
+    }
+    assert.equal((await evidence()).applied, beforeScopedBatch)
     const batchPlan = await success([...batch, '--preview'], batchInput)
     const batchResult = await success([...batch, '--confirm', batchPlan.confirmation], batchInput)
     const batchPrivate = await app.inject({ url: batchResult.result!.path, headers })

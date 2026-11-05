@@ -124,6 +124,21 @@ export function authorizeDelegatedOperation(db: Database.Database, userId: strin
   }
 }
 
+export function authorizeDelegatedCall(db: Database.Database, userId: string,
+  delegation: { scopeJson: string, readOnly: boolean }, adapter: Adapter<unknown>, args: readonly string[], input?: RunnerInput) {
+  const operations = [classifyDelegatedCommand(adapter, args, input), ...(adapter.nestedOperations?.(args, input) ?? [])
+    .map(operation => ({ ...operation, command: commandOperation(adapter.name, operation.command) }))]
+  for (const operation of operations) authorizeDelegatedOperation(db, userId, delegation, adapter, operation)
+  return operations
+}
+
+export function delegatedDiscoveryRequest(adapter: Adapter<unknown>, args: readonly string[], input?: RunnerInput): boolean {
+  const { command } = classifyDelegatedCommand(adapter, args, input)
+  if (['home', 'help', 'commands', 'inventory'].includes(command)) return true
+  return args.some(arg => ['--help', '-h'].includes(arg))
+    && !commandRoutes(adapter.name).some(route => commandOperation(adapter.name, route.canonicalCommand ?? route.command) === command)
+}
+
 export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter: Adapter<unknown>,
   authorize = (classification: { command: string, effect: 'read' | 'write' }) =>
     checkDelegation(scopeJson, readOnly, adapter, classification.command, classification.effect)): string[] {

@@ -47,8 +47,9 @@ function protectedInput(text: string): { api: Record<string, unknown>, secrets: 
 }
 
 function requireOperations(route: Command, values: Record<string, unknown>, allowed: readonly string[],
-  secrets: Record<string, string>, budget = { count: 0 }, depth = 0): boolean {
+  secrets: Record<string, string>, visit?: (route: Command) => void, budget = { count: 0 }, depth = 0): boolean {
   if (!route.operationId || !allowed.includes(route.operationId) || ++budget.count > 64 || depth > 4) throw new ArtiumError('FLAG_BLOCKED')
+  visit?.(route)
   for (const name of route.sensitiveInputs) if (Object.hasOwn(values, name)) {
     const ref = values[name] as { env?: unknown }
     if (!ref || typeof ref !== 'object' || Array.isArray(ref) || Object.keys(ref).join(',') !== 'env'
@@ -72,6 +73,7 @@ function requireOperations(route: Command, values: Record<string, unknown>, allo
     let pathValues: Record<string, string> = {}
     const target = commands.find(command => {
       if (command.method !== child.method || !command.path) return false
+      if (command.command !== `${child.method === 'POST' ? 'create' : child.method === 'PUT' ? 'set' : child.method.toLowerCase()} ${command.path}`) return false
       const names: string[] = []
       const pattern = command.path.split('/').map(part => part.startsWith('{') ? (names.push(part.slice(1, -1)), '([^/]+)')
         : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('/')
@@ -82,12 +84,12 @@ function requireOperations(route: Command, values: Record<string, unknown>, allo
     })
     if (!target) throw new ArtiumError('FLAG_BLOCKED')
     if (Object.keys(child.args ?? {}).some(name => Object.hasOwn(pathValues, name))) throw new ArtiumError('INVALID_INPUT')
-    privateResult = requireOperations(target, { ...pathValues, ...child.args }, allowed, secrets, budget, depth + 1) || privateResult
+    privateResult = requireOperations(target, { ...pathValues, ...child.args }, allowed, secrets, visit, budget, depth + 1) || privateResult
   }
   return privateResult
 }
 
-function argumentsForCall(args: readonly string[], input: RunnerInput = {}, streaming = false) {
+function argumentsForCall(args: readonly string[], input: RunnerInput = {}, streaming = false, visit?: (route: Command) => void) {
   if (input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (args.some(arg => arg.startsWith('--') && inventory.adapterBoundary.unsafeOverrides.includes(arg.slice(2).split('=')[0]))) throw new ArtiumError('FLAG_BLOCKED')
   const version = args.length === 1 && ['--version', '-v', '-V'].includes(args[0])
@@ -135,7 +137,7 @@ function argumentsForCall(args: readonly string[], input: RunnerInput = {}, stre
   }
   if (seen.has('journal') && !uuid.test(seen.get('journal')!)) throw new ArtiumError('INVALID_INPUT')
   if (!help && command.startsWith('journal ') && !journalId) throw new ArtiumError('INVALID_INPUT')
-  const privateResult = write && requireOperations(route, values, inventory.writeOperations, body?.secrets ?? {})
+  const privateResult = write && requireOperations(route, values, inventory.writeOperations, body?.secrets ?? {}, visit)
   return { args: normalized, body, route, values, write, executing, privateResult, id: confirmation?.split('.')[0],
     effect: executing ? 'write' as const : 'read' as const, invocation: { command: route.command, help } }
 }
@@ -222,6 +224,11 @@ export function createProxmoxAdapter(source: SecretSource, writeLog?: string): P
     sensitiveArguments: args => ({ flags: args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0]), positions: args.map((_, index) => index) }),
     sensitiveInput: () => true,
     validateArgs: (args, input) => { argumentsForCall(args, input) },
+    nestedOperations(args, input) {
+      const operations: { command: string, effect: 'read' | 'write' }[] = []
+      argumentsForCall(args, input, false, route => operations.push({ command: route.command, effect: route.effect === 'read' ? 'read' : 'write' }))
+      return operations.slice(1)
+    },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand([...inventory.commands, ...inventory.streamCommands, ...proxmoxHostedRoutes], (a, i) => {
       if (a[0] === 'result') {
         resolveProxmoxResult(a)

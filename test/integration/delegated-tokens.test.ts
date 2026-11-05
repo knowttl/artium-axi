@@ -30,6 +30,7 @@ import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 import { decode } from '@toon-format/toon'
 import { SessionStore } from '../../src/cli/session.js'
 import type { ToolName } from '../../src/server/store/credential-store.js'
+import proxmoxInventory from '../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 
 let directory: string
 let db: Database.Database
@@ -91,17 +92,18 @@ test('token --command mints a wildcard selection (R12)', async () => {
   expect(JSON.parse(row.scope_json)).toEqual({ tools: [{ tool: 'falcon-axi', commands: ['detection *'] }] })
 })
 
-test.each<{ tool: ToolName, command: string, args: string[], parse?: (text: string) => unknown }>([
+test.each<{ tool: ToolName, command: string, args: string[], parse?: (text: string) => unknown, code?: number,
+  expected?: { commands?: string[], error?: { code: string } } }>([
   { tool: 'kubernetes-axi', command: 'get', args: ['kubernetes-axi', '--help'] },
-  { tool: 'kubernetes-axi', command: 'get', args: ['kubernetes-axi', 'workspace', '--help'] },
+  { tool: 'kubernetes-axi', command: 'get', args: ['kubernetes-axi', 'workspace', '--help'], code: 2, expected: { error: { code: 'INVALID_INPUT' } } },
   { tool: 'ssh-axi', command: 'host list', args: ['ssh-axi', '--help'] },
-  { tool: 'ssh-axi', command: 'host list', args: ['ssh-axi', 'connection', '--help'] },
+  { tool: 'ssh-axi', command: 'host list', args: ['ssh-axi', 'connection', '--help'], code: 2, expected: { error: { code: 'FLAG_BLOCKED' } } },
   { tool: 'gh-axi', command: 'issue list', args: ['--help', 'gh-axi'] },
   { tool: 'unifi-axi', command: 'info', args: ['unifi-axi', 'commands'] },
   { tool: 'unifi-axi', command: 'info', args: ['unifi-axi', '--json', 'commands'], parse: JSON.parse },
   { tool: 'unifi-axi', command: 'info', args: ['unifi-axi', '--help'] },
   { tool: 'gh-axi', command: 'issue list', args: ['tools', 'show', 'gh-axi', '--help'] },
-])('delegated CLI discovery $args renders only permitted commands (R14)', async ({ tool, command, args, parse = decode }) => {
+])('delegated CLI discovery $args stays scoped (R14, R20)', async ({ tool, command, args, parse = decode, code = 0, expected = { commands: [command] } }) => {
   await app.close()
   db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
   const source = new EmbeddedSecretSource(credentials)
@@ -118,16 +120,16 @@ test.each<{ tool: ToolName, command: string, args: string[], parse?: (text: stri
     scope: { tools: [{ tool, commands: [command] }] }, readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 })
   expect((await cli(['login', '--token-stdin'], `${minted.token}\n`, 'agent')).code).toBe(0)
   const result = await cli([...args], '', 'agent')
-  expect(result.code, result.stdout).toBe(0)
+  expect(result.code, result.stdout).toBe(code)
   const output = parse(result.stdout) as { commands: string[], example?: string, upstreamHelp?: string }
-  expect(output.commands).toEqual([command])
+  expect(output).toMatchObject(expected)
   expect(output.example).toBeUndefined()
   expect(output.upstreamHelp).toBeUndefined()
   const session = new SessionStore(url, join(directory, 'agent', 'artium-axi', 'session.json')).read()
   if (session?.status !== 'authenticated') throw new Error('Expected delegated session')
   const managed = await cli(['--managed-session', ...args], '', 'agent', false, {}, { accessToken: session.accessToken })
-  expect(managed.code, managed.stdout).toBe(0)
-  expect((parse(managed.stdout) as { commands: string[] }).commands).toEqual([command])
+  expect(managed.code, managed.stdout).toBe(code)
+  expect(parse(managed.stdout)).toMatchObject(expected)
 })
 
 test('token creation refreshes an idle owner before password reauthentication (R6)', async () => {
@@ -143,6 +145,100 @@ test('token creation refreshes an idle owner before password reauthentication (R
   expect(db.prepare("SELECT count(*) AS count FROM tokens WHERE type = 'refresh' AND consumed_at IS NOT NULL").get())
     .toEqual({ count: 1 })
   expect(db.prepare('SELECT count(*) AS count FROM delegations').get()).toEqual({ count: 1 })
+})
+
+const batchRoute = ['create', '/nodes/{node}/execute']
+const custodyChildren = JSON.stringify([{ method: 'GET', path: 'version' }, { method: 'POST', path: 'qemu/100/vncproxy' }])
+const custodyInput = JSON.stringify({ api: { node: 'synthetic-node', commands: custodyChildren }, secrets: {} })
+const updateChildren = JSON.stringify([{ method: 'PUT', path: 'qemu/100/config', args: { description: 'Synthetic' } }])
+const updateInput = JSON.stringify({ api: { node: 'synthetic-node', commands: updateChildren }, secrets: {} })
+const nestedInput = JSON.stringify({ api: { node: 'synthetic-node', commands: JSON.stringify([
+  { method: 'POST', path: 'execute', args: { commands: updateChildren } },
+]) }, secrets: {} })
+const batchConfirmation = `00000000-0000-4000-8000-000000000001.${'a'.repeat(64)}`
+
+test.each([
+  { label: 'custody preview with protected input', commands: ['create *', 'get /nodes/{node}/version'], readOnly: false,
+    request: { args: [...batchRoute, '--protected-input', '--preview'], stdin: custodyInput }, code: 'DELEGATED_SCOPE_DENIED' },
+  { label: 'custody confirmation with flags', commands: ['create *', 'get /nodes/{node}/version'], readOnly: false,
+    request: { args: [...batchRoute, '--api-node', 'synthetic-node', '--api-commands', custodyChildren, '--confirm', batchConfirmation] }, code: 'DELEGATED_SCOPE_DENIED' },
+  { label: 'nested update outside create grant', commands: ['create *'], readOnly: false,
+    request: { args: [...batchRoute, '--protected-input', '--preview'], stdin: nestedInput }, code: 'DELEGATED_SCOPE_DENIED' },
+  { label: 'nested update covered by a sibling grant', commands: ['create *', 'set *'], readOnly: false,
+    request: { args: [...batchRoute, '--protected-input', '--preview'], stdin: nestedInput }, code: 'CREDENTIAL_NOT_CONFIGURED' },
+  { label: 'update confirmation outside create grant', commands: ['create *'], readOnly: false,
+    request: { args: [...batchRoute, '--protected-input', '--confirm', batchConfirmation], stdin: updateInput }, code: 'DELEGATED_SCOPE_DENIED' },
+  { label: 'custody child picked exactly', commands: ['create *', 'get /nodes/{node}/version', 'create /nodes/{node}/qemu/{vmid}/vncproxy'], readOnly: false,
+    request: { args: [...batchRoute, '--protected-input', '--preview'], stdin: custodyInput }, code: 'CREDENTIAL_NOT_CONFIGURED' },
+  { label: 'update covered by a sibling grant', commands: ['create *', 'set *'], readOnly: false,
+    request: { args: [...batchRoute, '--protected-input', '--preview'], stdin: updateInput }, code: 'CREDENTIAL_NOT_CONFIGURED' },
+  { label: 'read-only batch', commands: ['create *', 'set *'], readOnly: true,
+    request: { args: [...batchRoute, '--protected-input', '--preview'], stdin: updateInput }, code: 'DELEGATED_SCOPE_DENIED' },
+])('Proxmox $label enforces child scope before credential resolution (custody probe, R22)', async ({ commands, readOnly, request, code }) => {
+  await app.close()
+  db.prepare('UPDATE tools SET enabled = 1, native_settings = ? WHERE name = ?').run(JSON.stringify({
+    hostWrites: { allowWrites: true, operations: proxmoxInventory.writeOperations },
+    writes: { allowWrites: true, operations: proxmoxInventory.writeOperations },
+  }), 'proxmox-axi')
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-batch')), audit: new Audit(db),
+    adapters: [createProxmoxAdapter(new EmbeddedSecretSource(credentials), join(directory, 'writes.log'))], environment: {},
+    resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+    scope: { tools: [{ tool: 'proxmox-axi', commands }] }, readOnly, reusable: false, expiresAt: Date.now() + 600_000 })
+  const exchanged = exchangeDelegation(db, minted.token)
+  const response = await app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/run',
+    headers: { authorization: `Bearer ${exchanged.accessToken}` }, payload: request })
+  expect(response.json()).toMatchObject({ error: { code } })
+})
+
+test.each<{ tool: 'proxmox-axi' | 'unifi-axi', args: string[], allowed: string, blocked: string, parse?: (text: string) => unknown }>([
+  { tool: 'unifi-axi', args: ['commands'], allowed: 'info', blocked: 'device adopt' },
+  { tool: 'proxmox-axi', args: ['help'], allowed: 'get /version', blocked: 'create /nodes/{node}/execute' },
+  { tool: 'proxmox-axi', args: ['inventory'], allowed: 'get /version', blocked: 'create /nodes/{node}/execute' },
+  { tool: 'proxmox-axi', args: ['--format', 'json', '--help'], allowed: 'get /version', blocked: 'create /nodes/{node}/execute', parse: JSON.parse },
+  { tool: 'proxmox-axi', args: ['--format=json', '--help'], allowed: 'get /version', blocked: 'create /nodes/{node}/execute', parse: JSON.parse },
+])('$tool API discovery $args is filtered before credentials (R21)', async ({ tool, args, allowed, blocked, parse = decode }) => {
+  await app.close()
+  db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
+  const source = new EmbeddedSecretSource(credentials)
+  const adapter = tool === 'proxmox-axi' ? createProxmoxAdapter(source) : createUnifiAdapter(source)
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-listings')), audit: new Audit(db),
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic', scope: { tools: [{ tool }] },
+    readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 })
+  const exchanged = exchangeDelegation(db, minted.token)
+  const response = await app.inject({ method: 'POST', url: `/v1/tools/${tool}/run`,
+    headers: { authorization: `Bearer ${exchanged.accessToken}` }, payload: { args } })
+  expect(response.statusCode, response.body).toBe(200)
+  const output = parse(response.json().stdout) as { commands: string[] }
+  expect(output.commands).toContain(allowed)
+  expect(output.commands).not.toContain(blocked)
+})
+
+test.each([
+  { command: 'create', code: 0, text: '--title' },
+  { command: 'edit', code: 1, text: 'DELEGATED_SCOPE_DENIED' },
+])('delegated leaf issue $command help retains authorization and argument help (R20)', async ({ command, code, text }) => {
+  await app.close()
+  credentials.replaceCredential('gh-axi', { origin: 'https://git.synthetic.test', auth: 'token', token: 'CANARY-gh-help-token' },
+    0, 'synthetic-development-user', Date.now())
+  db.prepare('UPDATE tools SET enabled = 1, native_settings = ? WHERE name = ?')
+    .run(JSON.stringify({ writes: { allowWrites: true, operations: ['issue create'] } }), 'gh-axi')
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-leaf-help')), audit: new Audit(db),
+    adapters: [createGhAdapter(new EmbeddedSecretSource(credentials))], environment: {},
+    resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+    scope: { tools: [{ tool: 'gh-axi', commands: ['issue create'] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 600_000 })
+  expect((await cli(['login', '--token-stdin'], `${minted.token}\n`, 'agent')).code).toBe(0)
+  const result = await cli(['gh-axi', 'issue', command, '--help'], '', 'agent')
+  expect(result.code, result.stdout).toBe(code)
+  expect(result.stdout).toContain(text)
+  const session = new SessionStore(url, join(directory, 'agent', 'artium-axi', 'session.json')).read()
+  if (session?.status !== 'authenticated') throw new Error('Expected delegated session')
+  const managed = await cli(['--managed-session', 'gh-axi', 'issue', command, '--help'], '', 'agent', false, {}, { accessToken: session.accessToken })
+  expect(managed.code, managed.stdout).toBe(code)
+  expect(managed.stdout).toContain(text)
 })
 
 test('read-only token limits real CLI calls and revocation stops the session', async () => {
