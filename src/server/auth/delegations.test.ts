@@ -93,6 +93,37 @@ test.each(['apply', 'create token'])('Kubernetes %s discovery advertises admitte
   expect(delegatedCommands(scope, true, adapter)).not.toContain(`server-dry-run -- ${command}`)
 })
 
+test.each([
+  { pattern: 'create *', descendant: 'create deployment' },
+  { pattern: 'apply *', descendant: 'apply set-last-applied' },
+  { pattern: 'certificate *', descendant: 'certificate approve' },
+  { pattern: 'create secret *', descendant: 'create secret generic' },
+  { pattern: 'create service *', descendant: 'create service clusterip' },
+  { pattern: 'set *', descendant: 'set env' },
+])('Kubernetes $pattern resolves through mutation workflows (R9)', async ({ pattern, descendant }) => {
+  const adapter = await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'))
+  const resolved = resolveDelegatedPattern(pattern, adapter)
+  expect(resolved).toBe(pattern)
+  const scope = JSON.stringify({ tools: [{ tool: adapter.name, commands: [resolved] }] })
+  expect(delegatedCommands(scope, false, adapter)).toContain(`prepare -- ${descendant}`)
+  expect(delegatedCommands(scope, false, adapter)).toContain(`server-dry-run -- ${descendant}`)
+  expect(delegatedCommands(scope, false, adapter)).not.toContain('prepare -- create token')
+})
+
+test.each([
+  { commands: undefined, readOnly: true, writes: [] },
+  { commands: ['*'], readOnly: true, writes: [] },
+  { commands: undefined, readOnly: false, writes: ['job cancel'] },
+  { commands: ['*'], readOnly: false, writes: ['job cancel'] },
+])('AWX discovery filters broad grants with readOnly=$readOnly (R10)', ({ commands, readOnly, writes }) => {
+  const scope = JSON.stringify({ tools: [{ tool: 'awx-axi', commands }] })
+  const permitted = delegatedCommands(scope, readOnly, createAwxAdapter(source))
+  expect(permitted).toContain('job list')
+  expect(permitted.filter(command => command === 'job cancel')).toEqual(writes)
+  expect(permitted).not.toContain('user token-create')
+  expect(permitted).not.toContain('auth login')
+})
+
 const credentialOutputs = [
   { command: 'user create-token', effect: 'write' },
   { command: 'user create-single-use-token', effect: 'write' },

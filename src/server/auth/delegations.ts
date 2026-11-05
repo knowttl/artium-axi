@@ -25,6 +25,15 @@ const escapeHatches: Partial<Record<ToolName, readonly string[]>> = {
 }
 const commandPattern = /^(?:[^\s*]+(?: [^\s*]+)*(?: \*)?|\*)$/
 
+function commandOperation(tool: ToolName, command: string): string {
+  return tool === 'kubernetes-axi' ? command.replace(/^(?:prepare|server-dry-run) -- /, '') : command
+}
+
+function commandInvocations(tool: ToolName, command: string): string[] {
+  return tool === 'kubernetes-axi' && kubernetes.writeCommands.some(route => route.command === command)
+    ? [`prepare -- ${command}`, `server-dry-run -- ${command}`] : [command]
+}
+
 export function createDelegation(db: Database.Database, creatorId: string, input: z.infer<typeof createDelegationSchema>, id = randomUUID(), now = Date.now()) {
   const settings = db.prepare('SELECT minting_enabled, max_lifetime_ms FROM delegation_settings WHERE id = 1').get() as
     { minting_enabled: number, max_lifetime_ms: number }
@@ -47,7 +56,7 @@ export function createDelegation(db: Database.Database, creatorId: string, input
 export function checkDelegation(scopeJson: string, readOnly: boolean, tool: ToolName, command: string, effect: 'read' | 'write') {
   const scope = delegationScopeSchema.parse(JSON.parse(scopeJson))
   const grants = scope.tools.filter(item => item.tool === tool)
-  const operation = tool === 'kubernetes-axi' ? command.replace(/^(?:prepare|server-dry-run) -- /, '') : command
+  const operation = commandOperation(tool, command)
   const exact = grants.some(item => item.commands?.includes(operation))
   const wildcard = operation !== 'unknown' && grants.some(item => item.commands?.some(pattern => pattern === '*' || pattern.endsWith(' *') && operation.startsWith(pattern.slice(0, -1))))
   const wide = grants.some(item => item.commands === undefined)
@@ -73,10 +82,13 @@ export function resolveDelegatedPattern(pattern: string, adapter: Adapter<unknow
     const prefixes = new Set(commandRoutes(adapter.name).flatMap(route => {
       const suffix = route.command.split(' ').slice(words.length)
       if (!suffix.length) return []
-      const resolved = adapter.classify([...words, ...suffix, '--help']).command
-      if (resolved === 'unknown' || resolved === 'home' || resolved !== adapter.classify(route.command.split(' ')).command
-        || !resolved.endsWith(' ' + suffix.join(' '))) return []
-      return [resolved.split(' ').slice(0, -suffix.length).join(' ')]
+      return commandInvocations(adapter.name, route.command).flatMap(invocation => {
+        const candidate = invocation.slice(0, -route.command.length) + [...words, ...suffix].join(' ')
+        const resolved = commandOperation(adapter.name, adapter.classify([...candidate.split(' '), '--help']).command)
+        if (resolved === 'unknown' || resolved === 'home' || resolved !== adapter.classify(route.command.split(' ')).command
+          || !resolved.endsWith(' ' + suffix.join(' '))) return []
+        return [resolved.split(' ').slice(0, -suffix.length).join(' ')]
+      })
     }))
     if (prefixes.size !== 1 || prefixes.has('')) throw new ArtiumError('INVALID_INPUT')
     return [...prefixes][0] + ' *'
@@ -86,16 +98,12 @@ export function resolveDelegatedPattern(pattern: string, adapter: Adapter<unknow
   return resolved
 }
 
-export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter: Adapter<unknown>): string[] | undefined {
+export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter: Adapter<unknown>): string[] {
   const tool = adapter.name
-  const grants = delegationScopeSchema.parse(JSON.parse(scopeJson)).tools.filter(item => item.tool === tool)
-  if (grants.some(item => !item.commands)) return undefined
   return [...new Set(commandRoutes(tool).flatMap(route => {
     if (!route.command || route.command === 'home' || route.effect === 'blocked') return []
     const classification = adapter.classify(route.command.split(' '))
-    const commands = tool === 'kubernetes-axi' && kubernetes.writeCommands.some(item => item.command === route.command)
-      ? [`prepare -- ${route.command}`, `server-dry-run -- ${route.command}`] : [route.command]
-    return commands.flatMap(command => {
+    return commandInvocations(tool, route.command).flatMap(command => {
       try {
         adapter.validateArgs([...command.split(' '), '--help'])
         checkDelegation(scopeJson, readOnly, tool, classification.command, classification.effect)
@@ -111,7 +119,7 @@ export function delegationIncludesTool(scopeJson: string, tool: ToolName): boole
 }
 
 export function credentialIssuingCommand(tool: ToolName, command: string): boolean {
-  const operation = tool === 'kubernetes-axi' ? command.replace(/^(?:prepare|server-dry-run) -- /, '') : command
+  const operation = commandOperation(tool, command)
   return exactCommands[tool]?.includes(operation) ?? false
 }
 

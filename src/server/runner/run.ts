@@ -80,7 +80,7 @@ export async function runTool<Credential>(
       if (principal?.delegation) {
         if (!delegationIncludesTool(principal.delegation.scopeJson, adapter.name)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         const commands = delegatedCommands(principal.delegation.scopeJson, readOnly, adapter)
-        if (commands && (args.length === 0 || args.length === 1 && ['--help', '-h'].includes(args[0]))) {
+        if (args.length === 0 || args.length === 1 && ['--help', '-h'].includes(args[0])) {
           adapter.validateArgs(args.length ? args : ['--help'], input)
           validateFileInput(adapter.name, args, input)
           const stdout = encode({ tool: adapter.name, commands }) + '\n'

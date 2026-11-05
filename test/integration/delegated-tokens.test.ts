@@ -73,6 +73,15 @@ async function mint(extra: string[] = []) {
   return result.secret
 }
 
+test('token --command mints a wildcard selection (R12)', async () => {
+  expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
+  const minted = await cli(['token', 'create', '--label', 'Synthetic', '--command', 'falcon-axi:detection *', '--expires',
+    new Date(Date.now() + 600_000).toISOString(), '--password-stdin', '--token-fd', '3'], `${password}\n`, 'owner', true)
+  expect(minted.code, minted.stdout).toBe(0)
+  const row = db.prepare('SELECT scope_json FROM delegations').get() as { scope_json: string }
+  expect(JSON.parse(row.scope_json)).toEqual({ tools: [{ tool: 'falcon-axi', commands: ['detection *'] }] })
+})
+
 test('token creation refreshes an idle owner before password reauthentication (R6)', async () => {
   expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
   const sessions = new SessionStore(url, join(directory, 'owner', 'artium-axi', 'session.json'))

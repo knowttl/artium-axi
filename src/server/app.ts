@@ -226,13 +226,13 @@ export function createApp(options: {
   })
   app.get('/v1/skills', async (request, reply) => {
     const { userId, delegation } = verifyPrincipal(db, bearer(request.headers.authorization))
-    const granted = db.prepare(`SELECT DISTINCT role_tools.tool AS name FROM user_roles
+    const granted = delegation ? grantedAdapters(userId).map(adapter => ({ name: adapter.name })) : db.prepare(`SELECT DISTINCT role_tools.tool AS name FROM user_roles
       JOIN role_tools ON role_tools.role_id = user_roles.role_id
       WHERE user_roles.user_id = ? ORDER BY role_tools.tool`).all(userId) as { name: ToolName }[]
     reply.header('cache-control', 'no-store')
     return { skills: granted.filter(tool => !delegation || delegationIncludesTool(delegation.scopeJson, tool.name)).map(tool => {
       const adapter = adapters.find(item => item.name === tool.name)
-      const commands = delegation && (adapter ? delegatedCommands(delegation.scopeJson, delegation.readOnly, adapter) : [])
+      const commands = delegation && delegatedCommands(delegation.scopeJson, delegation.readOnly, adapter!)
       return { name: tool.name, content: commands ? `---\nname: ${tool.name}\ndescription: Use permitted ${tool.name} commands through Artium.\n---\n\n# ${tool.name}\n\nRun each command with --help for required arguments.\n\nPermitted commands:\n${commands.map(command => `- \`artium-axi ${tool.name} ${command}\``).join('\n')}\n` : loadToolSkill(tool.name) }
     }) }
   })

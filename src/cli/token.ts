@@ -38,6 +38,8 @@ export async function tokenCommand(args: string[], output: (text: string) => voi
     if (values.length && !['--tool', '--command', '--exact'].includes(flag)) throw new ArtiumError('INVALID_INPUT')
     const value = ['--write', '--reusable', '--password-stdin', '--sso'].includes(flag) ? 'true' : args[++index]
     if (!value || value.startsWith('--')) throw new ArtiumError('INVALID_INPUT')
+    if (flag === '--exact' && value.includes('*')) throw new ArtiumError('INVALID_INPUT',
+      '--exact does not accept wildcards.', 'Use --command for trailing wildcard patterns.')
     values.push(value)
     flags.set(flag, values)
   }
