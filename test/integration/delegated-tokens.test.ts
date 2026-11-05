@@ -273,6 +273,43 @@ test.each([
   expect(managed.stdout).toContain(text)
 })
 
+test.each([
+  { selection: 'workspace create', args: ['workspace', 'create'], code: 0, text: 'artium-axi kubernetes-axi workspace <command>' },
+  { selection: 'workspace show', args: ['workspace', 'show'], code: 0, text: 'artium-axi kubernetes-axi workspace <command>' },
+  { selection: 'workspace download', args: ['workspace', 'download'], code: 0, text: 'artium-axi kubernetes-axi workspace <command>' },
+  { selection: 'workspace delete', args: ['workspace', 'delete'], code: 0, text: 'artium-axi kubernetes-axi workspace <command>' },
+  { selection: 'session list', args: ['session', 'list'], code: 0, text: 'artium-axi kubernetes-axi session <command>' },
+  { selection: 'session start exec', args: ['session', 'start', 'exec'], code: 0, text: 'artium-axi kubernetes-axi session <command>' },
+  { selection: 'session show', args: ['session', 'show'], code: 0, text: 'artium-axi kubernetes-axi session <command>' },
+  { selection: 'session output', args: ['session', 'output'], code: 0, text: 'artium-axi kubernetes-axi session <command>' },
+  { selection: 'session confirm', args: ['session', 'confirm'], code: 0, text: 'artium-axi kubernetes-axi session <command>' },
+  { selection: 'session cancel', args: ['session', 'cancel'], code: 0, text: 'artium-axi kubernetes-axi session <command>' },
+  { selection: 'session artifact', args: ['session', 'artifact'], code: 0, text: 'artium-axi kubernetes-axi session <command>' },
+  { selection: 'tunnel', args: ['tunnel'], code: 0, text: 'artium-axi kubernetes-axi tunnel <session-id>' },
+  { selection: 'credential', args: ['credential'], code: 0, text: 'artium-axi kubernetes-axi credential' },
+  { selection: 'workspace create', args: ['session', 'start', 'exec'], code: 1, text: 'DELEGATED_SCOPE_DENIED' },
+])('delegated hosted help respects the exact pick: $selection, $args', async ({ selection, args, code, text }) => {
+  await app.close()
+  db.prepare("UPDATE tools SET enabled=1, native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ allowWrites: true, sessions: { grants: { 'synthetic-development-user': ['exec'] } } }))
+  const adapter = await createKubernetesAdapter(new EmbeddedSecretSource(credentials),
+    join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), join(directory, 'requests'))
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-hosted-help')), audit: new Audit(db),
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const grant = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+    scope: { tools: [{ tool: 'kubernetes-axi', commands: [selection] }] }, readOnly: false, reusable: false,
+    expiresAt: Date.now() + 600_000 }, [adapter])
+  const session = exchangeDelegation(db, grant.token)
+  new SessionStore(url, join(directory, 'agent', 'artium-axi', 'session.json')).write(session, undefined, true)
+  const stored = await cli(['kubernetes-axi', ...args, '--help'], '', 'agent')
+  expect(stored.code, stored.stdout).toBe(code)
+  expect(stored.stdout).toContain(text)
+  const managed = await cli(['--managed-session', 'kubernetes-axi', ...args, '--help'], '', 'agent', false, {}, { accessToken: session.accessToken })
+  expect(managed.code, managed.stdout).toBe(code)
+  expect(managed.stdout).toContain(text)
+})
+
 test('read-only token limits real CLI calls and revocation stops the session', async () => {
   expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
   const token = await mint()

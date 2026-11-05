@@ -12,6 +12,7 @@ import { toolManifests } from '../../shared/tool-manifests.js'
 import type { Adapter } from '../adapters/types.js'
 import type { RunnerInput } from '../runner/input.js'
 import { kubernetesHostedRoutes } from '../../shared/kubernetes.js'
+import { authorizeKubernetesOwner } from '../policy/kubernetes.js'
 
 const exactCommands: Partial<Record<ToolName, readonly string[]>> = {
   'awx-axi': ['user token-create'],
@@ -70,8 +71,9 @@ export function checkDelegation(scopeJson: string, readOnly: boolean, adapter: A
   const exact = grants.some(item => item.commands?.includes(command))
   const wide = grants.some(item => item.commands === undefined)
   const credentialCommand = exactCommands[tool]?.includes(command)
+  const download = tool === 'kubernetes-axi' && ['workspace download', 'session artifact'].includes(command)
   const escapeHatch = escapeHatches[tool]?.includes(command)
-  if ((!wide && !exact) || ((credentialCommand || escapeHatch || /^(?:api|native)(?: |$)/.test(command)) && !exact) || (readOnly && (effect !== 'read' || credentialCommand))) {
+  if ((!wide && !exact) || ((credentialCommand || download || escapeHatch || /^(?:api|native)(?: |$)/.test(command)) && !exact) || (readOnly && (effect !== 'read' || credentialCommand || download))) {
     throw new ArtiumError('DELEGATED_SCOPE_DENIED')
   }
 }
@@ -156,8 +158,7 @@ export function delegatedDiscovery(db: Database.Database, userId: string, delega
     const commands = delegatedCommands(delegation.scopeJson, delegation.readOnly, adapter,
       classification => {
         if (adapter.name === 'kubernetes-axi' && kubernetesHostedRoutes.some(route => route.command === classification.command)) {
-          checkToolPolicy(db, userId, adapter.name)
-          checkDelegation(delegation.scopeJson, delegation.readOnly, adapter, classification.command, classification.effect)
+          authorizeKubernetesOwner(db, { user: userId, delegation }, adapter, classification.command)
         } else authorizeDelegatedOperation(db, userId, delegation, adapter, classification)
       })
     return commands.length ? [{ adapter, readOnly, commands }] : []

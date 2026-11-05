@@ -3,7 +3,7 @@ import type Database from 'better-sqlite3'
 import type { FastifyRequest } from 'fastify'
 import type { z } from 'zod'
 import { nativeSettingsSchemas } from '../../shared/api.js'
-import type { kubernetesSessionKind } from '../../shared/kubernetes.js'
+import { kubernetesSessionKind } from '../../shared/kubernetes.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { delegationPaused, verifyPrincipal } from '../auth/tokens.js'
 import { checkDelegation } from '../auth/delegations.js'
@@ -19,11 +19,20 @@ export function kubernetesOwner(db: Database.Database, request: Pick<FastifyRequ
   checkToolPolicy(db, user, 'kubernetes-axi')
   return { user, family, ...(delegation ? { delegation } : {}) }
 }
-export function authorizeKubernetesOwner(owner: KubernetesOwner, adapter: Adapter<unknown>, command: string) {
-  if (!owner.delegation) return
+export function authorizeKubernetesOwner(db: Database.Database, owner: { user: string, delegation?: { scopeJson: string, readOnly: boolean } }, adapter: Adapter<unknown>, command: string) {
+  checkToolPolicy(db, owner.user, 'kubernetes-axi')
   const route = kubernetesHostedRoutes.find(route => route.command === command)
   if (!route) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
-  checkDelegation(owner.delegation.scopeJson, owner.delegation.readOnly, adapter, command, route.effect === 'read' ? 'read' : 'write')
+  if (owner.delegation) checkDelegation(owner.delegation.scopeJson, owner.delegation.readOnly, adapter, command, route.effect === 'read' ? 'read' : 'write')
+  if (command.startsWith('session start ')) {
+    const operation = kubernetesSessionKind.parse(command.slice('session start '.length))
+    const row = db.prepare("SELECT native_settings FROM tools WHERE name='kubernetes-axi'").get() as { native_settings: string }
+    authorizeSessionKind(nativeSettingsSchemas['kubernetes-axi'].parse(JSON.parse(row.native_settings)), owner.user, operation)
+  }
+}
+function authorizeSessionKind(settings: z.infer<typeof nativeSettingsSchemas['kubernetes-axi']>, user: string, operation: z.infer<typeof kubernetesSessionKind>) {
+  if (!settings.sessions?.grants[user]?.includes(operation)) throw new ArtiumError('TOOL_NOT_GRANTED')
+  if (!['watch', 'logs'].includes(operation) && settings.allowWrites !== true) throw new ArtiumError('FLAG_BLOCKED')
 }
 export function kubernetesBinding(db: Database.Database, owner: KubernetesOwner, operation?: z.infer<typeof kubernetesSessionKind>) {
   checkToolPolicy(db, owner.user, 'kubernetes-axi')
@@ -34,8 +43,7 @@ export function kubernetesBinding(db: Database.Database, owner: KubernetesOwner,
       .get(owner.delegation.id, owner.user, Date.now()))) throw new ArtiumError('TOKEN_INVALID')
   const tool = db.prepare("SELECT revision,native_settings FROM tools WHERE name='kubernetes-axi'").get() as { revision: number, native_settings: string }
   const settings = nativeSettingsSchemas['kubernetes-axi'].parse(JSON.parse(tool.native_settings))
-  if (operation && !settings.sessions?.grants[owner.user]?.includes(operation)) throw new ArtiumError('TOOL_NOT_GRANTED')
-  if (operation && !['watch', 'logs'].includes(operation) && settings.allowWrites !== true) throw new ArtiumError('FLAG_BLOCKED')
+  if (operation) authorizeSessionKind(settings, owner.user, operation)
   const credential = db.prepare("SELECT id,revision FROM credentials WHERE tool='kubernetes-axi'").get() as { id: string, revision: number } | undefined
   if (!credential) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
   const writing = operation !== undefined && !['watch', 'logs'].includes(operation)

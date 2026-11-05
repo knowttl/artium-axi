@@ -63,7 +63,8 @@ Adapter classifiers resolve canonical command names and reviewed read/write effe
 Proxmox batches require authorization for every nested operation as well as the outer command.
 Selecting a Kubernetes mutation also authorizes preparation, server dry-run, preview and confirmation for that operation; preview and confirmation resolve the saved request's underlying operation against the current grant.
 Kubernetes session starts require an exact pick for each kind, such as `session start exec` or `session start port-forward`, or a tool-wide grant.
-Workspace operations, session recovery operations and tunnels each require their own exact pick or a tool-wide grant.
+Workspace creation, inspection and deletion, session recovery operations and tunnels each require their own exact pick or a tool-wide grant.
+Workspace downloads and session artifact retrieval require their own exact pick and are refused under read-only tokens.
 Read-only tokens cannot start any session or create a workspace, including for logs and watch sessions.
 Session kinds retain their administrator grants and write settings; credential-producing operations additionally require their exact pick.
 Delegated workspaces and sessions are limited to two per creator per surface, leaving capacity for the creator, and are bound to the exchanged family so revocation ends that family's work.

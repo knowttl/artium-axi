@@ -56,7 +56,7 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
   app.addHook('onReady', async () => { await root })
   const ownerFor = (request: FastifyRequest, command?: string) => {
     const owner = kubernetesOwner(db, request)
-    if (command) authorizeKubernetesOwner(owner, adapter, command)
+    if (command) authorizeKubernetesOwner(db, owner, adapter, command)
     return owner
   }
   const record = (request: FastifyRequest, owner: KubernetesOwner, id: string, action: string) =>

@@ -81,7 +81,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
   }
   async function selected(request: Pick<FastifyRequest, 'headers'>, id: string, command: string) {
     const owner = kubernetesOwner(db, request)
-    authorizeKubernetesOwner(owner, adapter, command)
+    authorizeKubernetesOwner(db, owner, adapter, command)
     const session = sessions.get(id)
     if (!session || session.owner.user !== owner.user || session.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
     try { access(session) } catch (error) { await stop(session, 'cancelled'); throw error }
@@ -253,7 +253,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
   }
   app.get(prefix, async (request, reply) => {
     const owner = kubernetesOwner(db, request)
-    authorizeKubernetesOwner(owner, adapter, 'session list')
+    authorizeKubernetesOwner(db, owner, adapter, 'session list')
     await reconcile()
     const owned = [...sessions.values()].filter(session => session.owner.user === owner.user && session.owner.family === owner.family)
     return reply.header('cache-control', 'no-store').send({ sessions: owned.map(session => ({ id: session.id,
@@ -264,7 +264,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     const parsed = kubernetesSessionStart.safeParse(request.body)
     if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
     const input = parsed.data
-    authorizeKubernetesOwner(owner, adapter, `session start ${input.kind}`)
+    authorizeKubernetesOwner(db, owner, adapter, `session start ${input.kind}`)
     if (owner.delegation && input.kind === 'create') {
       const operation = classifyDelegatedCommand(adapter, input.argv)
       if (credentialIssuingCommand(adapter.name, operation.command)) checkDelegation(owner.delegation.scopeJson, owner.delegation.readOnly, adapter, operation.command, 'write')

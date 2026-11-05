@@ -255,11 +255,48 @@ test('delegated session kinds are independently scoped and read-only refuses set
   expect(commands).not.toContain('session start port-forward')
   const wideTools = await app.inject({ url: '/v1/tools', headers: wide.headers })
   const wideCommands = wideTools.json().tools.find((tool: { name: string }) => tool.name === 'kubernetes-axi').commands
-  expect(wideCommands).toEqual(expect.arrayContaining(['session start watch', 'session start logs', 'session start exec',
-    'session start attach', 'session start apply', 'session start create', 'session start cp', 'session start port-forward']))
+  expect(wideCommands.filter((command: string) => command.startsWith('session start '))).toEqual(['session start exec', 'session start port-forward'])
   const readTools = await app.inject({ url: '/v1/tools', headers: readOnly.headers })
   const readCommands = readTools.json().tools.find((tool: { name: string }) => tool.name === 'kubernetes-axi').commands
   expect(readCommands.filter((command: string) => command.startsWith('session start '))).toEqual([])
+})
+
+test.each([
+  { allowWrites: true, readOnly: false, expected: ['session start exec', 'session start logs', 'session start port-forward', 'session start watch'] },
+  { allowWrites: false, readOnly: false, expected: ['session start logs', 'session start watch'] },
+  { allowWrites: true, readOnly: true, expected: [] },
+])('hosted discovery applies administrator and delegation policy: %j', async ({ allowWrites, readOnly, expected }) => {
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ allowWrites, sessions: { grants: { [user]: ['exec', 'logs', 'port-forward', 'watch'] } } }))
+  const grant = delegated(undefined, readOnly)
+  const response = await app.inject({ url: '/v1/tools', headers: grant.headers })
+  expect(response.statusCode, response.body).toBe(200)
+  const tool = response.json().tools.find((tool: { name: string }) => tool.name === 'kubernetes-axi')
+  expect(tool.commands.filter((command: string) => command.startsWith('session start '))).toEqual(expected)
+})
+
+test.each([
+  { commands: undefined, readOnly: false, workspaceStatus: 403, artifactStatus: 403 },
+  { commands: ['workspace download', 'session artifact'], readOnly: true, workspaceStatus: 403, artifactStatus: 403 },
+  { commands: ['workspace download', 'session artifact'], readOnly: false, workspaceStatus: 404, artifactStatus: 404 },
+  { commands: ['workspace download'], readOnly: false, workspaceStatus: 404, artifactStatus: 403 },
+  { commands: ['session artifact'], readOnly: false, workspaceStatus: 403, artifactStatus: 404 },
+])('download metadata and bytes require writable exact picks: %j', async ({ commands, readOnly, workspaceStatus, artifactStatus }) => {
+  const grant = delegated(commands, readOnly)
+  const id = '00000000-0000-4000-8000-000000000001'
+  for (const [url, status] of [
+    [`${prefix}/${id}?operation=download`, workspaceStatus], [`${prefix}/${id}/files/input.bin`, workspaceStatus],
+    [`/v1/tools/kubernetes-axi/sessions/${id}?operation=artifact`, artifactStatus],
+    [`/v1/tools/kubernetes-axi/sessions/${id}/artifacts/input.bin`, artifactStatus],
+  ] as const) {
+    const response = await app.inject({ url, headers: grant.headers })
+    expect(response.statusCode, url).toBe(status)
+  }
+  const discovery = await app.inject({ url: '/v1/tools', headers: grant.headers })
+  const tool = discovery.json().tools.find((tool: { name: string }) => tool.name === 'kubernetes-axi')
+  const discovered = tool?.commands ?? []
+  expect(discovered.includes('workspace download')).toBe(workspaceStatus === 404)
+  expect(discovered.includes('session artifact')).toBe(artifactStatus === 404)
 })
 
 test('delegated workspaces reserve owner capacity and revocation leaves the owner workspace intact', async () => {
