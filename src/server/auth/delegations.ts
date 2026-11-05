@@ -101,6 +101,10 @@ export function authorizeDelegatedOperation(db: Database.Database, userId: strin
   classification: { command: string, effect: 'read' | 'write' }) {
   checkToolPolicy(db, userId, adapter.name)
   checkDelegation(delegation.scopeJson, delegation.readOnly, adapter, classification.command, classification.effect)
+  if (adapter.name === 'ssh-axi' && classification.command === 'exec') {
+    checkDelegation(delegation.scopeJson, delegation.readOnly, adapter, 'execution show', 'read')
+    checkDelegation(delegation.scopeJson, delegation.readOnly, adapter, 'execution cancel', 'write')
+  }
   const row = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(adapter.name) as { native_settings: string }
   const settings = JSON.parse(row.native_settings)
   if (classification.effect === 'write' || credentialIssuingCommand(adapter.name, classification.command)) {

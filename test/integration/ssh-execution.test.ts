@@ -80,6 +80,28 @@ test('SSH exact command picks authorize only the selected routes', async () => {
   expect(db.prepare("SELECT delegation_id, action FROM audit WHERE action='ssh-execution-list'").get()).toEqual({ delegation_id: token.id, action: 'ssh-execution-list' })
 })
 
+test.each([
+  { commands: ['exec'] },
+  { commands: ['exec', 'execution show'] },
+  { commands: ['exec', 'execution cancel'] },
+])('SSH exec refuses incomplete workflow scope $commands before preparation or submission (R1)', async ({ commands }) => {
+  provision()
+  const token = delegated(commands)
+  expect((await post('prepare', input, token.headers)).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+  expect((await post('submit', { requestKey: 'synthetic', input }, token.headers)).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+  expect(db.prepare('SELECT * FROM ssh_executions').all()).toEqual([])
+  expect(db.prepare("SELECT * FROM audit WHERE event='run-start'").all()).toEqual([])
+})
+
+test('SSH exec with explicit workflow grants permits preparation and follow-up routes (R1)', async () => {
+  provision()
+  const token = delegated(['exec', 'execution show', 'execution cancel'])
+  const prepared = await post('prepare', input, token.headers)
+  expect(prepared.statusCode, prepared.body).toBe(200)
+  expect((await post('show', { requestKey: prepared.json().requestKey }, token.headers)).json().error.code).toBe('NOT_FOUND')
+  expect((await post('cancel', { id: 'missing', confirm: true }, token.headers)).json().error.code).toBe('NOT_FOUND')
+})
+
 test('revoked SSH delegation cannot access its routes while the owner remains signed in', async () => {
   const token = delegated()
   revokeDelegation(db, token.id, 'synthetic-development-user', false)
