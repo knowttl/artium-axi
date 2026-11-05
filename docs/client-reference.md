@@ -12,7 +12,7 @@ Upload local JSON, CSV or policy files with `--file <local-path>`; the CLI sends
 For `API_RESPONSE_INVALID`, use the [response diagnostic guidance](runbook.md#scripted-administrator-sessions) to check API compatibility.
 
 Use `artium-axi download --operation policy.download --selector <uuid> --type content --destination <absolute-new-path>` for preview.
-Repeat the selection and destination with the returned --transfer, --execute and exact --confirm plus fresh identity confirmation, unless using an exactly selected writable delegated operation.
+Repeat the selection and destination with the returned --transfer, --execute and exact --confirm, following the [download identity confirmation guidance](#hybrid-analysis-archive-saving).
 computer.log.download and policy.revision.download also use a UUID selector and type content.
 api-definition.download uses selector api and type yaml.
 Complete the [shared artifact-mount and controlled-client prerequisites](runbook.md#scope-and-prerequisites) before using downloads.
@@ -105,7 +105,8 @@ The [shared artifact-mount prerequisites](runbook.md#scope-and-prerequisites) mu
 Run `artium-axi download --operation mail.message.export --selector mailbox@contoso.example/<message-id> --type mime --destination /controlled/artifacts/new-message.eml --sso` to preview.
 For attachments use `--operation mail.attachment.save --selector mailbox@contoso.example/<message-id>/<attachment-id> --type attachment`.
 The mailbox must be a user ID or UPN; `me` is unavailable.
-Repeat the exact selection and destination with the returned `--transfer <transferId> --execute --confirm <exact-confirm>` and fresh identity proof.
+Repeat the exact selection and destination with the returned `--transfer <transferId> --execute --confirm <exact-confirm>`.
+For both invocations, follow the [download identity confirmation guidance](#hybrid-analysis-archive-saving) when choosing flags for these examples.
 Host-owned confirmation binds selection, destination digest, credential revision and absolute ten-minute expiry.
 The host supplies native resource-ID confirmation and verifies the intent/outcome journal, size and SHA-256 before one-shot retrieval.
 Files are capped at 50 MiB and reference attachments are refused.
@@ -276,13 +277,12 @@ artium-axi download --operation attachment.download --selector <entity-id>/<atta
 artium-axi download --operation attachment.download-all --selector <entity-id> --type zip --destination /controlled/artifacts/new-attachments.zip --sso
 ```
 
-Omit `--sso` for local password confirmation, or use `--password-stdin`.
+For identity confirmation, follow the [shared download guidance](#hybrid-analysis-archive-saving) when choosing flags for these examples.
 Preview launches no native downloader and makes no upstream request.
 Review the exact selection and new destination, then repeat them with `--transfer <transferId> --execute --confirm <exact-confirm>`.
 The host-owned confirmation binds the transfer ID, destination digest, credential revision, exact selection and absolute expiry.
 The native download executes once, verifies the upstream SHA-256 header and returns path, size and digest; Artium validates that response and independently verifies the private file bytes before delivery.
 The 50 MiB native cap, shared global capacity, ten-minute expiry, revocation checks, one-shot delivery and private 0700 destination requirements remain enforced.
-Recent identity proof is required except for an exactly selected writable delegated operation.
 Transfer audit records identify `checkpoint-axi`; native audit ID and native journal result are empty because this is host-owned evidence.
 The CLI checks delivered bytes again and sends a verified-save receipt; missing receipt remains unconfirmed.
 Save only, never extract or execute, and never retry an uncertain transfer automatically.
@@ -302,9 +302,8 @@ The CLI checks the destination before preparation or execution; it never overwri
 Preview supplies `--operation`, `--selector`, `--type` and `--destination` without `--execute`.
 Review the warning, exact selection, local destination, limits, expiry and native confirmation returned by preview.
 Then repeat the exact selection and destination with `--transfer <transferId> --execute --confirm <exact-confirm>`.
-Both invocations require identity confirmation: use `--sso` for browser approval, or a local password through a terminal prompt or `--password-stdin`.
-An exactly selected writable delegated operation is exempt from identity confirmation; omit both flags when using a delegated session.
-The administrator's exact operation grant, confirmation and SHA-256 verification remain required.
+For full sessions, both invocations require identity confirmation: use `--sso` for browser approval, or a local password through a terminal prompt or `--password-stdin`.
+For delegated sessions, omit both flags; see the [delegated download boundary](safety.md#delegated-sessions) for authorization requirements and the recent-authentication exception.
 `ARTIUM_AXI_PASSWORD` is not a password source for this command.
 
 Retrieval writes a private temporary file, verifies the advertised size and archive SHA-256, then atomically publishes to the confirmed destination without overwrite or symlink traversal.

@@ -7,7 +7,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | Command | Purpose |
 | --- | --- |
 | `artium-axi` | Show identity and available tools, with roles for full sessions or a delegation label for delegated sessions. |
-| `artium-axi --help [<command>]` | Show client or tool-entry help; delegated home and tool discovery require authentication. |
+| `artium-axi --help [<command>]` | Show client or tool-entry help; delegated home, tool and download discovery require authentication. |
 | `artium-axi --version`, `-v`, `-V` | Print only the client package version without configuration or sign-in. |
 | `artium-axi login --username <username> [--password-stdin]` | Sign in with a local account using protected password input. |
 | `artium-axi login --sso` | Sign in through browser approval of the terminal code. |
