@@ -58,6 +58,22 @@ test('transfer audit persists typed metadata with separate archive and client-sa
 })
 
 test.each([
+  { outcome: 'preview' as const, archive_bytes: null, archive_sha256: null },
+  { outcome: 'ready' as const, archive_bytes: 5, archive_sha256: 'c'.repeat(64) },
+])('restart recovery retains token-filtered audit for a delegated download at $outcome', ({ outcome, archive_bytes, archive_sha256 }) => {
+  audit.record({ ...context, tool: 'hybrid-axi', event: 'transfer', outcome,
+    delegationId: 'synthetic-delegation', credentialRevision: 3, transfer: { ...transfer, archive_bytes, archive_sha256 } })
+  db.close()
+  db = openStore(join(directory, 'artium.db'), provider)
+  audit = new Audit(db, () => now, line => { lines.push(line) })
+  audit.recoverInterruptedTransfers()
+  audit.recoverInterruptedTransfers()
+  const result = audit.query({ delegationId: 'synthetic-delegation', event: 'transfer', outcome: 'interrupted', limit: 100 })
+  expect(result.records).toEqual([expect.objectContaining({ ...transfer, delegation_id: 'synthetic-delegation',
+    outcome: 'interrupted', user_id: context.userId, request_id: context.requestId, credential_revision: 3 })])
+})
+
+test.each([
   { archive_bytes: 5 },
   { archive_sha256: 'c'.repeat(64) },
   { archive_bytes: 262144001, archive_sha256: 'c'.repeat(64) },
