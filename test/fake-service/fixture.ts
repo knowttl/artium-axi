@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { request } from 'node:https'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -16,7 +16,9 @@ export async function withFakeService(check: (fixture: {
   const directory = mkdtempSync(join(tmpdir(), 'artium-tls-'))
   let child: ReturnType<typeof spawn> | undefined
   try {
-    createTestCertificates(directory, endpoint.hosts)
+    const preparedCertificates = process.env.ARTIUM_TEST_PREBUILT_CERTS
+    if (preparedCertificates) for (const name of ['ca.crt', 'server.crt', 'server.key']) copyFileSync(join(preparedCertificates, name), join(directory, name))
+    else createTestCertificates(directory, endpoint.hosts)
     child = spawn(process.execPath, [join(root, 'test/fake-service/server.mjs'), directory, String(endpoint.port)], {
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     })

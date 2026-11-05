@@ -29,7 +29,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi proxmox-axi stream limits` | Inspect authenticated host byte, staging, deadline and concurrency limits. |
 | `artium-axi proxmox-axi stream -- transfer\|duplex <native arguments>` | Use [private managed byte channels](client-reference.md#proxmox-managed-streams) for reviewed transfers and console/migration operations. |
 | `artium-axi technitium-axi [<args>]` | Read Technitium DNS data and use native confirmed writes with managed credentials and private result retrieval. |
-| `artium-axi shodan-axi [<args>]` | Read Shodan account information with managed credentials; see [usage](#shodan). |
+| `artium-axi shodan-axi [<args>]` | Read Shodan account and investigation data with managed credentials; see [usage](#shodan). |
 | `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |
 | `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources or use administrator-enabled [mutation and bounded byte workflows](safety.md#kubernetes-reads), caller-owned workspaces and managed credentials with pinned kubectl. |
 | `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts, check authentication and run [confirmed managed commands](#ssh). |
@@ -243,6 +243,8 @@ See the [capability boundary](safety.md#technitium-dns) and [retention, limits a
 Run `artium-axi shodan-axi info` for API plan and credit information or `artium-axi shodan-axi account profile` for the account profile.
 The bare `artium-axi shodan-axi` also performs the account-information read.
 These reads accept `--json` and `--help`; `--help` shows bounded hosted discovery without an account read.
+Host, search, DNS, InternetDB, query and trends catalogues, organization and dataset listings, and scan and alert reads are available through the reviewed inventory.
+Search and domain lookups consume query credits and require an exact operation grant and a query credit budget; use command help for the required flags.
 Use `artium-axi shodan-axi version` to print the packaged version or `version --help` for help; `version` does not accept `--json`.
 For authentication failures, ask an administrator to replace the managed key using [Shodan credential setup](tool-credentials.md#shodan).
 See the [supported boundary](safety.md#shodan) and [package recovery](runbook.md#roles-credentials-and-health).

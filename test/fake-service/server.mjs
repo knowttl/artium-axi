@@ -66,6 +66,80 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   ca: readFileSync(join(certs, 'ca.crt')), requestCert: true, rejectUnauthorized: false }, (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
+  if (url.pathname === '/192.0.2.1') {
+    requests.push({ method: req.method, path: url.pathname, parameters: [...url.searchParams.keys()] })
+    res.end(JSON.stringify({ ip: '192.0.2.1', ports: [443], cpes: [], hostnames: [], tags: [], vulns: [] }))
+    return
+  }
+  if (['/shodan/protocols', '/shodan/scans', '/shodan/scan/synthetic-scan'].includes(url.pathname)) {
+    const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
+    if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
+    const job = { id: 'synthetic-scan', status: 'DONE', api_key: 'CANARY-issued-secret' }
+    res.end(JSON.stringify(url.pathname === '/shodan/protocols' ? { https: 'HTTPS', api_key: 'CANARY-issued-secret' }
+      : url.pathname === '/shodan/scans' ? { matches: [job], total: 1, api_key: 'CANARY-issued-secret' } : job))
+    return
+  }
+  if (url.pathname === '/org') {
+    const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
+    if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
+    res.end(JSON.stringify({ id: 'synthetic-org', name: 'Synthetic', admins: [],
+      members: [{ username: 'reader', email: 'reader@example.test', api_key: 'CANARY-issued-secret' }],
+      domains: ['example.test'], logo: false, api_key: 'CANARY-issued-secret' }))
+    return
+  }
+  if (url.pathname === '/shodan/data' || url.pathname === '/shodan/data/synthetic') {
+    const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
+    if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
+    res.end(JSON.stringify(url.pathname === '/shodan/data'
+      ? [{ name: 'synthetic', description: 'Synthetic dataset', token: 'CANARY-dataset-secret' }]
+      : [{ name: 'synthetic.json', size: 42, url: 'https://example.test/CANARY-signed-url', token: 'CANARY-dataset-secret' }]))
+    return
+  }
+  if (url.pathname === '/shodan/host/count') {
+    const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
+    if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
+    res.end(JSON.stringify({ total: 2, facets: { port: [{ value: 443, count: 2 }] } }))
+    return
+  }
+  if (url.pathname === '/notifier/provider' || url.pathname === '/shodan/alert/info') {
+    const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
+    if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
+    res.end(JSON.stringify(url.pathname === '/notifier/provider'
+      ? { email: { required: ['token'], args: { token: 'CANARY-notifier-secret' } } }
+      : [{ id: 'synthetic-alert', name: 'Synthetic', filters: { ip: ['192.0.2.0/24'] }, expiration: null,
+        notify: { token: 'CANARY-notifier-secret' } }]))
+    return
+  }
+  if (url.pathname === '/shodan/query' || url.pathname === '/api/v1/search/filters') {
+    const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
+    if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
+    res.end(JSON.stringify(url.pathname === '/shodan/query'
+      ? { matches: [{ title: 'Synthetic', query: 'port:443' }], total: 1 }
+      : ['country', 'port']))
+    return
+  }
+  if (url.pathname === '/shodan/host/192.0.2.1') {
+    const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
+    if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
+    res.end(JSON.stringify({ ip_str: '192.0.2.1', ports: [443], data: [], api_key: 'CANARY-issued-secret' }))
+    return
+  }
+  if (url.pathname === '/shodan/host/search' || url.pathname === '/dns/domain/example.test') {
+    const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
+    requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
+    if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
+    res.end(JSON.stringify(url.pathname === '/shodan/host/search'
+      ? { total: 1, matches: [{ ip_str: '192.0.2.1', port: 443, transport: 'tcp', timestamp: '2026-01-01T00:00:00Z', data: 'synthetic' }] }
+      : { domain: 'example.test', data: [{ type: 'A', value: '192.0.2.1' }], more: false }))
+    return
+  }
   if (url.pathname === '/api-info' || url.pathname === '/account/profile') {
     const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
     requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })

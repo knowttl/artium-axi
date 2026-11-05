@@ -23,19 +23,33 @@ test('version supports exact delegation and packaged help (r2)', async () => {
   expect(execFileSync(call.executable, [toolPaths['shodan-axi'], 'version'], { encoding: 'utf8' })).toBe('0.1.1\n')
 })
 
-test('tool-wide delegation discovers only the minimal account commands', () => {
+test('tool-wide delegation discovers reviewed reads', () => {
   const adapter = createShodanAdapter({ getCredential: async () => { throw new Error('credential accessed') } })
   expect(delegatedCommands(JSON.stringify({ tools: [{ tool: 'shodan-axi' }] }), true, adapter))
-    .toEqual(['account profile', 'info', 'version'])
+    .toEqual(['account profile', 'alert info', 'alert list', 'alert stats', 'alert triggers', 'count', 'data list',
+      'dns resolve', 'dns reverse', 'domain', 'host', 'info', 'internetdb host', 'myip', 'notifier get', 'notifier list',
+      'notifier providers', 'org info', 'ports', 'query list', 'query search', 'query tags', 'scan list', 'scan protocols',
+      'scan status', 'search', 'search facets', 'search filters', 'search tokens', 'stats', 'tools headers',
+      'trends facets', 'trends filters', 'version'])
   expect(() => resolveDelegatedCommand('doctor', adapter)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
+})
+
+test('exact read delegation discovers only selected investigation commands', () => {
+  const adapter = createShodanAdapter({ getCredential: async () => { throw new Error('credential accessed') } })
+  const scope = JSON.stringify({ tools: [{ tool: 'shodan-axi', commands: ['host', 'search'] }] })
+  expect(resolveDelegatedCommand('host', adapter)).toBe('host')
+  expect(delegatedCommands(scope, true, adapter)).toEqual(['host', 'search'])
+  expect(adapter.classify(['host', '192.0.2.1'])).toEqual({ command: 'host', effect: 'read' })
+  expect(adapter.classify(['search', 'port:443', '--allow-operation', 'OP-003', '--query-credit-budget', '1']))
+    .toEqual({ command: 'search', effect: 'read' })
 })
 
 test.each([
   ['host', 'search'], ['profile', 'set', 'other', '--env', 'KEY'], ['info', '--profile', 'other'],
   ['info', '--origin=https://example.invalid'], ['account', 'profile', '--config', '/tmp/config'],
-  ['host', '192.0.2.1'], ['stream'], ['scan', 'submit', '192.0.2.1'],
-  ['alert', 'create', 'synthetic', '192.0.2.1'], ['alert', 'remove', 'synthetic'], ['org', 'info'],
-  ['data', 'list'], ['info', '--filename', '/tmp/result'],
+  ['stream'], ['scan', 'submit', '192.0.2.1'],
+  ['alert', 'create', 'synthetic', '192.0.2.1'], ['alert', 'remove', 'synthetic'],
+  ['data', 'download', 'synthetic', 'file'], ['info', '--filename', '/tmp/result'],
   ['doctor'], ['doctor', '--help'], ['doctor', '--json'],
 ])('disallowed arguments %s are refused before reading the credential', async (...args) => {
   const adapter = createShodanAdapter({ getCredential: async () => { throw new Error('credential accessed') } })
