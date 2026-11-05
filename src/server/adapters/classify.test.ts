@@ -62,6 +62,12 @@ test.each(inventoryCases.filter(({ adapter }) => ['mg-axi', 'vectra-axi'].includ
   expect(adapter.classify(command ? command.split(' ') : []).command).toBe(canonical)
 })
 
+test.each(['--version', '-v'])('ado-axi preserves the canonical version command for %s', flag => {
+  const adapter = adapters.find(adapter => adapter.name === 'ado-axi')!
+  adapter.validateArgs([flag])
+  expect(adapter.classify([flag])).toEqual({ command: 'version', effect: 'read' })
+})
+
 test.each([
   'awx-axi', 'az-axi', 'beyondtrust-axi', 'checkpoint-axi', 'falcon-axi', 'gh-axi', 'gitea-axi',
   'hybrid-axi', 'mg-axi', 'proxmox-axi', 'technitium-axi', 'tenable-axi', 'unifi-axi',
