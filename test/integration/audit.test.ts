@@ -61,6 +61,9 @@ test.each([
   { outcome: 'preview' as const, archive_bytes: null, archive_sha256: null },
   { outcome: 'ready' as const, archive_bytes: 5, archive_sha256: 'c'.repeat(64) },
 ])('restart recovery retains token-filtered audit for a delegated download at $outcome', ({ outcome, archive_bytes, archive_sha256 }) => {
+  db.prepare(`INSERT INTO delegations (id, creator_id, token_hash, label, scope_json, read_only, single_use, created_at, expires_at)
+    VALUES ('synthetic-delegation', 'person', 'synthetic-hash', 'Synthetic', ?, 0, 1, ?, ?)`)
+    .run(JSON.stringify({ tools: [{ tool: 'hybrid-axi', commands: ['hash-download-bin'] }] }), now, now + 600_000)
   audit.record({ ...context, tool: 'hybrid-axi', event: 'transfer', outcome,
     delegationId: 'synthetic-delegation', credentialRevision: 3, transfer: { ...transfer, archive_bytes, archive_sha256 } })
   db.close()
