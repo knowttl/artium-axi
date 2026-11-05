@@ -31,6 +31,7 @@ Contents:
 - [TOON output behavior](#toon-output-behavior)
 - [Agent installation](#agent-installation)
 - [Client settings](#client-settings)
+- [Delegated tokens](#delegated-tokens)
 - [Externally managed client sessions](#externally-managed-client-sessions)
 
 ## Verified client
@@ -437,33 +438,27 @@ A network failure or uncertain command outcome is never retried automatically.
 
 ### Delegated tokens
 
-Minting is disabled by default while delegated support is being completed.
+See [delegated capability boundaries](safety.md#delegated-sessions) for rollout status, scope enforcement and unavailable surfaces.
 When enabled, a signed-in user can create a token with `artium-axi token create --label <label> --tool <tool> --expires <ISO-date> --password-stdin --token-fd <fd>`.
 Use an inherited private pipe or socket for the token descriptor, or omit it when writing to a terminal.
 The token appears once and is stored only as a hash by the server.
-The creator chooses an expiry within the administrator's cap, normally 30 days, and confirms their identity during creation.
+The creator chooses an expiry within the administrator's cap and confirms their identity during creation.
 Tokens are single-use by default; `--reusable` permits multiple exchanges until expiry or revocation.
 `--write` opts into writes that the creator and administrator can currently perform.
-Tool-wide grants exclude credential-issuing commands and broad API escape hatches.
-Use `--exact <tool:command>` to select one of those commands explicitly.
-Technitium `settings backup`, `settings set`, `settings restore` and `admin cluster primary transfer-config` can return credentials and require exact writable selections.
-Credentials issued by a selected command can outlive the delegated token and must be revoked separately.
+Use repeatable `--tool` flags for tool-wide grants, and `--exact '<tool:command>'` for a reviewed exact selection such as `--exact 'awx-axi:user token-create' --write`.
+Exact selections can be used alone or alongside tool-wide grants; see the [credential-producing boundary](safety.md#delegated-sessions) before selecting them.
+SSO creators use `--sso` instead of `--password-stdin` and approve the displayed browser code.
 Use `artium-axi token list` and `artium-axi token revoke <id>` to manage tokens.
+Token management is unavailable in managed mode and to delegated sessions.
 
 Pass the token through stdin to `artium-axi login --token-stdin` in the agent's separate configuration directory.
 `ARTIUM_AXI_TOKEN` is also read at ordinary login, but is refused in managed mode.
 An existing full session blocks delegated login; choose a separate `XDG_CONFIG_HOME`.
 Separate configuration directories do not protect a full session from another process running as the same operating-system user.
 Use a separate OS user, container, or host when that separation matters.
-Delegated access follows the creator's current grants and ends on expiry, revocation, creator disablement, or password change.
-Read-only blocks commands classified as writes, including previews, but does not prevent every outbound transmission or expense.
-For example, Hybrid Analysis quick scans send a sample or URL to a third party even though they are classified as reads.
-Ordinary data results, including AWX stdout downloads and Technitium zone, allowed/blocked and log exports, remain available within delegated tool access.
-Delegated SSH access, hosted sessions, streams and `artium-axi download` transfers remain unavailable in this slice.
 
 The bearer API creates tokens with `POST /v1/account/tokens`, requiring an `x-artium-reauth-ticket` from recent authentication.
-Its JSON body contains `label`, `scope` with a `tools` array, `readOnly`, `reusable`, and the numeric `expiresAt` in Unix milliseconds.
-Each tool entry has a `tool` name and may have a `commands` array of exact credential-issuing commands or broad API escape hatches.
+The [API schemas](../src/shared/api.ts) own creation, scope, exchange and creation-response contracts (`createDelegationSchema`, `delegationScopeSchema`, `delegatedExchangeSchema` and `createdDelegationSchema`).
 To combine a tool-wide grant and an exact pick, include separate entries for that tool.
 `GET /v1/account/tokens` lists the creator's tokens, and `POST /v1/account/tokens/<id>/revoke` revokes one.
 `POST /v1/auth/delegated` exchanges a token supplied in the JSON `token` field for a normal access and refresh pair.

@@ -591,13 +591,14 @@ Restore invalidates the original sessions, so restored execution metadata preser
 
 Technitium, AWX, Kubernetes and Proxmox protected results stay in process memory and are not persisted or backed up.
 The executable limits are owned by `protectedResultLimits` in [server configuration](../src/server/config.ts); consult it for result size, per-user and server-wide capacity, and reference lifetime.
+Delegated families together may reserve at most two protected results per creator within the shared per-user capacity.
 Proxmox S4 results additionally enforce the native frame bound described in the [private delivery contract](client-reference.md#proxmox-private-results); SPICE uses the raw-byte subtype described there.
 Malformed, oversized or misbound native frames yield no retrievable result and require uncertain-write recovery.
 Consuming, canceling, clearing or expiring a result releases its stored bytes and expiration timer; server restart removes all pending results.
 At capacity, new result-producing calls return `TOO_MANY_CALLS`; retrieve outstanding results or wait for expiration before retrying.
 An oversized result returns `OUTPUT_LIMIT`; for a read, narrow the native query where supported.
 An AWX `job stdout --download` above the result size returns `OUTPUT_TOO_LARGE`; read ranges with `--lines` or the failing tasks with `job events --failed`.
-A consumed, expired, wrong-user, wrong-operation or superseded-credential reference returns `NOT_FOUND`.
+A consumed, expired, wrong-user, wrong-operation or superseded-credential reference returns `NOT_FOUND`; delegated results also require the original exchanged session family.
 For Technitium, repeat the permitted read to obtain a new reference.
 Never repeat a Technitium mutation to recover an expired result; follow the recovery guidance below.
 For an unavailable AWX stdout result, repeat `job stdout <id> --download <name>` to obtain a new reference; controller permission denials or missing jobs return an upstream error without a result.
@@ -950,9 +951,10 @@ Exercise recovery periodically on isolated copies and record the image digest, r
 ## Runner admission
 
 The runner admits at most four active calls per authenticated user and eight across the server.
+Delegated calls share the creator's limits and may occupy at most two of that creator's active slots across all exchanged families.
 The executable defaults are `runnerLimits.userCalls`, `runnerLimits.globalCalls` and `runnerLimits.admissionWaitMs` in [config.ts](../src/server/config.ts).
 Calls waiting for either limit enter one queue and wait up to 3,000 ms before returning `TOO_MANY_CALLS`.
-When server capacity is available, the oldest queued call whose user has fewer than four active calls is admitted.
+When server capacity is available, the oldest queued call eligible under both the user and delegated limits is admitted.
 Calls blocked by their user's limit do not delay eligible calls from other users.
 The wait covers admission only; the execution deadline starts after admission.
 Queued cancellation or client disconnect removes the call without taking a slot.
