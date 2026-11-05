@@ -73,6 +73,7 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
     const filtered = [...state.keys()].some(key => key !== 'limit')
     const filterRow = `<form class="filters" method="get" action="/admin/audit" data-filters>
       <label class="input-wrap">${icon('search')}<span class="sr-only">Request ID</span><input name="requestId" value="${escape(query.data.requestId ?? '')}" maxlength="100" placeholder="Request ID"></label>
+      <label class="input-wrap"><span class="sr-only">Token ID</span><input name="delegationId" value="${escape(query.data.delegationId ?? '')}" placeholder="Token ID"></label>
       ${time}${failed}
       ${chip('user', 'User', users.map(user => ({ value: user.id, text: user.username })))}
       ${chip('tool', 'Tool', toolSchema.options.map(tool => ({ value: tool, text: tool })))}

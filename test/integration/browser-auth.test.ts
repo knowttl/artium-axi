@@ -73,6 +73,52 @@ async function signIn(secret = password) {
   return response
 }
 
+test('token settings require a recently authenticated administrator and are audited', async () => {
+  await signIn()
+  const csrf = await token('/admin/tokens')
+  const change = async (mintingEnabled = false) => app.inject({ method: 'PATCH', url: '/v1/admin/token-settings', headers: {
+    host: 'localhost', origin: 'http://localhost', accept: 'application/json', cookie: Object.entries(cookies).map(([key, value]) => `${key}=${value}`).join('; '),
+  }, payload: { _csrf: csrf, mintingEnabled, maxLifetimeMs: 3600000 } })
+  db.prepare('UPDATE users SET administrator = 0 WHERE id = ?').run(userId)
+  expect((await change()).statusCode).toBe(403)
+  db.prepare('UPDATE users SET administrator = 1 WHERE id = ?').run(userId)
+  now += authDefaults.recentAuthMs + 1
+  expect((await change()).statusCode).toBe(401)
+  now -= authDefaults.recentAuthMs + 1
+  const refused = await change(true)
+  expect(refused.statusCode).toBe(403)
+  expect(refused.json().error.message).toContain('not available yet')
+  expect(db.prepare('SELECT minting_enabled, max_lifetime_ms FROM delegation_settings').get()).toEqual({ minting_enabled: 0, max_lifetime_ms: 30 * 86400000 })
+  expect((await change()).statusCode).toBe(200)
+  expect(db.prepare('SELECT minting_enabled, max_lifetime_ms FROM delegation_settings').get()).toEqual({ minting_enabled: 0, max_lifetime_ms: 3600000 })
+  expect(db.prepare("SELECT action, user_id FROM audit WHERE event = 'admin-change' AND action = 'token-settings'").get())
+    .toEqual({ action: 'token-settings', user_id: userId })
+})
+
+test('browser token creation and revocation use the signed-in account', async () => {
+  db.exec("UPDATE delegation_settings SET minting_enabled = 1; UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
+  await signIn()
+  const csrf = await token('/account')
+  const send = (url: string, payload: object) => app.inject({ method: 'POST', url, headers: {
+    host: 'localhost', origin: 'http://localhost', cookie: Object.entries(cookies).map(([key, value]) => `${key}=${value}`).join('; '),
+  }, payload })
+  const input = { _csrf: csrf, label: 'Synthetic', scope: { tools: [{ tool: 'falcon-axi' }] }, readOnly: true, reusable: false, expiresAt: now + 60000 }
+  const overCap = await send('/v1/account/tokens', { ...input, expiresAt: now + 31 * 86400000 })
+  expect(overCap.statusCode).toBe(400)
+  const created = await send('/v1/account/tokens', input)
+  expect(created.statusCode).toBe(200)
+  const { id, token: secret } = created.json()
+  const page = await request('GET', '/account')
+  expect(page.body).toContain('Synthetic')
+  expect(page.body).not.toContain(secret)
+  const other = createBrowserSession(db, 'synthetic-second', 'synthetic-csrf')
+  const otherList = await app.inject({ url: '/v1/account/tokens', headers: { cookie: `artium-session=${other.id}` } })
+  expect(otherList.json().tokens).toEqual([])
+  expect((await request('GET', '/admin/tokens')).body).toContain('Synthetic')
+  expect((await send(`/v1/account/tokens/${id}/revoke`, { _csrf: csrf })).statusCode).toBe(204)
+  expect(db.prepare('SELECT revoked_at FROM delegations WHERE id = ?').get(id)).toEqual({ revoked_at: now })
+})
+
 test.each([
   { grants: "('synthetic-development-user', 'synthetic-role', 'synthetic-rule')", members: '1 person' },
   { grants: "('synthetic-development-user', 'synthetic-role', 'synthetic-rule'), ('synthetic-second', 'synthetic-role', 'direct')", members: '2 people' },

@@ -203,6 +203,7 @@ const navigation: { group?: string, href: string, label: string, icon: IconName 
   { group: 'Access', href: '/admin/invitations', label: 'Invitations', icon: 'mail' },
   { group: 'Tools', href: '/admin/tools', label: 'Tools', icon: 'box' },
   { group: 'Security', href: '/admin/settings/sign-in', label: 'Sign-in & SSO', icon: 'key' },
+  { group: 'Security', href: '/admin/tokens', label: 'Access tokens', icon: 'key' },
   { group: 'Security', href: '/admin/audit', label: 'Audit log', icon: 'list' },
 ]
 
@@ -246,8 +247,8 @@ function dialogs(viewer: Viewer): string {
   const confirmation = `<dialog id="confirmation" class="modal" aria-labelledby="confirmation-title" aria-describedby="confirmation-consequence"><form method="dialog"><div class="modal-body"><h2 id="confirmation-title"><span class="ico-circle warn" data-confirm-mark>${icon('alert')}</span><span data-confirm-title>Confirm change</span></h2><p id="confirmation-consequence" data-consequence></p>
     <div class="field" data-confirm-name-field hidden><label for="confirmation-name">Type <strong class="mono" data-confirm-name></strong> to confirm</label><input id="confirmation-name" class="mono" data-confirm-name-input autocomplete="off" spellcheck="false"></div></div>
     <div class="modal-foot"><button class="btn btn-ghost" value="cancel" autofocus>Cancel</button><button class="btn btn-primary" value="confirmed" data-confirm-button>Confirm change</button></div></form></dialog>`
-  if (!viewer.administrator || viewer.mustChange) return confirmation
-  return confirmation + `<dialog id="reauth-dialog" class="modal" aria-labelledby="reauth-title"><div class="modal-body"><h2 id="reauth-title"><span class="ico-circle">${icon('lock')}</span>${viewer.sso ? 'Confirm your identity' : 'Confirm it’s you'}</h2><p>Admin changes need a confirmation every 15 minutes. ${viewer.sso ? 'Confirm with your provider in a new window.' : 'Enter your password.'} Cancel keeps your draft.</p></div><form data-reauth>${viewer.sso ? '' : '<div class="modal-body"><div class="field"><label for="reauth-password">Password</label><input id="reauth-password" name="password" type="password" autocomplete="current-password" required></div></div>'}<p class="modal-error" data-reauth-error role="alert"></p><div class="modal-foot"><button class="btn btn-ghost" type="button" data-reauth-cancel>Cancel</button><button class="btn btn-primary">Confirm and continue</button></div></form></dialog>`
+  if (viewer.mustChange) return confirmation
+  return confirmation + `<dialog id="reauth-dialog" class="modal" aria-labelledby="reauth-title"><div class="modal-body"><h2 id="reauth-title"><span class="ico-circle">${icon('lock')}</span>${viewer.sso ? 'Confirm your identity' : 'Confirm it’s you'}</h2><p>Sensitive changes need a confirmation every 15 minutes. ${viewer.sso ? 'Confirm with your provider in a new window.' : 'Enter your password.'} Cancel keeps your draft.</p></div><form data-reauth>${viewer.sso ? '' : '<div class="modal-body"><div class="field"><label for="reauth-password">Password</label><input id="reauth-password" name="password" type="password" autocomplete="current-password" required></div></div>'}<p class="modal-error" data-reauth-error role="alert"></p><div class="modal-foot"><button class="btn btn-ghost" type="button" data-reauth-cancel>Cancel</button><button class="btn btn-primary">Confirm and continue</button></div></form></dialog>`
 }
 
 // Results of an action: #toast announces success politely, #message carries errors.
@@ -270,7 +271,7 @@ export function appShell(page: Page): string {
   const head = pageHeader(page.heading ?? page.title, page)
   const message = toasts
   if (!viewer.administrator || viewer.mustChange) {
-    return `<a class="skip" href="#main">Skip to content</a><div class="app plain"><header class="topbar">${brand(viewer.mustChange ? '/password' : '/account')}<div class="right">${learn(page.title, page.help)}${accountMenu(viewer, page.path, 'down')}</div></header>
+    return `<a class="skip" href="#main">Skip to content</a><div class="app plain"><header class="topbar">${brand(viewer.mustChange ? '/password' : '/account')}<div class="right">${viewer.mustChange ? '' : reauthPill(viewer)}${learn(page.title, page.help)}${accountMenu(viewer, page.path, 'down')}</div></header>
       <main id="main" class="content narrow" tabindex="-1">${head}${message}${page.content}</main></div>${dialogs(viewer)}${sprite}`
   }
   const active = navigation.find(item => item.href === '/admin' ? page.path === '/admin' : page.path === item.href || page.path.startsWith(item.href + '/'))

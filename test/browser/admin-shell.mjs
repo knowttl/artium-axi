@@ -42,8 +42,11 @@ function browser(script) {
     ${script}`)
 }
 
-beforeEach(async () => {
-  server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], { stdio: ['ignore', 'pipe', 'inherit'] })
+beforeEach(async context => {
+  server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
+    env: { ...process.env, ARTIUM_TEST_TOKEN_MINTING: context.name === 'ordinary users can create temporary tokens after recent authentication expires' ? '1' : '0' },
+    stdio: ['ignore', 'pipe', 'inherit'],
+  })
   const lines = createInterface({ input: server.stdout })
   try {
     const [line] = await once(lines, 'line', { signal: AbortSignal.timeout(15_000) })
@@ -81,6 +84,62 @@ async function expireConfirmation() {
     body: JSON.stringify({ advanceMs: 900_000 }) })
   assert.equal(response.status, 200)
 }
+
+test('token settings refuse enabling minting before slice 8', () => {
+  browser(`
+    await page.open(base + '/admin/tokens');
+    check(await page.eval(() => document.querySelector('[name=mintingEnabled]').disabled), 'Minting switch is available');
+    check(await page.eval(() => document.querySelector('#minting-unavailable').textContent.includes('not available yet')), 'Rollout restriction is unexplained');
+    const refusal = await page.eval(async () => {
+      const csrf = document.querySelector('form[data-token-settings] [name=_csrf]').value;
+      const response = await fetch('/v1/admin/token-settings', { method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ _csrf: csrf, mintingEnabled: true, maxLifetimeMs: 3600000 }) });
+      return { status: response.status, body: await response.json() };
+    });
+    check(refusal.status === 403 && refusal.body.error.message.includes('not available yet'), 'API allowed minting');
+    await page.fill('[name=maxLifetimeHours]', '2');
+    await page.click('form[data-token-settings] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=maxLifetimeHours][value="2"]');
+    await page.open(base + '/account');
+    check(await page.eval(() => !document.querySelector('form[data-create-token]')), 'Minting became available');
+  `)
+})
+
+test('ordinary users can create temporary tokens after recent authentication expires', async () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi');
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=enabled][value=false]');
+    await page.open(base + '/admin#nav');
+    await page.click('.account-menu summary');
+    await page.click('.account-menu form[action="/logout"] button');
+    await page.wait('[name=username]');
+    await page.fill('[name=username]', 'synthetic-ordinary');
+    await page.fill('[name=password]', 'CANARY-local-password');
+    await page.click('button');
+    await page.wait('form[data-create-token]');
+  `)
+  await expireConfirmation()
+  browser(`
+    await page.open(base + '/account');
+    await page.fill('form[data-create-token] [name=label]', 'Synthetic token');
+    await page.click('[data-token-tool="falcon-axi"]');
+    await page.click('[data-token-command="falcon-axi"][value="detection list"]');
+    await page.click('form[data-create-token] button');
+    await page.wait('#reauth-dialog[open]');
+    await page.fill('#reauth-dialog [name=password]', 'CANARY-local-password');
+    await page.click('#reauth-dialog button:not([type=button])');
+    await page.wait('#created-token[open]');
+    check(await page.eval(() => document.querySelector('[data-created-token]').value.startsWith('artd_')), 'Token was not shown');
+    await page.click('[data-close-created-token]');
+    await page.wait('form[data-create-token]');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic token')), 'Token was not listed');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('detection list')), 'Exact selection was not retained alongside tool-wide access');
+  `)
+})
 
 test('People role links and stretched person and tool rows keep independent pointer targets', () => {
   browser(`

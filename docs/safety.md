@@ -34,7 +34,8 @@ Local integration tests execute installed commands and plugin exports; actual ag
 
 ## Delegated sessions
 
-Delegated token creation, exchange, listing and revocation are implemented, but minting remains disabled by default until slice 8.
+Delegated token creation, exchange, listing and revocation are implemented, but minting is unavailable until slice 8.
+The administrator's creation switch is unavailable, and attempts to enable minting through the settings API are refused with a not-available-yet message; the lifetime cap can still be changed for new tokens.
 Disabling minting stops new tokens without invalidating previously issued tokens; they remain exchangeable until expired, revoked or consumed.
 See [delegated token usage](client-reference.md#delegated-tokens) for CLI sign-in and token management.
 Delegated tool execution follows the token's tool and command scope and the creator's current grants, with existing administrator write gates, upstream permissions and confirmation requirements still enforced.

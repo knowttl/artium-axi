@@ -108,13 +108,14 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/users` | People: search and filter by sign-in, status or role; add local users from the Add user sheet (`?sheet=add-user` opens it without JavaScript; submission requires JavaScript). |
 | `/admin/users/:id` | Person detail: edit profile and direct roles, review what they can use and their sessions; the **…** menu resets local passwords, signs out everywhere and sets break-glass designation; unlock appears while locked; disable and archive are in the danger zone. |
 | `/admin/invitations` | Prepare and resend SSO invitations from sheets (`?sheet=new-invitation` opens creation without JavaScript; submission requires JavaScript); revoke from the table; a banner explains when no enabled provider can accept claims; see [Sign-in settings](admin-guide.md#sign-in-settings). |
-| `/account` | Review your roles and tools, follow the three-step CLI setup, change your local-account password and revoke your sessions. |
+| `/account` | Review your roles and tools, set up the CLI, manage temporary access tokens and sessions, and change your local-account password. |
 | `/admin/tools` | Review installed tools in a table with state, enablement, write state, granting roles and last checked time; filter by All, Enabled or Needs attention or by name; the server-wide trusted CA bundle appears as a read-only card at the bottom. |
 | `/admin/tools/:tool` | Header with state, write badges, **Test connection** for shared credentials and an **Enabled** switch, a setup strip and tabs: Connection, Write permissions, Certificates, Access and Advanced. See [SSH setup](tool-credentials.md#ssh) for its separate host binding requirements. |
 | `/admin/credentials` | Redirect to the merged tools index. |
 | `/admin/roles` | List roles with their tools, member and SSO rule counts, and create a role. |
 | `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete an unused role by typing its name. |
 | `/admin/audit` | Filter, page through and export authentication, administration and tool-call records, and open one in a detail panel. |
+| `/admin/tokens` | Set the token lifetime cap, review all temporary access tokens, and revoke individual tokens or all tokens; see [minting rollout](safety.md#delegated-sessions). |
 | `/admin/settings/sign-in` | Review the sign-in mode, break-glass readiness and pending invitations, and add providers; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 | `/admin/settings/sign-in/:id` | Provider Setup checklist, Credential, Role rules and Settings tabs, and the Enable sign-in control. |
 | `/admin/settings/sign-in/:id/matches/:ruleId` | Who matches a role rule, from saved sign-in claims. |
@@ -182,6 +183,14 @@ User detail and Account list active browser sessions and CLI token families.
 Revoke ends one whole family, including its access and refresh tokens; Sign out everywhere ends all sessions while allowing a new sign-in.
 Revoking your current browser session signs you out immediately.
 Account session management requires a normal browser sign-in and CSRF protection, without administrator capability or the [recent confirmation required for administration](admin-guide.md#browser-administration).
+
+Temporary access tokens are managed separately on Account.
+When creation is enabled, select tool-wide access or exact commands, read-only access, a date or duration within the administrator's lifetime cap, and whether the token can be reused.
+Creation requires recent identity confirmation and displays the token once.
+Account lists your tokens and lets you revoke them; administrators can review everyone's tokens and revoke individual tokens or all tokens on `/admin/tokens`.
+Revoking a token also ends its exchanged sessions.
+See [delegated sessions](safety.md#delegated-sessions) for scope boundaries and rollout status.
+
 Users with temporary passwords must change them first.
 Archiving disables sign-in, revokes all sessions and hides the user from the users table while retaining identity, role membership and audit history.
 Archived users cannot be enabled through the UI or API; use Disable for temporary loss of access.
@@ -316,8 +325,8 @@ Denial, expiry or revocation prevents ticket issuance; approval codes are single
 
 ### Audit screen and API
 
-Audit supports exact request ID, user, tool, exact event, exact outcome, exact error code and inclusive UTC From/To filters, plus **Failed runs only**.
-The screen provides request ID, User, Tool, Event, Outcome and failed-run filters in one row; set an exact error code with `errorCode=<code>` in the page URL, which displays a removable filter.
+Audit supports exact request ID, token ID, user, tool, exact event, exact outcome, exact error code and inclusive UTC From/To filters, plus **Failed runs only**.
+The screen provides request ID, Token ID, User, Tool, Event, Outcome and failed-run filters in one row; set an exact error code with `errorCode=<code>` in the page URL, which displays a removable filter.
 Its **24 h** and **7 days** time ranges set From to that long before each page request and clear To; **Custom** shows the inclusive UTC From and To fields, and **Any time** removes the time bounds.
 Use `requestId=<id>` to correlate a call's records.
 Use `failed=1` to select only `run-terminal` records with a non-zero or missing exit code, or an outcome other than `completed`; omit it or use `failed=0` to disable this restriction.
@@ -340,7 +349,7 @@ Apply filters, then choose **CSV** or **JSON lines** from **Export** to export e
 `GET /v1/admin/audit/export?format=csv` (or `format=jsonl`) accepts the same filters, excluding `limit` and `cursor`.
 Exports are newest first and exclude records inserted after the download begins.
 Both formats contain the same safe persisted fields as `ARTIUM_AXI_AUDIT_STDOUT`, never credentials, tokens or tool output.
-Delegated calls include the creator's user ID and `delegation_id`; the API and exports accept the `delegationId` filter.
+Delegated calls include the creator's user ID and `delegation_id`; the screen, API and exports accept the `delegationId` filter.
 See [delegated capability boundaries](safety.md#delegated-sessions) for minting rollout and [token API usage](client-reference.md#delegated-tokens) for administrator listing and revocation, including revoke-all.
 CSV quotes non-null values and leaves null fields empty; JSON lines preserves JSON types and nulls.
 The [API contracts](../src/shared/api.ts) own the persisted field definitions (`adminAuditRecordSchema`) and transfer evidence rules (`transferAuditSchema` and `transferEvidenceSchema`).

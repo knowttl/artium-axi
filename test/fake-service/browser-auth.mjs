@@ -38,6 +38,7 @@ createTestCertificates(directory, ['localhost'], 1)
 const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const db = openStore(join(directory, 'artium.db'), key)
 await seedToolUser(db)
+if (process.env.ARTIUM_TEST_TOKEN_MINTING === '1') db.exec('UPDATE delegation_settings SET minting_enabled = 1')
 db.exec('UPDATE users SET administrator = 1, must_change = 1')
 db.exec(`INSERT INTO users (id, username, display_name, password_hash, must_change)
   SELECT 'synthetic-ordinary', 'synthetic-ordinary', 'Ordinary', password_hash, 0 FROM users LIMIT 1;

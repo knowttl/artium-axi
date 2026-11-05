@@ -587,6 +587,23 @@ document.addEventListener('submit', async event => {
         catch { message.textContent = 'Enter valid JSON in ' + input.name + '.'; message.focus(); return; }
       }
     }
+    if (form.hasAttribute('data-create-token')) {
+      const tools = [];
+      for (const input of form.querySelectorAll('[data-token-tool]')) {
+        const commands = [...form.querySelectorAll('[data-token-command]')].filter(item => item.dataset.tokenCommand === input.dataset.tokenTool && item.checked).map(item => item.value);
+        if (input.checked) tools.push({ tool: input.dataset.tokenTool });
+        if (commands.length) tools.push({ tool: input.dataset.tokenTool, commands });
+      }
+      body.scope = { tools };
+      body.readOnly = form.elements.readOnly.checked;
+      body.reusable = form.elements.reusable.checked;
+      body.expiresAt = body.expiryType === 'date' ? new Date(body.expiryDate).getTime() : Date.now() + Math.floor(Number(body.duration) * 3600000);
+      delete body.expiryType; delete body.expiryDate; delete body.duration;
+    }
+    if (form.hasAttribute('data-token-settings')) {
+      body.maxLifetimeMs = Math.floor(Number(body.maxLifetimeHours) * 3600000);
+      delete body.maxLifetimeHours;
+    }
     if (form.querySelector('[name=roleIds]')) body.roleIds = fields.getAll('roleIds');
     const send = () => fetch(form.action, { method: form.dataset.method || 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body) });
@@ -651,6 +668,16 @@ document.addEventListener('submit', async event => {
     if (!response.ok) {
       const result = await response.json();
       showError(message, result.error);
+      return;
+    }
+    if (form.hasAttribute('data-create-token')) {
+      const result = await response.json();
+      const dialog = document.getElementById('created-token');
+      const field = dialog.querySelector('[data-created-token]');
+      field.value = result.token;
+      dialog.addEventListener('close', () => { field.value = ''; location.reload(); }, { once: true });
+      dialog.querySelector('[data-close-created-token]').addEventListener('click', () => dialog.close(), { once: true });
+      dialog.showModal(); field.focus(); field.select();
       return;
     }
     sessionStorage.setItem('artium-toast', form.dataset.successMessage || 'Change saved.');
