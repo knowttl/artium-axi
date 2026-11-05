@@ -61,6 +61,58 @@ test.each(inventoryCases)('$adapter.name inventory command $command has its revi
 })
 
 test.each([
+  'awx-axi', 'az-axi', 'beyondtrust-axi', 'checkpoint-axi', 'falcon-axi', 'gh-axi', 'gitea-axi',
+  'hybrid-axi', 'mg-axi', 'proxmox-axi', 'technitium-axi', 'tenable-axi', 'unifi-axi',
+].flatMap(tool => ['--version', '-v', '-V'].map(flag => ({ tool, flag }))))('$tool recognizes $flag as an informational read', ({ tool, flag }) => {
+  const adapter = adapters.find(adapter => adapter.name === tool)!
+  adapter.validateArgs([flag])
+  expect(adapter.classify([flag])).toEqual({ command: 'version', effect: 'read' })
+})
+
+test.each([
+  ['awx-axi', 'home'], ['az-axi', 'home'], ['beyondtrust-axi', 'home'], ['checkpoint-axi', 'home'],
+  ['falcon-axi', 'home'], ['gh-axi', 'help'], ['gitea-axi', 'home'], ['hybrid-axi', 'home'],
+  ['mg-axi', 'home'], ['proxmox-axi', 'home'], ['technitium-axi', 'home'], ['tenable-axi', 'home'], ['unifi-axi', 'home'],
+] as const)('%s recognizes top-level help as an informational read', (tool, command) => {
+  expect(adapters.find(adapter => adapter.name === tool)!.classify(['--help'])).toEqual({ command, effect: 'read' })
+})
+
+test.each([
+  ['awx-axi', ['job', '--help'], 'job'],
+  ['falcon-axi', ['detection', '--help'], 'detection'],
+  ['gh-axi', ['issue', '--help'], 'issue'],
+  ['gitea-axi', ['repo', '--help'], 'repo'],
+  ['proxmox-axi', ['get', '--help'], 'get'],
+  ['unifi-axi', ['dpi', 'application', '--help'], 'dpi application'],
+  ['proxmox-axi', ['stream', '--help'], 'stream'],
+  ['proxmox-axi', ['stream', '--json', '--help'], 'stream'],
+  ['kubernetes-axi', ['workspace', '--help'], 'workspace'],
+  ['kubernetes-axi', ['--json', 'workspace', '--help'], 'workspace'],
+  ['kubernetes-axi', ['session', '--help'], 'session'],
+  ['kubernetes-axi', ['--json', 'session', '--help'], 'session'],
+] as const)('%s recognizes group help %j as an informational read', (tool, args, command) => {
+  expect(adapters.find(adapter => adapter.name === tool)!.classify(args)).toEqual({ command, effect: 'read' })
+})
+
+test.each([
+  ['awx-axi', ['job', 'synthetic-unknown', '--help']],
+  ['falcon-axi', ['detection', 'synthetic-unknown', '--help']],
+  ['gh-axi', ['issue', 'synthetic-unknown', '--help']],
+  ['gitea-axi', ['repo', 'synthetic-unknown', '--help']],
+  ['proxmox-axi', ['get', 'synthetic-unknown', '--help']],
+  ['unifi-axi', ['dpi', 'synthetic-unknown', '--help']],
+  ['vectra-axi', ['detection', 'synthetic-unknown', '--help']],
+  ['kubernetes-axi', ['workspace', 'synthetic-unknown', '--help']],
+  ['kubernetes-axi', ['session', 'synthetic-unknown', '--help']],
+] as const)('%s keeps unknown subcommands with help write-classified: %j', (tool, args) => {
+  expect(adapters.find(adapter => adapter.name === tool)!.classify(args).effect).toBe('write')
+})
+
+test.each(adapters)('$name keeps unknown commands with help write-classified', adapter => {
+  expect(adapter.classify(['synthetic-unknown', '--help']).effect).toBe('write')
+})
+
+test.each([
   ['exec', ['exec', 'synthetic', '--command', 'true', '--confirm'], 'write'],
   ['connection open', ['connection', 'open', 'synthetic'], 'read'],
   ['connection list', ['--json', 'connection', 'list'], 'read'],

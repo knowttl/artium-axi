@@ -154,7 +154,7 @@ export function createGiteaAdapter(source: SecretSource, writeLog?: string): Ada
       const result = classifyCommand(inventory.commands, (a, i) => {
         const call = giteaArguments(a, i)
         apiMutation = 'apiMutation' in call && call.apiMutation
-        return call.invocation.command
+        return call.invocation
       }, args, input)
       return apiMutation ? { ...result, effect: 'write' } : result
     },

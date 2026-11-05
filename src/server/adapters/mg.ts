@@ -112,7 +112,7 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
     validateArgs: (args, input) => { mgArguments(args, input) },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(
       inventory.commands.map(route => ({ ...route, effect: mgReadCommands.has(route.command) ? 'read' : 'write' })),
-      (a, i) => mgArguments(a, i).invocation.command, args, input),
+      (a, i) => mgArguments(a, i).invocation, args, input),
     prepare,
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'mg-axi' || !scope.selection.operation.startsWith('mail.')

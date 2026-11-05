@@ -225,15 +225,16 @@ export function createProxmoxAdapter(source: SecretSource, writeLog?: string): P
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand([...inventory.commands, ...inventory.streamCommands, ...proxmoxHostedRoutes], (a, i) => {
       if (a[0] === 'result') {
         resolveProxmoxResult(a)
-        return 'result take'
+        return { command: 'result take' }
       }
       if (a[0] === 'stream') {
         const { separator, options, args, route } = resolveProxmoxStream(a)
-        if (separator < 0 && options.length === 1 && options[0] === 'limits') return 'stream limits'
+        if (separator < 0 && options.length === 1 && options[0] === 'limits') return { command: 'stream limits' }
+        if (separator < 0 && options.length === 1 && options[0] === '--help') return { command: 'stream', help: true }
         if (separator < 0 || options.length || !route) throw new ArtiumError('INVALID_INPUT')
-        return route.effect === 'read' ? argumentsForCall(args, i, true).invocation.command : route.command
+        return route.effect === 'read' ? argumentsForCall(args, i, true).invocation : { command: route.command }
       }
-      return argumentsForCall(a, i, ['transfer', 'duplex'].includes(a[0])).invocation.command
+      return argumentsForCall(a, i, ['transfer', 'duplex'].includes(a[0])).invocation
     }, args, input),
     prepare: (args, reference, input) => prepare(args, reference, input),
     inspectStream: (args, reference, input) => streamSelection(check(args, reference, input, true).call),

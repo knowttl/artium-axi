@@ -22,7 +22,8 @@ export function resolveKubernetesHostedCommand(args: readonly string[]): string 
   const [group, action, ...rest] = args.slice(prefix)
   if (['tunnel', 'credential'].includes(group)) return group
   if (!['workspace', 'session'].includes(group)) return undefined
-  const { route: command } = kubernetesHostedArguments(rest, group, action)
+  const { route: command, help } = kubernetesHostedArguments(rest, group, action)
+  if (help && (action === undefined || action === '--help')) return group
   return kubernetesHostedRoutes.find(route => route.command === command)?.command
 }
 

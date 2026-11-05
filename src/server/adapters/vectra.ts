@@ -74,7 +74,7 @@ export function createVectraAdapter(source: SecretSource, writeLog: string,
     validateArgs: (args, input) => { vectraArguments(args, input) },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(
       inventory.commands.map(route => ({ ...route, effect: vectraReadCommands.has(route.command) ? 'read' : 'write' })),
-      (a, i) => vectraArguments(a, i).invocation.command, args, input),
+      (a, i) => ({ command: vectraArguments(a, i).invocation.command }), args, input),
     async prepare(args, reference, input) {
       const normalized = vectraArguments(args, input)
       if (reference.tool !== 'vectra-axi') throw new ArtiumError('CREDENTIAL_INVALID')

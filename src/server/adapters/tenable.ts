@@ -59,7 +59,7 @@ function tenableArguments(args: readonly string[], input: RunnerInput = {}) {
     }
   }
   if (input.stdin !== undefined && !usesStdin) throw new ArtiumError('UNSUPPORTED_INPUT')
-  return { args: normalized, fileArguments, invocation: { command: route?.command ?? 'version', help },
+  return { args: normalized, fileArguments, invocation: { command: route?.command ?? (help ? 'home' : 'version'), help },
     effect: route?.effect === 'write' && tokens.some(token => token === '--execute' || token.startsWith('--execute='))
       ? 'write' as const : 'read' as const }
 }
@@ -72,7 +72,7 @@ export function createTenableAdapter(source: SecretSource, writeLog: string): Ad
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { tenableArguments(args, input) },
-    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => tenableArguments(a, i).invocation.command, args, input),
+    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => tenableArguments(a, i).invocation, args, input),
     async prepare(args, reference, input) {
       const normalized = tenableArguments(args, input)
       if (reference.tool !== 'tenable-axi') throw new ArtiumError('CREDENTIAL_INVALID')

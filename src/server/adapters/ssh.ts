@@ -46,12 +46,12 @@ export function createSshAdapter(hosts: SshHosts, writeLog: string, executable: 
     validateArgs: (args, input) => { invocation(args, input) },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand([...inventory.commands, ...inventory.managedCommands], (a, i) => {
       const command = resolveSshManagedCommand(a)
-      if (!command) return invocation(a, i).command
+      if (!command) return invocation(a, i)
       const { parseArguments } = createRequire(import.meta.url)(fileURLToPath(new URL('./arguments.js', pathToFileURL(executable)))) as {
         parseArguments(args: string[]): unknown
       }
       parseArguments([...a])
-      return command
+      return { command }
     }, args, input),
     async prepare() { throw new ArtiumError('TOOL_NOT_GRANTED') },
     async prepareForCaller(args, userId, input) {

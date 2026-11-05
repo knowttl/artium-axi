@@ -72,7 +72,10 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
     validateArgs: (args, input) => { argumentsForCall(args, input) },
     classify(args, input) {
       const routes = [...inventory.commands, ...inventory.writeCommands, ...inventory.workflows.map(route => ({ ...route, effect: 'write' })), ...kubernetesHostedRoutes]
-      return classifyCommand(routes, (a, i) => resolveKubernetesHostedCommand(a) ?? argumentsForCall(a, i).invocation.command, args, input)
+      return classifyCommand(routes, (a, i) => {
+        const command = resolveKubernetesHostedCommand(a)
+        return command ? { command, help: ['workspace', 'session'].includes(command) } : argumentsForCall(a, i).invocation
+      }, args, input)
     },
     async prepare(args, reference, input) {
       const { workflow, acquisition, ...call } = argumentsForCall(args, input)

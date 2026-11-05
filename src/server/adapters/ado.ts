@@ -198,7 +198,7 @@ export function createAdoAdapter(source: SecretSource, cache = new AzureTokenCac
         const call = adoArguments(a, i)
         const method = call.flags.get('method') ?? (/^(GET|POST|PATCH|PUT|DELETE|HEAD|OPTIONS)$/i.test(call.positionals[0] ?? '') ? call.positionals[0] : 'GET')
         apiWrite = call.command === 'api' && method.toUpperCase() !== 'GET'
-        return call.command
+        return { command: call.command, help: call.invocation.help }
       }, args, input)
       return apiWrite ? { ...result, effect: 'write' } : result
     },
