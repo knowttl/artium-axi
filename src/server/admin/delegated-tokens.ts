@@ -52,9 +52,10 @@ export function registerTokenPage(app: FastifyInstance, db: Database.Database): 
     requireBrowserAdmin(db, request.cookies[browserCookie] ?? '', false)
     const current = readBrowserSession(db, request.cookies[browserCookie]!)
     const csrf = reply.generateCsrf()
-    const settings = db.prepare('SELECT minting_enabled, max_lifetime_ms FROM delegation_settings WHERE id = 1').get() as { minting_enabled: number, max_lifetime_ms: number }
+    const settings = db.prepare('SELECT max_lifetime_ms FROM delegation_settings WHERE id = 1').get() as { max_lifetime_ms: number }
     const form = `${apiFormTag(csrf, '/v1/admin/token-settings', 'PATCH', 'Save these token settings?', 'data-token-settings')}
-      <div class="card-body column"><label class="check"><input type="checkbox" name="mintingEnabled" data-type="boolean"${settings.minting_enabled ? ' checked' : ''}> Allow token creation</label>
+      <div class="card-body column"><label class="check"><input type="checkbox" name="mintingEnabled" data-type="boolean" disabled aria-describedby="minting-unavailable"> Allow token creation</label>
+      <p id="minting-unavailable">Token creation is not available yet in this build. Minting becomes available in slice 8.</p>
       <label>Maximum lifetime in hours<input type="number" name="maxLifetimeHours" min="0.01" step="any" value="${settings.max_lifetime_ms / 3600000}" required></label>
       <p>Disabling creation does not revoke existing tokens. The lifetime cap applies to new tokens.</p></div><div class="card-foot"><button class="btn btn-primary">Save settings</button></div></form>`
     const revokeAll = apiForm(csrf, '/v1/admin/tokens/revoke-all', 'POST', 'Revoke all tokens', '', 'Revoke all tokens and their sessions?', '', 'btn btn-danger-outline')

@@ -76,17 +76,21 @@ async function signIn(secret = password) {
 test('token settings require a recently authenticated administrator and are audited', async () => {
   await signIn()
   const csrf = await token('/admin/tokens')
-  const change = async () => app.inject({ method: 'PATCH', url: '/v1/admin/token-settings', headers: {
+  const change = async (mintingEnabled = false) => app.inject({ method: 'PATCH', url: '/v1/admin/token-settings', headers: {
     host: 'localhost', origin: 'http://localhost', accept: 'application/json', cookie: Object.entries(cookies).map(([key, value]) => `${key}=${value}`).join('; '),
-  }, payload: { _csrf: csrf, mintingEnabled: true, maxLifetimeMs: 3600000 } })
+  }, payload: { _csrf: csrf, mintingEnabled, maxLifetimeMs: 3600000 } })
   db.prepare('UPDATE users SET administrator = 0 WHERE id = ?').run(userId)
   expect((await change()).statusCode).toBe(403)
   db.prepare('UPDATE users SET administrator = 1 WHERE id = ?').run(userId)
   now += authDefaults.recentAuthMs + 1
   expect((await change()).statusCode).toBe(401)
   now -= authDefaults.recentAuthMs + 1
+  const refused = await change(true)
+  expect(refused.statusCode).toBe(403)
+  expect(refused.json().error.message).toContain('not available yet')
+  expect(db.prepare('SELECT minting_enabled, max_lifetime_ms FROM delegation_settings').get()).toEqual({ minting_enabled: 0, max_lifetime_ms: 30 * 86400000 })
   expect((await change()).statusCode).toBe(200)
-  expect(db.prepare('SELECT minting_enabled, max_lifetime_ms FROM delegation_settings').get()).toEqual({ minting_enabled: 1, max_lifetime_ms: 3600000 })
+  expect(db.prepare('SELECT minting_enabled, max_lifetime_ms FROM delegation_settings').get()).toEqual({ minting_enabled: 0, max_lifetime_ms: 3600000 })
   expect(db.prepare("SELECT action, user_id FROM audit WHERE event = 'admin-change' AND action = 'token-settings'").get())
     .toEqual({ action: 'token-settings', user_id: userId })
 })

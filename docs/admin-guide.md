@@ -185,6 +185,7 @@ Revoking your current browser session signs you out immediately.
 Account session management requires a normal browser sign-in and CSRF protection, without administrator capability or the [recent confirmation required for administration](admin-guide.md#browser-administration).
 
 Temporary access tokens are managed separately on Account.
+Token creation is not available yet in this build; the administrator can change the lifetime cap, but enabling minting is refused until slice 8.
 When creation is enabled, select tool-wide access or exact commands, read-only access, a date or duration within the administrator's lifetime cap, and whether the token can be reused.
 Creation requires recent identity confirmation and displays the token once.
 The administrator can disable creation without revoking existing tokens, or revoke individual tokens or all tokens on `/admin/tokens`.
