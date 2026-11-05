@@ -449,7 +449,12 @@ Use repeatable `--tool` flags for tool-wide grants, and `--exact '<tool:command>
 Use repeatable `--command '<tool:pattern>'` to restrict a tool to exact commands or a trailing wildcard word, for example `--command 'awx-axi:job *'`.
 Wildcards match command words and exclude API and native escape hatches and credential-producing commands, which require an exact selection.
 API and native selections can reach many operations and are broad.
-Command-scoped sessions receive filtered tool discovery, root help and skills, while native command help and error messages may mention other commands.
+Command-scoped sessions receive server-filtered tool discovery, CLI help and skills.
+Discovery intersects token grants with the current tool enablement, delegated read-only restriction and administrator Allow writes switch.
+GitHub discovery also reflects its administrator operation allow-list.
+Other adapter-internal operation allow-lists, including UniFi, Falcon, Gitea, Technitium, Proxmox and Kubernetes credential acquisition, remain execution safeguards and are not reflected in slice 4 discovery.
+Reflecting those policies in discovery requires a shared pre-credential policy hook across those adapters and is deferred to a follow-up.
+Native output and error messages may mention other commands.
 Exact selections can be used alone or alongside tool-wide grants; see the [credential-producing boundary](safety.md#delegated-sessions) before selecting them.
 SSO creators use `--sso` instead of `--password-stdin` and approve the displayed browser code.
 Use `artium-axi token list` and `artium-axi token revoke <id>` to manage tokens.

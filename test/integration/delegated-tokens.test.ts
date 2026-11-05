@@ -3,7 +3,7 @@ import { once } from 'node:events'
 import { mkdtempSync, rmSync, watch } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Readable } from 'node:stream'
+import type { Readable, Writable } from 'node:stream'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { createApp } from '../../src/server/app.js'
@@ -22,10 +22,14 @@ import { createProxmoxAdapter } from '../../src/server/adapters/proxmox.js'
 import { createAzAdapter } from '../../src/server/adapters/az.js'
 import { createGhAdapter } from '../../src/server/adapters/gh.js'
 import { createAdoAdapter } from '../../src/server/adapters/ado.js'
+import { createSshAdapter } from '../../src/server/adapters/ssh.js'
+import { createUnifiAdapter } from '../../src/server/adapters/unifi.js'
+import { SshHosts } from '../../src/server/store/ssh-hosts.js'
 import { checkDelegation, classifyDelegatedCommand, createDelegation } from '../../src/server/auth/delegations.js'
 import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 import { decode } from '@toon-format/toon'
 import { SessionStore } from '../../src/cli/session.js'
+import type { ToolName } from '../../src/server/store/credential-store.js'
 
 let directory: string
 let db: Database.Database
@@ -53,13 +57,17 @@ beforeEach(async () => {
 })
 afterEach(async () => { await app.close(); db.close(); rmSync(directory, { recursive: true, force: true }) })
 
-async function cli(args: string[], input = '', config = 'owner', privateOutput = false, environment: NodeJS.ProcessEnv = {}) {
+async function cli(args: string[], input = '', config = 'owner', privateOutput = false, environment: NodeJS.ProcessEnv = {}, managedSession?: { accessToken: string }) {
   const child = spawn(process.execPath, [bundle, ...args], { env: { PATH: process.env.PATH, XDG_CONFIG_HOME: join(directory, config),
-    ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1', ...environment }, stdio: ['pipe', 'pipe', 'pipe', privateOutput ? 'pipe' : 'ignore'] })
+    ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1', ...environment }, stdio: ['pipe', 'pipe', 'pipe', privateOutput || managedSession ? 'pipe' : 'ignore', managedSession ? 'pipe' : 'ignore'] })
   let stdout = ''; let stderr = ''; let secret = ''
   child.stdout!.on('data', chunk => { stdout += chunk })
   child.stderr!.on('data', chunk => { stderr += chunk })
   if (privateOutput) (child.stdio[3] as Readable).on('data', chunk => { secret += chunk })
+  if (managedSession) {
+    (child.stdio[3] as Writable).end(JSON.stringify({ serverUrl: url, ...managedSession }))
+    ;(child.stdio[4] as Readable).resume()
+  }
   child.stdin!.end(input)
   const [code] = await once(child, 'close')
   return { code, stdout, stderr, secret: secret.trim(), argv: child.spawnargs }
@@ -81,6 +89,45 @@ test('token --command mints a wildcard selection (R12)', async () => {
   expect(minted.code, minted.stdout).toBe(0)
   const row = db.prepare('SELECT scope_json FROM delegations').get() as { scope_json: string }
   expect(JSON.parse(row.scope_json)).toEqual({ tools: [{ tool: 'falcon-axi', commands: ['detection *'] }] })
+})
+
+test.each<{ tool: ToolName, command: string, args: string[], parse?: (text: string) => unknown }>([
+  { tool: 'kubernetes-axi', command: 'get', args: ['kubernetes-axi', '--help'] },
+  { tool: 'kubernetes-axi', command: 'get', args: ['kubernetes-axi', 'workspace', '--help'] },
+  { tool: 'ssh-axi', command: 'host list', args: ['ssh-axi', '--help'] },
+  { tool: 'ssh-axi', command: 'host list', args: ['ssh-axi', 'connection', '--help'] },
+  { tool: 'gh-axi', command: 'issue list', args: ['--help', 'gh-axi'] },
+  { tool: 'unifi-axi', command: 'info', args: ['unifi-axi', 'commands'] },
+  { tool: 'unifi-axi', command: 'info', args: ['unifi-axi', '--json', 'commands'], parse: JSON.parse },
+  { tool: 'unifi-axi', command: 'info', args: ['unifi-axi', '--help'] },
+  { tool: 'gh-axi', command: 'issue list', args: ['tools', 'show', 'gh-axi', '--help'] },
+])('delegated CLI discovery $args renders only permitted commands (R14)', async ({ tool, command, args, parse = decode }) => {
+  await app.close()
+  db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
+  const source = new EmbeddedSecretSource(credentials)
+  const writeLog = join(directory, 'writes.log')
+  const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') })
+  const adapter = tool === 'kubernetes-axi'
+    ? await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), join(directory, 'requests'))
+    : tool === 'ssh-axi' ? createSshAdapter(new SshHosts(db, provider), writeLog)
+    : tool === 'unifi-axi' ? createUnifiAdapter(source, writeLog) : createGhAdapter(source)
+  app = createApp({ db, runner: await Runner.create(join(directory, 'calls-discovery')), audit: new Audit(db),
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+  url = await app.listen({ host: '127.0.0.1', port: 0 })
+  const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+    scope: { tools: [{ tool, commands: [command] }] }, readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 })
+  expect((await cli(['login', '--token-stdin'], `${minted.token}\n`, 'agent')).code).toBe(0)
+  const result = await cli([...args], '', 'agent')
+  expect(result.code, result.stdout).toBe(0)
+  const output = parse(result.stdout) as { commands: string[], example?: string, upstreamHelp?: string }
+  expect(output.commands).toEqual([command])
+  expect(output.example).toBeUndefined()
+  expect(output.upstreamHelp).toBeUndefined()
+  const session = new SessionStore(url, join(directory, 'agent', 'artium-axi', 'session.json')).read()
+  if (session?.status !== 'authenticated') throw new Error('Expected delegated session')
+  const managed = await cli(['--managed-session', ...args], '', 'agent', false, {}, { accessToken: session.accessToken })
+  expect(managed.code, managed.stdout).toBe(0)
+  expect((parse(managed.stdout) as { commands: string[] }).commands).toEqual([command])
 })
 
 test('token creation refreshes an idle owner before password reauthentication (R6)', async () => {
@@ -111,6 +158,9 @@ test('read-only token limits real CLI calls and revocation stops the session', a
   expect((tools.stdout + tools.stderr).includes(token)).toBe(false)
   expect(tools.stdout).toContain('falcon-axi')
   expect(tools.stdout).not.toContain('awx-axi')
+  const help = await cli(['--help'], '', 'agent')
+  expect(help.code, help.stdout).toBe(0)
+  expect((decode(help.stdout) as { tools: { name: string }[] }).tools.map(tool => tool.name)).toEqual(['falcon-axi'])
   const read = await cli(['falcon-axi', 'detection', 'list'], '', 'agent')
   expect(read.stdout.includes(token)).toBe(false)
   expect(read.stdout).toContain('synthetic result')
@@ -278,7 +328,7 @@ test.each([
   const stored = db.prepare('SELECT scope_json FROM delegations WHERE id = ?').get(minted.json().id) as { scope_json: string }
   expect(JSON.parse(stored.scope_json)).toEqual({ tools: [{ tool, commands: [canonical] }] })
   const classification = classifyDelegatedCommand(adapter, execution)
-  expect(() => checkDelegation(stored.scope_json, false, tool, classification.command, classification.effect)).not.toThrow()
+  expect(() => checkDelegation(stored.scope_json, false, adapter, classification.command, classification.effect)).not.toThrow()
   const exchanged = exchangeDelegation(db, minted.json().token)
   const delegated = { authorization: `Bearer ${exchanged.accessToken}` }
   const run = await app.inject({ method: 'POST', url: `/v1/tools/${tool}/run`, headers: delegated, payload: { args: [...execution] } })
