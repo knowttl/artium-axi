@@ -115,7 +115,9 @@ export function createShodanAdapter(source: SecretSource): Adapter<unknown> {
         : call.operation === 'OP-035' ? 'data list --dataset' : call.invocation.command
       const validateOutput = !call.invocation.help && outputSchemas.get(outputCommand)
       const publicContent = validateOutput ? (stdout: string, stderr: string) => {
+        if (!stdout.trim()) return [stdout, stderr]
         const value: unknown = stdout.trimStart().startsWith('{') ? JSON.parse(stdout) : decode(stdout)
+        if (value !== null && typeof value === 'object' && Object.hasOwn(value, 'error')) return [stdout, stderr]
         if (!validateOutput(value)) throw new Error('Invalid Shodan output')
         if (outputCommand === 'alert stats' && value !== null && typeof value === 'object' && Object.hasOwn(value, 'saved')) throw new Error('Unexpected file output')
         return [stdout, stderr]

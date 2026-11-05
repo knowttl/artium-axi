@@ -5,6 +5,7 @@ import { createShodanAdapter, shodanProfile } from './shodan.js'
 import { delegatedCommands, resolveDelegatedCommand } from '../auth/delegations.js'
 import { execFileSync } from 'node:child_process'
 import { decode } from '@toon-format/toon'
+import { SecretScanner } from '../runner/scan.js'
 
 const reference = { id: 'synthetic-credential', tool: 'shodan-axi' as const, revision: 1 }
 const previousPath = toolPaths['shodan-axi']
@@ -64,6 +65,28 @@ test('only the selected API key is written to an isolated profile', async () => 
   expect(JSON.parse(String(call.files[0].content))).toEqual({ version: 1, defaultProfile: 'artium', profiles: {
     artium: { auth: 'api-key', origin: 'https://api.shodan.io', apiKey: { env: 'ARTIUM_SECRET_0' } },
   } })
+})
+
+test.each([
+  ['', ''],
+  ['', 'Request failed\n'],
+  ['{"error":{"code":"REQUEST_FAILED","message":"Synthetic failure"}}', ''],
+  ['error:\n  code: REQUEST_FAILED\n  message: Synthetic failure\n', ''],
+])('failed Shodan reads do not become secret detections (R2): %s', async (stdout, stderr) => {
+  const adapter = createShodanAdapter({ getCredential: async () => ({ auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' }) })
+  const call = await adapter.prepare(['host', '192.0.2.1'], reference)
+  const scanner = new SecretScanner(call.secrets, undefined, call.publicContent)
+  scanner.scan('stdout', Buffer.from(stdout))
+  scanner.scan('stderr', Buffer.from(stderr))
+  expect(scanner.finish()).toBe(false)
+})
+
+test.each(['stdout', 'stderr'] as const)('failed Shodan reads still detect secrets in %s (R2)', async stream => {
+  const adapter = createShodanAdapter({ getCredential: async () => ({ auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' }) })
+  const call = await adapter.prepare(['host', '192.0.2.1'], reference)
+  const scanner = new SecretScanner(call.secrets, undefined, call.publicContent)
+  scanner.scan(stream, Buffer.from('{"error":{"code":"REQUEST_FAILED","message":"CANARY-shodan-key"}}'))
+  expect(scanner.finish()).toBe(true)
 })
 
 test.each([
