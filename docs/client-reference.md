@@ -466,8 +466,11 @@ The bearer API creates tokens with `POST /v1/account/tokens`, requiring an `x-ar
 The [API schemas](../src/shared/api.ts) own creation, scope, exchange and creation-response contracts (`createDelegationSchema`, `delegationScopeSchema`, `delegatedExchangeSchema` and `createdDelegationSchema`).
 To combine a tool-wide grant and an exact pick, include separate entries for that tool.
 `GET /v1/account/tokens` lists the creator's tokens, and `POST /v1/account/tokens/<id>/revoke` revokes one.
+These account endpoints also accept a normal browser session; browser mutations require CSRF protection, and creation requires recent identity confirmation instead of a bearer reauthentication ticket.
+See [Account token management](admin-guide.md#browser-administration) for the browser screens.
 `POST /v1/auth/delegated` exchanges a token supplied in the JSON `token` field for a normal access and refresh pair.
 Administrators with recent authentication can list all tokens at `GET /v1/admin/tokens`, revoke one at `POST /v1/admin/tokens/<id>/revoke`, or revoke all at `POST /v1/admin/tokens/revoke-all`.
+They can update token settings at `PATCH /v1/admin/token-settings` with JSON containing `mintingEnabled` (boolean) and `maxLifetimeMs` (a positive safe integer in milliseconds); see [rollout restrictions](safety.md#delegated-sessions) before using this endpoint.
 
 ### Externally managed client sessions
 

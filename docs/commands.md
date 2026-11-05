@@ -12,7 +12,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi login --username <username> [--password-stdin]` | Sign in with a local account using protected password input. |
 | `artium-axi login --sso` | Sign in through browser approval of the terminal code. |
 | `artium-axi login --token-stdin` | Exchange a delegated token using protected stdin. |
-| `artium-axi token create\|list\|revoke` | Manage delegated tokens; minting is disabled by default. See [delegated tokens](client-reference.md#delegated-tokens). |
+| `artium-axi token create\|list\|revoke` | Manage delegated tokens. See [delegated tokens](client-reference.md#delegated-tokens) and [rollout status](safety.md#delegated-sessions). |
 | `artium-axi passwd [--password-stdin]` | Change the account password, then sign in again. |
 | `artium-axi logout` | Remove local tokens and attempt server-session revocation. |
 | `artium-axi whoami` | Show identity, session expiry and server, with roles for full sessions or a delegation label for delegated sessions. |

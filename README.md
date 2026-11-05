@@ -76,7 +76,7 @@ Write capabilities below require administrator opt-in.
 | Group | Purpose | Access | Reference |
 | --- | --- | --- | --- |
 | BeyondTrust PM Cloud | Endpoint Privilege Management reads, selected writes, deletes and four downloads | Managed credentials; exact operation grants; separate delete toggle | [Credentials](docs/tool-credentials.md#beyondtrust-pm-cloud) |
-| Discovery and sessions | Identity, login, tools, doctor, update, setup and delegated token management | Client/session operations; delegated minting defaults off | [Commands](docs/commands.md), [delegated boundaries](docs/safety.md#delegated-sessions) |
+| Discovery and sessions | Identity, login, tools, doctor, update, setup and delegated token management | Client/session operations; see delegated boundaries for rollout | [Commands](docs/commands.md), [delegated boundaries](docs/safety.md#delegated-sessions) |
 | Falcon | Endpoint investigations, search lifecycle, MalQuery and restricted RTR | Exact administrator grants; native RTR profile opt-in and confirmation | [Capabilities](docs/safety.md#write-gates-by-tool) |
 | Kubernetes | Cluster resources, logs and passive authorization reviews | Bounded reads, native prepare/preview/confirm mutations, caller-owned workspaces, explicitly granted byte sessions and port forwarding, protected service-account token delivery | [Capabilities](docs/safety.md#kubernetes-reads) |
 | SSH | Granted hosts, authentication checks, confirmed commands and reusable transports | Dedicated host bindings and caller grants; writes default off | [Capabilities](docs/safety.md#ssh-reads) |
