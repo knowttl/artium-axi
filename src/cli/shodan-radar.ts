@@ -30,11 +30,13 @@ export async function shodanRadar(args: string[], createClient: () => Client, ou
   const client = createClient(), cells = new Set<number>(), lost: { from: number, to: number, reason: string }[] = []
   let upstreamLoss: Record<string, number> = {}, continuation: string | undefined, count = 0, plotted = 0, ignored = 0, quit = false
   let state: z.infer<typeof resultSchema>['state'] = 'starting'
-  const onInput = (chunk: Buffer) => { if (chunk.includes(0x71)) { quit = true; client.cancel() } }
+  const cancel = () => { quit = true; client.cancel() }
+  const onInput = (chunk: Buffer) => { if (chunk.includes(0x71) || chunk.includes(0x03)) cancel() }
   const interactive = Boolean(process.stdin.isTTY)
   const base = `/v1/tools/shodan-axi/sessions/${session}`
-  if (interactive) { process.stdin.setRawMode(true); process.stdin.resume(); process.stdin.on('data', onInput) }
+  process.on('SIGINT', cancel); process.on('SIGTERM', cancel)
   try {
+    if (interactive) { process.stdin.setRawMode(true); process.stdin.resume(); process.stdin.on('data', onInput) }
     while (!quit && count < limit) {
       let raw: unknown
       try {
@@ -69,10 +71,14 @@ export async function shodanRadar(args: string[], createClient: () => Client, ou
     if (state === 'failed') throw new ArtiumError('TOOL_FAILED', 'The Shodan stream session failed.',
       'Inspect the session status; saved radar output contains only the events consumed before failure.')
   } finally {
-    if (interactive) { process.stdin.off('data', onInput); process.stdin.setRawMode(false); process.stdin.pause() }
-    await destination?.close()
-    const stop = createClient()
-    await stop.authenticated(base, 'DELETE')
+    try {
+      if (interactive) { process.stdin.off('data', onInput); process.stdin.setRawMode(false); process.stdin.pause() }
+      await destination?.close()
+      const stop = createClient()
+      await stop.authenticated(base, 'DELETE')
+    } finally {
+      process.off('SIGINT', cancel); process.off('SIGTERM', cancel)
+    }
   }
   return true
 }

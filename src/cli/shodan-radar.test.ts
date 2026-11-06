@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process'
+import { execFile, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
@@ -54,6 +54,48 @@ test.each([
     expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({ events, plottedPoints: events, ignoredPoints: 0, state })
     expect(stopped).toBe(true)
   } finally {
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test.each(['SIGINT', 'SIGTERM'] as const)('radar saves consumed events and stops its session on %s', async signal => {
+  const directory = await mkdtemp(join(tmpdir(), 'artium-radar-'))
+  let child: ChildProcess | undefined, stopped = false
+  const server = createServer(async (request, response) => {
+    let body = ''
+    for await (const chunk of request) body += chunk
+    if (request.url?.endsWith('/read')) {
+      if (JSON.parse(body).continuation) {
+        child!.kill(signal)
+        return
+      }
+      response.end(JSON.stringify({ items: [{ sequence: 1, value: { location: { latitude: 10, longitude: -20 } } }],
+        lost: [], upstreamLoss: {}, continuation: 'first', cleaned: false, hasMore: false, state: 'running' }))
+    } else {
+      if (request.method === 'DELETE') stopped = true
+      response.end('{}')
+    }
+  })
+  try {
+    server.listen(0, '127.0.0.1')
+    await once(server, 'listening')
+    const url = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+    new SessionStore(url, join(directory, 'artium-axi/session.json')).write({ status: 'authenticated', accessToken: 'CANARY-token',
+      refreshToken: 'CANARY-refresh', accessExpiresAt: Date.now() + 3600000, familyExpiresAt: Date.now() + 7200000 })
+    const bundle = copyClientInput('bundle', join(directory, 'client.mjs')), output = join(directory, 'radar.json')
+    const result = await new Promise<{ code: number | string | null, stdout: string, stderr: string }>(resolve => {
+      child = execFile(process.execPath, [bundle, 'shodan-axi', 'radar', '--session', '00000000-0000-4000-8000-000000000001',
+        '--max-events', '10', '--output', output],
+      { env: { PATH: process.env.PATH, XDG_CONFIG_HOME: directory, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' } },
+      (error, stdout, stderr) => resolve({ code: error ? error.code ?? null : 0, stdout, stderr }))
+    })
+    expect(result).toEqual({ code: 0, stdout: expect.stringContaining('saved:'), stderr: '' })
+    expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({ events: 1, plottedPoints: 1, state: 'running' })
+    expect(stopped).toBe(true)
+  } finally {
+    child?.kill('SIGKILL')
+    server.closeAllConnections()
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
     await rm(directory, { recursive: true, force: true })
   }
