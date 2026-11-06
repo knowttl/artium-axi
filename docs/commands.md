@@ -264,6 +264,8 @@ The required `--limit`, `--max-bytes` and `--timeout` must fit the effective eve
 To start, repeat the preview arguments with `start` and `--confirm` set to the returned confirmation.
 The confirmation is single-use, expires after fifteen minutes and is replaced by a new preview from the same sign-in family; obtain a fresh preview after a failed start.
 Use `artium-axi shodan-axi stream session status <id>`, `artium-axi shodan-axi stream session read <id>` and `artium-axi shodan-axi stream session stop <id>` to inspect, consume and stop the returned session ID.
+Use `artium-axi shodan-axi radar --session <id>` to display retained locations interactively; press `q` to stop the session.
+For non-interactive use, provide `--max-events <count>` and `--output <absolute-new-path>` to save the radar as JSON in a private directory.
 To extend a running lease, use `artium-axi shodan-axi stream session extend <id> --seconds <seconds>`.
 The seconds are added to the current session deadline, rather than measured from the extension request.
 Apply the preview with `artium-axi shodan-axi stream session extend <id> --confirm <token>`.
@@ -272,6 +274,7 @@ An extension confirmation is single-use, expires after fifteen minutes and is re
 Confirm before the current session deadline expires; an extension cannot restart an ended session.
 If extension confirmation returns `INVALID_INPUT`, inspect the session status and obtain a fresh extension preview if it is still running.
 The first read omits `--continuation`; each later read must pass the most recently returned token as `--continuation <token>`.
+After a session is cleaned, continue reading while `hasMore` is true to consume all retained pages.
 Reads consume output and rotate the continuation even when no items are returned, so save each response before reading again; consumed output cannot be replayed.
 Read accepts `--limit` to bound returned items and `--wait` to wait for new output or session cleanup.
 Responses report lost records and cumulative upstream loss; `complete: false` and `upstreamCompleteness: unverified` never establish complete upstream delivery, even after a clean stop.

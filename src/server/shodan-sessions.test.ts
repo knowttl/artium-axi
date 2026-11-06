@@ -14,13 +14,14 @@ import { createCredentialStore, openStore } from './store/db.js'
 import { EnvironmentKeyProvider } from './store/key-provider.js'
 import { EmbeddedSecretSource } from './store/secret-source.js'
 
-const processBoundary = vi.hoisted(() => ({ crash: false }))
+const processBoundary = vi.hoisted(() => ({ crash: false, multiple: false }))
 vi.mock('node:child_process', async importOriginal => {
   const original = await importOriginal<typeof import('node:child_process')>()
   return { ...original, spawn: (command: string, args: string[], options: import('node:child_process').SpawnOptions) =>
     original.spawn(command, args[0]?.endsWith('/shodan-stream-worker.js')
       ? processBoundary.crash ? ['-e', 'process.exit(1)']
-        : [fileURLToPath(new URL('../../test/fake-service/shodan-stream-worker.mjs', import.meta.url))] : args, options) }
+        : [fileURLToPath(new URL('../../test/fake-service/shodan-stream-worker.mjs', import.meta.url))] : args,
+    { ...options, env: { ...options.env, ...(processBoundary.multiple ? { ARTIUM_TEST_MULTIPLE_EVENTS: '1' } : {}) } }) }
 })
 
 async function sessionFixture() {
@@ -47,6 +48,7 @@ async function sessionFixture() {
     await app.close()
     db.close()
     processBoundary.crash = false
+    processBoundary.multiple = false
     Object.assign(toolPaths, { 'shodan-axi': previous })
     rmSync(directory, { recursive: true, force: true })
   } }
@@ -67,11 +69,28 @@ test('lease expiry status wait returns expired with the worker summary and retai
       summary: { stopReason: 'stopped', count: 1, partialRecordCount: 0 } })
     const retained = await app.inject({ method: 'POST', url: `${prefix}/${id}/read`, headers, payload: { limit: 10 } })
     expect(retained.statusCode, retained.body).toBe(200)
-    expect(retained.json().items).toEqual([{ sequence: 1, value: { profile: 'artium', isolated: true, value: 'synthetic' } }])
+    expect(retained.json()).toMatchObject({ hasMore: false, items: [{ sequence: 1, value: { profile: 'artium', isolated: true, value: 'synthetic' } }] })
     expect(existsSync(join(directory, 'tool-logs/shodan-axi/sessions', `session-${id}`))).toBe(false)
   } finally {
     await fixture.close()
   }
+})
+
+test('closed sessions page through all retained events', async () => {
+  const fixture = await sessionFixture()
+  const { app, headers, prefix, input } = fixture
+  processBoundary.multiple = true
+  try {
+    const preview = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: input })
+    const started = await app.inject({ method: 'POST', url: `${prefix}/start`, headers, payload: { ...input, confirm: preview.json().confirm } })
+    const id = started.json().id
+    await app.inject({ method: 'GET', url: `${prefix}/${id}?waitMs=5000`, headers })
+    const first = await app.inject({ method: 'POST', url: `${prefix}/${id}/read`, headers, payload: { limit: 1 } })
+    expect(first.json()).toMatchObject({ cleaned: true, hasMore: true, items: [{ sequence: 1, value: { value: 'synthetic' } }] })
+    const second = await app.inject({ method: 'POST', url: `${prefix}/${id}/read`, headers,
+      payload: { limit: 1, continuation: first.json().continuation } })
+    expect(second.json()).toMatchObject({ cleaned: true, hasMore: false, items: [{ sequence: 2, value: { value: 'second' } }] })
+  } finally { await fixture.close() }
 })
 
 test('a confirmed extension updates the running lease within its reserved limit', async () => {
