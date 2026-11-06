@@ -226,7 +226,8 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
       })
       authorize(session)
     }
-    return { ...session.spool.read(input.continuation, input.limit, session.cleaned && session.state === 'closed'),
+    const page = session.spool.read(input.continuation, input.limit, session.cleaned && session.state === 'closed')
+    return { ...page, hasMore: session.spool.available(page.continuation),
       complete: false, upstreamCompleteness: 'unverified', state: session.state, cleaned: session.cleaned }
   })
   app.post<{ Params: { id: string } }>(prefix + '/:id/extend/preview', request => {

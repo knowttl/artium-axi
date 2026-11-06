@@ -13,6 +13,7 @@ import { toolInput } from './input.js'
 import { proxmoxPrivateResult } from './proxmox-result.js'
 import { proxmoxStream } from './proxmox-stream.js'
 import { shodanSession } from './shodan-session.js'
+import { shodanRadar } from './shodan-radar.js'
 import { resolveProxmoxStream } from '../shared/proxmox-commands.js'
 import { ssoLogin } from './device.js'
 import { cliVersion } from '../shared/version.js'
@@ -57,6 +58,10 @@ async function main(args: string[]) {
   const command = args[0]
   const help = helpCommand(prefixHelp ? [...args, '--help'] : args, prefixHelp)
   if (prefixHelp && !help) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi --help for commands.')
+  if (command === 'shodan-axi' && args[1] === 'radar' && args.some(arg => ['--help', '-h'].includes(arg))) {
+    await shodanRadar(['radar', '--help'], () => new Client(process.env, managed), output)
+    return
+  }
   const toolWords = args.slice(1).filter(arg => !['--json', '--full', '--help', '-h'].includes(arg))
   const toolDiscovery = toolSchema.safeParse(command).success && (prefixHelp || toolWords.length === 0
     || args.slice(1).some(arg => ['--help', '-h'].includes(arg)) || toolWords[0] === 'help'
@@ -256,6 +261,7 @@ async function main(args: string[]) {
   if (command === 'proxmox-axi' && await proxmoxPrivateResult(() => new Client(process.env, managed), args.slice(1), text => output('stdout', text))) return
   if (command === 'proxmox-axi' && await proxmoxStream(() => new Client(process.env, managed), args.slice(1), output)) return
   if (command === 'shodan-axi' && await shodanSession(args.slice(1), () => new Client(process.env, managed), output)) return
+  if (command === 'shodan-axi' && await shodanRadar(args.slice(1), () => new Client(process.env, managed), output)) return
   const input = home || listing || whoami ? undefined : await toolInput(command!, args.slice(1))
   const client = new Client(process.env, managed)
   const homeSession = home && !managed ? client.sessions.read() : undefined

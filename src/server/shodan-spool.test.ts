@@ -6,10 +6,12 @@ test('bounded reads reject stale and forged continuations', () => {
   spool.append({ id: 'first' }); spool.append({ id: 'second' })
   const first = spool.read(undefined, 1, false)
   expect(first).toMatchObject({ items: [{ sequence: 1, value: { id: 'first' } }], lost: [], complete: false })
+  expect(spool.available(first.continuation)).toBe(true)
   expect(() => spool.read(undefined, 1, false)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
   expect(() => spool.read('forged', 1, false)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
   const second = spool.read(first.continuation, 1, true)
   expect(second).toMatchObject({ items: [{ sequence: 2, value: { id: 'second' } }], lost: [], complete: true })
+  expect(spool.available(second.continuation)).toBe(false)
   expect(() => spool.read(first.continuation, 1, true)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
 })
 

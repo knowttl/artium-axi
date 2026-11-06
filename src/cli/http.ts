@@ -111,7 +111,7 @@ export class Client {
     return result.body
   }
 
-  async authenticated(path: string, method: 'GET' | 'POST', input?: unknown, previous?: StoredSession): Promise<unknown> {
+  async authenticated(path: string, method: 'GET' | 'POST' | 'DELETE', input?: unknown, previous?: StoredSession): Promise<unknown> {
     if (this.managed) return this.managed.authenticated(
       token => this.request(path, method, input, token),
       refreshToken => this.request('/v1/auth/refresh', 'POST', { refreshToken }),

@@ -44,6 +44,24 @@ export async function artifactDestination(destination: string) {
       throw new ArtiumError('ARTIFACT_SAVE_FAILED')
     } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
     return {
+      async saveBytes(bytes: Uint8Array) {
+        temporary = `/proc/self/fd/${parent.fd}/.artium-${randomUUID()}.tmp`
+        file = await open(temporary, constants.O_RDWR | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600)
+        await file.writeFile(bytes)
+        await file.sync()
+        const written = Buffer.alloc(bytes.length)
+        try {
+          const read = await file.read(written, 0, written.length, 0)
+          if (read.bytesRead !== bytes.length || !written.equals(bytes)) throw new ArtiumError('ARTIFACT_SAVE_FAILED')
+        } finally { written.fill(0) }
+        await file.close(); file = undefined
+        const current = await privateParent(destination)
+        try {
+          const actual = await current.stat()
+          if (info.dev !== actual.dev || info.ino !== actual.ino) throw new ArtiumError('ARTIFACT_SAVE_FAILED')
+        } finally { await current.close() }
+        await link(temporary, target)
+      },
       async save(response: IncomingMessage, archive: z.infer<typeof transferArchiveSchema>, signal: AbortSignal) {
         signal.throwIfAborted()
         if (response.headers['content-type'] !== 'application/octet-stream'
