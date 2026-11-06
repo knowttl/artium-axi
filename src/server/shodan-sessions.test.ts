@@ -74,6 +74,30 @@ test('lease expiry status wait returns expired with the worker summary and retai
   }
 })
 
+test('a confirmed extension updates the running lease within its reserved limit', async () => {
+  const fixture = await sessionFixture()
+  const { app, db, headers, prefix, input } = fixture
+  try {
+    const row = db.prepare("SELECT native_settings FROM tools WHERE name='shodan-axi'").get() as { native_settings: string }
+    const settings = JSON.parse(row.native_settings)
+    settings.sessions.leaseSeconds = 10
+    db.prepare("UPDATE tools SET native_settings=? WHERE name='shodan-axi'").run(JSON.stringify(settings))
+    const preview = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: input })
+    const started = await app.inject({ method: 'POST', url: `${prefix}/start`, headers, payload: { ...input, confirm: preview.json().confirm } })
+    const id = started.json().id
+    await app.inject({ method: 'POST', url: `${prefix}/${id}/read`, headers, payload: { waitMs: 5000 } })
+    const rejected = await app.inject({ method: 'POST', url: `${prefix}/${id}/extend/preview`, headers, payload: { seconds: 10 } })
+    expect(rejected.statusCode).toBe(400)
+    const extension = await app.inject({ method: 'POST', url: `${prefix}/${id}/extend/preview`, headers, payload: { seconds: 2 } })
+    expect(extension.statusCode, extension.body).toBe(200)
+    const extended = await app.inject({ method: 'POST', url: `${prefix}/${id}/extend`, headers, payload: { confirm: extension.json().confirm } })
+    expect(extended.statusCode, extended.body).toBe(200)
+    expect(extended.json()).toMatchObject({ state: 'running', expiresAt: started.json().expiresAt + 2000 })
+    const replay = await app.inject({ method: 'POST', url: `${prefix}/${id}/extend`, headers, payload: { confirm: extension.json().confirm } })
+    expect(replay.statusCode).toBe(400)
+  } finally { await fixture.close() }
+})
+
 test.each([
   { crash: false, state: 'closed', method: 'DELETE' as const },
   { crash: true, state: 'failed', method: 'GET' as const },

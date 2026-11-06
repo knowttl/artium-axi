@@ -85,6 +85,8 @@ test('hosted stream preview, read and stop use the real packaged worker with pri
       const result = await cli('read', id, '--limit', '10', '--wait')
       expect(result.items).toMatchObject([{ sequence: 1, value: { ip_str: '192.0.2.1', port: 443 } }])
       expect(JSON.stringify(result)).not.toContain('CANARY-')
+      const extension = await cli('extend', id, '--seconds', '2')
+      expect(await cli('extend', id, '--confirm', extension.confirm)).toMatchObject({ state: 'running', expiresAt: started.expiresAt + 2000 })
       const forged = await app.inject({ method: 'POST', url: `${prefix}/${id}/read`, headers, payload: { continuation: 'forged' } })
       expect(forged.statusCode).toBe(400)
       expect(await cli('stop', id)).toMatchObject({ state: 'closed', cleaned: true })

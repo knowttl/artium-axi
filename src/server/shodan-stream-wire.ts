@@ -8,6 +8,7 @@ const messageSchema = z.discriminatedUnion('type', [
   z.strictObject({ ...base, type: z.literal('ready') }),
   z.strictObject({ ...base, type: z.literal('event'), event: z.record(z.string(), z.unknown()) }),
   z.strictObject({ ...base, type: z.literal('loss'), discarded: z.number().int().nonnegative().safe(), reason: stableCode }),
+  z.strictObject({ ...base, type: z.literal('extended'), deadlineMs: z.number().int().positive().safe() }),
   z.strictObject({ ...base, type: z.literal('closed'), stopReason: stableCode,
     count: z.number().int().nonnegative().safe(), bytes: z.number().int().nonnegative().safe(),
     partialRecordCount: z.number().int().nonnegative().safe(), debugDiscarded: z.number().int().nonnegative().safe(),
