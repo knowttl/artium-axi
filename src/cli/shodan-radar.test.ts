@@ -15,6 +15,9 @@ test.each([
   { name: 'refreshes authentication during cleanup', state: 'closed', empty: false, expires: 'DELETE', code: 0, events: 2, error: '' },
   { name: 'saves retained pages and reports worker failure', state: 'failed', empty: false, expires: '', code: 1, events: 2, error: 'TOOL_FAILED' },
   { name: 'reports worker failure before any events', state: 'failed', empty: true, expires: '', code: 1, events: 0, error: 'TOOL_FAILED' },
+  { name: 'saves consumed events after a connection failure', state: 'closed', empty: false, expires: 'network', code: 1, events: 1, error: 'SERVER_UNAVAILABLE' },
+  { name: 'saves consumed events after an invalid response', state: 'closed', empty: false, expires: 'invalid', code: 1, events: 1, error: 'INVALID_RESPONSE' },
+  { name: 'saves the consumed page at the loss limit', state: 'closed', empty: false, expires: 'loss', code: 1, events: 2, error: 'OUTPUT_LIMIT' },
 ])('radar $name', async ({ state, empty, expires, code, events, error }) => {
   const directory = await mkdtemp(join(tmpdir(), 'artium-radar-'))
   let stopped = false
@@ -31,9 +34,12 @@ test.each([
         next: 'Refresh authentication.', requestId: '00000000-0000-4000-8000-000000000002' } }))
     } else if (request.url?.endsWith('/read')) {
       const continuation = JSON.parse(body).continuation
+      if (continuation && expires === 'network') { request.socket.destroy(); return }
+      if (continuation && expires === 'invalid') { response.end('{}'); return }
       response.end(JSON.stringify({ items: empty ? [] : [{ sequence: continuation ? 2 : 1,
         value: { location: continuation ? { latitude: -10, longitude: 20 } : { latitude: 10, longitude: -20 } } }],
-      lost: [], upstreamLoss: {}, continuation: continuation ? 'second' : 'first', cleaned: true, hasMore: !empty && !continuation, state }))
+      lost: continuation && expires === 'loss' ? Array.from({ length: 1025 }, (_, index) => ({ from: index + 3, to: index + 3, reason: 'retention' })) : [],
+      upstreamLoss: {}, continuation: continuation ? 'second' : 'first', cleaned: true, hasMore: !empty && !continuation, state }))
     } else {
       if (request.method === 'DELETE') stopped = true
       response.end('{}')
@@ -55,6 +61,27 @@ test.each([
     expect(stopped).toBe(true)
   } finally {
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test.each([
+  { managed: false, args: ['shodan-axi', 'radar', '--help'] },
+  { managed: false, args: ['shodan-axi', 'radar', '-h'] },
+  { managed: true, args: ['shodan-axi', 'radar', '--help'] },
+  { managed: true, args: ['shodan-axi', 'radar', '-h'] },
+])('radar help stays local with managed=$managed and $args', async ({ managed, args }) => {
+  const directory = await mkdtemp(join(tmpdir(), 'artium-radar-help-'))
+  try {
+    const url = 'http://127.0.0.1:1'
+    new SessionStore(url, join(directory, 'artium-axi/session.json')).write({ status: 'authenticated', accessToken: 'CANARY-token',
+      refreshToken: 'CANARY-refresh', accessExpiresAt: Date.now() + 3600000, familyExpiresAt: Date.now() + 7200000 }, undefined, true)
+    const bundle = copyClientInput('bundle', join(directory, 'client.mjs'))
+    const result = await promisify(execFile)(process.execPath, [bundle, ...(managed ? ['--managed-session'] : []), ...args],
+      { env: { PATH: process.env.PATH, XDG_CONFIG_HOME: directory, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' } })
+    expect(result.stdout).toContain('usage: artium-axi shodan-axi radar --session <id>')
+    expect(result.stderr).toBe('')
+  } finally {
     await rm(directory, { recursive: true, force: true })
   }
 })

@@ -58,6 +58,10 @@ async function main(args: string[]) {
   const command = args[0]
   const help = helpCommand(prefixHelp ? [...args, '--help'] : args, prefixHelp)
   if (prefixHelp && !help) throw new ArtiumError('INVALID_INPUT', undefined, 'Use artium-axi --help for commands.')
+  if (command === 'shodan-axi' && args[1] === 'radar' && args.some(arg => ['--help', '-h'].includes(arg))) {
+    await shodanRadar(['radar', '--help'], () => new Client(process.env, managed), output)
+    return
+  }
   const toolWords = args.slice(1).filter(arg => !['--json', '--full', '--help', '-h'].includes(arg))
   const toolDiscovery = toolSchema.safeParse(command).success && (prefixHelp || toolWords.length === 0
     || args.slice(1).some(arg => ['--help', '-h'].includes(arg)) || toolWords[0] === 'help'
