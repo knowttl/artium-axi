@@ -255,6 +255,17 @@ artium-axi shodan-axi domain example.test --allow-operation OP-040 --query-credi
 Use `artium-axi shodan-axi host --help` or `search --help` for command-specific flags.
 See the [supported boundary](safety.md#shodan) for available read families and credit requirements.
 Use `artium-axi shodan-axi version` to print the packaged version or `version --help` for help; `version` does not accept `--json`.
+For a targeted scan, use `artium-axi shodan-axi scan submit --help` and ask an administrator to grant the required scan operations and budgets.
+Preview with `artium-axi shodan-axi scan submit 192.0.2.1 --allow-operation OP-009 --scan-credit-budget 1 --max-requests 1 --json`.
+Preview the exact arguments first, then repeat them with `--execute --confirm <token>`.
+To collect, change the operation flag to `--allow-operation OP-009,OP-046` and add `--wait 30 --limit 10 --max-bytes 4096 --idle-timeout 10000 --accept-unknown-cost` to both preview and execution.
+`--wait` is in seconds; `--idle-timeout` is in milliseconds.
+Omitting `--wait` or setting it to zero submits without collection.
+Collection opens the banner stream before submitting and applies the administrator's session quotas; see [scan and session grants](tool-credentials.md#shodan).
+Reaching the requested wait bound, idle timeout or event limit after submission can return `completed` when collection and cleanup succeed without recorded loss.
+Interrupted or failed submission, collection or cleanup, including expired or evicted unread records, partial records or reported upstream loss, returns `partial` and exits 1.
+`completed` describes the local workflow; `vendorCompletion: unknown` does not establish upstream scan completion.
+See the [collection attribution boundary](safety.md#shodan) and [result retention and uncertain-outcome recovery](runbook.md#retention-and-export).
 For stream session access and quotas, ask an administrator to configure the [Shodan session policy](tool-credentials.md#shodan).
 For example, `artium-axi shodan-axi stream session preview --operation OP-047 --selector --asn --value AS64496 --limit 10 --max-bytes 4096 --timeout 10000 --idle-timeout 5000 --accept-unknown-cost --json` validates a native plan without starting a stream.
 Use `artium-axi shodan-axi stream session preview --help` for the full set of bounds.

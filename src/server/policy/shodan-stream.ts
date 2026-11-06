@@ -35,3 +35,11 @@ export function shodanBinding(db: Database.Database, owner: ShodanOwner, credent
   return { settings, hash: result.hash }
 }
 
+export function shodanScanBinding(db: Database.Database, owner: ShodanOwner, credential: CredentialReference,
+  operations: readonly string[], streamOperation?: string) {
+  const result = binding(db, owner, credential), settings = result.settings.scans
+  if (!settings || operations.some(operation => !settings.grants[owner.user]?.includes(operation))
+    || streamOperation && !result.settings.sessions?.grants[owner.user]?.includes(streamOperation)) throw new ArtiumError('TOOL_NOT_GRANTED')
+  return { settings, hash: result.hash }
+}
+

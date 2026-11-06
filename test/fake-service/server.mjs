@@ -35,6 +35,11 @@ let falconHoldRtr = false
 let kubernetesFailure
 let kubernetesTokenRequests = 0
 let kubernetesDropToken = false
+let shodanScanDrop = false
+let shodanStreamFail = false
+let shodanScanWaitStream = false
+let shodanDiscarded = 2
+let shodanScanStream
 const kubernetesConfigMaps = new Map(['synthetic-config', 'synthetic-second'].map(name => [name, {
   apiVersion: 'v1', kind: 'ConfigMap', metadata: { name, namespace: 'synthetic', uid: `uid-${name}`, resourceVersion: '1' }, data: { mode: 'initial' },
 }]))
@@ -66,13 +71,29 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   ca: readFileSync(join(certs, 'ca.crt')), requestCert: true, rejectUnauthorized: false }, (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
+  if (url.pathname === '/__shodan/scan-drop') { shodanScanDrop = url.searchParams.get('enabled') !== 'false'; res.end('{}'); return }
+  if (url.pathname === '/__shodan/stream-fail') { shodanStreamFail = url.searchParams.get('enabled') !== 'false'; res.end('{}'); return }
+  if (url.pathname === '/__shodan/scan-wait-stream') { shodanScanWaitStream = true; res.end('{}'); return }
+  if (url.pathname === '/__shodan/stream-loss') { shodanDiscarded = Number(url.searchParams.get('count')); res.end('{}'); return }
+  if (url.pathname === '/shodan/scan' && req.method === 'POST') {
+    req.resume()
+    if (url.searchParams.get('key') !== 'CANARY-shodan-key') { res.writeHead(401); res.end('{}'); return }
+    if (shodanScanDrop) { req.socket.destroy(); return }
+    const receipt = JSON.stringify({ id: 'synthetic-scan', count: 1, credits_left: 9 })
+    if (shodanScanWaitStream) shodanScanStream.once('close', () => res.end(receipt))
+    shodanScanStream?.write(shodanStreamFail ? 'invalid json\n'
+      : JSON.stringify({ ip_str: '192.0.2.1', port: 80, transport: 'tcp', timestamp: '2026-01-01T00:00:01Z', data: 'scan-result' }) + '\n')
+    if (!shodanScanWaitStream) res.end(receipt)
+    return
+  }
   if (url.pathname === '/shodan/banners') {
     const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
     requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
     if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
+    shodanScanStream = res
     res.write(JSON.stringify({ ip_str: '192.0.2.1', port: 443, transport: 'tcp', timestamp: '2026-01-01T00:00:00Z', data: 'synthetic',
       api_key: 'CANARY-upstream-secret', metadata: { token: 'CANARY-minted-secret' } }) + '\n')
-    res.write(JSON.stringify({ event: 'debug', discarded: 2 }) + '\n')
+    res.write(JSON.stringify({ event: 'debug', discarded: shodanDiscarded }) + '\n')
     const active = setTimeout(() => res.write(JSON.stringify({ ip_str: '192.0.2.1', port: 443, transport: 'tcp',
       timestamp: '2026-01-01T00:00:09Z', data: 'synthetic' }) + '\n'), 9000)
     const continued = setTimeout(() => res.write(JSON.stringify({ ip_str: '192.0.2.2', port: 443, transport: 'tcp',

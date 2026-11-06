@@ -550,6 +550,8 @@ The hosted schema requires that fixed origin and API key authentication; `stream
 Configure the optional `sessions` native setting through the tool's [Advanced tab](admin-guide.md#browser-administration).
 Its `grants` map associates Artium user IDs with exact stream operation IDs from the reviewed inventory.
 The [session policy schema](../src/shared/shodan-stream.ts) owns required quota fields and allowed ranges for concurrency, events, bytes, retention and leases.
+The optional `scans` native setting grants user IDs exact scan operations and sets `maxScanCredits` and `maxRequests` ceilings.
+Targeted collection requires a scan grant for `OP-009` and a banner stream session grant for `OP-046`.
 The [reviewed inventory](../tools/inventories/shodan-axi.json) owns the pinned upstream schema and command boundary; [hosted profile validation](../src/server/adapters/credential-profile.ts) owns these additional restrictions.
 See [commands](commands.md#shodan), the [capability boundary](safety.md#shodan) and [explicit connection testing](runbook.md#roles-credentials-and-health).
 Local fake-service evidence does not establish owner live acceptance.

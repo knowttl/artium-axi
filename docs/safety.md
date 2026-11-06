@@ -364,7 +364,11 @@ InternetDB host lookups run without loading the stored API key.
 An explicitly granted stream preview validates selectors and bounded resource limits against the pinned package without opening a stream.
 Confirmed stream sessions run with bounded leases and retained output; lease extensions require a separate preview and confirmation within the reserved limit; see [commands](commands.md#shodan).
 Preview, start, status, read, extend and stop require an owner session and are unavailable to delegated tokens; access is bound to the caller and original sign-in family.
-Scan submission, alert changes, dataset downloads and writes are unavailable.
+Targeted scan submission requires administrator scan grants, explicit budgets and a single-use preview confirmation.
+Scan preview, start and status require an owner session bound to the caller and original sign-in family; delegated tokens cannot use them.
+Optional collection reads the banner stream and filters records to the target networks; matching records do not prove scan ownership or complete upstream delivery.
+See [scan usage and terminal outcomes](commands.md#shodan) and [scan and stream grants](tool-credentials.md#shodan).
+Alert changes, dataset downloads and other writes are unavailable.
 The client-side radar consumes an owner session's output under the same access restrictions; see [radar usage and local output](commands.md#shodan).
 The server adapter refuses local configuration, credential and endpoint overrides, stdin, uploaded files and result-file destinations before credential access.
 Help exposes only admitted routes; the standalone `doctor` alias is not admitted.

@@ -18,7 +18,7 @@ import { copyClientInput } from '../fixtures/client-inputs.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { SessionStore } from '../../src/cli/session.js'
 
-const input = { operation: 'OP-046', selector: {}, bounds: { limit: 10, maxBytes: 4096, timeout: 10000, idleTimeout: 10000 },
+const input = { operation: 'OP-046', selector: {}, bounds: { limit: 10, maxBytes: 4096, timeout: 8000, idleTimeout: 10000 },
   limits: {}, acceptUnknownCost: true }
 const policy = { sessions: { grants: { 'synthetic-development-user': ['OP-046'] }, perUser: 2, perCredential: 2, total: 2,
   sessionEvents: 10, totalEvents: 200, sessionBytes: 4096, totalBytes: 81920, retentionSeconds: 60, leaseSeconds: 60 } }
@@ -28,6 +28,7 @@ test('hosted stream preview, read and stop use the real packaged worker with pri
   const packageRoot = process.env.SHODAN_AXI_PACKAGE_DIR
   if (!packageRoot) throw new Error('SHODAN_AXI_PACKAGE_DIR must name the installed package')
   await withFakeService(async ({ directory, send }) => {
+    await send('/__shodan/stream-loss?count=0')
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
     await seedToolUser(db)
@@ -76,8 +77,9 @@ test('hosted stream preview, read and stop use the real packaged worker with pri
       const cli = async (...args: string[]) => JSON.parse((await promisify(execFile)(process.execPath,
         [bundle, 'shodan-axi', 'stream', 'session', ...args, '--json'],
         { timeout: 30000, env: { PATH: process.env.PATH, HOME: directory, XDG_CONFIG_HOME: directory, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' } })).stdout)
+      const startedAt = performance.now()
       const started = await cli('start', '--operation', 'OP-046', '--limit', '10', '--max-bytes', '4096',
-        '--timeout', '10000', '--idle-timeout', '10000', '--accept-unknown-cost', '--confirm', confirm)
+        '--timeout', '8000', '--idle-timeout', '10000', '--accept-unknown-cost', '--confirm', confirm)
       const id = started.id
       expect(await cli('status', id)).toMatchObject({ id, operation: 'OP-046' })
       const forbidden = await app.inject({ method: 'GET', url: `${prefix}/${id}`, headers: { authorization: `Bearer ${other}` } })
@@ -85,18 +87,18 @@ test('hosted stream preview, read and stop use the real packaged worker with pri
       const result = await cli('read', id, '--limit', '10', '--wait')
       expect(result.items).toMatchObject([{ sequence: 1, value: { ip_str: '192.0.2.1', port: 443 } }])
       expect(JSON.stringify(result)).not.toContain('CANARY-')
-      const extension = await cli('extend', id, '--seconds', '5')
+      const extension = await cli('extend', id, '--seconds', '10')
       const extended = await cli('extend', id, '--confirm', extension.confirm)
-      expect(extended).toMatchObject({ state: 'running', expiresAt: started.expiresAt + 5000 })
-      const active = await app.inject({ method: 'GET', url: `${prefix}/${id}?waitMs=${Math.max(0, started.expiresAt + 1500 - Date.now())}`, headers })
-      expect(active.json()).toMatchObject({ state: 'running' })
-      const continued = await cli('read', id, '--continuation', result.continuation, '--wait')
-      expect(Date.now()).toBeGreaterThan(started.expiresAt)
-      expect(continued).toMatchObject({ state: 'running', items: [{ value: { ip_str: '192.0.2.1' } }, { value: { ip_str: '192.0.2.2' } }] })
-      const ended = await app.inject({ method: 'GET', url: `${prefix}/${id}?waitMs=10000`, headers })
+      expect(extended).toMatchObject({ state: 'running', expiresAt: started.expiresAt + 10000 })
+      const continued = await cli('read', id, '--continuation', result.continuation, '--limit', '1', '--wait')
+      expect(continued).toMatchObject({ state: 'running', items: [{ value: { ip_str: '192.0.2.1' } }] })
+      const later = await cli('read', id, '--continuation', continued.continuation, '--limit', '1', '--wait')
+      expect(later).toMatchObject({ state: 'running', items: [{ value: { ip_str: '192.0.2.2' } }] })
+      expect(performance.now() - startedAt).toBeGreaterThan(input.bounds.timeout)
+      const ended = await app.inject({ method: 'GET', url: `${prefix}/${id}?waitMs=20000`, headers })
       expect(ended.json()).toMatchObject({ cleaned: true, expiresAt: extended.expiresAt })
-      expect(Date.now()).toBeGreaterThanOrEqual(extended.expiresAt)
-      expect(Date.now()).toBeLessThan(extended.expiresAt + 2000)
+      expect(performance.now() - startedAt).toBeGreaterThanOrEqual(input.bounds.timeout + 10000)
+      expect(performance.now() - startedAt).toBeLessThan(input.bounds.timeout + 12000)
       const forged = await app.inject({ method: 'POST', url: `${prefix}/${id}/read`, headers, payload: { continuation: 'forged' } })
       expect(forged.statusCode).toBe(400)
       expect(await cli('stop', id)).toMatchObject({ cleaned: true })

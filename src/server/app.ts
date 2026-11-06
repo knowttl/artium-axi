@@ -57,6 +57,7 @@ import { registerSshExecutions, type SshExecutionOptions } from './ssh-execution
 import { registerKubernetesWorkspaces } from './kubernetes-workspaces.js'
 import { registerKubernetesSessions } from './kubernetes-sessions.js'
 import { registerShodanSessions } from './shodan-sessions.js'
+import { registerShodanCollections } from './shodan-collections.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
@@ -123,7 +124,10 @@ export function createApp(options: {
   }
   const kubernetes = adapters.find(adapter => adapter.name === 'kubernetes-axi')
   const shodan = adapters.find(adapter => adapter.name === 'shodan-axi')
-  if (shodan) registerShodanSessions(app, db, resolver, shodan, runner, audit)
+  if (shodan) {
+    const sessions = registerShodanSessions(app, db, resolver, shodan, runner, audit)
+    registerShodanCollections(app, db, resolver, shodan, runner, audit, sessions)
+  }
   if (kubernetes) {
     const workspaces = registerKubernetesWorkspaces(app, db, resolver, kubernetes, audit)
     registerKubernetesSessions(app, db, resolver, kubernetes, runner, audit, workspaces, proxies)

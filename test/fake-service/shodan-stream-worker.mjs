@@ -7,8 +7,6 @@ let pending = ''
 let bounds
 let admission
 let waitingForStop = false
-let startedAt
-let extensionEvent
 const send = value => channel.write(JSON.stringify({ version: 1, ...value }) + '\n')
 channel.on('data', chunk => {
   pending += chunk.toString('utf8')
@@ -22,7 +20,6 @@ channel.on('data', chunk => {
     } else if (message.type === 'start') {
       if (!admission || message.admission !== admission) process.exit(1)
       bounds = message.bounds
-      startedAt = Date.now()
       const profile = JSON.parse(readFileSync(join(process.env.XDG_CONFIG_HOME, 'shodan-axi/config.json'), 'utf8'))
       const reference = profile.profiles.artium.apiKey.env
       if (message.confirmation === 'crash') process.exit(1)
@@ -46,10 +43,7 @@ channel.on('data', chunk => {
     } else if (message.type === 'extend') {
       if (message.admission !== admission) process.exit(1)
       send({ type: 'extended', requestId: message.requestId, deadlineMs: message.deadlineMs })
-      extensionEvent ??= setTimeout(() => send({ type: 'event', requestId: 'extended-event', event: { value: 'after-extension' } }),
-        Math.max(0, startedAt + bounds.timeout + 100 - Date.now()))
     } else if (message.type === 'stop') {
-      clearTimeout(extensionEvent)
       send({ type: 'closed', requestId: message.requestId, stopReason: waitingForStop ? 'cancelled' : 'stopped', count: waitingForStop ? 0 : 1, bytes: waitingForStop ? 0 : 1,
         partialRecordCount: 0, debugDiscarded: 0, bounds })
       channel.end()

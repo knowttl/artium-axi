@@ -22,6 +22,7 @@ import { ShodanWorker } from './shodan-worker.js'
 
 type Input = z.infer<typeof shodanStreamStart>
 type Limits = ReturnType<ShodanCapacity['reserve']>
+interface Reservation { id: string, user: string, credential: string, operation: string, limits: Limits }
 interface Plan { id: string, owner: ShodanOwner, credential: CredentialReference, binding: string, input: Input,
   limits: Limits, directory: string, nativeToken: string, expiresAt: number, timer: NodeJS.Timeout }
 interface Pending extends Pick<Plan, 'owner' | 'credential' | 'binding' | 'input'> { controller: AbortController, job: Promise<unknown> }
@@ -39,6 +40,8 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
   adapter: Adapter<unknown>, runner: Runner, audit: Audit) {
   const root = join(dirname(db.name), 'tool-logs', 'shodan-axi', 'sessions')
   const plans = new Map<string, Plan>(), sessions = new Map<string, Session>(), pending = new Map<string, Pending>(), capacity = new ShodanCapacity()
+  const shutdown: Array<() => Promise<void>> = []
+  const reservedPlans = new Set<string>()
   const prefix = '/v1/tools/shodan-axi/sessions'
   const initialized = (async () => {
     await mkdir(root, { recursive: true, mode: 0o700 })
@@ -54,7 +57,7 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
     if (shodanBinding(db, session.owner, session.credential, session.input.operation).hash !== session.binding) throw new ArtiumError('REVISION_CONFLICT')
   }
   const discardPlan = async (plan: Plan) => {
-    plans.delete(plan.id); clearTimeout(plan.timer); capacity.release(plan.id)
+    plans.delete(plan.id); reservedPlans.delete(plan.id); clearTimeout(plan.timer); capacity.release(plan.id)
     await rm(plan.directory, { recursive: true, force: true })
   }
   const clear = (session: Session) => {
@@ -104,13 +107,14 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
     ...(session.retainedUntil ? { retainedUntil: session.retainedUntil } : {}),
     ...(session.summary ? { summary: session.summary } : {}) })
 
-  const preview = async (owner: ShodanOwner, input: Input, controller: AbortController) => {
+  const preview = async (owner: ShodanOwner, input: Input, controller: AbortController, reserved?: Reservation) => {
     const args = await inspectShodanStream(input)
     const credential = await resolver.resolve(owner.user, 'shodan-axi')
     const binding = shodanBinding(db, owner, credential, input.operation)
     await initialized
-    const id = randomUUID(), directory = join(root, `session-${id}`)
-    const limits = capacity.reserve(id, owner.user, credential.id, binding.settings, input.limits)
+    const id = reserved?.id ?? randomUUID(), directory = join(root, `session-${id}`)
+    if (reserved && (reserved.user !== owner.user || reserved.credential !== credential.id || reserved.operation !== input.operation)) throw new ArtiumError('INVALID_INPUT')
+    const limits = reserved?.limits ?? capacity.reserve(id, owner.user, credential.id, binding.settings, input.limits)
     if (input.bounds.limit > limits.events || input.bounds.maxBytes > limits.bytes || input.bounds.timeout > limits.leaseSeconds * 1000) {
       capacity.release(id); throw new ArtiumError('INVALID_INPUT')
     }
@@ -136,7 +140,8 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
         plan.timer = setTimeout(() => { void discardPlan(plan).catch(() => {}) }, 15 * 60 * 1000).unref()
         await Promise.all([...plans.values()].filter(previous => previous.owner.family === owner.family).map(discardPlan))
         plans.set(id, plan)
-        capacity.release(id)
+        if (reserved) reservedPlans.add(id)
+        if (!reserved) capacity.release(id)
         return { confirm: id, operation: input.operation, selector: input.selector, bounds: input.bounds, limits,
           origin: 'https://stream.shodan.io', cost: 'unknown', status: 'preview', expiresAt: plan.expiresAt }
       } catch (error) { capacity.release(id); await rm(directory, { recursive: true, force: true }); throw error }
@@ -160,7 +165,7 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
       const { confirm: _confirm, ...input } = body
       if (plan.expiresAt <= Date.now() || JSON.stringify(input) !== JSON.stringify(plan.input)) throw new ArtiumError('INVALID_INPUT')
       authorize(plan)
-      capacity.reserve(plan.id, owner.user, plan.credential.id, shodanBinding(db, owner, plan.credential, input.operation).settings, input.limits)
+      if (!reservedPlans.delete(plan.id)) capacity.reserve(plan.id, owner.user, plan.credential.id, shodanBinding(db, owner, plan.credential, input.operation).settings, input.limits)
       const controller = new AbortController()
       const { nativeToken, ...sessionPlan } = plan
       const session: Session = { ...sessionPlan, state: 'starting', controller, spool: new ShodanSpool(plan.limits.events, plan.limits.bytes,
@@ -226,7 +231,7 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
       })
       authorize(session)
     }
-    const page = session.spool.read(input.continuation, input.limit, session.cleaned && session.state === 'closed')
+    const page = session.spool.read(input.continuation, input.limit, session.cleaned && ['closed', 'expired'].includes(session.state))
     return { ...page, hasMore: session.spool.available(page.continuation),
       complete: false, upstreamCompleteness: 'unverified', state: session.state, cleaned: session.cleaned }
   })
@@ -275,8 +280,61 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
   app.addHook('onSend', reconcile)
   app.addHook('preClose', async () => {
     clearInterval(monitor)
+    await Promise.all(shutdown.map(close => close()))
     await Promise.all([...pending.values()].map(async preview => { preview.controller.abort(); await preview.job.catch(() => {}) }))
     await Promise.all([...plans.values()].map(discardPlan))
     await Promise.all([...sessions.values()].map(session => stop(session, 'closed', true)))
   })
+  return {
+    preview: (owner: ShodanOwner, input: Input, reserved?: Reservation) => preview(owner, input, new AbortController(), reserved),
+    start,
+    onShutdown(close: () => Promise<void>) { shutdown.push(close) },
+    reserve(owner: ShodanOwner, credential: CredentialReference, operation: string, input: Input): Reservation {
+      const binding = shodanBinding(db, owner, credential, operation), id = randomUUID()
+      const limits = capacity.reserve(id, owner.user, credential.id, binding.settings, input.limits)
+      if (input.bounds.limit > limits.events || input.bounds.maxBytes > limits.bytes || input.bounds.timeout > limits.leaseSeconds * 1000) {
+        capacity.release(id); throw new ArtiumError('INVALID_INPUT')
+      }
+      return { id, user: owner.user, credential: credential.id, operation, limits }
+    },
+    release(reservation: Reservation) { capacity.release(reservation.id) },
+    async waitReady(owner: ShodanOwner, id: string) {
+      const session = sessions.get(id)
+      if (!session || session.owner.user !== owner.user || session.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
+      if (session.state === 'starting') await new Promise<void>(resolve => {
+        const done = () => { session.changed.removeListener('ready', done); session.changed.removeListener('change', done); resolve() }
+        session.changed.once('ready', done); session.changed.once('change', done)
+      })
+      authorize(session)
+      if (session.state !== 'running') throw new ArtiumError('TOOL_FAILED')
+    },
+    assertRunning(owner: ShodanOwner, id: string) {
+      const session = sessions.get(id)
+      if (!session || session.owner.user !== owner.user || session.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
+      authorize(session)
+      if (session.state !== 'running') throw new ArtiumError('TOOL_FAILED')
+    },
+    async waitFinished(owner: ShodanOwner, id: string) {
+      const session = sessions.get(id)
+      if (!session || session.owner.user !== owner.user || session.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
+      await session.job
+      if (session.stopping) await session.stopping
+      authorize(session)
+      if (!['closed', 'expired'].includes(session.state) || !session.cleaned || !session.summary || session.summary.error
+        || session.summary.partialRecordCount > 0 || session.summary.stopReason === 'cancelled' && session.state !== 'expired') throw new ArtiumError('TOOL_FAILED')
+    },
+    read(owner: ShodanOwner, id: string, continuation: string | undefined, limit: number) {
+      const session = sessions.get(id)
+      if (!session || session.owner.user !== owner.user || session.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
+      authorize(session)
+      const page = session.spool.read(continuation, limit, session.cleaned && ['closed', 'expired'].includes(session.state))
+      return { ...page, hasMore: session.spool.available(page.continuation) }
+    },
+    async stop(owner: ShodanOwner, id: string) {
+      const session = sessions.get(id)
+      if (!session || session.owner.user !== owner.user || session.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
+      await stop(session, 'closed')
+      return view(session)
+    },
+  }
 }
