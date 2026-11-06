@@ -320,7 +320,8 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
       await session.job
       if (session.stopping) await session.stopping
       authorize(session)
-      if (session.state !== 'closed' || !session.cleaned || !session.summary || session.summary.error || session.summary.stopReason === 'cancelled') throw new ArtiumError('TOOL_FAILED')
+      if (session.state !== 'closed' || !session.cleaned || !session.summary || session.summary.error
+        || session.summary.partialRecordCount > 0 || session.summary.stopReason === 'cancelled') throw new ArtiumError('TOOL_FAILED')
     },
     read(owner: ShodanOwner, id: string, continuation: string | undefined, limit: number) {
       const session = sessions.get(id)

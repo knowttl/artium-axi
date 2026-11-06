@@ -100,13 +100,17 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
       let duplicates = 0, outOfScope = 0, reserved = reservation
       const check = () => { if (controller.signal.aborted) throw new ArtiumError('CANCELLED'); authorize(plan) }
       const mutate = async (words: string[], operation: string, budget: number, scan: boolean, extra: string[] = []) => {
-        check()
+        const checkMutation = () => {
+          check()
+          if (scan && sessionId) sessions.assertRunning(owner, sessionId)
+        }
+        checkMutation()
         const requestId = randomUUID(), began = Date.now()
         audit.record({ event: 'run-start', userId: owner.user, tool: 'shodan-axi', requestId, clientAddress: request.ip,
           outcome: 'started', args: ['scan-action', operation], sensitive: { positions: [], flags: [] } })
         try {
           const result = await runner.runManaged(owner.user, controller.signal, signal => shodanMutation(directory, adapter, plan.credential,
-            words, operation, budget, scan, signal, check, extra, runner.configuredCaPem))
+            words, operation, budget, scan, signal, checkMutation, extra, runner.configuredCaPem))
           const completed = ['submitted', 'completed'].includes(result.status)
           audit.record({ event: 'run-terminal', userId: owner.user, tool: 'shodan-axi', requestId, clientAddress: request.ip,
             outcome: completed ? 'completed' : 'interrupted', action: completed ? 'write' : 'unknown', exitCode: completed ? 0 : null,
@@ -136,7 +140,6 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
           await sessions.waitReady(owner, sessionId)
           check()
         }
-        if (sessionId) sessions.assertRunning(owner, sessionId)
         const result = await mutate(plan.inspection.words, plan.inspection.operation, input.scanCreditBudget, true,
           input.scope.force ? ['--force'] : [])
         if (result.status !== 'submitted' || !result.scanId) throw new ArtiumError('UNKNOWN_OUTCOME')
@@ -163,7 +166,10 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
               const batch = sessions.read(owner, sessionId, continuation, 1000)
               continuation = batch.continuation
               events.push(...batch.items.map(item => item.value)); lost.push(...batch.lost); upstreamLoss = batch.upstreamLoss
-              if (!batch.hasMore) break
+              if (!batch.hasMore) {
+                if (!batch.complete) failure ??= 'OUTCOME_UNKNOWN'
+                break
+              }
             }
             const scope = { kind: 'targets' as const, networks: plan.inspection.targets }
             const collected = await collectShodanEvents(scope, events)
