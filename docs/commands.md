@@ -264,9 +264,18 @@ The required `--limit`, `--max-bytes` and `--timeout` must fit the effective eve
 To start, repeat the preview arguments with `start` and `--confirm` set to the returned confirmation.
 The confirmation is single-use, expires after fifteen minutes and is replaced by a new preview from the same sign-in family; obtain a fresh preview after a failed start.
 Use `artium-axi shodan-axi stream session status <id>`, `artium-axi shodan-axi stream session read <id>` and `artium-axi shodan-axi stream session stop <id>` to inspect, consume and stop the returned session ID.
-Use `artium-axi shodan-axi radar --session <id>` to display retained locations interactively; press `q` to stop the session.
-For non-interactive use, provide `--max-events <count>` and `--output <absolute-new-path>` to save the radar as JSON in a private directory.
-Radar output includes the last observed session state; a failed session saves consumed events and exits unsuccessfully.
+Use `artium-axi shodan-axi radar --session <id>` to display retained locations interactively.
+Start radar before any session reads: it consumes output using the same single-use continuation and cannot resume an existing reader's cursor.
+Radar stops at `--max-events <count>` (1 to 10000, default 10000) or when the session is cleaned and no retained pages remain.
+Press `q` or Ctrl+C to cancel interactively; SIGINT and SIGTERM also cancel, including in non-interactive mode.
+On exit, radar attempts to stop the hosted session, including after reaching its event cap or encountering an error.
+For non-interactive use, both `--max-events <count>` and `--output <absolute-new-path>` are required; interactive use also accepts `--output`.
+Saving requires Linux and a new normalized absolute path in an existing directory owned by the current user with mode 0700 and no symlink components; the output file has mode 0600 and is never overwritten.
+The saved JSON contains a 36-by-18 location grid, plotted and ignored point counts, consumed event count, loss reports and the last observed session state; it does not archive individual events.
+Events without valid latitude and longitude count toward the event cap but are ignored in the grid.
+With `--output`, radar attempts to save the accumulated summary on completion, cancellation and read failures before reporting errors; a failed session exits unsuccessfully.
+If saving fails, choose a valid new destination for a new session; consumed output cannot be replayed.
+Use `artium-axi shodan-axi radar --help` or `-h` for local help without contacting the server.
 To extend a running lease, use `artium-axi shodan-axi stream session extend <id> --seconds <seconds>`.
 The seconds are added to the current session deadline, rather than measured from the extension request.
 Apply the preview with `artium-axi shodan-axi stream session extend <id> --confirm <token>`.

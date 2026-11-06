@@ -365,7 +365,8 @@ An explicitly granted stream preview validates selectors and bounded resource li
 Confirmed stream sessions run with bounded leases and retained output; lease extensions require a separate preview and confirmation within the reserved limit; see [commands](commands.md#shodan).
 Preview, start, status, read, extend and stop require an owner session and are unavailable to delegated tokens; access is bound to the caller and original sign-in family.
 Scan submission, alert changes, dataset downloads and writes are unavailable.
-Local configuration, credential and endpoint overrides, stdin, uploaded files and result-file destinations are refused before credential access.
+The client-side radar consumes an owner session's output under the same access restrictions; see [radar usage and local output](commands.md#shodan).
+The server adapter refuses local configuration, credential and endpoint overrides, stdin, uploaded files and result-file destinations before credential access.
 Help exposes only admitted routes; the standalone `doctor` alias is not admitted.
 The adapter verifies reviewed package-source hashes and the packaged version before loading credentials; a mismatch returns `SPAWN_FAILED`.
 See [package recovery](runbook.md#roles-credentials-and-health) if verification fails.
