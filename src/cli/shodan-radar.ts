@@ -6,7 +6,8 @@ import type { Client } from './http.js'
 
 const resultSchema = z.object({ items: z.array(z.object({ sequence: z.number().int().positive(), value: z.record(z.string(), z.unknown()) })),
   lost: z.array(z.object({ from: z.number(), to: z.number(), reason: z.string() })), upstreamLoss: z.record(z.string(), z.number()),
-  continuation: z.string(), cleaned: z.boolean(), hasMore: z.boolean() })
+  continuation: z.string(), cleaned: z.boolean(), hasMore: z.boolean(),
+  state: z.enum(['starting', 'running', 'stopping', 'closed', 'failed', 'expired']) })
 const point = z.object({ location: z.object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180) }) })
 
 export async function shodanRadar(args: string[], createClient: () => Client, output: (stream: 'stdout' | 'stderr', text: string) => void) {
@@ -28,21 +29,22 @@ export async function shodanRadar(args: string[], createClient: () => Client, ou
   const destination = options.has('--output') ? await artifactDestination(options.get('--output')!) : undefined
   const client = createClient(), cells = new Set<number>(), lost: { from: number, to: number, reason: string }[] = []
   let upstreamLoss: Record<string, number> = {}, continuation: string | undefined, count = 0, plotted = 0, ignored = 0, quit = false
+  let state: z.infer<typeof resultSchema>['state'] = 'starting'
   const onInput = (chunk: Buffer) => { if (chunk.includes(0x71)) { quit = true; client.cancel() } }
   const interactive = Boolean(process.stdin.isTTY)
   const base = `/v1/tools/shodan-axi/sessions/${session}`
   if (interactive) { process.stdin.setRawMode(true); process.stdin.resume(); process.stdin.on('data', onInput) }
   try {
-    await client.authenticated('/v1/me', 'GET')
     while (!quit && count < limit) {
       let raw: unknown
       try {
-        raw = await client.transferSession(token => client.request(base + '/read', 'POST',
-          { continuation, limit: Math.min(100, limit - count), waitMs: 20000 }, token))
+        raw = await client.authenticated(base + '/read', 'POST',
+          { continuation, limit: Math.min(100, limit - count), waitMs: 20000 })
       } catch (error) { if (quit) break; throw error }
       const parsed = resultSchema.safeParse(raw)
       if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
       continuation = parsed.data.continuation
+      state = parsed.data.state
       lost.push(...parsed.data.lost); upstreamLoss = parsed.data.upstreamLoss
       if (lost.length > 1024) throw new ArtiumError('OUTPUT_LIMIT')
       for (const item of parsed.data.items) {
@@ -56,7 +58,7 @@ export async function shodanRadar(args: string[], createClient: () => Client, ou
       if (interactive) output('stdout', `\u001b[H\u001b[2J${rows(cells).join('\n')}\nPress q to stop\n`)
       if (parsed.data.cleaned && !parsed.data.hasMore) break
     }
-    const result = { rows: rows(cells), plottedPoints: plotted, ignoredPoints: ignored, events: count, lost, upstreamLoss }
+    const result = { rows: rows(cells), plottedPoints: plotted, ignoredPoints: ignored, events: count, lost, upstreamLoss, state }
     if (destination) {
       const bytes = Buffer.from(JSON.stringify(result) + '\n')
       try {
@@ -64,11 +66,13 @@ export async function shodanRadar(args: string[], createClient: () => Client, ou
         output('stdout', `saved: ${JSON.stringify(options.get('--output'))}\nbytes: ${bytes.length}\nsha256: ${createHash('sha256').update(bytes).digest('hex')}\n`)
       } finally { bytes.fill(0) }
     } else if (!interactive) output('stdout', JSON.stringify(result) + '\n')
+    if (state === 'failed') throw new ArtiumError('TOOL_FAILED', 'The Shodan stream session failed.',
+      'Inspect the session status; saved radar output contains only the events consumed before failure.')
   } finally {
     if (interactive) { process.stdin.off('data', onInput); process.stdin.setRawMode(false); process.stdin.pause() }
     await destination?.close()
     const stop = createClient()
-    await stop.transferSession(token => stop.request(base, 'DELETE', undefined, token))
+    await stop.authenticated(base, 'DELETE')
   }
   return true
 }

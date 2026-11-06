@@ -9,28 +9,49 @@ import { expect, test } from 'vitest'
 import { copyClientInput } from '../../test/fixtures/client-inputs.js'
 import { SessionStore } from './session.js'
 
-test('radar consumes every retained page before saving its output', async () => {
+test.each([
+  { name: 'consumes every retained page', state: 'closed', empty: false, expires: '', code: 0, events: 2, error: '' },
+  { name: 'refreshes authentication between pages', state: 'closed', empty: false, expires: 'read', code: 0, events: 2, error: '' },
+  { name: 'refreshes authentication during cleanup', state: 'closed', empty: false, expires: 'DELETE', code: 0, events: 2, error: '' },
+  { name: 'saves retained pages and reports worker failure', state: 'failed', empty: false, expires: '', code: 1, events: 2, error: 'TOOL_FAILED' },
+  { name: 'reports worker failure before any events', state: 'failed', empty: true, expires: '', code: 1, events: 0, error: 'TOOL_FAILED' },
+])('radar $name', async ({ state, empty, expires, code, events, error }) => {
   const directory = await mkdtemp(join(tmpdir(), 'artium-radar-'))
+  let stopped = false
   const server = createServer(async (request, response) => {
     let body = ''
     for await (const chunk of request) body += chunk
-    if (request.url?.endsWith('/read')) {
+    if (request.url === '/v1/auth/refresh') {
+      response.end(JSON.stringify({ status: 'authenticated', accessToken: 'CANARY-fresh', refreshToken: 'CANARY-next',
+        accessExpiresAt: Date.now() + 3600000, familyExpiresAt: Date.now() + 7200000 }))
+    } else if (request.headers.authorization !== 'Bearer CANARY-fresh' && (expires === 'read' && request.url?.endsWith('/read') && JSON.parse(body).continuation
+      || expires === 'DELETE' && request.method === 'DELETE')) {
+      response.statusCode = 401
+      response.end(JSON.stringify({ error: { code: 'TOKEN_EXPIRED', source: 'artium-axi', message: 'Access token expired.',
+        next: 'Refresh authentication.', requestId: '00000000-0000-4000-8000-000000000002' } }))
+    } else if (request.url?.endsWith('/read')) {
       const continuation = JSON.parse(body).continuation
-      response.end(JSON.stringify({ items: [{ sequence: continuation ? 2 : 1,
+      response.end(JSON.stringify({ items: empty ? [] : [{ sequence: continuation ? 2 : 1,
         value: { location: continuation ? { latitude: -10, longitude: 20 } : { latitude: 10, longitude: -20 } } }],
-      lost: [], upstreamLoss: {}, continuation: continuation ? 'second' : 'first', cleaned: true, hasMore: !continuation }))
-    } else response.end('{}')
+      lost: [], upstreamLoss: {}, continuation: continuation ? 'second' : 'first', cleaned: true, hasMore: !empty && !continuation, state }))
+    } else {
+      if (request.method === 'DELETE') stopped = true
+      response.end('{}')
+    }
   })
   try {
     server.listen(0, '127.0.0.1')
     await once(server, 'listening')
     const url = `http://127.0.0.1:${(server.address() as { port: number }).port}`
     new SessionStore(url, join(directory, 'artium-axi/session.json')).write({ status: 'authenticated', accessToken: 'CANARY-token',
-      refreshToken: 'CANARY-refresh', accessExpiresAt: Date.now() + 3600000, familyExpiresAt: Date.now() + 7200000 })
+      refreshToken: 'CANARY-refresh', accessExpiresAt: Date.now() + 45000, familyExpiresAt: Date.now() + 7200000 })
     const bundle = copyClientInput('bundle', join(directory, 'client.mjs')), output = join(directory, 'radar.json')
-    await promisify(execFile)(process.execPath, [bundle, 'shodan-axi', 'radar', '--session', '00000000-0000-4000-8000-000000000001',
+    const result = await promisify(execFile)(process.execPath, [bundle, 'shodan-axi', 'radar', '--session', '00000000-0000-4000-8000-000000000001',
       '--max-events', '10', '--output', output], { env: { PATH: process.env.PATH, XDG_CONFIG_HOME: directory, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' } })
-    expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({ events: 2, plottedPoints: 2, ignoredPoints: 0 })
+      .then(result => ({ code: 0, stderr: result.stderr }), error => ({ code: error.code, stderr: error.stderr }))
+    expect(result).toEqual({ code, stderr: error ? expect.stringContaining(error) : '' })
+    expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({ events, plottedPoints: events, ignoredPoints: 0, state })
+    expect(stopped).toBe(true)
   } finally {
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
     await rm(directory, { recursive: true, force: true })

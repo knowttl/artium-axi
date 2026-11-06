@@ -266,6 +266,7 @@ The confirmation is single-use, expires after fifteen minutes and is replaced by
 Use `artium-axi shodan-axi stream session status <id>`, `artium-axi shodan-axi stream session read <id>` and `artium-axi shodan-axi stream session stop <id>` to inspect, consume and stop the returned session ID.
 Use `artium-axi shodan-axi radar --session <id>` to display retained locations interactively; press `q` to stop the session.
 For non-interactive use, provide `--max-events <count>` and `--output <absolute-new-path>` to save the radar as JSON in a private directory.
+Radar output includes the last observed session state; a failed session saves consumed events and exits unsuccessfully.
 To extend a running lease, use `artium-axi shodan-axi stream session extend <id> --seconds <seconds>`.
 The seconds are added to the current session deadline, rather than measured from the extension request.
 Apply the preview with `artium-axi shodan-axi stream session extend <id> --confirm <token>`.
