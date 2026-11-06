@@ -48,8 +48,9 @@ test.each([
     const bundle = copyClientInput('bundle', join(directory, 'client.mjs')), output = join(directory, 'radar.json')
     const result = await promisify(execFile)(process.execPath, [bundle, 'shodan-axi', 'radar', '--session', '00000000-0000-4000-8000-000000000001',
       '--max-events', '10', '--output', output], { env: { PATH: process.env.PATH, XDG_CONFIG_HOME: directory, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' } })
-      .then(result => ({ code: 0, stderr: result.stderr }), error => ({ code: error.code, stderr: error.stderr }))
-    expect(result).toEqual({ code, stderr: error ? expect.stringContaining(error) : '' })
+      .then(result => ({ code: 0, stdout: result.stdout, stderr: result.stderr }),
+        error => ({ code: error.code, stdout: error.stdout, stderr: error.stderr }))
+    expect(result).toEqual({ code, stdout: expect.stringContaining(error || 'saved:'), stderr: '' })
     expect(JSON.parse(await readFile(output, 'utf8'))).toMatchObject({ events, plottedPoints: events, ignoredPoints: 0, state })
     expect(stopped).toBe(true)
   } finally {
