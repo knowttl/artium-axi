@@ -38,6 +38,7 @@ let kubernetesDropToken = false
 let shodanScanDrop = false
 let shodanStreamFail = false
 let shodanScanWaitStream = false
+let shodanDiscarded = 2
 let shodanScanStream
 const kubernetesConfigMaps = new Map(['synthetic-config', 'synthetic-second'].map(name => [name, {
   apiVersion: 'v1', kind: 'ConfigMap', metadata: { name, namespace: 'synthetic', uid: `uid-${name}`, resourceVersion: '1' }, data: { mode: 'initial' },
@@ -73,6 +74,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   if (url.pathname === '/__shodan/scan-drop') { shodanScanDrop = url.searchParams.get('enabled') !== 'false'; res.end('{}'); return }
   if (url.pathname === '/__shodan/stream-fail') { shodanStreamFail = url.searchParams.get('enabled') !== 'false'; res.end('{}'); return }
   if (url.pathname === '/__shodan/scan-wait-stream') { shodanScanWaitStream = true; res.end('{}'); return }
+  if (url.pathname === '/__shodan/stream-loss') { shodanDiscarded = Number(url.searchParams.get('count')); res.end('{}'); return }
   if (url.pathname === '/shodan/scan' && req.method === 'POST') {
     req.resume()
     if (url.searchParams.get('key') !== 'CANARY-shodan-key') { res.writeHead(401); res.end('{}'); return }
@@ -91,7 +93,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     shodanScanStream = res
     res.write(JSON.stringify({ ip_str: '192.0.2.1', port: 443, transport: 'tcp', timestamp: '2026-01-01T00:00:00Z', data: 'synthetic',
       api_key: 'CANARY-upstream-secret', metadata: { token: 'CANARY-minted-secret' } }) + '\n')
-    res.write(JSON.stringify({ event: 'debug', discarded: 2 }) + '\n')
+    res.write(JSON.stringify({ event: 'debug', discarded: shodanDiscarded }) + '\n')
     const active = setTimeout(() => res.write(JSON.stringify({ ip_str: '192.0.2.1', port: 443, transport: 'tcp',
       timestamp: '2026-01-01T00:00:09Z', data: 'synthetic' }) + '\n'), 9000)
     const continued = setTimeout(() => res.write(JSON.stringify({ ip_str: '192.0.2.2', port: 443, transport: 'tcp',

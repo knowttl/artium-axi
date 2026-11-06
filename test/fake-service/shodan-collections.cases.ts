@@ -22,18 +22,20 @@ const policy = { sessions: { grants: { 'synthetic-development-user': ['OP-046'] 
 scans: { grants: { 'synthetic-development-user': ['OP-009'] }, maxScanCredits: 10, maxRequests: 10 } }
 
 test.each([
-  { name: 'idle timeout', limit: '10', idleTimeout: '1000', fault: '/__shodan/scan-drop?enabled=false', code: 0,
-    result: { status: 'completed', scanId: 'synthetic-scan', cleanup: 'completed' } },
-  { name: 'requested deadline', limit: '10', idleTimeout: '10000', fault: '/__shodan/scan-drop?enabled=false', code: 0,
+  { name: 'idle timeout', limit: '10', idleTimeout: '5000', fault: '/__shodan/scan-drop?enabled=false', code: 0,
+    result: { status: 'completed', scanId: 'synthetic-scan', stream: { summary: { stopReason: 'idle-timeout' } }, cleanup: 'completed' } },
+  { name: 'requested deadline', limit: '10', idleTimeout: '10000', waitSeconds: '3', fault: '/__shodan/scan-drop?enabled=false', code: 0,
     result: { status: 'completed', scanId: 'synthetic-scan', cleanup: 'completed' } },
   { name: 'event limit during submission', limit: '2', idleTimeout: '10000', fault: '/__shodan/scan-wait-stream', code: 0,
     result: { status: 'completed', scanId: 'synthetic-scan',
       events: [expect.objectContaining({ port: 443 }), expect.objectContaining({ port: 80 })] } },
-  { name: 'lost scan response', limit: '10', idleTimeout: '1000', fault: '/__shodan/scan-drop', code: 1,
+  { name: 'lost scan response', limit: '10', idleTimeout: '5000', fault: '/__shodan/scan-drop', code: 1,
     result: { status: 'partial', cleanup: 'completed' } },
-  { name: 'stream failure', limit: '10', idleTimeout: '1000', fault: '/__shodan/stream-fail', code: 1,
+  { name: 'stream failure', limit: '10', idleTimeout: '5000', fault: '/__shodan/stream-fail', code: 1,
     result: { status: 'partial', scanId: 'synthetic-scan', cleanup: 'completed' } },
-])('scan collection reports $name', async ({ limit, idleTimeout, fault, code, result }) => {
+  { name: 'upstream loss', limit: '10', idleTimeout: '5000', fault: '/__shodan/stream-loss?count=2', code: 1,
+    result: { status: 'partial', scanId: 'synthetic-scan', upstreamLoss: { 'upstream-discarded': 2 }, cleanup: 'completed' } },
+])('scan collection reports $name', async ({ limit, idleTimeout, waitSeconds = '10', fault, code, result }) => {
   const packageRoot = process.env.SHODAN_AXI_PACKAGE_DIR
   if (!packageRoot) throw new Error('SHODAN_AXI_PACKAGE_DIR must name the installed package')
   await withFakeService(async ({ directory, send }) => {
@@ -60,7 +62,7 @@ test.each([
         refreshToken: 'CANARY-refresh', accessExpiresAt: Date.now() + 3_600_000, familyExpiresAt: Date.now() + 43_200_000 })
       const scanEnv = { PATH: process.env.PATH, HOME: directory, XDG_CONFIG_HOME: directory, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' }
       const scan = async () => {
-        const scanArgs = ['shodan-axi', 'scan', 'submit', '192.0.2.1', '--wait', '3', '--limit', limit, '--max-bytes', '4096',
+        const scanArgs = ['shodan-axi', 'scan', 'submit', '192.0.2.1', '--wait', waitSeconds, '--limit', limit, '--max-bytes', '4096',
           '--idle-timeout', idleTimeout, '--scan-credit-budget', '1', '--max-requests', '1',
           '--allow-operation', 'OP-009,OP-046', '--accept-unknown-cost', '--json']
         const preview = await promisify(execFile)(process.execPath, [bundle, ...scanArgs], { timeout: 10000, env: scanEnv })
@@ -69,9 +71,10 @@ test.each([
             { timeout: 60000, env: scanEnv }, (error, stdout) => resolve({ code: error ? error.code ?? error.signal ?? 'failed' : 0, stdout }))
         })
       }
+      await send('/__shodan/stream-loss?count=0')
       await send(fault)
       const collected = await scan()
-      expect(collected.code).toBe(code)
+      expect(collected.code, collected.stdout).toBe(code)
       expect(JSON.parse(collected.stdout)).toMatchObject(result)
     } finally {
       await app.close(); db.close()

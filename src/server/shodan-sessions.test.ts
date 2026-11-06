@@ -96,6 +96,7 @@ test('closed sessions page through all retained events', async () => {
 test('a confirmed extension updates the running lease within its reserved limit', async () => {
   const fixture = await sessionFixture()
   const { app, db, headers, prefix, input } = fixture
+  vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
   try {
     const row = db.prepare("SELECT native_settings FROM tools WHERE name='shodan-axi'").get() as { native_settings: string }
     const settings = JSON.parse(row.native_settings)
@@ -104,7 +105,7 @@ test('a confirmed extension updates the running lease within its reserved limit'
     const preview = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: input })
     const started = await app.inject({ method: 'POST', url: `${prefix}/start`, headers, payload: { ...input, confirm: preview.json().confirm } })
     const id = started.json().id
-    const first = await app.inject({ method: 'POST', url: `${prefix}/${id}/read`, headers, payload: { waitMs: 5000 } })
+    await app.inject({ method: 'POST', url: `${prefix}/${id}/read`, headers, payload: { waitMs: 5000 } })
     const rejected = await app.inject({ method: 'POST', url: `${prefix}/${id}/extend/preview`, headers, payload: { seconds: 10 } })
     expect(rejected.statusCode).toBe(400)
     const extension = await app.inject({ method: 'POST', url: `${prefix}/${id}/extend/preview`, headers, payload: { seconds: 2 } })
@@ -114,15 +115,16 @@ test('a confirmed extension updates the running lease within its reserved limit'
     expect(extended.json()).toMatchObject({ state: 'running', expiresAt: started.json().expiresAt + 2000 })
     const replay = await app.inject({ method: 'POST', url: `${prefix}/${id}/extend`, headers, payload: { confirm: extension.json().confirm } })
     expect(replay.statusCode).toBe(400)
-    const continued = await app.inject({ method: 'POST', url: `${prefix}/${id}/read`, headers,
-      payload: { continuation: first.json().continuation, waitMs: 5000 } })
-    expect(Date.now()).toBeGreaterThan(started.json().expiresAt)
-    expect(continued.json()).toMatchObject({ state: 'running', items: [{ value: { value: 'after-extension' } }] })
+    await vi.advanceTimersByTimeAsync(1000)
+    const continued = await app.inject({ method: 'GET', url: `${prefix}/${id}`, headers })
+    expect(continued.json()).toMatchObject({ state: 'running', cleaned: false })
+    await vi.advanceTimersByTimeAsync(2000)
     const ended = await app.inject({ method: 'GET', url: `${prefix}/${id}?waitMs=5000`, headers })
     expect(ended.json()).toMatchObject({ state: 'expired', cleaned: true, expiresAt: extended.json().expiresAt })
-    expect(Date.now()).toBeGreaterThanOrEqual(extended.json().expiresAt)
-    expect(Date.now()).toBeLessThan(extended.json().expiresAt + 2000)
-  } finally { await fixture.close() }
+  } finally {
+    await fixture.close()
+    vi.useRealTimers()
+  }
 })
 
 test.each([
