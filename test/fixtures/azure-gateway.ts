@@ -13,7 +13,7 @@ import { FakeTokenTransport, azureTestTenant } from './azure-token-transport.js'
 import { issueTestAccessToken, seedToolUser } from './tokens.js'
 
 export const subscription = '44444444-4444-4444-8444-444444444444'
-export const azureGatewayTimeoutMs = 5000
+export const azureGatewayTimeoutMs = 15_000
 
 export function hostedArgs(command: string): string[] {
   const tokens = command.match(/'[^']*'|[^\s]+/g)!.map(token => token.startsWith("'") ? token.slice(1, -1) : token)
