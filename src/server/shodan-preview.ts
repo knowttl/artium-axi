@@ -11,7 +11,7 @@ const previewSchema = z.object({ status: z.literal('preview'), token: z.uuid(), 
   limit: z.number(), maxBytes: z.number(), timeoutMs: z.number(), idleTimeoutMs: z.number(), cost: z.literal('unknown') }).passthrough()
 
 export async function runShodanNative(directory: string, args: string[],
-  profile: Pick<PreparedCall, 'environment' | 'files' | 'secrets'>, signal: AbortSignal, authorize: () => void, configuredCaPem?: string) {
+  profile: Pick<PreparedCall, 'environment' | 'files' | 'secrets'>, signal: AbortSignal, authorize: () => void, configuredCaPem?: string, beforeSpawn?: () => void) {
   const root = join(directory, 'preview'), state = join(directory, 'state')
   const directories = Object.fromEntries(Object.entries({ HOME: 'home', XDG_CONFIG_HOME: 'config', XDG_DATA_HOME: 'data',
     XDG_CACHE_HOME: 'cache', XDG_RUNTIME_DIR: 'runtime', TMPDIR: 'tmp' }).map(([key, leaf]) => [key, join(root, leaf)]))
@@ -28,6 +28,7 @@ export async function runShodanNative(directory: string, args: string[],
     if (scanner.scan('stdout', Buffer.from(JSON.stringify(args)))) throw new ArtiumError('INVALID_INPUT')
     authorize()
     if (signal.aborted) throw new ArtiumError('CANCELLED')
+    beforeSpawn?.()
     const output = await new Promise<string>((resolve, reject) => {
       const child = spawn(process.execPath, [toolPaths['shodan-axi'], ...args], { cwd: directories.HOME, detached: true,
         env: { ...profile.environment, ...directories, XDG_STATE_HOME: state, PATH: runtimePath, NODE_OPTIONS: '--max-old-space-size=256',

@@ -365,9 +365,9 @@ An explicitly granted stream preview validates selectors and bounded resource li
 Confirmed stream sessions run with bounded leases and retained output; lease extensions require a separate preview and confirmation within the reserved limit; see [commands](commands.md#shodan).
 Preview, start, status, read, extend and stop require an owner session and are unavailable to delegated tokens; access is bound to the caller and original sign-in family.
 Targeted scan submission requires administrator scan grants, explicit budgets and a single-use preview confirmation.
-Optional collection creates and removes a temporary alert and requires the corresponding scan and stream grants.
+Optional collection reads the banner stream with an `OP-046` session grant and filters records to the target networks.
 Failed or interrupted collection or cleanup is partial and exits nonzero; a submitted scan may continue upstream even if collection fails.
-General alert changes, dataset downloads and other writes are unavailable.
+Alert changes, dataset downloads and other writes are unavailable.
 The client-side radar consumes an owner session's output under the same access restrictions; see [radar usage and local output](commands.md#shodan).
 The server adapter refuses local configuration, credential and endpoint overrides, stdin, uploaded files and result-file destinations before credential access.
 Help exposes only admitted routes; the standalone `doctor` alias is not admitted.

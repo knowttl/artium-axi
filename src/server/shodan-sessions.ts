@@ -231,7 +231,7 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
       })
       authorize(session)
     }
-    const page = session.spool.read(input.continuation, input.limit, session.cleaned && session.state === 'closed')
+    const page = session.spool.read(input.continuation, input.limit, session.cleaned && ['closed', 'expired'].includes(session.state))
     return { ...page, hasMore: session.spool.available(page.continuation),
       complete: false, upstreamCompleteness: 'unverified', state: session.state, cleaned: session.cleaned }
   })
@@ -320,14 +320,14 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
       await session.job
       if (session.stopping) await session.stopping
       authorize(session)
-      if (session.state !== 'closed' || !session.cleaned || !session.summary || session.summary.error
+      if (!['closed', 'expired'].includes(session.state) || !session.cleaned || !session.summary || session.summary.error
         || session.summary.partialRecordCount > 0 || session.summary.stopReason === 'cancelled') throw new ArtiumError('TOOL_FAILED')
     },
     read(owner: ShodanOwner, id: string, continuation: string | undefined, limit: number) {
       const session = sessions.get(id)
       if (!session || session.owner.user !== owner.user || session.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
       authorize(session)
-      const page = session.spool.read(continuation, limit, session.cleaned && session.state === 'closed')
+      const page = session.spool.read(continuation, limit, session.cleaned && ['closed', 'expired'].includes(session.state))
       return { ...page, hasMore: session.spool.available(page.continuation) }
     },
     async stop(owner: ShodanOwner, id: string) {

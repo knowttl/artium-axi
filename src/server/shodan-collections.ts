@@ -42,8 +42,7 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
   const authorize = (plan: Pick<Plan, 'owner' | 'credential' | 'binding' | 'operations' | 'streamOperation'>) => {
     if (shodanScanBinding(db, plan.owner, plan.credential, plan.operations, plan.streamOperation).hash !== plan.binding) throw new ArtiumError('REVISION_CONFLICT')
   }
-  const streamInput = (input: Input, alertId?: string): StreamInput => ({ operation: 'OP-053',
-    selector: { flag: '--alert', value: alertId ?? 'pending' },
+  const streamInput = (input: Input): StreamInput => ({ operation: 'OP-046', selector: {},
     bounds: { limit: input.limit, maxBytes: input.maxBytes, timeout: input.waitSeconds * 1000, idleTimeout: input.idleTimeout },
     limits: { events: input.limit, bytes: input.maxBytes, leaseSeconds: input.waitSeconds }, acceptUnknownCost: true })
 
@@ -51,14 +50,12 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
     const owner = shodanOwner(db, request), input = parse(shodanScanInput, request.body)
     const inspection = await inspectShodanScan(input)
     const collecting = input.waitSeconds > 0
-    if (collecting && !input.acceptUnknownCost || input.destinationDigest && !collecting
-      || collecting && (input.queryCreditBudget < 8 || input.maxRequests < 10)) throw new ArtiumError('INVALID_INPUT')
-    const operations = collecting ? ['OP-013', inspection.operation, 'OP-015'] : [inspection.operation]
-    const streamOperation = collecting ? 'OP-053' : undefined
+    if (collecting && !input.acceptUnknownCost) throw new ArtiumError('INVALID_INPUT')
+    const operations = [inspection.operation]
+    const streamOperation = collecting ? 'OP-046' : undefined
     const credential = await resolver.resolve(owner.user, 'shodan-axi')
     const binding = shodanScanBinding(db, owner, credential, operations, streamOperation)
-    if (input.scanCreditBudget > binding.settings.maxScanCredits || input.queryCreditBudget > binding.settings.maxQueryCredits
-      || input.maxRequests > binding.settings.maxRequests) throw new ArtiumError('INVALID_INPUT')
+    if (input.scanCreditBudget > binding.settings.maxScanCredits || input.maxRequests > binding.settings.maxRequests) throw new ArtiumError('INVALID_INPUT')
     if (plans.size >= 128 || [...plans.values()].filter(plan => plan.owner.user === owner.user).length >= 8) throw new ArtiumError('TOO_MANY_CALLS')
     await initialized
     const id = randomUUID(), plan: Plan = { id, owner, credential, input, inspection, binding: binding.hash, operations, streamOperation,
@@ -66,10 +63,9 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
     clearTimeout(plan.timer)
     plan.timer = setTimeout(() => plans.delete(id), 15 * 60 * 1000).unref()
     plans.set(id, plan)
-    return { confirm: id, operations: collecting ? ['OP-013', 'OP-053', inspection.operation, 'OP-015'] : operations,
+    return { confirm: id, operations: collecting ? ['OP-046', inspection.operation] : operations,
       scope: input.scope, bounds: { waitSeconds: input.waitSeconds, limit: input.limit, maxBytes: input.maxBytes, idleTimeout: input.idleTimeout },
-      scanCreditBudget: input.scanCreditBudget, queryCreditBudget: input.queryCreditBudget, maxRequests: input.maxRequests,
-      ...(input.destinationDigest ? { destinationDigest: input.destinationDigest } : {}),
+      scanCreditBudget: input.scanCreditBudget, maxRequests: input.maxRequests,
       cost: 'unknown', expiresAt: plan.expiresAt }
   })
 
@@ -93,25 +89,22 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
     collections.set(plan.id, collection)
     const startedAt = Date.now()
     collection.job = (async () => {
-      let alertId: string | undefined, sessionId: string | undefined, scanId: string | undefined
-      let cleanup = stream ? 'not-created' : 'not-required'
+      let sessionId: string | undefined, scanId: string | undefined
+      let cleanup = 'completed'
       let failure: string | undefined, events: unknown[] = [], lost: unknown[] = [], upstreamLoss: Record<string, number> = {}
       let streamResult: Record<string, unknown> | undefined
       let duplicates = 0, outOfScope = 0, reserved = reservation
       const check = () => { if (controller.signal.aborted) throw new ArtiumError('CANCELLED'); authorize(plan) }
-      const mutate = async (words: string[], operation: string, budget: number, scan: boolean, extra: string[] = []) => {
-        const checkMutation = () => {
-          check()
-          if (scan && sessionId) sessions.assertRunning(owner, sessionId)
-        }
-        checkMutation()
+      const mutate = async () => {
+        check()
         const requestId = randomUUID(), began = Date.now()
         audit.record({ event: 'run-start', userId: owner.user, tool: 'shodan-axi', requestId, clientAddress: request.ip,
-          outcome: 'started', args: ['scan-action', operation], sensitive: { positions: [], flags: [] } })
+          outcome: 'started', args: ['scan-action', plan.inspection.operation], sensitive: { positions: [], flags: [] } })
         try {
           const result = await runner.runManaged(owner.user, controller.signal, signal => shodanMutation(directory, adapter, plan.credential,
-            words, operation, budget, scan, signal, checkMutation, extra, runner.configuredCaPem))
-          const completed = ['submitted', 'completed'].includes(result.status)
+            plan.inspection.words, plan.inspection.operation, input.scanCreditBudget, signal, check,
+            () => { if (sessionId) sessions.assertRunning(owner, sessionId) }, input.scope.force ? ['--force'] : [], runner.configuredCaPem))
+          const completed = result.status === 'submitted'
           audit.record({ event: 'run-terminal', userId: owner.user, tool: 'shodan-axi', requestId, clientAddress: request.ip,
             outcome: completed ? 'completed' : 'interrupted', action: completed ? 'write' : 'unknown', exitCode: completed ? 0 : null,
             durationMs: Date.now() - began, outputBytes: { stdout: null, stderr: null } })
@@ -125,23 +118,15 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
       try {
         check()
         if (stream) {
-          cleanup = 'unknown'
-          const result = await mutate(['alert', 'create', `scan-${plan.id}`, plan.inspection.targets.join(',')], 'OP-013', 1, false)
-          alertId = result.steps?.[0]?.id
-          if (result.status !== 'completed' || !alertId) throw new ArtiumError('UNKNOWN_OUTCOME')
-        }
-        if (stream) {
-          const selection = streamInput(input, alertId)
-          const preview = await sessions.preview(owner, selection, reserved)
+          const preview = await sessions.preview(owner, stream, reserved)
           reserved = undefined
           check()
-          const started = await sessions.start(owner, { ...selection, confirm: preview.confirm }, request.ip)
+          const started = await sessions.start(owner, { ...stream, confirm: preview.confirm }, request.ip)
           sessionId = started.id; collection.sessionId = sessionId
           await sessions.waitReady(owner, sessionId)
           check()
         }
-        const result = await mutate(plan.inspection.words, plan.inspection.operation, input.scanCreditBudget, true,
-          input.scope.force ? ['--force'] : [])
+        const result = await mutate()
         if (result.status !== 'submitted' || !result.scanId) throw new ArtiumError('UNKNOWN_OUTCOME')
         scanId = result.scanId
         if (sessionId) await sessions.waitFinished(owner, sessionId)
@@ -149,16 +134,9 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
       finally {
         if (sessionId) {
           try { streamResult = await sessions.stop(owner, sessionId) }
-          catch { failure ??= 'OUTCOME_UNKNOWN' }
+          catch { cleanup = 'failed'; failure ??= 'OUTCOME_UNKNOWN' }
         }
         if (reserved) sessions.release(reserved)
-        if (alertId) {
-          try {
-            check()
-            const result = await mutate(['alert', 'remove', alertId], 'OP-015', 1, false)
-            cleanup = result.status === 'completed' ? 'completed' : 'failed'
-          } catch { cleanup = 'failed' }
-        }
         if (sessionId) {
           try {
             let continuation: string | undefined
@@ -177,12 +155,12 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
           } catch { failure ??= 'OUTCOME_UNKNOWN' }
         }
         try { await rm(directory, { recursive: true, force: true }) }
-        catch { failure ??= 'OUTCOME_UNKNOWN' }
-        collection.state = failure || cleanup === 'failed' || cleanup === 'unknown' ? 'partial' : 'completed'
+        catch { cleanup = 'failed'; failure ??= 'OUTCOME_UNKNOWN' }
+        collection.state = failure || cleanup === 'failed' ? 'partial' : 'completed'
         collection.result = { status: collection.state, ...(failure ? { error: failure } : {}), ...(scanId ? { scanId } : {}),
           vendorCompletion: 'unknown', vendorCancellation: 'not-requested', events, duplicates, outOfScope, lost, upstreamLoss,
           ...(streamResult ? { stream: streamResult } : {}),
-          cleanup, ...(cleanup === 'failed' && alertId ? { cleanupAlertId: alertId } : {}),
+          cleanup,
           attribution: 'Matching stream records are not proof of scan ownership' }
         collection.changed.emit('change')
         const retainedUntil = typeof streamResult?.retainedUntil === 'number' ? streamResult.retainedUntil : Date.now() + retentionMs

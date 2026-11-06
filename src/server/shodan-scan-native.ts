@@ -12,8 +12,7 @@ import type { shodanScanInput } from '../shared/shodan-stream.js'
 
 type Input = Zod.infer<typeof shodanScanInput>
 const nativePreview = z.object({ status: z.literal('preview'), token: z.uuid(), effects: z.array(z.object({ operation: z.string() })).length(1) }).passthrough()
-const nativeResult = z.object({ status: z.string(), scanId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional(),
-  steps: z.array(z.object({ id: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional() }).passthrough()).optional() }).passthrough()
+const nativeResult = z.object({ status: z.string(), scanId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional() }).passthrough()
 
 export async function inspectShodanScan(input: Input) {
   const operation = 'OP-009'
@@ -33,16 +32,16 @@ export async function inspectShodanScan(input: Input) {
 }
 
 export async function shodanMutation(directory: string, adapter: Adapter<unknown>, credential: CredentialReference,
-  words: string[], operation: string, budget: number, scan: boolean, signal: AbortSignal, authorize: () => void, extra: string[] = [], configuredCaPem?: string) {
+  words: string[], operation: string, budget: number, signal: AbortSignal, authorize: () => void, beforeExecute: () => void, extra: string[] = [], configuredCaPem?: string) {
   const args = [...words, '--json', '--allow-operation', operation, '--accept-unknown-cost',
-    scan ? '--scan-credit-budget' : '--query-credit-budget', String(budget), '--max-requests', scan ? '1' : '3', ...extra]
-  const invoke = async (input: string[]) => {
+    '--scan-credit-budget', String(budget), '--max-requests', '1', ...extra]
+  const invoke = async (input: string[], beforeSpawn?: () => void) => {
     authorize()
     const profile = await adapter.prepare(['version'], credential)
     try {
       authorize()
       profile.environment.SHODAN_AXI_READ_ONLY = 'false'
-      return await runShodanNative(directory, input, profile, signal, authorize, configuredCaPem)
+      return await runShodanNative(directory, input, profile, signal, authorize, configuredCaPem, beforeSpawn)
     } finally {
       profile.secrets.fill(''); profile.files.length = 0
       for (const key of Object.keys(profile.environment)) delete profile.environment[key]
@@ -50,12 +49,12 @@ export async function shodanMutation(directory: string, adapter: Adapter<unknown
   }
   const preview = nativePreview.safeParse(await invoke(args))
   if (!preview.success || preview.data.effects[0].operation !== operation) throw new ArtiumError('INVALID_RESPONSE')
-  const result = nativeResult.safeParse(await invoke([...args, '--execute', '--confirm', preview.data.token]))
+  const result = nativeResult.safeParse(await invoke([...args, '--execute', '--confirm', preview.data.token], beforeExecute))
   if (!result.success) throw new ArtiumError('INVALID_RESPONSE')
   return result.data
 }
 
-export async function collectShodanEvents(scope: { kind: 'targets', networks: string[] } | { kind: 'port', port: number }, events: unknown[]) {
+export async function collectShodanEvents(scope: { kind: 'targets', networks: string[] }, events: unknown[]) {
   const path = resolve(dirname(toolPaths['shodan-axi']), '../dist/scan-results.js')
   const native = await import(pathToFileURL(path).href) as { collectScanEvents: (scope: unknown, input: unknown[]) => { events: unknown[], duplicates: number, outOfScope: number } }
   return native.collectScanEvents(scope, events)

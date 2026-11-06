@@ -17,11 +17,23 @@ import { copyClientInput } from '../fixtures/client-inputs.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { SessionStore } from '../../src/cli/session.js'
 
-const policy = { sessions: { grants: { 'synthetic-development-user': ['OP-053'] }, perUser: 2, perCredential: 2, total: 2,
+const policy = { sessions: { grants: { 'synthetic-development-user': ['OP-046'] }, perUser: 2, perCredential: 2, total: 2,
   sessionEvents: 10, totalEvents: 200, sessionBytes: 4096, totalBytes: 81920, retentionSeconds: 60, leaseSeconds: 60 },
-scans: { grants: { 'synthetic-development-user': ['OP-009', 'OP-013', 'OP-015'] }, maxScanCredits: 10, maxQueryCredits: 10, maxRequests: 10 } }
+scans: { grants: { 'synthetic-development-user': ['OP-009'] }, maxScanCredits: 10, maxRequests: 10 } }
 
-test('scan collections report failures as partial with nonzero exit', async () => {
+test.each([
+  { name: 'idle timeout', limit: '10', idleTimeout: '1000', fault: '/__shodan/scan-drop?enabled=false', code: 0,
+    result: { status: 'completed', scanId: 'synthetic-scan', cleanup: 'completed' } },
+  { name: 'requested deadline', limit: '10', idleTimeout: '10000', fault: '/__shodan/scan-drop?enabled=false', code: 0,
+    result: { status: 'completed', scanId: 'synthetic-scan', cleanup: 'completed' } },
+  { name: 'event limit during submission', limit: '2', idleTimeout: '10000', fault: '/__shodan/scan-wait-stream', code: 0,
+    result: { status: 'completed', scanId: 'synthetic-scan',
+      events: [expect.objectContaining({ port: 443 }), expect.objectContaining({ port: 80 })] } },
+  { name: 'lost scan response', limit: '10', idleTimeout: '1000', fault: '/__shodan/scan-drop', code: 1,
+    result: { status: 'partial', cleanup: 'completed' } },
+  { name: 'stream failure', limit: '10', idleTimeout: '1000', fault: '/__shodan/stream-fail', code: 1,
+    result: { status: 'partial', scanId: 'synthetic-scan', cleanup: 'completed' } },
+])('scan collection reports $name', async ({ limit, idleTimeout, fault, code, result }) => {
   const packageRoot = process.env.SHODAN_AXI_PACKAGE_DIR
   if (!packageRoot) throw new Error('SHODAN_AXI_PACKAGE_DIR must name the installed package')
   await withFakeService(async ({ directory, send }) => {
@@ -46,35 +58,21 @@ test('scan collections report failures as partial with nonzero exit', async () =
       const bundle = copyClientInput('bundle', join(directory, 'client.mjs'))
       new SessionStore(url, join(directory, 'artium-axi/session.json')).write({ status: 'authenticated', accessToken: token,
         refreshToken: 'CANARY-refresh', accessExpiresAt: Date.now() + 3_600_000, familyExpiresAt: Date.now() + 43_200_000 })
-      const scanArgs = ['shodan-axi', 'scan', 'submit', '192.0.2.1', '--wait', '3', '--limit', '10', '--max-bytes', '4096',
-        '--idle-timeout', '1000', '--scan-credit-budget', '1', '--query-credit-budget', '8', '--max-requests', '10',
-        '--allow-operation', 'OP-009,OP-013,OP-015,OP-053', '--accept-unknown-cost', '--json']
       const scanEnv = { PATH: process.env.PATH, HOME: directory, XDG_CONFIG_HOME: directory, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' }
       const scan = async () => {
+        const scanArgs = ['shodan-axi', 'scan', 'submit', '192.0.2.1', '--wait', '3', '--limit', limit, '--max-bytes', '4096',
+          '--idle-timeout', idleTimeout, '--scan-credit-budget', '1', '--max-requests', '1',
+          '--allow-operation', 'OP-009,OP-046', '--accept-unknown-cost', '--json']
         const preview = await promisify(execFile)(process.execPath, [bundle, ...scanArgs], { timeout: 10000, env: scanEnv })
         return await new Promise<{ code: number | string | null, stdout: string }>(resolve => {
           execFile(process.execPath, [bundle, ...scanArgs, '--execute', '--confirm', JSON.parse(preview.stdout).confirm],
             { timeout: 60000, env: scanEnv }, (error, stdout) => resolve({ code: error ? error.code ?? error.signal ?? 'failed' : 0, stdout }))
         })
       }
-      const completedScan = await scan()
-      expect(completedScan.code).toBe(0)
-      expect(JSON.parse(completedScan.stdout)).toMatchObject({ status: 'completed', scanId: 'synthetic-scan', cleanup: 'completed' })
-      await send('/__shodan/cleanup-fail')
-      const cleanupFailure = await scan()
-      expect(cleanupFailure.code).toBe(1)
-      expect(JSON.parse(cleanupFailure.stdout)).toMatchObject({ status: 'partial', cleanup: 'failed', cleanupAlertId: 'synthetic-scan-alert' })
-      await send('/__shodan/cleanup-fail?enabled=false')
-      await send('/__shodan/scan-drop')
-      const scanFailure = await scan()
-      expect(scanFailure.code).toBe(1)
-      expect(JSON.parse(scanFailure.stdout)).toMatchObject({ status: 'partial', cleanup: 'completed' })
-      await send('/__shodan/scan-drop?enabled=false')
-      await send('/__shodan/stream-fail')
-      const streamFailure = await scan()
-      expect(streamFailure.code).toBe(1)
-      expect(JSON.parse(streamFailure.stdout)).toMatchObject({ status: 'partial', scanId: 'synthetic-scan', cleanup: 'completed' })
-      await send('/__shodan/stream-fail?enabled=false')
+      await send(fault)
+      const collected = await scan()
+      expect(collected.code).toBe(code)
+      expect(JSON.parse(collected.stdout)).toMatchObject(result)
     } finally {
       await app.close(); db.close()
       Object.assign(toolPaths, { 'shodan-axi': previousPath })
