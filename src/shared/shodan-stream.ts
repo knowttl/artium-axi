@@ -1,6 +1,17 @@
 import { z } from 'zod'
 
 const positive = (maximum: number) => z.number().int().min(1).max(maximum)
+export const shodanScanPolicy = z.strictObject({
+  grants: z.record(z.string().min(1).max(128), z.array(z.string().regex(/^OP-\d{3}$/)).max(32)),
+  maxScanCredits: positive(1000000), maxQueryCredits: positive(1000), maxRequests: positive(1000),
+})
+export const shodanScanInput = z.strictObject({
+  scope: z.strictObject({ kind: z.literal('targets'), targets: z.string().min(1).max(4096), force: z.boolean().default(false) }),
+  waitSeconds: z.number().int().min(0).max(3600), limit: positive(10000), maxBytes: positive(1024 * 1024), idleTimeout: positive(3600000),
+  scanCreditBudget: positive(1000000), queryCreditBudget: z.number().int().min(0).max(1000), maxRequests: positive(1000),
+  acceptUnknownCost: z.boolean().default(false), quiet: z.boolean().default(false),
+  destinationDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+})
 export const shodanStreamPolicy = z.strictObject({
   grants: z.record(z.string().min(1).max(128), z.array(z.string().regex(/^OP-\d{3}$/)).max(32)),
   perUser: positive(100), perCredential: positive(100), total: positive(1000),

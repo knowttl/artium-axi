@@ -255,6 +255,11 @@ artium-axi shodan-axi domain example.test --allow-operation OP-040 --query-credi
 Use `artium-axi shodan-axi host --help` or `search --help` for command-specific flags.
 See the [supported boundary](safety.md#shodan) for available read families and credit requirements.
 Use `artium-axi shodan-axi version` to print the packaged version or `version --help` for help; `version` does not accept `--json`.
+For a targeted scan, use `artium-axi shodan-axi scan submit --help` and ask an administrator to grant the required scan operations and budgets.
+Preview the exact arguments first, then repeat them with `--execute --confirm <token>`.
+Collection requires stream and temporary alert grants, explicit bounds and unknown-cost acceptance.
+An interrupted or failed collection or cleanup returns `partial` and exits 1; a submitted scan may continue upstream.
+If cleanup fails, the result includes the temporary alert ID for reconciliation.
 For stream session access and quotas, ask an administrator to configure the [Shodan session policy](tool-credentials.md#shodan).
 For example, `artium-axi shodan-axi stream session preview --operation OP-047 --selector --asn --value AS64496 --limit 10 --max-bytes 4096 --timeout 10000 --idle-timeout 5000 --accept-unknown-cost --json` validates a native plan without starting a stream.
 Use `artium-axi shodan-axi stream session preview --help` for the full set of bounds.

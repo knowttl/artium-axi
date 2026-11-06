@@ -35,6 +35,11 @@ let falconHoldRtr = false
 let kubernetesFailure
 let kubernetesTokenRequests = 0
 let kubernetesDropToken = false
+let shodanTemporaryAlert
+let shodanDeleteFails = false
+let shodanScanDrop = false
+let shodanStreamFail = false
+let shodanScanStream
 const kubernetesConfigMaps = new Map(['synthetic-config', 'synthetic-second'].map(name => [name, {
   apiVersion: 'v1', kind: 'ConfigMap', metadata: { name, namespace: 'synthetic', uid: `uid-${name}`, resourceVersion: '1' }, data: { mode: 'initial' },
 }]))
@@ -66,6 +71,44 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   ca: readFileSync(join(certs, 'ca.crt')), requestCert: true, rejectUnauthorized: false }, (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
+  if (url.pathname === '/__shodan/cleanup-fail') { shodanDeleteFails = url.searchParams.get('enabled') !== 'false'; res.end('{}'); return }
+  if (url.pathname === '/__shodan/scan-drop') { shodanScanDrop = url.searchParams.get('enabled') !== 'false'; res.end('{}'); return }
+  if (url.pathname === '/__shodan/stream-fail') { shodanStreamFail = url.searchParams.get('enabled') !== 'false'; res.end('{}'); return }
+  if (url.pathname === '/shodan/alert' && req.method === 'POST') {
+    if (url.searchParams.get('key') !== 'CANARY-shodan-key') { res.writeHead(401); res.end('{}'); return }
+    let body = ''
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      const input = JSON.parse(body)
+      shodanTemporaryAlert = { id: 'synthetic-scan-alert', name: input.name, filters: input.filters, expiration: null }
+      res.end(JSON.stringify({ id: shodanTemporaryAlert.id }))
+    })
+    return
+  }
+  if (url.pathname === '/shodan/alert/synthetic-scan-alert/info') {
+    if (url.searchParams.get('key') !== 'CANARY-shodan-key') { res.writeHead(401); res.end('{}'); return }
+    if (!shodanTemporaryAlert) { res.writeHead(404); res.end('{}'); return }
+    res.end(JSON.stringify(shodanTemporaryAlert)); return
+  }
+  if (url.pathname === '/shodan/alert/synthetic-scan-alert' && req.method === 'DELETE') {
+    if (url.searchParams.get('key') !== 'CANARY-shodan-key') { res.writeHead(401); res.end('{}'); return }
+    if (shodanDeleteFails) { res.writeHead(503); res.end('{}'); return }
+    shodanTemporaryAlert = undefined; res.end(JSON.stringify({ success: true })); return
+  }
+  if (url.pathname === '/shodan/scan' && req.method === 'POST') {
+    req.resume()
+    if (url.searchParams.get('key') !== 'CANARY-shodan-key') { res.writeHead(401); res.end('{}'); return }
+    if (shodanScanDrop) { req.socket.destroy(); return }
+    res.end(JSON.stringify({ id: 'synthetic-scan', count: 1, credits_left: 9 }))
+    if (shodanStreamFail) shodanScanStream?.write('invalid json\n')
+    return
+  }
+  if (url.pathname === '/shodan/alert/synthetic-scan-alert' && req.method === 'GET') {
+    if (url.searchParams.get('key') !== 'CANARY-shodan-key') { res.writeHead(401); res.end('{}'); return }
+    shodanScanStream = res
+    res.write(JSON.stringify({ ip_str: '192.0.2.1', port: 443, transport: 'tcp', timestamp: '2026-01-01T00:00:00Z', data: 'synthetic' }) + '\n')
+    return
+  }
   if (url.pathname === '/shodan/banners') {
     const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
     requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
