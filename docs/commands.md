@@ -265,8 +265,12 @@ To start, repeat the preview arguments with `start` and `--confirm` set to the r
 The confirmation is single-use, expires after fifteen minutes and is replaced by a new preview from the same sign-in family; obtain a fresh preview after a failed start.
 Use `artium-axi shodan-axi stream session status <id>`, `artium-axi shodan-axi stream session read <id>` and `artium-axi shodan-axi stream session stop <id>` to inspect, consume and stop the returned session ID.
 To extend a running lease, use `artium-axi shodan-axi stream session extend <id> --seconds <seconds>`.
+The seconds are added to the current session deadline, rather than measured from the extension request.
 Apply the preview with `artium-axi shodan-axi stream session extend <id> --confirm <token>`.
-The resulting deadline must remain within the session's reserved lease limit from the current time.
+The resulting deadline must remain within the session's reserved lease limit from the preview time; event, byte and retention limits remain unchanged.
+An extension confirmation is single-use, expires after fifteen minutes and is replaced by a new extension preview for that session.
+Confirm before the current session deadline expires; an extension cannot restart an ended session.
+If extension confirmation returns `INVALID_INPUT`, inspect the session status and obtain a fresh extension preview if it is still running.
 The first read omits `--continuation`; each later read must pass the most recently returned token as `--continuation <token>`.
 Reads consume output and rotate the continuation even when no items are returned, so save each response before reading again; consumed output cannot be replayed.
 Read accepts `--limit` to bound returned items and `--wait` to wait for new output or session cleanup.
@@ -275,7 +279,7 @@ All session actions accept `--json`; the default output is TOON.
 The session's initial `expiresAt` deadline starts at admission and is bounded by `--timeout` and the effective lease.
 See [session retention and recovery](runbook.md#retention-and-export) for output expiry, cleanup and capacity recovery.
 Exceeding a ceiling returns `INVALID_INPUT`; exhausted preview or session capacity returns `TOO_MANY_CALLS`.
-For a missing or expired confirmation (`NOT_FOUND`), obtain a fresh preview; for changed arguments (`INVALID_INPUT`), repeat the exact preview arguments with the new confirmation.
+For a missing or expired start confirmation (`NOT_FOUND`), obtain a fresh preview; for changed start arguments (`INVALID_INPUT`), repeat the exact preview arguments with the new confirmation.
 For authentication failures, ask an administrator to replace the managed key using [Shodan credential setup](tool-credentials.md#shodan).
 See [package recovery](runbook.md#roles-credentials-and-health) for inventory or package mismatches.
 
