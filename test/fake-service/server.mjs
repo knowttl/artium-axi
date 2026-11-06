@@ -73,6 +73,11 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.write(JSON.stringify({ ip_str: '192.0.2.1', port: 443, transport: 'tcp', timestamp: '2026-01-01T00:00:00Z', data: 'synthetic',
       api_key: 'CANARY-upstream-secret', metadata: { token: 'CANARY-minted-secret' } }) + '\n')
     res.write(JSON.stringify({ event: 'debug', discarded: 2 }) + '\n')
+    const active = setTimeout(() => res.write(JSON.stringify({ ip_str: '192.0.2.1', port: 443, transport: 'tcp',
+      timestamp: '2026-01-01T00:00:09Z', data: 'synthetic' }) + '\n'), 9000)
+    const continued = setTimeout(() => res.write(JSON.stringify({ ip_str: '192.0.2.2', port: 443, transport: 'tcp',
+      timestamp: '2026-01-01T00:00:11Z', data: 'synthetic' }) + '\n'), 11000)
+    res.once('close', () => { clearTimeout(active); clearTimeout(continued) })
     return
   }
   if (url.pathname === '/192.0.2.1') {

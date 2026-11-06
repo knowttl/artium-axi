@@ -21,3 +21,5 @@ export const shodanStreamStart = z.strictObject({ operation: z.string().regex(/^
   acceptUnknownCost: z.literal(true) })
 export const shodanStreamRead = z.strictObject({ continuation: z.string().min(1).max(256).optional(), limit: positive(1000).default(100),
   waitMs: z.number().int().min(0).max(30000).default(0) })
+export const shodanStreamExtendPreview = z.strictObject({ seconds: positive(3600) })
+export const shodanStreamConfirm = z.strictObject({ confirm: z.uuid() })

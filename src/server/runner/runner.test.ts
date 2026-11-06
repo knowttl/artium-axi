@@ -454,7 +454,7 @@ test('security Node heap exhaustion ends the call without captured diagnostics',
   const script = `const retained = Array.from({ length: 24 }, () => Array(1024 * 1024).fill(1)); console.log(retained.length)`
   await expect(run(process.execPath, ['-e', script], { NODE_OPTIONS: '--max-old-space-size=2048' }, []))
     .rejects.toMatchObject({ code: 'PROCESS_SIGNAL' })
-}, 10_000)
+})
 
 test('security explicit Python runtime refuses a 600 MiB allocation', async () => {
   const script = `import resource\nprint(resource.getrlimit(resource.RLIMIT_AS))\ntry:\n bytearray(600 * 1024 * 1024)\nexcept MemoryError:\n print('memory refused')`

@@ -362,8 +362,8 @@ These include host, count and search reads, DNS and InternetDB lookups, query an
 Search and domain lookups consume query credits and require an exact operation grant and query credit budget; see [command examples](commands.md#shodan).
 InternetDB host lookups run without loading the stored API key.
 An explicitly granted stream preview validates selectors and bounded resource limits against the pinned package without opening a stream.
-Confirmed stream sessions run with fixed deadlines and bounded retained output; see [commands](commands.md#shodan).
-Preview, start, status, read and stop require an owner session and are unavailable to delegated tokens; access is bound to the caller and original sign-in family.
+Confirmed stream sessions run with bounded leases and retained output; lease extensions require a separate preview and confirmation within the reserved limit; see [commands](commands.md#shodan).
+Preview, start, status, read, extend and stop require an owner session and are unavailable to delegated tokens; access is bound to the caller and original sign-in family.
 Scan submission, alert changes, dataset downloads and writes are unavailable.
 Local configuration, credential and endpoint overrides, stdin, uploaded files and result-file destinations are refused before credential access.
 Help exposes only admitted routes; the standalone `doctor` alias is not admitted.

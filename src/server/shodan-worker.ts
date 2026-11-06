@@ -29,6 +29,7 @@ export class ShodanWorker {
   private stopping = false
   private startId = randomUUID()
   private admission = randomBytes(32).toString('hex')
+  private extension?: { id: string, deadline: number, resolve: () => void, reject: (error: Error) => void }
   private finish?: Promise<void>
 
   constructor(private readonly options: WorkerOptions) {}
@@ -57,6 +58,10 @@ export class ShodanWorker {
       return
     }
     if (!this.ready) throw new Error('Worker sent output before readiness')
+    if (message.type === 'extended') {
+      if (!this.extension || message.requestId !== this.extension.id || message.deadlineMs !== this.extension.deadline) throw new Error('Unexpected worker extension')
+      const extension = this.extension; this.extension = undefined; extension.resolve(); return
+    }
     if (message.type === 'event') this.options.onEvent(message.event)
     else this.options.onLoss(message.discarded, message.reason)
   }
@@ -123,6 +128,7 @@ export class ShodanWorker {
         await exited
       } finally { signal.removeEventListener('abort', cancel) }
     } finally {
+      this.extension?.reject(new ArtiumError('CANCELLED')); this.extension = undefined
       this.pipe?.destroy(); this.pipe = undefined; this.child = undefined; scanner = undefined
       this.options.confirmation = ''
       profile.secrets.fill(''); profile.files.length = 0
@@ -132,6 +138,21 @@ export class ShodanWorker {
   }
 
   start() { return this.finish ??= this.run() }
+
+  async extend(deadline: number) {
+    if (!this.ready || this.closed || this.stopping || this.extension) throw new ArtiumError('INVALID_INPUT')
+    const id = randomUUID()
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.extension = undefined
+        if (this.child?.pid) try { process.kill(-this.child.pid, 'SIGKILL') } catch { /* Already exited. */ }
+        reject(new ArtiumError('TIMEOUT'))
+      }, 5000).unref()
+      this.extension = { id, deadline, resolve: () => { clearTimeout(timer); resolve() }, reject: error => { clearTimeout(timer); reject(error) } }
+      try { this.send({ type: 'extend', requestId: id, admission: this.admission, deadlineMs: deadline }) }
+      catch (error) { this.extension = undefined; clearTimeout(timer); reject(error) }
+    })
+  }
 
   async stop() {
     this.stopping = true
