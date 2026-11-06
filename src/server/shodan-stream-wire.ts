@@ -33,6 +33,7 @@ export class ShodanStreamWire {
       const text = new TextDecoder('utf-8', { fatal: true }).decode(this.pending.subarray(0, end))
       this.pending = this.pending.subarray(end + 1)
       const message = messageSchema.parse(JSON.parse(text))
+      if (message.type === 'extended') { this.receive(message); continue }
       if (this.seen.has(message.requestId)) throw new Error('Duplicate worker request')
       if (this.seen.size >= this.maxMessages) throw new Error('Worker message limit exceeded')
       this.seen.add(message.requestId)

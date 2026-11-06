@@ -128,7 +128,7 @@ export class ShodanWorker {
         await exited
       } finally { signal.removeEventListener('abort', cancel) }
     } finally {
-      this.extension?.reject(new Error('Worker stopped')); this.extension = undefined
+      this.extension?.reject(new ArtiumError('CANCELLED')); this.extension = undefined
       this.pipe?.destroy(); this.pipe = undefined; this.child = undefined; scanner = undefined
       this.options.confirmation = ''
       profile.secrets.fill(''); profile.files.length = 0

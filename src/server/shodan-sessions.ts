@@ -32,7 +32,7 @@ interface Session extends Omit<Plan, 'nativeToken' | 'timer'> {
   retainedUntil?: number,
   cleaning?: Promise<void>, stopping?: Promise<void>, discard?: boolean,
   summary?: { stopReason: string, count: number, bytes: number, partialRecordCount: number, debugDiscarded: number, error?: string },
-  worker?: ShodanWorker, cleaned: boolean, extension?: { confirm: string, deadline: number, previous: number, expiresAt: number },
+  worker?: ShodanWorker, cleaned: boolean, extending?: boolean, extension?: { confirm: string, deadline: number, previous: number, expiresAt: number },
 }
 
 export function registerShodanSessions(app: FastifyInstance, db: Database.Database, resolver: IdentityResolver,
@@ -232,21 +232,28 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
   app.post<{ Params: { id: string } }>(prefix + '/:id/extend/preview', request => {
     const session = select(request, request.params.id), input = parse(shodanStreamExtendPreview, request.body)
     const deadline = session.expiresAt + input.seconds * 1000
-    if (session.state !== 'running' || session.expiresAt <= Date.now() || deadline > Date.now() + session.limits.leaseSeconds * 1000) throw new ArtiumError('INVALID_INPUT')
+    if (session.extending || session.state !== 'running' || session.expiresAt <= Date.now() || deadline > Date.now() + session.limits.leaseSeconds * 1000) throw new ArtiumError('INVALID_INPUT')
     session.extension = { confirm: randomUUID(), deadline, previous: session.expiresAt, expiresAt: Date.now() + 15 * 60 * 1000 }
     return { ...session.extension }
   })
   app.post<{ Params: { id: string } }>(prefix + '/:id/extend', async request => {
     const session = select(request, request.params.id), input = parse(shodanStreamConfirm, request.body), extension = session.extension
+    if (session.extending) throw new ArtiumError('INVALID_INPUT')
     session.extension = undefined
     if (!extension || extension.confirm !== input.confirm || extension.expiresAt <= Date.now() || extension.previous !== session.expiresAt
       || session.expiresAt <= Date.now() || session.state !== 'running' || !session.worker) throw new ArtiumError('INVALID_INPUT')
+    session.extending = true
     try {
-      await session.worker.extend(extension.deadline)
-      authorize(session)
+      try { await session.worker.extend(extension.deadline) }
+      catch (error) {
+        if (!(error instanceof ArtiumError && ['INVALID_INPUT', 'CANCELLED'].includes(error.code))) await stop(session, 'failed')
+        throw error
+      }
+      try { authorize(session) }
+      catch (error) { await stop(session, 'failed', true); throw error }
       if (session.state !== 'running' || session.expiresAt <= Date.now()) throw new ArtiumError('INVALID_INPUT')
       session.expiresAt = extension.deadline; arm(session); return view(session)
-    } catch (error) { await stop(session, 'failed', true); throw error }
+    } finally { session.extending = false }
   })
   app.delete<{ Params: { id: string } }>(prefix + '/:id', async (request, reply) => {
     const session = select(request, request.params.id, false)

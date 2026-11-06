@@ -59,6 +59,23 @@ test.each([
 
 const profile = () => shodanProfile.prepare('shodan-axi', { auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' }, undefined, false)
 
+test('extension acknowledgements do not exhaust the upstream byte budget', async () => {
+  let ready!: () => void
+  const started = new Promise<void>(resolve => { ready = resolve })
+  const events: unknown[] = []
+  const worker = new ShodanWorker({ directory: join(root, 'private'), input: { ...input, bounds: { ...input.bounds, maxBytes: 512 } },
+    confirmation: 'synthetic', profile: profile(), signal: new AbortController().signal,
+    authorize: () => {}, onEvent: event => events.push(event), onLoss: () => {}, onReady: ready })
+  const running = worker.start()
+  try {
+    await started
+    for (let index = 0; index < 300; index++) await worker.extend(Date.now() + 10000 + index)
+    await worker.stop()
+    await running
+    expect(events).toEqual([{ profile: 'artium', isolated: true, value: 'synthetic' }])
+  } finally { await worker.stop() }
+})
+
 test.each(['idle-timeout', 'max-seconds'])('worker retains a %s summary before readiness', async reason => {
   const summaries: unknown[] = []
   const worker = new ShodanWorker({ directory: join(root, 'private'), input, confirmation: reason, profile: profile(), signal: new AbortController().signal,

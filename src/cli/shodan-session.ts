@@ -12,7 +12,8 @@ Use --selector and --value together when a stream selector is needed. Start repe
 Preview and start accept --events <count>, --bytes <bytes>, --retention <seconds> and --lease <seconds> to lower administrator ceilings.
 Events, bytes and retention default to administrator ceilings; lease defaults to the smaller of 900 seconds and the administrator ceiling.
 Status, read, extend and stop take a session ID. Read accepts --continuation, --limit and --wait.
-Extend previews with --seconds; repeat with --confirm to apply.
+Extend previews with: artium-axi shodan-axi stream session extend <id> --seconds <seconds>
+Apply with: artium-axi shodan-axi stream session extend <id> --confirm <token>
 Stop cancels the session.
 All actions accept --json for JSON output instead of the default TOON output.
 `
