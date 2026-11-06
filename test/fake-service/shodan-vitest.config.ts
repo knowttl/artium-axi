@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
+    fileParallelism: false,
     include: ['test/fake-service/shodan-sessions.cases.ts', 'test/fake-service/shodan-collections.cases.ts'],
     globalSetup: ['test/fixtures/client-inputs-setup.ts'],
     testTimeout: 120_000,
