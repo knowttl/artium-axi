@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.0.36](https://github.com/knowttl/artium-axi/compare/v0.0.35...v0.0.36) (2026-11-06)
+
+
+### Features
+
+* add confirmed Shodan scan submission and bounded collection ([#331](https://github.com/knowttl/artium-axi/issues/331)) ([252bb6f](https://github.com/knowttl/artium-axi/commit/252bb6f92eb2517c8abf38e44d36e3668f4987ee))
+* add hosted Shodan stream session lifecycle ([#327](https://github.com/knowttl/artium-axi/issues/327)) ([6de88c8](https://github.com/knowttl/artium-axi/commit/6de88c839c0e8df9cdd69c86e91df8cf8ba7410b))
+* add managed Shodan account reads ([#321](https://github.com/knowttl/artium-axi/issues/321)) ([f5d2856](https://github.com/knowttl/artium-axi/commit/f5d285679b99b62f5ffc623ef3209eb88a6c3e5f))
+* **cli:** add Shodan radar with retained-event paging ([#330](https://github.com/knowttl/artium-axi/issues/330)) ([4cf1596](https://github.com/knowttl/artium-axi/commit/4cf159670952a43ada9a987fec6f62aef8cbb327))
+* scope delegated Kubernetes sessions and workspaces ([#316](https://github.com/knowttl/artium-axi/issues/316)) ([6941f73](https://github.com/knowttl/artium-axi/commit/6941f73a4f049d875ef30e8eb81a997b9b0f9e3e))
+* **server:** add Shodan stream worker and bounded event spool ([#326](https://github.com/knowttl/artium-axi/issues/326)) ([a300f10](https://github.com/knowttl/artium-axi/commit/a300f100000ec5d2b798122bd4855ffcf17c81ca))
+* **server:** enable delegated token creation and administrator controls ([#324](https://github.com/knowttl/artium-axi/issues/324)) ([7085df4](https://github.com/knowttl/artium-axi/commit/7085df47519909a781eb09a6a584a9bd7cbe6615))
+* **server:** support explicitly scoped delegated downloads ([#322](https://github.com/knowttl/artium-axi/issues/322)) ([19be961](https://github.com/knowttl/artium-axi/commit/19be961d2850840859e674738e6fe9791533a977))
+* **server:** support scoped delegated SSH access ([#318](https://github.com/knowttl/artium-axi/issues/318)) ([dd3b3c6](https://github.com/knowttl/artium-axi/commit/dd3b3c6cfbe86606ab75638be0c2e160140de322))
+* support confirmed Shodan stream lease extensions ([#329](https://github.com/knowttl/artium-axi/issues/329)) ([1626dc2](https://github.com/knowttl/artium-axi/commit/1626dc21bd0149309a1eb881461db0a41f31a78a))
+* support scoped delegated Proxmox streams ([#320](https://github.com/knowttl/artium-axi/issues/320)) ([8b10d90](https://github.com/knowttl/artium-axi/commit/8b10d901d5d096ffc769e0f36a23944873bcd857))
+
+
+### Bug Fixes
+
+* use a license-independent Tenable health read ([#319](https://github.com/knowttl/artium-axi/issues/319)) ([f2e1d3e](https://github.com/knowttl/artium-axi/commit/f2e1d3e8412e703ac2cae5a9ec38f01c965f1a34))
+
 ## [0.0.35](https://github.com/knowttl/artium-axi/compare/v0.0.34...v0.0.35) (2026-11-05)
 
 
