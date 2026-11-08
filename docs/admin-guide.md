@@ -405,6 +405,9 @@ See the [API contract](../src/shared/api.ts) and [retention and export runbook](
 | `ARTIUM_AXI_AUDIT_STDOUT` | `1` streams committed audit records as JSON lines; SQLite remains authoritative. |
 | `ARTIUM_AXI_ADO_API_WRITE_PATHS` | Server-only JSON allow list by uppercase method. Example: `{"PATCH":["_apis/wit/workitems/*"]}`. See the path contract below and [implementation defaults](../src/server/adapters/ado-api.ts). |
 
+The current administration UI and API do not expose the tool mode or role grant for [Raw API access](safety.md#raw-api-access).
+Enabling a tool, granting it to a role or enabling Allow writes does not configure those separate raw permissions.
+
 Configure the ADO API write allow list in the server process environment; it is never accepted from a client or forwarded to the tool.
 Keys are `POST`, `PATCH`, `PUT` or `DELETE`; values are arrays of relative REST path patterns.
 Each pattern matches the complete normalized relative path, case sensitively; a whole segment `*` matches exactly one nonempty segment.

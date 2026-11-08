@@ -79,6 +79,7 @@ Deletion moves the item to the recycle bin unless `--destroy --confirm-destroy` 
 The deletion revision check is a preflight read, not an atomic compare-and-swap; another writer can change the item before DELETE.
 Run commands with `--help` for pipeline, repository, policy and audit-read selectors and native confirmation flags.
 
+Raw routes require the separate [Raw API permission](safety.md#raw-api-access); an ordinary tool grant alone is insufficient.
 `artium-axi ado-axi api <relative-path>` defaults to GET without a body.
 For a listed write, use `artium-axi ado-axi api _apis/wit/workitems/42 -X PATCH --content-type json-patch --body '[{"op":"add","path":"/fields/System.Title","value":"Synthetic title"}]' --no-project`.
 Select POST, PATCH, PUT or DELETE with `-X <method>`, `--method <method>` or a positional method before the path; if both forms are supplied, they must agree.

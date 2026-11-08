@@ -3,6 +3,7 @@
 Contents:
 
 - [Agent session context](#agent-session-context)
+- [Raw API access](#raw-api-access)
 - [Delegated sessions](#delegated-sessions)
 - [Microsoft Graph](#microsoft-graph)
 - [Azure, Falcon and Vectra reads](#azure-falcon-and-vectra-reads)
@@ -31,6 +32,25 @@ Pi retains skill-only setup because this installer has no verified Pi session-co
 OpenCode support is bounded to the released 1.19.x plugin API referenced in the installation guide; an incompatible future plugin API is not claimed.
 No session-end capture is installed, because this integration reads authorization context and does not collect transcripts or activity.
 Local integration tests execute installed commands and plugin exports; actual agent-host loading and live model sessions remain unverified.
+
+## Raw API access
+
+Raw API calls require both the tool's `raw_api_mode` and a current role tool grant with `raw_api = 1`, in addition to ordinary tool access.
+New tool rows default to mode `off`; new role tool grants default to no raw access, including grants removed and later re-added.
+Saving a role's tool selection preserves raw access on retained grants.
+The governed routes are `api` for GitHub, Azure, Azure DevOps and Gitea, and `api get` for Microsoft Graph, Vectra and Hybrid Analysis.
+The reviewed inventories still determine which commands and flags are accepted; raw permission never widens that boundary or a tool's built-in restrictions.
+
+Mode `off` denies raw calls; `read` permits read-classified calls; `read-writes` additionally permits write-classified calls on Azure, Azure DevOps and Gitea.
+Azure raw mutation previews are read-classified; executing a mutation requires `read-writes`.
+Existing tool write gates, operation grants, native confirmation and journaling requirements still apply.
+There is no shared method/path pattern policy; Azure DevOps retains its [server method/path allow list](admin-guide.md#server-settings-and-custody).
+Parsed local help does not require raw permission, but other authorization requirements still apply.
+Delegated raw calls additionally require an exact command selection under the [delegated session rules](#delegated-sessions).
+
+Denied raw calls return `RAW_API_DENIED`; use an admitted named command instead.
+See [administrative limitations](admin-guide.md#server-settings-and-custody) and the [upgrade runbook](runbook.md#backup-restore-and-upgrade-rollback) before relying on raw access.
+The [shared policy](../src/server/policy/policy.ts) owns enforcement.
 
 ## Delegated sessions
 
