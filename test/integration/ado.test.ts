@@ -19,7 +19,7 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { loadTrustedCa } from '../../src/server/trusted-ca.js'
 import { withFakeService } from '../fake-service/fixture.js'
-import { seedToolUser } from '../fixtures/tokens.js'
+import { allowRawApi, seedToolUser } from '../fixtures/tokens.js'
 import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-transport.js'
 
 // Exercise the shipped stand-in from the checkout without requiring an image install.
@@ -327,6 +327,7 @@ test.each([
       credentialStore: store, resolver: new SharedIdentityResolver(store), environment: {} })
     try {
       await seedToolUser(db)
+      allowRawApi(db, 'ado-axi')
       db.exec('UPDATE users SET administrator = 1')
       const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: {
         username: 'synthetic-user', password: 'CANARY-local-password' } })

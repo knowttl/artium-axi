@@ -57,7 +57,7 @@ test('the authenticated skill snapshot follows current grants independently of t
   expect((await app.inject({ url: '/v1/tools', headers })).json()).toEqual({ tools: [] })
   expect((await app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run', headers,
     payload: { args: ['detection', 'list'] } })).json().error.code).toBe('TOOL_DISABLED')
-  db.exec("INSERT INTO role_tools VALUES ('synthetic-role', 'ldap-axi')")
+  db.exec("INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'ldap-axi')")
   expect((await app.inject({ url: '/v1/skills', headers })).json().skills).toEqual([
     { name: 'falcon-axi', content: expect.stringContaining('artium-axi falcon-axi') },
     { name: 'ldap-axi', content: expect.stringContaining('artium-axi ldap-axi user list') },
@@ -65,7 +65,7 @@ test('the authenticated skill snapshot follows current grants independently of t
 })
 
 test('granted tools without runtime adapters still receive skills', async () => {
-  db.exec("INSERT INTO role_tools VALUES ('synthetic-role', 'az-axi')")
+  db.exec("INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'az-axi')")
   const response = await app.inject({ url: '/v1/skills', headers })
   expect(response.statusCode).toBe(200)
   expect(skillsResponseSchema.parse(response.json()).skills.map(skill => skill.name)).toEqual(['az-axi', 'falcon-axi', 'ldap-axi'])
@@ -74,7 +74,7 @@ test('granted tools without runtime adapters still receive skills', async () => 
 test('overlapping role grants produce one skill per tool', async () => {
   db.exec(`INSERT INTO roles (id, name) VALUES ('overlapping-role', 'Overlapping Role');
     INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-development-user', 'overlapping-role');
-    INSERT INTO role_tools VALUES ('overlapping-role', 'falcon-axi')`)
+    INSERT INTO role_tools (role_id, tool) VALUES ('overlapping-role', 'falcon-axi')`)
   const response = await app.inject({ url: '/v1/skills', headers })
   expect(skillsResponseSchema.parse(response.json()).skills.map(skill => skill.name)).toEqual(['falcon-axi', 'ldap-axi'])
 })
@@ -118,7 +118,7 @@ test('the standalone CLI adds a new role grant using the same signed-in session'
   const first = await execute(process.execPath, [bundle, 'setup', '--host', 'codex'], options)
   expect(first.stdout).toContain('falcon-axi,installed')
   expect(first.stdout).not.toContain('ldap-axi')
-  db.exec("INSERT INTO role_tools VALUES ('synthetic-role', 'ldap-axi')")
+  db.exec("INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'ldap-axi')")
   const second = await execute(process.execPath, [bundle, 'setup', '--host', 'codex'], options)
   expect(second.stderr).toBe('')
   expect(second.stdout).toContain('falcon-axi,unchanged')

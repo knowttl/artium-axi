@@ -10,7 +10,7 @@ import { openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { FakeTokenTransport, azureTestTenant } from './azure-token-transport.js'
-import { issueTestAccessToken, seedToolUser } from './tokens.js'
+import { allowRawApi, issueTestAccessToken, seedToolUser } from './tokens.js'
 
 export const subscription = '44444444-4444-4444-8444-444444444444'
 export const azureGatewayTimeoutMs = 15_000
@@ -50,6 +50,7 @@ export async function withAzureGateway(check: (fixture: {
       resolver: { resolve: async () => reference }, environment: {} })
     try {
       await seedToolUser(db)
+      allowRawApi(db, 'az-axi')
       db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.6' WHERE name = 'az-axi'")
       const token = issueTestAccessToken(db, 'synthetic-development-user')
       await check({ db, send, run: async (args, input) => app.inject({ method: 'POST', url: '/v1/tools/az-axi/run',

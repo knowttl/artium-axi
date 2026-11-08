@@ -347,8 +347,8 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     const input = parse(adminRoleRoutes.tools.input, request.body)
     return change(request, adminRoleRoutes.tools.auditEvent, id, readRole, (actor, now) => {
       if (readRole(id).revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
-      db.prepare('DELETE FROM role_tools WHERE role_id = ?').run(id)
-      const grant = db.prepare('INSERT INTO role_tools (role_id, tool) VALUES (?, ?)')
+      db.prepare('DELETE FROM role_tools WHERE role_id = ? AND tool NOT IN (SELECT value FROM json_each(?))').run(id, JSON.stringify(input.tools))
+      const grant = db.prepare('INSERT INTO role_tools (role_id, tool) VALUES (?, ?) ON CONFLICT DO NOTHING')
       for (const tool of input.tools) grant.run(id, tool)
       db.prepare('UPDATE roles SET revision = revision + 1, updated_at = ?, updated_by = ? WHERE id = ?').run(now, actor, id)
     })

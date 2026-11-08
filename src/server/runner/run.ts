@@ -11,7 +11,7 @@ import { verifyAccessFamily, verifyAccessToken, verifyPrincipal } from '../auth/
 import { authorizeDelegatedCall, authorizeDelegatedOperation, credentialIssuingCommand, delegatedDiscovery, delegatedDiscoveryRequest, delegationIncludesTool } from '../auth/delegations.js'
 import type { CredentialReference } from '../store/credential-store.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
-import { checkToolPolicy } from '../policy/policy.js'
+import { checkRawApiPolicy, checkToolPolicy } from '../policy/policy.js'
 import { RunnerError } from './runner.js'
 import type { Runner, RunnerResult, RunnerLimits } from './runner.js'
 import { toolFailure, toolFailureCode } from '../health/diagnostic.js'
@@ -93,6 +93,7 @@ export async function runTool<Credential>(
       }
       adapter.validateArgs(args, input)
       validateFileInput(adapter.name, args, input)
+      checkRawApiPolicy(db, userId, adapter, args, input)
       continuation = adapter.kubernetesContinuation?.(args, input)
       if (principal?.delegation) {
         if (continuation && !continuation.help) {
@@ -171,6 +172,7 @@ export async function runTool<Credential>(
           }
         } else authenticate(db, token)
         checkToolPolicy(db, userId, adapter.name)
+        checkRawApiPolicy(db, userId, adapter, args, input)
       }
       if (prepared.preview || prepared.invocation?.help || !protectedResult && prepared.effect === 'read') {
         for (const command of credentialCommands) audit.record({ ...identity, event: 'credential-issue', targetId: command, outcome: 'preview' })

@@ -31,7 +31,7 @@ beforeEach(() => {
     INSERT INTO bootstrap_metadata VALUES (1, 1);
     INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
     INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
-    INSERT INTO role_tools VALUES ('synthetic-role', 'falcon-axi');`)
+    INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'falcon-axi');`)
   createCredentialStore(db, provider).replaceCredential('falcon-axi', { secret: 'CANARY-backup' }, 0, 'synthetic-user', 1)
   db.close()
 })

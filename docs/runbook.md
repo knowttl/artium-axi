@@ -928,6 +928,9 @@ Start the candidate only against the rehearsal volume and verify fresh login, cr
 Migration 030 enables delegated token creation once for both new and upgraded stores, including stores where it was previously disabled, while preserving the lifetime cap and SSO sign-in window.
 Administrators can disable creation on `/admin/tokens` after migration; that choice survives subsequent restarts.
 See [delegated sessions](safety.md#delegated-sessions) for the creation switch's effect on existing tokens and revocation.
+Migration 031 sets the existing [governed Raw API tools](safety.md#raw-api-access) to `read` and enables raw access on their existing role tool grants, preserving raw reads while refusing raw mutations.
+This is a one-time compatibility migration; tools and grants created afterward retain the default raw restrictions.
+During upgrade acceptance, check raw reads and mutation refusals separately from named commands; see the [administrative limitations](admin-guide.md#server-settings-and-custody).
 The Graph and Azure re-pin preserves retained tool configuration and credentials; no administrator edit is needed to refresh the displayed versions.
 When an upgraded tool pin activates its credential schema, stored credentials are not automatically converted.
 Replace any incompatible credential on its `/admin/tools/:tool` page using the current editor before enabling the tool; stored secrets remain hidden.

@@ -78,6 +78,7 @@ export function createHybridAdapter(source: SecretSource, writeLog: string): Ada
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { hybridArguments(args, input) },
+    rawApi: { commands: ['api get'], writes: false, help: (args, input) => hybridArguments(args, input).invocation.help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => hybridArguments(a, i).invocation, args, input),
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'hybrid-axi' || reference.revision !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')

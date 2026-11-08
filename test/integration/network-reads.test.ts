@@ -18,7 +18,7 @@ import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { loadTrustedCa } from '../../src/server/trusted-ca.js'
 import { SessionStore } from '../../src/cli/session.js'
 import { copyClientInput } from '../fixtures/client-inputs.js'
-import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
+import { allowRawApi, issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { withFakeService } from '../fake-service/fixture.js'
 
 const cases = [
@@ -44,6 +44,7 @@ async function withTool(item: Case, check: (fixture: {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
     await seedToolUser(db)
+    allowRawApi(db, item.tool)
     const store = createCredentialStore(db, provider)
     const origin = `https://localhost:${port}`
     store.replaceCredential(item.tool, item.tool === 'unifi-axi' ? { origin, apiKey: item.secret }
@@ -116,7 +117,7 @@ test.each(cases)('$tool enforces current role and enablement before forwarding',
     db.prepare('DELETE FROM role_tools WHERE tool = ?').run(item.tool)
     const denied = await app.inject({ method: 'POST', url: `/v1/tools/${item.tool}/run`, headers, payload: { args: [...item.args] } })
     expect(denied.json().error.code).toBe('TOOL_NOT_GRANTED')
-    db.prepare('INSERT INTO role_tools VALUES (?, ?)').run('synthetic-role', item.tool)
+    db.prepare('INSERT INTO role_tools (role_id, tool) VALUES (?, ?)').run('synthetic-role', item.tool)
     db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run(item.tool)
     const disabled = await app.inject({ method: 'POST', url: `/v1/tools/${item.tool}/run`, headers, payload: { args: [...item.args] } })
     expect(disabled.json().error.code).toBe('TOOL_DISABLED')

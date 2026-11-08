@@ -1,5 +1,7 @@
 import type Database from 'better-sqlite3'
 import { ArtiumError } from '../../shared/errors.js'
+import type { Adapter } from '../adapters/types.js'
+import type { RunnerInput } from '../runner/input.js'
 import type { ToolName } from '../store/credential-store.js'
 
 export function checkToolPolicy(db: Database.Database, userId: string, tool: ToolName): void {
@@ -13,4 +15,20 @@ export function checkToolPolicy(db: Database.Database, userId: string, tool: Too
     WHERE user_roles.user_id = ? AND role_tools.tool = ? LIMIT 1
   `).get(userId, tool)
   if (!grant) throw new ArtiumError('TOOL_NOT_GRANTED')
+}
+
+export function checkRawApiPolicy(db: Database.Database, userId: string, adapter: Adapter<unknown>,
+  args: readonly string[], input?: RunnerInput): void {
+  const call = adapter.classify(args, input)
+  const raw = adapter.rawApi?.commands.some(command => call.command === command || args.slice(0, command.split(' ').length).join(' ') === command)
+  if (!adapter.rawApi || !raw || call.command !== 'unknown' && adapter.rawApi.help(args, input)) return
+  const effect = adapter.rawApi.effect?.(args, input) ?? call.effect
+  const { raw_api_mode: mode } = db.prepare('SELECT raw_api_mode FROM tools WHERE name = ?').get(adapter.name) as { raw_api_mode: string }
+  const modeAllows = mode === 'read-writes' ? effect === 'read' || adapter.rawApi.writes : mode === 'read' && effect === 'read'
+  const granted = db.prepare(`
+    SELECT 1 FROM user_roles
+    JOIN role_tools ON role_tools.role_id = user_roles.role_id
+    WHERE user_roles.user_id = ? AND role_tools.tool = ? AND role_tools.raw_api = 1 LIMIT 1
+  `).get(userId, adapter.name)
+  if (!modeAllows || !granted) throw new ArtiumError('RAW_API_DENIED')
 }

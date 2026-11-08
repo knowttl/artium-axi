@@ -26,11 +26,11 @@ export const azWritePolicy = writePolicy({ unlocks: 'Reviewed Azure writes and A
 
 // Follow the pinned leaf parser while retaining caller spelling for upstream execution.
 function azArguments(args: readonly string[], input: RunnerInput = {}): {
-  args: string[], invocation: NonNullable<PreparedCall['invocation']>, fileArguments: number[], resources: AzureResourcePlan, write?: PreparedCall['write']
+  args: string[], invocation: NonNullable<PreparedCall['invocation']>, fileArguments: number[], resources: AzureResourcePlan, write?: PreparedCall['write'], rawEffect: 'read' | 'write'
 } {
   if (args.length === 1 && ['--help', '-h', '--version', '-v', '-V'].includes(args[0])) {
     return { args: [...args], invocation: { command: args[0].includes('help') || args[0] === '-h' ? 'home' : 'version', help: args[0].includes('help') || args[0] === '-h' },
-      fileArguments: [], resources: { required: [], optional: [] } }
+      fileArguments: [], resources: { required: [], optional: [] }, rawEffect: 'read' }
   }
   let leading = 0
   while (args[leading]?.startsWith('-')) {
@@ -112,7 +112,8 @@ function azArguments(args: readonly string[], input: RunnerInput = {}): {
   }
   return { args: normalized, invocation: { command: route.canonicalCommand, help: flags.help === 'true' },
     fileArguments, resources: azureCommandResources(route.command, flags),
-    write: azWrite(route, flags, positionals) }
+    write: azWrite(route, flags, positionals),
+    rawEffect: flags.execute === 'true' && ['PUT', 'PATCH', 'POST', 'DELETE'].includes(positionals[0]?.toUpperCase()) ? 'write' : 'read' }
 }
 
 function azWrite(route: typeof inventory.commands[number], flags: Record<string, string>, positionals: string[]): PreparedCall['write'] {
@@ -195,6 +196,8 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
         }),
     }),
     validateArgs: (args, input) => { azArguments(args, input) },
+    rawApi: { commands: ['api'], writes: true, help: (args, input) => azArguments(args, input).invocation.help,
+      effect: (args, input) => azArguments(args, input).rawEffect },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => azArguments(a, i).invocation, args, input),
     async prepare(args, reference, input) {
       const normalized = azArguments(args, input)

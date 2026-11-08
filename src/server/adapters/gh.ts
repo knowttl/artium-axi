@@ -225,6 +225,7 @@ export function createGhAdapter(source: SecretSource, tokens = new GithubAppToke
         .filter((index, ordinal) => !(numericSelector && ordinal === 0 && /^\d+$/.test(args[index]))) }
     },
     validateArgs: (args, input) => { ghArguments(args, input) },
+    rawApi: { commands: ['api'], writes: false, help: (args, input) => ghArguments(args, input).invocation.help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => ghArguments(a, i).invocation, args, input),
     authorizeOperation,
     invalidateCredential: reference => tokens.replace(reference.id, reference.revision ?? 0),

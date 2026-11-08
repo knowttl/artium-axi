@@ -52,6 +52,8 @@ export interface Adapter<Credential> {
   allowedFlagValues: Readonly<Record<string, readonly string[]>>
   sensitiveArguments(args: readonly string[]): SensitiveArguments
   sensitiveInput?(args: readonly string[], input?: RunnerInput): boolean
+  rawApi?: { commands: readonly string[], writes: boolean, help(args: readonly string[], input?: RunnerInput): boolean,
+    effect?(args: readonly string[], input?: RunnerInput): 'read' | 'write' }
   classify(args: readonly string[], input?: RunnerInput): { command: string, effect: 'read' | 'write' }
   nestedOperations?(args: readonly string[], input?: RunnerInput): { command: string, effect: 'read' | 'write' }[]
   kubernetesContinuation?(args: readonly string[], input?: RunnerInput):

@@ -14,7 +14,7 @@ import { Runner } from '../../src/server/runner/runner.js'
 import { openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
-import { seedToolUser } from '../fixtures/tokens.js'
+import { allowRawApi, seedToolUser } from '../fixtures/tokens.js'
 
 let directory: string
 let db: Database.Database
@@ -681,6 +681,17 @@ test('role creation, rename and grant replacement return current metadata and au
   ])
 })
 
+test('replacing role grants keeps the raw API grant on retained tools only', async () => {
+  allowRawApi(db, 'falcon-axi')
+  allowRawApi(db, 'vectra-axi')
+  const replaced = await roleRequest('PUT', '/synthetic-role/tools', { tools: ['falcon-axi', 'ldap-axi'], expectedRevision: 1 })
+  expect(replaced.status).toBe(200)
+  expect(db.prepare("SELECT tool, raw_api FROM role_tools WHERE role_id = 'synthetic-role' ORDER BY tool").all())
+    .toEqual([{ tool: 'falcon-axi', raw_api: 1 }, { tool: 'ldap-axi', raw_api: 0 }])
+  await roleRequest('PUT', '/synthetic-role/tools', { tools: ['falcon-axi', 'ldap-axi', 'vectra-axi'], expectedRevision: 2 })
+  expect(db.prepare("SELECT raw_api FROM role_tools WHERE role_id = 'synthetic-role' AND tool = 'vectra-axi'").get()).toEqual({ raw_api: 0 })
+})
+
 test('role listing uses bounded stable pagination', async () => {
   db.exec("INSERT INTO roles (id, name) VALUES ('a', 'First')")
   const first = adminRolesResponseSchema.parse(await (await roleRequest('GET', '?limit=1')).json())
@@ -800,7 +811,7 @@ test.each(['ÉMILIE', 'émilie'])('user search folds Unicode consistently for bo
 
 test('user detail combines overlapping role grants and reports disabled access without granting admin tools', async () => {
   db.exec(`INSERT INTO roles (id, name) VALUES ('extra', 'Extra');
-    INSERT INTO role_tools VALUES ('extra', 'falcon-axi');
+    INSERT INTO role_tools (role_id, tool) VALUES ('extra', 'falcon-axi');
     INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-ordinary', 'extra');
     UPDATE tools SET enabled = CASE WHEN name = 'falcon-axi' THEN 1 ELSE 0 END;`)
   const detail = adminUserRoutes.get.response.parse(await (await request('GET', '/synthetic-ordinary')).json())

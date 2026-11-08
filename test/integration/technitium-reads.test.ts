@@ -299,7 +299,7 @@ test('revoked access blocks retrieval until the current grant is restored', asyn
     const { result } = JSON.parse((await cli(['technitium-axi', 'user', 'session', 'get', '--json'])).stdout)
     db.prepare("DELETE FROM role_tools WHERE tool = 'technitium-axi'").run()
     expect((await app.inject({ url: result.path, headers })).json().error.code).toBe('TOOL_NOT_GRANTED')
-    db.prepare("INSERT INTO role_tools VALUES ('synthetic-role', 'technitium-axi')").run()
+    db.prepare("INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'technitium-axi')").run()
     db.prepare("UPDATE tools SET enabled = 0 WHERE name = 'technitium-axi'").run()
     expect((await app.inject({ url: result.path, headers })).json().error.code).toBe('TOOL_DISABLED')
     db.prepare("UPDATE tools SET enabled = 1 WHERE name = 'technitium-axi'").run()

@@ -258,7 +258,7 @@ test.each(['read', 'write'])('AWX %s PAT creation delivers bytes once to the aut
     expect(other.statusCode).toBe(404)
     db.exec("DELETE FROM role_tools WHERE tool = 'awx-axi'")
     expect((await app.inject({ method: 'GET', url: result.result.path, headers })).statusCode).toBe(403)
-    db.exec("INSERT INTO role_tools VALUES ('synthetic-role', 'awx-axi')")
+    db.exec("INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'awx-axi')")
     db.exec(`UPDATE tools SET native_settings = '{"allowWrites":false}' WHERE name = 'awx-axi'`)
     const downloaded = await app.inject({ method: 'GET', url: result.result.path, headers })
     expect(downloaded.statusCode, downloaded.body).toBe(200)

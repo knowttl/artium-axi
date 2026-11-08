@@ -419,7 +419,7 @@ test('update replaces the running bundle using saved TLS settings and keeps one 
     const result = await execute(process.execPath, [executable, 'update'], { env: { XDG_CONFIG_HOME: install }, timeout: 10_000 })
     expect(result.stdout).toContain('status: updated')
     expect((await execute(process.execPath, [executable, '--version'])).stdout).toBe('999.0.0\n')
-    expect(readFileSync(`${executable}.bak`)).toEqual(original)
+    expect(readFileSync(`${executable}.bak`).equals(original)).toBe(true)
     expect(statSync(executable).mode & 0o777).toBe(statSync(bundle).mode & 0o777)
     expect(requests.map(request => ({ path: request.path, token: request.token }))).toEqual([
       { path: '/cli/artium-axi.mjs', token: undefined }, { path: '/cli/artium-axi.mjs.sha256', token: undefined },
@@ -440,7 +440,7 @@ test.each(['0'.repeat(64), 'not-a-digest'])('update rejects checksum %s without 
     await expect(execute(process.execPath, [executable, 'update'], { timeout: 10_000,
       env: { XDG_CONFIG_HOME: install, ARTIUM_AXI_URL: url, ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt') },
     })).rejects.toMatchObject({ code: 1, stdout: expect.stringContaining('SHA-256 verification') })
-    expect(readFileSync(executable)).toEqual(readFileSync(bundle))
+    expect(readFileSync(executable).equals(readFileSync(bundle))).toBe(true)
     expect(readFileSync(`${executable}.bak`, 'utf8')).toBe('previous backup')
     expect(readdirSync(install).sort()).toEqual(['artium-axi.mjs', 'artium-axi.mjs.bak'])
   } finally { doctorResponses = undefined }
@@ -456,7 +456,7 @@ test('update refuses npm installations before reading configuration or contactin
   await expect(execute(process.execPath, [executable, 'update'], { timeout: 10_000, env: { XDG_CONFIG_HOME: install } }))
     .rejects.toMatchObject({ code: 2, stdout: expect.stringContaining('npm install -g @knowttl/artium-axi@latest') })
   expect(requests).toEqual([])
-  expect(readFileSync(executable)).toEqual(readFileSync(bundle))
+  expect(readFileSync(executable).equals(readFileSync(bundle))).toBe(true)
 })
 
 test.each(['password', 'sso'])('%s login remembers connection settings for tools and the installed SessionStart hook', async method => {
