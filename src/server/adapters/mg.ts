@@ -110,7 +110,7 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
     allowedFlagValues: {}, sensitiveArguments: args => ({ flags: mgManifest.sensitiveFlags.map(name => `--${name}`),
       positions: args.slice(0, 3).join(' ') === 'security hunting query' ? args.map((_, index) => index) : [] }),
     validateArgs: (args, input) => { mgArguments(args, input) },
-    rawApi: { commands: ['api get'], writes: false },
+    rawApi: { commands: ['api get'], writes: false, help: (args, input) => mgArguments(args, input).invocation.help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(
       inventory.commands.map(route => ({ ...route, effect: mgReadCommands.has(route.command) ? 'read' : 'write' })),
       (a, i) => mgArguments(a, i).invocation, args, input),

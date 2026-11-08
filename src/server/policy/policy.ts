@@ -21,7 +21,7 @@ export function checkRawApiPolicy(db: Database.Database, userId: string, adapter
   args: readonly string[], input?: RunnerInput): void {
   const call = adapter.classify(args, input)
   const raw = adapter.rawApi?.commands.some(command => call.command === command || args.slice(0, command.split(' ').length).join(' ') === command)
-  if (!adapter.rawApi || !raw || args.join(' ') === `${call.command} --help`) return
+  if (!adapter.rawApi || !raw || call.command !== 'unknown' && adapter.rawApi.help(args, input)) return
   const effect = adapter.rawApi.effect?.(args, input) ?? call.effect
   const { raw_api_mode: mode } = db.prepare('SELECT raw_api_mode FROM tools WHERE name = ?').get(adapter.name) as { raw_api_mode: string }
   const modeAllows = mode === 'read-writes' ? effect === 'read' || adapter.rawApi.writes : mode === 'read' && effect === 'read'
