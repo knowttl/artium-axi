@@ -45,7 +45,7 @@ db.exec(`INSERT INTO users (id, username, display_name, password_hash) VALUES ('
   UPDATE tools SET enabled = 1 WHERE name = 'mg-axi';
   INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
   INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
-  INSERT INTO role_tools VALUES ('synthetic-role', 'mg-axi');`)
+  INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'mg-axi');`)
 const token = issueTestAccessToken(db, 'synthetic-user')
 const resolver = new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]))
 let request = 0
@@ -184,7 +184,7 @@ try {
   await assert.rejects(run(hunting, input), error => error.code === 'TOOL_NOT_GRANTED')
   await assert.rejects(run(['entra', 'user', 'list']), error => error.code === 'TOOL_NOT_GRANTED')
   assert.equal(credentialReads, before)
-  db.exec("INSERT INTO role_tools VALUES ('synthetic-role', 'mg-axi')")
+  db.exec("INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'mg-axi')")
   const preview = await run(write)
   assert.equal(preview.exitCode, 0, preview.stdout + preview.stderr)
   assert.match(preview.stdout, /status: preview/)

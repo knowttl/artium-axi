@@ -192,6 +192,7 @@ export function createAdoAdapter(source: SecretSource, cache = new AzureTokenCac
     sensitiveArguments: args => ({ flags: ['--body', '--description', '--title', '--set', '--query', '--comment', '--definition', '--policy-json', '--artifacts', '--source-url'],
       positions: args.map((_, index) => index).filter(index => index > 0 && !args[index].startsWith('-')) }),
     validateArgs: (args, input) => { adoArguments(args, input) },
+    rawApi: { commands: ['api'], writes: true },
     classify(args, input) {
       let apiWrite = false
       const result = classifyCommand(inventory.commands, (a, i) => {

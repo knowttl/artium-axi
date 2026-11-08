@@ -229,6 +229,35 @@ test('Azure DevOps API method overrides do not turn mutations into reads', () =>
   expect(adapter.classify(['api', '--method', 'GET', '--help'])).toEqual({ command: 'api', effect: 'read' })
 })
 
+test.each([
+  ['gh-axi', ['api', 'repos/synthetic/synthetic'], 'api', 'read', false],
+  ['ado-axi', ['api', '_apis/projects'], 'api', 'read', true],
+  ['ado-axi', ['api', 'POST', '_apis/projects', '--body', '{}'], 'api', 'write', true],
+  ['gitea-axi', ['api', 'repos/search'], 'api', 'read', true],
+  ['gitea-axi', ['api', 'POST', 'repos/synthetic/synthetic/labels', '--allow-write', 'issueCreateLabel', '--preview'], 'api', 'write', true],
+  ['mg-axi', ['api', 'get', '/users'], 'api get', 'read', false],
+  ['vectra-axi', ['api', 'get', '--path', '/detections'], 'api get', 'read', false],
+  ['hybrid-axi', ['api', 'get', '/report'], 'api get', 'read', false],
+] as const)('%s declares the raw API route that classifies %j', (tool, args, command, effect, writes) => {
+  const adapter = adapters.find(item => item.name === tool)!
+  vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', JSON.stringify({ POST: ['_apis/projects'] }))
+  expect(adapter.classify(args)).toEqual({ command, effect })
+  expect(adapter.rawApi).toMatchObject({ commands: [command], writes })
+})
+
+test.each([
+  [['api', 'GET', '/subscriptions'], 'read'],
+  [['api', 'GET', '/subscriptions', '--execute=false'], 'read'],
+  [['api', 'PUT', '/subscriptions/synthetic'], 'read'],
+  [['api', 'PUT', '/subscriptions/synthetic', '--execute'], 'write'],
+  [['api', 'POST', '/v1.0/directoryObjects/getByIds', '--resource=graph', '--execute'], 'write'],
+] as const)('az-axi declares its raw API route and judges %j as %s', (args, effect) => {
+  const adapter = adapters.find(item => item.name === 'az-axi')!
+  expect(adapter.classify(args).command).toBe('api')
+  expect(adapter.rawApi).toMatchObject({ commands: ['api'], writes: true })
+  expect(adapter.rawApi!.effect!(args)).toBe(effect)
+})
+
 test.each(adapters)('$name classifies an unknown command as write', adapter => {
   expect(adapter.classify(['synthetic-unknown']).effect).toBe('write')
 })

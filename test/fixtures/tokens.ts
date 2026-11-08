@@ -10,7 +10,12 @@ export async function seedToolUser(db: Database.Database): Promise<void> {
     VALUES ('synthetic-development-user', 'synthetic-user', 'Synthetic User', ?, 0)`).run(hash)
   db.exec(`INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
     INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-development-user', 'synthetic-role');
-    INSERT INTO role_tools SELECT 'synthetic-role', name FROM tools`)
+    INSERT INTO role_tools (role_id, tool) SELECT 'synthetic-role', name FROM tools`)
+}
+
+export function allowRawApi(db: Database.Database, tool: string, mode: 'read' | 'read-writes' = 'read-writes'): void {
+  db.prepare('UPDATE tools SET raw_api_mode = ? WHERE name = ?').run(mode, tool)
+  db.prepare('UPDATE role_tools SET raw_api = 1 WHERE tool = ?').run(tool)
 }
 
 // Fixture issuance is excluded from server source and refuses non-test execution.

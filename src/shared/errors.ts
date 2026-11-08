@@ -58,6 +58,7 @@ const definitions = {
   USER_DISABLED: { status: 403, message: 'The user is disabled.', next: 'Ask the administrator to enable the user.' },
   TOOL_DISABLED: { status: 403, message: 'The tool is disabled.', next: 'Ask the administrator to enable the tool.' },
   TOOL_NOT_GRANTED: { status: 403, message: 'The user has no role granting this tool.', next: 'Ask the administrator to assign a role granting the tool.' },
+  RAW_API_DENIED: { status: 403, message: 'Raw API access is not permitted for this tool, method or role.', next: 'Use a named command, or ask the administrator to enable Raw API for the tool and grant it to a role.' },
   MASTER_KEY_INVALID: { status: 503, message: 'The master key is missing or invalid.', next: 'Supply a 32-byte master key file or a base64 master key.' },
   CREDENTIAL_INVALID: { status: 503, message: 'The stored credential is invalid.', next: 'Ask an administrator to check the named field, matching master key and credential JSON, then save and test again.' },
   CREDENTIAL_EXPIRED: { status: 503, message: 'The GitHub credential expired or was revoked.', next: 'Ask an administrator to reconnect at /admin/tools/gh-axi. Tokens are never refreshed automatically.' },

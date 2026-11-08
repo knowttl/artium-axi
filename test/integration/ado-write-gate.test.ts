@@ -10,7 +10,7 @@ import { Runner } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
-import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
+import { allowRawApi, issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 
 let directory: string
 let db: ReturnType<typeof openStore>
@@ -23,6 +23,7 @@ beforeEach(async () => {
   db = openStore(join(directory, 'artium.db'), provider)
   const store = createCredentialStore(db, provider)
   await seedToolUser(db)
+  allowRawApi(db, 'ado-axi')
   store.replaceCredential('ado-axi', { org: 'synthetic-org', project: 'Synthetic Project', auth: 'pat',
     token: 'CANARY-ado-pat', allowWrites: true }, 0, 'synthetic-development-user', Date.now())
   db.exec(`UPDATE tools SET enabled = 1, native_settings = '{"allowWrites":true}' WHERE name = 'ado-axi'`)
@@ -108,6 +109,27 @@ test('raw API writes receive the native switch only after path and host write au
   vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', '{"PATCH":["_apis/wit/workitems/*"]}')
   expect((await run(args)).json()).toMatchObject({ exitCode: 0, stdout: '{"writes":"1"}\n' })
   expect((await run(['api', '_apis/wit/workitems/42'])).json()).toMatchObject({ exitCode: 0, stdout: '{"writes":null}\n' })
+})
+
+test('raw API calls follow the tool mode and role grant, are audited as denials, and never block help or named commands', async () => {
+  vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', '{"PATCH":["_apis/wit/workitems/*"]}')
+  const read = ['api', '_apis/wit/workitems/42']
+  const write = ['api', '_apis/wit/workitems/42', '--method', 'PATCH', '--body', '[]']
+  const code = async (args: string[]) => (await run(args)).json().error?.code
+  db.exec("UPDATE tools SET raw_api_mode = 'off' WHERE name = 'ado-axi'")
+  expect(await code(read)).toBe('RAW_API_DENIED')
+  expect(await code(['api', '--help'])).toBeUndefined()
+  expect(await code(['project', 'list'])).toBeUndefined()
+  db.exec("UPDATE tools SET raw_api_mode = 'read' WHERE name = 'ado-axi'")
+  expect(await code(read)).toBeUndefined()
+  expect(await code(write)).toBe('RAW_API_DENIED')
+  db.exec("UPDATE tools SET raw_api_mode = 'read-writes' WHERE name = 'ado-axi'")
+  expect(await code(write)).toBeUndefined()
+  db.exec("UPDATE role_tools SET raw_api = 0 WHERE tool = 'ado-axi'")
+  expect(await code(read)).toBe('RAW_API_DENIED')
+  expect(await code(['project', 'list'])).toBeUndefined()
+  expect(db.prepare("SELECT outcome FROM audit WHERE event = 'denial' AND tool = 'ado-axi' ORDER BY id").all().map(row => (row as { outcome: string }).outcome))
+    .toEqual(['RAW_API_DENIED', 'RAW_API_DENIED', 'RAW_API_DENIED'])
 })
 
 test.each([

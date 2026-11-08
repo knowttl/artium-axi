@@ -64,6 +64,7 @@ Azure token-acquisition diagnostics retain supported provider codes.
 | USER_DISABLED | artium-axi | 403 | 1 | The user is disabled. | Ask the administrator to enable the user. |
 | TOOL_DISABLED | artium-axi | 403 | 1 | The tool is disabled. | Ask the administrator to enable the tool. |
 | TOOL_NOT_GRANTED | artium-axi | 403 | 1 | The user has no role granting this tool. | Ask the administrator to assign a role granting the tool. |
+| RAW_API_DENIED | artium-axi | 403 | 1 | Raw API access is not permitted for this tool, method or role. | Use a named command, or ask the administrator to enable Raw API for the tool and grant it to a role. |
 | MASTER_KEY_INVALID | artium-axi | 503 | 1 | The master key is missing or invalid. | Supply a 32-byte master key file or a base64 master key. |
 | CREDENTIAL_INVALID | artium-axi | 503 | 1 | The stored credential is invalid. | Ask an administrator to check the named field, matching master key and credential JSON, then save and test again. |
 | CREDENTIAL_EXPIRED | artium-axi | 503 | 1 | The GitHub credential expired or was revoked. | Ask an administrator to reconnect at /admin/tools/gh-axi. Tokens are never refreshed automatically. |

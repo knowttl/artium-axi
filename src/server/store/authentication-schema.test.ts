@@ -61,7 +61,7 @@ it('migrates an empty store and persists the identity relationships on reopen', 
   `)
   db.close()
   db = openStore(file, provider)
-  expect(db.prepare('SELECT version FROM migrations ORDER BY version').all()).toEqual([{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }, { version: 5 }, { version: 6 }, { version: 7 }, { version: 8 }, { version: 9 }, { version: 10 }, { version: 11 }, { version: 12 }, { version: 13 }, { version: 14 }, { version: 15 }, { version: 16 }, { version: 17 }, { version: 18 }, { version: 19 }, { version: 20 }, { version: 21 }, { version: 22 }, { version: 23 }, { version: 24 }, { version: 25 }, { version: 26 }, { version: 27 }, { version: 28 }, { version: 29 }, { version: 30 }])
+  expect(db.prepare('SELECT version FROM migrations ORDER BY version').all()).toEqual([{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }, { version: 5 }, { version: 6 }, { version: 7 }, { version: 8 }, { version: 9 }, { version: 10 }, { version: 11 }, { version: 12 }, { version: 13 }, { version: 14 }, { version: 15 }, { version: 16 }, { version: 17 }, { version: 18 }, { version: 19 }, { version: 20 }, { version: 21 }, { version: 22 }, { version: 23 }, { version: 24 }, { version: 25 }, { version: 26 }, { version: 27 }, { version: 28 }, { version: 29 }, { version: 30 }, { version: 31 }])
   expect(db.prepare(`SELECT tool FROM user_roles JOIN role_tools USING (role_id) WHERE user_id = 'person'`).all())
     .toEqual([{ tool: 'falcon-axi' }])
   expect(db.prepare('SELECT source, administrator, revision FROM users WHERE id = ?').get('person'))
@@ -94,7 +94,7 @@ it('upgrades a Phase 2 store without changing its encrypted credential or tool s
   db.close()
   db = openStore(file, provider)
   expect(db.prepare('SELECT * FROM credentials').get()).toEqual({ ...previousCredential, updated_at: null, updated_by: null })
-  expect(db.prepare("SELECT * FROM tools WHERE name = 'falcon-axi'").get()).toEqual({ ...previousTool, updated_at: null, updated_by: null })
+  expect(db.prepare("SELECT * FROM tools WHERE name = 'falcon-axi'").get()).toEqual({ ...previousTool, updated_at: null, updated_by: null, raw_api_mode: 'off' })
   expect(decryptCredential(db.prepare('SELECT * FROM credentials').get() as EncryptedCredential, provider.getKey()))
     .toEqual(Buffer.from('CANARY-preserved'))
   db.prepare('INSERT INTO users (id, username, display_name, password_hash) VALUES (?, ?, ?, ?)')
@@ -111,14 +111,14 @@ it('rejects duplicate canonical usernames while retaining separate display names
 
 it('keeps administrator capability separate from tool grants', () => {
   seedIdentity()
-  db.exec("UPDATE users SET administrator = 1 WHERE id = 'other'; INSERT INTO user_roles (user_id, role_id) VALUES ('person', 'reader'); INSERT INTO role_tools VALUES ('reader', 'falcon-axi');")
+  db.exec("UPDATE users SET administrator = 1 WHERE id = 'other'; INSERT INTO user_roles (user_id, role_id) VALUES ('person', 'reader'); INSERT INTO role_tools (role_id, tool) VALUES ('reader', 'falcon-axi');")
   expect(db.prepare("SELECT administrator FROM users WHERE id = 'person'").get()).toEqual({ administrator: 0 })
   expect(db.prepare("SELECT tool FROM user_roles JOIN role_tools USING (role_id) WHERE user_id = 'other'").all()).toEqual([])
 })
 
 it.each([
-  "INSERT INTO role_tools VALUES ('missing', 'falcon-axi')",
-  "INSERT INTO role_tools VALUES ('reader', 'missing')",
+  "INSERT INTO role_tools (role_id, tool) VALUES ('missing', 'falcon-axi')",
+  "INSERT INTO role_tools (role_id, tool) VALUES ('reader', 'missing')",
   "INSERT INTO user_roles (user_id, role_id) VALUES ('missing', 'reader')",
   "INSERT INTO user_roles (user_id, role_id) VALUES ('person', 'missing')",
   "INSERT INTO session_families (id, user_id, created_at, expires_at) VALUES ('missing', 'missing', 1000, 2000)",

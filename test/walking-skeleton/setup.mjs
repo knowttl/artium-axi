@@ -11,7 +11,7 @@ try {
   await bootstrapAdministrator(db, { ARTIUM_AXI_ADMIN_USERNAME: 'synthetic-admin', ARTIUM_AXI_ADMIN_PASSWORD_FILE: '/data/admin-password' })
   db.exec(`INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
     INSERT INTO user_roles (user_id, role_id) SELECT id, 'synthetic-role' FROM users;
-    INSERT INTO role_tools SELECT 'synthetic-role', name FROM tools`)
+    INSERT INTO role_tools (role_id, tool) SELECT 'synthetic-role', name FROM tools`)
   db.prepare("UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'").run()
   const credential = encryptCredential('synthetic-falcon', 'falcon-axi', Buffer.from(JSON.stringify({
     clientId: 'CANARY-falcon-id', clientSecret: 'CANARY-falcon-secret', region: 'https://falcon.synthetic.crowdstrike.com',
