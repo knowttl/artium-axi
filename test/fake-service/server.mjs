@@ -209,8 +209,11 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     requests.push(recorded)
     if (!canaryReceived) { res.writeHead(401); res.end(JSON.stringify({ kind: 'Status', apiVersion: 'v1', status: 'Failure', reason: 'Unauthorized', code: 401 })); return }
     if (url.searchParams.get('watch') === 'true' && url.pathname === '/api/v1/namespaces/synthetic/pods') {
-      res.end(JSON.stringify({ type: 'ADDED', object: { apiVersion: 'v1', kind: 'Pod',
-        metadata: { name: 'synthetic-pod', namespace: 'synthetic', resourceVersion: '18' }, status: { phase: 'Running' } } }) + '\n'); return
+      const event = JSON.stringify({ type: 'ADDED', object: { apiVersion: 'v1', kind: 'Pod',
+        metadata: { name: 'synthetic-pod', namespace: 'synthetic', resourceVersion: '18' }, status: { phase: 'Running' } } }) + '\n'
+      if (kubernetesFailure?.mode === 'hold-watch') res.write(event)
+      else res.end(event)
+      return
     }
     if (/^\/api\/v1\/namespaces\/synthetic\/configmaps(?:\/|$)/.test(url.pathname)) {
       let body = ''

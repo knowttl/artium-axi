@@ -273,7 +273,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       const operation = classifyDelegatedCommand(adapter, input.argv)
       if (credentialIssuingCommand(adapter.name, operation.command)) checkDelegation(owner.delegation.scopeJson, owner.delegation.readOnly, adapter, operation.command, 'write')
     }
-    const credential = await resolver.resolve(owner.user, 'kubernetes-axi')
+    const credential = await resolver.resolve(owner.user, 'kubernetes-axi', input.instance)
     const binding = kubernetesBinding(db, owner, credential.id, input.kind), policy = binding.settings.sessions!
     if (binding.credential.revision !== credential.revision) throw new ArtiumError('REVISION_CONFLICT')
     const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(binding.credential.id) as { name: string } | undefined)?.name

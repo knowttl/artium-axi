@@ -44,11 +44,12 @@ export function kubernetesBinding(db: Database.Database, owner: KubernetesOwner,
   const tool = db.prepare("SELECT revision,native_settings FROM tools WHERE name='kubernetes-axi'").get() as { revision: number, native_settings: string }
   const settings = nativeSettingsSchemas['kubernetes-axi'].parse(JSON.parse(tool.native_settings))
   if (operation) authorizeSessionKind(settings, owner.user, operation)
-  const credential = db.prepare("SELECT id,revision FROM credentials WHERE tool='kubernetes-axi' AND id=?").get(credentialId) as { id: string, revision: number } | undefined
+  const credential = db.prepare("SELECT id,revision,read_only FROM credentials WHERE tool='kubernetes-axi' AND id=?").get(credentialId) as { id: string, revision: number, read_only: number } | undefined
   if (!credential) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
   const writing = operation !== undefined && !['watch', 'logs'].includes(operation)
-  const reference = { ...credential, tool: 'kubernetes-axi' as const }
-  return { settings, credential: { ...credential, tool: 'kubernetes-axi' as const },
+  if (writing && credential.read_only) throw new ArtiumError('FLAG_BLOCKED')
+  const reference = { id: credential.id, revision: credential.revision, tool: 'kubernetes-axi' as const }
+  return { settings, credential: reference,
     hash: createHash('sha256').update(JSON.stringify({ credential, trust: readCredentialTrust(db, reference), policy: operation ? {
       granted: settings.sessions?.grants[owner.user]?.includes(operation), allowWrites: writing ? settings.allowWrites : undefined,
       collectionDelete: writing ? settings.collectionDelete : undefined,

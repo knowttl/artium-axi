@@ -295,7 +295,8 @@ const auditCursorSchema = z.string().max(50).regex(/^\d{1,16}:\d{1,16}:\d{1,16}$
     const [ceiling, time, id] = value.split(':').map(Number) as [number, number, number]
     return [ceiling, time, id].every(Number.isSafeInteger) && ceiling > 0 && id > 0 && id <= ceiling && time <= 8_640_000_000_000_000
   })
-export const instanceNameSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/)
+import { instanceNameSchema } from './instance.js'
+export { instanceNameSchema } from './instance.js'
 const auditFiltersSchema = z.strictObject({
   delegationId: z.string().min(1).max(100).optional(),
   requestId: z.string().min(1).max(100).optional(),

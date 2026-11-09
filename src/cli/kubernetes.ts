@@ -31,7 +31,7 @@ async function fileBytes(path: string, limit = 100 * 1024 * 1024) {
   } finally { await file.close() }
 }
 
-export async function kubernetesHosted(args: string[], createClient: () => Client, write: (text: string, stream?: 'stdout' | 'stderr') => void, permittedCommands?: readonly string[]): Promise<boolean> {
+export async function kubernetesHosted(args: string[], createClient: () => Client, write: (text: string, stream?: 'stdout' | 'stderr') => void, permittedCommands?: readonly string[], instance?: string): Promise<boolean> {
   let prefix = 0
   while (args[prefix] === '--json') prefix++
   if (args[prefix] === 'tunnel') return kubernetesTunnel(createClient, [...args.slice(prefix), ...(prefix ? ['--json'] : [])], text => write(text))
@@ -53,6 +53,7 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
     return false
   }
   const { flags, positionals, native, help, route } = kubernetesHostedArguments(rest, group, action)
+  if (instance !== undefined && !help && !['workspace create', 'session start'].includes(route)) throw new ArtiumError('INVALID_INPUT')
   const print = (value: unknown) => write((prefix || flags.has('--json') ? JSON.stringify(value) : encode(value)) + '\n')
   if (help) {
     const kinds = (permittedCommands ?? []).filter(command => command.startsWith('session start ')).map(command => command.slice('session start '.length))
@@ -95,7 +96,7 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
       }
     }
     await visit(root)
-    const manifest = validated(kubernetesWorkspaceManifest, { files })
+    const manifest = validated(kubernetesWorkspaceManifest, { files, instance })
     const workspace = validated(workspaceSchema, await call(base, 'POST', manifest), 'INVALID_RESPONSE')
     try {
       for (const file of files) await call(`${base}/${workspace.id}/files/${file.path.split('/').map(encodeURIComponent).join('/')}`, 'PUT', await fileBytes(join(root, file.path)))
@@ -110,7 +111,7 @@ export async function kubernetesHosted(args: string[], createClient: () => Clien
   if (route === 'session start') {
     if (positionals.length !== 1 || !native.length) throw new ArtiumError('INVALID_INPUT')
     const kind = positionals[0]
-    const input = validated(kubernetesSessionStart, { kind,
+    const input = validated(kubernetesSessionStart, { kind, instance,
       argv: ['watch', 'logs'].includes(kind) ? native : ['prepare', '--', ...native], workspace: flags.get('--workspace'),
       ...(flags.has('--stdin-file') ? { stdinBase64: (await fileBytes(flags.get('--stdin-file')!, 512 * 1024)).toString('base64') } : {}),
       ...(flags.has('--input-workspace') || flags.has('--input-path') ? { inputArtifact: { workspace: flags.get('--input-workspace'), path: flags.get('--input-path') } } : {}),
