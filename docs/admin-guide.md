@@ -122,7 +122,8 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/settings/sign-in/:id/matches/:ruleId` | Who matches a role rule, from saved sign-in claims. |
 | `/device` | Approve or deny a CLI sign-in or identity confirmation code. |
 
-Tool State reflects the latest cached check for the current credential even while the tool is disabled; Enabled is shown separately, with its switch on the tool detail page.
+Tool State reflects cached instance health even while the tool is disabled; Enabled is shown separately, with its switch on the tool detail page.
+See the [health aggregation rules](runbook.md#backup-restore-and-upgrade-rollback).
 The Needs attention filter includes Failing and Needs credential states.
 
 For users granted Hybrid Analysis, Check Point, Microsoft Graph or BeyondTrust, `/account` also shows artifact warnings, CLI save guidance for [Hybrid Analysis archives](client-reference.md#hybrid-analysis-archive-saving), [Check Point emails and attachments](client-reference.md#check-point-email-and-attachment-saving), [Microsoft Graph mail](client-reference.md#microsoft-graph-mail-saving) and [BeyondTrust endpoint content](client-reference.md#beyondtrust-pm-cloud), and metadata for their latest 20 transfers, including delivery and client-save receipts.
