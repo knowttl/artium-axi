@@ -456,7 +456,7 @@ test('Audit filtering by instance returns only that instance in the screen, API 
       requestId: `${instance}-call`, clientAddress: null, credentialId: `${instance}-id`, instance })
   }
   audit.record({ event: 'denial', userId, tool: 'falcon-axi', outcome: 'INSTANCE_REQUIRED', requestId: 'unattributed', clientAddress: null })
-  audit.record({ event: 'sign-in', userId, outcome: 'success', requestId: 'historic-sign-in', clientAddress: null })
+  audit.record({ event: 'sign-in', userId, tool: null, outcome: 'success', requestId: 'historic-sign-in', clientAddress: null })
   const screen = await request('GET', '/admin/audit?instance=lab')
   expect(screen.body).toContain('<th scope="col">Instance</th>')
   expect(screen.body).toContain('<td>lab</td>')
