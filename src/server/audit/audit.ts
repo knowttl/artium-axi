@@ -74,6 +74,8 @@ export interface AuditRecord extends Pick<z.infer<typeof adminAuditRecordSchema>
   provider_id: string | null
   subject: string | null
   delegation_id?: string | null
+  credential_id?: string | null
+  instance?: string | null
 }
 
 const dayMs = 24 * 60 * 60 * 1000
@@ -271,6 +273,7 @@ export class Audit {
       native_journal_result: transfer?.native_journal_result ?? (terminal?.completedMutation ? JSON.stringify(terminal.completedMutation) : null),
       client_save_outcome: transfer?.client_save_outcome ?? null,
       delegation_id: event.delegationId ?? null,
+      credential_id: null, instance: null,
     }
     const inserted = this.db.prepare(`INSERT INTO audit (${Object.keys(row).join(', ')})
       VALUES (${Object.keys(row).map(key => `@${key}`).join(', ')})`).run(row)

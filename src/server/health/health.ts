@@ -135,9 +135,9 @@ export class ToolHealth {
       if (code === 'TOO_MANY_CALLS' && this.store?.findCredential(tool)?.revision === reference.revision
         && this.generations.get(tool) === generation) {
         const checkedAt = Date.now()
-        this.db.prepare(`INSERT INTO tool_health (tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, 'error', ?)
-          ON CONFLICT(tool) DO UPDATE SET credential_revision = excluded.credential_revision, checked_at = excluded.checked_at,
-          status = excluded.status, error_code = excluded.error_code`).run(tool, reference.revision, checkedAt, code)
+        this.db.prepare(`INSERT INTO tool_health (credential_id, tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, 'error', ?)
+          ON CONFLICT(credential_id) DO UPDATE SET credential_revision = excluded.credential_revision, checked_at = excluded.checked_at,
+          status = excluded.status, error_code = excluded.error_code`).run(reference.id, tool, reference.revision, checkedAt, code)
         this.diagnostics.set(tool, { stage: 'configuration', message: 'Credential check pending: runner busy.',
           checkedAt, credentialRevision: reference.revision })
         if (this.active.has(tool)) this.replaced.add(tool)
@@ -259,10 +259,10 @@ export class ToolHealth {
           'USER_DISABLED', 'ADMIN_REQUIRED', 'REAUTH_REQUIRED'].includes(failure?.code ?? '')
           && store?.findCredential(tool)?.revision === reference.revision
           && (this.generations.get(tool) ?? 0) === generation) {
-          db.prepare(`INSERT INTO tool_health (tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(tool) DO UPDATE SET credential_revision = excluded.credential_revision, checked_at = excluded.checked_at,
+          db.prepare(`INSERT INTO tool_health (credential_id, tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(credential_id) DO UPDATE SET credential_revision = excluded.credential_revision, checked_at = excluded.checked_at,
             status = excluded.status, error_code = excluded.error_code`)
-            .run(tool, reference.revision, health.checkedAt, health.status, health.errorCode)
+            .run(reference.id, tool, reference.revision, health.checkedAt, health.status, health.errorCode)
           this.diagnostics.delete(tool)
           if (diagnostic) this.diagnostics.set(tool, diagnostic)
         }

@@ -91,7 +91,7 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
         const revision = (current?.revision ?? 0) + 1
         db.prepare(`INSERT INTO credentials (id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag, revision, updated_at, updated_by)
           VALUES (@id, @tool, @schema_version, @key_id, @nonce, @ciphertext, @authentication_tag, @revision, @now, @actor)
-          ON CONFLICT(tool) DO UPDATE SET schema_version = excluded.schema_version, key_id = excluded.key_id,
+          ON CONFLICT DO UPDATE SET schema_version = excluded.schema_version, key_id = excluded.key_id,
           nonce = excluded.nonce, ciphertext = excluded.ciphertext, authentication_tag = excluded.authentication_tag,
           revision = excluded.revision, updated_at = excluded.updated_at, updated_by = excluded.updated_by`)
           .run({ ...encrypted, revision, now, actor })
@@ -167,7 +167,8 @@ export function openStore(file: string, provider: KeyProvider = new EnvironmentK
       if (rotation && rotation.new_key_id !== key.id) {
         throw new MasterKeyMismatch(rotation.new_key_id)
       }
-      const rows = db.prepare('SELECT * FROM credentials UNION ALL SELECT * FROM provider_credentials UNION ALL SELECT * FROM ssh_credentials UNION ALL SELECT * FROM ssh_execution_results').all() as EncryptedCredential[]
+      const rows = ['credentials', 'provider_credentials', 'ssh_credentials', 'ssh_execution_results'].flatMap(table =>
+        db.prepare(`SELECT id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag FROM ${table}`).all() as EncryptedCredential[])
       if (!metadata && existingStore && !rotation && rows.length === 0) throw new ArtiumError('MASTER_KEY_INVALID')
       for (const row of rows) decryptCredential(row, key).fill(0)
       if (!metadata) db.prepare('INSERT INTO store_metadata (id, master_key_id) VALUES (1, ?)').run(key.id)
