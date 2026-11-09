@@ -577,7 +577,7 @@ test('SSH write permissions default off and save without creating shared credent
     check(await page.eval(() => !document.querySelector('[data-write-access] [role=switch]').checked), 'SSH writes enabled by default');
     check(await page.eval(() => document.querySelector('[data-write-access]').innerText.includes('a writable host and current caller grants')), 'SSH host policy guidance missing');
     await page.click('[data-write-access] [role=switch]');
-    await page.click('form[action$="/write-access"] button:not([form])');
+    await page.click('form[action$="/write-access"] button:not([form], [data-ops-select])');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/write-access"] [name=expectedRevision][value="2"]');
     check(await page.eval(async () => (await (await fetch('/v1/admin/tools/ssh-axi')).json()).writeAccess.enabled), 'SSH write setting did not persist');
@@ -1273,12 +1273,12 @@ for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi', 'unifi-axi', 'proxmox-a
     check(JSON.stringify([...choices].sort()) === JSON.stringify([...initial.writeAccess.supportedOperations].sort()), 'Picker differs from pinned catalogue');
     check(await page.eval(() => [...document.querySelectorAll('[name=operations]')].every(input => !input.checked)), 'Unexpected initial selection');
     await page.click('[data-write-access] [role=switch]');
-    await page.click('form[action$="/write-access"] button:not([form])');
+    await page.click('form[action$="/write-access"] button:not([form], [data-ops-select])');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('#message:not(:empty)');
     check(await page.eval(() => document.querySelector('#message').innerText.includes('Select at least one')), 'Empty enabled allow-list accepted');
     await page.click('[name=operations]');
-    await page.click('form[action$="/write-access"] button:not([form])');
+    await page.click('form[action$="/write-access"] button:not([form], [data-ops-select])');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/write-access"] [name=expectedRevision][value="2"]');
     const saved = await page.eval(async () => (await (await fetch('/v1/admin/tools/${tool}')).json()));
@@ -1287,11 +1287,98 @@ for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi', 'unifi-axi', 'proxmox-a
     check(await page.eval(() => document.querySelector('[data-ops-group]').open), 'Group with a selection is collapsed');
     await page.click('[data-write-access] [role=switch]');
     await page.click('[name=operations]');
-    await page.click('form[action$="/write-access"] button:not([form])');
+    await page.click('form[action$="/write-access"] button:not([form], [data-ops-select])');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/write-access"] [name=expectedRevision][value="3"]');
     const cleared = await page.eval(async () => (await (await fetch('/v1/admin/tools/${tool}')).json()));
     check(!cleared.writeAccess.enabled && cleared.writeAccess.allowedOperations.length === 0, 'Empty selection not saved');
+  `)
+})
+
+for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' group controls select and clear only shown operations', () => {
+  browser(`
+    await page.open(base + '/admin/tools/${tool}?tab=writes');
+    const state = () => page.eval(() => {
+      const group = document.querySelector('[data-ops-group]:has([data-delete])');
+      const operations = [...group.querySelectorAll('[data-op]')];
+      return { total: operations.length, visible: operations.filter(operation => !operation.hidden).length, checked: operations.filter(operation => operation.querySelector('input').checked).length,
+        deletes: operations.filter(operation => operation.hasAttribute('data-delete')).length,
+        deletesChecked: operations.filter(operation => operation.hasAttribute('data-delete') && operation.querySelector('input').checked).length,
+        hiddenChecked: operations.filter(operation => operation.hidden && operation.querySelector('input').checked).length,
+        otherChecked: [...document.querySelectorAll('[data-ops-group]')].filter(other => other !== group).flatMap(other => [...other.querySelectorAll('[data-op] input:checked')]).length };
+    });
+    const none = await state();
+    await page.eval(() => { document.querySelector('[data-ops-group]:has([data-delete])').open = true; });
+    await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=all]');
+    const all = await state();
+    check(all.deletes > 0 && all.checked === all.total && all.deletesChecked === all.deletes, 'Select all must include every operation in the group, including deletes');
+    check(all.otherChecked === 0, 'Select all changed another group');
+    await page.eval(() => {
+      const input = document.querySelector('[name=q]');
+      input.value = document.querySelector('[data-ops-group]:has([data-delete]) [data-op]').dataset.op;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=none]');
+    const filteredClear = await state();
+    check(filteredClear.checked === all.checked - 1 && filteredClear.hiddenChecked === filteredClear.checked, 'Clear all must clear only the shown operations');
+    await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=all]');
+    check((await state()).checked === all.checked, 'Select all must select the shown operation');
+    check(none.checked === 0, 'Unexpected initial selection');
+    await page.eval(() => {
+      const input = document.querySelector('[name=q]');
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.click('label:has([name=show][value=selected])');
+    await page.click('[data-ops-group]:has([data-delete]) [data-op]:not([hidden]) input');
+    const individualClear = await state();
+    check(individualClear.checked === all.checked - 1 && individualClear.visible === individualClear.checked, 'Unchecked operation remains visible in Selected view');
+    await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=none]');
+    check(await page.eval(() => document.querySelector('[data-ops-empty]').hidden === false && !document.querySelector('[data-ops-group]:not([hidden])')), 'Cleared operations remain visible in Selected view');
+  `)
+})
+
+for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' card-level controls act on every shown operation and keep the selected counts live', () => {
+  browser(`
+    await page.open(base + '/admin/tools/${tool}?tab=writes');
+    const state = () => page.eval(() => {
+      const operations = [...document.querySelectorAll('[data-op]')];
+      const checked = operations.filter(operation => operation.querySelector('input').checked);
+      return { total: operations.length, checked: checked.length, visible: operations.filter(operation => !operation.hidden).length,
+        hiddenChecked: checked.filter(operation => operation.hidden).length,
+        collapsedChecked: checked.filter(operation => !operation.closest('[data-ops-group]').open).length,
+        header: document.querySelector('[data-ops-selected]').textContent, headline: document.querySelector('[data-ops-selected]').parentElement.textContent,
+        groupCounts: [...document.querySelectorAll('[data-ops-group]')].every(group => group.querySelector('[data-ops-picked]').textContent === (group.querySelectorAll('[data-op] input:checked').length ? ' · ' + group.querySelectorAll('[data-op] input:checked').length + ' selected' : '')) };
+    });
+    const none = await state();
+    check(none.checked === 0 && none.header === '0', 'Unexpected initial selection');
+    await page.click('.card-body > [data-ops-actions] [data-ops-select=all]');
+    const all = await state();
+    check(all.checked === all.total && all.collapsedChecked > 0, 'Card-level Select all must reach every group, collapsed ones included');
+    check(all.header === String(all.total) && all.headline.startsWith(all.total + ' of ' + all.total + ' selected'), 'Header count stale after Select all: ' + all.headline);
+    check(all.groupCounts, 'Group counts stale after Select all');
+    await page.eval(() => {
+      const input = document.querySelector('[name=q]');
+      input.value = document.querySelector('[data-op]').dataset.op;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const shown = await state();
+    check(shown.visible > 0 && shown.visible < shown.total, 'Filter must hide some operations');
+    await page.click('.card-body > [data-ops-actions] [data-ops-select=none]');
+    const filtered = await state();
+    check(filtered.checked === all.total - shown.visible &&filtered.hiddenChecked === filtered.checked, 'Card-level Clear all must clear only shown operations');
+    check(filtered.header === String(filtered.checked) && filtered.groupCounts, 'Counts stale after filtered Clear all');
+    await page.eval(() => {
+      const input = document.querySelector('[name=q]');
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.click('label:has([name=show][value=selected])');
+    const selectedView = await state();
+    check(selectedView.visible === selectedView.checked && selectedView.header === String(selectedView.checked), 'Selected view disagrees with the header count');
+    await page.click('[data-op]:not([hidden]) input');
+    const unchecked = await state();
+    check(unchecked.header === String(selectedView.checked - 1) && unchecked.groupCounts, 'Header count stale after an individual change');
   `)
 })
 
