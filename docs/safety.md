@@ -84,6 +84,8 @@ Each tool-wide or command selection may name instances.
 The API takes instance names and the server stores instance ids at minting, so a token scoped to one instance cannot reach another instance, or a later instance re-created under the same name.
 Matching selections add together, so a tool-wide grant can permit a command on instances beyond those named by an exact selection.
 Command authorization and bound-instance checks also require the creator's current instance grants.
+When the command or operation is known during instance selection, delegated calls select from the instances permitted by that command or operation.
+Kubernetes session lists include only sessions on instances permitted by the `session list` selection.
 Tool lists, generated help and skills include only commands permitted by the token, the creator's current usable instances and grants, tool enablement, delegated read-only restriction and administrator Allow writes switch.
 Tools with no permitted commands are omitted, and tool lists report the effective read-only state.
 GitHub and Proxmox stream discovery also reflect their administrator operation allow-lists.
