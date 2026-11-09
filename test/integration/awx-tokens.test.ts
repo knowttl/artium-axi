@@ -254,6 +254,22 @@ test('read-only instances refuse token creation while writable instances allow i
   })
 }, 60_000)
 
+test.each([
+  ['job', 'launch'],
+  ['user', 'token-create'],
+])('read-only instances allow %s %s help', async (...command) => {
+  await withTokenService(async ({ app, db, store, headers, send }) => {
+    const reference = store.findCredential('awx-axi')!
+    const instance = store.createInstance('awx-axi', { name: 'readonly', description: '' }, store.readCredential(reference), 'synthetic-development-user', Date.now())
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+      payload: { instance: instance.name, args: [...command, '--help'] } })
+    expect(response.json(), response.body).toMatchObject({ instance: 'readonly', exitCode: 0 })
+    expect(response.json().stdout).toContain(command[1])
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
+  })
+}, 60_000)
+
 test.each(['read', 'write'])('AWX %s PAT creation delivers bytes once to the authorized caller (S10)', async scope => {
   await withTokenService(async ({ app, db, store, headers, send, run, lines, directory }) => {
     const args = ['user', 'token-create', '42', '--scope', scope]

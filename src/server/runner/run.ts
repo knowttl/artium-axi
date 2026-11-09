@@ -163,10 +163,10 @@ export async function runTool<Credential>(
         return operations.some(operation => operation.effect === 'write' || credentialIssuingCommand(adapter.name, operation.command))
           || !!raw && adapter.rawApi?.effect?.(args, input) === 'write'
       }
-      if (instanceReadOnly && writeRequested()) throw new ArtiumError('FLAG_BLOCKED')
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
         : await adapter.prepare(args, reference!, input)
-      if (instanceReadOnly && (prepared.effect === 'write' || prepared.write)) throw new ArtiumError('FLAG_BLOCKED')
+      const writes = () => prepared.effect === 'write' || !!prepared.write || !prepared.invocation?.help && writeRequested()
+      if (instanceReadOnly && writes()) throw new ArtiumError('FLAG_BLOCKED')
       if (readOnly || instanceReadOnly) prepared.environment = { ...prepared.environment, [`${adapter.name.toUpperCase().replaceAll('-', '_')}_READ_ONLY`]: 'true' }
       const kubernetesRequests = prepared.kubernetesWorkflowRoot && reference ? {
         root: prepared.kubernetesWorkflowRoot,
@@ -194,7 +194,7 @@ export async function runTool<Credential>(
         checkRawApiPolicy(db, userId, adapter, args, input)
         if (reference && !instanceReadOnly) {
           const current = db.prepare('SELECT read_only FROM credentials WHERE id = ? AND tool = ?').get(reference.id, adapter.name) as { read_only: number } | undefined
-          if (current?.read_only === 1 && (prepared.effect === 'write' || prepared.write || writeRequested())) throw new ArtiumError('FLAG_BLOCKED')
+          if (current?.read_only === 1 && writes()) throw new ArtiumError('FLAG_BLOCKED')
         }
       }
       if (prepared.preview || prepared.invocation?.help || !protectedResult && prepared.effect === 'read') {
