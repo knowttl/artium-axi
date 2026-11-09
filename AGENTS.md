@@ -21,4 +21,4 @@ Tests are never required first; a change is verified end to end against the beha
 Exempt: validation-boundary tests, contract tests against an agreed schema or recording, and regression tests that cite the bug they reproduce.
 <!-- END canonical test-quality rules -->
 
-- Toolchain, scripts, native build approval and test commands are defined by `package.json`, with upstream pins in `tools/package.json`; `pnpm check` runs the local aggregate, and the separate mandatory private hygiene and conditional container checks are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
+- Toolchain, scripts, native build approval and test commands are defined by `package.json`, with upstream pins in `tools/package.json`; `pnpm check` runs the local aggregate, and the separate mandatory private hygiene check and the release and nightly container checks are documented in [CONTRIBUTING.md](CONTRIBUTING.md).

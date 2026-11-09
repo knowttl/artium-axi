@@ -122,9 +122,11 @@ The owner must also permit this repository's Actions token to write GHCR package
 Repository or organization Actions policy must allow the image job's `packages: write`, `attestations: write` and `id-token: write` permissions.
 For an existing GHCR package, grant this repository Actions access before release; set package visibility deliberately if public pulls are intended.
 Only the image job receives `packages: write` and `attestations: write`; it authenticates to GHCR with `GITHUB_TOKEN` and needs no registry password secret.
-Before merging every release PR, require passing local [container acceptance](../CONTRIBUTING.md#container-acceptance) and [private hygiene](../CONTRIBUTING.md#private-hygiene-check) evidence for the release candidate, even when the release PR changes only version metadata.
-Record that evidence in the release PR before merge; the workflow's `pnpm check` does not include these checks.
-Hosted release handling, npm trusted-publisher configuration, GHCR permissions and actual publication remain unverified by local checks.
+Before merging every release PR, require passing [private hygiene](../CONTRIBUTING.md#private-hygiene-check) evidence for the release candidate, even when the release PR changes only version metadata.
+Record that evidence in the release PR before merge; the workflow does not run it.
+[Container acceptance](../CONTRIBUTING.md#container-acceptance) is not a release PR merge requirement.
+The release workflow's `containers` job runs `pnpm test:containers` on the release tag and blocks npm and image publication until it passes; the nightly local job covers `main` between releases.
+Hosted release handling, including whether the hosted runner supports the container check's privileged BuildKit worker and cgroup v2 controls, npm trusted-publisher configuration, GHCR permissions and actual publication remain unverified by local checks.
 An image-job failure emits a setup reminder; inspect the failed step and resolve permissions or build failures before accepting the release.
 
 ### Verify a later published image
