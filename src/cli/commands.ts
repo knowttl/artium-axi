@@ -46,6 +46,18 @@ function instanceErrorAdvice(error: unknown, instance: string | undefined): unkn
   return Object.assign(error, { next: `${error.next} If the server does not support --instance, upgrade it to a version that supports named tool instances.` })
 }
 
+async function resolveDiscoveryInstance(client: Client, tool: string, instance: string): Promise<boolean> {
+  const response = await client.authenticated(`/v1/tools/${tool}/run`, 'POST', { args: ['--help'], instance })
+    .catch(error => { throw instanceErrorAdvice(error, instance) })
+  const parsed = runSuccessSchema.safeParse(response)
+  if (!parsed.success || parsed.data.source !== tool) throw new ArtiumError('INVALID_RESPONSE')
+  if (parsed.data.exitCode === 0) return true
+  output('stdout', parsed.data.stdout)
+  output('stderr', parsed.data.stderr)
+  process.exitCode = parsed.data.exitCode
+  return false
+}
+
 async function main(args: string[]) {
   const instanceAt = args[0] === '--managed-session' ? 1 : 0
   let instance: string | undefined
@@ -116,6 +128,10 @@ async function main(args: string[]) {
       const downloadOperation = toolDiscovery ? transferSelectionSchema.options.map(option => option.shape.operation.value)
         .find(operation => transferTool(operation) === command
           && operation === (toolWords[0] === 'help' ? toolWords.slice(1) : toolWords).join(' ')) : undefined
+      if (instance !== undefined && toolDiscovery && (downloadOperation || toolWords.length === 0
+        || toolWords.length === 1 && ['commands', 'home', 'help'].includes(toolWords[0]))) {
+        if (!await resolveDiscoveryInstance(client, command, instance)) return
+      }
       if (help === 'download' || downloadOperation) {
         const operations = transferSelectionSchema.options.map(option => option.shape.operation.value)
           .filter(operation => tools.some(tool => tool.name === transferTool(operation) && tool.commands?.includes(operation)))
@@ -284,6 +300,9 @@ async function main(args: string[]) {
     throw new ArtiumError('INVALID_INPUT', 'Unknown command, argument or flag.', 'Use artium-axi --help for commands or artium-axi <command> --help for valid flags.')
   }
   if (command === 'ssh-axi' && await sshExecution(args.slice(1), () => new Client(process.env, managed), text => output('stdout', text))) return
+  if (command === 'kubernetes-axi' && instance !== undefined && args.slice(1).includes('--help')
+    && args.slice(1).every(arg => ['--help', '--json'].includes(arg))
+    && !await resolveDiscoveryInstance(new Client(process.env, managed), command, instance)) return
   if (command === 'kubernetes-axi' && await kubernetesHosted(args.slice(1), () => new Client(process.env, managed), (text, stream = 'stdout') => output(stream, text))) return
   if (command === 'proxmox-axi' && await proxmoxPrivateResult(() => new Client(process.env, managed), args.slice(1), text => output('stdout', text))) return
   if (command === 'proxmox-axi' && await proxmoxStream(() => new Client(process.env, managed), args.slice(1), output)) return

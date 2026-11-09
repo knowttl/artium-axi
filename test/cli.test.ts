@@ -103,12 +103,12 @@ afterAll(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controlled = false, input?: string, executable = bundle) {
+async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controlled = false, input?: string, executable = bundle, delegated = false) {
   const configuration = environment.XDG_CONFIG_HOME ?? mkdtempSync(join(directory, 'config-'))
   new SessionStore((environment.ARTIUM_AXI_URL || url).replace(/\/$/, ''), join(configuration, 'artium-axi', 'session.json')).write({
     status: 'authenticated', accessToken: 'CANARY-cli-token', refreshToken: 'CANARY-cli-refresh',
     accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000,
-  })
+  }, undefined, delegated)
   const env = { PATH: process.env.PATH, ARTIUM_AXI_URL: url, XDG_CONFIG_HOME: configuration,
     ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'), ...environment }
   if (controlled) return controlledCli(args, env)
@@ -701,6 +701,52 @@ test('an instance run preserves a specific server input diagnostic', async () =>
   expect(await cli(['--instance', 'pve-lab', 'mg-axi', 'unexpected'])).toMatchObject({ code: 2, stderr: '',
     stdout: 'error:\n  code: "INVALID_INPUT"\n  source: "artium-axi"\n  message: "Unexpected positional argument."\n'
       + '  next: "Remove the extra argument. If the server does not support --instance, upgrade it to a version that supports named tool instances."\n  requestId: "synthetic-input"\n' })
+})
+
+test.each([[], ['home'], ['help'], ['commands'], ['--help']])('delegated discovery resolves a named instance: %j', async args => {
+  requests = []
+  doctorResponses = {
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '1.0.0', commands: ['user list'] }] } },
+    '/v1/tools/mg-axi/run': { status: 404, body: errorResponse(new ArtiumError('INSTANCE_NOT_FOUND'), 'synthetic-instance') },
+  }
+  try {
+    expect(await cli(['--instance', 'missing', 'mg-axi', ...args], {}, false, undefined, bundle, true))
+      .toMatchObject({ code: 1, stdout: expect.stringContaining('INSTANCE_NOT_FOUND') })
+    expect(requests.at(-1)).toMatchObject({ path: '/v1/tools/mg-axi/run', body: { args: ['--help'], instance: 'missing' } })
+  } finally { doctorResponses = undefined }
+})
+
+test.each([['hash-download-bin', '--help'], ['help', 'hash-download-bin']])('delegated download help resolves a named instance: %j', async args => {
+  requests = []
+  doctorResponses = {
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'hybrid-axi', status: 'ok', version: '1.0.0', commands: ['hash-download-bin'] }] } },
+    '/v1/tools/hybrid-axi/run': { status: 404, body: errorResponse(new ArtiumError('INSTANCE_NOT_FOUND'), 'synthetic-instance') },
+  }
+  try {
+    expect(await cli(['--instance', 'missing', 'hybrid-axi', ...args], {}, false, undefined, bundle, true))
+      .toMatchObject({ code: 1, stdout: expect.stringContaining('INSTANCE_NOT_FOUND') })
+    expect(requests.at(-1)).toMatchObject({ path: '/v1/tools/hybrid-axi/run', body: { args: ['--help'], instance: 'missing' } })
+  } finally { doctorResponses = undefined }
+})
+
+test('delegated discovery keeps scoped help after instance resolution', async () => {
+  doctorResponses = {
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '1.0.0', commands: ['user list'] }] } },
+    '/v1/tools/mg-axi/run': instanceRunResponse,
+  }
+  try {
+    const result = await cli(['--instance', 'lab', 'mg-axi', 'commands'], {}, false, undefined, bundle, true)
+    expect(result).toMatchObject({ code: 0, stdout: expect.stringContaining('user list') })
+    expect(result.stdout).not.toContain('synthetic result')
+  } finally { doctorResponses = undefined }
+})
+
+test('Kubernetes local help resolves a named instance', async () => {
+  requests = []
+  response = { status: 403, body: errorResponse(new ArtiumError('INSTANCE_DISABLED'), 'synthetic-instance') }
+  expect(await cli(['--instance', 'disabled', 'kubernetes-axi', '--help']))
+    .toMatchObject({ code: 1, stdout: expect.stringContaining('INSTANCE_DISABLED') })
+  expect(requests.at(-1)).toMatchObject({ path: '/v1/tools/kubernetes-axi/run', body: { args: ['--help'], instance: 'disabled' } })
 })
 
 test.each([
