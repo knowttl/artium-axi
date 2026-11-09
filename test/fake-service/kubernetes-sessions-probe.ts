@@ -91,9 +91,30 @@ await withFakeService(async ({ directory, port, send }) => {
     }
     const cancel = async (id: string) => assert.equal((await request(`${prefix}/${id}`, 'DELETE')).statusCode, 204)
     await policy(false)
+    const invalidStart = await request(prefix, 'POST', { kind: 'logs', argv: ['get', 'pods'] })
+    assert.equal(invalidStart.statusCode, 400, invalidStart.body)
+    assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
+      { credential_id: reference.id, instance: 'default' })
     assert.equal((await request(prefix, 'POST', { kind: 'exec', argv: ['prepare', '--', 'exec', 'synthetic-pod', '--', 'true'] })).json().error.code, 'FLAG_BLOCKED')
+    assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
+      { credential_id: reference.id, instance: 'default' })
+    assert.equal((await request('/v1/tools/kubernetes-axi/workspaces', 'POST', { files: [] })).statusCode, 400)
+    assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
+      { credential_id: reference.id, instance: 'default' })
+    const sibling = store.createInstance('kubernetes-axi', { name: 'other', description: '' }, credential, 'synthetic-development-user', Date.now())
+    assert.equal((await request(prefix, 'POST', { kind: 'exec', argv: ['prepare', '--', 'exec', 'synthetic-pod', '--', 'true'] })).json().error.code, 'FLAG_BLOCKED')
+    assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
+      { credential_id: null, instance: null })
+    assert.equal((await request('/v1/tools/kubernetes-axi/workspaces', 'POST', { files: [] })).statusCode, 400)
+    assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
+      { credential_id: null, instance: null })
+    store.deleteInstance('kubernetes-axi', 'other', sibling.id, sibling.revision)
     const logs = await start('logs', ['logs', 'synthetic-pod', '--follow'])
     assert.equal((await show(logs.id)).state, 'exited')
+    assert.deepEqual(db.prepare("SELECT event, credential_id, instance FROM audit WHERE tool='kubernetes-axi' AND event IN ('run-start', 'run-terminal') ORDER BY id").all(), [
+      { event: 'run-start', credential_id: reference.id, instance: 'default' },
+      { event: 'run-terminal', credential_id: reference.id, instance: 'default' },
+    ])
     assert.match((await output(logs.id)).chunks.map(chunk => Buffer.from(chunk.base64, 'base64').toString()).join(''), /Synthetic pod log/)
     await cancel(logs.id)
     const watched = await start('watch', ['get', 'pods', '--watch-only'])
@@ -103,6 +124,13 @@ await withFakeService(async ({ directory, port, send }) => {
     const delegated = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
       scope: { tools: [{ tool: 'kubernetes-axi' }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
     const delegatedHeaders = { authorization: `Bearer ${exchangeDelegation(db, delegated.token).accessToken}` }
+    const limited = createDelegation(db, 'synthetic-development-user', { label: 'Limited', scope: { tools: [{ tool: 'kubernetes-axi', commands: ['session list'] }] },
+      readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
+    const deniedWorkspace = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/workspaces',
+      headers: { authorization: `Bearer ${exchangeDelegation(db, limited.token).accessToken}` }, payload: { files: [] } })
+    assert.equal(deniedWorkspace.json().error.code, 'DELEGATED_SCOPE_DENIED')
+    assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
+      { credential_id: reference.id, instance: 'default' })
     const delegatedStart = await app.inject({ method: 'POST', url: prefix, headers: delegatedHeaders,
       payload: { kind: 'exec', argv: ['prepare', '--', 'exec', 'synthetic-pod', '--', 'synthetic-hold'] } })
     assert.equal(delegatedStart.statusCode, 200, delegatedStart.body)
@@ -150,6 +178,27 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.equal(remoteExit.exitCode, 7, JSON.stringify(remoteExit))
     await cancel(remoteExit.id)
     const bytes = Buffer.from([0, 255, 13, 10, 128, 1]), sha256 = createHash('sha256').update(bytes).digest('hex')
+    const workspacePath = '/v1/tools/kubernetes-axi/workspaces'
+    const denialIdentity = () => db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get()
+    const refusedCreation = await request(workspacePath, 'POST', { files: [{ path: 'CANARY-kubernetes-token', bytes: bytes.length, sha256 }] })
+    assert.equal(refusedCreation.json().error.code, 'SECRET_IN_OUTPUT')
+    assert.deepEqual(denialIdentity(), { credential_id: reference.id, instance: 'default' })
+    const denialWorkspace = await request(workspacePath, 'POST', { files: [{ path: 'input.bin', bytes: bytes.length, sha256 }] })
+    assert.equal(denialWorkspace.statusCode, 200, denialWorkspace.body)
+    const stagedId = denialWorkspace.json().id as string
+    assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE action='kubernetes-workspace-create' AND target_id=?").get(stagedId),
+      { credential_id: reference.id, instance: 'default' })
+    for (const method of ['GET', 'DELETE'] as const) {
+      assert.equal((await request(`${workspacePath}/${stagedId}?operation=invalid`, method)).statusCode, 400)
+      assert.deepEqual(denialIdentity(), { credential_id: reference.id, instance: 'default' })
+    }
+    assert.equal((await request(`${workspacePath}/${stagedId}/files/input.bin`)).statusCode, 400)
+    assert.deepEqual(denialIdentity(), { credential_id: reference.id, instance: 'default' })
+    const badUpload = await app.inject({ method: 'PUT', url: `${workspacePath}/${stagedId}/files/input.bin`,
+      headers: { ...headers, 'content-type': 'application/octet-stream' }, payload: Buffer.from('bad') })
+    assert.equal(badUpload.statusCode, 400, badUpload.body)
+    assert.deepEqual(denialIdentity(), { credential_id: reference.id, instance: 'default' })
+    assert.equal((await request(`${workspacePath}/${stagedId}`)).statusCode, 404)
     const inline = await confirm(await start('exec', ['exec', 'synthetic-pod', '-i', '--', 'cat'], { stdinBase64: bytes.toString('base64') }))
     assert.equal(inline.state, 'exited', JSON.stringify(inline))
     assert.deepEqual(Buffer.concat((await output(inline.id)).chunks.filter(chunk => chunk.channel === 'stdout').map(chunk => Buffer.from(chunk.base64, 'base64'))), bytes)

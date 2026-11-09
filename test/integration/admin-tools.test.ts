@@ -835,6 +835,8 @@ test('save can configure credentials without repeating separately saved settings
   const { subscriptions: _subscriptions, allowWrites: _allowWrites, ...value } = values['az-axi']
   expect((await save('az-axi', value, 0)).status).toBe(200)
   expect(store.readCredential(store.findCredential('az-axi')!)).toEqual({ ...value, subscriptions: ['synthetic-current'], allowWrites: false })
+  expect(db.prepare("SELECT instance, credential_id FROM audit WHERE action = 'replace-credential'").all())
+    .toEqual([{ instance: 'default', credential_id: store.findCredential('az-axi')!.id }])
 })
 
 test('save replaces supplied secrets and evicts old Azure tokens', async () => {
@@ -945,7 +947,8 @@ test('GitHub device approval stores a shared encrypted credential, audits once a
     accessToken: 'gho_CANARY-connected-token', login: 'synthetic-machine' })
   expect(JSON.stringify(db.prepare('SELECT * FROM credentials').all())).not.toContain('gho_CANARY-connected-token')
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toMatch(/gho_CANARY|CANARY-private-device-code|ABCD-EFGH/)
-  expect(db.prepare("SELECT action FROM audit WHERE action = 'connect-github-device'").all()).toEqual([{ action: 'connect-github-device' }])
+  expect(db.prepare("SELECT instance, credential_id FROM audit WHERE action = 'connect-github-device'").all())
+    .toEqual([{ instance: 'default', credential_id: store.findCredential('gh-axi')!.id }])
   expect(await (await request('GET', '/gh-axi')).json()).toMatchObject({ health: { status: 'ok', credentialRevision: 2 } })
   expect(network).toHaveBeenCalledTimes(3)
   await failure(await request('POST', '/gh-axi/device/poll', started), 'NOT_FOUND')

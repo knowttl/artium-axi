@@ -33,8 +33,8 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
     if (response.statusCode !== 200) return reply.code(response.statusCode).type('application/json').send(response.body)
     const page = adminAuditRoute.response.parse(response.json())
     const users = db.prepare('SELECT id, username FROM users ORDER BY username').all() as { id: string, username: string }[]
-    const distinct = (column: 'event' | 'outcome', selected: string | undefined) => {
-      const values = (db.prepare(`SELECT DISTINCT ${column} AS value FROM audit ORDER BY ${column}`).all() as { value: string }[]).map(row => row.value)
+    const distinct = (column: 'event' | 'outcome' | 'instance', selected: string | undefined) => {
+      const values = (db.prepare(`SELECT DISTINCT ${column} AS value FROM audit WHERE ${column} IS NOT NULL ORDER BY ${column}`).all() as { value: string }[]).map(row => row.value)
       return selected && !values.includes(selected) ? [...values, selected] : values
     }
     const names = new Map(users.map(user => [user.id, user.username]))
@@ -57,7 +57,7 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
       `<a href="${escape(link({ range: value, from: undefined, to: undefined }))}"${on ? ' class="on" aria-current="true"' : ''}>${escape(label)}</a>`
     const time = `<div class="seg" role="group" aria-label="Time range">${segment('Any time', undefined, !preset && !custom)}${segment(ranges['24h'].label, '24h', range === '24h')}${segment(ranges['7d'].label, '7d', range === '7d')}${
       custom ? '<a href="#audit-from" class="on" aria-current="true">Custom</a>' : segment('Custom', 'custom', false)}</div>`
-    const chip = (name: 'user' | 'tool' | 'event' | 'outcome', label: string, options: { value: string, text: string }[]) => {
+    const chip = (name: 'user' | 'tool' | 'instance' | 'event' | 'outcome', label: string, options: { value: string, text: string }[]) => {
       const value = query.data[name]
       return `<span class="filter${value ? ' set' : ''}">${value ? `<span>${escape(label)}</span>` : icon('plus')}<select name="${name}" aria-label="${escape(label)}"><option value="">${escape(label)}</option>${
         options.map(option => `<option value="${escape(option.value)}"${option.value === value ? ' selected' : ''}>${escape(option.text)}</option>`).join('')}</select>${
@@ -77,6 +77,7 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
       ${time}${failed}
       ${chip('user', 'User', users.map(user => ({ value: user.id, text: user.username })))}
       ${chip('tool', 'Tool', toolSchema.options.map(tool => ({ value: tool, text: tool })))}
+      ${chip('instance', 'Instance', distinct('instance', query.data.instance).map(instance => ({ value: instance, text: instance })))}
       ${chip('event', 'Event', distinct('event', query.data.event).map(event => ({ value: event, text: event })))}
       ${chip('outcome', 'Outcome', distinct('outcome', query.data.outcome).map(outcome => ({ value: outcome, text: outcome })))}
       ${errorCode}${range ? `<input type="hidden" name="range" value="${range}">` : ''}${query.data.failed ? `<input type="hidden" name="failed" value="${query.data.failed}">` : ''}${query.data.limit !== 50 ? `<input type="hidden" name="limit" value="${query.data.limit}">` : ''}
@@ -90,7 +91,8 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
       const open = record.id === selected?.id
       return `<tr${open ? ' class="sel"' : ''}><th scope="row"><a href="${escape(link({ record: String(record.id), cursor: query.data.cursor }))}"${open ? ' aria-current="true"' : ''}>${timestamp(record.occurred_at)}</a></th>
         <td><span class="mono">${escape(record.event)}</span>${record.authentication_method === 'break-glass' ? ' ' + badge('Break-glass', 'warn') : ''}</td>
-        <td${record.user_id === null ? ' class="faint"' : ''}>${escape(actor(record.user_id))}</td><td${record.tool ? '' : ' class="faint"'}>${escape(record.tool ?? '-')}</td><td>${badge(outcome.word, outcome.tone)}</td></tr>`
+        <td${record.user_id === null ? ' class="faint"' : ''}>${escape(actor(record.user_id))}</td><td${record.tool ? '' : ' class="faint"'}>${escape(record.tool ?? '-')}</td>
+        <td${record.instance ? '' : ' class="faint"'}>${escape(record.instance ?? 'default/unknown')}</td><td>${badge(outcome.word, outcome.tone)}</td></tr>`
     }).join('')
 
     const close = link({ cursor: query.data.cursor })
@@ -99,7 +101,7 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
       const outcome = auditOutcome(selected)
       const diagnostic = selected.event === 'run-terminal' ? audit.runDiagnostic(selected.request_id) : undefined
       const fields = Object.entries(selected)
-      const facts = [['Actor', escape(actor(selected.user_id))], ['Tool', escape(selected.tool ?? 'None')], ['Outcome', badge(outcome.word, outcome.tone)],
+      const facts = [['Actor', escape(actor(selected.user_id))], ['Tool', escape(selected.tool ?? 'None')], ...(selected.instance ? [['Instance', escape(selected.instance)]] : []), ['Outcome', badge(outcome.word, outcome.tone)],
         ['Request ID', `<span class="copyfield" data-copy-scope><input value="${escape(selected.request_id)}" readonly aria-label="Request ID"><button type="button" class="btn btn-ghost btn-icon btn-sm" data-copy aria-label="Copy request ID">${icon('copy')}</button><span class="sr-only" data-copy-status role="status"></span></span>`],
         ['Client address', escape(selected.client_address ?? 'Not recorded')], ['Sign-in method', escape(selected.authentication_method ?? 'Not recorded')],
         ...(selected.action ? [['Action', `<span class="mono">${escape(selected.action)}</span>`]] : []), ...(selected.error_code ? [['Error code', `<span class="mono">${escape(selected.error_code)}</span>`]] : [])]
@@ -124,7 +126,7 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
     const exportMenu = `<div class="actions"><details class="menu"><summary class="btn btn-secondary">${icon('download')}Export${icon('chevd')}</summary><div class="popover">
       <p class="popover-note">Uses the current filters. Downloads include all retained records matching the applied filters, across every page.</p>${downloads}</div></details></div>`
     const table = rows ? `<section class="card"><div class="tbl-scroll"><table class="tbl audit-table row-links"><caption class="sr-only">Audit records</caption>
-      <thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Actor</th><th scope="col">Tool</th><th scope="col">Outcome</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Actor</th><th scope="col">Tool</th><th scope="col">Instance</th><th scope="col">Outcome</th></tr></thead><tbody>${rows}</tbody></table></div>
       ${pager(`Showing ${page.records.length} record${page.records.length === 1 ? '' : 's'}`, [{ label: 'Newest', href: query.data.cursor ? link({}) : null },
         { label: 'Older', href: page.nextCursor ? link({ cursor: page.nextCursor }) : null }])}</section>`
       : `<section class="card empty"><h2>No audit records match these filters.</h2><p>Widen the time range or clear a filter.</p>${filtered ? '<a class="btn btn-secondary" href="/admin/audit">Clear filters</a>' : ''}</section>`

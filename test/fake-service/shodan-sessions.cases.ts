@@ -102,6 +102,9 @@ test('hosted stream preview, read and stop use the real packaged worker with pri
       const forged = await app.inject({ method: 'POST', url: `${prefix}/${id}/read`, headers, payload: { continuation: 'forged' } })
       expect(forged.statusCode).toBe(400)
       expect(await cli('stop', id)).toMatchObject({ cleaned: true })
+      expect(db.prepare("SELECT event, credential_id, instance FROM audit WHERE request_id = ? AND event IN ('run-start', 'run-terminal') ORDER BY id").all(id))
+        .toEqual([{ event: 'run-start', credential_id: store.findCredential('shodan-axi')!.id, instance: 'default' },
+          { event: 'run-terminal', credential_id: store.findCredential('shodan-axi')!.id, instance: 'default' }])
       expect(existsSync(join(directory, 'tool-logs/shodan-axi/sessions', `session-${id}`))).toBe(false)
       expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
       expect(JSON.parse(await send('/__evidence')).requests).toEqual([

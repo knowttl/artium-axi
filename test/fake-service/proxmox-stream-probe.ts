@@ -164,6 +164,19 @@ await withFakeService(async ({ directory, port, send }) => {
     const spice = ['transfer', 'create', '/nodes/{node}/qemu/{vmid}/spiceproxy', '--api-node', 'node', '--api-vmid', '100', '--response-format', 'spiceconfig']
     assert.notEqual((await cli([...spice, '--preview'])).code, 0)
     await writes(true)
+    const credentialGrant = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic credential issue', scope: { tools: [{ tool: 'proxmox-axi',
+      commands: ['transfer create /nodes/{node}/qemu/{vmid}/spiceproxy', 'result take'] }] }, readOnly: false, reusable: false,
+    expiresAt: Date.now() + 60000 }, [downloadAdapter])
+    const credentialConfig = join(directory, 'credential-issue')
+    new SessionStore(address, sessionPath(process.platform, { ...environment, XDG_CONFIG_HOME: credentialConfig })).write(exchangeDelegation(db, credentialGrant.token))
+    const delegatedPreview = await cli([...spice, '--preview'], { config: credentialConfig })
+    assert.equal(delegatedPreview.code, 0, delegatedPreview.stdout + delegatedPreview.stderr)
+    const credentialId = store.findCredential('proxmox-axi')!.id
+    assert.deepEqual(db.prepare("SELECT event, outcome, credential_id, instance FROM audit WHERE delegation_id = ? AND event IN ('credential-issue', 'run-start', 'run-terminal') ORDER BY id").all(credentialGrant.id), [
+      { event: 'credential-issue', outcome: 'preview', credential_id: credentialId, instance: 'default' },
+      { event: 'run-start', outcome: 'started', credential_id: credentialId, instance: 'default' },
+      { event: 'run-terminal', outcome: 'completed', credential_id: credentialId, instance: 'default' },
+    ])
     const spicePlan = await success([...spice, '--preview'])
     const beforeInvalidSpice = JSON.parse(await send('/__proxmox/evidence')).applied
     const invalidSpice = await cli([...spice.slice(0, -1), 'png', '--confirm', spicePlan.value.confirmation])

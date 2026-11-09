@@ -54,19 +54,47 @@ test('instance selection reaches the service and invalid selections fail closed'
         expect(reply.json(), reply.body).toMatchObject({ source: 'gitea-axi', instance, exitCode: 0 })
       }
       expect((await evidence()).map(request => request.identity)).toEqual(['lab', 'production'])
+      for (const name of ['lab', 'production']) {
+        const rows = db.prepare('SELECT event, credential_id, instance FROM audit WHERE instance = ? ORDER BY id').all(name)
+        const id = store.findInstance('gitea-axi', name)!.id
+        expect(rows).toEqual([{ event: 'run-start', credential_id: id, instance: name }, { event: 'run-terminal', credential_id: id, instance: name }])
+      }
+      expect(db.prepare("SELECT outcome, credential_id, instance FROM audit WHERE event = 'denial' ORDER BY id").all()).toEqual([
+        { outcome: 'INVALID_INPUT', credential_id: null, instance: null }])
       const grant = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic', scope: { tools: [{ tool: 'gitea-axi' }] },
         readOnly: true, reusable: true, expiresAt: Date.now() + 600000 }, [])
       const delegated = { authorization: `Bearer ${exchangeDelegation(db, grant.token).accessToken}` }
       const discover = (payload: object) => app.inject({ method: 'POST', url: '/v1/tools/gitea-axi/run', headers: delegated, payload: { args: ['--help'], ...payload } })
       expect((await discover({})).json().error.code).toBe('INSTANCE_REQUIRED')
       const lab = store.findInstance('gitea-axi', 'lab')!
+      expect((await run({ args: ['api'] })).statusCode).toBe(400)
+      expect(db.prepare("SELECT credential_id, instance FROM audit WHERE event = 'denial' ORDER BY id DESC LIMIT 1").get())
+        .toEqual({ credential_id: null, instance: null })
+      expect((await run({ instance: 'lab', args: ['api'] })).statusCode).toBe(400)
       store.setInstanceFlags('gitea-axi', 'lab', { enabled: false }, lab.id, lab.revision, 'synthetic-development-user', 2000)
       expect((await run({ instance: 'lab' })).json().error.code).toBe('INSTANCE_DISABLED')
+      expect((await run({ args: ['api'] })).statusCode).toBe(400)
+      expect(db.prepare("SELECT credential_id, instance FROM audit WHERE event = 'denial' ORDER BY id DESC LIMIT 1").get())
+        .toEqual({ credential_id: store.findInstance('gitea-axi', 'production')!.id, instance: 'production' })
       expect((await evidence()).map(request => request.identity)).toEqual(['lab', 'production'])
       expect((await run({})).json()).toMatchObject({ instance: 'production', exitCode: 0 })
       expect((await evidence()).map(request => request.identity)).toEqual(['lab', 'production', 'production'])
       expect((await discover({ instance: 'lab' })).json().error.code).toBe('INSTANCE_DISABLED')
+      expect(db.prepare("SELECT outcome, credential_id, instance FROM audit WHERE event = 'denial' AND instance = 'lab' ORDER BY id").all()).toEqual([
+        { outcome: 'INVALID_INPUT', credential_id: lab.id, instance: 'lab' },
+        { outcome: 'INSTANCE_DISABLED', credential_id: lab.id, instance: 'lab' },
+      ])
+      expect(db.prepare("SELECT event, outcome, credential_id, instance FROM audit WHERE instance = 'lab' AND outcome = 'INSTANCE_DISABLED' ORDER BY id").all())
+        .toEqual([{ event: 'run-terminal', outcome: 'INSTANCE_DISABLED', credential_id: lab.id, instance: 'lab' },
+          { event: 'denial', outcome: 'INSTANCE_DISABLED', credential_id: lab.id, instance: 'lab' }])
       expect((await discover({ instance: 'staging' })).json().error.code).toBe('INSTANCE_NOT_FOUND')
+      const proxmox = store.createInstance('proxmox-axi', { name: 'lab', description: '' },
+        { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }, 'synthetic-development-user', 1000)
+      const absentAdapter = await app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/run', headers,
+        payload: { instance: 'lab', args: ['version'] } })
+      expect(absentAdapter.statusCode).not.toBe(200)
+      expect(db.prepare("SELECT credential_id, instance FROM audit WHERE event = 'denial' AND tool = 'proxmox-axi' ORDER BY id DESC LIMIT 1").get())
+        .toEqual({ credential_id: proxmox.id, instance: 'lab' })
       expect((await discover({})).statusCode).toBe(200)
       const preview = await app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run', headers,
         payload: { instance: 'lab', args: ['rtr', 'run', 'a'.repeat(32), '--command', 'ps'] } })
@@ -76,6 +104,12 @@ test('instance selection reaches the service and invalid selections fail closed'
         const instance = store.findInstance('gitea-axi', name)!
         store.deleteInstance('gitea-axi', name, instance.id, instance.revision)
       }
+      const unconfigured = await run({})
+      expect(unconfigured.json().error.code).toBe('CREDENTIAL_NOT_CONFIGURED')
+      expect(db.prepare("SELECT event, outcome, credential_id, instance FROM audit WHERE tool = 'gitea-axi' AND event IN ('run-start', 'run-terminal') ORDER BY id DESC LIMIT 2").all()).toEqual([
+        { event: 'run-terminal', outcome: 'CREDENTIAL_NOT_CONFIGURED', credential_id: null, instance: null },
+        { event: 'run-start', outcome: 'started', credential_id: null, instance: null },
+      ])
       expect((await run({ instance: 'lab' })).json().error.code).toBe('INSTANCE_NOT_FOUND')
       const missing = await discover({ instance: 'lab' })
       expect(missing.statusCode).toBe(404)

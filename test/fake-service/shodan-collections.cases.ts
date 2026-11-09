@@ -66,9 +66,9 @@ test.each([
           '--idle-timeout', idleTimeout, '--scan-credit-budget', '1', '--max-requests', '1',
           '--allow-operation', 'OP-009,OP-046', '--accept-unknown-cost', '--json']
         const preview = await promisify(execFile)(process.execPath, [bundle, ...scanArgs], { timeout: 10000, env: scanEnv })
-        return await new Promise<{ code: number | string | null, stdout: string }>(resolve => {
+        return await new Promise<{ code: number | string | null, stdout: string, stderr: string }>(resolve => {
           execFile(process.execPath, [bundle, ...scanArgs, '--execute', '--confirm', JSON.parse(preview.stdout).confirm],
-            { timeout: 60000, env: scanEnv }, (error, stdout) => resolve({ code: error ? error.code ?? error.signal ?? 'failed' : 0, stdout }))
+            { timeout: 60000, env: scanEnv }, (error, stdout, stderr) => resolve({ code: error ? error.code ?? error.signal ?? 'failed' : 0, stdout, stderr }))
         })
       }
       await send('/__shodan/stream-loss?count=0')
@@ -76,6 +76,14 @@ test.each([
       const collected = await scan()
       expect(collected.code, collected.stdout).toBe(code)
       expect(JSON.parse(collected.stdout)).toMatchObject(result)
+      const collectionId = /collection: ([a-f0-9-]{36})/.exec(collected.stderr)?.[1]
+      const rows = db.prepare("SELECT event, credential_id, instance FROM audit WHERE request_id = ? AND event IN ('run-start', 'run-terminal') ORDER BY id").all(collectionId)
+      const credentialId = store.findCredential('shodan-axi')!.id
+      expect(rows).toEqual([
+        { event: 'run-start', credential_id: credentialId, instance: 'default' },
+        { event: 'run-terminal', credential_id: credentialId, instance: 'default' },
+      ])
+      expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE tool = 'shodan-axi' AND event IN ('run-start', 'run-terminal') AND (credential_id IS NOT ? OR instance IS NOT 'default')").get(credentialId)).toEqual({ count: 0 })
     } finally {
       await app.close(); db.close()
       Object.assign(toolPaths, { 'shodan-axi': previousPath })

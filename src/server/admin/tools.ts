@@ -275,6 +275,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       const now = Date.now()
       replacement = writeCredential('gh-axi', connection.instance, value, connection.expectedCredentialId, connection.expectedRevision, actor, now)
       event.credentialId = replacement.id
+      event.instance = credentialStore().listInstances('gh-axi').find(item => item.id === replacement!.id)!.name
       if (stored?.origin !== connection.origin) db.prepare('DELETE FROM trusted_certificates WHERE credential_id = ?').run(replacement.id)
       db.prepare('DELETE FROM tool_health WHERE credential_id = ?').run(replacement.id)
       db.prepare('UPDATE tools SET revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?').run(now, actor, 'gh-axi')
@@ -351,6 +352,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       const now = Date.now()
       replacement = writeCredential(tool, input.instance, value, input.expectedId, input.expectedRevision, actor, now)
       event.credentialId = replacement.id
+      event.instance = credentialStore().listInstances(tool).find(item => item.id === replacement!.id)!.name
       if (!sameOrigin) db.prepare('DELETE FROM trusted_certificates WHERE credential_id = ?').run(replacement.id)
       db.prepare('DELETE FROM tool_health WHERE credential_id = ?').run(replacement.id)
       db.prepare('UPDATE tools SET revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?').run(now, actor, tool)
@@ -472,6 +474,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       const now = Date.now()
       replacement = writeCredential(tool, name, credential, input.expectedId, expectedRevision, actor, now, input.description)
       events[0]!.credentialId = replacement.id
+      events[0]!.instance = credentialStore().listInstances(tool).find(item => item.id === replacement!.id)!.name
       db.prepare(`UPDATE tools SET native_settings = ?, pinned_version = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?`)
         .run(JSON.stringify(settings), toolManifests[tool].version, now, actor, tool)
       db.prepare('DELETE FROM tool_health WHERE credential_id = ?').run(replacement.id)

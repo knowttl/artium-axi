@@ -41,6 +41,7 @@ type Input = z.infer<typeof kubernetesSessionStart>
 interface Chunk { channel: 'stdout' | 'stderr', sequence: number, offset: number, length: number, base64: string }
 interface Session {
   id: string, owner: KubernetesOwner, kind: Input['kind'], binding: string, directory: string,
+  credentialId: string, instance?: string,
   state: 'starting' | 'prepared' | 'running' | 'exited' | 'failed' | 'cancelled' | 'expired',
   expiresAt: number, startedAt: number, controller: AbortController, child?: ChildProcess, job: Promise<void>, timer: NodeJS.Timeout,
   changed: EventEmitter, active: Set<Promise<unknown>>, ready: Promise<void>, acknowledge: () => void,
@@ -55,6 +56,7 @@ interface Session {
 export function registerKubernetesSessions(app: FastifyInstance, db: Database.Database, resolver: IdentityResolver,
   adapter: Adapter<unknown>, runner: Runner, audit: Audit, workspaces: ReturnType<typeof registerKubernetesWorkspaces>, trustedProxies: readonly string[] = []) {
   const sessions = new Map<string, Session>()
+  const admitted = new WeakMap<FastifyRequest, { credentialId: string, instance?: string }>()
   const root = join(dirname(db.name), 'tool-logs', 'kubernetes-axi', 'byte-sessions')
   const initialized = (async () => {
     await mkdir(root, { recursive: true, mode: 0o700 })
@@ -245,6 +247,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
         if (session.state !== 'exited') await rm(session.directory, { recursive: true, force: true })
         else for (const name of await readdir(session.directory)) if (name !== 'artifacts') await rm(join(session.directory, name), { recursive: true, force: true })
         audit.record({ event: 'run-terminal', userId: session.owner.user, delegationId: session.owner.delegation?.id, tool: 'kubernetes-axi', requestId: request.id,
+          credentialId: session.credentialId, instance: session.instance,
           clientAddress: request.ip, outcome: session.state === 'exited' ? 'completed' : 'interrupted',
           exitCode: session.exitCode ?? null, durationMs: Date.now() - session.startedAt, outputBytes: session.offsets })
       } catch { session.state = 'failed'; session.code = 'AUDIT_UNAVAILABLE' }
@@ -270,6 +273,8 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       if (credentialIssuingCommand(adapter.name, operation.command)) checkDelegation(owner.delegation.scopeJson, owner.delegation.readOnly, adapter, operation.command, 'write')
     }
     const binding = kubernetesBinding(db, owner, input.kind), policy = binding.settings.sessions!
+    const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(binding.credential.id) as { name: string } | undefined)?.name
+    admitted.set(request, { credentialId: binding.credential.id, instance })
     const writing = !['watch', 'logs'].includes(input.kind), command = input.kind === 'watch' ? 'get' : input.kind
     if (writing ? input.argv[0] !== 'prepare' || input.argv[1] !== '--' || input.argv[2] !== command : input.argv[0] !== command) throw new ArtiumError('INVALID_INPUT')
     const lifetime = input.limits.lifetimeSeconds ?? Math.min(300, policy.lifetimeSeconds ?? 1800)
@@ -282,7 +287,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     const directory = join(root, 'session-' + randomUUID())
     let acknowledge!: () => void
     let portsAcknowledge!: () => void
-    const session: Session = { id: randomUUID(), owner, kind: input.kind, binding: binding.hash, directory, state: 'starting',
+    const session: Session = { id: randomUUID(), owner, kind: input.kind, binding: binding.hash, credentialId: binding.credential.id, instance, directory, state: 'starting',
       expiresAt: Date.now() + lifetime * 1000, startedAt: Date.now(), controller: new AbortController(), job: Promise.resolve(),
       changed: new EventEmitter(), active: new Set(), ready: new Promise(resolve => { acknowledge = resolve }), acknowledge: () => acknowledge(),
       confirmed: false, chunks: [], sequence: 1, offsets: { stdout: 0, stderr: 0 }, retained: 0, limit, truncated: false,
@@ -295,6 +300,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       await mkdir(directory, { mode: 0o700 })
       access(session)
       audit.record({ event: 'run-start', userId: owner.user, delegationId: owner.delegation?.id, tool: 'kubernetes-axi', requestId: request.id,
+        credentialId: session.credentialId, instance: session.instance,
         clientAddress: request.ip, outcome: 'started', args: [input.kind], sensitive: { flags: [], positions: [] } })
       session.job = execute(session, input, request)
       session.timer = setTimeout(() => { void stop(session, 'expired').then(() => sessions.delete(session.id)) }, lifetime * 1000)
@@ -410,9 +416,11 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       void drained.then(() => { session.tunnels.delete(drained); session.active.delete(drained) })
     })().catch(error => {
       try {
-        let userId: string | null = null, delegationId: string | undefined
-        try { const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''); userId = principal.userId; delegationId = principal.delegation?.id } catch { /* Unverified callers remain unattributed. */ }
-        audit.record({ event: 'denial', userId, delegationId, tool: 'kubernetes-axi', requestId: randomUUID(),
+        let userId: string | null = null, delegationId: string | undefined, familyId: string | undefined
+        try { const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''); userId = principal.userId; delegationId = principal.delegation?.id; familyId = principal.familyId } catch { /* Unverified callers remain unattributed. */ }
+        const id = new RegExp(`^${prefix}/([a-f0-9-]{36})/tunnel$`).exec(request.url ?? '')?.[1], session = id ? sessions.get(id) : undefined
+        const identity = session && session.owner.user === userId && session.owner.family === familyId ? { credentialId: session.credentialId, instance: session.instance } : {}
+        audit.record({ ...identity, event: 'denial', userId, delegationId, tool: 'kubernetes-axi', requestId: randomUUID(),
           clientAddress: request.socket.remoteAddress ?? null, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
         socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
       } catch { socket.destroy() }
@@ -420,9 +428,16 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
   })
   app.addHook('onError', async (request, _reply, error) => {
     if (!request.url.startsWith('/v1/tools/kubernetes-axi/')) return
-    let userId: string | null = null, delegationId: string | undefined
-    try { const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''); userId = principal.userId; delegationId = principal.delegation?.id } catch { /* Unverified callers remain unattributed. */ }
-    audit.record({ event: 'denial', userId, delegationId, tool: 'kubernetes-axi', requestId: request.id,
+    let userId: string | null = null, delegationId: string | undefined, familyId: string | undefined
+    try { const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''); userId = principal.userId; delegationId = principal.delegation?.id; familyId = principal.familyId } catch { /* Unverified callers remain unattributed. */ }
+    const id = request.url.startsWith(prefix + '/') ? (request.params as { id?: string } | undefined)?.id : undefined
+    const session = id ? sessions.get(id) : undefined
+    const candidates = userId && request.method === 'POST' && [prefix, '/v1/tools/kubernetes-axi/workspaces'].includes(request.url.split('?')[0])
+      ? db.prepare("SELECT id, name FROM credentials WHERE tool = 'kubernetes-axi' AND enabled = 1 LIMIT 2").all() as { id: string, name: string }[] : []
+    const identity = admitted.get(request) ?? workspaces.auditIdentity(request, userId, familyId) ?? (session && session.owner.user === userId && session.owner.family === familyId
+      ? { credentialId: session.credentialId, instance: session.instance }
+      : candidates.length === 1 ? { credentialId: candidates[0]!.id, instance: candidates[0]!.name } : {})
+    audit.record({ ...identity, event: 'denial', userId, delegationId, tool: 'kubernetes-axi', requestId: request.id,
       clientAddress: request.ip, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
   })
   app.addHook('preClose', async () => {

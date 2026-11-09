@@ -326,8 +326,8 @@ Denial, expiry or revocation prevents ticket issuance; approval codes are single
 
 ### Audit screen and API
 
-Audit supports exact request ID, token ID, user, tool, exact event, exact outcome, exact error code and inclusive UTC From/To filters, plus **Failed runs only**.
-The screen provides request ID, Token ID, User, Tool, Event, Outcome and failed-run filters in one row; set an exact error code with `errorCode=<code>` in the page URL, which displays a removable filter.
+Audit supports exact request ID, token ID, user, tool, credential instance, exact event, exact outcome, exact error code and inclusive UTC From/To filters, plus **Failed runs only**.
+The screen provides request ID, Token ID, User, Tool, Instance, Event, Outcome and failed-run filters in one row, and an Instance column (historic rows show `default/unknown`); set an exact error code with `errorCode=<code>` in the page URL, which displays a removable filter.
 Its **24 h** and **7 days** time ranges set From to that long before each page request and clear To; **Custom** shows the inclusive UTC From and To fields, and **Any time** removes the time bounds.
 Use `requestId=<id>` to correlate a call's records.
 Use `failed=1` to select only `run-terminal` records with a non-zero or missing exit code, or an outcome other than `completed`; omit it or use `failed=0` to disable this restriction.
@@ -354,7 +354,9 @@ Delegated calls include the creator's user ID and `delegation_id`; the screen, A
 See [delegated capability boundaries](safety.md#delegated-sessions) for creation settings and their effect on existing tokens, and [token API usage](client-reference.md#delegated-tokens) for administrator listing and revocation.
 CSV quotes non-null values and leaves null fields empty; JSON lines preserves JSON types and nulls.
 The [API contracts](../src/shared/api.ts) own the persisted field definitions (`adminAuditRecordSchema`) and transfer evidence rules (`transferAuditSchema` and `transferEvidenceSchema`).
-The `credential_id` and `instance` attribution fields identify the credential instance for administrator changes, credential tests and health checks, and are null for every other event, including events recorded before upgrade and exports of them.
+The `credential_id` and `instance` fields identify the credential and its name snapshot on attributable administrator changes, credential tests and health checks, denials, run lifecycle, credential-issue, protected-result and upload events.
+They remain null on records predating attribution and when an instance cannot be identified; the Instance column displays `default/unknown` for null names.
+The instance filter matches the stored name exactly across tools and excludes null names; exports preserve the stored fields and nulls.
 For hosted download availability, see the [supported capability boundaries](safety.md).
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
