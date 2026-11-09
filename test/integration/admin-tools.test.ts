@@ -2186,7 +2186,7 @@ const eastValue = { ...values['falcon-axi'], clientSecret: 'CANARY-east-secret' 
 const westValue = { ...values['falcon-axi'], clientSecret: 'CANARY-west-secret', region: 'eu-1' }
 
 test('instance credential changes preserve shared write access', async () => {
-  const east = await createInstance('east', eastValue)
+  await createInstance('east', eastValue)
   expect((await request('PATCH', '/falcon-axi/write-access', { enabled: true, operations: ['malquery search'],
     expectedRevision: await toolRevision('falcon-axi') })).status).toBe(200)
   const west = await createInstance('west', westValue)
@@ -2196,11 +2196,12 @@ test('instance credential changes preserve shared write access', async () => {
     expectedToolRevision: await toolRevision('falcon-axi') })).status).toBe(200)
   expect(await (await request('GET', '/falcon-axi')).json()).toMatchObject({ writeAccess: { enabled: true, allowedOperations: ['malquery search'] } })
   expect(healthSchema.parse(await (await request('POST', '/falcon-axi/instances/east/test', {})).json()).readOnly).toBe(true)
-  expect((await request('PATCH', '/falcon-axi/instances/east', { expectedId: east.id, expectedRevision: east.revision, readOnly: false })).status).toBe(200)
+  expect((await request('PATCH', '/falcon-axi/instances/east', { ...await instanceHeader('east'), readOnly: false })).status).toBe(200)
   expect(healthSchema.parse(await (await request('POST', '/falcon-axi/instances/east/test', {})).json()).readOnly).toBe(false)
 })
 
 test('AWX summary aggregates configured instances and legacy credential requires a unique instance', async () => {
+  adapters.push(createAwxAdapter(new EmbeddedSecretSource(store)))
   for (const instance of ['east', 'west']) {
     expect((await request('PUT', '/awx-axi/origin', { origin: `https://${instance}.example`, instance, expectedRevision: 0,
       expectedToolRevision: await toolRevision('awx-axi') })).status).toBe(200)
