@@ -134,7 +134,7 @@ test.each([
   await signIn()
   const response = await request('GET', '/admin/tools/falcon-axi?tab=access')
   expect(response.statusCode).toBe(200)
-  expect(response.body).toContain(`<a href="/admin/roles/synthetic-role">Synthetic Role</a><p>${members}</p>`)
+  expect(response.body).toContain(`<a href="/admin/roles/synthetic-role">Synthetic Role</a><p>${members} · All instances</p>`)
 })
 
 test('tool Access offers an instance access sheet per role, open from its query view', async () => {
@@ -148,7 +148,7 @@ test('tool Access offers an instance access sheet per role, open from its query 
   expect(closed).toContain('<dialog class="sheet" id="sheet-instances-synthetic-role"')
   db.exec("UPDATE role_tools SET all_instances = 0; INSERT INTO role_tool_instances VALUES ('synthetic-role', 'falcon-axi', 'synthetic-lab')")
   const open = (await request('GET', '/admin/tools/falcon-axi?tab=access&sheet=instances-synthetic-role')).body
-  expect(open).toContain('1 of 2 instances</p>')
+  expect(open).toContain('Selected instances: lab</p>')
   expect(open).toContain('id="sheet-instances-synthetic-role" aria-labelledby="sheet-instances-synthetic-role-title" open')
   expect(open).toContain('<input type="radio" name="scope" value="selected" checked>')
   expect(open).toContain('<input type="checkbox" name="instances" value="lab" checked>')
@@ -161,6 +161,7 @@ test('tool Access can restore all instances after the last selected instance is 
   db.exec("UPDATE role_tools SET all_instances = 0; INSERT INTO role_tool_instances VALUES ('synthetic-role', 'falcon-axi', 'synthetic-lab'); DELETE FROM credentials WHERE id = 'synthetic-lab'")
   await signIn()
   const page = await request('GET', '/admin/tools/falcon-axi?tab=access&sheet=instances-synthetic-role')
+  expect(page.body).toContain('Selected instances: None</p>')
   expect(page.body).toContain('id="sheet-instances-synthetic-role" aria-labelledby="sheet-instances-synthetic-role-title" open')
   expect(page.body).toContain('href="/admin/tools/falcon-axi?tab=access&amp;sheet=instances-synthetic-role"')
   expect(page.body).toContain('value="all"')

@@ -18,7 +18,7 @@ export function shodanOwner(db: Database.Database, request: Pick<FastifyRequest,
 }
 
 function binding(db: Database.Database, owner: ShodanOwner, credential: CredentialReference) {
-  checkToolPolicy(db, owner.user, 'shodan-axi')
+  checkToolPolicy(db, owner.user, 'shodan-axi', credential.id)
   if (!db.prepare('SELECT 1 FROM session_families WHERE id=? AND user_id=? AND revoked_at IS NULL AND expires_at>?')
     .get(owner.family, owner.user, Date.now())) throw new ArtiumError('TOKEN_INVALID')
   const tool = db.prepare("SELECT revision,native_settings FROM tools WHERE name='shodan-axi'").get() as { revision: number, native_settings: string }

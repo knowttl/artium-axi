@@ -264,6 +264,14 @@ test('revocation cancels a prepared delegated transfer', async () => {
   expect(await readdir(root)).toEqual([])
 })
 
+test('instance grant revocation cancels a prepared transfer', async () => {
+  const prepared = await preview()
+  db.exec("UPDATE role_tools SET all_instances = 0 WHERE role_id = 'synthetic-role' AND tool = 'hybrid-axi'")
+  const response = await post('execute', { ...body(), transferId: prepared.transferId, execute: true, confirm: prepared.confirm })
+  expect(response.status).not.toBe(200)
+  expect((await response.json()).error.code).toBe('INSTANCE_NOT_FOUND')
+})
+
 test('real HTTP retrieval is opaque, one-shot and records delivery separately from client save', async () => {
   const transfer = await ready()
   const input = { ...body(), transferId: transfer.transferId }

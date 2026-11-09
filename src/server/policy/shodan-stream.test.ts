@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { issueTestAccessToken } from '../../../test/fixtures/tokens.js'
 import { migrate } from '../store/db.js'
-import { shodanBinding, shodanOwner } from './shodan-stream.js'
+import { shodanBinding, shodanOwner, shodanScanBinding } from './shodan-stream.js'
 
 let db: Database.Database
 const credential = { id: 'synthetic-credential', tool: 'shodan-axi' as const, revision: 1 }
@@ -46,4 +46,11 @@ test('policy revisions change the session binding', () => {
   const prior = shodanBinding(db, owner, credential, 'OP-046').hash
   db.exec("UPDATE tools SET revision=revision+1 WHERE name='shodan-axi'")
   expect(shodanBinding(db, owner, credential, 'OP-046').hash).not.toBe(prior)
+})
+
+test('session and scan bindings reject a revoked instance grant', () => {
+  shodanBinding(db, owner, credential, 'OP-046')
+  db.exec("UPDATE role_tools SET all_instances=0 WHERE tool='shodan-axi'")
+  expect(() => shodanBinding(db, owner, credential, 'OP-046')).toThrow(expect.objectContaining({ code: 'INSTANCE_NOT_FOUND' }))
+  expect(() => shodanScanBinding(db, owner, credential, [])).toThrow(expect.objectContaining({ code: 'INSTANCE_NOT_FOUND' }))
 })

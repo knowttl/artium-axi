@@ -32,7 +32,7 @@ Administrators edit this on the tool's Access tab or with `PUT /v1/admin/roles/:
 SSH uses caller-specific credentials and rejects an `instance` field.
 The CLI supports instance selection for tool runs; see the [command reference](commands.md) for syntax and exclusions.
 Related workspace, session, stream, transfer and protected-result APIs do not carry an instance selection; multiple enabled instances can therefore make those paths unavailable.
-Those paths check only the role's tool grant, not its instance selection.
+Those paths check the role's instance grant when selecting credentials and recheck it for ongoing operations.
 The existing administration UI manages the shared credential rather than named instances.
 External secret sources and per-user credentials for shared-credential tools are unsupported.
 
