@@ -68,12 +68,18 @@ test('instance selection reaches the service and invalid selections fail closed'
       const discover = (payload: object) => app.inject({ method: 'POST', url: '/v1/tools/gitea-axi/run', headers: delegated, payload: { args: ['--help'], ...payload } })
       expect((await discover({})).json().error.code).toBe('INSTANCE_REQUIRED')
       const lab = store.findInstance('gitea-axi', 'lab')!
+      expect((await run({ instance: 'lab', args: [] })).statusCode).toBe(400)
       store.setInstanceFlags('gitea-axi', 'lab', { enabled: false }, lab.id, lab.revision, 'synthetic-development-user', 2000)
       expect((await run({ instance: 'lab' })).json().error.code).toBe('INSTANCE_DISABLED')
       expect((await evidence()).map(request => request.identity)).toEqual(['lab', 'production'])
       expect((await run({})).json()).toMatchObject({ instance: 'production', exitCode: 0 })
       expect((await evidence()).map(request => request.identity)).toEqual(['lab', 'production', 'production'])
       expect((await discover({ instance: 'lab' })).json().error.code).toBe('INSTANCE_DISABLED')
+      expect(db.prepare("SELECT outcome, credential_id, instance FROM audit WHERE event = 'denial' AND instance = 'lab' ORDER BY id").all()).toEqual([
+        { outcome: 'INVALID_INPUT', credential_id: lab.id, instance: 'lab' },
+        { outcome: 'INSTANCE_DISABLED', credential_id: lab.id, instance: 'lab' },
+        { outcome: 'INSTANCE_DISABLED', credential_id: lab.id, instance: 'lab' },
+      ])
       expect((await discover({ instance: 'staging' })).json().error.code).toBe('INSTANCE_NOT_FOUND')
       expect((await discover({})).statusCode).toBe(200)
       const preview = await app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run', headers,

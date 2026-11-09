@@ -80,10 +80,12 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
     const reservation = stream ? sessions.reserve(owner, plan.credential, plan.streamOperation!, stream) : undefined
     const retentionMs = (reservation?.limits.retentionSeconds ?? 900) * 1000
     const controller = new AbortController(), directory = join(root, `scan-${plan.id}`)
+    const identity = { credentialId: plan.credential.id, instance: (db.prepare('SELECT name FROM credentials WHERE id = ?').get(plan.credential.id) as { name: string } | undefined)?.name }
     const collection: Collection = { ...plan, state: 'running', controller, job: Promise.resolve(), timer: setTimeout(() => {}, 0), changed: new EventEmitter() }
     clearTimeout(collection.timer)
     try {
       audit.record({ event: 'run-start', userId: owner.user, tool: 'shodan-axi', requestId: plan.id, clientAddress: request.ip,
+        ...identity,
         outcome: 'started', args: ['scan', 'collection', ...plan.operations], sensitive: { positions: [], flags: [] } })
     } catch (error) { if (reservation) sessions.release(reservation); throw error }
     collections.set(plan.id, collection)
@@ -99,6 +101,7 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
         check()
         const requestId = randomUUID(), began = Date.now()
         audit.record({ event: 'run-start', userId: owner.user, tool: 'shodan-axi', requestId, clientAddress: request.ip,
+          ...identity,
           outcome: 'started', args: ['scan-action', plan.inspection.operation], sensitive: { positions: [], flags: [] } })
         try {
           const result = await runner.runManaged(owner.user, controller.signal, signal => shodanMutation(directory, adapter, plan.credential,
@@ -106,11 +109,13 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
             () => { if (sessionId) sessions.assertRunning(owner, sessionId) }, input.scope.force ? ['--force'] : [], runner.configuredCaPem))
           const completed = result.status === 'submitted'
           audit.record({ event: 'run-terminal', userId: owner.user, tool: 'shodan-axi', requestId, clientAddress: request.ip,
+            ...identity,
             outcome: completed ? 'completed' : 'interrupted', action: completed ? 'write' : 'unknown', exitCode: completed ? 0 : null,
             durationMs: Date.now() - began, outputBytes: { stdout: null, stderr: null } })
           return result
         } catch (error) {
           audit.record({ event: 'run-terminal', userId: owner.user, tool: 'shodan-axi', requestId, clientAddress: request.ip,
+            ...identity,
             outcome: 'interrupted', action: 'unknown', exitCode: null, durationMs: Date.now() - began, outputBytes: { stdout: null, stderr: null } })
           throw error
         }
@@ -166,6 +171,7 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
         const retainedUntil = typeof streamResult?.retainedUntil === 'number' ? streamResult.retainedUntil : Date.now() + retentionMs
         collection.timer = setTimeout(() => { collection.result = undefined; collections.delete(plan.id) }, Math.max(0, retainedUntil - Date.now())).unref()
         audit.record({ event: 'run-terminal', userId: owner.user, tool: 'shodan-axi', requestId: plan.id, clientAddress: request.ip,
+          ...identity,
           outcome: collection.state === 'completed' ? 'completed' : 'interrupted', action: collection.state === 'completed' ? 'write' : 'unknown',
           exitCode: collection.state === 'completed' ? 0 : null, durationMs: Date.now() - startedAt, outputBytes: { stdout: null, stderr: null } })
       }

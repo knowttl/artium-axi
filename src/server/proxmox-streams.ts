@@ -30,6 +30,7 @@ const delegatedStreams = 1
 type Delegation = NonNullable<ReturnType<typeof verifyPrincipal>['delegation']>
 interface Lease {
   id: string, owner: ResultScope & { familyId: string, trustRevision: string, delegation?: Delegation }, selection: ProxmoxStreamSelection,
+  instance?: string,
   input: Input, directory: string, expiresAt: number, controller: AbortController, timer: NodeJS.Timeout,
   file?: FileHandle, received: number, hash: ReturnType<typeof createHash>, ended: boolean,
   socket?: Duplex, native?: Duplex, job?: Promise<void>, receiving: Promise<void>, cleaning?: Promise<void>,
@@ -121,6 +122,7 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
     const input = parsed.data
     if (owner.delegation) authorizeDelegatedOperation(db, owner.userId, owner.delegation, adapter, classifyDelegatedCommand(adapter, input.args, { stdin: input.stdin }))
     const credential = await resolver.resolve(owner.userId, 'proxmox-axi')
+    const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(credential.id) as { name: string } | undefined)?.name
     const selection = adapter.inspectStream(input.args, credential, { stdin: input.stdin })
     if (selection.upload !== !!input.source || input.source && input.source.bytes > limits.uploadBytes) throw new ArtiumError('INVALID_INPUT')
     await initialized
@@ -132,7 +134,7 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
     const id = randomUUID(), scope = { ...owner, delegated: !!owner.delegation, credential, operation: selection.operation, trustRevision: proxmoxTrust(db, credential) }
     let acknowledge!: () => void
     const lifetime = Math.min(streamMs, (selection.duplex || selection.spice) ? protectedResultLimits.lifetimeMs : streamMs)
-    const lease: Lease = { id, owner: scope, selection, input, directory: join(root, 'stream-' + id),
+    const lease: Lease = { id, owner: scope, selection, instance, input, directory: join(root, 'stream-' + id),
       expiresAt: Date.now() + lifetime, controller: new AbortController(), received: 0, hash: createHash('sha256'),
       ended: false, receiving: Promise.resolve(), delivered: new Promise(resolve => { acknowledge = resolve }),
       acknowledge: () => acknowledge(), accepted: false, resultSent: false, succeeded: false,
@@ -184,7 +186,9 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
           const started = Date.now()
           const command = classifyDelegatedCommand(adapter, lease.input.args, { stdin: lease.input.stdin }).command
           const credentialIssue = !!lease.owner.delegation && credentialIssuingCommand('proxmox-axi', command)
+          const identity = { credentialId: lease.owner.credential.id, instance: lease.instance }
           const recordCredential = (outcome: 'attempt' | 'preview' | 'success') => audit.record({ event: 'credential-issue',
+            ...identity,
             userId: lease.owner.userId, delegationId: lease.owner.delegation?.id, tool: 'proxmox-axi', requestId: lease.id,
             clientAddress: request.socket.remoteAddress ?? null, targetId: command, outcome })
           try {
@@ -200,6 +204,7 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
             prepared.beforeSpawn = () => authorize(lease)
             lease.validateNative = () => prepared.beforeSpawn?.()
             audit.record({ event: 'run-start', userId: lease.owner.userId, delegationId: lease.owner.delegation?.id, tool: 'proxmox-axi', requestId: lease.id,
+              ...identity,
               clientAddress: request.socket.remoteAddress ?? null, outcome: 'started',
               args: lease.input.args.slice(0, 3), sensitive: { positions: [], flags: [] } })
             let downloaded = 0
@@ -272,6 +277,7 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
             if (credentialIssue && lease.succeeded && !lease.selection.preview) recordCredential('success')
             const uncertain = ['WRITE_UNCERTAIN', 'DELIVERY_UNCERTAIN', 'OUTCOME_UNKNOWN'].includes(toolFailureCode(result.stdout, result.stderr) ?? '')
             audit.record({ event: 'run-terminal', userId: lease.owner.userId, delegationId: lease.owner.delegation?.id, tool: 'proxmox-axi', requestId: lease.id,
+              ...identity,
               clientAddress: request.socket.remoteAddress ?? null, action: lease.selection.write && !lease.selection.preview ? result.exitCode === 0 ? 'write' : 'unknown' : 'read',
               outcome: uncertain ? 'UNKNOWN_OUTCOME' : 'completed', errorCode: toolFailureCode(result.stdout, result.stderr) ?? null,
               exitCode: result.exitCode, durationMs: Date.now() - started, outputBytes: result.outputBytes })
@@ -279,6 +285,7 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
             const uncertain = lease.selection.write && !lease.selection.preview && (error instanceof RunnerError ? error.processStarted : dispatched)
             const code = uncertain ? 'UNKNOWN_OUTCOME' : error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'
             audit.record({ event: 'run-terminal', userId: lease.owner.userId, delegationId: lease.owner.delegation?.id, tool: 'proxmox-axi', requestId: lease.id,
+              ...identity,
               clientAddress: request.socket.remoteAddress ?? null, action: uncertain ? 'unknown' : 'read', outcome: code,
               exitCode: null, durationMs: Date.now() - started, outputBytes: { stdout: 0, stderr: 0 } })
             if (!socket.destroyed) await wire.send({ type: 'control', value: { event: 'failed', code } }).catch(() => {})

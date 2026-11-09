@@ -120,8 +120,10 @@ export async function runTool<Credential>(
       if (!adapter.prepareForCaller) reference ??= await resolveReference(userId)
     } catch (error) {
       recordApiDecision('refused')
+      const requested = request && typeof request === 'object' && 'instance' in request && typeof request.instance === 'string' ? request.instance : undefined
+      const named = userId && requested !== undefined ? db.prepare('SELECT id, name FROM credentials WHERE tool = ? AND name = ?').get(adapter.name, requested) as { id: string, name: string } | undefined : undefined
       audit.record({ event: 'denial', userId, delegationId, tool: adapter.name, requestId: context.requestId,
-        clientAddress: context.clientAddress, credentialId: reference?.id, instance: reference && instance,
+        clientAddress: context.clientAddress, credentialId: reference?.id ?? named?.id, instance: reference ? instance : named?.name,
         outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
       throw error
     }

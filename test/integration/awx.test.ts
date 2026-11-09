@@ -1697,6 +1697,8 @@ test.each(['PATCH', 'PUT'] as const)('AWX password sign-in via %s bootstraps sco
       const address = await saveOrigin(origin)
       expect(address.statusCode, address.body).toBe(200)
       expect(address.json()).toMatchObject({ configured: false, metadata: { origin } })
+      expect(db.prepare("SELECT instance, credential_id FROM audit WHERE action = 'save-awx-origin'").all())
+        .toEqual([{ instance: 'default', credential_id: store.findCredential('awx-axi')!.id }])
       expect(store.readCredential(store.findCredential('awx-axi')!)).toEqual({ origin })
       const staleAddress = await app.inject({ method: 'PUT', url: '/v1/admin/tools/awx-axi/origin', headers, payload: {
         origin, expectedRevision: 0, expectedToolRevision: revisions().tool } })

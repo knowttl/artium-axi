@@ -172,7 +172,9 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
         plan.limits.retentionSeconds * 1000), expiresAt: Date.now() + Math.min(input.bounds.timeout, plan.limits.leaseSeconds * 1000),
         cleaned: false, changed: new EventEmitter(), job: Promise.resolve() }
       const startedAt = Date.now()
+      const identity = { credentialId: session.credential.id, instance: (db.prepare('SELECT name FROM credentials WHERE id = ?').get(session.credential.id) as { name: string } | undefined)?.name }
       audit.record({ event: 'run-start', userId: owner.user, tool: 'shodan-axi', requestId: session.id,
+        ...identity,
         clientAddress, outcome: 'started', args: ['stream', 'session', input.operation], sensitive: { positions: [], flags: [] } })
       sessions.set(plan.id, session); arm(session)
       session.job = runner.runManaged(owner.user, controller.signal, async signal => {
@@ -194,10 +196,12 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
       }).then(async () => {
         await finish(session, 'closed')
         audit.record({ event: 'run-terminal', userId: owner.user, tool: 'shodan-axi', requestId: session.id, clientAddress,
+          ...identity,
           outcome: 'completed', action: 'read', exitCode: 0, durationMs: Date.now() - startedAt, outputBytes: { stdout: null, stderr: null } })
       }, async () => {
         await finish(session, 'failed')
         audit.record({ event: 'run-terminal', userId: owner.user, tool: 'shodan-axi', requestId: session.id, clientAddress,
+          ...identity,
           outcome: 'interrupted', action: 'unknown', exitCode: null, durationMs: Date.now() - startedAt, outputBytes: { stdout: null, stderr: null } })
       }).catch(error => {
         log('error', 'shodan-session-terminal', { requestId: session.id,

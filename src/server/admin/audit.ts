@@ -92,7 +92,7 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
       return `<tr${open ? ' class="sel"' : ''}><th scope="row"><a href="${escape(link({ record: String(record.id), cursor: query.data.cursor }))}"${open ? ' aria-current="true"' : ''}>${timestamp(record.occurred_at)}</a></th>
         <td><span class="mono">${escape(record.event)}</span>${record.authentication_method === 'break-glass' ? ' ' + badge('Break-glass', 'warn') : ''}</td>
         <td${record.user_id === null ? ' class="faint"' : ''}>${escape(actor(record.user_id))}</td><td${record.tool ? '' : ' class="faint"'}>${escape(record.tool ?? '-')}</td>
-        <td${record.instance ? '' : ' class="faint"'}>${escape(record.instance ?? (record.tool ? 'default/unknown' : '-'))}</td><td>${badge(outcome.word, outcome.tone)}</td></tr>`
+        <td${record.instance ? '' : ' class="faint"'}>${escape(record.instance ?? 'default/unknown')}</td><td>${badge(outcome.word, outcome.tone)}</td></tr>`
     }).join('')
 
     const close = link({ cursor: query.data.cursor })
