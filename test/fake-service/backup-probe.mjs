@@ -42,7 +42,8 @@ if (process.argv[2] === 'backup') {
     assert.throws(() => verifyAccessToken(db, proof.accessToken), { code: 'TOKEN_INVALID' })
     const store = createCredentialStore(db, provider)
     assert.deepEqual(store.readCredential(store.findCredential('falcon-axi')), { secret: 'CANARY-container-backup' })
-    assert.deepEqual(db.prepare('SELECT * FROM role_tools').all(), [{ role_id: 'synthetic-role', tool: 'falcon-axi', raw_api: 0, all_instances: 1 }])
+    assert.deepEqual(db.prepare('SELECT role_id, tool, raw_api, all_instances FROM role_tools').all(),
+      [{ role_id: 'synthetic-role', tool: 'falcon-axi', raw_api: 0, all_instances: 1 }])
     assert.deepEqual(db.prepare('SELECT event FROM audit').all(), [{ event: 'synthetic-backup-proof' }])
     const pair = issueLoginTokens(db, 'synthetic-admin')
     assert.equal(pair.status, 'authenticated')
