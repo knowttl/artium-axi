@@ -203,8 +203,9 @@ The **Instances** tab (`?tab=instances`, the default) lists them with endpoint, 
 **Add instance** opens a sheet with the name, the description and the credential editor.
 The name is lowercase letters, digits and hyphens, never changes and is what agents type after `--instance`.
 New instances start enabled and read-only.
-The sheet warns that once a tool has a second instance, calls that omit `--instance` fail with `INSTANCE_REQUIRED` until they name one.
-Proxmox, Kubernetes and Shodan accept one instance until their sessions and streams are instance-aware.
+Calls that omit `--instance` fail with `INSTANCE_REQUIRED` when more than one enabled, configured instance is granted to the caller.
+Shodan accepts one instance until its streams are instance-aware.
+For AWX, save the controller address in the sheet, then open the instance to inspect its certificate, save credentials and edit its description.
 **Edit** changes the description and the read-only switch; the tool's Write permissions stay the ceiling and an instance can only narrow them.
 Open an instance to change its connection, test it, inspect and trust its certificates, enable or disable it, or delete it.
 Certificate trust is per instance because it belongs to the instance's credential.

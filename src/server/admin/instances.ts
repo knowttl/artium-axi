@@ -133,17 +133,20 @@ export function instancesPanel(options: { tool: Tool, csrf: string, rows: Instan
     : `<p class="empty">${ssh ? 'No hosts are registered yet.' : `No instances yet. Add one to connect ${escape(product)}.`}</p>`
   const add = 'add-instance'
   if (!ssh) {
+    const awx = tool.name === 'awx-axi'
     sheets.push(sheet({ name: add, open: options.sheet === add, closeHref: page, title: 'Add instance', description: `Connect another ${product} endpoint under its own name.`,
-      body: `<input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}">` +
-        field('instance-name', 'Name', attributes => `<input class="input mono" ${attributes} name="name" required maxlength="32" pattern="[a-z0-9][a-z0-9\\-]*" autocomplete="off" spellcheck="false">`,
+      body: `<input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}">${awx ? revision(0) : ''}` +
+        field('instance-name', 'Name', attributes => `<input class="input mono" ${attributes} name="${awx ? 'instance' : 'name'}" required maxlength="32" pattern="[a-z0-9][a-z0-9\\-]*" autocomplete="off" spellcheck="false">`,
           'Lowercase letters, digits and hyphens. Agents type this name, and it never changes.') +
-        field('instance-description', 'Description', attributes => `<textarea ${attributes} name="description" rows="3" maxlength="500"></textarea>`,
-          'Say what this instance is for, for example “Production cluster. Use for inventory only.”') +
-        (rows.length ? callout('warn', 'Scripts must name an instance', 'With more than one instance, calls that omit --instance fail with INSTANCE_REQUIRED until they name one.') : '') +
-        credentialFields(tool.name, profile, {}, false) +
+        (awx ? field('instance-origin', 'Controller HTTPS origin', attributes => `<input class="input" ${attributes} name="origin" type="url" required>`,
+          'Save the address first, then open the instance to inspect its certificate, save credentials and edit its description.')
+          : field('instance-description', 'Description', attributes => `<textarea ${attributes} name="description" rows="3" maxlength="500"></textarea>`,
+            'Say what this instance is for, for example “Production cluster. Use for inventory only.”')) +
+        (rows.length ? callout('warn', 'Scripts may need to name an instance', 'Calls that omit --instance fail with INSTANCE_REQUIRED when more than one enabled, configured instance is granted to the caller.') : '') +
+        (awx ? '' : credentialFields(tool.name, profile, {}, false)) +
         '<p class="note">New instances start read-only. Change this on the instance after it passes its test.</p>',
-      submit: '<label class="check"><input type="checkbox" data-save-and-test checked> Test after saving</label><button class="btn btn-primary">Add instance</button>',
-      wrap: inner => form(`${api}/instances`, 'POST', inner, { consequence: `Add this ${product} instance? It starts read-only.`, title: 'Add instance', action: 'Add instance' }, `data-save-tool="${tool.name}"`) }))
+      submit: `${awx ? '' : '<label class="check"><input type="checkbox" data-save-and-test checked> Test after saving</label>'}<button class="btn btn-primary">Add instance</button>`,
+      wrap: inner => form(awx ? `${api}/origin` : `${api}/instances`, awx ? 'PUT' : 'POST', inner, { consequence: `Add this ${product} instance? It starts read-only.`, title: 'Add instance', action: 'Add instance' }, awx ? '' : `data-save-tool="${tool.name}"`) }))
   }
   const sshNote = noteCard('Dedicated SSH identity', '<p>SSH requires separately managed host trust, caller grants and encrypted ordinary account bindings. Generic tenant credentials cannot configure SSH.</p><p><a href="/admin/ssh">Manage hosts, account bindings and grants</a> · <a href="/admin/ssh/credentials">Manage encrypted SSH credentials</a></p>') +
     noteCard('Check authentication per host', '<p>As a caller with a shell grant, run <code>artium-axi ssh-axi host list</code>, then <code>artium-axi ssh-axi doctor &lt;host&gt;</code>. This checks authentication only. There is no shared connection test or cached health result.</p>')

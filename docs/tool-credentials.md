@@ -47,8 +47,9 @@ A tool can have several named instances, for example a lab and a production appl
 Each instance has its own credential, certificate trust, health and read-only setting, and the tool sections below apply to every instance.
 Choose **Add instance**, enter a lowercase name and a description that tells agents what the instance is for, fill in the credential fields and keep **Test after saving** on.
 New instances start read-only; clear the switch under **Edit** only after the instance passes its test and you want agents to write through it.
-Once a tool has a second instance, agents must name one with `artium-axi --instance <name> <tool> ...`, and calls without it fail with `INSTANCE_REQUIRED`.
-Proxmox, Kubernetes and Shodan accept one instance until their sessions and streams are instance-aware.
+When more than one enabled, configured instance is granted to a caller, calls without `--instance` fail with `INSTANCE_REQUIRED`; name one with `artium-axi --instance <name> <tool> ...`.
+Shodan accepts one instance until its streams are instance-aware.
+For AWX, save the controller address first, then open the instance to inspect its certificate, save credentials and edit its description.
 SSH hosts are reported as instances in the same listings, and their host, binding and grant setup is unchanged.
 The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) owns profile injection and secret handling; [browser administration](admin-guide.md#browser-administration) explains editor inputs, saving and health behavior.
 

@@ -85,7 +85,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const rows = tools.map((tool, index) => {
       const listed = instances[index]!
       const configured = tool.name === 'ssh-axi' ? hasSshConfiguration(db) : listed.some(row => row.instance!.configured)
-      return { tool, count: listed.length, failing: listed.filter(row => row.instance?.health.status === 'error').length,
+      return { tool, count: listed.length, failing: listed.filter(row => row.instance?.enabled && toolSetupState({ enabled: true, configured: row.instance.configured, health: row.instance.health }) === 'failing').length,
         state: tool.name === 'ssh-axi' && configured ? 'hostChecks' as const : toolSetupState({ enabled: tool.enabled, configured, health: tool.health }) }
     })
     const attention = (row: typeof rows[number]) => row.state === 'failing' || row.state === 'needsCredential'
