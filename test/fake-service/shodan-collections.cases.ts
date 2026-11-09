@@ -76,6 +76,13 @@ test.each([
       const collected = await scan()
       expect(collected.code, collected.stdout).toBe(code)
       expect(JSON.parse(collected.stdout)).toMatchObject(result)
+      const rows = db.prepare("SELECT event, credential_id, instance FROM audit WHERE tool = 'shodan-axi' AND event IN ('run-start', 'run-terminal') ORDER BY id").all()
+      const credentialId = store.findCredential('shodan-axi')!.id
+      expect(rows).toEqual(expect.arrayContaining([
+        { event: 'run-start', credential_id: credentialId, instance: 'default' },
+        { event: 'run-terminal', credential_id: credentialId, instance: 'default' },
+      ]))
+      expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE tool = 'shodan-axi' AND event IN ('run-start', 'run-terminal') AND (credential_id IS NOT ? OR instance IS NOT 'default')").get(credentialId)).toEqual({ count: 0 })
     } finally {
       await app.close(); db.close()
       Object.assign(toolPaths, { 'shodan-axi': previousPath })

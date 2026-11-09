@@ -121,7 +121,11 @@ export async function runTool<Credential>(
     } catch (error) {
       recordApiDecision('refused')
       const requested = request && typeof request === 'object' && 'instance' in request && typeof request.instance === 'string' ? request.instance : undefined
-      const named = userId && requested !== undefined ? db.prepare('SELECT id, name FROM credentials WHERE tool = ? AND name = ?').get(adapter.name, requested) as { id: string, name: string } | undefined : undefined
+      const hasInstance = !!request && typeof request === 'object' && 'instance' in request && request.instance !== undefined
+      const candidates = userId ? (requested !== undefined
+        ? db.prepare('SELECT id, name FROM credentials WHERE tool = ? AND name = ?').all(adapter.name, requested)
+        : hasInstance || adapter.prepareForCaller ? [] : db.prepare('SELECT id, name FROM credentials WHERE tool = ? AND enabled = 1 LIMIT 2').all(adapter.name)) as { id: string, name: string }[] : []
+      const named = candidates.length === 1 ? candidates[0] : undefined
       audit.record({ event: 'denial', userId, delegationId, tool: adapter.name, requestId: context.requestId,
         clientAddress: context.clientAddress, credentialId: reference?.id ?? named?.id, instance: reference ? instance : named?.name,
         outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })

@@ -94,6 +94,10 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.equal((await request(prefix, 'POST', { kind: 'exec', argv: ['prepare', '--', 'exec', 'synthetic-pod', '--', 'true'] })).json().error.code, 'FLAG_BLOCKED')
     const logs = await start('logs', ['logs', 'synthetic-pod', '--follow'])
     assert.equal((await show(logs.id)).state, 'exited')
+    assert.deepEqual(db.prepare("SELECT event, credential_id, instance FROM audit WHERE tool='kubernetes-axi' AND event IN ('run-start', 'run-terminal') ORDER BY id").all(), [
+      { event: 'run-start', credential_id: reference.id, instance: 'default' },
+      { event: 'run-terminal', credential_id: reference.id, instance: 'default' },
+    ])
     assert.match((await output(logs.id)).chunks.map(chunk => Buffer.from(chunk.base64, 'base64').toString()).join(''), /Synthetic pod log/)
     await cancel(logs.id)
     const watched = await start('watch', ['get', 'pods', '--watch-only'])

@@ -53,15 +53,19 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
     duplexBytes: Math.min(bytes, 64 * 1024 ** 2), uploadBytes: Math.min(bytes, transferLimits.artifactBytes),
     spiceBytes: Math.min(bytes, protectedResultLimits.bytes), perUser: perUserStreams, total: 16, frameBytes: 1048576 }
   const leases = new Map<string, Lease>(), prefix = '/v1/tools/proxmox-axi/streams'
+  const admitted = new WeakMap<FastifyRequest, { credentialId: string, instance?: string }>()
   app.addHook('onError', async (request, _reply, error) => {
     if (!request.url.split('?')[0].startsWith(prefix)) return
-    let userId: string | null = null, delegationId: string | null = null
+    let userId: string | null = null, delegationId: string | null = null, familyId: string | undefined
     try {
       const token = /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''
       const principal = verifyPrincipal(db, token)
-      userId = principal.userId; delegationId = principal.delegation?.id ?? null
+      userId = principal.userId; delegationId = principal.delegation?.id ?? null; familyId = principal.familyId
     } catch { /* Unauthenticated denials have no actor. */ }
-    audit.record({ event: 'denial', userId, delegationId, tool: 'proxmox-axi', requestId: request.id,
+    const id = (request.params as { id?: string } | undefined)?.id
+    const lease = id ? leases.get(id) : undefined
+    const identity = admitted.get(request) ?? (lease && userId === lease.owner.userId && familyId === lease.owner.familyId ? { credentialId: lease.owner.credential.id, instance: lease.instance } : {})
+    audit.record({ ...identity, event: 'denial', userId, delegationId, tool: 'proxmox-axi', requestId: request.id,
       clientAddress: request.ip, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
   })
   const root = join(dirname(db.name), 'tool-logs', 'proxmox-axi', 'byte-streams')
@@ -123,6 +127,7 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
     if (owner.delegation) authorizeDelegatedOperation(db, owner.userId, owner.delegation, adapter, classifyDelegatedCommand(adapter, input.args, { stdin: input.stdin }))
     const credential = await resolver.resolve(owner.userId, 'proxmox-axi')
     const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(credential.id) as { name: string } | undefined)?.name
+    admitted.set(request, { credentialId: credential.id, instance })
     const selection = adapter.inspectStream(input.args, credential, { stdin: input.stdin })
     if (selection.upload !== !!input.source || input.source && input.source.bytes > limits.uploadBytes) throw new ArtiumError('INVALID_INPUT')
     await initialized
@@ -324,8 +329,13 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
       if (!lease.input.source) launch()
     })().catch(error => {
       let userId: string | null = null, delegationId: string | null = null
-      try { const owner = caller(request); userId = owner.userId; delegationId = owner.delegation?.id ?? null } catch { /* Unverified callers remain unattributed. */ }
-      audit.record({ event: 'denial', userId, delegationId, tool: 'proxmox-axi', requestId: randomUUID(), clientAddress: request.socket.remoteAddress ?? null,
+      let identity: { credentialId?: string, instance?: string } = {}
+      try {
+        const owner = caller(request); userId = owner.userId; delegationId = owner.delegation?.id ?? null
+        const id = new RegExp(`^${prefix}/([a-f0-9-]{36})/pipe$`).exec(url)?.[1], lease = id && leases.get(id)
+        if (lease && lease.owner.userId === owner.userId && lease.owner.familyId === owner.familyId) identity = { credentialId: lease.owner.credential.id, instance: lease.instance }
+      } catch { /* Unverified callers remain unattributed. */ }
+      audit.record({ ...identity, event: 'denial', userId, delegationId, tool: 'proxmox-axi', requestId: randomUUID(), clientAddress: request.socket.remoteAddress ?? null,
         outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
       socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
     })

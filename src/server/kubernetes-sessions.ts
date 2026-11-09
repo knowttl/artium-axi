@@ -41,6 +41,7 @@ type Input = z.infer<typeof kubernetesSessionStart>
 interface Chunk { channel: 'stdout' | 'stderr', sequence: number, offset: number, length: number, base64: string }
 interface Session {
   id: string, owner: KubernetesOwner, kind: Input['kind'], binding: string, directory: string,
+  credentialId: string, instance?: string,
   state: 'starting' | 'prepared' | 'running' | 'exited' | 'failed' | 'cancelled' | 'expired',
   expiresAt: number, startedAt: number, controller: AbortController, child?: ChildProcess, job: Promise<void>, timer: NodeJS.Timeout,
   changed: EventEmitter, active: Set<Promise<unknown>>, ready: Promise<void>, acknowledge: () => void,
@@ -245,6 +246,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
         if (session.state !== 'exited') await rm(session.directory, { recursive: true, force: true })
         else for (const name of await readdir(session.directory)) if (name !== 'artifacts') await rm(join(session.directory, name), { recursive: true, force: true })
         audit.record({ event: 'run-terminal', userId: session.owner.user, delegationId: session.owner.delegation?.id, tool: 'kubernetes-axi', requestId: request.id,
+          credentialId: session.credentialId, instance: session.instance,
           clientAddress: request.ip, outcome: session.state === 'exited' ? 'completed' : 'interrupted',
           exitCode: session.exitCode ?? null, durationMs: Date.now() - session.startedAt, outputBytes: session.offsets })
       } catch { session.state = 'failed'; session.code = 'AUDIT_UNAVAILABLE' }
@@ -270,6 +272,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       if (credentialIssuingCommand(adapter.name, operation.command)) checkDelegation(owner.delegation.scopeJson, owner.delegation.readOnly, adapter, operation.command, 'write')
     }
     const binding = kubernetesBinding(db, owner, input.kind), policy = binding.settings.sessions!
+    const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(binding.credential.id) as { name: string } | undefined)?.name
     const writing = !['watch', 'logs'].includes(input.kind), command = input.kind === 'watch' ? 'get' : input.kind
     if (writing ? input.argv[0] !== 'prepare' || input.argv[1] !== '--' || input.argv[2] !== command : input.argv[0] !== command) throw new ArtiumError('INVALID_INPUT')
     const lifetime = input.limits.lifetimeSeconds ?? Math.min(300, policy.lifetimeSeconds ?? 1800)
@@ -282,7 +285,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     const directory = join(root, 'session-' + randomUUID())
     let acknowledge!: () => void
     let portsAcknowledge!: () => void
-    const session: Session = { id: randomUUID(), owner, kind: input.kind, binding: binding.hash, directory, state: 'starting',
+    const session: Session = { id: randomUUID(), owner, kind: input.kind, binding: binding.hash, credentialId: binding.credential.id, instance, directory, state: 'starting',
       expiresAt: Date.now() + lifetime * 1000, startedAt: Date.now(), controller: new AbortController(), job: Promise.resolve(),
       changed: new EventEmitter(), active: new Set(), ready: new Promise(resolve => { acknowledge = resolve }), acknowledge: () => acknowledge(),
       confirmed: false, chunks: [], sequence: 1, offsets: { stdout: 0, stderr: 0 }, retained: 0, limit, truncated: false,
@@ -295,6 +298,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       await mkdir(directory, { mode: 0o700 })
       access(session)
       audit.record({ event: 'run-start', userId: owner.user, delegationId: owner.delegation?.id, tool: 'kubernetes-axi', requestId: request.id,
+        credentialId: session.credentialId, instance: session.instance,
         clientAddress: request.ip, outcome: 'started', args: [input.kind], sensitive: { flags: [], positions: [] } })
       session.job = execute(session, input, request)
       session.timer = setTimeout(() => { void stop(session, 'expired').then(() => sessions.delete(session.id)) }, lifetime * 1000)

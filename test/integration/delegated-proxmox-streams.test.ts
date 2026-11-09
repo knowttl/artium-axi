@@ -31,6 +31,11 @@ test.each([
   const start = (token: string) => app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/streams',
     headers: { authorization: `Bearer ${token}` }, payload: { args: command.split(' ') } })
   try {
+    const invalid = await app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/streams',
+      headers: { authorization: `Bearer ${issueTestAccessToken(db, user)}` }, payload: { args: ['transfer', 'get', '/invalid'] } })
+    expect(invalid.statusCode).toBe(400)
+    expect(db.prepare("SELECT credential_id, instance FROM audit WHERE event = 'denial' ORDER BY id DESC LIMIT 1").get())
+      .toEqual({ credential_id: store.findCredential('proxmox-axi')!.id, instance: 'default' })
     const wide = createDelegation(db, user, { label: 'Tool wide', scope: { tools: [{ tool: 'proxmox-axi' }] },
       readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
     expect((await start(exchangeDelegation(db, wide.token).accessToken)).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
