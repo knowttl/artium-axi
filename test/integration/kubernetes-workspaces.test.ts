@@ -107,9 +107,20 @@ test('creation selects a named instance when multiple instances are granted', as
   const session = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/sessions', headers,
     payload: { instance: 'lab', kind: 'logs', argv: ['logs', 'synthetic-pod', '--follow'] } })
   expect([workspace.statusCode, session.statusCode], workspace.body + session.body).toEqual([200, 200])
-  credentials.deleteInstance('kubernetes-axi', 'lab', lab.id, lab.revision)
+  const otherWorkspace = await app.inject({ method: 'POST', url: prefix, headers, payload: { instance: 'default', files: [descriptor('input')] } })
+  const otherSession = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/sessions', headers,
+    payload: { instance: 'default', kind: 'logs', argv: ['logs', 'synthetic-pod', '--follow'] } })
+  expect([otherWorkspace.statusCode, otherSession.statusCode], otherWorkspace.body + otherSession.body).toEqual([200, 200])
+  db.prepare('UPDATE users SET administrator = 1 WHERE id = ?').run(user)
+  const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+  expect(reauth.statusCode, reauth.body).toBe(200)
+  const removed = await app.inject({ method: 'DELETE', url: '/v1/admin/tools/kubernetes-axi/instances/lab',
+    headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { expectedId: lab.id, expectedRevision: lab.revision } })
+  expect(removed.statusCode, removed.body).toBe(200)
   expect((await app.inject({ url: `${prefix}/${workspace.json().id}`, headers })).statusCode).toBe(404)
   expect((await app.inject({ url: `/v1/tools/kubernetes-axi/sessions/${session.json().id}`, headers })).statusCode).toBe(404)
+  expect((await app.inject({ url: `${prefix}/${otherWorkspace.json().id}`, headers })).statusCode).toBe(200)
+  expect((await app.inject({ url: `/v1/tools/kubernetes-axi/sessions/${otherSession.json().id}`, headers })).statusCode).toBe(200)
 })
 
 test('session recovery identifies the instance for each session', async () => {
