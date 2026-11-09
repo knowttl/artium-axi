@@ -156,7 +156,10 @@ if (operationFilter) {
       group.hidden = filtered && !visible;
       if (filtered && visible) group.open = true;
       any ||= visible > 0;
+      const picked = group.querySelectorAll('[data-op] input:checked').length;
+      group.querySelector('[data-ops-picked]').textContent = picked ? ' · ' + picked + ' selected' : '';
     }
+    document.querySelector('[data-ops-selected]').textContent = document.querySelectorAll('[data-op] input:checked').length;
     document.querySelector('[data-ops-empty]').hidden = any;
   };
   document.querySelector('[data-ops-filter]').addEventListener('input', filterOperations);
@@ -165,9 +168,9 @@ if (operationFilter) {
   for (const actions of document.querySelectorAll('[data-ops-actions]')) actions.hidden = false;
   for (const control of document.querySelectorAll('[data-ops-select]')) {
     control.addEventListener('click', () => {
-      const scope = control.closest('[data-ops-group]');
+      const scope = control.closest('[data-ops-group]') || document;
       const select = control.dataset.opsSelect === 'all';
-      for (const operation of scope.querySelectorAll('[data-op]:not([hidden])')) {
+      for (const operation of scope.querySelectorAll('[data-ops-group]:not([hidden]) [data-op]:not([hidden])')) {
         operation.querySelector('input').checked = select;
       }
       filterOperations();

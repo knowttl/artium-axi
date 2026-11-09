@@ -1338,6 +1338,50 @@ for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' group controls select
   `)
 })
 
+for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' card-level controls act on every shown operation and keep the selected counts live', () => {
+  browser(`
+    await page.open(base + '/admin/tools/${tool}?tab=writes');
+    const state = () => page.eval(() => {
+      const operations = [...document.querySelectorAll('[data-op]')];
+      const checked = operations.filter(operation => operation.querySelector('input').checked);
+      return { total: operations.length, checked: checked.length, visible: operations.filter(operation => !operation.hidden).length,
+        hiddenChecked: checked.filter(operation => operation.hidden).length,
+        collapsedChecked: checked.filter(operation => !operation.closest('[data-ops-group]').open).length,
+        header: document.querySelector('[data-ops-selected]').textContent, headline: document.querySelector('[data-ops-selected]').parentElement.textContent,
+        groupCounts: [...document.querySelectorAll('[data-ops-group]')].every(group => group.querySelector('[data-ops-picked]').textContent === (group.querySelectorAll('[data-op] input:checked').length ? ' · ' + group.querySelectorAll('[data-op] input:checked').length + ' selected' : '')) };
+    });
+    const none = await state();
+    check(none.checked === 0 && none.header === '0', 'Unexpected initial selection');
+    await page.click('.card-body > [data-ops-actions] [data-ops-select=all]');
+    const all = await state();
+    check(all.checked === all.total && all.collapsedChecked > 0, 'Card-level Select all must reach every group, collapsed ones included');
+    check(all.header === String(all.total) && all.headline.startsWith(all.total + ' of ' + all.total + ' selected'), 'Header count stale after Select all: ' + all.headline);
+    check(all.groupCounts, 'Group counts stale after Select all');
+    await page.eval(() => {
+      const input = document.querySelector('[name=q]');
+      input.value = document.querySelector('[data-op]').dataset.op;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const shown = await state();
+    check(shown.visible > 0 && shown.visible < shown.total, 'Filter must hide some operations');
+    await page.click('.card-body > [data-ops-actions] [data-ops-select=none]');
+    const filtered = await state();
+    check(filtered.checked === all.total - shown.visible &&filtered.hiddenChecked === filtered.checked, 'Card-level Clear all must clear only shown operations');
+    check(filtered.header === String(filtered.checked) && filtered.groupCounts, 'Counts stale after filtered Clear all');
+    await page.eval(() => {
+      const input = document.querySelector('[name=q]');
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.click('label:has([name=show][value=selected])');
+    const selectedView = await state();
+    check(selectedView.visible === selectedView.checked && selectedView.header === String(selectedView.checked), 'Selected view disagrees with the header count');
+    await page.click('[data-op]:not([hidden]) input');
+    const unchecked = await state();
+    check(unchecked.header === String(selectedView.checked - 1) && unchecked.groupCounts, 'Header count stale after an individual change');
+  `)
+})
+
 test('changing Vectra authentication requires new secrets and saves only the selected method', async () => {
   browser(`
     await page.open(base + '/admin/tools/vectra-axi');

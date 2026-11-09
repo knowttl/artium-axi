@@ -225,7 +225,7 @@ Writes default to off; the master **Allow writes** switch is absent on fixed rea
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
 For AWX, use **Allow writes** and review the [AWX write boundary](safety.md#write-gates-by-tool) for its scope, preview requirements, legacy settings and operations awaiting support.
 For UniFi, Gitea, GitHub, Graph, Falcon, Vectra, Tenable, Hybrid Analysis, Check Point and BeyondTrust, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
-With JavaScript enabled, each group has **Select all** and **Clear all** controls that affect only operations shown by the current filters in that group, including deletes when shown.
+With JavaScript enabled, the **Allowed operations** card and each group have **Select all** and **Clear all** controls that affect only operations shown by the current filters, including deletes when shown; the card-level pair covers every group, collapsed ones included, and the selected count updates as you go.
 See the [UniFi capability boundary](safety.md#network-appliance-reads) for required operation and variant grants.
 See the [Falcon capability boundary](safety.md#write-gates-by-tool) for exact lifecycle grants and the independent RTR profile opt-in and command restriction.
 For BeyondTrust, the separate **Allow deletes** toggle can be saved while writes are off; see the [delete gates](safety.md#beyondtrust-endpoint-privilege-management) before enabling it.
