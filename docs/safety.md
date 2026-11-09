@@ -34,7 +34,7 @@ Administrators edit this on the tool's Access tab or with `PUT /v1/admin/roles/:
 SSH uses caller-specific credentials and rejects an `instance` field.
 The CLI supports instance selection for tool runs, Kubernetes workspace creation and Kubernetes session starts; see the [command reference](commands.md) for syntax and exclusions.
 Kubernetes workspace and session creation APIs accept an optional instance name and bind subsequent ID-based operations to that instance.
-Proxmox stream creation and transfer preparation accept an optional instance name; subsequent actions use the instance bound to the stream or transfer.
+Proxmox stream creation accepts an optional instance name, as does generic transfer preparation; subsequent actions use the instance bound to the stream or transfer.
 Other related workspace, session, stream and protected-result APIs do not carry an instance selection; multiple granted, enabled instances can therefore make those paths unavailable.
 Those paths check the role's instance grant when selecting credentials and recheck it for ongoing operations.
 The existing administration UI manages the shared credential rather than named instances.
