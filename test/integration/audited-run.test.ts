@@ -222,7 +222,7 @@ test.each([
   ['valid', (): string => token, 'TOOL_DISABLED', 'synthetic-user'],
   ['invalid', (): string => 'CANARY-invalid-token', 'TOKEN_INVALID', null],
 ] as const)('an unconfigured supported tool records the denial for a %s token', async (_kind, requestToken, code, userId) => {
-  db.exec("DELETE FROM role_tools; DELETE FROM tools WHERE name = 'falcon-axi'")
+  db.exec("DELETE FROM role_tools; DELETE FROM credentials WHERE tool = 'falcon-axi'; DELETE FROM tools WHERE name = 'falcon-axi'")
   db.close()
   db = openStore(join(directory, 'artium.db'), provider)
   audit = new Audit(db, Date.now, line => { lines.push(line) })
@@ -503,7 +503,7 @@ test.each([
   { failure: 'role revocation', code: 'TOOL_NOT_GRANTED', revoke: () => { db.exec("DELETE FROM role_tools WHERE tool = 'technitium-axi'") }, cause: { code: 'TOOL_NOT_GRANTED' } },
   { failure: 'user revocation', code: 'USER_DISABLED', revoke: () => { db.exec("UPDATE users SET disabled = 1 WHERE id = 'synthetic-user'") }, cause: { code: 'USER_DISABLED' } },
   { failure: 'credential rotation', code: 'NOT_FOUND', revoke: () => { db.exec("UPDATE credentials SET revision = revision + 1 WHERE tool = 'technitium-axi'") }, cause: { code: 'NOT_FOUND' } },
-  { failure: 'credential removal', code: 'CREDENTIAL_NOT_CONFIGURED', revoke: () => { db.exec("DELETE FROM credentials WHERE tool = 'technitium-axi'") }, cause: { code: 'CREDENTIAL_NOT_CONFIGURED' } },
+  { failure: 'credential removal', code: 'CREDENTIAL_INVALID', revoke: () => { db.exec("DELETE FROM credentials WHERE tool = 'technitium-axi'") }, cause: { code: 'CREDENTIAL_INVALID' } },
   { failure: 'reservation invalidation', code: 'NOT_FOUND', revoke: (results: ProtectedResults) => { results.clear() }, cause: { code: 'NOT_FOUND' } },
 ].flatMap(point => [{ ...point, format: 'json' }, { ...point, format: 'toon' }]))(
   'Technitium retains one safe completed outcome after $failure ($format, R4/R5/R6)', async point => {
@@ -597,6 +597,7 @@ test.each([
 ].flatMap(point => ['call', 'profile', 'profile-tmp'].map(cleanup => ({ ...point, cleanup }))))(
   '$interruption stays primary when $cleanup cleanup fails (R6/R8)', async point => {
     const store = createCredentialStore(db, provider)
+    db.exec("DELETE FROM credentials WHERE tool = 'falcon-axi'")
     store.replaceCredential('falcon-axi', {}, 0, 'synthetic-user', Date.now())
     const workflows = join(directory, 'requests')
     const execution = { ...adapter, async prepare(...input: Parameters<typeof adapter.prepare>) {

@@ -2,12 +2,15 @@ import { ArtiumError } from '../../shared/errors.js'
 import type { CredentialReference, CredentialStore, ToolName } from '../store/credential-store.js'
 
 export interface IdentityResolver {
+  hasInstances(tool: ToolName): boolean
   resolve(userId: string, tool: ToolName, instance?: string): Promise<CredentialReference>
   resolveForRun(userId: string, tool: ToolName, instance?: string): Promise<{ reference: CredentialReference, readOnly: boolean }>
 }
 
 export class SharedIdentityResolver implements IdentityResolver {
   constructor(private readonly store: Pick<CredentialStore, 'listInstances'>) {}
+
+  hasInstances(tool: ToolName): boolean { return this.store.listInstances(tool).length > 0 }
 
   async resolve(userId: string, tool: ToolName, instance?: string): Promise<CredentialReference> {
     return (await this.resolveForRun(userId, tool, instance)).reference
