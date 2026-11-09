@@ -23,7 +23,7 @@ let url: string
 let headers: Record<string, string>
 const password = 'CANARY-local-password'
 const administrator = 'synthetic-development-user'
-const auditCsvHeader = 'id,occurred_at,event,user_id,delegation_id,tool,arguments,request_id,exit_code,duration_ms,stdout_bytes,stderr_bytes,client_address,outcome,action,target_id,cutoff,deleted_count,checked_at,credential_revision,error_code,authentication_method,provider_id,subject,transfer_id,session_family_id,transfer_operation,artifact_type,artifact_selector,requested_target_digest,archive_bytes,archive_sha256,native_audit_id,native_journal_result,client_save_outcome\r\n'
+const auditCsvHeader = 'id,occurred_at,event,user_id,delegation_id,tool,arguments,request_id,exit_code,duration_ms,stdout_bytes,stderr_bytes,client_address,outcome,action,target_id,cutoff,deleted_count,checked_at,credential_revision,error_code,authentication_method,provider_id,subject,transfer_id,session_family_id,transfer_operation,artifact_type,artifact_selector,requested_target_digest,archive_bytes,archive_sha256,native_audit_id,native_journal_result,client_save_outcome,credential_id,instance\r\n'
 const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const createInput = { username: ' Synthetic-New ', displayName: 'Synthetic New', temporaryPassword: 'CANARY-temporary-password',
   administrator: false, roleIds: ['synthetic-role'] }
@@ -346,7 +346,7 @@ test('CSV export quotes commas, quotes and newlines without changing field value
   expect(response.headers.get('content-disposition')).toBe('attachment; filename="artium-audit.csv"')
   expect(await response.text()).toBe(auditCsvHeader
     + `"${record.id}","0","admin-change","${administrator}",,,,"request,""quoted""\nnext",,,,,,"success","create-user","synthetic-new",,,,,,,,`
-    + ',,,,,,,,,,,\r\n')
+    + ',,,,,,,,,,,,,\r\n')
 })
 
 test.each([{ format: 'csv', expected: auditCsvHeader }, { format: 'jsonl', expected: '' }])('empty $format export has no records', async ({ format, expected }) => {

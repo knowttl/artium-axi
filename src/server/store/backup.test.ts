@@ -92,6 +92,7 @@ test('restore preserves credentials, roles and audit while invalidating every sa
     expect(db.prepare('SELECT role_id, tool FROM role_tools').all()).toEqual([{ role_id: 'synthetic-role', tool: 'falcon-axi' }])
     const store = createCredentialStore(db, provider)
     expect(store.readCredential(store.findCredential('falcon-axi')!)).toEqual({ secret: 'CANARY-backup' })
+    expect(db.prepare("SELECT name, enabled, read_only FROM credentials WHERE tool = 'falcon-axi'").get()).toEqual({ name: 'default', enabled: 1, read_only: 0 })
     db.exec('UPDATE users SET must_change = 0')
     const fresh = issueLoginTokens(db, 'synthetic-user')
     if (fresh.status !== 'authenticated') throw new Error('Expected fresh login')

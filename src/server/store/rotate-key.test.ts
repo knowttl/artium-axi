@@ -41,6 +41,8 @@ test('rotation preserves credential identities and revisions and durably records
     const store = createCredentialStore(db, newProvider)
     expect(store.findCredential('falcon-axi')).toEqual({ id: 'falcon-axi', tool: 'falcon-axi', revision: 1 })
     expect(store.readCredential(store.findCredential('falcon-axi')!)).toEqual({ secret: 'CANARY-falcon-axi' })
+    expect(db.prepare('SELECT id, name FROM credentials ORDER BY id').all()).toEqual(
+      ['az-axi', 'falcon-axi', 'vectra-axi'].map(tool => ({ id: tool, name: 'default' })))
     expect(db.prepare('SELECT * FROM key_rotations').all()).toEqual([receipt])
     expect(db.prepare("SELECT action, target_id, outcome FROM audit WHERE action = 'rotate-key'").all())
       .toEqual([{ action: 'rotate-key', target_id: newProvider.getKey().id, outcome: 'success' }])

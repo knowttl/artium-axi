@@ -931,6 +931,10 @@ See [delegated sessions](safety.md#delegated-sessions) for the creation switch's
 Migration 031 sets the existing [governed Raw API tools](safety.md#raw-api-access) to `read` and enables raw access on their existing role tool grants, preserving raw reads while refusing raw mutations.
 This is a one-time compatibility migration; tools and grants created afterward retain the default raw restrictions.
 During upgrade acceptance, check raw reads and mutation refusals separately from named commands; see the [administrative limitations](admin-guide.md#server-settings-and-custody).
+Migration 032 prepares the store for named credential instances; administration and command execution still use one shared service identity per tool.
+Existing credentials become `default` instances with an empty description, enabled and without the instance read-only flag, preserving their IDs, encrypted contents, revisions and update attribution.
+Saved health records become keyed by credential ID, certificate trust stays attached, and existing role tool grants default to all instances.
+The [migration](../src/server/store/migrations/032-multi-instance.sql) owns the storage constraints; the [populated-store regression](../src/server/store/multi-instance-migration.test.ts) covers upgrade preservation and reopening.
 The Graph and Azure re-pin preserves retained tool configuration and credentials; no administrator edit is needed to refresh the displayed versions.
 When an upgraded tool pin activates its credential schema, stored credentials are not automatically converted.
 Replace any incompatible credential on its `/admin/tools/:tool` page using the current editor before enabling the tool; stored secrets remain hidden.
