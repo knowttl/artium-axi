@@ -17,6 +17,11 @@ test('tool without a shared identity is unavailable', async () => {
   await expect(resolver.resolve('synthetic-user', 'az-axi')).rejects.toMatchObject({ code: 'CREDENTIAL_NOT_CONFIGURED' })
 })
 
+test('named instance is not found when the tool has no credentials', async () => {
+  const resolver = new SharedIdentityResolver(new FakeCredentialStore())
+  await expect(resolver.resolve('synthetic-user', 'az-axi', 'missing')).rejects.toMatchObject({ code: 'INSTANCE_NOT_FOUND' })
+})
+
 const instances = new SharedIdentityResolver(new FakeCredentialStore([
   { reference: { id: 'synthetic-production', tool: 'falcon-axi' }, name: 'production', value: {} },
   { reference: { id: 'synthetic-lab', tool: 'falcon-axi' }, name: 'lab', value: {} },

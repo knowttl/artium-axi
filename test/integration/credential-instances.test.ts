@@ -5,6 +5,7 @@ import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
+import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { createDelegation } from '../../src/server/auth/delegations.js'
 import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -12,6 +13,7 @@ import { Runner } from '../../src/server/runner/runner.js'
 import type { MutableCredentialStore } from '../../src/server/store/credential-store.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
+import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { issueTestAccessToken } from '../fixtures/tokens.js'
 import { createRunnerTestAdapter } from '../fake-tool/tool.js'
 
@@ -60,6 +62,32 @@ test.each(['lab', 'production'])('run selects the %s instance and reports it', a
   expect(reply.statusCode).toBe(200)
   expect(reply.json()).toMatchObject({ source: 'falcon-axi', instance, exitCode: 0 })
   expect(usedClients).toEqual([`CANARY-client-${instance}`])
+})
+
+test('read-only instance permits an implicit Falcon preview', async () => {
+  await app.close()
+  runner = await Runner.create(join(directory, 'preview-calls'))
+  const adapter = createFalconAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
+  const prepare = adapter.prepare.bind(adapter)
+  adapter.prepare = async (...args) => {
+    const call = await prepare(...args)
+    return { ...call, args: [join(process.cwd(), 'tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js'), ...call.args.slice(1)] }
+  }
+  app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), resolver: new SharedIdentityResolver(store), adapters: [adapter], environment: {} })
+  const reply = await run({ instance: 'lab', args: ['rtr', 'run', 'a'.repeat(32), '--command', 'ps'] })
+  expect(reply.statusCode, reply.body).toBe(200)
+  expect(reply.json(), reply.body).toMatchObject({ instance: 'lab', exitCode: 0 })
+  expect(reply.json().stdout).toContain('preview:')
+})
+
+test('a named instance is not found when the tool has no instances', async () => {
+  for (const name of ['lab', 'production']) {
+    const instance = store.findInstance('falcon-axi', name)!
+    store.deleteInstance('falcon-axi', name, instance.id, instance.revision)
+  }
+  const reply = await run({ instance: 'lab' })
+  expect(reply.statusCode).toBe(404)
+  expect(reply.json().error.code).toBe('INSTANCE_NOT_FOUND')
 })
 
 test.each([

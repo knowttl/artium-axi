@@ -165,7 +165,7 @@ export async function runTool<Credential>(
       }
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
         : await adapter.prepare(args, reference!, input)
-      const preview = prepared.preview || prepared.effect === 'read' && prepared.args.some(arg => arg === '--preview' || arg === '--dry-run')
+      const preview = prepared.preview || prepared.effect === 'read' && !prepared.protectedResult
       const writes = () => prepared.effect === 'write' || !!prepared.write || !prepared.invocation?.help && !preview && writeRequested()
       if (instanceReadOnly && writes()) throw new ArtiumError('FLAG_BLOCKED')
       if (readOnly || instanceReadOnly) prepared.environment = { ...prepared.environment, [`${adapter.name.toUpperCase().replaceAll('-', '_')}_READ_ONLY`]: 'true' }
@@ -181,7 +181,7 @@ export async function runTool<Credential>(
       const protectedResult = prepared.protectedResult?.source === 'pipe' && kubernetesRequests
         && !credentialConfirmation
         ? undefined : prepared.protectedResult
-      const recheck = () => {
+      const recheck = (beforeSpawn = false) => {
         if (authenticate === verifyAccessToken) {
           const current = verifyPrincipal(db, token)
           if (current.delegation) {
@@ -194,8 +194,8 @@ export async function runTool<Credential>(
         checkToolPolicy(db, userId, adapter.name)
         checkRawApiPolicy(db, userId, adapter, args, input)
         if (reference) {
-          const current = db.prepare('SELECT enabled, read_only FROM credentials WHERE id = ? AND tool = ?').get(reference.id, adapter.name) as { enabled: number, read_only: number } | undefined
-          if (!current || current.enabled !== 1) throw new ArtiumError('CREDENTIAL_INVALID')
+          const current = db.prepare('SELECT enabled, read_only, revision FROM credentials WHERE id = ? AND tool = ?').get(reference.id, adapter.name) as { enabled: number, read_only: number, revision: number } | undefined
+          if (!current || current.enabled !== 1 || beforeSpawn && current.revision !== reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
           if (current.read_only === 1 && writes()) throw new ArtiumError('FLAG_BLOCKED')
         }
       }
@@ -232,16 +232,14 @@ export async function runTool<Credential>(
             protectedPipe: protectedResult?.source === 'pipe'
               ? { ...protectedResult, receive: bytes => { privateBytes = Buffer.from(bytes) } } : undefined, ...overrides },
           { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => {
-            recheck()
+            recheck(true)
             if (prepared.beforeSpawn) {
               checkToolPolicy(db, identity.userId, adapter.name)
               prepared.beforeSpawn()
             }
             if ((kubernetesRequests || nativeScope) && reference) {
-              recheck()
+              recheck(true)
               checkToolPolicy(db, identity.userId, adapter.name)
-              const current = db.prepare('SELECT revision FROM credentials WHERE id = ? AND tool = ?').get(reference.id, adapter.name) as { revision: number } | undefined
-              if (current?.revision !== reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
             }
           }, prepared.pathPrefix)
         if (prepared.proxmox && reference && context.proxmox) {

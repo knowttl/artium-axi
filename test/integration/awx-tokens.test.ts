@@ -303,7 +303,7 @@ test('changing the selected revision during execution prevents result publicatio
   }, signalHeld)
 }, 60_000)
 
-test.each(['disable', 'delete'])('a queued run refuses a %sd instance', async action => {
+test.each(['disable', 'delete', 'replace'])('a queued run refuses a %sd instance', async action => {
   let started!: () => void
   const runStarted = new Promise<void>(resolve => { started = resolve })
   await withTokenService(async ({ app, store, runner, headers, send }) => {
@@ -316,7 +316,8 @@ test.each(['disable', 'delete'])('a queued run refuses a %sd instance', async ac
       await new Promise<void>(resolve => setImmediate(resolve))
       const instance = store.findInstance('awx-axi', 'default')!
       if (action === 'disable') store.setInstanceFlags('awx-axi', instance.name, { enabled: false }, instance.id, instance.revision, 'synthetic-development-user', Date.now())
-      else store.deleteInstance('awx-axi', instance.name, instance.id, instance.revision)
+      else if (action === 'delete') store.deleteInstance('awx-axi', instance.name, instance.id, instance.revision)
+      else store.replaceInstance('awx-axi', instance.name, store.readCredential(instance), instance.id, instance.revision, 'synthetic-development-user', Date.now())
     } finally { release(); await Promise.all(occupied) }
     const response = await pending
     expect(response.json()).toMatchObject({ error: { code: 'CREDENTIAL_INVALID' } })
