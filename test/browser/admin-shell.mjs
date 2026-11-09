@@ -1295,38 +1295,34 @@ for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi', 'unifi-axi', 'proxmox-a
   `)
 })
 
-for (const tool of ['gitea-axi', 'unifi-axi']) test(tool + ' operation picker select all and clear all act only on shown operations and skip deletes', () => {
+for (const tool of ['gitea-axi', 'unifi-axi']) test(tool + ' group controls select and clear only shown operations', () => {
   browser(`
     await page.open(base + '/admin/tools/${tool}?tab=writes');
     const state = () => page.eval(() => {
-      const operations = [...document.querySelectorAll('[data-op]')];
-      const checked = operations.filter(operation => operation.querySelector('input').checked);
-      return { total: operations.length, checked: checked.length, deletesChecked: checked.filter(operation => operation.hasAttribute('data-delete')).length,
-        hiddenChecked: checked.filter(operation => operation.hidden).length, deletes: operations.filter(operation => operation.hasAttribute('data-delete')).length,
-        firstGroupChecked: [...document.querySelector('[data-ops-group]').querySelectorAll('[data-op] input:checked')].length,
-        firstGroupSize: document.querySelector('[data-ops-group]').querySelectorAll('[data-op] input').length };
+      const group = document.querySelector('[data-ops-group]:has([data-delete])');
+      const operations = [...group.querySelectorAll('[data-op]')];
+      return { total: operations.length, checked: operations.filter(operation => operation.querySelector('input').checked).length,
+        deletes: operations.filter(operation => operation.hasAttribute('data-delete')).length,
+        deletesChecked: operations.filter(operation => operation.hasAttribute('data-delete') && operation.querySelector('input').checked).length,
+        hiddenChecked: operations.filter(operation => operation.hidden && operation.querySelector('input').checked).length,
+        otherChecked: [...document.querySelectorAll('[data-ops-group]')].filter(other => other !== group).flatMap(other => [...other.querySelectorAll('[data-op] input:checked')]).length };
     });
     const none = await state();
-    await page.click('.card-body > [data-ops-actions] [data-ops-select=all]');
+    await page.eval(() => { document.querySelector('[data-ops-group]:has([data-delete])').open = true; });
+    await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=all]');
     const all = await state();
-    check(all.checked === all.total - all.deletes && all.deletesChecked === 0, 'Select all must pick every operation except deletes');
+    check(all.deletes > 0 && all.checked === all.total && all.deletesChecked === all.deletes, 'Select all must include every operation in the group, including deletes');
+    check(all.otherChecked === 0, 'Select all changed another group');
     await page.eval(() => {
       const input = document.querySelector('[name=q]');
-      input.value = document.querySelector('[data-op]:not([data-delete])').dataset.op;
+      input.value = document.querySelector('[data-ops-group]:has([data-delete]) [data-op]').dataset.op;
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    await page.click('.card-body > [data-ops-actions] [data-ops-select=none]');
+    await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=none]');
     const filteredClear = await state();
     check(filteredClear.checked === all.checked - 1 && filteredClear.hiddenChecked === filteredClear.checked, 'Clear all must clear only the shown operations');
-    await page.eval(() => {
-      const input = document.querySelector('[name=q]');
-      input.value = '';
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      document.querySelectorAll('[data-op] input').forEach(input => { input.checked = false; });
-    });
-    await page.click('[data-ops-group] [data-ops-select=all]');
-    const group = await state();
-    check(group.checked === group.firstGroupChecked && group.firstGroupChecked > 0 && group.firstGroupChecked <= group.firstGroupSize, 'Group select all must stay inside its group');
+    await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=all]');
+    check((await state()).checked === all.checked, 'Select all must select the shown operation');
     check(none.checked === 0, 'Unexpected initial selection');
   `)
 })

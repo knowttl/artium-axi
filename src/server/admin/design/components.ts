@@ -714,7 +714,6 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
 .ops-group > summary .end { margin-left: auto; display: flex; gap: 6px; }
 .ops-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 20px; padding: 8px 12px 12px 36px; border-top: 1px solid var(--border); }
 .ops-actions { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-left: -11px; }
-.ops-actions .muted { font-size: var(--fs-xs); }
 :where(.content) label.op { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; margin: 0; font-size: var(--fs-sm); font-weight: 400; }
 :where(.content) label.op input { margin: 0; }
 .op span { overflow-wrap: anywhere; }

@@ -164,11 +164,10 @@ if (operationFilter) {
   for (const actions of document.querySelectorAll('[data-ops-actions]')) actions.hidden = false;
   for (const control of document.querySelectorAll('[data-ops-select]')) {
     control.addEventListener('click', () => {
-      const scope = control.closest('[data-ops-group]') || document;
+      const scope = control.closest('[data-ops-group]');
       const select = control.dataset.opsSelect === 'all';
-      const deletesOnly = operationFilter.elements.show.value === 'deletes';
-      for (const operation of scope.querySelectorAll('[data-ops-group]:not([hidden]) [data-op]:not([hidden])')) {
-        if (!select || !operation.hasAttribute('data-delete') || deletesOnly) operation.querySelector('input').checked = select;
+      for (const operation of scope.querySelectorAll('[data-op]:not([hidden])')) {
+        operation.querySelector('input').checked = select;
       }
     });
   }
