@@ -2184,6 +2184,33 @@ async function instanceHeader(name: string, tool: ToolName = 'falcon-axi') {
 const eastValue = { ...values['falcon-axi'], clientSecret: 'CANARY-east-secret' }
 const westValue = { ...values['falcon-axi'], clientSecret: 'CANARY-west-secret', region: 'eu-1' }
 
+test('instance credential changes preserve shared write access', async () => {
+  const east = await createInstance('east', eastValue)
+  expect((await request('PATCH', '/falcon-axi/write-access', { enabled: true, operations: ['malquery search'],
+    expectedRevision: await toolRevision('falcon-axi') })).status).toBe(200)
+  const west = await createInstance('west', westValue)
+  expect((await request('PUT', '/falcon-axi/instances/west/credential', { value: westValue, expectedId: west.id,
+    expectedRevision: west.revision, expectedToolRevision: await toolRevision('falcon-axi') })).status).toBe(200)
+  expect((await request('PATCH', '/falcon-axi/instances/west/credential', { value: westValue, ...await instanceHeader('west'),
+    expectedToolRevision: await toolRevision('falcon-axi') })).status).toBe(200)
+  expect(await (await request('GET', '/falcon-axi')).json()).toMatchObject({ writeAccess: { enabled: true, allowedOperations: ['malquery search'] } })
+  expect(healthSchema.parse(await (await request('POST', '/falcon-axi/instances/east/test', {})).json()).readOnly).toBe(true)
+  expect((await request('PATCH', '/falcon-axi/instances/east', { expectedId: east.id, expectedRevision: east.revision, readOnly: false })).status).toBe(200)
+  expect(healthSchema.parse(await (await request('POST', '/falcon-axi/instances/east/test', {})).json()).readOnly).toBe(false)
+})
+
+test('AWX summary aggregates configured instances and legacy credential requires a unique instance', async () => {
+  for (const instance of ['east', 'west']) {
+    expect((await request('PUT', '/awx-axi/origin', { origin: `https://${instance}.example`, instance, expectedRevision: 0,
+      expectedToolRevision: await toolRevision('awx-axi') })).status).toBe(200)
+  }
+  expect(await (await request('GET', '/awx-axi')).json()).toMatchObject({ health: { status: 'unconfigured' } })
+  expect(adminCredentialSchema.parse(await (await request('GET', '/awx-axi/credential')).json()))
+    .toMatchObject({ configured: false, revision: 0, updatedAt: null, updatedBy: null, metadata: {} })
+  await createInstance('north', values['awx-axi'], 'awx-axi')
+  expect((await (await request('GET', '/awx-axi')).json()).health.status).not.toBe('unconfigured')
+})
+
 test('instance create stores an enabled read-only instance, hides secrets and audits it', async () => {
   const created = await createInstance('east', eastValue)
   expect(created).toMatchObject({ tool: 'falcon-axi', name: 'east', description: 'east region', enabled: true, readOnly: true,

@@ -145,7 +145,6 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       revision, updated_at AS updatedAt, updated_by AS updatedBy FROM tools WHERE name = ?`).get(tool) as
       { name: ToolName, enabled: number, nativeSettings: string, revision: number, updatedAt: number | null, updatedBy: string | null } | undefined
     if (!row) throw new ArtiumError('NOT_FOUND')
-    const credential = db.prepare('SELECT revision FROM credentials WHERE tool = ?').get(tool) as { revision: number } | undefined
     // A tool reports its worst enabled instance: a failing one, else unknown until every enabled instance has a current result.
     const results = db.prepare(`SELECT tool_health.status AS status, checked_at AS checkedAt, credential_revision AS credentialRevision,
       error_code AS errorCode FROM credentials LEFT JOIN tool_health ON tool_health.credential_id = credentials.id
@@ -154,9 +153,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const stored = healthSchema.safeParse(results.length && results.every(result => result.status !== null) || results[0]?.status === 'error' ? results[0] : undefined)
     // Cached categories from an older catalogue require a fresh test after upgrade.
     const cached = tool !== 'ssh-axi' && stored.success ? stored.data : undefined
-    const reference = tool === 'awx-axi' ? store?.findCredential(tool) : undefined
     const configured = tool === 'ssh-axi' ? hasSshConfiguration(db)
-      : Boolean(credential) && !(reference && isAwxOriginOnly(tool, store!.readCredential(reference)))
+      : (store?.listInstances(tool) ?? []).some(instance => !isAwxOriginOnly(tool, store!.readCredential(instance)))
     const status = !row.enabled || !adapters.some(adapter => adapter.name === tool) ? 'disabled' : !configured ? 'unconfigured' : options.health.checking(tool) ? 'checking' : 'unknown'
     const health = { checkedAt: null, credentialRevision: null, errorCode: null, ...cached,
       ...(['disabled', 'unconfigured'].includes(status) || !cached ? { status } : {}) }
@@ -172,9 +170,9 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     readTool(tool)
     if (tool === 'ssh-axi') return adminCredentialSchema.parse({ tool, configured: hasSshConfiguration(db),
       revision: 0, updatedAt: null, updatedBy: null, metadata: {} })
-    const row = db.prepare('SELECT revision, updated_at AS updatedAt, updated_by AS updatedBy FROM credentials WHERE tool = ?').get(tool) as
-      { revision: number, updatedAt: number | null, updatedBy: string | null } | undefined
     const reference = store?.findCredential(tool)
+    const row = reference ? db.prepare('SELECT revision, updated_at AS updatedAt, updated_by AS updatedBy FROM credentials WHERE id = ?').get(reference.id) as
+      { revision: number, updatedAt: number | null, updatedBy: string | null } | undefined : undefined
     const value = reference ? credentialStore().readCredential(reference) as Record<string, unknown> : {}
     return adminCredentialSchema.parse({ tool, configured: Boolean(row) && !isAwxOriginOnly(tool, value), revision: 0, updatedAt: null, updatedBy: null, ...row,
       metadata: credentialMetadata(tool, value, Boolean(reference)) })
@@ -463,7 +461,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         const retained = sameIdentity ? Object.fromEntries(secrets.filter(key => Object.hasOwn(stored, key)).map(key => [key, stored[key]])) : {}
         next = parse(schemaFor(tool), { ...retained, ...value, ...current.nativeSettings }) as Record<string, unknown>
       }
-      const { credential, settings } = splitSettings(tool, next)
+      const { credential, settings: suppliedSettings } = splitSettings(tool, next)
+      const settings = name === undefined ? suppliedSettings : current.nativeSettings
       events.push(...writeChange(request, actor, tool, current.nativeSettings, settings))
       const now = Date.now()
       replacement = writeCredential(tool, name, credential, input.expectedId, expectedRevision, actor, now, input.description)

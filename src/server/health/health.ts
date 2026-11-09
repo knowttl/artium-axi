@@ -275,7 +275,8 @@ export class ToolHealth {
       if (failure) failure.diagnostic = diagnostic
       const settings = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(tool) as { native_settings: string }
       const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt, diagnostic,
-        readOnly: !toolAllowsWrites(tool, JSON.parse(settings.native_settings)),
+        readOnly: !toolAllowsWrites(tool, JSON.parse(settings.native_settings))
+          || (store?.listInstances(tool).find(instance => instance.id === reference.id)?.readOnly ?? false),
         credentialRevision: reference.revision, errorCode: failure?.code ?? null })
       const evidence = { checkedAt: health.checkedAt, credentialRevision: health.credentialRevision, errorCode: health.errorCode }
       audit.record({ ...context, event: 'run-terminal', action: await journal?.action(!failure) ?? 'unknown', outcome: failure?.code ?? 'completed', exitCode, durationMs, outputBytes, ...evidence,
