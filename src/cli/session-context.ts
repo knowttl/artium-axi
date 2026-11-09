@@ -19,8 +19,9 @@ export async function sessionContext(): Promise<string> {
     if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
     const tools = [...new Map(parsed.data.tools.map(tool => [tool.name, tool])).values()]
     const advice = instanceAdvice(tools)
+    const note = advice ? JSON.stringify(`Server roles and write gates still apply. ${advice}`) : 'Server roles and write gates still apply.'
     return `artium: available\ntools[${tools.length}]{name,status,readOnly,instances}:\n${tools.map(tool =>
-      `  ${tool.name},${tool.status},${tool.readOnly ?? true},${tool.instances.length}`).join('\n')}\nnext: artium-axi tools\nnote: Server roles and write gates still apply.\n${advice ? `note: ${advice}\n` : ''}`
+      `  ${tool.name},${tool.status},${tool.readOnly ?? true},${tool.instances.length}`).join('\n')}\nnext: artium-axi tools\nnote: ${note}\n`
   } catch (error) {
     const code = error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'
     return `artium: unavailable\nreason: ${code}\nnote: Current tool access could not be verified; no cached grants are shown.\nnext: artium-axi doctor\n`

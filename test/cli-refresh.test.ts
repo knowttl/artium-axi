@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, expect, test } from 'vitest'
+import { decode } from '@toon-format/toon'
 import { copyClientInput } from './fixtures/client-inputs.js'
 import { SessionStore } from '../src/cli/session.js'
 import { Client } from '../src/cli/http.js'
@@ -17,7 +18,7 @@ let url: string
 let store: SessionStore
 let requests: { path: string, authorization?: string, body: unknown }[]
 let scenario: 'refresh' | 'still-expired' | 'disconnect' | 'invalid' | 'unavailable' | 'completed' | 'bad-refresh' | 'login-replaced' | 'rotated' | 'hang'
-let homeScenario: { changeAt?: string, transition?: 'replace' | 'remove', expiresAt?: string } | undefined
+let homeScenario: { changeAt?: string, transition?: 'replace' | 'remove', expiresAt?: string, tools?: unknown[] } | undefined
 let original: ReturnType<SessionStore['write']>
 let server: ReturnType<typeof createServer>
 const pair = { status: 'authenticated' as const, accessToken: 'CANARY-old', refreshToken: 'CANARY-refresh',
@@ -43,7 +44,7 @@ beforeEach(async () => {
       reply.writeHead(expired ? 401 : 200, { 'content-type': 'application/json' })
       reply.end(JSON.stringify(expired ? errorResponse(new ArtiumError('TOKEN_EXPIRED'), 'synthetic-request') :
         request.url === '/v1/me' ? { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
-          roles: [], accessExpiresAt: pair.accessExpiresAt, sessionExpiresAt: pair.familyExpiresAt } : { tools: [] }))
+          roles: [], accessExpiresAt: pair.accessExpiresAt, sessionExpiresAt: pair.familyExpiresAt } : { tools: homeScenario.tools ?? [] }))
       return
     }
     if (requests.length === 1 && (scenario === 'login-replaced' || scenario === 'rotated')) {
@@ -223,6 +224,20 @@ test('ambient context permits refresh within the original login (R2)', async () 
   expect(await run(['session-context'])).toEqual({ code: 0, stderr: '',
     stdout: 'artium: available\ntools[0]{name,status,readOnly,instances}:\n\nnext: artium-axi tools\nnote: Server roles and write gates still apply.\n' })
   expect(store.read()!.loginGeneration).toBe(original.loginGeneration)
+})
+
+test.each([1, 2])('ambient context preserves guidance in one note with %i instances', async count => {
+  const instances = [
+    { name: 'lab', description: 'Lab', status: 'ok', readOnly: true },
+    { name: 'production', description: 'Production', status: 'ok', readOnly: true },
+  ].slice(0, count)
+  homeScenario = { tools: [{ name: 'falcon-axi', version: '1.0.0-rc.3', status: 'ok', readOnly: true, instances }] }
+  const result = await run(['session-context'])
+  expect(result).toMatchObject({ code: 0, stderr: '' })
+  expect(decode(result.stdout)).toMatchObject({ artium: 'available',
+    tools: [{ name: 'falcon-axi', status: 'ok', readOnly: true, instances: count }],
+    note: count === 1 ? 'Server roles and write gates still apply.'
+      : 'Server roles and write gates still apply. falcon-axi has several instances. Ask the user which instance to use, then run artium-axi --instance <name> <tool> ...' })
 })
 
 test.each(['/v1/me', '/v1/tools'])('home allows refresh during %s within the original login', async expiresAt => {
