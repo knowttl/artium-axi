@@ -146,15 +146,18 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       { name: ToolName, enabled: number, nativeSettings: string, revision: number, updatedAt: number | null, updatedBy: string | null } | undefined
     if (!row) throw new ArtiumError('NOT_FOUND')
     // A tool reports its worst enabled instance: a failing one, else unknown until every enabled instance has a current result.
-    const results = db.prepare(`SELECT tool_health.status AS status, checked_at AS checkedAt, credential_revision AS credentialRevision,
+    const instances = (store?.listInstances(tool) ?? []).filter(instance => !isAwxOriginOnly(tool, store!.readCredential(instance)))
+    const eligible = new Set(instances.filter(instance => instance.enabled).map(instance => instance.id))
+    const results = (db.prepare(`SELECT credentials.id, tool_health.status AS status, checked_at AS checkedAt, credential_revision AS credentialRevision,
       error_code AS errorCode FROM credentials LEFT JOIN tool_health ON tool_health.credential_id = credentials.id
       AND tool_health.credential_revision = credentials.revision WHERE credentials.tool = ? AND credentials.enabled = 1
-      ORDER BY tool_health.status = 'error' DESC, credentials.name`).all(tool) as Array<{ status: string | null }>
+      ORDER BY tool_health.status = 'error' DESC, credentials.name`).all(tool) as Array<{ id: string, status: string | null }>)
+      .filter(result => eligible.has(result.id))
     const stored = healthSchema.safeParse(results.length && results.every(result => result.status !== null) || results[0]?.status === 'error' ? results[0] : undefined)
     // Cached categories from an older catalogue require a fresh test after upgrade.
     const cached = tool !== 'ssh-axi' && stored.success ? stored.data : undefined
     const configured = tool === 'ssh-axi' ? hasSshConfiguration(db)
-      : (store?.listInstances(tool) ?? []).some(instance => !isAwxOriginOnly(tool, store!.readCredential(instance)))
+      : instances.length > 0
     const status = !row.enabled || !adapters.some(adapter => adapter.name === tool) ? 'disabled' : !configured ? 'unconfigured' : options.health.checking(tool) ? 'checking' : 'unknown'
     const health = { checkedAt: null, credentialRevision: null, errorCode: null, ...cached,
       ...(['disabled', 'unconfigured'].includes(status) || !cached ? { status } : {}) }

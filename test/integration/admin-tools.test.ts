@@ -5,6 +5,7 @@ import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
+import { createAwxAdapter } from '../../src/server/adapters/awx.js'
 import { createVectraAdapter, vectraCredentialSchema } from '../../src/server/adapters/vectra.js'
 import { createAzAdapter } from '../../src/server/adapters/az.js'
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
@@ -2209,6 +2210,15 @@ test('AWX summary aggregates configured instances and legacy credential requires
     .toMatchObject({ configured: false, revision: 0, updatedAt: null, updatedBy: null, metadata: {} })
   await createInstance('north', values['awx-axi'], 'awx-axi')
   expect((await (await request('GET', '/awx-axi')).json()).health.status).not.toBe('unconfigured')
+})
+
+test('AWX aggregate health excludes origin-only instances', async () => {
+  adapters.push(createAwxAdapter(new EmbeddedSecretSource(store)))
+  const configured = store.createInstance('awx-axi', { name: 'configured', description: '' }, values['awx-axi'], actor, Date.now())
+  store.createInstance('awx-axi', { name: 'origin', description: '' }, { origin: 'https://origin.example' }, actor, Date.now())
+  db.prepare("INSERT INTO tool_health (credential_id, tool, credential_revision, checked_at, status, error_code) VALUES (?, 'awx-axi', ?, ?, 'ok', NULL)")
+    .run(configured.id, configured.revision, Date.now())
+  expect(await (await request('GET', '/awx-axi')).json()).toMatchObject({ health: { status: 'ok' } })
 })
 
 test('instance create stores an enabled read-only instance, hides secrets and audits it', async () => {

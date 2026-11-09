@@ -33,8 +33,8 @@ export class ToolHealth {
   private readonly generations = new Map<ToolName, number>()
   private readonly diagnostics = new Map<string, Diagnostic>()
   private readonly rotation = new Map<ToolName, number>()
-  private readonly due = new Map<ToolName, number>()
-  private readonly failures = new Map<ToolName, number>()
+  private readonly due = new Map<string, number>()
+  private readonly failures = new Map<string, number>()
 
   // A check is running, queued behind a running check, or waiting for background or runner capacity.
   checking(tool: ToolName): boolean {
@@ -54,8 +54,12 @@ export class ToolHealth {
   start(): void {
     this.timer = setInterval(() => {
       for (const adapter of this.adapters) {
-        if ((this.due.get(adapter.name) ?? 0) > Date.now()) continue
-        void this.refresh(adapter.name)
+        const candidate = this.instances(adapter.name).filter(instance => instance.enabled || this.isRequired(adapter.name, instance))
+          .sort((a, b) => Number(this.queued.has(adapter.name) && this.isRequired(adapter.name, b))
+            - Number(this.queued.has(adapter.name) && this.isRequired(adapter.name, a))
+            || (this.due.get(a.id) ?? 0) - (this.due.get(b.id) ?? 0))[0]
+        if (!candidate || (this.due.get(candidate.id) ?? 0) > Date.now()) continue
+        void this.refresh(adapter.name, false, candidate.id)
       }
     }, healthDefaults.tickMs)
     this.timer.unref()
@@ -83,19 +87,19 @@ export class ToolHealth {
   private reschedule(tool: ToolName, reference: CredentialReference, generation: number, code: string | undefined): void {
     if (!this.isCurrent(tool, reference) || (this.generations.get(tool) ?? 0) !== generation) return
     if (code === 'TOO_MANY_CALLS' && this.queued.has(tool)) {
-      this.due.set(tool, Date.now())
+      this.due.set(reference.id, Date.now())
       return
     }
     this.queued.delete(tool)
     this.required.delete(tool)
     const retryable = code === 'UPSTREAM_NETWORK_FAILED' || code === 'TIMEOUT' || code === 'TEMP_UNAVAILABLE'
-    const failures = retryable ? (this.failures.get(tool) ?? 0) + 1 : 0
-    if (failures) this.failures.set(tool, failures)
-    else this.failures.delete(tool)
+    const failures = retryable ? (this.failures.get(reference.id) ?? 0) + 1 : 0
+    if (failures) this.failures.set(reference.id, failures)
+    else this.failures.delete(reference.id)
     const delay = failures === 0
-      ? healthDefaults.intervalMs / Math.max(1, this.instances(tool).length)
+      ? healthDefaults.intervalMs
       : Math.min(healthDefaults.retryMs * 2 ** (failures - 1), healthDefaults.intervalMs)
-    this.due.set(tool, Date.now() + delay)
+    this.due.set(reference.id, Date.now() + delay)
   }
 
   // Instances of one tool are checked one at a time. Each background run takes the next enabled instance in turn,
@@ -105,7 +109,8 @@ export class ToolHealth {
     if (this.closed || tool === 'shodan-axi') return
     if (replaced) {
       this.queued.add(tool)
-      this.failures.delete(tool)
+      const id = credentialId ?? this.store?.findCredential(tool)?.id
+      if (id !== undefined) this.failures.delete(id)
       this.generations.set(tool, (this.generations.get(tool) ?? 0) + 1)
     }
     if (this.active.has(tool)) {
@@ -116,12 +121,13 @@ export class ToolHealth {
     const turn = this.rotation.get(tool) ?? 0
     const reference = credentialId === undefined ? candidates[turn % candidates.length] : candidates.find(instance => instance.id === credentialId)
     if (!reference) { this.queued.delete(tool); return }
+    if (replaced) this.failures.delete(reference.id)
     const row = this.db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number } | undefined
     if (!this.isRequired(tool, reference)) this.required.delete(tool)
     if ((!row?.enabled && !this.required.has(tool)) || !this.adapters.some(adapter => adapter.name === tool)) { this.queued.delete(tool); return }
     if (this.pending.size >= healthDefaults.backgroundCalls) {
       this.queued.add(tool)
-      this.due.set(tool, Date.now())
+      this.due.set(reference.id, Date.now())
       return
     }
     if (credentialId === undefined) this.rotation.set(tool, turn + 1)
@@ -147,6 +153,7 @@ export class ToolHealth {
     authorize: () => void, credentialId?: string) {
     const reference = this.resolve(tool, credentialId)
     if (!reference) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
+    this.failures.delete(reference.id)
     const generation = (this.generations.get(tool) ?? 0) + 1
     this.generations.set(tool, generation)
     this.required.set(tool, reference)

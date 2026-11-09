@@ -276,6 +276,17 @@ test('repeated network failures back off to the interval and a success restores 
   expect(db.prepare('SELECT status FROM tool_health').get()).toEqual({ status: 'ok' })
 })
 
+test('transient failures back off independently for each instance', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+  store.createInstance('falcon-axi', { name: 'west', description: '' },
+    { clientId: 'CANARY-client', clientSecret: 'CANARY-west', region: 'us-2' }, 'synthetic-development-user', Date.now())
+  vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stderr: 'connect ECONNREFUSED', exitCode: 1 })
+  health.start()
+  await vi.advanceTimersByTimeAsync(healthDefaults.retryMs + healthDefaults.tickMs * 2)
+  expect(db.prepare("SELECT instance FROM audit WHERE event = 'health-check' ORDER BY id").all())
+    .toEqual([{ instance: 'default' }, { instance: 'west' }, { instance: 'default' }, { instance: 'west' }])
+})
+
 test.each([
   { name: 'timeout', error: new RunnerError('TIMEOUT'), delay: healthDefaults.retryMs },
   { name: 'success', error: undefined, delay: healthDefaults.intervalMs },
