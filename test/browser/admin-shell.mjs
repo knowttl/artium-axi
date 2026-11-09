@@ -577,7 +577,7 @@ test('SSH write permissions default off and save without creating shared credent
     check(await page.eval(() => !document.querySelector('[data-write-access] [role=switch]').checked), 'SSH writes enabled by default');
     check(await page.eval(() => document.querySelector('[data-write-access]').innerText.includes('a writable host and current caller grants')), 'SSH host policy guidance missing');
     await page.click('[data-write-access] [role=switch]');
-    await page.click('form[action$="/write-access"] button:not([form])');
+    await page.click('form[action$="/write-access"] button:not([form], [data-ops-select])');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/write-access"] [name=expectedRevision][value="2"]');
     check(await page.eval(async () => (await (await fetch('/v1/admin/tools/ssh-axi')).json()).writeAccess.enabled), 'SSH write setting did not persist');
@@ -1273,12 +1273,12 @@ for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi', 'unifi-axi', 'proxmox-a
     check(JSON.stringify([...choices].sort()) === JSON.stringify([...initial.writeAccess.supportedOperations].sort()), 'Picker differs from pinned catalogue');
     check(await page.eval(() => [...document.querySelectorAll('[name=operations]')].every(input => !input.checked)), 'Unexpected initial selection');
     await page.click('[data-write-access] [role=switch]');
-    await page.click('form[action$="/write-access"] button:not([form])');
+    await page.click('form[action$="/write-access"] button:not([form], [data-ops-select])');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('#message:not(:empty)');
     check(await page.eval(() => document.querySelector('#message').innerText.includes('Select at least one')), 'Empty enabled allow-list accepted');
     await page.click('[name=operations]');
-    await page.click('form[action$="/write-access"] button:not([form])');
+    await page.click('form[action$="/write-access"] button:not([form], [data-ops-select])');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/write-access"] [name=expectedRevision][value="2"]');
     const saved = await page.eval(async () => (await (await fetch('/v1/admin/tools/${tool}')).json()));
@@ -1287,11 +1287,47 @@ for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi', 'unifi-axi', 'proxmox-a
     check(await page.eval(() => document.querySelector('[data-ops-group]').open), 'Group with a selection is collapsed');
     await page.click('[data-write-access] [role=switch]');
     await page.click('[name=operations]');
-    await page.click('form[action$="/write-access"] button:not([form])');
+    await page.click('form[action$="/write-access"] button:not([form], [data-ops-select])');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/write-access"] [name=expectedRevision][value="3"]');
     const cleared = await page.eval(async () => (await (await fetch('/v1/admin/tools/${tool}')).json()));
     check(!cleared.writeAccess.enabled && cleared.writeAccess.allowedOperations.length === 0, 'Empty selection not saved');
+  `)
+})
+
+for (const tool of ['gitea-axi', 'unifi-axi']) test(tool + ' operation picker select all and clear all act only on shown operations and skip deletes', () => {
+  browser(`
+    await page.open(base + '/admin/tools/${tool}?tab=writes');
+    const state = () => page.eval(() => {
+      const operations = [...document.querySelectorAll('[data-op]')];
+      const checked = operations.filter(operation => operation.querySelector('input').checked);
+      return { total: operations.length, checked: checked.length, deletesChecked: checked.filter(operation => operation.hasAttribute('data-delete')).length,
+        hiddenChecked: checked.filter(operation => operation.hidden).length, deletes: operations.filter(operation => operation.hasAttribute('data-delete')).length,
+        firstGroupChecked: [...document.querySelector('[data-ops-group]').querySelectorAll('[data-op] input:checked')].length,
+        firstGroupSize: document.querySelector('[data-ops-group]').querySelectorAll('[data-op] input').length };
+    });
+    const none = await state();
+    await page.click('.card-body > [data-ops-actions] [data-ops-select=all]');
+    const all = await state();
+    check(all.checked === all.total - all.deletes && all.deletesChecked === 0, 'Select all must pick every operation except deletes');
+    await page.eval(() => {
+      const input = document.querySelector('[name=q]');
+      input.value = document.querySelector('[data-op]:not([data-delete])').dataset.op;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.click('.card-body > [data-ops-actions] [data-ops-select=none]');
+    const filteredClear = await state();
+    check(filteredClear.checked === all.checked - 1 && filteredClear.hiddenChecked === filteredClear.checked, 'Clear all must clear only the shown operations');
+    await page.eval(() => {
+      const input = document.querySelector('[name=q]');
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      document.querySelectorAll('[data-op] input').forEach(input => { input.checked = false; });
+    });
+    await page.click('[data-ops-group] [data-ops-select=all]');
+    const group = await state();
+    check(group.checked === group.firstGroupChecked && group.firstGroupChecked > 0 && group.firstGroupChecked <= group.firstGroupSize, 'Group select all must stay inside its group');
+    check(none.checked === 0, 'Unexpected initial selection');
   `)
 })
 
