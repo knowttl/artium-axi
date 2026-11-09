@@ -387,7 +387,8 @@ The OpenCode plugin obtains fresh context before each model request rather than 
 Restart the host after setup; integration tests exercise the installed command/plugin contracts offline, without a model or vendor API call.
 
 `session-context` fetches the signed-in user's `/v1/tools` snapshot, allowing ordinary session refresh, with a five-second overall deadline that also cancels refresh-lock waits.
-It emits at most one row per known tool, containing only name, status, read/write posture and the number of instances the caller can use, plus a note to ask the user which instance to use when a tool has several.
+It emits at most one row per known tool, containing only name, status, read/write posture and the number of instances the caller can use.
+When a tool has several instances and the user has not named one, its guidance says to ask which to use while reading back their descriptions.
 It never emits usernames, roles, tokens, server URLs, session expiry or server-provided error text.
 It does not grant access or bypass server write gates, and it never substitutes cached grants after an authentication, TLS, configuration or connectivity failure.
 Concurrent login or logout also withholds grants with `SESSION_CHANGED`; refresh within the same login remains supported.
