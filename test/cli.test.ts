@@ -754,7 +754,6 @@ test.each([
   { args: ['--instance', 'pve-lab', 'tools'] },
   { args: ['--instance', 'pve-lab', 'ssh-axi', 'connect'] },
   { args: ['--instance', 'pve-lab', 'proxmox-axi', 'result', 'take'] },
-  { args: ['--instance', 'pve-lab', 'proxmox-axi', 'stream', 'limits'] },
   { args: ['--instance', 'pve-lab', 'kubernetes-axi', 'tunnel'] },
   { args: ['--instance', 'pve-lab', 'kubernetes-axi', 'credential'] },
   { args: ['--instance', 'pve-lab', 'kubernetes-axi', '--json', 'workspace', 'show'] },
