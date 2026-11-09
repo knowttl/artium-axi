@@ -140,3 +140,11 @@ test('replace credential still manages the only instance but refuses an ambiguou
   create('lab')
   expect(() => store.replaceCredential('falcon-axi', {}, 2, 'synthetic-user', 3000)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
 })
+
+test('legacy replacement rejects a deleted and recreated credential', () => {
+  const original = create('lab', 'CANARY-original')
+  store.deleteInstance('falcon-axi', 'lab', original.id, original.revision)
+  const replacement = create('lab', 'CANARY-new')
+  expect(() => store.replaceCredential('falcon-axi', { secret: 'CANARY-stale' }, original.revision, 'synthetic-user', 2000)).toThrow(expect.objectContaining({ code: 'REVISION_CONFLICT' }))
+  expect(store.readCredential(replacement)).toEqual({ secret: 'CANARY-new' })
+})
