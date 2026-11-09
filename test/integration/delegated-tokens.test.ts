@@ -191,16 +191,16 @@ test.each([
 })
 
 test.each<{ tool: ToolName, command: string, args: string[], parse?: (text: string) => unknown, code?: number,
-  expected?: { commands?: string[], error?: { code: string } } }>([
-  { tool: 'kubernetes-axi', command: 'get', args: ['kubernetes-axi', '--help'] },
+  expected?: { commands?: string[], example?: string, error?: { code: string } } }>([
+  { tool: 'kubernetes-axi', command: 'get', args: ['kubernetes-axi', '--help'], expected: { commands: ['get'], example: 'artium-axi --instance <name> kubernetes-axi ...' } },
   { tool: 'kubernetes-axi', command: 'get', args: ['kubernetes-axi', 'workspace', '--help'], code: 2, expected: { error: { code: 'INVALID_INPUT' } } },
-  { tool: 'ssh-axi', command: 'host list', args: ['ssh-axi', '--help'] },
+  { tool: 'ssh-axi', command: 'host list', args: ['ssh-axi', '--help'], expected: { commands: ['host list'], example: 'artium-axi ssh-axi ...' } },
   { tool: 'ssh-axi', command: 'host list', args: ['ssh-axi', 'connection', '--help'], code: 2, expected: { error: { code: 'FLAG_BLOCKED' } } },
-  { tool: 'gh-axi', command: 'issue list', args: ['--help', 'gh-axi'] },
-  { tool: 'unifi-axi', command: 'info', args: ['unifi-axi', 'commands'] },
+  { tool: 'gh-axi', command: 'issue list', args: ['--help', 'gh-axi'], expected: { commands: ['issue list'], example: 'artium-axi --instance <name> gh-axi ...' } },
+  { tool: 'unifi-axi', command: 'info', args: ['unifi-axi', 'commands'], expected: { commands: ['info'], example: 'artium-axi --instance <name> unifi-axi ...' } },
   { tool: 'unifi-axi', command: 'info', args: ['unifi-axi', '--json', 'commands'], parse: JSON.parse },
-  { tool: 'unifi-axi', command: 'info', args: ['unifi-axi', '--help'] },
-  { tool: 'gh-axi', command: 'issue list', args: ['tools', 'show', 'gh-axi', '--help'] },
+  { tool: 'unifi-axi', command: 'info', args: ['unifi-axi', '--help'], expected: { commands: ['info'], example: 'artium-axi --instance <name> unifi-axi ...' } },
+  { tool: 'gh-axi', command: 'issue list', args: ['tools', 'show', 'gh-axi', '--help'], expected: { commands: ['issue list'], example: 'artium-axi --instance <name> gh-axi ...' } },
 ])('delegated CLI discovery $args stays scoped (R14, R20)', async ({ tool, command, args, parse = decode, code = 0, expected = { commands: [command] } }) => {
   await app.close()
   db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
@@ -221,7 +221,6 @@ test.each<{ tool: ToolName, command: string, args: string[], parse?: (text: stri
   expect(result.code, result.stdout).toBe(code)
   const output = parse(result.stdout) as { commands: string[], example?: string, upstreamHelp?: string }
   expect(output).toMatchObject(expected)
-  expect(output.example).toBeUndefined()
   expect(output.upstreamHelp).toBeUndefined()
   const session = new SessionStore(url, join(directory, 'agent', 'artium-axi', 'session.json')).read()
   if (session?.status !== 'authenticated') throw new Error('Expected delegated session')
