@@ -946,7 +946,6 @@ For an enabled configured tool, cached health selects an error if any eligible e
 AWX instances with only an origin are excluded from this aggregation and background checks.
 Background health checks take the enabled instances of a tool one at a time and skip disabled instances; each instance keeps its own cached result and diagnostic.
 Shodan checks remain explicit, and a GitHub device connection can request a check even when the tool is disabled.
-Command execution does not select a named instance: with multiple instances, shared credential resolution fails, and the instance enabled and read-only flags do not enforce command access.
 The GitHub device-flow start and AWX origin routes accept an optional `instance` and `expectedId` to act on a named instance.
 The [API contract](../src/shared/api.ts) (`adminInstanceRoutes`) owns the input and response fields.
 The Graph and Azure re-pin preserves retained tool configuration and credentials; no administrator edit is needed to refresh the displayed versions.
