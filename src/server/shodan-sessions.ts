@@ -22,7 +22,7 @@ import { ShodanWorker } from './shodan-worker.js'
 
 type Input = z.infer<typeof shodanStreamStart>
 type Limits = ReturnType<ShodanCapacity['reserve']>
-interface Reservation { id: string, user: string, credential: string, operation: string, limits: Limits }
+interface Reservation { id: string, user: string, credential: CredentialReference, operation: string, limits: Limits }
 interface Plan { id: string, owner: ShodanOwner, credential: CredentialReference, binding: string, input: Input,
   limits: Limits, directory: string, nativeToken: string, expiresAt: number, timer: NodeJS.Timeout }
 interface Pending extends Pick<Plan, 'owner' | 'credential' | 'binding' | 'input'> { controller: AbortController, job: Promise<unknown> }
@@ -109,11 +109,11 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
 
   const preview = async (owner: ShodanOwner, input: Input, controller: AbortController, reserved?: Reservation) => {
     const args = await inspectShodanStream(input)
-    const credential = await resolver.resolve(owner.user, 'shodan-axi')
+    const credential = reserved ? reserved.credential : await resolver.resolve(owner.user, 'shodan-axi')
     const binding = shodanBinding(db, owner, credential, input.operation)
     await initialized
     const id = reserved?.id ?? randomUUID(), directory = join(root, `session-${id}`)
-    if (reserved && (reserved.user !== owner.user || reserved.credential !== credential.id || reserved.operation !== input.operation)) throw new ArtiumError('INVALID_INPUT')
+    if (reserved && (reserved.user !== owner.user || reserved.operation !== input.operation)) throw new ArtiumError('INVALID_INPUT')
     const limits = reserved?.limits ?? capacity.reserve(id, owner.user, credential.id, binding.settings, input.limits)
     if (input.bounds.limit > limits.events || input.bounds.maxBytes > limits.bytes || input.bounds.timeout > limits.leaseSeconds * 1000) {
       capacity.release(id); throw new ArtiumError('INVALID_INPUT')
@@ -299,7 +299,7 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
       if (input.bounds.limit > limits.events || input.bounds.maxBytes > limits.bytes || input.bounds.timeout > limits.leaseSeconds * 1000) {
         capacity.release(id); throw new ArtiumError('INVALID_INPUT')
       }
-      return { id, user: owner.user, credential: credential.id, operation, limits }
+      return { id, user: owner.user, credential: { ...credential }, operation, limits }
     },
     release(reservation: Reservation) { capacity.release(reservation.id) },
     async waitReady(owner: ShodanOwner, id: string) {

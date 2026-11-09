@@ -22,7 +22,7 @@ const policy = { sessions: { grants: { 'synthetic-development-user': ['OP-046'] 
 scans: { grants: { 'synthetic-development-user': ['OP-009'] }, maxScanCredits: 10, maxRequests: 10 } }
 
 test.each([
-  { name: 'idle timeout', limit: '10', idleTimeout: '5000', fault: '/__shodan/scan-drop?enabled=false', code: 0,
+  { name: 'idle timeout after expanding instance grants', limit: '10', idleTimeout: '5000', fault: '/__shodan/scan-drop?enabled=false', code: 0, expandGrant: true,
     result: { status: 'completed', scanId: 'synthetic-scan', stream: { summary: { stopReason: 'idle-timeout' } }, cleanup: 'completed' } },
   { name: 'requested deadline', limit: '10', idleTimeout: '10000', waitSeconds: '3', fault: '/__shodan/scan-drop?enabled=false', code: 0,
     result: { status: 'completed', scanId: 'synthetic-scan', cleanup: 'completed' } },
@@ -35,7 +35,7 @@ test.each([
     result: { status: 'partial', scanId: 'synthetic-scan', cleanup: 'completed' } },
   { name: 'upstream loss', limit: '10', idleTimeout: '5000', fault: '/__shodan/stream-loss?count=2', code: 1,
     result: { status: 'partial', scanId: 'synthetic-scan', upstreamLoss: { 'upstream-discarded': 2 }, cleanup: 'completed' } },
-])('scan collection reports $name', async ({ limit, idleTimeout, waitSeconds = '10', fault, code, result }) => {
+])('scan collection reports $name', async ({ limit, idleTimeout, waitSeconds = '10', fault, code, result, expandGrant }) => {
   const packageRoot = process.env.SHODAN_AXI_PACKAGE_DIR
   if (!packageRoot) throw new Error('SHODAN_AXI_PACKAGE_DIR must name the installed package')
   await withFakeService(async ({ directory, send }) => {
@@ -43,8 +43,13 @@ test.each([
     const db = openStore(join(directory, 'artium.db'), provider)
     await seedToolUser(db)
     const store = createCredentialStore(db, provider)
-    store.replaceCredential('shodan-axi', { auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' },
+    const credential = store.replaceCredential('shodan-axi', { auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' },
       0, 'synthetic-development-user', Date.now())
+    if (expandGrant) {
+      store.createInstance('shodan-axi', { name: 'production', description: '' }, store.readCredential(credential), 'synthetic-development-user', Date.now())
+      db.exec("UPDATE role_tools SET all_instances=0 WHERE role_id='synthetic-role' AND tool='shodan-axi'")
+      db.prepare("INSERT INTO role_tool_instances VALUES ('synthetic-role', 'shodan-axi', ?)").run(credential.id)
+    }
     db.prepare("UPDATE tools SET enabled=1,native_settings=? WHERE name='shodan-axi'").run(JSON.stringify(policy))
     const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
     const previousPath = toolPaths['shodan-axi'], previousTick = healthDefaults.tickMs
@@ -53,7 +58,7 @@ test.each([
     const source = new EmbeddedSecretSource(store)
     const adapter = createShodanAdapter(source)
     const app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {},
-      resolver: new SharedIdentityResolver(store), adapters: [adapter] })
+      resolver: new SharedIdentityResolver(store, db), adapters: [adapter] })
     try {
       const url = await app.listen({ host: '127.0.0.1', port: 0 })
       const token = issueTestAccessToken(db, 'synthetic-development-user')
@@ -66,6 +71,7 @@ test.each([
           '--idle-timeout', idleTimeout, '--scan-credit-budget', '1', '--max-requests', '1',
           '--allow-operation', 'OP-009,OP-046', '--accept-unknown-cost', '--json']
         const preview = await promisify(execFile)(process.execPath, [bundle, ...scanArgs], { timeout: 10000, env: scanEnv })
+        if (expandGrant) db.exec("UPDATE role_tools SET all_instances=1 WHERE role_id='synthetic-role' AND tool='shodan-axi'")
         return await new Promise<{ code: number | string | null, stdout: string, stderr: string }>(resolve => {
           execFile(process.execPath, [bundle, ...scanArgs, '--execute', '--confirm', JSON.parse(preview.stdout).confirm],
             { timeout: 60000, env: scanEnv }, (error, stdout, stderr) => resolve({ code: error ? error.code ?? error.signal ?? 'failed' : 0, stdout, stderr }))
