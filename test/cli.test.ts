@@ -648,6 +648,54 @@ test.each([false, true])('managed calls ignore session files and preserve tool s
     body: { args: ['rg', 'query'], stdin: 'synthetic query' }, version: cliVersion }])
 })
 
+const instanceRunResponse = { status: 200, body: { source: 'mg-axi', stdout: 'synthetic result', stderr: '', exitCode: 0,
+  durationMs: 1, outputBytes: { stdout: 16, stderr: 0 }, truncated: { stdout: false, stderr: false } } }
+
+test('a leading --instance selects the run instance and is never forwarded to the tool', async () => {
+  requests = []
+  response = instanceRunResponse
+  expect(await cli(['--instance', 'pve-lab', 'mg-axi', 'entra', 'user', 'list'])).toMatchObject({ code: 0, stdout: 'synthetic result' })
+  expect(requests).toEqual([{ path: '/v1/tools/mg-axi/run', token: 'Bearer CANARY-cli-token',
+    body: { args: ['entra', 'user', 'list'], instance: 'pve-lab' }, version: cliVersion }])
+})
+
+test('--instance beside --managed-session selects the run instance privately', async () => {
+  requests = []
+  response = instanceRunResponse
+  expect(await managedCli(['--instance', 'pve-lab', 'mg-axi', 'entra', 'user', 'list']))
+    .toEqual({ code: 0, stdout: 'synthetic result', stderr: '', rotations: '' })
+  expect(requests).toEqual([{ path: '/v1/tools/mg-axi/run', token: `Bearer ${managedTokens.accessToken}`,
+    body: { args: ['entra', 'user', 'list'], instance: 'pve-lab' }, version: cliVersion }])
+})
+
+test('mg-axi native --instance after the tool name is forwarded unchanged', async () => {
+  requests = []
+  response = instanceRunResponse
+  expect(await cli(['--instance', 'pve-lab', 'mg-axi', '--instance', 'tenant-a', 'entra', 'user', 'list'])).toMatchObject({ code: 0 })
+  expect(requests).toEqual([{ path: '/v1/tools/mg-axi/run', token: 'Bearer CANARY-cli-token',
+    body: { args: ['--instance', 'tenant-a', 'entra', 'user', 'list'], instance: 'pve-lab' }, version: cliVersion }])
+})
+
+test('a server that rejects the instance field is refused with an upgrade next step', async () => {
+  requests = []
+  response = { status: 400, body: errorResponse(new ArtiumError('INVALID_INPUT'), 'synthetic-older-server') }
+  expect(await cli(['--instance', 'pve-lab', 'mg-axi', 'entra', 'user', 'list'])).toMatchObject({ code: 2, stderr: '',
+    stdout: 'error:\n  code: "INVALID_INPUT"\n  source: "artium-axi"\n  message: "The server does not accept --instance."\n'
+      + '  next: "Upgrade the server to a version that supports named tool instances."\n  requestId: "synthetic-older-server"\n' })
+})
+
+test.each([
+  { args: ['--instance', 'pve-lab'] },
+  { args: ['--instance', 'pve-lab', 'tools'] },
+  { args: ['--instance', 'pve-lab', 'proxmox-axi', 'get', '/version'] },
+  { args: ['--instance', 'Pve_Lab', 'mg-axi', 'entra', 'user', 'list'] },
+  { args: ['--instance'] },
+])('--instance is refused before any request unless it precedes a supported tool: $args', async ({ args }) => {
+  requests = []
+  expect(await cli(args)).toMatchObject({ code: 2, stderr: '', stdout: expect.stringContaining('"INVALID_INPUT"') })
+  expect(requests).toEqual([])
+})
+
 test.each([3, 4] as const)('managed mode refuses missing private fd %s before network access', async missing => {
   requests = []
   expect(await managedCli(['tools'], { missing })).toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT'), stderr: '', rotations: '' })
@@ -1569,7 +1617,7 @@ test.each([
   { args: ['download', '--oops'], token: '--oops', choices: 'Valid flags for download: --help, --operation, --selector, --type, --destination' },
   { args: ['token', 'create', '--oops'], token: '--oops', choices: 'Valid flags: --help, --label, --tool, --expires' },
   { args: ['download', 'Limit'], token: 'Limit', choices: 'Valid flags for download: --help, --operation, --selector, --type, --destination' },
-  { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, -v, -V, --managed-session' },
+  { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, -v, -V, --managed-session (before the command), --instance <name> (before the tool name)' },
   { args: ['tools', 'shwo'], token: 'shwo', choices: 'Valid subcommands: show <tool>' },
   { args: ['tools', 'show', 'missing'], token: 'missing', choices: 'Valid tools: falcon-axi, vectra-axi, az-axi, mg-axi, ldap-axi, ado-axi' },
   { args: ['tools', 'show', 'falcon-axi', '--oops'], token: '--oops', choices: 'Valid flags for tools show: --help' },
