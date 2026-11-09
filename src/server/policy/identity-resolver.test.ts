@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest'
+import { errors } from '../../shared/errors.js'
 import { FakeCredentialStore } from '../../../test/fixtures/credential-store.js'
 import { SharedIdentityResolver } from './identity-resolver.js'
 
@@ -17,8 +18,8 @@ test('tool without a shared identity is unavailable', async () => {
 })
 
 const instances = new SharedIdentityResolver(new FakeCredentialStore([
-  { reference: { id: 'synthetic-lab', tool: 'falcon-axi' }, name: 'lab', value: {} },
   { reference: { id: 'synthetic-production', tool: 'falcon-axi' }, name: 'production', value: {} },
+  { reference: { id: 'synthetic-lab', tool: 'falcon-axi' }, name: 'lab', value: {} },
   { reference: { id: 'synthetic-retired', tool: 'falcon-axi' }, name: 'retired', enabled: false, value: {} },
   { reference: { id: 'synthetic-only-disabled', tool: 'vectra-axi' }, name: 'retired', enabled: false, value: {} },
 ]))
@@ -28,10 +29,17 @@ test('named instance is selected by name', async () => {
 })
 
 test.each([
-  ['falcon-axi', undefined, 'INSTANCE_REQUIRED'],
   ['falcon-axi', 'staging', 'INSTANCE_NOT_FOUND'],
   ['falcon-axi', 'retired', 'INSTANCE_DISABLED'],
   ['vectra-axi', undefined, 'INSTANCE_DISABLED'],
 ] as const)('%s with instance %s fails with %s', async (tool, instance, code) => {
   await expect(instances.resolve('synthetic-user', tool, instance)).rejects.toMatchObject({ code })
+})
+
+test('ambiguous selection lists enabled instances in sorted order', async () => {
+  expect(errors.INSTANCE_REQUIRED.status).toBe(409)
+  await expect(instances.resolve('synthetic-user', 'falcon-axi')).rejects.toMatchObject({
+    code: 'INSTANCE_REQUIRED',
+    next: 'Ask the user which instance to use, then run artium-axi --instance <lab|production> falcon-axi ...',
+  })
 })

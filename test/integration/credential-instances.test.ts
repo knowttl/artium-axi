@@ -61,13 +61,20 @@ test.each(['lab', 'production'])('run selects the %s instance and reports it', a
 })
 
 test.each([
-  ['omitted with several usable instances', {}, 400, 'INSTANCE_REQUIRED'],
   ['unknown', { instance: 'staging' }, 404, 'INSTANCE_NOT_FOUND'],
   ['malformed', { instance: 'Lab' }, 400, 'INVALID_INPUT'],
 ])('%s instance fails closed before any credential is read', async (_label, payload, status, code) => {
   const reply = await run(payload)
   expect(reply.statusCode).toBe(status)
   expect(reply.json().error.code).toBe(code)
+  expect(usedClients).toEqual([])
+})
+
+test('omitting an instance returns the sorted usable choices', async () => {
+  const reply = await run({})
+  expect(reply.statusCode).toBe(409)
+  expect(reply.json().error).toMatchObject({ code: 'INSTANCE_REQUIRED',
+    next: 'Ask the user which instance to use, then run artium-axi --instance <lab|production> falcon-axi ...' })
   expect(usedClients).toEqual([])
 })
 

@@ -14,7 +14,8 @@ export class SharedIdentityResolver implements IdentityResolver {
     const selected = instance === undefined ? undefined : instances.find(candidate => candidate.name === instance)
     if (instance !== undefined && !selected) throw new ArtiumError('INSTANCE_NOT_FOUND')
     const usable = selected ? [selected] : instances.filter(candidate => candidate.enabled)
-    if (usable.length > 1) throw new ArtiumError('INSTANCE_REQUIRED')
+    if (usable.length > 1) throw new ArtiumError('INSTANCE_REQUIRED', undefined,
+      `Ask the user which instance to use, then run artium-axi --instance <${usable.map(candidate => candidate.name).sort().join('|')}> ${tool} ...`)
     if (!usable[0]?.enabled) throw new ArtiumError('INSTANCE_DISABLED')
     return { id: usable[0].id, tool, revision: usable[0].revision }
   }

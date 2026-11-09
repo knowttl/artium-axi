@@ -63,7 +63,7 @@ Azure token-acquisition diagnostics retain supported provider codes.
 | TOKEN_EXPIRED | artium-axi | 401 | 1 | The token has expired. | Sign in again. |
 | USER_DISABLED | artium-axi | 403 | 1 | The user is disabled. | Ask the administrator to enable the user. |
 | TOOL_DISABLED | artium-axi | 403 | 1 | The tool is disabled. | Ask the administrator to enable the tool. |
-| INSTANCE_REQUIRED | artium-axi | 400 | 1 | The tool has several usable instances and the request named none. | Name the instance to use. |
+| INSTANCE_REQUIRED | artium-axi | 409 | 1 | The tool has several usable instances and the request named none. | Name the instance to use. |
 | INSTANCE_NOT_FOUND | artium-axi | 404 | 1 | The tool has no instance with that name. | Name an existing instance of the tool. |
 | INSTANCE_DISABLED | artium-axi | 403 | 1 | The instance is disabled. | Name another instance, or ask the administrator to enable it. |
 | TOOL_NOT_GRANTED | artium-axi | 403 | 1 | The user has no role granting this tool. | Ask the administrator to assign a role granting the tool. |

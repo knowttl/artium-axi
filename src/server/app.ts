@@ -83,7 +83,7 @@ export function createApp(options: {
   const authenticate = verifyAccessToken
   const protectedResults = new ProtectedResults()
   const delegatedReads = new Map<AbortController, string>()
-  const proxmox = new ProxmoxAccess(db, runner, protectedResults)
+  const proxmox = new ProxmoxAccess(db, resolver, runner, protectedResults)
   const localAuth = new LocalAuthProvider(db)
   const authAttempts = new AuthAttempts(db, audit)
   const delegatedAttempts = new AuthRateLimits()
@@ -442,10 +442,7 @@ export function createApp(options: {
       if (!adapter) throw new ArtiumError('TOOL_DISABLED')
       authorizeDelegatedOperation(db, userId, delegation, adapter, { command: 'result take', effect: 'write' })
     }
-    const credential = protectedResults.credential(request.params.id, userId, tool, request.params.operation)
-    const current = db.prepare('SELECT revision FROM credentials WHERE id = ? AND tool = ? AND enabled = 1')
-      .get(credential.id, tool) as { revision: number } | undefined
-    if (!current || current.revision !== credential.revision) throw new ArtiumError('NOT_FOUND')
+    const credential = await resolver.resolve(userId, tool)
     verifyPrincipal(db, token)
     checkToolPolicy(db, userId, tool)
     if (tool === 'kubernetes-axi') {

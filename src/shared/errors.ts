@@ -57,7 +57,7 @@ const definitions = {
   TOKEN_EXPIRED: { status: 401, message: 'The token has expired.', next: 'Sign in again.' },
   USER_DISABLED: { status: 403, message: 'The user is disabled.', next: 'Ask the administrator to enable the user.' },
   TOOL_DISABLED: { status: 403, message: 'The tool is disabled.', next: 'Ask the administrator to enable the tool.' },
-  INSTANCE_REQUIRED: { status: 400, message: 'The tool has several usable instances and the request named none.', next: 'Name the instance to use.' },
+  INSTANCE_REQUIRED: { status: 409, message: 'The tool has several usable instances and the request named none.', next: 'Name the instance to use.' },
   INSTANCE_NOT_FOUND: { status: 404, message: 'The tool has no instance with that name.', next: 'Name an existing instance of the tool.' },
   INSTANCE_DISABLED: { status: 403, message: 'The instance is disabled.', next: 'Name another instance, or ask the administrator to enable it.' },
   TOOL_NOT_GRANTED: { status: 403, message: 'The user has no role granting this tool.', next: 'Ask the administrator to assign a role granting the tool.' },
