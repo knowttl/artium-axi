@@ -89,7 +89,7 @@ test.each(cases)('$tool reads through the installed public client with managed c
     expect(readdirSync(join(directory, 'calls'))).toEqual([])
     const tools = (await app.inject({ url: '/v1/tools', headers })).json().tools
     expect(tools).toMatchObject([{ name: item.tool, readOnly: true }])
-    expect((await cli(['tools', 'show', item.tool])).stdout).toContain(`artium-axi ${item.tool}`)
+    expect((await cli(['tools', 'show', item.tool])).stdout).toContain(`artium-axi --instance <name> ${item.tool}`)
     expect((await cli([item.tool, ...item.args, '--help'])).stdout).toContain('help')
     expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(item.secret)
   })

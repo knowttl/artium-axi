@@ -215,3 +215,7 @@ Ask an administrator to reconnect the credential when authentication fails.
     throw new ArtiumError('INTERNAL_ERROR', `The ${tool} skill is unavailable or has not been reviewed for managed use.`, 'Ask an administrator to repair the bundled tool skill; no installation was written.')
   }
 }
+
+export function withInstanceGuidance(skill: string, tool: ToolName): string {
+  return `${skill.trimEnd()}\n\n## Instances\n\nThis tool has several instances you may use.\nRun \`artium-axi tools show ${tool}\` to list their names, status and descriptions.\nWhen the user has not named an instance, ask the user which one to use, reading back the descriptions, and never guess.\nThen run \`artium-axi --instance <name> ${tool} ...\`, with the flag before the tool name.\n`
+}

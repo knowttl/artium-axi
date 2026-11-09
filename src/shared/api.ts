@@ -683,6 +683,13 @@ export const toolsResponseSchema = z.strictObject({
     status: z.enum(['unconfigured', 'unknown', 'checking', 'ok', 'error', 'disabled']),
     errorCode: healthSchema.shape.errorCode.optional(),
     commands: z.array(z.string()).optional(),
+    instances: z.array(z.strictObject({
+      name: instanceNameSchema,
+      description: z.string(),
+      status: z.enum(['unknown', 'checking', 'ok', 'error']),
+      readOnly: z.boolean(),
+      errorCode: healthSchema.shape.errorCode.optional(),
+    })),
   })),
 })
 export const inputFileSchema = z.strictObject({

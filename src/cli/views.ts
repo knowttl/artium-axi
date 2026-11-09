@@ -20,15 +20,27 @@ export function sessionExpiryView(expiresAt: number, now = Date.now()): string {
 
 export function toolsView(tools: Tools): string {
   if (!tools.length) return 'tools: 0 available\nreason: No enabled runtime tool is available through your assigned roles.\ncontact: Ask an administrator to check your role assignments and enabled tools.\nnext[1]:\n  - artium-axi whoami\n'
-  const example = tools[0].commands ? '' : `  - artium-axi ${tools[0].name} ${manifests[tools[0].name].discovery.example.join(' ')}\n`
-  return `tools[${tools.length}]{name,status,version,readOnly}:\n${tools.map(tool => `  ${tool.name},${tool.status},${JSON.stringify(tool.version)},${tool.readOnly ?? true}`).join('\n')}\nnext[${example ? 2 : 1}]:\n  - artium-axi tools show ${tools[0].name}\n${example}`
+  const example = tools[0].commands || tools[0].instances.length > 1 ? '' : `  - artium-axi ${tools[0].name} ${manifests[tools[0].name].discovery.example.join(' ')}\n`
+  return `tools[${tools.length}]{name,status,version,readOnly,instances}:\n${tools.map(tool => `  ${tool.name},${tool.status},${JSON.stringify(tool.version)},${tool.readOnly ?? true},${tool.instances.length}`).join('\n')}\nnext[${example ? 2 : 1}]:\n  - artium-axi tools show ${tools[0].name}\n${example}`
+}
+
+export function instanceAdvice(tools: Tools): string | undefined {
+  const several = tools.filter(tool => tool.instances.length > 1).map(tool => tool.name)
+  return several.length ? `${several.join(', ')} ${several.length > 1 ? 'have' : 'has'} several instances. Run artium-axi tools show <tool> for descriptions. When the user has not named an instance, ask which one to use, reading back the descriptions. Then run artium-axi --instance <name> <tool> ...` : undefined
+}
+
+function instancesView(tool: Tools[number]): string {
+  const instances = tool.instances
+  return `instances[${instances.length}]{name,status,readOnly,description}:\n${instances.map(instance =>
+    `  ${instance.name},${instance.status},${instance.readOnly},${JSON.stringify(instance.description)}\n`).join('')}`
 }
 
 export function toolView(tool: Tools[number]): string {
   const manifest = manifests[tool.name]
   if (tool.version !== manifest.version) throw new ArtiumError('INVALID_RESPONSE', 'The server tool version differs from the bundled manifest.', 'Download the current CLI from /cli/artium-axi.mjs.')
-  if (tool.commands) return `tool: ${tool.name}\nversion: ${JSON.stringify(tool.version)}\nstatus: ${tool.status}\nreadOnly: ${tool.readOnly ?? true}\ncommands[${tool.commands.length}]: ${tool.commands.map(command => JSON.stringify(command)).join(',')}\n`
+  const selector = tool.name === 'ssh-axi' ? '' : '--instance <name> '
+  if (tool.commands) return `tool: ${tool.name}\nversion: ${JSON.stringify(tool.version)}\nstatus: ${tool.status}\nreadOnly: ${tool.readOnly ?? true}\n${instancesView(tool)}commands[${tool.commands.length}]: ${tool.commands.map(command => JSON.stringify(command)).join(',')}\nexample: artium-axi ${selector}${tool.name} ...\n`
   const commands = manifest.discovery.commands
   const help = rewriteDiscoveryHelp(manifest.discovery.help, tool.name)
-  return `tool: ${tool.name}\nversion: ${JSON.stringify(tool.version)}\nstatus: ${tool.status}\nreadOnly: ${tool.readOnly ?? true}\ncommands[${commands.length}]: ${commands.join(',')}\nexample: artium-axi ${tool.name} ${manifest.discovery.example.join(' ')}\nupstreamHelp: ${JSON.stringify(help)}\n`
+  return `tool: ${tool.name}\nversion: ${JSON.stringify(tool.version)}\nstatus: ${tool.status}\nreadOnly: ${tool.readOnly ?? true}\n${instancesView(tool)}commands[${commands.length}]: ${commands.join(',')}\nexample: artium-axi ${selector}${tool.name} ${manifest.discovery.example.join(' ')}\nupstreamHelp: ${JSON.stringify(help)}\n`
 }

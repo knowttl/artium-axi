@@ -152,10 +152,10 @@ try {
   console.log(`distribution: Linux download, SHA-256 rejection of corruption, standalone launcher, setup, login, password change and first call passed; sha256=${digest}`)
   const toolsText = await success(['tools'])
   const tools = decode(toolsText)
-  assert.deepEqual(tools.tools, [{ name: 'falcon-axi', status: 'ok', version: '1.0.0-rc.3', readOnly: true }])
+  assert.deepEqual(tools.tools, [{ name: 'falcon-axi', status: 'ok', version: '1.0.0-rc.3', readOnly: true, instances: 1 }])
   decode(first)
   pass(1, 'Token-efficient output: TOON and upstream stream preservation')
-  assert.deepEqual(Object.keys(tools.tools[0]), ['name', 'status', 'version', 'readOnly'])
+  assert.deepEqual(Object.keys(tools.tools[0]), ['name', 'status', 'version', 'readOnly', 'instances'])
   const detail = decode(await success(['tools', 'show', 'falcon-axi']))
   assert.equal(detail.tool, 'falcon-axi')
   assert.ok(detail.commands.length > 0 && detail.upstreamHelp && detail.example)
@@ -202,7 +202,7 @@ try {
   pass(6, 'Structured errors and exit codes: usage, failure and upstream streams')
   const hook = JSON.parse(readFileSync(join(home, '.claude/settings.json'), 'utf8')).hooks.SessionStart[0].hooks[0]
   const context = await execute('sh', ['-c', hook.command], options)
-  assert.deepEqual(decode(context.stdout), { artium: 'available', tools: [{ name: 'falcon-axi', status: 'ok', readOnly: true }],
+  assert.deepEqual(decode(context.stdout), { artium: 'available', tools: [{ name: 'falcon-axi', status: 'ok', readOnly: true, instances: 1 }],
     next: 'artium-axi tools', note: 'Server roles and write gates still apply.' })
   assert.equal(context.stderr, '')
   pass(7, 'Ambient context: embedded skills and executable opt-in hook')

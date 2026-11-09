@@ -30,7 +30,7 @@ const server = createServer((request, reply) => {
   } else if (request.headers.authorization !== 'Bearer CANARY-package-access') {
     reply.writeHead(401).end(JSON.stringify(errorResponse(new ArtiumError('TOKEN_INVALID'), 'synthetic-request')))
   } else if (request.url === '/v1/skills') reply.end(JSON.stringify({ skills: [] }))
-  else if (request.url === '/v1/tools') reply.end(JSON.stringify({ tools: granted ? [{ name: 'az-axi', version: 'synthetic', status: 'ok', readOnly: true }] : [] }))
+  else if (request.url === '/v1/tools') reply.end(JSON.stringify({ tools: granted ? [{ name: 'az-axi', version: 'synthetic', status: 'ok', readOnly: true, instances: [] }] : [] }))
   else if (request.url === '/v1/me') reply.end(JSON.stringify({ username: 'synthetic-user', displayName: 'Synthetic User',
     administrator: false, roles: [], accessExpiresAt: Date.now() + 3_600_000, sessionExpiresAt: Date.now() + 43_200_000 }))
   else reply.writeHead(404).end('{}')
@@ -162,10 +162,10 @@ test.each(['claude', 'codex', 'opencode'])('%s ambient integration executes curr
   const env = signedIn()
   expect(await run(['setup', '--host', host, '--hook'], env)).toMatchObject({ code: 0, stderr: '' })
   requests = []
-  expect(await ambient(host, env)).toBe('artium: available\ntools[1]{name,status,readOnly}:\n  az-axi,ok,true\nnext: artium-axi tools\nnote: Server roles and write gates still apply.\n')
+  expect(await ambient(host, env)).toBe('artium: available\ntools[1]{name,status,readOnly,instances}:\n  az-axi,ok,true,0\nnext: artium-axi tools\nnote: Server roles and write gates still apply.\n')
   expect(requests).toEqual(['/v1/tools'])
   granted = false
-  expect(await ambient(host, env)).toBe('artium: available\ntools[0]{name,status,readOnly}:\n\nnext: artium-axi tools\nnote: Server roles and write gates still apply.\n')
+  expect(await ambient(host, env)).toBe('artium: available\ntools[0]{name,status,readOnly,instances}:\n\nnext: artium-axi tools\nnote: Server roles and write gates still apply.\n')
   refused = true
   expect(await ambient(host, env)).toBe('artium: unavailable\nreason: TOKEN_INVALID\nnote: Current tool access could not be verified; no cached grants are shown.\nnext: artium-axi doctor\n')
   env.ARTIUM_AXI_URL = 'http://127.0.0.1:1'

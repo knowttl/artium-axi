@@ -4,7 +4,7 @@ import Fastify from 'fastify'
 import { z, ZodError } from 'zod'
 import type Database from 'better-sqlite3'
 import type { FastifyError } from 'fastify'
-import { certificateDetailsSchema, certificateInspectionSchema, createDelegationSchema, delegatedExchangeSchema, inputLimits, passwordChangeSchema, runRequestSchema, toolSchema, toolsResponseSchema, toolAllowsWrites, transferSelectionSchema, transferTool } from '../shared/api.js'
+import { certificateDetailsSchema, certificateInspectionSchema, createDelegationSchema, delegatedExchangeSchema, healthSchema, inputLimits, passwordChangeSchema, runRequestSchema, toolSchema, toolsResponseSchema, toolAllowsWrites, transferSelectionSchema, transferTool } from '../shared/api.js'
 import { ArtiumError, cliOutdatedUpdateNext, errorResponse, errors } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
 import { loadCredentialProfile } from './adapters/credential-profile.js'
@@ -46,7 +46,7 @@ import { registerCliDownload } from './cli-download.js'
 import type { ProviderCredentials } from './store/provider-credentials.js'
 import { registerSso, type SsoFetch } from './auth/sso.js'
 import { registerDevice } from './auth/device.js'
-import { loadToolSkill } from './tool-skills.js'
+import { loadToolSkill, withInstanceGuidance } from './tool-skills.js'
 import { registerTransfers } from './transfer-routes.js'
 import type { ArtifactStore } from './artifacts.js'
 import { errorDiagnostic } from './error-diagnostic.js'
@@ -219,35 +219,48 @@ export function createApp(options: {
     const discovery = delegation ? delegatedDiscovery(db, userId, delegation, adapters)
       : grantedAdapters(userId).map(adapter => ({ adapter, commands: undefined, readOnly: undefined }))
     const tools = discovery.map(({ adapter, commands, readOnly }) => {
-      const row = db.prepare(`SELECT native_settings AS nativeSettings, credentials.revision AS configured,
-        tool_health.status AS health, tool_health.error_code AS errorCode
+      const row = db.prepare(`SELECT native_settings AS nativeSettings, credentials.revision AS configured
         FROM tools LEFT JOIN credentials ON credentials.tool = tools.name
-        LEFT JOIN tool_health ON tool_health.tool = tools.name AND tool_health.credential_revision = credentials.revision
-        WHERE tools.name = ?`).get(adapter.name) as { nativeSettings: string, configured: number | null, health: 'ok' | 'error' | null, errorCode: string | null }
-      const reference = adapter.name === 'awx-axi' ? options.credentialStore?.findCredential(adapter.name) : undefined
+        WHERE tools.name = ?`).get(adapter.name) as { nativeSettings: string, configured: number | null }
       const configured = adapter.name === 'ssh-axi' ? hasSshConfiguration(db, userId)
-        : Boolean(row.configured) && !(reference && isAwxOriginOnly(adapter.name, options.credentialStore!.readCredential(reference)))
+        : adapter.name === 'awx-axi' && options.credentialStore
+          ? options.credentialStore.listInstances(adapter.name).some(instance => !isAwxOriginOnly(adapter.name, options.credentialStore!.readCredential(instance)))
+          : Boolean(row.configured)
+      const toolReadOnly = readOnly ?? !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings))
+      const instances = adapter.name === 'ssh-axi' || !configured ? [] : resolver.usableInstances(userId, adapter.name).map(instance => {
+        const stored = healthSchema.safeParse(db.prepare(`SELECT status, checked_at AS checkedAt, credential_revision AS credentialRevision,
+          error_code AS errorCode FROM tool_health WHERE credential_id = ? AND credential_revision = ?`).get(instance.id, instance.revision))
+        const state = stored.success ? stored.data : undefined
+        return { name: instance.name, description: instance.description, readOnly: toolReadOnly || instance.readOnly,
+          status: state?.status ?? (health.checking(adapter.name) ? 'checking' : 'unknown'),
+          ...(state?.status === 'error' && state.errorCode ? { errorCode: state.errorCode } : {}) }
+      })
+      const failed = instances.find(instance => instance.status === 'error')
+      const status = !configured ? 'unconfigured' : failed ? 'error'
+        : instances.length && instances.every(instance => instance.status === 'ok') ? 'ok'
+          : adapter.name !== 'ssh-axi' && health.checking(adapter.name) ? 'checking' : 'unknown'
       return { name: adapter.name, version: toolManifests[adapter.name].version, ...(commands ? { commands } : {}),
-        readOnly: readOnly ?? !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings)), status: configured ? adapter.name === 'ssh-axi' ? 'unknown' : row.health ?? (health.checking(adapter.name) ? 'checking' : 'unknown') : 'unconfigured',
-        ...(adapter.name !== 'ssh-axi' && configured && row.health === 'error' && row.errorCode ? { errorCode: row.errorCode } : {}) }
+        readOnly: toolReadOnly, status, ...(failed?.errorCode ? { errorCode: failed.errorCode } : {}), instances }
     })
     return toolsResponseSchema.parse({ tools })
   })
   app.get('/v1/skills', async (request, reply) => {
     const { userId, delegation } = verifyPrincipal(db, bearer(request.headers.authorization))
     reply.header('cache-control', 'no-store')
+    const withGuidance = (skill: { name: ToolName, content: string }) => ({ name: skill.name,
+      content: resolver.usableInstances(userId, skill.name).length > 1 ? withInstanceGuidance(skill.content, skill.name) : skill.content })
     if (!delegation) {
       const granted = db.prepare(`SELECT DISTINCT role_tools.tool AS name FROM user_roles
         JOIN role_tools ON role_tools.role_id = user_roles.role_id
         WHERE user_roles.user_id = ? ORDER BY role_tools.tool`).all(userId) as { name: ToolName }[]
-      return { skills: granted.map(tool => ({ name: tool.name, content: loadToolSkill(tool.name) })) }
+      return { skills: granted.map(tool => withGuidance({ name: tool.name, content: loadToolSkill(tool.name) })) }
     }
     return { skills: delegatedDiscovery(db, userId, delegation, adapters).map(({ adapter, commands }) => {
       const invocations = commands.map(command => transferSelectionSchema.options.some(option =>
         option.shape.operation.value === command && transferTool(option.shape.operation.value) === adapter.name)
         ? `artium-axi download --operation ${command}` : `artium-axi ${adapter.name} ${command}`)
       return { name: adapter.name, content: `---\nname: ${adapter.name}\ndescription: Use permitted ${adapter.name} commands through Artium.\n---\n\n# ${adapter.name}\n\nRun each command with --help for required arguments.\n\nPermitted commands:\n${invocations.map(command => `- \`${command}\``).join('\n')}\n` }
-    }) }
+    }).map(withGuidance) }
   })
   app.get('/v1/me', async request => {
     const token = bearer(request.headers.authorization)
