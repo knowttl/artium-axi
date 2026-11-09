@@ -111,7 +111,9 @@ await withFakeService(async ({ directory, port, send }) => {
     store.deleteInstance('kubernetes-axi', 'other', sibling.id, sibling.revision)
     const logs = await start('logs', ['logs', 'synthetic-pod', '--follow'])
     assert.equal((await show(logs.id)).state, 'exited')
-    assert.deepEqual(db.prepare("SELECT event, credential_id, instance FROM audit WHERE tool='kubernetes-axi' AND event IN ('run-start', 'run-terminal') ORDER BY id").all(), [
+    assert.deepEqual(db.prepare(`SELECT event, credential_id, instance FROM audit WHERE request_id IN
+      (SELECT request_id FROM audit WHERE tool='kubernetes-axi' AND event='run-start' AND arguments='["logs"]')
+      AND event IN ('run-start', 'run-terminal') ORDER BY id`).all(), [
       { event: 'run-start', credential_id: reference.id, instance: 'default' },
       { event: 'run-terminal', credential_id: reference.id, instance: 'default' },
     ])

@@ -13,7 +13,7 @@ import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
-import { seedToolUser } from '../fixtures/tokens.js'
+import { allowRawApi, seedToolUser } from '../fixtures/tokens.js'
 import { toolInput } from '../../src/cli/input.js'
 import type { RunInput } from '../../src/shared/api.js'
 import { transferRoutesFor } from '../../src/shared/api.js'
@@ -30,6 +30,7 @@ await withFakeService(async ({ directory, port, send }) => {
   const db = openStore(join(directory, 'gitea.db'), provider)
   const store = createCredentialStore(db, provider)
   await seedToolUser(db)
+  allowRawApi(db, 'gitea-axi')
   db.exec("UPDATE users SET administrator = 1; UPDATE tools SET enabled = 1 WHERE name = 'gitea-axi'")
   store.replaceCredential('gitea-axi', { origin, tokenOrigin: origin, token: 'CANARY-gitea-token' }, 0, 'synthetic-development-user', Date.now())
   const reference = store.findCredential('gitea-axi')!

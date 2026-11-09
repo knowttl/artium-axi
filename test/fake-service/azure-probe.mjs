@@ -15,7 +15,7 @@ import { createCredentialStore, openStore } from '/work/dist/src/server/store/db
 import { EnvironmentKeyProvider } from '/work/dist/src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '/work/dist/src/server/store/secret-source.js'
 import { SharedIdentityResolver } from '/work/dist/src/server/policy/identity-resolver.js'
-import { seedToolUser } from '/work/dist/test/fixtures/tokens.js'
+import { allowRawApi, seedToolUser } from '/work/dist/test/fixtures/tokens.js'
 import { rewriteSuggestions } from '/work/dist/src/cli/rewrite.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-test-azure-'))
@@ -41,6 +41,7 @@ try {
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
   const db = openStore(join(directory, 'data', 'artium.db'), provider)
   await seedToolUser(db)
+  allowRawApi(db, 'az-axi')
   const store = createCredentialStore(db, provider)
   store.replaceCredential('az-axi', credential, 0, 'synthetic-development-user', Date.now())
   db.exec(`UPDATE tools SET enabled = 1, pinned_version = '0.1.6', native_settings = '{"allowWrites":true}' WHERE name = 'az-axi'`)
