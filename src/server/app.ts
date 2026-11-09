@@ -289,7 +289,7 @@ export function createApp(options: {
             const ids = adapter.name === 'kubernetes-axi' && ['preview', 'confirm'].includes(command)
               ? prepareIds.some(ids => ids === undefined) ? undefined : new Set(prepareIds.flatMap(ids => [...ids!]))
               : commandIds(command)
-            const instances = ids && usable.filter(instance => ids.has(instance.id)).map(instance => instance.name)
+            const instances = adapter.name === 'ssh-axi' ? undefined : usable.filter(instance => !ids || ids.has(instance.id)).map(instance => instance.name)
             const key = JSON.stringify(instances ?? null)
             const group = groups.get(key) ?? { tool: adapter.name, commands: [], ...(instances ? { instances } : {}) }
             group.commands.push(command)

@@ -313,6 +313,10 @@ test('delegated workflow continuations report the instances of permitted mutatio
     { tool: 'kubernetes-axi', commands: ['create configmap'], instances: ['default'] },
   ] }, readOnly: false, reusable: true, expiresAt: Date.now() + 60000 }, [adapter])
   const token = exchangeDelegation(db, grant.token).accessToken
+  const unscoped = createDelegation(db, user, { label: 'Unscoped', scope: { tools: [
+    { tool: 'kubernetes-axi', commands: ['apply'] },
+  ] }, readOnly: false, reusable: true, expiresAt: Date.now() + 60000 }, [adapter])
+  const unscopedToken = exchangeDelegation(db, unscoped.token).accessToken
   const me = async () => (await app.inject({ url: '/v1/me', headers: { authorization: `Bearer ${token}` } })).json().delegation.scope.tools
   const continuationInstances = (tools: { commands: string[], instances?: string[] }[], command: string) =>
     tools.find(tool => tool.commands.includes(command))?.instances?.slice().sort()
@@ -325,6 +329,10 @@ test('delegated workflow continuations report the instances of permitted mutatio
   tools = await me()
   expect(continuationInstances(tools, 'preview')).toEqual(['lab'])
   expect(continuationInstances(tools, 'confirm')).toEqual(['lab'])
+  const unscopedTools = (await app.inject({ url: '/v1/me', headers: { authorization: `Bearer ${unscopedToken}` } })).json().delegation.scope.tools
+  expect(continuationInstances(unscopedTools, 'prepare -- apply')).toEqual(['lab'])
+  expect(continuationInstances(unscopedTools, 'preview')).toEqual(['lab'])
+  expect(continuationInstances(unscopedTools, 'confirm')).toEqual(['lab'])
 })
 
 test('an exact workspace create grant completes CLI creation and cleanup without show or delete', async () => {

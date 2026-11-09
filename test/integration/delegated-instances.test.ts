@@ -82,7 +82,7 @@ test('a token scoped to one instance cannot reach another instance or a re-creat
       const me = (token: string) => app.inject({ method: 'GET', url: '/v1/me',
         headers: { authorization: `Bearer ${exchangeDelegation(db, token).accessToken}` } })
       expect((await me(scoped.token)).json().delegation.scope.tools[0]).toMatchObject({ tool: 'gitea-axi', instances: ['lab'] })
-      expect((await me(unscoped.token)).json().delegation.scope.tools[0]).not.toHaveProperty('instances')
+      expect((await me(unscoped.token)).json().delegation.scope.tools[0].instances.sort()).toEqual(['lab', 'production'])
 
       store.deleteInstance('gitea-axi', 'lab', lab.id, lab.revision)
       const recreated = create('lab')
@@ -132,11 +132,16 @@ test('minting names instances once, stores ids, and refuses unknown or ungranted
       const listed = await app.inject({ method: 'GET', url: '/v1/account/tokens', headers })
       expect(JSON.parse(listed.json().tokens[0].scopeJson)).toEqual({ tools: [{ tool: 'gitea-axi', instances: ['production'] }] })
       const scoped = mint([{ tool: 'gitea-axi', instances: ['production'] }])
+      const unscoped = mint([{ tool: 'gitea-axi' }])
       const me = () => app.inject({ method: 'GET', url: '/v1/me',
         headers: { authorization: `Bearer ${exchangeDelegation(db, scoped.token).accessToken}` } })
+      const unscopedMe = () => app.inject({ method: 'GET', url: '/v1/me',
+        headers: { authorization: `Bearer ${exchangeDelegation(db, unscoped.token).accessToken}` } })
       expect((await me()).json().delegation.scope.tools[0].instances).toEqual(['production'])
+      expect((await unscopedMe()).json().delegation.scope.tools[0].instances).toEqual(['production'])
       db.prepare("DELETE FROM role_tool_instances WHERE role_id = 'synthetic-role' AND tool = 'gitea-axi'").run()
       expect((await me()).json().delegation.scope.tools[0].instances).toEqual([])
+      expect((await unscopedMe()).json().delegation.scope.tools[0].instances).toEqual([])
     } finally { await app.close(); db.close() }
   })
 }, 60000)
