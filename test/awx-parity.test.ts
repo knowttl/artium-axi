@@ -117,10 +117,10 @@ const requestCases = [
     method: 'POST', path: 'workflow_job_templates/', body: { name: 'Synthetic workflow', organization: 7, extra_vars: '{"mode":"synthetic","count":2}' } },
   { domain: 'workflow', args: ['edit', '42', '--extra-vars', '{"mode":"synthetic","count":2}'],
     method: 'PATCH', path: 'workflow_job_templates/42/', body: { extra_vars: '{"mode":"synthetic","count":2}' } },
-  { domain: 'workflow', args: ['node-create', '42', '--template', '8', '--inventory', '7', '--extra-vars', '{"mode":"synthetic"}'],
-    method: 'POST', path: 'workflow_job_templates/42/workflow_nodes/', body: { unified_job_template: 8, inventory: 7, extra_data: { mode: 'synthetic' } } },
-  { domain: 'workflow', args: ['node-edit', '42', '--template', '8', '--inventory', '7', '--extra-vars', '{"mode":"synthetic"}'],
-    method: 'PATCH', path: 'workflow_job_template_nodes/42/', body: { unified_job_template: 8, inventory: 7, extra_data: { mode: 'synthetic' } } },
+  { domain: 'workflow', args: ['node-create', '42', '--template', '8', '--inventory', '7', '--extra-vars', '{"mode":"synthetic"}', '--scm-branch', 'synthetic', '--job-type', 'check', '--job-tags', 'connectivity', '--skip-tags', 'updates', '--verbosity', '2'],
+    method: 'POST', path: 'workflow_job_templates/42/workflow_nodes/', body: { unified_job_template: 8, inventory: 7, extra_data: { mode: 'synthetic' }, scm_branch: 'synthetic', job_type: 'check', job_tags: 'connectivity', skip_tags: 'updates', verbosity: 2 } },
+  { domain: 'workflow', args: ['node-edit', '42', '--template', '8', '--inventory', '7', '--extra-vars', '{"mode":"synthetic"}', '--scm-branch', 'synthetic', '--job-type', 'check', '--job-tags', 'connectivity', '--skip-tags', 'updates', '--verbosity', '2'],
+    method: 'PATCH', path: 'workflow_job_template_nodes/42/', body: { unified_job_template: 8, inventory: 7, extra_data: { mode: 'synthetic' }, scm_branch: 'synthetic', job_type: 'check', job_tags: 'connectivity', skip_tags: 'updates', verbosity: 2 } },
   { domain: 'credential', args: ['create', 'Synthetic credential', '--credential-type', '7', '--organization', '8'],
     method: 'POST', path: 'credentials/', body: { name: 'Synthetic credential', credential_type: 7, inputs: {}, organization: 8 } },
   { domain: 'credential', args: ['edit', '42', '--name', 'Updated credential', '--credential-type', '7'],
@@ -131,10 +131,10 @@ const requestCases = [
     method: 'POST', path: 'notification_templates/', body: { name: 'Synthetic notification', organization: 7, notification_type: 'webhook', notification_configuration: {} } },
   { domain: 'notification-template', args: ['edit', '42', '--name', 'Updated notification', '--notification-type', 'webhook'],
     method: 'PATCH', path: 'notification_templates/42/', body: { name: 'Updated notification', notification_type: 'webhook' } },
-  { domain: 'schedule', args: ['create', 'Synthetic schedule', '--template', '7', '--rrule', 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY'],
-    method: 'POST', path: 'schedules/', body: { name: 'Synthetic schedule', unified_job_template: 7, rrule: 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY' } },
-  { domain: 'schedule', args: ['edit', '42', '--name', 'Synthetic schedule'], method: 'PATCH', path: 'schedules/42/',
-    body: { name: 'Synthetic schedule' } },
+  { domain: 'schedule', args: ['create', 'Synthetic schedule', '--template', '7', '--rrule', 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY', '--inventory', '8', '--limit', 'synthetic-host', '--job-tags', 'configure,verify', '--skip-tags', 'restart'],
+    method: 'POST', path: 'schedules/', body: { name: 'Synthetic schedule', unified_job_template: 7, rrule: 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY', inventory: 8, limit: 'synthetic-host', job_tags: 'configure,verify', skip_tags: 'restart' } },
+  { domain: 'schedule', args: ['edit', '42', '--name', 'Synthetic schedule', '--template', '7', '--inventory', '8', '--limit', 'synthetic-host', '--job-tags', 'configure,verify', '--skip-tags', 'restart'], method: 'PATCH', path: 'schedules/42/',
+    body: { name: 'Synthetic schedule', unified_job_template: 7, inventory: 8, limit: 'synthetic-host', job_tags: 'configure,verify', skip_tags: 'restart' } },
   { domain: 'inventory', args: ['create', 'Synthetic inventory', '--organization', '7'], method: 'POST', path: 'inventories/',
     body: { name: 'Synthetic inventory', organization: 7 } },
   { domain: 'inventory', args: ['edit', '42', '--name', 'Updated inventory'], method: 'PATCH', path: 'inventories/42/',
@@ -151,10 +151,10 @@ const requestCases = [
     method: 'POST', path: 'inventory_sources/', body: { name: 'Synthetic source', inventory: 7, source: 'scm', source_project: 8, credential: 9, source_vars: '{"region":"synthetic"}', update_on_launch: true } },
   { domain: 'inventory', args: ['source-edit', '42', '--source', 'scm', '--source-project', '8', '--credential', '9', '--source-vars', '{"region":"synthetic"}', '--no-update-on-launch'],
     method: 'PATCH', path: 'inventory_sources/42/', body: { source: 'scm', source_project: 8, credential: 9, source_vars: '{"region":"synthetic"}', update_on_launch: false } },
-  { domain: 'user', args: ['create', '--username', 'synthetic-person', '--first-name', 'Synthetic', '--is-superuser'], method: 'POST', path: 'users/',
-    body: { username: 'synthetic-person', first_name: 'Synthetic', is_superuser: true } },
-  { domain: 'user', args: ['edit', '42', '--username', 'synthetic-person', '--no-superuser'], method: 'PATCH', path: 'users/42/',
-    body: { username: 'synthetic-person', is_superuser: false } },
+  { domain: 'user', args: ['create', '--username', 'synthetic-person', '--first-name', 'Synthetic', '--last-name', 'Person', '--email', 'synthetic@example.test', '--is-superuser'], method: 'POST', path: 'users/',
+    body: { username: 'synthetic-person', first_name: 'Synthetic', last_name: 'Person', email: 'synthetic@example.test', is_superuser: true } },
+  { domain: 'user', args: ['edit', '42', '--username', 'synthetic-person', '--first-name', 'Synthetic', '--last-name', 'Person', '--email', 'synthetic@example.test', '--no-superuser'], method: 'PATCH', path: 'users/42/',
+    body: { username: 'synthetic-person', first_name: 'Synthetic', last_name: 'Person', email: 'synthetic@example.test', is_superuser: false } },
   { domain: 'team', args: ['create', '--name', 'Synthetic team', '--organization', '7', '--description', 'Synthetic operators'],
     method: 'POST', path: 'teams/', body: { name: 'Synthetic team', organization: 7, description: 'Synthetic operators' } },
   { domain: 'team', args: ['edit', '42', '--name', 'Synthetic team', '--organization', '7', '--description', 'Synthetic operators'],
@@ -172,6 +172,10 @@ const requestCases = [
 test.each(requestCases)('AWX $domain $args builds the controller request', async ({ domain, args, method, path, body }) => {
   const calls: { method: string; path: string; body: unknown }[] = []
   const transport = {
+    get: async (path: string) => {
+      expect(path).toBe('job_templates/7/')
+      return { status: 200, body: { ask_inventory_on_launch: true, ask_limit_on_launch: true, ask_tags_on_launch: true, ask_skip_tags_on_launch: true } }
+    },
     post: async (path: string, body: unknown) => { calls.push({ method: 'POST', path, body }); return { status: 200, body: { id: 42 } } },
     patch: async (path: string, body: unknown) => { calls.push({ method: 'PATCH', path, body }); return { status: 200, body: { id: 42 } } },
   }
