@@ -43,6 +43,8 @@ db.exec(`INSERT INTO users (id, username, display_name, password_hash, must_chan
   SELECT 'synthetic-ordinary', 'synthetic-ordinary', 'Ordinary', password_hash, 0 FROM users LIMIT 1;
   INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-ordinary', 'synthetic-role')`)
 const store = createCredentialStore(db, key)
+for (const name of ['lab', 'production']) store.createInstance('falcon-axi', { name, description: '' },
+  { clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' }, 'synthetic-development-user', Date.now())
 const source = new EmbeddedSecretSource(store)
 const profile = tool => loadCredentialProfile(tool, join(process.cwd(), `tools/node_modules/@knowttl/${tool}/axi-credential.schema.json`))
 const adapters = [createFalconAdapter(source), createVectraAdapter(source, join(directory, 'writes.log'), profile('vectra-axi')),

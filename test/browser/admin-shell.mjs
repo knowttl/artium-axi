@@ -152,6 +152,30 @@ test('ordinary users can create temporary tokens after recent authentication exp
   `)
 })
 
+test('token creation assigns instances to individual commands', () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi');
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=enabled][value=false]');
+    await page.open(base + '/account');
+    await page.fill('form[data-create-token] [name=label]', 'Split token');
+    await page.click('[data-token-command="falcon-axi"][value="detection list"]');
+    await page.click('[data-token-selection]:has([data-token-command="falcon-axi"][value="detection list"]) [data-token-instance][value="lab"]');
+    await page.click('[data-token-command="falcon-axi"][value="detection show"]');
+    await page.click('[data-token-selection]:has([data-token-command="falcon-axi"][value="detection show"]) [data-token-instance][value="production"]');
+    await page.click('form[data-create-token] button');
+    await page.wait('#created-token[open]');
+    await page.click('[data-close-created-token]');
+    await page.wait('form[data-create-token]');
+    check(await page.eval(() => {
+      const row = [...document.querySelectorAll('tr')].find(item => item.innerText.includes('Split token'));
+      return [...row.querySelectorAll('li')].some(item => item.innerText.includes('lab') && item.innerText.includes('detection list')) &&
+        [...row.querySelectorAll('li')].some(item => item.innerText.includes('production') && item.innerText.includes('detection show'));
+    }), 'Command instance scopes were not retained');
+  `)
+})
+
 test('People role links and stretched person and tool rows keep independent pointer targets', () => {
   browser(`
     check(await page.eval(() => {

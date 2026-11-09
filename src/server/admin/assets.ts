@@ -605,11 +605,11 @@ document.addEventListener('submit', async event => {
     if (form.hasAttribute('data-create-token')) {
       const tools = [];
       for (const input of form.querySelectorAll('[data-token-tool]')) {
-        const commands = [...form.querySelectorAll('[data-token-command]')].filter(item => item.dataset.tokenCommand === input.dataset.tokenTool && item.checked).map(item => item.value);
-        const instances = [...form.querySelectorAll('[data-token-instance]')].filter(item => item.dataset.tokenInstance === input.dataset.tokenTool && item.checked).map(item => item.value);
-        const scope = instances.length ? { instances } : {};
-        if (input.checked) tools.push({ tool: input.dataset.tokenTool, ...scope });
-        if (commands.length) tools.push({ tool: input.dataset.tokenTool, commands, ...scope });
+        const selections = [input, ...[...form.querySelectorAll('[data-token-command]')].filter(item => item.dataset.tokenCommand === input.dataset.tokenTool)];
+        for (const selection of selections.filter(item => item.checked)) {
+          const instances = [...selection.closest('[data-token-selection]').querySelectorAll('[data-token-instance]:checked')].map(item => item.value);
+          tools.push({ tool: input.dataset.tokenTool, ...(selection === input ? {} : { commands: [selection.value] }), ...(instances.length ? { instances } : {}) });
+        }
       }
       body.scope = { tools };
       body.readOnly = form.elements.readOnly.checked;

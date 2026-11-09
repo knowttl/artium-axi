@@ -49,7 +49,10 @@ test.each([
     const token = exchangeDelegation(db, exact.token).accessToken
     const tools = await app.inject({ url: '/v1/tools', headers: { authorization: `Bearer ${token}` } })
     expect(tools.json().tools.find((tool: { name: string }) => tool.name === 'proxmox-axi').commands).toContain(command)
-    expect((await start(token)).statusCode).toBe(200)
+    const first = await start(token)
+    expect(first.statusCode).toBe(200)
+    await app.inject({ method: 'DELETE', url: `/v1/tools/proxmox-axi/streams/${first.json().id}`,
+      headers: { authorization: `Bearer ${token}` } })
     store.createInstance('proxmox-axi', { name: 'lab', description: '' },
       { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }, user, Date.now())
     const other = command.includes('agent/file-read') ? 'transfer get /nodes/{node}/storage/{storage}/file-restore/download'
