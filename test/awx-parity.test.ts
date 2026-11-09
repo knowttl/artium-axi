@@ -49,6 +49,69 @@ test('the pinned inventory router resolves every reviewed alias spelling', async
   }
 })
 
+const associations = [
+  { domain: 'organization', resource: 'organizations', kind: 'user', flag: 'user', route: 'users' },
+  { domain: 'organization', resource: 'organizations', kind: 'admin', flag: 'user', route: 'admins' },
+  { domain: 'organization', resource: 'organizations', kind: 'team', flag: 'team', route: 'teams' },
+  { domain: 'organization', resource: 'organizations', kind: 'galaxy-credential', flag: 'credential', route: 'galaxy_credentials' },
+  { domain: 'organization', resource: 'organizations', kind: 'instance-group', flag: 'instance-group', route: 'instance_groups' },
+  { domain: 'organization', resource: 'organizations', kind: 'execution-environment', flag: 'execution-environment', route: 'execution_environments' },
+  { domain: 'organization', resource: 'organizations', kind: 'notification-template', flag: 'notification-template', route: 'notification_templates' },
+  { domain: 'template', resource: 'job_templates', kind: 'credential', flag: 'credential', route: 'credentials' },
+  { domain: 'template', resource: 'job_templates', kind: 'label', flag: 'label', route: 'labels' },
+  { domain: 'template', resource: 'job_templates', kind: 'instance-group', flag: 'instance-group', route: 'instance_groups' },
+  { domain: 'workflow', resource: 'workflow_job_templates', kind: 'label', flag: 'label', route: 'labels' },
+  { domain: 'workflow', resource: 'workflow_job_template_nodes', kind: 'node-credential', flag: 'credential', route: 'credentials' },
+  { domain: 'workflow', resource: 'workflow_job_template_nodes', kind: 'node-label', flag: 'label', route: 'labels' },
+  { domain: 'workflow', resource: 'workflow_job_template_nodes', kind: 'node-instance-group', flag: 'instance-group', route: 'instance_groups' },
+  { domain: 'schedule', resource: 'schedules', kind: 'credential', flag: 'credential', route: 'credentials' },
+  { domain: 'schedule', resource: 'schedules', kind: 'label', flag: 'label', route: 'labels' },
+  { domain: 'schedule', resource: 'schedules', kind: 'instance-group', flag: 'instance-group', route: 'instance_groups' },
+]
+
+const requestCases = [
+  ...associations.flatMap(({ domain, resource, kind, flag, route }) => ['add', 'remove'].map(operation => ({
+    domain, args: [`${kind}-${operation}`, '42', `--${flag}`, '7'], method: 'POST', path: `${resource}/42/${route}/`,
+    body: operation === 'remove' ? { id: 7, disassociate: true } : { id: 7 },
+  }))),
+  ...[
+    { domain: 'organization', resource: 'organizations', events: [['started', 'started'], ['success', 'success'], ['error', 'error'], ['approval', 'approvals']] },
+    { domain: 'template', resource: 'job_templates', events: [['started', 'started'], ['success', 'success'], ['error', 'error']] },
+    { domain: 'workflow', resource: 'workflow_job_templates', events: [['started', 'started'], ['success', 'success'], ['error', 'error'], ['approval', 'approvals']] },
+  ].flatMap(({ domain, resource, events }) => events.flatMap(([event, route]) => ['add', 'remove'].map(operation => ({
+    domain, args: [`notification-${operation}`, '42', '--event', event, '--notification-template', '7'],
+    method: 'POST', path: `${resource}/42/notification_templates_${route}/`,
+    body: operation === 'remove' ? { id: 7, disassociate: true } : { id: 7 },
+  })))),
+  { domain: 'organization', args: ['create', 'Synthetic organization', '--description', 'Synthetic'], method: 'POST', path: 'organizations/',
+    body: { name: 'Synthetic organization', description: 'Synthetic' } },
+  { domain: 'organization', args: ['edit', '42', '--name', 'Synthetic organization'], method: 'PATCH', path: 'organizations/42/',
+    body: { name: 'Synthetic organization' } },
+  { domain: 'template', args: ['create', 'Synthetic template', '--inventory', '7', '--project', '8', '--playbook', 'synthetic.yml'],
+    method: 'POST', path: 'job_templates/', body: { name: 'Synthetic template', inventory: 7, project: 8, playbook: 'synthetic.yml' } },
+  { domain: 'template', args: ['edit', '42', '--name', 'Synthetic template'], method: 'PATCH', path: 'job_templates/42/',
+    body: { name: 'Synthetic template' } },
+  { domain: 'workflow', args: ['create', 'Synthetic workflow', '--organization', '7', '--extra-vars', '{"mode":"synthetic","count":2}'],
+    method: 'POST', path: 'workflow_job_templates/', body: { name: 'Synthetic workflow', organization: 7, extra_vars: '{"mode":"synthetic","count":2}' } },
+  { domain: 'workflow', args: ['edit', '42', '--extra-vars', '{"mode":"synthetic","count":2}'],
+    method: 'PATCH', path: 'workflow_job_templates/42/', body: { extra_vars: '{"mode":"synthetic","count":2}' } },
+  { domain: 'schedule', args: ['create', 'Synthetic schedule', '--template', '7', '--rrule', 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY'],
+    method: 'POST', path: 'schedules/', body: { name: 'Synthetic schedule', unified_job_template: 7, rrule: 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY' } },
+  { domain: 'schedule', args: ['edit', '42', '--name', 'Synthetic schedule'], method: 'PATCH', path: 'schedules/42/',
+    body: { name: 'Synthetic schedule' } },
+]
+
+test.each(requestCases)('AWX $domain $args builds the controller request', async ({ domain, args, method, path, body }) => {
+  const calls: { method: string; path: string; body: unknown }[] = []
+  const transport = {
+    post: async (path: string, body: unknown) => { calls.push({ method: 'POST', path, body }); return { status: 200, body: { id: 42 } } },
+    patch: async (path: string, body: unknown) => { calls.push({ method: 'PATCH', path, body }); return { status: 200, body: { id: 42 } } },
+  }
+  const selected = (DOMAINS as { name: string; run: (args: string[], context: unknown) => Promise<unknown> }[]).find(item => item.name === domain)!
+  await selected.run([...args, '--confirm'], { createTransport: () => transport, env: {}, selection: {} })
+  expect(calls).toEqual([{ method, path, body }])
+})
+
 test('every flag decision matches the Artium route schema', () => {
   const routes = new Map(inventory.commands.map(route => [route.command, route]))
   const domains = new Set((DOMAINS as Domain[]).map(domain => domain.name))
