@@ -89,7 +89,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     try { access(session) } catch (error) { await stop(session, 'cancelled'); throw error }
     return session
   }
-  const view = (session: Session) => ({ id: session.id, operation: session.kind, state: session.state,
+  const view = (session: Session) => ({ id: session.id, instance: session.instance, operation: session.kind, state: session.state,
     expiresAt: session.expiresAt, nextSequence: session.sequence, exitCode: session.exitCode ?? null,
     stdoutEOF: !active(session), stderrEOF: !active(session),
     outputBytes: session.offsets, truncated: session.truncated, limits: { outputBytes: session.limit },
@@ -261,7 +261,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     await reconcile()
     const owned = [...sessions.values()].filter(session => session.owner.user === owner.user && session.owner.family === owner.family)
     return reply.header('cache-control', 'no-store').send({ sessions: owned.map(session => ({ id: session.id,
-      operation: session.kind, state: session.state, expiresAt: session.expiresAt })), count: owned.length })
+      instance: session.instance, operation: session.kind, state: session.state, expiresAt: session.expiresAt })), count: owned.length })
   })
   app.post(prefix, async (request, reply) => {
     const owner = kubernetesOwner(db, request)

@@ -112,6 +112,32 @@ test('creation selects a named instance when multiple instances are granted', as
   expect((await app.inject({ url: `/v1/tools/kubernetes-axi/sessions/${session.json().id}`, headers })).statusCode).toBe(404)
 })
 
+test('session recovery identifies the instance for each session', async () => {
+  credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' },
+    { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, user, Date.now())
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ sessions: { grants: { [user]: ['logs'] } } }))
+  const path = '/v1/tools/kubernetes-axi/sessions'
+  const start = (instance: string) => app.inject({ method: 'POST', url: path, headers,
+    payload: { instance, kind: 'logs', argv: ['logs', 'synthetic-pod', '--follow'] } })
+  const first = await start('default')
+  const second = await start('lab')
+  expect([first.statusCode, second.statusCode], first.body + second.body).toEqual([200, 200])
+  expect([first.json().instance, second.json().instance]).toEqual(['default', 'lab'])
+  const list = await app.inject({ url: path, headers })
+  expect(list.json().sessions).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: first.json().id, instance: 'default' }),
+    expect.objectContaining({ id: second.json().id, instance: 'lab' }),
+  ]))
+  for (const [id, instance] of [[first.json().id, 'default'], [second.json().id, 'lab']]) {
+    for (const suffix of ['', '/output']) {
+      const response = await app.inject({ url: `${path}/${id}${suffix}`, headers })
+      expect(response.statusCode, response.body).toBe(200)
+      expect(response.json().instance).toBe(instance)
+    }
+  }
+})
+
 test.each(['exec', 'attach', 'apply', 'create', 'cp', 'port-forward'])('read-only instances refuse %s sessions', async kind => {
   credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' },
     { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, user, Date.now())
