@@ -454,7 +454,7 @@ Tokens are single-use by default; `--reusable` permits multiple exchanges until 
 Use repeatable `--tool` flags for tool-wide grants.
 Use repeatable `--command '<tool:command>'` or `--exact '<tool:command>'` for exact command picks, for example `--command 'awx-axi:job list'`.
 Wildcard command patterns are not supported.
-Add repeatable `--instance '<tool:name>'` to limit all selections of that tool to the named instances.
+For a shared-credential tool, add repeatable `--instance '<tool:name>'` to limit all selections of that tool to the named instances.
 Without a limit, a selection covers every instance the creator can use, including later ones.
 For credential issuance, a selection such as `--exact 'awx-axi:user token-create' --write` opts into the reviewed operation.
 Exact selections can be used alone or alongside tool-wide grants; see the [credential-producing boundary](safety.md#delegated-sessions) before selecting them.
