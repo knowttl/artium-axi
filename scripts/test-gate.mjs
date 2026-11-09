@@ -21,7 +21,7 @@ function git(root, args) {
 
 // The graph covers imports, including re-exports and literal dynamic imports.
 // Runtime files and compiled entry points are owned explicitly below.
-function affectedTests(root, files, changed) {
+function affectedFiles(root, files, changed) {
   const dependents = new Map()
   const options = { moduleResolution: ts.ModuleResolutionKind.NodeNext, resolveJsonModule: true, allowJs: true }
   for (const file of files.filter(file => /\.(?:ts|mjs)$/.test(file) && existsSync(resolve(root, file)))) {
@@ -37,7 +37,7 @@ function affectedTests(root, files, changed) {
   }
   const affected = new Set(changed)
   for (const file of affected) for (const dependent of dependents.get(file) ?? []) affected.add(dependent)
-  return [...affected].filter(file => file.endsWith('.test.ts') && files.includes(file))
+  return affected
 }
 
 function selectGate(root, { base, full = false } = {}) {
@@ -60,7 +60,33 @@ function selectGate(root, { base, full = false } = {}) {
     if (bytes) hash.update(bytes)
   }
   const tests = files.filter(file => /^(src|test)\/.*\.test\.ts$/.test(file))
-  const selected = new Set(affectedTests(root, files, changed))
+  // SQL migrations are loaded by the store at runtime, so they have no import edge of their own.
+  const graphSeeds = changed.flatMap(file => file.startsWith('src/server/store/migrations/') ? [file, 'src/server/store/db.ts'] : [file])
+  const affected = affectedFiles(root, files, graphSeeds)
+  const selected = new Set(tests.filter(file => affected.has(file)))
+  const executableOwners = [
+    [/^src\/server\/maintenance\.ts$/, /^(?:test\/integration\/bootstrap|src\/server\/store\/(?:backup|rotate-key))\.test\.ts$/],
+    [/^src\/server\/main\.ts$/, /^(?:test\/integration\/(?:api|bootstrap)|src\/server\/store\/rotate-key)\.test\.ts$/],
+  ]
+  const runtimeOwners = [
+    [/^src\/server\/adapters\/ado/, /^test\/integration\/ado/],
+    [/^src\/server\/adapters\/awx/, /^test\/integration\/awx-/],
+    [/^src\/server\/adapters\/az(?:ure-.+)?\.ts$/, /^test\/integration\/azure-/],
+    [/^src\/server\/adapters\/beyondtrust\.ts$/, /^test\/integration\/beyondtrust\.test\.ts$/],
+    [/^src\/server\/adapters\/checkpoint\.ts$/, /^test\/integration\/checkpoint\.test\.ts$/],
+    [/^src\/server\/adapters\/hybrid\.ts$/, /^test\/integration\/hybrid\.test\.ts$/],
+    [/^src\/server\/(?:adapters\/)?kubernetes/, /^test\/integration\/kubernetes-workspaces\.test\.ts$/],
+    [/^src\/server\/adapters\/ldap\.ts$/, /^test\/integration\/ldap\.test\.ts$/],
+    [/^src\/server\/adapters\/mg\.ts$/, /^test\/integration\/mg-mail/],
+    [/^src\/server\/adapters\/(?:network-reads|unifi)\.ts$/, /^test\/integration\/network-reads\.test\.ts$/],
+    [/^src\/server\/(?:adapters\/proxmox|proxmox-streams)/, /^test\/integration\/(?:proxmox-instances|delegated-proxmox-streams)\.test\.ts$/],
+    [/^src\/server\/(?:adapters\/)?shodan/, /^test\/integration\/shodan-/],
+    [/^src\/server\/(?:adapters\/ssh|ssh-)/, /^test\/integration\/ssh-/],
+    [/^src\/server\/adapters\/technitium\.ts$/, /^test\/integration\/technitium/],
+    [/^src\/server\/adapters\/tenable\.ts$/, /^test\/integration\/tenable\.test\.ts$/],
+    [/^src\/server\/adapters\/vectra\.ts$/, /^test\/integration\/vectra\.test\.ts$/],
+    [/^src\/server\/transfer/, /^test\/integration\/(?:mg-mail-)?transfers\.test\.ts$/],
+  ]
   const generatedReferences = new Map([
     ['docs/errors.md', 'scripts/errors-reference.mjs'],
     ['docs/awx-parity-matrix.md', 'scripts/awx-parity.mjs'],
@@ -69,11 +95,17 @@ function selectGate(root, { base, full = false } = {}) {
   const reasons = []
   let runtime = false
   const add = predicate => tests.filter(predicate).forEach(file => selected.add(file))
+  for (const [source, owned] of executableOwners) if ([...affected].some(file => source.test(file))) add(test => owned.test(test))
   const packages = () => add(file => /^test\/(?:npm-package|client-package)\.test\.ts$/.test(file))
   const cli = () => {
     add(file => file.startsWith('src/cli/') || /^test\/cli(?:[.-])/.test(file))
     add(file => /^test\/integration\/(?:api|beyondtrust|checkpoint|cli-auth|file-input|hybrid|mg-mail-transfers|tool-skills|transfers)\.test\.ts$/.test(file))
     packages()
+  }
+  const serverJourneys = () => {
+    add(file => /^test\/integration\/(?:api|cli-auth|tool-skills|transfers)\.test\.ts$/.test(file))
+    add(file => /^test\/integration\/(?:ado-auth|audit|audited-run|published-credentials|rotation|trusted-ca)\.test\.ts$/.test(file))
+    add(file => file === 'test/cli.test.ts' || file === 'test/tool-skills.test.ts')
   }
   if (full) reasons.push('explicit full suite')
   if (selectedBase === null || diff === null) reasons.push('missing or ambiguous ancestor base')
@@ -86,13 +118,15 @@ function selectGate(root, { base, full = false } = {}) {
     if (file.startsWith('skill/')) { cli(); continue }
     if (/^(src|test)\/.*\.test\.ts$/.test(file)) continue
     if (file.startsWith('src/cli/') && file.endsWith('.ts')) { cli(); continue }
-    if (file.startsWith('src/server/') && file.endsWith('.ts') &&
+    if (file === 'src/shared/api.ts') { cli(); serverJourneys(); continue }
+    if (file.startsWith('src/server/store/migrations/') && file.endsWith('.sql') ||
+      file.startsWith('src/server/') && file.endsWith('.ts') &&
       !/^src\/server\/(?:config|app)\.ts$/.test(file) && file !== 'src/server/adapters/types.ts') {
-      add(test => test.startsWith('test/integration/'))
-      add(test => test === 'test/cli.test.ts' || test === 'test/tool-skills.test.ts')
+      for (const [source, owned] of runtimeOwners) if (source.test(file)) add(test => owned.test(test))
+      serverJourneys()
       continue
     }
-    // Inventories, schemas, dynamic fixtures, migrations, scripts, shared API,
+    // Inventories, schemas, dynamic fixtures, scripts, other shared code,
     // toolchain and packaging configuration deliberately fail closed.
     reasons.push(`full-suite owner or unknown path: ${file}`)
   }

@@ -52,6 +52,23 @@ beforeEach(() => {
     'mg-mail-transfers', 'tool-skills', 'transfers']) {
     write(`test/integration/${name}.test.ts`, 'export {}\n')
   }
+  write('src/server/adapters/awx.ts', 'export const awx = 1\n')
+  write('src/server/adapters/falcon.ts', 'export const falcon = 1\n')
+  write('src/server/store/backup.ts', 'export const backup = 1\n')
+  write('src/server/main.ts', "import './adapters/falcon.js'\n")
+  write('src/server/maintenance.ts', "import './store/backup.js'\n")
+  write('src/server/store/backup.test.ts', 'export {}\n')
+  write('src/server/store/rotate-key.test.ts', 'export {}\n')
+  write('test/integration/bootstrap.test.ts', 'export {}\n')
+  write('src/server/store/db.ts', 'export const db = 1\n')
+  write('src/server/store/migrations/001.sql', 'SELECT 1;\n')
+  for (const name of ['ado-auth', 'audit', 'audited-run', 'published-credentials', 'rotation', 'trusted-ca']) {
+    write(`test/integration/${name}.test.ts`, 'export {}\n')
+  }
+  write('test/integration/awx-tokens.test.ts', "import { awx } from '../../src/server/adapters/awx.js'\n")
+  write('test/integration/awx-flags.test.ts', 'export {}\n')
+  write('test/integration/shodan-reads.test.ts', 'export {}\n')
+  write('test/integration/store-user.test.ts', "import { db } from '../../src/server/store/db.js'\n")
   write('tools/inventories/example.json', '{}\n')
   write('skill/artium-axi/SKILL.md', '# Runtime skill\n')
   git('init', '--quiet')
@@ -78,6 +95,14 @@ test.each([
 })
 
 test.each([
+  ['src/server/store/backup.ts', ['test/integration/bootstrap.test.ts', 'src/server/store/backup.test.ts', 'src/server/store/rotate-key.test.ts']],
+  ['src/server/adapters/falcon.ts', ['test/integration/bootstrap.test.ts', 'src/server/store/rotate-key.test.ts', 'test/integration/api.test.ts']],
+])('%s selects affected executable consumers', (path, consumers) => {
+  write(path, 'export const changed = true\n')
+  expect(plan()).toMatchObject({ mode: 'affected', tests: expect.arrayContaining(consumers) })
+})
+
+test.each([
   { path: 'docs/awx-parity-matrix.md', checks: [['node', 'scripts/errors-reference.mjs'], ['node', 'scripts/awx-parity.mjs']] },
   { path: 'docs/errors.md', checks: [['node', 'scripts/errors-reference.mjs']] },
 ])('deleting $path selects its freshness checker without runtime tests', ({ path, checks }) => {
@@ -99,19 +124,53 @@ test.each([
   ] })
 })
 
-test('server changes include transitive re-exports, dynamic imports and public API journeys', () => {
+test('server changes include transitive re-exports, dynamic imports, the server journeys and the security core', () => {
   write('src/server/feature.ts', 'export const value = 2\n')
   expect(plan()).toMatchObject({ mode: 'affected', tests: [
     'src/server/dynamic.test.ts', 'src/server/feature.test.ts', 'test/cli.test.ts',
-    'test/integration/api.test.ts', 'test/integration/beyondtrust.test.ts', 'test/integration/checkpoint.test.ts',
-    'test/integration/cli-auth.test.ts', 'test/integration/file-input.test.ts', 'test/integration/hybrid.test.ts',
-    'test/integration/mg-mail-transfers.test.ts', 'test/integration/tool-skills.test.ts',
-    'test/integration/transfers.test.ts',
+    'test/integration/ado-auth.test.ts', 'test/integration/api.test.ts', 'test/integration/audit.test.ts',
+    'test/integration/audited-run.test.ts', 'test/integration/cli-auth.test.ts',
+    'test/integration/published-credentials.test.ts', 'test/integration/rotation.test.ts',
+    'test/integration/tool-skills.test.ts', 'test/integration/transfers.test.ts', 'test/integration/trusted-ca.test.ts',
   ] })
 })
 
-test.each(['src/shared/api.ts', 'pnpm-lock.yaml', 'tools/inventories/example.json',
-  'src/server/store/migrations/001.sql', 'test/fixtures/input.json', 'unowned.txt',
+test('adapter changes select only that adapter owner tests beside dependents and journeys', () => {
+  write('src/server/adapters/awx.ts', 'export const awx = 2\n')
+  const { tests } = plan()
+  expect(tests).toEqual(expect.arrayContaining(['test/integration/awx-flags.test.ts', 'test/integration/awx-tokens.test.ts',
+    'test/integration/api.test.ts', 'test/cli.test.ts']))
+  expect(tests).not.toContain('test/integration/shodan-reads.test.ts')
+  expect(tests).not.toContain('test/integration/beyondtrust.test.ts')
+})
+
+test.each([
+  ['src/server/maintenance.ts', ['test/integration/bootstrap.test.ts', 'src/server/store/backup.test.ts', 'src/server/store/rotate-key.test.ts']],
+  ['src/server/main.ts', ['test/integration/bootstrap.test.ts', 'src/server/store/rotate-key.test.ts', 'test/integration/api.test.ts']],
+])('%s selects its executable consumers', (path, consumers) => {
+  write(path, 'export const changed = true\n')
+  expect(plan()).toMatchObject({ mode: 'affected', tests: expect.arrayContaining(consumers) })
+})
+
+test('migrations select the store dependents without the full suite', () => {
+  write('src/server/store/migrations/001.sql', 'SELECT 2;\n')
+  const { mode, tests } = plan()
+  expect(mode).toBe('affected')
+  expect(tests).toEqual(expect.arrayContaining(['test/integration/store-user.test.ts', 'test/integration/api.test.ts']))
+  expect(tests).not.toContain('test/integration/awx-flags.test.ts')
+})
+
+test('shared API changes select cli and server journeys without the full suite', () => {
+  write('src/shared/api.ts', 'export const value = 2\n')
+  const { mode, tests } = plan()
+  expect(mode).toBe('affected')
+  expect(tests).toEqual(expect.arrayContaining(['src/cli/session.test.ts', 'test/cli.test.ts',
+    'test/integration/api.test.ts', 'test/integration/transfers.test.ts', 'test/npm-package.test.ts']))
+  expect(tests).not.toContain('test/integration/shodan-reads.test.ts')
+})
+
+test.each(['src/server/app.ts', 'src/server/adapters/types.ts', 'pnpm-lock.yaml', 'tools/inventories/example.json',
+  'test/fixtures/input.json', 'unowned.txt',
   '.github/workflows/release.yml', 'package.json', 'scripts/build-cli.mjs'])(
   '%s requires the full suite', path => {
     write(path, '{"changed":true}\n')
