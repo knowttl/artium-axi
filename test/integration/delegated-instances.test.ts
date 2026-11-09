@@ -61,10 +61,15 @@ test('a token scoped to one instance cannot reach another instance or a re-creat
       const tools = await app.inject({ method: 'GET', url: '/v1/tools',
         headers: { authorization: `Bearer ${exchangeDelegation(db, scoped.token).accessToken}` } })
       expect(tools.json().tools[0].instances.map((instance: { name: string }) => instance.name)).toEqual(['lab'])
+      const me = (token: string) => app.inject({ method: 'GET', url: '/v1/me',
+        headers: { authorization: `Bearer ${exchangeDelegation(db, token).accessToken}` } })
+      expect((await me(scoped.token)).json().delegation.scope.tools[0]).toMatchObject({ tool: 'gitea-axi', instances: ['lab'] })
+      expect((await me(unscoped.token)).json().delegation.scope.tools[0]).not.toHaveProperty('instances')
 
       store.deleteInstance('gitea-axi', 'lab', lab.id, lab.revision)
       const recreated = create('lab')
       expect(recreated.id).not.toBe(lab.id)
+      expect((await me(scoped.token)).json().delegation.scope.tools[0].instances).toEqual([`deleted:${lab.id}`])
       for (const payload of [{}, { instance: 'lab' }, { instance: 'production' }]) {
         const reply = await call(scoped.token, payload)
         expect(reply.statusCode, reply.body).toBeGreaterThanOrEqual(400)

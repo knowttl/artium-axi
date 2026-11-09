@@ -275,8 +275,12 @@ export function createApp(options: {
     if (delegation) {
       const row = db.prepare('SELECT label FROM delegations WHERE id = ?').get(delegation.id) as { label: string }
       const discovery = delegatedDiscovery(db, userId, delegation, adapters)
+      const scope = delegationScopeWithInstanceNames(db, delegation.scopeJson)
       return { username: user.username, displayName: user.display_name, delegation: { label: row.label, expiresAt: delegation.expiresAt,
-        scope: { tools: discovery.map(({ adapter, commands }) => ({ tool: adapter.name, commands })) } },
+        scope: { tools: discovery.map(({ adapter, commands }) => {
+          const instances = scope.tools.find(item => item.tool === adapter.name)?.instances
+          return { tool: adapter.name, commands, ...(instances ? { instances } : {}) }
+        }) } },
       accessExpiresAt: expiry.expires_at, sessionExpiresAt: expiry.session_expires_at }
     }
     return { username: user.username, displayName: user.display_name, administrator: Boolean(user.administrator),
