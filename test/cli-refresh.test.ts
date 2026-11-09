@@ -237,7 +237,7 @@ test.each([1, 2])('ambient context preserves guidance in one note with %i instan
   expect(decode(result.stdout)).toMatchObject({ artium: 'available',
     tools: [{ name: 'falcon-axi', status: 'ok', readOnly: true, instances: count }],
     note: count === 1 ? 'Server roles and write gates still apply.'
-      : 'Server roles and write gates still apply. falcon-axi has several instances. Ask the user which instance to use, then run artium-axi --instance <name> <tool> ...' })
+      : 'Server roles and write gates still apply. falcon-axi has several instances. Run artium-axi tools show <tool> for descriptions. When the user has not named an instance, ask which one to use, reading back the descriptions. Then run artium-axi --instance <name> <tool> ...' })
 })
 
 test.each(['/v1/me', '/v1/tools'])('home allows refresh during %s within the original login', async expiresAt => {

@@ -26,7 +26,7 @@ export function toolsView(tools: Tools): string {
 
 export function instanceAdvice(tools: Tools): string | undefined {
   const several = tools.filter(tool => tool.instances.length > 1).map(tool => tool.name)
-  return several.length ? `${several.join(', ')} ${several.length > 1 ? 'have' : 'has'} several instances. Ask the user which instance to use, then run artium-axi --instance <name> <tool> ...` : undefined
+  return several.length ? `${several.join(', ')} ${several.length > 1 ? 'have' : 'has'} several instances. Run artium-axi tools show <tool> for descriptions. When the user has not named an instance, ask which one to use, reading back the descriptions. Then run artium-axi --instance <name> <tool> ...` : undefined
 }
 
 function instancesView(tool: Tools[number]): string {
