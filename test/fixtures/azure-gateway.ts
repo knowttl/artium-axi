@@ -47,7 +47,7 @@ export async function withAzureGateway(check: (fixture: {
           ARTIUM_TEST_AZURE_ORIGIN: `https://localhost:${port}` } }
     } }
     const app = createApp({ db, audit: new Audit(db), runner, adapters: [hosted],
-      resolver: { resolve: async () => reference }, environment: {} })
+      resolver: { resolve: async () => reference, resolveForRun: async () => ({ reference, readOnly: false }) }, environment: {} })
     try {
       await seedToolUser(db)
       allowRawApi(db, 'az-axi')

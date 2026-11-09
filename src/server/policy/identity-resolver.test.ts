@@ -28,6 +28,16 @@ test('named instance is selected by name', async () => {
   expect(await instances.resolve('synthetic-user', 'falcon-axi', 'production')).toMatchObject({ id: 'synthetic-production' })
 })
 
+test('run selection retains read-only state without changing the reference', async () => {
+  const resolver = new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'synthetic-lab', tool: 'falcon-axi' }, name: 'lab', value: {}, readOnly: true },
+  ]))
+  const expected = { reference: { id: 'synthetic-lab', tool: 'falcon-axi', revision: 1 }, readOnly: true }
+  expect(await resolver.resolveForRun('synthetic-user', 'falcon-axi', 'lab')).toEqual(expected)
+  expect(await resolver.resolveForRun('synthetic-user', 'falcon-axi')).toEqual(expected)
+  expect(await resolver.resolve('synthetic-user', 'falcon-axi')).toEqual(expected.reference)
+})
+
 test.each([
   ['falcon-axi', 'staging', 'INSTANCE_NOT_FOUND'],
   ['falcon-axi', 'retired', 'INSTANCE_DISABLED'],

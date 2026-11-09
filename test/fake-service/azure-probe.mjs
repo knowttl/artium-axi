@@ -48,7 +48,7 @@ try {
     return { ...call, executable: process.execPath, args: [binary, ...call.args] }
   } }
   const app = createApp({ db, audit: new Audit(db), runner: apiRunner, adapters: [apiAdapter],
-    resolver: { resolve: async () => reference }, environment: {} })
+      resolver: { resolve: async () => reference, resolveForRun: async () => ({ reference, readOnly: false }) }, environment: {} })
   try {
     const origin = await app.listen({ host: '127.0.0.1', port: 0 })
     const login = await fetch(`${origin}/v1/auth/login`, { method: 'POST',

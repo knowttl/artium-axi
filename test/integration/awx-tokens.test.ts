@@ -237,6 +237,23 @@ test.each([
   })
 })
 
+test('read-only instances refuse token creation while writable instances allow it', async () => {
+  await withTokenService(async ({ app, db, store, headers, send }) => {
+    const writable = store.findCredential('awx-axi')!
+    const readonly = store.createInstance('awx-axi', { name: 'readonly', description: '' }, store.readCredential(writable), 'synthetic-development-user', Date.now())
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    const runInstance = (instance: string) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+      payload: { instance, args: ['user', 'token-create', '42', '--scope', 'read', '--confirm'] } })
+    const refused = await runInstance(readonly.name)
+    expect(refused.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
+    const allowed = await runInstance('default')
+    expect(allowed.json(), allowed.body).toMatchObject({ instance: 'default', exitCode: 0 })
+    expect((decode(allowed.json().stdout) as { result: { operation: string } }).result.operation).toBe('token-create')
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(1)
+  })
+}, 60_000)
+
 test.each(['read', 'write'])('AWX %s PAT creation delivers bytes once to the authorized caller (S10)', async scope => {
   await withTokenService(async ({ app, db, store, headers, send, run, lines, directory }) => {
     const args = ['user', 'token-create', '42', '--scope', scope]

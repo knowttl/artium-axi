@@ -5,6 +5,8 @@ import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
+import { createDelegation } from '../../src/server/auth/delegations.js'
+import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import type { MutableCredentialStore } from '../../src/server/store/credential-store.js'
@@ -23,12 +25,13 @@ let token: string
 let usedClients: unknown[]
 let protectedOutput: boolean
 let changeRevision: boolean
+let inspectReadOnly: boolean
 
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-credential-instances-'))
   db = openStore(join(directory, 'artium.db'), provider)
   store = createCredentialStore(db, provider)
-  db.exec(`INSERT INTO users (id, username, display_name, password_hash) VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'unusable');
+  db.exec(`INSERT INTO users (id, username, display_name, password_hash, must_change) VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'unusable', 0);
     UPDATE tools SET enabled = 1, pinned_version = '0.6.0' WHERE name = 'falcon-axi';
     INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
     INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
@@ -40,6 +43,7 @@ beforeEach(async () => {
   usedClients = []
   protectedOutput = false
   changeRevision = false
+  inspectReadOnly = false
   runner = await Runner.create(join(directory, 'calls'))
   const adapter = createRunnerTestAdapter({ getCredential: async reference => {
     const credential = store.readCredential(reference) as { clientId: string }
@@ -49,6 +53,7 @@ beforeEach(async () => {
   const prepare = adapter.prepare.bind(adapter)
   adapter.prepare = async (...args) => {
     const call = await prepare(...args)
+    if (inspectReadOnly) return { ...call, executable: process.execPath, args: ['-e', 'process.stdout.write(process.env.FALCON_AXI_READ_ONLY ?? "unset")'] }
     if (!protectedOutput) return call
     return { ...call, args: [...call.args.slice(0, -1), '{"status":"created"}'],
       protectedResult: { source: 'projection' as const, operation: 'synthetic-create' },
@@ -95,6 +100,13 @@ test('a changed selected revision prevents protected result publication', async 
   expect(reply.body).not.toContain('synthetic-create')
 })
 
+test('read-only mode reaches the selected instance process', async () => {
+  inspectReadOnly = true
+  const reply = await run({ instance: 'production' })
+  expect(reply.statusCode, reply.body).toBe(200)
+  expect(reply.json().stdout).toBe('true')
+})
+
 test.each([
   ['unknown', { instance: 'staging' }, 404, 'INSTANCE_NOT_FOUND'],
   ['malformed', { instance: 'Lab' }, 400, 'INVALID_INPUT'],
@@ -111,6 +123,20 @@ test('omitting an instance returns the sorted usable choices', async () => {
   expect(reply.json().error).toMatchObject({ code: 'INSTANCE_REQUIRED',
     next: 'Ask the user which instance to use, then run artium-axi --instance <lab|production> falcon-axi ...' })
   expect(usedClients).toEqual([])
+})
+
+test('delegated discovery validates instance selection', async () => {
+  const retired = store.findInstance('falcon-axi', 'lab')!
+  const grant = createDelegation(db, 'synthetic-user', { label: 'Synthetic', scope: { tools: [{ tool: 'falcon-axi' }] },
+    readOnly: true, reusable: true, expiresAt: Date.now() + 600000 }, [])
+  const headers = { authorization: `Bearer ${exchangeDelegation(db, grant.token).accessToken}` }
+  const discover = (payload: object) => app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run', headers, payload: { args: ['--help'], ...payload } })
+  expect((await discover({})).json().error.code).toBe('INSTANCE_REQUIRED')
+  expect((await discover({ instance: 'staging' })).json().error.code).toBe('INSTANCE_NOT_FOUND')
+  expect((await discover({ instance: 'production' })).statusCode).toBe(200)
+  store.setInstanceFlags('falcon-axi', 'lab', { enabled: false }, retired.id, retired.revision, 'synthetic-user', 2000)
+  expect((await discover({ instance: 'lab' })).json().error.code).toBe('INSTANCE_DISABLED')
+  expect((await discover({})).statusCode).toBe(200)
 })
 
 test('disabled instance is refused when named and not selected implicitly', async () => {

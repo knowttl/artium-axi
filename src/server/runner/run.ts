@@ -49,6 +49,7 @@ export async function runTool<Credential>(
     let delegationId: string | null = null
     let familyId: string | undefined
     let readOnly = false
+    let instanceReadOnly = false
     let credentialCommands: string[] = []
     let reference: CredentialReference | undefined
     let continuation: ReturnType<NonNullable<Adapter<unknown>['kubernetesContinuation']>>
@@ -56,9 +57,10 @@ export async function runTool<Credential>(
     let args: string[]
     let instance: string | undefined
     const resolveReference = async (userId: string) => {
-      const resolved = await resolver.resolve(userId, adapter.name, instance)
-      instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(resolved.id) as { name: string } | undefined)?.name
-      return resolved
+      const selected = await resolver.resolveForRun(userId, adapter.name, instance)
+      instanceReadOnly = selected.readOnly
+      instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(selected.reference.id) as { name: string } | undefined)?.name
+      return selected.reference
     }
     let input: { stdin?: string, files?: { name: string, contentBase64: string }[] }
     const started = Date.now()
@@ -93,9 +95,10 @@ export async function runTool<Credential>(
         if (!discovery) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         adapter.validateArgs(args.length ? args : ['--help'], input)
         validateFileInput(adapter.name, args, input)
+        if (!adapter.prepareForCaller) reference = await resolveReference(userId)
         const json = args.includes('--json') || args.includes('--format=json') || args.some((arg, index) => arg === '--format' && args[index + 1] === 'json')
         const stdout = (json ? JSON.stringify : encode)({ tool: adapter.name, commands: discovery.commands }) + '\n'
-        return { stdout, stderr: '', exitCode: 0, durationMs: Date.now() - started,
+        return { instance: reference && instance, stdout, stderr: '', exitCode: 0, durationMs: Date.now() - started,
           outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
       }
       adapter.validateArgs(args, input)
@@ -153,9 +156,18 @@ export async function runTool<Credential>(
     }
     try {
       if (!adapter.prepareForCaller) reference ??= await resolveReference(userId)
+      const writeRequested = () => {
+        const operations = [adapter.classify(args, input), ...(adapter.nestedOperations?.(args, input) ?? []),
+          ...(continuationCommand ? [{ command: continuationCommand, effect: 'write' as const }] : [])]
+        const raw = adapter.rawApi?.commands.some(command => operations[0].command === command || args.slice(0, command.split(' ').length).join(' ') === command)
+        return operations.some(operation => operation.effect === 'write' || credentialIssuingCommand(adapter.name, operation.command))
+          || !!raw && adapter.rawApi?.effect?.(args, input) === 'write'
+      }
+      if (instanceReadOnly && writeRequested()) throw new ArtiumError('FLAG_BLOCKED')
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
         : await adapter.prepare(args, reference!, input)
-      if (readOnly) prepared.environment = { ...prepared.environment, [`${adapter.name.toUpperCase().replaceAll('-', '_')}_READ_ONLY`]: 'true' }
+      if (instanceReadOnly && (prepared.effect === 'write' || prepared.write)) throw new ArtiumError('FLAG_BLOCKED')
+      if (readOnly || instanceReadOnly) prepared.environment = { ...prepared.environment, [`${adapter.name.toUpperCase().replaceAll('-', '_')}_READ_ONLY`]: 'true' }
       const kubernetesRequests = prepared.kubernetesWorkflowRoot && reference ? {
         root: prepared.kubernetesWorkflowRoot,
         scope: createHash('sha256').update(JSON.stringify({ userId, family: family(), reference })).digest('hex'),
@@ -180,6 +192,10 @@ export async function runTool<Credential>(
         } else authenticate(db, token)
         checkToolPolicy(db, userId, adapter.name)
         checkRawApiPolicy(db, userId, adapter, args, input)
+        if (reference && !instanceReadOnly) {
+          const current = db.prepare('SELECT read_only FROM credentials WHERE id = ? AND tool = ?').get(reference.id, adapter.name) as { read_only: number } | undefined
+          if (current?.read_only === 1 && (prepared.effect === 'write' || prepared.write || writeRequested())) throw new ArtiumError('FLAG_BLOCKED')
+        }
       }
       if (prepared.preview || prepared.invocation?.help || !protectedResult && prepared.effect === 'read') {
         for (const command of credentialCommands) audit.record({ ...identity, event: 'credential-issue', targetId: command, outcome: 'preview' })
