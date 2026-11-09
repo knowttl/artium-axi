@@ -12,6 +12,7 @@ test('the tools listing shows an instance count per tool and one ask-the-user no
   const view = toolsView([{ ...falcon, instances }, { name: 'ldap-axi', status: 'ok', version: toolManifests['ldap-axi'].version }])
   expect(view).toContain(`tools[2]{name,status,version,readOnly,instances}:\n  falcon-axi,ok,"${falcon.version}",false,2\n  ldap-axi,ok,`)
   expect(view).toMatch(/ldap-axi,ok,"[^"]+",true,0\n/)
+  expect(view).toContain('next[1]:\n  - artium-axi tools show falcon-axi\n')
   expect(view.split('\n').filter(line => line.startsWith('note:'))).toEqual([
     'note: falcon-axi has several instances. Ask the user which instance to use, then run artium-axi --instance <name> <tool> ...'])
 })

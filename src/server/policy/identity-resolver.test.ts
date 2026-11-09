@@ -56,3 +56,12 @@ test('ambiguous selection lists enabled instances in sorted order', async () => 
     next: 'Ask the user which instance to use, then run artium-axi --instance <lab|production> falcon-axi ...',
   })
 })
+
+test('an origin-only AWX credential is excluded from usable instances', async () => {
+  const resolver = new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'legacy', tool: 'awx-axi' }, name: 'legacy', value: { origin: 'https://example.invalid' } },
+    { reference: { id: 'named', tool: 'awx-axi' }, name: 'named', value: { origin: 'https://example.invalid', token: 'CANARY-token' } },
+  ]))
+  expect(resolver.usableInstances('synthetic-user', 'awx-axi').map(instance => instance.name)).toEqual(['named'])
+  expect(await resolver.resolve('synthetic-user', 'awx-axi')).toMatchObject({ id: 'named' })
+})

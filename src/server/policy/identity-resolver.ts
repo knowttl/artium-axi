@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3'
 import { ArtiumError } from '../../shared/errors.js'
-import type { CredentialInstance, CredentialReference, CredentialStore, ToolName } from '../store/credential-store.js'
+import { isAwxOriginOnly, type CredentialInstance, type CredentialReference, type CredentialStore, type ToolName } from '../store/credential-store.js'
 import { instanceGranted } from './policy.js'
 
 export interface IdentityResolver {
@@ -11,7 +11,7 @@ export interface IdentityResolver {
 }
 
 export class SharedIdentityResolver implements IdentityResolver {
-  constructor(private readonly store: Pick<CredentialStore, 'listInstances'>, private readonly grants?: Database.Database) {}
+  constructor(private readonly store: Pick<CredentialStore, 'listInstances' | 'readCredential'>, private readonly grants?: Database.Database) {}
 
   hasInstances(tool: ToolName): boolean { return this.store.listInstances(tool).length > 0 }
 
@@ -21,7 +21,8 @@ export class SharedIdentityResolver implements IdentityResolver {
 
   usableInstances(userId: string, tool: ToolName): CredentialInstance[] {
     return this.store.listInstances(tool).filter(candidate => candidate.enabled &&
-      (!this.grants || instanceGranted(this.grants, userId, tool, candidate.id)))
+      (!this.grants || instanceGranted(this.grants, userId, tool, candidate.id)) &&
+      !(tool === 'awx-axi' && isAwxOriginOnly(tool, this.store.readCredential(candidate))))
   }
 
   async resolveForRun(userId: string, tool: ToolName, instance?: string): Promise<{ reference: CredentialReference, readOnly: boolean }> {

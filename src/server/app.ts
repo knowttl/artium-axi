@@ -219,14 +219,13 @@ export function createApp(options: {
     const discovery = delegation ? delegatedDiscovery(db, userId, delegation, adapters)
       : grantedAdapters(userId).map(adapter => ({ adapter, commands: undefined, readOnly: undefined }))
     const tools = discovery.map(({ adapter, commands, readOnly }) => {
-      const row = db.prepare(`SELECT native_settings AS nativeSettings, credentials.revision AS configured,
-        tool_health.status AS health, tool_health.error_code AS errorCode
+      const row = db.prepare(`SELECT native_settings AS nativeSettings, credentials.revision AS configured
         FROM tools LEFT JOIN credentials ON credentials.tool = tools.name
-        LEFT JOIN tool_health ON tool_health.tool = tools.name AND tool_health.credential_revision = credentials.revision
-        WHERE tools.name = ?`).get(adapter.name) as { nativeSettings: string, configured: number | null, health: 'ok' | 'error' | null, errorCode: string | null }
-      const reference = adapter.name === 'awx-axi' ? options.credentialStore?.findCredential(adapter.name) : undefined
+        WHERE tools.name = ?`).get(adapter.name) as { nativeSettings: string, configured: number | null }
       const configured = adapter.name === 'ssh-axi' ? hasSshConfiguration(db, userId)
-        : Boolean(row.configured) && !(reference && isAwxOriginOnly(adapter.name, options.credentialStore!.readCredential(reference)))
+        : adapter.name === 'awx-axi' && options.credentialStore
+          ? options.credentialStore.listInstances(adapter.name).some(instance => !isAwxOriginOnly(adapter.name, options.credentialStore!.readCredential(instance)))
+          : Boolean(row.configured)
       const toolReadOnly = readOnly ?? !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings))
       const instances = adapter.name === 'ssh-axi' || !configured ? [] : resolver.usableInstances(userId, adapter.name).map(instance => {
         const state = db.prepare('SELECT status, error_code AS errorCode FROM tool_health WHERE credential_id = ? AND credential_revision = ?')
@@ -235,9 +234,12 @@ export function createApp(options: {
           status: state?.status ?? (health.checking(adapter.name) ? 'checking' : 'unknown'),
           ...(state?.status === 'error' && state.errorCode ? { errorCode: state.errorCode } : {}) }
       })
+      const failed = instances.find(instance => instance.status === 'error')
+      const status = !configured ? 'unconfigured' : failed ? 'error'
+        : instances.length && instances.every(instance => instance.status === 'ok') ? 'ok'
+          : adapter.name !== 'ssh-axi' && health.checking(adapter.name) ? 'checking' : 'unknown'
       return { name: adapter.name, version: toolManifests[adapter.name].version, ...(commands ? { commands } : {}),
-        readOnly: toolReadOnly, status: configured ? adapter.name === 'ssh-axi' ? 'unknown' : row.health ?? (health.checking(adapter.name) ? 'checking' : 'unknown') : 'unconfigured',
-        ...(adapter.name !== 'ssh-axi' && configured && row.health === 'error' && row.errorCode ? { errorCode: row.errorCode } : {}), instances }
+        readOnly: toolReadOnly, status, ...(failed?.errorCode ? { errorCode: failed.errorCode } : {}), instances }
     })
     return toolsResponseSchema.parse({ tools })
   })

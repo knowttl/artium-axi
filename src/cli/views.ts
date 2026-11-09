@@ -20,7 +20,7 @@ export function sessionExpiryView(expiresAt: number, now = Date.now()): string {
 
 export function toolsView(tools: Tools): string {
   if (!tools.length) return 'tools: 0 available\nreason: No enabled runtime tool is available through your assigned roles.\ncontact: Ask an administrator to check your role assignments and enabled tools.\nnext[1]:\n  - artium-axi whoami\n'
-  const example = tools[0].commands ? '' : `  - artium-axi ${tools[0].name} ${manifests[tools[0].name].discovery.example.join(' ')}\n`
+  const example = tools[0].commands || (tools[0].instances?.length ?? 0) > 1 ? '' : `  - artium-axi ${tools[0].name} ${manifests[tools[0].name].discovery.example.join(' ')}\n`
   const advice = instanceAdvice(tools)
   return `tools[${tools.length}]{name,status,version,readOnly,instances}:\n${tools.map(tool => `  ${tool.name},${tool.status},${JSON.stringify(tool.version)},${tool.readOnly ?? true},${tool.instances?.length ?? 0}`).join('\n')}\nnext[${example ? 2 : 1}]:\n  - artium-axi tools show ${tools[0].name}\n${example}${advice ? `note: ${advice}\n` : ''}`
 }
