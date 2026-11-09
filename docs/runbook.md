@@ -658,6 +658,7 @@ Save the CLI's final result; it is not a durable scan archive.
 Shutdown or relevant authorization changes discard collections and their results; restart removes abandoned `scan-*` directories under `<database directory>/tool-logs/shodan-axi/collections/` without restoring results or resuming work.
 A submitted scan may continue upstream after local collection fails; Artium does not request vendor cancellation.
 After a partial result or lost response, inspect upstream scan state with `artium-axi shodan-axi scan list --json` or, when a `scanId` was returned, `artium-axi shodan-axi scan status <scanId> --json` before considering another submission.
+When multiple instances are available, select the original instance with `--instance <name>` before `shodan-axi` for these checks.
 A missing scan ID does not prove submission failed.
 
 Kubernetes native mutation requests persist under `<database directory>/tool-logs/kubernetes-axi/workflow/` in private scopes bound to caller, sign-in family and credential revision.
@@ -943,7 +944,7 @@ Creation and credential changes also require the observed tool revision; certifi
 Instance changes require administrator access and recent confirmation and are audited with instance attribution.
 New instances start enabled and read-only, and their description, enabled and read-only flags are edited with `PATCH .../instances/:name`.
 Kubernetes sessions and workspaces record the instance they were admitted on, and deleting an instance closes only the sessions and workspaces bound to it.
-Until its long-lived sessions and streams are instance-aware, Shodan refuses a second instance with `INVALID_INPUT`.
+Shodan stream sessions and scan collections store the instance they were previewed on; changing or deleting one instance closes only its own sessions and collections.
 For an enabled configured tool, cached health selects an error if any eligible enabled instance has a current error; otherwise it uses a current result only when all eligible enabled instances have one.
 Discovery and doctor aggregate only instances usable by the caller; a cached result with an invalid error category is treated as absent until refreshed.
 AWX instances with only an origin are excluded from this aggregation and background checks.

@@ -79,7 +79,7 @@ async function main(args: string[]) {
   if (instance !== undefined && (!toolSchema.safeParse(args[0]).success || args[0] === 'ssh-axi'
     || args[0] === 'proxmox-axi' && args[1] === 'result'
     || args[0] === 'kubernetes-axi' && ['tunnel', 'credential'].includes(kubernetesGroup ?? '')
-    || args[0] === 'shodan-axi' && (args[1] === 'radar' || args[1] === 'stream' && args[2] === 'session' || args[1] === 'scan' && args[2] === 'submit'))) {
+    || args[0] === 'shodan-axi' && args[1] === 'radar')) {
     throw new ArtiumError('INVALID_INPUT', '--instance applies only to tool runs that support named instances.', 'Run the command without --instance.')
   }
   if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) {
@@ -306,9 +306,11 @@ async function main(args: string[]) {
   if (command === 'kubernetes-axi' && await kubernetesHosted(args.slice(1), () => new Client(process.env, managed), (text, stream = 'stdout') => output(stream, text), undefined, instance)) return
   if (command === 'proxmox-axi' && await proxmoxPrivateResult(() => new Client(process.env, managed), args.slice(1), text => output('stdout', text))) return
   if (command === 'proxmox-axi' && await proxmoxStream(() => new Client(process.env, managed), args.slice(1), output, instance)) return
-  if (command === 'shodan-axi' && await shodanSession(args.slice(1), () => new Client(process.env, managed), output)) return
+  if (command === 'shodan-axi' && await shodanSession(args.slice(1), () => new Client(process.env, managed), output, instance)
+    .catch(error => { throw instanceErrorAdvice(error, instance) })) return
   if (command === 'shodan-axi' && await shodanRadar(args.slice(1), () => new Client(process.env, managed), output)) return
-  if (command === 'shodan-axi' && await shodanScan(args.slice(1), () => new Client(process.env, managed), output)) return
+  if (command === 'shodan-axi' && await shodanScan(args.slice(1), () => new Client(process.env, managed), output, instance)
+    .catch(error => { throw instanceErrorAdvice(error, instance) })) return
   const input = home || listing || whoami ? undefined : { ...await toolInput(command!, args.slice(1)), ...(instance === undefined ? {} : { instance }) }
   const client = new Client(process.env, managed)
   const homeSession = home && !managed ? client.sessions.read() : undefined

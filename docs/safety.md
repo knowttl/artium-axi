@@ -27,7 +27,7 @@ For shared-credential tools, `POST /v1/tools/:tool/run` accepts an optional `ins
 `GET /v1/tools` lists each tool's usable instances with name, description, status and read-only state, never endpoints, and the served skill gains an instance paragraph while several are usable.
 When no name is supplied, exactly one usable instance granted to the caller is selected automatically; multiple granted, usable instances return `INSTANCE_REQUIRED`.
 Origin-only AWX credentials are not usable instances; see [instance health and administration](runbook.md#backup-restore-and-upgrade-rollback).
-An unknown or disabled name is refused, and an instance marked read-only blocks writes while allowing supported previews.
+An unknown or disabled name is refused, and an instance marked read-only blocks writes while allowing supported previews, except Shodan scan previews.
 A role grants a tool either on all of its instances, including instances added later, or on selected instances only; grants add up across a person's roles.
 An instance outside the caller's grants returns `INSTANCE_NOT_FOUND`, whether it exists or not.
 Administrators edit this on the tool's Access tab or with `PUT /v1/admin/roles/:id/tools/:tool/instances`.
@@ -35,6 +35,7 @@ SSH uses caller-specific credentials and rejects an `instance` field.
 See the [command reference](commands.md) for CLI instance selection syntax and exclusions.
 Kubernetes workspace and session creation APIs accept an optional instance name and bind subsequent ID-based operations to that instance.
 Proxmox stream creation accepts an optional instance name, as does generic transfer preparation; subsequent actions use the instance bound to the stream or transfer.
+Shodan stream session and scan collection previews accept an instance selection and bind subsequent work to that instance; see the [command reference](commands.md#shodan).
 Other related workspace, session, stream and protected-result APIs do not carry an instance selection; multiple granted, enabled instances can therefore make those paths unavailable.
 Those paths check the role's instance grant when selecting credentials and recheck it for ongoing operations.
 The existing administration UI manages the shared credential rather than named instances.
@@ -404,7 +405,7 @@ InternetDB host lookups run without loading the stored API key.
 An explicitly granted stream preview validates selectors and bounded resource limits against the pinned package without opening a stream.
 Confirmed stream sessions run with bounded leases and retained output; lease extensions require a separate preview and confirmation within the reserved limit; see [commands](commands.md#shodan).
 Preview, start, status, read, extend and stop require an owner session and are unavailable to delegated tokens; access is bound to the caller and original sign-in family.
-Targeted scan submission requires administrator scan grants, explicit budgets and a single-use preview confirmation.
+Targeted scan submission requires administrator scan grants, explicit budgets and a single-use preview confirmation; an instance marked read-only also blocks the scan preview.
 Scan preview, start and status require an owner session bound to the caller and original sign-in family; delegated tokens cannot use them.
 Optional collection reads the banner stream and filters records to the target networks; matching records do not prove scan ownership or complete upstream delivery.
 See [scan usage and terminal outcomes](commands.md#shodan) and [scan and stream grants](tool-credentials.md#shodan).

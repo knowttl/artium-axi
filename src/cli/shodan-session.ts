@@ -18,7 +18,7 @@ Stop cancels the session.
 All actions accept --json for JSON output instead of the default TOON output.
 `
 
-export async function shodanSession(args: string[], createClient: () => Client, output: (stream: 'stdout' | 'stderr', text: string) => void) {
+export async function shodanSession(args: string[], createClient: () => Client, output: (stream: 'stdout' | 'stderr', text: string) => void, instance?: string) {
   if (args[0] !== 'stream' || args[1] !== 'session') return false
   if (args.includes('--help')) { output('stdout', help); return true }
   const action = args[2]
@@ -43,6 +43,7 @@ export async function shodanSession(args: string[], createClient: () => Client, 
   if (!action || !permitted[action] || [...values.keys()].some(key => !permitted[action].includes(key))
     || switches.has('--accept-unknown-cost') && !['preview', 'start'].includes(action)
     || switches.has('--wait') && action !== 'read') throw new ArtiumError('INVALID_INPUT')
+  if (instance !== undefined && !['preview', 'start'].includes(action)) throw new ArtiumError('INVALID_INPUT', '--instance applies only to stream session preview and start.', 'Run the command without --instance.')
   const number = (name: string) => {
     const value = values.get(name)
     if (value === undefined) return undefined
@@ -57,7 +58,7 @@ export async function shodanSession(args: string[], createClient: () => Client, 
       timeout: number('--timeout'), idleTimeout: number('--idle-timeout') }, limits: { events: number('--events'), bytes: number('--bytes'),
       retentionSeconds: number('--retention'), leaseSeconds: number('--lease') }, acceptUnknownCost: true })
     if (!parsed.success || action === 'start' && !z.uuid().safeParse(values.get('--confirm')).success) throw new ArtiumError('INVALID_INPUT')
-    path += `/${action}`; body = { ...parsed.data, ...(action === 'start' ? { confirm: values.get('--confirm') } : {}) }
+    path += `/${action}`; body = { ...parsed.data, ...(action === 'start' ? { confirm: values.get('--confirm') } : {}), ...(instance === undefined ? {} : { instance }) }
   } else {
     if (positional.length !== 1 || !z.uuid().safeParse(positional[0]).success) throw new ArtiumError('INVALID_INPUT')
     path += `/${positional[0]}`

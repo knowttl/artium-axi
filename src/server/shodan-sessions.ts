@@ -6,6 +6,7 @@ import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { shodanStreamConfirm, shodanStreamExtendPreview, shodanStreamRead, shodanStreamStart } from '../shared/shodan-stream.js'
+import { instanceNameSchema } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
 import type { Audit } from './audit/audit.js'
@@ -23,7 +24,7 @@ import { ShodanWorker } from './shodan-worker.js'
 type Input = z.infer<typeof shodanStreamStart>
 type Limits = ReturnType<ShodanCapacity['reserve']>
 interface Reservation { id: string, user: string, credential: CredentialReference, operation: string, limits: Limits }
-interface Plan { id: string, owner: ShodanOwner, credential: CredentialReference, binding: string, input: Input,
+interface Plan { id: string, owner: ShodanOwner, credential: CredentialReference, instance: string, binding: string, input: Input,
   limits: Limits, directory: string, nativeToken: string, expiresAt: number, timer: NodeJS.Timeout }
 interface Pending extends Pick<Plan, 'owner' | 'credential' | 'binding' | 'input'> { controller: AbortController, job: Promise<unknown> }
 interface Session extends Omit<Plan, 'nativeToken' | 'timer'> {
@@ -102,14 +103,14 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
     clearTimeout(session.timer)
     session.timer = setTimeout(() => { void stop(session, 'expired').catch(() => {}) }, Math.max(0, session.expiresAt - Date.now())).unref()
   }
-  const view = (session: Session) => ({ id: session.id, state: session.state, operation: session.input.operation,
+  const view = (session: Session) => ({ id: session.id, instance: session.instance, state: session.state, operation: session.input.operation,
     selector: session.input.selector, bounds: session.input.bounds, limits: session.limits, expiresAt: session.expiresAt, cleaned: session.cleaned,
     ...(session.retainedUntil ? { retainedUntil: session.retainedUntil } : {}),
     ...(session.summary ? { summary: session.summary } : {}) })
 
-  const preview = async (owner: ShodanOwner, input: Input, controller: AbortController, reserved?: Reservation) => {
+  const preview = async (owner: ShodanOwner, input: Input, controller: AbortController, reserved?: Reservation, instance?: string) => {
     const args = await inspectShodanStream(input)
-    const credential = reserved ? reserved.credential : await resolver.resolve(owner.user, 'shodan-axi')
+    const credential = reserved ? reserved.credential : await resolver.resolve(owner.user, 'shodan-axi', instance)
     const binding = shodanBinding(db, owner, credential, input.operation)
     await initialized
     const id = reserved?.id ?? randomUUID(), directory = join(root, `session-${id}`)
@@ -134,7 +135,7 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
           }
         })
         authorize(pendingPreview)
-        const plan: Plan = { id, owner, credential, binding: binding.hash, input, limits, directory, nativeToken,
+        const plan: Plan = { id, owner, credential, instance: binding.instance, binding: binding.hash, input, limits, directory, nativeToken,
           expiresAt: Date.now() + 15 * 60 * 1000, timer: setTimeout(() => {}, 0) }
         clearTimeout(plan.timer)
         plan.timer = setTimeout(() => { void discardPlan(plan).catch(() => {}) }, 15 * 60 * 1000).unref()
@@ -142,7 +143,7 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
         plans.set(id, plan)
         if (reserved) reservedPlans.add(id)
         if (!reserved) capacity.release(id)
-        return { confirm: id, operation: input.operation, selector: input.selector, bounds: input.bounds, limits,
+        return { confirm: id, instance: plan.instance, operation: input.operation, selector: input.selector, bounds: input.bounds, limits,
           origin: 'https://stream.shodan.io', cost: 'unknown', status: 'preview', expiresAt: plan.expiresAt }
       } catch (error) { capacity.release(id); await rm(directory, { recursive: true, force: true }); throw error }
       finally { pending.delete(id) }
@@ -153,17 +154,22 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
   app.post(prefix + '/preview', async (request, reply) => {
     const controller = new AbortController(), disconnect = () => { if (!reply.raw.writableFinished) controller.abort() }
     reply.raw.once('close', disconnect)
-    try { return await preview(shodanOwner(db, request), parse(shodanStreamStart, request.body), controller) }
+    try {
+      const owner = shodanOwner(db, request)
+      const { instance, ...input } = parse(shodanStreamStart.extend({ instance: instanceNameSchema.optional() }), request.body)
+      return await preview(owner, input, controller, undefined, instance)
+    }
     finally { reply.raw.off('close', disconnect) }
   })
 
-  const start = async (owner: ShodanOwner, body: Input & { confirm: string }, clientAddress: string | null) => {
+  const start = async (owner: ShodanOwner, body: Input & { confirm: string, instance?: string }, clientAddress: string | null) => {
     const plan = plans.get(body.confirm)
     if (!plan || plan.owner.user !== owner.user || plan.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
     plans.delete(plan.id); clearTimeout(plan.timer)
     try {
-      const { confirm: _confirm, ...input } = body
-      if (plan.expiresAt <= Date.now() || JSON.stringify(input) !== JSON.stringify(plan.input)) throw new ArtiumError('INVALID_INPUT')
+      const { confirm: _confirm, instance, ...input } = body
+      if (plan.expiresAt <= Date.now() || instance !== undefined && instance !== plan.instance
+        || JSON.stringify(input) !== JSON.stringify(plan.input)) throw new ArtiumError('INVALID_INPUT')
       authorize(plan)
       if (!reservedPlans.delete(plan.id)) capacity.reserve(plan.id, owner.user, plan.credential.id, shodanBinding(db, owner, plan.credential, input.operation).settings, input.limits)
       const controller = new AbortController()
@@ -172,7 +178,7 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
         plan.limits.retentionSeconds * 1000), expiresAt: Date.now() + Math.min(input.bounds.timeout, plan.limits.leaseSeconds * 1000),
         cleaned: false, changed: new EventEmitter(), job: Promise.resolve() }
       const startedAt = Date.now()
-      const identity = { credentialId: session.credential.id, instance: (db.prepare('SELECT name FROM credentials WHERE id = ?').get(session.credential.id) as { name: string } | undefined)?.name }
+      const identity = { credentialId: session.credential.id, instance: session.instance }
       audit.record({ event: 'run-start', userId: owner.user, tool: 'shodan-axi', requestId: session.id,
         ...identity,
         clientAddress, outcome: 'started', args: ['stream', 'session', input.operation], sensitive: { positions: [], flags: [] } })
@@ -212,7 +218,7 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
   }
   app.post(prefix + '/start', request => {
     if (!request.body || typeof request.body !== 'object' || !('confirm' in request.body)) throw new ArtiumError('NOT_FOUND')
-    return start(shodanOwner(db, request), parse(shodanStreamStart.extend({ confirm: z.uuid() }), request.body), request.ip)
+    return start(shodanOwner(db, request), parse(shodanStreamStart.extend({ confirm: z.uuid(), instance: instanceNameSchema.optional() }), request.body), request.ip)
   })
 
   app.get<{ Params: { id: string }, Querystring: { waitMs?: string } }>(prefix + '/:id', async request => {
