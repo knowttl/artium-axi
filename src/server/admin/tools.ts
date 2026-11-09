@@ -176,21 +176,22 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       requestId: request.id, clientAddress: request.ip }]
   }
   const githubDevice = new GithubDeviceFlow()
-  function githubRevisions(expectedRevision: number, expectedToolRevision: number): void {
+  function githubRevisions(expectedRevision: number, expectedToolRevision: number, expectedCredentialId: string | undefined): void {
+    const current = credentialStore().findCredential('gh-axi')
     if (readTool('gh-axi').revision !== expectedToolRevision
-      || (credentialStore().findCredential('gh-axi')?.revision ?? 0) !== expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      || (current?.revision ?? 0) !== expectedRevision || current?.id !== expectedCredentialId) throw new ArtiumError('REVISION_CONFLICT')
   }
   app.post(githubDeviceRoutes.start.path, async (request, reply) => {
     const actor = authorize(request)
     const input = parse(githubDeviceRoutes.start.input, request.body)
     if (!isCanonicalHttpsOrigin(input.origin)) throw new ArtiumError('INVALID_INPUT')
-    githubRevisions(input.expectedRevision, input.expectedToolRevision)
     const reference = credentialStore().findCredential('gh-axi')
+    githubRevisions(input.expectedRevision, input.expectedToolRevision, reference?.id)
     const stored = reference ? credentialStore().readCredential(reference) as Record<string, unknown> : undefined
     const trust = reference && stored?.origin === input.origin ? readCredentialTrust(db, reference) : []
-    const result = await githubDevice.start(actor, input, trust)
+    const result = await githubDevice.start(actor, { ...input, expectedCredentialId: reference?.id }, trust)
     authorize(request)
-    githubRevisions(input.expectedRevision, input.expectedToolRevision)
+    githubRevisions(input.expectedRevision, input.expectedToolRevision, reference?.id)
     return reply.header('Cache-Control', 'no-store').send(githubDeviceRoutes.start.response.parse(result))
   })
   app.post(githubDeviceRoutes.cancel.path, async request => {
@@ -203,7 +204,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const actor = authorize(request)
     const { connectionId } = parse(githubDeviceRoutes.poll.input, request.body)
     const connection = githubDevice.current(actor, connectionId)
-    githubRevisions(connection.expectedRevision, connection.expectedToolRevision)
+    githubRevisions(connection.expectedRevision, connection.expectedToolRevision, connection.expectedCredentialId)
     const result = await githubDevice.poll(actor, connectionId)
     authorize(request)
     if (result.status === 'pending') return reply.header('Cache-Control', 'no-store').send(githubDeviceRoutes.poll.response.parse(result))
@@ -211,12 +212,12 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const credential = audit.change({ event: 'admin-change', action: 'connect-github-device', targetId: 'gh-axi',
       userId: actor, tool: 'gh-axi', outcome: 'success', requestId: request.id, clientAddress: request.ip }, () => {
       authorize(request)
-      githubRevisions(connection.expectedRevision, connection.expectedToolRevision)
+      githubRevisions(connection.expectedRevision, connection.expectedToolRevision, connection.expectedCredentialId)
       const value = parse(ghCredentialSchema, result.value)
       const old = credentialStore().findCredential('gh-axi')
       const stored = old ? credentialStore().readCredential(old) as Record<string, unknown> : undefined
       const now = Date.now()
-      replacement = credentialStore().replaceCredential('gh-axi', value, connection.expectedRevision, actor, now)
+      replacement = credentialStore().replaceCredential('gh-axi', value, connection.expectedRevision, actor, now, connection.expectedCredentialId)
       if (stored?.origin !== connection.origin) db.prepare('DELETE FROM trusted_certificates WHERE credential_id = ?').run(replacement.id)
       db.prepare('DELETE FROM tool_health WHERE tool = ?').run('gh-axi')
       db.prepare('UPDATE tools SET revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?').run(now, actor, 'gh-axi')

@@ -8,7 +8,7 @@ import type { EncryptedCredential } from './crypto.js'
 import { EnvironmentKeyProvider, MasterKeyMismatch } from './key-provider.js'
 import type { KeyProvider } from './key-provider.js'
 import { ArtiumError } from '../../shared/errors.js'
-import type { CredentialStore, MutableCredentialStore } from './credential-store.js'
+import type { CredentialInstance, CredentialReference, MutableCredentialStore, ToolName } from './credential-store.js'
 import { nativeSettingsSchemas, toolSchema } from '../../shared/api.js'
 import { readCredentialTrust } from './trusted-certificates.js'
 
@@ -31,6 +31,14 @@ export function validateSchema(db: Database.Database, directory = migrationsDire
       if (!actual || actual.sql !== row.sql) throw new ArtiumError('STORE_SCHEMA_INVALID')
     }
   } finally { expected.close() }
+}
+
+const instanceNamePattern = /^[a-z0-9][a-z0-9-]{0,31}$/
+const instanceSelect = 'SELECT id, tool, name, description, enabled, read_only, revision FROM credentials'
+type InstanceRow = Omit<CredentialInstance, 'enabled' | 'readOnly'> & { enabled: number, read_only: number }
+
+function toInstance({ enabled, read_only, ...row }: InstanceRow): CredentialInstance {
+  return { ...row, enabled: enabled === 1, readOnly: read_only === 1 }
 }
 
 export function createCredentialStore(db: Database.Database, provider: KeyProvider): MutableCredentialStore {
@@ -59,6 +67,15 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
       } finally { plaintext.fill(0) }
     }
   }).immediate()
+  const findInstance = (tool: ToolName, name: string) => {
+    const row = db.prepare(`${instanceSelect} WHERE tool = ? AND name = ?`).get(tool, name) as InstanceRow | undefined
+    return row && toInstance(row)
+  }
+  const requireInstance = (tool: ToolName, name: string, expectedId: string, expectedRevision: number) => {
+    const current = findInstance(tool, name)
+    if (current?.id !== expectedId || current.revision !== expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+    return current
+  }
   return {
     readCredentialTrust: reference => readCredentialTrust(db, reference),
     readToolSettings(tool) {
@@ -66,7 +83,8 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
       return JSON.parse(row.native_settings)
     },
     findCredential(tool) {
-      return db.prepare('SELECT id, tool, revision FROM credentials WHERE tool = ?').get(tool) as ReturnType<CredentialStore['findCredential']>
+      const rows = db.prepare('SELECT id, tool, revision FROM credentials WHERE tool = ? LIMIT 2').all(tool) as CredentialReference[]
+      return rows.length === 1 ? rows[0] : undefined
     },
     readCredential(reference) {
       const row = db.prepare('SELECT * FROM credentials WHERE id = ? AND tool = ?').get(reference.id, reference.tool) as (EncryptedCredential & { revision: number }) | undefined
@@ -81,9 +99,11 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
         throw new ArtiumError('CREDENTIAL_INVALID')
       } finally { plaintext.fill(0) }
     },
-    replaceCredential(tool, value, expectedRevision, actor, now) {
-      const current = db.prepare('SELECT id, revision FROM credentials WHERE tool = ?').get(tool) as { id: string, revision: number } | undefined
-      if ((current?.revision ?? 0) !== expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+    replaceCredential(tool, value, expectedRevision, actor, now, expectedId) {
+      const rows = db.prepare('SELECT id, revision FROM credentials WHERE tool = ? LIMIT 2').all(tool) as { id: string, revision: number }[]
+      if (rows.length > 1) throw new ArtiumError('INVALID_INPUT')
+      const current = rows[0]
+      if ((current?.revision ?? 0) !== expectedRevision || (expectedId !== undefined && current?.id !== expectedId)) throw new ArtiumError('REVISION_CONFLICT')
       const id = current?.id ?? randomUUID()
       const plaintext = Buffer.from(JSON.stringify(value))
       try {
@@ -97,6 +117,42 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
           .run({ ...encrypted, revision, now, actor })
         return { id, tool, revision }
       } finally { plaintext.fill(0) }
+    },
+    listInstances(tool) {
+      return (db.prepare(`${instanceSelect} WHERE tool = ? ORDER BY name`).all(tool) as InstanceRow[]).map(toInstance)
+    },
+    findInstance,
+    createInstance(tool, { name, description }, value, actor, now) {
+      if (!instanceNamePattern.test(name) || description.length > 500) throw new ArtiumError('INVALID_INPUT')
+      if (findInstance(tool, name)) throw new ArtiumError('REVISION_CONFLICT')
+      const id = randomUUID()
+      const plaintext = Buffer.from(JSON.stringify(value))
+      try {
+        db.prepare(`INSERT INTO credentials (id, tool, name, description, read_only, schema_version, key_id, nonce, ciphertext, authentication_tag, updated_at, updated_by)
+          VALUES (@id, @tool, @name, @description, 1, @schema_version, @key_id, @nonce, @ciphertext, @authentication_tag, @now, @actor)`)
+          .run({ ...encryptCredential(id, tool, plaintext, key), name, description, now, actor })
+      } finally { plaintext.fill(0) }
+      return findInstance(tool, name)!
+    },
+    replaceInstance(tool, name, value, expectedId, expectedRevision, actor, now) {
+      const current = requireInstance(tool, name, expectedId, expectedRevision)
+      const plaintext = Buffer.from(JSON.stringify(value))
+      try {
+        db.prepare(`UPDATE credentials SET schema_version = @schema_version, key_id = @key_id, nonce = @nonce, ciphertext = @ciphertext,
+          authentication_tag = @authentication_tag, revision = revision + 1, updated_at = @now, updated_by = @actor WHERE id = @id`)
+          .run({ ...encryptCredential(current.id, tool, plaintext, key), now, actor })
+      } finally { plaintext.fill(0) }
+      return findInstance(tool, name)!
+    },
+    deleteInstance(tool, name, expectedId, expectedRevision) {
+      db.prepare('DELETE FROM credentials WHERE id = ?').run(requireInstance(tool, name, expectedId, expectedRevision).id)
+    },
+    setInstanceFlags(tool, name, flags, expectedId, expectedRevision, actor, now) {
+      const current = requireInstance(tool, name, expectedId, expectedRevision)
+      db.prepare(`UPDATE credentials SET enabled = COALESCE(@enabled, enabled), read_only = COALESCE(@readOnly, read_only),
+        revision = revision + 1, updated_at = @now, updated_by = @actor WHERE id = @id`)
+        .run({ id: current.id, enabled: flags.enabled === undefined ? null : Number(flags.enabled), readOnly: flags.readOnly === undefined ? null : Number(flags.readOnly), now, actor })
+      return findInstance(tool, name)!
     },
   }
 }

@@ -29,7 +29,7 @@ export class ToolHealth {
   private closed = false
   private readonly replaced = new Set<ToolName>()
   private readonly queued = new Set<ToolName>()
-  private readonly required = new Map<ToolName, CredentialReference['revision']>()
+  private readonly required = new Map<ToolName, CredentialReference>()
   private readonly generations = new Map<ToolName, number>()
   private readonly diagnostics = new Map<ToolName, Diagnostic>()
   private readonly due = new Map<ToolName, number>()
@@ -61,8 +61,18 @@ export class ToolHealth {
   }
 
   // Rejected credentials use the normal interval to avoid retries into an account lockout.
-  private reschedule(tool: ToolName, revision: CredentialReference['revision'], generation: number, code: string | undefined): void {
-    if (this.store?.findCredential(tool)?.revision !== revision || (this.generations.get(tool) ?? 0) !== generation) return
+  private isCurrent(tool: ToolName, reference: CredentialReference): boolean {
+    const current = this.store?.findCredential(tool)
+    return current?.id === reference.id && current.revision === reference.revision
+  }
+
+  private isRequired(tool: ToolName, reference: CredentialReference): boolean {
+    const required = this.required.get(tool)
+    return required?.id === reference.id && required.revision === reference.revision
+  }
+
+  private reschedule(tool: ToolName, reference: CredentialReference, generation: number, code: string | undefined): void {
+    if (!this.isCurrent(tool, reference) || (this.generations.get(tool) ?? 0) !== generation) return
     if (code === 'TOO_MANY_CALLS' && this.queued.has(tool)) {
       this.due.set(tool, Date.now())
       return
@@ -94,7 +104,7 @@ export class ToolHealth {
     const reference = this.store?.findCredential(tool)
     if (!reference || (tool === 'awx-axi' && isAwxOriginOnly(tool, this.store!.readCredential(reference)))) { this.queued.delete(tool); return }
     const row = this.db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number } | undefined
-    if (this.required.get(tool) !== reference.revision) this.required.delete(tool)
+    if (!this.isRequired(tool, reference)) this.required.delete(tool)
     if ((!row?.enabled && !this.required.has(tool)) || !this.adapters.some(adapter => adapter.name === tool)) { this.queued.delete(tool); return }
     if (this.pending.size >= healthDefaults.backgroundCalls) {
       this.queued.add(tool)
@@ -105,8 +115,8 @@ export class ToolHealth {
     const required = this.required.has(tool)
     const pending = this.check(tool, healthDefaults.actor, randomUUID(), null)
       .then(
-        () => { if (!required) this.reschedule(tool, reference.revision, generation, undefined) },
-        (error: unknown) => { if (!required) this.reschedule(tool, reference.revision, generation, error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR') },
+        () => { if (!required) this.reschedule(tool, reference, generation, undefined) },
+        (error: unknown) => { if (!required) this.reschedule(tool, reference, generation, error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR') },
       )
       .finally(() => this.pending.delete(pending))
     this.pending.add(pending)
@@ -125,14 +135,14 @@ export class ToolHealth {
     if (!reference) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
     const generation = (this.generations.get(tool) ?? 0) + 1
     this.generations.set(tool, generation)
-    this.required.set(tool, reference.revision)
+    this.required.set(tool, reference)
     this.queued.add(tool)
     try {
       return await this.check(tool, actor, requestId, clientAddress, authorize)
     } catch (error) {
       const code = error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'
-      if (this.required.get(tool) === reference.revision) this.reschedule(tool, reference.revision, generation, code)
-      if (code === 'TOO_MANY_CALLS' && this.store?.findCredential(tool)?.revision === reference.revision
+      if (this.isRequired(tool, reference)) this.reschedule(tool, reference, generation, code)
+      if (code === 'TOO_MANY_CALLS' && this.isCurrent(tool, reference)
         && this.generations.get(tool) === generation) {
         const checkedAt = Date.now()
         this.db.prepare(`INSERT INTO tool_health (credential_id, tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, 'error', ?)
@@ -211,11 +221,11 @@ export class ToolHealth {
         const beforeSpawn = () => {
             prepared.beforeSpawn?.()
             authorize?.()
-            if (background && this.required.get(tool) !== reference.revision
+            if (background && !this.isRequired(tool, reference)
               && !(db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number }).enabled) {
               throw new ArtiumError('TOOL_DISABLED')
             }
-            if (store?.findCredential(tool)?.revision !== reference.revision) throw new ArtiumError('REVISION_CONFLICT')
+            if (!this.isCurrent(tool, reference)) throw new ArtiumError('REVISION_CONFLICT')
           }
         const invoke = (limits: Partial<RunnerLimits> = {}) => runner.run(background ? `${actor}:${tool}` : actor,
           prepared.executable, prepared.args, preparedJournal.environment, prepared.secrets,
@@ -257,7 +267,7 @@ export class ToolHealth {
       audit.change({ ...context, event: background ? 'health-check' : 'credential-test', action: background ? healthDefaults.actor : undefined, outcome: failure?.code ?? 'success', ...evidence }, () => {
         if (!['TOO_MANY_CALLS', 'RUNNER_CLOSED', 'TOKEN_INVALID', 'TOKEN_EXPIRED',
           'USER_DISABLED', 'ADMIN_REQUIRED', 'REAUTH_REQUIRED'].includes(failure?.code ?? '')
-          && store?.findCredential(tool)?.revision === reference.revision
+          && this.isCurrent(tool, reference)
           && (this.generations.get(tool) ?? 0) === generation) {
           db.prepare(`INSERT INTO tool_health (credential_id, tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(credential_id) DO UPDATE SET credential_revision = excluded.credential_revision, checked_at = excluded.checked_at,
@@ -267,7 +277,7 @@ export class ToolHealth {
           if (diagnostic) this.diagnostics.set(tool, diagnostic)
         }
       })
-      if (this.required.get(tool) === reference.revision) this.reschedule(tool, reference.revision, generation, failure?.code)
+      if (this.isRequired(tool, reference)) this.reschedule(tool, reference, generation, failure?.code)
       if (failure) throw failure
       return health
     } finally {
