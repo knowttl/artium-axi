@@ -68,6 +68,22 @@ test('discovery lists the usable instances with per-instance health and read-onl
   expect(response.body).not.toContain('us-2')
 })
 
+test('discovery treats a cached category from an older catalogue as unknown', async () => {
+  const lab = store.createInstance('falcon-axi', { name: 'lab', description: 'Lab tenant.' }, value, 'synthetic-development-user', 1000)
+  const production = store.createInstance('falcon-axi', { name: 'production', description: 'Production tenant.' }, value, 'synthetic-development-user', 1000)
+  db.prepare("INSERT INTO tool_health (credential_id, tool, credential_revision, checked_at, status, error_code) VALUES (?, 'falcon-axi', ?, 1, 'error', 'OLD_ERROR_CATEGORY')")
+    .run(lab.id, lab.revision)
+  db.prepare("INSERT INTO tool_health (credential_id, tool, credential_revision, checked_at, status) VALUES (?, 'falcon-axi', ?, 1, 'ok')")
+    .run(production.id, production.revision)
+  const response = await app.inject({ url: '/v1/tools', headers })
+  expect(response.statusCode).toBe(200)
+  expect(response.json().tools[0]).toMatchObject({ status: 'unknown', instances: [
+    { name: 'lab', description: 'Lab tenant.', status: 'unknown', readOnly: true },
+    { name: 'production', description: 'Production tenant.', status: 'ok', readOnly: true },
+  ] })
+  expect(response.json().tools[0]).not.toHaveProperty('errorCode')
+})
+
 test('the served skill gains the instance paragraph only while several instances are usable', async () => {
   store.createInstance('falcon-axi', { name: 'lab', description: '' }, value, 'synthetic-development-user', 1000)
   expect(await skill()).not.toContain('## Instances')
