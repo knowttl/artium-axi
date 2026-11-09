@@ -1,3 +1,4 @@
+import { configurationTests } from './awx-configuration-cases.js'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
@@ -146,3 +147,4 @@ test('AWX machine credential writes preserve private inputs and reconcile interr
     } finally { await app.close(); db.close() }
   })
 }, 60_000)
+configurationTests(['project'])

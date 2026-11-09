@@ -1,3 +1,4 @@
+import { configurationTests } from './awx-configuration-cases.js'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
@@ -160,3 +161,4 @@ test.each([
     })
   }, 60_000,
 )
+configurationTests(['schedule', 'execution-environment'])

@@ -1,3 +1,4 @@
+import { configurationTests } from './awx-configuration-cases.js'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
@@ -141,3 +142,4 @@ test('AWX project SCM URLs remain private on later project and activity reads (S
     } finally { await app.close(); db.close() }
   })
 }, 60_000)
+configurationTests(['template'])

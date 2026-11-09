@@ -1,3 +1,4 @@
+import { configurationTests } from './awx-configuration-cases.js'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
@@ -350,3 +351,4 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
     } finally { await app.close(); db.close() }
   })
 }, 60_000)
+configurationTests(['inventory'])

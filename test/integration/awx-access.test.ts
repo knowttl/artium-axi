@@ -1,3 +1,4 @@
+import { configurationTests } from './awx-configuration-cases.js'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
@@ -166,3 +167,4 @@ test('AWX token revocation requires the tenant switch and confirmation and inval
     } finally { await app.close(); db.close() }
   })
 }, 60_000)
+configurationTests(['organization', 'team', 'user', 'role'])

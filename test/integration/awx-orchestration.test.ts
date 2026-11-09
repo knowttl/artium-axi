@@ -1,3 +1,4 @@
+import { configurationTests } from './awx-configuration-cases.js'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from 'vitest'
@@ -199,3 +200,4 @@ test('AWX schedule edits preserve controller timing and reconcile interrupted ch
     } finally { await app.close(); db.close() }
   })
 }, 60_000)
+configurationTests(['workflow'])
