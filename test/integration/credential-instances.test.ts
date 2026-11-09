@@ -54,6 +54,14 @@ test('instance selection reaches the service and invalid selections fail closed'
         expect(reply.json(), reply.body).toMatchObject({ source: 'gitea-axi', instance, exitCode: 0 })
       }
       expect((await evidence()).map(request => request.identity)).toEqual(['lab', 'production'])
+      for (const name of ['lab', 'production']) {
+        const rows = db.prepare('SELECT event, credential_id, instance FROM audit WHERE instance = ? ORDER BY id').all(name)
+        const id = store.findInstance('gitea-axi', name)!.id
+        expect(rows).toEqual([{ event: 'run-start', credential_id: id, instance: name }, { event: 'run-terminal', credential_id: id, instance: name }])
+      }
+      expect(db.prepare("SELECT outcome, credential_id, instance FROM audit WHERE event = 'denial' ORDER BY id").all()).toEqual([
+        { outcome: 'INSTANCE_REQUIRED', credential_id: null, instance: null }, { outcome: 'INSTANCE_NOT_FOUND', credential_id: null, instance: null },
+        { outcome: 'INVALID_INPUT', credential_id: null, instance: null }])
       const grant = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic', scope: { tools: [{ tool: 'gitea-axi' }] },
         readOnly: true, reusable: true, expiresAt: Date.now() + 600000 }, [])
       const delegated = { authorization: `Bearer ${exchangeDelegation(db, grant.token).accessToken}` }

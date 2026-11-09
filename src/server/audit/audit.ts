@@ -125,7 +125,7 @@ export class Audit {
       values.id = cursor[2]!
     }
     if (input.failed === '1') clauses.push("event = 'run-terminal' AND (exit_code IS NULL OR exit_code <> 0 OR outcome <> 'completed')")
-    for (const [filter, column] of [['requestId', 'request_id'], ['user', 'user_id'], ['tool', 'tool'], ['event', 'event'], ['outcome', 'outcome'], ['errorCode', 'error_code'], ['delegationId', 'delegation_id']] as const) {
+    for (const [filter, column] of [['requestId', 'request_id'], ['user', 'user_id'], ['tool', 'tool'], ['instance', 'instance'], ['event', 'event'], ['outcome', 'outcome'], ['errorCode', 'error_code'], ['delegationId', 'delegation_id']] as const) {
       if (input[filter] !== undefined) {
         clauses.push(`${column} = @${filter}`)
         values[filter] = input[filter]!
@@ -172,7 +172,8 @@ export class Audit {
       ORDER BY id`).all() as AuditRecord[]
     for (const start of starts) {
       this.record({ event: 'run-terminal', userId: start.user_id, tool: start.tool,
-        requestId: start.request_id, clientAddress: start.client_address, delegationId: start.delegation_id, outcome: 'interrupted', action: 'unknown',
+        requestId: start.request_id, clientAddress: start.client_address, delegationId: start.delegation_id,
+        credentialId: start.credential_id, instance: start.instance, outcome: 'interrupted', action: 'unknown',
         exitCode: null, durationMs: Math.max(0, this.clock() - start.occurred_at), outputBytes: { stdout: null, stderr: null },
         credentialRevision: start.credential_revision, checkedAt: null, errorCode: null })
     }

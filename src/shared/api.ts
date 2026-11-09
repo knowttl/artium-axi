@@ -295,11 +295,12 @@ const auditCursorSchema = z.string().max(50).regex(/^\d{1,16}:\d{1,16}:\d{1,16}$
     const [ceiling, time, id] = value.split(':').map(Number) as [number, number, number]
     return [ceiling, time, id].every(Number.isSafeInteger) && ceiling > 0 && id > 0 && id <= ceiling && time <= 8_640_000_000_000_000
   })
+export const instanceNameSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/)
 const auditFiltersSchema = z.strictObject({
   delegationId: z.string().min(1).max(100).optional(),
   requestId: z.string().min(1).max(100).optional(),
   failed: z.enum(['0', '1']).optional(),
-  user: z.string().min(1).max(256).optional(), tool: toolSchema.optional(),
+  user: z.string().min(1).max(256).optional(), tool: toolSchema.optional(), instance: instanceNameSchema.optional(),
   event: z.string().min(1).max(100).optional(),
   outcome: z.string().min(1).max(100).optional(), from: z.iso.datetime().optional(), to: z.iso.datetime().optional(),
   errorCode: z.string().min(1).max(100).optional(),
@@ -434,7 +435,6 @@ export const adminCredentialSchema = z.strictObject({ tool: toolSchema, configur
   // Save/replacement reports name fields and changes, never submitted values.
   normalizations: z.array(z.strictObject({ field: z.string(), reason: z.string() })).optional() })
 export const adminToolParamsSchema = z.strictObject({ tool: toolSchema })
-export const instanceNameSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/)
 export const adminInstanceParamsSchema = adminToolParamsSchema.extend({ name: instanceNameSchema })
 export const adminInstanceSchema = z.strictObject({ id: z.string(), tool: toolSchema, name: instanceNameSchema,
   description: z.string().max(500), enabled: z.boolean(), readOnly: z.boolean(), configured: z.boolean(),

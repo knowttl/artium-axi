@@ -326,8 +326,8 @@ Denial, expiry or revocation prevents ticket issuance; approval codes are single
 
 ### Audit screen and API
 
-Audit supports exact request ID, token ID, user, tool, exact event, exact outcome, exact error code and inclusive UTC From/To filters, plus **Failed runs only**.
-The screen provides request ID, Token ID, User, Tool, Event, Outcome and failed-run filters in one row; set an exact error code with `errorCode=<code>` in the page URL, which displays a removable filter.
+Audit supports exact request ID, token ID, user, tool, credential instance, exact event, exact outcome, exact error code and inclusive UTC From/To filters, plus **Failed runs only**.
+The screen provides request ID, Token ID, User, Tool, Instance, Event, Outcome and failed-run filters in one row, and an Instance column (historic rows show `default/unknown`); set an exact error code with `errorCode=<code>` in the page URL, which displays a removable filter.
 Its **24 h** and **7 days** time ranges set From to that long before each page request and clear To; **Custom** shows the inclusive UTC From and To fields, and **Any time** removes the time bounds.
 Use `requestId=<id>` to correlate a call's records.
 Use `failed=1` to select only `run-terminal` records with a non-zero or missing exit code, or an outcome other than `completed`; omit it or use `failed=0` to disable this restriction.

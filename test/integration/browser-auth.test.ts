@@ -448,6 +448,31 @@ test('Audit filters handle empty form fields and show a useful empty state', asy
   expect((await request('GET', '/admin/audit?limit=101')).statusCode).toBe(400)
 })
 
+test('Audit filtering by instance returns only that instance in the screen, API and exports', async () => {
+  await signIn()
+  const audit = new Audit(db)
+  for (const instance of ['lab', 'production']) {
+    audit.record({ event: 'run-start', userId, tool: 'falcon-axi', outcome: 'started', args: [], sensitive: { flags: [], positions: [] },
+      requestId: `${instance}-call`, clientAddress: null, credentialId: `${instance}-id`, instance })
+  }
+  audit.record({ event: 'denial', userId, tool: 'falcon-axi', outcome: 'INSTANCE_REQUIRED', requestId: 'unattributed', clientAddress: null })
+  const screen = await request('GET', '/admin/audit?instance=lab')
+  expect(screen.body).toContain('<th scope="col">Instance</th>')
+  expect(screen.body).toContain('<td>lab</td>')
+  expect(screen.body).not.toContain('<td>production</td>')
+  expect(screen.body).not.toContain('default/unknown')
+  expect((await request('GET', '/admin/audit')).body).toContain('<td class="faint">default/unknown</td>')
+  const api = await request('GET', '/v1/admin/audit?instance=production')
+  expect(api.json().records.map((record: { request_id: string }) => record.request_id)).toEqual(['production-call'])
+  const jsonl = await request('GET', '/v1/admin/audit/export?format=jsonl&instance=lab')
+  expect(jsonl.body.trim().split('\n').map(line => JSON.parse(line))).toEqual([expect.objectContaining({ request_id: 'lab-call', credential_id: 'lab-id', instance: 'lab' })])
+  const csv = await request('GET', '/v1/admin/audit/export?format=csv&instance=lab')
+  expect(csv.body).toContain('credential_id,instance')
+  expect(csv.body).toContain('"lab-id","lab"')
+  expect(csv.body).not.toContain('production')
+  expect((await request('GET', '/v1/admin/audit?instance=Bad_Name')).statusCode).toBe(400)
+})
+
 test('Audit screen applies request ID and failed-run filters to rows and export links', async () => {
   await signIn()
   const audit = new Audit(db)

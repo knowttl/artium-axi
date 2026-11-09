@@ -117,13 +117,16 @@ export async function runTool<Credential>(
         const operations = authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand)
         credentialCommands = [...new Set(operations.filter(operation => credentialIssuingCommand(adapter.name, operation.command)).map(operation => operation.command))]
       }
+      if (!adapter.prepareForCaller) reference ??= await resolveReference(userId)
     } catch (error) {
       recordApiDecision('refused')
       audit.record({ event: 'denial', userId, delegationId, tool: adapter.name, requestId: context.requestId,
-        clientAddress: context.clientAddress, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
+        clientAddress: context.clientAddress, credentialId: reference?.id, instance: reference && instance,
+        outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
       throw error
     }
-    const identity = { userId, delegationId, tool: adapter.name, requestId: context.requestId, clientAddress: context.clientAddress }
+    const identity = { userId, delegationId, tool: adapter.name, requestId: context.requestId, clientAddress: context.clientAddress,
+      credentialId: reference?.id, instance: reference && instance }
     const family = () => familyId ?? verifyAccessFamily(db, token)
     for (const command of credentialCommands) audit.record({ ...identity, event: 'credential-issue', targetId: command, outcome: 'attempt' })
     for (const file of adapter.sensitiveInput?.(args, input) ? [] : input.files ?? []) {
@@ -155,7 +158,6 @@ export async function runTool<Credential>(
       }
     }
     try {
-      if (!adapter.prepareForCaller) reference ??= await resolveReference(userId)
       const writeRequested = () => {
         const operations = [adapter.classify(args, input), ...(adapter.nestedOperations?.(args, input) ?? []),
           ...(continuationCommand ? [{ command: continuationCommand, effect: 'write' as const }] : [])]
