@@ -200,7 +200,7 @@ Archived users cannot be enabled through the UI or API; use Disable for temporar
 Each tool holds named instances.
 An instance is one credential with a permanent name, a description that agents read, an enabled switch and a read-only switch.
 The **Instances** tab (`?tab=instances`, the default) lists them with endpoint, status, writes, last checked time, and the row actions Test, Edit and a **…** menu to disable, enable or delete.
-**Add instance** opens a sheet with the name, the description and the credential editor.
+**Add instance** opens a sheet with the name, the description and the credential editor, except for AWX as described below.
 The name is lowercase letters, digits and hyphens, never changes and is what agents type after `--instance`.
 New instances start enabled and read-only.
 Calls that omit `--instance` fail with `INSTANCE_REQUIRED` when more than one enabled, configured instance is granted to the caller.
@@ -233,7 +233,7 @@ See the [hosted contract](credential-standard.md#9-hosted-contract-artium-axi) f
 Falcon has guided fields; see its [current credential handling](credential-standard.md#per-tool-host-facing-schemas).
 Browser saves keep native settings and retain blank stored secrets for the same identity.
 Identity changes require new secrets as defined by the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`).
-**Test after saving** is on by default in the Add instance sheet and the instance's Connection card and reports a harmless credential check inline; clear it to save without testing.
+**Test after saving** is on by default in the credential-bearing Add instance sheet and the instance's Connection card and reports a harmless credential check inline; clear it to save without testing.
 After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.
 See the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) for API inputs and complete replacement semantics.
 See [credential rotation](runbook.md#roles-credentials-and-health).

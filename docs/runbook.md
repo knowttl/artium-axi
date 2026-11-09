@@ -295,7 +295,7 @@ CA trust accepts renewed leaves under the stored issuing CA, including when that
 The server may present the leaf and issuing intermediate without the root; confirmation anchors trust on the presented intermediate and accepts renewed leaves it issues.
 Except for the GitHub CLI child, connections to an endpoint with confirmed CA trust or strict pins must validate against its saved anchors; a different CA is rejected even if the server otherwise trusts it.
 Strict leaf pinning also checks the observed leaf fingerprint before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
-On a pin mismatch, the error explains that the stored fingerprint differs from the presented one and directs the administrator to re-inspect the certificate on the tool page.
+On a pin mismatch, the error explains that the stored fingerprint differs from the presented one; re-inspect the certificate on the affected instance page.
 For failed tool runs, including background health checks, the shared runner checks endpoints with strict pins and replaces the CLI error with this message if it observes a different leaf fingerprint.
 If the fingerprint still matches or cannot be observed, the original error is retained.
 When a failed handshake does not expose its leaf, diagnostics can open a separate, unverified handshake solely to read the fingerprint, using an anonymous StartTLS upgrade for LDAP.
@@ -315,7 +315,7 @@ When no issuing CA can be obtained for a non-self-signed leaf, CA trust is unava
 Automatic intermediate repair is not included because treating a repaired intermediate as trusted could bypass the confirmed anchor's expiry.
 If an endpoint omits an intermediate below a confirmed root, confirm that intermediate as the CA anchor or configure the endpoint to present its complete chain.
 
-The tool page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
+The instance page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
 For CA rotation or a leaf rotation in strict pinning mode, re-inspect the saved endpoint.
 If inspection reports that no trust is needed, use **Remove trust** to retire the old entries and let the endpoint use the server's existing trust.
 Otherwise, confirm the replacement, then use **Remove trust** to retire the old entry.
@@ -367,7 +367,7 @@ This includes Azure destinations derived from saved `tlsDestinations`; see [cred
 A preflight failure at any inventory endpoint stops the test, even if the health read would use another endpoint.
 LDAP URLs negotiate StartTLS before the handshake; LDAPS starts TLS directly.
 Preflight sends no credentials.
-The administrator test response and tool page show the current failure's stage and the tool's error text and hint when available.
+The administrator test response and instance page show the current failure's stage and the tool's error text and hint when available.
 Network and TLS diagnostics name the destination host for both manual tests and background checks; background checks run the tool without preflight.
 Checks admitted to run also update revision-bound cached health on `/admin/tools`, except for transient admission or authorization failures.
 Failures before admission, including missing credentials, overlapping checks and unavailable adapters, return configuration-stage diagnostics without replacing cached health; an absent credential revision is `null`.
@@ -390,7 +390,7 @@ Inspect the message and hint, then check the service endpoint and API compatibil
 `AUTH_ENDPOINT_NOT_FOUND` returns `TOOL_REJECTED_INPUT` at the configuration stage; check the configured service host and the tool's hint for the token endpoint.
 Diagnostics include check time and credential revision, are bounded to 4096 characters, and are discarded entirely if the exact-value secret scanner finds a credential value or one of its canonical encodings.
 The current credential-test and health-check diagnostic cache is held only in server memory; after a restart, rerun Test connection for current detail or inspect retained failure diagnostics in Audit as described below.
-The browser temporarily holds the save-and-test result in session storage to display it after reloading the tool page.
+The browser temporarily holds the save-and-test result in session storage to display it after reloading the current page.
 After upgrading, cached categories removed from the error catalogue are ignored; rerun Test connection for a current result.
 Audit records retain categories, timing, revision, exit status and byte counts, never diagnostic text or output streams.
 Failed tool runs, including credential-test and background health-check runs, separately retain the available exact-secret-scanned diagnostic in an administrator-only SQLite table keyed by request ID for 14 days.
@@ -436,7 +436,8 @@ See the [Hybrid Analysis supported boundary](safety.md) before enabling its oper
 See [Check Point setup and commissioning](tool-credentials.md#check-point-email-security) before activation; enable only exact intended writes and independently selected downloads.
 Check Point uses the same artifact mount, global capacity, expiry and revocation contract as Hybrid Analysis, with a 50 MiB native limit and host-owned download confirmation/evidence.
 The owner commissions live authentication, permissions, scopes and hash availability through Artium after the complete build; local checks use fakes only.
-For AWX password sign-in, enter the controller HTTPS origin and choose **Save controller address** first.
+For a new AWX instance, enter its name and controller HTTPS origin in **Add instance**, then open the instance.
+For an existing instance, choose **Save controller address** first when changing the origin.
 This saves only the address before first sign-in; changing an existing address removes its previous token and certificate trust.
 Choose **Inspect certificate** for that saved endpoint and follow the [certificate review and scoped trust flow](#trusting-one-tool-from-the-administration-ui) when required.
 Then choose password sign-in, enter the username and password and choose **Save connection**.
