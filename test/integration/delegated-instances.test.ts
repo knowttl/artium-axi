@@ -69,7 +69,7 @@ test('a token scoped to one instance cannot reach another instance or a re-creat
       store.deleteInstance('gitea-axi', 'lab', lab.id, lab.revision)
       const recreated = create('lab')
       expect(recreated.id).not.toBe(lab.id)
-      expect((await me(scoped.token)).json().delegation.scope.tools[0].instances).toEqual([`deleted:${lab.id}`])
+      expect((await me(scoped.token)).json().delegation.scope.tools[0].instances).toEqual([])
       for (const payload of [{}, { instance: 'lab' }, { instance: 'production' }]) {
         const reply = await call(scoped.token, payload)
         expect(reply.statusCode, reply.body).toBeGreaterThanOrEqual(400)
@@ -114,6 +114,12 @@ test('minting names instances once, stores ids, and refuses unknown, ungranted o
       mint([{ tool: 'gitea-axi', instances: ['production', 'production'] }])
       const listed = await app.inject({ method: 'GET', url: '/v1/account/tokens', headers })
       expect(JSON.parse(listed.json().tokens[0].scopeJson)).toEqual({ tools: [{ tool: 'gitea-axi', instances: ['production'] }] })
+      const scoped = mint([{ tool: 'gitea-axi', instances: ['production'] }])
+      const me = () => app.inject({ method: 'GET', url: '/v1/me',
+        headers: { authorization: `Bearer ${exchangeDelegation(db, scoped.token).accessToken}` } })
+      expect((await me()).json().delegation.scope.tools[0].instances).toEqual(['production'])
+      db.prepare("DELETE FROM role_tool_instances WHERE role_id = 'synthetic-role' AND tool = 'gitea-axi'").run()
+      expect((await me()).json().delegation.scope.tools[0].instances).toEqual([])
     } finally { await app.close(); db.close() }
   })
 }, 60000)

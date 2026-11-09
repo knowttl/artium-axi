@@ -14,7 +14,7 @@ import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './auth/local.js'
 import { exchangeDelegation, hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, requireRecentAuth, verifyAccessToken, verifyPasswordToken, verifyPrincipal } from './auth/tokens.js'
-import { authorizeDelegatedOperation, createDelegation, delegatedDiscovery, delegationIncludesTool, delegationScopeWithInstanceNames, revokeDelegation } from './auth/delegations.js'
+import { authorizeDelegatedOperation, createDelegation, delegatedDiscovery, delegatedInstanceIds, delegationIncludesTool, delegationScopeWithInstanceNames, revokeDelegation } from './auth/delegations.js'
 import { kubernetesBinding } from './policy/kubernetes.js'
 import { ProxmoxAccess, proxmoxTrust } from './runner/proxmox.js'
 import { registerProxmoxStreams } from './proxmox-streams.js'
@@ -275,11 +275,10 @@ export function createApp(options: {
     if (delegation) {
       const row = db.prepare('SELECT label FROM delegations WHERE id = ?').get(delegation.id) as { label: string }
       const discovery = delegatedDiscovery(db, userId, delegation, adapters)
-      const scope = delegationScopeWithInstanceNames(db, delegation.scopeJson)
       return { username: user.username, displayName: user.display_name, delegation: { label: row.label, expiresAt: delegation.expiresAt,
         scope: { tools: discovery.map(({ adapter, commands }) => {
-          const instances = scope.tools.find(item => item.tool === adapter.name)?.instances
-          return { tool: adapter.name, commands, ...(instances ? { instances } : {}) }
+          const instances = delegatedInstanceIds(delegation, adapter.name)
+          return { tool: adapter.name, commands, ...(instances ? { instances: resolver.usableInstances(userId, adapter.name, delegation).map(instance => instance.name) } : {}) }
         }) } },
       accessExpiresAt: expiry.expires_at, sessionExpiresAt: expiry.session_expires_at }
     }
