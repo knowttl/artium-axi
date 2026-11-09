@@ -1295,7 +1295,7 @@ for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi', 'unifi-axi', 'proxmox-a
   `)
 })
 
-for (const tool of ['gitea-axi', 'unifi-axi']) test(tool + ' group controls select and clear only shown operations', () => {
+for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' group controls select and clear only shown operations', () => {
   browser(`
     await page.open(base + '/admin/tools/${tool}?tab=writes');
     const state = () => page.eval(() => {
