@@ -495,10 +495,14 @@ test('a transfer is bound to its instance and survives changes to another instan
   expect((await status()).status).toBe(409)
 })
 
-test('read-only instances refuse transfers and invalidate prepared transfers', async () => {
+test('read-only instances allow transfer previews but refuse execution', async () => {
   const store = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') }))
   const instance = store.createInstance('hybrid-axi', { name: 'restricted', description: '' }, { apiKey: 'CANARY-other-key' }, user, Date.now())
-  const denied = await post('prepare', { ...body(), instance: 'restricted' })
+  const preview = await post('prepare', { ...body(), instance: 'restricted' })
+  expect(preview.status).toBe(200)
+  const first = await preview.json() as { transferId: string, confirm: string }
+  expect((await post('status', { ...body(), transferId: first.transferId })).status).toBe(200)
+  const denied = await post('execute', { ...body(), transferId: first.transferId, confirm: first.confirm, execute: true })
   expect((await denied.json()).error.code).toBe('FLAG_BLOCKED')
   const writable = store.setInstanceFlags('hybrid-axi', instance.name, { readOnly: false }, instance.id, instance.revision, user, Date.now())
   const prepared = await post('prepare', { ...body(), instance: 'restricted' })

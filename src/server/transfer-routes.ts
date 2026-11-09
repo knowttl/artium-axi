@@ -27,6 +27,7 @@ interface Entry {
   identity: { credentialId: string, instance: string }
   confirm?: string
   archive?: ArtifactArchive
+  executing: boolean
   delivered: boolean
   receipt: boolean
   delivery?: Promise<unknown>
@@ -71,7 +72,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
     checkTransferAccess(db, { userId: scope.userId, sessionFamilyId: scope.sessionFamilyId,
       reauthenticatedAt: Date.now() }, scope.selection.operation)
     checkToolPolicy(db, scope.userId, entry.credential.tool, entry.credential.id)
-    if ((db.prepare('SELECT read_only FROM credentials WHERE id = ? AND tool = ?').get(entry.credential.id, entry.credential.tool) as { read_only: number } | undefined)?.read_only) throw new ArtiumError('FLAG_BLOCKED')
+    if (entry.executing && (db.prepare('SELECT read_only FROM credentials WHERE id = ? AND tool = ?').get(entry.credential.id, entry.credential.tool) as { read_only: number } | undefined)?.read_only) throw new ArtiumError('FLAG_BLOCKED')
     if (revision(entry.credential) !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
     if (scope.expiresAt <= Date.now()) throw new ArtiumError('TOKEN_EXPIRED')
   }
@@ -146,8 +147,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
           const { instance, ...input } = transferPrepareRequestSchema.parse(parsed.data)
           const owner = ownerFor(request)
           checkTransferAccess(db, owner, input.selection.operation)
-          const { reference: credential, readOnly } = await resolver.resolveForRun(owner.userId, tool, instance)
-          if (readOnly) throw new ArtiumError('FLAG_BLOCKED')
+          const credential = await resolver.resolve(owner.userId, tool, instance)
           checkToolPolicy(db, owner.userId, tool, credential.id)
           const identity = { credentialId: credential.id,
             instance: (db.prepare('SELECT name FROM credentials WHERE id = ?').get(credential.id) as { name: string }).name }
@@ -155,7 +155,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
           const scope = createTransferScope(owner, { id: credential.id, revision: revision(credential) }, input)
           store ??= ArtifactStore.create(audit).catch(error => { store = undefined; throw error })
           const reservation = await (await store).reserve(scope, { ...context(request, controller.signal), delegationId: verifyPrincipal(db, tokenFor(request)).delegation?.id })
-          entry = { reservation, credential, identity, delivered: false, receipt: false,
+          entry = { reservation, credential, identity, executing: false, delivered: false, receipt: false,
             timer: setTimeout(() => { void discard(entry!).catch(() => {}) }, Math.max(0, scope.expiresAt - Date.now())) }
           entry.timer.unref()
           entries.set(scope.transferId, entry)
@@ -180,6 +180,8 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
         if (route === transferRoutes.execute) {
           const execute = transferExecuteSchema.parse(parsed.data)
           if (execute.confirm !== entry.confirm) throw new ArtiumError('INVALID_INPUT')
+          entry.executing = true
+          access(entry)
           const prepare = await native(entry)
           const current = entry
           const archive = await executeNativeArtifact(entry.reservation, runner, prepare, execute.confirm,
