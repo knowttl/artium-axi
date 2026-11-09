@@ -26,9 +26,13 @@ Administrator capability alone grants no tool access; upstream permissions remai
 For shared-credential tools, `POST /v1/tools/:tool/run` accepts an optional `instance` name and returns it on success when an instance was selected; the [API schema](../src/shared/api.ts) owns the request and response fields.
 When no name is supplied, exactly one enabled instance is selected automatically; multiple enabled instances return `INSTANCE_REQUIRED`.
 An unknown or disabled name is refused, and an instance marked read-only blocks writes while allowing supported previews.
+A role grants a tool either on all of its instances, including instances added later, or on selected instances only; grants add up across a person's roles.
+Selection and the automatic single-instance choice consider only the instances the caller is granted, so a caller limited to one instance needs no `instance` name for it and receives `INSTANCE_NOT_FOUND` for any other, whether it exists or not.
+Administrators edit this on the tool's Access tab or with `PUT /v1/admin/roles/:id/tools/:tool/instances`.
 SSH uses caller-specific credentials and rejects an `instance` field.
 The CLI supports instance selection for tool runs; see the [command reference](commands.md) for syntax and exclusions.
 Related workspace, session, stream, transfer and protected-result APIs do not carry an instance selection; multiple enabled instances can therefore make those paths unavailable.
+Those paths check only the role's tool grant, not its instance selection.
 The existing administration UI manages the shared credential rather than named instances.
 External secret sources and per-user credentials for shared-credential tools are unsupported.
 

@@ -936,6 +936,7 @@ Migration 032 prepares the store for named credential instances; see [credential
 Existing credentials become `default` instances with an empty description, enabled and without the instance read-only flag, preserving their IDs, encrypted contents, revisions and update attribution.
 Saved health records become keyed by credential ID, certificate trust stays attached, and existing role tool grants default to all instances.
 The [migration](../src/server/store/migrations/032-multi-instance.sql) owns the storage constraints; the [populated-store regression](../src/server/store/multi-instance-migration.test.ts) covers upgrade preservation and reopening.
+Migration 033 adds `role_tool_instances`, which lists the instances of a role's tool grant when that grant is limited to selected instances; existing grants stay on all instances, and removing a grant or deleting an instance removes its listings.
 Administrators manage named instances through `/v1/admin/tools/:tool/instances` and `/v1/admin/tools/:tool/instances/:name`: list, create, read, change enabled and read-only flags, delete, replace or save the credential, test, and manage certificates under `.../certificates`.
 Changes to an existing instance's flags or credential and deletion require the observed instance ID and revision; stale values fail with `REVISION_CONFLICT` without change.
 Creation and credential changes also require the observed tool revision; certificate operations use their own inspection and revision checks.

@@ -3,7 +3,7 @@ import { Readable } from 'node:stream'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { z } from 'zod'
-import { adminAuditExportRoute, adminAuditRecordSchema, adminAuditRoute, adminRoleRoutes, adminRoleSchema, adminUserParamsSchema, adminUserRoutes, adminUserSchema, sessionParamsSchema } from '../../shared/api.js'
+import { adminAuditExportRoute, adminAuditRecordSchema, adminAuditRoute, adminRoleRoutes, adminRoleSchema, adminRoleToolParamsSchema, adminUserParamsSchema, adminUserRoutes, adminUserSchema, sessionParamsSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import type { AuthAttempts } from '../auth/attempts.js'
@@ -276,7 +276,11 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
     const row = db.prepare('SELECT id, name, revision, updated_at AS updatedAt, updated_by AS updatedBy FROM roles WHERE id = ?').get(id)
     if (!row) throw new ArtiumError('NOT_FOUND')
     const tools = (db.prepare('SELECT tool FROM role_tools WHERE role_id = ? ORDER BY tool').all(id) as { tool: string }[]).map(row => row.tool)
-    return adminRoleSchema.parse({ ...row, tools })
+    const instanceNames = db.prepare(`SELECT credentials.name FROM role_tool_instances JOIN credentials ON credentials.id = role_tool_instances.credential_id
+      WHERE role_tool_instances.role_id = ? AND role_tool_instances.tool = ? ORDER BY credentials.name`)
+    const instanceGrants = (db.prepare('SELECT tool FROM role_tools WHERE role_id = ? AND all_instances = 0 ORDER BY tool').all(id) as { tool: string }[])
+      .map(({ tool }) => ({ tool, instances: (instanceNames.all(id, tool) as { name: string }[]).map(instance => instance.name) }))
+    return adminRoleSchema.parse({ ...row, tools, instanceGrants })
   }
 
   app.route({ method: adminRoleRoutes.get.method, url: adminRoleRoutes.get.path, handler: async request => {
@@ -350,6 +354,27 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
       db.prepare('DELETE FROM role_tools WHERE role_id = ? AND tool NOT IN (SELECT value FROM json_each(?))').run(id, JSON.stringify(input.tools))
       const grant = db.prepare('INSERT INTO role_tools (role_id, tool) VALUES (?, ?) ON CONFLICT DO NOTHING')
       for (const tool of input.tools) grant.run(id, tool)
+      db.prepare('UPDATE roles SET revision = revision + 1, updated_at = ?, updated_by = ? WHERE id = ?').run(now, actor, id)
+    })
+  } })
+  app.route({ method: adminRoleRoutes.instances.method, url: adminRoleRoutes.instances.path, handler: async request => {
+    authorize(request)
+    const { id, tool } = parse(adminRoleToolParamsSchema, request.params)
+    const input = parse(adminRoleRoutes.instances.input, request.body)
+    return change(request, adminRoleRoutes.instances.auditEvent, id, readRole, (actor, now) => {
+      if (readRole(id).revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      if (!db.prepare('SELECT 1 FROM role_tools WHERE role_id = ? AND tool = ?').get(id, tool)) {
+        throw new ArtiumError('INVALID_INPUT', 'This role does not grant that tool.', 'Grant the tool to the role before choosing its instances.')
+      }
+      const credentialIds = input.scope === 'all' ? [] : input.instances.map(name => {
+        const instance = db.prepare('SELECT id FROM credentials WHERE tool = ? AND name = ?').get(tool, name) as { id: string } | undefined
+        if (!instance) throw new ArtiumError('INSTANCE_NOT_FOUND')
+        return instance.id
+      })
+      db.prepare('UPDATE role_tools SET all_instances = ? WHERE role_id = ? AND tool = ?').run(input.scope === 'all' ? 1 : 0, id, tool)
+      db.prepare('DELETE FROM role_tool_instances WHERE role_id = ? AND tool = ?').run(id, tool)
+      const grant = db.prepare('INSERT INTO role_tool_instances (role_id, tool, credential_id) VALUES (?, ?, ?)')
+      for (const credentialId of credentialIds) grant.run(id, tool, credentialId)
       db.prepare('UPDATE roles SET revision = revision + 1, updated_at = ?, updated_by = ? WHERE id = ?').run(now, actor, id)
     })
   } })

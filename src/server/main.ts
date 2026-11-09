@@ -71,7 +71,7 @@ async function main() {
     const sshHosts = new SshHosts(db, provider)
     const app = createApp({ db, audit, runner, credentialStore: store, sshHosts,
       sshExecution: { provider, writeLog: join(dirname(database), 'tool-logs', 'ssh-axi', 'writes.log') },
-      providerCredentials: new ProviderCredentials(db, provider), resolver: new SharedIdentityResolver(store),
+      providerCredentials: new ProviderCredentials(db, provider), resolver: new SharedIdentityResolver(store, db),
       adapters: [createSshAdapter(sshHosts, join(dirname(database), 'tool-logs', 'ssh-axi', 'writes.log')),
         createFalconAdapter(source, join(dirname(database), 'tool-logs', 'falcon-axi', 'writes.log')),
         createVectraAdapter(source, writeLog),
