@@ -944,6 +944,7 @@ Instance changes require administrator access and recent confirmation and are au
 New instances start enabled and read-only, and their description, enabled and read-only flags are edited with `PATCH .../instances/:name`.
 Until their long-lived sessions and streams are instance-aware, Proxmox, Kubernetes and Shodan refuse a second instance with `INVALID_INPUT`.
 For an enabled configured tool, cached health selects an error if any eligible enabled instance has a current error; otherwise it uses a current result only when all eligible enabled instances have one.
+Discovery and doctor aggregate only instances usable by the caller; a cached result with an invalid error category is treated as absent until refreshed.
 AWX instances with only an origin are excluded from this aggregation and background checks.
 Background health checks take the enabled instances of a tool one at a time and skip disabled instances; each instance keeps its own cached result and diagnostic.
 Shodan checks remain explicit, and a GitHub device connection can request a check even when the tool is disabled.

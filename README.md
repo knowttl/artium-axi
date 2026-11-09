@@ -38,6 +38,7 @@ artium-axi falcon-axi detection list
 ```
 
 Login prompts privately for a password; replace the synthetic account and choose a tool granted to you.
+If the tool has several instances, choose one from `tools show` and run `artium-axi --instance <name> falcon-axi detection list`.
 For SSO, use `artium-axi login --sso` and approve only your terminal's browser code.
 For a private CA, set `ARTIUM_AXI_CA_FILE` to a readable PEM file before login.
 Login saves connection settings; shared service credentials and tool profiles are configured by administrators.
@@ -56,7 +57,7 @@ artium-axi setup --host opencode --hook
 Choose your host's command; omit `--hook` to install skills only, including `--host pi`.
 Claude Code and Codex use `SessionStart`; OpenCode 1.19.x uses a local plugin to add context before model requests.
 Codex requires hooks enabled and host approval of the installed hook; setup preserves those trust and administrator controls.
-Ambient context contains current tool names, status and read/write posture, with explicit authentication or connectivity failure disclosure and no identity or session metadata.
+Ambient context contains current tool names, status, read/write posture and instance counts, with explicit authentication or connectivity failure disclosure and no identity or session metadata.
 Skills teach managed command discovery and grant no permissions.
 Artium's authenticated setup fetches granted tools' adapted skills; a standalone skill installer does not configure this server account.
 Start with the [compact investigation guide](skill/artium-axi/SKILL.md#investigation-quick-guide) in the base skill.
