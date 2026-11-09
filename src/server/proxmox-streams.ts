@@ -64,7 +64,11 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
     } catch { /* Unauthenticated denials have no actor. */ }
     const id = (request.params as { id?: string } | undefined)?.id
     const lease = id ? leases.get(id) : undefined
-    const identity = admitted.get(request) ?? (lease && userId === lease.owner.userId && familyId === lease.owner.familyId ? { credentialId: lease.owner.credential.id, instance: lease.instance } : {})
+    const candidates = userId && request.method === 'POST' && request.url.split('?')[0] === prefix
+      ? db.prepare("SELECT id, name FROM credentials WHERE tool = 'proxmox-axi' AND enabled = 1 LIMIT 2").all() as { id: string, name: string }[] : []
+    const identity = admitted.get(request) ?? (lease && userId === lease.owner.userId && familyId === lease.owner.familyId
+      ? { credentialId: lease.owner.credential.id, instance: lease.instance }
+      : candidates.length === 1 ? { credentialId: candidates[0]!.id, instance: candidates[0]!.name } : {})
     audit.record({ ...identity, event: 'denial', userId, delegationId, tool: 'proxmox-axi', requestId: request.id,
       clientAddress: request.ip, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
   })
@@ -331,7 +335,8 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
       let userId: string | null = null, delegationId: string | null = null
       let identity: { credentialId?: string, instance?: string } = {}
       try {
-        const owner = caller(request); userId = owner.userId; delegationId = owner.delegation?.id ?? null
+        const token = /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''
+        const owner = verifyPrincipal(db, token); userId = owner.userId; delegationId = owner.delegation?.id ?? null
         const id = new RegExp(`^${prefix}/([a-f0-9-]{36})/pipe$`).exec(url)?.[1], lease = id && leases.get(id)
         if (lease && lease.owner.userId === owner.userId && lease.owner.familyId === owner.familyId) identity = { credentialId: lease.owner.credential.id, instance: lease.instance }
       } catch { /* Unverified callers remain unattributed. */ }

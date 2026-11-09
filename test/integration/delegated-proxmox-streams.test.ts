@@ -39,6 +39,8 @@ test.each([
     const wide = createDelegation(db, user, { label: 'Tool wide', scope: { tools: [{ tool: 'proxmox-axi' }] },
       readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
     expect((await start(exchangeDelegation(db, wide.token).accessToken)).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+    expect(db.prepare("SELECT credential_id, instance FROM audit WHERE event = 'denial' ORDER BY id DESC LIMIT 1").get())
+      .toEqual({ credential_id: store.findCredential('proxmox-axi')!.id, instance: 'default' })
     const readOnly = createDelegation(db, user, { label: 'Read only', scope: { tools: [{ tool: 'proxmox-axi', commands: [command] }] },
       readOnly: true, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
     expect((await start(exchangeDelegation(db, readOnly.token).accessToken)).json().error.code).toBe('DELEGATED_SCOPE_DENIED')

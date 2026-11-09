@@ -467,8 +467,13 @@ export function createApp(options: {
         checkToolPolicy(db, userId, name.data)
         throw new ArtiumError('TOOL_DISABLED')
       } catch (error) {
+        const requested = request.body && typeof request.body === 'object' && 'instance' in request.body && typeof request.body.instance === 'string' ? request.body.instance : undefined
+        const hasInstance = !!request.body && typeof request.body === 'object' && 'instance' in request.body && request.body.instance !== undefined
+        const candidates = userId ? (requested !== undefined ? db.prepare('SELECT id, name FROM credentials WHERE tool = ? AND name = ?').all(name.data, requested)
+          : hasInstance ? [] : db.prepare('SELECT id, name FROM credentials WHERE tool = ? AND enabled = 1 LIMIT 2').all(name.data)) as { id: string, name: string }[] : []
+        const credential = candidates.length === 1 ? candidates[0] : undefined
         audit.record({ event: 'denial', userId, tool: name.data, requestId: request.id,
-          clientAddress: request.ip, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
+          clientAddress: request.ip, credentialId: credential?.id, instance: credential?.name, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
         throw error
       }
     }

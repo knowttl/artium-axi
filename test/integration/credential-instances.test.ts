@@ -87,6 +87,13 @@ test('instance selection reaches the service and invalid selections fail closed'
         { outcome: 'INSTANCE_DISABLED', credential_id: lab.id, instance: 'lab' },
       ])
       expect((await discover({ instance: 'staging' })).json().error.code).toBe('INSTANCE_NOT_FOUND')
+      const proxmox = store.createInstance('proxmox-axi', { name: 'lab', description: '' },
+        { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }, 'synthetic-development-user', 1000)
+      const absentAdapter = await app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/run', headers,
+        payload: { instance: 'lab', args: ['version'] } })
+      expect(absentAdapter.statusCode).not.toBe(200)
+      expect(db.prepare("SELECT credential_id, instance FROM audit WHERE event = 'denial' AND tool = 'proxmox-axi' ORDER BY id DESC LIMIT 1").get())
+        .toEqual({ credential_id: proxmox.id, instance: 'lab' })
       expect((await discover({})).statusCode).toBe(200)
       const preview = await app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run', headers,
         payload: { instance: 'lab', args: ['rtr', 'run', 'a'.repeat(32), '--command', 'ps'] } })

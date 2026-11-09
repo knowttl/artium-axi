@@ -56,6 +56,7 @@ interface Session {
 export function registerKubernetesSessions(app: FastifyInstance, db: Database.Database, resolver: IdentityResolver,
   adapter: Adapter<unknown>, runner: Runner, audit: Audit, workspaces: ReturnType<typeof registerKubernetesWorkspaces>, trustedProxies: readonly string[] = []) {
   const sessions = new Map<string, Session>()
+  const admitted = new WeakMap<FastifyRequest, { credentialId: string, instance?: string }>()
   const root = join(dirname(db.name), 'tool-logs', 'kubernetes-axi', 'byte-sessions')
   const initialized = (async () => {
     await mkdir(root, { recursive: true, mode: 0o700 })
@@ -273,6 +274,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     }
     const binding = kubernetesBinding(db, owner, input.kind), policy = binding.settings.sessions!
     const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(binding.credential.id) as { name: string } | undefined)?.name
+    admitted.set(request, { credentialId: binding.credential.id, instance })
     const writing = !['watch', 'logs'].includes(input.kind), command = input.kind === 'watch' ? 'get' : input.kind
     if (writing ? input.argv[0] !== 'prepare' || input.argv[1] !== '--' || input.argv[2] !== command : input.argv[0] !== command) throw new ArtiumError('INVALID_INPUT')
     const lifetime = input.limits.lifetimeSeconds ?? Math.min(300, policy.lifetimeSeconds ?? 1800)
@@ -414,9 +416,11 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       void drained.then(() => { session.tunnels.delete(drained); session.active.delete(drained) })
     })().catch(error => {
       try {
-        let userId: string | null = null, delegationId: string | undefined
-        try { const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''); userId = principal.userId; delegationId = principal.delegation?.id } catch { /* Unverified callers remain unattributed. */ }
-        audit.record({ event: 'denial', userId, delegationId, tool: 'kubernetes-axi', requestId: randomUUID(),
+        let userId: string | null = null, delegationId: string | undefined, familyId: string | undefined
+        try { const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''); userId = principal.userId; delegationId = principal.delegation?.id; familyId = principal.familyId } catch { /* Unverified callers remain unattributed. */ }
+        const id = new RegExp(`^${prefix}/([a-f0-9-]{36})/tunnel$`).exec(request.url ?? '')?.[1], session = id ? sessions.get(id) : undefined
+        const identity = session && session.owner.user === userId && session.owner.family === familyId ? { credentialId: session.credentialId, instance: session.instance } : {}
+        audit.record({ ...identity, event: 'denial', userId, delegationId, tool: 'kubernetes-axi', requestId: randomUUID(),
           clientAddress: request.socket.remoteAddress ?? null, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
         socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n')
       } catch { socket.destroy() }
@@ -424,9 +428,12 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
   })
   app.addHook('onError', async (request, _reply, error) => {
     if (!request.url.startsWith('/v1/tools/kubernetes-axi/')) return
-    let userId: string | null = null, delegationId: string | undefined
-    try { const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''); userId = principal.userId; delegationId = principal.delegation?.id } catch { /* Unverified callers remain unattributed. */ }
-    audit.record({ event: 'denial', userId, delegationId, tool: 'kubernetes-axi', requestId: request.id,
+    let userId: string | null = null, delegationId: string | undefined, familyId: string | undefined
+    try { const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''); userId = principal.userId; delegationId = principal.delegation?.id; familyId = principal.familyId } catch { /* Unverified callers remain unattributed. */ }
+    const id = request.url.startsWith(prefix + '/') ? (request.params as { id?: string } | undefined)?.id : undefined
+    const session = id ? sessions.get(id) : undefined
+    const identity = admitted.get(request) ?? (session && session.owner.user === userId && session.owner.family === familyId ? { credentialId: session.credentialId, instance: session.instance } : {})
+    audit.record({ ...identity, event: 'denial', userId, delegationId, tool: 'kubernetes-axi', requestId: request.id,
       clientAddress: request.ip, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
   })
   app.addHook('preClose', async () => {

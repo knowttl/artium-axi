@@ -22,6 +22,7 @@ import type { TransferOwner } from './transfer.js'
 
 interface Entry {
   reservation: ArtifactReservation
+  identity?: { credentialId: string, instance: string }
   confirm?: string
   archive?: ArtifactArchive
   delivered: boolean
@@ -33,6 +34,7 @@ interface Entry {
 export function registerTransfers(app: FastifyInstance, db: Database.Database, audit: Audit, runner: Runner,
   resolver: IdentityResolver, adapters: readonly Adapter<unknown>[], providedStore?: ArtifactStore) {
   const entries = new Map<string, Entry>()
+  const admitted = new WeakMap<FastifyRequest, { credentialId: string, instance: string }>()
   let store: Promise<ArtifactStore> | undefined = providedStore ? Promise.resolve(providedStore) : undefined
   audit.recoverInterruptedTransfers()
   app.addHook('onReady', async () => {
@@ -82,6 +84,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
       throw new ArtiumError('TOKEN_INVALID')
     }
     const scope = entry.reservation.scope
+    if (entry.identity) admitted.set(request, entry.identity)
     try { checkTransferScope(scope, ownerFor(request), revision(transferTool(scope.selection.operation)), { selection: input.selection, targetDigest: input.targetDigest }); access(scope) }
     catch (error) { await discard(entry); throw error }
     return entry
@@ -138,7 +141,10 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
           const scope = createTransferScope(owner, revision(tool), input)
           store ??= ArtifactStore.create(audit).catch(error => { store = undefined; throw error })
           const reservation = await (await store).reserve(scope, { ...context(request, controller.signal), delegationId: verifyPrincipal(db, tokenFor(request)).delegation?.id })
-          entry = { reservation, delivered: false, receipt: false,
+          const candidates = db.prepare('SELECT id, name FROM credentials WHERE tool = ? AND enabled = 1 LIMIT 2').all(tool) as { id: string, name: string }[]
+          const identity = candidates.length === 1 ? { credentialId: candidates[0]!.id, instance: candidates[0]!.name } : undefined
+          if (identity) admitted.set(request, identity)
+          entry = { reservation, identity, delivered: false, receipt: false,
             timer: setTimeout(() => { void discard(entry!).catch(() => {}) }, Math.max(0, scope.expiresAt - Date.now())) }
           entry.timer.unref()
           entries.set(scope.transferId, entry)
@@ -228,7 +234,11 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
         if (error instanceof ArtiumError && !reply.raw.headersSent) {
           let principal: ReturnType<typeof verifyPrincipal> | undefined
           try { principal = verifyPrincipal(db, tokenFor(request)) } catch { /* Unauthenticated denials retain no actor. */ }
-          audit.record({ event: 'denial', userId: principal?.userId ?? null, delegationId: principal?.delegation?.id, tool, requestId: request.id,
+          const transferId = request.body && typeof request.body === 'object' && 'transferId' in request.body && typeof request.body.transferId === 'string' ? request.body.transferId : undefined
+          const owned = transferId ? entries.get(transferId) : undefined
+          const scope = owned?.reservation.scope
+          const identity = admitted.get(request) ?? (scope && transferTool(scope.selection.operation) === tool && principal?.userId === scope.userId && principal.familyId === scope.sessionFamilyId ? owned?.identity : undefined)
+          audit.record({ ...identity, event: 'denial', userId: principal?.userId ?? null, delegationId: principal?.delegation?.id, tool, requestId: request.id,
             clientAddress: request.ip, outcome: error.code })
         }
         throw error

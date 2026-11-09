@@ -156,6 +156,8 @@ test('exact delegated download verifies bytes, records the token and stops on re
   expect(preparedResponse.status).toBe(200)
   const prepared = await preparedResponse.json()
   expect((await post('execute', { ...body(), transferId: prepared.transferId, execute: true, confirm: 'wrong' }, delegatedHeaders)).status).toBe(400)
+  expect(db.prepare("SELECT credential_id, instance FROM audit WHERE event = 'denial' ORDER BY id DESC LIMIT 1").get())
+    .toEqual({ credential_id: (db.prepare("SELECT id FROM credentials WHERE tool = 'hybrid-axi'").get() as { id: string }).id, instance: 'default' })
   const next = await post('prepare', body(), delegatedHeaders).then(response => response.json())
   const executed = await post('execute', { ...body(), transferId: next.transferId, execute: true, confirm: next.confirm }, delegatedHeaders)
   expect(executed.status).toBe(200)

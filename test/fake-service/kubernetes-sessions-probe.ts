@@ -91,6 +91,10 @@ await withFakeService(async ({ directory, port, send }) => {
     }
     const cancel = async (id: string) => assert.equal((await request(`${prefix}/${id}`, 'DELETE')).statusCode, 204)
     await policy(false)
+    const invalid = await request(prefix, 'POST', { kind: 'logs', argv: ['get', 'pods'] })
+    assert.equal(invalid.statusCode, 400, invalid.body)
+    assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
+      { credential_id: reference.id, instance: 'default' })
     assert.equal((await request(prefix, 'POST', { kind: 'exec', argv: ['prepare', '--', 'exec', 'synthetic-pod', '--', 'true'] })).json().error.code, 'FLAG_BLOCKED')
     const logs = await start('logs', ['logs', 'synthetic-pod', '--follow'])
     assert.equal((await show(logs.id)).state, 'exited')
