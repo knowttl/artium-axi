@@ -676,6 +676,18 @@ test('mg-axi native --instance after the tool name is forwarded unchanged', asyn
     body: { args: ['--instance', 'tenant-a', 'entra', 'user', 'list'], instance: 'pve-lab' }, version: cliVersion }])
 })
 
+test.each([
+  { tool: 'proxmox-axi', args: ['get', '/version'] },
+  { tool: 'kubernetes-axi', args: ['get', 'pods'] },
+  { tool: 'shodan-axi', args: ['host', '192.0.2.1'] },
+])('a named instance is sent for ordinary $tool runs', async ({ tool, args }) => {
+  requests = []
+  response = { ...instanceRunResponse, body: { ...instanceRunResponse.body, source: tool } }
+  expect(await cli(['--instance', 'lab', tool, ...args])).toMatchObject({ code: 0, stdout: 'synthetic result' })
+  expect(requests).toEqual([{ path: `/v1/tools/${tool}/run`, token: 'Bearer CANARY-cli-token',
+    body: { args, instance: 'lab' }, version: cliVersion }])
+})
+
 test('a server that rejects the instance field is refused with an upgrade next step', async () => {
   requests = []
   response = { status: 400, body: errorResponse(new ArtiumError('INVALID_INPUT'), 'synthetic-older-server') }
@@ -694,7 +706,16 @@ test('an instance run preserves a specific server input diagnostic', async () =>
 test.each([
   { args: ['--instance', 'pve-lab'] },
   { args: ['--instance', 'pve-lab', 'tools'] },
-  { args: ['--instance', 'pve-lab', 'proxmox-axi', 'get', '/version'] },
+  { args: ['--instance', 'pve-lab', 'ssh-axi', 'connect'] },
+  { args: ['--instance', 'pve-lab', 'proxmox-axi', 'result', 'take'] },
+  { args: ['--instance', 'pve-lab', 'proxmox-axi', 'stream', 'limits'] },
+  { args: ['--instance', 'pve-lab', 'kubernetes-axi', 'tunnel'] },
+  { args: ['--instance', 'pve-lab', 'kubernetes-axi', 'credential'] },
+  { args: ['--instance', 'pve-lab', 'kubernetes-axi', '--json', 'workspace', 'show'] },
+  { args: ['--instance', 'pve-lab', 'kubernetes-axi', 'session', 'list'] },
+  { args: ['--instance', 'pve-lab', 'shodan-axi', 'stream', 'session', 'list'] },
+  { args: ['--instance', 'pve-lab', 'shodan-axi', 'radar'] },
+  { args: ['--instance', 'pve-lab', 'shodan-axi', 'scan', 'submit'] },
   { args: ['--instance', 'Pve_Lab', 'mg-axi', 'entra', 'user', 'list'] },
   { args: ['--instance'] },
 ])('--instance is refused before any request unless it precedes a supported tool: $args', async ({ args }) => {

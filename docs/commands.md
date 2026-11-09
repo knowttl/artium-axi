@@ -34,7 +34,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources or use administrator-enabled [mutation and bounded byte workflows](safety.md#kubernetes-reads), caller-owned workspaces and managed credentials with pinned kubectl. |
 | `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts, check authentication and run [confirmed managed commands](#ssh). |
 | `artium-axi --managed-session <command> [<args>]` | Supply and persist caller-owned sessions through private pipes; see `artium-axi --managed-session --help`. |
-| `artium-axi --instance <name> <tool> [<args>]` | Select one named instance of a tool for this run, before the tool name; refused for `ssh-axi`, `kubernetes-axi`, `proxmox-axi` and `shodan-axi`, and against servers that predate instances. |
+| `artium-axi --instance <name> <tool> [<args>]` | Select one named instance of a tool for this run, before the tool name; refused for `ssh-axi`, Proxmox `result` and `stream`, Kubernetes `tunnel`, `credential`, `workspace` and `session`, Shodan `stream session`, `radar` and `scan submit`, and against servers that predate instances. |
 | `artium-axi falcon-axi [<args>]` | Run Falcon commands with managed credentials; [tool reference](https://github.com/knowttl/falcon-axi#readme). |
 | `artium-axi vectra-axi [<args>]` | Run Vectra commands with managed credentials; [tool reference](https://www.npmjs.com/package/@knowttl/vectra-axi). |
 | `artium-axi az-axi [<args>]` | Run Azure commands with the managed identity; [tool reference](https://www.npmjs.com/package/@knowttl/az-axi). |

@@ -30,7 +30,6 @@ import { readStoredSession } from './session.js'
 
 let managed: ManagedSession | undefined
 let failureContext = 'main'
-const instanceUnsupported = ['ssh-axi', 'kubernetes-axi', 'proxmox-axi', 'shodan-axi']
 for (const stream of [process.stdout, process.stderr]) {
   stream.on('error', (error: NodeJS.ErrnoException) => {
     if (error.code !== 'EPIPE') throw error
@@ -64,7 +63,11 @@ async function main(args: string[]) {
   validateArguments(localArgs[0] === '--help' ? localArgs.slice(1) : localArgs, localArgs[0] === '--help')
   const managedMode = args[0] === '--managed-session'
   if (managedMode) args = args.slice(1)
-  if (instance !== undefined && (!toolSchema.safeParse(args[0]).success || instanceUnsupported.includes(args[0]))) {
+  const kubernetesGroup = args.slice(1).find(arg => arg !== '--json')
+  if (instance !== undefined && (!toolSchema.safeParse(args[0]).success || args[0] === 'ssh-axi'
+    || args[0] === 'proxmox-axi' && ['result', 'stream'].includes(args[1])
+    || args[0] === 'kubernetes-axi' && ['tunnel', 'credential', 'workspace', 'session'].includes(kubernetesGroup ?? '')
+    || args[0] === 'shodan-axi' && (args[1] === 'radar' || args[1] === 'stream' && args[2] === 'session' || args[1] === 'scan' && args[2] === 'submit'))) {
     throw new ArtiumError('INVALID_INPUT', '--instance applies only to tool runs that support named instances.', 'Run the command without --instance.')
   }
   if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) {
