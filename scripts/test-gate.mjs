@@ -60,7 +60,28 @@ function selectGate(root, { base, full = false } = {}) {
     if (bytes) hash.update(bytes)
   }
   const tests = files.filter(file => /^(src|test)\/.*\.test\.ts$/.test(file))
-  const selected = new Set(affectedTests(root, files, changed))
+  // SQL migrations are loaded by the store at runtime, so they have no import edge of their own.
+  const graphSeeds = changed.flatMap(file => file.startsWith('src/server/store/migrations/') ? [file, 'src/server/store/db.ts'] : [file])
+  const selected = new Set(affectedTests(root, files, graphSeeds))
+  const adapterOwners = [
+    [/^src\/server\/adapters\/ado/, /^test\/integration\/ado/],
+    [/^src\/server\/adapters\/awx/, /^test\/integration\/awx-/],
+    [/^src\/server\/adapters\/az(?:ure-.+)?\.ts$/, /^test\/integration\/azure-/],
+    [/^src\/server\/adapters\/beyondtrust\.ts$/, /^test\/integration\/beyondtrust\.test\.ts$/],
+    [/^src\/server\/adapters\/checkpoint\.ts$/, /^test\/integration\/checkpoint\.test\.ts$/],
+    [/^src\/server\/adapters\/hybrid\.ts$/, /^test\/integration\/hybrid\.test\.ts$/],
+    [/^src\/server\/(?:adapters\/)?kubernetes/, /^test\/integration\/kubernetes-workspaces\.test\.ts$/],
+    [/^src\/server\/adapters\/ldap\.ts$/, /^test\/integration\/ldap\.test\.ts$/],
+    [/^src\/server\/adapters\/mg\.ts$/, /^test\/integration\/mg-mail/],
+    [/^src\/server\/adapters\/(?:network-reads|unifi)\.ts$/, /^test\/integration\/network-reads\.test\.ts$/],
+    [/^src\/server\/(?:adapters\/proxmox|proxmox-streams)/, /^test\/integration\/(?:proxmox-instances|delegated-proxmox-streams)\.test\.ts$/],
+    [/^src\/server\/(?:adapters\/)?shodan/, /^test\/integration\/shodan-/],
+    [/^src\/server\/(?:adapters\/ssh|ssh-)/, /^test\/integration\/ssh-/],
+    [/^src\/server\/adapters\/technitium\.ts$/, /^test\/integration\/technitium/],
+    [/^src\/server\/adapters\/tenable\.ts$/, /^test\/integration\/tenable\.test\.ts$/],
+    [/^src\/server\/adapters\/vectra\.ts$/, /^test\/integration\/vectra\.test\.ts$/],
+    [/^src\/server\/transfer/, /^test\/integration\/(?:mg-mail-)?transfers\.test\.ts$/],
+  ]
   const generatedReferences = new Map([
     ['docs/errors.md', 'scripts/errors-reference.mjs'],
     ['docs/awx-parity-matrix.md', 'scripts/awx-parity.mjs'],
@@ -75,6 +96,10 @@ function selectGate(root, { base, full = false } = {}) {
     add(file => /^test\/integration\/(?:api|beyondtrust|checkpoint|cli-auth|file-input|hybrid|mg-mail-transfers|tool-skills|transfers)\.test\.ts$/.test(file))
     packages()
   }
+  const serverJourneys = () => {
+    add(file => /^test\/integration\/(?:api|cli-auth|tool-skills|transfers)\.test\.ts$/.test(file))
+    add(file => file === 'test/cli.test.ts' || file === 'test/tool-skills.test.ts')
+  }
   if (full) reasons.push('explicit full suite')
   if (selectedBase === null || diff === null) reasons.push('missing or ambiguous ancestor base')
   for (const file of changed) {
@@ -86,13 +111,15 @@ function selectGate(root, { base, full = false } = {}) {
     if (file.startsWith('skill/')) { cli(); continue }
     if (/^(src|test)\/.*\.test\.ts$/.test(file)) continue
     if (file.startsWith('src/cli/') && file.endsWith('.ts')) { cli(); continue }
-    if (file.startsWith('src/server/') && file.endsWith('.ts') &&
+    if (file === 'src/shared/api.ts') { cli(); serverJourneys(); continue }
+    if (file.startsWith('src/server/store/migrations/') && file.endsWith('.sql') ||
+      file.startsWith('src/server/') && file.endsWith('.ts') &&
       !/^src\/server\/(?:config|app)\.ts$/.test(file) && file !== 'src/server/adapters/types.ts') {
-      add(test => test.startsWith('test/integration/'))
-      add(test => test === 'test/cli.test.ts' || test === 'test/tool-skills.test.ts')
+      for (const [source, owned] of adapterOwners) if (source.test(file)) add(test => owned.test(test))
+      serverJourneys()
       continue
     }
-    // Inventories, schemas, dynamic fixtures, migrations, scripts, shared API,
+    // Inventories, schemas, dynamic fixtures, scripts, other shared code,
     // toolchain and packaging configuration deliberately fail closed.
     reasons.push(`full-suite owner or unknown path: ${file}`)
   }
