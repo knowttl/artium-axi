@@ -117,6 +117,37 @@ test.each([Buffer.from('corrupt'), Buffer.concat([binary, Buffer.from([1])])])('
   expect((await app.inject({ url: `${prefix}/${id}`, headers })).statusCode).toBe(404)
 })
 
+test('deleting one instance closes only its sessions and workspaces', async () => {
+  const value = { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }
+  const lab = credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' }, value, user, Date.now())
+  const primary = db.prepare("SELECT id FROM credentials WHERE tool = 'kubernetes-axi' AND id != ?").get(lab.id) as { id: string }
+  db.exec(`INSERT INTO users (id, username, display_name, source, must_change) VALUES ('lab-user', 'lab-user', 'Lab User', 'sso', 0);
+    INSERT INTO roles (id, name) VALUES ('lab-role', 'Lab Role');
+    INSERT INTO user_roles (user_id, role_id) VALUES ('lab-user', 'lab-role');
+    INSERT INTO role_tools (role_id, tool, all_instances) VALUES ('lab-role', 'kubernetes-axi', 0)`)
+  db.prepare("INSERT INTO role_tool_instances VALUES ('lab-role', 'kubernetes-axi', ?)").run(lab.id)
+  db.prepare("UPDATE role_tools SET all_instances = 0 WHERE role_id = 'synthetic-role' AND tool = 'kubernetes-axi'").run()
+  db.prepare("INSERT INTO role_tool_instances VALUES ('synthetic-role', 'kubernetes-axi', ?)").run(primary.id)
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ sessions: { grants: { [user]: ['logs'], 'lab-user': ['logs'] } } }))
+  const labHeaders = { authorization: `Bearer ${issueTestAccessToken(db, 'lab-user')}` }
+  const open = async (as: { authorization: string }) => {
+    const workspace = await app.inject({ method: 'POST', url: prefix, headers: as, payload: { files: [descriptor('nested/input.bin')], lifetimeSeconds: 300 } })
+    const session = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/sessions', headers: as,
+      payload: { kind: 'logs', argv: ['logs', 'synthetic-pod', '--follow'] } })
+    expect([workspace.statusCode, session.statusCode], workspace.body + session.body).toEqual([200, 200])
+    return [`${prefix}/${workspace.json().id}`, `/v1/tools/kubernetes-axi/sessions/${session.json().id}`]
+  }
+  const primaryUrls = await open(headers)
+  const labUrls = await open(labHeaders)
+  credentials.deleteInstance('kubernetes-axi', 'lab', lab.id, lab.revision)
+  await vi.advanceTimersByTimeAsync(1000)
+  const statuses = (urls: string[], as: { authorization: string }) =>
+    Promise.all(urls.map(async url => (await app.inject({ url, headers: as })).statusCode))
+  expect(await statuses(labUrls, labHeaders)).toEqual([404, 404])
+  expect(await statuses(primaryUrls, headers)).toEqual([200, 200])
+})
+
 test('workspace identifiers do not authorize another user or login family', async () => {
   const id = await create()
   expect((await upload(id, 'nested/input.bin')).statusCode).toBe(200)
