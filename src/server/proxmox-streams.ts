@@ -86,6 +86,7 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
   }
   const authorize = (lease: Lease) => {
     if (lease.controller.signal.aborted || lease.expiresAt <= Date.now() || !access.valid(lease.owner)) throw new ArtiumError('TOKEN_INVALID')
+    if (lease.selection.write && !lease.selection.preview && (db.prepare('SELECT read_only FROM credentials WHERE id = ?').get(lease.owner.credential.id) as { read_only: number }).read_only) throw new ArtiumError('FLAG_BLOCKED')
     const { delegation, userId } = lease.owner
     if (delegation) {
       if (delegation.expiresAt <= Date.now() || delegationPaused(db, userId) || !db.prepare(
@@ -129,10 +130,11 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
     if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
     const input = parsed.data
     if (owner.delegation) authorizeDelegatedOperation(db, owner.userId, owner.delegation, adapter, classifyDelegatedCommand(adapter, input.args, { stdin: input.stdin }))
-    const credential = await resolver.resolve(owner.userId, 'proxmox-axi', input.instance)
+    const { reference: credential, readOnly } = await resolver.resolveForRun(owner.userId, 'proxmox-axi', input.instance)
     const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(credential.id) as { name: string } | undefined)?.name
     admitted.set(request, { credentialId: credential.id, instance })
     const selection = adapter.inspectStream(input.args, credential, { stdin: input.stdin })
+    if (readOnly && selection.write && !selection.preview) throw new ArtiumError('FLAG_BLOCKED')
     if (selection.upload !== !!input.source || input.source && input.source.bytes > limits.uploadBytes) throw new ArtiumError('INVALID_INPUT')
     await initialized
     const sourceBytes = [...leases.values()].reduce((sum, lease) => sum + (lease.input.source?.bytes ?? 0), 0)

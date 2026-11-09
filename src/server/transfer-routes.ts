@@ -71,6 +71,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
     checkTransferAccess(db, { userId: scope.userId, sessionFamilyId: scope.sessionFamilyId,
       reauthenticatedAt: Date.now() }, scope.selection.operation)
     checkToolPolicy(db, scope.userId, entry.credential.tool, entry.credential.id)
+    if ((db.prepare('SELECT read_only FROM credentials WHERE id = ? AND tool = ?').get(entry.credential.id, entry.credential.tool) as { read_only: number } | undefined)?.read_only) throw new ArtiumError('FLAG_BLOCKED')
     if (revision(entry.credential) !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
     if (scope.expiresAt <= Date.now()) throw new ArtiumError('TOKEN_EXPIRED')
   }
@@ -145,7 +146,8 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
           const { instance, ...input } = transferPrepareRequestSchema.parse(parsed.data)
           const owner = ownerFor(request)
           checkTransferAccess(db, owner, input.selection.operation)
-          const credential = await resolver.resolve(owner.userId, tool, instance)
+          const { reference: credential, readOnly } = await resolver.resolveForRun(owner.userId, tool, instance)
+          if (readOnly) throw new ArtiumError('FLAG_BLOCKED')
           checkToolPolicy(db, owner.userId, tool, credential.id)
           const identity = { credentialId: credential.id,
             instance: (db.prepare('SELECT name FROM credentials WHERE id = ?').get(credential.id) as { name: string }).name }
