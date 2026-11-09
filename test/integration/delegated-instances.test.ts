@@ -67,7 +67,8 @@ test('a token scoped to one instance cannot reach another instance or a re-creat
         [['repo', 'list', '--help'], 'production', 'lab'],
       ] as const) {
         expect((await call(split.token, { args, instance: allowed })).json()).toMatchObject({ instance: allowed, exitCode: 0 })
-        expect((await call(split.token, { args, instance: denied })).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+        expect((await call(split.token, { args, instance: denied })).json().error.code).toBe('INSTANCE_NOT_FOUND')
+        expect((await call(split.token, { args })).json()).toMatchObject({ instance: allowed, exitCode: 0 })
       }
       const splitMe = await app.inject({ method: 'GET', url: '/v1/me',
         headers: { authorization: `Bearer ${exchangeDelegation(db, split.token).accessToken}` } })

@@ -57,8 +57,8 @@ export async function runTool<Credential>(
     let continuationCommand: string | undefined
     let args: string[]
     let instance: string | undefined
-    const resolveReference = async (userId: string, delegation: { scopeJson: string } | null | undefined) => {
-      const selected = await resolver.resolveForRun(userId, adapter.name, instance, delegation)
+    const resolveReference = async (userId: string, delegation: { scopeJson: string } | null | undefined, command?: string) => {
+      const selected = await resolver.resolveForRun(userId, adapter.name, instance, delegation, command)
       instanceReadOnly = selected.readOnly
       instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(selected.reference.id) as { name: string } | undefined)?.name
       return selected.reference
@@ -106,6 +106,7 @@ export async function runTool<Credential>(
       validateFileInput(adapter.name, args, input)
       checkRawApiPolicy(db, userId, adapter, args, input)
       continuation = adapter.kubernetesContinuation?.(args, input)
+      let selectionCommand: string | undefined
       if (principal?.delegation) {
         if (continuation && !continuation.help) {
           if (readOnly || !delegationIncludesTool(principal.delegation.scopeJson, adapter.name)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
@@ -116,10 +117,11 @@ export async function runTool<Credential>(
           if (!continuationCommand) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         }
         const operations = authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand, undefined, resolver)
+        selectionCommand = operations[0]?.command
         credentialCommands = [...new Set(operations.filter(operation => credentialIssuingCommand(adapter.name, operation.command)).map(operation => operation.command))]
       }
       if (!adapter.prepareForCaller && !reference) {
-        try { reference = await resolveReference(userId, principal?.delegation) }
+        try { reference = await resolveReference(userId, principal?.delegation, selectionCommand) }
         catch (error) {
           const named = instance === undefined ? undefined : db.prepare('SELECT id, name FROM credentials WHERE tool = ? AND name = ?').get(adapter.name, instance) as { id: string, name: string } | undefined
           resolutionFailure = { error, credentialId: named?.id, instance: named?.name }

@@ -13,7 +13,7 @@ import type { Adapter } from './adapters/types.js'
 import type { Audit } from './audit/audit.js'
 import { runnerLimits, runtimePath } from './config.js'
 import { authorizeKubernetesOwner, kubernetesBinding, kubernetesOwner, type KubernetesOwner } from './policy/kubernetes.js'
-import { checkDelegation, classifyDelegatedCommand, credentialIssuingCommand } from './auth/delegations.js'
+import { checkDelegation, classifyDelegatedCommand, credentialIssuingCommand, delegatedInstanceIds } from './auth/delegations.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import type { registerKubernetesWorkspaces } from './kubernetes-workspaces.js'
 import { kubernetesByteLease, sendKubernetesBytes } from './kubernetes-workspaces.js'
@@ -260,7 +260,9 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     const owner = kubernetesOwner(db, request)
     authorizeKubernetesOwner(db, owner, adapter, 'session list')
     await reconcile()
-    const owned = [...sessions.values()].filter(session => session.owner.user === owner.user && session.owner.family === owner.family)
+    const instances = delegatedInstanceIds(owner.delegation, 'kubernetes-axi', 'session list')
+    const owned = [...sessions.values()].filter(session => session.owner.user === owner.user && session.owner.family === owner.family
+      && (!instances || instances.has(session.credentialId)))
     return reply.header('cache-control', 'no-store').send({ sessions: owned.map(session => ({ id: session.id,
       instance: session.instance, operation: session.kind, state: session.state, expiresAt: session.expiresAt })), count: owned.length })
   })
@@ -274,7 +276,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       const operation = classifyDelegatedCommand(adapter, input.argv)
       if (credentialIssuingCommand(adapter.name, operation.command)) checkDelegation(owner.delegation.scopeJson, owner.delegation.readOnly, adapter, operation.command, 'write')
     }
-    const credential = await resolver.resolve(owner.user, 'kubernetes-axi', input.instance, owner.delegation)
+    const credential = await resolver.resolve(owner.user, 'kubernetes-axi', input.instance, owner.delegation, `session start ${input.kind}`)
     authorizeKubernetesOwner(db, owner, adapter, `session start ${input.kind}`, credential.id)
     if (owner.delegation && input.kind === 'create') {
       const operation = classifyDelegatedCommand(adapter, input.argv)

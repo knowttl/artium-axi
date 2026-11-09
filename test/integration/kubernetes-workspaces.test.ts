@@ -123,6 +123,30 @@ test('creation selects a named instance when multiple instances are granted', as
   expect((await app.inject({ url: `/v1/tools/kubernetes-axi/sessions/${otherSession.json().id}`, headers })).statusCode).toBe(200)
 })
 
+test('delegated creation and listing use each command instance scope', async () => {
+  credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' },
+    { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, user, Date.now())
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ sessions: { grants: { [user]: ['logs', 'watch'] } } }))
+  const grant = createDelegation(db, user, { label: 'Split', scope: { tools: [
+    { tool: 'kubernetes-axi', commands: ['workspace create', 'session start logs'], instances: ['lab'] },
+    { tool: 'kubernetes-axi', commands: ['session start watch', 'session list'], instances: ['default'] },
+  ] }, readOnly: false, reusable: true, expiresAt: Date.now() + 60000 }, [adapter])
+  const delegatedHeaders = { authorization: `Bearer ${exchangeDelegation(db, grant.token).accessToken}` }
+  const workspace = await app.inject({ method: 'POST', url: prefix, headers: delegatedHeaders, payload: { files: [descriptor('input')] } })
+  expect(workspace.statusCode, workspace.body).toBe(200)
+  const path = '/v1/tools/kubernetes-axi/sessions'
+  const lab = await app.inject({ method: 'POST', url: path, headers: delegatedHeaders,
+    payload: { kind: 'logs', argv: ['logs', 'synthetic-pod', '--follow'] } })
+  const production = await app.inject({ method: 'POST', url: path, headers: delegatedHeaders,
+    payload: { kind: 'watch', argv: ['get', 'pods', '--watch-only'] } })
+  expect([lab.statusCode, production.statusCode], lab.body + production.body).toEqual([200, 200])
+  expect([lab.json().instance, production.json().instance]).toEqual(['lab', 'default'])
+  const listed = await app.inject({ url: path, headers: delegatedHeaders })
+  expect(listed.json().count).toBe(1)
+  expect(listed.json().sessions.map((session: { id: string }) => session.id)).toEqual([production.json().id])
+})
+
 test('session recovery identifies the instance for each session', async () => {
   credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' },
     { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, user, Date.now())
