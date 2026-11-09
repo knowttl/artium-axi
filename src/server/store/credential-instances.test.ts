@@ -50,6 +50,7 @@ test.each([
   ['an uppercase name', 'Lab', 'ok'],
   ['a name starting with a hyphen', '-lab', 'ok'],
   ['a name with a space', 'my lab', 'ok'],
+  ['a name with a trailing newline', 'lab\n', 'ok'],
   ['a name over 32 characters', 'a'.repeat(33), 'ok'],
   ['a description over 500 characters', 'lab', 'x'.repeat(501)],
 ])('create rejects %s', (_label, name, description) => {
