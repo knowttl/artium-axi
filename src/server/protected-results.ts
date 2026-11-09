@@ -24,6 +24,13 @@ export class ProtectedResults {
     for (const [id, entry] of this.entries) if (refused(entry.scope)) this.remove(id)
   }
 
+  credential(id: string, userId: string, tool: CredentialReference['tool'], operation: string): CredentialReference {
+    const entry = this.entries.get(id)
+    if (!entry?.bytes || entry.expires <= Date.now() || entry.scope.userId !== userId
+      || entry.scope.credential.tool !== tool || entry.scope.operation !== operation) throw new ArtiumError('NOT_FOUND')
+    return entry.scope.credential
+  }
+
   reserve(scope: ResultScope) {
     for (const [id, entry] of this.entries) if (entry.expires <= Date.now()) this.remove(id)
     if (this.entries.size >= protectedResultLimits.total || [...this.entries.values()].filter(entry => entry.scope.userId === scope.userId).length >= protectedResultLimits.perUser) {

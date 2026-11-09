@@ -331,7 +331,7 @@ await withFakeService(async ({ directory, port, send }) => {
     await app.close(); closed = true
     runner = await Runner.create(calls)
     let now = Date.now()
-    isolated = new ProxmoxAccess(db, resolver, runner, new ProtectedResults(), () => now)
+    isolated = new ProxmoxAccess(db, runner, new ProtectedResults(), () => now)
     const dispatch = async (args: string[], after?: () => void) => {
       const credential = store.findCredential('proxmox-axi')!, prepared = await adapter.prepare(args, credential)
       return isolated!.execute({ userId: 'synthetic-development-user', familyId: verifyAccessFamily(db, session.accessToken),

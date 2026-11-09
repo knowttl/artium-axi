@@ -5,7 +5,6 @@ import { z } from 'zod'
 import { ArtiumError } from '../../shared/errors.js'
 import type { PreparedCall } from '../adapters/types.js'
 import { proxmoxProfile } from '../adapters/proxmox.js'
-import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { toolFailure, toolFailureCode } from '../health/diagnostic.js'
 import type { ProtectedResults, ResultScope } from '../protected-results.js'
@@ -70,8 +69,8 @@ export class ProxmoxAccess {
   private readonly active = new Set<Active>()
   private closed = false
 
-  constructor(private readonly db: Database.Database, private readonly resolver: IdentityResolver,
-    private readonly runner: Runner, private readonly results: ProtectedResults, private readonly now = () => performance.now()) {}
+  constructor(private readonly db: Database.Database, private readonly runner: Runner,
+    private readonly results: ProtectedResults, private readonly now = () => performance.now()) {}
 
   private remove(key: string): void {
     const entry = this.sessions.get(key)
@@ -85,8 +84,8 @@ export class ProxmoxAccess {
       if (!this.db.prepare(`SELECT 1 FROM session_families f JOIN users u ON u.id=f.user_id
         WHERE f.id=? AND f.user_id=? AND f.revoked_at IS NULL AND f.expires_at>? AND u.disabled=0`)
         .get(owner.familyId, owner.userId, Date.now())) return false
-      const current = this.db.prepare("SELECT id,revision FROM credentials WHERE tool='proxmox-axi'")
-        .get() as { id: string, revision: number } | undefined
+      const current = this.db.prepare("SELECT id,revision FROM credentials WHERE tool='proxmox-axi' AND id=? AND enabled=1")
+        .get(owner.credential.id) as { id: string, revision: number } | undefined
       return current?.id === owner.credential.id && current.revision === owner.credential.revision
         && proxmoxTrust(this.db, owner.credential) === owner.trustRevision
     } catch { return false }
@@ -180,8 +179,6 @@ export class ProxmoxAccess {
     const owner: Owner = { userId: context.userId, familyId: context.familyId, credential: { ...context.credential },
       operation: prepared.protectedResult?.operation ?? '', trustRevision: proxmoxTrust(this.db, context.credential) }
     if (this.closed || !this.valid(owner)) throw new ArtiumError('CREDENTIAL_INVALID')
-    const current = await this.resolver.resolve(owner.userId, 'proxmox-axi')
-    if (current.id !== owner.credential.id || current.revision !== owner.credential.revision) throw new ArtiumError('CREDENTIAL_INVALID')
     const controller = new AbortController(), signal = context.signal ? AbortSignal.any([context.signal, controller.signal]) : controller.signal
     let settle!: () => void
     let authExpires: number | undefined

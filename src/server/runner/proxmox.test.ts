@@ -9,7 +9,6 @@ import { Runner, type RunnerResult } from './runner.js'
 import { runnerLimits } from '../config.js'
 import { createCredentialStore, openStore } from '../store/db.js'
 import { EnvironmentKeyProvider } from '../store/key-provider.js'
-import { SharedIdentityResolver } from '../policy/identity-resolver.js'
 import { ProtectedResults } from '../protected-results.js'
 import { proxmoxProfile } from '../adapters/proxmox.js'
 import { createDelegation } from '../auth/delegations.js'
@@ -36,16 +35,17 @@ function prepared(script: string): PreparedCall {
   proxmox: { origin: 'https://synthetic.invalid', identity: 'automation@pve', password: true, authenticate: true } }
 }
 
-async function withAccess(check: (execute: (delegated: boolean) => Promise<RunnerResult>) => Promise<void>) {
+async function withAccess(check: (execute: (delegated: boolean) => Promise<RunnerResult>) => Promise<void>, multiple = false) {
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
   const db = openStore(join(root, 'store.db'), provider)
   await seedToolUser(db)
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'proxmox-axi'")
   const store = createCredentialStore(db, provider), userId = 'synthetic-development-user'
   const password = { origin: 'https://synthetic.invalid', auth: 'password', userId: 'automation@pve', password: 'CANARY-password' }
-  const credential = store.replaceCredential('proxmox-axi', password, 0, userId, Date.now())
+  const first = store.replaceCredential('proxmox-axi', password, 0, userId, Date.now())
+  const credential = multiple ? store.createInstance('proxmox-axi', { name: 'second', description: '' }, password, userId, Date.now()) : first
   const results = new ProtectedResults()
-  const access = new ProxmoxAccess(db, new SharedIdentityResolver(store), runner, results)
+  const access = new ProxmoxAccess(db, runner, results)
   const delegation = createDelegation(db, userId, { label: 'Synthetic', scope: { tools: [{ tool: 'proxmox-axi' }] },
     readOnly: true, reusable: true, expiresAt: Date.now() + 600_000 }, [])
   const execute = (delegated: boolean) => {
@@ -69,6 +69,12 @@ async function withAccess(check: (execute: (delegated: boolean) => Promise<Runne
   try { await check(execute) }
   finally { await access.close(); results.clear(); db.close() }
 }
+
+test('executes with a selected Proxmox instance when several are enabled', async () => {
+  await withAccess(async execute => {
+    await expect(execute(false)).resolves.toMatchObject({ stdout: 'synthetic result\n' })
+  }, true)
+})
 
 test('delegated cached Proxmox sessions preserve two creator slots (R9)', async () => {
   await withAccess(async execute => {

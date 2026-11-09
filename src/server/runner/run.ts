@@ -242,10 +242,11 @@ export async function runTool<Credential>(
       if (privateBytes && reservation && reference) {
         recheck()
         checkToolPolicy(db, userId, adapter.name)
-        const current = await resolver.resolve(userId, adapter.name, instance)
+        const current = db.prepare('SELECT revision FROM credentials WHERE id = ? AND tool = ? AND enabled = 1')
+          .get(reference.id, adapter.name) as { revision: number } | undefined
         recheck()
         checkToolPolicy(db, userId, adapter.name)
-        if (current.id !== reference.id || current.revision !== reference.revision) throw new ArtiumError('NOT_FOUND')
+        if (!current || current.revision !== reference.revision) throw new ArtiumError('NOT_FOUND')
         const json = result.stdout.trimStart().startsWith('{')
         const projection = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
         const resultReference = reservation.commit(privateBytes)

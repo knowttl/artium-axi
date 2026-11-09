@@ -237,6 +237,21 @@ test.each([
   })
 })
 
+test('a named AWX instance publishes and retrieves its protected result', async () => {
+  await withTokenService(async ({ app, db, store, headers }) => {
+    const first = store.findCredential('awx-axi')!
+    store.createInstance('awx-axi', { name: 'second', description: '' }, store.readCredential(first), 'synthetic-development-user', Date.now())
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+      payload: { instance: 'second', args: ['user', 'token-create', '42', '--scope', 'read', '--confirm'] } })
+    expect(response.json(), response.body).toMatchObject({ instance: 'second', exitCode: 0 })
+    const result = decode(response.json().stdout) as { result: { path: string } }
+    const downloaded = await app.inject({ url: result.result.path, headers })
+    expect(downloaded.statusCode, downloaded.body).toBe(200)
+    expect(downloaded.body).toBe('CANARY-awx-created-token-8')
+  })
+})
+
 test.each(['read', 'write'])('AWX %s PAT creation delivers bytes once to the authorized caller (S10)', async scope => {
   await withTokenService(async ({ app, db, store, headers, send, run, lines, directory }) => {
     const args = ['user', 'token-create', '42', '--scope', scope]
