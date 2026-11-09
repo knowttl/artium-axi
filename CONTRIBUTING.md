@@ -88,7 +88,19 @@ Keep process evidence uncommitted.
 
 ## Container acceptance
 
-Run `pnpm test:containers` when required by the [gate configuration](.no-mistakes.yaml), which owns the triggering paths, exemptions and release requirements.
+Run `pnpm test:containers` for pull requests touching `Dockerfile`, `.dockerignore`, `scripts/`, `tools/`, `bin/`, `test/fake-service/`, `test/runner/`, `test/walking-skeleton/`, `package.json` or `pnpm-lock.yaml`.
+Changes only to `src/server/`, `src/cli/`, docs, workflows or skills do not require it.
+The [gate configuration](.no-mistakes.yaml) owns the triggering paths and exemptions.
+After release-please creates a release, the release workflow's `containers` job runs acceptance against the release tag and must pass before npm and image publication.
+
+The repository ships a [nightly cron definition](scripts/container-acceptance.cron) for an owner to install on a permitted Docker host.
+Until an owner installs it, `main` has no scheduled container acceptance.
+Use a dedicated clean checkout on `main` with an authenticated remote and the project toolchain installed.
+Copy the definition into the owner's crontab with `crontab -e`, replacing `REPLACE_WITH_CHECKOUT_PATH` with the absolute checkout path and `REPLACE_WITH_TOOLCHAIN_PATH` with a colon-separated PATH containing Node, pnpm, git and Docker.
+The job runs at 03:00 host time and writes its output to `artium-containers-nightly.log` in the cron user's home directory.
+A weekly schedule is acceptable when nightly cost is too high.
+Fix or revert a scheduled job failure on `main` before the next release.
+Run acceptance on demand when a change warrants early feedback.
 
 Docker must support a private privileged BuildKit worker and its task-owned tmpfs cache.
 If the host forbids privileged containers, record acceptance as unverified and arrange a permitted host before delivery when the check is required.
@@ -96,6 +108,7 @@ Build before probing compiled output:
 
 ```sh
 pnpm build
+docker pull moby/buildkit:buildx-stable-1
 pnpm test:containers
 ```
 

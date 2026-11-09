@@ -3,8 +3,8 @@ import { Evaluator, Lexer, Parser, data } from '@actions/expressions'
 import { parse } from 'yaml'
 import { expect, test } from 'vitest'
 
-type Step = { id?: string, uses?: string, with?: Record<string, unknown>, env?: Record<string, string> }
-type Job = { needs?: string[], if?: string, permissions?: Record<string, string>, outputs?: Record<string, string>, env?: Record<string, string>, steps: Step[] }
+type Step = { id?: string, uses?: string, if?: string, 'continue-on-error'?: boolean | string, with?: Record<string, unknown>, env?: Record<string, string> }
+type Job = { needs?: string[], if?: string, 'continue-on-error'?: boolean | string, permissions?: Record<string, string>, outputs?: Record<string, string>, env?: Record<string, string>, steps: Step[] }
 const workflow = parse(readFileSync('.github/workflows/release-please.yml', 'utf8')) as {
   on: Record<string, unknown>, permissions: Record<string, string>, jobs: Record<string, Job>
 }
@@ -23,6 +23,16 @@ function evaluate(expression: string, context: Record<string, unknown>): string 
 test('publication is reachable only from a main push that creates a release', () => {
   expect(workflow.on).toEqual({ push: { branches: ['main'] } })
   expect(image.needs).toEqual(['release-please', 'publish'])
+})
+
+test('npm publication waits for container acceptance of the release tag', () => {
+  const containers = workflow.jobs.containers
+  const acceptance = containers.steps.find(step => step.id === 'acceptance')!
+  expect(workflow.jobs.publish.needs).toContain('containers')
+  expect(containers['continue-on-error'] ?? false).toBe(false)
+  expect(acceptance['continue-on-error'] ?? false).toBe(false)
+  expect(acceptance.if).toBeUndefined()
+  expect(evaluate(containers.steps[0].with!.ref as string, { needs: { 'release-please': { outputs: { tag_name: 'v1.2.3' } } } })).toBe('v1.2.3')
 })
 
 test.each([

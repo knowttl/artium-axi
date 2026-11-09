@@ -178,7 +178,7 @@ Installation details live in the [client reference](docs/client-reference.md#ver
 ## Contributing
 
 Use Linux and follow [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).
-Development and release validation run locally through no-mistakes with fakes and synthetic identities; there is no hosted test CI.
+Development validation runs locally through no-mistakes with fakes and synthetic identities; see [container acceptance](CONTRIBUTING.md#container-acceptance) for release checks.
 
 ## Security
 
