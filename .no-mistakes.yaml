@@ -24,6 +24,7 @@ review:
         For every repair, identify the reported invariant and inspect its sibling callers, cases and failure paths before editing. Repair the whole invariant together rather than only the reported example, verify through its public interface, then review the complete base-to-candidate diff, including earlier repairs and final documentation. A focused repair check never replaces this final-diff review.
         Do not cap valid findings, narrow design/style review, lower acceptance standards or reduce the configured repair budget to shorten elapsed time. This checklist adds no review gate.
         Before a repair's focused verification, run pnpm install --frozen-lockfile if dependencies are missing, using the package.json Node and pnpm toolchain. Complete pnpm build before any probe that uses dist. Do not return a repair as verified when dependencies or compiled output prevented verification.
+        Run pnpm lint before returning any repair.
     - path: "**"
       instructions: |
         Test quality: apply the "Test quality" rules in AGENTS.md to every added or changed test. Flag each violation as a finding naming the rule number, the test file:line and the evidence. Respect the listed exemptions. Never ask for a test to be written first or only to raise coverage.
@@ -51,7 +52,7 @@ test:
   instructions: |
     The configured pnpm test:gate command records its base, input identity, selected files and reasons, then runs affected checks or the conservative full fallback once as the baseline.
     Require pnpm test:gate --full before releases and at least weekly for local validation; pnpm test and pnpm check retain the full suite.
-    After repairs, rerun pnpm test:gate against the complete base-to-candidate diff; never validate only the last repair.
+    After the test agent's own repair, and after any other repair, rerun pnpm test:gate against the complete base-to-candidate diff; never validate only the last repair.
     Use targeted public CLI, API and browser flows for additional evidence only when needed.
     Reuse baseline evidence instead of rerunning the unchanged full suite.
     Produce a durable validation handoff outside the checkout, and give its absolute path in the Test report so a later run can receive it through its verification plan. Keep raw command logs and selection output alongside it; do not commit process evidence. Read any supplied handoff before choosing additional probes. This handoff does not bypass the configured baseline command or change pipeline rerun behavior.

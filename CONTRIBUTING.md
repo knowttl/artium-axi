@@ -46,6 +46,7 @@ Repair the whole reported invariant together, then review the complete base-to-c
 Batch documentation against the repaired behavior before final candidate review; focused checks do not replace the full final-diff review or required validation.
 Keep valid findings, acceptance standards and the configured repair budget intact.
 Coordinate overlapping upstream pin or generated-inventory changes while an approved change awaits merge, and refresh the base before expensive validation where practical.
+Before committing pipeline-bound work, run `pnpm lint` and `pnpm test:gate`; never run `pnpm check` for it, because the pipeline gate already validates the change.
 Commit the changes before starting:
 
 ```sh
