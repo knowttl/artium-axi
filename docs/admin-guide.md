@@ -188,6 +188,7 @@ Account session management requires a normal browser sign-in and CSRF protection
 
 Temporary access tokens are managed separately on Account.
 When creation is enabled, select tool-wide access or exact commands, read-only access, a date or duration within the administrator's lifetime cap, and whether the token can be reused.
+For each tool-wide or command selection, choose instances or leave them unselected to allow every instance you can use; see [delegated sessions](safety.md#delegated-sessions) for overlapping grants.
 Creation requires recent identity confirmation and displays the token once.
 Account lists your tokens and lets you revoke them; administrators can review everyone's tokens and revoke individual tokens or all tokens on `/admin/tokens`.
 Revoking a token also ends its exchanged sessions.
