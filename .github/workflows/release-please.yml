@@ -38,6 +38,7 @@ jobs:
         run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - run: docker pull moby/buildkit:buildx-stable-1
       - run: pnpm test:containers
 
   publish:

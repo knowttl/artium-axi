@@ -84,6 +84,7 @@ From the repository root, run:
 pnpm install --frozen-lockfile
 pnpm check
 docker compose -f compose.example.yaml config --quiet
+docker pull moby/buildkit:buildx-stable-1
 pnpm test:containers
 ```
 

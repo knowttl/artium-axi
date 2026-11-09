@@ -97,7 +97,7 @@ It runs in exactly two places:
 A cron entry for the nightly job, run from a clean `main` checkout:
 
 ```sh
-0 3 * * * cd /path/to/artium-axi && git pull --ff-only && pnpm install --frozen-lockfile && pnpm build && pnpm test:containers >> "$HOME/artium-containers-nightly.log" 2>&1
+0 3 * * * cd /path/to/artium-axi && git pull --ff-only && pnpm install --frozen-lockfile && pnpm build && docker pull moby/buildkit:buildx-stable-1 && pnpm test:containers >> "$HOME/artium-containers-nightly.log" 2>&1
 ```
 
 A failure of the nightly job is fixed or reverted on `main` before the next release, because the release workflow stops at the same check.
@@ -109,6 +109,7 @@ Build before probing compiled output:
 
 ```sh
 pnpm build
+docker pull moby/buildkit:buildx-stable-1
 pnpm test:containers
 ```
 
