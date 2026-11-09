@@ -27,7 +27,8 @@ For shared-credential tools, `POST /v1/tools/:tool/run` accepts an optional `ins
 When no name is supplied, exactly one enabled instance is selected automatically; multiple enabled instances return `INSTANCE_REQUIRED`.
 An unknown or disabled name is refused, and an instance marked read-only blocks writes while allowing supported previews.
 SSH uses caller-specific credentials and rejects an `instance` field.
-The current CLI cannot select an instance, and related workspace, session, stream, transfer and protected-result APIs do not carry an instance selection; multiple enabled instances can therefore make those paths unavailable.
+The CLI supports instance selection for tool runs; see the [command reference](commands.md) for syntax and exclusions.
+Related workspace, session, stream, transfer and protected-result APIs do not carry an instance selection; multiple enabled instances can therefore make those paths unavailable.
 The existing administration UI manages the shared credential rather than named instances.
 External secret sources and per-user credentials for shared-credential tools are unsupported.
 

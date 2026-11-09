@@ -703,10 +703,10 @@ test('an instance run preserves a specific server input diagnostic', async () =>
       + '  next: "Remove the extra argument. If the server does not support --instance, upgrade it to a version that supports named tool instances."\n  requestId: "synthetic-input"\n' })
 })
 
-test.each([[], ['home'], ['help'], ['commands'], ['--help']])('delegated discovery resolves a named instance: %j', async args => {
+test.each([{ args: [] }, { args: ['home'] }, { args: ['help'] }, { args: ['commands'] }, { args: ['--help'] }])('delegated discovery resolves a named instance: $args', async ({ args }) => {
   requests = []
   doctorResponses = {
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '1.0.0', commands: ['user list'] }] } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '0.1.19', commands: ['user list'] }] } },
     '/v1/tools/mg-axi/run': { status: 404, body: errorResponse(new ArtiumError('INSTANCE_NOT_FOUND'), 'synthetic-instance') },
   }
   try {
@@ -716,10 +716,10 @@ test.each([[], ['home'], ['help'], ['commands'], ['--help']])('delegated discove
   } finally { doctorResponses = undefined }
 })
 
-test.each([['hash-download-bin', '--help'], ['help', 'hash-download-bin']])('delegated download help resolves a named instance: %j', async args => {
+test.each([{ args: ['hash-download-bin', '--help'] }, { args: ['help', 'hash-download-bin'] }])('delegated download help resolves a named instance: $args', async ({ args }) => {
   requests = []
   doctorResponses = {
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'hybrid-axi', status: 'ok', version: '1.0.0', commands: ['hash-download-bin'] }] } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'hybrid-axi', status: 'ok', version: '0.1.5', commands: ['hash-download-bin'] }] } },
     '/v1/tools/hybrid-axi/run': { status: 404, body: errorResponse(new ArtiumError('INSTANCE_NOT_FOUND'), 'synthetic-instance') },
   }
   try {
@@ -731,7 +731,7 @@ test.each([['hash-download-bin', '--help'], ['help', 'hash-download-bin']])('del
 
 test('delegated discovery keeps scoped help after instance resolution', async () => {
   doctorResponses = {
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '1.0.0', commands: ['user list'] }] } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '0.1.19', commands: ['user list'] }] } },
     '/v1/tools/mg-axi/run': instanceRunResponse,
   }
   try {
