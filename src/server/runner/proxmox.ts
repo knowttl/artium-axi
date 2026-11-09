@@ -81,12 +81,12 @@ export class ProxmoxAccess {
   valid(owner: ResultScope): boolean {
     try {
       if (this.closed || !owner.familyId || !owner.trustRevision) return false
-      checkToolPolicy(this.db, owner.userId, 'proxmox-axi')
+      checkToolPolicy(this.db, owner.userId, 'proxmox-axi', owner.credential.id)
       if (!this.db.prepare(`SELECT 1 FROM session_families f JOIN users u ON u.id=f.user_id
         WHERE f.id=? AND f.user_id=? AND f.revoked_at IS NULL AND f.expires_at>? AND u.disabled=0`)
         .get(owner.familyId, owner.userId, Date.now())) return false
-      const current = this.db.prepare("SELECT id,revision FROM credentials WHERE tool='proxmox-axi'")
-        .get() as { id: string, revision: number } | undefined
+      const current = this.db.prepare("SELECT id,revision FROM credentials WHERE tool='proxmox-axi' AND id=?")
+        .get(owner.credential.id) as { id: string, revision: number } | undefined
       return current?.id === owner.credential.id && current.revision === owner.credential.revision
         && proxmoxTrust(this.db, owner.credential) === owner.trustRevision
     } catch { return false }
@@ -180,7 +180,8 @@ export class ProxmoxAccess {
     const owner: Owner = { userId: context.userId, familyId: context.familyId, credential: { ...context.credential },
       operation: prepared.protectedResult?.operation ?? '', trustRevision: proxmoxTrust(this.db, context.credential) }
     if (this.closed || !this.valid(owner)) throw new ArtiumError('CREDENTIAL_INVALID')
-    const current = await this.resolver.resolve(owner.userId, 'proxmox-axi')
+    const instance = this.db.prepare("SELECT name FROM credentials WHERE tool='proxmox-axi' AND id=?").get(owner.credential.id) as { name: string }
+    const current = await this.resolver.resolve(owner.userId, 'proxmox-axi', instance.name)
     if (current.id !== owner.credential.id || current.revision !== owner.credential.revision) throw new ArtiumError('CREDENTIAL_INVALID')
     const controller = new AbortController(), signal = context.signal ? AbortSignal.any([context.signal, controller.signal]) : controller.signal
     let settle!: () => void

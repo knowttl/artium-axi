@@ -647,6 +647,7 @@ export const adminInvitationRoutes = {
 } as const
 
 export const adminRoleSchema = z.strictObject({ id: accountId, name: z.string().min(1), tools: z.array(toolSchema),
+  instanceGrants: z.array(z.strictObject({ tool: toolSchema, instances: z.array(instanceNameSchema) })),
   revision: z.number().int().positive(), updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable() })
 export const adminRolesResponseSchema = z.strictObject({ roles: z.array(adminRoleSchema), nextCursor: accountId.nullable() })
 export const adminRoleRoutes = {
@@ -668,7 +669,12 @@ export const adminRoleRoutes = {
   tools: { method: 'PUT', path: '/v1/admin/roles/:id/tools',
     input: z.strictObject({ tools: z.array(toolSchema).refine(tools => new Set(tools).size === tools.length), expectedRevision: z.number().int().positive() }),
     response: adminRoleSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'replace-role-tools' },
+  instances: { method: 'PUT', path: '/v1/admin/roles/:id/tools/:tool/instances',
+    input: z.strictObject({ scope: z.enum(['all', 'selected']), instances: z.array(instanceNameSchema).refine(names => new Set(names).size === names.length).default([]),
+      expectedRevision: z.number().int().positive() }).refine(input => input.scope === 'all' || input.instances.length > 0),
+    response: adminRoleSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'replace-role-tool-instances' },
 } as const
+export const adminRoleToolParamsSchema = adminUserParamsSchema.extend({ tool: toolSchema })
 export const toolsResponseSchema = z.strictObject({
   tools: z.array(z.strictObject({
     name: toolSchema,

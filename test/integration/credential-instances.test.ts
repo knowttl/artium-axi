@@ -121,3 +121,47 @@ test('instance selection reaches the service and invalid selections fail closed'
     }
   }) } finally { vi.useRealTimers() }
 }, 60000)
+
+test('a role limited to one instance runs it without a flag and is refused on the others', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  try { await withFakeService(async ({ directory, port, send }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    allowRawApi(db, 'gitea-axi')
+    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'gitea-axi'")
+    const store = createCredentialStore(db, provider), origin = `https://localhost:${port}`
+    for (const name of ['lab', 'production']) store.createInstance('gitea-axi', { name, description: '' },
+      { origin, tokenOrigin: origin, token: `CANARY-gitea-${name}` }, 'synthetic-development-user', 1000)
+    const previous = toolPaths['gitea-axi']
+    Object.assign(toolPaths, { 'gitea-axi': join(process.cwd(), 'tools/node_modules/@knowttl/gitea-axi/dist/cli.js') })
+    const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
+    const app = createApp({ db, runner, audit: new Audit(db), resolver: new SharedIdentityResolver(store, db),
+      adapters: [createGiteaAdapter(new EmbeddedSecretSource(store))], environment: {} })
+    const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+    const run = (payload: object) => app.inject({ method: 'POST', url: '/v1/tools/gitea-axi/run', headers,
+      payload: { args: ['api', 'version'], ...payload } })
+    const identities = async () => (JSON.parse(await send('/__evidence')) as { requests: { identity: string }[] }).requests.map(request => request.identity)
+    try {
+      db.prepare("UPDATE role_tools SET all_instances = 0 WHERE role_id = 'synthetic-role' AND tool = 'gitea-axi'").run()
+      const lab = store.findInstance('gitea-axi', 'lab')!
+      db.prepare("INSERT INTO role_tool_instances (role_id, tool, credential_id) VALUES ('synthetic-role', 'gitea-axi', ?)").run(lab.id)
+      expect((await run({})).json(), 'no flag').toMatchObject({ instance: 'lab', exitCode: 0 })
+      expect((await run({ instance: 'lab' })).json()).toMatchObject({ instance: 'lab', exitCode: 0 })
+      const refused = await run({ instance: 'production' })
+      expect(refused.statusCode).toBe(404)
+      expect(refused.json().error.code).toBe('INSTANCE_NOT_FOUND')
+      expect(await identities()).toEqual(['lab', 'lab'])
+      expect(db.prepare("SELECT event, outcome, instance FROM audit WHERE outcome = 'INSTANCE_NOT_FOUND'").all())
+        .toEqual([{ event: 'run-terminal', outcome: 'INSTANCE_NOT_FOUND', instance: 'production' }])
+      store.deleteInstance('gitea-axi', 'lab', lab.id, lab.revision)
+      expect(db.prepare('SELECT COUNT(*) AS n FROM role_tool_instances').get()).toEqual({ n: 0 })
+      expect((await run({})).json().error.code).toBe('CREDENTIAL_NOT_CONFIGURED')
+      db.prepare("UPDATE role_tools SET all_instances = 1 WHERE role_id = 'synthetic-role'").run()
+      expect((await run({})).json()).toMatchObject({ instance: 'production', exitCode: 0 })
+    } finally {
+      await app.close(); db.close()
+      Object.assign(toolPaths, { 'gitea-axi': previous })
+    }
+  }) } finally { vi.useRealTimers() }
+}, 60000)

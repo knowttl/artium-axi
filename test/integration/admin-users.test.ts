@@ -649,6 +649,7 @@ const roleRoutes = [
   { method: 'POST', path: '', body: { name: 'New Role' } },
   { method: 'PATCH', path: '/synthetic-role', body: { name: 'Renamed', expectedRevision: 1 } },
   { method: 'PUT', path: '/synthetic-role/tools', body: { tools: [], expectedRevision: 1 } },
+  { method: 'PUT', path: '/synthetic-role/tools/falcon-axi/instances', body: { scope: 'all', expectedRevision: 1 } },
 ]
 
 test.each(roleRoutes)('$method roles$path rejects non-admins with all tool grants', async route => {
@@ -976,4 +977,26 @@ test('single-session revocation rolls back when its audit cannot be persisted', 
   db.exec("CREATE TRIGGER fail_revoke BEFORE INSERT ON audit WHEN NEW.action = 'revoke-user-session' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END")
   await failure(await request('POST', '/synthetic-ordinary/sessions/' + sessions[0]!.id + '/revoke', {}), 'AUDIT_UNAVAILABLE')
   expect(verifyAccessToken(db, session.accessToken)).toBe('synthetic-ordinary')
+})
+
+test('role instance access replaces a tool grant scope, validates names and audits the change', async () => {
+  new FakeCredentialStore([
+    { reference: { id: 'synthetic-lab', tool: 'falcon-axi' }, name: 'lab', value: {} },
+    { reference: { id: 'synthetic-production', tool: 'falcon-axi' }, name: 'production', value: {} },
+  ]).seed(db)
+  const route = '/synthetic-role/tools/falcon-axi/instances'
+  const selected = await roleRequest('PUT', route, { scope: 'selected', instances: ['lab'], expectedRevision: 1 })
+  expect(selected.status).toBe(200)
+  expect(adminRoleSchema.parse(await selected.json())).toMatchObject({ instanceGrants: [{ tool: 'falcon-axi', instances: ['lab'] }], revision: 2 })
+  expect(db.prepare('SELECT credential_id FROM role_tool_instances').all()).toEqual([{ credential_id: 'synthetic-lab' }])
+  await failure(await roleRequest('PUT', route, { scope: 'selected', instances: ['staging'], expectedRevision: 2 }), 'INSTANCE_NOT_FOUND')
+  await failure(await roleRequest('PUT', route, { scope: 'selected', instances: [], expectedRevision: 2 }), 'INVALID_INPUT')
+  await failure(await roleRequest('PUT', route, { scope: 'all', instances: [], expectedRevision: 1 }), 'REVISION_CONFLICT')
+  db.exec("DELETE FROM role_tools WHERE tool = 'vectra-axi'")
+  await failure(await roleRequest('PUT', '/synthetic-role/tools/vectra-axi/instances', { scope: 'all', expectedRevision: 2 }), 'INVALID_INPUT')
+  const all = await roleRequest('PUT', route, { scope: 'all', expectedRevision: 2 })
+  expect(adminRoleSchema.parse(await all.json())).toMatchObject({ instanceGrants: [], revision: 3 })
+  expect(db.prepare('SELECT COUNT(*) AS n FROM role_tool_instances').get()).toEqual({ n: 0 })
+  expect(db.prepare("SELECT action, target_id FROM audit WHERE event = 'admin-change' ORDER BY id").all()).toEqual([
+    { action: 'replace-role-tool-instances', target_id: 'synthetic-role' }, { action: 'replace-role-tool-instances', target_id: 'synthetic-role' }])
 })

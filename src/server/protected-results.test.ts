@@ -59,6 +59,18 @@ test('a different sign-in family cannot consume the issuing family private resul
   expect(results.take(reference.id, issuer)).toEqual(Buffer.from('CANARY-issued-credential'))
 })
 
+test.each([
+  { userId: 'other' }, { familyId: 'other' }, { tool: 'awx-axi' as const }, { operation: 'other' },
+])('bound credential lookup rejects a mismatched owner: %j', mismatch => {
+  const results = new ProtectedResults()
+  const issuer = { ...scope, familyId: 'issuing-family' }
+  const reference = results.reserve(issuer).commit(Buffer.from('confidential'))
+  const owner = { userId: issuer.userId, familyId: issuer.familyId, tool: issuer.credential.tool, operation: issuer.operation }
+  expect(results.credential(reference.id, owner)).toEqual(issuer.credential)
+  expect(() => results.credential(reference.id, { ...owner, ...mismatch })).toThrow(expect.objectContaining({ code: 'NOT_FOUND' }))
+  expect(results.take(reference.id, issuer)).toEqual(Buffer.from('confidential'))
+})
+
 test('delegated sessions and the creator cannot consume each other’s private results', () => {
   const results = new ProtectedResults()
   const delegated = { ...scope, familyId: 'delegated-family', delegated: true, familyOnly: true }

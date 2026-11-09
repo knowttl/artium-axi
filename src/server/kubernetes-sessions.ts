@@ -67,7 +67,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
   const active = (session: Session) => ['starting', 'prepared', 'running'].includes(session.state)
   const access = (session: Session) => {
     if (session.expiresAt <= Date.now()) throw new ArtiumError('TOKEN_EXPIRED')
-    if (kubernetesBinding(db, session.owner, session.kind).hash !== session.binding) throw new ArtiumError('REVISION_CONFLICT')
+    if (kubernetesBinding(db, session.owner, session.credentialId, session.kind).hash !== session.binding) throw new ArtiumError('REVISION_CONFLICT')
   }
   const record = (request: FastifyRequest, session: Session, action: string) => audit.record({ event: 'admin-change',
     userId: session.owner.user, delegationId: session.owner.delegation?.id, tool: 'kubernetes-axi', requestId: request.id, clientAddress: request.ip,
@@ -101,8 +101,9 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     try {
       await runner.runManaged(session.owner.user, session.controller.signal, async signal => {
         access(session)
-        const binding = kubernetesBinding(db, session.owner, session.kind)
-        const credential = await resolver.resolve(session.owner.user, 'kubernetes-axi')
+        const binding = kubernetesBinding(db, session.owner, session.credentialId, session.kind)
+        if (!session.instance) throw new ArtiumError('REVISION_CONFLICT')
+        const credential = await resolver.resolve(session.owner.user, 'kubernetes-axi', session.instance)
         if (credential.id !== binding.credential.id || credential.revision !== binding.credential.revision) throw new ArtiumError('REVISION_CONFLICT')
         const prepared = await adapter.prepare(['version'], credential)
         if (typeof prepared.limits.systemCaBundle !== 'object') throw new ArtiumError('CREDENTIAL_INVALID')
@@ -272,7 +273,9 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       const operation = classifyDelegatedCommand(adapter, input.argv)
       if (credentialIssuingCommand(adapter.name, operation.command)) checkDelegation(owner.delegation.scopeJson, owner.delegation.readOnly, adapter, operation.command, 'write')
     }
-    const binding = kubernetesBinding(db, owner, input.kind), policy = binding.settings.sessions!
+    const credential = await resolver.resolve(owner.user, 'kubernetes-axi')
+    const binding = kubernetesBinding(db, owner, credential.id, input.kind), policy = binding.settings.sessions!
+    if (binding.credential.revision !== credential.revision) throw new ArtiumError('REVISION_CONFLICT')
     const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(binding.credential.id) as { name: string } | undefined)?.name
     admitted.set(request, { credentialId: binding.credential.id, instance })
     const writing = !['watch', 'logs'].includes(input.kind), command = input.kind === 'watch' ? 'get' : input.kind
@@ -366,7 +369,9 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       await session.job; access(session)
       const file = session.artifacts?.find(file => file.path === request.params['*'])
       if (session.state !== 'exited' || !file || request.headers.range) throw new ArtiumError('NOT_FOUND')
-      const reference = await resolver.resolve(session.owner.user, 'kubernetes-axi')
+      if (!session.instance) throw new ArtiumError('REVISION_CONFLICT')
+      const reference = await resolver.resolve(session.owner.user, 'kubernetes-axi', session.instance)
+      if (reference.id !== session.credentialId) throw new ArtiumError('REVISION_CONFLICT')
       const prepared = await adapter.prepare(['version'], reference)
       const source = await open(join(session.directory, 'artifacts', file.path), constants.O_RDONLY | constants.O_NOFOLLOW)
       try {

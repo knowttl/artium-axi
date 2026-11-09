@@ -48,7 +48,7 @@ async function withTokenService(check: (context: {
     const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
     const lines: string[] = []
     const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => { lines.push(line); if (JSON.parse(line).event === 'run-start') onRunStart?.() }), adapters: [adapter],
-      resolver: new SharedIdentityResolver(store), credentialStore: store, environment: {} })
+      resolver: new SharedIdentityResolver(store, db), credentialStore: store, environment: {} })
     const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
     const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
     try { await check({ app, db, store, runner, headers, send, run, lines, directory }) }
@@ -274,11 +274,18 @@ test('selected instance publishes a protected result with multiple instances', a
     const first = store.findCredential('awx-axi')!
     const selected = store.createInstance('awx-axi', { name: 'second', description: '' }, store.readCredential(first), 'synthetic-development-user', Date.now())
     store.setInstanceFlags('awx-axi', selected.name, { readOnly: false }, selected.id, selected.revision, 'synthetic-development-user', Date.now())
+    db.prepare("UPDATE role_tools SET all_instances = 0 WHERE role_id = 'synthetic-role' AND tool = 'awx-axi'").run()
+    db.prepare("INSERT INTO role_tool_instances VALUES ('synthetic-role', 'awx-axi', ?)").run(selected.id)
     db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
     const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
       payload: { instance: 'second', args: ['user', 'token-create', '42', '--confirm'] } })
     expect(response.json(), response.body).toMatchObject({ instance: 'second', exitCode: 0 })
-    expect(decode(response.json().stdout)).toMatchObject({ result: { operation: 'token-create' } })
+    const result = decode(response.json().stdout) as { result: { operation: string, path: string } }
+    expect(result).toMatchObject({ result: { operation: 'token-create' } })
+    db.prepare("UPDATE role_tools SET all_instances = 1 WHERE role_id = 'synthetic-role' AND tool = 'awx-axi'").run()
+    const downloaded = await app.inject({ url: result.result.path, headers })
+    expect(downloaded.statusCode, downloaded.body).toBe(200)
+    expect(downloaded.body).toBe('CANARY-awx-created-token-8')
   })
 }, 60_000)
 

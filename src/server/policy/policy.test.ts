@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { migrate } from '../store/db.js'
 import type { Adapter } from '../adapters/types.js'
 import { createAzAdapter } from '../adapters/az.js'
@@ -124,4 +124,45 @@ test('a raw API grant on any one role allows the call', () => {
     INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'second-role');
     INSERT INTO role_tools (role_id, tool, raw_api) VALUES ('second-role', 'az-axi', 1)`)
   expect(() => checkRawApiPolicy(db, 'synthetic-user', az, ['api', 'GET', '/subscriptions'])).not.toThrow()
+})
+
+describe('instance grants', () => {
+  beforeEach(() => {
+    db.exec(`
+      INSERT INTO credentials (id, tool, name, schema_version, key_id, nonce, ciphertext, authentication_tag)
+        VALUES ('synthetic-lab', 'falcon-axi', 'lab', 1, 'k', zeroblob(12), x'00', zeroblob(16)),
+               ('synthetic-production', 'falcon-axi', 'production', 1, 'k', zeroblob(12), x'00', zeroblob(16));
+      INSERT INTO roles (id, name) VALUES ('synthetic-second-role', 'Second Role');
+      INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-second-role', 'falcon-axi');
+    `)
+  })
+
+  test.each([
+    ['all instances', '', 'synthetic-production', undefined],
+    ['listed instance', "UPDATE role_tools SET all_instances = 0; INSERT INTO role_tool_instances VALUES ('synthetic-role', 'falcon-axi', 'synthetic-lab')", 'synthetic-lab', undefined],
+    ['unlisted instance', "UPDATE role_tools SET all_instances = 0; INSERT INTO role_tool_instances VALUES ('synthetic-role', 'falcon-axi', 'synthetic-lab')", 'synthetic-production', 'INSTANCE_NOT_FOUND'],
+    ['selected scope without instances', 'UPDATE role_tools SET all_instances = 0', 'synthetic-lab', 'INSTANCE_NOT_FOUND'],
+    ['instance of a role the user lacks', "UPDATE role_tools SET all_instances = 0; INSERT INTO role_tool_instances VALUES ('synthetic-role', 'falcon-axi', 'synthetic-lab'); INSERT INTO role_tool_instances VALUES ('synthetic-second-role', 'falcon-axi', 'synthetic-production')", 'synthetic-production', 'INSTANCE_NOT_FOUND'],
+  ])('%s', (_name, setup, credentialId, code) => {
+    db.exec(setup)
+    const check = () => checkToolPolicy(db, 'synthetic-user', 'falcon-axi', credentialId)
+    if (code) expect(check).toThrow(expect.objectContaining({ code }))
+    else expect(check).not.toThrow()
+  })
+
+  test('grants add up across a user\'s roles', () => {
+    db.exec(`UPDATE role_tools SET all_instances = 0;
+      INSERT INTO role_tool_instances VALUES ('synthetic-role', 'falcon-axi', 'synthetic-lab');
+      INSERT INTO role_tool_instances VALUES ('synthetic-second-role', 'falcon-axi', 'synthetic-production');
+      INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-second-role')`)
+    expect(() => checkToolPolicy(db, 'synthetic-user', 'falcon-axi', 'synthetic-lab')).not.toThrow()
+    expect(() => checkToolPolicy(db, 'synthetic-user', 'falcon-axi', 'synthetic-production')).not.toThrow()
+  })
+
+  test('removing the tool from a role removes its instance grants', () => {
+    db.exec(`UPDATE role_tools SET all_instances = 0 WHERE role_id = 'synthetic-role';
+      INSERT INTO role_tool_instances VALUES ('synthetic-role', 'falcon-axi', 'synthetic-lab')`)
+    db.exec("DELETE FROM role_tools WHERE role_id = 'synthetic-role'")
+    expect(db.prepare('SELECT COUNT(*) AS n FROM role_tool_instances').get()).toEqual({ n: 0 })
+  })
 })

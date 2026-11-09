@@ -36,7 +36,7 @@ function prepared(script: string): PreparedCall {
   proxmox: { origin: 'https://synthetic.invalid', identity: 'automation@pve', password: true, authenticate: true } }
 }
 
-async function withAccess(check: (execute: (delegated: boolean) => Promise<RunnerResult>) => Promise<void>) {
+async function withAccess(check: (execute: (delegated: boolean) => Promise<RunnerResult>, revokeInstance: () => void) => Promise<void>) {
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
   const db = openStore(join(root, 'store.db'), provider)
   await seedToolUser(db)
@@ -66,9 +66,17 @@ async function withAccess(check: (execute: (delegated: boolean) => Promise<Runne
     return access.execute({ userId, familyId, credential, delegated, requestId: 'synthetic-request' }, call,
       limits => runner.run(userId, process.execPath, ['-e', 'console.log("synthetic result")'], {}, [], { ...limits, delegated }), () => {})
   }
-  try { await check(execute) }
+  try { await check(execute, () => { db.exec("UPDATE role_tools SET all_instances=0 WHERE role_id='synthetic-role' AND tool='proxmox-axi'") }) }
   finally { await access.close(); results.clear(); db.close() }
 }
+
+test('cached Proxmox access rejects a revoked instance grant', async () => {
+  await withAccess(async (execute, revokeInstance) => {
+    await expect(execute(false)).resolves.toMatchObject({ stdout: 'synthetic result\n' })
+    revokeInstance()
+    await expect(execute(false)).rejects.toMatchObject({ code: 'CREDENTIAL_INVALID' })
+  })
+})
 
 test('delegated cached Proxmox sessions preserve two creator slots (R9)', async () => {
   await withAccess(async execute => {

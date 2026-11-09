@@ -1,5 +1,7 @@
+import type Database from 'better-sqlite3'
 import { ArtiumError } from '../../shared/errors.js'
 import type { CredentialReference, CredentialStore, ToolName } from '../store/credential-store.js'
+import { instanceGranted } from './policy.js'
 
 export interface IdentityResolver {
   hasInstances(tool: ToolName): boolean
@@ -8,7 +10,7 @@ export interface IdentityResolver {
 }
 
 export class SharedIdentityResolver implements IdentityResolver {
-  constructor(private readonly store: Pick<CredentialStore, 'listInstances'>) {}
+  constructor(private readonly store: Pick<CredentialStore, 'listInstances'>, private readonly grants?: Database.Database) {}
 
   hasInstances(tool: ToolName): boolean { return this.store.listInstances(tool).length > 0 }
 
@@ -16,8 +18,9 @@ export class SharedIdentityResolver implements IdentityResolver {
     return (await this.resolveForRun(userId, tool, instance)).reference
   }
 
-  async resolveForRun(_userId: string, tool: ToolName, instance?: string): Promise<{ reference: CredentialReference, readOnly: boolean }> {
+  async resolveForRun(userId: string, tool: ToolName, instance?: string): Promise<{ reference: CredentialReference, readOnly: boolean }> {
     const instances = this.store.listInstances(tool)
+      .filter(candidate => !this.grants || instanceGranted(this.grants, userId, tool, candidate.id))
     const selected = instance === undefined ? undefined : instances.find(candidate => candidate.name === instance)
     if (instance !== undefined && !selected) throw new ArtiumError('INSTANCE_NOT_FOUND')
     if (instances.length === 0) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')

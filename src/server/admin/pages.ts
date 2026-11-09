@@ -8,10 +8,10 @@ import operationCatalogue from '../../../tools/inventories/write-operations.json
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { escape } from './escape.js'
-import { adminRead, changed, timestamp } from './forms.js'
+import { actionForm, adminRead, changed, revision, timestamp } from './forms.js'
 import { credentialFields, editorProfile } from './credential-form.js'
 import { setupBadge, toolIcon, toolProducts, toolSetupState, writes as writesState } from './design/status.js'
-import { callout, card, icon, noteCard, steps, tabs } from './design/ui.js'
+import { callout, card, checkOption, icon, noteCard, sheet, sheetLink, steps, tabs } from './design/ui.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { ToolName } from '../store/credential-store.js'
 import type { TrustedCertificate } from '../trusted-ca.js'
@@ -130,7 +130,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const current = readBrowserSession(db, request.cookies[browserCookie]!)
     const parsed = toolSchema.safeParse((request.params as { tool: string }).tool)
     if (!parsed.success) throw new ArtiumError('NOT_FOUND')
-    const query = request.query as { tab?: string, q?: string, show?: string }
+    const query = request.query as { tab?: string, q?: string, show?: string, sheet?: string }
     const tab: Tab = tabNames.find(name => name === query.tab) ?? 'connection'
     const api = '/v1/admin/tools/' + parsed.data
     const tool = await adminRead(app, request, api, adminToolRoutes.get.response)
@@ -141,8 +141,9 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const formStart = (action: string, method: string, confirmation: string, attributes = '', className = '') =>
       `<form${className ? ` class="${className}"` : ''} data-api data-method="${method}" data-confirm="${escape(confirmation)}"${attributes ? ' ' + attributes : ''} action="${escape(action)}" method="post"><input type="hidden" name="_csrf" value="${escape(csrf)}">`
     const revisionInputs = (credentialRevision: number) => `<input type="hidden" name="expectedRevision" data-type="number" value="${credentialRevision}"><input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}">`
-    const roles = db.prepare(`SELECT roles.id, roles.name, (SELECT COUNT(DISTINCT user_id) FROM user_roles WHERE user_roles.role_id = roles.id) AS members
-      FROM roles JOIN role_tools ON role_tools.role_id = roles.id WHERE tool = ? ORDER BY roles.name`).all(tool.name) as { id: string, name: string, members: number }[]
+    const roles = db.prepare(`SELECT roles.id, roles.name, roles.revision, role_tools.all_instances AS allInstances,
+      (SELECT COUNT(DISTINCT user_id) FROM user_roles WHERE user_roles.role_id = roles.id) AS members
+      FROM roles JOIN role_tools ON role_tools.role_id = roles.id WHERE tool = ? ORDER BY roles.name`).all(tool.name) as { id: string, name: string, revision: number, allInstances: number, members: number }[]
     const state = tool.name === 'ssh-axi' && credential.configured ? 'hostChecks' : toolSetupState({ enabled: tool.enabled, configured: credential.configured, health: tool.health })
     const tested = state === 'healthy'
     const failing = state === 'failing'
@@ -204,10 +205,29 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     } else if (tab === 'certificates') {
       panel = tool.name === 'ssh-axi' ? noteCard('SSH host trust', '<p>SSH uses independently verified server public keys and approved literal addresses in dedicated host bindings. HTTPS certificate settings do not configure SSH trust.</p>') : certificatesPanel()
     } else if (tab === 'access') {
-      const rows = roles.map(role => `<div class="list-row">${icon('shield')}<div class="grow"><a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a><p>${role.members} ${role.members === 1 ? 'person' : 'people'}</p></div>${icon('chev')}</div>`).join('')
+      const instances = db.prepare('SELECT id, name, description FROM credentials WHERE tool = ? ORDER BY name').all(tool.name) as { id: string, name: string, description: string }[]
+      const granted = db.prepare('SELECT credential_id AS id FROM role_tool_instances WHERE role_id = ? AND tool = ?')
+      const accessHref = (sheetName?: string) => `/admin/tools/${tool.name}?tab=access${sheetName ? '&sheet=' + encodeURIComponent(sheetName) : ''}`
+      const sheets: string[] = []
+      const rows = roles.map(role => {
+        const selected = new Set((granted.all(role.id, tool.name) as { id: string }[]).map(row => row.id))
+        const scope = role.allInstances ? 'All instances' : `Selected instances: ${instances.filter(instance => selected.has(instance.id)).map(instance => instance.name).join(', ') || 'None'}`
+        const name = 'instances-' + role.id
+        sheets.push(sheet({ name, open: query.sheet === name, closeHref: accessHref(), title: `Instance access for ${role.name}`,
+          description: `Choose which ${product} instances members of this role can use.`,
+          body: `<fieldset class="options"><legend class="sr-only">Instance access</legend>
+            <label class="option"><input type="radio" name="scope" value="all"${role.allInstances ? ' checked' : ''}><div><strong>All instances</strong><span>Includes instances added later.</span></div></label>
+            <label class="option"><input type="radio" name="scope" value="selected"${role.allInstances ? '' : ' checked'}><div><strong>Selected instances</strong><span>Only the instances checked below. Any other instance reports that it does not exist.</span></div></label></fieldset>
+            <fieldset class="options"><legend>Instances</legend><input type="hidden" name="instances" disabled data-type="array">${instances.map(instance =>
+            checkOption(`<input type="checkbox" name="instances" value="${escape(instance.name)}"${selected.has(instance.id) ? ' checked' : ''}>`, instance.name, instance.description)).join('')}</fieldset>${revision(role.revision)}`,
+          submit: '<button class="btn btn-primary">Save access</button>',
+          wrap: inner => actionForm(csrf, `/v1/admin/roles/${encodeURIComponent(role.id)}/tools/${tool.name}/instances`, 'PUT', inner,
+            { consequence: `Replace ${role.name}’s ${product} instance access? Changes apply to every member on the next call.`, title: 'Save instance access', action: 'Save access' }) }))
+        return `<div class="list-row">${icon('shield')}<div class="grow"><a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a><p>${role.members} ${role.members === 1 ? 'person' : 'people'} · ${escape(scope)}</p></div>${sheetLink(name, accessHref(name), 'Instances', 'btn btn-ghost btn-sm')}${icon('chev')}</div>`
+      }).join('')
       panel = card(`Roles that grant ${product}`, 'Enabling alone gives nobody access. Assign these roles to people on People.',
         rows || '<p class="empty">No roles grant this tool. Open a role and select this tool to give its members access.</p>',
-        { actions: '<a class="btn btn-secondary btn-sm" href="/admin/roles">Manage roles</a>' })
+        { actions: '<a class="btn btn-secondary btn-sm" href="/admin/roles">Manage roles</a>' }) + sheets.join('')
     } else {
       const writeState = `writes ${writes.enabled ? 'on' : 'off'}`
       panel = callout('warn', 'This replaces all native settings', 'Saving keeps the credential and clears cached health. Omitting write settings turns writes off. Use Write permissions for everyday changes.', '') +

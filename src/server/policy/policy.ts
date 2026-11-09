@@ -4,7 +4,17 @@ import type { Adapter } from '../adapters/types.js'
 import type { RunnerInput } from '../runner/input.js'
 import type { ToolName } from '../store/credential-store.js'
 
-export function checkToolPolicy(db: Database.Database, userId: string, tool: ToolName): void {
+export function instanceGranted(db: Database.Database, userId: string, tool: ToolName, credentialId: string): boolean {
+  return !!db.prepare(`
+    SELECT 1 FROM user_roles
+    JOIN role_tools ON role_tools.role_id = user_roles.role_id
+    WHERE user_roles.user_id = ? AND role_tools.tool = ? AND (role_tools.all_instances = 1 OR EXISTS (
+      SELECT 1 FROM role_tool_instances WHERE role_tool_instances.role_id = role_tools.role_id
+        AND role_tool_instances.tool = role_tools.tool AND role_tool_instances.credential_id = ?)) LIMIT 1
+  `).get(userId, tool, credentialId)
+}
+
+export function checkToolPolicy(db: Database.Database, userId: string, tool: ToolName, credentialId?: string): void {
   const user = db.prepare('SELECT disabled FROM users WHERE id = ?').get(userId) as { disabled: number } | undefined
   if (!user || user.disabled) throw new ArtiumError('USER_DISABLED')
   const configured = db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number } | undefined
@@ -15,6 +25,7 @@ export function checkToolPolicy(db: Database.Database, userId: string, tool: Too
     WHERE user_roles.user_id = ? AND role_tools.tool = ? LIMIT 1
   `).get(userId, tool)
   if (!grant) throw new ArtiumError('TOOL_NOT_GRANTED')
+  if (credentialId !== undefined && !instanceGranted(db, userId, tool, credentialId)) throw new ArtiumError('INSTANCE_NOT_FOUND')
 }
 
 export function checkRawApiPolicy(db: Database.Database, userId: string, adapter: Adapter<unknown>,

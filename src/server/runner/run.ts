@@ -209,7 +209,7 @@ export async function runTool<Credential>(
             }
           }
         } else authenticate(db, token)
-        checkToolPolicy(db, userId, adapter.name)
+        checkToolPolicy(db, userId, adapter.name, reference?.id)
         checkRawApiPolicy(db, userId, adapter, args, input)
         if (reference) {
           const current = db.prepare('SELECT enabled, read_only, revision FROM credentials WHERE id = ? AND tool = ?').get(reference.id, adapter.name) as { enabled: number, read_only: number, revision: number } | undefined
@@ -252,12 +252,12 @@ export async function runTool<Credential>(
           { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => {
             recheck(true)
             if (prepared.beforeSpawn) {
-              checkToolPolicy(db, identity.userId, adapter.name)
+              checkToolPolicy(db, identity.userId, adapter.name, reference?.id)
               prepared.beforeSpawn()
             }
             if ((kubernetesRequests || nativeScope) && reference) {
               recheck(true)
-              checkToolPolicy(db, identity.userId, adapter.name)
+              checkToolPolicy(db, identity.userId, adapter.name, reference?.id)
             }
           }, prepared.pathPrefix)
         if (prepared.proxmox && reference && context.proxmox) {
@@ -275,11 +275,11 @@ export async function runTool<Credential>(
       if (protectedResult?.source === 'projection' && result.exitCode === 0) privateBytes = Buffer.from(result.stdout)
       if (privateBytes && reservation && reference) {
         recheck()
-        checkToolPolicy(db, userId, adapter.name)
+        checkToolPolicy(db, userId, adapter.name, reference?.id)
         const current = db.prepare('SELECT revision FROM credentials WHERE id = ? AND tool = ? AND enabled = 1')
           .get(reference.id, adapter.name) as { revision: number } | undefined
         recheck()
-        checkToolPolicy(db, userId, adapter.name)
+        checkToolPolicy(db, userId, adapter.name, reference?.id)
         if (!current || current.revision !== reference.revision) throw new ArtiumError('NOT_FOUND')
         const json = result.stdout.trimStart().startsWith('{')
         const projection = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
