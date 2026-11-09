@@ -24,10 +24,10 @@ function binding(db: Database.Database, owner: ShodanOwner, credential: Credenti
   const tool = db.prepare("SELECT enabled,pinned_version,native_settings FROM tools WHERE name='shodan-axi'").get() as
     { enabled: number, pinned_version: string, native_settings: string }
   const settings = nativeSettingsSchemas['shodan-axi'].parse(JSON.parse(tool.native_settings))
-  const current = db.prepare("SELECT id,revision,name FROM credentials WHERE tool='shodan-axi' AND id=?").get(credential.id) as
-    { id: string, revision: number, name: string } | undefined
+  const current = db.prepare("SELECT id,revision,name,read_only FROM credentials WHERE tool='shodan-axi' AND id=?").get(credential.id) as
+    { id: string, revision: number, name: string, read_only: number } | undefined
   if (credential.tool !== 'shodan-axi' || !current || current.revision !== credential.revision) throw new ArtiumError('REVISION_CONFLICT')
-  return { settings, instance: current.name, hash: createHash('sha256').update(JSON.stringify({ credential: { id: current.id, revision: current.revision },
+  return { settings, instance: current.name, readOnly: current.read_only === 1, hash: createHash('sha256').update(JSON.stringify({ credential: { id: current.id, revision: current.revision },
     enabled: tool.enabled, pinnedVersion: tool.pinned_version, trust: readCredentialTrust(db, credential), settings })).digest('hex') }
 }
 
@@ -40,6 +40,7 @@ export function shodanBinding(db: Database.Database, owner: ShodanOwner, credent
 export function shodanScanBinding(db: Database.Database, owner: ShodanOwner, credential: CredentialReference,
   operations: readonly string[], streamOperation?: string) {
   const result = binding(db, owner, credential), settings = result.settings.scans
+  if (result.readOnly) throw new ArtiumError('FLAG_BLOCKED')
   if (!settings || operations.some(operation => !settings.grants[owner.user]?.includes(operation))
     || streamOperation && !result.settings.sessions?.grants[owner.user]?.includes(streamOperation)) throw new ArtiumError('TOOL_NOT_GRANTED')
   return { settings, instance: result.instance, hash: result.hash }

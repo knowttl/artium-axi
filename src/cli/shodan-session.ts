@@ -42,8 +42,8 @@ export async function shodanSession(args: string[], createClient: () => Client, 
   }
   if (!action || !permitted[action] || [...values.keys()].some(key => !permitted[action].includes(key))
     || switches.has('--accept-unknown-cost') && !['preview', 'start'].includes(action)
-    || switches.has('--wait') && action !== 'read'
-    || instance !== undefined && !['preview', 'start'].includes(action)) throw new ArtiumError('INVALID_INPUT', '--instance applies only to stream session preview and start.', 'Run the command without --instance.')
+    || switches.has('--wait') && action !== 'read') throw new ArtiumError('INVALID_INPUT')
+  if (instance !== undefined && !['preview', 'start'].includes(action)) throw new ArtiumError('INVALID_INPUT', '--instance applies only to stream session preview and start.', 'Run the command without --instance.')
   const number = (name: string) => {
     const value = values.get(name)
     if (value === undefined) return undefined

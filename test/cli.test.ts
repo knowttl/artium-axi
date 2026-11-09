@@ -790,6 +790,12 @@ test.each([
   expect(requests).toEqual([])
 })
 
+test('invalid Shodan session options do not suggest removing an absent instance', async () => {
+  const result = await cli(['shodan-axi', 'stream', 'session', 'status', '00000000-0000-4000-8000-000000000000', '--wait'])
+  expect(result).toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT') })
+  expect(result.stdout).not.toContain('--instance')
+})
+
 test.each([3, 4] as const)('managed mode refuses missing private fd %s before network access', async missing => {
   requests = []
   expect(await managedCli(['tools'], { missing })).toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT'), stderr: '', rotations: '' })

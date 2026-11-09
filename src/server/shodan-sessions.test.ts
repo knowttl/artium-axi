@@ -18,7 +18,9 @@ const processBoundary = vi.hoisted(() => ({ crash: false, multiple: false }))
 vi.mock('node:child_process', async importOriginal => {
   const original = await importOriginal<typeof import('node:child_process')>()
   return { ...original, spawn: (command: string, args: string[], options: import('node:child_process').SpawnOptions) =>
-    original.spawn(command, args[0]?.endsWith('/shodan-stream-worker.js')
+    original.spawn(command, args[0]?.endsWith('/shodan-axi.js') && args[1] === 'scan'
+      ? ['-e', `process.stdout.write(JSON.stringify(${args.includes('--execute') ? '{status:"submitted",scanId:"synthetic-scan"}' : '{status:"preview",token:"00000000-0000-4000-8000-000000000000",effects:[{operation:"OP-009"}]}'}))`]
+      : args[0]?.endsWith('/shodan-stream-worker.js')
       ? processBoundary.crash ? ['-e', 'process.exit(1)']
         : [fileURLToPath(new URL('../../test/fake-service/shodan-stream-worker.mjs', import.meta.url))] : args,
     { ...options, env: { ...options.env, ...(processBoundary.multiple ? { ARTIUM_TEST_MULTIPLE_EVENTS: '1' } : {}) } }) }
@@ -209,10 +211,39 @@ test('scan collection previews bind the selected instance and reject a start tha
     const ambiguous = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: scan })
     expect(ambiguous.json()).toMatchObject({ error: { code: 'INSTANCE_REQUIRED' } })
     const preview = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: { ...scan, instance: 'lab' } })
-    expect(preview.statusCode, preview.body).toBe(200)
-    expect(preview.json()).toMatchObject({ instance: 'lab' })
+    expect(preview.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+    const lab = store.findInstance('shodan-axi', 'lab')!
+    store.setInstanceFlags('shodan-axi', 'lab', { readOnly: false }, lab.id, lab.revision, 'synthetic-development-user', Date.now())
+    const writable = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: { ...scan, instance: 'lab' } })
+    expect(writable.statusCode, writable.body).toBe(200)
+    expect(writable.json()).toMatchObject({ instance: 'lab' })
     const mismatched = await app.inject({ method: 'POST', url: `${prefix}/start`, headers,
-      payload: { ...scan, instance: 'default', confirm: preview.json().confirm } })
+      payload: { ...scan, instance: 'default', confirm: writable.json().confirm } })
     expect(mismatched.statusCode).toBe(400)
+    const stale = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: { ...scan, instance: 'lab' } })
+    const current = store.findInstance('shodan-axi', 'lab')!
+    const locked = store.setInstanceFlags('shodan-axi', 'lab', { readOnly: true }, current.id, current.revision, 'synthetic-development-user', Date.now())
+    const refused = await app.inject({ method: 'POST', url: `${prefix}/start`, headers,
+      payload: { ...scan, instance: 'lab', confirm: stale.json().confirm } })
+    expect(refused.statusCode).toBe(409)
+    store.setInstanceFlags('shodan-axi', 'lab', { readOnly: false }, locked.id, locked.revision, 'synthetic-development-user', Date.now())
+    const start = async (instance: string) => {
+      const plan = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: { ...scan, instance } })
+      expect(plan.statusCode, plan.body).toBe(200)
+      const result = await app.inject({ method: 'POST', url: `${prefix}/start`, headers, payload: { ...scan, instance, confirm: plan.json().confirm } })
+      expect(result.statusCode, result.body).toBe(200)
+      return result.json().id as string
+    }
+    const labId = await start('lab'), defaultId = await start('default')
+    const labResult = await app.inject({ method: 'GET', url: `${prefix}/${labId}?waitMs=5000`, headers })
+    const defaultResult = await app.inject({ method: 'GET', url: `${prefix}/${defaultId}?waitMs=5000`, headers })
+    expect(labResult.json()).toMatchObject({ state: 'completed', result: { scanId: 'synthetic-scan' } })
+    expect(defaultResult.json()).toMatchObject({ state: 'completed', result: { scanId: 'synthetic-scan' } })
+    const currentLab = store.findInstance('shodan-axi', 'lab')!
+    store.deleteInstance('shodan-axi', 'lab', currentLab.id, currentLab.revision)
+    await app.inject({ method: 'GET', url: `${prefix}/${labId}`, headers })
+    expect((await app.inject({ method: 'GET', url: `${prefix}/${labId}`, headers })).statusCode).toBe(404)
+    expect((await app.inject({ method: 'GET', url: `${prefix}/${defaultId}`, headers })).json())
+      .toMatchObject({ state: 'completed', result: { scanId: 'synthetic-scan' } })
   } finally { await fixture.close() }
 })
