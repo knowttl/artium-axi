@@ -109,8 +109,9 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/users/:id` | Person detail: edit profile and direct roles, review what they can use and their sessions; the **…** menu resets local passwords, signs out everywhere and sets break-glass designation; unlock appears while locked; disable and archive are in the danger zone. |
 | `/admin/invitations` | Prepare and resend SSO invitations from sheets (`?sheet=new-invitation` opens creation without JavaScript; submission requires JavaScript); revoke from the table; a banner explains when no enabled provider can accept claims; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 | `/account` | Review your roles and tools, set up the CLI, manage temporary access tokens and sessions, and change your local-account password. |
-| `/admin/tools` | Review installed tools in a table with state, enablement, write state, granting roles and last checked time; filter by All, Enabled or Needs attention or by name; the server-wide trusted CA bundle appears as a read-only card at the bottom. |
-| `/admin/tools/:tool` | Header with state, write badges, **Test connection** for shared credentials and an **Enabled** switch, a setup strip and tabs: Connection, Write permissions, Certificates, Access and Advanced. Access lists the granting roles and their instance scopes, with a sheet per role to choose All instances or Selected instances. See [SSH setup](tool-credentials.md#ssh) for its separate host binding requirements. |
+| `/admin/tools` | Review installed tools in a table with instance count, state, enablement, write state, granting roles and last checked time; filter by All, Enabled or Needs attention or by name; the server-wide trusted CA bundle appears as a read-only card at the bottom. |
+| `/admin/tools/:tool` | Header with state, write badges and an **Enabled** switch, a setup strip and tabs: Instances, Write permissions, Access and Advanced. Instances lists the tool's named instances and opens the Add instance and Edit sheets. Access lists the granting roles and their instance scopes, with a sheet per role to choose All instances or Selected instances. See [SSH setup](tool-credentials.md#ssh) for its separate host binding requirements. |
+| `/admin/tools/:tool/instances/:name` | Instance detail: header with status, writes, **Test connection** and an **Enabled** switch for this instance, a setup strip, the Connection editor, Trusted certificates and a danger zone that deletes the instance after its name is typed. |
 | `/admin/credentials` | Redirect to the merged tools index. |
 | `/admin/roles` | List roles with their tools, member and SSO rule counts, and create a role. |
 | `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete an unused role by typing its name. |
@@ -196,6 +197,21 @@ Users with temporary passwords must change them first.
 Archiving disables sign-in, revokes all sessions and hides the user from the users table while retaining identity, role membership and audit history.
 Archived users cannot be enabled through the UI or API; use Disable for temporary loss of access.
 
+Each tool holds named instances.
+An instance is one credential with a permanent name, a description that agents read, an enabled switch and a read-only switch.
+The **Instances** tab (`?tab=instances`, the default) lists them with endpoint, status, writes, last checked time, and the row actions Test, Edit and a **…** menu to disable, enable or delete.
+**Add instance** opens a sheet with the name, the description and the credential editor.
+The name is lowercase letters, digits and hyphens, never changes and is what agents type after `--instance`.
+New instances start enabled and read-only.
+The sheet warns that once a tool has a second instance, calls that omit `--instance` fail with `INSTANCE_REQUIRED` until they name one.
+Proxmox, Kubernetes and Shodan accept one instance until their sessions and streams are instance-aware.
+**Edit** changes the description and the read-only switch; the tool's Write permissions stay the ceiling and an instance can only narrow them.
+Open an instance to change its connection, test it, inspect and trust its certificates, enable or disable it, or delete it.
+Certificate trust is per instance because it belongs to the instance's credential.
+Deleting needs the instance name typed and removes its credential, certificate trust and health; audit history is kept.
+The tools list shows each tool's instance count, and a note such as "1 of 3 failing" under the state when only some instances fail.
+SSH hosts appear as instances in these listings and open `/admin/ssh`, where hosts, bindings and grants stay managed; SSH has no instance editor.
+
 Shared-credential editors pre-fill non-secret values and never return stored secrets.
 For SSH, follow [dedicated host setup](tool-credentials.md#ssh) instead of the editor and connection-test flow below.
 Field labels use schema titles when available, then plain labels for known fields, falling back to the property name; help uses schema descriptions before tool-specific fallback guidance and displays any declared schema default.
@@ -216,7 +232,7 @@ See the [hosted contract](credential-standard.md#9-hosted-contract-artium-axi) f
 Falcon has guided fields; see its [current credential handling](credential-standard.md#per-tool-host-facing-schemas).
 Browser saves keep native settings and retain blank stored secrets for the same identity.
 Identity changes require new secrets as defined by the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`).
-**Test after saving** is on by default on the Connection tab and reports a harmless credential check inline; clear it to save without testing.
+**Test after saving** is on by default in the Add instance sheet and the instance's Connection card and reports a harmless credential check inline; clear it to save without testing.
 After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.
 See the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) for API inputs and complete replacement semantics.
 See [credential rotation](runbook.md#roles-credentials-and-health).
@@ -238,7 +254,7 @@ See [write-access audit events](#audit-screen-and-api) to review saved changes.
 The **Advanced** tab (`?tab=advanced`) shows the saved write state, but **Replace settings** replaces all native settings and omitting write settings turns writes off.
 With JavaScript, the editor reports whether the input is a valid JSON object as you type; saving also validates the tool's native settings on the server.
 See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for automatic checks after configuration changes, pending status, recovery retries and concurrency limits.
-Use **Test connection** for a current fixed read before enabling a configured tool; it asks for no confirmation dialog but still needs recent identity confirmation.
+Use **Test connection** on an instance, or **Test** in its row, for a current fixed read before enabling a configured tool; it asks for no confirmation dialog but still needs recent identity confirmation.
 For failed tests, follow the [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) and the [error reference](errors.md).
 Graph tests read at most one user through `entra user list --limit 1`.
 For a new installation, follow [Graph credential setup](tool-credentials.md#microsoft-graph), verify the required permissions against your intended operations and obtain maintainer approval before enabling Graph on a running installation.

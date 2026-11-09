@@ -259,7 +259,7 @@ Do not disable verification; a temporary network-policy exemption is an alternat
 
 ### Trusting one tool from the administration UI
 
-After a credential test reports a TLS verification failure, open the **Certificates** tab (`?tab=certificates`) on the tool page, select the affected saved endpoint if there is more than one and choose **Inspect certificate**.
+After a credential test reports a TLS verification failure, open the failing instance from the tool's **Instances** tab, go to **Trusted certificates**, select the affected saved endpoint if there is more than one and choose **Inspect certificate**.
 AWX also allows inspection before a credential test or token save; first save the controller address as described in [the password sign-in flow](#roles-credentials-and-health).
 This uses the existing certificate-inspection timeouts and follows no redirects.
 Inspection connects only to an endpoint from the saved credential and tool inventory, performs a TLS handshake, and sends no credentials or application requests.
@@ -455,7 +455,7 @@ See the [Falcon capability boundary](safety.md#write-gates-by-tool) for exact li
 For shared-credential rotation, obtain the replacement through the owner's approved process, then open the tool at `/admin/tools`.
 SSH uses the [dedicated rotation flow](#ssh-rotation) rather than the shared-credential editor.
 Follow the [credential editor guidance](admin-guide.md#browser-administration) for guided fields and combined certificate PEM uploads.
-Use “Test connection” on the tool page to test the replacement with the fixed harmless read before enabling it; see [Connection tab save-and-test behavior](admin-guide.md#browser-administration) for testing during a save.
+Use “Test connection” on the instance page to test the replacement with the fixed harmless read before enabling it; see [save-and-test behavior](admin-guide.md#browser-administration) for testing during a save.
 Check cached health and a permitted fake read, then revoke the old upstream credential through the owner's process after acceptance.
 AWX username-and-password sign-in mints a personal access token during credential save.
 AWX also supports [managed PAT creation and revocation](commands.md); these paths have fake-controller acceptance only.
@@ -484,7 +484,7 @@ These checks do not test remote services or reload the key.
 Use doctor for the [CLI diagnostics](client-reference.md#toon-output-behavior), including separate TLS-verification and liveness results and cached tool health.
 The following shared-credential health schedule does not apply to SSH or Shodan.
 For SSH, use [per-host authentication checks](safety.md#ssh-reads).
-Shodan account checks use `info` only on an explicit **Test connection** or save-and-test request; see the [Connection tab's default test selection](admin-guide.md#browser-administration).
+Shodan account checks use `info` only on an explicit **Test connection** or save-and-test request; see the [default test selection on saving](admin-guide.md#browser-administration).
 Startup, scheduled refresh, credential replacement alone and settings or trust changes do not trigger Shodan checks.
 After configuration changes, a current cached health result requires an explicit test.
 If Shodan package verification returns `SPAWN_FAILED`, restore the pinned package through the normal deployment process rather than bypassing the [integrity check](safety.md#shodan).
@@ -504,7 +504,7 @@ Results superseded by a later configuration change cannot change the schedule or
 At most two background checks run at once, including replacement checks; work deferred by this cap stays due for a later tick.
 Manual tests and background checks share the one-check-per-tool exclusion and runner admission rules.
 The schedule is fixed, not operator-configurable; [healthDefaults](../src/server/config.ts) owns the executable constants.
-Use “Test connection” on the tool page for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
+Use “Test connection” on the instance page for a current check and inspect cached health at `/admin/tools` and safe error codes in Tools and Audit; never log secret values to diagnose a failure.
 
 ### SSH rotation
 
@@ -532,7 +532,7 @@ Administrators can open `/admin/audit?requestId=<id>` to inspect run-start and r
 Expand the terminal row for any retained failure diagnostic; see [diagnostic storage and retention](#scripted-administrator-sessions).
 Use `/admin/audit?failed=1&tool=<tool>` to find recent failed runs.
 See [Audit screen and API](admin-guide.md#audit-screen-and-api) for filter semantics, recorded fields, API queries, pagination and exports.
-For a credential, TLS, DNS or network problem, use **Test connection** on the tool page for a current secret-scanned diagnostic.
+For a credential, TLS, DNS or network problem, use **Test connection** on the instance page for a current secret-scanned diagnostic.
 
 Search `docker compose -f compose.example.yaml logs --timestamps artium` for the request ID to find the `run` event and any related `error` event.
 Operational logs are JSON lines on stderr with `ts` (UTC), `level`, `event` and `requestId` (`null` for events without request context, including lifecycle events).

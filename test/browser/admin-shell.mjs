@@ -30,6 +30,18 @@ function chrome(args, input) {
 function browser(script) {
   return chrome(['run'], `const base = ${JSON.stringify(fixture.url)};
     const check = (value, message) => { if (!value) throw new Error(message); };
+    const openInstance = (tool, name = 'default') => page.open(base + '/admin/tools/' + tool + '/instances/' + name);
+    const addInstance = async (tool, name = 'default') => {
+      await page.open(base + '/admin/tools/' + tool + '?sheet=add-instance');
+      await page.fill('[name=name]', name);
+    };
+    const createInstance = async (tool, value, name = 'default') => {
+      await page.open(base + '/admin/tools/' + tool);
+      const status = await page.eval('(async () => { const response = await fetch("/v1/admin/tools/' + tool + '/instances", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ name: "' + name + '", description: "", value: ' + JSON.stringify(value) + ', expectedToolRevision: Number(document.querySelector("[name=expectedToolRevision]").value), _csrf: document.querySelector("[name=_csrf]").value }) }); return response.status; })()');
+      if (status !== 200) throw new Error('Could not create the ' + tool + ' instance: ' + status);
+      await openInstance(tool, name);
+    };
+    const falconValue = { clientId: 'CANARY-falcon-client', clientSecret: 'CANARY-falcon-secret', region: 'us-1' };
     const wait = page.wait.bind(page);
     page.wait = async (...args) => {
       try { await wait(...args); }
@@ -210,6 +222,7 @@ test('GitHub device connection shows the code, stores approval and cancels recon
   browser(`
     await page.open(base + '/admin/tools/gh-axi');
     await page.eval(async () => { await fetch('/test/trust-ca', { method: 'POST' }); });
+    await page.fill('[data-connect-github] [name=instance]', 'default');
     await page.fill('[data-connect-github] [name=origin]', base);
     await page.click('[data-connect-github] button');
     await page.wait('#confirmation[open]');
@@ -217,6 +230,8 @@ test('GitHub device connection shows the code, stores approval and cancels recon
     await page.wait('[data-github-authorization]:not([hidden])');
     check(await page.eval(() => document.querySelector('[data-github-code]').textContent === 'ABCD-EFGH'), 'Device code missing');
     check(await page.eval(() => document.querySelector('[data-github-link]').href === location.origin + '/login/device'), 'Wrong verification URL');
+    await page.wait('tbody a[href="/admin/tools/gh-axi/instances/default"]');
+    await openInstance('gh-axi');
     await page.wait('[data-connect-github] [name=expectedRevision][value="1"]');
     check(await page.eval(() => document.body.innerText.includes('Connected account: synthetic-machine')), 'Connected identity missing');
     check(await page.eval(() => !document.body.innerHTML.includes('gho_CANARY-browser-device')), 'Token was exposed');
@@ -492,14 +507,16 @@ test('sign-in settings can save a client secret and requires a replacement when 
 
 test('Proxmox stored password administration saves one credential without a separate login step', () => {
   browser(`
-    await page.open(base + '/admin/tools/proxmox-axi');
+    await addInstance('proxmox-axi');
     check(await page.eval(() => JSON.stringify([...document.querySelector('[data-profile-field=auth]').options].filter(option => option.value).map(option => JSON.parse(option.value))) === JSON.stringify(['api-token', 'password'])), 'Unexpected authentication choices');
     await page.fill('[data-profile-field=origin]', 'https://synthetic.invalid');
     await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"password"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
     await page.fill('[data-profile-field=userId]', 'automation@pve');
     await page.fill('[data-profile-field=password]', 'CANARY-proxmox-browser-password');
-    await page.click('form[action$="/credential"] button');
+    await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-test-result]:not(:empty)');
+    await openInstance('proxmox-axi');
     await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
     check(await page.eval(() => document.querySelector('[data-profile-field=password]').value === '' && !document.documentElement.outerHTML.includes('CANARY-proxmox-browser-password')), 'Password redisplayed');
     check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"password"' && document.querySelector('[data-profile-field=userId]').value === 'automation@pve'), 'Selected identity was not saved');
@@ -515,12 +532,9 @@ test('SSH administration explains dedicated identities without offering generic 
     await page.open(base + '/admin/tools/ssh-axi');
     await page.wait('main');
     check(await page.eval(() => document.querySelector('main').innerText.includes('Dedicated SSH identity')), 'Missing SSH identity guidance');
-    check(await page.eval(() => !document.querySelector('form[action$="/credential"], [data-save-tool], [data-test-tool]')), 'Generic SSH credential or test form was offered');
+    check(await page.eval(() => !document.querySelector('form[action$="/credential"], [data-save-tool], [data-test-tool], [data-sheet="sheet-add-instance"]')), 'Generic SSH credential, instance or test form was offered');
     check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'SSH connection page overflows at 420px');
-    await page.click('.utabs a[href$="tab=certificates"]');
-    await page.wait('main');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('independently verified server public keys')), 'Missing SSH host-trust guidance');
-    check(await page.eval(() => !document.querySelector('form[action*="/certificates"]')), 'HTTPS trust controls were offered for SSH');
+    check(await page.eval(() => !document.querySelector('.utabs a[href$="tab=certificates"], form[action*="/certificates"]')), 'HTTPS trust controls were offered for SSH');
   `)
 })
 
@@ -605,7 +619,7 @@ test('SSH audit escapes retained output and exports only recorded metadata', asy
 
 test('Kubernetes certificate editor saves separate fields and requires a key when the certificate changes', () => {
   browser(`
-    await page.open(base + '/admin/tools/kubernetes-axi?tab=credential');
+    await addInstance('kubernetes-axi');
     await page.fill('[data-profile-field=origin]', 'https://cluster.example');
     await page.fill('[data-profile-field=certificateAuthority]', 'CANARY-cluster-CA');
     await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"certificate"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
@@ -613,9 +627,11 @@ test('Kubernetes certificate editor saves separate fields and requires a key whe
     check(await page.eval(() => document.querySelector('[data-profile-field=clientCertificate]').tagName === 'TEXTAREA'), 'Client certificate must preserve PEM lines');
     await page.fill('[data-profile-field=clientCertificate]', 'CANARY-client-certificate');
     await page.fill('[data-profile-field=privateKey]', 'CANARY-client-private-key');
-    await page.click('form[action$="/credential"] button');
+    await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-test-result]:not(:empty)');
+    await openInstance('kubernetes-axi');
     await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
     check(await page.eval(() => document.querySelector('[data-profile-field=privateKey]').value === '' && !document.documentElement.outerHTML.includes('CANARY-client-private-key')), 'Private key redisplayed');
     check(await page.eval(() => !document.querySelector('[data-profile-field=privateKey]').required), 'Unchanged identity cannot retain its stored key');
@@ -744,20 +760,9 @@ const toolCredentials = [
 test('certificate inspection reviews the saved endpoint and trusts it in one confirmation', () => {
   chrome(['resize', '420', '900'])
   browser(`
-    await page.open(base + '/admin/tools/vectra-axi');
-    for (const [name, value] of Object.entries({ kind: 'qux', apiVersion: '2.5', auth: 'token' })) {
-      await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = ' + JSON.stringify(JSON.stringify(value)) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
-    }
-    await page.fill('[data-profile-field=origin]', base);
-    await page.fill('[data-profile-field=token]', 'CANARY-certificate-review');
-    await page.click('[data-save-and-test]');
-    await page.click('form[data-save-tool] button');
-    await page.wait('#confirmation[open]');
-    await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form[data-save-tool] [name=expectedRevision][value="1"]');
+    await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-certificate-review' });
     await page.click('form[data-test-tool] button');
     await page.wait('[data-test-result]:not(:empty)');
-    await page.open(base + '/admin/tools/vectra-axi?tab=certificates');
     await page.wait('[data-inspect-certificate]:not([hidden])');
     await page.click('[data-inspect-certificate] button');
     await page.wait('#certificate-inspection[open]');
@@ -786,7 +791,7 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Trusted fingerprint overflows the narrow screen');
     check(await page.eval(() => !document.querySelector('#confirmation[open]')), 'Trust requires an extra confirmation');
     check(await page.eval(async () => {
-      const result = await (await fetch('/v1/admin/tools/vectra-axi/certificates')).json();
+      const result = await (await fetch('/v1/admin/tools/vectra-axi/instances/default/certificates')).json();
       const audit = await (await fetch('/v1/admin/audit?event=admin-change')).json();
       return result.certificates.length === 1 && result.certificates[0].mode === 'ca' && audit.records.some(row => row.action === 'trust-certificate' && row.target_id === result.certificates[0].certificate.fingerprint);
     }), 'Trust or fingerprint audit missing');
@@ -810,44 +815,28 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
   `)
 })
 
-test('credential diagnostics show the admission failure before saving', () => {
-  browser(`
-    await page.open(base + '/admin/tools/falcon-axi');
-    await page.click('form[data-test-tool] button');
-    await page.wait('[data-check-diagnostic]:not(:empty)');
-    check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('configuration')), 'Missing admission stage');
-    check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('No credential is configured for the tool.')), 'Missing admission diagnostic');
-    check(await page.eval(() => document.querySelector('[data-check-error]').textContent === 'CREDENTIAL_NOT_CONFIGURED'), 'Missing current failure category');
-    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test failed.'), 'Missing failed test result');
-  `)
-})
-
-test('disabled tool retains cached test outcomes after switching tabs', () => {
+test('disabled tool retains cached test outcomes after reloading the instance', () => {
   browser(`
     await page.open(base + '/admin/tools/vectra-axi');
     check(await page.eval(() => document.querySelector('form:has([name=enabled]) [role=switch]').getAttribute('aria-checked') === 'false'), 'Tool must start disabled');
-    for (const [name, value] of Object.entries({ kind: 'qux', apiVersion: '2.5', auth: 'token' })) {
-      await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = ' + JSON.stringify(JSON.stringify(value)) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
-    }
-    await page.fill('[data-profile-field=origin]', base);
-    await page.fill('[data-profile-field=token]', 'CANARY-cached-test');
-    await page.click('form[data-save-tool] button');
-    await page.wait('#confirmation[open]');
-    await page.click('#confirmation button[value=confirmed]');
+    await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-cached-test' });
+    await page.click('form[data-test-tool] button');
     await page.wait('[data-check-failure]:not([hidden]) [data-check-error]:not(:empty)');
     const error = await page.eval(() => document.querySelector('[data-check-error]').textContent);
     check(error === 'UPSTREAM_TLS_FAILED', 'Loopback fixture must fail on its untrusted certificate');
     const diagnostic = await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.trim());
     check(diagnostic.length > 0, 'Failure must explain the error');
-    await page.click('nav.utabs a[href$="?tab=access"]');
-    await page.wait('nav.utabs a[href$="?tab=access"][aria-current=page]');
+    await openInstance('vectra-axi');
     check(await page.eval(() => !document.querySelector('[data-check-failure]').hidden), 'Cached failure callout hidden after navigation');
     check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.trim()) === diagnostic, 'Cached diagnostic changed');
     check(await page.eval(() => document.querySelector('[data-check-summary]').textContent.trim().length > 0), 'Cached failure explanation missing');
     check(await page.eval(() => document.querySelector('[data-check-error]').textContent) === error, 'Cached failure category changed');
     check(await page.eval(() => document.querySelector('[data-tool-state]').textContent.includes('Failing')), 'Detail badge lost the failure');
     check(await page.eval(() => document.querySelector('[data-test-checklist]').textContent.includes('Failing:')), 'Setup lost the failed outcome');
-    check(await page.eval(() => document.querySelector('form:has([name=enabled]) [role=switch]').getAttribute('aria-checked') === 'false'), 'Testing enabled the tool');
+    check(await page.eval(async () => (await (await fetch('/v1/admin/tools/vectra-axi')).json()).enabled === false), 'Testing enabled the tool');
+    await page.open(base + '/admin/tools/vectra-axi');
+    await page.wait('tbody a[href="/admin/tools/vectra-axi/instances/default"]');
+    check(await page.eval(() => document.querySelector('tbody').textContent.includes('Failing')), 'Instances tab lost the failed outcome');
     await page.open(base + '/admin/tools');
     await page.wait('tbody a[href="/admin/tools/vectra-axi"]');
     check(await page.eval(() => document.querySelector('tbody a[href="/admin/tools/vectra-axi"]').closest('tr').querySelector('[data-label=State]').textContent.includes('Failing')), 'List lost the failed outcome');
@@ -858,16 +847,15 @@ test('disabled tool retains cached test outcomes after switching tabs', () => {
       const response = await fetch('/test/trust-ca', { method: 'POST' });
       if (!response.ok) throw new Error('Could not install the fixture CA');
     });
-    await page.open(base + '/admin/tools/vectra-axi');
+    await openInstance('vectra-axi');
     await page.click('form[data-test-tool] button');
     await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test passed.'), 'Loopback test did not pass after trust');
-    await page.click('nav.utabs a[href$="?tab=access"]');
-    await page.wait('nav.utabs a[href$="?tab=access"][aria-current=page]');
+    await openInstance('vectra-axi');
     check(await page.eval(() => document.querySelector('[data-tool-state]').textContent.includes('Healthy')), 'Detail lost the successful outcome');
     check(await page.eval(() => document.querySelector('[data-check-failure]').hidden), 'Successful test retained the failure callout');
     check(await page.eval(() => document.querySelector('[data-test-checklist]').textContent.includes('Passed')), 'Setup lost the successful outcome');
-    check(await page.eval(() => document.querySelector('form:has([name=enabled]) [role=switch]').getAttribute('aria-checked') === 'false'), 'Successful test enabled the tool');
+    check(await page.eval(async () => (await (await fetch('/v1/admin/tools/vectra-axi')).json()).enabled === false), 'Successful test enabled the tool');
     await page.open(base + '/admin/tools');
     await page.wait('tbody a[href="/admin/tools/vectra-axi"]');
     check(await page.eval(() => document.querySelector('tbody a[href="/admin/tools/vectra-axi"]').closest('tr').querySelector('[data-label=State]').textContent.includes('Healthy')), 'List lost the successful outcome');
@@ -877,11 +865,11 @@ test('disabled tool retains cached test outcomes after switching tabs', () => {
 for (const action of ['save', 'test']) {
   test('credential diagnostics retain the current ' + action + ' response over cached health', () => {
     browser(`
-      await page.open(base + '/admin/tools/falcon-axi');
+      await createInstance('falcon-axi', falconValue);
       await page.eval(() => {
         const original = window.fetch.bind(window);
         window.fetch = async (url, options) => {
-          if (new URL(url, location.href).pathname !== '/v1/admin/tools/falcon-axi/test') return original(url, options);
+          if (new URL(url, location.href).pathname !== '/v1/admin/tools/falcon-axi/instances/default/test') return original(url, options);
           return Response.json({ error: { code: 'TOO_MANY_CALLS', message: 'A check is already running.', next: 'Try again later.',
             diagnostic: { stage: 'configuration', message: 'This credential check was not admitted.', checkedAt: 1700000000000,
               credentialRevision: 1 } } }, { status: 429 });
@@ -911,12 +899,12 @@ for (const action of ['save', 'test']) {
   for (const outcome of ['redirect', 'html', 'invalid-health', 'ok']) {
     test(action + ' credential test validates ' + outcome + ' response', () => {
       browser(`
-        await page.open(base + '/admin/tools/falcon-axi');
+        await createInstance('falcon-axi', falconValue);
         await page.wait('[data-credential-editor]');
         await page.eval(() => {
           const original = window.fetch.bind(window);
           window.fetch = async (url, options) => {
-            if (new URL(url, location.href).pathname !== '/v1/admin/tools/falcon-axi/test') return original(url, options);
+            if (new URL(url, location.href).pathname !== '/v1/admin/tools/falcon-axi/instances/default/test') return original(url, options);
             const outcome = ${JSON.stringify(outcome)};
             if (outcome === 'redirect') {
               // Revoke without clearing cookies so the test request receives a browser redirect.
@@ -945,7 +933,7 @@ for (const action of ['save', 'test']) {
         }
         if (${JSON.stringify(outcome)} === 'redirect') {
           await page.wait('form[action="/login"]');
-          check(await page.eval(() => sessionStorage.getItem('credential-test:/admin/tools/falcon-axi') === null), 'Redirect retained a success result');
+          check(await page.eval(() => sessionStorage.getItem('credential-test:/admin/tools/falcon-axi/instances/default') === null), 'Redirect retained a success result');
         } else if (${JSON.stringify(action)} === 'save') {
           await page.wait('[data-test-result]:not(:empty)');
           const expected = ${JSON.stringify(outcome === 'ok' ? 'Saved. Test passed.' : 'Saved. Test could not complete. Run Test connection again.')};
@@ -987,13 +975,13 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
     await page.open(base + '/admin/tools');
     await page.click('tbody a[href="/admin/tools/${entry.tool}"]');
     await page.wait('[data-credential-editor]');
-    check(await page.eval(() => ['Write permissions', 'Certificates', 'Access', 'Advanced'].every(tab => [...document.querySelectorAll('nav.utabs a')].some(link => link.textContent.includes(tab)))), 'Tool tabs missing');
+    check(await page.eval(() => ['Instances', 'Write permissions', 'Access', 'Advanced'].every(tab => [...document.querySelectorAll('nav.utabs a')].some(link => link.textContent.includes(tab)))), 'Tool tabs missing');
     await page.open(base + '/admin/tools/${entry.tool}?tab=advanced');
     await page.fill('[name=nativeSettings]', ${JSON.stringify(JSON.stringify(entry.settings))});
     await page.click('form:has([name=nativeSettings]) button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form:has([name=nativeSettings]) [name=expectedRevision][value="2"]');
-    await page.open(base + '/admin/tools/${entry.tool}');
+    await addInstance('${entry.tool}');
     await page.wait('form[data-save-tool] [name=expectedToolRevision][value="2"]');
     const fields = ${JSON.stringify(entry.fields)};
     for (const [name, value] of Object.entries(fields)) {
@@ -1004,6 +992,7 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'Save and test failed');
+    await openInstance('${entry.tool}');
     check(await page.eval(() => document.querySelector('[data-profile-field="${entry.secret}"]').value === ''), 'Stored secret was displayed');
     await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
@@ -1025,11 +1014,11 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
 for (const saveAndTest of [false, true]) {
 test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalization notices and canonical public values after reload', () => {
   browser(`
-    await page.open(base + '/admin/tools/vectra-axi');
+    await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.example', auth: 'token', token: 'CANARY-initial-token' });
     await page.eval(() => {
       const original = window.fetch.bind(window);
       window.fetch = async (url, options) => {
-        if (new URL(url, location.href).pathname !== '/v1/admin/tools/vectra-axi/test') return original(url, options);
+        if (new URL(url, location.href).pathname !== '/v1/admin/tools/vectra-axi/instances/default/test') return original(url, options);
         return Response.json({ error: { code: 'UPSTREAM_NETWORK_FAILED', message: 'The upstream service could not be reached.',
           next: 'Check the diagnostic host and stage.', diagnostic: { stage: 'DNS', host: 'appliance.example',
             message: 'Synthetic DNS failure.', checkedAt: 1700000000000, credentialRevision: 1 } } }, { status: 503 });
@@ -1043,7 +1032,7 @@ test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalizatio
     if (!${saveAndTest}) await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form[data-save-tool] [name=expectedRevision][value="1"]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
     check(await page.eval(() => document.querySelector('[data-profile-field=origin]').value === 'https://appliance.example'), 'Stored canonical origin missing');
     check(await page.eval(() => document.querySelector('[data-profile-field=token]').value === ''), 'Stored secret was displayed');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('origin: canonicalized format.')), 'Origin normalization notice missing');
@@ -1059,7 +1048,7 @@ test('LDAP CA PEM and multi-line secret keep exact newlines from browser to stor
   const pem = '-----BEGIN CERTIFICATE-----\nCANARY-first-line\nCANARY-second-line\n-----END CERTIFICATE-----\n'
   const password = 'CANARY-first-line\nCANARY-second-line\n'
   browser(`
-    await page.open(base + '/admin/tools/ldap-axi');
+    await addInstance('ldap-axi');
     await page.fill('[data-profile-field=url]', 'ldaps://directory.example');
     await page.eval(() => { const auth = document.querySelector('[data-profile-field=auth]'); auth.value = '"simple"'; auth.dispatchEvent(new Event('change', { bubbles: true })); });
     await page.fill('[data-profile-field=bindDn]', 'cn=reader,dc=example');
@@ -1069,6 +1058,7 @@ test('LDAP CA PEM and multi-line secret keep exact newlines from browser to stor
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'LDAP test failed: ' + await page.eval(() => document.querySelector('[data-test-result]').textContent));
+    await openInstance('ldap-axi');
     check(await page.eval(() => document.querySelector('[data-profile-field=caFile]').value) === ${JSON.stringify(pem)}, 'PEM was not pre-filled exactly');
   `)
   const { stored, delivered } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/ldap-axi'))).json()
@@ -1080,7 +1070,7 @@ test('LDAP CA PEM and multi-line secret keep exact newlines from browser to stor
 
 for (const tool of ['az-axi', 'mg-axi']) test(tool + ' certificate PEM calculates the fingerprint and saves the matching key', async () => {
   browser(`
-    await page.open(base + '/admin/tools/${tool}');
+    await addInstance('${tool}');
     ${tool === 'mg-axi' ? `await page.eval(() => { const input = document.querySelector('[data-profile-field=mode]'); input.value = '"application"'; input.dispatchEvent(new Event('change', { bubbles: true })); });` : ''}
     await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"certificate"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
     check(await page.eval(() => document.querySelector('[data-profile-field=clientSecret]').disabled), 'Client secret remained active');
@@ -1091,7 +1081,8 @@ for (const tool of ['az-axi', 'mg-axi']) test(tool + ' certificate PEM calculate
     await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form[data-save-tool] [name=expectedRevision][value="1"]');
+    await page.wait('[data-test-result]:not(:empty)');
+    await openInstance('${tool}');
     check(await page.eval(() => document.querySelector('[data-profile-field=privateKey]').value === ''), 'Private key exposed');
   `)
   const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/' + tool))).json()
@@ -1102,7 +1093,7 @@ for (const tool of ['az-axi', 'mg-axi']) test(tool + ' certificate PEM calculate
 
 test('malformed certificate PEM keeps the draft and leaves the credential unconfigured', async () => {
   browser(`
-    await page.open(base + '/admin/tools/az-axi');
+    await addInstance('az-axi');
     await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"certificate"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
     await page.fill('[data-profile-field=tenantId]', '11111111-1111-4111-8111-111111111111');
     await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
@@ -1110,8 +1101,8 @@ test('malformed certificate PEM keeps the draft and leaves the credential unconf
     await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('#message:not(:empty)');
-    check(await page.eval(() => document.querySelector('#message').textContent.includes('INVALID_INPUT')), 'Missing PEM error');
+    await page.wait('[data-sheet-message]:not(:empty)');
+    check(await page.eval(() => document.querySelector('[data-sheet-message]').textContent.includes('INVALID_INPUT')), 'Missing PEM error');
     check(await page.eval(() => document.querySelector('[data-certificate-pem]').value === 'CANARY-invalid-pem'), 'PEM draft lost');
   `)
   const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/az-axi'))).json()
@@ -1384,15 +1375,7 @@ for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' card-level controls a
 
 test('changing Vectra authentication requires new secrets and saves only the selected method', async () => {
   browser(`
-    await page.open(base + '/admin/tools/vectra-axi');
-    for (const [name, value] of Object.entries({ kind: 'qux', apiVersion: '2.5', auth: 'token' })) {
-      await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = ' + JSON.stringify(JSON.stringify(value)) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
-    }
-    await page.fill('[data-profile-field=origin]', 'https://appliance.example');
-    await page.fill('[data-profile-field=token]', 'CANARY-original-token');
-    await page.click('[data-save-and-test]');
-    await page.click('form[data-save-tool] button');
-    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.example', auth: 'token', token: 'CANARY-original-token' });
     await page.wait('form[data-save-tool] [name=expectedRevision][value="1"]');
     await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"oauth"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
     await page.click('[data-save-and-test]');

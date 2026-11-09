@@ -530,7 +530,7 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 .cell-main a { font-weight: 500; }
 .cell-main .sub { display: block; color: var(--text-faint); font-size: var(--fs-xs); font-weight: 400; overflow-wrap: anywhere; }
 .cell-main span span { color: var(--text-faint); font-size: var(--fs-xs); font-weight: 400; }
-.audit-table { min-width: 640px; }
+.audit-table { min-width: 720px; }
 .audit-table tbody th { font-weight: 400; color: var(--text-muted); white-space: nowrap; }
 
 /* Option tiles: a checkbox card per choice */

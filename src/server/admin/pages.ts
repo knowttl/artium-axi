@@ -1,22 +1,21 @@
 import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
 import type { z } from 'zod'
-import { adminToolRoutes, toolSchema, githubDeviceRoutes } from '../../shared/api.js'
-import { ArtiumError, errors } from '../../shared/errors.js'
-import type { Diagnostic } from '../../shared/errors.js'
+import { adminToolRoutes, toolSchema } from '../../shared/api.js'
+import { ArtiumError } from '../../shared/errors.js'
 import operationCatalogue from '../../../tools/inventories/write-operations.json' with { type: 'json' }
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { escape } from './escape.js'
-import { actionForm, adminRead, changed, revision, timestamp } from './forms.js'
-import { credentialFields, editorProfile } from './credential-form.js'
+import { actionForm, adminRead, revision, timestamp } from './forms.js'
+import { editorProfile } from './credential-form.js'
+import { instancesPanel, readInstanceRows, registerInstancePages } from './instances.js'
 import { setupBadge, toolIcon, toolProducts, toolSetupState, writes as writesState } from './design/status.js'
 import { callout, card, checkOption, icon, noteCard, sheet, sheetLink, steps, tabs } from './design/ui.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { ToolName } from '../store/credential-store.js'
 import type { TrustedCertificate } from '../trusted-ca.js'
-import { credentialCertificates } from '../store/trusted-certificates.js'
-import { toolEndpoints } from '../tool-endpoints.js'
+import { hasSshConfiguration } from '../store/ssh-hosts.js'
 
 const settingsGuide = {
   'ssh-axi': 'Writes default off. Confirmed execution additionally requires a writable host and current caller grants; sudo needs its distinct approved account and credential. Receipts prevent replay and execution show recovers a result. Reusable connections belong to one user and session. Audit reads and metadata exports are available at /admin/ssh/audit.',
@@ -39,25 +38,6 @@ const settingsGuide = {
   'vectra-axi': 'Optional writes: {"allowWrites": true, "operations": ["notes.set"]}. Use {} to clear settings.',
   'az-axi': 'Optional subscriptions (array of IDs), managementGroup (ID), workspaces (name-to-UUID object), description (text), allowWrites (boolean), tlsDestinations: {"storageAccounts": ["synthetic"], "keyVaults": ["synthetic"], "registries": ["synthetic"]} (service names for certificate inspection, without domains). Use {} to clear settings.',
 }
-const testGuide = {
-  'ssh-axi': 'doctor <granted-host> through the signed-in CLI; no shared tenant credential test is available',
-  'technitium-axi': 'Technitium user session get (authenticated read)',
-  'shodan-axi': 'Shodan API information (authenticated read)',
-  'gitea-axi': 'Gitea doctor',
-  'kubernetes-axi': 'Kubernetes pod read',
-  'unifi-axi': 'UniFi info',
-  'proxmox-axi': 'Proxmox get /version',
-  'gh-axi': 'GitHub api /rate_limit',
-  'hybrid-axi': 'Hybrid Analysis quota',
-  'tenable-axi': 'Tenable tag category list --limit 1',
-  'beyondtrust-axi': 'BeyondTrust doctor (authentication and bounded About read)',
-  'checkpoint-axi': 'Check Point doctor (authentication and bounded email search)',
-  'awx-axi': 'AWX job list --limit 1',
-  'ado-axi': 'Azure DevOps project list --limit 1',
-  'falcon-axi': 'Falcon auth status', 'vectra-axi': 'Vectra health list', 'az-axi': 'Azure account list',
-  'mg-axi': 'Graph entra user list --limit 1', 'ldap-axi': 'LDAP auth status',
-}
-
 type Tool = z.infer<typeof adminToolRoutes.list.response>['tools'][number]
 type Credential = z.infer<typeof adminToolRoutes.credential.response>
 type Risk = 'delete' | 'bulk'
@@ -82,11 +62,7 @@ function operationGroups(tool: ToolName, supported: readonly string[], family: u
   return [...groups.filter(configured), ...groups.filter(group => !configured(group))]
 }
 
-function diagnosticText(detail?: Diagnostic): string {
-  return detail ? [detail.stage, detail.host, detail.toolCode, detail.providerCode, detail.message, detail.hint, detail.issuer, detail.trust].filter(Boolean).join('\n') : ''
-}
-
-const tabNames = ['connection', 'writes', 'certificates', 'access', 'advanced'] as const
+const tabNames = ['instances', 'writes', 'access', 'advanced'] as const
 type Tab = typeof tabNames[number]
 
 export function registerAdminPages(app: FastifyInstance, db: Database.Database,
@@ -101,12 +77,17 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     requireBrowserAdmin(db, request.cookies[browserCookie] ?? '', false)
     const current = readBrowserSession(db, request.cookies[browserCookie]!)
     const { tools } = await adminRead(app, request, '/v1/admin/tools', adminToolRoutes.list.response)
-    const credentials = await Promise.all(tools.map(tool => adminRead(app, request, `/v1/admin/tools/${tool.name}/credential`, adminToolRoutes.credential.response)))
+    const instances = await Promise.all(tools.map(tool => readInstanceRows(app, request, db, tool)))
     const roles = roleCounts()
     const query = request.query as { show?: string, q?: string }
     const show = query.show === 'enabled' || query.show === 'attention' ? query.show : 'all'
     const search = typeof query.q === 'string' ? query.q.trim() : ''
-    const rows = tools.map((tool, index) => ({ tool, state: tool.name === 'ssh-axi' && credentials[index]!.configured ? 'hostChecks' as const : toolSetupState({ enabled: tool.enabled, configured: credentials[index]!.configured, health: tool.health }) }))
+    const rows = tools.map((tool, index) => {
+      const listed = instances[index]!
+      const configured = tool.name === 'ssh-axi' ? hasSshConfiguration(db) : listed.some(row => row.instance!.configured)
+      return { tool, count: listed.length, failing: listed.filter(row => row.instance?.health.status === 'error').length,
+        state: tool.name === 'ssh-axi' && configured ? 'hostChecks' as const : toolSetupState({ enabled: tool.enabled, configured, health: tool.health }) }
+    })
     const attention = (row: typeof rows[number]) => row.state === 'failing' || row.state === 'needsCredential'
     const counts = { all: rows.length, enabled: rows.filter(row => row.tool.enabled).length, attention: rows.filter(attention).length }
     const visible = rows.filter(row => (show === 'all' || (show === 'enabled' ? row.tool.enabled : attention(row)))
@@ -114,15 +95,16 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const link = (value: string) => '/admin/tools' + (value === 'all' ? '' : '?show=' + value) + (search ? `${value === 'all' ? '?' : '&'}q=${encodeURIComponent(search)}` : '')
     const filters = `<form class="filters" method="get" action="/admin/tools" data-filters><div class="seg" role="group" aria-label="Show">${(['all', 'enabled', 'attention'] as const).map(value =>
       `<a href="${escape(link(value))}"${show === value ? ' aria-current="page"' : ''}>${{ all: 'All', enabled: 'Enabled', attention: 'Needs attention' }[value]} ${counts[value]}</a>`).join('')}</div>${show === 'all' ? '' : `<input type="hidden" name="show" value="${show}">`}<label class="search narrow"><span class="sr-only">Filter tools</span>${icon('search')}<input type="search" name="q" value="${escape(search)}" placeholder="Filter tools"></label></form>`
-    const body = visible.map(({ tool, state }) => `<tr><td><div class="cell-main">${toolIcon(tool.name)}<div><a href="/admin/tools/${tool.name}">${escape(toolProducts[tool.name].name)}</a><span>${escape(tool.name)} · ${escape(tool.version)}</span></div></div></td>
-      <td data-label="State">${setupBadge(state)}</td><td data-label="Enabled" class="muted"><span class="row"><span class="switch${tool.enabled ? ' on' : ''}" aria-hidden="true"></span>${tool.enabled ? 'On' : 'Off'}</span></td>
+    const body = visible.map(({ tool, state, count, failing }) => `<tr><td><div class="cell-main">${toolIcon(tool.name)}<div><a href="/admin/tools/${tool.name}">${escape(toolProducts[tool.name].name)}</a><span>${escape(tool.name)} · ${escape(tool.version)}</span></div></div></td>
+      <td data-label="Instances" class="muted">${count} ${tool.name === 'ssh-axi' ? 'host' : 'instance'}${count === 1 ? '' : 's'}</td>
+      <td data-label="State">${setupBadge(state)}${failing && count > 1 ? `<p class="hint">${failing} of ${count} failing</p>` : ''}</td><td data-label="Enabled" class="muted"><span class="row"><span class="switch${tool.enabled ? ' on' : ''}" aria-hidden="true"></span>${tool.enabled ? 'On' : 'Off'}</span></td>
       <td data-label="Writes">${writesState({ capable: tool.writeAccess.capable, enabled: !tool.readOnly, operations: tool.writeAccess.supportedOperations ? tool.writeAccess.allowedOperations.length : null }, 'status')}</td>
       <td data-label="Roles" class="muted">${roles.get(tool.name) ?? 0}</td><td data-label="Last checked" class="num faint">${timestamp(tool.health.checkedAt, 'Never')}</td></tr>`).join('')
-    const table = `<section class="card"><table class="tbl stack-sm"><caption class="sr-only">Tools</caption><thead><tr><th scope="col">Tool</th><th scope="col">State</th><th scope="col">Enabled</th><th scope="col">Writes</th><th scope="col">Roles</th><th scope="col" class="num">Last checked</th></tr></thead><tbody>${body}</tbody></table>${visible.length ? '' : '<p class="empty">No tools match these filters. <a href="/admin/tools">Show all tools</a>.</p>'}</section>`
+    const table = `<section class="card"><table class="tbl stack-sm"><caption class="sr-only">Tools</caption><thead><tr><th scope="col">Tool</th><th scope="col">Instances</th><th scope="col">State</th><th scope="col">Enabled</th><th scope="col">Writes</th><th scope="col">Roles</th><th scope="col" class="num">Last checked</th></tr></thead><tbody>${body}</tbody></table>${visible.length ? '' : '<p class="empty">No tools match these filters. <a href="/admin/tools">Show all tools</a>.</p>'}</section>`
     const trust = trustedCertificates.length
       ? `<table class="tbl stack-sm"><caption class="sr-only">Server-wide trusted CA bundle</caption><thead><tr><th scope="col">Subject</th><th scope="col">Issuer</th><th scope="col">Expires (UTC)</th><th scope="col">SHA-256 fingerprint</th></tr></thead><tbody>${trustedCertificates.map(certificate => `<tr><td>${escape(certificate.subject)}</td><td data-label="Issuer">${escape(certificate.issuer)}</td><td data-label="Expires">${escape(certificate.expiresAt)}</td><td data-label="SHA-256"><code>${escape(certificate.fingerprint)}</code></td></tr>`).join('')}</tbody></table>`
       : ''
-    const footer = `<section class="card"><div class="list-row">${icon('cert')}<div class="grow"><strong>Server-wide trusted CA bundle</strong><p>${trustedCertificates.length ? `${trustedCertificates.length} certificate${trustedCertificates.length === 1 ? '' : 's'}.` : 'None configured.'} An operator sets ARTIUM_AXI_EXTRA_CA_FILE and restarts the server to change it. Per-tool trust is on each tool's Certificates tab.</p></div><span class="badge">Read-only</span></div>${trust}</section>`
+    const footer = `<section class="card"><div class="list-row">${icon('cert')}<div class="grow"><strong>Server-wide trusted CA bundle</strong><p>${trustedCertificates.length ? `${trustedCertificates.length} certificate${trustedCertificates.length === 1 ? '' : 's'}.` : 'None configured.'} An operator sets ARTIUM_AXI_EXTRA_CA_FILE and restarts the server to change it. Per-instance trust is on each instance's page.</p></div><span class="badge">Read-only</span></div>${trust}</section>`
     return browserPage(reply, 'Tools', filters + table + footer, current, 'Each tool starts off. Connect it, test it, enable it, then grant it to a role.')
   })
   app.get('/admin/tools/:tool', async (request, reply) => {
@@ -131,79 +113,50 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const parsed = toolSchema.safeParse((request.params as { tool: string }).tool)
     if (!parsed.success) throw new ArtiumError('NOT_FOUND')
     const query = request.query as { tab?: string, q?: string, show?: string, sheet?: string }
-    const tab: Tab = tabNames.find(name => name === query.tab) ?? 'connection'
+    const tab: Tab = tabNames.find(name => name === query.tab) ?? 'instances'
     const api = '/v1/admin/tools/' + parsed.data
     const tool = await adminRead(app, request, api, adminToolRoutes.get.response)
-    const credential = await adminRead(app, request, api + '/credential', adminToolRoutes.credential.response)
+    const instanceRows = await readInstanceRows(app, request, db, tool)
+    const configured = tool.name === 'ssh-axi' ? hasSshConfiguration(db) : instanceRows.some(row => row.instance!.configured)
     const csrf = reply.generateCsrf()
     const product = toolProducts[tool.name].name
     // Forms keep today's API, CSRF token, revision and confirmation; buttons sit wherever the card needs them.
     const formStart = (action: string, method: string, confirmation: string, attributes = '', className = '') =>
       `<form${className ? ` class="${className}"` : ''} data-api data-method="${method}" data-confirm="${escape(confirmation)}"${attributes ? ' ' + attributes : ''} action="${escape(action)}" method="post"><input type="hidden" name="_csrf" value="${escape(csrf)}">`
-    const revisionInputs = (credentialRevision: number) => `<input type="hidden" name="expectedRevision" data-type="number" value="${credentialRevision}"><input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}">`
     const roles = db.prepare(`SELECT roles.id, roles.name, roles.revision, role_tools.all_instances AS allInstances,
       (SELECT COUNT(DISTINCT user_id) FROM user_roles WHERE user_roles.role_id = roles.id) AS members
       FROM roles JOIN role_tools ON role_tools.role_id = roles.id WHERE tool = ? ORDER BY roles.name`).all(tool.name) as { id: string, name: string, revision: number, allInstances: number, members: number }[]
-    const state = tool.name === 'ssh-axi' && credential.configured ? 'hostChecks' : toolSetupState({ enabled: tool.enabled, configured: credential.configured, health: tool.health })
+    const state = tool.name === 'ssh-axi' && configured ? 'hostChecks' : toolSetupState({ enabled: tool.enabled, configured, health: tool.health })
     const tested = state === 'healthy'
     const failing = state === 'failing'
     const writes = tool.writeAccess
     const awx = tool.name === 'awx-axi'
 
-    const test = tool.name === 'ssh-axi' ? '' : formStart(api + '/test', 'POST', '', `data-test-tool="${tool.name}"`) + `<button class="btn btn-secondary">${icon('test')}Test connection</button></form>`
     const enable = formStart(api, 'PATCH', tool.enabled ? 'Disable this tool and block new calls?' : 'Enable this tool for people whose roles grant access?') +
       `<input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}"><input type="hidden" name="enabled" data-type="boolean" value="${!tool.enabled}"><button class="toggle" role="switch" aria-checked="${tool.enabled}"><span class="switch${tool.enabled ? ' on' : ''}" aria-hidden="true"></span>Enabled</button></form>`
-    const meta = `<span class="mono">${escape(tool.name)} · ${escape(tool.version)}</span><span data-tool-state>${setupBadge(state)}</span>${writesState({ capable: writes.capable, enabled: !tool.readOnly, operations: writes.supportedOperations ? writes.allowedOperations.length : null }, 'badge')}<span>Checked <span data-check-time>${timestamp(tool.health.checkedAt, 'never')}</span></span>`
-    const stateTemplates = `<template data-state="ok">${setupBadge('healthy')}</template><template data-state="error">${setupBadge('failing')}</template>`
-
-    const definition = tool.health.errorCode && tool.health.errorCode in errors ? errors[tool.health.errorCode as keyof typeof errors] : undefined
-    const failure = callout('err', 'Last test failed', `<span data-check-summary>${escape(tool.health.diagnostic?.message ?? definition?.message ?? '')} ${escape(tool.health.diagnostic?.hint ?? definition?.next ?? '')}</span>`, '',
-      { attributes: `data-check-failure${failing ? '' : ' hidden'}`, more: `<p>Agents calling this tool get <code data-check-error>${escape(tool.health.errorCode ?? '')}</code>.${tool.health.errorCode === 'UPSTREAM_TLS_FAILED' ? ` Review the endpoint on <a href="?tab=certificates">Certificates</a>.` : ''}</p><details><summary>Show diagnostic</summary><pre data-check-diagnostic>${escape(diagnosticText(tool.health.diagnostic))}</pre></details>` })
+    const meta = `<span class="mono">${escape(tool.name)} · ${escape(tool.version)}</span><span>${setupBadge(state)}</span>${writesState({ capable: writes.capable, enabled: !tool.readOnly, operations: writes.supportedOperations ? writes.allowedOperations.length : null }, 'badge')}<span>Checked ${timestamp(tool.health.checkedAt, 'never')}</span>`
     const grants = roles.map(role => role.name).join(', ')
+    const configuredAt = Math.max(0, ...instanceRows.map(row => row.instance?.updatedAt ?? 0))
     const setup = steps([
-      { title: tool.name === 'ssh-axi' ? 'Ordinary host binding configured' : 'Credential saved', detail: tool.name === 'ssh-axi' ? credential.configured ? 'Enabled host with an ordinary account binding' : 'No enabled host with an ordinary account binding' : credential.configured ? timestamp(credential.updatedAt) : 'Not saved yet', state: credential.configured ? 'done' : 'todo' },
-      ...(tool.name === 'ssh-axi' ? [] : [{ title: 'Test passes', detail: tested ? 'Passed' : failing ? `Failing: ${escape(tool.health.errorCode ?? 'error')}` : 'Not run', state: tested ? 'done' as const : failing ? 'fail' as const : 'todo' as const, attributes: 'data-test-checklist' }]),
+      { title: tool.name === 'ssh-axi' ? 'Ordinary host binding configured' : 'Credential saved', detail: tool.name === 'ssh-axi' ? configured ? 'Enabled host with an ordinary account binding' : 'No enabled host with an ordinary account binding' : configured ? `${instanceRows.length} instance${instanceRows.length === 1 ? '' : 's'}, last saved ${timestamp(configuredAt)}` : 'Not saved yet', state: configured ? 'done' : 'todo' },
+      ...(tool.name === 'ssh-axi' ? [] : [{ title: 'Test passes', detail: tested ? 'Passed' : failing ? `Failing: ${escape(tool.health.errorCode ?? 'error')}` : 'Not run', state: tested ? 'done' as const : failing ? 'fail' as const : 'todo' as const }]),
       { title: 'Enabled', detail: tool.enabled ? 'On' : 'Off', state: tool.enabled ? 'done' : 'todo' },
       { title: 'Granted to a role', detail: roles.length ? escape(grants) : 'No roles yet', state: roles.length ? 'done' : 'todo' },
     ])
     const writesNote = !writes.capable ? 'Read-only' : tool.readOnly ? 'Off' : writes.supportedOperations ? `${writes.allowedOperations.length} on` : 'On'
     const navigation = tabs(`/admin/tools/${tool.name}`, tab, [
-      { id: 'connection', label: 'Connection', icon: 'globe' },
+      { id: 'instances', label: 'Instances', icon: 'globe', note: String(instanceRows.length) },
       { id: 'writes', label: 'Write permissions', icon: 'zap', note: writesNote },
-      { id: 'certificates', label: 'Certificates', icon: 'cert' },
       { id: 'access', label: 'Access', icon: 'users', note: String(roles.length) },
       { id: 'advanced', label: 'Advanced', icon: 'sliders' },
     ], 'Tool sections')
     const result = '<p class="note" data-test-result role="status"></p>'
 
     let panel: string
-    if (tab === 'connection') {
-      let main = ''
-      if (tool.name === 'gh-axi') {
-        const device = credential.metadata.auth === 'device'
-        main += `<section class="card" data-github-device><div class="card-head"><div><h2>${device ? 'Reconnect' : 'Connect'} with GitHub</h2><p>One shared machine identity for this deployment.</p></div></div><div class="card-body">
-          <p>Use a dedicated machine account. This reuses the GitHub CLI OAuth client ID and requests repo, read:org, gist, workflow and project. These broad scopes permit writes outside Artium even while Artium writes are off.</p>
-          <p>The non-expiring OAuth token appears as GitHub CLI in GitHub Settings, Applications, Authorized OAuth Apps. Revoke it there. Store and rotate it like every other secret. No automatic refresh is performed. Connecting replaces the shared credential only after approval.</p>
-          ${device ? `<p>Connected account: <strong>${escape(credential.metadata.login)}</strong>. ${credential.metadata.accessTokenExpiresAt ? 'Provider expiry: ' + timestamp(Number(credential.metadata.accessTokenExpiresAt)) : 'No scheduled expiry.'}</p>` : ''}
-          ${tool.health.errorCode === 'CREDENTIAL_EXPIRED' ? callout('err', 'The credential expired or was revoked', 'Reconnect below.', '', { role: 'alert' }) : ''}
-          ${formStart(githubDeviceRoutes.start.path, 'POST', 'Connect a shared GitHub account with repo, read:org, gist, workflow and project scopes? This replaces the deployment credential after authorization.', 'data-connect-github')}${revisionInputs(credential.revision)}<label>GitHub HTTPS origin<input name="origin" type="url" required value="${escape(credential.metadata.origin ?? 'https://github.com')}"></label><button class="btn btn-secondary">${icon('link')}${device ? 'Reconnect with GitHub' : 'Connect with GitHub'}</button></form>
-          <div class="column" data-github-authorization hidden><p>Open <a data-github-link target="_blank" rel="noopener noreferrer"></a> and enter:</p><div class="bigcode" data-github-code></div><p data-github-status role="status"></p><div><button type="button" class="btn btn-ghost btn-sm" data-cancel-github>Cancel connection</button></div></div>
-          <p>Alternatively, choose token or github-app below to replace the credential using another method.</p></div></section>`
-      }
-      if (awx) {
-        main += formStart(api + '/origin', 'PUT', 'Save this controller address without sending credentials? A changed address removes the previous token and certificate trust.', '', 'card') +
-          `<div class="card-head"><div><h2>Controller address</h2><p>For password sign-in, save the address first, then check its certificate and sign in below.</p></div></div><div class="card-body">${revisionInputs(credential.revision)}<label>Controller HTTPS origin<input name="origin" type="url" required value="${escape(credential.metadata.origin ?? '')}"></label><p>Changing the saved address removes the previous token and certificate trust.</p></div><div class="card-foot"><span>Sends no credentials.</span><div class="actions"><button class="btn btn-secondary btn-sm">Save controller address</button></div></div></form>`
-      }
-      main += tool.name === 'ssh-axi' ? noteCard('Dedicated SSH identity', '<p>SSH requires separately managed host trust, caller grants and encrypted ordinary account bindings. Generic tenant credentials cannot configure SSH.</p><p><a href="/admin/ssh">Manage hosts, account bindings and grants</a> · <a href="/admin/ssh/credentials">Manage encrypted SSH credentials</a></p>') : formStart(api + '/credential', 'PATCH', 'Save this credential, retaining unchanged stored secrets for the same identity and keeping native settings?', `data-save-tool="${tool.name}"`, 'card') +
-        `<div class="card-head"><div><h2>Connection</h2><p>How Artium signs in to ${escape(product)}. Secrets are encrypted and never shown again.</p></div></div><div class="card-body">${revisionInputs(credential.revision)}${credentialFields(tool.name, editorProfile(tool.name, credentialProfiles[tool.name]), credential.metadata, credential.configured)}</div>
-        <div class="card-foot"><label class="check"><input type="checkbox" data-save-and-test checked> Test after saving</label><div class="actions"><button class="btn btn-primary btn-sm">Save connection</button></div></div></form>`
-      const aside = tool.name === 'ssh-axi' ? noteCard('Check authentication per host', '<p>As a caller with a shell grant, run <code>artium-axi ssh-axi host list</code>, then <code>artium-axi ssh-axi doctor &lt;host&gt;</code>. This checks authentication only. There is no shared connection test or cached health result.</p>') : noteCard('What the test does', `<p>Runs one harmless read: <code>${escape(testGuide[tool.name])}</code>. It does not enable the tool or grant access.</p>`) +
-        noteCard('Keeping secrets', '<p>Leave a stored secret blank to keep it. Changing authentication, mode, kind, tenant, client or URL needs new secrets.</p>') + (credential.configured ? changed(db, credential) : '')
-      panel = `<div class="split has-aside"><div class="column">${main}</div><div class="column">${aside}</div></div>`
+    if (tab === 'instances') {
+      panel = instancesPanel({ tool, csrf, rows: instanceRows, profile: editorProfile(tool.name, credentialProfiles[tool.name]), sheet: query.sheet })
     } else if (tab === 'writes') {
       panel = writesPanel()
-    } else if (tab === 'certificates') {
-      panel = tool.name === 'ssh-axi' ? noteCard('SSH host trust', '<p>SSH uses independently verified server public keys and approved literal addresses in dedicated host bindings. HTTPS certificate settings do not configure SSH trust.</p>') : certificatesPanel()
     } else if (tab === 'access') {
       const instances = db.prepare('SELECT id, name, description FROM credentials WHERE tool = ? ORDER BY name').all(tool.name) as { id: string, name: string, description: string }[]
       const granted = db.prepare('SELECT credential_id AS id FROM role_tool_instances WHERE role_id = ? AND tool = ?')
@@ -237,7 +190,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     }
     // The filter form sits outside the write form; its controls join it through the form attribute.
     const filterForm = tab === 'writes' && writes.capable && writes.supportedOperations ? `<form id="ops-filter" method="get" action="/admin/tools/${tool.name}" hidden><input type="hidden" name="tab" value="writes"></form>` : ''
-    return browserPage(reply, product, stateTemplates + failure + setup + result + navigation + panel + filterForm, current, undefined, { lead: toolIcon(tool.name, 'lg'), heading: product, meta, actions: `<div class="actions">${test}${enable}</div>`, helpTopic: 'Tools' })
+    return browserPage(reply, product, setup + result + navigation + panel + filterForm, current, undefined, { lead: toolIcon(tool.name, 'lg'), heading: product, meta, actions: `<div class="actions">${enable}</div>`, helpTopic: 'Tools' })
 
     function writesPanel(): string {
       const blocked = noteCard(awx ? 'Capability boundary' : 'Always blocked', `<p>${escape(writes.blocked)}</p>`)
@@ -266,7 +219,8 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
 
     function operationsCard(supported: readonly string[], save: string): string {
       const selected = new Set(writes.allowedOperations)
-      const groups = operationGroups(tool.name, supported, credential.metadata.kind)
+      const kind = instanceRows[0]?.instance?.metadata.kind
+      const groups = operationGroups(tool.name, supported, kind)
       const search = typeof query.q === 'string' ? query.q.trim().toLowerCase() : ''
       const show = query.show === 'selected' || query.show === 'deletes' ? query.show : 'all'
       const filtered = Boolean(search) || show !== 'all'
@@ -274,7 +228,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
         && (show === 'all' || (show === 'selected' ? selected.has(operation.name) : operation.risk.includes('delete')))
       const deleteCount = groups.reduce((total, group) => total + group.operations.filter(operation => operation.risk.includes('delete')).length, 0)
       const families = new Set(groups.map(group => group.family).filter(Boolean))
-      const family = typeof credential.metadata.kind === 'string' && families.has(credential.metadata.kind) ? credential.metadata.kind : undefined
+      const family = typeof kind === 'string' && families.has(kind) ? kind : undefined
       const familyNote = family ? ` Operations for your ${escape(family.toUpperCase())} deployment are listed first.` : ''
       const selectControls = (scope: string) => `<div class="ops-actions" data-ops-actions hidden><button type="button" class="btn btn-ghost btn-sm" data-ops-select="all" aria-label="Select all ${scope}">Select all</button><button type="button" class="btn btn-ghost btn-sm" data-ops-select="none" aria-label="Clear all ${scope}">Clear all</button></div>`
       const filters = `<div class="filters" data-ops-filter><label class="search"><span class="sr-only">Filter operations</span>${icon('search')}<input type="search" name="q" form="ops-filter" value="${escape(query.q ?? '')}" placeholder="Filter operations, for example note or close"></label>
@@ -292,38 +246,6 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
         <div class="card-body column">${filters}${selectControls('shown operations')}<div class="ops">${body}</div><p class="ops-empty" data-ops-empty${groups.some(group => group.operations.some(matches)) ? ' hidden' : ''}>No operations match this filter.</p></div>
         <div class="card-foot"><span>Saving keeps the credential and other settings. Audited.</span>${save}</div></section>`
     }
-
-    function certificatesPanel(): string {
-      if (!credential.configured && !(awx && credential.metadata.origin)) {
-        return card('Trusted certificates', 'Trust applies only to this tool\'s saved endpoints.', `<p class="empty">Save a connection first. Certificates are inspected at the saved endpoints.</p>`)
-      }
-      const reference = db.prepare('SELECT id FROM credentials WHERE tool = ?').get(tool.name) as { id: string }
-      const pins = credentialCertificates(db, reference.id)
-      let endpoints: URL[] = []
-      // An invalid saved credential must remain editable after a profile upgrade.
-      try { endpoints = toolEndpoints(tool.name, { ...credential.metadata, ...tool.nativeSettings }) } catch { /* Save a valid endpoint before inspecting. */ }
-      const soon = Date.now() + 30 * 86400000
-      const expiring = pins.some(pin => Date.parse(pin.leaf.expiresAt) <= soon || Date.parse(pin.certificate.expiresAt) <= soon)
-      const rows = pins.map(pin => `<tr><td class="mono">${escape(pin.endpoint)}</td><td data-label="Trust"><span class="badge">${pin.mode === 'pin' ? 'Pinned certificate' : 'Issuing CA'}</span></td>
-        <td data-label="SHA-256"><p class="mono">${escape(pin.certificate.fingerprint)}</p>${pin.leaf.fingerprint !== pin.certificate.fingerprint ? `<p class="faint">Endpoint: <span class="mono">${escape(pin.leaf.fingerprint)}</span></p>` : ''}<p class="faint">${escape(pin.certificate.subject)}</p></td>
-        <td data-label="Expires">${escape(pin.certificate.expiresAt)}${pin.leaf.expiresAt !== pin.certificate.expiresAt ? `<p class="faint">Endpoint: ${escape(pin.leaf.expiresAt)}</p>` : ''}</td>
-        <td class="num">${formStart(api + '/certificates', 'DELETE', 'Remove this certificate from the tool credential’s trust?')}<input type="hidden" name="id" value="${escape(pin.id)}"><button class="btn btn-secondary btn-sm">Remove trust</button></form></td></tr>`).join('')
-      const table = pins.length
-        ? `<table class="tbl stack-sm"><caption class="sr-only">Trusted certificates</caption><thead><tr><th scope="col">Endpoint</th><th scope="col">Trust</th><th scope="col">Fingerprint (SHA-256)</th><th scope="col">Expires</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${rows}</tbody></table>`
-        : '<p class="empty">No certificates trusted for this credential. Hostname and expiry checks always apply.</p>'
-      const offered = awx || tool.health.errorCode === 'UPSTREAM_TLS_FAILED' || pins.length > 0
-      const inspect = endpoints.length ? formStart(api + '/certificates/inspect', 'POST', '', `class="row" data-inspect-certificate${offered ? '' : ' hidden'}`) +
-        `${endpoints.length > 1 ? `<label class="sr-only" for="endpoint-index">Saved TLS endpoint</label><select id="endpoint-index" name="endpointIndex" data-type="number">${endpoints.map((endpoint, index) => `<option value="${index}">${escape(endpoint.host)}</option>`).join('')}</select>` : `<input type="hidden" name="endpointIndex" data-type="number" value="0"><span class="mono">${escape(endpoints[0]!.host)}</span>`}<button class="btn btn-secondary btn-sm">${icon('cert')}Inspect certificate</button></form>` : ''
-      const foot = `<span>${offered ? 'Compare the fingerprint with the one the appliance shows before trusting.' : 'Inspection is offered after a connection test fails with a certificate error.'}</span><div class="actions">${inspect}</div>`
-      const trustModes = ['gh-axi', 'kubernetes-axi'].includes(tool.name)
-        ? '<option value="ca">Trust the issuing CA</option></select></label><p>This tool requires an issuing CA. Leaf pinning is unavailable. Use the server trusted CA bundle for self-signed endpoints.</p>'
-        : '<option value="ca">Trust the issuing CA (recommended, renewed certificates keep working)</option><option value="pin">Strict leaf pinning (re-trust after every rotation)</option></select></label><p>Self-signed endpoints keep a leaf pin. Hostname and date verification always apply.</p>'
-      const dialog = `<dialog id="certificate-inspection" class="modal" aria-labelledby="certificate-inspection-title"><div class="modal-body"><h2 id="certificate-inspection-title">Trust this certificate for ${escape(product)}?</h2>
-        ${callout('warn', 'Compare the fingerprint before trusting', 'Trust is only as safe as the network path when this certificate was fetched. A certificate presented during interception would be trusted too. Compare the full SHA-256 fingerprint with the one shown by the appliance.', '', { role: 'alert' })}
-        <div data-certificate-details></div><p data-certificate-error role="alert"></p>${formStart(api + '/certificates/trust', 'POST', '', 'data-trust-certificate')}<input type="hidden" name="inspectionId"><label>Trust mode<select name="mode">${trustModes}<button class="btn btn-primary">Trust certificate</button></form></div>
-        <div class="modal-foot"><button type="button" class="btn btn-ghost" data-close-certificate>Close</button></div></dialog>`
-      return `<section class="card" data-trusted-certificates><div class="card-head"><div><h2>Trusted certificates</h2><p>Trust applies only to this tool's saved credential. CA trust allows leaf renewal; strict pinning needs re-trust after rotation.</p></div></div>
-        ${expiring ? `<div class="card-body">${callout('warn', 'A trusted certificate expires soon', 'A trusted certificate has expired or expires within 30 days. Re-inspect this endpoint for rotation.', '', { role: 'alert' })}</div>` : ''}${table}<div class="card-foot">${foot}</div></section>${dialog}`
-    }
   })
+  registerInstancePages(app, db, credentialProfiles)
 }

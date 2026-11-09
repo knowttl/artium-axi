@@ -35,7 +35,7 @@ classify('GET', `/v1/tools /v1/skills /v1/me /v1/results/technitium-axi/:operati
 classify('GET', `/account /password /reauth /v1/account/sessions
   /admin /admin/ssh /admin/ssh/credentials /admin/ssh/audit /admin/settings/sign-in
   /admin/settings/sign-in/:id /admin/settings/sign-in/:id/matches/:ruleId /admin/invitations
-  /admin/audit /admin/tokens /admin/users /admin/users/:id /admin/roles /admin/roles/:id /admin/credentials /admin/tools /admin/tools/:tool
+  /admin/audit /admin/tokens /admin/users /admin/users/:id /admin/roles /admin/roles/:id /admin/credentials /admin/tools /admin/tools/:tool /admin/tools/:tool/instances/:name
   /v1/account/tokens /v1/admin/tokens /v1/tools/proxmox-axi/streams/limits
   /v1/tools/kubernetes-axi/workspaces/:id /v1/tools/kubernetes-axi/workspaces/:id/files/*
   /v1/tools/kubernetes-axi/sessions /v1/tools/kubernetes-axi/sessions/:id

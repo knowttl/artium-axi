@@ -40,8 +40,16 @@ Contents:
 - [SSH](#ssh)
 
 Configure only the tools you intend to use.
-For tools with a shared credential, at `/admin/tools`, open the tool, save its connection, then use **Test connection** and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
+For tools with a shared credential, at `/admin/tools`, open the tool, add an instance on the **Instances** tab, then use **Test connection** on the instance and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
 SSH uses [dedicated host bindings](#ssh).
+
+A tool can have several named instances, for example a lab and a production appliance.
+Each instance has its own credential, certificate trust, health and read-only setting, and the tool sections below apply to every instance.
+Choose **Add instance**, enter a lowercase name and a description that tells agents what the instance is for, fill in the credential fields and keep **Test after saving** on.
+New instances start read-only; clear the switch under **Edit** only after the instance passes its test and you want agents to write through it.
+Once a tool has a second instance, agents must name one with `artium-axi --instance <name> <tool> ...`, and calls without it fail with `INSTANCE_REQUIRED`.
+Proxmox, Kubernetes and Shodan accept one instance until their sessions and streams are instance-aware.
+SSH hosts are reported as instances in the same listings, and their host, binding and grant setup is unchanged.
 The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) owns profile injection and secret handling; [browser administration](admin-guide.md#browser-administration) explains editor inputs, saving and health behavior.
 
 | Tool | Information to obtain | Fixed Artium credential test |

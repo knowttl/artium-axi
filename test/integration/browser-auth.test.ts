@@ -30,10 +30,11 @@ let now: number
 const password = 'CANARY-local-password'
 const newPassword = 'CANARY-changed-password'
 const userId = 'synthetic-development-user'
+const keyProvider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-browser-'))
-  db = openStore(join(directory, 'artium.db'), new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
+  db = openStore(join(directory, 'artium.db'), keyProvider)
   await seedToolUser(db)
   db.prepare('UPDATE users SET administrator = 1').run()
   db.exec(`INSERT INTO users (id, username, display_name, password_hash, administrator, must_change)
@@ -41,7 +42,7 @@ beforeEach(async () => {
   now = Date.now()
   vi.spyOn(Date, 'now').mockImplementation(() => now)
   app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: {},
-    adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([])) })
+    adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([])), credentialStore: createCredentialStore(db, keyProvider) })
   cookies = {}
 })
 
@@ -178,7 +179,7 @@ test('administrators can inspect the loaded trusted CA metadata on Tools', async
     await app.close()
     const bundle = loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(certs, 'ca.crt') })!
     app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls'), bundle), environment: {},
-      adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([])) })
+      adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([])), credentialStore: createCredentialStore(db, keyProvider) })
     expect((await request('GET', '/admin/tools')).statusCode).toBe(303)
     await signIn()
     const response = await request('GET', '/admin/tools')

@@ -623,11 +623,11 @@ test.each([
     cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
   payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
   expect(login.statusCode).toBe(303)
-  const page = await app.inject({ method: 'GET', url: '/admin/tools/mg-axi',
+  const page = await app.inject({ method: 'GET', url: '/admin/tools/mg-axi/instances/default',
     headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
   expect(page.statusCode).toBe(200)
   expect(page.body).not.toContain('CANARY-')
-  expect(page.body).toContain('action="/v1/admin/tools/mg-axi/credential"')
+  expect(page.body).toContain('action="/v1/admin/tools/mg-axi/instances/default/credential"')
   const replacement = { mode: 'application', tenantId: value.tenantId, clientId: value.clientId,
     auth: 'client-secret', clientSecret: 'CANARY-replacement' }
   expect(await replace('mg-axi', replacement, 1)).toMatchObject({ revision: 2,
@@ -674,7 +674,7 @@ test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s w
   payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
   expect(login.statusCode).toBe(303)
   const cookie = login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
-  for (const path of ['/admin', '/admin/tools', '/admin/tools/az-axi', '/admin/tools/mg-axi', '/admin/tools/vectra-axi', '/admin/tools/vectra-axi?tab=writes', '/admin/roles']) {
+  for (const path of ['/admin', '/admin/tools', '/admin/tools/az-axi', '/admin/tools/az-axi/instances/default', '/admin/tools/mg-axi', '/admin/tools/vectra-axi', '/admin/tools/vectra-axi?tab=writes', '/admin/roles']) {
     const page = await app.inject({ method: 'GET', url: path, headers: { cookie } })
     expect(page.statusCode).toBe(200)
     expect(page.headers['cache-control']).toBe('no-store')
@@ -688,8 +688,8 @@ test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s w
       expect(page.body).toContain('syslog/Kafka redirects detection export (data egress)')
       expect(page.body).toContain('Match enablement changes cause a reboot')
     }
-    if (path === '/admin/tools/az-axi') {
-      expect(page.body).toContain('data-test-tool="az-axi" action="/v1/admin/tools/az-axi/test"')
+    if (path === '/admin/tools/az-axi/instances/default') {
+      expect(page.body).toContain('data-test-tool="az-axi" action="/v1/admin/tools/az-axi/instances/default/test"')
       expect(page.body).toContain('data-profile-field="tenantId"')
       expect(page.body.match(/name="expectedToolRevision" data-type="number" value="2"/g)).toHaveLength(1)
       expect(page.body).toContain('Last changed by synthetic-user')
@@ -705,6 +705,47 @@ test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s w
         `<input type="hidden" name="enabled" data-type="boolean" value="${!enabled}"><button class="toggle" role="switch" aria-checked="${enabled}">`)]))
     }
   }
+})
+test('the tools list and Instances tab report every instance, with SSH hosts shown as instances', async () => {
+  for (const name of ['lab', 'production']) {
+    store.createInstance('falcon-axi', { name, description: `Synthetic ${name} tenant.` }, values['falcon-axi'], actor, Date.now())
+  }
+  db.prepare(`INSERT INTO ssh_hosts (id, address, port, approved_host_keys, allowed_addresses, enabled)
+    VALUES ('synthetic-host', 'host.example', 22, '[]', '[]', 1)`).run()
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
+  payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
+  const cookie = login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
+  const list = (await app.inject({ method: 'GET', url: '/admin/tools', headers: { cookie } })).body
+  const row = (body: string, tool: string) => new RegExp(`<tr>(?:(?!</tr>)[\\s\\S])*href="/admin/tools/${tool}"[\\s\\S]*?</tr>`).exec(body)![0]
+  expect(row(list, 'falcon-axi')).toContain('2 instances')
+  expect(row(list, 'ssh-axi')).toContain('1 host<')
+  expect(row(list, 'vectra-axi')).toContain('0 instances')
+
+  const tab = (await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi', headers: { cookie } })).body
+  expect(tab).toContain('href="/admin/tools/falcon-axi/instances/production"')
+  expect(tab).toContain('Synthetic lab tenant.')
+  expect(tab).toContain('action="/v1/admin/tools/falcon-axi/instances/lab/test"')
+  expect(tab).toContain('action="/v1/admin/tools/falcon-axi/instances"')
+  expect(tab).toContain('data-confirm-name="production"')
+  expect(tab).not.toContain('CANARY-')
+
+  const detail = (await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi/instances/production', headers: { cookie } })).body
+  expect(detail).toContain('<h1>production</h1>')
+  expect(detail).toContain('Synthetic production tenant.')
+  expect(detail).toContain('action="/v1/admin/tools/falcon-axi/instances/production/credential"')
+  expect(detail).toContain('Danger zone')
+  expect(detail).toContain('data-success-url="/admin/tools/falcon-axi"')
+  expect(detail).not.toContain('CANARY-')
+
+  const ssh = (await app.inject({ method: 'GET', url: '/admin/tools/ssh-axi', headers: { cookie } })).body
+  expect(ssh).toContain('host.example:22')
+  expect(ssh).toContain('href="/admin/ssh"')
+  expect(ssh).not.toContain('action="/v1/admin/tools/ssh-axi/instances"')
+
+  expect((await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi/instances/missing', headers: { cookie } })).statusCode).toBe(404)
 })
 async function replace(tool: Exclude<ToolName, 'ssh-axi'>, value: unknown = values[tool], expectedRevision = 0) {
   const listed = await request('GET', '')
