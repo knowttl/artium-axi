@@ -392,8 +392,9 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     return
   }
   if (['/api/v1/version', '/api/v1/user', '/api/v1/repos/example/project/issues/42'].includes(url.pathname)) {
-    const canaryReceived = req.headers.authorization === 'token CANARY-gitea-token'
-    requests.push({ method: req.method, path: url.pathname, canaryReceived })
+    const identity = { 'token CANARY-gitea-lab': 'lab', 'token CANARY-gitea-production': 'production' }[req.headers.authorization]
+    const canaryReceived = req.headers.authorization === 'token CANARY-gitea-token' || !!identity
+    requests.push({ method: req.method, path: url.pathname, canaryReceived, ...(identity ? { identity } : {}) })
     if (!canaryReceived) { res.writeHead(401); res.end('{}'); return }
     if (req.method === 'PATCH' && url.pathname.endsWith('/issues/42')) {
       let body = ''

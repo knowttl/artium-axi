@@ -1,135 +1,85 @@
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type Database from 'better-sqlite3'
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
-import { Audit } from '../../src/server/audit/audit.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
+import { createGiteaAdapter } from '../../src/server/adapters/gitea.js'
+import { Audit } from '../../src/server/audit/audit.js'
 import { createDelegation } from '../../src/server/auth/delegations.js'
 import { exchangeDelegation } from '../../src/server/auth/tokens.js'
+import { toolPaths } from '../../src/server/config.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
-import type { MutableCredentialStore } from '../../src/server/store/credential-store.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
-import { issueTestAccessToken } from '../fixtures/tokens.js'
-import { createRunnerTestAdapter } from '../fake-tool/tool.js'
+import { loadTrustedCa } from '../../src/server/trusted-ca.js'
+import { withFakeService } from '../fake-service/fixture.js'
+import { allowRawApi, issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 
-const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
-let directory: string
-let db: Database.Database
-let store: MutableCredentialStore
-let runner: Runner
-let app: ReturnType<typeof createApp>
-let token: string
-let usedClients: unknown[]
-
-beforeEach(async () => {
-  directory = mkdtempSync(join(tmpdir(), 'artium-credential-instances-'))
-  db = openStore(join(directory, 'artium.db'), provider)
-  store = createCredentialStore(db, provider)
-  db.exec(`INSERT INTO users (id, username, display_name, password_hash, must_change) VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'unusable', 0);
-    UPDATE tools SET enabled = 1, pinned_version = '0.6.0' WHERE name = 'falcon-axi';
-    INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
-    INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
-    INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'falcon-axi');`)
-  for (const name of ['lab', 'production']) {
-    store.createInstance('falcon-axi', { name, description: '' }, { clientId: `CANARY-client-${name}`, clientSecret: 'CANARY-secret', region: 'us-2' }, 'synthetic-user', 1000)
-  }
-  token = issueTestAccessToken(db, 'synthetic-user')
-  usedClients = []
-  runner = await Runner.create(join(directory, 'calls'))
-  const adapter = createRunnerTestAdapter({ getCredential: async reference => {
-    const credential = store.readCredential(reference) as { clientId: string }
-    usedClients.push(credential.clientId)
-    return credential
-  } }, true)
-  app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), resolver: new SharedIdentityResolver(store), adapters: [adapter], environment: {} })
-})
-afterEach(async () => {
-  await app.close()
-  db.close()
-  rmSync(directory, { recursive: true, force: true })
-})
-
-const run = (payload: object) => app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run',
-  headers: { authorization: `Bearer ${token}` }, payload: { args: ['detection', 'list'], ...payload } })
-
-test.each(['lab', 'production'])('run selects the %s instance and reports it', async instance => {
-  const reply = await run({ instance })
-  expect(reply.statusCode).toBe(200)
-  expect(reply.json()).toMatchObject({ source: 'falcon-axi', instance, exitCode: 0 })
-  expect(usedClients).toEqual([`CANARY-client-${instance}`])
-})
-
-test('read-only instance permits an implicit Falcon preview', async () => {
-  await app.close()
-  runner = await Runner.create(join(directory, 'preview-calls'))
-  const adapter = createFalconAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
-  const prepare = adapter.prepare.bind(adapter)
-  adapter.prepare = async (...args) => {
-    const call = await prepare(...args)
-    return { ...call, args: [join(process.cwd(), 'tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js'), ...call.args.slice(1)] }
-  }
-  app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), resolver: new SharedIdentityResolver(store), adapters: [adapter], environment: {} })
-  const reply = await run({ instance: 'lab', args: ['rtr', 'run', 'a'.repeat(32), '--command', 'ps'] })
-  expect(reply.statusCode, reply.body).toBe(200)
-  expect(reply.json(), reply.body).toMatchObject({ instance: 'lab', exitCode: 0 })
-  expect(reply.json().stdout).toContain('preview:')
-})
-
-test('a named instance is not found when the tool has no instances', async () => {
-  for (const name of ['lab', 'production']) {
-    const instance = store.findInstance('falcon-axi', name)!
-    store.deleteInstance('falcon-axi', name, instance.id, instance.revision)
-  }
-  const reply = await run({ instance: 'lab' })
-  expect(reply.statusCode).toBe(404)
-  expect(reply.json().error.code).toBe('INSTANCE_NOT_FOUND')
-})
-
-test.each([
-  ['unknown', { instance: 'staging' }, 404, 'INSTANCE_NOT_FOUND'],
-  ['malformed', { instance: 'Lab' }, 400, 'INVALID_INPUT'],
-])('%s instance fails closed before any credential is read', async (_label, payload, status, code) => {
-  const reply = await run(payload)
-  expect(reply.statusCode).toBe(status)
-  expect(reply.json().error.code).toBe(code)
-  expect(usedClients).toEqual([])
-})
-
-test('omitting an instance returns the sorted usable choices', async () => {
-  const reply = await run({})
-  expect(reply.statusCode).toBe(409)
-  expect(reply.json().error).toMatchObject({ code: 'INSTANCE_REQUIRED',
-    next: 'Ask the user which instance to use, then run artium-axi --instance <lab|production> falcon-axi ...' })
-  expect(usedClients).toEqual([])
-})
-
-test('delegated discovery validates instance selection', async () => {
-  const retired = store.findInstance('falcon-axi', 'lab')!
-  const grant = createDelegation(db, 'synthetic-user', { label: 'Synthetic', scope: { tools: [{ tool: 'falcon-axi' }] },
-    readOnly: true, reusable: true, expiresAt: Date.now() + 600000 }, [])
-  const headers = { authorization: `Bearer ${exchangeDelegation(db, grant.token).accessToken}` }
-  const discover = (payload: object) => app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run', headers, payload: { args: ['--help'], ...payload } })
-  expect((await discover({})).json().error.code).toBe('INSTANCE_REQUIRED')
-  expect((await discover({ instance: 'staging' })).json().error.code).toBe('INSTANCE_NOT_FOUND')
-  expect((await discover({ instance: 'production' })).statusCode).toBe(200)
-  store.setInstanceFlags('falcon-axi', 'lab', { enabled: false }, retired.id, retired.revision, 'synthetic-user', 2000)
-  expect((await discover({ instance: 'lab' })).json().error.code).toBe('INSTANCE_DISABLED')
-  expect((await discover({})).statusCode).toBe(200)
-})
-
-test('disabled instance is refused when named and not selected implicitly', async () => {
-  const lab = store.findInstance('falcon-axi', 'lab')!
-  store.setInstanceFlags('falcon-axi', 'lab', { enabled: false }, lab.id, lab.revision, 'synthetic-user', 2000)
-  const named = await run({ instance: 'lab' })
-  expect(named.statusCode).toBe(403)
-  expect(named.json().error.code).toBe('INSTANCE_DISABLED')
-  const implicit = await run({})
-  expect(implicit.statusCode).toBe(200)
-  expect(implicit.json().instance).toBe('production')
-  expect(usedClients).toEqual(['CANARY-client-production'])
-})
+test('instance selection reaches the service and invalid selections fail closed', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  try { await withFakeService(async ({ directory, port, send }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    allowRawApi(db, 'gitea-axi')
+    db.exec("UPDATE tools SET enabled = 1 WHERE name IN ('gitea-axi', 'falcon-axi')")
+    const store = createCredentialStore(db, provider), origin = `https://localhost:${port}`
+    for (const name of ['lab', 'production']) store.createInstance('gitea-axi', { name, description: '' },
+      { origin, tokenOrigin: origin, token: `CANARY-gitea-${name}` }, 'synthetic-development-user', 1000)
+    store.createInstance('falcon-axi', { name: 'lab', description: '' },
+      { clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' }, 'synthetic-development-user', 1000)
+    const previous = { gitea: toolPaths['gitea-axi'], falcon: toolPaths['falcon-axi'] }
+    Object.assign(toolPaths, { 'gitea-axi': join(process.cwd(), 'tools/node_modules/@knowttl/gitea-axi/dist/cli.js'),
+      'falcon-axi': join(process.cwd(), 'tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js') })
+    const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
+    const source = new EmbeddedSecretSource(store)
+    const app = createApp({ db, runner, audit: new Audit(db), resolver: new SharedIdentityResolver(store),
+      adapters: [createGiteaAdapter(source), createFalconAdapter(source, join(directory, 'writes.log'))], environment: {} })
+    const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
+    const run = (payload: object) => app.inject({ method: 'POST', url: '/v1/tools/gitea-axi/run', headers,
+      payload: { args: ['api', 'version'], ...payload } })
+    const evidence = async () => (JSON.parse(await send('/__evidence')) as { requests: { identity: string }[] }).requests
+    try {
+      for (const [payload, status, code] of [[{}, 409, 'INSTANCE_REQUIRED'], [{ instance: 'staging' }, 404, 'INSTANCE_NOT_FOUND'],
+        [{ instance: 'Lab' }, 400, 'INVALID_INPUT']] as const) {
+        const reply = await run(payload)
+        expect(reply.statusCode).toBe(status)
+        expect(reply.json().error.code).toBe(code)
+        if (code === 'INSTANCE_REQUIRED') expect(reply.json().error.next).toContain('<lab|production> gitea-axi')
+      }
+      expect(await evidence()).toEqual([])
+      for (const instance of ['lab', 'production']) {
+        const reply = await run({ instance })
+        expect(reply.json(), reply.body).toMatchObject({ source: 'gitea-axi', instance, exitCode: 0 })
+      }
+      expect((await evidence()).map(request => request.identity)).toEqual(['lab', 'production'])
+      const grant = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic', scope: { tools: [{ tool: 'gitea-axi' }] },
+        readOnly: true, reusable: true, expiresAt: Date.now() + 600000 }, [])
+      const delegated = { authorization: `Bearer ${exchangeDelegation(db, grant.token).accessToken}` }
+      const discover = (payload: object) => app.inject({ method: 'POST', url: '/v1/tools/gitea-axi/run', headers: delegated, payload: { args: ['--help'], ...payload } })
+      expect((await discover({})).json().error.code).toBe('INSTANCE_REQUIRED')
+      const lab = store.findInstance('gitea-axi', 'lab')!
+      store.setInstanceFlags('gitea-axi', 'lab', { enabled: false }, lab.id, lab.revision, 'synthetic-development-user', 2000)
+      expect((await run({ instance: 'lab' })).json().error.code).toBe('INSTANCE_DISABLED')
+      expect((await evidence()).map(request => request.identity)).toEqual(['lab', 'production'])
+      expect((await run({})).json()).toMatchObject({ instance: 'production', exitCode: 0 })
+      expect((await evidence()).map(request => request.identity)).toEqual(['lab', 'production', 'production'])
+      expect((await discover({ instance: 'lab' })).json().error.code).toBe('INSTANCE_DISABLED')
+      expect((await discover({ instance: 'staging' })).json().error.code).toBe('INSTANCE_NOT_FOUND')
+      expect((await discover({})).statusCode).toBe(200)
+      const preview = await app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run', headers,
+        payload: { instance: 'lab', args: ['rtr', 'run', 'a'.repeat(32), '--command', 'ps'] } })
+      expect(preview.json(), preview.body).toMatchObject({ instance: 'lab', exitCode: 0 })
+      expect(preview.json().stdout).toContain('preview:')
+      for (const name of ['lab', 'production']) {
+        const instance = store.findInstance('gitea-axi', name)!
+        store.deleteInstance('gitea-axi', name, instance.id, instance.revision)
+      }
+      expect((await run({ instance: 'lab' })).json().error.code).toBe('INSTANCE_NOT_FOUND')
+    } finally {
+      await app.close(); db.close()
+      Object.assign(toolPaths, { 'gitea-axi': previous.gitea, 'falcon-axi': previous.falcon })
+    }
+  }) } finally { vi.useRealTimers() }
+}, 60000)
