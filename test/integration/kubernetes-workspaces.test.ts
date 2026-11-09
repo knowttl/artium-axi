@@ -304,6 +304,29 @@ function delegated(commands?: string[], readOnly = false) {
   return { id: grant.id, session, headers: { authorization: `Bearer ${session.accessToken}` } }
 }
 
+test('delegated workflow continuations report the instances of permitted mutations', async () => {
+  const lab = credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' },
+    { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, user, Date.now())
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'").run(JSON.stringify({ allowWrites: true }))
+  const grant = createDelegation(db, user, { label: 'Synthetic', scope: { tools: [
+    { tool: 'kubernetes-axi', commands: ['apply'], instances: ['lab'] },
+    { tool: 'kubernetes-axi', commands: ['create configmap'], instances: ['default'] },
+  ] }, readOnly: false, reusable: true, expiresAt: Date.now() + 60000 }, [adapter])
+  const token = exchangeDelegation(db, grant.token).accessToken
+  const me = async () => (await app.inject({ url: '/v1/me', headers: { authorization: `Bearer ${token}` } })).json().delegation.scope.tools
+  const continuationInstances = (tools: { commands: string[], instances?: string[] }[], command: string) =>
+    tools.find(tool => tool.commands.includes(command))?.instances?.slice().sort()
+  let tools = await me()
+  expect(continuationInstances(tools, 'preview')).toEqual(['default', 'lab'])
+  expect(continuationInstances(tools, 'confirm')).toEqual(['default', 'lab'])
+  expect(continuationInstances(tools, 'prepare -- apply')).toEqual(['lab'])
+  db.prepare("UPDATE role_tools SET all_instances = 0 WHERE role_id = 'synthetic-role' AND tool = 'kubernetes-axi'").run()
+  db.prepare("INSERT INTO role_tool_instances VALUES ('synthetic-role', 'kubernetes-axi', ?)").run(lab.id)
+  tools = await me()
+  expect(continuationInstances(tools, 'preview')).toEqual(['lab'])
+  expect(continuationInstances(tools, 'confirm')).toEqual(['lab'])
+})
+
 test('an exact workspace create grant completes CLI creation and cleanup without show or delete', async () => {
   const grant = delegated(['workspace create'])
   const url = await app.listen({ host: '127.0.0.1', port: 0 })

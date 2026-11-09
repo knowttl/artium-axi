@@ -279,10 +279,16 @@ export function createApp(options: {
         scope: { tools: discovery.flatMap(({ adapter, commands }) => {
           const groups = new Map<string, { tool: ToolName, commands: string[], instances?: string[] }>()
           const usable = resolver.usableInstances(userId, adapter.name, delegation)
-          for (const command of commands) {
+          const commandIds = (command: string) => {
             let canonical = command
             try { canonical = resolveDelegatedCommand(command, adapter) } catch {}
-            const ids = delegatedInstanceIds(delegation, adapter.name, canonical)
+            return delegatedInstanceIds(delegation, adapter.name, canonical)
+          }
+          const prepareIds = commands.filter(command => command.startsWith('prepare -- ')).map(commandIds)
+          for (const command of commands) {
+            const ids = adapter.name === 'kubernetes-axi' && ['preview', 'confirm'].includes(command)
+              ? prepareIds.some(ids => ids === undefined) ? undefined : new Set(prepareIds.flatMap(ids => [...ids!]))
+              : commandIds(command)
             const instances = ids && usable.filter(instance => ids.has(instance.id)).map(instance => instance.name)
             const key = JSON.stringify(instances ?? null)
             const group = groups.get(key) ?? { tool: adapter.name, commands: [], ...(instances ? { instances } : {}) }
