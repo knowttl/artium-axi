@@ -942,7 +942,8 @@ Changes to an existing instance's flags or credential and deletion require the o
 Creation and credential changes also require the observed tool revision; certificate operations use their own inspection and revision checks.
 Instance changes require administrator access and recent confirmation and are audited with instance attribution.
 New instances start enabled and read-only, and their description, enabled and read-only flags are edited with `PATCH .../instances/:name`.
-Until their long-lived sessions and streams are instance-aware, Proxmox, Kubernetes and Shodan refuse a second instance with `INVALID_INPUT`.
+Kubernetes sessions and workspaces record the instance they were admitted on, and deleting an instance closes only the sessions and workspaces bound to it.
+Until their long-lived sessions and streams are instance-aware, Proxmox and Shodan refuse a second instance with `INVALID_INPUT`.
 For an enabled configured tool, cached health selects an error if any eligible enabled instance has a current error; otherwise it uses a current result only when all eligible enabled instances have one.
 Discovery and doctor aggregate only instances usable by the caller; a cached result with an invalid error category is treated as absent until refreshed.
 AWX instances with only an origin are excluded from this aggregation and background checks.

@@ -34,7 +34,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources or use administrator-enabled [mutation and bounded byte workflows](safety.md#kubernetes-reads), caller-owned workspaces and managed credentials with pinned kubectl. |
 | `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts, check authentication and run [confirmed managed commands](#ssh). |
 | `artium-axi --managed-session <command> [<args>]` | Supply and persist caller-owned sessions through private pipes; see `artium-axi --managed-session --help`. |
-| `artium-axi --instance <name> <tool> [<args>]` | Select one named instance of a tool for this run, before the tool name; refused for `ssh-axi`, Proxmox `result` and `stream`, Kubernetes `tunnel`, `credential`, `workspace` and `session`, Shodan `stream session`, `radar` and `scan submit`, and against servers that predate instances. |
+| `artium-axi --instance <name> <tool> [<args>]` | Select one named instance of a tool for this run, before the tool name; refused for `ssh-axi`, Proxmox `result` and `stream`, Kubernetes `tunnel`, `credential` and workspace or session commands other than `workspace create` and `session start`, Shodan `stream session`, `radar` and `scan submit`, and against servers that predate instances. |
 | `artium-axi falcon-axi [<args>]` | Run Falcon commands with managed credentials; [tool reference](https://github.com/knowttl/falcon-axi#readme). |
 | `artium-axi vectra-axi [<args>]` | Run Vectra commands with managed credentials; [tool reference](https://www.npmjs.com/package/@knowttl/vectra-axi). |
 | `artium-axi az-axi [<args>]` | Run Azure commands with the managed identity; [tool reference](https://www.npmjs.com/package/@knowttl/az-axi). |
@@ -54,6 +54,7 @@ With managed sessions, put `--instance <name>` after `--managed-session` and bef
 If an older server rejects the instance field, upgrade the server to a version that supports named tool instances.
 
 Kubernetes workspace and byte-session commands have local help through `artium-axi kubernetes-axi workspace --help` and `session --help`.
+Use the leading `--instance <name>` with `workspace create` or `session start` to select a cluster; later commands use the returned ID.
 Use `workspace create <directory>` to upload a regular file tree with immutable byte counts and digests.
 Use `session start exec -- exec <pod> -- <command>` for bounded execution, or add `--workspace <id>` and use `workspace:<path>` in a native file argument.
 Mutation starts return a native preview; inspect it and run `session confirm <id> --digest <exact-digest>` without adding a second generic confirmation.
@@ -73,7 +74,7 @@ Only that pipe receives token bytes; public output reports metadata.
 References bind the issuing sign-in family and can be consumed once; see the [retention runbook](runbook.md#retention-and-export) for expiry and uncertain issuance or delivery recovery.
 `session artifact <id> <path> --output <absolute-file>` and `workspace download <id> <path> --output <absolute-file>` save exact bytes with verified hashes into a new file in a private directory.
 See the [Kubernetes capability boundary](safety.md#kubernetes-reads) for workspace access and session grants, and the [delegated scope rules](safety.md#delegated-sessions) when selecting these commands for a temporary token.
-Use `session list` to recover a lost start reply, `session cancel <id> --confirm` to stop work and discard results, and `workspace delete <id>` to remove staged files.
+Use `session list` to recover a lost start reply and identify its instance, `session cancel <id> --confirm` to stop work and discard results, and `workspace delete <id>` to remove staged files.
 No command automatically reconnects, replays an uncertain operation or resumes after a server restart.
 
 For Azure DevOps, the [reviewed ADO inventory](../tools/inventories/ado-axi.json) owns accepted commands, aliases and flags; see the [capability boundary](safety.md#write-gates-by-tool) for permissions and unsupported transfers.

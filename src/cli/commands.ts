@@ -78,7 +78,7 @@ async function main(args: string[]) {
   const kubernetesGroup = args.slice(1).find(arg => arg !== '--json')
   if (instance !== undefined && (!toolSchema.safeParse(args[0]).success || args[0] === 'ssh-axi'
     || args[0] === 'proxmox-axi' && ['result', 'stream'].includes(args[1])
-    || args[0] === 'kubernetes-axi' && ['tunnel', 'credential', 'workspace', 'session'].includes(kubernetesGroup ?? '')
+    || args[0] === 'kubernetes-axi' && ['tunnel', 'credential'].includes(kubernetesGroup ?? '')
     || args[0] === 'shodan-axi' && (args[1] === 'radar' || args[1] === 'stream' && args[2] === 'session' || args[1] === 'scan' && args[2] === 'submit'))) {
     throw new ArtiumError('INVALID_INPUT', '--instance applies only to tool runs that support named instances.', 'Run the command without --instance.')
   }
@@ -164,7 +164,7 @@ async function main(args: string[]) {
           const hosted = name === 'kubernetes-axi' ? resolveKubernetesHostedCommand(hostedArgs) : undefined
           if (hosted && kubernetesHostedRoutes.some(route => route.command === hosted)) {
             if (!tool?.commands?.includes(hosted)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
-            await kubernetesHosted(hostedArgs, () => client, (text, stream = 'stdout') => output(stream, text), tool.commands)
+            await kubernetesHosted(hostedArgs, () => client, (text, stream = 'stdout') => output(stream, text), tool.commands, instance)
             return
           }
           const response = await client.authenticated(`/v1/tools/${name}/run`, 'POST', { args: args.slice(1), ...(instance === undefined ? {} : { instance }) })
@@ -303,7 +303,7 @@ async function main(args: string[]) {
   if (command === 'kubernetes-axi' && instance !== undefined && args.slice(1).includes('--help')
     && args.slice(1).every(arg => ['--help', '--json'].includes(arg))
     && !await resolveDiscoveryInstance(new Client(process.env, managed), command, instance)) return
-  if (command === 'kubernetes-axi' && await kubernetesHosted(args.slice(1), () => new Client(process.env, managed), (text, stream = 'stdout') => output(stream, text))) return
+  if (command === 'kubernetes-axi' && await kubernetesHosted(args.slice(1), () => new Client(process.env, managed), (text, stream = 'stdout') => output(stream, text), undefined, instance)) return
   if (command === 'proxmox-axi' && await proxmoxPrivateResult(() => new Client(process.env, managed), args.slice(1), text => output('stdout', text))) return
   if (command === 'proxmox-axi' && await proxmoxStream(() => new Client(process.env, managed), args.slice(1), output)) return
   if (command === 'shodan-axi' && await shodanSession(args.slice(1), () => new Client(process.env, managed), output)) return

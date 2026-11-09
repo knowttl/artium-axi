@@ -19,6 +19,7 @@ import type { Adapter } from '../../src/server/adapters/types.js'
 import type { MutableCredentialStore } from '../../src/server/store/credential-store.js'
 import { Client } from '../../src/cli/http.js'
 import { kubernetesHosted } from '../../src/cli/kubernetes.js'
+import { withFakeService } from '../fake-service/fixture.js'
 
 const prefix = '/v1/tools/kubernetes-axi/workspaces'
 const user = 'synthetic-development-user'
@@ -97,6 +98,67 @@ test('workspace and session bind the instance granted to the caller', async () =
   expect((await app.inject({ url: `/v1/tools/kubernetes-axi/sessions/${session.json().id}`, headers })).statusCode).toBe(200)
 })
 
+test('creation selects a named instance when multiple instances are granted', async () => {
+  const lab = credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' },
+    { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, user, Date.now())
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ sessions: { grants: { [user]: ['logs'] } } }))
+  const workspace = await app.inject({ method: 'POST', url: prefix, headers, payload: { instance: 'lab', files: [descriptor('input')] } })
+  const session = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/sessions', headers,
+    payload: { instance: 'lab', kind: 'logs', argv: ['logs', 'synthetic-pod', '--follow'] } })
+  expect([workspace.statusCode, session.statusCode], workspace.body + session.body).toEqual([200, 200])
+  const otherWorkspace = await app.inject({ method: 'POST', url: prefix, headers, payload: { instance: 'default', files: [descriptor('input')] } })
+  const otherSession = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/sessions', headers,
+    payload: { instance: 'default', kind: 'logs', argv: ['logs', 'synthetic-pod', '--follow'] } })
+  expect([otherWorkspace.statusCode, otherSession.statusCode], otherWorkspace.body + otherSession.body).toEqual([200, 200])
+  db.prepare('UPDATE users SET administrator = 1 WHERE id = ?').run(user)
+  const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
+  expect(reauth.statusCode, reauth.body).toBe(200)
+  const removed = await app.inject({ method: 'DELETE', url: '/v1/admin/tools/kubernetes-axi/instances/lab',
+    headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { expectedId: lab.id, expectedRevision: lab.revision } })
+  expect(removed.statusCode, removed.body).toBe(200)
+  expect((await app.inject({ url: `${prefix}/${workspace.json().id}`, headers })).statusCode).toBe(404)
+  expect((await app.inject({ url: `/v1/tools/kubernetes-axi/sessions/${session.json().id}`, headers })).statusCode).toBe(404)
+  expect((await app.inject({ url: `${prefix}/${otherWorkspace.json().id}`, headers })).statusCode).toBe(200)
+  expect((await app.inject({ url: `/v1/tools/kubernetes-axi/sessions/${otherSession.json().id}`, headers })).statusCode).toBe(200)
+})
+
+test('session recovery identifies the instance for each session', async () => {
+  credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' },
+    { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, user, Date.now())
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ sessions: { grants: { [user]: ['logs'] } } }))
+  const path = '/v1/tools/kubernetes-axi/sessions'
+  const start = (instance: string) => app.inject({ method: 'POST', url: path, headers,
+    payload: { instance, kind: 'logs', argv: ['logs', 'synthetic-pod', '--follow'] } })
+  const first = await start('default')
+  const second = await start('lab')
+  expect([first.statusCode, second.statusCode], first.body + second.body).toEqual([200, 200])
+  expect([first.json().instance, second.json().instance]).toEqual(['default', 'lab'])
+  const list = await app.inject({ url: path, headers })
+  expect(list.json().sessions).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: first.json().id, instance: 'default' }),
+    expect.objectContaining({ id: second.json().id, instance: 'lab' }),
+  ]))
+  for (const [id, instance] of [[first.json().id, 'default'], [second.json().id, 'lab']]) {
+    for (const suffix of ['', '/output']) {
+      const response = await app.inject({ url: `${path}/${id}${suffix}`, headers })
+      expect(response.statusCode, response.body).toBe(200)
+      expect(response.json().instance).toBe(instance)
+    }
+  }
+})
+
+test.each(['exec', 'attach', 'apply', 'create', 'cp', 'port-forward'])('read-only instances refuse %s sessions', async kind => {
+  credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' },
+    { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, user, Date.now())
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ allowWrites: true, sessions: { grants: { [user]: [kind] } } }))
+  const response = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/sessions', headers,
+    payload: { instance: 'lab', kind, argv: ['prepare', '--', kind] } })
+  expect(response.json().error.code).toBe('FLAG_BLOCKED')
+})
+
 test.each([
   { files: [descriptor('../outside')] },
   { files: [descriptor('/outside')] },
@@ -116,6 +178,47 @@ test.each([Buffer.from('corrupt'), Buffer.concat([binary, Buffer.from([1])])])('
   expect((await upload(id, 'nested/input.bin', bytes)).statusCode).toBe(400)
   expect((await app.inject({ url: `${prefix}/${id}`, headers })).statusCode).toBe(404)
 })
+
+test('deleting one instance closes only its sessions and workspaces', async () => withFakeService(async ({ directory: fakeDirectory, port, send }) => {
+  await send('/__kubernetes/control?mode=hold-watch')
+  const value = { origin: `https://localhost:${port}`, auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: 'CANARY-kubernetes-token' }
+  credentials.replaceCredential('kubernetes-axi', value, 1, user, Date.now())
+  const lab = credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' }, value, user, Date.now())
+  const primary = db.prepare("SELECT id FROM credentials WHERE tool = 'kubernetes-axi' AND id != ?").get(lab.id) as { id: string }
+  const ca = await readFile(join(fakeDirectory, 'ca.crt'), 'utf8')
+  for (const id of [primary.id, lab.id]) db.prepare(`INSERT INTO trusted_certificates (id,credential_id,endpoint,fingerprint,leaf_fingerprint,pem,leaf_pem,mode,created_at,created_by)
+    VALUES (?, ?, ?, 'synthetic', 'synthetic', ?, ?, 'ca', ?, ?)`).run(id, id, value.origin + '/', ca, ca, Date.now(), user)
+  db.exec(`INSERT INTO users (id, username, display_name, source, must_change) VALUES ('lab-user', 'lab-user', 'Lab User', 'sso', 0);
+    INSERT INTO roles (id, name) VALUES ('lab-role', 'Lab Role');
+    INSERT INTO user_roles (user_id, role_id) VALUES ('lab-user', 'lab-role');
+    INSERT INTO role_tools (role_id, tool, all_instances) VALUES ('lab-role', 'kubernetes-axi', 0)`)
+  db.prepare("INSERT INTO role_tool_instances VALUES ('lab-role', 'kubernetes-axi', ?)").run(lab.id)
+  db.prepare("UPDATE role_tools SET all_instances = 0 WHERE role_id = 'synthetic-role' AND tool = 'kubernetes-axi'").run()
+  db.prepare("INSERT INTO role_tool_instances VALUES ('synthetic-role', 'kubernetes-axi', ?)").run(primary.id)
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ sessions: { grants: { [user]: ['watch'], 'lab-user': ['watch'] } } }))
+  const labHeaders = { authorization: `Bearer ${issueTestAccessToken(db, 'lab-user')}` }
+  const open = async (as: { authorization: string }) => {
+    const workspace = await app.inject({ method: 'POST', url: prefix, headers: as, payload: { files: [descriptor('nested/input.bin')], lifetimeSeconds: 300 } })
+    const session = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/sessions', headers: as,
+      payload: { kind: 'watch', argv: ['get', 'pods', '--watch-only'] } })
+    expect([workspace.statusCode, session.statusCode], workspace.body + session.body).toEqual([200, 200])
+    expect(session.json().state).toBe('running')
+    const output = await app.inject({ url: `/v1/tools/kubernetes-axi/sessions/${session.json().id}/output?wait=true`, headers: as })
+    expect(output.json().state).toBe('running')
+    expect(output.json().chunks.length).toBeGreaterThan(0)
+    return [`${prefix}/${workspace.json().id}`, `/v1/tools/kubernetes-axi/sessions/${session.json().id}`]
+  }
+  const primaryUrls = await open(headers)
+  const labUrls = await open(labHeaders)
+  credentials.deleteInstance('kubernetes-axi', 'lab', lab.id, lab.revision)
+  await vi.advanceTimersByTimeAsync(1000)
+  const statuses = (urls: string[], as: { authorization: string }) =>
+    Promise.all(urls.map(async url => (await app.inject({ url, headers: as })).statusCode))
+  expect(await statuses(labUrls, labHeaders)).toEqual([404, 404])
+  expect(await statuses(primaryUrls, headers)).toEqual([200, 200])
+  expect((await app.inject({ url: primaryUrls[1], headers })).json().state).toBe('running')
+}))
 
 test('workspace identifiers do not authorize another user or login family', async () => {
   const id = await create()

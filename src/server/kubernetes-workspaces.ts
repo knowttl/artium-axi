@@ -108,7 +108,7 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
       files.some(file => file.path.split('/').slice(0, -1).some((_, index, parts) => paths.has(parts.slice(0, index + 1).join('/'))))) {
       throw new ArtiumError('INVALID_INPUT')
     }
-    const credential = await resolver.resolve(owner.user, 'kubernetes-axi')
+    const credential = await resolver.resolve(owner.user, 'kubernetes-axi', parsed.data.instance)
     const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(credential.id) as { name: string } | undefined)?.name
     admitted.set(request, { credentialId: credential.id, instance })
     const prepared = await adapter.prepare(['version'], credential)
