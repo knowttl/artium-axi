@@ -109,10 +109,17 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
       { credential_id: null, instance: null })
     store.deleteInstance('kubernetes-axi', 'other', sibling.id, sibling.revision)
-    const previousAudit = (db.prepare('SELECT MAX(id) AS id FROM audit').get() as { id: number }).id
+    const auditRecords = async () => {
+      const response = await app.inject({ url: '/v1/admin/audit?tool=kubernetes-axi&limit=100',
+        headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket } })
+      assert.equal(response.statusCode, 200, response.body)
+      return response.json().records as { id: number, event: string, credential_id: string | null, instance: string | null }[]
+    }
+    const previousAudit = new Set((await auditRecords()).map(record => record.id))
     const logs = await start('logs', ['logs', 'synthetic-pod', '--follow'])
     assert.equal((await show(logs.id)).state, 'exited')
-    assert.deepEqual(db.prepare("SELECT event, credential_id, instance FROM audit WHERE id > ? AND tool='kubernetes-axi' AND event IN ('run-start', 'run-terminal') ORDER BY id").all(previousAudit), [
+    assert.deepEqual((await auditRecords()).filter(record => !previousAudit.has(record.id) && ['run-start', 'run-terminal'].includes(record.event))
+      .sort((a, b) => a.id - b.id).map(({ event, credential_id, instance }) => ({ event, credential_id, instance })), [
       { event: 'run-start', credential_id: reference.id, instance: 'default' },
       { event: 'run-terminal', credential_id: reference.id, instance: 'default' },
     ])
