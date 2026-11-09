@@ -77,7 +77,7 @@ async function main(args: string[]) {
   if (managedMode) args = args.slice(1)
   const kubernetesGroup = args.slice(1).find(arg => arg !== '--json')
   if (instance !== undefined && (!toolSchema.safeParse(args[0]).success || args[0] === 'ssh-axi'
-    || args[0] === 'proxmox-axi' && ['result', 'stream'].includes(args[1])
+    || args[0] === 'proxmox-axi' && args[1] === 'result'
     || args[0] === 'kubernetes-axi' && ['tunnel', 'credential'].includes(kubernetesGroup ?? '')
     || args[0] === 'shodan-axi' && (args[1] === 'radar' || args[1] === 'stream' && args[2] === 'session' || args[1] === 'scan' && args[2] === 'submit'))) {
     throw new ArtiumError('INVALID_INPUT', '--instance applies only to tool runs that support named instances.', 'Run the command without --instance.')
@@ -158,7 +158,7 @@ async function main(args: string[]) {
               return
             }
             if (!stream.route || !tool.commands?.includes(stream.route.command)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
-            await proxmoxStream(() => client, hostedArgs, output)
+            await proxmoxStream(() => client, hostedArgs, output, instance)
             return
           }
           const hosted = name === 'kubernetes-axi' ? resolveKubernetesHostedCommand(hostedArgs) : undefined
@@ -305,7 +305,7 @@ async function main(args: string[]) {
     && !await resolveDiscoveryInstance(new Client(process.env, managed), command, instance)) return
   if (command === 'kubernetes-axi' && await kubernetesHosted(args.slice(1), () => new Client(process.env, managed), (text, stream = 'stdout') => output(stream, text), undefined, instance)) return
   if (command === 'proxmox-axi' && await proxmoxPrivateResult(() => new Client(process.env, managed), args.slice(1), text => output('stdout', text))) return
-  if (command === 'proxmox-axi' && await proxmoxStream(() => new Client(process.env, managed), args.slice(1), output)) return
+  if (command === 'proxmox-axi' && await proxmoxStream(() => new Client(process.env, managed), args.slice(1), output, instance)) return
   if (command === 'shodan-axi' && await shodanSession(args.slice(1), () => new Client(process.env, managed), output)) return
   if (command === 'shodan-axi' && await shodanRadar(args.slice(1), () => new Client(process.env, managed), output)) return
   if (command === 'shodan-axi' && await shodanScan(args.slice(1), () => new Client(process.env, managed), output)) return

@@ -14,6 +14,7 @@ import { proxmoxProfile } from '../adapters/proxmox.js'
 import { createDelegation } from '../auth/delegations.js'
 import { exchangeDelegation, verifyPrincipal } from '../auth/tokens.js'
 import { issueTestAccessToken, seedToolUser } from '../../../test/fixtures/tokens.js'
+import { SharedIdentityResolver } from '../policy/identity-resolver.js'
 
 let root: string
 let runner: Runner
@@ -44,7 +45,7 @@ async function withAccess(check: (execute: (delegated: boolean) => Promise<Runne
   const password = { origin: 'https://synthetic.invalid', auth: 'password', userId: 'automation@pve', password: 'CANARY-password' }
   const credential = store.replaceCredential('proxmox-axi', password, 0, userId, Date.now())
   const results = new ProtectedResults()
-  const access = new ProxmoxAccess(db, runner, results)
+  const access = new ProxmoxAccess(db, new SharedIdentityResolver(store, db), runner, results)
   const delegation = createDelegation(db, userId, { label: 'Synthetic', scope: { tools: [{ tool: 'proxmox-axi' }] },
     readOnly: true, reusable: true, expiresAt: Date.now() + 600_000 }, [])
   const execute = (delegated: boolean) => {
@@ -166,7 +167,7 @@ test('changing one Proxmox instance invalidates only its protected results', asy
   const db = openStore(join(root, 'store.db'), provider), userId = 'synthetic-development-user'
   await seedToolUser(db)
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'proxmox-axi'")
-  const store = createCredentialStore(db, provider), results = new ProtectedResults(), access = new ProxmoxAccess(db, runner, results)
+  const store = createCredentialStore(db, provider), results = new ProtectedResults(), access = new ProxmoxAccess(db, new SharedIdentityResolver(store, db), runner, results)
   const value = { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }
   const lab = store.createInstance('proxmox-axi', { name: 'lab', description: '' }, value, userId, Date.now())
   const production = store.createInstance('proxmox-axi', { name: 'production', description: '' }, value, userId, Date.now())

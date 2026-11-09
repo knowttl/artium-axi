@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { ArtiumError } from '../../shared/errors.js'
 import type { PreparedCall } from '../adapters/types.js'
 import { proxmoxProfile } from '../adapters/proxmox.js'
+import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkToolPolicy } from '../policy/policy.js'
 import { toolFailure, toolFailureCode } from '../health/diagnostic.js'
 import type { ProtectedResults, ResultScope } from '../protected-results.js'
@@ -69,7 +70,8 @@ export class ProxmoxAccess {
   private readonly active = new Set<Active>()
   private closed = false
 
-  constructor(private readonly db: Database.Database, private readonly runner: Runner, private readonly results: ProtectedResults, private readonly now = () => performance.now()) {}
+  constructor(private readonly db: Database.Database, private readonly resolver: IdentityResolver,
+    private readonly runner: Runner, private readonly results: ProtectedResults, private readonly now = () => performance.now()) {}
 
   private remove(key: string): void {
     const entry = this.sessions.get(key)
