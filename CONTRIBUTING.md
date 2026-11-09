@@ -30,7 +30,8 @@ Run from the repository root:
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm check
+pnpm lint
+pnpm test:gate
 ```
 
 `pnpm check` verifies generated references, types, inventory and schema freshness, the test suite, compilation and the AXI/distribution checklist.
