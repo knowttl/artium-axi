@@ -658,6 +658,7 @@ Save the CLI's final result; it is not a durable scan archive.
 Shutdown or relevant authorization changes discard collections and their results; restart removes abandoned `scan-*` directories under `<database directory>/tool-logs/shodan-axi/collections/` without restoring results or resuming work.
 A submitted scan may continue upstream after local collection fails; Artium does not request vendor cancellation.
 After a partial result or lost response, inspect upstream scan state with `artium-axi shodan-axi scan list --json` or, when a `scanId` was returned, `artium-axi shodan-axi scan status <scanId> --json` before considering another submission.
+When multiple instances are available, select the original instance with `--instance <name>` before `shodan-axi` for these checks.
 A missing scan ID does not prove submission failed.
 
 Kubernetes native mutation requests persist under `<database directory>/tool-logs/kubernetes-axi/workflow/` in private scopes bound to caller, sign-in family and credential revision.
