@@ -247,3 +247,39 @@ test('scan collection previews bind the selected instance and reject a start tha
       .toMatchObject({ state: 'completed', result: { scanId: 'synthetic-scan' } })
   } finally { await fixture.close() }
 })
+
+test('deleting an instance leaves another active scan collection running', async () => {
+  const fixture = await sessionFixture(2, 5)
+  const { app, db, store, headers } = fixture
+  try {
+    const settings = JSON.parse((db.prepare("SELECT native_settings FROM tools WHERE name='shodan-axi'").get() as { native_settings: string }).native_settings)
+    db.prepare("UPDATE tools SET native_settings=? WHERE name='shodan-axi'").run(JSON.stringify({ ...settings,
+      scans: { grants: { 'synthetic-development-user': ['OP-009'] }, maxScanCredits: 10, maxRequests: 10 } }))
+    const defaultInstance = store.findInstance('shodan-axi', 'default')!
+    const lab = store.createInstance('shodan-axi', { name: 'lab', description: '' }, store.readCredential(defaultInstance), 'synthetic-development-user', Date.now())
+    const writableLab = store.setInstanceFlags('shodan-axi', 'lab', { readOnly: false }, lab.id, lab.revision, 'synthetic-development-user', Date.now())
+    const prefix = '/v1/tools/shodan-axi/scan-collections'
+    const scan = { scope: { kind: 'targets', targets: '192.0.2.1', force: false }, waitSeconds: 5, limit: 10, maxBytes: 4096,
+      idleTimeout: 1000, scanCreditBudget: 1, maxRequests: 1, acceptUnknownCost: true }
+    const start = async (instance: string) => {
+      const preview = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: { ...scan, instance } })
+      expect(preview.statusCode, preview.body).toBe(200)
+      const started = await app.inject({ method: 'POST', url: `${prefix}/start`, headers,
+        payload: { ...scan, instance, confirm: preview.json().confirm } })
+      expect(started.statusCode, started.body).toBe(200)
+      expect(started.json().state).toBe('running')
+      return started.json().id as string
+    }
+    const labId = await start('lab'), defaultId = await start('default')
+    for (const id of [labId, defaultId]) {
+      const active = await app.inject({ method: 'GET', url: `${prefix}/${id}`, headers })
+      expect(active.json()).toMatchObject({ id, state: 'running' })
+    }
+    store.deleteInstance('shodan-axi', 'lab', writableLab.id, writableLab.revision)
+    await app.inject({ method: 'GET', url: `${prefix}/${labId}`, headers })
+    expect((await app.inject({ method: 'GET', url: `${prefix}/${labId}`, headers })).statusCode).toBe(404)
+    const survivor = await app.inject({ method: 'GET', url: `${prefix}/${defaultId}?waitMs=10000`, headers })
+    expect(survivor.statusCode, survivor.body).toBe(200)
+    expect(survivor.json()).toMatchObject({ id: defaultId, state: 'completed', result: { scanId: 'synthetic-scan', cleanup: 'completed' } })
+  } finally { await fixture.close() }
+}, 15000)
