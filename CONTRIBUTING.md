@@ -79,7 +79,7 @@ Run `pnpm test:gate --full` before every release and at least weekly during acti
 Each Vitest invocation prepares the standalone CLI and npm tarball once in a unique temporary directory and removes them after the run.
 CLI and package journeys use private writable copies, install prefixes, npm caches and session directories rather than rebuilding shared `dist/` inputs.
 Preparation always rebuilds from current source and package content; it does not reuse artifacts from previous invocations.
-Selection does not waive the separate private hygiene requirement, and the gate never runs container acceptance.
+Selection does not waive the separate container acceptance or private hygiene requirements.
 
 The [gate configuration](.no-mistakes.yaml) owns the validation-handoff evidence fields, reuse rules, repair requirements and documentation-stage policy.
 The Test report includes the absolute path to the handoff outside the checkout and its raw logs and selection records, so a later run can receive them through `--verification-plan <file>`.
@@ -88,23 +88,22 @@ Keep process evidence uncommitted.
 
 ## Container acceptance
 
-Container acceptance is never a per-pull-request requirement, whatever paths the change touches, including `src/server/`, `Dockerfile`, `scripts/` and dependency files.
-It runs in exactly two places:
+Run `pnpm test:containers` for pull requests touching `Dockerfile`, `.dockerignore`, `scripts/`, `tools/`, `bin/`, `test/fake-service/`, `test/runner/`, `test/walking-skeleton/`, `package.json` or `pnpm-lock.yaml`.
+Changes only to `src/server/`, `src/cli/`, docs, workflows or skills do not require it.
+The [gate configuration](.no-mistakes.yaml) owns the triggering paths and exemptions.
+Before every release, the release workflow's `containers` job runs acceptance against the release tag and must pass before npm and image publication.
 
-- The release workflow's `containers` job runs `pnpm build` and `pnpm test:containers` against the release tag, and npm publication and image publication wait for it to pass.
-- A nightly local job on a permitted Docker host runs it against current `main`; a weekly schedule is acceptable when nightly cost is too high.
-
-A cron entry for the nightly job, run from a clean `main` checkout:
-
-```sh
-0 3 * * * cd /path/to/artium-axi && git pull --ff-only && pnpm install --frozen-lockfile && pnpm build && docker pull moby/buildkit:buildx-stable-1 && pnpm test:containers >> "$HOME/artium-containers-nightly.log" 2>&1
-```
-
-A failure of the nightly job is fixed or reverted on `main` before the next release, because the release workflow stops at the same check.
-Run `pnpm test:containers` on demand when a change warrants early feedback; the result is informational and not a merge requirement.
+The repository ships a [nightly cron definition](scripts/container-acceptance.cron) for an owner to install on a permitted Docker host.
+Until an owner installs it, `main` has no scheduled container acceptance.
+Use a dedicated clean checkout on `main` with an authenticated remote and the project toolchain installed.
+Copy the definition into the owner's crontab with `crontab -e`, replacing `REPLACE_WITH_CHECKOUT_PATH` with the absolute checkout path and `REPLACE_WITH_TOOLCHAIN_PATH` with a colon-separated PATH containing Node, pnpm, git and Docker.
+The job runs at 03:00 host time and writes its output to `artium-containers-nightly.log` in the cron user's home directory.
+A weekly schedule is acceptable when nightly cost is too high.
+Fix or revert a scheduled job failure on `main` before the next release.
+Run acceptance on demand when a change warrants early feedback.
 
 Docker must support a private privileged BuildKit worker and its task-owned tmpfs cache.
-If the host forbids privileged containers, record acceptance as unverified and arrange a permitted host.
+If the host forbids privileged containers, record acceptance as unverified and arrange a permitted host before delivery when the check is required.
 Build before probing compiled output:
 
 ```sh

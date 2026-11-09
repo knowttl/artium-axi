@@ -125,8 +125,9 @@ For an existing GHCR package, grant this repository Actions access before releas
 Only the image job receives `packages: write` and `attestations: write`; it authenticates to GHCR with `GITHUB_TOKEN` and needs no registry password secret.
 Before merging every release PR, require passing [private hygiene](../CONTRIBUTING.md#private-hygiene-check) evidence for the release candidate, even when the release PR changes only version metadata.
 Record that evidence in the release PR before merge; the workflow does not run it.
-[Container acceptance](../CONTRIBUTING.md#container-acceptance) is not a release PR merge requirement.
-The release workflow's `containers` job runs `pnpm test:containers` on the release tag and blocks npm and image publication until it passes; the nightly local job covers `main` between releases.
+[Container acceptance](../CONTRIBUTING.md#container-acceptance) is required for pull requests touching the listed container-related paths, but not for `src/server/` changes alone.
+The release workflow's `containers` job runs `pnpm test:containers` on the release tag and blocks npm and image publication until it passes.
+An owner can install the repository's nightly or weekly local job on a permitted Docker host; until then, `main` has no scheduled container acceptance.
 Hosted release handling, including whether the hosted runner supports the container check's privileged BuildKit worker and cgroup v2 controls, npm trusted-publisher configuration, GHCR permissions and actual publication remain unverified by local checks.
 An image-job failure emits a setup reminder; inspect the failed step and resolve permissions or build failures before accepting the release.
 
