@@ -354,7 +354,7 @@ Delegated calls include the creator's user ID and `delegation_id`; the screen, A
 See [delegated capability boundaries](safety.md#delegated-sessions) for creation settings and their effect on existing tokens, and [token API usage](client-reference.md#delegated-tokens) for administrator listing and revocation.
 CSV quotes non-null values and leaves null fields empty; JSON lines preserves JSON types and nulls.
 The [API contracts](../src/shared/api.ts) own the persisted field definitions (`adminAuditRecordSchema`) and transfer evidence rules (`transferAuditSchema` and `transferEvidenceSchema`).
-The `credential_id` and `instance` attribution fields are currently null for both retained and newly recorded events, including exports.
+The `credential_id` and `instance` attribution fields identify the credential instance for administrator changes, credential tests and health checks, and are null for every other event, including events recorded before upgrade and exports of them.
 For hosted download availability, see the [supported capability boundaries](safety.md).
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.
@@ -451,7 +451,8 @@ Browser sessions use Secure, HttpOnly, SameSite=Strict cookies and expire after 
 Browser mutations require same-origin requests and CSRF tokens.
 
 Credentials are encrypted with AES-256-GCM and retrieved only after authorization and audited admission.
-Tools with shared credentials use one service identity per tool; external secret sources and per-user credentials are unsupported.
+Tools use shared credentials; external secret sources and per-user credentials are unsupported.
+See [instance administration](runbook.md#backup-restore-and-upgrade-rollback) for named instance and command execution limitations.
 SSH uses [dedicated host bindings and caller grants](safety.md#ssh-reads).
 Audit excludes injected credentials, request bodies, stdin, uploaded contents and output streams, and redacts Azure query arguments, including positional KQL.
 Failure to persist admission prevents execution; failure to persist the terminal event withholds the result.

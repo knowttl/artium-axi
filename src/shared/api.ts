@@ -434,6 +434,13 @@ export const adminCredentialSchema = z.strictObject({ tool: toolSchema, configur
   // Save/replacement reports name fields and changes, never submitted values.
   normalizations: z.array(z.strictObject({ field: z.string(), reason: z.string() })).optional() })
 export const adminToolParamsSchema = z.strictObject({ tool: toolSchema })
+export const instanceNameSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/)
+export const adminInstanceParamsSchema = adminToolParamsSchema.extend({ name: instanceNameSchema })
+export const adminInstanceSchema = z.strictObject({ id: z.string(), tool: toolSchema, name: instanceNameSchema,
+  description: z.string().max(500), enabled: z.boolean(), readOnly: z.boolean(), configured: z.boolean(),
+  metadata: z.record(z.string(), z.unknown()), revision: z.number().int().positive(),
+  updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable(), health: healthSchema,
+  normalizations: adminCredentialSchema.shape.normalizations })
 export const certificateDetailsSchema = z.strictObject({
   subject: z.string(), issuer: z.string(), subjectAlternativeNames: z.string(),
   validFrom: z.string(), expiresAt: z.string(), fingerprint: z.string(),
@@ -467,12 +474,12 @@ const githubConnectionInput = z.strictObject({ connectionId: z.uuid() })
 export const githubDeviceRoutes = {
   start: { method: 'POST', path: '/v1/admin/tools/gh-axi/device',
     input: z.strictObject({ origin: z.string(), expectedRevision: z.number().int().nonnegative(),
-      expectedToolRevision: z.number().int().positive() }),
+      expectedToolRevision: z.number().int().positive(), instance: instanceNameSchema.optional(), expectedId: z.string().optional() }),
     response: z.strictObject({ connectionId: z.uuid(), userCode: z.string(), verificationUri: z.url(),
       expiresAt: z.number().int(), interval: z.number().int().positive() }) },
   poll: { method: 'POST', path: '/v1/admin/tools/gh-axi/device/poll', input: githubConnectionInput,
     response: z.union([z.strictObject({ status: z.literal('pending'), interval: z.number().int().positive() }),
-      z.strictObject({ status: z.literal('connected'), credential: adminCredentialSchema })]) },
+      z.strictObject({ status: z.literal('connected'), credential: z.union([adminCredentialSchema, adminInstanceSchema]) })]) },
   cancel: { method: 'POST', path: '/v1/admin/tools/gh-axi/device/cancel', input: githubConnectionInput,
     response: z.strictObject({ status: z.literal('cancelled') }) },
 } as const
@@ -500,8 +507,8 @@ export const adminToolRoutes = {
   // Both current revisions are required; saving advances both and clears cached health.
   saveOrigin: { method: 'PUT', path: '/v1/admin/tools/awx-axi/origin',
     input: z.strictObject({ origin: z.string(), expectedRevision: z.number().int().nonnegative(),
-      expectedToolRevision: z.number().int().positive() }),
-    response: adminCredentialSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'save-awx-origin' },
+      expectedToolRevision: z.number().int().positive(), instance: instanceNameSchema.optional(), expectedId: z.string().optional() }),
+    response: z.union([adminCredentialSchema, adminInstanceSchema]), authorization: 'administrator-and-recent-auth', auditEvent: 'save-awx-origin' },
   replace: { method: 'PUT', path: '/v1/admin/tools/:tool/credential',
     input: z.strictObject({ value: z.unknown(), expectedRevision: z.number().int().nonnegative(),
       expectedToolRevision: z.number().int().positive() }),
@@ -527,6 +534,36 @@ export const adminToolRoutes = {
     response: adminCredentialSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'replace-credential' },
   test: { method: 'POST', path: '/v1/admin/tools/:tool/test', input: z.strictObject({}), response: healthSchema,
     authorization: 'administrator-and-recent-auth', auditEvent: 'credential-test' },
+} as const
+const instanceBase = '/v1/admin/tools/:tool/instances'
+const instanceRevisions = { expectedId: z.string(), expectedRevision: z.number().int().positive() }
+// Instance mutations name the instance id and revision the administrator observed; a stale or recreated instance
+// fails with REVISION_CONFLICT without mutation. Create starts read-only and enabled. Credential saves follow the
+// tool credential rules and advance only the instance revision and the tool revision.
+export const adminInstanceRoutes = {
+  list: { method: 'GET', path: instanceBase, input: z.strictObject({}),
+    response: z.strictObject({ instances: z.array(adminInstanceSchema) }) },
+  create: { method: 'POST', path: instanceBase,
+    input: z.strictObject({ name: instanceNameSchema, description: z.string().max(500).default(''),
+      value: z.record(z.string(), z.unknown()), expectedToolRevision: z.number().int().positive() }),
+    response: adminInstanceSchema, auditEvent: 'create-instance' },
+  get: { method: 'GET', path: `${instanceBase}/:name`, input: z.strictObject({}), response: adminInstanceSchema },
+  update: { method: 'PATCH', path: `${instanceBase}/:name`,
+    input: z.strictObject({ ...instanceRevisions, enabled: z.boolean().optional(), readOnly: z.boolean().optional(),
+      description: z.string().max(500).optional() })
+      .refine(input => input.enabled !== undefined || input.readOnly !== undefined || input.description !== undefined),
+    response: adminInstanceSchema },
+  remove: { method: 'DELETE', path: `${instanceBase}/:name`, input: z.strictObject(instanceRevisions),
+    response: z.strictObject({ removed: z.literal(true) }), auditEvent: 'delete-instance' },
+  replace: { method: 'PUT', path: `${instanceBase}/:name/credential`,
+    input: z.strictObject({ ...instanceRevisions, value: z.unknown(), expectedToolRevision: z.number().int().positive() }),
+    response: adminInstanceSchema, auditEvent: 'replace-credential' },
+  save: { method: 'PATCH', path: `${instanceBase}/:name/credential`,
+    input: z.strictObject({ ...instanceRevisions, value: z.record(z.string(), z.unknown()), expectedToolRevision: z.number().int().positive() }),
+    response: adminInstanceSchema, auditEvent: 'replace-credential' },
+  test: { method: 'POST', path: `${instanceBase}/:name/test`, input: z.strictObject({}), response: healthSchema },
+  certificates: Object.fromEntries(Object.entries(adminCertificateRoutes).map(([name, route]) =>
+    [name, { ...route, path: route.path.replace('/:tool/', '/:tool/instances/:name/') }])) as typeof adminCertificateRoutes,
 } as const
 // Settings never contact the identity service. Issuer changes clear credentials.
 export const oidcIssuerSchema = z.url().refine(value => {

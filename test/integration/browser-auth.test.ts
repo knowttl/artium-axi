@@ -572,11 +572,11 @@ test.each([
 ] as const)('overview reports AWX readiness for originOnly=$originOnly, cached=$cached', async ({ originOnly, cached, state, passed }) => {
   await app.close()
   const store = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
-  store.replaceCredential('awx-axi', originOnly ? { origin: 'https://controller.example' }
+  const credential = store.replaceCredential('awx-axi', originOnly ? { origin: 'https://controller.example' }
     : { origin: 'https://controller.example', token: 'CANARY-awx-token' }, 0, userId, now)
   db.exec("UPDATE tools SET enabled = (name = 'awx-axi')")
-  if (cached) db.prepare('INSERT INTO tool_health (tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, ?)')
-    .run('awx-axi', 1, now, cached, cached === 'error' ? 'UPSTREAM_NETWORK_FAILED' : null)
+  if (cached) db.prepare('INSERT INTO tool_health (tool, credential_id, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, ?, ?)')
+    .run('awx-axi', credential.id, credential.revision, now, cached, cached === 'error' ? 'UPSTREAM_NETWORK_FAILED' : null)
   app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: {},
     adapters: [createAwxAdapter(new EmbeddedSecretSource(store))], credentialStore: store, resolver: new SharedIdentityResolver(store) })
   await signIn()

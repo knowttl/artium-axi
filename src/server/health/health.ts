@@ -15,7 +15,7 @@ import { healthDefaults } from '../config.js'
 import { RunnerError, type Runner, type RunnerLimits } from '../runner/runner.js'
 import type { ProxmoxAccess } from '../runner/proxmox.js'
 import { logRun } from '../runner/log.js'
-import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
+import type { CredentialInstance, CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
 import { readCredentialTrust } from '../store/trusted-certificates.js'
 import { isAwxOriginOnly } from '../store/credential-store.js'
 
@@ -27,21 +27,22 @@ export class ToolHealth {
   private timer?: NodeJS.Timeout
   private pending = new Set<Promise<unknown>>()
   private closed = false
-  private readonly replaced = new Set<ToolName>()
+  private readonly replaced = new Map<ToolName, string | undefined>()
   private readonly queued = new Set<ToolName>()
   private readonly required = new Map<ToolName, CredentialReference>()
   private readonly generations = new Map<ToolName, number>()
-  private readonly diagnostics = new Map<ToolName, Diagnostic>()
-  private readonly due = new Map<ToolName, number>()
-  private readonly failures = new Map<ToolName, number>()
+  private readonly diagnostics = new Map<string, Diagnostic>()
+  private readonly rotation = new Map<ToolName, number>()
+  private readonly due = new Map<string, number>()
+  private readonly failures = new Map<string, number>()
 
   // A check is running, queued behind a running check, or waiting for background or runner capacity.
   checking(tool: ToolName): boolean {
     return this.active.has(tool) || this.replaced.has(tool) || this.queued.has(tool)
   }
 
-  diagnostic(tool: ToolName, revision: number | null, checkedAt: number | null): Diagnostic | undefined {
-    const detail = this.diagnostics.get(tool)
+  diagnostic(tool: ToolName, revision: number | null, checkedAt: number | null, credentialId = this.store?.findCredential(tool)?.id): Diagnostic | undefined {
+    const detail = credentialId === undefined ? undefined : this.diagnostics.get(credentialId)
     return detail?.credentialRevision === revision && detail?.checkedAt === checkedAt ? detail : undefined
   }
 
@@ -53,8 +54,12 @@ export class ToolHealth {
   start(): void {
     this.timer = setInterval(() => {
       for (const adapter of this.adapters) {
-        if ((this.due.get(adapter.name) ?? 0) > Date.now()) continue
-        void this.refresh(adapter.name)
+        const candidate = this.instances(adapter.name).filter(instance => instance.enabled || this.isRequired(adapter.name, instance))
+          .sort((a, b) => Number(this.queued.has(adapter.name) && this.isRequired(adapter.name, b))
+            - Number(this.queued.has(adapter.name) && this.isRequired(adapter.name, a))
+            || (this.due.get(a.id) ?? 0) - (this.due.get(b.id) ?? 0))[0]
+        if (!candidate || (this.due.get(candidate.id) ?? 0) > Date.now()) continue
+        void this.refresh(adapter.name, false, candidate.id)
       }
     }, healthDefaults.tickMs)
     this.timer.unref()
@@ -62,8 +67,16 @@ export class ToolHealth {
 
   // Rejected credentials use the normal interval to avoid retries into an account lockout.
   private isCurrent(tool: ToolName, reference: CredentialReference): boolean {
-    const current = this.store?.findCredential(tool)
-    return current?.id === reference.id && current.revision === reference.revision
+    const current = this.store?.listInstances(tool).find(instance => instance.id === reference.id)
+    return current !== undefined && current.revision === reference.revision
+  }
+
+  private instances(tool: ToolName): CredentialInstance[] {
+    return (this.store?.listInstances(tool) ?? []).filter(instance => !(tool === 'awx-axi' && isAwxOriginOnly(tool, this.store!.readCredential(instance))))
+  }
+
+  private resolve(tool: ToolName, credentialId: string | undefined): CredentialReference | undefined {
+    return credentialId === undefined ? this.store?.findCredential(tool) : this.store?.listInstances(tool).find(instance => instance.id === credentialId)
   }
 
   private isRequired(tool: ToolName, reference: CredentialReference): boolean {
@@ -74,46 +87,53 @@ export class ToolHealth {
   private reschedule(tool: ToolName, reference: CredentialReference, generation: number, code: string | undefined): void {
     if (!this.isCurrent(tool, reference) || (this.generations.get(tool) ?? 0) !== generation) return
     if (code === 'TOO_MANY_CALLS' && this.queued.has(tool)) {
-      this.due.set(tool, Date.now())
+      this.due.set(reference.id, Date.now())
       return
     }
     this.queued.delete(tool)
     this.required.delete(tool)
     const retryable = code === 'UPSTREAM_NETWORK_FAILED' || code === 'TIMEOUT' || code === 'TEMP_UNAVAILABLE'
-    const failures = retryable ? (this.failures.get(tool) ?? 0) + 1 : 0
-    if (failures) this.failures.set(tool, failures)
-    else this.failures.delete(tool)
+    const failures = retryable ? (this.failures.get(reference.id) ?? 0) + 1 : 0
+    if (failures) this.failures.set(reference.id, failures)
+    else this.failures.delete(reference.id)
     const delay = failures === 0
       ? healthDefaults.intervalMs
       : Math.min(healthDefaults.retryMs * 2 ** (failures - 1), healthDefaults.intervalMs)
-    this.due.set(tool, Date.now() + delay)
+    this.due.set(reference.id, Date.now() + delay)
   }
 
-  refresh(tool: ToolName, replaced = false): Promise<unknown> | undefined {
+  // Instances of one tool are checked one at a time. Each background run takes the next enabled instance in turn,
+  // and a run for a replaced credential names it.
+  refresh(tool: ToolName, replaced = false, credentialId?: string): Promise<unknown> | undefined {
     // Shodan reads require an explicit action, including after credential replacement.
     if (this.closed || tool === 'shodan-axi') return
     if (replaced) {
       this.queued.add(tool)
-      this.failures.delete(tool)
+      const id = credentialId ?? this.store?.findCredential(tool)?.id
+      if (id !== undefined) this.failures.delete(id)
       this.generations.set(tool, (this.generations.get(tool) ?? 0) + 1)
     }
     if (this.active.has(tool)) {
-      if (replaced) this.replaced.add(tool)
+      if (replaced) this.replaced.set(tool, credentialId)
       return
     }
-    const reference = this.store?.findCredential(tool)
-    if (!reference || (tool === 'awx-axi' && isAwxOriginOnly(tool, this.store!.readCredential(reference)))) { this.queued.delete(tool); return }
+    const candidates = this.instances(tool).filter(instance => instance.enabled || this.isRequired(tool, instance))
+    const turn = this.rotation.get(tool) ?? 0
+    const reference = credentialId === undefined ? candidates[turn % candidates.length] : candidates.find(instance => instance.id === credentialId)
+    if (!reference) { this.queued.delete(tool); return }
+    if (replaced) this.failures.delete(reference.id)
     const row = this.db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number } | undefined
     if (!this.isRequired(tool, reference)) this.required.delete(tool)
     if ((!row?.enabled && !this.required.has(tool)) || !this.adapters.some(adapter => adapter.name === tool)) { this.queued.delete(tool); return }
     if (this.pending.size >= healthDefaults.backgroundCalls) {
       this.queued.add(tool)
-      this.due.set(tool, Date.now())
+      this.due.set(reference.id, Date.now())
       return
     }
+    if (credentialId === undefined) this.rotation.set(tool, turn + 1)
     const generation = this.generations.get(tool) ?? 0
     const required = this.required.has(tool)
-    const pending = this.check(tool, healthDefaults.actor, randomUUID(), null)
+    const pending = this.check(tool, healthDefaults.actor, randomUUID(), null, undefined, reference.id)
       .then(
         () => { if (!required) this.reschedule(tool, reference, generation, undefined) },
         (error: unknown) => { if (!required) this.reschedule(tool, reference, generation, error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR') },
@@ -130,15 +150,16 @@ export class ToolHealth {
   }
 
   async checkReplacement(tool: ToolName, actor: string, requestId: string, clientAddress: string | null,
-    authorize: () => void) {
-    const reference = this.store?.findCredential(tool)
+    authorize: () => void, credentialId?: string) {
+    const reference = this.resolve(tool, credentialId)
     if (!reference) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
+    this.failures.delete(reference.id)
     const generation = (this.generations.get(tool) ?? 0) + 1
     this.generations.set(tool, generation)
     this.required.set(tool, reference)
     this.queued.add(tool)
     try {
-      return await this.check(tool, actor, requestId, clientAddress, authorize)
+      return await this.check(tool, actor, requestId, clientAddress, authorize, reference.id)
     } catch (error) {
       const code = error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'
       if (this.isRequired(tool, reference)) this.reschedule(tool, reference, generation, code)
@@ -148,24 +169,26 @@ export class ToolHealth {
         this.db.prepare(`INSERT INTO tool_health (credential_id, tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, 'error', ?)
           ON CONFLICT(credential_id) DO UPDATE SET credential_revision = excluded.credential_revision, checked_at = excluded.checked_at,
           status = excluded.status, error_code = excluded.error_code`).run(reference.id, tool, reference.revision, checkedAt, code)
-        this.diagnostics.set(tool, { stage: 'configuration', message: 'Credential check pending: runner busy.',
+        this.diagnostics.set(reference.id, { stage: 'configuration', message: 'Credential check pending: runner busy.',
           checkedAt, credentialRevision: reference.revision })
-        if (this.active.has(tool)) this.replaced.add(tool)
+        if (this.active.has(tool)) this.replaced.set(tool, reference.id)
       }
       throw error
     }
   }
 
   async check(tool: ToolName, actor: string, requestId: string, clientAddress: string | null,
-    authorize?: () => void) {
+    authorize?: () => void, credentialId?: string) {
     const { db, audit, runner, adapters, store } = this
     const background = actor === healthDefaults.actor
     const adapter = adapters.find(adapter => adapter.name === tool)
-    const context = { userId: background ? null : actor, tool, requestId, clientAddress }
     let reference: CredentialReference | undefined
+    const target = this.resolve(tool, credentialId)
+    const context = { userId: background ? null : actor, tool, requestId, clientAddress, credentialId: target?.id ?? null,
+      instance: target && store?.listInstances(tool).find(instance => instance.id === target.id)?.name || null }
     try {
       if (tool === 'ssh-axi') throw new ArtiumError('INVALID_INPUT', 'SSH authentication is checked per host.', 'Run artium-axi ssh-axi doctor <host> as a caller with a shell grant.')
-      reference = store?.findCredential(tool)
+      reference = this.resolve(tool, credentialId)
       if (!adapter) throw new ArtiumError('TOOL_DISABLED')
       if (!reference) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
       if (this.active.has(tool)) throw new ArtiumError('TOO_MANY_CALLS')
@@ -259,7 +282,8 @@ export class ToolHealth {
       if (failure) failure.diagnostic = diagnostic
       const settings = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(tool) as { native_settings: string }
       const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt, diagnostic,
-        readOnly: !toolAllowsWrites(tool, JSON.parse(settings.native_settings)),
+        readOnly: !toolAllowsWrites(tool, JSON.parse(settings.native_settings))
+          || (store?.listInstances(tool).find(instance => instance.id === reference.id)?.readOnly ?? false),
         credentialRevision: reference.revision, errorCode: failure?.code ?? null })
       const evidence = { checkedAt: health.checkedAt, credentialRevision: health.credentialRevision, errorCode: health.errorCode }
       audit.record({ ...context, event: 'run-terminal', action: await journal?.action(!failure) ?? 'unknown', outcome: failure?.code ?? 'completed', exitCode, durationMs, outputBytes, ...evidence,
@@ -273,8 +297,8 @@ export class ToolHealth {
             ON CONFLICT(credential_id) DO UPDATE SET credential_revision = excluded.credential_revision, checked_at = excluded.checked_at,
             status = excluded.status, error_code = excluded.error_code`)
             .run(reference.id, tool, reference.revision, health.checkedAt, health.status, health.errorCode)
-          this.diagnostics.delete(tool)
-          if (diagnostic) this.diagnostics.set(tool, diagnostic)
+          this.diagnostics.delete(reference.id)
+          if (diagnostic) this.diagnostics.set(reference.id, diagnostic)
         }
       })
       if (this.isRequired(tool, reference)) this.reschedule(tool, reference, generation, failure?.code)
@@ -282,7 +306,11 @@ export class ToolHealth {
       return health
     } finally {
       this.active.delete(tool)
-      if (this.replaced.delete(tool)) void this.refresh(tool)
+      if (this.replaced.has(tool)) {
+        const replacedId = this.replaced.get(tool)
+        this.replaced.delete(tool)
+        void this.refresh(tool, false, replacedId)
+      }
     }
   }
 }

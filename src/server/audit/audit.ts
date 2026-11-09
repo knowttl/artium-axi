@@ -14,6 +14,8 @@ interface Context {
   userId: string | null
   delegationId?: string | null
   tool: ToolName | null
+  credentialId?: string | null
+  instance?: string | null
   requestId: string
   // The HTTP owner supplies the verified address, never a raw forwarded header.
   clientAddress: string | null
@@ -273,7 +275,7 @@ export class Audit {
       native_journal_result: transfer?.native_journal_result ?? (terminal?.completedMutation ? JSON.stringify(terminal.completedMutation) : null),
       client_save_outcome: transfer?.client_save_outcome ?? null,
       delegation_id: event.delegationId ?? null,
-      credential_id: null, instance: null,
+      credential_id: event.credentialId ?? null, instance: event.instance ?? null,
     }
     const inserted = this.db.prepare(`INSERT INTO audit (${Object.keys(row).join(', ')})
       VALUES (${Object.keys(row).map(key => `@${key}`).join(', ')})`).run(row)

@@ -68,6 +68,13 @@ classify('PUT', `/v1/admin/tools/awx-axi/origin /v1/admin/tools/:tool/credential
 classify('PATCH', `/v1/admin/token-settings /v1/admin/tools/:tool/write-access /v1/admin/tools/:tool /v1/admin/tools/:tool/credential
   /v1/admin/sso/providers/:id/activation /v1/admin/sso/providers/:id /v1/admin/sso/providers/:id/credential
   /v1/admin/sso/role-rules/:id /v1/admin/users/:id /v1/admin/roles/:id`, 'denied')
+classify('GET', `/v1/admin/tools/:tool/instances /v1/admin/tools/:tool/instances/:name
+  /v1/admin/tools/:tool/instances/:name/certificates`, 'denied')
+classify('POST', `/v1/admin/tools/:tool/instances /v1/admin/tools/:tool/instances/:name/test
+  /v1/admin/tools/:tool/instances/:name/certificates/inspect /v1/admin/tools/:tool/instances/:name/certificates/trust`, 'denied')
+classify('PATCH', `/v1/admin/tools/:tool/instances/:name /v1/admin/tools/:tool/instances/:name/credential`, 'denied')
+classify('PUT', '/v1/admin/tools/:tool/instances/:name/credential', 'denied')
+classify('DELETE', '/v1/admin/tools/:tool/instances/:name /v1/admin/tools/:tool/instances/:name/certificates', 'denied')
 classify('GET', `/v1/tools/kubernetes-axi/workspaces/:id /v1/tools/kubernetes-axi/workspaces/:id/files/*
   /v1/tools/kubernetes-axi/sessions /v1/tools/kubernetes-axi/sessions/:id
   /v1/tools/kubernetes-axi/sessions/:id/output /v1/tools/kubernetes-axi/sessions/:id/artifacts/*`, 'public')

@@ -5,6 +5,7 @@ import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
+import { createAwxAdapter } from '../../src/server/adapters/awx.js'
 import { createVectraAdapter, vectraCredentialSchema } from '../../src/server/adapters/vectra.js'
 import { createAzAdapter } from '../../src/server/adapters/az.js'
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
@@ -26,7 +27,7 @@ import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import type { MutableCredentialStore, ToolName } from '../../src/server/store/credential-store.js'
-import { adminCredentialSchema, adminToolSchema, errorResponseSchema, healthSchema, loginResponseSchema, toolsResponseSchema } from '../../src/shared/api.js'
+import { adminCredentialSchema, adminInstanceSchema, adminToolSchema, errorResponseSchema, healthSchema, loginResponseSchema, toolsResponseSchema } from '../../src/shared/api.js'
 import { toolsView, toolView } from '../../src/cli/views.js'
 import { errors, type ErrorCode } from '../../src/shared/errors.js'
 import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-transport.js'
@@ -2167,4 +2168,275 @@ test('Azure configuration can enable the runtime and test credentials', async ()
   expect((await request('POST', '/az-axi/test', {})).status).toBe(200)
   expect(db.prepare("SELECT checked_at, credential_revision, error_code FROM audit WHERE event = 'credential-test'").get())
     .toEqual({ checked_at: expect.any(Number), credential_revision: 2, error_code: null })
+})
+
+async function toolRevision(tool: ToolName): Promise<number> {
+  return (await (await request('GET', `/${tool}`)).json()).revision
+}
+async function createInstance(name: string, value: unknown = values['falcon-axi'], tool: ToolName = 'falcon-axi') {
+  const response = await request('POST', `/${tool}/instances`, { name, description: `${name} region`, value, expectedToolRevision: await toolRevision(tool) })
+  expect(response.status).toBe(200)
+  return adminInstanceSchema.parse(await response.json())
+}
+async function instanceHeader(name: string, tool: ToolName = 'falcon-axi') {
+  const instance = store.findInstance(tool, name)!
+  return { expectedId: instance.id, expectedRevision: instance.revision }
+}
+const eastValue = { ...values['falcon-axi'], clientSecret: 'CANARY-east-secret' }
+const westValue = { ...values['falcon-axi'], clientSecret: 'CANARY-west-secret', region: 'eu-1' }
+
+test('instance credential changes preserve shared write access', async () => {
+  await createInstance('east', eastValue)
+  expect((await request('PATCH', '/falcon-axi/write-access', { enabled: true, operations: ['malquery search'],
+    expectedRevision: await toolRevision('falcon-axi') })).status).toBe(200)
+  const west = await createInstance('west', westValue)
+  expect((await request('PUT', '/falcon-axi/instances/west/credential', { value: westValue, expectedId: west.id,
+    expectedRevision: west.revision, expectedToolRevision: await toolRevision('falcon-axi') })).status).toBe(200)
+  expect((await request('PATCH', '/falcon-axi/instances/west/credential', { value: westValue, ...await instanceHeader('west'),
+    expectedToolRevision: await toolRevision('falcon-axi') })).status).toBe(200)
+  expect(await (await request('GET', '/falcon-axi')).json()).toMatchObject({ writeAccess: { enabled: true, allowedOperations: ['malquery search'] } })
+  expect(healthSchema.parse(await (await request('POST', '/falcon-axi/instances/east/test', {})).json()).readOnly).toBe(true)
+  expect((await request('PATCH', '/falcon-axi/instances/east', { ...await instanceHeader('east'), readOnly: false })).status).toBe(200)
+  expect(healthSchema.parse(await (await request('POST', '/falcon-axi/instances/east/test', {})).json()).readOnly).toBe(false)
+})
+
+test('AWX summary aggregates configured instances and legacy credential requires a unique instance', async () => {
+  adapters.push(createAwxAdapter(new EmbeddedSecretSource(store)))
+  for (const instance of ['east', 'west']) {
+    expect((await request('PUT', '/awx-axi/origin', { origin: `https://${instance}.example`, instance, expectedRevision: 0,
+      expectedToolRevision: await toolRevision('awx-axi') })).status).toBe(200)
+  }
+  expect(await (await request('GET', '/awx-axi')).json()).toMatchObject({ health: { status: 'unconfigured' } })
+  expect(adminCredentialSchema.parse(await (await request('GET', '/awx-axi/credential')).json()))
+    .toMatchObject({ configured: false, revision: 0, updatedAt: null, updatedBy: null, metadata: {} })
+  await createInstance('north', values['awx-axi'], 'awx-axi')
+  expect((await (await request('GET', '/awx-axi')).json()).health.status).not.toBe('unconfigured')
+})
+
+test('AWX aggregate health excludes origin-only instances', async () => {
+  adapters.push(createAwxAdapter(new EmbeddedSecretSource(store)))
+  const configured = store.createInstance('awx-axi', { name: 'configured', description: '' }, values['awx-axi'], actor, Date.now())
+  store.createInstance('awx-axi', { name: 'origin', description: '' }, { origin: 'https://origin.example' }, actor, Date.now())
+  db.prepare("INSERT INTO tool_health (credential_id, tool, credential_revision, checked_at, status, error_code) VALUES (?, 'awx-axi', ?, ?, 'ok', NULL)")
+    .run(configured.id, configured.revision, Date.now())
+  expect(await (await request('GET', '/awx-axi')).json()).toMatchObject({ health: { status: 'ok' } })
+})
+
+test('instance create stores an enabled read-only instance, hides secrets and audits it', async () => {
+  const created = await createInstance('east', eastValue)
+  expect(created).toMatchObject({ tool: 'falcon-axi', name: 'east', description: 'east region', enabled: true, readOnly: true,
+    configured: true, revision: 1, metadata: { clientId: 'synthetic-client', region: 'us-2' }, health: { status: 'unknown' } })
+  expect(store.readCredential(store.findInstance('falcon-axi', 'east')!)).toEqual(eastValue)
+  expect(JSON.stringify(created)).not.toContain('CANARY-east-secret')
+  const listed = await (await request('GET', '/falcon-axi/instances')).json()
+  expect(listed.instances.map((instance: { id: string }) => instance.id)).toEqual([created.id])
+  expect(db.prepare("SELECT user_id, action, tool, instance, credential_id, outcome FROM audit WHERE event = 'admin-change'").all())
+    .toEqual([{ user_id: actor, action: 'create-instance', tool: 'falcon-axi', instance: 'east', credential_id: created.id, outcome: 'success' }])
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-east-secret')
+})
+
+test.each([
+  { name: 'duplicate name', body: { name: 'east' }, code: 'REVISION_CONFLICT' },
+  { name: 'uppercase name', body: { name: 'East' }, code: 'INVALID_INPUT' },
+  { name: 'incomplete credential', body: { name: 'west', value: { clientId: 'synthetic-client' } }, code: 'INVALID_INPUT' },
+  { name: 'stale tool revision', body: { name: 'west', expectedToolRevision: 99 }, code: 'REVISION_CONFLICT' },
+] as const)('instance create rejects $name without changing instances', async ({ body, code }) => {
+  await createInstance('east', eastValue)
+  const tool = await toolRevision('falcon-axi')
+  await failure(await request('POST', '/falcon-axi/instances', { description: '', value: westValue, expectedToolRevision: tool, ...body }), code)
+  expect(store.listInstances('falcon-axi').map(instance => instance.name)).toEqual(['east'])
+  expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE action = 'create-instance'").get()).toEqual({ count: 1 })
+})
+
+test('instance edit retains the secret, advances only that instance and audits the revision-checked change', async () => {
+  const east = await createInstance('east', eastValue)
+  const west = await createInstance('west', westValue)
+  const response = await request('PATCH', '/falcon-axi/instances/east/credential', {
+    value: { clientId: 'synthetic-client', region: 'eu-2' }, expectedId: east.id, expectedRevision: 1, expectedToolRevision: await toolRevision('falcon-axi') })
+  expect(response.status).toBe(200)
+  expect(adminInstanceSchema.parse(await response.json())).toMatchObject({ name: 'east', revision: 2, metadata: { region: 'eu-2' } })
+  expect(store.readCredential(store.findInstance('falcon-axi', 'east')!)).toEqual({ ...eastValue, region: 'eu-2' })
+  expect(store.findInstance('falcon-axi', 'west')).toMatchObject({ id: west.id, revision: 1 })
+  expect(store.readCredential(store.findInstance('falcon-axi', 'west')!)).toEqual(westValue)
+  expect(db.prepare("SELECT instance, credential_id FROM audit WHERE action = 'replace-credential'").all())
+    .toEqual([{ instance: 'east', credential_id: east.id }])
+})
+
+test.each([
+  { name: 'stale instance revision', change: { expectedRevision: 5 } },
+  { name: 'another instance identity', change: { expectedId: 'recreated-instance' } },
+  { name: 'stale tool revision', change: { expectedToolRevision: 99 } },
+])('instance edit rejects $name without mutation', async ({ change }) => {
+  const east = await createInstance('east', eastValue)
+  await failure(await request('PUT', '/falcon-axi/instances/east/credential', { value: westValue, expectedId: east.id, expectedRevision: 1,
+    expectedToolRevision: await toolRevision('falcon-axi'), ...change }), 'REVISION_CONFLICT')
+  expect(store.findInstance('falcon-axi', 'east')).toMatchObject({ id: east.id, revision: 1 })
+  expect(store.readCredential(store.findInstance('falcon-axi', 'east')!)).toEqual(eastValue)
+})
+
+test('instance read-only and disable changes are audited per flag and revision checked', async () => {
+  const east = await createInstance('east', eastValue)
+  const response = await request('PATCH', '/falcon-axi/instances/east', { expectedId: east.id, expectedRevision: 1, readOnly: false, enabled: false })
+  expect(response.status).toBe(200)
+  expect(adminInstanceSchema.parse(await response.json())).toMatchObject({ readOnly: false, enabled: false, revision: 2, health: { status: 'disabled' } })
+  expect(db.prepare("SELECT action, instance, credential_id FROM audit WHERE event = 'admin-change' AND action <> 'create-instance' ORDER BY id").all())
+    .toEqual([{ action: 'disable-instance', instance: 'east', credential_id: east.id }, { action: 'set-instance-writable', instance: 'east', credential_id: east.id }])
+  await failure(await request('PATCH', '/falcon-axi/instances/east', { expectedId: east.id, expectedRevision: 1, enabled: true }), 'REVISION_CONFLICT')
+  expect(store.findInstance('falcon-axi', 'east')).toMatchObject({ enabled: false, readOnly: false, revision: 2 })
+  const restored = await request('PATCH', '/falcon-axi/instances/east', { expectedId: east.id, expectedRevision: 2, enabled: true, readOnly: true })
+  expect(adminInstanceSchema.parse(await restored.json())).toMatchObject({ enabled: true, readOnly: true, revision: 3 })
+})
+
+test('instance delete is revision checked, removes dependent state and is audited', async () => {
+  const east = await createInstance('east', eastValue)
+  await createInstance('west', westValue)
+  await failure(await request('DELETE', '/falcon-axi/instances/east', { expectedId: east.id, expectedRevision: 9 }), 'REVISION_CONFLICT')
+  await failure(await request('DELETE', '/falcon-axi/instances/east', { expectedId: 'recreated-instance', expectedRevision: 1 }), 'REVISION_CONFLICT')
+  expect(store.findInstance('falcon-axi', 'east')).toBeDefined()
+  expect((await request('POST', '/falcon-axi/instances/east/test', {})).status).toBe(200)
+  const response = await request('DELETE', '/falcon-axi/instances/east', { expectedId: east.id, expectedRevision: 1 })
+  expect(await response.json()).toEqual({ removed: true })
+  expect(store.listInstances('falcon-axi').map(instance => instance.name)).toEqual(['west'])
+  expect(db.prepare('SELECT COUNT(*) AS count FROM tool_health WHERE credential_id = ?').get(east.id)).toEqual({ count: 0 })
+  await failure(await request('GET', '/falcon-axi/instances/east'), 'NOT_FOUND')
+  await failure(await request('DELETE', '/falcon-axi/instances/east', { expectedId: east.id, expectedRevision: 1 }), 'NOT_FOUND')
+  expect(db.prepare("SELECT user_id, instance, credential_id FROM audit WHERE action = 'delete-instance'").all())
+    .toEqual([{ user_id: actor, instance: 'east', credential_id: east.id }])
+})
+
+const instanceRoutes = [
+  { method: 'GET', path: '/falcon-axi/instances' },
+  { method: 'POST', path: '/falcon-axi/instances', body: {} },
+  { method: 'GET', path: '/falcon-axi/instances/east' },
+  { method: 'PATCH', path: '/falcon-axi/instances/east', body: {} },
+  { method: 'DELETE', path: '/falcon-axi/instances/east', body: {} },
+  { method: 'PUT', path: '/falcon-axi/instances/east/credential', body: {} },
+  { method: 'PATCH', path: '/falcon-axi/instances/east/credential', body: {} },
+  { method: 'POST', path: '/falcon-axi/instances/east/test', body: {} },
+  { method: 'GET', path: '/falcon-axi/instances/east/certificates' },
+  { method: 'POST', path: '/falcon-axi/instances/east/certificates/inspect', body: {} },
+  { method: 'POST', path: '/falcon-axi/instances/east/certificates/trust', body: {} },
+  { method: 'DELETE', path: '/falcon-axi/instances/east/certificates', body: {} },
+  { method: 'PUT', path: '/awx-axi/origin', body: { instance: 'lab' } },
+  { method: 'POST', path: '/gh-axi/device', body: { instance: 'lab' } },
+] as const
+test.each(instanceRoutes)('instance route $method $path requires an administrator', async route => {
+  await createInstance('east', eastValue)
+  await failure(await request(route.method, route.path, 'body' in route ? route.body : undefined, await adminHeaders('synthetic-ordinary')), 'ADMIN_REQUIRED')
+})
+test.each(instanceRoutes)('instance route $method $path requires recent authentication', async route => {
+  await createInstance('east', eastValue)
+  const { 'x-artium-reauth-ticket': _ticket, ...missing } = headers
+  await failure(await request(route.method, route.path, 'body' in route ? route.body : undefined, missing), 'REAUTH_REQUIRED')
+  expect(store.listInstances('falcon-axi')).toHaveLength(1)
+})
+
+test('instance test checks and caches only the named instance', async () => {
+  const east = await createInstance('east', eastValue)
+  await createInstance('west', westValue)
+  db.exec('DELETE FROM tool_health')
+  const response = await request('POST', '/falcon-axi/instances/east/test', {})
+  expect(healthSchema.parse(await response.json())).toMatchObject({ status: 'ok', credentialRevision: 1, errorCode: null })
+  expect(db.prepare('SELECT credential_id FROM tool_health').all()).toEqual([{ credential_id: east.id }])
+  expect(adminInstanceSchema.parse(await (await request('GET', '/falcon-axi/instances/east')).json()).health).toMatchObject({ status: 'ok' })
+  expect(adminInstanceSchema.parse(await (await request('GET', '/falcon-axi/instances/west')).json()).health).toMatchObject({ status: 'unknown', checkedAt: null })
+  expect(db.prepare("SELECT instance, credential_id, error_code FROM audit WHERE event = 'credential-test'").all())
+    .toEqual([{ instance: 'east', credential_id: east.id, error_code: null }])
+  await failure(await request('POST', '/falcon-axi/instances/missing/test', {}), 'NOT_FOUND')
+})
+
+test('instance certificates are scoped to the named instance', async () => {
+  await createInstance('east', eastValue)
+  const response = await request('GET', '/falcon-axi/instances/east/certificates')
+  expect(await response.json()).toEqual({ certificates: [] })
+  await failure(await request('GET', '/falcon-axi/instances/missing/certificates'), 'NOT_FOUND')
+})
+
+test('AWX origin save creates and then revision-checks a named instance', async () => {
+  const body = (extra: object) => ({ origin: 'https://lab.example', instance: 'lab', expectedRevision: 0, expectedToolRevision: 1, ...extra })
+  const created = await request('PUT', '/awx-axi/origin', body({}))
+  expect(created.status).toBe(200)
+  const lab = adminInstanceSchema.parse(await created.json())
+  expect(lab).toMatchObject({ name: 'lab', configured: false, revision: 1, metadata: { origin: 'https://lab.example' } })
+  const tool = await toolRevision('awx-axi')
+  await failure(await request('PUT', '/awx-axi/origin', body({ origin: 'https://other.example', expectedRevision: 1, expectedToolRevision: tool })), 'REVISION_CONFLICT')
+  const moved = await request('PUT', '/awx-axi/origin', body({ origin: 'https://other.example', expectedId: lab.id, expectedRevision: 1, expectedToolRevision: tool }))
+  expect(adminInstanceSchema.parse(await moved.json())).toMatchObject({ id: lab.id, revision: 2, metadata: { origin: 'https://other.example' } })
+  expect(db.prepare("SELECT action, instance, credential_id FROM audit WHERE action = 'save-awx-origin' ORDER BY id").all())
+    .toEqual([{ action: 'save-awx-origin', instance: 'lab', credential_id: lab.id }, { action: 'save-awx-origin', instance: 'lab', credential_id: lab.id }])
+})
+
+test('GitHub device connection rotates the named instance and leaves its sibling untouched', async () => {
+  const network = fakeGithubDevice()
+  const enterprise = await createInstance('enterprise', values['gh-axi'], 'gh-axi')
+  const sibling = await createInstance('other', { ...values['gh-axi'], token: 'CANARY-other-token' }, 'gh-axi')
+  const start = await request('POST', '/gh-axi/device', { origin: 'https://github.com', instance: 'enterprise', expectedId: enterprise.id,
+    expectedRevision: 1, expectedToolRevision: await toolRevision('gh-axi') })
+  expect(start.status).toBe(200)
+  const { connectionId } = await start.json() as { connectionId: string }
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(Date.now() + 5000)
+  const response = await request('POST', '/gh-axi/device/poll', { connectionId })
+  expect(response.status).toBe(200)
+  expect(await response.json()).toMatchObject({ status: 'connected', credential: { id: enterprise.id, name: 'enterprise', revision: 2,
+    metadata: { auth: 'device', login: 'synthetic-machine' } } })
+  expect(store.readCredential(store.findInstance('gh-axi', 'enterprise')!)).toMatchObject({ auth: 'device', accessToken: 'gho_CANARY-connected-token' })
+  expect(store.findInstance('gh-axi', 'other')).toMatchObject({ id: sibling.id, revision: 1 })
+  expect(db.prepare("SELECT instance, credential_id FROM audit WHERE action = 'connect-github-device'").all())
+    .toEqual([{ instance: 'enterprise', credential_id: enterprise.id }])
+  expect(network).toHaveBeenCalledTimes(3)
+})
+
+test('GitHub device connection for an instance rejects an identity other than the observed one', async () => {
+  const network = fakeGithubDevice()
+  await createInstance('enterprise', values['gh-axi'], 'gh-axi')
+  await failure(await request('POST', '/gh-axi/device', { origin: 'https://github.com', instance: 'enterprise', expectedId: 'recreated-instance',
+    expectedRevision: 1, expectedToolRevision: await toolRevision('gh-axi') }), 'REVISION_CONFLICT')
+  expect(network).not.toHaveBeenCalled()
+})
+
+test('instance description edit is revision checked and audited', async () => {
+  const east = await createInstance('east', eastValue)
+  const response = await request('PATCH', '/falcon-axi/instances/east', { expectedId: east.id, expectedRevision: 1, description: 'Primary region' })
+  expect(adminInstanceSchema.parse(await response.json())).toMatchObject({ description: 'Primary region', revision: 2, enabled: true, readOnly: true })
+  expect(db.prepare("SELECT action FROM audit WHERE action = 'edit-instance-description'").all()).toEqual([{ action: 'edit-instance-description' }])
+  await failure(await request('PATCH', '/falcon-axi/instances/east', { expectedId: east.id, expectedRevision: 2, description: 'x'.repeat(501) }), 'INVALID_INPUT')
+})
+
+test.each([{ description: 'Updated region' }, { readOnly: false }])('instance update refreshes health for %o', async change => {
+  const east = await createInstance('east', eastValue)
+  expect((await request('PATCH', '/falcon-axi/instances/east', { expectedId: east.id, expectedRevision: east.revision, ...change })).status).toBe(200)
+  expect(adminInstanceSchema.parse(await (await request('GET', '/falcon-axi/instances/east')).json()).health)
+    .toMatchObject({ status: 'ok', credentialRevision: 2 })
+})
+
+test('aggregate health includes the failing named instance diagnostic', async () => {
+  await createInstance('east', eastValue)
+  await createInstance('west', westValue)
+  const adapter = adapters.find(item => item.name === 'falcon-axi')!
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementationOnce(async (args, reference) => ({ ...await prepare(args, reference),
+    executable: fakeTool.executable, args: [...fakeTool.args, 'failure', 'code: AUTH_FAILED'] }))
+  const failureResponse = await request('POST', '/falcon-axi/instances/west/test', {})
+  const diagnostic = errorResponseSchema.parse(await failureResponse.json()).error.diagnostic
+  expect(diagnostic).toMatchObject({ credentialRevision: 1 })
+  expect((await (await request('GET', '/falcon-axi')).json()).health)
+    .toMatchObject({ status: 'error', errorCode: 'UPSTREAM_AUTH_FAILED', diagnostic })
+})
+
+test.each(['kubernetes-axi', 'proxmox-axi', 'shodan-axi'] as const)('%s refuses a second instance until its long-lived state is instance-aware', async tool => {
+  await createInstance('lab', values[tool], tool)
+  await failure(await request('POST', `/${tool}/instances`, { name: 'production', description: '', value: values[tool],
+    expectedToolRevision: await toolRevision(tool) }), 'INVALID_INPUT')
+  expect(store.listInstances(tool).map(instance => instance.name)).toEqual(['lab'])
+})
+
+test('a tool reports its failing enabled instance and recovers when that instance is disabled', async () => {
+  await createInstance('east', eastValue)
+  const west = await createInstance('west', westValue)
+  expect((await (await request('GET', '/falcon-axi')).json()).health).toMatchObject({ status: 'ok' })
+  db.prepare("UPDATE tool_health SET status = 'error', error_code = 'UPSTREAM_AUTH_FAILED' WHERE credential_id = ?").run(west.id)
+  expect((await (await request('GET', '/falcon-axi')).json()).health).toMatchObject({ status: 'error', errorCode: 'UPSTREAM_AUTH_FAILED' })
+  await request('PATCH', '/falcon-axi/instances/west', { expectedId: west.id, expectedRevision: 1, enabled: false })
+  expect((await (await request('GET', '/falcon-axi')).json()).health).toMatchObject({ status: 'ok', errorCode: null })
 })
