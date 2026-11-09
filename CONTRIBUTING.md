@@ -91,7 +91,7 @@ Keep process evidence uncommitted.
 Run `pnpm test:containers` for pull requests touching `Dockerfile`, `.dockerignore`, `scripts/`, `tools/`, `bin/`, `test/fake-service/`, `test/runner/`, `test/walking-skeleton/`, `package.json` or `pnpm-lock.yaml`.
 Changes only to `src/server/`, `src/cli/`, docs, workflows or skills do not require it.
 The [gate configuration](.no-mistakes.yaml) owns the triggering paths and exemptions.
-Before every release, the release workflow's `containers` job runs acceptance against the release tag and must pass before npm and image publication.
+After release-please creates a release, the release workflow's `containers` job runs acceptance against the release tag and must pass before npm and image publication.
 
 The repository ships a [nightly cron definition](scripts/container-acceptance.cron) for an owner to install on a permitted Docker host.
 Until an owner installs it, `main` has no scheduled container acceptance.
