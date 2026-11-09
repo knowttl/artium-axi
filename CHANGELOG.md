@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.0.38](https://github.com/knowttl/artium-axi/compare/v0.0.37...v0.0.38) (2026-11-09)
+
+
+### Features
+
+* add bulk selection for write operations ([#343](https://github.com/knowttl/artium-axi/issues/343)) ([d1dd438](https://github.com/knowttl/artium-axi/commit/d1dd438f33d7e1bc2412be09adeaaf8c9ba32666))
+* add multi-instance tool discovery ([#342](https://github.com/knowttl/artium-axi/issues/342)) ([54e40a9](https://github.com/knowttl/artium-axi/commit/54e40a9d3932da07ac7792717835bab9b6fce56a))
+* **admin:** add multi-instance management ([#349](https://github.com/knowttl/artium-axi/issues/349)) ([a6724bf](https://github.com/knowttl/artium-axi/commit/a6724bf9896a9cc80cd2d6c9641988fc7172ff25))
+* **cli:** select named tool instances ([#338](https://github.com/knowttl/artium-axi/issues/338)) ([bb3a577](https://github.com/knowttl/artium-axi/commit/bb3a57772d5582cf1115551c930fbb7ecc330f35))
+* scope delegated tokens to instances ([#351](https://github.com/knowttl/artium-axi/issues/351)) ([15504f7](https://github.com/knowttl/artium-axi/commit/15504f766f3de0356fa242f201671c37fb1aaf47))
+* **server:** add role-based instance grants ([#341](https://github.com/knowttl/artium-axi/issues/341)) ([d13288f](https://github.com/knowttl/artium-axi/commit/d13288f2d79df3bbc1d594a95aba8881316d5751))
+* **server:** attribute audit events to credential instances ([#340](https://github.com/knowttl/artium-axi/issues/340)) ([0e8a1c1](https://github.com/knowttl/artium-axi/commit/0e8a1c17b68d2cc45a5c9c1025d883eeeec4b9c8))
+* support instance-bound Proxmox streams and transfers ([#345](https://github.com/knowttl/artium-axi/issues/345)) ([63b9060](https://github.com/knowttl/artium-axi/commit/63b90602e3039f59cabf8d57054670f28d2f3160))
+* support instance-bound Shodan streams and collections ([#346](https://github.com/knowttl/artium-axi/issues/346)) ([9533681](https://github.com/knowttl/artium-axi/commit/95336814538e479edfcea610a39482c2cd8ef249))
+* support multiple Kubernetes instances ([#344](https://github.com/knowttl/artium-axi/issues/344)) ([dbd4c8c](https://github.com/knowttl/artium-axi/commit/dbd4c8cd164bf7fb93b4a9628b49c182f7a5702b))
+
 ## [0.0.37](https://github.com/knowttl/artium-axi/compare/v0.0.36...v0.0.37) (2026-11-09)
 
 
