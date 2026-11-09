@@ -61,7 +61,8 @@ function vectraArguments(args: readonly string[], input: RunnerInput = {}) {
       if (value !== '-') fileArguments.push(normalized.length - 1)
     } else normalized.push(token)
   }
-  return { args: normalized, fileArguments, invocation: { command, help } }
+  return { args: normalized, fileArguments, invocation: { command, help },
+    effect: args.some(arg => arg === '--execute' || arg.startsWith('--execute=')) ? 'write' as const : 'read' as const }
 }
 
 export function createVectraAdapter(source: SecretSource, writeLog: string,

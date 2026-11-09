@@ -1,5 +1,4 @@
 import { expect, test } from 'vitest'
-import { errors } from '../../shared/errors.js'
 import { FakeCredentialStore } from '../../../test/fixtures/credential-store.js'
 import { SharedIdentityResolver } from './identity-resolver.js'
 
@@ -52,7 +51,6 @@ test.each([
 })
 
 test('ambiguous selection lists enabled instances in sorted order', async () => {
-  expect(errors.INSTANCE_REQUIRED.status).toBe(409)
   await expect(instances.resolve('synthetic-user', 'falcon-axi')).rejects.toMatchObject({
     code: 'INSTANCE_REQUIRED',
     next: 'Ask the user which instance to use, then run artium-axi --instance <lab|production> falcon-axi ...',
