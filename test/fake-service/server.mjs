@@ -24,6 +24,8 @@ let awxConfigurationAllowed = true
 let awxDropWrite = false
 let awxBulkDeleteResponse = 'valid'
 let awxTokenResponse = 'valid'
+let awxHoldToken = false
+let awxTokenRelease
 let awxStdoutPadding = 0
 let awxStdoutStatus = 200
 let awxStdoutText
@@ -501,6 +503,11 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     awxTokenResponse = url.searchParams.get('mode') ?? 'valid'
     res.end('{}'); return
   }
+  if (url.pathname === '/__awx/hold-token' && req.method === 'POST') {
+    awxHoldToken = url.searchParams.get('enabled') === 'true'
+    if (!awxHoldToken) { awxTokenRelease?.(); awxTokenRelease = undefined }
+    res.end('{}'); return
+  }
   if (url.pathname === '/__awx/stdout-padding' && req.method === 'POST') {
     awxStdoutPadding = Number(url.searchParams.get('bytes') ?? 0)
     res.end('{}'); return
@@ -676,9 +683,13 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           const token = `CANARY-awx-created-token-${id}`
           awxTokens.set(id, token)
           if (awxDropWrite) { req.socket.destroy(); return }
-          res.writeHead(201)
-          res.end(JSON.stringify({ ...(awxTokenResponse === 'missing-id' ? {} : { id }),
-            ...(awxTokenResponse === 'missing-token' ? {} : { token }), scope: payload.scope ?? 'write', description: token })); return
+          const respond = () => {
+            res.writeHead(201)
+            res.end(JSON.stringify({ ...(awxTokenResponse === 'missing-id' ? {} : { id }),
+              ...(awxTokenResponse === 'missing-token' ? {} : { token }), scope: payload.scope ?? 'write', description: token }))
+          }
+          if (awxHoldToken) { awxTokenRelease = respond; process.send?.('held-request') } else respond()
+          return
         }
         if ((url.pathname.startsWith('/api/v2/credentials/') || /^\/api\/v2\/teams\/\d+\/credentials\/$/.test(url.pathname))
           && payload.credential_type !== undefined && payload.credential_type !== 7) {
