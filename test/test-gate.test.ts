@@ -62,6 +62,9 @@ beforeEach(() => {
   write('test/integration/bootstrap.test.ts', 'export {}\n')
   write('src/server/store/db.ts', 'export const db = 1\n')
   write('src/server/store/migrations/001.sql', 'SELECT 1;\n')
+  for (const name of ['ado-auth', 'audit', 'audited-run', 'published-credentials', 'rotation', 'trusted-ca']) {
+    write(`test/integration/${name}.test.ts`, 'export {}\n')
+  }
   write('test/integration/awx-tokens.test.ts', "import { awx } from '../../src/server/adapters/awx.js'\n")
   write('test/integration/awx-flags.test.ts', 'export {}\n')
   write('test/integration/shodan-reads.test.ts', 'export {}\n')
@@ -121,12 +124,14 @@ test.each([
   ] })
 })
 
-test('server changes include transitive re-exports, dynamic imports and the server journeys', () => {
+test('server changes include transitive re-exports, dynamic imports, the server journeys and the security core', () => {
   write('src/server/feature.ts', 'export const value = 2\n')
   expect(plan()).toMatchObject({ mode: 'affected', tests: [
     'src/server/dynamic.test.ts', 'src/server/feature.test.ts', 'test/cli.test.ts',
-    'test/integration/api.test.ts', 'test/integration/cli-auth.test.ts',
-    'test/integration/tool-skills.test.ts', 'test/integration/transfers.test.ts',
+    'test/integration/ado-auth.test.ts', 'test/integration/api.test.ts', 'test/integration/audit.test.ts',
+    'test/integration/audited-run.test.ts', 'test/integration/cli-auth.test.ts',
+    'test/integration/published-credentials.test.ts', 'test/integration/rotation.test.ts',
+    'test/integration/tool-skills.test.ts', 'test/integration/transfers.test.ts', 'test/integration/trusted-ca.test.ts',
   ] })
 })
 

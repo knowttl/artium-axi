@@ -104,6 +104,7 @@ function selectGate(root, { base, full = false } = {}) {
   }
   const serverJourneys = () => {
     add(file => /^test\/integration\/(?:api|cli-auth|tool-skills|transfers)\.test\.ts$/.test(file))
+    add(file => /^test\/integration\/(?:ado-auth|audit|audited-run|published-credentials|rotation|trusted-ca)\.test\.ts$/.test(file))
     add(file => file === 'test/cli.test.ts' || file === 'test/tool-skills.test.ts')
   }
   if (full) reasons.push('explicit full suite')

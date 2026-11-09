@@ -67,7 +67,7 @@ It compares the working tree, staged changes and untracked inputs with the uniqu
 Use `pnpm test:gate --base <commit>` only with a known ancestor when the default base is unavailable.
 `pnpm test:gate --plan` prints the selected tests, commands, reasons, base, head and SHA-256 of repository input bytes and the Node version without executing checks.
 Keep that output with the validation evidence.
-Import dependents select module tests; server changes also select matching adapter owners and a short set of journeys.
+Import dependents select module tests; server changes also select matching adapter owners, a short set of journeys and a security core (audit, audited runs, Azure DevOps authentication, published credentials, key rotation and trusted CAs).
 Executable entry points reached by the import graph select their consumer tests; SQL migrations select store dependents, and the shared API selects CLI and server journeys.
 Explicit owners retain CLI bundles and installed package journeys where applicable.
 Embedded skills run CLI and package checks rather than taking the documentation shortcut.
