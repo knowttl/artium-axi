@@ -168,7 +168,9 @@ export async function runTool<Credential>(
       const preview = prepared.preview || prepared.effect === 'read' && !prepared.protectedResult
       const writes = () => prepared.effect === 'write' || !!prepared.write || !prepared.invocation?.help && !preview && writeRequested()
       if (instanceReadOnly && writes()) throw new ArtiumError('FLAG_BLOCKED')
-      if (readOnly || instanceReadOnly) prepared.environment = { ...prepared.environment, [`${adapter.name.toUpperCase().replaceAll('-', '_')}_READ_ONLY`]: 'true' }
+      if ((readOnly || instanceReadOnly) && !(adapter.name === 'vectra-axi' && preview)) {
+        prepared.environment = { ...prepared.environment, [`${adapter.name.toUpperCase().replaceAll('-', '_')}_READ_ONLY`]: 'true' }
+      }
       const kubernetesRequests = prepared.kubernetesWorkflowRoot && reference ? {
         root: prepared.kubernetesWorkflowRoot,
         scope: createHash('sha256').update(JSON.stringify({ userId, family: family(), reference })).digest('hex'),
