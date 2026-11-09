@@ -6,6 +6,8 @@ import { afterEach, beforeEach, expect, test } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { Audit } from '../../src/server/audit/audit.js'
+import { createDelegation } from '../../src/server/auth/delegations.js'
+import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
@@ -29,7 +31,7 @@ beforeEach(async () => {
   db.exec("DELETE FROM role_tools WHERE tool != 'falcon-axi'; UPDATE tools SET enabled = 1")
   store = createCredentialStore(db, provider)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db), environment: {},
-    adapters: [createFalconAdapter({ getCredential: async () => ({}) })], resolver: new SharedIdentityResolver(store) })
+    adapters: [createFalconAdapter({ getCredential: async () => ({}) })], resolver: new SharedIdentityResolver(store, db) })
   headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
   Object.assign(toolSkillPaths, { 'falcon-axi': join(process.cwd(), 'tools/node_modules/@knowttl/falcon-axi/skills/falcon-axi/SKILL.md') })
 })
@@ -72,4 +74,22 @@ test('the served skill gains the instance paragraph only while several instances
   store.createInstance('falcon-axi', { name: 'production', description: '' }, value, 'synthetic-development-user', 1000)
   expect(await skill()).toContain('ask the user which one to use')
   expect(await skill()).toContain('artium-axi --instance <name> falcon-axi ...')
+})
+
+test.each(['full', 'delegated'] as const)('%s discovery only exposes instances granted to the caller', async session => {
+  const lab = store.createInstance('falcon-axi', { name: 'lab', description: 'Lab tenant.' }, value, 'synthetic-development-user', 1000)
+  store.createInstance('falcon-axi', { name: 'production', description: 'Production tenant.' }, value, 'synthetic-development-user', 1000)
+  db.prepare("UPDATE role_tools SET all_instances = 0 WHERE role_id = 'synthetic-role' AND tool = 'falcon-axi'").run()
+  db.prepare("INSERT INTO role_tool_instances (role_id, tool, credential_id) VALUES ('synthetic-role', 'falcon-axi', ?)").run(lab.id)
+  const grant = session === 'delegated' ? createDelegation(db, 'synthetic-development-user',
+    { label: 'Synthetic', scope: { tools: [{ tool: 'falcon-axi' }] }, readOnly: true, reusable: true, expiresAt: Date.now() + 600000 }, []) : undefined
+  const caller = grant ? { authorization: `Bearer ${exchangeDelegation(db, grant.token).accessToken}` } : headers
+  const response = await app.inject({ url: '/v1/tools', headers: caller })
+  expect(response.statusCode).toBe(200)
+  expect(response.json().tools[0].instances).toEqual([
+    { name: 'lab', description: 'Lab tenant.', status: 'unknown', readOnly: true },
+  ])
+  const skills = await app.inject({ url: '/v1/skills', headers: caller })
+  expect(skills.statusCode).toBe(200)
+  expect(skills.json().skills[0].content).not.toContain('## Instances')
 })
