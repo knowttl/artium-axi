@@ -145,6 +145,20 @@ test.each([
 ])('delegated transfer refuses a scope without the exact writable operation: %j', async ({ commands, readOnly }) => {
   const session = delegated(commands, readOnly)
   expect((await post('prepare', body(), session.headers)).status).toBe(403)
+  expect(db.prepare("SELECT credential_id, instance FROM audit WHERE event = 'denial' ORDER BY id DESC LIMIT 1").get())
+    .toEqual({ credential_id: (db.prepare("SELECT id FROM credentials WHERE tool = 'hybrid-axi'").get() as { id: string }).id, instance: 'default' })
+})
+
+test('transfer prepare attributes invalid input only when selection is unambiguous', async () => {
+  expect((await post('prepare', {})).status).toBe(400)
+  const credential = db.prepare("SELECT id FROM credentials WHERE tool = 'hybrid-axi'").get() as { id: string }
+  expect(db.prepare("SELECT credential_id, instance FROM audit WHERE event = 'denial' ORDER BY id DESC LIMIT 1").get())
+    .toEqual({ credential_id: credential.id, instance: 'default' })
+  const store = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') }))
+  store.createInstance('hybrid-axi', { name: 'other', description: '' }, { apiKey: 'CANARY-other-key' }, user, Date.now())
+  expect((await post('prepare', {})).status).toBe(400)
+  expect(db.prepare("SELECT credential_id, instance FROM audit WHERE event = 'denial' ORDER BY id DESC LIMIT 1").get())
+    .toEqual({ credential_id: null, instance: null })
 })
 
 test('exact delegated download verifies bytes, records the token and stops on revocation', async () => {

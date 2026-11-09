@@ -237,7 +237,10 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
           const transferId = request.body && typeof request.body === 'object' && 'transferId' in request.body && typeof request.body.transferId === 'string' ? request.body.transferId : undefined
           const owned = transferId ? entries.get(transferId) : undefined
           const scope = owned?.reservation.scope
-          const identity = admitted.get(request) ?? (scope && transferTool(scope.selection.operation) === tool && principal?.userId === scope.userId && principal.familyId === scope.sessionFamilyId ? owned?.identity : undefined)
+          const candidates = principal && route === transferRoutes.prepare
+            ? db.prepare('SELECT id, name FROM credentials WHERE tool = ? AND enabled = 1 LIMIT 2').all(tool) as { id: string, name: string }[] : []
+          const identity = admitted.get(request) ?? (scope && transferTool(scope.selection.operation) === tool && principal?.userId === scope.userId && principal.familyId === scope.sessionFamilyId
+            ? owned?.identity : candidates.length === 1 ? { credentialId: candidates[0]!.id, instance: candidates[0]!.name } : undefined)
           audit.record({ ...identity, event: 'denial', userId: principal?.userId ?? null, delegationId: principal?.delegation?.id, tool, requestId: request.id,
             clientAddress: request.ip, outcome: error.code })
         }

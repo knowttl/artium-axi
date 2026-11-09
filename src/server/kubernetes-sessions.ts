@@ -432,7 +432,11 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     try { const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''); userId = principal.userId; delegationId = principal.delegation?.id; familyId = principal.familyId } catch { /* Unverified callers remain unattributed. */ }
     const id = request.url.startsWith(prefix + '/') ? (request.params as { id?: string } | undefined)?.id : undefined
     const session = id ? sessions.get(id) : undefined
-    const identity = admitted.get(request) ?? (session && session.owner.user === userId && session.owner.family === familyId ? { credentialId: session.credentialId, instance: session.instance } : {})
+    const candidates = userId && request.method === 'POST' && request.url.split('?')[0] === prefix
+      ? db.prepare("SELECT id, name FROM credentials WHERE tool = 'kubernetes-axi' AND enabled = 1 LIMIT 2").all() as { id: string, name: string }[] : []
+    const identity = admitted.get(request) ?? (session && session.owner.user === userId && session.owner.family === familyId
+      ? { credentialId: session.credentialId, instance: session.instance }
+      : candidates.length === 1 ? { credentialId: candidates[0]!.id, instance: candidates[0]!.name } : {})
     audit.record({ ...identity, event: 'denial', userId, delegationId, tool: 'kubernetes-axi', requestId: request.id,
       clientAddress: request.ip, outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
   })

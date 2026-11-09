@@ -96,6 +96,13 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
       { credential_id: reference.id, instance: 'default' })
     assert.equal((await request(prefix, 'POST', { kind: 'exec', argv: ['prepare', '--', 'exec', 'synthetic-pod', '--', 'true'] })).json().error.code, 'FLAG_BLOCKED')
+    assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
+      { credential_id: reference.id, instance: 'default' })
+    const sibling = store.createInstance('kubernetes-axi', { name: 'other', description: '' }, credential, 'synthetic-development-user', Date.now())
+    assert.equal((await request(prefix, 'POST', { kind: 'exec', argv: ['prepare', '--', 'exec', 'synthetic-pod', '--', 'true'] })).json().error.code, 'FLAG_BLOCKED')
+    assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
+      { credential_id: null, instance: null })
+    store.deleteInstance('kubernetes-axi', 'other', sibling.id, sibling.revision)
     const logs = await start('logs', ['logs', 'synthetic-pod', '--follow'])
     assert.equal((await show(logs.id)).state, 'exited')
     assert.deepEqual(db.prepare("SELECT event, credential_id, instance FROM audit WHERE tool='kubernetes-axi' AND event IN ('run-start', 'run-terminal') ORDER BY id").all(), [
