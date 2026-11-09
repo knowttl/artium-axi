@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.0.37](https://github.com/knowttl/artium-axi/compare/v0.0.36...v0.0.37) (2026-11-09)
+
+
+### Features
+
+* add credential instance administration and health ([#336](https://github.com/knowttl/artium-axi/issues/336)) ([bee034d](https://github.com/knowttl/artium-axi/commit/bee034dc45bc413475469a81ba9d565341b531e9))
+* **server:** add credential instance store operations ([#335](https://github.com/knowttl/artium-axi/issues/335)) ([a2d81e8](https://github.com/knowttl/artium-axi/commit/a2d81e8c1869cb2adcd8837517b9c6fddc11c4b3))
+* **server:** enforce tool and role permissions for raw API access ([#332](https://github.com/knowttl/artium-axi/issues/332)) ([17268bf](https://github.com/knowttl/artium-axi/commit/17268bfbe779520d53bf03383ca1e7ee051bb47f))
+* **server:** prepare store for named credential instances ([#334](https://github.com/knowttl/artium-axi/issues/334)) ([a9837ba](https://github.com/knowttl/artium-axi/commit/a9837ba06899f18557654636af654037060e8dff))
+* support credential instance selection for tool runs ([#337](https://github.com/knowttl/artium-axi/issues/337)) ([3299eea](https://github.com/knowttl/artium-axi/commit/3299eea5ecebb40a142ba7a063f37214f128e25f))
+
 ## [0.0.36](https://github.com/knowttl/artium-axi/compare/v0.0.35...v0.0.36) (2026-11-06)
 
 
