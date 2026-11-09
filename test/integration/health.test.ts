@@ -617,6 +617,22 @@ test('a credential deleted and recreated at the same revision during a check nev
   expect(db.prepare('SELECT * FROM tool_health').all()).toEqual([])
 })
 
+test('a recreated credential does not inherit a disabled replacement check', async () => {
+  const ready = controlledHealthProcess()
+  const pending = health.checkReplacement('falcon-axi', 'synthetic-development-user', 'manual', null, () => {})
+  const release = await ready
+  const original = store.findCredential('falcon-axi')!
+  db.prepare('DELETE FROM credentials WHERE id = ?').run(original.id)
+  store.replaceCredential('falcon-axi', { clientId: 'CANARY-client', clientSecret: 'CANARY-recreated', region: 'us-2' },
+    0, 'synthetic-development-user', Date.now())
+  db.exec("UPDATE tools SET enabled = 0 WHERE name = 'falcon-axi'")
+  release()
+  await pending
+  await health.refresh('falcon-axi')
+  expect(health.checking('falcon-axi')).toBe(false)
+  expect(db.prepare("SELECT request_id FROM audit WHERE event = 'run-start'").all()).toEqual([{ request_id: 'manual' }])
+})
+
 test.each(['0.0.0', '0.0.0-old', '0.0.9', `${firstVersionWithUpdate}-old`])(
   'CLI %s without the update command is refused with the verified download before authentication or tool preparation', async version => {
     const prepare = vi.spyOn(adapter, 'prepare')

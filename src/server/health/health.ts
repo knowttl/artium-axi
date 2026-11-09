@@ -29,7 +29,7 @@ export class ToolHealth {
   private closed = false
   private readonly replaced = new Set<ToolName>()
   private readonly queued = new Set<ToolName>()
-  private readonly required = new Map<ToolName, CredentialReference['revision']>()
+  private readonly required = new Map<ToolName, CredentialReference>()
   private readonly generations = new Map<ToolName, number>()
   private readonly diagnostics = new Map<ToolName, Diagnostic>()
   private readonly due = new Map<ToolName, number>()
@@ -66,6 +66,11 @@ export class ToolHealth {
     return current?.id === reference.id && current.revision === reference.revision
   }
 
+  private isRequired(tool: ToolName, reference: CredentialReference): boolean {
+    const required = this.required.get(tool)
+    return required?.id === reference.id && required.revision === reference.revision
+  }
+
   private reschedule(tool: ToolName, reference: CredentialReference, generation: number, code: string | undefined): void {
     if (!this.isCurrent(tool, reference) || (this.generations.get(tool) ?? 0) !== generation) return
     if (code === 'TOO_MANY_CALLS' && this.queued.has(tool)) {
@@ -99,7 +104,7 @@ export class ToolHealth {
     const reference = this.store?.findCredential(tool)
     if (!reference || (tool === 'awx-axi' && isAwxOriginOnly(tool, this.store!.readCredential(reference)))) { this.queued.delete(tool); return }
     const row = this.db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number } | undefined
-    if (this.required.get(tool) !== reference.revision) this.required.delete(tool)
+    if (!this.isRequired(tool, reference)) this.required.delete(tool)
     if ((!row?.enabled && !this.required.has(tool)) || !this.adapters.some(adapter => adapter.name === tool)) { this.queued.delete(tool); return }
     if (this.pending.size >= healthDefaults.backgroundCalls) {
       this.queued.add(tool)
@@ -130,13 +135,13 @@ export class ToolHealth {
     if (!reference) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
     const generation = (this.generations.get(tool) ?? 0) + 1
     this.generations.set(tool, generation)
-    this.required.set(tool, reference.revision)
+    this.required.set(tool, reference)
     this.queued.add(tool)
     try {
       return await this.check(tool, actor, requestId, clientAddress, authorize)
     } catch (error) {
       const code = error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR'
-      if (this.required.get(tool) === reference.revision) this.reschedule(tool, reference, generation, code)
+      if (this.isRequired(tool, reference)) this.reschedule(tool, reference, generation, code)
       if (code === 'TOO_MANY_CALLS' && this.isCurrent(tool, reference)
         && this.generations.get(tool) === generation) {
         const checkedAt = Date.now()
@@ -216,7 +221,7 @@ export class ToolHealth {
         const beforeSpawn = () => {
             prepared.beforeSpawn?.()
             authorize?.()
-            if (background && this.required.get(tool) !== reference.revision
+            if (background && !this.isRequired(tool, reference)
               && !(db.prepare('SELECT enabled FROM tools WHERE name = ?').get(tool) as { enabled: number }).enabled) {
               throw new ArtiumError('TOOL_DISABLED')
             }
@@ -272,7 +277,7 @@ export class ToolHealth {
           if (diagnostic) this.diagnostics.set(tool, diagnostic)
         }
       })
-      if (this.required.get(tool) === reference.revision) this.reschedule(tool, reference, generation, failure?.code)
+      if (this.isRequired(tool, reference)) this.reschedule(tool, reference, generation, failure?.code)
       if (failure) throw failure
       return health
     } finally {
