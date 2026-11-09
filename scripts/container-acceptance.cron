@@ -1,0 +1,4 @@
+SHELL=/bin/sh
+ARTIUM_CHECKOUT=REPLACE_WITH_CHECKOUT_PATH
+PATH=REPLACE_WITH_TOOLCHAIN_PATH
+0 3 * * * (cd "$ARTIUM_CHECKOUT" && git switch main && git pull --ff-only origin main && pnpm install --frozen-lockfile && pnpm build && docker pull moby/buildkit:buildx-stable-1 && pnpm test:containers) >> "$HOME/artium-containers-nightly.log" 2>&1
