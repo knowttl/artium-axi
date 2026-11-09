@@ -479,3 +479,35 @@ test.each(['existing-file', 'leaf-symlink', 'parent-symlink'])('CLI refuses %s b
   expect(result.stdout).toContain('ARTIFACT_SAVE_FAILED')
   expect(events()).toEqual([])
 })
+
+test('a transfer is bound to its instance and survives changes to another instance', async () => {
+  const store = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') }))
+  const created = store.createInstance('hybrid-axi', { name: 'other', description: '' }, { apiKey: 'CANARY-other-key' }, user, Date.now())
+  const other = store.setInstanceFlags('hybrid-axi', 'other', { readOnly: false }, created.id, created.revision, user, Date.now())
+  const standard = store.findInstance('hybrid-axi', 'default')!
+  const prepared = await post('prepare', { ...body(), instance: 'other' })
+  expect(prepared.status).toBe(200)
+  const { transferId } = await prepared.json() as { transferId: string }
+  const status = () => post('status', { ...body(), transferId })
+  store.replaceInstance('hybrid-axi', 'default', { apiKey: 'CANARY-rotated-default-key' }, standard.id, standard.revision, user, Date.now())
+  expect((await status()).status).toBe(200)
+  store.replaceInstance('hybrid-axi', 'other', { apiKey: 'CANARY-rotated-other-key' }, other.id, other.revision, user, Date.now())
+  expect((await status()).status).toBe(409)
+})
+
+test('read-only instances allow transfer previews but refuse execution', async () => {
+  const store = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') }))
+  const instance = store.createInstance('hybrid-axi', { name: 'restricted', description: '' }, { apiKey: 'CANARY-other-key' }, user, Date.now())
+  const preview = await post('prepare', { ...body(), instance: 'restricted' })
+  expect(preview.status).toBe(200)
+  const first = await preview.json() as { transferId: string, confirm: string }
+  expect((await post('status', { ...body(), transferId: first.transferId })).status).toBe(200)
+  const denied = await post('execute', { ...body(), transferId: first.transferId, confirm: first.confirm, execute: true })
+  expect((await denied.json()).error.code).toBe('FLAG_BLOCKED')
+  const writable = store.setInstanceFlags('hybrid-axi', instance.name, { readOnly: false }, instance.id, instance.revision, user, Date.now())
+  const prepared = await post('prepare', { ...body(), instance: 'restricted' })
+  expect(prepared.status).toBe(200)
+  const { transferId } = await prepared.json() as { transferId: string }
+  store.setInstanceFlags('hybrid-axi', writable.name, { readOnly: true }, writable.id, writable.revision, user, Date.now())
+  expect((await post('status', { ...body(), transferId })).status).toBe(409)
+})

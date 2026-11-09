@@ -32,9 +32,10 @@ A role grants a tool either on all of its instances, including instances added l
 An instance outside the caller's grants returns `INSTANCE_NOT_FOUND`, whether it exists or not.
 Administrators edit this on the tool's Access tab or with `PUT /v1/admin/roles/:id/tools/:tool/instances`.
 SSH uses caller-specific credentials and rejects an `instance` field.
-The CLI supports instance selection for tool runs, Kubernetes workspace creation and Kubernetes session starts; see the [command reference](commands.md) for syntax and exclusions.
+See the [command reference](commands.md) for CLI instance selection syntax and exclusions.
 Kubernetes workspace and session creation APIs accept an optional instance name and bind subsequent ID-based operations to that instance.
-Other related workspace, session, stream, transfer and protected-result APIs do not carry an instance selection; multiple granted, enabled instances can therefore make those paths unavailable.
+Proxmox stream creation accepts an optional instance name, as does generic transfer preparation; subsequent actions use the instance bound to the stream or transfer.
+Other related workspace, session, stream and protected-result APIs do not carry an instance selection; multiple granted, enabled instances can therefore make those paths unavailable.
 Those paths check the role's instance grant when selecting credentials and recheck it for ongoing operations.
 The existing administration UI manages the shared credential rather than named instances.
 External secret sources and per-user credentials for shared-credential tools are unsupported.

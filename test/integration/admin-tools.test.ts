@@ -2428,7 +2428,7 @@ test('aggregate health includes the failing named instance diagnostic', async ()
     .toMatchObject({ status: 'error', errorCode: 'UPSTREAM_AUTH_FAILED', diagnostic })
 })
 
-test.each(['proxmox-axi', 'shodan-axi'] as const)('%s refuses a second instance until its long-lived state is instance-aware', async tool => {
+test.each(['shodan-axi'] as const)('%s refuses a second instance until its long-lived state is instance-aware', async tool => {
   await createInstance('lab', values[tool], tool)
   await failure(await request('POST', `/${tool}/instances`, { name: 'production', description: '', value: values[tool],
     expectedToolRevision: await toolRevision(tool) }), 'INVALID_INPUT')
@@ -2439,6 +2439,12 @@ test('kubernetes-axi accepts a second instance', async () => {
   await createInstance('lab', values['kubernetes-axi'], 'kubernetes-axi')
   await createInstance('production', values['kubernetes-axi'], 'kubernetes-axi')
   expect(store.listInstances('kubernetes-axi').map(instance => instance.name)).toEqual(['lab', 'production'])
+})
+
+test('proxmox-axi accepts a second instance', async () => {
+  await createInstance('lab', values['proxmox-axi'], 'proxmox-axi')
+  await createInstance('production', values['proxmox-axi'], 'proxmox-axi')
+  expect(store.listInstances('proxmox-axi').map(instance => instance.name).sort()).toEqual(['lab', 'production'])
 })
 
 test('a tool reports its failing enabled instance and recovers when that instance is disabled', async () => {

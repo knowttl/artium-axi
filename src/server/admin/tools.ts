@@ -49,7 +49,7 @@ export interface ToolAdminOptions {
 }
 
 const credentialSchemas = { 'shodan-axi': shodanProfile.credentialSchema, 'ssh-axi': z.never(), 'kubernetes-axi': kubernetesProfile.credentialSchema, 'gitea-axi': giteaProfile.credentialSchema, 'technitium-axi': technitiumProfile.credentialSchema, 'unifi-axi': unifiProfile.credentialSchema, 'proxmox-axi': proxmoxProfile.credentialSchema, 'beyondtrust-axi': beyondtrustCredentialSchema, 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
-const singleInstanceTools = new Set<ToolName>(['proxmox-axi', 'shodan-axi'])
+const singleInstanceTools = new Set<ToolName>(['shodan-axi'])
 const writePolicies = { 'ssh-axi': sshWritePolicy, 'kubernetes-axi': kubernetesWritePolicy, 'gitea-axi': giteaWritePolicy, 'unifi-axi': unifiWritePolicy, 'proxmox-axi': proxmoxWritePolicy, 'beyondtrust-axi': beyondtrustWritePolicy, 'gh-axi': ghWritePolicy, 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
   'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy, 'hybrid-axi': hybridWritePolicy, 'technitium-axi': technitiumWritePolicy, 'shodan-axi': shodanWritePolicy }
 const publicFields = {

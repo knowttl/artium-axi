@@ -82,11 +82,14 @@ export function transferTool(operation: z.infer<typeof transferSelectionSchema>[
   if (operation.startsWith('mail.')) return 'mg-axi'
   return ['email.download', 'attachment.download', 'attachment.download-all'].includes(operation) ? 'checkpoint-axi' : 'hybrid-axi'
 }
+import { instanceNameSchema } from './instance.js'
+export { instanceNameSchema } from './instance.js'
 export const transferPrepareSchema = z.strictObject({ selection: transferSelectionSchema, targetDigest: sha256Schema })
+export const transferPrepareRequestSchema = transferPrepareSchema.extend({ instance: instanceNameSchema.optional() })
 export const transferIdSchema = z.uuid()
 export const transferScopeSchema = z.strictObject({
   transferId: transferIdSchema, userId: transferOwnerIdSchema, sessionFamilyId: transferOwnerIdSchema,
-  credentialRevision: z.number().int().positive(), selection: transferSelectionSchema, targetDigest: sha256Schema,
+  credentialId: z.string().min(1), credentialRevision: z.number().int().positive(), selection: transferSelectionSchema, targetDigest: sha256Schema,
   preparedAt: z.number().int().nonnegative(), expiresAt: z.number().int().nonnegative(),
 }).refine(scope => scope.expiresAt === scope.preparedAt + transferLimits.lifetimeMs)
 export const transferPreviewSchema = z.strictObject({ transferId: transferIdSchema, expiresAt: z.number().int(),
@@ -114,7 +117,7 @@ export const transferEvidenceSchema = z.strictObject({ outcome: transferOutcomeS
 export const transferStatusSchema = transferEvidenceSchema.safeExtend({ transferId: transferIdSchema, expiresAt: z.number().int() })
 // Dedicated transfer routes preserve byte ownership outside ordinary tool runs.
 export const transferRoutes = {
-  prepare: { method: 'POST', path: '/v1/transfers/hybrid/prepare', input: transferPrepareSchema, response: transferPreviewSchema },
+  prepare: { method: 'POST', path: '/v1/transfers/hybrid/prepare', input: transferPrepareRequestSchema, response: transferPreviewSchema },
   execute: { method: 'POST', path: '/v1/transfers/hybrid/execute', input: transferExecuteSchema, response: transferStatusSchema },
   retrieve: { method: 'POST', path: '/v1/transfers/hybrid/retrieve', input: transferRetrieveSchema },
   receipt: { method: 'POST', path: '/v1/transfers/hybrid/receipt', input: transferReceiptSchema },
@@ -295,8 +298,6 @@ const auditCursorSchema = z.string().max(50).regex(/^\d{1,16}:\d{1,16}:\d{1,16}$
     const [ceiling, time, id] = value.split(':').map(Number) as [number, number, number]
     return [ceiling, time, id].every(Number.isSafeInteger) && ceiling > 0 && id > 0 && id <= ceiling && time <= 8_640_000_000_000_000
   })
-import { instanceNameSchema } from './instance.js'
-export { instanceNameSchema } from './instance.js'
 const auditFiltersSchema = z.strictObject({
   delegationId: z.string().min(1).max(100).optional(),
   requestId: z.string().min(1).max(100).optional(),

@@ -57,7 +57,7 @@ test.each(['file', 'attach'])('Gitea stages opaque caller bytes selected with --
 })
 test('Gitea managed downloads require their own exact operation and credential revision', async () => {
   const operation = 'gitea.release.download'
-  const scope = createTransferScope({ userId: 'synthetic', sessionFamilyId: 'synthetic-family', reauthenticatedAt: Date.now() }, 7,
+  const scope = createTransferScope({ userId: 'synthetic', sessionFamilyId: 'synthetic-family', reauthenticatedAt: Date.now() }, { id: 'synthetic-credential', revision: 7 },
     { selection: { operation, selector: 'example/project/releases/v1+build/77', type: 'attachment' }, targetDigest: transferTargetDigest('/controlled/new.bin') })
   const args = ['release', 'download', '--repo', 'example/project', '--asset-id', '77', '--output', '/controlled/archive', '--', 'releases/v1+build']
   await expect(adapter([operation], false).prepareArtifact!(args, reference, scope)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })

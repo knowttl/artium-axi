@@ -45,7 +45,7 @@ export async function openProxmoxStream(client: Client, id: string, token: strin
   })
 }
 
-export async function proxmoxStream(createClient: () => Client, supplied: string[], output: (stream: 'stdout' | 'stderr', text: string) => void): Promise<boolean> {
+export async function proxmoxStream(createClient: () => Client, supplied: string[], output: (stream: 'stdout' | 'stderr', text: string) => void, instance?: string): Promise<boolean> {
   if (supplied[0] !== 'stream') return false
   const usage = 'artium-axi proxmox-axi stream -- transfer|duplex <native arguments>'
   const { separator, json, options, args, route } = resolveProxmoxStream(supplied)
@@ -97,7 +97,7 @@ export async function proxmoxStream(createClient: () => Client, supplied: string
       for await (const chunk of source.createReadStream({ start: 0, autoClose: false, highWaterMark: 32768 })) hash.update(chunk)
       sourceInfo = { bytes: info.size, sha256: hash.digest('hex') }
     }
-    const response = leaseSchema.safeParse(await client.authenticated('/v1/tools/proxmox-axi/streams', 'POST', { args: input.args,
+    const response = leaseSchema.safeParse(await client.authenticated('/v1/tools/proxmox-axi/streams', 'POST', { args: input.args, ...(instance === undefined ? {} : { instance }),
       ...(input.stdin === undefined ? {} : { stdin: input.stdin }), ...(sourceInfo ? { source: sourceInfo } : {}) }))
     if (!response.success) throw new ArtiumError('INVALID_RESPONSE')
     const lease = response.data

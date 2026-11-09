@@ -57,7 +57,7 @@ test.each(['hash-download-bin', 'report-download-bin', 'report-download-dropped-
   })
 
 test('scope is immutable and binds exact destination without retaining a path', () => {
-  const scope = createTransferScope(owner, 3, request, now)
+  const scope = createTransferScope(owner, { id: 'synthetic-credential', revision: 3 }, request, now)
   expect(() => checkTransferScope(scope, owner, 3, request, now)).not.toThrow()
   expect(Object.isFrozen(scope)).toBe(true)
   expect(Object.isFrozen(scope.selection)).toBe(true)
@@ -79,7 +79,7 @@ test.each([
 })
 
 test('execution requires explicit execute and the original native confirmation', () => {
-  const input = { ...request, transferId: createTransferScope(owner, 3, request, now).transferId, confirm: 'exact native confirmation' }
+  const input = { ...request, transferId: createTransferScope(owner, { id: 'synthetic-credential', revision: 3 }, request, now).transferId, confirm: 'exact native confirmation' }
   expect(transferExecuteSchema.safeParse(input).success).toBe(false)
   expect(transferExecuteSchema.parse({ ...input, execute: true }).confirm).toBe(input.confirm)
   expect(transferExecuteSchema.safeParse({ ...input, execute: true, confirm: '' }).success).toBe(false)
@@ -94,19 +94,19 @@ test.each([
   { changedOwner: owner, revision: 3, input: { ...request, selection: { operation: 'report-download-bin' as const, selector: 'synthetic-job', type: 'bin' as const } }, time: now, code: 'INVALID_INPUT' },
   { changedOwner: owner, revision: 3, input: request, time: now + transferLimits.lifetimeMs, code: 'TOKEN_EXPIRED' },
 ])('scope rejects changed identity/target/revision and absolute expiry: $code', ({ changedOwner, revision, input, time, code }) => {
-  const scope = createTransferScope(owner, 3, request, now)
+  const scope = createTransferScope(owner, { id: 'synthetic-credential', revision: 3 }, request, now)
   expect(() => checkTransferScope(scope, changedOwner, revision, input, time)).toThrow(expect.objectContaining({ code }))
 })
 
 test('reserves the full artifact budget and retains expired capacity until cleanup', () => {
-  const first = createTransferScope(owner, 3, request, now - transferLimits.lifetimeMs)
+  const first = createTransferScope(owner, { id: 'synthetic-credential', revision: 3 }, request, now - transferLimits.lifetimeMs)
   expect(first.expiresAt).toBe(now)
   expect(() => checkTransferCapacity('other', [first])).not.toThrow()
   expect(() => checkTransferCapacity(owner.userId, [first])).toThrow(expect.objectContaining({ code: 'TOO_MANY_CALLS' }))
   const reservations = [first,
-    createTransferScope({ ...owner, userId: 'second' }, 3, request, now),
-    createTransferScope({ ...owner, userId: 'third' }, 3, request, now),
-    createTransferScope({ ...owner, userId: 'fourth' }, 3, request, now)]
+    createTransferScope({ ...owner, userId: 'second' }, { id: 'synthetic-credential', revision: 3 }, request, now),
+    createTransferScope({ ...owner, userId: 'third' }, { id: 'synthetic-credential', revision: 3 }, request, now),
+    createTransferScope({ ...owner, userId: 'fourth' }, { id: 'synthetic-credential', revision: 3 }, request, now)]
   expect(() => checkTransferCapacity('fifth', reservations)).toThrow(expect.objectContaining({ code: 'TOO_MANY_CALLS' }))
   expect(transferLimits.artifactBytes).toBe(262144000)
   expect(transferLimits.reservedBytes).toBe(1073741824)
