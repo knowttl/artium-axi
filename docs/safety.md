@@ -27,7 +27,7 @@ For shared-credential tools, `POST /v1/tools/:tool/run` accepts an optional `ins
 `GET /v1/tools` lists each tool's usable instances with name, description, status and read-only state, never endpoints, and the served skill gains an instance paragraph while several are usable.
 When no name is supplied, exactly one usable instance granted to the caller is selected automatically; multiple granted, usable instances return `INSTANCE_REQUIRED`.
 Origin-only AWX credentials are not usable instances; see [instance health and administration](runbook.md#backup-restore-and-upgrade-rollback).
-An unknown or disabled name is refused, and an instance marked read-only blocks writes while allowing supported previews.
+An unknown or disabled name is refused, and an instance marked read-only blocks writes while allowing supported previews, except Shodan scan previews.
 A role grants a tool either on all of its instances, including instances added later, or on selected instances only; grants add up across a person's roles.
 An instance outside the caller's grants returns `INSTANCE_NOT_FOUND`, whether it exists or not.
 Administrators edit this on the tool's Access tab or with `PUT /v1/admin/roles/:id/tools/:tool/instances`.

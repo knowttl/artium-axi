@@ -277,8 +277,9 @@ See the [collection attribution boundary](safety.md#shodan) and [result retentio
 For stream session access and quotas, ask an administrator to configure the [Shodan session policy](tool-credentials.md#shodan).
 For example, `artium-axi shodan-axi stream session preview --operation OP-047 --selector --asn --value AS64496 --limit 10 --max-bytes 4096 --timeout 10000 --idle-timeout 5000 --accept-unknown-cost --json` validates a native plan without starting a stream.
 Use `artium-axi shodan-axi stream session preview --help` for the full set of bounds.
-When a tool has more than one instance, put `--instance <name>` before `shodan-axi` on `stream session preview` and `start` and on `scan submit`.
-The preview and the session or collection it starts stay bound to that instance; later `status`, `read`, `extend` and `stop` take only the session ID.
+When more than one instance is available, put `--instance <name>` before `shodan-axi` on `stream session preview` and the `scan submit` preview.
+The session or collection stays bound to the previewed instance; if `--instance` is supplied on `start` or scan execution, it must match the preview.
+Later stream session `status`, `read`, `extend` and `stop` use the session ID without `--instance`.
 The required `--accept-unknown-cost` acknowledges that cost cannot be determined; the response reports the selected operation, selector, bounds and effective limits with `status: preview` and `cost: unknown`.
 Optional `--events`, `--bytes`, `--retention` and `--lease` values may lower administrator ceilings; retention and lease values are in seconds, while timeout values are in milliseconds.
 The required `--limit`, `--max-bytes` and `--timeout` must fit the effective event, byte and lease limits.
