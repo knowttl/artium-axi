@@ -1091,6 +1091,20 @@ test('GitHub reconnect during an in-flight check checks the new revision while d
   }
 })
 
+test('GitHub pending connection cannot overwrite a credential deleted and recreated at the same revision', async () => {
+  const network = fakeGithubDevice()
+  await replace('gh-axi')
+  const original = store.findCredential('gh-axi')!
+  const started = await startGithubDevice(original.revision)
+  db.prepare('DELETE FROM credentials WHERE id = ?').run(original.id)
+  const recreated = store.replaceCredential('gh-axi', values['gh-axi'], 0, actor, Date.now())
+  expect(recreated).toMatchObject({ revision: original.revision })
+  await failure(await request('POST', '/gh-axi/device/poll', started), 'REVISION_CONFLICT')
+  expect(network).toHaveBeenCalledTimes(1)
+  expect(store.findCredential('gh-axi')).toEqual(recreated)
+  expect(store.readCredential(recreated)).toEqual(values['gh-axi'])
+})
+
 test('GitHub pending connection cannot overwrite a concurrently rotated credential', async () => {
   const network = fakeGithubDevice()
   const started = await startGithubDevice()

@@ -145,6 +145,6 @@ test('legacy replacement rejects a deleted and recreated credential', () => {
   const original = create('lab', 'CANARY-original')
   store.deleteInstance('falcon-axi', 'lab', original.id, original.revision)
   const replacement = create('lab', 'CANARY-new')
-  expect(() => store.replaceCredential('falcon-axi', { secret: 'CANARY-stale' }, original.revision, 'synthetic-user', 2000)).toThrow(expect.objectContaining({ code: 'REVISION_CONFLICT' }))
+  expect(() => store.replaceCredential('falcon-axi', { secret: 'CANARY-stale' }, original.revision, 'synthetic-user', 2000, original.id)).toThrow(expect.objectContaining({ code: 'REVISION_CONFLICT' }))
   expect(store.readCredential(replacement)).toEqual({ secret: 'CANARY-new' })
 })

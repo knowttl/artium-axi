@@ -99,11 +99,11 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
         throw new ArtiumError('CREDENTIAL_INVALID')
       } finally { plaintext.fill(0) }
     },
-    replaceCredential(tool, value, expectedRevision, actor, now) {
+    replaceCredential(tool, value, expectedRevision, actor, now, expectedId) {
       const rows = db.prepare('SELECT id, revision FROM credentials WHERE tool = ? LIMIT 2').all(tool) as { id: string, revision: number }[]
       if (rows.length > 1) throw new ArtiumError('INVALID_INPUT')
       const current = rows[0]
-      if ((current?.revision ?? 0) !== expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      if ((current?.revision ?? 0) !== expectedRevision || (expectedId !== undefined && current?.id !== expectedId)) throw new ArtiumError('REVISION_CONFLICT')
       const id = current?.id ?? randomUUID()
       const plaintext = Buffer.from(JSON.stringify(value))
       try {

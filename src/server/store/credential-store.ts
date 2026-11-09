@@ -30,7 +30,7 @@ export interface CredentialInstance extends CredentialReference {
 }
 
 export interface MutableCredentialStore extends CredentialStore {
-  replaceCredential(tool: ToolName, value: unknown, expectedRevision: number, actor: string, now: number): CredentialReference
+  replaceCredential(tool: ToolName, value: unknown, expectedRevision: number, actor: string, now: number, expectedId?: string): CredentialReference
   listInstances(tool: ToolName): CredentialInstance[]
   findInstance(tool: ToolName, name: string): CredentialInstance | undefined
   createInstance(tool: ToolName, details: { name: string, description: string }, value: unknown, actor: string, now: number): CredentialInstance
