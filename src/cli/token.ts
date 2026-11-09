@@ -11,7 +11,7 @@ import type { ManagedSession } from './managed-session.js'
 export async function tokenCommand(args: string[], output: (text: string) => void, managed?: ManagedSession) {
   const action = args[0]
   if (args.includes('--help')) {
-    output('usage: artium-axi token create --label <label> --tool <tool> --expires <ISO-date> [--write] [--reusable] [--command <tool:command>] [--exact <tool:command>] [--instance <tool:name>] [--command-instance <tool:command:name>] [--token-fd <fd>] [--password-stdin|--sso]\n       artium-axi token list\n       artium-axi token revoke <id>\nCommand picks are exact. Wildcards are not supported yet.\n--instance limits every selection for a tool; --command-instance overrides it for a selected command. Repeat either flag for multiple instances. Without a limit a selection covers every instance you can use. API and native selections are broad and require an exact pick.\nRead-only blocks writes, but some reads send data externally or incur costs.\nSSH write access reaches every host and sudo grant available to the creator.\n')
+    output('usage: artium-axi token create --label <label> --tool <tool> --expires <ISO-date> [--write] [--reusable] [--command <tool:command>] [--exact <tool:command>] [--instance <tool:name>] [--token-fd <fd>] [--password-stdin|--sso]\n       artium-axi token list\n       artium-axi token revoke <id>\nCommand picks are exact. Wildcards are not supported yet.\n--instance limits every selection for a tool to the named instances; without it a tool selection covers every instance you can use. API and native selections are broad and require an exact pick.\nRead-only blocks writes, but some reads send data externally or incur costs.\nSSH write access reaches every host and sudo grant available to the creator.\n')
     return
   }
   if (managed) throw new ArtiumError('INVALID_INPUT', 'Token management is unavailable in managed mode.')
@@ -27,7 +27,7 @@ export async function tokenCommand(args: string[], output: (text: string) => voi
   if (action === 'list' || action === 'revoke') throw new ArtiumError('INVALID_INPUT', 'Invalid token command arguments.',
     action === 'list' ? 'Use artium-axi token list; valid flags: --help.' : 'Use artium-axi token revoke <id>; valid flags: --help.')
   if (action !== 'create') throw new ArtiumError('INVALID_INPUT', 'Invalid token command.', 'Use artium-axi token --help.')
-  const createFlags = ['--label', '--tool', '--expires', '--write', '--reusable', '--command', '--exact', '--instance', '--command-instance', '--token-fd', '--password-stdin', '--sso']
+  const createFlags = ['--label', '--tool', '--expires', '--write', '--reusable', '--command', '--exact', '--instance', '--token-fd', '--password-stdin', '--sso']
   const flags = new Map<string, string[]>()
   for (let index = 1; index < args.length; index++) {
     const flag = args[index]
@@ -35,7 +35,7 @@ export async function tokenCommand(args: string[], output: (text: string) => voi
       flag.startsWith('-') && !/artd_[A-Za-z0-9_-]{43}/.test(flag) ? `Unknown flag ${flag.split('=')[0]} for token create.` : 'Unexpected argument for token create.',
       `Valid flags: --help, ${createFlags.join(', ')}.`)
     const values = flags.get(flag) ?? []
-    if (values.length && !['--tool', '--command', '--exact', '--instance', '--command-instance'].includes(flag)) throw new ArtiumError('INVALID_INPUT')
+    if (values.length && !['--tool', '--command', '--exact', '--instance'].includes(flag)) throw new ArtiumError('INVALID_INPUT')
     const value = ['--write', '--reusable', '--password-stdin', '--sso'].includes(flag) ? 'true' : args[++index]
     if (!value || value.startsWith('--')) throw new ArtiumError('INVALID_INPUT')
     if (['--exact', '--command'].includes(flag) && value.includes('*')) throw new ArtiumError('INVALID_INPUT',
@@ -64,20 +64,7 @@ export async function tokenCommand(args: string[], output: (text: string) => voi
     const tool = readTool(value.slice(0, separator))
     instances.set(tool, [...instances.get(tool) ?? [], value.slice(separator + 1)])
   }
-  const commandInstances = new Map<string, string[]>()
-  for (const value of flags.get('--command-instance') ?? []) {
-    const separator = value.lastIndexOf(':')
-    const key = value.slice(0, separator)
-    if (separator <= 0 || !value.slice(separator + 1) || !picks.some(pick => `${pick.tool}:${pick.commands[0]}` === key)) throw new ArtiumError('INVALID_INPUT', 'Invalid --command-instance value.', 'Use --command-instance <tool>:<selected command>:<name>.')
-    commandInstances.set(key, [...commandInstances.get(key) ?? [], value.slice(separator + 1)])
-  }
-  const selections = [
-    ...tools.map(item => ({ ...item, ...(instances.has(item.tool) ? { instances: instances.get(item.tool) } : {}) })),
-    ...picks.map(item => {
-      const selected = commandInstances.get(`${item.tool}:${item.commands[0]}`) ?? instances.get(item.tool)
-      return { ...item, ...(selected ? { instances: selected } : {}) }
-    }),
-  ]
+  const selections = [...tools, ...picks].map(item => ({ ...item, ...(instances.has(item.tool) ? { instances: instances.get(item.tool) } : {}) }))
   if (!label || !Number.isFinite(expiresAt) || !selections.length || [...instances.keys()].some(tool => !selections.some(item => item.tool === tool))) {
     throw new ArtiumError('INVALID_INPUT')
   }

@@ -117,19 +117,20 @@ test('token --command refuses wildcard selections without storing a token (R12)'
   expect(db.prepare('SELECT count(*) AS count FROM delegations').get()).toEqual({ count: 0 })
 })
 
-test('token create assigns instances to individual commands', async () => {
+test('token create applies tool instances to every selection', async () => {
   for (const name of ['lab', 'production']) credentials.createInstance('falcon-axi', { name, description: '' },
     { clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' }, 'synthetic-development-user', Date.now())
   expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
   const result = await cli(['token', 'create', '--label', 'Split', '--expires', new Date(Date.now() + 600_000).toISOString(),
-    '--command', 'falcon-axi:detection list', '--command-instance', 'falcon-axi:detection list:lab',
-    '--command', 'falcon-axi:host list', '--command-instance', 'falcon-axi:host list:production',
+    '--tool', 'falcon-axi', '--instance', 'falcon-axi:lab',
+    '--command', 'falcon-axi:detection list', '--exact', 'falcon-axi:host list',
     '--password-stdin', '--token-fd', '3'], `${password}\n`, 'owner', true)
   expect(result.code, result.stdout).toBe(0)
   const row = db.prepare("SELECT scope_json FROM delegations WHERE label = 'Split'").get() as { scope_json: string }
   expect(JSON.parse(row.scope_json)).toEqual({ tools: [
+    { tool: 'falcon-axi', instances: [credentials.findInstance('falcon-axi', 'lab')!.id] },
+    { tool: 'falcon-axi', commands: ['host list'], instances: [credentials.findInstance('falcon-axi', 'lab')!.id] },
     { tool: 'falcon-axi', commands: ['detection list'], instances: [credentials.findInstance('falcon-axi', 'lab')!.id] },
-    { tool: 'falcon-axi', commands: ['host list'], instances: [credentials.findInstance('falcon-axi', 'production')!.id] },
   ] })
 })
 
