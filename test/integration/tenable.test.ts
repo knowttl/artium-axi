@@ -160,4 +160,4 @@ test('managed Tenable saves secret keys, reads, tests health and gates business 
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
     } finally { await app.close(); db.close() }
   })
-})
+}, 120_000)

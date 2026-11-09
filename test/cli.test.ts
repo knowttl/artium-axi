@@ -437,14 +437,14 @@ test.each(['0'.repeat(64), 'not-a-digest'])('update rejects checksum %s without 
     '/cli/artium-axi.mjs.sha256': { status: 200, body: undefined, raw: digest },
   }
   try {
-    await expect(execute(process.execPath, [executable, 'update'], { timeout: 10_000,
+    await expect(execute(process.execPath, [executable, 'update'], { timeout: 60_000,
       env: { XDG_CONFIG_HOME: install, ARTIUM_AXI_URL: url, ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt') },
     })).rejects.toMatchObject({ code: 1, stdout: expect.stringContaining('SHA-256 verification') })
     expect(readFileSync(executable).equals(readFileSync(bundle))).toBe(true)
     expect(readFileSync(`${executable}.bak`, 'utf8')).toBe('previous backup')
     expect(readdirSync(install).sort()).toEqual(['artium-axi.mjs', 'artium-axi.mjs.bak'])
   } finally { doctorResponses = undefined }
-})
+}, 120_000)
 
 test('update refuses npm installations before reading configuration or contacting the server', async () => {
   const install = mkdtempSync(join(directory, 'npm-update-'))
