@@ -489,8 +489,8 @@ export function createApp(options: {
     try {
       const result = await runTool(db, audit, runner, bearer(request.headers.authorization), request.body,
         adapter, resolver, { requestId: request.id, clientAddress: request.ip, signal: controller.signal, protectedResults, proxmox }, authenticate)
-      const { stdout, stderr, exitCode, durationMs, outputBytes, truncated } = result
-      return { source: adapter.name, stdout, stderr, exitCode, durationMs, outputBytes, truncated }
+      const { instance, stdout, stderr, exitCode, durationMs, outputBytes, truncated } = result
+      return { source: adapter.name, instance, stdout, stderr, exitCode, durationMs, outputBytes, truncated }
     } finally { reply.raw.off('close', disconnect); delegatedReads.delete(controller); clearTimeout(expiry) }
   })
   app.addHook('preClose', async () => {

@@ -9,7 +9,7 @@ import { EnvironmentKeyProvider, MasterKeyMismatch } from './key-provider.js'
 import type { KeyProvider } from './key-provider.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { CredentialInstance, CredentialReference, MutableCredentialStore, ToolName } from './credential-store.js'
-import { nativeSettingsSchemas, toolSchema } from '../../shared/api.js'
+import { instanceNameSchema, nativeSettingsSchemas, toolSchema } from '../../shared/api.js'
 import { readCredentialTrust } from './trusted-certificates.js'
 
 const migrationsDirectory = fileURLToPath(new URL('./migrations/', import.meta.url))
@@ -33,7 +33,6 @@ export function validateSchema(db: Database.Database, directory = migrationsDire
   } finally { expected.close() }
 }
 
-const instanceNamePattern = /^[a-z0-9][a-z0-9-]{0,31}$/
 const instanceSelect = 'SELECT id, tool, name, description, enabled, read_only, revision FROM credentials'
 type InstanceRow = Omit<CredentialInstance, 'enabled' | 'readOnly'> & { enabled: number, read_only: number }
 
@@ -123,7 +122,7 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
     },
     findInstance,
     createInstance(tool, { name, description }, value, actor, now) {
-      if (!instanceNamePattern.test(name) || description.length > 500) throw new ArtiumError('INVALID_INPUT')
+      if (!instanceNameSchema.safeParse(name).success || description.length > 500) throw new ArtiumError('INVALID_INPUT')
       if (findInstance(tool, name)) throw new ArtiumError('REVISION_CONFLICT')
       const id = randomUUID()
       const plaintext = Buffer.from(JSON.stringify(value))

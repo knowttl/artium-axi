@@ -2,15 +2,20 @@ import { ArtiumError } from '../../shared/errors.js'
 import type { CredentialReference, CredentialStore, ToolName } from '../store/credential-store.js'
 
 export interface IdentityResolver {
-  resolve(userId: string, tool: ToolName): Promise<CredentialReference>
+  resolve(userId: string, tool: ToolName, instance?: string): Promise<CredentialReference>
 }
 
 export class SharedIdentityResolver implements IdentityResolver {
-  constructor(private readonly store: Pick<CredentialStore, 'findCredential'>) {}
+  constructor(private readonly store: Pick<CredentialStore, 'listInstances'>) {}
 
-  async resolve(_userId: string, tool: ToolName): Promise<CredentialReference> {
-    const reference = this.store.findCredential(tool)
-    if (!reference) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
-    return reference
+  async resolve(_userId: string, tool: ToolName, instance?: string): Promise<CredentialReference> {
+    const instances = this.store.listInstances(tool)
+    if (instances.length === 0) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
+    const selected = instance === undefined ? undefined : instances.find(candidate => candidate.name === instance)
+    if (instance !== undefined && !selected) throw new ArtiumError('INSTANCE_NOT_FOUND')
+    const usable = selected ? [selected] : instances.filter(candidate => candidate.enabled)
+    if (usable.length > 1) throw new ArtiumError('INSTANCE_REQUIRED')
+    if (!usable[0]?.enabled) throw new ArtiumError('INSTANCE_DISABLED')
+    return { id: usable[0].id, tool, revision: usable[0].revision }
   }
 }

@@ -43,7 +43,7 @@ export async function runTool<Credential>(
   db: Database.Database, audit: Audit, runner: Runner, token: string, request: unknown,
   adapter: Adapter<Credential>, resolver: IdentityResolver, context: RunContext,
   authenticate: (db: Database.Database, token: string) => string = verifyAccessToken,
-): Promise<RunnerResult> {
+): Promise<RunnerResult & { instance?: string }> {
   return logRun({ requestId: context.requestId, tool: adapter.name }, async observe => {
     let userId: string | null = null
     let delegationId: string | null = null
@@ -54,6 +54,12 @@ export async function runTool<Credential>(
     let continuation: ReturnType<NonNullable<Adapter<unknown>['kubernetesContinuation']>>
     let continuationCommand: string | undefined
     let args: string[]
+    let instance: string | undefined
+    const resolveReference = async (userId: string) => {
+      const resolved = await resolver.resolve(userId, adapter.name, instance)
+      instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(resolved.id) as { name: string } | undefined)?.name
+      return resolved
+    }
     let input: { stdin?: string, files?: { name: string, contentBase64: string }[] }
     const started = Date.now()
     let result: RunnerResult
@@ -76,7 +82,8 @@ export async function runTool<Credential>(
       readOnly = principal?.delegation?.readOnly ?? false
       checkToolPolicy(db, userId, adapter.name)
       const parsed = runRequestSchema.safeParse(request)
-      if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
+      if (!parsed.success || parsed.data.instance !== undefined && adapter.prepareForCaller) throw new ArtiumError('INVALID_INPUT')
+      instance = parsed.data.instance
       args = parsed.data.args
       input = { stdin: parsed.data.stdin, files: parsed.data.files }
       if (/artd_[A-Za-z0-9_-]{43}/.test(JSON.stringify({ args, stdin: input.stdin, names: input.files?.map(file => file.name) }))
@@ -99,7 +106,7 @@ export async function runTool<Credential>(
         if (continuation && !continuation.help) {
           if (readOnly || !delegationIncludesTool(principal.delegation.scopeJson, adapter.name)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
           if (!continuation.root) throw new ArtiumError('TEMP_UNAVAILABLE')
-          reference = await resolver.resolve(userId, adapter.name)
+          reference = await resolveReference(userId)
           const scope = createHash('sha256').update(JSON.stringify({ userId, family: familyId ?? verifyAccessFamily(db, token), reference })).digest('hex')
           continuationCommand = await kubernetesRequestCommand(continuation.root, scope, continuation.key)
           if (!continuationCommand) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
@@ -145,7 +152,7 @@ export async function runTool<Credential>(
       }
     }
     try {
-      if (!adapter.prepareForCaller) reference ??= await resolver.resolve(userId, adapter.name)
+      if (!adapter.prepareForCaller) reference ??= await resolveReference(userId)
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
         : await adapter.prepare(args, reference!, input)
       if (readOnly) prepared.environment = { ...prepared.environment, [`${adapter.name.toUpperCase().replaceAll('-', '_')}_READ_ONLY`]: 'true' }
@@ -235,7 +242,7 @@ export async function runTool<Credential>(
       if (privateBytes && reservation && reference) {
         recheck()
         checkToolPolicy(db, userId, adapter.name)
-        const current = await resolver.resolve(userId, adapter.name)
+        const current = await resolver.resolve(userId, adapter.name, instance)
         recheck()
         checkToolPolicy(db, userId, adapter.name)
         if (current.id !== reference.id || current.revision !== reference.revision) throw new ArtiumError('NOT_FOUND')
@@ -301,6 +308,6 @@ export async function runTool<Credential>(
       nativeAuditId: result.completedMutation?.receipt.auditId ?? await journal?.auditId?.(), completedMutation: result.completedMutation,
       errorCode,
       durationMs: result.durationMs, outputBytes: result.outputBytes, failure })
-    return result
+    return { ...result, instance: reference && instance }
   })
 }
