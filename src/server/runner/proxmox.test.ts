@@ -4,12 +4,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { PreparedCall } from '../adapters/types.js'
-import { acquireProxmox, ProxmoxAccess } from './proxmox.js'
+import { acquireProxmox, ProxmoxAccess, proxmoxTrust } from './proxmox.js'
 import { Runner, type RunnerResult } from './runner.js'
 import { runnerLimits } from '../config.js'
 import { createCredentialStore, openStore } from '../store/db.js'
 import { EnvironmentKeyProvider } from '../store/key-provider.js'
-import { SharedIdentityResolver } from '../policy/identity-resolver.js'
 import { ProtectedResults } from '../protected-results.js'
 import { proxmoxProfile } from '../adapters/proxmox.js'
 import { createDelegation } from '../auth/delegations.js'
@@ -45,7 +44,7 @@ async function withAccess(check: (execute: (delegated: boolean) => Promise<Runne
   const password = { origin: 'https://synthetic.invalid', auth: 'password', userId: 'automation@pve', password: 'CANARY-password' }
   const credential = store.replaceCredential('proxmox-axi', password, 0, userId, Date.now())
   const results = new ProtectedResults()
-  const access = new ProxmoxAccess(db, new SharedIdentityResolver(store), runner, results)
+  const access = new ProxmoxAccess(db, runner, results)
   const delegation = createDelegation(db, userId, { label: 'Synthetic', scope: { tools: [{ tool: 'proxmox-axi' }] },
     readOnly: true, reusable: true, expiresAt: Date.now() + 600_000 }, [])
   const execute = (delegated: boolean) => {
@@ -160,4 +159,27 @@ test.each([0, 500])('automatic acquisition accepts a ready ticket after a %i ms 
     header.writeUInt32BE(bytes.length);writeSync(Number(process.env.PROXMOX_AXI_RESULT_FD),Buffer.concat([header,bytes]));`)
   await expect(acquireProxmox(runner, 'synthetic-user', call, [], undefined, () => {}))
     .resolves.toEqual({ ticket: 'CANARY-ticket', csrfPreventionToken: 'CANARY-csrf', expires })
+})
+
+test('changing one Proxmox instance invalidates only its protected results', async () => {
+  const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+  const db = openStore(join(root, 'store.db'), provider), userId = 'synthetic-development-user'
+  await seedToolUser(db)
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'proxmox-axi'")
+  const store = createCredentialStore(db, provider), results = new ProtectedResults(), access = new ProxmoxAccess(db, runner, results)
+  const value = { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }
+  const lab = store.createInstance('proxmox-axi', { name: 'lab', description: '' }, value, userId, Date.now())
+  const production = store.createInstance('proxmox-axi', { name: 'production', description: '' }, value, userId, Date.now())
+  const familyId = verifyPrincipal(db, issueTestAccessToken(db, userId)).familyId
+  const scope = (instance: typeof lab) => {
+    const credential = { id: instance.id, tool: 'proxmox-axi' as const, revision: instance.revision }
+    return { userId, familyId, operation: 'synthetic', credential, trustRevision: proxmoxTrust(db, credential) }
+  }
+  const [labResult, productionResult] = [lab, production].map(instance => results.reserve(scope(instance)).commit(Buffer.from('CANARY-result')).id)
+  try {
+    store.replaceInstance('proxmox-axi', 'lab', { ...value, token: 'CANARY-rotated' }, lab.id, lab.revision, userId, Date.now())
+    await access.reconcile()
+    expect(() => results.take(labResult!, scope(lab))).toThrow(expect.objectContaining({ code: 'NOT_FOUND' }))
+    expect(results.take(productionResult!, scope(production)).toString()).toBe('CANARY-result')
+  } finally { await access.close(); results.clear(); db.close() }
 })

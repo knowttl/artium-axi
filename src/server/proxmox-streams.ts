@@ -129,7 +129,7 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
     if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
     const input = parsed.data
     if (owner.delegation) authorizeDelegatedOperation(db, owner.userId, owner.delegation, adapter, classifyDelegatedCommand(adapter, input.args, { stdin: input.stdin }))
-    const credential = await resolver.resolve(owner.userId, 'proxmox-axi')
+    const credential = await resolver.resolve(owner.userId, 'proxmox-axi', input.instance)
     const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(credential.id) as { name: string } | undefined)?.name
     admitted.set(request, { credentialId: credential.id, instance })
     const selection = adapter.inspectStream(input.args, credential, { stdin: input.stdin })

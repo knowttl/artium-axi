@@ -73,7 +73,7 @@ afterEach(async () => {
 function scope(userId = 'person') {
   db.prepare('INSERT OR IGNORE INTO users (id, username, display_name, password_hash) VALUES (?, ?, ?, ?)')
     .run(userId, userId, 'Synthetic', 'CANARY-hash')
-  return createTransferScope({ userId, sessionFamilyId: 'family', reauthenticatedAt: now }, 1, request)
+  return createTransferScope({ userId, sessionFamilyId: 'family', reauthenticatedAt: now }, { id: 'synthetic-credential', revision: 1 }, request)
 }
 const reserve = (userId = 'person') => store.reserve(scope(userId), context)
 const events = () => db.prepare("SELECT * FROM audit WHERE event = 'transfer' ORDER BY id").all() as { outcome: string, archive_bytes: number | null }[]

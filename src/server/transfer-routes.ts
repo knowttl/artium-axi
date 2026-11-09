@@ -4,7 +4,7 @@ import { Readable } from 'node:stream'
 import { finished } from 'node:stream/promises'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
-import { transferExecuteSchema, transferPrepareSchema, transferReceiptSchema, transferRetrieveSchema,
+import { transferExecuteSchema, transferPrepareRequestSchema, transferReceiptSchema, transferRetrieveSchema,
   transferRoutesFor, transferStatusSchema, transferWarningFor, transferTool } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
@@ -24,7 +24,7 @@ import type { TransferOwner } from './transfer.js'
 interface Entry {
   reservation: ArtifactReservation
   credential: CredentialReference
-  identity?: { credentialId: string, instance: string }
+  identity: { credentialId: string, instance: string }
   confirm?: string
   archive?: ArtifactArchive
   delivered: boolean
@@ -88,7 +88,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
       throw new ArtiumError('TOKEN_INVALID')
     }
     const scope = entry.reservation.scope
-    if (entry.identity) admitted.set(request, entry.identity)
+    admitted.set(request, entry.identity)
     try { checkTransferScope(scope, ownerFor(request), revision(entry.credential), { selection: input.selection, targetDigest: input.targetDigest }); access(entry) }
     catch (error) { await discard(entry); throw error }
     return entry
@@ -100,7 +100,8 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
     const instance = db.prepare('SELECT name FROM credentials WHERE tool = ? AND id = ?').get(tool, entry.credential.id) as { name: string } | undefined
     if (!instance) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
     const reference = await resolver.resolve(entry.reservation.scope.userId, tool, instance.name)
-    if (reference.id !== entry.credential.id || reference.revision !== entry.reservation.scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
+    if (reference.id !== entry.reservation.scope.credentialId
+      || reference.revision !== entry.reservation.scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
     return async (args: string[]) => {
       const prepared = await adapter.prepareArtifact!(args, reference, entry.reservation.scope)
       return { ...prepared, limits: { ...prepared.limits, credentialTrust: readCredentialTrust(db, reference) } }
@@ -141,17 +142,17 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
         if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
         if (transferTool(parsed.data.selection.operation) !== tool) throw new ArtiumError('INVALID_INPUT')
         if (route === transferRoutes.prepare) {
-          const input = transferPrepareSchema.parse(parsed.data)
+          const { instance, ...input } = transferPrepareRequestSchema.parse(parsed.data)
           const owner = ownerFor(request)
           checkTransferAccess(db, owner, input.selection.operation)
-          const credential = await resolver.resolve(owner.userId, tool)
+          const credential = await resolver.resolve(owner.userId, tool, instance)
           checkToolPolicy(db, owner.userId, tool, credential.id)
-          const scope = createTransferScope(owner, revision(credential), input)
+          const identity = { credentialId: credential.id,
+            instance: (db.prepare('SELECT name FROM credentials WHERE id = ?').get(credential.id) as { name: string }).name }
+          admitted.set(request, identity)
+          const scope = createTransferScope(owner, { id: credential.id, revision: revision(credential) }, input)
           store ??= ArtifactStore.create(audit).catch(error => { store = undefined; throw error })
           const reservation = await (await store).reserve(scope, { ...context(request, controller.signal), delegationId: verifyPrincipal(db, tokenFor(request)).delegation?.id })
-          const instance = db.prepare('SELECT name FROM credentials WHERE id = ?').get(credential.id) as { name: string } | undefined
-          const identity = instance ? { credentialId: credential.id, instance: instance.name } : undefined
-          if (identity) admitted.set(request, identity)
           entry = { reservation, credential, identity, delivered: false, receipt: false,
             timer: setTimeout(() => { void discard(entry!).catch(() => {}) }, Math.max(0, scope.expiresAt - Date.now())) }
           entry.timer.unref()

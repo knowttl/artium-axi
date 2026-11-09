@@ -29,11 +29,11 @@ export function transferAuditSelector(scope: TransferScope): string {
   return scope.selection.operation.startsWith('mail.') ? transferTargetDigest(scope.selection.selector) : scope.selection.selector
 }
 
-export function createTransferScope(owner: TransferOwner, credentialRevision: number,
+export function createTransferScope(owner: TransferOwner, credential: { id: string, revision: number },
   request: z.infer<typeof transferPrepareSchema>, now = Date.now()): TransferScope {
   const input = transferPrepareSchema.parse(request)
   const scope = transferScopeSchema.parse({ transferId: randomUUID(), userId: owner.userId,
-    sessionFamilyId: owner.sessionFamilyId, credentialRevision, ...input,
+    sessionFamilyId: owner.sessionFamilyId, credentialId: credential.id, credentialRevision: credential.revision, ...input,
     preparedAt: now, expiresAt: now + transferLimits.lifetimeMs })
   return Object.freeze({ ...scope, selection: Object.freeze(scope.selection) })
 }

@@ -83,7 +83,7 @@ export function createApp(options: {
   const authenticate = verifyAccessToken
   const protectedResults = new ProtectedResults()
   const delegatedReads = new Map<AbortController, string>()
-  const proxmox = new ProxmoxAccess(db, resolver, runner, protectedResults)
+  const proxmox = new ProxmoxAccess(db, runner, protectedResults)
   const localAuth = new LocalAuthProvider(db)
   const authAttempts = new AuthAttempts(db, audit)
   const delegatedAttempts = new AuthRateLimits()

@@ -2,8 +2,9 @@ import { z } from 'zod'
 import type { Duplex } from 'node:stream'
 import { WebSocketWire } from './websocket.js'
 import { createHash } from 'node:crypto'
+import { instanceNameSchema } from './api.js'
 
-export const proxmoxStreamStart = z.strictObject({ args: z.array(z.string().max(8192)).min(3).max(64)
+export const proxmoxStreamStart = z.strictObject({ instance: instanceNameSchema.optional(), args: z.array(z.string().max(8192)).min(3).max(64)
   .refine(args => args.reduce((size, arg) => size + Buffer.byteLength(arg), 0) <= 65536),
   stdin: z.string().max(65536).optional(), source: z.strictObject({ bytes: z.number().int().min(0), sha256: z.string().regex(/^[a-f0-9]{64}$/) }).optional() })
 export const proxmoxStreamControl = z.discriminatedUnion('event', [

@@ -479,3 +479,17 @@ test.each(['existing-file', 'leaf-symlink', 'parent-symlink'])('CLI refuses %s b
   expect(result.stdout).toContain('ARTIFACT_SAVE_FAILED')
   expect(events()).toEqual([])
 })
+
+test('a transfer is bound to its instance and survives changes to another instance', async () => {
+  const store = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') }))
+  const other = store.createInstance('hybrid-axi', { name: 'other', description: '' }, { apiKey: 'CANARY-other-key' }, user, Date.now())
+  const standard = store.findInstance('hybrid-axi', 'default')!
+  const prepared = await post('prepare', { ...body(), instance: 'other' })
+  expect(prepared.status).toBe(200)
+  const { transferId } = await prepared.json() as { transferId: string }
+  const status = () => post('status', { ...body(), transferId })
+  store.replaceInstance('hybrid-axi', 'default', { apiKey: 'CANARY-rotated-default-key' }, standard.id, standard.revision, user, Date.now())
+  expect((await status()).status).toBe(200)
+  store.replaceInstance('hybrid-axi', 'other', { apiKey: 'CANARY-rotated-other-key' }, other.id, other.revision, user, Date.now())
+  expect((await status()).status).toBe(409)
+})
