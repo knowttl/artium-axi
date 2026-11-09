@@ -52,6 +52,7 @@ export async function runTool<Credential>(
     let instanceReadOnly = false
     let credentialCommands: string[] = []
     let reference: CredentialReference | undefined
+    let resolutionFailure: { error: unknown, credentialId?: string, instance?: string } | undefined
     let continuation: ReturnType<NonNullable<Adapter<unknown>['kubernetesContinuation']>>
     let continuationCommand: string | undefined
     let args: string[]
@@ -117,7 +118,13 @@ export async function runTool<Credential>(
         const operations = authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand)
         credentialCommands = [...new Set(operations.filter(operation => credentialIssuingCommand(adapter.name, operation.command)).map(operation => operation.command))]
       }
-      if (!adapter.prepareForCaller) reference ??= await resolveReference(userId)
+      if (!adapter.prepareForCaller && !reference) {
+        try { reference = await resolveReference(userId) }
+        catch (error) {
+          const named = instance === undefined ? undefined : db.prepare('SELECT id, name FROM credentials WHERE tool = ? AND name = ?').get(adapter.name, instance) as { id: string, name: string } | undefined
+          resolutionFailure = { error, credentialId: named?.id, instance: named?.name }
+        }
+      }
     } catch (error) {
       recordApiDecision('refused')
       const requested = request && typeof request === 'object' && 'instance' in request && typeof request.instance === 'string' ? request.instance : undefined
@@ -132,7 +139,7 @@ export async function runTool<Credential>(
       throw error
     }
     const identity = { userId, delegationId, tool: adapter.name, requestId: context.requestId, clientAddress: context.clientAddress,
-      credentialId: reference?.id, instance: reference && instance }
+      credentialId: reference?.id ?? resolutionFailure?.credentialId, instance: reference ? instance : resolutionFailure?.instance }
     const family = () => familyId ?? verifyAccessFamily(db, token)
     for (const command of credentialCommands) audit.record({ ...identity, event: 'credential-issue', targetId: command, outcome: 'attempt' })
     for (const file of adapter.sensitiveInput?.(args, input) ? [] : input.files ?? []) {
@@ -164,6 +171,7 @@ export async function runTool<Credential>(
       }
     }
     try {
+      if (resolutionFailure) throw resolutionFailure.error
       const writeRequested = () => {
         const operations = [adapter.classify(args, input), ...(adapter.nestedOperations?.(args, input) ?? []),
           ...(continuationCommand ? [{ command: continuationCommand, effect: 'write' as const }] : [])]
