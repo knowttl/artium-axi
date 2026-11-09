@@ -95,7 +95,7 @@ export async function runTool<Credential>(
         if (!discovery) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         adapter.validateArgs(args.length ? args : ['--help'], input)
         validateFileInput(adapter.name, args, input)
-        if (!adapter.prepareForCaller && resolver.hasInstances(adapter.name)) reference = await resolveReference(userId)
+        if (!adapter.prepareForCaller && (instance !== undefined || resolver.hasInstances(adapter.name))) reference = await resolveReference(userId)
         const json = args.includes('--json') || args.includes('--format=json') || args.some((arg, index) => arg === '--format' && args[index + 1] === 'json')
         const stdout = (json ? JSON.stringify : encode)({ tool: adapter.name, commands: discovery.commands }) + '\n'
         return { instance: reference && instance, stdout, stderr: '', exitCode: 0, durationMs: Date.now() - started,

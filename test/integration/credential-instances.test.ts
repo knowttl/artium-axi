@@ -77,6 +77,10 @@ test('instance selection reaches the service and invalid selections fail closed'
         store.deleteInstance('gitea-axi', name, instance.id, instance.revision)
       }
       expect((await run({ instance: 'lab' })).json().error.code).toBe('INSTANCE_NOT_FOUND')
+      const missing = await discover({ instance: 'lab' })
+      expect(missing.statusCode).toBe(404)
+      expect(missing.json().error.code).toBe('INSTANCE_NOT_FOUND')
+      expect((await discover({})).statusCode).toBe(200)
     } finally {
       await app.close(); db.close()
       Object.assign(toolPaths, { 'gitea-axi': previous.gitea, 'falcon-axi': previous.falcon })

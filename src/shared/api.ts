@@ -705,8 +705,6 @@ export const runInputSchema = z.strictObject({
   'Duplicate names or total file byte limit exceeded').optional(),
 })
 
-export const instanceNameSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,31}$/)
-
 export const runRequestSchema = runInputSchema.extend({
   instance: instanceNameSchema.optional(),
   args: z.array(text.refine(value => byteLength(value) <= inputLimits.argumentBytes, 'Argument exceeds byte limit')).max(inputLimits.arguments),
