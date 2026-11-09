@@ -92,9 +92,9 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
       if (delegation.expiresAt <= Date.now() || delegationPaused(db, userId) || !db.prepare(
         'SELECT 1 FROM delegations WHERE id=? AND creator_id=? AND revoked_at IS NULL AND expires_at>?',
       ).get(delegation.id, userId, Date.now())) throw new ArtiumError('TOKEN_INVALID')
-      authorizeDelegatedOperation(db, userId, delegation, adapter, classifyDelegatedCommand(adapter, lease.input.args, { stdin: lease.input.stdin }))
+      authorizeDelegatedOperation(db, userId, delegation, adapter, classifyDelegatedCommand(adapter, lease.input.args, { stdin: lease.input.stdin }), lease.owner.credential.id)
       if (!lease.selection.preview && (lease.selection.duplex || lease.selection.spice)) {
-        authorizeDelegatedOperation(db, userId, delegation, adapter, { command: 'result take', effect: 'write' })
+        authorizeDelegatedOperation(db, userId, delegation, adapter, { command: 'result take', effect: 'write' }, lease.owner.credential.id)
       }
     }
   }
@@ -131,6 +131,7 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
     const input = parsed.data
     if (owner.delegation) authorizeDelegatedOperation(db, owner.userId, owner.delegation, adapter, classifyDelegatedCommand(adapter, input.args, { stdin: input.stdin }))
     const { reference: credential, readOnly } = await resolver.resolveForRun(owner.userId, 'proxmox-axi', input.instance, owner.delegation)
+    if (owner.delegation) authorizeDelegatedOperation(db, owner.userId, owner.delegation, adapter, classifyDelegatedCommand(adapter, input.args, { stdin: input.stdin }), credential.id)
     const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(credential.id) as { name: string } | undefined)?.name
     admitted.set(request, { credentialId: credential.id, instance })
     const selection = adapter.inspectStream(input.args, credential, { stdin: input.stdin })

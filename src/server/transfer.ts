@@ -65,7 +65,7 @@ export function checkTransferScope(scope: TransferScope, owner: TransferOwner, c
 // Call only with an authenticated owner, on preparation and again immediately
 // before native execution/retrieval. This never grants upstream entitlement.
 export function checkTransferAccess(db: Database.Database, owner: TransferOwner,
-  operation: TransferScope['selection']['operation'], now = Date.now()): void {
+  operation: TransferScope['selection']['operation'], now = Date.now(), instanceId?: string): void {
   const family = db.prepare(`SELECT 1 FROM session_families WHERE id = ? AND user_id = ?
     AND revoked_at IS NULL AND expires_at > ?`).get(owner.sessionFamilyId, owner.userId, now)
   if (!family) throw new ArtiumError('TOKEN_INVALID')
@@ -73,7 +73,8 @@ export function checkTransferAccess(db: Database.Database, owner: TransferOwner,
   if (principal.userId !== owner.userId) throw new ArtiumError('TOKEN_INVALID')
   if (principal.delegation) {
     const scope = delegationScopeSchema.parse(JSON.parse(principal.delegation.scopeJson))
-    if (principal.delegation.readOnly || !scope.tools.some(item => item.tool === transferTool(operation) && item.commands?.includes(operation))) {
+    if (principal.delegation.readOnly || !scope.tools.some(item => item.tool === transferTool(operation) && item.commands?.includes(operation)
+      && (instanceId === undefined || !item.instances || item.instances.includes(instanceId)))) {
       throw new ArtiumError('DELEGATED_SCOPE_DENIED')
     }
   } else if (owner.reauthenticatedAt === null || owner.reauthenticatedAt > now

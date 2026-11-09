@@ -125,6 +125,7 @@ export async function runTool<Credential>(
           resolutionFailure = { error, credentialId: named?.id, instance: named?.name }
         }
       }
+      if (principal?.delegation && reference) authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand, reference.id)
     } catch (error) {
       recordApiDecision('refused')
       const requested = request && typeof request === 'object' && 'instance' in request && typeof request.instance === 'string' ? request.instance : undefined
@@ -203,9 +204,9 @@ export async function runTool<Credential>(
         if (authenticate === verifyAccessToken) {
           const current = verifyPrincipal(db, token)
           if (current.delegation) {
-            authorizeDelegatedCall(db, current.userId, current.delegation, adapter, args, input, continuationCommand)
+            authorizeDelegatedCall(db, current.userId, current.delegation, adapter, args, input, continuationCommand, reference?.id)
             if (adapter.name === 'proxmox-axi' && protectedResult) {
-              authorizeDelegatedOperation(db, current.userId, current.delegation, adapter, { command: 'result take', effect: 'write' })
+              authorizeDelegatedOperation(db, current.userId, current.delegation, adapter, { command: 'result take', effect: 'write' }, reference?.id)
             }
           }
         } else authenticate(db, token)

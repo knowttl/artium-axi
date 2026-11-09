@@ -14,7 +14,7 @@ import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './auth/local.js'
 import { exchangeDelegation, hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, requireRecentAuth, verifyAccessToken, verifyPasswordToken, verifyPrincipal } from './auth/tokens.js'
-import { authorizeDelegatedOperation, createDelegation, delegatedDiscovery, delegatedInstanceIds, delegationIncludesTool, delegationScopeWithInstanceNames, revokeDelegation } from './auth/delegations.js'
+import { authorizeDelegatedOperation, createDelegation, delegatedDiscovery, delegatedInstanceIds, delegationIncludesTool, delegationScopeWithInstanceNames, resolveDelegatedCommand, revokeDelegation } from './auth/delegations.js'
 import { kubernetesBinding } from './policy/kubernetes.js'
 import { ProxmoxAccess, proxmoxTrust } from './runner/proxmox.js'
 import { registerProxmoxStreams } from './proxmox-streams.js'
@@ -276,9 +276,20 @@ export function createApp(options: {
       const row = db.prepare('SELECT label FROM delegations WHERE id = ?').get(delegation.id) as { label: string }
       const discovery = delegatedDiscovery(db, userId, delegation, adapters)
       return { username: user.username, displayName: user.display_name, delegation: { label: row.label, expiresAt: delegation.expiresAt,
-        scope: { tools: discovery.map(({ adapter, commands }) => {
-          const instances = delegatedInstanceIds(delegation, adapter.name)
-          return { tool: adapter.name, commands, ...(instances ? { instances: resolver.usableInstances(userId, adapter.name, delegation).map(instance => instance.name) } : {}) }
+        scope: { tools: discovery.flatMap(({ adapter, commands }) => {
+          const groups = new Map<string, { tool: ToolName, commands: string[], instances?: string[] }>()
+          const usable = resolver.usableInstances(userId, adapter.name, delegation)
+          for (const command of commands) {
+            let canonical = command
+            try { canonical = resolveDelegatedCommand(command, adapter) } catch {}
+            const ids = delegatedInstanceIds(delegation, adapter.name, canonical)
+            const instances = ids && usable.filter(instance => ids.has(instance.id)).map(instance => instance.name)
+            const key = JSON.stringify(instances ?? null)
+            const group = groups.get(key) ?? { tool: adapter.name, commands: [], ...(instances ? { instances } : {}) }
+            group.commands.push(command)
+            groups.set(key, group)
+          }
+          return [...groups.values()]
         }) } },
       accessExpiresAt: expiry.expires_at, sessionExpiresAt: expiry.session_expires_at }
     }
@@ -468,6 +479,10 @@ export function createApp(options: {
     const instance = db.prepare('SELECT name FROM credentials WHERE tool = ? AND id = ?').get(tool, bound.id) as { name: string } | undefined
     if (!instance) throw new ArtiumError('NOT_FOUND')
     const credential = await resolver.resolve(userId, tool, instance.name, delegation)
+    if (delegation && tool === 'proxmox-axi') {
+      const adapter = adapters.find(adapter => adapter.name === tool)!
+      authorizeDelegatedOperation(db, userId, delegation, adapter, { command: 'result take', effect: 'write' }, credential.id)
+    }
     verifyPrincipal(db, token)
     checkToolPolicy(db, userId, tool, credential.id)
     if (tool === 'kubernetes-axi') {

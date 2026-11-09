@@ -39,6 +39,14 @@ function commandOperation(tool: ToolName, command: string): string {
   return tool === 'kubernetes-axi' ? command.replace(/^(?:prepare|server-dry-run) -- /, '') : command
 }
 
+function requiresExact(tool: ToolName, command: string): boolean {
+  return Boolean(exactCommands[tool]?.includes(command) || escapeHatches[tool]?.includes(command) || /^(?:api|native)(?: |$)/.test(command)
+    || tool === 'kubernetes-axi' && ['workspace download', 'session artifact'].includes(command)
+    || tool === 'proxmox-axi' && ['transfer get /nodes/{node}/qemu/{vmid}/agent/file-read',
+      'transfer get /nodes/{node}/storage/{storage}/file-restore/download'].includes(command)
+    || transferSelectionSchema.options.some(option => option.shape.operation.value === command && transferTool(option.shape.operation.value) === tool))
+}
+
 export function classifyDelegatedCommand(adapter: Adapter<unknown>, args: readonly string[], input?: RunnerInput) {
   const classification = adapter.classify(args, input)
   return { ...classification, command: commandOperation(adapter.name, classification.command) }
@@ -68,11 +76,6 @@ export function createDelegation(db: Database.Database, creatorId: string, input
     if (!adapter) throw new ArtiumError('INVALID_INPUT')
     return { ...scoped, commands: item.commands.map(command => resolveDelegatedCommand(command, adapter)) }
   }) }
-  for (const { tool } of scope.tools) {
-    if (new Set(scope.tools.filter(item => item.tool === tool).map(item => (item.instances ?? []).join())).size > 1) {
-      throw new ArtiumError('INVALID_INPUT', 'Every selection for a tool must name the same instances.')
-    }
-  }
   const sshGrants = scope.tools.filter(item => item.tool === 'ssh-axi')
   if (sshGrants.some(item => item.commands?.includes('exec')) && !sshGrants.some(item => item.commands === undefined)) {
     const missing = sshExecPrerequisites.filter(required => !sshGrants.some(item => item.commands?.includes(required.command)))
@@ -89,10 +92,10 @@ export function createDelegation(db: Database.Database, creatorId: string, input
   return { id, token, expiresAt: input.expiresAt }
 }
 
-export function checkDelegation(scopeJson: string, readOnly: boolean, adapter: Adapter<unknown>, command: string, effect: 'read' | 'write', help = false) {
+export function checkDelegation(scopeJson: string, readOnly: boolean, adapter: Adapter<unknown>, command: string, effect: 'read' | 'write', help = false, instanceId?: string) {
   const tool = adapter.name
   const scope = delegationScopeSchema.parse(JSON.parse(scopeJson))
-  const grants = scope.tools.filter(item => item.tool === tool)
+  const grants = scope.tools.filter(item => item.tool === tool && (instanceId === undefined || !item.instances || item.instances.includes(instanceId)))
   const exact = grants.some(item => item.commands?.includes(command))
   const wide = grants.some(item => item.commands === undefined)
   const credentialCommand = exactCommands[tool]?.includes(command)
@@ -100,12 +103,11 @@ export function checkDelegation(scopeJson: string, readOnly: boolean, adapter: A
     || tool === 'proxmox-axi' && ['transfer get /nodes/{node}/qemu/{vmid}/agent/file-read',
     'transfer get /nodes/{node}/storage/{storage}/file-restore/download'].includes(command)
   const proxmoxStream = tool === 'proxmox-axi' && proxmox.streamCommands.some(route => route.command === command)
-  const escapeHatch = escapeHatches[tool]?.includes(command)
-  if ((!wide && !exact) || ((credentialCommand || download || escapeHatch || /^(?:api|native)(?: |$)/.test(command)) && !exact) || (readOnly && (effect !== 'read' || credentialCommand || download || proxmoxStream))) {
+  if ((!wide && !exact) || (requiresExact(tool, command) && !exact) || (readOnly && (effect !== 'read' || credentialCommand || download || proxmoxStream))) {
     throw new ArtiumError('DELEGATED_SCOPE_DENIED')
   }
   if (tool === 'ssh-axi' && command === 'exec' && !help) {
-    for (const required of sshExecPrerequisites) checkDelegation(scopeJson, readOnly, adapter, required.command, required.effect)
+    for (const required of sshExecPrerequisites) checkDelegation(scopeJson, readOnly, adapter, required.command, required.effect, false, instanceId)
   }
 }
 
@@ -131,9 +133,9 @@ export function resolveDelegatedCommand(command: string, adapter: Adapter<unknow
 
 export function authorizeDelegatedOperation(db: Database.Database, userId: string,
   delegation: { scopeJson: string, readOnly: boolean }, adapter: Adapter<unknown>,
-  classification: { command: string, effect: 'read' | 'write', help?: boolean }) {
+  classification: { command: string, effect: 'read' | 'write', help?: boolean }, instanceId?: string) {
   checkToolPolicy(db, userId, adapter.name)
-  checkDelegation(delegation.scopeJson, delegation.readOnly, adapter, classification.command, classification.effect, classification.help)
+  checkDelegation(delegation.scopeJson, delegation.readOnly, adapter, classification.command, classification.effect, classification.help, instanceId)
   const row = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(adapter.name) as { native_settings: string }
   const settings = JSON.parse(row.native_settings)
   if (classification.effect === 'write' || credentialIssuingCommand(adapter.name, classification.command)) {
@@ -143,7 +145,7 @@ export function authorizeDelegatedOperation(db: Database.Database, userId: strin
 }
 
 export function authorizeDelegatedCall(db: Database.Database, userId: string,
-  delegation: { scopeJson: string, readOnly: boolean }, adapter: Adapter<unknown>, args: readonly string[], input?: RunnerInput, continuationCommand?: string) {
+  delegation: { scopeJson: string, readOnly: boolean }, adapter: Adapter<unknown>, args: readonly string[], input?: RunnerInput, continuationCommand?: string, instanceId?: string) {
   const classification = continuationCommand === undefined ? classifyDelegatedCommand(adapter, args, input)
     : { command: continuationCommand, effect: 'write' as const }
   if (adapter.kubernetesContinuation?.(args, input)?.help) {
@@ -154,7 +156,7 @@ export function authorizeDelegatedCall(db: Database.Database, userId: string,
     .map(operation => ({ ...operation, command: commandOperation(adapter.name, operation.command) }))]
   const help = adapter.name === 'ssh-axi' && args.includes('--help')
     && ssh.managedCommands.some(route => route.command === classification.command)
-  for (const operation of operations) authorizeDelegatedOperation(db, userId, delegation, adapter, { ...operation, help })
+  for (const operation of operations) authorizeDelegatedOperation(db, userId, delegation, adapter, { ...operation, help }, instanceId)
   return operations
 }
 
@@ -219,9 +221,12 @@ export function delegationIncludesTool(scopeJson: string, tool: ToolName): boole
   return delegationScopeSchema.parse(JSON.parse(scopeJson)).tools.some(item => item.tool === tool)
 }
 
-export function delegatedInstanceIds(delegation: { scopeJson: string } | null | undefined, tool: ToolName): ReadonlySet<string> | undefined {
-  const instances = delegation ? delegationScopeSchema.parse(JSON.parse(delegation.scopeJson)).tools.find(item => item.tool === tool)?.instances : undefined
-  return instances && new Set(instances)
+export function delegatedInstanceIds(delegation: { scopeJson: string } | null | undefined, tool: ToolName, command?: string): ReadonlySet<string> | undefined {
+  if (!delegation) return undefined
+  const selections = delegationScopeSchema.parse(JSON.parse(delegation.scopeJson)).tools.filter(item => item.tool === tool &&
+    (command === undefined || item.commands?.includes(command) || !item.commands && !requiresExact(tool, command)))
+  if (selections.some(item => !item.instances)) return undefined
+  return new Set(selections.flatMap(item => item.instances ?? []))
 }
 
 export function delegationScopeWithInstanceNames(db: Database.Database, scopeJson: string) {

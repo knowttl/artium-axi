@@ -58,6 +58,24 @@ test('a token scoped to one instance cannot reach another instance or a re-creat
       const requests = (JSON.parse(await send('/__evidence')) as { requests: { identity: string }[] }).requests
       expect(requests.map(request => request.identity)).toEqual(['lab'])
 
+      const split = createDelegation(db, creator, { label: 'Split', scope: { tools: [
+        { tool: 'gitea-axi', commands: ['api'], instances: ['lab'] },
+        { tool: 'gitea-axi', commands: ['repo list'], instances: ['production'] },
+      ] }, readOnly: true, reusable: true, expiresAt: Date.now() + 600000 }, adapters)
+      for (const [args, allowed, denied] of [
+        [['api', '--help'], 'lab', 'production'],
+        [['repo', 'list', '--help'], 'production', 'lab'],
+      ] as const) {
+        expect((await call(split.token, { args, instance: allowed })).json()).toMatchObject({ instance: allowed, exitCode: 0 })
+        expect((await call(split.token, { args, instance: denied })).json().error.code).toBe('DELEGATED_SCOPE_DENIED')
+      }
+      const splitMe = await app.inject({ method: 'GET', url: '/v1/me',
+        headers: { authorization: `Bearer ${exchangeDelegation(db, split.token).accessToken}` } })
+      expect(splitMe.json().delegation.scope.tools).toEqual(expect.arrayContaining([
+        expect.objectContaining({ commands: expect.arrayContaining(['api']), instances: ['lab'] }),
+        expect.objectContaining({ commands: expect.arrayContaining(['repo list']), instances: ['production'] }),
+      ]))
+
       const tools = await app.inject({ method: 'GET', url: '/v1/tools',
         headers: { authorization: `Bearer ${exchangeDelegation(db, scoped.token).accessToken}` } })
       expect(tools.json().tools[0].instances.map((instance: { name: string }) => instance.name)).toEqual(['lab'])
@@ -84,7 +102,7 @@ test('a token scoped to one instance cannot reach another instance or a re-creat
   })
 }, 60000)
 
-test('minting names instances once, stores ids, and refuses unknown, ungranted or inconsistent instance scopes', async () => {
+test('minting names instances once, stores ids, and refuses unknown or ungranted instances', async () => {
   await withFakeService(async ({ directory, port }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
@@ -107,8 +125,7 @@ test('minting names instances once, stores ids, and refuses unknown, ungranted o
       for (const instances of [['lab'], ['staging']]) {
         expect(() => mint([{ tool: 'gitea-axi', instances }])).toThrowError(expect.objectContaining({ code: 'INSTANCE_NOT_FOUND' }))
       }
-      expect(() => mint([{ tool: 'gitea-axi', instances: ['production'] }, { tool: 'gitea-axi', commands: ['api'] }]))
-        .toThrowError(expect.objectContaining({ code: 'INVALID_INPUT' }))
+      mint([{ tool: 'gitea-axi', instances: ['production'] }, { tool: 'gitea-axi', commands: ['api'] }])
       expect(createDelegationSchema.safeParse({ label: 'Synthetic', scope: { tools: [{ tool: 'gitea-axi', instances: [production.id] }] },
         readOnly: true, reusable: true, expiresAt: Date.now() + 600000 }).success).toBe(false)
       mint([{ tool: 'gitea-axi', instances: ['production', 'production'] }])

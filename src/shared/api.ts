@@ -195,7 +195,7 @@ export const delegationScopeSchema = z.strictObject({
 })
 export const meResponseSchema = z.union([z.strictObject({ username: z.string(), displayName: z.string(),
   administrator: z.boolean(), roles: z.array(z.string()), accessExpiresAt: z.number().int(), sessionExpiresAt: z.number().int() }),
-z.strictObject({ username: z.string(), displayName: z.string(), delegation: z.strictObject({ label: z.string(), expiresAt: z.number().int(), scope: delegationScopeSchema.extend({ tools: z.array(delegationScopeSchema.shape.tools.element.extend({ commands: z.array(z.string()), instances: z.array(instanceNameSchema).max(20).optional() })).max(36) }) }),
+z.strictObject({ username: z.string(), displayName: z.string(), delegation: z.strictObject({ label: z.string(), expiresAt: z.number().int(), scope: delegationScopeSchema.extend({ tools: z.array(delegationScopeSchema.shape.tools.element.extend({ commands: z.array(z.string()), instances: z.array(instanceNameSchema).optional() })) }) }),
   accessExpiresAt: z.number().int(), sessionExpiresAt: z.number().int() })])
 export const createDelegationSchema = z.strictObject({
   label: z.string().trim().min(1).max(100),

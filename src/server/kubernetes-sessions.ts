@@ -86,6 +86,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     authorizeKubernetesOwner(db, owner, adapter, command)
     const session = sessions.get(id)
     if (!session || session.owner.user !== owner.user || session.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
+    authorizeKubernetesOwner(db, owner, adapter, command, session.credentialId)
     try { access(session) } catch (error) { await stop(session, 'cancelled'); throw error }
     return session
   }
@@ -274,6 +275,11 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       if (credentialIssuingCommand(adapter.name, operation.command)) checkDelegation(owner.delegation.scopeJson, owner.delegation.readOnly, adapter, operation.command, 'write')
     }
     const credential = await resolver.resolve(owner.user, 'kubernetes-axi', input.instance, owner.delegation)
+    authorizeKubernetesOwner(db, owner, adapter, `session start ${input.kind}`, credential.id)
+    if (owner.delegation && input.kind === 'create') {
+      const operation = classifyDelegatedCommand(adapter, input.argv)
+      if (credentialIssuingCommand(adapter.name, operation.command)) checkDelegation(owner.delegation.scopeJson, owner.delegation.readOnly, adapter, operation.command, 'write', false, credential.id)
+    }
     const binding = kubernetesBinding(db, owner, credential.id, input.kind), policy = binding.settings.sessions!
     if (binding.credential.revision !== credential.revision) throw new ArtiumError('REVISION_CONFLICT')
     const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(binding.credential.id) as { name: string } | undefined)?.name
