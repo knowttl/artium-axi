@@ -21,6 +21,8 @@ let runner: Runner
 let app: ReturnType<typeof createApp>
 let token: string
 let usedClients: unknown[]
+let protectedOutput: boolean
+let changeRevision: boolean
 
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-credential-instances-'))
@@ -36,12 +38,27 @@ beforeEach(async () => {
   }
   token = issueTestAccessToken(db, 'synthetic-user')
   usedClients = []
+  protectedOutput = false
+  changeRevision = false
   runner = await Runner.create(join(directory, 'calls'))
   const adapter = createRunnerTestAdapter({ getCredential: async reference => {
     const credential = store.readCredential(reference) as { clientId: string }
     usedClients.push(credential.clientId)
     return credential
   } }, true)
+  const prepare = adapter.prepare.bind(adapter)
+  adapter.prepare = async (...args) => {
+    const call = await prepare(...args)
+    if (!protectedOutput) return call
+    return { ...call, args: [...call.args.slice(0, -1), '{"status":"created"}'],
+      protectedResult: { source: 'projection' as const, operation: 'synthetic-create' },
+      beforeSpawn: () => {
+        if (changeRevision) {
+          const instance = store.findInstance('falcon-axi', 'production')!
+          store.replaceInstance('falcon-axi', instance.name, store.readCredential(instance), instance.id, instance.revision, 'synthetic-user', 2000)
+        }
+      } }
+  }
   app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), resolver: new SharedIdentityResolver(store), adapters: [adapter], environment: {} })
 })
 afterEach(async () => {
@@ -58,6 +75,24 @@ test.each(['lab', 'production'])('run selects the %s instance and reports it', a
   expect(reply.statusCode).toBe(200)
   expect(reply.json()).toMatchObject({ source: 'falcon-axi', instance, exitCode: 0 })
   expect(usedClients).toEqual([`CANARY-client-${instance}`])
+})
+
+test('a selected instance publishes a protected result with multiple instances enabled', async () => {
+  protectedOutput = true
+  const reply = await run({ instance: 'production' })
+  expect(reply.statusCode, reply.body).toBe(200)
+  expect(reply.json()).toMatchObject({ instance: 'production', exitCode: 0 })
+  expect(JSON.parse(reply.json().stdout)).toMatchObject({ status: 'created', result: { operation: 'synthetic-create' } })
+  expect(usedClients).toEqual(['CANARY-client-production'])
+})
+
+test('a changed selected revision prevents protected result publication', async () => {
+  protectedOutput = true
+  changeRevision = true
+  const reply = await run({ instance: 'production' })
+  expect(reply.statusCode).toBe(404)
+  expect(reply.json()).toMatchObject({ error: { code: 'NOT_FOUND' } })
+  expect(reply.body).not.toContain('synthetic-create')
 })
 
 test.each([
