@@ -49,6 +49,141 @@ test('the pinned inventory router resolves every reviewed alias spelling', async
   }
 })
 
+const associations = [
+  { domain: 'organization', resource: 'organizations', kind: 'user', flag: 'user', route: 'users' },
+  { domain: 'organization', resource: 'organizations', kind: 'admin', flag: 'user', route: 'admins' },
+  { domain: 'organization', resource: 'organizations', kind: 'team', flag: 'team', route: 'teams' },
+  { domain: 'organization', resource: 'organizations', kind: 'galaxy-credential', flag: 'credential', route: 'galaxy_credentials' },
+  { domain: 'organization', resource: 'organizations', kind: 'instance-group', flag: 'instance-group', route: 'instance_groups' },
+  { domain: 'organization', resource: 'organizations', kind: 'execution-environment', flag: 'execution-environment', route: 'execution_environments' },
+  { domain: 'organization', resource: 'organizations', kind: 'notification-template', flag: 'notification-template', route: 'notification_templates' },
+  { domain: 'team', resource: 'teams', kind: 'user', flag: 'user', route: 'users' },
+  { domain: 'inventory', resource: 'inventory_sources', kind: 'source-credential', flag: 'credential', route: 'credentials' },
+  { domain: 'template', resource: 'job_templates', kind: 'credential', flag: 'credential', route: 'credentials' },
+  { domain: 'template', resource: 'job_templates', kind: 'label', flag: 'label', route: 'labels' },
+  { domain: 'template', resource: 'job_templates', kind: 'instance-group', flag: 'instance-group', route: 'instance_groups' },
+  { domain: 'workflow', resource: 'workflow_job_templates', kind: 'label', flag: 'label', route: 'labels' },
+  { domain: 'workflow', resource: 'workflow_job_template_nodes', kind: 'node-credential', flag: 'credential', route: 'credentials' },
+  { domain: 'workflow', resource: 'workflow_job_template_nodes', kind: 'node-label', flag: 'label', route: 'labels' },
+  { domain: 'workflow', resource: 'workflow_job_template_nodes', kind: 'node-instance-group', flag: 'instance-group', route: 'instance_groups' },
+  { domain: 'schedule', resource: 'schedules', kind: 'credential', flag: 'credential', route: 'credentials' },
+  { domain: 'schedule', resource: 'schedules', kind: 'label', flag: 'label', route: 'labels' },
+  { domain: 'schedule', resource: 'schedules', kind: 'instance-group', flag: 'instance-group', route: 'instance_groups' },
+]
+
+const requestCases = [
+  ...associations.flatMap(({ domain, resource, kind, flag, route }) => ['add', 'remove'].map(operation => ({
+    domain, args: [`${kind}-${operation}`, '42', `--${flag}`, '7'], method: 'POST', path: `${resource}/42/${route}/`,
+    body: operation === 'remove' ? { id: 7, disassociate: true } : { id: 7 },
+  }))),
+  ...['host', 'child'].flatMap(kind => ['add', 'remove'].map(operation => ({
+    domain: 'inventory', args: [`group-${operation}-${kind}`, '42', `--${kind}`, '7'], method: 'POST',
+    path: `groups/42/${kind === 'host' ? 'hosts' : 'children'}/`,
+    body: operation === 'remove' ? { id: 7, disassociate: true } : { id: 7 },
+  }))),
+  ...['user', 'team'].flatMap(subject => ['grant', 'revoke'].map(operation => ({
+    domain: 'role', args: [operation, '42', `--${subject}`, '7'], method: 'POST', path: `roles/42/${subject}s/`,
+    body: operation === 'revoke' ? { id: 7, disassociate: true } : { id: 7 },
+  }))),
+  ...['success', 'failure', 'always'].flatMap(edge => ['link', 'unlink'].map(operation => ({
+    domain: 'workflow', args: [`node-${operation}`, '42', '--to', '43', '--on', edge], method: 'POST',
+    path: `workflow_job_template_nodes/42/${edge}_nodes/`,
+    body: operation === 'unlink' ? { id: 43, disassociate: true } : { id: 43 },
+  }))),
+  ...[
+    { domain: 'organization', resource: 'organizations', events: [['started', 'started'], ['success', 'success'], ['error', 'error'], ['approval', 'approvals']] },
+    { domain: 'template', resource: 'job_templates', events: [['started', 'started'], ['success', 'success'], ['error', 'error']] },
+    { domain: 'workflow', resource: 'workflow_job_templates', events: [['started', 'started'], ['success', 'success'], ['error', 'error'], ['approval', 'approvals']] },
+    { domain: 'project', resource: 'projects', events: [['started', 'started'], ['success', 'success'], ['error', 'error']] },
+  ].flatMap(({ domain, resource, events }) => events.flatMap(([event, route]) => ['add', 'remove'].map(operation => ({
+    domain, args: [`notification-${operation}`, '42', '--event', event, '--notification-template', '7'],
+    method: 'POST', path: `${resource}/42/notification_templates_${route}/`,
+    body: operation === 'remove' ? { id: 7, disassociate: true } : { id: 7 },
+  })))),
+  ...['started', 'success', 'error'].flatMap(event => ['add', 'remove'].map(operation => ({
+    domain: 'inventory', args: [`source-notification-${operation}`, '42', '--event', event, '--notification-template', '7'],
+    method: 'POST', path: `inventory_sources/42/notification_templates_${event}/`,
+    body: operation === 'remove' ? { id: 7, disassociate: true } : { id: 7 },
+  }))),
+  { domain: 'organization', args: ['create', 'Synthetic organization', '--description', 'Synthetic'], method: 'POST', path: 'organizations/',
+    body: { name: 'Synthetic organization', description: 'Synthetic' } },
+  { domain: 'organization', args: ['edit', '42', '--name', 'Synthetic organization'], method: 'PATCH', path: 'organizations/42/',
+    body: { name: 'Synthetic organization' } },
+  { domain: 'template', args: ['create', 'Synthetic template', '--inventory', '7', '--project', '8', '--playbook', 'synthetic.yml'],
+    method: 'POST', path: 'job_templates/', body: { name: 'Synthetic template', inventory: 7, project: 8, playbook: 'synthetic.yml' } },
+  { domain: 'template', args: ['edit', '42', '--name', 'Synthetic template'], method: 'PATCH', path: 'job_templates/42/',
+    body: { name: 'Synthetic template' } },
+  { domain: 'workflow', args: ['create', 'Synthetic workflow', '--organization', '7', '--extra-vars', '{"mode":"synthetic","count":2}'],
+    method: 'POST', path: 'workflow_job_templates/', body: { name: 'Synthetic workflow', organization: 7, extra_vars: '{"mode":"synthetic","count":2}' } },
+  { domain: 'workflow', args: ['edit', '42', '--extra-vars', '{"mode":"synthetic","count":2}'],
+    method: 'PATCH', path: 'workflow_job_templates/42/', body: { extra_vars: '{"mode":"synthetic","count":2}' } },
+  { domain: 'workflow', args: ['node-create', '42', '--template', '8', '--inventory', '7', '--extra-vars', '{"mode":"synthetic"}', '--scm-branch', 'synthetic', '--job-type', 'check', '--job-tags', 'connectivity', '--skip-tags', 'updates', '--verbosity', '2'],
+    method: 'POST', path: 'workflow_job_templates/42/workflow_nodes/', body: { unified_job_template: 8, inventory: 7, extra_data: { mode: 'synthetic' }, scm_branch: 'synthetic', job_type: 'check', job_tags: 'connectivity', skip_tags: 'updates', verbosity: 2 } },
+  { domain: 'workflow', args: ['node-edit', '42', '--template', '8', '--inventory', '7', '--extra-vars', '{"mode":"synthetic"}', '--scm-branch', 'synthetic', '--job-type', 'check', '--job-tags', 'connectivity', '--skip-tags', 'updates', '--verbosity', '2'],
+    method: 'PATCH', path: 'workflow_job_template_nodes/42/', body: { unified_job_template: 8, inventory: 7, extra_data: { mode: 'synthetic' }, scm_branch: 'synthetic', job_type: 'check', job_tags: 'connectivity', skip_tags: 'updates', verbosity: 2 } },
+  { domain: 'credential', args: ['create', 'Synthetic credential', '--credential-type', '7', '--organization', '8'],
+    method: 'POST', path: 'credentials/', body: { name: 'Synthetic credential', credential_type: 7, inputs: {}, organization: 8 } },
+  { domain: 'credential', args: ['edit', '42', '--name', 'Updated credential', '--credential-type', '7'],
+    method: 'PATCH', path: 'credentials/42/', body: { name: 'Updated credential', credential_type: 7 } },
+  { domain: 'team', args: ['credential-create', '42', '--name', 'Synthetic credential', '--credential-type', '7'],
+    method: 'POST', path: 'teams/42/credentials/', body: { name: 'Synthetic credential', credential_type: 7, inputs: {} } },
+  { domain: 'notification-template', args: ['create', 'Synthetic notification', '--organization', '7', '--notification-type', 'webhook'],
+    method: 'POST', path: 'notification_templates/', body: { name: 'Synthetic notification', organization: 7, notification_type: 'webhook', notification_configuration: {} } },
+  { domain: 'notification-template', args: ['edit', '42', '--name', 'Updated notification', '--notification-type', 'webhook'],
+    method: 'PATCH', path: 'notification_templates/42/', body: { name: 'Updated notification', notification_type: 'webhook' } },
+  { domain: 'schedule', args: ['create', 'Synthetic schedule', '--template', '7', '--rrule', 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY', '--inventory', '8', '--limit', 'synthetic-host', '--job-tags', 'configure,verify', '--skip-tags', 'restart'],
+    method: 'POST', path: 'schedules/', body: { name: 'Synthetic schedule', unified_job_template: 7, rrule: 'DTSTART:20270101T000000Z RRULE:FREQ=DAILY', inventory: 8, limit: 'synthetic-host', job_tags: 'configure,verify', skip_tags: 'restart' } },
+  { domain: 'schedule', args: ['edit', '42', '--name', 'Synthetic schedule', '--template', '7', '--inventory', '8', '--limit', 'synthetic-host', '--job-tags', 'configure,verify', '--skip-tags', 'restart'], method: 'PATCH', path: 'schedules/42/',
+    body: { name: 'Synthetic schedule', unified_job_template: 7, inventory: 8, limit: 'synthetic-host', job_tags: 'configure,verify', skip_tags: 'restart' } },
+  { domain: 'inventory', args: ['create', 'Synthetic inventory', '--organization', '7'], method: 'POST', path: 'inventories/',
+    body: { name: 'Synthetic inventory', organization: 7 } },
+  { domain: 'inventory', args: ['edit', '42', '--name', 'Updated inventory'], method: 'PATCH', path: 'inventories/42/',
+    body: { name: 'Updated inventory' } },
+  { domain: 'inventory', args: ['host-create', 'synthetic-host', '--inventory', '7'], method: 'POST', path: 'hosts/',
+    body: { name: 'synthetic-host', inventory: 7 } },
+  { domain: 'inventory', args: ['host-edit', '42', '--name', 'updated-host'], method: 'PATCH', path: 'hosts/42/',
+    body: { name: 'updated-host' } },
+  { domain: 'inventory', args: ['group-create', 'Synthetic group', '--inventory', '7'], method: 'POST', path: 'inventories/7/groups/',
+    body: { name: 'Synthetic group' } },
+  { domain: 'inventory', args: ['group-edit', '42', '--name', 'Updated group'], method: 'PATCH', path: 'groups/42/',
+    body: { name: 'Updated group' } },
+  { domain: 'inventory', args: ['source-create', 'Synthetic source', '--inventory', '7', '--source', 'scm', '--source-project', '8', '--credential', '9', '--source-vars', '{"region":"synthetic"}', '--update-on-launch'],
+    method: 'POST', path: 'inventory_sources/', body: { name: 'Synthetic source', inventory: 7, source: 'scm', source_project: 8, credential: 9, source_vars: '{"region":"synthetic"}', update_on_launch: true } },
+  { domain: 'inventory', args: ['source-edit', '42', '--source', 'scm', '--source-project', '8', '--credential', '9', '--source-vars', '{"region":"synthetic"}', '--no-update-on-launch'],
+    method: 'PATCH', path: 'inventory_sources/42/', body: { source: 'scm', source_project: 8, credential: 9, source_vars: '{"region":"synthetic"}', update_on_launch: false } },
+  { domain: 'user', args: ['create', '--username', 'synthetic-person', '--first-name', 'Synthetic', '--last-name', 'Person', '--email', 'synthetic@example.test', '--is-superuser'], method: 'POST', path: 'users/',
+    body: { username: 'synthetic-person', first_name: 'Synthetic', last_name: 'Person', email: 'synthetic@example.test', is_superuser: true } },
+  { domain: 'user', args: ['edit', '42', '--username', 'synthetic-person', '--first-name', 'Synthetic', '--last-name', 'Person', '--email', 'synthetic@example.test', '--no-superuser'], method: 'PATCH', path: 'users/42/',
+    body: { username: 'synthetic-person', first_name: 'Synthetic', last_name: 'Person', email: 'synthetic@example.test', is_superuser: false } },
+  { domain: 'team', args: ['create', '--name', 'Synthetic team', '--organization', '7', '--description', 'Synthetic operators'],
+    method: 'POST', path: 'teams/', body: { name: 'Synthetic team', organization: 7, description: 'Synthetic operators' } },
+  { domain: 'team', args: ['edit', '42', '--name', 'Synthetic team', '--organization', '7', '--description', 'Synthetic operators'],
+    method: 'PATCH', path: 'teams/42/', body: { name: 'Synthetic team', organization: 7, description: 'Synthetic operators' } },
+  { domain: 'project', args: ['create', 'Synthetic project', '--organization', '7', '--scm-type', 'git', '--scm-url', 'https://scm.example/repo', '--credential', '9'],
+    method: 'POST', path: 'projects/', body: { name: 'Synthetic project', organization: 7, scm_type: 'git', scm_url: 'https://scm.example/repo', credential: 9 } },
+  { domain: 'project', args: ['edit', '42', '--name', 'Updated project', '--organization', '7', '--scm-type', 'git', '--scm-url', 'https://scm.example/repo', '--credential', '9'],
+    method: 'PATCH', path: 'projects/42/', body: { name: 'Updated project', organization: 7, scm_type: 'git', scm_url: 'https://scm.example/repo', credential: 9 } },
+  { domain: 'execution-environment', args: ['create', 'Synthetic environment', '--image', 'registry.example/runner:stable', '--organization', '7', '--credential', '9', '--pull', 'always'],
+    method: 'POST', path: 'execution_environments/', body: { name: 'Synthetic environment', image: 'registry.example/runner:stable', organization: 7, credential: 9, pull: 'always' } },
+  { domain: 'execution-environment', args: ['edit', '42', '--image', 'registry.example/runner:stable', '--organization', '7', '--credential', '9', '--pull', 'always'],
+    method: 'PATCH', path: 'execution_environments/42/', body: { image: 'registry.example/runner:stable', organization: 7, credential: 9, pull: 'always' } },
+]
+
+test.each(requestCases)('AWX $domain $args builds the controller request', async ({ domain, args, method, path, body }) => {
+  const calls: { method: string; path: string; body: unknown }[] = []
+  const transport = {
+    get: async (path: string) => {
+      expect(path).toBe('job_templates/7/')
+      return { status: 200, body: { ask_inventory_on_launch: true, ask_limit_on_launch: true, ask_tags_on_launch: true, ask_skip_tags_on_launch: true } }
+    },
+    post: async (path: string, body: unknown) => { calls.push({ method: 'POST', path, body }); return { status: 200, body: { id: 42 } } },
+    patch: async (path: string, body: unknown) => { calls.push({ method: 'PATCH', path, body }); return { status: 200, body: { id: 42 } } },
+  }
+  const selected = (DOMAINS as { name: string; run: (args: string[], context: unknown) => Promise<unknown> }[]).find(item => item.name === domain)!
+  await selected.run([...args, '--confirm'], { createTransport: () => transport, env: {}, selection: {} })
+  expect(calls).toEqual([{ method, path, body }])
+})
+
 test('every flag decision matches the Artium route schema', () => {
   const routes = new Map(inventory.commands.map(route => [route.command, route]))
   const domains = new Set((DOMAINS as Domain[]).map(domain => domain.name))

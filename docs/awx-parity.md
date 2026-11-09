@@ -82,29 +82,29 @@ No live tenant or appliance evidence is claimed here.
 ## Inventories and sources (S4)
 
 See the [command reference](commands.md) for inventory and source operations, [structured input handling](client-reference.md#command-surface-and-subcommands) for variable formats and uploads, and the [AWX safety boundary](safety.md#write-gates-by-tool) for permissions and read redaction.
-Acceptance scenarios in [the AWX integration suite](../test/integration/awx.test.ts) use the public run API with the pinned CLI and fake AWX service, including credential-bearing writes, deletion, disabled-write and permission denials, private input cleanup and later reads.
+Acceptance scenarios in [the AWX inventory integration suite](../test/integration/awx-inventory.test.ts) use the public run API with the pinned CLI and fake AWX service, including credential-bearing writes, deletion, disabled-write and permission denials, private variable handling and later reads.
 
 ## Templates and workflows (S6)
 
 The [command reference](commands.md) describes template/workflow variables, associations, graph edits and approval templates.
 See [structured input handling](client-reference.md#command-surface-and-subcommands) for extra-variable formats and private input metadata.
-Acceptance uses the public run API and fake AWX controller to verify preview/confirmation, disabled-write and AWX permission denials, association additions/removals, all graph edge types, approval nodes, private variable handling and interrupted node creation recovery through `template-nodes` and `template-node`.
+Acceptance in [the AWX orchestration integration suite](../test/integration/awx-orchestration.test.ts) uses the public run API and fake AWX controller to verify association additions/removals, all graph edge types, approval nodes, private variable handling and interrupted node creation recovery through `template-nodes` and `template-node`.
 The synthetic onboarding journey provisions inventory, a host and a canary SSH machine credential, attaches the credential to a template and submits a connectivity launch.
 It verifies the controller request flow without executing a real playbook or contacting a target server.
 
 ## Schedules (S7)
 
 See the [command reference](commands.md) for schedule inputs, associations and readback limitations, [structured input handling](client-reference.md#command-surface-and-subcommands) for private variables, and the [AWX safety boundary](safety.md#write-gates-by-tool) for write controls.
-Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) verifies disabled writes, denied AWX permissions, structured request payloads and association requests through the public run API.
+Acceptance in [the AWX orchestration integration suite](../test/integration/awx-orchestration.test.ts) verifies schedule creation, preview and edits with structured request payloads through the public run API.
 It also verifies schedule show/list with writes disabled after an interrupted rename.
 Fixed synthetic controller timing verifies that previews and edits which omit the recurrence rule preserve timing values; no scheduler waits or real jobs are used.
-Extra-variable and association writes are verified against fake controller requests.
+Extra-variable writes are verified against fake controller requests.
 
 ## Execution environments (S9)
 
 S1's shared write path already admits execution-environment create/edit and supplies the native configuration and security gates under the single tenant writes switch.
 The [command reference](commands.md) describes image settings and attachment of an existing registry credential by ID or name.
-Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) verifies ordinary image configuration and credential attachment, preview without mutation, confirmation, disabled writes, AWX permission denials and audit through the public run API against a fake controller.
+Acceptance in [the AWX resources integration suite](../test/integration/awx-resources.test.ts) verifies image configuration and credential attachment, preview without mutation and confirmed writes through the public run API against a fake controller.
 It also verifies persisted image changes and read-only recovery after an interrupted rename.
 See [S13](#copy-and-delete-s13) for copy/delete acceptance coverage.
 
@@ -112,7 +112,7 @@ See [S13](#copy-and-delete-s13) for copy/delete acceptance coverage.
 
 S1's shared write path admits organization configuration and associations, team configuration and membership, user configuration and password inputs, role grant/revoke and token revocation under the single tenant writes switch.
 See the [command reference](commands.md) for operations, privilege flags and private password-file/stdin handling.
-Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) uses the public run API and pinned CLI against the fake controller to verify preview, confirmation, disabled writes, AWX permission denials, tenant isolation, exact configuration and association payloads, private password handling and audit.
+Acceptance in the [AWX configuration](../test/integration/awx-configuration.test.ts) and [access](../test/integration/awx-access.test.ts) integration suites uses the public run API and pinned CLI against the fake controller to verify preview, confirmation, disabled writes, AWX permission denials, tenant isolation, exact configuration and association payloads, private password handling and audit.
 Stateful journeys verify membership and role grant/revoke readback with writes disabled, privilege removal and interrupted username recovery, and authentication failure after PAT revocation.
 Organization association requests are verified against the fake controller; see the [command reference](commands.md) for readback limitations.
 The [token integration suite](../test/integration/awx-tokens.test.ts) verifies read/write token scopes, disabled writes, preview, confirmation, denied/malformed/uncertain creation without a result reference, caller and credential isolation, current permission checks, expiry, consumption and canary redaction.
@@ -121,7 +121,7 @@ See the [AWX security boundary](safety.md#write-gates-by-tool) for protected tok
 ## Bulk hosts (S12)
 
 See the [command reference](commands.md) for bulk host commands and file formats, the [AWX write boundary](safety.md#write-gates-by-tool) for permissions and private inputs, and [recovery guidance](runbook.md#retention-and-export) for partial or interrupted outcomes.
-Acceptance in [the AWX integration suite](../test/integration/awx.test.ts) verifies disabled writes, redacted previews without mutation, AWX permission denial, exact create payloads, rejected duplicate batches, mixed delete results, malformed host files, interrupted deletes reported as `UNKNOWN_OUTCOME`, and recovery through full and limited host reads against a fake controller.
+Acceptance in [the AWX inventory integration suite](../test/integration/awx-inventory.test.ts) verifies disabled writes, redacted previews without mutation, AWX permission denial, exact create payloads, rejected duplicate batches, mixed delete results, malformed host files, interrupted deletes reported as `UNKNOWN_OUTCOME`, and recovery through full and limited host reads against a fake controller.
 
 ## Copy and delete (S13)
 
