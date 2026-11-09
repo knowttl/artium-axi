@@ -49,7 +49,6 @@ export interface ToolAdminOptions {
 }
 
 const credentialSchemas = { 'shodan-axi': shodanProfile.credentialSchema, 'ssh-axi': z.never(), 'kubernetes-axi': kubernetesProfile.credentialSchema, 'gitea-axi': giteaProfile.credentialSchema, 'technitium-axi': technitiumProfile.credentialSchema, 'unifi-axi': unifiProfile.credentialSchema, 'proxmox-axi': proxmoxProfile.credentialSchema, 'beyondtrust-axi': beyondtrustCredentialSchema, 'gh-axi': ghCredentialSchema, 'checkpoint-axi': checkpointCredentialSchema, 'hybrid-axi': hybridCredentialSchema, 'falcon-axi': falconCredentialSchema, 'vectra-axi': vectraCredentialSchema, 'az-axi': azCredentialSchema, 'mg-axi': mgCredentialSchema, 'ldap-axi': ldapCredentialSchema, 'ado-axi': adoCredentialSchema, 'awx-axi': awxCredentialSchema, 'tenable-axi': tenableCredentialSchema }
-const singleInstanceTools = new Set<ToolName>(['shodan-axi'])
 const writePolicies = { 'ssh-axi': sshWritePolicy, 'kubernetes-axi': kubernetesWritePolicy, 'gitea-axi': giteaWritePolicy, 'unifi-axi': unifiWritePolicy, 'proxmox-axi': proxmoxWritePolicy, 'beyondtrust-axi': beyondtrustWritePolicy, 'gh-axi': ghWritePolicy, 'checkpoint-axi': checkpointWritePolicy, 'falcon-axi': falconWritePolicy, 'vectra-axi': vectraWritePolicy, 'az-axi': azWritePolicy,
   'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy, 'hybrid-axi': hybridWritePolicy, 'technitium-axi': technitiumWritePolicy, 'shodan-axi': shodanWritePolicy }
 const publicFields = {
@@ -405,10 +404,6 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const saving = route === adminToolRoutes.save || route === adminInstanceRoutes.save
     const name = route === adminInstanceRoutes.create ? input.name : instanceName(request)
     const expectedRevision = input.expectedRevision ?? 0
-    if (route === adminInstanceRoutes.create && singleInstanceTools.has(tool) && credentialStore().listInstances(tool).length > 0) {
-      throw new ArtiumError('INVALID_INPUT', 'This tool supports one instance until its sessions and streams are instance-aware.',
-        'Edit the existing instance instead of adding another.')
-    }
     let value = parse(z.record(z.string(), z.unknown()), input.value)
     if (tool === 'gh-axi' && (value.auth === 'device' || ['accessToken', 'accessTokenExpiresAt', 'login'].some(key => Object.hasOwn(value, key)))) {
       throw new ArtiumError('INVALID_INPUT', 'Device credentials are managed by Connect with GitHub.', 'Use Connect with GitHub to connect or rotate this credential.')

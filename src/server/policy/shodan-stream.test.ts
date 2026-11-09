@@ -42,10 +42,26 @@ test.each([
   expect(() => shodanBinding(db, owner, credential, 'OP-046')).toThrow(expect.objectContaining({ code }))
 })
 
-test('policy revisions change the session binding', () => {
+test('policy changes alter the session binding', () => {
   const prior = shodanBinding(db, owner, credential, 'OP-046').hash
-  db.exec("UPDATE tools SET revision=revision+1 WHERE name='shodan-axi'")
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='shodan-axi'")
+    .run(JSON.stringify({ sessions: { ...settings.sessions, sessionEvents: 9 } }))
   expect(shodanBinding(db, owner, credential, 'OP-046').hash).not.toBe(prior)
+})
+
+test('a binding names its instance and ignores changes to another instance', () => {
+  db.exec(`INSERT INTO credentials (id, tool, name, schema_version, key_id, nonce, ciphertext, authentication_tag)
+    VALUES ('other-credential', 'shodan-axi', 'other', 1, 'synthetic', zeroblob(12), x'00', zeroblob(16))`)
+  const other = { ...credential, id: 'other-credential' }
+  const prior = shodanBinding(db, owner, credential, 'OP-046')
+  expect(prior.instance).toBe('default')
+  expect(shodanBinding(db, owner, other, 'OP-046').instance).toBe('other')
+  db.exec("UPDATE credentials SET revision=revision+1 WHERE id='other-credential'")
+  db.exec("UPDATE tools SET revision=revision+1 WHERE name='shodan-axi'")
+  expect(shodanBinding(db, owner, credential, 'OP-046').hash).toBe(prior.hash)
+  expect(() => shodanBinding(db, owner, other, 'OP-046')).toThrow(expect.objectContaining({ code: 'REVISION_CONFLICT' }))
+  db.exec("DELETE FROM credentials WHERE id='other-credential'")
+  expect(shodanBinding(db, owner, credential, 'OP-046').hash).toBe(prior.hash)
 })
 
 test('session and scan bindings reject a revoked instance grant', () => {

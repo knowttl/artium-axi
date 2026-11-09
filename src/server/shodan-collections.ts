@@ -6,6 +6,7 @@ import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { shodanScanInput, type shodanStreamStart } from '../shared/shodan-stream.js'
+import { instanceNameSchema } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
 import type { Audit } from './audit/audit.js'
@@ -20,7 +21,7 @@ type Input = z.infer<typeof shodanScanInput>
 type StreamInput = z.infer<typeof shodanStreamStart>
 type Inspection = Awaited<ReturnType<typeof inspectShodanScan>>
 type Sessions = ReturnType<typeof registerShodanSessions>
-interface Plan { id: string, owner: ShodanOwner, credential: CredentialReference, input: Input, inspection: Inspection,
+interface Plan { id: string, owner: ShodanOwner, credential: CredentialReference, instance: string, input: Input, inspection: Inspection,
   binding: string, operations: string[], streamOperation?: string, expiresAt: number, timer: NodeJS.Timeout }
 interface Collection extends Omit<Plan, 'timer'> { state: 'running' | 'completed' | 'partial', controller: AbortController,
   result?: Record<string, unknown>, job: Promise<void>, timer: NodeJS.Timeout, sessionId?: string, changed: EventEmitter }
@@ -47,40 +48,41 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
     limits: { events: input.limit, bytes: input.maxBytes, leaseSeconds: input.waitSeconds }, acceptUnknownCost: true })
 
   app.post(prefix + '/preview', async request => {
-    const owner = shodanOwner(db, request), input = parse(shodanScanInput, request.body)
+    const owner = shodanOwner(db, request), { instance, ...input } = parse(shodanScanInput.extend({ instance: instanceNameSchema.optional() }), request.body)
     const inspection = await inspectShodanScan(input)
     const collecting = input.waitSeconds > 0
     if (collecting && !input.acceptUnknownCost) throw new ArtiumError('INVALID_INPUT')
     const operations = [inspection.operation]
     const streamOperation = collecting ? 'OP-046' : undefined
-    const credential = await resolver.resolve(owner.user, 'shodan-axi')
+    const credential = await resolver.resolve(owner.user, 'shodan-axi', instance)
     const binding = shodanScanBinding(db, owner, credential, operations, streamOperation)
     if (input.scanCreditBudget > binding.settings.maxScanCredits || input.maxRequests > binding.settings.maxRequests) throw new ArtiumError('INVALID_INPUT')
     if (plans.size >= 128 || [...plans.values()].filter(plan => plan.owner.user === owner.user).length >= 8) throw new ArtiumError('TOO_MANY_CALLS')
     await initialized
-    const id = randomUUID(), plan: Plan = { id, owner, credential, input, inspection, binding: binding.hash, operations, streamOperation,
+    const id = randomUUID(), plan: Plan = { id, owner, credential, instance: binding.instance, input, inspection, binding: binding.hash, operations, streamOperation,
       expiresAt: Date.now() + 15 * 60 * 1000, timer: setTimeout(() => {}, 0) }
     clearTimeout(plan.timer)
     plan.timer = setTimeout(() => plans.delete(id), 15 * 60 * 1000).unref()
     plans.set(id, plan)
-    return { confirm: id, operations: collecting ? ['OP-046', inspection.operation] : operations,
+    return { confirm: id, instance: plan.instance, operations: collecting ? ['OP-046', inspection.operation] : operations,
       scope: input.scope, bounds: { waitSeconds: input.waitSeconds, limit: input.limit, maxBytes: input.maxBytes, idleTimeout: input.idleTimeout },
       scanCreditBudget: input.scanCreditBudget, maxRequests: input.maxRequests,
       cost: 'unknown', expiresAt: plan.expiresAt }
   })
 
   app.post(prefix + '/start', async request => {
-    const owner = shodanOwner(db, request), body = parse(shodanScanInput.extend({ confirm: z.uuid() }), request.body), plan = plans.get(body.confirm)
+    const owner = shodanOwner(db, request), body = parse(shodanScanInput.extend({ confirm: z.uuid(), instance: instanceNameSchema.optional() }), request.body), plan = plans.get(body.confirm)
     if (!plan || plan.owner.user !== owner.user || plan.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
     plans.delete(plan.id); clearTimeout(plan.timer)
-    const { confirm: _confirm, ...input } = body
-    if (plan.expiresAt <= Date.now() || JSON.stringify(input) !== JSON.stringify(plan.input)) throw new ArtiumError('INVALID_INPUT')
+    const { confirm: _confirm, instance, ...input } = body
+    if (plan.expiresAt <= Date.now() || instance !== undefined && instance !== plan.instance
+      || JSON.stringify(input) !== JSON.stringify(plan.input)) throw new ArtiumError('INVALID_INPUT')
     authorize(plan)
     const stream = input.waitSeconds ? streamInput(input) : undefined
     const reservation = stream ? sessions.reserve(owner, plan.credential, plan.streamOperation!, stream) : undefined
     const retentionMs = (reservation?.limits.retentionSeconds ?? 900) * 1000
     const controller = new AbortController(), directory = join(root, `scan-${plan.id}`)
-    const identity = { credentialId: plan.credential.id, instance: (db.prepare('SELECT name FROM credentials WHERE id = ?').get(plan.credential.id) as { name: string } | undefined)?.name }
+    const identity = { credentialId: plan.credential.id, instance: plan.instance }
     const collection: Collection = { ...plan, state: 'running', controller, job: Promise.resolve(), timer: setTimeout(() => {}, 0), changed: new EventEmitter() }
     clearTimeout(collection.timer)
     try {

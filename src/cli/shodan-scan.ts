@@ -8,7 +8,7 @@ const prefix = '/v1/tools/shodan-axi/scan-collections'
 const statusSchema = z.object({ id: z.uuid(), state: z.enum(['running', 'completed', 'partial']),
   result: z.object({ events: z.array(z.record(z.string(), z.unknown())) }).passthrough().optional() })
 
-export async function shodanScan(args: string[], createClient: () => Client, output: (stream: 'stdout' | 'stderr', text: string) => void) {
+export async function shodanScan(args: string[], createClient: () => Client, output: (stream: 'stdout' | 'stderr', text: string) => void, instance?: string) {
   if (args[0] !== 'scan' || args[1] !== 'submit') return false
   if (args.includes('--help')) {
     output('stdout', 'usage: artium-axi shodan-axi scan submit <targets> [options]\nUse exact --allow-operation grants, --scan-credit-budget and --max-requests. Collection also needs --wait, --limit, --max-bytes, --idle-timeout, --accept-unknown-cost and the OP-046 stream grant. Preview first, then repeat with --execute --confirm <token>.\n')
@@ -45,7 +45,7 @@ export async function shodanScan(args: string[], createClient: () => Client, out
   if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
   const client = createClient()
   await client.authenticated('/v1/me', 'GET')
-  const call = (path: string, body: unknown) => client.transferSession(token => client.request(path, 'POST', body, token))
+  const call = (path: string, body: object) => client.transferSession(token => client.request(path, 'POST', instance === undefined ? body : { ...body, instance }, token))
   if (!switches.has('--execute')) {
     const result = await call(prefix + '/preview', parsed.data)
     output('stdout', (switches.has('--json') ? JSON.stringify(result) : encode(result)) + '\n')

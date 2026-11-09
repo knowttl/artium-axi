@@ -34,7 +34,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources or use administrator-enabled [mutation and bounded byte workflows](safety.md#kubernetes-reads), caller-owned workspaces and managed credentials with pinned kubectl. |
 | `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts, check authentication and run [confirmed managed commands](#ssh). |
 | `artium-axi --managed-session <command> [<args>]` | Supply and persist caller-owned sessions through private pipes; see `artium-axi --managed-session --help`. |
-| `artium-axi --instance <name> <tool> [<args>]` | Select one named instance of a tool for this run, before the tool name; refused for `ssh-axi`, Proxmox `result`, Kubernetes `tunnel`, `credential` and workspace or session commands other than `workspace create` and `session start`, Shodan `stream session`, `radar` and `scan submit`, and against servers that predate instances. |
+| `artium-axi --instance <name> <tool> [<args>]` | Select one named instance of a tool for this run, before the tool name; refused for `ssh-axi`, Proxmox `result`, Kubernetes `tunnel`, `credential` and workspace or session commands other than `workspace create` and `session start`, Shodan `radar`, and against servers that predate instances. |
 | `artium-axi falcon-axi [<args>]` | Run Falcon commands with managed credentials; [tool reference](https://github.com/knowttl/falcon-axi#readme). |
 | `artium-axi vectra-axi [<args>]` | Run Vectra commands with managed credentials; [tool reference](https://www.npmjs.com/package/@knowttl/vectra-axi). |
 | `artium-axi az-axi [<args>]` | Run Azure commands with the managed identity; [tool reference](https://www.npmjs.com/package/@knowttl/az-axi). |
@@ -277,6 +277,8 @@ See the [collection attribution boundary](safety.md#shodan) and [result retentio
 For stream session access and quotas, ask an administrator to configure the [Shodan session policy](tool-credentials.md#shodan).
 For example, `artium-axi shodan-axi stream session preview --operation OP-047 --selector --asn --value AS64496 --limit 10 --max-bytes 4096 --timeout 10000 --idle-timeout 5000 --accept-unknown-cost --json` validates a native plan without starting a stream.
 Use `artium-axi shodan-axi stream session preview --help` for the full set of bounds.
+When a tool has more than one instance, put `--instance <name>` before `shodan-axi` on `stream session preview` and `start` and on `scan submit`.
+The preview and the session or collection it starts stay bound to that instance; later `status`, `read`, `extend` and `stop` take only the session ID.
 The required `--accept-unknown-cost` acknowledges that cost cannot be determined; the response reports the selected operation, selector, bounds and effective limits with `status: preview` and `cost: unknown`.
 Optional `--events`, `--bytes`, `--retention` and `--lease` values may lower administrator ceilings; retention and lease values are in seconds, while timeout values are in milliseconds.
 The required `--limit`, `--max-bytes` and `--timeout` must fit the effective event, byte and lease limits.

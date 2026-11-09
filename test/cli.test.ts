@@ -688,6 +688,27 @@ test.each([
     body: { args, instance: 'lab' }, version: cliVersion }])
 })
 
+test.each([
+  { name: 'stream session preview', path: '/v1/tools/shodan-axi/sessions/preview', body: { operation: 'OP-046', selector: {},
+    bounds: { limit: 10, maxBytes: 4096, timeout: 8000, idleTimeout: 10000 }, limits: {}, acceptUnknownCost: true },
+  args: ['stream', 'session', 'preview', '--operation', 'OP-046', '--limit', '10', '--max-bytes', '4096', '--timeout', '8000',
+    '--idle-timeout', '10000', '--accept-unknown-cost', '--json'] },
+  { name: 'stream session start', path: '/v1/tools/shodan-axi/sessions/start', body: { operation: 'OP-046', selector: {},
+    bounds: { limit: 10, maxBytes: 4096, timeout: 8000, idleTimeout: 10000 }, limits: {}, acceptUnknownCost: true,
+    confirm: '00000000-0000-4000-8000-000000000000' },
+  args: ['stream', 'session', 'start', '--operation', 'OP-046', '--limit', '10', '--max-bytes', '4096', '--timeout', '8000',
+    '--idle-timeout', '10000', '--confirm', '00000000-0000-4000-8000-000000000000', '--accept-unknown-cost', '--json'] },
+  { name: 'scan submit preview', path: '/v1/tools/shodan-axi/scan-collections/preview', body: { scope: { kind: 'targets', targets: '192.0.2.1', force: false },
+    waitSeconds: 0, limit: 1, maxBytes: 1024, idleTimeout: 1000, scanCreditBudget: 1, maxRequests: 1, acceptUnknownCost: false },
+  args: ['scan', 'submit', '192.0.2.1', '--scan-credit-budget', '1', '--max-requests', '1', '--allow-operation', 'OP-009', '--json'] },
+])('a named instance is sent with Shodan $name', async ({ path, body, args }) => {
+  requests = []
+  response = { status: 200, body: { confirm: '00000000-0000-4000-8000-000000000000' } }
+  await cli(['--instance', 'lab', 'shodan-axi', ...args])
+  expect(requests.filter(request => request.path === path)).toEqual([{ path, token: 'Bearer CANARY-cli-token',
+    body: { ...body, instance: 'lab' }, version: cliVersion }])
+})
+
 test('a server that rejects the instance field is refused with an upgrade next step', async () => {
   requests = []
   response = { status: 400, body: errorResponse(new ArtiumError('INVALID_INPUT'), 'synthetic-older-server') }
@@ -758,9 +779,9 @@ test.each([
   { args: ['--instance', 'pve-lab', 'kubernetes-axi', 'credential'] },
   { args: ['--instance', 'pve-lab', 'kubernetes-axi', '--json', 'workspace', 'show'] },
   { args: ['--instance', 'pve-lab', 'kubernetes-axi', 'session', 'list'] },
-  { args: ['--instance', 'pve-lab', 'shodan-axi', 'stream', 'session', 'list'] },
   { args: ['--instance', 'pve-lab', 'shodan-axi', 'radar'] },
-  { args: ['--instance', 'pve-lab', 'shodan-axi', 'scan', 'submit'] },
+  { args: ['--instance', 'pve-lab', 'shodan-axi', 'stream', 'session', 'status', '00000000-0000-4000-8000-000000000000'] },
+  { args: ['--instance', 'pve-lab', 'shodan-axi', 'stream', 'session', 'stop', '00000000-0000-4000-8000-000000000000'] },
   { args: ['--instance', 'Pve_Lab', 'mg-axi', 'entra', 'user', 'list'] },
   { args: ['--instance'] },
 ])('--instance is refused before any request unless it precedes a supported tool: $args', async ({ args }) => {

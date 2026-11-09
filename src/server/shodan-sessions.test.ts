@@ -24,7 +24,7 @@ vi.mock('node:child_process', async importOriginal => {
     { ...options, env: { ...options.env, ...(processBoundary.multiple ? { ARTIUM_TEST_MULTIPLE_EVENTS: '1' } : {}) } }) }
 })
 
-async function sessionFixture() {
+async function sessionFixture(capacity = 1, leaseSeconds = 1) {
   const directory = mkdtempSync(join(tmpdir(), 'shodan-session-'))
   const previous = toolPaths['shodan-axi']
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
@@ -33,8 +33,8 @@ async function sessionFixture() {
   const store = createCredentialStore(db, provider)
   store.replaceCredential('shodan-axi', { auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' },
     0, 'synthetic-development-user', Date.now())
-  const sessions = { grants: { 'synthetic-development-user': ['OP-046'] }, perUser: 1, perCredential: 1, total: 1,
-    sessionEvents: 10, totalEvents: 10, sessionBytes: 4096, totalBytes: 4096, retentionSeconds: 60, leaseSeconds: 1 }
+  const sessions = { grants: { 'synthetic-development-user': ['OP-046'] }, perUser: capacity, perCredential: 1, total: capacity,
+    sessionEvents: 10, totalEvents: 10 * capacity, sessionBytes: 4096, totalBytes: 4096 * capacity, retentionSeconds: 60, leaseSeconds }
   db.prepare("UPDATE tools SET enabled=1,native_settings=? WHERE name='shodan-axi'").run(JSON.stringify({ sessions }))
   const runner = await Runner.create(join(directory, 'calls'))
   const app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {},
@@ -42,9 +42,9 @@ async function sessionFixture() {
   Object.assign(toolPaths, { 'shodan-axi': join(process.cwd(), 'tools/node_modules/@knowttl/shodan-axi/bin/shodan-axi.js') })
   const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
   const prefix = '/v1/tools/shodan-axi/sessions'
-  const input = { operation: 'OP-046', selector: {}, bounds: { limit: 10, maxBytes: 4096, timeout: 1000, idleTimeout: 1000 },
+  const input = { operation: 'OP-046', selector: {}, bounds: { limit: 10, maxBytes: 4096, timeout: leaseSeconds * 1000, idleTimeout: 1000 },
     limits: {}, acceptUnknownCost: true }
-  return { app, db, directory, headers, prefix, input, close: async () => {
+  return { app, db, store, directory, headers, prefix, input, close: async () => {
     await app.close()
     db.close()
     processBoundary.crash = false
@@ -158,4 +158,61 @@ test.each([
     await fixture.close()
     stderr.mockRestore()
   }
+})
+
+test('sessions bind the previewed instance and deleting one instance closes only its sessions', async () => {
+  const fixture = await sessionFixture(2, 30)
+  const { app, db, store, headers, prefix, input } = fixture
+  try {
+    const defaultInstance = store.findInstance('shodan-axi', 'default')!
+    store.createInstance('shodan-axi', { name: 'lab', description: '' }, store.readCredential(defaultInstance), 'synthetic-development-user', Date.now())
+    const ambiguous = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: input })
+    expect(ambiguous.statusCode).toBe(409)
+    expect(ambiguous.json()).toMatchObject({ error: { code: 'INSTANCE_REQUIRED' } })
+    const unknown = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: { ...input, instance: 'missing' } })
+    expect(unknown.json()).toMatchObject({ error: { code: 'INSTANCE_NOT_FOUND' } })
+    const start = async (instance: string, startInstance = instance) => {
+      const preview = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: { ...input, instance } })
+      expect(preview.statusCode, preview.body).toBe(200)
+      expect(preview.json()).toMatchObject({ instance })
+      return app.inject({ method: 'POST', url: `${prefix}/start`, headers,
+        payload: { ...input, instance: startInstance, confirm: preview.json().confirm } })
+    }
+    expect((await start('lab', 'default')).statusCode).toBe(400)
+    const lab = await start('lab'), other = await start('default')
+    expect(lab.statusCode, lab.body).toBe(200)
+    expect(other.statusCode, other.body).toBe(200)
+    expect(lab.json()).toMatchObject({ instance: 'lab' })
+    const rows = db.prepare("SELECT request_id AS id, instance FROM audit WHERE event = 'run-start' ORDER BY instance").all()
+    expect(rows).toEqual([{ id: other.json().id, instance: 'default' }, { id: lab.json().id, instance: 'lab' }])
+    const labInstance = store.findInstance('shodan-axi', 'lab')!
+    store.deleteInstance('shodan-axi', 'lab', labInstance.id, labInstance.revision)
+    await app.inject({ method: 'GET', url: `${prefix}/${lab.json().id}`, headers })
+    expect((await app.inject({ method: 'GET', url: `${prefix}/${lab.json().id}`, headers })).statusCode).toBe(404)
+    const running = await app.inject({ method: 'GET', url: `${prefix}/${other.json().id}`, headers })
+    expect(running.json()).toMatchObject({ instance: 'default', state: expect.stringMatching(/^(starting|running)$/), cleaned: false })
+  } finally { await fixture.close() }
+})
+
+test('scan collection previews bind the selected instance and reject a start that names another', async () => {
+  const fixture = await sessionFixture(2, 30)
+  const { app, db, store, headers } = fixture
+  try {
+    const settings = JSON.parse((db.prepare("SELECT native_settings FROM tools WHERE name='shodan-axi'").get() as { native_settings: string }).native_settings)
+    db.prepare("UPDATE tools SET native_settings=? WHERE name='shodan-axi'").run(JSON.stringify({ ...settings,
+      scans: { grants: { 'synthetic-development-user': ['OP-009'] }, maxScanCredits: 10, maxRequests: 10 } }))
+    const defaultInstance = store.findInstance('shodan-axi', 'default')!
+    store.createInstance('shodan-axi', { name: 'lab', description: '' }, store.readCredential(defaultInstance), 'synthetic-development-user', Date.now())
+    const prefix = '/v1/tools/shodan-axi/scan-collections'
+    const scan = { scope: { kind: 'targets', targets: '192.0.2.1', force: false }, waitSeconds: 0, limit: 1, maxBytes: 1024,
+      idleTimeout: 1000, scanCreditBudget: 1, maxRequests: 1, acceptUnknownCost: false }
+    const ambiguous = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: scan })
+    expect(ambiguous.json()).toMatchObject({ error: { code: 'INSTANCE_REQUIRED' } })
+    const preview = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: { ...scan, instance: 'lab' } })
+    expect(preview.statusCode, preview.body).toBe(200)
+    expect(preview.json()).toMatchObject({ instance: 'lab' })
+    const mismatched = await app.inject({ method: 'POST', url: `${prefix}/start`, headers,
+      payload: { ...scan, instance: 'default', confirm: preview.json().confirm } })
+    expect(mismatched.statusCode).toBe(400)
+  } finally { await fixture.close() }
 })
