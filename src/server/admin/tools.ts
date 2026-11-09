@@ -153,7 +153,9 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       AND tool_health.credential_revision = credentials.revision WHERE credentials.tool = ? AND credentials.enabled = 1
       ORDER BY tool_health.status = 'error' DESC, credentials.name`).all(tool) as Array<{ id: string, status: string | null }>)
       .filter(result => eligible.has(result.id))
-    const stored = healthSchema.safeParse(results.length && results.every(result => result.status !== null) || results[0]?.status === 'error' ? results[0] : undefined)
+    const selected = results.length && results.every(result => result.status !== null) || results[0]?.status === 'error' ? results[0] : undefined
+    const { id: selectedId, ...selectedHealth } = selected ?? {}
+    const stored = healthSchema.safeParse(selected ? selectedHealth : undefined)
     // Cached categories from an older catalogue require a fresh test after upgrade.
     const cached = tool !== 'ssh-axi' && stored.success ? stored.data : undefined
     const configured = tool === 'ssh-axi' ? hasSshConfiguration(db)
@@ -164,7 +166,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const nativeSettings = JSON.parse(row.nativeSettings)
     const writeAccess = writePolicies[tool].read(nativeSettings)
     const readOnly = !writeAccess.enabled
-    const diagnostic = options.health.diagnostic(tool, health.credentialRevision, health.checkedAt)
+    const diagnostic = cached && selectedId ? options.health.diagnostic(tool, health.credentialRevision, health.checkedAt, selectedId) : undefined
     return adminToolSchema.parse({ ...row, version: toolManifests[tool].version, enabled: Boolean(row.enabled),
       nativeSettings, readOnly, writeAccess,
       health: { ...health, readOnly, ...(diagnostic ? { diagnostic } : {}) } })
@@ -524,7 +526,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         input.expectedId, input.expectedRevision, actor, Date.now())
       return readInstance(tool, name)
     }).value
-    if (input.enabled) await health.refresh(tool, true, result.id)
+    if (result.enabled) await health.refresh(tool, true, result.id)
     return result
   } })
   app.route({ method: adminInstanceRoutes.remove.method, url: adminInstanceRoutes.remove.path, handler: async request => {

@@ -2402,6 +2402,27 @@ test('instance description edit is revision checked and audited', async () => {
   await failure(await request('PATCH', '/falcon-axi/instances/east', { expectedId: east.id, expectedRevision: 2, description: 'x'.repeat(501) }), 'INVALID_INPUT')
 })
 
+test.each([{ description: 'Updated region' }, { readOnly: false }])('instance update refreshes health for %o', async change => {
+  const east = await createInstance('east', eastValue)
+  expect((await request('PATCH', '/falcon-axi/instances/east', { expectedId: east.id, expectedRevision: east.revision, ...change })).status).toBe(200)
+  expect(adminInstanceSchema.parse(await (await request('GET', '/falcon-axi/instances/east')).json()).health)
+    .toMatchObject({ status: 'ok', credentialRevision: 2 })
+})
+
+test('aggregate health includes the failing named instance diagnostic', async () => {
+  await createInstance('east', eastValue)
+  await createInstance('west', westValue)
+  const adapter = adapters.find(item => item.name === 'falcon-axi')!
+  const prepare = adapter.prepare.bind(adapter)
+  vi.spyOn(adapter, 'prepare').mockImplementationOnce(async (args, reference) => ({ ...await prepare(args, reference),
+    executable: fakeTool.executable, args: [...fakeTool.args, 'failure', 'code: AUTH_FAILED'] }))
+  const failureResponse = await request('POST', '/falcon-axi/instances/west/test', {})
+  const diagnostic = errorResponseSchema.parse(await failureResponse.json()).error.diagnostic
+  expect(diagnostic).toMatchObject({ credentialRevision: 1 })
+  expect((await (await request('GET', '/falcon-axi')).json()).health)
+    .toMatchObject({ status: 'error', errorCode: 'UPSTREAM_AUTH_FAILED', diagnostic })
+})
+
 test.each(['kubernetes-axi', 'proxmox-axi', 'shodan-axi'] as const)('%s refuses a second instance until its long-lived state is instance-aware', async tool => {
   await createInstance('lab', values[tool], tool)
   await failure(await request('POST', `/${tool}/instances`, { name: 'production', description: '', value: values[tool],
