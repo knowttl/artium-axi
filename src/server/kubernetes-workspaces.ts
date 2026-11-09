@@ -86,8 +86,6 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     try { access(workspace) }
     catch (error) { await discard(workspace); throw error }
     const credential = await resolver.resolve(owner.user, 'kubernetes-axi')
-    const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(credential.id) as { name: string } | undefined)?.name
-    admitted.set(request, { credentialId: credential.id, instance })
     if (credential.id !== workspace.credential.id || credential.revision !== workspace.credential.revision) {
       await discard(workspace)
       throw new ArtiumError('REVISION_CONFLICT')
@@ -109,6 +107,8 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
       throw new ArtiumError('INVALID_INPUT')
     }
     const credential = await resolver.resolve(owner.user, 'kubernetes-axi')
+    const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(credential.id) as { name: string } | undefined)?.name
+    admitted.set(request, { credentialId: credential.id, instance })
     const prepared = await adapter.prepare(['version'], credential)
     if (new SecretScanner(prepared.secrets).scan('stdout', Buffer.from(JSON.stringify(files)))) throw new ArtiumError('SECRET_IN_OUTPUT')
     const id = randomUUID()
