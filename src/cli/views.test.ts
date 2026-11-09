@@ -6,10 +6,10 @@ const instances = [
   { name: 'lab', status: 'ok' as const, readOnly: false, description: 'Lab tenant, safe for tests.' },
   { name: 'production', status: 'error' as const, readOnly: true, description: 'Production, "read-only" checks only.' },
 ]
-const falcon = { name: 'falcon-axi' as const, status: 'ok' as const, version: toolManifests['falcon-axi'].version, readOnly: false }
+const falcon = { name: 'falcon-axi' as const, status: 'ok' as const, version: toolManifests['falcon-axi'].version, readOnly: false, instances: [] }
 
 test('the tools listing shows instance counts without suggesting an ambiguous call', () => {
-  const view = toolsView([{ ...falcon, instances }, { name: 'ldap-axi', status: 'ok', version: toolManifests['ldap-axi'].version }])
+  const view = toolsView([{ ...falcon, instances }, { name: 'ldap-axi', status: 'ok', version: toolManifests['ldap-axi'].version, instances: [] }])
   expect(view).toContain(`tools[2]{name,status,version,readOnly,instances}:\n  falcon-axi,ok,"${falcon.version}",false,2\n  ldap-axi,ok,`)
   expect(view).toMatch(/ldap-axi,ok,"[^"]+",true,0\n/)
   expect(view).toContain('next[1]:\n  - artium-axi tools show falcon-axi\n')

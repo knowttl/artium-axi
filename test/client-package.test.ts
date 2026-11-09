@@ -30,7 +30,7 @@ const server = createServer((request, reply) => {
   } else if (request.headers.authorization !== 'Bearer CANARY-package-access') {
     reply.writeHead(401).end(JSON.stringify(errorResponse(new ArtiumError('TOKEN_INVALID'), 'synthetic-request')))
   } else if (request.url === '/v1/skills') reply.end(JSON.stringify({ skills: [] }))
-  else if (request.url === '/v1/tools') reply.end(JSON.stringify({ tools: granted ? [{ name: 'az-axi', version: 'synthetic', status: 'ok', readOnly: true }] : [] }))
+  else if (request.url === '/v1/tools') reply.end(JSON.stringify({ tools: granted ? [{ name: 'az-axi', version: 'synthetic', status: 'ok', readOnly: true, instances: [] }] : [] }))
   else if (request.url === '/v1/me') reply.end(JSON.stringify({ username: 'synthetic-user', displayName: 'Synthetic User',
     administrator: false, roles: [], accessExpiresAt: Date.now() + 3_600_000, sessionExpiresAt: Date.now() + 43_200_000 }))
   else reply.writeHead(404).end('{}')

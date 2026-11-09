@@ -107,7 +107,7 @@ test.each([
 })
 
 test('Falcon discovery hosts every indented executable example', () => {
-  const output = decode(toolView({ name: 'falcon-axi', status: 'ok', version: falcon.version })) as { upstreamHelp: string }
+  const output = decode(toolView({ name: 'falcon-axi', status: 'ok', version: falcon.version, instances: [] })) as { upstreamHelp: string }
   const expected = falcon.discovery.help.replace(/^(\s*)falcon-axi/gm, '$1artium-axi falcon-axi')
   expect(output.upstreamHelp).toBe(expected)
   expect(rewriteDiscoveryHelp(output.upstreamHelp, 'falcon-axi')).toBe(expected)
@@ -120,7 +120,7 @@ test.each(['search start', 'search stop', 'host usb', 'identity activity', 'malq
   })
 
 test('Vectra discovery hosts command and examples while preserving other help fields', () => {
-  const output = decode(toolView({ name: 'vectra-axi', status: 'ok', version: vectra.version })) as { upstreamHelp: string }
+  const output = decode(toolView({ name: 'vectra-axi', status: 'ok', version: vectra.version, instances: [] })) as { upstreamHelp: string }
   const expected = { ...vectra.discovery.help, command: 'artium-axi vectra-axi detection list', examples: ['artium-axi vectra-axi detection list'] }
   expect(JSON.parse(output.upstreamHelp)).toEqual(expected)
   expect(rewriteDiscoveryHelp(expected, 'vectra-axi')).toBe(output.upstreamHelp)
@@ -145,7 +145,7 @@ test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'].flatMap(tool =>
   })
 
 test('Graph static tool help hides managed flags and hosts its examples', () => {
-  const output = toolView({ name: 'mg-axi', status: 'ok', version: graph.version })
+  const output = toolView({ name: 'mg-axi', status: 'ok', version: graph.version, instances: [] })
   expect(output).not.toMatch(/--(?:profile|config|scopes)\b/)
   expect(output).toContain('artium-axi mg-axi')
   expect(output).not.toMatch(/npx -y @knowttl\/mg-axi/)

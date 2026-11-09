@@ -689,7 +689,7 @@ export const toolsResponseSchema = z.strictObject({
       status: z.enum(['unknown', 'checking', 'ok', 'error']),
       readOnly: z.boolean(),
       errorCode: healthSchema.shape.errorCode.optional(),
-    })).default([]),
+    })),
   })),
 })
 export const inputFileSchema = z.strictObject({

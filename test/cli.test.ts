@@ -706,7 +706,7 @@ test('an instance run preserves a specific server input diagnostic', async () =>
 test.each([{ args: [] }, { args: ['home'] }, { args: ['help'] }, { args: ['commands'] }, { args: ['--help'] }])('delegated discovery resolves a named instance: $args', async ({ args }) => {
   requests = []
   doctorResponses = {
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '0.1.19', commands: ['user list'] }] } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '0.1.19', commands: ['user list'], instances: [] }] } },
     '/v1/tools/mg-axi/run': { status: 404, body: errorResponse(new ArtiumError('INSTANCE_NOT_FOUND'), 'synthetic-instance') },
   }
   try {
@@ -719,7 +719,7 @@ test.each([{ args: [] }, { args: ['home'] }, { args: ['help'] }, { args: ['comma
 test.each([{ args: ['hash-download-bin', '--help'] }, { args: ['help', 'hash-download-bin'] }])('delegated download help resolves a named instance: $args', async ({ args }) => {
   requests = []
   doctorResponses = {
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'hybrid-axi', status: 'ok', version: '0.1.5', commands: ['hash-download-bin'] }] } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'hybrid-axi', status: 'ok', version: '0.1.5', commands: ['hash-download-bin'], instances: [] }] } },
     '/v1/tools/hybrid-axi/run': { status: 404, body: errorResponse(new ArtiumError('INSTANCE_NOT_FOUND'), 'synthetic-instance') },
   }
   try {
@@ -731,7 +731,7 @@ test.each([{ args: ['hash-download-bin', '--help'] }, { args: ['help', 'hash-dow
 
 test('delegated discovery keeps scoped help after instance resolution', async () => {
   doctorResponses = {
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '0.1.19', commands: ['user list'] }] } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '0.1.19', commands: ['user list'], instances: [] }] } },
     '/v1/tools/mg-axi/run': instanceRunResponse,
   }
   try {
@@ -1043,7 +1043,7 @@ test.each([
 
 test('standalone bundle lists tools and reports an empty list', async () => {
   requests = []
-  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.9.0' }] } }
+  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.9.0', instances: [] }] } }
   expect(await cli(['tools'])).toMatchObject({ code: 0, stdout: 'tools[1]{name,status,version,readOnly,instances}:\n  falcon-axi,ok,"0.9.0",true,0\nnext[2]:\n  - artium-axi tools show falcon-axi\n  - artium-axi falcon-axi detection list\n', stderr: '' })
   expect(requests).toEqual([{ path: '/v1/tools', token: 'Bearer CANARY-cli-token', body: undefined, version: cliVersion }])
   response = { status: 200, body: { tools: [] } }
@@ -1354,8 +1354,8 @@ test.each([
     '/health/ready': readiness,
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
       roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.9.0' },
-      { name: 'vectra-axi', status: 'error', version: '0.1.3' }] } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.9.0', instances: [] },
+      { name: 'vectra-axi', status: 'error', version: '0.1.3', instances: [] }] } },
   }
   try {
     const result = await cli(['doctor'])
@@ -1363,7 +1363,7 @@ test.each([
       /^pass: server address \(ARTIUM_AXI_URL\)\npass: certificate\npass: token \(session expires [^\n]+\npass: CLI version\npass: falcon-axi \(ok\)\nfail: vectra-axi \(error\)\nerror:\n  code: "TOOL_FAILED"\n/) })
     expect(requests.map(request => request.path)).toEqual(['/health/live', '/v1/me', '/v1/me', '/v1/tools'])
     expect(requests.map(request => request.version)).toEqual(Array(4).fill(cliVersion))
-    doctorResponses['/v1/tools'].body = { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.9.0' }] }
+    doctorResponses['/v1/tools'].body = { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.9.0', instances: [] }] }
     expect(await cli(['doctor'])).toMatchObject({ code: 0, stdout: expect.stringContaining('pass: falcon-axi (ok)') })
   } finally { doctorResponses = undefined }
 })
@@ -1503,7 +1503,7 @@ test.each([
     '/health/live': { status: 200, body: { status: 'ok' } },
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
       roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', version: '0.9.0', status }] } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', version: '0.9.0', status, instances: [] }] } },
   }
   try {
     const result = await cli(['doctor'])
@@ -1521,9 +1521,9 @@ test('doctor shows the server category for every unhealthy tool without diagnost
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
       roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
     '/v1/tools': { status: 200, body: { tools: [
-      { name: 'falcon-axi', version: '0.9.0', status: 'ok' },
-      { name: 'beyondtrust-axi', version: '0.1.8', status: 'error', errorCode: 'UPSTREAM_RESPONSE_INVALID' },
-      { name: 'vectra-axi', version: '0.1.3', status: 'error', errorCode: 'UPSTREAM_TLS_FAILED' },
+      { name: 'falcon-axi', version: '0.9.0', status: 'ok', instances: [] },
+      { name: 'beyondtrust-axi', version: '0.1.8', status: 'error', errorCode: 'UPSTREAM_RESPONSE_INVALID', instances: [] },
+      { name: 'vectra-axi', version: '0.1.3', status: 'error', errorCode: 'UPSTREAM_TLS_FAILED', instances: [] },
     ] } },
   }
   try {
@@ -1542,7 +1542,7 @@ test('doctor accepts dedicated SSH configuration while directing authentication 
     '/health/live': { status: 200, body: { status: 'ok' } },
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
       roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'ssh-axi', version: '0.1.1', status: 'unknown' }] } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'ssh-axi', version: '0.1.1', status: 'unknown', instances: [] }] } },
   }
   try {
     expect(await cli(['doctor'])).toMatchObject({ code: 0, stderr: '',
@@ -1555,7 +1555,7 @@ test('doctor reports checking health as pending, not a failure', async () => {
     '/health/live': { status: 200, body: { status: 'ok' } },
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
       roles: [], accessExpiresAt: Date.now() + 3600_000, sessionExpiresAt: Date.now() + 43200_000 } },
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', version: '0.9.0', status: 'checking' }] } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'falcon-axi', version: '0.9.0', status: 'checking', instances: [] }] } },
   }
   try {
     expect(await cli(['doctor'])).toMatchObject({ code: 0, stderr: '',
@@ -1603,7 +1603,8 @@ test('Artium errors preserve the server request ID and withhold streams', async 
   expect(result.stdout).toContain('requestId: "synthetic-request"')
 })
 
-test.each([{ tools: [], extra: true }, { stdout: 'untrusted' }, { tools: [{ name: 'unknown-axi', status: 'ok', version: '0.1.4' }] }])('malformed response does not print unvalidated data', async body => {
+test.each([{ tools: [], extra: true }, { stdout: 'untrusted' }, { tools: [{ name: 'unknown-axi', status: 'ok', version: '0.1.4', instances: [] }] },
+  { tools: [{ name: 'falcon-axi', status: 'ok', version: '1.0.0-rc.3' }] }])('malformed response does not print unvalidated data', async body => {
   requests = []
   response = { status: 200, body }
   expect(await cli(['tools'])).toMatchObject({ code: 1, stdout: expect.stringContaining('INVALID_RESPONSE'), stderr: '' })
@@ -1770,7 +1771,7 @@ test.each([
 
 test('tool detail uses pinned help without running the tool', async () => {
   requests = []
-  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '1.0.0-rc.3' }] } }
+  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '1.0.0-rc.3', instances: [] }] } }
   const result = await cli(['tools', 'show', 'falcon-axi'])
   expect(result).toMatchObject({ code: 0, stderr: '' })
   expect(result.stdout).toContain('version: "1.0.0-rc.3"\nstatus: ok\nreadOnly: true\ninstances[0]{name,status,readOnly,description}:\ncommands[')
@@ -1803,7 +1804,7 @@ test.each([
   { tool: 'hybrid-axi', example: 'quota', version: '0.1.5' },
   { tool: 'checkpoint-axi', example: 'email search --limit 1', version: '0.1.5' },
 ])('$tool discovery exposes the pinned version and first read', async ({ tool, example, version }) => {
-  response = { status: 200, body: { tools: [{ name: tool, status: 'ok', version }] } }
+  response = { status: 200, body: { tools: [{ name: tool, status: 'ok', version, instances: [] }] } }
   const listing = await cli(['tools'])
   expect(listing).toMatchObject({ code: 0, stderr: '' })
   expect(listing.stdout).toContain(`artium-axi ${tool} ${example}`)
@@ -1815,7 +1816,7 @@ test.each([
 })
 
 test('tool detail refuses a mismatched pinned version', async () => {
-  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '9.9.9' }] } }
+  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '9.9.9', instances: [] }] } }
   expect(await cli(['tools', 'show', 'falcon-axi'])).toMatchObject({ code: 1,
     stdout: expect.stringContaining('INVALID_RESPONSE'), stderr: '' })
 })
