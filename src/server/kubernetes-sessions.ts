@@ -432,7 +432,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     try { const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''); userId = principal.userId; delegationId = principal.delegation?.id; familyId = principal.familyId } catch { /* Unverified callers remain unattributed. */ }
     const id = request.url.startsWith(prefix + '/') ? (request.params as { id?: string } | undefined)?.id : undefined
     const session = id ? sessions.get(id) : undefined
-    const candidates = userId && request.method === 'POST' && request.url.split('?')[0] === prefix
+    const candidates = userId && request.method === 'POST' && [prefix, '/v1/tools/kubernetes-axi/workspaces'].includes(request.url.split('?')[0])
       ? db.prepare("SELECT id, name FROM credentials WHERE tool = 'kubernetes-axi' AND enabled = 1 LIMIT 2").all() as { id: string, name: string }[] : []
     const identity = admitted.get(request) ?? workspaces.auditIdentity(request, userId, familyId) ?? (session && session.owner.user === userId && session.owner.family === familyId
       ? { credentialId: session.credentialId, instance: session.instance }

@@ -63,6 +63,7 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
   }
   const record = (request: FastifyRequest, owner: KubernetesOwner, id: string, action: string) =>
     audit.record({ event: 'admin-change', userId: owner.user, delegationId: owner.delegation?.id, tool: 'kubernetes-axi', requestId: request.id,
+      ...admitted.get(request),
       clientAddress: request.ip, outcome: 'success', action: 'kubernetes-workspace-' + action, targetId: id })
   function access(workspace: Workspace) {
     if (workspace.controller.signal.aborted || workspace.expiresAt <= Date.now()) throw new ArtiumError('TOKEN_EXPIRED')

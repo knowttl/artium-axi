@@ -98,8 +98,14 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.equal((await request(prefix, 'POST', { kind: 'exec', argv: ['prepare', '--', 'exec', 'synthetic-pod', '--', 'true'] })).json().error.code, 'FLAG_BLOCKED')
     assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
       { credential_id: reference.id, instance: 'default' })
+    assert.equal((await request('/v1/tools/kubernetes-axi/workspaces', 'POST', { files: [] })).statusCode, 400)
+    assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
+      { credential_id: reference.id, instance: 'default' })
     const sibling = store.createInstance('kubernetes-axi', { name: 'other', description: '' }, credential, 'synthetic-development-user', Date.now())
     assert.equal((await request(prefix, 'POST', { kind: 'exec', argv: ['prepare', '--', 'exec', 'synthetic-pod', '--', 'true'] })).json().error.code, 'FLAG_BLOCKED')
+    assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
+      { credential_id: null, instance: null })
+    assert.equal((await request('/v1/tools/kubernetes-axi/workspaces', 'POST', { files: [] })).statusCode, 400)
     assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
       { credential_id: null, instance: null })
     store.deleteInstance('kubernetes-axi', 'other', sibling.id, sibling.revision)
@@ -118,6 +124,13 @@ await withFakeService(async ({ directory, port, send }) => {
     const delegated = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
       scope: { tools: [{ tool: 'kubernetes-axi' }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
     const delegatedHeaders = { authorization: `Bearer ${exchangeDelegation(db, delegated.token).accessToken}` }
+    const limited = createDelegation(db, 'synthetic-development-user', { label: 'Limited', scope: { tools: [{ tool: 'kubernetes-axi', commands: ['session list'] }] },
+      readOnly: false, reusable: false, expiresAt: Date.now() + 60000 }, [adapter])
+    const deniedWorkspace = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/workspaces',
+      headers: { authorization: `Bearer ${exchangeDelegation(db, limited.token).accessToken}` }, payload: { files: [] } })
+    assert.equal(deniedWorkspace.json().error.code, 'DELEGATED_SCOPE_DENIED')
+    assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get(),
+      { credential_id: reference.id, instance: 'default' })
     const delegatedStart = await app.inject({ method: 'POST', url: prefix, headers: delegatedHeaders,
       payload: { kind: 'exec', argv: ['prepare', '--', 'exec', 'synthetic-pod', '--', 'synthetic-hold'] } })
     assert.equal(delegatedStart.statusCode, 200, delegatedStart.body)
@@ -173,6 +186,8 @@ await withFakeService(async ({ directory, port, send }) => {
     const denialWorkspace = await request(workspacePath, 'POST', { files: [{ path: 'input.bin', bytes: bytes.length, sha256 }] })
     assert.equal(denialWorkspace.statusCode, 200, denialWorkspace.body)
     const stagedId = denialWorkspace.json().id as string
+    assert.deepEqual(db.prepare("SELECT credential_id, instance FROM audit WHERE action='kubernetes-workspace-create' AND target_id=?").get(stagedId),
+      { credential_id: reference.id, instance: 'default' })
     for (const method of ['GET', 'DELETE'] as const) {
       assert.equal((await request(`${workspacePath}/${stagedId}?operation=invalid`, method)).statusCode, 400)
       assert.deepEqual(denialIdentity(), { credential_id: reference.id, instance: 'default' })
