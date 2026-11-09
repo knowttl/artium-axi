@@ -53,8 +53,10 @@ beforeEach(() => {
     write(`test/integration/${name}.test.ts`, 'export {}\n')
   }
   write('src/server/adapters/awx.ts', 'export const awx = 1\n')
-  write('src/server/main.ts', 'export {}\n')
-  write('src/server/maintenance.ts', 'export {}\n')
+  write('src/server/adapters/falcon.ts', 'export const falcon = 1\n')
+  write('src/server/store/backup.ts', 'export const backup = 1\n')
+  write('src/server/main.ts', "import './adapters/falcon.js'\n")
+  write('src/server/maintenance.ts', "import './store/backup.js'\n")
   write('src/server/store/backup.test.ts', 'export {}\n')
   write('src/server/store/rotate-key.test.ts', 'export {}\n')
   write('test/integration/bootstrap.test.ts', 'export {}\n')
@@ -87,6 +89,14 @@ test.each([
 ])('changing $path selects its freshness checker without runtime tests', ({ path, checks }) => {
   write(path, '# Stale generated reference\n')
   expect(plan()).toMatchObject({ mode: 'docs', tests: [], checks })
+})
+
+test.each([
+  ['src/server/store/backup.ts', ['test/integration/bootstrap.test.ts', 'src/server/store/backup.test.ts', 'src/server/store/rotate-key.test.ts']],
+  ['src/server/adapters/falcon.ts', ['test/integration/bootstrap.test.ts', 'src/server/store/rotate-key.test.ts', 'test/integration/api.test.ts']],
+])('%s selects affected executable consumers', (path, consumers) => {
+  write(path, 'export const changed = true\n')
+  expect(plan()).toMatchObject({ mode: 'affected', tests: expect.arrayContaining(consumers) })
 })
 
 test.each([

@@ -21,7 +21,7 @@ function git(root, args) {
 
 // The graph covers imports, including re-exports and literal dynamic imports.
 // Runtime files and compiled entry points are owned explicitly below.
-function affectedTests(root, files, changed) {
+function affectedFiles(root, files, changed) {
   const dependents = new Map()
   const options = { moduleResolution: ts.ModuleResolutionKind.NodeNext, resolveJsonModule: true, allowJs: true }
   for (const file of files.filter(file => /\.(?:ts|mjs)$/.test(file) && existsSync(resolve(root, file)))) {
@@ -37,7 +37,7 @@ function affectedTests(root, files, changed) {
   }
   const affected = new Set(changed)
   for (const file of affected) for (const dependent of dependents.get(file) ?? []) affected.add(dependent)
-  return [...affected].filter(file => file.endsWith('.test.ts') && files.includes(file))
+  return affected
 }
 
 function selectGate(root, { base, full = false } = {}) {
@@ -62,10 +62,13 @@ function selectGate(root, { base, full = false } = {}) {
   const tests = files.filter(file => /^(src|test)\/.*\.test\.ts$/.test(file))
   // SQL migrations are loaded by the store at runtime, so they have no import edge of their own.
   const graphSeeds = changed.flatMap(file => file.startsWith('src/server/store/migrations/') ? [file, 'src/server/store/db.ts'] : [file])
-  const selected = new Set(affectedTests(root, files, graphSeeds))
-  const runtimeOwners = [
+  const affected = affectedFiles(root, files, graphSeeds)
+  const selected = new Set(tests.filter(file => affected.has(file)))
+  const executableOwners = [
     [/^src\/server\/maintenance\.ts$/, /^(?:test\/integration\/bootstrap|src\/server\/store\/(?:backup|rotate-key))\.test\.ts$/],
     [/^src\/server\/main\.ts$/, /^(?:test\/integration\/(?:api|bootstrap)|src\/server\/store\/rotate-key)\.test\.ts$/],
+  ]
+  const runtimeOwners = [
     [/^src\/server\/adapters\/ado/, /^test\/integration\/ado/],
     [/^src\/server\/adapters\/awx/, /^test\/integration\/awx-/],
     [/^src\/server\/adapters\/az(?:ure-.+)?\.ts$/, /^test\/integration\/azure-/],
@@ -92,6 +95,7 @@ function selectGate(root, { base, full = false } = {}) {
   const reasons = []
   let runtime = false
   const add = predicate => tests.filter(predicate).forEach(file => selected.add(file))
+  for (const [source, owned] of executableOwners) if ([...affected].some(file => source.test(file))) add(test => owned.test(test))
   const packages = () => add(file => /^test\/(?:npm-package|client-package)\.test\.ts$/.test(file))
   const cli = () => {
     add(file => file.startsWith('src/cli/') || /^test\/cli(?:[.-])/.test(file))
