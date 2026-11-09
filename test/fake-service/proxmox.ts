@@ -9,6 +9,7 @@ export function proxmoxController(record: (event: { method: string, path: string
   let authMode = '', logins = 0, passwordReceived = false, csrfReceived = false
   let opened = 0, closed = 0, uploaded: { bytes: number, sha256: string } | undefined
   const tickets = new Map<string, { id: number, csrf: string }>(), nodeTickets: number[] = []
+  const heldStreams = new Map<ServerResponse, Buffer>()
   const authWaiters: { count: number, response: ServerResponse }[] = [], heldAuth: (() => void)[] = []
   const readWaiters: { count: number, response: ServerResponse }[] = []
   const socketWaiters: { kind: 'opened' | 'closed', count: number, response: ServerResponse }[] = []
@@ -68,6 +69,7 @@ export function proxmoxController(record: (event: { method: string, path: string
     if (url.pathname === '/__proxmox/control') {
       mode = url.searchParams.get('mode') ?? ''; version = url.searchParams.get('version') ?? version
       authMode = url.searchParams.get('auth') ?? authMode
+      if (mode === 'release-stream') { for (const [response, bytes] of heldStreams) response.end(bytes); heldStreams.clear(); mode = '' }
       if (authMode === 'release') { authMode = ''; for (const finish of heldAuth.splice(0)) finish() }
       if (url.searchParams.has('clear-tickets')) tickets.clear()
       res.end('{}'); return true
@@ -146,7 +148,10 @@ export function proxmoxController(record: (event: { method: string, path: string
       || path.endsWith('/log') && ['true', '1'].includes(url.searchParams.get('download') ?? ''))) {
       const bytes = path.endsWith('/rrd') ? Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('CANARY-proxmox-token\0\xff', 'latin1')])
         : path.endsWith('/file-restore/download') ? Buffer.from([0, 255, 10, 13, 128, 1]) : Buffer.from('Synthetic text\nCANARY-proxmox-token\n')
-      if (mode === 'hold-stream') { res.writeHead(200); res.write(bytes.subarray(0, 8)); return true }
+      if (mode === 'hold-stream') {
+        res.writeHead(200); res.write(bytes.subarray(0, 8)); heldStreams.set(res, bytes.subarray(8))
+        res.once('close', () => heldStreams.delete(res)); return true
+      }
       if (mode === 'bad-hash') { mode = ''; res.end(Buffer.from('invalid PNG')); return true }
       if (mode === 'gzip') { mode = ''; res.setHeader('content-encoding', 'gzip'); res.end(gzipSync(bytes)) }
       else res.end(bytes)

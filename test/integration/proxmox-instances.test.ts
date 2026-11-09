@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { once } from 'node:events'
 import { expect, test } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -15,6 +16,11 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
+import { withFakeService } from '../fake-service/fixture.js'
+import { toolPaths } from '../../src/server/config.js'
+import { Client } from '../../src/cli/http.js'
+import { openProxmoxStream } from '../../src/cli/proxmox-stream.js'
+import { ProxmoxStreamWire } from '../../src/shared/proxmox-stream.js'
 
 test('changing one Proxmox instance replaces only its cached ticket', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'artium-proxmox-tickets-'))
@@ -59,29 +65,61 @@ test('changing one Proxmox instance replaces only its cached ticket', async () =
   } finally { await access.close(); results.clear(); await runner.shutdown(); db.close(); rmSync(directory, { recursive: true, force: true }) }
 })
 
-test('changing one Proxmox instance stops only its streams', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'artium-proxmox-instances-'))
+test('changing one Proxmox instance stops only its active byte transfer', async () => {
+  await withFakeService(async ({ directory, port, send }) => {
+  const previous = toolPaths['proxmox-axi']
+  Object.assign(toolPaths, { 'proxmox-axi': join(process.cwd(), 'tools/node_modules/@knowttl/proxmox-axi/bin/proxmox-axi.mjs') })
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
   const db = openStore(join(directory, 'store.db'), provider), store = createCredentialStore(db, provider)
   const user = 'synthetic-development-user'
   await seedToolUser(db)
   db.exec("UPDATE tools SET enabled=1 WHERE name='proxmox-axi'")
-  const value = { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }
+  const value = { origin: `https://localhost:${port}`, caBundle: readFileSync(join(directory, 'ca.crt'), 'utf8'),
+    auth: 'api-token', tokenId: 'reader@pve!automation', token: 'CANARY-proxmox-token' }
   const lab = store.createInstance('proxmox-axi', { name: 'lab', description: '' }, value, user, Date.now())
   store.createInstance('proxmox-axi', { name: 'production', description: '' }, value, user, Date.now())
   const adapter = createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
   const app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db), adapters: [adapter],
     environment: {}, resolver: new SharedIdentityResolver(store), credentialStore: store })
-  const headers = { authorization: `Bearer ${issueTestAccessToken(db, user)}` }
-  const args = ['transfer', 'get', '/nodes/{node}/storage/{storage}/file-restore/download']
+  const token = issueTestAccessToken(db, user), headers = { authorization: `Bearer ${token}` }
+  const args = ['transfer', 'get', '/nodes/{node}/rrd', '--api-node', 'node', '--api-ds', 'cpu', '--api-timeframe', 'hour', '--response-format', 'png']
   const start = (instance?: string) => app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/streams', headers, payload: { ...(instance ? { instance } : {}), args } })
-  const stop = (id: string) => app.inject({ method: 'DELETE', url: `/v1/tools/proxmox-axi/streams/${id}`, headers })
   try {
     expect((await start()).json().error.code).toBe('INSTANCE_REQUIRED')
+    const address = await app.listen({ host: '127.0.0.1', port: 0 })
+    const client = new Client({ ARTIUM_AXI_URL: address, ARTIUM_AXI_TEST_HTTP: '1', ARTIUM_AXI_CA_FILE: '' })
+    const open = async (id: string) => {
+      const { socket, head } = await openProxmoxStream(client, id, token, AbortSignal.timeout(20000))
+      const chunks: Buffer[] = []
+      let ready!: () => void, finished!: (result: { exitCode: number, stdout: string }) => void
+      const reading = new Promise<void>(resolve => { ready = resolve })
+      const result = new Promise<{ exitCode: number, stdout: string }>(resolve => { finished = resolve })
+      const wire = new ProxmoxStreamWire(socket, false, async packet => {
+        if (packet.type === 'data') { chunks.push(packet.bytes); ready() }
+        if (packet.type === 'control' && packet.value.event === 'result') {
+          finished(packet.value)
+          await wire.send({ type: 'control', value: { event: 'delivered' } })
+        }
+      }, head)
+      return { socket, chunks, reading, result }
+    }
+    await send('/__proxmox/control?mode=hold-stream')
     const [labStream, productionStream] = await Promise.all([start('lab'), start('production')])
     expect([labStream.statusCode, productionStream.statusCode]).toEqual([200, 200])
-    store.replaceInstance('proxmox-axi', 'lab', { ...value, token: 'CANARY-rotated' }, lab.id, lab.revision, user, Date.now())
-    expect((await stop(labStream.json().id)).statusCode).toBe(401)
-    expect((await stop(productionStream.json().id)).statusCode).toBe(204)
-  } finally { await app.close(); db.close(); rmSync(directory, { recursive: true, force: true }) }
-})
+    const [labPipe, productionPipe] = await Promise.all([open(labStream.json().id), open(productionStream.json().id)])
+    await Promise.all([labPipe.reading, productionPipe.reading])
+    const pngHeader = Buffer.from('89504e470d0a1a0a', 'hex')
+    expect(Buffer.concat(labPipe.chunks)).toEqual(pngHeader)
+    expect(Buffer.concat(productionPipe.chunks)).toEqual(pngHeader)
+    const closed = once(labPipe.socket, 'close')
+    store.replaceInstance('proxmox-axi', 'lab', { ...value, token: 'complete' }, lab.id, lab.revision, user, Date.now())
+    await app.inject({ url: '/health/live' })
+    await closed
+    expect(productionPipe.socket.destroyed).toBe(false)
+    await send('/__proxmox/control?mode=release-stream')
+    expect((await productionPipe.result).exitCode).toBe(0)
+    expect(Buffer.concat(productionPipe.chunks)).toEqual(Buffer.concat([pngHeader, Buffer.from('CANARY-proxmox-token\0\xff', 'latin1')]))
+    productionPipe.socket.destroy()
+  } finally { await app.close(); db.close(); Object.assign(toolPaths, { 'proxmox-axi': previous }) }
+  })
+}, 30000)
