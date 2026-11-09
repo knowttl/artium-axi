@@ -260,6 +260,11 @@ For each call, the host:
 The shared profile writer owns schema validation and secret injection.
 Per-tool policy covers the inventory, blocked commands and flags, and hosted restrictions on credential inputs in [credential-profile.ts](../src/server/adapters/credential-profile.ts).
 
+Credential instances do not change this contract.
+An Artium tool can hold several named instances, but each call resolves exactly one and the host writes exactly one profile named `artium` for it, so the per-call rules above, the profile schema and secret injection are unchanged.
+The instance name, description, enabled flag and read-only flag are host metadata kept outside the encrypted profile, and a tool never sees them.
+A tool package needs no change to be used with more than one instance.
+
 ### Opt-in connection-lifetime amendment
 
 Status: APPROVED for the explicitly admitted SSH integration only, with the release-at-close requirement below and a deterministic regression proving that release through the public lifecycle or real process boundary.

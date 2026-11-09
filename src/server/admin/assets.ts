@@ -133,7 +133,7 @@ if (savedTest) {
   if (result) {
     const saved = JSON.parse(savedTest);
     result.textContent = saved.message;
-    if (saved.health) renderTestHealth(saved.health);
+    if (saved.health && document.querySelector('[data-test-checklist]')) renderTestHealth(saved.health);
   }
 }
 const operationFilter = document.getElementById('ops-filter');
@@ -663,7 +663,7 @@ document.addEventListener('submit', async event => {
       let result = 'Saved. Test could not complete. Run Test connection again.';
       let health;
       try {
-        const tested = await fetch('/v1/admin/tools/' + form.dataset.saveTool + '/test', { method: 'POST',
+        const tested = await fetch('/v1/admin/tools/' + form.dataset.saveTool + '/instances/' + (form.dataset.saveInstance || body.name) + '/test', { method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ _csrf: body._csrf }) });
         if (tested.redirected) { location.assign(tested.url); return; }
         const current = await readTestResponse(tested);

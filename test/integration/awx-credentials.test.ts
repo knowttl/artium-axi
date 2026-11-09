@@ -54,7 +54,7 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       const browserLogin = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
         cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
         payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
-      const page = await app.inject({ url: '/admin/tools/awx-axi', headers: {
+      const page = await app.inject({ url: '/admin/tools/awx-axi/instances/default', headers: {
         cookie: browserLogin.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
       expect(page.statusCode, page.body).toBe(200)
       expect(page.body).toContain('data-profile-field="origin"')

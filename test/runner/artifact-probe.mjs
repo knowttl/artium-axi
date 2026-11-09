@@ -24,7 +24,7 @@ try {
     const userId = `synthetic-${index}`
     db.prepare('INSERT INTO users (id, username, display_name, password_hash) VALUES (?, ?, ?, ?)')
       .run(userId, userId, userId, 'CANARY-hash')
-    const scope = createTransferScope({ userId, sessionFamilyId: 'family', reauthenticatedAt: Date.now() }, 1,
+    const scope = createTransferScope({ userId, sessionFamilyId: 'family', reauthenticatedAt: Date.now() }, { id: 'synthetic-credential', revision: 1 },
       { selection: { operation: 'hash-download-bin', selector: 'a'.repeat(64), type: 'bin' }, targetDigest: 'b'.repeat(64) })
     reservations.push(await store.reserve(scope, { requestId: userId, clientAddress: null }))
   }

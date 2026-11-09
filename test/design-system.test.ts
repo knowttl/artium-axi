@@ -13,7 +13,7 @@ import { browserCookie } from '../src/server/auth/browser.js'
 import { createBrowserSession } from '../src/server/auth/sessions.js'
 import { SharedIdentityResolver } from '../src/server/policy/identity-resolver.js'
 import { Runner } from '../src/server/runner/runner.js'
-import { openStore } from '../src/server/store/db.js'
+import { createCredentialStore, openStore } from '../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../src/server/store/key-provider.js'
 import { ProviderCredentials } from '../src/server/store/provider-credentials.js'
 import { FakeCredentialStore } from './fixtures/credential-store.js'
@@ -86,8 +86,14 @@ beforeAll(async () => {
     SELECT 'synthetic-ordinary', 'synthetic-ordinary', 'Ordinary', password_hash, 0 FROM users LIMIT 1;
     INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'oidc', 'https://identity.example');
     INSERT INTO role_rules (id, provider_id, claim, value, role_id) VALUES ('synthetic-rule', 'synthetic-provider', 'groups', 'Readers', 'synthetic-role')`)
+  const store = createCredentialStore(db, key)
+  store.createInstance('vectra-axi', { name: 'lab', description: 'Synthetic lab appliance.' },
+    { kind: 'qux', apiVersion: '2.5', origin: 'https://lab.example', auth: 'token', token: 'CANARY-design-token' }, 'synthetic-development-user', Date.now())
+  store.createInstance('vectra-axi', { name: 'production', description: 'Synthetic production appliance.' },
+    { kind: 'qux', apiVersion: '2.5', origin: 'https://production.example', auth: 'token', token: 'CANARY-design-token' }, 'synthetic-development-user', Date.now())
+  db.exec(`INSERT INTO ssh_hosts (id, address, port, approved_host_keys, allowed_addresses, enabled) VALUES ('synthetic-host', 'host.example', 22, '[]', '[]', 1)`)
   app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: {},
-    adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([])), providerCredentials: new ProviderCredentials(db, key) })
+    adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([])), providerCredentials: new ProviderCredentials(db, key), credentialStore: store })
   admin = createBrowserSession(db, 'synthetic-development-user', 'CANARY-csrf').id
   ordinary = createBrowserSession(db, 'synthetic-ordinary', 'CANARY-csrf').id
 })
@@ -145,7 +151,9 @@ test.each(['currentColor', 'none', 'inherit', 'var(--text)', 'url(#i-red)'])(
 test.each([
   ['/admin', 'admin'], ['/admin/users', 'admin'], ['/admin/users/synthetic-ordinary', 'admin'], ['/admin/roles', 'admin'],
   ['/admin/roles/synthetic-role', 'admin'], ['/admin/invitations', 'admin'], ['/admin/tools', 'admin'],
-  ...['connection', 'writes', 'certificates', 'access', 'advanced'].map((tab): [string, string] => [`/admin/tools/vectra-axi?tab=${tab}`, 'admin']),
+  ...['instances', 'writes', 'access', 'advanced'].map((tab): [string, string] => [`/admin/tools/vectra-axi?tab=${tab}`, 'admin']),
+  ['/admin/tools/vectra-axi?sheet=add-instance', 'admin'], ['/admin/tools/vectra-axi?sheet=edit-lab', 'admin'],
+  ['/admin/tools/vectra-axi/instances/lab', 'admin'], ['/admin/tools/vectra-axi/instances/missing', 'admin', 404], ['/admin/tools/ssh-axi', 'admin'],
   ['/admin/tools/awx-axi?tab=writes', 'admin'], ['/admin/tools/ldap-axi?tab=writes', 'admin'], ['/admin/audit', 'admin'], ['/admin/tokens', 'admin'],
   ['/admin/settings/sign-in', 'admin'], ['/admin/settings/sign-in?add=choose', 'admin'], ['/admin/settings/sign-in?add=oidc', 'admin'],
   ['/admin/settings/sign-in/synthetic-provider', 'admin'], ['/admin/settings/sign-in/synthetic-provider?tab=credential', 'admin'],

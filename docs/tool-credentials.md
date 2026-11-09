@@ -40,8 +40,10 @@ Contents:
 - [SSH](#ssh)
 
 Configure only the tools you intend to use.
-For tools with a shared credential, at `/admin/tools`, open the tool, save its connection, then use **Test connection** and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
+For tools with a shared credential, at `/admin/tools`, open the tool, add an instance on the **Instances** tab, then use **Test connection** on the instance and follow the [activation requirements](admin-guide.md#browser-administration) before enabling it.
 SSH uses [dedicated host bindings](#ssh).
+
+The tool sections below apply to each instance; see [instance administration](admin-guide.md#browser-administration) for creation, selection and write controls.
 The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) owns profile injection and secret handling; [browser administration](admin-guide.md#browser-administration) explains editor inputs, saving and health behavior.
 
 | Tool | Information to obtain | Fixed Artium credential test |
@@ -484,7 +486,7 @@ GitHub CLI telemetry, prompts and update notifications are disabled.
 For private CAs, follow the [GitHub certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui).
 
 See the [supported GitHub boundary](safety.md) for why SSH keys are out of scope.
-For device flow, open **Connect with GitHub** on `/admin/tools/gh-axi`, enter the HTTPS origin and confirm your admin identity when prompted.
+For device flow, open **Connect with GitHub** on `/admin/tools/gh-axi`, enter an instance name and the HTTPS origin, and confirm your admin identity when prompted.
 Artium uses GitHub CLI's public OAuth client ID `178c6fc778ccc68e1d6a`, without a client secret or app registration, and requests `repo read:org gist workflow project`.
 Enter only the code displayed by your own connection at the displayed GitHub verification URL.
 The page shows the countdown, waits for approval, honours GitHub's polling interval and `slow_down`, and offers cancellation.
@@ -499,18 +501,18 @@ These are **non-expiring OAuth tokens** appearing as **GitHub CLI** in GitHub Se
 Organizations restricting OAuth apps must approve GitHub CLI.
 The broad scopes permit upstream writes even while Artium writes are off.
 Use a dedicated machine account: these tokens share GitHub CLI's per-user/app/scope token budget with that account's other CLI logins, and GitHub can revoke old or inactive tokens.
-Store and rotate them like every other secret: choose **Reconnect with GitHub**, test the replacement, and revoke the old authorization in the account's GitHub settings when it is no longer needed.
+Store and rotate them like every other secret: open the instance, choose **Reconnect with GitHub**, test the replacement, and revoke the old authorization in the account's GitHub settings when it is no longer needed.
 Revoking GitHub CLI's authorization can affect that account's other CLI sessions too.
 No refresh token is stored and no refresh code runs.
 If a provider returns `expires_in`, Artium records the expiry and refuses calls at that time with `CREDENTIAL_EXPIRED`.
-Revoked device-token authentication failures also return `CREDENTIAL_EXPIRED`; credential checks record this error and the tool page asks the administrator to reconnect.
+Revoked device-token authentication failures also return `CREDENTIAL_EXPIRED`; credential checks record this error and the instance page asks the administrator to reconnect.
 Permission failures remain permission errors rather than expired-credential errors.
 See GitHub's [device-flow protocol](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow).
 
 #### AWX
 
 Artium bundles the [pinned](../tools/package.json) `awx-axi` package without upstream modifications.
-At `/admin/tools/awx-axi`, enter the controller HTTPS `origin`.
+At `/admin/tools/awx-axi`, add an instance with the controller HTTPS `origin`, then open it.
 Paste an existing personal access token into `token`, or choose password sign-in and enter a username and password.
 Follow the [runbook password sign-in flow](runbook.md#roles-credentials-and-health).
 See the [hosted credential contract](credential-standard.md#per-tool-host-facing-schemas) for token exchange, password handling and authentication failure guidance.

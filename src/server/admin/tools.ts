@@ -401,7 +401,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const input = parse(route.input, request.body) as { value: unknown, expectedToolRevision: number, expectedRevision?: number,
       expectedId?: string, name?: string, description?: string }
     if (tool === 'ssh-axi') throw new ArtiumError('INVALID_INPUT', 'SSH uses dedicated host bindings and credentials.')
-    const saving = route === adminToolRoutes.save || route === adminInstanceRoutes.save
+    const saving = route === adminToolRoutes.save || route === adminInstanceRoutes.save || route === adminInstanceRoutes.create
     const name = route === adminInstanceRoutes.create ? input.name : instanceName(request)
     const expectedRevision = input.expectedRevision ?? 0
     let value = parse(z.record(z.string(), z.unknown()), input.value)
