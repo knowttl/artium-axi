@@ -92,6 +92,8 @@ test('workspace and session bind the instance granted to the caller', async () =
   const session = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/sessions', headers,
     payload: { kind: 'logs', argv: ['logs', 'synthetic-pod', '--follow'] } })
   expect(session.statusCode, session.body).toBe(200)
+  db.prepare("UPDATE role_tools SET all_instances = 1 WHERE role_id = 'synthetic-role' AND tool = 'kubernetes-axi'").run()
+  expect((await app.inject({ url: `${prefix}/${id}`, headers })).statusCode).toBe(200)
   expect((await app.inject({ url: `/v1/tools/kubernetes-axi/sessions/${session.json().id}`, headers })).statusCode).toBe(200)
 })
 

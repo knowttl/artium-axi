@@ -4,6 +4,7 @@ import type { CredentialReference } from './store/credential-store.js'
 import { protectedResultLimits } from './config.js'
 
 export interface ResultScope { userId: string, credential: CredentialReference, operation: string, familyId?: string, familyOnly?: boolean, delegated?: boolean, trustRevision?: string }
+type ResultOwner = Pick<ResultScope, 'userId' | 'operation' | 'familyId' | 'familyOnly'> & { tool: CredentialReference['tool'] }
 
 // Confidential bytes stay in bounded process memory and require current access on retrieval.
 export class ProtectedResults {
@@ -48,18 +49,27 @@ export class ProtectedResults {
     }
   }
 
-  take(id: string, scope: ResultScope): Buffer {
+  private owned(id: string, owner: ResultOwner) {
     const entry = this.entries.get(id)
     if (entry && entry.expires <= Date.now()) this.remove(id)
-    if (!entry?.bytes || entry.expires <= Date.now() || entry.scope.userId !== scope.userId
-      || scope.familyOnly && entry.scope.familyId !== scope.familyId
-      || entry.scope.familyId !== undefined && entry.scope.familyId !== scope.familyId
-      || entry.scope.trustRevision !== undefined && entry.scope.trustRevision !== scope.trustRevision
-      || entry.scope.operation !== scope.operation || entry.scope.credential.tool !== scope.credential.tool
+    if (!entry?.bytes || entry.expires <= Date.now() || entry.scope.userId !== owner.userId
+      || owner.familyOnly && entry.scope.familyId !== owner.familyId
+      || entry.scope.familyId !== undefined && entry.scope.familyId !== owner.familyId
+      || entry.scope.operation !== owner.operation || entry.scope.credential.tool !== owner.tool) throw new ArtiumError('NOT_FOUND')
+    return entry
+  }
+
+  credential(id: string, owner: ResultOwner): CredentialReference {
+    return { ...this.owned(id, owner).scope.credential }
+  }
+
+  take(id: string, scope: ResultScope): Buffer {
+    const entry = this.owned(id, { ...scope, tool: scope.credential.tool })
+    if (entry.scope.trustRevision !== undefined && entry.scope.trustRevision !== scope.trustRevision
       || entry.scope.credential.id !== scope.credential.id || entry.scope.credential.revision !== scope.credential.revision) {
       throw new ArtiumError('NOT_FOUND')
     }
-    const bytes = entry.bytes
+    const bytes = entry.bytes!
     this.remove(id)
     return bytes
   }

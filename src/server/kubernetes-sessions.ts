@@ -102,7 +102,8 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       await runner.runManaged(session.owner.user, session.controller.signal, async signal => {
         access(session)
         const binding = kubernetesBinding(db, session.owner, session.credentialId, session.kind)
-        const credential = await resolver.resolve(session.owner.user, 'kubernetes-axi')
+        if (!session.instance) throw new ArtiumError('REVISION_CONFLICT')
+        const credential = await resolver.resolve(session.owner.user, 'kubernetes-axi', session.instance)
         if (credential.id !== binding.credential.id || credential.revision !== binding.credential.revision) throw new ArtiumError('REVISION_CONFLICT')
         const prepared = await adapter.prepare(['version'], credential)
         if (typeof prepared.limits.systemCaBundle !== 'object') throw new ArtiumError('CREDENTIAL_INVALID')
@@ -368,7 +369,9 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       await session.job; access(session)
       const file = session.artifacts?.find(file => file.path === request.params['*'])
       if (session.state !== 'exited' || !file || request.headers.range) throw new ArtiumError('NOT_FOUND')
-      const reference = await resolver.resolve(session.owner.user, 'kubernetes-axi')
+      if (!session.instance) throw new ArtiumError('REVISION_CONFLICT')
+      const reference = await resolver.resolve(session.owner.user, 'kubernetes-axi', session.instance)
+      if (reference.id !== session.credentialId) throw new ArtiumError('REVISION_CONFLICT')
       const prepared = await adapter.prepare(['version'], reference)
       const source = await open(join(session.directory, 'artifacts', file.path), constants.O_RDONLY | constants.O_NOFOLLOW)
       try {

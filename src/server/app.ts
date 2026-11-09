@@ -442,15 +442,19 @@ export function createApp(options: {
       if (!adapter) throw new ArtiumError('TOOL_DISABLED')
       authorizeDelegatedOperation(db, userId, delegation, adapter, { command: 'result take', effect: 'write' })
     }
-    const credential = await resolver.resolve(userId, tool)
+    const resultOwner = { userId, tool, operation: request.params.operation,
+      ...(delegation || ['kubernetes-axi', 'proxmox-axi'].includes(tool) ? { familyId, familyOnly: !!delegation } : {}) }
+    const bound = protectedResults.credential(request.params.id, resultOwner)
+    const instance = db.prepare('SELECT name FROM credentials WHERE tool = ? AND id = ?').get(tool, bound.id) as { name: string } | undefined
+    if (!instance) throw new ArtiumError('NOT_FOUND')
+    const credential = await resolver.resolve(userId, tool, instance.name)
     verifyPrincipal(db, token)
     checkToolPolicy(db, userId, tool, credential.id)
     if (tool === 'kubernetes-axi') {
       const { settings } = kubernetesBinding(db, { user: userId, family: familyId }, credential.id)
       if (settings.allowWrites !== true || settings.acquireCredential !== true) throw new ArtiumError('FLAG_BLOCKED')
     }
-    const bytes = protectedResults.take(request.params.id, { userId, credential, operation: request.params.operation,
-      ...(delegation || ['kubernetes-axi', 'proxmox-axi'].includes(tool) ? { familyId, familyOnly: !!delegation } : {}),
+    const bytes = protectedResults.take(request.params.id, { ...resultOwner, credential,
       ...(tool === 'proxmox-axi' ? { trustRevision: proxmoxTrust(db, credential) } : {}) })
     return reply.header('cache-control', 'no-store').header('content-disposition', 'attachment; filename="result.bin"')
       .header('x-content-type-options', 'nosniff').header('x-artium-content-sha256', createHash('sha256').update(bytes).digest('hex'))

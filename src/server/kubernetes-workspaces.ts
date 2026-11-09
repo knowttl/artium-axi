@@ -86,7 +86,8 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     admitted.set(request, { credentialId: workspace.credential.id, instance: workspace.instance })
     try { access(workspace) }
     catch (error) { await discard(workspace); throw error }
-    const credential = await resolver.resolve(owner.user, 'kubernetes-axi')
+    if (!workspace.instance) throw new ArtiumError('REVISION_CONFLICT')
+    const credential = await resolver.resolve(owner.user, 'kubernetes-axi', workspace.instance)
     if (credential.id !== workspace.credential.id || credential.revision !== workspace.credential.revision) {
       await discard(workspace)
       throw new ArtiumError('REVISION_CONFLICT')
