@@ -935,6 +935,14 @@ Migration 032 prepares the store for named credential instances; administration 
 Existing credentials become `default` instances with an empty description, enabled and without the instance read-only flag, preserving their IDs, encrypted contents, revisions and update attribution.
 Saved health records become keyed by credential ID, certificate trust stays attached, and existing role tool grants default to all instances.
 The [migration](../src/server/store/migrations/032-multi-instance.sql) owns the storage constraints; the [populated-store regression](../src/server/store/multi-instance-migration.test.ts) covers upgrade preservation and reopening.
+Administrators manage named instances through `/v1/admin/tools/:tool/instances` and `/v1/admin/tools/:tool/instances/:name`: list, create, read, change enabled and read-only flags, delete, replace or save the credential, test, and manage certificates under `.../certificates`.
+Every mutation names the instance ID and revision the administrator observed and fails with `REVISION_CONFLICT` without change when either is stale, and each succeeds only for an administrator with recent confirmation and writes an audit record carrying `credential_id` and `instance`.
+New instances start enabled and read-only, and their description, enabled and read-only flags are edited with `PATCH .../instances/:name`.
+Until their long-lived sessions and streams are instance-aware, Proxmox, Kubernetes and Shodan refuse a second instance with `INVALID_INPUT`.
+A tool reports the worst state of its enabled instances.
+Background health checks take the enabled instances of a tool in turn, one at a time, and skip disabled instances; each instance keeps its own cached result and diagnostic.
+The GitHub device-flow start and AWX origin routes accept an optional `instance` and `expectedId` to act on a named instance.
+The [API contract](../src/shared/api.ts) (`adminInstanceRoutes`) owns the input and response fields.
 The Graph and Azure re-pin preserves retained tool configuration and credentials; no administrator edit is needed to refresh the displayed versions.
 When an upgraded tool pin activates its credential schema, stored credentials are not automatically converted.
 Replace any incompatible credential on its `/admin/tools/:tool` page using the current editor before enabling the tool; stored secrets remain hidden.

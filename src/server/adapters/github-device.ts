@@ -14,7 +14,7 @@ const tokenResponse = z.object({ access_token: z.string().min(1).regex(/^\S+$/),
   expires_in: z.number().int().positive().optional() })
 interface Connection {
   id: string, actor: string, origin: string, deviceCode: string, expiresAt: number, interval: number, nextAt: number,
-  expectedRevision: number, expectedToolRevision: number, expectedCredentialId?: string, trust: readonly CredentialTrust[], busy: boolean
+  expectedRevision: number, expectedToolRevision: number, expectedCredentialId?: string, instance?: string, trust: readonly CredentialTrust[], busy: boolean
 }
 
 // Pending codes live only in this process. Reconnect after a restart; no refresh token is retained.
@@ -37,7 +37,7 @@ export class GithubDeviceFlow {
       'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: githubClientId, ...fields }).toString() }, trust)
   }
 
-  async start(actor: string, input: { origin: string, expectedRevision: number, expectedToolRevision: number, expectedCredentialId?: string }, trust: readonly CredentialTrust[]) {
+  async start(actor: string, input: { origin: string, expectedRevision: number, expectedToolRevision: number, expectedCredentialId?: string, instance?: string }, trust: readonly CredentialTrust[]) {
     // Starting another connection cancels the previous pending connection for this deployment.
     const generation = ++this.generation
     this.connection = undefined

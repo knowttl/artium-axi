@@ -105,6 +105,7 @@ test.each([
   [{ readOnly: false }, { enabled: true, readOnly: false }],
   [{ enabled: false, readOnly: false }, { enabled: false, readOnly: false }],
   [{}, { enabled: true, readOnly: true }],
+  [{ description: 'Production cluster' }, { enabled: true, readOnly: true, description: 'Production cluster' }],
 ])('set flags %j changes only the given flags and bumps the revision', (flags, expected) => {
   const lab = create('lab')
   const production = create('production')

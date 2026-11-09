@@ -687,3 +687,27 @@ test.each(['/v1/auth/login', '/v1/auth/device', '/v1/auth/device/poll'])(
     expect(response.statusCode).not.toBe(426)
     expect(response.body).not.toContain('CLI_OUTDATED')
   })
+
+test('background checks take each enabled instance of a tool in turn, one at a time, and skip disabled instances', async () => {
+  const value = { clientId: 'CANARY-client', clientSecret: 'CANARY-west', region: 'us-2' }
+  const actor = 'synthetic-development-user'
+  store.createInstance('falcon-axi', { name: 'west', description: '' }, value, actor, Date.now())
+  const idle = store.createInstance('falcon-axi', { name: 'idle', description: '' }, value, actor, Date.now())
+  store.setInstanceFlags('falcon-axi', 'idle', { enabled: false }, idle.id, idle.revision, actor, Date.now())
+  let running = 0
+  let overlapped = false
+  vi.spyOn(runner, 'run').mockImplementation(async () => {
+    overlapped ||= ++running > 1
+    await new Promise(resolve => setImmediate(resolve))
+    running--
+    return result
+  })
+  await Promise.all([health.refresh('falcon-axi'), health.refresh('falcon-axi')])
+  await health.refresh('falcon-axi')
+  await health.refresh('falcon-axi')
+  expect(overlapped).toBe(false)
+  expect(db.prepare("SELECT instance FROM audit WHERE event = 'health-check' ORDER BY id").all())
+    .toEqual([{ instance: 'default' }, { instance: 'west' }, { instance: 'default' }])
+  expect(db.prepare('SELECT COUNT(*) AS count FROM tool_health').get()).toEqual({ count: 2 })
+  expect(db.prepare('SELECT credential_id FROM tool_health WHERE credential_id = ?').get(idle.id)).toBeUndefined()
+})

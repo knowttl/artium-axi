@@ -354,7 +354,7 @@ Delegated calls include the creator's user ID and `delegation_id`; the screen, A
 See [delegated capability boundaries](safety.md#delegated-sessions) for creation settings and their effect on existing tokens, and [token API usage](client-reference.md#delegated-tokens) for administrator listing and revocation.
 CSV quotes non-null values and leaves null fields empty; JSON lines preserves JSON types and nulls.
 The [API contracts](../src/shared/api.ts) own the persisted field definitions (`adminAuditRecordSchema`) and transfer evidence rules (`transferAuditSchema` and `transferEvidenceSchema`).
-The `credential_id` and `instance` attribution fields are currently null for both retained and newly recorded events, including exports.
+The `credential_id` and `instance` attribution fields identify the credential instance for administrator changes, credential tests and health checks, and are null for every other event, including events recorded before upgrade and exports of them.
 For hosted download availability, see the [supported capability boundaries](safety.md).
 An empty result produces a CSV header or an empty JSON-lines file.
 Browser reads require administrator capability; bearer reads also require a session-bound recent-reauthentication ticket.

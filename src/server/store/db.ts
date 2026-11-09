@@ -148,10 +148,12 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
       db.prepare('DELETE FROM credentials WHERE id = ?').run(requireInstance(tool, name, expectedId, expectedRevision).id)
     },
     setInstanceFlags(tool, name, flags, expectedId, expectedRevision, actor, now) {
+      if ((flags.description?.length ?? 0) > 500) throw new ArtiumError('INVALID_INPUT')
       const current = requireInstance(tool, name, expectedId, expectedRevision)
       db.prepare(`UPDATE credentials SET enabled = COALESCE(@enabled, enabled), read_only = COALESCE(@readOnly, read_only),
-        revision = revision + 1, updated_at = @now, updated_by = @actor WHERE id = @id`)
-        .run({ id: current.id, enabled: flags.enabled === undefined ? null : Number(flags.enabled), readOnly: flags.readOnly === undefined ? null : Number(flags.readOnly), now, actor })
+        description = COALESCE(@description, description), revision = revision + 1, updated_at = @now, updated_by = @actor WHERE id = @id`)
+        .run({ id: current.id, enabled: flags.enabled === undefined ? null : Number(flags.enabled), readOnly: flags.readOnly === undefined ? null : Number(flags.readOnly),
+          description: flags.description ?? null, now, actor })
       return findInstance(tool, name)!
     },
   }

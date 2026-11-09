@@ -36,5 +36,5 @@ export interface MutableCredentialStore extends CredentialStore {
   createInstance(tool: ToolName, details: { name: string, description: string }, value: unknown, actor: string, now: number): CredentialInstance
   replaceInstance(tool: ToolName, name: string, value: unknown, expectedId: string, expectedRevision: number, actor: string, now: number): CredentialInstance
   deleteInstance(tool: ToolName, name: string, expectedId: string, expectedRevision: number): void
-  setInstanceFlags(tool: ToolName, name: string, flags: { enabled?: boolean, readOnly?: boolean }, expectedId: string, expectedRevision: number, actor: string, now: number): CredentialInstance
+  setInstanceFlags(tool: ToolName, name: string, flags: { enabled?: boolean, readOnly?: boolean, description?: string }, expectedId: string, expectedRevision: number, actor: string, now: number): CredentialInstance
 }
