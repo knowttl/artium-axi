@@ -434,7 +434,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     const session = id ? sessions.get(id) : undefined
     const candidates = userId && request.method === 'POST' && request.url.split('?')[0] === prefix
       ? db.prepare("SELECT id, name FROM credentials WHERE tool = 'kubernetes-axi' AND enabled = 1 LIMIT 2").all() as { id: string, name: string }[] : []
-    const identity = admitted.get(request) ?? (session && session.owner.user === userId && session.owner.family === familyId
+    const identity = admitted.get(request) ?? workspaces.auditIdentity(request, userId, familyId) ?? (session && session.owner.user === userId && session.owner.family === familyId
       ? { credentialId: session.credentialId, instance: session.instance }
       : candidates.length === 1 ? { credentialId: candidates[0]!.id, instance: candidates[0]!.name } : {})
     audit.record({ ...identity, event: 'denial', userId, delegationId, tool: 'kubernetes-axi', requestId: request.id,

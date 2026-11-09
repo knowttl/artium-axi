@@ -22,6 +22,7 @@ export { workspacePath }
 type FileEntry = z.infer<typeof manifestSchema>['files'][number] & { state: 'empty' | 'uploading' | 'ready' }
 interface Workspace {
   id: string, owner: KubernetesOwner, credential: CredentialReference, binding: string, directory: string,
+  instance?: string,
   expiresAt: number, files: Map<string, FileEntry>, controller: AbortController,
   active: Set<Promise<unknown>>, timer: ReturnType<typeof setTimeout>, closing?: Promise<void>,
 }
@@ -47,6 +48,7 @@ export function sendKubernetesBytes(reply: FastifyReply, owner: { controller: Ab
 export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.Database,
   resolver: IdentityResolver, adapter: Adapter<unknown>, audit: Audit) {
   const workspaces = new Map<string, Workspace>()
+  const admitted = new WeakMap<FastifyRequest, { credentialId: string, instance?: string }>()
   const root = (async () => {
     const path = join(dirname(db.name), 'tool-logs', 'kubernetes-axi', 'workspaces')
     await mkdir(path, { recursive: true, mode: 0o700 })
@@ -80,9 +82,12 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     const owner = ownerFor(request, command)
     const workspace = workspaces.get(id)
     if (!workspace || workspace.owner.user !== owner.user || workspace.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
+    admitted.set(request, { credentialId: workspace.credential.id, instance: workspace.instance })
     try { access(workspace) }
     catch (error) { await discard(workspace); throw error }
     const credential = await resolver.resolve(owner.user, 'kubernetes-axi')
+    const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(credential.id) as { name: string } | undefined)?.name
+    admitted.set(request, { credentialId: credential.id, instance })
     if (credential.id !== workspace.credential.id || credential.revision !== workspace.credential.revision) {
       await discard(workspace)
       throw new ArtiumError('REVISION_CONFLICT')
@@ -114,7 +119,7 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     const binding = kubernetesBinding(db, owner)
     if (binding.credential.id !== credential.id || binding.credential.revision !== credential.revision) throw new ArtiumError('REVISION_CONFLICT')
     mkdirSync(directory, { mode: 0o700 })
-    const workspace: Workspace = { id, owner, credential, binding: binding.hash, directory, expiresAt: Date.now() + lifetimeSeconds * 1000,
+    const workspace: Workspace = { id, owner, credential, instance, binding: binding.hash, directory, expiresAt: Date.now() + lifetimeSeconds * 1000,
       files: new Map(files.map(file => [file.path, { ...file, state: 'empty' }])), controller: new AbortController(),
       active: new Set(), timer: setTimeout(() => { void discard(workspace) }, lifetimeSeconds * 1000) }
     workspace.timer.unref()
@@ -222,6 +227,12 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     await rm(await root, { recursive: true, force: true })
   })
   return {
+    auditIdentity(request: FastifyRequest, userId: string | null, familyId: string | undefined) {
+      const id = request.url.startsWith(prefix + '/') ? (request.params as { id?: string } | undefined)?.id : undefined
+      const workspace = id ? workspaces.get(id) : undefined
+      return admitted.get(request) ?? (workspace && workspace.owner.user === userId && workspace.owner.family === familyId
+        ? { credentialId: workspace.credential.id, instance: workspace.instance } : undefined)
+    },
     async materializeFile(request: FastifyRequest, id: string, path: string, destination: string, command: string) {
       const workspace = await selected(request, id, command)
       const file = workspace.files.get(path)

@@ -165,6 +165,25 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.equal(remoteExit.exitCode, 7, JSON.stringify(remoteExit))
     await cancel(remoteExit.id)
     const bytes = Buffer.from([0, 255, 13, 10, 128, 1]), sha256 = createHash('sha256').update(bytes).digest('hex')
+    const workspacePath = '/v1/tools/kubernetes-axi/workspaces'
+    const denialIdentity = () => db.prepare("SELECT credential_id, instance FROM audit WHERE event='denial' AND tool='kubernetes-axi' ORDER BY id DESC LIMIT 1").get()
+    const refusedCreation = await request(workspacePath, 'POST', { files: [{ path: 'CANARY-kubernetes-token', bytes: bytes.length, sha256 }] })
+    assert.equal(refusedCreation.json().error.code, 'SECRET_IN_OUTPUT')
+    assert.deepEqual(denialIdentity(), { credential_id: reference.id, instance: 'default' })
+    const denialWorkspace = await request(workspacePath, 'POST', { files: [{ path: 'input.bin', bytes: bytes.length, sha256 }] })
+    assert.equal(denialWorkspace.statusCode, 200, denialWorkspace.body)
+    const stagedId = denialWorkspace.json().id as string
+    for (const method of ['GET', 'DELETE'] as const) {
+      assert.equal((await request(`${workspacePath}/${stagedId}?operation=invalid`, method)).statusCode, 400)
+      assert.deepEqual(denialIdentity(), { credential_id: reference.id, instance: 'default' })
+    }
+    assert.equal((await request(`${workspacePath}/${stagedId}/files/input.bin`)).statusCode, 400)
+    assert.deepEqual(denialIdentity(), { credential_id: reference.id, instance: 'default' })
+    const badUpload = await app.inject({ method: 'PUT', url: `${workspacePath}/${stagedId}/files/input.bin`,
+      headers: { ...headers, 'content-type': 'application/octet-stream' }, payload: Buffer.from('bad') })
+    assert.equal(badUpload.statusCode, 400, badUpload.body)
+    assert.deepEqual(denialIdentity(), { credential_id: reference.id, instance: 'default' })
+    assert.equal((await request(`${workspacePath}/${stagedId}`)).statusCode, 404)
     const inline = await confirm(await start('exec', ['exec', 'synthetic-pod', '-i', '--', 'cat'], { stdinBase64: bytes.toString('base64') }))
     assert.equal(inline.state, 'exited', JSON.stringify(inline))
     assert.deepEqual(Buffer.concat((await output(inline.id)).chunks.filter(chunk => chunk.channel === 'stdout').map(chunk => Buffer.from(chunk.base64, 'base64'))), bytes)
