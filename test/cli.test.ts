@@ -1773,8 +1773,8 @@ test('tool detail uses pinned help without running the tool', async () => {
   response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '1.0.0-rc.3' }] } }
   const result = await cli(['tools', 'show', 'falcon-axi'])
   expect(result).toMatchObject({ code: 0, stderr: '' })
-  expect(result.stdout).toContain('version: "1.0.0-rc.3"\nstatus: ok\nreadOnly: true\ncommands[')
-  expect(result.stdout).toContain('example: artium-axi falcon-axi detection list\nupstreamHelp:')
+  expect(result.stdout).toContain('version: "1.0.0-rc.3"\nstatus: ok\nreadOnly: true\ninstances[0]{name,status,readOnly,description}:\ncommands[')
+  expect(result.stdout).toContain('example: artium-axi --instance <name> falcon-axi detection list\nupstreamHelp:')
   expect(result.stdout).toContain('default 20, ceiling 10000')
   const discovery = decode(result.stdout) as { commands: string[] }
   expect(discovery.commands).toEqual(expect.arrayContaining(['login', 'classification', 'cloud-asset', 'iom']))
@@ -1810,7 +1810,7 @@ test.each([
   const detail = await cli(['tools', 'show', tool])
   expect(detail).toMatchObject({ code: 0, stderr: '' })
   expect(detail.stdout).toContain(`version: "${version}"`)
-  expect(detail.stdout).toContain(`example: artium-axi ${tool} ${example}`)
+  expect(detail.stdout).toContain(`example: artium-axi --instance <name> ${tool} ${example}`)
   expect(detail.stdout).toContain('upstreamHelp:')
 })
 

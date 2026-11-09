@@ -17,7 +17,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi logout` | Remove local tokens and attempt server-session revocation. |
 | `artium-axi whoami` | Show identity, session expiry and server, with roles for full sessions or a delegation label for delegated sessions. |
 | `artium-axi tools` | List granted enabled tools with status, pinned versions and the number of instances you can use; a note tells agents to ask the user which instance to use when a tool has several. |
-| `artium-axi tools show <tool>` | Show one available tool, its instances with status, read-only state and description, vetted upstream help and a first call; delegated sessions receive its permitted command list. |
+| `artium-axi tools show <tool>` | Show one available tool, its instances with status, read-only state and description, vetted upstream help and a first call using `--instance <name>` where supported; delegated sessions receive their permitted command list and an example. |
 | `artium-axi doctor` | Check the server, certificate, token, client version and cached tool health, including the server's category for each failed tool. |
 | `artium-axi update` | Download and verify the server client, replace this file and retain a .bak backup; npm installs use npm instead. |
 | `artium-axi download --operation <operation> --selector <selector> --type <type> --destination <absolute-new-path> [--transfer <id> --execute --confirm <exact-confirm>] [--password-stdin\|--sso]` | Preview or explicitly verify and save administrator-enabled artifacts; see the [supported capability boundaries](safety.md) and `artium-axi download --help` for operations and guards. |

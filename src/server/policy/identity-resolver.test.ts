@@ -65,3 +65,17 @@ test('an origin-only AWX credential is excluded from usable instances', async ()
   expect(resolver.usableInstances('synthetic-user', 'awx-axi').map(instance => instance.name)).toEqual(['named'])
   expect(await resolver.resolve('synthetic-user', 'awx-axi')).toMatchObject({ id: 'named' })
 })
+
+test.each([undefined, 'legacy'])('an enabled origin-only AWX credential is unconfigured for selection %s', async name => {
+  const resolver = new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'legacy', tool: 'awx-axi' }, name: 'legacy', value: { origin: 'https://example.invalid' } },
+  ]))
+  await expect(resolver.resolve('synthetic-user', 'awx-axi', name)).rejects.toMatchObject({ code: 'CREDENTIAL_NOT_CONFIGURED' })
+})
+
+test.each([undefined, 'legacy'])('a disabled origin-only AWX credential is disabled for selection %s', async name => {
+  const resolver = new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'legacy', tool: 'awx-axi' }, name: 'legacy', enabled: false, value: { origin: 'https://example.invalid' } },
+  ]))
+  await expect(resolver.resolve('synthetic-user', 'awx-axi', name)).rejects.toMatchObject({ code: 'INSTANCE_DISABLED' })
+})

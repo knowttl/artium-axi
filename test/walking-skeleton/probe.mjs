@@ -122,7 +122,7 @@ try {
     assert.match(home.stdout, /artium-axi tools show falcon-axi/)
     const detail = await cli(['tools', 'show', 'falcon-axi'])
     assert.equal(detail.code, 0, detail.stdout + detail.stderr)
-    assert.match(detail.stdout, /example: artium-axi falcon-axi detection list/)
+    assert.match(detail.stdout, /example: artium-axi --instance <name> falcon-axi detection list/)
     if (process.argv[2] === 'distribution') {
       const first = await cli(['falcon-axi', 'detection', 'list'])
       assert.equal(first.code, 0, first.stdout + first.stderr)
@@ -197,7 +197,7 @@ try {
       }
       const vectraDetail = await cli(['tools', 'show', 'vectra-axi'])
       assert.equal(vectraDetail.code, 0, vectraDetail.stdout + vectraDetail.stderr)
-      assert.match(vectraDetail.stdout, /example: artium-axi vectra-axi detection list/)
+      assert.match(vectraDetail.stdout, /example: artium-axi --instance <name> vectra-axi detection list/)
       for (const args of [[], ['--help'], ['detection', 'list', '--help'], ['detection', 'list'], tagArgs, [...tagArgs, '--dry-run'], [...tagArgs, '--execute']]) {
         const local = await execute(prepared.executable, args, { ...prepared.environment, XDG_CONFIG_HOME: directory })
         const remote = toolOutput(await cli(['vectra-axi', ...args]))
