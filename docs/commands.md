@@ -34,6 +34,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources or use administrator-enabled [mutation and bounded byte workflows](safety.md#kubernetes-reads), caller-owned workspaces and managed credentials with pinned kubectl. |
 | `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts, check authentication and run [confirmed managed commands](#ssh). |
 | `artium-axi --managed-session <command> [<args>]` | Supply and persist caller-owned sessions through private pipes; see `artium-axi --managed-session --help`. |
+| `artium-axi --instance <name> <tool> [<args>]` | Select one named instance of a tool for this run, before the tool name; refused for `ssh-axi`, Proxmox `result` and `stream`, Kubernetes `tunnel`, `credential`, `workspace` and `session`, Shodan `stream session`, `radar` and `scan submit`, and against servers that predate instances. |
 | `artium-axi falcon-axi [<args>]` | Run Falcon commands with managed credentials; [tool reference](https://github.com/knowttl/falcon-axi#readme). |
 | `artium-axi vectra-axi [<args>]` | Run Vectra commands with managed credentials; [tool reference](https://www.npmjs.com/package/@knowttl/vectra-axi). |
 | `artium-axi az-axi [<args>]` | Run Azure commands with the managed identity; [tool reference](https://www.npmjs.com/package/@knowttl/az-axi). |
@@ -46,6 +47,11 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi beyondtrust-axi [<args>]` | Inspect BeyondTrust PM Cloud Endpoint Privilege Management with managed credentials; [tool reference](https://www.npmjs.com/package/@knowttl/beyondtrust-axi). |
 | `artium-axi checkpoint-axi [<args>]` | Investigate Check Point Email Security with managed regional credentials; [tool reference](https://www.npmjs.com/package/@knowttl/checkpoint-axi). |
 | `artium-axi gh-axi [<args>]` | Read and update GitHub data with managed credentials; [tool reference](https://www.npmjs.com/package/gh-axi). |
+
+The leading `--instance` selects the server-side credential instance and is not forwarded to the tool.
+Flags after the tool name belong to the tool, including `mg-axi`'s native `--instance` flag.
+With managed sessions, put `--instance <name>` after `--managed-session` and before the tool name.
+If an older server rejects the instance field, upgrade the server to a version that supports named tool instances.
 
 Kubernetes workspace and byte-session commands have local help through `artium-axi kubernetes-axi workspace --help` and `session --help`.
 Use `workspace create <directory>` to upload a regular file tree with immutable byte counts and digests.

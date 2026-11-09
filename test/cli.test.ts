@@ -103,12 +103,12 @@ afterAll(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controlled = false, input?: string, executable = bundle) {
+async function cli(args: string[], environment: NodeJS.ProcessEnv = {}, controlled = false, input?: string, executable = bundle, delegated = false) {
   const configuration = environment.XDG_CONFIG_HOME ?? mkdtempSync(join(directory, 'config-'))
   new SessionStore((environment.ARTIUM_AXI_URL || url).replace(/\/$/, ''), join(configuration, 'artium-axi', 'session.json')).write({
     status: 'authenticated', accessToken: 'CANARY-cli-token', refreshToken: 'CANARY-cli-refresh',
     accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000,
-  })
+  }, undefined, delegated)
   const env = { PATH: process.env.PATH, ARTIUM_AXI_URL: url, XDG_CONFIG_HOME: configuration,
     ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'), ...environment }
   if (controlled) return controlledCli(args, env)
@@ -646,6 +646,128 @@ test.each([false, true])('managed calls ignore session files and preserve tool s
     .toEqual({ code: 0, stdout: 'synthetic result', stderr: '', rotations: '' })
   expect(requests).toEqual([{ path: '/v1/tools/az-axi/run', token: `Bearer ${managedTokens.accessToken}`,
     body: { args: ['rg', 'query'], stdin: 'synthetic query' }, version: cliVersion }])
+})
+
+const instanceRunResponse = { status: 200, body: { source: 'mg-axi', stdout: 'synthetic result', stderr: '', exitCode: 0,
+  durationMs: 1, outputBytes: { stdout: 16, stderr: 0 }, truncated: { stdout: false, stderr: false } } }
+
+test('a leading --instance selects the run instance and is never forwarded to the tool', async () => {
+  requests = []
+  response = instanceRunResponse
+  expect(await cli(['--instance', 'pve-lab', 'mg-axi', 'entra', 'user', 'list'])).toMatchObject({ code: 0, stdout: 'synthetic result' })
+  expect(requests).toEqual([{ path: '/v1/tools/mg-axi/run', token: 'Bearer CANARY-cli-token',
+    body: { args: ['entra', 'user', 'list'], instance: 'pve-lab' }, version: cliVersion }])
+})
+
+test('--instance beside --managed-session selects the run instance privately', async () => {
+  requests = []
+  response = instanceRunResponse
+  expect(await managedCli(['--instance', 'pve-lab', 'mg-axi', 'entra', 'user', 'list']))
+    .toEqual({ code: 0, stdout: 'synthetic result', stderr: '', rotations: '' })
+  expect(requests).toEqual([{ path: '/v1/tools/mg-axi/run', token: `Bearer ${managedTokens.accessToken}`,
+    body: { args: ['entra', 'user', 'list'], instance: 'pve-lab' }, version: cliVersion }])
+})
+
+test('mg-axi native --instance after the tool name is forwarded unchanged', async () => {
+  requests = []
+  response = instanceRunResponse
+  expect(await cli(['--instance', 'pve-lab', 'mg-axi', '--instance', 'tenant-a', 'entra', 'user', 'list'])).toMatchObject({ code: 0 })
+  expect(requests).toEqual([{ path: '/v1/tools/mg-axi/run', token: 'Bearer CANARY-cli-token',
+    body: { args: ['--instance', 'tenant-a', 'entra', 'user', 'list'], instance: 'pve-lab' }, version: cliVersion }])
+})
+
+test.each([
+  { tool: 'proxmox-axi', args: ['get', '/version'] },
+  { tool: 'kubernetes-axi', args: ['get', 'pods'] },
+  { tool: 'shodan-axi', args: ['host', '192.0.2.1'] },
+])('a named instance is sent for ordinary $tool runs', async ({ tool, args }) => {
+  requests = []
+  response = { ...instanceRunResponse, body: { ...instanceRunResponse.body, source: tool } }
+  expect(await cli(['--instance', 'lab', tool, ...args])).toMatchObject({ code: 0, stdout: 'synthetic result' })
+  expect(requests).toEqual([{ path: `/v1/tools/${tool}/run`, token: 'Bearer CANARY-cli-token',
+    body: { args, instance: 'lab' }, version: cliVersion }])
+})
+
+test('a server that rejects the instance field is refused with an upgrade next step', async () => {
+  requests = []
+  response = { status: 400, body: errorResponse(new ArtiumError('INVALID_INPUT'), 'synthetic-older-server') }
+  expect(await cli(['--instance', 'pve-lab', 'mg-axi', 'entra', 'user', 'list'])).toMatchObject({ code: 2, stderr: '',
+    stdout: 'error:\n  code: "INVALID_INPUT"\n  source: "artium-axi"\n  message: "The request input is invalid."\n'
+      + '  next: "Check the request fields and content type. If the server does not support --instance, upgrade it to a version that supports named tool instances."\n  requestId: "synthetic-older-server"\n' })
+})
+
+test('an instance run preserves a specific server input diagnostic', async () => {
+  response = { status: 400, body: errorResponse(new ArtiumError('INVALID_INPUT', 'Unexpected positional argument.', 'Remove the extra argument.'), 'synthetic-input') }
+  expect(await cli(['--instance', 'pve-lab', 'mg-axi', 'unexpected'])).toMatchObject({ code: 2, stderr: '',
+    stdout: 'error:\n  code: "INVALID_INPUT"\n  source: "artium-axi"\n  message: "Unexpected positional argument."\n'
+      + '  next: "Remove the extra argument. If the server does not support --instance, upgrade it to a version that supports named tool instances."\n  requestId: "synthetic-input"\n' })
+})
+
+test.each([{ args: [] }, { args: ['home'] }, { args: ['help'] }, { args: ['commands'] }, { args: ['--help'] }])('delegated discovery resolves a named instance: $args', async ({ args }) => {
+  requests = []
+  doctorResponses = {
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '0.1.19', commands: ['user list'] }] } },
+    '/v1/tools/mg-axi/run': { status: 404, body: errorResponse(new ArtiumError('INSTANCE_NOT_FOUND'), 'synthetic-instance') },
+  }
+  try {
+    expect(await cli(['--instance', 'missing', 'mg-axi', ...args], {}, false, undefined, bundle, true))
+      .toMatchObject({ code: 1, stdout: expect.stringContaining('INSTANCE_NOT_FOUND') })
+    expect(requests.at(-1)).toMatchObject({ path: '/v1/tools/mg-axi/run', body: { args: ['--help'], instance: 'missing' } })
+  } finally { doctorResponses = undefined }
+})
+
+test.each([{ args: ['hash-download-bin', '--help'] }, { args: ['help', 'hash-download-bin'] }])('delegated download help resolves a named instance: $args', async ({ args }) => {
+  requests = []
+  doctorResponses = {
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'hybrid-axi', status: 'ok', version: '0.1.5', commands: ['hash-download-bin'] }] } },
+    '/v1/tools/hybrid-axi/run': { status: 404, body: errorResponse(new ArtiumError('INSTANCE_NOT_FOUND'), 'synthetic-instance') },
+  }
+  try {
+    expect(await cli(['--instance', 'missing', 'hybrid-axi', ...args], {}, false, undefined, bundle, true))
+      .toMatchObject({ code: 1, stdout: expect.stringContaining('INSTANCE_NOT_FOUND') })
+    expect(requests.at(-1)).toMatchObject({ path: '/v1/tools/hybrid-axi/run', body: { args: ['--help'], instance: 'missing' } })
+  } finally { doctorResponses = undefined }
+})
+
+test('delegated discovery keeps scoped help after instance resolution', async () => {
+  doctorResponses = {
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '0.1.19', commands: ['user list'] }] } },
+    '/v1/tools/mg-axi/run': instanceRunResponse,
+  }
+  try {
+    const result = await cli(['--instance', 'lab', 'mg-axi', 'commands'], {}, false, undefined, bundle, true)
+    expect(result).toMatchObject({ code: 0, stdout: expect.stringContaining('user list') })
+    expect(result.stdout).not.toContain('synthetic result')
+  } finally { doctorResponses = undefined }
+})
+
+test('Kubernetes local help resolves a named instance', async () => {
+  requests = []
+  response = { status: 403, body: errorResponse(new ArtiumError('INSTANCE_DISABLED'), 'synthetic-instance') }
+  expect(await cli(['--instance', 'disabled', 'kubernetes-axi', '--help']))
+    .toMatchObject({ code: 1, stdout: expect.stringContaining('INSTANCE_DISABLED') })
+  expect(requests.at(-1)).toMatchObject({ path: '/v1/tools/kubernetes-axi/run', body: { args: ['--help'], instance: 'disabled' } })
+})
+
+test.each([
+  { args: ['--instance', 'pve-lab'] },
+  { args: ['--instance', 'pve-lab', 'tools'] },
+  { args: ['--instance', 'pve-lab', 'ssh-axi', 'connect'] },
+  { args: ['--instance', 'pve-lab', 'proxmox-axi', 'result', 'take'] },
+  { args: ['--instance', 'pve-lab', 'proxmox-axi', 'stream', 'limits'] },
+  { args: ['--instance', 'pve-lab', 'kubernetes-axi', 'tunnel'] },
+  { args: ['--instance', 'pve-lab', 'kubernetes-axi', 'credential'] },
+  { args: ['--instance', 'pve-lab', 'kubernetes-axi', '--json', 'workspace', 'show'] },
+  { args: ['--instance', 'pve-lab', 'kubernetes-axi', 'session', 'list'] },
+  { args: ['--instance', 'pve-lab', 'shodan-axi', 'stream', 'session', 'list'] },
+  { args: ['--instance', 'pve-lab', 'shodan-axi', 'radar'] },
+  { args: ['--instance', 'pve-lab', 'shodan-axi', 'scan', 'submit'] },
+  { args: ['--instance', 'Pve_Lab', 'mg-axi', 'entra', 'user', 'list'] },
+  { args: ['--instance'] },
+])('--instance is refused before any request unless it precedes a supported tool: $args', async ({ args }) => {
+  requests = []
+  expect(await cli(args)).toMatchObject({ code: 2, stderr: '', stdout: expect.stringContaining('"INVALID_INPUT"') })
+  expect(requests).toEqual([])
 })
 
 test.each([3, 4] as const)('managed mode refuses missing private fd %s before network access', async missing => {
@@ -1569,7 +1691,7 @@ test.each([
   { args: ['download', '--oops'], token: '--oops', choices: 'Valid flags for download: --help, --operation, --selector, --type, --destination' },
   { args: ['token', 'create', '--oops'], token: '--oops', choices: 'Valid flags: --help, --label, --tool, --expires' },
   { args: ['download', 'Limit'], token: 'Limit', choices: 'Valid flags for download: --help, --operation, --selector, --type, --destination' },
-  { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, -v, -V, --managed-session' },
+  { args: ['--oops'], token: '--oops', choices: 'Valid flags: --help, --version, -v, -V, --managed-session (before the command), --instance <name> (before the tool name)' },
   { args: ['tools', 'shwo'], token: 'shwo', choices: 'Valid subcommands: show <tool>' },
   { args: ['tools', 'show', 'missing'], token: 'missing', choices: 'Valid tools: falcon-axi, vectra-axi, az-axi, mg-axi, ldap-axi, ado-axi' },
   { args: ['tools', 'show', 'falcon-axi', '--oops'], token: '--oops', choices: 'Valid flags for tools show: --help' },

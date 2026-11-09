@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
 import { encode } from '@toon-format/toon'
-import { loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema, transferSelectionSchema, transferTool, transferWarningFor } from '../shared/api.js'
+import { instanceNameSchema, loginResponseSchema, meResponseSchema, runSuccessSchema, toolsResponseSchema, toolSchema, transferSelectionSchema, transferTool, transferWarningFor } from '../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../shared/errors.js'
 import { Client } from './http.js'
 import { readPassword } from './password.js'
@@ -41,7 +41,32 @@ function output(stream: 'stdout' | 'stderr', text: string) {
   else process[stream].write(text)
 }
 
+function instanceErrorAdvice(error: unknown, instance: string | undefined): unknown {
+  if (instance === undefined || !(error instanceof ArtiumError) || error.code !== 'INVALID_INPUT') return error
+  return Object.assign(error, { next: `${error.next} If the server does not support --instance, upgrade it to a version that supports named tool instances.` })
+}
+
+async function resolveDiscoveryInstance(client: Client, tool: string, instance: string): Promise<boolean> {
+  const response = await client.authenticated(`/v1/tools/${tool}/run`, 'POST', { args: ['--help'], instance })
+    .catch(error => { throw instanceErrorAdvice(error, instance) })
+  const parsed = runSuccessSchema.safeParse(response)
+  if (!parsed.success || parsed.data.source !== tool) throw new ArtiumError('INVALID_RESPONSE')
+  if (parsed.data.exitCode === 0) return true
+  output('stdout', parsed.data.stdout)
+  output('stderr', parsed.data.stderr)
+  process.exitCode = parsed.data.exitCode
+  return false
+}
+
 async function main(args: string[]) {
+  const instanceAt = args[0] === '--managed-session' ? 1 : 0
+  let instance: string | undefined
+  if (args[instanceAt] === '--instance') {
+    const parsed = instanceNameSchema.safeParse(args[instanceAt + 1])
+    if (!parsed.success) throw new ArtiumError('INVALID_INPUT', 'Expected --instance <name> before the tool name.', 'Use artium-axi --instance <name> <tool> <args>.')
+    instance = parsed.data
+    args = [...args.slice(0, instanceAt), ...args.slice(instanceAt + 2)]
+  }
   if (args.length === 2 && args.includes('--managed-session') && args.includes('--help')) {
     output('stdout', commandHelp('managed-session'))
     return
@@ -50,6 +75,13 @@ async function main(args: string[]) {
   validateArguments(localArgs[0] === '--help' ? localArgs.slice(1) : localArgs, localArgs[0] === '--help')
   const managedMode = args[0] === '--managed-session'
   if (managedMode) args = args.slice(1)
+  const kubernetesGroup = args.slice(1).find(arg => arg !== '--json')
+  if (instance !== undefined && (!toolSchema.safeParse(args[0]).success || args[0] === 'ssh-axi'
+    || args[0] === 'proxmox-axi' && ['result', 'stream'].includes(args[1])
+    || args[0] === 'kubernetes-axi' && ['tunnel', 'credential', 'workspace', 'session'].includes(kubernetesGroup ?? '')
+    || args[0] === 'shodan-axi' && (args[1] === 'radar' || args[1] === 'stream' && args[2] === 'session' || args[1] === 'scan' && args[2] === 'submit'))) {
+    throw new ArtiumError('INVALID_INPUT', '--instance applies only to tool runs that support named instances.', 'Run the command without --instance.')
+  }
   if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) {
     output('stdout', `${cliVersion}\n`)
     return
@@ -96,6 +128,10 @@ async function main(args: string[]) {
       const downloadOperation = toolDiscovery ? transferSelectionSchema.options.map(option => option.shape.operation.value)
         .find(operation => transferTool(operation) === command
           && operation === (toolWords[0] === 'help' ? toolWords.slice(1) : toolWords).join(' ')) : undefined
+      if (instance !== undefined && toolDiscovery && (downloadOperation || toolWords.length === 0
+        || toolWords.length === 1 && ['commands', 'home', 'help'].includes(toolWords[0]))) {
+        if (!await resolveDiscoveryInstance(client, command, instance)) return
+      }
       if (help === 'download' || downloadOperation) {
         const operations = transferSelectionSchema.options.map(option => option.shape.operation.value)
           .filter(operation => tools.some(tool => tool.name === transferTool(operation) && tool.commands?.includes(operation)))
@@ -131,7 +167,9 @@ async function main(args: string[]) {
             await kubernetesHosted(hostedArgs, () => client, (text, stream = 'stdout') => output(stream, text), tool.commands)
             return
           }
-          const parsed = runSuccessSchema.safeParse(await client.authenticated(`/v1/tools/${name}/run`, 'POST', { args: args.slice(1) }))
+          const response = await client.authenticated(`/v1/tools/${name}/run`, 'POST', { args: args.slice(1), ...(instance === undefined ? {} : { instance }) })
+            .catch(error => { throw instanceErrorAdvice(error, instance) })
+          const parsed = runSuccessSchema.safeParse(response)
           if (!parsed.success || parsed.data.source !== name) throw new ArtiumError('INVALID_RESPONSE')
           const { truncated } = parsed.data
           if (truncated.stdout || truncated.stderr) output('stderr', `artium-axi: output truncated (${['stdout', 'stderr'].filter(stream => truncated[stream as keyof typeof truncated]).join(', ')}).\n`)
@@ -262,13 +300,16 @@ async function main(args: string[]) {
     throw new ArtiumError('INVALID_INPUT', 'Unknown command, argument or flag.', 'Use artium-axi --help for commands or artium-axi <command> --help for valid flags.')
   }
   if (command === 'ssh-axi' && await sshExecution(args.slice(1), () => new Client(process.env, managed), text => output('stdout', text))) return
+  if (command === 'kubernetes-axi' && instance !== undefined && args.slice(1).includes('--help')
+    && args.slice(1).every(arg => ['--help', '--json'].includes(arg))
+    && !await resolveDiscoveryInstance(new Client(process.env, managed), command, instance)) return
   if (command === 'kubernetes-axi' && await kubernetesHosted(args.slice(1), () => new Client(process.env, managed), (text, stream = 'stdout') => output(stream, text))) return
   if (command === 'proxmox-axi' && await proxmoxPrivateResult(() => new Client(process.env, managed), args.slice(1), text => output('stdout', text))) return
   if (command === 'proxmox-axi' && await proxmoxStream(() => new Client(process.env, managed), args.slice(1), output)) return
   if (command === 'shodan-axi' && await shodanSession(args.slice(1), () => new Client(process.env, managed), output)) return
   if (command === 'shodan-axi' && await shodanRadar(args.slice(1), () => new Client(process.env, managed), output)) return
   if (command === 'shodan-axi' && await shodanScan(args.slice(1), () => new Client(process.env, managed), output)) return
-  const input = home || listing || whoami ? undefined : await toolInput(command!, args.slice(1))
+  const input = home || listing || whoami ? undefined : { ...await toolInput(command!, args.slice(1)), ...(instance === undefined ? {} : { instance }) }
   const client = new Client(process.env, managed)
   const homeSession = home && !managed ? client.sessions.read() : undefined
   if (home && !managed && !homeSession) throw new ArtiumError('TOKEN_INVALID', undefined, 'Run artium-axi login --username <username> --password-stdin.')
@@ -276,7 +317,7 @@ async function main(args: string[]) {
     client.authenticated(home || whoami ? '/v1/me' : `/v1/tools${listing ? '' : `/${command}/run`}`, home || listing || whoami ? 'GET' : 'POST', input, homeSession),
     home ? client.authenticated('/v1/tools', 'GET', undefined, homeSession) : undefined,
   ])).map(response => {
-    if (response.status === 'rejected') throw response.reason
+    if (response.status === 'rejected') throw instanceErrorAdvice(response.reason, instance)
     return response.value
   })
   if (home || whoami) {

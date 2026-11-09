@@ -34,7 +34,9 @@ const downloadExecutionFlags = [
 const commands = {
   'gh-axi': { usage: 'artium-axi gh-axi [<args>]', purpose: 'Read and update GitHub data with managed credentials.',
     flags: ['Repository commands require -R OWNER/NAME. Writes require an administrator-enabled exact operation: preview, then repeat with its --confirm value. api is GET only; deletes, secret set, merge --admin, local git, files and downloads are unavailable. Only gist create/edit with --filename accepts piped stdin.'], example: 'artium-axi gh-axi repo list --limit 1' },
-  home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|token|passwd|logout|doctor|setup|update|download|<tool> <args>]', purpose: 'Show your identity, roles and available tools.', flags: ['--version, -v, -V (default false; print the client package version and exit)'], example: 'artium-axi' },
+  home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|token|passwd|logout|doctor|setup|update|download|[--instance <name>] <tool> <args>]', purpose: 'Show your identity, roles and available tools.',
+    flags: ['--version, -v, -V (default false; print the client package version and exit)',
+      '--instance <name> (before the tool name; selects one named instance for that run; refused for ssh-axi, Proxmox result and stream, Kubernetes tunnel, credential, workspace and session, and Shodan stream session, radar and scan submit)'], example: 'artium-axi' },
   setup: { usage: 'artium-axi setup --host <claude|codex|opencode|pi> [--hook] [--force]', purpose: 'Install skills for your signed-in account’s granted tools and optional ambient context for Claude Code, Codex or OpenCode.',
     flags: ['--host <claude|codex|opencode|pi> (required)', '--hook (default false; Claude Code, Codex and OpenCode on Linux)', '--force (default false; explicitly replace an edited skill or plugin)'], example: 'artium-axi setup --host claude --hook' },
   'session-context': { usage: 'artium-axi session-context', purpose: 'Emit compact current tool grants or an explicit unavailable diagnostic, without session identity.', flags: [], example: 'artium-axi session-context' },
@@ -130,7 +132,7 @@ export function commandHelp(command: HelpCommand): string {
 export function validateArguments(args: string[], prefixHelp: boolean) {
   const command = args[0]
   if (command === 'tools') args = [...args.filter(arg => arg !== '--help'), ...args.filter(arg => arg === '--help')]
-  const rootFlags = '--help, --version, -v, -V, --managed-session (before the command)'
+  const rootFlags = '--help, --version, -v, -V, --managed-session (before the command), --instance <name> (before the tool name)'
   const rootCommands = Object.keys(commands).filter(name => name !== 'home' && name !== 'managed-session' && name !== 'tools show').join(', ')
   function fail(token: string | undefined, level: string, choices: string): never {
     const kind = token?.startsWith('-') ? 'flag' : 'argument'
