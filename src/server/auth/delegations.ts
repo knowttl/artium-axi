@@ -3,7 +3,7 @@ import type Database from 'better-sqlite3'
 import type { z } from 'zod'
 import { createDelegationSchema, delegationScopeSchema, toolAllowsWrites, transferSelectionSchema, transferTool } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
-import { checkToolPolicy } from '../policy/policy.js'
+import { checkToolPolicy, instanceGranted } from '../policy/policy.js'
 import { hashToken, revokeFamily } from './tokens.js'
 import proxmox from '../../../tools/inventories/proxmox-axi.json' with { type: 'json' }
 import kubernetes from '../../../tools/inventories/kubernetes-axi.json' with { type: 'json' }
@@ -16,6 +16,7 @@ import { kubernetesHostedRoutes } from '../../shared/kubernetes.js'
 import { proxmoxHostedRoutes } from '../../shared/proxmox-commands.js'
 import { authorizeKubernetesOwner } from '../policy/kubernetes.js'
 import { checkTransferPolicy } from '../transfer.js'
+import type { IdentityResolver } from '../policy/identity-resolver.js'
 
 const exactCommands: Partial<Record<ToolName, readonly string[]>> = {
   'awx-axi': ['user token-create'],
@@ -145,11 +146,11 @@ export function authorizeDelegatedOperation(db: Database.Database, userId: strin
 }
 
 export function authorizeDelegatedCall(db: Database.Database, userId: string,
-  delegation: { scopeJson: string, readOnly: boolean }, adapter: Adapter<unknown>, args: readonly string[], input?: RunnerInput, continuationCommand?: string, instanceId?: string) {
+  delegation: { scopeJson: string, readOnly: boolean }, adapter: Adapter<unknown>, args: readonly string[], input?: RunnerInput, continuationCommand?: string, instanceId?: string, resolver?: IdentityResolver) {
   const classification = continuationCommand === undefined ? classifyDelegatedCommand(adapter, args, input)
     : { command: continuationCommand, effect: 'write' as const }
   if (adapter.kubernetesContinuation?.(args, input)?.help) {
-    if (!delegatedDiscovery(db, userId, delegation, [adapter])[0]?.commands.includes(classification.command)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+    if (!delegatedDiscovery(db, userId, delegation, [adapter], resolver)[0]?.commands.includes(classification.command)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
     return []
   }
   const operations = [classification, ...(adapter.nestedOperations?.(args, input) ?? [])
@@ -193,13 +194,16 @@ export function delegatedCommands(scopeJson: string, readOnly: boolean, adapter:
   return [...new Set(commands)].sort()
 }
 
-export function delegatedDiscovery(db: Database.Database, userId: string, delegation: { scopeJson: string, readOnly: boolean }, adapters: readonly Adapter<unknown>[]) {
+export function delegatedDiscovery(db: Database.Database, userId: string, delegation: { scopeJson: string, readOnly: boolean }, adapters: readonly Adapter<unknown>[], resolver?: IdentityResolver) {
   return adapters.flatMap(adapter => {
     if (!delegationIncludesTool(delegation.scopeJson, adapter.name)) return []
     const row = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(adapter.name) as { native_settings: string }
     const readOnly = delegation.readOnly || !toolAllowsWrites(adapter.name, JSON.parse(row.native_settings))
+    const available = (command: string) => adapter.name === 'ssh-axi' || !resolver || resolver.usableInstances(userId, adapter.name, delegation, command)
+      .some(instance => instanceGranted(db, userId, adapter.name, instance.id))
     const commands = delegatedCommands(delegation.scopeJson, delegation.readOnly, adapter,
       classification => {
+        if (!available(classification.command)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         if (adapter.name === 'kubernetes-axi' && kubernetesHostedRoutes.some(route => route.command === classification.command)) {
           authorizeKubernetesOwner(db, { user: userId, delegation }, adapter, classification.command)
         } else authorizeDelegatedOperation(db, userId, delegation, adapter, classification)
@@ -208,7 +212,7 @@ export function delegatedDiscovery(db: Database.Database, userId: string, delega
       const scope = delegationScopeSchema.parse(JSON.parse(delegation.scopeJson))
       for (const option of transferSelectionSchema.options) {
         const operation = option.shape.operation.value
-        if (transferTool(operation) !== adapter.name || !scope.tools.some(item => item.tool === adapter.name && item.commands?.includes(operation))) continue
+        if (transferTool(operation) !== adapter.name || !available(operation) || !scope.tools.some(item => item.tool === adapter.name && item.commands?.includes(operation))) continue
         try { checkTransferPolicy(db, userId, operation); commands.push(operation) } catch { /* Current policy hides unavailable transfers. */ }
       }
       commands.sort()

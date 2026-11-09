@@ -92,7 +92,7 @@ export async function runTool<Credential>(
       if (/artd_[A-Za-z0-9_-]{43}/.test(JSON.stringify({ args, stdin: input.stdin, names: input.files?.map(file => file.name) }))
         || input.files?.some(file => /artd_[A-Za-z0-9_-]{43}/.test(Buffer.from(file.contentBase64, 'base64').toString('latin1')))) throw new ArtiumError('INVALID_INPUT')
       if (principal?.delegation && delegatedDiscoveryRequest(adapter, args, input)) {
-        const discovery = delegatedDiscovery(db, userId, principal.delegation, [adapter])[0]
+        const discovery = delegatedDiscovery(db, userId, principal.delegation, [adapter], resolver)[0]
         if (!discovery) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         adapter.validateArgs(args.length ? args : ['--help'], input)
         validateFileInput(adapter.name, args, input)
@@ -115,7 +115,7 @@ export async function runTool<Credential>(
           continuationCommand = await kubernetesRequestCommand(continuation.root, scope, continuation.key)
           if (!continuationCommand) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         }
-        const operations = authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand)
+        const operations = authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand, undefined, resolver)
         credentialCommands = [...new Set(operations.filter(operation => credentialIssuingCommand(adapter.name, operation.command)).map(operation => operation.command))]
       }
       if (!adapter.prepareForCaller && !reference) {
@@ -125,7 +125,7 @@ export async function runTool<Credential>(
           resolutionFailure = { error, credentialId: named?.id, instance: named?.name }
         }
       }
-      if (principal?.delegation && reference) authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand, reference.id)
+      if (principal?.delegation && reference) authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand, reference.id, resolver)
     } catch (error) {
       recordApiDecision('refused')
       const requested = request && typeof request === 'object' && 'instance' in request && typeof request.instance === 'string' ? request.instance : undefined
@@ -204,7 +204,7 @@ export async function runTool<Credential>(
         if (authenticate === verifyAccessToken) {
           const current = verifyPrincipal(db, token)
           if (current.delegation) {
-            authorizeDelegatedCall(db, current.userId, current.delegation, adapter, args, input, continuationCommand, reference?.id)
+            authorizeDelegatedCall(db, current.userId, current.delegation, adapter, args, input, continuationCommand, reference?.id, resolver)
             if (adapter.name === 'proxmox-axi' && protectedResult) {
               authorizeDelegatedOperation(db, current.userId, current.delegation, adapter, { command: 'result take', effect: 'write' }, reference?.id)
             }

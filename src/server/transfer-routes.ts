@@ -147,7 +147,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
           const { instance, ...input } = transferPrepareRequestSchema.parse(parsed.data)
           const owner = ownerFor(request)
           checkTransferAccess(db, owner, input.selection.operation)
-          const credential = await resolver.resolve(owner.userId, tool, instance, verifyPrincipal(db, tokenFor(request)).delegation)
+          const credential = await resolver.resolve(owner.userId, tool, instance, verifyPrincipal(db, tokenFor(request)).delegation, input.selection.operation)
           checkTransferAccess(db, owner, input.selection.operation, Date.now(), credential.id)
           checkToolPolicy(db, owner.userId, tool, credential.id)
           const identity = { credentialId: credential.id,

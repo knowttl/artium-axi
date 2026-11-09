@@ -87,11 +87,18 @@ test('a token scoped to one instance cannot reach another instance or a re-creat
       store.deleteInstance('gitea-axi', 'lab', lab.id, lab.revision)
       const recreated = create('lab')
       expect(recreated.id).not.toBe(lab.id)
-      expect((await me(scoped.token)).json().delegation.scope.tools[0].instances).toEqual([])
+      expect((await me(scoped.token)).json().delegation.scope.tools).toEqual([])
+      const splitHeaders = { authorization: `Bearer ${exchangeDelegation(db, split.token).accessToken}` }
+      const remaining = await app.inject({ url: '/v1/tools', headers: splitHeaders })
+      expect(remaining.json().tools[0].commands).toContain('repo list')
+      expect(remaining.json().tools[0].commands).not.toContain('api')
+      const skills = await app.inject({ url: '/v1/skills', headers: splitHeaders })
+      expect(skills.json().skills[0].content).toContain('repo list')
+      expect(skills.json().skills[0].content).not.toContain('gitea-axi api')
       for (const payload of [{}, { instance: 'lab' }, { instance: 'production' }]) {
         const reply = await call(scoped.token, payload)
         expect(reply.statusCode, reply.body).toBeGreaterThanOrEqual(400)
-        expect(['INSTANCE_NOT_FOUND', 'CREDENTIAL_NOT_CONFIGURED']).toContain(reply.json().error.code)
+        expect(['INSTANCE_NOT_FOUND', 'CREDENTIAL_NOT_CONFIGURED', 'DELEGATED_SCOPE_DENIED']).toContain(reply.json().error.code)
       }
       expect((await call(api.token, { args: ['api', 'version'], instance: 'lab' })).json().error.code).toBe('INSTANCE_NOT_FOUND')
       expect((await call(unscoped.token, { instance: 'lab' })).json()).toMatchObject({ instance: 'lab', exitCode: 0 })
@@ -140,8 +147,8 @@ test('minting names instances once, stores ids, and refuses unknown or ungranted
       expect((await me()).json().delegation.scope.tools[0].instances).toEqual(['production'])
       expect((await unscopedMe()).json().delegation.scope.tools[0].instances).toEqual(['production'])
       db.prepare("DELETE FROM role_tool_instances WHERE role_id = 'synthetic-role' AND tool = 'gitea-axi'").run()
-      expect((await me()).json().delegation.scope.tools[0].instances).toEqual([])
-      expect((await unscopedMe()).json().delegation.scope.tools[0].instances).toEqual([])
+      expect((await me()).json().delegation.scope.tools).toEqual([])
+      expect((await unscopedMe()).json().delegation.scope.tools).toEqual([])
     } finally { await app.close(); db.close() }
   })
 }, 60000)

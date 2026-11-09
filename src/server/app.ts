@@ -216,7 +216,7 @@ export function createApp(options: {
   app.get('/v1/tools', async request => {
     const principal = verifyPrincipal(db, bearer(request.headers.authorization))
     const { userId, delegation } = principal
-    const discovery = delegation ? delegatedDiscovery(db, userId, delegation, adapters)
+    const discovery = delegation ? delegatedDiscovery(db, userId, delegation, adapters, resolver)
       : grantedAdapters(userId).map(adapter => ({ adapter, commands: undefined, readOnly: undefined }))
     const tools = discovery.map(({ adapter, commands, readOnly }) => {
       const row = db.prepare(`SELECT native_settings AS nativeSettings, credentials.revision AS configured
@@ -255,7 +255,7 @@ export function createApp(options: {
         WHERE user_roles.user_id = ? ORDER BY role_tools.tool`).all(userId) as { name: ToolName }[]
       return { skills: granted.map(tool => withGuidance({ name: tool.name, content: loadToolSkill(tool.name) })) }
     }
-    return { skills: delegatedDiscovery(db, userId, delegation, adapters).map(({ adapter, commands }) => {
+    return { skills: delegatedDiscovery(db, userId, delegation, adapters, resolver).map(({ adapter, commands }) => {
       const invocations = commands.map(command => transferSelectionSchema.options.some(option =>
         option.shape.operation.value === command && transferTool(option.shape.operation.value) === adapter.name)
         ? `artium-axi download --operation ${command}` : `artium-axi ${adapter.name} ${command}`)
@@ -274,7 +274,7 @@ export function createApp(options: {
       { expires_at: number, session_expires_at: number }
     if (delegation) {
       const row = db.prepare('SELECT label FROM delegations WHERE id = ?').get(delegation.id) as { label: string }
-      const discovery = delegatedDiscovery(db, userId, delegation, adapters)
+      const discovery = delegatedDiscovery(db, userId, delegation, adapters, resolver)
       return { username: user.username, displayName: user.display_name, delegation: { label: row.label, expiresAt: delegation.expiresAt,
         scope: { tools: discovery.flatMap(({ adapter, commands }) => {
           const groups = new Map<string, { tool: ToolName, commands: string[], instances?: string[] }>()

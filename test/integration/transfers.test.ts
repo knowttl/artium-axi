@@ -161,6 +161,19 @@ test('transfer prepare attributes invalid input only when selection is unambiguo
     .toEqual({ credential_id: null, instance: null })
 })
 
+test('a delegated transfer selects the instance for its operation', async () => {
+  const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') })
+  const credentials = createCredentialStore(db, key)
+  credentials.createInstance('hybrid-axi', { name: 'lab', description: '' }, { apiKey: 'CANARY-lab-key' }, user, Date.now())
+  const grant = createDelegation(db, user, { label: 'Split', scope: { tools: [
+    { tool: 'hybrid-axi', commands: ['hash-download-bin'], instances: ['lab'] },
+    { tool: 'hybrid-axi', commands: ['report-download-memory'], instances: ['default'] },
+  ] }, readOnly: false, reusable: true, expiresAt: Date.now() + 600000 }, [adapter])
+  const accessToken = exchangeDelegation(db, grant.token).accessToken
+  const response = await post('prepare', body(), { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' })
+  expect(response.status).toBe(200)
+})
+
 test('exact delegated download verifies bytes, records the token and stops on revocation', async () => {
   const { grant, session, headers: delegatedHeaders } = delegated(['hash-download-bin'])
   const me = await fetch(`${url}/v1/me`, { headers: delegatedHeaders }).then(response => response.json())
