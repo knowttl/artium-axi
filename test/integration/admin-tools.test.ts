@@ -366,7 +366,7 @@ test('Falcon discovery and health report the preserved legacy RTR grant', async 
   const tool = toolsResponseSchema.parse(await discovery.json()).tools.find(tool => tool.name === 'falcon-axi')!
   expect(tool).toMatchObject({ status: 'ok', readOnly: false })
   expect(toolView(tool)).toContain('readOnly: false\n')
-  expect(toolsView([tool])).toContain('falcon-axi,ok,"1.0.0-rc.3",false\n')
+  expect(toolsView([tool])).toContain('falcon-axi,ok,"1.0.0-rc.3",false,1\n')
   const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
   const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
   const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
@@ -740,7 +740,7 @@ test.each([
     VALUES ('synthetic-development-user', 'synthetic-host', ?)`).run(shell)
 
   const discovery = toolsResponseSchema.parse(await (await fetch(`${url}/v1/tools`, { headers })).json())
-  expect(discovery.tools.find(tool => tool.name === 'ssh-axi')).toEqual({ name: 'ssh-axi', version: '0.1.2', readOnly: true, status })
+  expect(discovery.tools.find(tool => tool.name === 'ssh-axi')).toEqual({ name: 'ssh-axi', version: '0.1.2', readOnly: true, status, instances: [] })
   expect(adminCredentialSchema.parse(await (await request('GET', '/ssh-axi/credential')).json())).toEqual({
     tool: 'ssh-axi', configured, revision: 0, updatedAt: null, updatedBy: null, metadata: {},
   })
@@ -1709,7 +1709,8 @@ test.each([
   const discovery = await fetch(`${url}/v1/tools`, { headers })
   expect(discovery.status).toBe(200)
   const { tools } = toolsResponseSchema.parse(await discovery.json())
-  expect(tools).toEqual([{ name: tool, version, status: 'unknown', readOnly: true }])
+  expect(tools).toEqual([{ name: tool, version, status: 'unknown', readOnly: true,
+    instances: [{ name: 'default', description: '', status: 'unknown', readOnly: true }] }])
   expect(toolView(tools[0]!)).toContain(`version: "${version}"`)
   const admin = await request('GET', '')
   expect(admin.status).toBe(200)

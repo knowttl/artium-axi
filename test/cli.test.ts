@@ -485,7 +485,7 @@ test.each(['password', 'sso'])('%s login remembers connection settings for tools
   const settings = JSON.parse(readFileSync(join(configuration, '.claude/settings.json'), 'utf8'))
   const hook = settings.hooks.SessionStart[0].hooks[0]
   response = { status: 200, body: { tools: [] } }
-  expect((await execute('sh', ['-c', hook.command], options)).stdout).toContain('artium: available\ntools[0]{name,status,readOnly}:')
+  expect((await execute('sh', ['-c', hook.command], options)).stdout).toContain('artium: available\ntools[0]{name,status,readOnly,instances}:')
   doctorResponses = {
     '/health/live': { status: 200, body: { status: 'ok' } },
     '/v1/me': { status: 200, body: { username: 'synthetic-user', displayName: 'Synthetic User', administrator: false,
@@ -1044,7 +1044,7 @@ test.each([
 test('standalone bundle lists tools and reports an empty list', async () => {
   requests = []
   response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '0.9.0' }] } }
-  expect(await cli(['tools'])).toMatchObject({ code: 0, stdout: 'tools[1]{name,status,version,readOnly}:\n  falcon-axi,ok,"0.9.0",true\nnext[2]:\n  - artium-axi tools show falcon-axi\n  - artium-axi falcon-axi detection list\n', stderr: '' })
+  expect(await cli(['tools'])).toMatchObject({ code: 0, stdout: 'tools[1]{name,status,version,readOnly,instances}:\n  falcon-axi,ok,"0.9.0",true,0\nnext[2]:\n  - artium-axi tools show falcon-axi\n  - artium-axi falcon-axi detection list\n', stderr: '' })
   expect(requests).toEqual([{ path: '/v1/tools', token: 'Bearer CANARY-cli-token', body: undefined, version: cliVersion }])
   response = { status: 200, body: { tools: [] } }
   expect((await cli(['tools'])).stdout).toBe('tools: 0 available\nreason: No enabled runtime tool is available through your assigned roles.\ncontact: Ask an administrator to check your role assignments and enabled tools.\nnext[1]:\n  - artium-axi whoami\n')

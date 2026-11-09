@@ -221,7 +221,7 @@ test.each(['replace', 'remove'] as const)('ambient context withholds grants afte
 test('ambient context permits refresh within the original login (R2)', async () => {
   homeScenario = { expiresAt: '/v1/tools' }
   expect(await run(['session-context'])).toEqual({ code: 0, stderr: '',
-    stdout: 'artium: available\ntools[0]{name,status,readOnly}:\n\nnext: artium-axi tools\nnote: Server roles and write gates still apply.\n' })
+    stdout: 'artium: available\ntools[0]{name,status,readOnly,instances}:\n\nnext: artium-axi tools\nnote: Server roles and write gates still apply.\n' })
   expect(store.read()!.loginGeneration).toBe(original.loginGeneration)
 })
 
