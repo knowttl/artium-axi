@@ -14,7 +14,7 @@ import type { Audit } from './audit/audit.js'
 import { checkAuthSettings } from './auth/settings.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './auth/local.js'
 import { exchangeDelegation, hashToken, issueLoginTokens, issueRecentAuthTicket, logout, refreshTokens, requireRecentAuth, verifyAccessToken, verifyPasswordToken, verifyPrincipal } from './auth/tokens.js'
-import { authorizeDelegatedOperation, createDelegation, delegatedDiscovery, delegationIncludesTool, revokeDelegation } from './auth/delegations.js'
+import { authorizeDelegatedOperation, createDelegation, delegatedDiscovery, delegationIncludesTool, delegationScopeWithInstanceNames, revokeDelegation } from './auth/delegations.js'
 import { kubernetesBinding } from './policy/kubernetes.js'
 import { ProxmoxAccess, proxmoxTrust } from './runner/proxmox.js'
 import { registerProxmoxStreams } from './proxmox-streams.js'
@@ -227,7 +227,7 @@ export function createApp(options: {
           ? options.credentialStore.listInstances(adapter.name).some(instance => !isAwxOriginOnly(adapter.name, options.credentialStore!.readCredential(instance)))
           : Boolean(row.configured)
       const toolReadOnly = readOnly ?? !toolAllowsWrites(adapter.name, JSON.parse(row.nativeSettings))
-      const instances = adapter.name === 'ssh-axi' || !configured ? [] : resolver.usableInstances(userId, adapter.name).map(instance => {
+      const instances = adapter.name === 'ssh-axi' || !configured ? [] : resolver.usableInstances(userId, adapter.name, delegation).map(instance => {
         const stored = healthSchema.safeParse(db.prepare(`SELECT status, checked_at AS checkedAt, credential_revision AS credentialRevision,
           error_code AS errorCode FROM tool_health WHERE credential_id = ? AND credential_revision = ?`).get(instance.id, instance.revision))
         const state = stored.success ? stored.data : undefined
@@ -248,7 +248,7 @@ export function createApp(options: {
     const { userId, delegation } = verifyPrincipal(db, bearer(request.headers.authorization))
     reply.header('cache-control', 'no-store')
     const withGuidance = (skill: { name: ToolName, content: string }) => ({ name: skill.name,
-      content: resolver.usableInstances(userId, skill.name).length > 1 ? withInstanceGuidance(skill.content, skill.name) : skill.content })
+      content: resolver.usableInstances(userId, skill.name, delegation).length > 1 ? withInstanceGuidance(skill.content, skill.name) : skill.content })
     if (!delegation) {
       const granted = db.prepare(`SELECT DISTINCT role_tools.tool AS name FROM user_roles
         JOIN role_tools ON role_tools.role_id = user_roles.role_id
@@ -343,11 +343,15 @@ export function createApp(options: {
       throw error
     }
   })
+  const namedScope = (row: unknown) => {
+    const token = row as { scopeJson: string }
+    return { ...token, scopeJson: JSON.stringify(delegationScopeWithInstanceNames(db, token.scopeJson)) }
+  }
   app.get('/v1/account/tokens', async request => {
     const userId = accountTokenUser(request)
     return { tokens: db.prepare(`SELECT id, label, scope_json AS scopeJson, read_only AS readOnly, single_use AS singleUse,
       created_at AS createdAt, expires_at AS expiresAt, revoked_at AS revokedAt, consumed_at AS consumedAt
-      FROM delegations WHERE creator_id = ? ORDER BY created_at DESC, id`).all(userId) }
+      FROM delegations WHERE creator_id = ? ORDER BY created_at DESC, id`).all(userId).map(namedScope) }
   })
   app.post<{ Params: { id: string } }>('/v1/account/tokens/:id/revoke', async (request, reply) => {
     const userId = accountTokenUser(request)
@@ -416,7 +420,7 @@ export function createApp(options: {
     authorizeAdmin(request)
     return { tokens: db.prepare(`SELECT id, creator_id AS creatorId, label, scope_json AS scopeJson, read_only AS readOnly,
       single_use AS singleUse, created_at AS createdAt, expires_at AS expiresAt, revoked_at AS revokedAt, consumed_at AS consumedAt
-      FROM delegations ORDER BY created_at DESC, id`).all() }
+      FROM delegations ORDER BY created_at DESC, id`).all().map(namedScope) }
   })
   app.post<{ Params: { id: string } }>('/v1/admin/tokens/:id/revoke', async (request, reply) => {
     const userId = authorizeAdmin(request)
@@ -460,7 +464,7 @@ export function createApp(options: {
     const bound = protectedResults.credential(request.params.id, resultOwner)
     const instance = db.prepare('SELECT name FROM credentials WHERE tool = ? AND id = ?').get(tool, bound.id) as { name: string } | undefined
     if (!instance) throw new ArtiumError('NOT_FOUND')
-    const credential = await resolver.resolve(userId, tool, instance.name)
+    const credential = await resolver.resolve(userId, tool, instance.name, delegation)
     verifyPrincipal(db, token)
     checkToolPolicy(db, userId, tool, credential.id)
     if (tool === 'kubernetes-axi') {

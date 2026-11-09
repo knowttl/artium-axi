@@ -54,13 +54,25 @@ export function createDelegation(db: Database.Database, creatorId: string, input
     { minting_enabled: number, max_lifetime_ms: number }
   if (!settings.minting_enabled) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
   if (input.expiresAt <= now || input.expiresAt - now > settings.max_lifetime_ms) throw new ArtiumError('INVALID_INPUT')
-  const scope = { tools: input.scope.tools.map(item => {
+  const scope = { tools: input.scope.tools.map(({ instances: names, ...item }) => {
     checkToolPolicy(db, creatorId, item.tool)
-    if (!item.commands) return item
+    const instances = names && [...new Set(names.map(name => {
+      const row = db.prepare('SELECT id FROM credentials WHERE tool = ? AND name = ?').get(item.tool, name) as { id: string } | undefined
+      if (!row) throw new ArtiumError('INSTANCE_NOT_FOUND')
+      checkToolPolicy(db, creatorId, item.tool, row.id)
+      return row.id
+    }))].sort()
+    const scoped: typeof item & { instances?: string[] } = instances ? { ...item, instances } : item
+    if (!item.commands) return scoped
     const adapter = adapters.find(adapter => adapter.name === item.tool)
     if (!adapter) throw new ArtiumError('INVALID_INPUT')
-    return { ...item, commands: item.commands.map(command => resolveDelegatedCommand(command, adapter)) }
+    return { ...scoped, commands: item.commands.map(command => resolveDelegatedCommand(command, adapter)) }
   }) }
+  for (const { tool } of scope.tools) {
+    if (new Set(scope.tools.filter(item => item.tool === tool).map(item => (item.instances ?? []).join())).size > 1) {
+      throw new ArtiumError('INVALID_INPUT', 'Every selection for a tool must name the same instances.')
+    }
+  }
   const sshGrants = scope.tools.filter(item => item.tool === 'ssh-axi')
   if (sshGrants.some(item => item.commands?.includes('exec')) && !sshGrants.some(item => item.commands === undefined)) {
     const missing = sshExecPrerequisites.filter(required => !sshGrants.some(item => item.commands?.includes(required.command)))
@@ -205,6 +217,16 @@ export function delegatedDiscovery(db: Database.Database, userId: string, delega
 
 export function delegationIncludesTool(scopeJson: string, tool: ToolName): boolean {
   return delegationScopeSchema.parse(JSON.parse(scopeJson)).tools.some(item => item.tool === tool)
+}
+
+export function delegatedInstanceIds(delegation: { scopeJson: string } | null | undefined, tool: ToolName): ReadonlySet<string> | undefined {
+  const instances = delegation ? delegationScopeSchema.parse(JSON.parse(delegation.scopeJson)).tools.find(item => item.tool === tool)?.instances : undefined
+  return instances && new Set(instances)
+}
+
+export function delegationScopeWithInstanceNames(db: Database.Database, scopeJson: string) {
+  return { tools: delegationScopeSchema.parse(JSON.parse(scopeJson)).tools.map(item => item.instances ? { ...item, instances: item.instances.map(id =>
+    (db.prepare('SELECT name FROM credentials WHERE id = ?').get(id) as { name: string } | undefined)?.name ?? `deleted:${id}`) } : item) }
 }
 
 export function credentialIssuingCommand(tool: ToolName, command: string): boolean {

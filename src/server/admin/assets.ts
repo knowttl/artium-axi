@@ -606,8 +606,10 @@ document.addEventListener('submit', async event => {
       const tools = [];
       for (const input of form.querySelectorAll('[data-token-tool]')) {
         const commands = [...form.querySelectorAll('[data-token-command]')].filter(item => item.dataset.tokenCommand === input.dataset.tokenTool && item.checked).map(item => item.value);
-        if (input.checked) tools.push({ tool: input.dataset.tokenTool });
-        if (commands.length) tools.push({ tool: input.dataset.tokenTool, commands });
+        const instances = [...form.querySelectorAll('[data-token-instance]')].filter(item => item.dataset.tokenInstance === input.dataset.tokenTool && item.checked).map(item => item.value);
+        const scope = instances.length ? { instances } : {};
+        if (input.checked) tools.push({ tool: input.dataset.tokenTool, ...scope });
+        if (commands.length) tools.push({ tool: input.dataset.tokenTool, commands, ...scope });
       }
       body.scope = { tools };
       body.readOnly = form.elements.readOnly.checked;

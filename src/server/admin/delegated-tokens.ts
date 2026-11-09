@@ -4,7 +4,8 @@ import type { Adapter } from '../adapters/types.js'
 import type { BrowserSession } from '../auth/sessions.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { browserCookie, browserPage } from '../auth/browser.js'
-import { delegatedCommands, resolveDelegatedCommand } from '../auth/delegations.js'
+import { delegatedCommands, delegationScopeWithInstanceNames, resolveDelegatedCommand } from '../auth/delegations.js'
+import { instanceGranted } from '../policy/policy.js'
 import { delegationPaused } from '../auth/tokens.js'
 import { apiForm, apiFormTag, timestamp } from './forms.js'
 import { card } from './design/ui.js'
@@ -18,7 +19,7 @@ function tokenTable(db: Database.Database, csrf: string, userId?: string): strin
     : db.prepare('SELECT * FROM delegations ORDER BY created_at DESC').all()) as Token[]
   const prefix = userId ? '/v1/account/tokens' : '/v1/admin/tokens'
   if (!rows.length) return '<p class="empty">No tokens.</p>'
-  return `<div class="tbl-scroll"><table class="tbl stack-sm"><thead><tr><th>Label</th>${userId ? '' : '<th>Creator</th>'}<th>Access</th><th>Expires</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(row => `<tr><td>${escape(row.label)}<p class="mono">${escape(row.id)}</p></td>${userId ? '' : `<td>${escape(row.creator_id)}</td>`}<td>${row.read_only ? 'Read-only' : 'Writes allowed'} · ${row.single_use ? 'Single use' : 'Reusable'}<ul>${delegationScopeSchema.parse(JSON.parse(row.scope_json)).tools.map(item => `<li>${escape(item.tool)}: ${item.commands ? item.commands.map(escape).join(', ') : 'Tool-wide'}</li>`).join('')}</ul></td><td>${timestamp(row.expires_at)}</td><td>${row.revoked_at ? 'Revoked' : row.expires_at <= Date.now() ? 'Expired' : delegationPaused(db, row.creator_id) ? 'Paused until creator signs in via SSO' : row.single_use && row.consumed_at ? 'Used' : 'Active'}</td><td>${row.revoked_at ? '' : apiForm(csrf, `${prefix}/${encodeURIComponent(row.id)}/revoke`, 'POST', 'Revoke', '', 'Revoke this token and its sessions?', '', 'btn btn-danger-outline btn-sm')}</td></tr>`).join('')}</tbody></table></div>`
+  return `<div class="tbl-scroll"><table class="tbl stack-sm"><thead><tr><th>Label</th>${userId ? '' : '<th>Creator</th>'}<th>Access</th><th>Expires</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(row => `<tr><td>${escape(row.label)}<p class="mono">${escape(row.id)}</p></td>${userId ? '' : `<td>${escape(row.creator_id)}</td>`}<td>${row.read_only ? 'Read-only' : 'Writes allowed'} · ${row.single_use ? 'Single use' : 'Reusable'}<ul>${delegationScopeWithInstanceNames(db, row.scope_json).tools.map(item => `<li>${escape(item.tool)}${item.instances ? ` (instances: ${item.instances.map(escape).join(', ')})` : ''}: ${item.commands ? item.commands.map(escape).join(', ') : 'Tool-wide'}</li>`).join('')}</ul></td><td>${timestamp(row.expires_at)}</td><td>${row.revoked_at ? 'Revoked' : row.expires_at <= Date.now() ? 'Expired' : delegationPaused(db, row.creator_id) ? 'Paused until creator signs in via SSO' : row.single_use && row.consumed_at ? 'Used' : 'Active'}</td><td>${row.revoked_at ? '' : apiForm(csrf, `${prefix}/${encodeURIComponent(row.id)}/revoke`, 'POST', 'Revoke', '', 'Revoke this token and its sessions?', '', 'btn btn-danger-outline btn-sm')}</td></tr>`).join('')}</tbody></table></div>`
 }
 
 export function accountTokens(db: Database.Database, current: BrowserSession, csrf: string, adapters: readonly Adapter<unknown>[]): string {
@@ -32,7 +33,10 @@ export function accountTokens(db: Database.Database, current: BrowserSession, cs
       try { return [resolveDelegatedCommand(command.replace(/^(?:prepare|server-dry-run) -- /, ''), adapter)] }
       catch { return [] }
     }))].sort()
-    return [`<details class="ops-group"><summary>${escape(name)}</summary><div class="ops-body"><label class="check"><input type="checkbox" data-token-tool="${escape(name)}"> All permitted commands</label>${commands.map(command => `<label class="check"><input type="checkbox" data-token-command="${escape(name)}" value="${escape(command)}"> <code>${escape(command)}</code></label>`).join('')}</div></details>`]
+    const instances = (db.prepare('SELECT id, name FROM credentials WHERE tool = ? ORDER BY name').all(name) as { id: string, name: string }[])
+      .filter(instance => instanceGranted(db, current.user_id, adapter.name, instance.id))
+    const instanceChoices = instances.length ? `<fieldset><legend>Instances (none selected allows every instance you can use)</legend>${instances.map(instance => `<label class="check"><input type="checkbox" data-token-instance="${escape(name)}" value="${escape(instance.name)}"> <code>${escape(instance.name)}</code></label>`).join('')}</fieldset>` : ''
+    return [`<details class="ops-group"><summary>${escape(name)}</summary><div class="ops-body">${instanceChoices}<label class="check"><input type="checkbox" data-token-tool="${escape(name)}"> All permitted commands</label>${commands.map(command => `<label class="check"><input type="checkbox" data-token-command="${escape(name)}" value="${escape(command)}"> <code>${escape(command)}</code></label>`).join('')}</div></details>`]
   }).join('')
   const form = settings.minting_enabled ? `${apiFormTag(csrf, '/v1/account/tokens', 'POST', '', 'data-create-token')}
     <div class="card-body column"><label>Label<input name="label" required maxlength="100"></label>

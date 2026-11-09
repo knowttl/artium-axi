@@ -57,8 +57,8 @@ export async function runTool<Credential>(
     let continuationCommand: string | undefined
     let args: string[]
     let instance: string | undefined
-    const resolveReference = async (userId: string) => {
-      const selected = await resolver.resolveForRun(userId, adapter.name, instance)
+    const resolveReference = async (userId: string, delegation: { scopeJson: string } | null | undefined) => {
+      const selected = await resolver.resolveForRun(userId, adapter.name, instance, delegation)
       instanceReadOnly = selected.readOnly
       instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(selected.reference.id) as { name: string } | undefined)?.name
       return selected.reference
@@ -96,7 +96,7 @@ export async function runTool<Credential>(
         if (!discovery) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         adapter.validateArgs(args.length ? args : ['--help'], input)
         validateFileInput(adapter.name, args, input)
-        if (!adapter.prepareForCaller && (instance !== undefined || resolver.hasInstances(adapter.name))) reference = await resolveReference(userId)
+        if (!adapter.prepareForCaller && (instance !== undefined || resolver.hasInstances(adapter.name))) reference = await resolveReference(userId, principal?.delegation)
         const json = args.includes('--json') || args.includes('--format=json') || args.some((arg, index) => arg === '--format' && args[index + 1] === 'json')
         const stdout = (json ? JSON.stringify : encode)({ tool: adapter.name, commands: discovery.commands }) + '\n'
         return { instance: reference && instance, stdout, stderr: '', exitCode: 0, durationMs: Date.now() - started,
@@ -110,7 +110,7 @@ export async function runTool<Credential>(
         if (continuation && !continuation.help) {
           if (readOnly || !delegationIncludesTool(principal.delegation.scopeJson, adapter.name)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
           if (!continuation.root) throw new ArtiumError('TEMP_UNAVAILABLE')
-          reference = await resolveReference(userId)
+          reference = await resolveReference(userId, principal?.delegation)
           const scope = createHash('sha256').update(JSON.stringify({ userId, family: familyId ?? verifyAccessFamily(db, token), reference })).digest('hex')
           continuationCommand = await kubernetesRequestCommand(continuation.root, scope, continuation.key)
           if (!continuationCommand) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
@@ -119,7 +119,7 @@ export async function runTool<Credential>(
         credentialCommands = [...new Set(operations.filter(operation => credentialIssuingCommand(adapter.name, operation.command)).map(operation => operation.command))]
       }
       if (!adapter.prepareForCaller && !reference) {
-        try { reference = await resolveReference(userId) }
+        try { reference = await resolveReference(userId, principal?.delegation) }
         catch (error) {
           const named = instance === undefined ? undefined : db.prepare('SELECT id, name FROM credentials WHERE tool = ? AND name = ?').get(adapter.name, instance) as { id: string, name: string } | undefined
           resolutionFailure = { error, credentialId: named?.id, instance: named?.name }

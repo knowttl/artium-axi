@@ -103,7 +103,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
         access(session)
         const binding = kubernetesBinding(db, session.owner, session.credentialId, session.kind)
         if (!session.instance) throw new ArtiumError('REVISION_CONFLICT')
-        const credential = await resolver.resolve(session.owner.user, 'kubernetes-axi', session.instance)
+        const credential = await resolver.resolve(session.owner.user, 'kubernetes-axi', session.instance, session.owner.delegation)
         if (credential.id !== binding.credential.id || credential.revision !== binding.credential.revision) throw new ArtiumError('REVISION_CONFLICT')
         const prepared = await adapter.prepare(['version'], credential)
         if (typeof prepared.limits.systemCaBundle !== 'object') throw new ArtiumError('CREDENTIAL_INVALID')
@@ -273,7 +273,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       const operation = classifyDelegatedCommand(adapter, input.argv)
       if (credentialIssuingCommand(adapter.name, operation.command)) checkDelegation(owner.delegation.scopeJson, owner.delegation.readOnly, adapter, operation.command, 'write')
     }
-    const credential = await resolver.resolve(owner.user, 'kubernetes-axi', input.instance)
+    const credential = await resolver.resolve(owner.user, 'kubernetes-axi', input.instance, owner.delegation)
     const binding = kubernetesBinding(db, owner, credential.id, input.kind), policy = binding.settings.sessions!
     if (binding.credential.revision !== credential.revision) throw new ArtiumError('REVISION_CONFLICT')
     const instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(binding.credential.id) as { name: string } | undefined)?.name
@@ -370,7 +370,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
       const file = session.artifacts?.find(file => file.path === request.params['*'])
       if (session.state !== 'exited' || !file || request.headers.range) throw new ArtiumError('NOT_FOUND')
       if (!session.instance) throw new ArtiumError('REVISION_CONFLICT')
-      const reference = await resolver.resolve(session.owner.user, 'kubernetes-axi', session.instance)
+      const reference = await resolver.resolve(session.owner.user, 'kubernetes-axi', session.instance, session.owner.delegation)
       if (reference.id !== session.credentialId) throw new ArtiumError('REVISION_CONFLICT')
       const prepared = await adapter.prepare(['version'], reference)
       const source = await open(join(session.directory, 'artifacts', file.path), constants.O_RDONLY | constants.O_NOFOLLOW)
