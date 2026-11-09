@@ -24,6 +24,8 @@ let awxConfigurationAllowed = true
 let awxDropWrite = false
 let awxBulkDeleteResponse = 'valid'
 let awxTokenResponse = 'valid'
+let awxHoldToken = false
+let awxTokenRelease
 let awxStdoutPadding = 0
 let awxStdoutStatus = 200
 let awxStdoutText
@@ -390,8 +392,9 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     return
   }
   if (['/api/v1/version', '/api/v1/user', '/api/v1/repos/example/project/issues/42'].includes(url.pathname)) {
-    const canaryReceived = req.headers.authorization === 'token CANARY-gitea-token'
-    requests.push({ method: req.method, path: url.pathname, canaryReceived })
+    const identity = { 'token CANARY-gitea-lab': 'lab', 'token CANARY-gitea-production': 'production' }[req.headers.authorization]
+    const canaryReceived = req.headers.authorization === 'token CANARY-gitea-token' || !!identity
+    requests.push({ method: req.method, path: url.pathname, canaryReceived, ...(identity ? { identity } : {}) })
     if (!canaryReceived) { res.writeHead(401); res.end('{}'); return }
     if (req.method === 'PATCH' && url.pathname.endsWith('/issues/42')) {
       let body = ''
@@ -499,6 +502,11 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   }
   if (url.pathname === '/__awx/token-response' && req.method === 'POST') {
     awxTokenResponse = url.searchParams.get('mode') ?? 'valid'
+    res.end('{}'); return
+  }
+  if (url.pathname === '/__awx/hold-token' && req.method === 'POST') {
+    awxHoldToken = url.searchParams.get('enabled') === 'true'
+    if (!awxHoldToken) { awxTokenRelease?.(); awxTokenRelease = undefined }
     res.end('{}'); return
   }
   if (url.pathname === '/__awx/stdout-padding' && req.method === 'POST') {
@@ -676,9 +684,13 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           const token = `CANARY-awx-created-token-${id}`
           awxTokens.set(id, token)
           if (awxDropWrite) { req.socket.destroy(); return }
-          res.writeHead(201)
-          res.end(JSON.stringify({ ...(awxTokenResponse === 'missing-id' ? {} : { id }),
-            ...(awxTokenResponse === 'missing-token' ? {} : { token }), scope: payload.scope ?? 'write', description: token })); return
+          const respond = () => {
+            res.writeHead(201)
+            res.end(JSON.stringify({ ...(awxTokenResponse === 'missing-id' ? {} : { id }),
+              ...(awxTokenResponse === 'missing-token' ? {} : { token }), scope: payload.scope ?? 'write', description: token }))
+          }
+          if (awxHoldToken) { awxTokenRelease = respond; process.send?.('held-request') } else respond()
+          return
         }
         if ((url.pathname.startsWith('/api/v2/credentials/') || /^\/api\/v2\/teams\/\d+\/credentials\/$/.test(url.pathname))
           && payload.credential_type !== undefined && payload.credential_type !== 7) {

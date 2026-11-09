@@ -5,9 +5,11 @@ import { createApp } from '../../src/server/app.js'
 import { createAzAdapter } from '../../src/server/adapters/az.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import { Audit } from '../../src/server/audit/audit.js'
+import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
-import { openStore } from '../../src/server/store/db.js'
+import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
+import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { FakeTokenTransport, azureTestTenant } from './azure-token-transport.js'
 import { allowRawApi, issueTestAccessToken, seedToolUser } from './tokens.js'
@@ -27,14 +29,16 @@ export async function withAzureGateway(check: (fixture: {
   db: ReturnType<typeof openStore>
 }) => Promise<void>, outcome: 'hold' | '504' | 'drop' = 'hold', onHeldRequest?: () => void) {
   await withFakeService(async ({ directory, port, send }) => {
-    const db = openStore(join(directory, 'artium.db'),
-      new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
-    const runner = await Runner.create(join(directory, 'calls'))
-    const reference = { id: 'synthetic-azure', tool: 'az-axi' as const, revision: 1 }
-    const adapter = createAzAdapter({ getCredential: async () => ({ auth: 'secret', tenantId: azureTestTenant,
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    const store = createCredentialStore(db, provider)
+    store.replaceCredential('az-axi', { auth: 'secret', tenantId: azureTestTenant,
       clientId: '22222222-2222-4222-8222-222222222222', clientSecret: 'CANARY-azure-secret',
-      subscriptions: [subscription], workspaces: { synthetic: '33333333-3333-4333-8333-333333333333' },
-      allowWrites: true }) }, join(directory, 'writes.log'), new AzureTokenCache(new FakeTokenTransport()))
+      subscriptions: [subscription], workspaces: { synthetic: '33333333-3333-4333-8333-333333333333' } }, 0, 'synthetic-development-user', Date.now())
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'az-axi'`)
+    const runner = await Runner.create(join(directory, 'calls'))
+    const adapter = createAzAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), new AzureTokenCache(new FakeTokenTransport()))
     const hosted = { ...adapter, async prepare(...input: Parameters<typeof adapter.prepare>) {
       const call = await adapter.prepare(...input)
       return { ...call, executable: process.execPath,
@@ -47,9 +51,8 @@ export async function withAzureGateway(check: (fixture: {
           ARTIUM_TEST_AZURE_ORIGIN: `https://localhost:${port}` } }
     } }
     const app = createApp({ db, audit: new Audit(db), runner, adapters: [hosted],
-      resolver: { resolve: async () => reference }, environment: {} })
+      resolver: new SharedIdentityResolver(store), environment: {} })
     try {
-      await seedToolUser(db)
       allowRawApi(db, 'az-axi')
       db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.6' WHERE name = 'az-axi'")
       const token = issueTestAccessToken(db, 'synthetic-development-user')

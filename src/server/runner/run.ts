@@ -43,17 +43,25 @@ export async function runTool<Credential>(
   db: Database.Database, audit: Audit, runner: Runner, token: string, request: unknown,
   adapter: Adapter<Credential>, resolver: IdentityResolver, context: RunContext,
   authenticate: (db: Database.Database, token: string) => string = verifyAccessToken,
-): Promise<RunnerResult> {
+): Promise<RunnerResult & { instance?: string }> {
   return logRun({ requestId: context.requestId, tool: adapter.name }, async observe => {
     let userId: string | null = null
     let delegationId: string | null = null
     let familyId: string | undefined
     let readOnly = false
+    let instanceReadOnly = false
     let credentialCommands: string[] = []
     let reference: CredentialReference | undefined
     let continuation: ReturnType<NonNullable<Adapter<unknown>['kubernetesContinuation']>>
     let continuationCommand: string | undefined
     let args: string[]
+    let instance: string | undefined
+    const resolveReference = async (userId: string) => {
+      const selected = await resolver.resolveForRun(userId, adapter.name, instance)
+      instanceReadOnly = selected.readOnly
+      instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(selected.reference.id) as { name: string } | undefined)?.name
+      return selected.reference
+    }
     let input: { stdin?: string, files?: { name: string, contentBase64: string }[] }
     const started = Date.now()
     let result: RunnerResult
@@ -76,7 +84,8 @@ export async function runTool<Credential>(
       readOnly = principal?.delegation?.readOnly ?? false
       checkToolPolicy(db, userId, adapter.name)
       const parsed = runRequestSchema.safeParse(request)
-      if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
+      if (!parsed.success || parsed.data.instance !== undefined && adapter.prepareForCaller) throw new ArtiumError('INVALID_INPUT')
+      instance = parsed.data.instance
       args = parsed.data.args
       input = { stdin: parsed.data.stdin, files: parsed.data.files }
       if (/artd_[A-Za-z0-9_-]{43}/.test(JSON.stringify({ args, stdin: input.stdin, names: input.files?.map(file => file.name) }))
@@ -86,9 +95,10 @@ export async function runTool<Credential>(
         if (!discovery) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         adapter.validateArgs(args.length ? args : ['--help'], input)
         validateFileInput(adapter.name, args, input)
+        if (!adapter.prepareForCaller && (instance !== undefined || resolver.hasInstances(adapter.name))) reference = await resolveReference(userId)
         const json = args.includes('--json') || args.includes('--format=json') || args.some((arg, index) => arg === '--format' && args[index + 1] === 'json')
         const stdout = (json ? JSON.stringify : encode)({ tool: adapter.name, commands: discovery.commands }) + '\n'
-        return { stdout, stderr: '', exitCode: 0, durationMs: Date.now() - started,
+        return { instance: reference && instance, stdout, stderr: '', exitCode: 0, durationMs: Date.now() - started,
           outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
       }
       adapter.validateArgs(args, input)
@@ -99,7 +109,7 @@ export async function runTool<Credential>(
         if (continuation && !continuation.help) {
           if (readOnly || !delegationIncludesTool(principal.delegation.scopeJson, adapter.name)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
           if (!continuation.root) throw new ArtiumError('TEMP_UNAVAILABLE')
-          reference = await resolver.resolve(userId, adapter.name)
+          reference = await resolveReference(userId)
           const scope = createHash('sha256').update(JSON.stringify({ userId, family: familyId ?? verifyAccessFamily(db, token), reference })).digest('hex')
           continuationCommand = await kubernetesRequestCommand(continuation.root, scope, continuation.key)
           if (!continuationCommand) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
@@ -145,10 +155,22 @@ export async function runTool<Credential>(
       }
     }
     try {
-      if (!adapter.prepareForCaller) reference ??= await resolver.resolve(userId, adapter.name)
+      if (!adapter.prepareForCaller) reference ??= await resolveReference(userId)
+      const writeRequested = () => {
+        const operations = [adapter.classify(args, input), ...(adapter.nestedOperations?.(args, input) ?? []),
+          ...(continuationCommand ? [{ command: continuationCommand, effect: 'write' as const }] : [])]
+        const raw = adapter.rawApi?.commands.some(command => operations[0].command === command || args.slice(0, command.split(' ').length).join(' ') === command)
+        return operations.some(operation => operation.effect === 'write' || credentialIssuingCommand(adapter.name, operation.command))
+          || !!raw && adapter.rawApi?.effect?.(args, input) === 'write'
+      }
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
         : await adapter.prepare(args, reference!, input)
-      if (readOnly) prepared.environment = { ...prepared.environment, [`${adapter.name.toUpperCase().replaceAll('-', '_')}_READ_ONLY`]: 'true' }
+      const preview = prepared.preview || prepared.effect === 'read' && !prepared.protectedResult
+      const writes = () => prepared.effect === 'write' || !!prepared.write || !prepared.invocation?.help && !preview && writeRequested()
+      if (instanceReadOnly && writes()) throw new ArtiumError('FLAG_BLOCKED')
+      if ((readOnly || instanceReadOnly) && !(adapter.name === 'vectra-axi' && preview)) {
+        prepared.environment = { ...prepared.environment, [`${adapter.name.toUpperCase().replaceAll('-', '_')}_READ_ONLY`]: 'true' }
+      }
       const kubernetesRequests = prepared.kubernetesWorkflowRoot && reference ? {
         root: prepared.kubernetesWorkflowRoot,
         scope: createHash('sha256').update(JSON.stringify({ userId, family: family(), reference })).digest('hex'),
@@ -161,7 +183,7 @@ export async function runTool<Credential>(
       const protectedResult = prepared.protectedResult?.source === 'pipe' && kubernetesRequests
         && !credentialConfirmation
         ? undefined : prepared.protectedResult
-      const recheck = () => {
+      const recheck = (beforeSpawn = false) => {
         if (authenticate === verifyAccessToken) {
           const current = verifyPrincipal(db, token)
           if (current.delegation) {
@@ -173,6 +195,11 @@ export async function runTool<Credential>(
         } else authenticate(db, token)
         checkToolPolicy(db, userId, adapter.name)
         checkRawApiPolicy(db, userId, adapter, args, input)
+        if (reference) {
+          const current = db.prepare('SELECT enabled, read_only, revision FROM credentials WHERE id = ? AND tool = ?').get(reference.id, adapter.name) as { enabled: number, read_only: number, revision: number } | undefined
+          if (!current || current.enabled !== 1 || beforeSpawn && current.revision !== reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
+          if (current.read_only === 1 && writes()) throw new ArtiumError('FLAG_BLOCKED')
+        }
       }
       if (prepared.preview || prepared.invocation?.help || !protectedResult && prepared.effect === 'read') {
         for (const command of credentialCommands) audit.record({ ...identity, event: 'credential-issue', targetId: command, outcome: 'preview' })
@@ -207,16 +234,14 @@ export async function runTool<Credential>(
             protectedPipe: protectedResult?.source === 'pipe'
               ? { ...protectedResult, receive: bytes => { privateBytes = Buffer.from(bytes) } } : undefined, ...overrides },
           { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => {
-            recheck()
+            recheck(true)
             if (prepared.beforeSpawn) {
               checkToolPolicy(db, identity.userId, adapter.name)
               prepared.beforeSpawn()
             }
             if ((kubernetesRequests || nativeScope) && reference) {
-              recheck()
+              recheck(true)
               checkToolPolicy(db, identity.userId, adapter.name)
-              const current = db.prepare('SELECT revision FROM credentials WHERE id = ? AND tool = ?').get(reference.id, adapter.name) as { revision: number } | undefined
-              if (current?.revision !== reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
             }
           }, prepared.pathPrefix)
         if (prepared.proxmox && reference && context.proxmox) {
@@ -235,10 +260,11 @@ export async function runTool<Credential>(
       if (privateBytes && reservation && reference) {
         recheck()
         checkToolPolicy(db, userId, adapter.name)
-        const current = await resolver.resolve(userId, adapter.name)
+        const current = db.prepare('SELECT revision FROM credentials WHERE id = ? AND tool = ? AND enabled = 1')
+          .get(reference.id, adapter.name) as { revision: number } | undefined
         recheck()
         checkToolPolicy(db, userId, adapter.name)
-        if (current.id !== reference.id || current.revision !== reference.revision) throw new ArtiumError('NOT_FOUND')
+        if (!current || current.revision !== reference.revision) throw new ArtiumError('NOT_FOUND')
         const json = result.stdout.trimStart().startsWith('{')
         const projection = (json ? JSON.parse(result.stdout) : decode(result.stdout)) as Record<string, unknown>
         const resultReference = reservation.commit(privateBytes)
@@ -301,6 +327,6 @@ export async function runTool<Credential>(
       nativeAuditId: result.completedMutation?.receipt.auditId ?? await journal?.auditId?.(), completedMutation: result.completedMutation,
       errorCode,
       durationMs: result.durationMs, outputBytes: result.outputBytes, failure })
-    return result
+    return { ...result, instance: reference && instance }
   })
 }

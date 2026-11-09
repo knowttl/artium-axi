@@ -12,6 +12,7 @@ import { createAwxAdapter } from '../../src/server/adapters/awx.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
+import { runnerLimits } from '../../src/server/config.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
@@ -21,9 +22,10 @@ import { copyClientInput } from '../fixtures/client-inputs.js'
 
 async function withTokenService(check: (context: {
   app: ReturnType<typeof createApp>, db: ReturnType<typeof openStore>, store: ReturnType<typeof createCredentialStore>,
+  runner: Runner,
   headers: { authorization: string }, send: (path: string, method?: string) => Promise<string>,
   run: (args: string[]) => Promise<Awaited<ReturnType<ReturnType<typeof createApp>['inject']>>>, lines: string[], directory: string,
-}) => Promise<void>) {
+}) => Promise<void>, onHeldRequest?: () => void, onRunStart?: () => void) {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
@@ -45,13 +47,13 @@ async function withTokenService(check: (context: {
     }
     const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
     const lines: string[] = []
-    const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => lines.push(line)), adapters: [adapter],
+    const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => { lines.push(line); if (JSON.parse(line).event === 'run-start') onRunStart?.() }), adapters: [adapter],
       resolver: new SharedIdentityResolver(store), credentialStore: store, environment: {} })
     const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
     const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
-    try { await check({ app, db, store, headers, send, run, lines, directory }) }
+    try { await check({ app, db, store, runner, headers, send, run, lines, directory }) }
     finally { vi.useRealTimers(); await app.close(); db.close() }
-  })
+  }, onHeldRequest)
 }
 
 test('delegated AWX credential creation requires an exact writable pick', async () => {
@@ -236,6 +238,108 @@ test.each([
     expect(disabledHelp.json()).toMatchObject({ error: { code: 'TOOL_DISABLED' } })
   })
 })
+
+test('read-only instances refuse token creation while writable instances allow it', async () => {
+  await withTokenService(async ({ app, db, store, headers, send }) => {
+    const writable = store.findCredential('awx-axi')!
+    const readonly = store.createInstance('awx-axi', { name: 'readonly', description: '' }, store.readCredential(writable), 'synthetic-development-user', Date.now())
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    const runInstance = (instance: string) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+      payload: { instance, args: ['user', 'token-create', '42', '--scope', 'read', '--confirm'] } })
+    const refused = await runInstance(readonly.name)
+    expect(refused.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
+    const allowed = await runInstance('default')
+    expect(allowed.json(), allowed.body).toMatchObject({ instance: 'default', exitCode: 0 })
+    expect((decode(allowed.json().stdout) as { result: { operation: string } }).result.operation).toBe('token-create')
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(1)
+  })
+}, 60_000)
+
+test('read-only instances allow a dry run without a mutation', async () => {
+  await withTokenService(async ({ app, db, store, headers, send }) => {
+    const reference = store.findCredential('awx-axi')!
+    store.createInstance('awx-axi', { name: 'readonly', description: '' }, store.readCredential(reference), 'synthetic-development-user', Date.now())
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+      payload: { instance: 'readonly', args: ['user', 'token-create', '42', '--scope', 'read', '--dry-run'] } })
+    expect(response.json(), response.body).toMatchObject({ instance: 'readonly', exitCode: 0 })
+    expect(decode(response.json().stdout)).toHaveProperty('dry_run')
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
+  })
+}, 60_000)
+
+test('selected instance publishes a protected result with multiple instances', async () => {
+  await withTokenService(async ({ app, db, store, headers }) => {
+    const first = store.findCredential('awx-axi')!
+    const selected = store.createInstance('awx-axi', { name: 'second', description: '' }, store.readCredential(first), 'synthetic-development-user', Date.now())
+    store.setInstanceFlags('awx-axi', selected.name, { readOnly: false }, selected.id, selected.revision, 'synthetic-development-user', Date.now())
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+      payload: { instance: 'second', args: ['user', 'token-create', '42', '--confirm'] } })
+    expect(response.json(), response.body).toMatchObject({ instance: 'second', exitCode: 0 })
+    expect(decode(response.json().stdout)).toMatchObject({ result: { operation: 'token-create' } })
+  })
+}, 60_000)
+
+test('changing the selected revision during execution prevents result publication', async () => {
+  let signalHeld!: () => void
+  const held = new Promise<void>(resolve => { signalHeld = resolve })
+  await withTokenService(async ({ app, db, store, headers, send }) => {
+    const first = store.findCredential('awx-axi')!
+    const selected = store.createInstance('awx-axi', { name: 'second', description: '' }, store.readCredential(first), 'synthetic-development-user', Date.now())
+    const writable = store.setInstanceFlags('awx-axi', selected.name, { readOnly: false }, selected.id, selected.revision, 'synthetic-development-user', Date.now())
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    await send('/__awx/hold-token?enabled=true', 'POST')
+    const pending = app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+      payload: { instance: 'second', args: ['user', 'token-create', '42', '--confirm'] } })
+    try {
+      await held
+      store.replaceInstance('awx-axi', writable.name, store.readCredential(writable), writable.id, writable.revision, 'synthetic-development-user', Date.now())
+    } finally { await send('/__awx/hold-token?enabled=false', 'POST') }
+    const response = await pending
+    expect(response.json()).toMatchObject({ error: { code: 'NOT_FOUND' } })
+    expect(response.body).not.toContain('/v1/results/')
+  }, signalHeld)
+}, 60_000)
+
+test.each(['disable', 'delete', 'replace'])('a queued run refuses a %sd instance', async action => {
+  let started!: () => void
+  const runStarted = new Promise<void>(resolve => { started = resolve })
+  await withTokenService(async ({ app, store, runner, headers, send }) => {
+    let release!: () => void
+    const gate = new Promise<void>(resolve => { release = resolve })
+    const occupied = Array.from({ length: runnerLimits.userCalls }, () => runner.runManaged('synthetic-development-user', undefined, () => gate))
+    const pending = app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args: ['job', 'list'] } })
+    try {
+      await runStarted
+      await new Promise<void>(resolve => setImmediate(resolve))
+      const instance = store.findInstance('awx-axi', 'default')!
+      if (action === 'disable') store.setInstanceFlags('awx-axi', instance.name, { enabled: false }, instance.id, instance.revision, 'synthetic-development-user', Date.now())
+      else if (action === 'delete') store.deleteInstance('awx-axi', instance.name, instance.id, instance.revision)
+      else store.replaceInstance('awx-axi', instance.name, store.readCredential(instance), instance.id, instance.revision, 'synthetic-development-user', Date.now())
+    } finally { release(); await Promise.all(occupied) }
+    const response = await pending
+    expect(response.json()).toMatchObject({ error: { code: 'CREDENTIAL_INVALID' } })
+    expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
+  }, undefined, started)
+}, 60_000)
+
+test.each([
+  ['job', 'launch'],
+  ['user', 'token-create'],
+])('read-only instances allow %s %s help', async (...command) => {
+  await withTokenService(async ({ app, db, store, headers, send }) => {
+    const reference = store.findCredential('awx-axi')!
+    const instance = store.createInstance('awx-axi', { name: 'readonly', description: '' }, store.readCredential(reference), 'synthetic-development-user', Date.now())
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+      payload: { instance: instance.name, args: [...command, '--help'] } })
+    expect(response.json(), response.body).toMatchObject({ instance: 'readonly', exitCode: 0 })
+    expect(response.json().stdout).toContain(command[1])
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
+  })
+}, 60_000)
 
 test.each(['read', 'write'])('AWX %s PAT creation delivers bytes once to the authorized caller (S10)', async scope => {
   await withTokenService(async ({ app, db, store, headers, send, run, lines, directory }) => {

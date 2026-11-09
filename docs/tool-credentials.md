@@ -103,7 +103,7 @@ See [SSH command usage](commands.md#ssh), the [capability boundary](safety.md#ss
 
 At `/admin/tools/kubernetes-axi`, enter the HTTPS cluster `origin`, `certificateAuthority` issuing CA PEM and optional default `namespace`.
 Choose token authentication and enter the token itself, or certificate authentication with `clientCertificate` PEM and its matching private key.
-Artium stores secret values encrypted and supplies private SecretRefs to the pinned tool; callers cannot select credentials or local kubeconfig files.
+Artium stores secret values encrypted and supplies private SecretRefs to the pinned tool; callers cannot supply credentials or local kubeconfig files.
 Changing the cluster origin, authentication type or client certificate requires replacement secrets.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for the Kubernetes issuing CA requirement and managed trust projection.
 Test, enable and grant the tool, then run `artium-axi kubernetes-axi get pods`.

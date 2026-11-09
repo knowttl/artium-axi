@@ -47,7 +47,7 @@ db.exec(`INSERT INTO users (id, username, display_name, password_hash) VALUES ('
   INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
   INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'mg-axi');`)
 const token = issueTestAccessToken(db, 'synthetic-user')
-const resolver = new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]))
+const resolver = new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db))
 let request = 0
 const run = (args, input = {}) => runTool(db, audit, runner, token, { args, ...input }, adapter, resolver,
   { requestId: `synthetic-graph-run-${++request}`, clientAddress: '192.0.2.1' })

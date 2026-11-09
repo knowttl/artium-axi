@@ -48,9 +48,7 @@ let lines: string[]
 const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const getCredential = vi.fn(async () => ({ clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' }))
 const adapter = createRunnerTestAdapter({ getCredential })
-const resolver = new SharedIdentityResolver(new FakeCredentialStore([
-  { reference: { id: 'synthetic-credential', tool: 'falcon-axi' }, value: {} },
-]))
+let resolver: SharedIdentityResolver
 const context = { requestId: 'synthetic-run', clientAddress: '192.0.2.1' }
 
 beforeEach(async () => {
@@ -62,6 +60,9 @@ beforeEach(async () => {
     INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
     INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
     INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'falcon-axi');`)
+  resolver = new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'synthetic-credential', tool: 'falcon-axi' }, value: {} },
+  ]).seed(db))
   token = issueTestAccessToken(db, 'synthetic-user')
   lines = []
   audit = new Audit(db, Date.now, line => { lines.push(line) })
@@ -221,7 +222,7 @@ test.each([
   ['valid', (): string => token, 'TOOL_DISABLED', 'synthetic-user'],
   ['invalid', (): string => 'CANARY-invalid-token', 'TOKEN_INVALID', null],
 ] as const)('an unconfigured supported tool records the denial for a %s token', async (_kind, requestToken, code, userId) => {
-  db.exec("DELETE FROM role_tools; DELETE FROM tools WHERE name = 'falcon-axi'")
+  db.exec("DELETE FROM role_tools; DELETE FROM credentials WHERE tool = 'falcon-axi'; DELETE FROM tools WHERE name = 'falcon-axi'")
   db.close()
   db = openStore(join(directory, 'artium.db'), provider)
   audit = new Audit(db, Date.now, line => { lines.push(line) })
@@ -292,7 +293,7 @@ test.each([
   } }
   const identities = new SharedIdentityResolver(new FakeCredentialStore([
     { reference: { id: 'synthetic-credential', tool, revision: 1 }, value: {} },
-  ]))
+  ]).seed(db))
   vi.spyOn(runner, 'run').mockResolvedValueOnce({ stdout: 'CANARY-private-output', stderr: 'Bad credentials (HTTP 401)',
     exitCode: 7, durationMs: 17.25, outputBytes: { stdout: 12, stderr: 34 }, timedOut: false,
     truncated: { stdout: truncated, stderr: false } })
@@ -318,7 +319,7 @@ test.each(['nonzero', 'output-limit'] as const)('unknown write response preserve
   } }
   const identities = new SharedIdentityResolver(new FakeCredentialStore([
     { reference: { id: 'synthetic-credential', tool, revision: 1 }, value: {} },
-  ]))
+  ]).seed(db))
   const run = vi.spyOn(runner, 'run')
   if (interruption === 'nonzero') run.mockResolvedValueOnce({ stdout: 'CANARY-private-output', stderr: '',
     exitCode: 7, durationMs: 17.25, outputBytes: { stdout: 12, stderr: 34 }, timedOut: false,
@@ -365,7 +366,7 @@ test.each([
   })
   const identities = new SharedIdentityResolver(new FakeCredentialStore([
     { reference: { id: 'synthetic-graph', tool: 'mg-axi', revision: 1 }, value: {} },
-  ]))
+  ]).seed(db))
   const args = ['mail', 'message', command, '--mailbox', 'mailbox@contoso.example',
     '--ids', 'synthetic-message', ...destination, '--execute', '--confirm', 'synthetic-message']
   const result = await runTool(db, audit, runner, token, { args }, graph, identities, context)
@@ -502,7 +503,7 @@ test.each([
   { failure: 'role revocation', code: 'TOOL_NOT_GRANTED', revoke: () => { db.exec("DELETE FROM role_tools WHERE tool = 'technitium-axi'") }, cause: { code: 'TOOL_NOT_GRANTED' } },
   { failure: 'user revocation', code: 'USER_DISABLED', revoke: () => { db.exec("UPDATE users SET disabled = 1 WHERE id = 'synthetic-user'") }, cause: { code: 'USER_DISABLED' } },
   { failure: 'credential rotation', code: 'NOT_FOUND', revoke: () => { db.exec("UPDATE credentials SET revision = revision + 1 WHERE tool = 'technitium-axi'") }, cause: { code: 'NOT_FOUND' } },
-  { failure: 'credential removal', code: 'CREDENTIAL_NOT_CONFIGURED', revoke: () => { db.exec("DELETE FROM credentials WHERE tool = 'technitium-axi'") }, cause: { code: 'CREDENTIAL_NOT_CONFIGURED' } },
+  { failure: 'credential removal', code: 'CREDENTIAL_INVALID', revoke: () => { db.exec("DELETE FROM credentials WHERE tool = 'technitium-axi'") }, cause: { code: 'CREDENTIAL_INVALID' } },
   { failure: 'reservation invalidation', code: 'NOT_FOUND', revoke: (results: ProtectedResults) => { results.clear() }, cause: { code: 'NOT_FOUND' } },
 ].flatMap(point => [{ ...point, format: 'json' }, { ...point, format: 'toon' }]))(
   'Technitium retains one safe completed outcome after $failure ($format, R4/R5/R6)', async point => {
@@ -596,6 +597,7 @@ test.each([
 ].flatMap(point => ['call', 'profile', 'profile-tmp'].map(cleanup => ({ ...point, cleanup }))))(
   '$interruption stays primary when $cleanup cleanup fails (R6/R8)', async point => {
     const store = createCredentialStore(db, provider)
+    db.exec("DELETE FROM credentials WHERE tool = 'falcon-axi'")
     store.replaceCredential('falcon-axi', {}, 0, 'synthetic-user', Date.now())
     const workflows = join(directory, 'requests')
     const execution = { ...adapter, async prepare(...input: Parameters<typeof adapter.prepare>) {
@@ -661,7 +663,7 @@ describe('AWX native write failure recovery (R1)', () => {
       args: [...fakeTool.args, 'tool-failure', code] })
     const identities = new SharedIdentityResolver(new FakeCredentialStore([
       { reference: { id: 'synthetic-awx', tool: 'awx-axi', revision: 1 }, value: {} },
-    ]))
+    ]).seed(db))
     return (args: string[]) => runTool(db, audit, runner, token, { args }, awx, identities,
       { ...context, protectedResults: new ProtectedResults() })
   }
@@ -702,7 +704,7 @@ test.each(['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT
     getSettings: () => ({ writes: { allowWrites: true, operations: ['issue comment'] } }) })
   const identities = new SharedIdentityResolver(new FakeCredentialStore([
     { reference: { id: 'synthetic-github', tool: 'gh-axi', revision: 1 }, value: {} },
-  ]))
+  ]).seed(db))
   const run = vi.spyOn(runner, 'run').mockRejectedValue(Object.assign(new RunnerError(code, 'CANARY-private-error'),
     { processStarted: true, durationMs: 17.25, outputBytes: { stdout: 12, stderr: 34 }, truncated: { stdout: true, stderr: false } }))
   const args = ['issue', 'comment', '42', '-R', 'canary/repo', '--body=CANARY-private-comment']
@@ -740,7 +742,7 @@ test.each([
   })
   const identities = new SharedIdentityResolver(new FakeCredentialStore([
     { reference: { id: 'synthetic-github', tool: 'gh-axi', revision: 1 }, value: {} },
-  ]))
+  ]).seed(db))
   const run = vi.spyOn(runner, 'run')
   const args = ['issue', 'comment', '42', '-R', 'canary/repo', '--body=CANARY-private-comment']
   const preview = await runTool(db, audit, runner, token, { args }, github, identities, context)
@@ -797,7 +799,7 @@ test.each([
   })
   const identities = new SharedIdentityResolver(new FakeCredentialStore([
     { reference: { id: 'synthetic-github', tool: 'gh-axi', revision: 1 }, value: {} },
-  ]))
+  ]).seed(db))
   const run = vi.spyOn(runner, 'run')
   const preview = await runTool(db, audit, runner, token, { args }, github, identities, context)
   const document = decode(preview.stdout) as { preview: { confirm: string } }
@@ -915,7 +917,7 @@ describe.each([
   const start = () => runTool(db, audit, runner, token, { args: ['exit', '0'] },
   executionAdapter, new SharedIdentityResolver(new FakeCredentialStore([
     { reference: { id: 'synthetic-credential', tool }, value: {} },
-  ])), context)
+  ]).seed(db)), context)
 
   test('a still-valid token executes after filesystem setup and cleans prepared files', async () => {
     const result = start()

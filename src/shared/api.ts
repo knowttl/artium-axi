@@ -706,12 +706,14 @@ export const runInputSchema = z.strictObject({
 })
 
 export const runRequestSchema = runInputSchema.extend({
+  instance: instanceNameSchema.optional(),
   args: z.array(text.refine(value => byteLength(value) <= inputLimits.argumentBytes, 'Argument exceeds byte limit')).max(inputLimits.arguments),
 })
 
 const counts = z.strictObject({ stdout: z.number().int().nonnegative(), stderr: z.number().int().nonnegative() })
 export const runSuccessSchema = z.strictObject({
   source: toolSchema,
+  instance: instanceNameSchema.optional(),
   stdout: z.string(),
   stderr: z.string(),
   exitCode: z.number().int().nonnegative(),

@@ -16,6 +16,7 @@ export interface CredentialReference {
 
 export interface CredentialStore {
   findCredential(tool: ToolName): CredentialReference | undefined
+  listInstances(tool: ToolName): CredentialInstance[]
   readCredential(reference: CredentialReference): unknown
   readToolSettings?(tool: ToolName): Record<string, unknown>
   readCredentialTrust?(reference: CredentialReference): readonly CredentialTrust[]
@@ -31,7 +32,6 @@ export interface CredentialInstance extends CredentialReference {
 
 export interface MutableCredentialStore extends CredentialStore {
   replaceCredential(tool: ToolName, value: unknown, expectedRevision: number, actor: string, now: number, expectedId?: string): CredentialReference
-  listInstances(tool: ToolName): CredentialInstance[]
   findInstance(tool: ToolName, name: string): CredentialInstance | undefined
   createInstance(tool: ToolName, details: { name: string, description: string }, value: unknown, actor: string, now: number): CredentialInstance
   replaceInstance(tool: ToolName, name: string, value: unknown, expectedId: string, expectedRevision: number, actor: string, now: number): CredentialInstance

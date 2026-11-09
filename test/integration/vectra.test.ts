@@ -37,10 +37,9 @@ test('pinned Vectra native gates, local parity, durable logs and user audit surv
     await seedToolUser(db)
     const runner = await Runner.create(join(directory, 'calls'))
     const lines: string[] = []
+    const identities = new FakeCredentialStore([{ reference: { id: 'synthetic-vectra', tool: 'vectra-axi' }, value: credential, readOnly: false }]).seed(db)
     const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => { lines.push(line) }),
-      resolver: new SharedIdentityResolver(new FakeCredentialStore([
-        { reference: { id: 'synthetic-vectra', tool: 'vectra-axi' }, value: credential },
-      ])), adapters: [adapter], environment: {} })
+      resolver: new SharedIdentityResolver(identities), adapters: [adapter], environment: {} })
     try {
       const login = await app.inject({ method: 'POST', url: '/v1/auth/login',
         payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })
@@ -62,10 +61,17 @@ test('pinned Vectra native gates, local parity, durable logs and user audit surv
       for (const file of call.files) writeFileSync(join(local, file.name), file.content, { mode: 0o600 })
       const direct = await execute(process.execPath, [binary, ...args], { cwd: local,
         env: { ...call.environment, HOME: local, PATH: process.env.PATH }, timeout: 10_000 })
+      identities.credentials[0].readOnly = true
+      db.prepare('UPDATE credentials SET read_only = 1 WHERE id = ?').run('synthetic-vectra')
       const preview = await run(args)
       expect(preview).toMatchObject({ stdout: direct.stdout, stderr: direct.stderr, exitCode: 0 })
       expect(preview.stdout).toContain('current:')
       expect((await evidence()).mutations).toBe(0)
+      const blocked = await app.inject({ method: 'POST', url: '/v1/tools/vectra-axi/run',
+        headers: { authorization: `Bearer ${token}` }, payload: { args: [...args, '--execute', '--confirm', 'detection 42'] } })
+      expect(blocked.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      identities.credentials[0].readOnly = false
+      db.prepare('UPDATE credentials SET read_only = 0 WHERE id = ?').run('synthetic-vectra')
       expect((await run([...args, '--dry-run'])).stdout).toContain('current:')
       expect((await run([...args, '--execute'])).stdout).toContain('CONFIRM_REQUIRED')
       expect((await run([...args, '--execute', '--confirm', 'detection 43'])).stdout).toContain('CONFIRM_MISMATCH')
