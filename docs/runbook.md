@@ -109,7 +109,7 @@ See [adapter limits](tool-credentials.md) and [deployment requirements](runbook.
 The [release workflow](../.github/workflows/release-please.yml) runs on pushes to `main` and uses release-please to create or update a release PR.
 Review and merge that PR to create the GitHub release and trigger publication from its tag.
 The [release configuration](../release-please-config.json) and [version manifest](../.release-please-manifest.json) own release naming and version tracking.
-The publish job installs frozen dependencies, runs `pnpm check`, then stages the client with `pnpm build:npm` and publishes `@knowttl/artium-axi` with public access and provenance.
+The publish job installs frozen dependencies, builds the project, then stages the client with `pnpm build:npm` and publishes `@knowttl/artium-axi` with public access and provenance.
 It skips publication when no release was created or the staged version already exists on npm.
 After npm publication succeeds, the release-only image job builds the same release tag's Dockerfile for Linux amd64 and publishes `ghcr.io/knowttl/artium-axi:<release-tag>`.
 It preserves the pinned upstream tools and bundled client; server deployment remains a separate operation.
@@ -148,7 +148,7 @@ Require `org.opencontainers.image.version` to match the release version without 
 Check the verified attestation's source repository and commit against that same tag and commit, rather than accepting any attestation from the repository.
 The attestation subject must match the recorded image digest; a missing or failed attestation is an incomplete release even if the image push succeeded.
 The attestation verification follows [GitHub's container verification guidance](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations).
-Retain the successful verification output and immutable image identity with the release's local container and hygiene evidence.
+Retain the successful verification output and immutable image identity with the release's container acceptance and local hygiene evidence.
 These are future owner release checks, not evidence that this change published or verified a hosted image.
 
 ## Proxy and certificate trust
