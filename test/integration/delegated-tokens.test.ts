@@ -87,6 +87,10 @@ async function mint(extra: string[] = []) {
   return result.secret
 }
 
+function addDiscoveryInstance(tool: ToolName) {
+  credentials.createInstance(tool, { name: 'synthetic', description: '' }, {}, 'synthetic-development-user', Date.now())
+}
+
 test('minting writable SSH access warns about all granted hosts and sudo', async () => {
   await app.close()
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'ssh-axi'")
@@ -219,6 +223,7 @@ test.each<{ tool: ToolName, command: string, args: string[], parse?: (text: stri
   { tool: 'gh-axi', command: 'issue list', args: ['tools', 'show', 'gh-axi', '--help'], expected: { commands: ['issue list'], example: 'artium-axi --instance <name> gh-axi ...' } },
 ])('delegated CLI discovery $args stays scoped (R14, R20)', async ({ tool, command, args, parse = decode, code = 0, expected = { commands: [command] } }) => {
   await app.close()
+  if (tool !== 'ssh-axi') addDiscoveryInstance(tool)
   db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
   const source = new EmbeddedSecretSource(credentials)
   const writeLog = join(directory, 'writes.log')
@@ -337,6 +342,7 @@ test.each<{ tool: 'proxmox-axi' | 'unifi-axi', args: string[], allowed: string, 
   { tool: 'proxmox-axi', args: ['--format=json', '--help'], allowed: 'get /version', blocked: 'create /nodes/{node}/execute', parse: JSON.parse },
 ])('$tool API discovery $args is filtered before credentials (R21)', async ({ tool, args, allowed, blocked, parse = decode }) => {
   await app.close()
+  addDiscoveryInstance(tool)
   db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
   const source = new EmbeddedSecretSource(credentials)
   const adapter = tool === 'proxmox-axi' ? createProxmoxAdapter(source) : createUnifiAdapter(source)
@@ -414,6 +420,7 @@ test.each([
   { selection: 'workspace create', args: ['session', 'start', 'exec'], code: 1, text: 'DELEGATED_SCOPE_DENIED' },
 ])('delegated hosted help respects the exact pick: $selection, $args', async ({ selection, args, code, text }) => {
   await app.close()
+  addDiscoveryInstance('kubernetes-axi')
   db.prepare("UPDATE tools SET enabled=1, native_settings=? WHERE name='kubernetes-axi'")
     .run(JSON.stringify({ allowWrites: true, sessions: { grants: { 'synthetic-development-user': ['exec'] } } }))
   const adapter = await createKubernetesAdapter(new EmbeddedSecretSource(credentials),
@@ -441,6 +448,7 @@ test.each([
     help: ['Kinds: exec. Every kind needs its explicit caller grant; mutations additionally need Allow writes.'] },
 ])('delegated hosted help only advertises permitted commands and kinds: $selection', async ({ selection, args, commands, help }) => {
   await app.close()
+  addDiscoveryInstance('kubernetes-axi')
   db.prepare("UPDATE tools SET enabled=1, native_settings=? WHERE name='kubernetes-axi'")
     .run(JSON.stringify({ allowWrites: true, sessions: { grants: { 'synthetic-development-user': ['exec'] } } }))
   const adapter = await createKubernetesAdapter(new EmbeddedSecretSource(credentials),
@@ -577,6 +585,7 @@ test('revocation aborts an in-flight delegated read', async () => {
 
 test.each(['get /version', 'create /access/users/{userid}/token/{tokenid}'])('minting preserves the exact Proxmox route %s (R1)', async command => {
   await app.close()
+  addDiscoveryInstance('proxmox-axi')
   db.exec(`UPDATE tools SET enabled = 1, native_settings = '{"hostWrites":{"allowWrites":true,"operations":[]}}' WHERE name = 'proxmox-axi'`)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-proxmox')), audit: new Audit(db),
     adapters: [createProxmoxAdapter(new EmbeddedSecretSource(credentials))], environment: {},
@@ -594,6 +603,7 @@ test.each(['get /version', 'create /access/users/{userid}/token/{tokenid}'])('mi
 
 test('managed Proxmox stream help requires the selected operation', async () => {
   await app.close()
+  addDiscoveryInstance('proxmox-axi')
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'proxmox-axi'")
   const adapter = createProxmoxAdapter(new EmbeddedSecretSource(credentials))
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-proxmox-help')), audit: new Audit(db),
@@ -620,6 +630,7 @@ test.each([
   { tool: 'gh-axi', args: ['-h'], pattern: 'repo list', allowed: 'repo list' },
 ] as const)('$tool root discovery $args remains filtered before credential access (R8)', async ({ tool, args, pattern, allowed }) => {
   await app.close()
+  addDiscoveryInstance(tool)
   db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
   const source = new EmbeddedSecretSource(credentials)
   const adapter = tool === 'az-axi' ? createAzAdapter(source, join(directory, 'writes.log')) : createGhAdapter(source)
@@ -674,6 +685,7 @@ test.each([
   const delegated = { authorization: `Bearer ${exchanged.accessToken}` }
   const run = await app.inject({ method: 'POST', url: `/v1/tools/${tool}/run`, headers: delegated, payload: { args: [...execution] } })
   expect(run.json()).toMatchObject({ error: { code: 'CREDENTIAL_NOT_CONFIGURED' } })
+  addDiscoveryInstance(tool)
   const tools = await app.inject({ url: '/v1/tools', headers: delegated })
   expect(tools.json().tools[0].commands).toContain(discovered)
 })
