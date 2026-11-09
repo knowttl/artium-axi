@@ -67,7 +67,7 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
       clientAddress: request.ip, outcome: 'success', action: 'kubernetes-workspace-' + action, targetId: id })
   function access(workspace: Workspace) {
     if (workspace.controller.signal.aborted || workspace.expiresAt <= Date.now()) throw new ArtiumError('TOKEN_EXPIRED')
-    if (kubernetesBinding(db, workspace.owner).hash !== workspace.binding) throw new ArtiumError('REVISION_CONFLICT')
+    if (kubernetesBinding(db, workspace.owner, workspace.credential.id).hash !== workspace.binding) throw new ArtiumError('REVISION_CONFLICT')
   }
   function discard(workspace: Workspace): Promise<void> {
     workspace.closing ??= (async () => {
@@ -117,7 +117,7 @@ export function registerKubernetesWorkspaces(app: FastifyInstance, db: Database.
     const owned = [...workspaces.values()].filter(entry => entry.owner.user === owner.user)
     if (workspaces.size >= runnerLimits.globalCalls || owned.length >= runnerLimits.userCalls ||
       owner.delegation && owned.filter(entry => entry.owner.delegation).length >= 2) throw new ArtiumError('TOO_MANY_CALLS')
-    const binding = kubernetesBinding(db, owner)
+    const binding = kubernetesBinding(db, owner, credential.id)
     if (binding.credential.id !== credential.id || binding.credential.revision !== credential.revision) throw new ArtiumError('REVISION_CONFLICT')
     mkdirSync(directory, { mode: 0o700 })
     const workspace: Workspace = { id, owner, credential, instance, binding: binding.hash, directory, expiresAt: Date.now() + lifetimeSeconds * 1000,

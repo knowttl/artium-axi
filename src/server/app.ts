@@ -446,7 +446,7 @@ export function createApp(options: {
     verifyPrincipal(db, token)
     checkToolPolicy(db, userId, tool)
     if (tool === 'kubernetes-axi') {
-      const { settings } = kubernetesBinding(db, { user: userId, family: familyId })
+      const { settings } = kubernetesBinding(db, { user: userId, family: familyId }, credential.id)
       if (settings.allowWrites !== true || settings.acquireCredential !== true) throw new ArtiumError('FLAG_BLOCKED')
     }
     const bytes = protectedResults.take(request.params.id, { userId, credential, operation: request.params.operation,

@@ -213,7 +213,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
         const selected = new Set((granted.all(role.id, tool.name) as { id: string }[]).map(row => row.id))
         const scope = role.allInstances ? 'All instances' : `${selected.size} of ${instances.length} instances`
         const name = 'instances-' + role.id
-        if (instances.length) sheets.push(sheet({ name, open: query.sheet === name, closeHref: accessHref(), title: `Instance access for ${role.name}`,
+        sheets.push(sheet({ name, open: query.sheet === name, closeHref: accessHref(), title: `Instance access for ${role.name}`,
           description: `Choose which ${product} instances members of this role can use.`,
           body: `<fieldset class="options"><legend class="sr-only">Instance access</legend>
             <label class="option"><input type="radio" name="scope" value="all"${role.allInstances ? ' checked' : ''}><div><strong>All instances</strong><span>Includes instances added later.</span></div></label>
@@ -223,7 +223,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
           submit: '<button class="btn btn-primary">Save access</button>',
           wrap: inner => actionForm(csrf, `/v1/admin/roles/${encodeURIComponent(role.id)}/tools/${tool.name}/instances`, 'PUT', inner,
             { consequence: `Replace ${role.name}’s ${product} instance access? Changes apply to every member on the next call.`, title: 'Save instance access', action: 'Save access' }) }))
-        return `<div class="list-row">${icon('shield')}<div class="grow"><a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a><p>${role.members} ${role.members === 1 ? 'person' : 'people'}${instances.length ? ' · ' + escape(scope) : ''}</p></div>${instances.length ? sheetLink(name, accessHref(name), 'Instances', 'btn btn-ghost btn-sm') : ''}${icon('chev')}</div>`
+        return `<div class="list-row">${icon('shield')}<div class="grow"><a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a><p>${role.members} ${role.members === 1 ? 'person' : 'people'}${instances.length ? ' · ' + escape(scope) : ''}</p></div>${sheetLink(name, accessHref(name), 'Instances', 'btn btn-ghost btn-sm')}${icon('chev')}</div>`
       }).join('')
       panel = card(`Roles that grant ${product}`, 'Enabling alone gives nobody access. Assign these roles to people on People.',
         rows || '<p class="empty">No roles grant this tool. Open a role and select this tool to give its members access.</p>',

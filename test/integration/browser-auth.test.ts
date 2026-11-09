@@ -156,6 +156,22 @@ test('tool Access offers an instance access sheet per role, open from its query 
   expect(open).toContain('action="/v1/admin/roles/synthetic-role/tools/falcon-axi/instances"')
 })
 
+test('tool Access can restore all instances after the last selected instance is deleted', async () => {
+  new FakeCredentialStore([{ reference: { id: 'synthetic-lab', tool: 'falcon-axi' }, name: 'lab', value: {} }]).seed(db)
+  db.exec("UPDATE role_tools SET all_instances = 0; INSERT INTO role_tool_instances VALUES ('synthetic-role', 'falcon-axi', 'synthetic-lab'); DELETE FROM credentials WHERE id = 'synthetic-lab'")
+  await signIn()
+  const page = await request('GET', '/admin/tools/falcon-axi?tab=access&sheet=instances-synthetic-role')
+  expect(page.body).toContain('id="sheet-instances-synthetic-role" aria-labelledby="sheet-instances-synthetic-role-title" open')
+  expect(page.body).toContain('href="/admin/tools/falcon-axi?tab=access&amp;sheet=instances-synthetic-role"')
+  expect(page.body).toContain('value="all"')
+  const csrf = await token('/admin/tools/falcon-axi?tab=access')
+  const response = await app.inject({ method: 'PUT', url: '/v1/admin/roles/synthetic-role/tools/falcon-axi/instances', headers: {
+    host: 'localhost', origin: 'http://localhost', cookie: Object.entries(cookies).map(([key, value]) => `${key}=${value}`).join('; '),
+  }, payload: { _csrf: csrf, scope: 'all', expectedRevision: 1 } })
+  expect(response.statusCode, response.body).toBe(200)
+  expect(db.prepare("SELECT all_instances FROM role_tools WHERE role_id = 'synthetic-role' AND tool = 'falcon-axi'").get()).toEqual({ all_instances: 1 })
+})
+
 test('administrators can inspect the loaded trusted CA metadata on Tools', async () => {
   await withFakeService(async ({ directory: certs }) => {
     await app.close()

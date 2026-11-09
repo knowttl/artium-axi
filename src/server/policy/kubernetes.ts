@@ -34,8 +34,8 @@ function authorizeSessionKind(settings: z.infer<typeof nativeSettingsSchemas['ku
   if (!settings.sessions?.grants[user]?.includes(operation)) throw new ArtiumError('TOOL_NOT_GRANTED')
   if (!['watch', 'logs'].includes(operation) && settings.allowWrites !== true) throw new ArtiumError('FLAG_BLOCKED')
 }
-export function kubernetesBinding(db: Database.Database, owner: KubernetesOwner, operation?: z.infer<typeof kubernetesSessionKind>) {
-  checkToolPolicy(db, owner.user, 'kubernetes-axi')
+export function kubernetesBinding(db: Database.Database, owner: KubernetesOwner, credentialId: string, operation?: z.infer<typeof kubernetesSessionKind>) {
+  checkToolPolicy(db, owner.user, 'kubernetes-axi', credentialId)
   if (!db.prepare('SELECT 1 FROM session_families WHERE id=? AND user_id=? AND revoked_at IS NULL AND expires_at>?')
     .get(owner.family, owner.user, Date.now())) throw new ArtiumError('TOKEN_INVALID')
   if (owner.delegation && (owner.delegation.expiresAt <= Date.now() || delegationPaused(db, owner.user) ||
@@ -44,7 +44,7 @@ export function kubernetesBinding(db: Database.Database, owner: KubernetesOwner,
   const tool = db.prepare("SELECT revision,native_settings FROM tools WHERE name='kubernetes-axi'").get() as { revision: number, native_settings: string }
   const settings = nativeSettingsSchemas['kubernetes-axi'].parse(JSON.parse(tool.native_settings))
   if (operation) authorizeSessionKind(settings, owner.user, operation)
-  const credential = db.prepare("SELECT id,revision FROM credentials WHERE tool='kubernetes-axi'").get() as { id: string, revision: number } | undefined
+  const credential = db.prepare("SELECT id,revision FROM credentials WHERE tool='kubernetes-axi' AND id=?").get(credentialId) as { id: string, revision: number } | undefined
   if (!credential) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
   const writing = operation !== undefined && !['watch', 'logs'].includes(operation)
   const reference = { ...credential, tool: 'kubernetes-axi' as const }

@@ -16,6 +16,7 @@ import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { createDelegation, revokeDelegation } from '../../src/server/auth/delegations.js'
 import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 import type { Adapter } from '../../src/server/adapters/types.js'
+import type { MutableCredentialStore } from '../../src/server/store/credential-store.js'
 import { Client } from '../../src/cli/http.js'
 import { kubernetesHosted } from '../../src/cli/kubernetes.js'
 
@@ -30,6 +31,7 @@ let db: Database.Database
 let app: ReturnType<typeof createApp>
 let headers: { authorization: string }
 let adapter: Adapter<unknown>
+let credentials: MutableCredentialStore
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
@@ -38,12 +40,12 @@ beforeEach(async () => {
   db = openStore(join(directory, 'data', 'artium.db'), key)
   await seedToolUser(db)
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'kubernetes-axi'")
-  const credentials = createCredentialStore(db, key)
+  credentials = createCredentialStore(db, key)
   credentials.replaceCredential('kubernetes-axi', { origin: 'https://127.0.0.1:1', auth: 'token',
     namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, 0, user, Date.now())
   adapter = await createKubernetesAdapter(new EmbeddedSecretSource(credentials), join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), join(directory, 'requests'))
   app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')),
-    resolver: new SharedIdentityResolver(credentials), adapters: [adapter], credentialStore: credentials, environment: {} })
+    resolver: new SharedIdentityResolver(credentials, db), adapters: [adapter], credentialStore: credentials, environment: {} })
   headers = { authorization: `Bearer ${issueTestAccessToken(db, user)}` }
   await app.ready()
 })
@@ -75,6 +77,22 @@ test('an authenticated caller round trips a recursive tree with exact binary has
   expect((await upload(id, 'nested/input.bin')).statusCode).toBe(400)
   expect((await app.inject({ method: 'DELETE', url: `${prefix}/${id}`, headers })).statusCode).toBe(204)
   expect((await app.inject({ url: `${prefix}/${id}/files/nested/input.bin`, headers })).statusCode).toBe(404)
+})
+
+test('workspace and session bind the instance granted to the caller', async () => {
+  const lab = credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' },
+    { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, user, Date.now())
+  db.prepare("UPDATE role_tools SET all_instances = 0 WHERE role_id = 'synthetic-role' AND tool = 'kubernetes-axi'").run()
+  db.prepare("INSERT INTO role_tool_instances VALUES ('synthetic-role', 'kubernetes-axi', ?)").run(lab.id)
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ sessions: { grants: { [user]: ['logs'] } } }))
+  const id = await create()
+  expect((await upload(id, 'nested/input.bin')).statusCode).toBe(200)
+  expect((await app.inject({ url: `${prefix}/${id}`, headers })).statusCode).toBe(200)
+  const session = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/sessions', headers,
+    payload: { kind: 'logs', argv: ['logs', 'synthetic-pod', '--follow'] } })
+  expect(session.statusCode, session.body).toBe(200)
+  expect((await app.inject({ url: `/v1/tools/kubernetes-axi/sessions/${session.json().id}`, headers })).statusCode).toBe(200)
 })
 
 test.each([
