@@ -451,7 +451,8 @@ Browser sessions use Secure, HttpOnly, SameSite=Strict cookies and expire after 
 Browser mutations require same-origin requests and CSRF tokens.
 
 Credentials are encrypted with AES-256-GCM and retrieved only after authorization and audited admission.
-Tools with shared credentials use one service identity per tool; external secret sources and per-user credentials are unsupported.
+Tools use shared credentials; external secret sources and per-user credentials are unsupported.
+See [instance administration](runbook.md#backup-restore-and-upgrade-rollback) for named instance and command execution limitations.
 SSH uses [dedicated host bindings and caller grants](safety.md#ssh-reads).
 Audit excludes injected credentials, request bodies, stdin, uploaded contents and output streams, and redacts Azure query arguments, including positional KQL.
 Failure to persist admission prevents execution; failure to persist the terminal event withholds the result.

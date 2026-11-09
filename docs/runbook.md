@@ -488,12 +488,13 @@ Shodan account checks use `info` only on an explicit **Test connection** or save
 Startup, scheduled refresh, credential replacement alone and settings or trust changes do not trigger Shodan checks.
 After configuration changes, a current cached health result requires an explicit test.
 If Shodan package verification returns `SPAWN_FAILED`, restore the pinned package through the normal deployment process rather than bypassing the [integrity check](safety.md#shodan).
-Background checks for enabled configured tools with shared credentials become due on the first 10-second tick after startup, then normally 15 minutes after each check completes.
-Reachability failures (`UPSTREAM_NETWORK_FAILED`, `TIMEOUT`, `TEMP_UNAVAILABLE`) retry early: consecutive failures wait 1, 2, 4 and 8 minutes after completion, then stay at the normal 15-minute interval.
+Background checks for enabled configured instances of enabled tools become due on the first 10-second tick after startup, then normally 15 minutes after each check completes.
+Reachability failures (`UPSTREAM_NETWORK_FAILED`, `TIMEOUT`, `TEMP_UNAVAILABLE`) retry early per instance: consecutive failures wait 1, 2, 4 and 8 minutes after completion, then stay at the normal 15-minute interval.
 Success resets the retry backoff; authentication, TLS and configuration failures use the normal interval.
 Runner admission failures also use the normal interval, except that queued checks rejected with `TOO_MANY_CALLS` stay due for a later tick.
 See [runner admission](#runner-admission) for the shared capacity and queue contract.
-Credential, native-settings, write-access and certificate-trust changes reset the backoff and request a fresh check for enabled configured tools without a manual test.
+Credential and certificate-trust changes request a fresh check for the affected enabled configured instance without a manual test.
+Native-settings and write-access changes request a fresh check when the tool has one eligible enabled credential instance.
 While that check is running or queued and no current cached result exists, tool lists and administrator health responses report `checking` instead of `unknown`, including while waiting for runner capacity.
 GitHub device connection explicitly checks the new credential identity and revision even when the tool is disabled.
 If the runner admission wait expires or another check is in flight, the credential remains saved with a revision-bound `TOO_MANY_CALLS` result and the diagnostic `Credential check pending: runner busy.`
@@ -931,16 +932,21 @@ See [delegated sessions](safety.md#delegated-sessions) for the creation switch's
 Migration 031 sets the existing [governed Raw API tools](safety.md#raw-api-access) to `read` and enables raw access on their existing role tool grants, preserving raw reads while refusing raw mutations.
 This is a one-time compatibility migration; tools and grants created afterward retain the default raw restrictions.
 During upgrade acceptance, check raw reads and mutation refusals separately from named commands; see the [administrative limitations](admin-guide.md#server-settings-and-custody).
-Migration 032 prepares the store for named credential instances; administration and command execution still use one shared service identity per tool.
+Migration 032 prepares the store for named credential instances.
 Existing credentials become `default` instances with an empty description, enabled and without the instance read-only flag, preserving their IDs, encrypted contents, revisions and update attribution.
 Saved health records become keyed by credential ID, certificate trust stays attached, and existing role tool grants default to all instances.
 The [migration](../src/server/store/migrations/032-multi-instance.sql) owns the storage constraints; the [populated-store regression](../src/server/store/multi-instance-migration.test.ts) covers upgrade preservation and reopening.
 Administrators manage named instances through `/v1/admin/tools/:tool/instances` and `/v1/admin/tools/:tool/instances/:name`: list, create, read, change enabled and read-only flags, delete, replace or save the credential, test, and manage certificates under `.../certificates`.
-Every mutation names the instance ID and revision the administrator observed and fails with `REVISION_CONFLICT` without change when either is stale, and each succeeds only for an administrator with recent confirmation and writes an audit record carrying `credential_id` and `instance`.
+Changes to an existing instance's flags or credential and deletion require the observed instance ID and revision; stale values fail with `REVISION_CONFLICT` without change.
+Creation and credential changes also require the observed tool revision; certificate operations use their own inspection and revision checks.
+Instance changes require administrator access and recent confirmation and are audited with instance attribution.
 New instances start enabled and read-only, and their description, enabled and read-only flags are edited with `PATCH .../instances/:name`.
 Until their long-lived sessions and streams are instance-aware, Proxmox, Kubernetes and Shodan refuse a second instance with `INVALID_INPUT`.
-A tool reports the worst state of its enabled instances.
-Background health checks take the enabled instances of a tool in turn, one at a time, and skip disabled instances; each instance keeps its own cached result and diagnostic.
+For an enabled configured tool, cached health selects an error if any eligible enabled instance has a current error; otherwise it uses a current result only when all eligible enabled instances have one.
+AWX instances with only an origin are excluded from this aggregation and background checks.
+Background health checks take the enabled instances of a tool one at a time and skip disabled instances; each instance keeps its own cached result and diagnostic.
+Shodan checks remain explicit, and a GitHub device connection can request a check even when the tool is disabled.
+Command execution does not select a named instance: with multiple instances, shared credential resolution fails, and the instance enabled and read-only flags do not enforce command access.
 The GitHub device-flow start and AWX origin routes accept an optional `instance` and `expectedId` to act on a named instance.
 The [API contract](../src/shared/api.ts) (`adminInstanceRoutes`) owns the input and response fields.
 The Graph and Azure re-pin preserves retained tool configuration and credentials; no administrator edit is needed to refresh the displayed versions.
