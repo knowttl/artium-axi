@@ -49,7 +49,19 @@ test.each([
     const token = exchangeDelegation(db, exact.token).accessToken
     const tools = await app.inject({ url: '/v1/tools', headers: { authorization: `Bearer ${token}` } })
     expect(tools.json().tools.find((tool: { name: string }) => tool.name === 'proxmox-axi').commands).toContain(command)
-    expect((await start(token)).statusCode).toBe(200)
+    const first = await start(token)
+    expect(first.statusCode).toBe(200)
+    await app.inject({ method: 'DELETE', url: `/v1/tools/proxmox-axi/streams/${first.json().id}`,
+      headers: { authorization: `Bearer ${token}` } })
+    store.createInstance('proxmox-axi', { name: 'lab', description: '' },
+      { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }, user, Date.now())
+    const other = command.includes('agent/file-read') ? 'transfer get /nodes/{node}/storage/{storage}/file-restore/download'
+      : 'transfer get /nodes/{node}/qemu/{vmid}/agent/file-read'
+    const split = createDelegation(db, user, { label: 'Split', scope: { tools: [
+      { tool: 'proxmox-axi', commands: [command], instances: ['lab'] },
+      { tool: 'proxmox-axi', commands: [other], instances: ['default'] },
+    ] }, readOnly: false, reusable: true, expiresAt: Date.now() + 60000 }, [adapter])
+    expect((await start(exchangeDelegation(db, split.token).accessToken)).statusCode).toBe(200)
   } finally { await app.close(); db.close(); rmSync(directory, { recursive: true, force: true }) }
 })
 

@@ -8,7 +8,7 @@ import type { Adapter, PreparedCall } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
 import type { Audit, AuditEvent } from '../audit/audit.js'
 import { verifyAccessFamily, verifyAccessToken, verifyPrincipal } from '../auth/tokens.js'
-import { authorizeDelegatedCall, authorizeDelegatedOperation, credentialIssuingCommand, delegatedDiscovery, delegatedDiscoveryRequest, delegationIncludesTool } from '../auth/delegations.js'
+import { authorizeDelegatedCall, authorizeDelegatedOperation, credentialIssuingCommand, delegatedDiscovery, delegatedDiscoveryRequest, delegatedInstanceIds, delegationIncludesTool } from '../auth/delegations.js'
 import type { CredentialReference } from '../store/credential-store.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkRawApiPolicy, checkToolPolicy } from '../policy/policy.js'
@@ -57,8 +57,8 @@ export async function runTool<Credential>(
     let continuationCommand: string | undefined
     let args: string[]
     let instance: string | undefined
-    const resolveReference = async (userId: string) => {
-      const selected = await resolver.resolveForRun(userId, adapter.name, instance)
+    const resolveReference = async (userId: string, delegation: { scopeJson: string } | null | undefined, command?: string) => {
+      const selected = await resolver.resolveForRun(userId, adapter.name, instance, delegation, command)
       instanceReadOnly = selected.readOnly
       instance = (db.prepare('SELECT name FROM credentials WHERE id = ?').get(selected.reference.id) as { name: string } | undefined)?.name
       return selected.reference
@@ -92,13 +92,15 @@ export async function runTool<Credential>(
       if (/artd_[A-Za-z0-9_-]{43}/.test(JSON.stringify({ args, stdin: input.stdin, names: input.files?.map(file => file.name) }))
         || input.files?.some(file => /artd_[A-Za-z0-9_-]{43}/.test(Buffer.from(file.contentBase64, 'base64').toString('latin1')))) throw new ArtiumError('INVALID_INPUT')
       if (principal?.delegation && delegatedDiscoveryRequest(adapter, args, input)) {
-        const discovery = delegatedDiscovery(db, userId, principal.delegation, [adapter])[0]
-        if (!discovery) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
+        if (!delegationIncludesTool(principal.delegation.scopeJson, adapter.name)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         adapter.validateArgs(args.length ? args : ['--help'], input)
         validateFileInput(adapter.name, args, input)
-        if (!adapter.prepareForCaller && (instance !== undefined || resolver.hasInstances(adapter.name))) reference = await resolveReference(userId)
+        if (!adapter.prepareForCaller && (instance !== undefined || resolver.hasInstances(adapter.name))) reference = await resolveReference(userId, principal?.delegation)
+        const discovery = delegatedDiscovery(db, userId, principal.delegation, [adapter], resolver)[0]
+        if (!discovery && (resolver.hasInstances(adapter.name) || delegatedInstanceIds(principal.delegation, adapter.name) !== undefined ||
+          !delegatedDiscovery(db, userId, principal.delegation, [adapter])[0])) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         const json = args.includes('--json') || args.includes('--format=json') || args.some((arg, index) => arg === '--format' && args[index + 1] === 'json')
-        const stdout = (json ? JSON.stringify : encode)({ tool: adapter.name, commands: discovery.commands }) + '\n'
+        const stdout = (json ? JSON.stringify : encode)({ tool: adapter.name, commands: discovery?.commands ?? [] }) + '\n'
         return { instance: reference && instance, stdout, stderr: '', exitCode: 0, durationMs: Date.now() - started,
           outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false, truncated: { stdout: false, stderr: false } }
       }
@@ -106,25 +108,28 @@ export async function runTool<Credential>(
       validateFileInput(adapter.name, args, input)
       checkRawApiPolicy(db, userId, adapter, args, input)
       continuation = adapter.kubernetesContinuation?.(args, input)
+      let selectionCommand: string | undefined
       if (principal?.delegation) {
         if (continuation && !continuation.help) {
           if (readOnly || !delegationIncludesTool(principal.delegation.scopeJson, adapter.name)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
           if (!continuation.root) throw new ArtiumError('TEMP_UNAVAILABLE')
-          reference = await resolveReference(userId)
+          reference = await resolveReference(userId, principal?.delegation)
           const scope = createHash('sha256').update(JSON.stringify({ userId, family: familyId ?? verifyAccessFamily(db, token), reference })).digest('hex')
           continuationCommand = await kubernetesRequestCommand(continuation.root, scope, continuation.key)
           if (!continuationCommand) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
         }
-        const operations = authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand)
+        const operations = authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand, undefined, resolver)
+        selectionCommand = operations[0]?.command
         credentialCommands = [...new Set(operations.filter(operation => credentialIssuingCommand(adapter.name, operation.command)).map(operation => operation.command))]
       }
       if (!adapter.prepareForCaller && !reference) {
-        try { reference = await resolveReference(userId) }
+        try { reference = await resolveReference(userId, principal?.delegation, selectionCommand) }
         catch (error) {
           const named = instance === undefined ? undefined : db.prepare('SELECT id, name FROM credentials WHERE tool = ? AND name = ?').get(adapter.name, instance) as { id: string, name: string } | undefined
           resolutionFailure = { error, credentialId: named?.id, instance: named?.name }
         }
       }
+      if (principal?.delegation && reference) authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand, reference.id, resolver)
     } catch (error) {
       recordApiDecision('refused')
       const requested = request && typeof request === 'object' && 'instance' in request && typeof request.instance === 'string' ? request.instance : undefined
@@ -203,9 +208,9 @@ export async function runTool<Credential>(
         if (authenticate === verifyAccessToken) {
           const current = verifyPrincipal(db, token)
           if (current.delegation) {
-            authorizeDelegatedCall(db, current.userId, current.delegation, adapter, args, input, continuationCommand)
+            authorizeDelegatedCall(db, current.userId, current.delegation, adapter, args, input, continuationCommand, reference?.id, resolver)
             if (adapter.name === 'proxmox-axi' && protectedResult) {
-              authorizeDelegatedOperation(db, current.userId, current.delegation, adapter, { command: 'result take', effect: 'write' })
+              authorizeDelegatedOperation(db, current.userId, current.delegation, adapter, { command: 'result take', effect: 'write' }, reference?.id)
             }
           }
         } else authenticate(db, token)

@@ -19,11 +19,11 @@ export function kubernetesOwner(db: Database.Database, request: Pick<FastifyRequ
   checkToolPolicy(db, user, 'kubernetes-axi')
   return { user, family, ...(delegation ? { delegation } : {}) }
 }
-export function authorizeKubernetesOwner(db: Database.Database, owner: { user: string, delegation?: { scopeJson: string, readOnly: boolean } }, adapter: Adapter<unknown>, command: string) {
+export function authorizeKubernetesOwner(db: Database.Database, owner: { user: string, delegation?: { scopeJson: string, readOnly: boolean } }, adapter: Adapter<unknown>, command: string, instanceId?: string) {
   checkToolPolicy(db, owner.user, 'kubernetes-axi')
   const route = kubernetesHostedRoutes.find(route => route.command === command)
   if (!route) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
-  if (owner.delegation) checkDelegation(owner.delegation.scopeJson, owner.delegation.readOnly, adapter, command, route.effect === 'read' ? 'read' : 'write')
+  if (owner.delegation) checkDelegation(owner.delegation.scopeJson, owner.delegation.readOnly, adapter, command, route.effect === 'read' ? 'read' : 'write', false, instanceId)
   if (command.startsWith('session start ')) {
     const operation = kubernetesSessionKind.parse(command.slice('session start '.length))
     const row = db.prepare("SELECT native_settings FROM tools WHERE name='kubernetes-axi'").get() as { native_settings: string }

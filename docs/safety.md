@@ -80,7 +80,14 @@ Disabling minting stops new tokens without invalidating previously issued tokens
 Use Revoke all to end access for existing tokens and their sessions.
 See [delegated token usage](client-reference.md#delegated-tokens) for CLI sign-in and token management.
 Delegated tool execution follows the token's tool and command scope and the creator's current grants, with existing administrator write gates, upstream permissions and confirmation requirements still enforced.
-Tool lists, generated help and skills include only commands permitted by the token, the creator's current grants, tool enablement, delegated read-only restriction and administrator Allow writes switch.
+Each shared-credential tool-wide or command selection may name instances.
+The API takes instance names and the server stores instance ids at minting, so a shared-credential token selection scoped to one instance cannot reach another instance, or a later instance re-created under the same name.
+Matching selections add together, so a tool-wide grant can permit a command on instances beyond those named by an exact selection.
+Command authorization and bound-instance checks also require the creator's current instance grants.
+SSH uses the separate [host-grant boundary](#ssh-reads).
+When the command or operation is known during instance selection, delegated calls select from the instances permitted by that command or operation.
+Kubernetes session lists include only sessions on instances permitted by the `session list` selection.
+Tool lists, generated help and skills include only commands permitted by the token, the creator's current usable instances and grants, tool enablement, delegated read-only restriction and administrator Allow writes switch.
 Tools with no permitted commands are omitted, and tool lists report the effective read-only state.
 GitHub and Proxmox stream discovery also reflect their administrator operation allow-lists.
 For ordinary tool commands, other adapter-internal operation allow-lists, including UniFi, Falcon, Gitea, Technitium, ordinary Proxmox JSON operations and Kubernetes credential acquisition, remain execution safeguards; reflecting them in discovery is a follow-up.

@@ -70,7 +70,7 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
   function access(entry: Entry) {
     const scope = entry.reservation.scope
     checkTransferAccess(db, { userId: scope.userId, sessionFamilyId: scope.sessionFamilyId,
-      reauthenticatedAt: Date.now() }, scope.selection.operation)
+      reauthenticatedAt: Date.now() }, scope.selection.operation, Date.now(), entry.credential.id)
     checkToolPolicy(db, scope.userId, entry.credential.tool, entry.credential.id)
     if (entry.executing && (db.prepare('SELECT read_only FROM credentials WHERE id = ? AND tool = ?').get(entry.credential.id, entry.credential.tool) as { read_only: number } | undefined)?.read_only) throw new ArtiumError('FLAG_BLOCKED')
     if (revision(entry.credential) !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
@@ -147,7 +147,8 @@ export function registerTransfers(app: FastifyInstance, db: Database.Database, a
           const { instance, ...input } = transferPrepareRequestSchema.parse(parsed.data)
           const owner = ownerFor(request)
           checkTransferAccess(db, owner, input.selection.operation)
-          const credential = await resolver.resolve(owner.userId, tool, instance)
+          const credential = await resolver.resolve(owner.userId, tool, instance, verifyPrincipal(db, tokenFor(request)).delegation, input.selection.operation)
+          checkTransferAccess(db, owner, input.selection.operation, Date.now(), credential.id)
           checkToolPolicy(db, owner.userId, tool, credential.id)
           const identity = { credentialId: credential.id,
             instance: (db.prepare('SELECT name FROM credentials WHERE id = ?').get(credential.id) as { name: string }).name }

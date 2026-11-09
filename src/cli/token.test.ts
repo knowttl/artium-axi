@@ -10,3 +10,11 @@ test.each([
   await expect(tokenCommand(['create', '--label', 'Synthetic', '--expires', '2030-01-01T00:00:00Z', ...selections], () => undefined))
     .rejects.toMatchObject({ code: 'INVALID_INPUT', message: 'Wildcards are not supported yet.', next: 'Select exact commands or use --tool for tool-wide access.' })
 })
+
+test.each([
+  { selections: ['--tool', 'gitea-axi', '--instance', 'lab'] },
+  { selections: ['--tool', 'gitea-axi', '--instance', 'falcon-axi:lab'] },
+])('instance picks need the tool:name form and a selected tool: $selections', async ({ selections }) => {
+  await expect(tokenCommand(['create', '--label', 'Synthetic', '--expires', '2030-01-01T00:00:00Z', ...selections], () => undefined))
+    .rejects.toMatchObject({ code: 'INVALID_INPUT' })
+})

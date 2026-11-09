@@ -152,6 +152,31 @@ test('ordinary users can create temporary tokens after recent authentication exp
   `)
 })
 
+test('token creation applies tool instances to all selections', () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi');
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=enabled][value=false]');
+    await page.open(base + '/account');
+    await page.fill('form[data-create-token] [name=label]', 'Split token');
+    await page.click('[data-token-tool="falcon-axi"]');
+    await page.click('[data-token-instance="falcon-axi"][value="lab"]');
+    await page.click('[data-token-command="falcon-axi"][value="detection list"]');
+    await page.click('[data-token-command="falcon-axi"][value="detection show"]');
+    await page.click('form[data-create-token] button');
+    await page.wait('#created-token[open]');
+    await page.click('[data-close-created-token]');
+    await page.wait('form[data-create-token]');
+    check(await page.eval(() => {
+      const row = [...document.querySelectorAll('tr')].find(item => item.innerText.includes('Split token'));
+      const items = [...row.querySelectorAll('li')];
+      return items.length === 2 && items.every(item => item.innerText.includes('lab')) &&
+        items.some(item => item.innerText.includes('detection list') && item.innerText.includes('detection show'));
+    }), 'Tool instance scope was not retained for every selection');
+  `)
+})
+
 test('People role links and stretched person and tool rows keep independent pointer targets', () => {
   browser(`
     check(await page.eval(() => {

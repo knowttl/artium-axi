@@ -123,6 +123,30 @@ test('creation selects a named instance when multiple instances are granted', as
   expect((await app.inject({ url: `/v1/tools/kubernetes-axi/sessions/${otherSession.json().id}`, headers })).statusCode).toBe(200)
 })
 
+test('delegated creation and listing use each command instance scope', async () => {
+  credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' },
+    { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, user, Date.now())
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ sessions: { grants: { [user]: ['logs', 'watch'] } } }))
+  const grant = createDelegation(db, user, { label: 'Split', scope: { tools: [
+    { tool: 'kubernetes-axi', commands: ['workspace create', 'session start logs'], instances: ['lab'] },
+    { tool: 'kubernetes-axi', commands: ['session start watch', 'session list'], instances: ['default'] },
+  ] }, readOnly: false, reusable: true, expiresAt: Date.now() + 60000 }, [adapter])
+  const delegatedHeaders = { authorization: `Bearer ${exchangeDelegation(db, grant.token).accessToken}` }
+  const workspace = await app.inject({ method: 'POST', url: prefix, headers: delegatedHeaders, payload: { files: [descriptor('input')] } })
+  expect(workspace.statusCode, workspace.body).toBe(200)
+  const path = '/v1/tools/kubernetes-axi/sessions'
+  const lab = await app.inject({ method: 'POST', url: path, headers: delegatedHeaders,
+    payload: { kind: 'logs', argv: ['logs', 'synthetic-pod', '--follow'] } })
+  const production = await app.inject({ method: 'POST', url: path, headers: delegatedHeaders,
+    payload: { kind: 'watch', argv: ['get', 'pods', '--watch-only'] } })
+  expect([lab.statusCode, production.statusCode], lab.body + production.body).toEqual([200, 200])
+  expect([lab.json().instance, production.json().instance]).toEqual(['lab', 'default'])
+  const listed = await app.inject({ url: path, headers: delegatedHeaders })
+  expect(listed.json().count).toBe(1)
+  expect(listed.json().sessions.map((session: { id: string }) => session.id)).toEqual([production.json().id])
+})
+
 test('session recovery identifies the instance for each session', async () => {
   credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' },
     { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, user, Date.now())
@@ -303,6 +327,37 @@ function delegated(commands?: string[], readOnly = false) {
   const session = exchangeDelegation(db, grant.token)
   return { id: grant.id, session, headers: { authorization: `Bearer ${session.accessToken}` } }
 }
+
+test('delegated workflow continuations report the instances of permitted mutations', async () => {
+  const lab = credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' },
+    { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, user, Date.now())
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'").run(JSON.stringify({ allowWrites: true }))
+  const grant = createDelegation(db, user, { label: 'Synthetic', scope: { tools: [
+    { tool: 'kubernetes-axi', commands: ['apply'], instances: ['lab'] },
+    { tool: 'kubernetes-axi', commands: ['create configmap'], instances: ['default'] },
+  ] }, readOnly: false, reusable: true, expiresAt: Date.now() + 60000 }, [adapter])
+  const token = exchangeDelegation(db, grant.token).accessToken
+  const unscoped = createDelegation(db, user, { label: 'Unscoped', scope: { tools: [
+    { tool: 'kubernetes-axi', commands: ['apply'] },
+  ] }, readOnly: false, reusable: true, expiresAt: Date.now() + 60000 }, [adapter])
+  const unscopedToken = exchangeDelegation(db, unscoped.token).accessToken
+  const me = async () => (await app.inject({ url: '/v1/me', headers: { authorization: `Bearer ${token}` } })).json().delegation.scope.tools
+  const continuationInstances = (tools: { commands: string[], instances?: string[] }[], command: string) =>
+    tools.find(tool => tool.commands.includes(command))?.instances?.slice().sort()
+  let tools = await me()
+  expect(continuationInstances(tools, 'preview')).toEqual(['default', 'lab'])
+  expect(continuationInstances(tools, 'confirm')).toEqual(['default', 'lab'])
+  expect(continuationInstances(tools, 'prepare -- apply')).toEqual(['lab'])
+  db.prepare("UPDATE role_tools SET all_instances = 0 WHERE role_id = 'synthetic-role' AND tool = 'kubernetes-axi'").run()
+  db.prepare("INSERT INTO role_tool_instances VALUES ('synthetic-role', 'kubernetes-axi', ?)").run(lab.id)
+  tools = await me()
+  expect(continuationInstances(tools, 'preview')).toEqual(['lab'])
+  expect(continuationInstances(tools, 'confirm')).toEqual(['lab'])
+  const unscopedTools = (await app.inject({ url: '/v1/me', headers: { authorization: `Bearer ${unscopedToken}` } })).json().delegation.scope.tools
+  expect(continuationInstances(unscopedTools, 'prepare -- apply')).toEqual(['lab'])
+  expect(continuationInstances(unscopedTools, 'preview')).toEqual(['lab'])
+  expect(continuationInstances(unscopedTools, 'confirm')).toEqual(['lab'])
+})
 
 test('an exact workspace create grant completes CLI creation and cleanup without show or delete', async () => {
   const grant = delegated(['workspace create'])
