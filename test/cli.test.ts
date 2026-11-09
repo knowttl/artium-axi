@@ -680,8 +680,15 @@ test('a server that rejects the instance field is refused with an upgrade next s
   requests = []
   response = { status: 400, body: errorResponse(new ArtiumError('INVALID_INPUT'), 'synthetic-older-server') }
   expect(await cli(['--instance', 'pve-lab', 'mg-axi', 'entra', 'user', 'list'])).toMatchObject({ code: 2, stderr: '',
-    stdout: 'error:\n  code: "INVALID_INPUT"\n  source: "artium-axi"\n  message: "The server does not accept --instance."\n'
-      + '  next: "Upgrade the server to a version that supports named tool instances."\n  requestId: "synthetic-older-server"\n' })
+    stdout: 'error:\n  code: "INVALID_INPUT"\n  source: "artium-axi"\n  message: "The request input is invalid."\n'
+      + '  next: "Check the request fields and content type. If the server does not support --instance, upgrade it to a version that supports named tool instances."\n  requestId: "synthetic-older-server"\n' })
+})
+
+test('an instance run preserves a specific server input diagnostic', async () => {
+  response = { status: 400, body: errorResponse(new ArtiumError('INVALID_INPUT', 'Unexpected positional argument.', 'Remove the extra argument.'), 'synthetic-input') }
+  expect(await cli(['--instance', 'pve-lab', 'mg-axi', 'unexpected'])).toMatchObject({ code: 2, stderr: '',
+    stdout: 'error:\n  code: "INVALID_INPUT"\n  source: "artium-axi"\n  message: "Unexpected positional argument."\n'
+      + '  next: "Remove the extra argument. If the server does not support --instance, upgrade it to a version that supports named tool instances."\n  requestId: "synthetic-input"\n' })
 })
 
 test.each([

@@ -42,10 +42,9 @@ function output(stream: 'stdout' | 'stderr', text: string) {
   else process[stream].write(text)
 }
 
-function olderServerRefusal(error: unknown, instance: string | undefined): unknown {
+function instanceErrorAdvice(error: unknown, instance: string | undefined): unknown {
   if (instance === undefined || !(error instanceof ArtiumError) || error.code !== 'INVALID_INPUT') return error
-  return new ArtiumError('INVALID_INPUT', 'The server does not accept --instance.',
-    'Upgrade the server to a version that supports named tool instances.', error.requestId)
+  return Object.assign(error, { next: `${error.next} If the server does not support --instance, upgrade it to a version that supports named tool instances.` })
 }
 
 async function main(args: string[]) {
@@ -150,7 +149,7 @@ async function main(args: string[]) {
             return
           }
           const response = await client.authenticated(`/v1/tools/${name}/run`, 'POST', { args: args.slice(1), ...(instance === undefined ? {} : { instance }) })
-            .catch(error => { throw olderServerRefusal(error, instance) })
+            .catch(error => { throw instanceErrorAdvice(error, instance) })
           const parsed = runSuccessSchema.safeParse(response)
           if (!parsed.success || parsed.data.source !== name) throw new ArtiumError('INVALID_RESPONSE')
           const { truncated } = parsed.data
@@ -296,7 +295,7 @@ async function main(args: string[]) {
     client.authenticated(home || whoami ? '/v1/me' : `/v1/tools${listing ? '' : `/${command}/run`}`, home || listing || whoami ? 'GET' : 'POST', input, homeSession),
     home ? client.authenticated('/v1/tools', 'GET', undefined, homeSession) : undefined,
   ])).map(response => {
-    if (response.status === 'rejected') throw olderServerRefusal(response.reason, instance)
+    if (response.status === 'rejected') throw instanceErrorAdvice(response.reason, instance)
     return response.value
   })
   if (home || whoami) {
