@@ -66,7 +66,7 @@ test('create refuses a name already used by the same tool but allows it on anoth
 test('replace changes only the named instance secret and revision and invalidates the old reference', () => {
   const lab = create('lab')
   const production = create('production')
-  const replaced = store.replaceInstance('falcon-axi', 'lab', { secret: 'CANARY-replaced' }, 1, 'synthetic-user', 2000)
+  const replaced = store.replaceInstance('falcon-axi', 'lab', { secret: 'CANARY-replaced' }, lab.id, 1, 'synthetic-user', 2000)
   expect(replaced).toEqual({ ...lab, revision: 2 })
   expect(store.readCredential(replaced)).toEqual({ secret: 'CANARY-replaced' })
   expect(store.readCredential(lab)).toBeUndefined()
@@ -75,15 +75,28 @@ test('replace changes only the named instance secret and revision and invalidate
 })
 
 test.each([
-  ['replace', (revision: number, name: string) => store.replaceInstance('falcon-axi', name, {}, revision, 'synthetic-user', 2000)],
-  ['set flags', (revision: number, name: string) => store.setInstanceFlags('falcon-axi', name, { enabled: false }, revision, 'synthetic-user', 2000)],
-  ['delete', (revision: number, name: string) => store.deleteInstance('falcon-axi', name, revision)],
+  ['replace', (id: string, revision: number, name: string) => store.replaceInstance('falcon-axi', name, {}, id, revision, 'synthetic-user', 2000)],
+  ['set flags', (id: string, revision: number, name: string) => store.setInstanceFlags('falcon-axi', name, { enabled: false }, id, revision, 'synthetic-user', 2000)],
+  ['delete', (id: string, revision: number, name: string) => store.deleteInstance('falcon-axi', name, id, revision)],
 ])('%s refuses a stale revision or a missing instance and changes nothing', (_label, act) => {
   const lab = create('lab')
-  expect(() => act(2, 'lab')).toThrow(expect.objectContaining({ code: 'REVISION_CONFLICT' }))
-  expect(() => act(1, 'missing')).toThrow(expect.objectContaining({ code: 'REVISION_CONFLICT' }))
+  expect(() => act(lab.id, 2, 'lab')).toThrow(expect.objectContaining({ code: 'REVISION_CONFLICT' }))
+  expect(() => act(lab.id, 1, 'missing')).toThrow(expect.objectContaining({ code: 'REVISION_CONFLICT' }))
   expect(store.listInstances('falcon-axi')).toEqual([lab])
   expect(store.readCredential(lab)).toEqual({ secret: 'CANARY-lab' })
+})
+
+test.each([
+  ['replace', (id: string) => store.replaceInstance('falcon-axi', 'lab', { secret: 'CANARY-stale' }, id, 1, 'synthetic-user', 2000)],
+  ['set flags', (id: string) => store.setInstanceFlags('falcon-axi', 'lab', { enabled: false }, id, 1, 'synthetic-user', 2000)],
+  ['delete', (id: string) => store.deleteInstance('falcon-axi', 'lab', id, 1)],
+])('%s refuses a reference to a deleted instance', (_label, act) => {
+  const original = create('lab')
+  store.deleteInstance('falcon-axi', 'lab', original.id, original.revision)
+  const replacement = create('lab', 'CANARY-new')
+  expect(() => act(original.id)).toThrow(expect.objectContaining({ code: 'REVISION_CONFLICT' }))
+  expect(store.findInstance('falcon-axi', 'lab')).toEqual(replacement)
+  expect(store.readCredential(replacement)).toEqual({ secret: 'CANARY-new' })
 })
 
 test.each([
@@ -94,7 +107,7 @@ test.each([
 ])('set flags %j changes only the given flags and bumps the revision', (flags, expected) => {
   const lab = create('lab')
   const production = create('production')
-  expect(store.setInstanceFlags('falcon-axi', 'lab', flags, 1, 'synthetic-user', 2000)).toEqual({ ...lab, ...expected, revision: 2 })
+  expect(store.setInstanceFlags('falcon-axi', 'lab', flags, lab.id, 1, 'synthetic-user', 2000)).toEqual({ ...lab, ...expected, revision: 2 })
   expect(store.readCredential(lab)).toBeUndefined()
   expect(store.findInstance('falcon-axi', 'production')).toEqual(production)
 })
@@ -105,7 +118,7 @@ test('delete removes the instance with its health and certificate trust and leav
   db.exec(`INSERT INTO tool_health (credential_id, tool, credential_revision, checked_at, status) VALUES ('${lab.id}', 'falcon-axi', 1, 2000, 'ok');
     INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by)
       VALUES ('synthetic-trust', '${lab.id}', 'https://synthetic.invalid', 'ca-fingerprint', 'leaf-fingerprint', 'ca-pem', 'leaf-pem', 'ca', 1000, 'synthetic-user')`)
-  store.deleteInstance('falcon-axi', 'lab', 1)
+  store.deleteInstance('falcon-axi', 'lab', lab.id, 1)
   expect(store.listInstances('falcon-axi')).toEqual([production])
   expect(db.prepare('SELECT count(*) AS count FROM tool_health').get()).toEqual({ count: 0 })
   expect(db.prepare('SELECT count(*) AS count FROM trusted_certificates').get()).toEqual({ count: 0 })

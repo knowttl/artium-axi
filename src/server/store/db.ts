@@ -71,9 +71,9 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
     const row = db.prepare(`${instanceSelect} WHERE tool = ? AND name = ?`).get(tool, name) as InstanceRow | undefined
     return row && toInstance(row)
   }
-  const requireInstance = (tool: ToolName, name: string, expectedRevision: number) => {
+  const requireInstance = (tool: ToolName, name: string, expectedId: string, expectedRevision: number) => {
     const current = findInstance(tool, name)
-    if (current?.revision !== expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+    if (current?.id !== expectedId || current.revision !== expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
     return current
   }
   return {
@@ -134,8 +134,8 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
       } finally { plaintext.fill(0) }
       return findInstance(tool, name)!
     },
-    replaceInstance(tool, name, value, expectedRevision, actor, now) {
-      const current = requireInstance(tool, name, expectedRevision)
+    replaceInstance(tool, name, value, expectedId, expectedRevision, actor, now) {
+      const current = requireInstance(tool, name, expectedId, expectedRevision)
       const plaintext = Buffer.from(JSON.stringify(value))
       try {
         db.prepare(`UPDATE credentials SET schema_version = @schema_version, key_id = @key_id, nonce = @nonce, ciphertext = @ciphertext,
@@ -144,11 +144,11 @@ export function createCredentialStore(db: Database.Database, provider: KeyProvid
       } finally { plaintext.fill(0) }
       return findInstance(tool, name)!
     },
-    deleteInstance(tool, name, expectedRevision) {
-      db.prepare('DELETE FROM credentials WHERE id = ?').run(requireInstance(tool, name, expectedRevision).id)
+    deleteInstance(tool, name, expectedId, expectedRevision) {
+      db.prepare('DELETE FROM credentials WHERE id = ?').run(requireInstance(tool, name, expectedId, expectedRevision).id)
     },
-    setInstanceFlags(tool, name, flags, expectedRevision, actor, now) {
-      const current = requireInstance(tool, name, expectedRevision)
+    setInstanceFlags(tool, name, flags, expectedId, expectedRevision, actor, now) {
+      const current = requireInstance(tool, name, expectedId, expectedRevision)
       db.prepare(`UPDATE credentials SET enabled = COALESCE(@enabled, enabled), read_only = COALESCE(@readOnly, read_only),
         revision = revision + 1, updated_at = @now, updated_by = @actor WHERE id = @id`)
         .run({ id: current.id, enabled: flags.enabled === undefined ? null : Number(flags.enabled), readOnly: flags.readOnly === undefined ? null : Number(flags.readOnly), now, actor })
