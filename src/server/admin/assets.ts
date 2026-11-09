@@ -161,6 +161,7 @@ if (operationFilter) {
   };
   document.querySelector('[data-ops-filter]').addEventListener('input', filterOperations);
   operationFilter.addEventListener('submit', event => { event.preventDefault(); filterOperations(); });
+  for (const operation of document.querySelectorAll('[data-op] input')) operation.addEventListener('change', filterOperations);
   for (const actions of document.querySelectorAll('[data-ops-actions]')) actions.hidden = false;
   for (const control of document.querySelectorAll('[data-ops-select]')) {
     control.addEventListener('click', () => {
@@ -169,6 +170,7 @@ if (operationFilter) {
       for (const operation of scope.querySelectorAll('[data-op]:not([hidden])')) {
         operation.querySelector('input').checked = select;
       }
+      filterOperations();
     });
   }
 }

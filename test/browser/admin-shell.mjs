@@ -1301,7 +1301,7 @@ for (const tool of ['gitea-axi', 'unifi-axi']) test(tool + ' group controls sele
     const state = () => page.eval(() => {
       const group = document.querySelector('[data-ops-group]:has([data-delete])');
       const operations = [...group.querySelectorAll('[data-op]')];
-      return { total: operations.length, checked: operations.filter(operation => operation.querySelector('input').checked).length,
+      return { total: operations.length, visible: operations.filter(operation => !operation.hidden).length, checked: operations.filter(operation => operation.querySelector('input').checked).length,
         deletes: operations.filter(operation => operation.hasAttribute('data-delete')).length,
         deletesChecked: operations.filter(operation => operation.hasAttribute('data-delete') && operation.querySelector('input').checked).length,
         hiddenChecked: operations.filter(operation => operation.hidden && operation.querySelector('input').checked).length,
@@ -1324,6 +1324,17 @@ for (const tool of ['gitea-axi', 'unifi-axi']) test(tool + ' group controls sele
     await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=all]');
     check((await state()).checked === all.checked, 'Select all must select the shown operation');
     check(none.checked === 0, 'Unexpected initial selection');
+    await page.eval(() => {
+      const input = document.querySelector('[name=q]');
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.click('label:has([name=show][value=selected])');
+    await page.click('[data-ops-group]:has([data-delete]) [data-op]:not([hidden]) input');
+    const individualClear = await state();
+    check(individualClear.checked === all.checked - 1 && individualClear.visible === individualClear.checked, 'Unchecked operation remains visible in Selected view');
+    await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=none]');
+    check(await page.eval(() => document.querySelector('[data-ops-empty]').hidden === false && !document.querySelector('[data-ops-group]:not([hidden])')), 'Cleared operations remain visible in Selected view');
   `)
 })
 
