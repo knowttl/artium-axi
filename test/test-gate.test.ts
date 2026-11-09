@@ -53,6 +53,11 @@ beforeEach(() => {
     write(`test/integration/${name}.test.ts`, 'export {}\n')
   }
   write('src/server/adapters/awx.ts', 'export const awx = 1\n')
+  write('src/server/main.ts', 'export {}\n')
+  write('src/server/maintenance.ts', 'export {}\n')
+  write('src/server/store/backup.test.ts', 'export {}\n')
+  write('src/server/store/rotate-key.test.ts', 'export {}\n')
+  write('test/integration/bootstrap.test.ts', 'export {}\n')
   write('src/server/store/db.ts', 'export const db = 1\n')
   write('src/server/store/migrations/001.sql', 'SELECT 1;\n')
   write('test/integration/awx-tokens.test.ts', "import { awx } from '../../src/server/adapters/awx.js'\n")
@@ -122,6 +127,14 @@ test('adapter changes select only that adapter owner tests beside dependents and
     'test/integration/api.test.ts', 'test/cli.test.ts']))
   expect(tests).not.toContain('test/integration/shodan-reads.test.ts')
   expect(tests).not.toContain('test/integration/beyondtrust.test.ts')
+})
+
+test.each([
+  ['src/server/maintenance.ts', ['test/integration/bootstrap.test.ts', 'src/server/store/backup.test.ts', 'src/server/store/rotate-key.test.ts']],
+  ['src/server/main.ts', ['test/integration/bootstrap.test.ts', 'src/server/store/rotate-key.test.ts', 'test/integration/api.test.ts']],
+])('%s selects its executable consumers', (path, consumers) => {
+  write(path, 'export const changed = true\n')
+  expect(plan()).toMatchObject({ mode: 'affected', tests: expect.arrayContaining(consumers) })
 })
 
 test('migrations select the store dependents without the full suite', () => {

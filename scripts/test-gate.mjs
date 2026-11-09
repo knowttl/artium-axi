@@ -63,7 +63,9 @@ function selectGate(root, { base, full = false } = {}) {
   // SQL migrations are loaded by the store at runtime, so they have no import edge of their own.
   const graphSeeds = changed.flatMap(file => file.startsWith('src/server/store/migrations/') ? [file, 'src/server/store/db.ts'] : [file])
   const selected = new Set(affectedTests(root, files, graphSeeds))
-  const adapterOwners = [
+  const runtimeOwners = [
+    [/^src\/server\/maintenance\.ts$/, /^(?:test\/integration\/bootstrap|src\/server\/store\/(?:backup|rotate-key))\.test\.ts$/],
+    [/^src\/server\/main\.ts$/, /^(?:test\/integration\/(?:api|bootstrap)|src\/server\/store\/rotate-key)\.test\.ts$/],
     [/^src\/server\/adapters\/ado/, /^test\/integration\/ado/],
     [/^src\/server\/adapters\/awx/, /^test\/integration\/awx-/],
     [/^src\/server\/adapters\/az(?:ure-.+)?\.ts$/, /^test\/integration\/azure-/],
@@ -115,7 +117,7 @@ function selectGate(root, { base, full = false } = {}) {
     if (file.startsWith('src/server/store/migrations/') && file.endsWith('.sql') ||
       file.startsWith('src/server/') && file.endsWith('.ts') &&
       !/^src\/server\/(?:config|app)\.ts$/.test(file) && file !== 'src/server/adapters/types.ts') {
-      for (const [source, owned] of adapterOwners) if (source.test(file)) add(test => owned.test(test))
+      for (const [source, owned] of runtimeOwners) if (source.test(file)) add(test => owned.test(test))
       serverJourneys()
       continue
     }
