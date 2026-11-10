@@ -44,7 +44,8 @@ const tokens = patterns.map(([pattern, mask]) => [new RegExp(pattern, 'u'), mask
 const masks = new Set([...Object.values(fields), ...patterns.map(([, mask]) => mask)]);
 const protocolFields = ${JSON.stringify(protocolEnvelopeFields)};
 const redact = (value, key = '', depth = 0, parent = '') => {
-  if ((depth === 1 || depth === 2 && (parent === 'dry_run' || parent === 'api_response')) && protocolFields[parent]?.includes(key)) return value;
+  if (depth === 2 && parent === 'api_response' && key !== 'body') return value;
+  if ((depth === 1 || depth === 2 && parent === 'dry_run') && protocolFields[parent]?.includes(key)) return value;
   if ((depth > 1 || key === 'payload') && !(depth === 2 && parent === 'api_response' && key === 'body') && Object.hasOwn(fields, key)) return fields[key];
   if (depth > 1 && key === 'changes' && typeof value === 'string') {
     try { return JSON.stringify(redact(JSON.parse(value), '', depth + 1)); } catch { return '[activity changes redacted]'; }

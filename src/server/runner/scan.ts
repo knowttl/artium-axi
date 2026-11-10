@@ -6,7 +6,6 @@ export const protocolOutputFields = ['code', 'action', 'type', 'status', 'would_
 export const protocolEnvelopeFields: Record<string, readonly string[]> = {
   '': protocolOutputFields,
   dry_run: ['action', 'type', 'status', 'would_send'],
-  api_response: ['status'],
 }
 
 export interface PrivateOutput {
@@ -131,7 +130,8 @@ export class SecretScanner {
     const fields = this.output?.fields ?? {}
     const masks = new Set([...Object.values(fields), ...(this.output?.patterns ?? []).map(([, mask]) => mask)])
     const containsSecret = (value: unknown, key = '', depth = 0, parent = ''): boolean => {
-      if ((depth === 1 || depth === 2 && parent === 'dry_run' || depth === 2 && parent === 'api_response')
+      if (depth === 2 && parent === 'api_response' && key !== 'body') return false
+      if ((depth === 1 || depth === 2 && parent === 'dry_run')
         && protocolEnvelopeFields[parent]?.includes(key)) return false
       if ((depth > 1 || key === 'payload') && !(depth === 2 && parent === 'api_response' && key === 'body')
         && Object.hasOwn(fields, key)) return value !== fields[key]

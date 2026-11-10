@@ -94,6 +94,12 @@ test.each(['12345', 'false'])('private-input scanning rejects echoed body value 
   expect(scanner.finish()).toBe(true)
 })
 
+test('private-input scanning preserves API metadata while checking matching response data', () => {
+  const scanner = new SecretScanner([], privateOutput([{ field: 'method', content: 'PATCH' }, { field: 'path', content: 'projects/42/' }]))
+  scanner.scan('stdout', Buffer.from('api_response:\n  method: PATCH\n  path: projects/42/\n  status: 200\n  body:\n    method: "[structured input redacted, 5 bytes]"\n    path: "[structured input redacted, 12 bytes]"\n'))
+  expect(scanner.finish()).toBe(false)
+})
+
 test.each(streams)('private-input scanning detects nested values across chunks in %s (R1)', stream => {
   const scanner = new SecretScanner([], privateOutput([{ field: 'variables', content: 'a' }]))
   scanner.scan(stream, Buffer.from('dry_run:\n  payload:\n    env: '))
