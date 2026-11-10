@@ -304,7 +304,8 @@ export class CredentialProfile {
     return metadata
   }
 
-  prepare(tool: ToolName, value: unknown, writeLog: string | undefined, readOnly: boolean): Pick<PreparedCall, 'environment' | 'files' | 'secrets'> {
+  prepare(tool: ToolName, value: unknown, writeLog: string | undefined, readOnly: boolean,
+    hostFields: Record<string, unknown> = {}): Pick<PreparedCall, 'environment' | 'files' | 'secrets'> {
     if (!['ldap-axi', 'awx-axi', 'unifi-axi', 'proxmox-axi', 'technitium-axi', 'shodan-axi', 'gitea-axi', 'kubernetes-axi'].includes(tool) && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Native write log path must be absolute')
     const parsed = this.parsed(value)
     // These administrator switches are host policy, not upstream profile fields.
@@ -317,6 +318,7 @@ export class CredentialProfile {
     if (tool === 'awx-axi') delete parsed.value.allowConfigurationWrites
     if (tool === 'falcon-axi') delete parsed.value.writes
     if (tool === 'proxmox-axi' || tool === 'technitium-axi') delete parsed.value.hostWrites
+    Object.assign(parsed.value, hostFields)
     const environment: Record<string, string> = {}
     if (tool === 'beyondtrust-axi') environment.BEYONDTRUST_AXI_CONFIG = '/proc/self/cwd/beyondtrust-axi/config.json'
     const secrets: string[] = []

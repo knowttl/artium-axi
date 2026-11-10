@@ -121,6 +121,11 @@ try {
         if (path.includes('unknown-message')) throw new Error('Synthetic unknown outcome')
         return { status: request.method === 'DELETE' ? 204 : 200, headers: {}, body: JSON.stringify({ id: 'new-id' }) }
       }
+      if (url.pathname === `/v1.0/users/${userId}/synthetic-raw`) {
+        assert.equal(request.headers.Authorization, 'Bearer CANARY-graph-token')
+        sends++
+        return { status: request.method === 'DELETE' ? 204 : 200, headers: {}, body: request.method === 'DELETE' ? '' : JSON.stringify({ id: 'raw-id' }) }
+      }
       assert.equal(request.method, 'POST')
       assert.equal(request.url, `https://graph.microsoft.com/v1.0/groups/${groupId}/members/$ref`)
       assert.equal(request.headers.Authorization, 'Bearer CANARY-graph-token')

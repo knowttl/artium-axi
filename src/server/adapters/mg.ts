@@ -26,7 +26,7 @@ export type MgCredential = z.infer<typeof mgCredentialSchema>
 export const mgManifest = { ...inventory, ...inventory.adapterBoundary }
 export const mgWritePolicy = writePolicy({ supportedOperations: inventory.nativeWriteSettings.supportedOperations,
   unlocks: 'Selected Graph group membership, user account state, session revocation, risk dismissal, conditional-access policy and mail operations; native execution and confirmation gates still apply.',
-  blocked: 'API post, put, patch and delete remain blocked pending separate admission. Operations outside the allow-list, raw API mutations, beta writes, unsupported targets and unsafe overrides remain blocked. Graph permissions and roles are still required.' })
+  blocked: 'Named operations outside the allow-list, beta writes, unsupported targets and unsafe overrides remain blocked. API post, put, patch and delete additionally require the tool\'s Raw API read-writes mode and a role grant, and keep the native mail, security and sensitive-area denials. Graph permissions and roles are still required.' })
 
 function mgArguments(args: readonly string[], input: RunnerInput = {}, artifact = false) {
   const hunting = args.slice(0, 3).join(' ') === 'security hunting query'
@@ -110,7 +110,7 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
     allowedFlagValues: {}, sensitiveArguments: args => ({ flags: mgManifest.sensitiveFlags.map(name => `--${name}`),
       positions: args.slice(0, 3).join(' ') === 'security hunting query' ? args.map((_, index) => index) : [] }),
     validateArgs: (args, input) => { mgArguments(args, input) },
-    rawApi: { commands: ['api get'], writes: false, help: (args, input) => mgArguments(args, input).invocation.help },
+    rawApi: { commands: ['api get', 'api post', 'api put', 'api patch', 'api delete'], writes: true, help: (args, input) => mgArguments(args, input).invocation.help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(
       inventory.commands.map(route => ({ ...route, effect: mgReadCommands.has(route.command) ? 'read' : 'write' })),
       (a, i) => mgArguments(a, i).invocation, args, input),
@@ -146,9 +146,10 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
     }
     const query = normalized.invocation.command === 'security hunting query' && input?.files?.[0]
       ? Buffer.from(input.files[0].contentBase64, 'base64').toString('utf8').trim() : undefined
+    const rawWrite = !normalized.invocation.help && /^api (?:post|put|patch|delete)$/.test(normalized.invocation.command)
     if (profile) {
       const prepared = profile.prepare('mg-axi', parsed.data, writeLog,
-        (parsed.data.writes as { allowWrites?: boolean } | undefined)?.allowWrites !== true)
+        (parsed.data.writes as { allowWrites?: boolean } | undefined)?.allowWrites !== true, rawWrite ? { rawWrites: true } : {})
       return { executable: toolPaths['mg-axi'], ...normalized, ...prepared,
         secrets: [...prepared.secrets, ...(query ? [query] : [])],
         limits: { timeoutMs: runnerLimits.timeoutMs, nodeHeapMiB: 512 },
@@ -168,7 +169,7 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
       files: [{ name: 'mg-profile.json', content: JSON.stringify({ version: 1, defaultProfile: 'artium', profiles: {
         artium: { mode: 'application', tenantId, clientId, cloud: 'commercial', preview,
           allowDeviceCode: false, enabledPacks: credential.enabledPacks ?? ['entra'], sensitiveAreas: [], credentialRef,
-          ...(writes === undefined ? {} : { writes }) },
+          ...(writes === undefined ? {} : { writes }), ...(rawWrite ? { rawWrites: true } : {}) },
       } }) }],
       secrets: [...new Set([secret, credential.auth === 'secret' ? secret.trim()
         : secret.includes('\n') ? secret : secret.replace(/\\n/g, '\n'), ...(query ? [query] : [])])],
