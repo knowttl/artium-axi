@@ -126,9 +126,9 @@ export function createApp(options: {
   const kubernetes = adapters.find(adapter => adapter.name === 'kubernetes-axi')
   const shodan = adapters.find(adapter => adapter.name === 'shodan-axi')
   if (shodan) {
-    auditShodanDenials(app, db, audit)
-    const sessions = registerShodanSessions(app, db, resolver, shodan, runner, audit)
-    registerShodanCollections(app, db, resolver, shodan, runner, audit, sessions)
+    const denials = auditShodanDenials(app, db, audit)
+    const sessions = registerShodanSessions(app, db, resolver, shodan, runner, audit, denials)
+    registerShodanCollections(app, db, resolver, shodan, runner, audit, sessions, denials)
   }
   if (kubernetes) {
     const workspaces = registerKubernetesWorkspaces(app, db, resolver, kubernetes, audit)
@@ -510,8 +510,8 @@ export function createApp(options: {
       if (settings.allowWrites !== true || settings.acquireCredential !== true) throw new ArtiumError('FLAG_BLOCKED')
     }
     const bytes = protectedResults.take(request.params.id, { ...resultOwner, credential,
-      ...(tool === 'proxmox-axi' ? { trustRevision: proxmoxTrust(db, credential) } : {}) })
-    audit.record({ ...attempt, event: 'protected-result-take', requestId: request.id, clientAddress: request.ip, outcome: 'success' })
+      ...(tool === 'proxmox-axi' ? { trustRevision: proxmoxTrust(db, credential) } : {}) }, () =>
+      audit.record({ ...attempt, event: 'protected-result-take', requestId: request.id, clientAddress: request.ip, outcome: 'success' }))
     return reply.header('cache-control', 'no-store').header('content-disposition', 'attachment; filename="result.bin"')
       .header('x-content-type-options', 'nosniff').header('x-artium-content-sha256', createHash('sha256').update(bytes).digest('hex'))
       .type('application/octet-stream').send(bytes)

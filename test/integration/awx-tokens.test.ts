@@ -362,6 +362,20 @@ test('read-only instances refuse a confirmed write with a denial before any cred
   })
 }, 60_000)
 
+test('an audit failure leaves a protected result available for retry', async () => {
+  await withTokenService(async ({ app, db, headers, run }) => {
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    const response = await run(['user', 'token-create', '42', '--confirm'])
+    const result = decode(response.json().stdout) as { result: { path: string } }
+    db.exec(`CREATE TRIGGER refuse_take BEFORE INSERT ON audit WHEN NEW.event = 'protected-result-take' AND NEW.outcome = 'success' BEGIN SELECT RAISE(FAIL, 'audit failure'); END`)
+    expect((await app.inject({ method: 'GET', url: result.result.path, headers })).statusCode).toBe(500)
+    db.exec('DROP TRIGGER refuse_take')
+    const retry = await app.inject({ method: 'GET', url: result.result.path, headers })
+    expect(retry.body).toBe('CANARY-awx-created-token-8')
+    expect((await app.inject({ method: 'GET', url: result.result.path, headers })).statusCode).toBe(404)
+  })
+}, 60_000)
+
 test.each(['read', 'write'])('AWX %s PAT creation delivers bytes once to the authorized caller (S10)', async scope => {
   await withTokenService(async ({ app, db, store, headers, send, run, lines, directory }) => {
     const args = ['user', 'token-create', '42', '--scope', scope]

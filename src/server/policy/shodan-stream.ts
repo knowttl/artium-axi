@@ -20,23 +20,36 @@ export function shodanOwner(db: Database.Database, request: Pick<FastifyRequest,
 
 export function auditShodanDenials(app: FastifyInstance, db: Database.Database, audit: Audit) {
   const prefixes = ['/v1/tools/shodan-axi/sessions', '/v1/tools/shodan-axi/scan-collections']
+  type Identity = { credentialId: string, instance: string }
+  const identities = new WeakMap<FastifyRequest, Identity>()
+  const lookups: Array<(request: FastifyRequest, owner: ShodanOwner) => Identity | undefined> = []
   app.addHook('onError', async (request, _reply, error) => {
     const path = request.url.split('?')[0]
     if (!prefixes.some(prefix => path === prefix || path.startsWith(prefix + '/'))) return
     let userId: string | null = null, delegationId: string | null = null
+    let owner: ShodanOwner | undefined
     try {
       const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? '')
       userId = principal.userId; delegationId = principal.delegation?.id ?? null
+      const token = /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''
+      owner = { user: verifyAccessToken(db, token), family: verifyAccessFamily(db, token) }
     } catch { /* Unauthenticated denials have no actor. */ }
     const body = request.body as { instance?: unknown } | null | undefined
     const requested = typeof body?.instance === 'string' ? body.instance : undefined
-    const candidates = userId ? (requested !== undefined
+    const identity = identities.get(request) ?? (owner && lookups.map(lookup => lookup(request, owner)).find(Boolean))
+    const candidates = userId && prefixes.some(prefix => path === prefix + '/preview') && !identity ? (requested !== undefined
       ? db.prepare("SELECT id, name FROM credentials WHERE tool = 'shodan-axi' AND name = ?").all(requested)
       : db.prepare("SELECT id, name FROM credentials WHERE tool = 'shodan-axi' AND enabled = 1 LIMIT 2").all()) as { id: string, name: string }[] : []
-    audit.record({ ...(candidates.length === 1 ? { credentialId: candidates[0]!.id, instance: candidates[0]!.name } : {}),
+    audit.record({ ...(identity ?? (candidates.length === 1 ? { credentialId: candidates[0]!.id, instance: candidates[0]!.name } : {})),
       event: 'denial', userId, delegationId, tool: 'shodan-axi', requestId: request.id, clientAddress: request.ip,
       outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
   })
+  return {
+    register(lookup: (request: FastifyRequest, owner: ShodanOwner) => Identity | undefined) { lookups.push(lookup) },
+    mark(request: FastifyRequest, resource: { credential: CredentialReference, instance: string }) {
+      identities.set(request, { credentialId: resource.credential.id, instance: resource.instance })
+    },
+  }
 }
 
 function binding(db: Database.Database, owner: ShodanOwner, credential: CredentialReference) {

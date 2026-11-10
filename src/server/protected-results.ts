@@ -63,13 +63,14 @@ export class ProtectedResults {
     return { ...this.owned(id, owner).scope.credential }
   }
 
-  take(id: string, scope: ResultScope): Buffer {
+  take(id: string, scope: ResultScope, beforeTake?: () => void): Buffer {
     const entry = this.owned(id, { ...scope, tool: scope.credential.tool })
     if (entry.scope.trustRevision !== undefined && entry.scope.trustRevision !== scope.trustRevision
       || entry.scope.credential.id !== scope.credential.id || entry.scope.credential.revision !== scope.credential.revision) {
       throw new ArtiumError('NOT_FOUND')
     }
     const bytes = entry.bytes!
+    beforeTake?.()
     this.remove(id)
     return bytes
   }

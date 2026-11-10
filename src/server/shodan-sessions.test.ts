@@ -89,6 +89,23 @@ test.each(['sessions', 'scan-collections'])('refused %s requests are recorded as
   } finally { await fixture.close() }
 })
 
+test('a refused confirmed session is attributed to its owned plan', async () => {
+  const fixture = await sessionFixture()
+  const { app, db, store, headers, prefix, input } = fixture
+  try {
+    const first = store.findCredential('shodan-axi')!
+    store.createInstance('shodan-axi', { name: 'second', description: '' }, store.readCredential(first), 'synthetic-development-user', Date.now())
+    const preview = await app.inject({ method: 'POST', url: `${prefix}/preview`, headers, payload: { ...input, instance: 'default' } })
+    expect(preview.statusCode, preview.body).toBe(200)
+    db.prepare('UPDATE credentials SET enabled = 0 WHERE id = ?').run(first.id)
+    const refused = await app.inject({ method: 'POST', url: `${prefix}/start`, headers,
+      payload: { ...input, instance: 'second', confirm: preview.json().confirm } })
+    expect(refused.statusCode).toBe(400)
+    expect(db.prepare("SELECT credential_id, instance, outcome FROM audit WHERE event = 'denial'").all())
+      .toEqual([{ credential_id: first.id, instance: 'default', outcome: 'INVALID_INPUT' }])
+  } finally { await fixture.close() }
+})
+
 test('closed sessions page through all retained events', async () => {
   const fixture = await sessionFixture()
   const { app, headers, prefix, input } = fixture
