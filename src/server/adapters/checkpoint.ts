@@ -83,6 +83,7 @@ export function createCheckpointAdapter(source: SecretSource, writeLog: string):
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { checkpointArguments(args, input) },
+    executesWrite: (args, input) => checkpointArguments(args, input).effect === 'write',
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => checkpointArguments(a, i).invocation, args, input),
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'checkpoint-axi' || transferTool(scope.selection.operation) !== reference.tool

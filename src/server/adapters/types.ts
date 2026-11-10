@@ -34,6 +34,7 @@ export interface PreparedCall {
   secrets: string[]
   fileArguments?: readonly number[]
   effect?: 'read' | 'write'
+  nativeReadOnlyPreview?: boolean
   protectedResult?: { operation: string } & ({ source: 'projection' } | { source: 'file', name: string, flag: string }
     | { source: 'pipe', flag: string, argumentIndex: number } | { source: 'proxmox' })
   write?: { operation: string, target: string, checkArgs: string[], afterCheck?: string }
@@ -55,6 +56,7 @@ export interface Adapter<Credential> {
   rawApi?: { commands: readonly string[], writes: boolean, help(args: readonly string[], input?: RunnerInput): boolean,
     effect?(args: readonly string[], input?: RunnerInput): 'read' | 'write' }
   classify(args: readonly string[], input?: RunnerInput): { command: string, effect: 'read' | 'write' }
+  executesWrite?(args: readonly string[], input?: RunnerInput): boolean
   nestedOperations?(args: readonly string[], input?: RunnerInput): { command: string, effect: 'read' | 'write' }[]
   kubernetesContinuation?(args: readonly string[], input?: RunnerInput):
     { command: 'preview' | 'confirm', help: true }

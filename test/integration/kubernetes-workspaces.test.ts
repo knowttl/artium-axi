@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { decode } from '@toon-format/toon'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -63,6 +64,33 @@ async function create(files = [descriptor('nested/input.bin')], lifetimeSeconds 
 }
 const upload = (id: string, path: string, bytes = binary) => app.inject({ method: 'PUT',
   url: `${prefix}/${id}/files/${path}`, headers: { ...headers, 'content-type': 'application/octet-stream' }, payload: bytes })
+
+test('read-only Kubernetes permits previews and denies confirmation before preparation', async () => withFakeService(async ({ directory: fakeDirectory, port, send }) => {
+  const reference = credentials.findCredential('kubernetes-axi')!
+  credentials.replaceCredential('kubernetes-axi', { origin: `https://localhost:${port}`, auth: 'token', namespace: 'synthetic',
+    certificateAuthority: await readFile(join(fakeDirectory, 'ca.crt'), 'utf8'), token: 'CANARY-kubernetes-token' }, reference.revision!, user, Date.now())
+  db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"acquireCredential":true}' WHERE name = 'kubernetes-axi';
+    UPDATE credentials SET read_only = 1 WHERE tool = 'kubernetes-axi'`)
+  const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/run', headers, payload: { args } })
+  const dry = await run(['server-dry-run', '--', 'create', 'configmap', 'synthetic-dry', '--from-literal=mode=dry'])
+  expect(dry.json(), dry.body).toMatchObject({ exitCode: 0 })
+  const evidence = JSON.parse(await send('/__evidence')) as { mutations: number, requests: { method: string, dryRun?: boolean }[] }
+  expect(evidence.mutations).toBe(0)
+  expect(evidence.requests).toContainEqual(expect.objectContaining({ method: 'POST', dryRun: true }))
+  const token = await run(['prepare', '--', 'create', 'token', 'synthetic-account', '--duration=600s'])
+  expect(token.json(), token.body).toMatchObject({ exitCode: 0 })
+  const prepared = decode(token.json().stdout) as { request: string }
+  const preview = await run(['preview', prepared.request])
+  expect(preview.json(), preview.body).toMatchObject({ exitCode: 0 })
+  const help = await run(['prepare', '--', 'create', 'token', '--help'])
+  expect(help.json(), help.body).toMatchObject({ exitCode: 0 })
+  expect(JSON.parse(await send('/__kubernetes/credentials'))).toMatchObject({ requests: 0 })
+  const denied = await run(['confirm', '11111111-1111-4111-8111-111111111111', '--digest', 'a'.repeat(64)])
+  expect(denied.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+  expect(db.prepare("SELECT event, outcome, COUNT(*) AS count FROM audit WHERE tool = 'kubernetes-axi' AND event IN ('denial', 'run-start', 'run-terminal') GROUP BY event, outcome ORDER BY event").all())
+    .toEqual([{ event: 'denial', outcome: 'FLAG_BLOCKED', count: 1 }, { event: 'run-start', outcome: 'started', count: 4 },
+      { event: 'run-terminal', outcome: 'completed', count: 4 }])
+}), 60_000)
 
 test('an authenticated caller round trips a recursive tree with exact binary hashes', async () => {
   const manifest = Buffer.from('apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: synthetic\n')

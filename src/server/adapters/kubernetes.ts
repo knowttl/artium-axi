@@ -70,6 +70,10 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { argumentsForCall(args, input) },
+    executesWrite(args, input) {
+      const call = argumentsForCall(args, input)
+      return call.workflow?.kind === 'confirm'
+    },
     kubernetesContinuation(args, input) {
       const { invocation, workflow } = argumentsForCall(args, input)
       if (invocation.help && (invocation.command === 'preview' || invocation.command === 'confirm')) {
@@ -96,7 +100,8 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
       const value = await source.getCredential(reference)
       const profile = kubernetesProfile.prepare('kubernetes-axi', value, undefined, !writable)
       return { ...call, executable: process.execPath, args: [executable, ...call.args],
-        effect: workflow === 'confirm' || workflow === 'server-dry-run' ? 'write' : 'read',
+        effect: workflow === 'confirm' ? 'write' : 'read',
+        ...(workflow === 'prepare' || workflow === 'server-dry-run' ? { nativeReadOnlyPreview: true } : {}),
         ...(workflow ? { kubernetesWorkflowRoot: workflowRoot } : {}),
         ...(workflow === 'confirm' && settings.acquireCredential === true ? { protectedResult: {
           source: 'pipe' as const, operation: 'token-create', flag: '--credential-fd', argumentIndex: 1,

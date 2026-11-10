@@ -105,7 +105,7 @@ test.each([
 
 test.each([
   { args: ['prepare', '--', 'create', 'configmap', 'synthetic', '--from-literal=mode=synthetic'], readOnly: 'false', effect: 'read' },
-  { args: ['server-dry-run', '--', 'label', 'configmap', 'synthetic', 'mode=synthetic'], readOnly: 'false', effect: 'write' },
+  { args: ['server-dry-run', '--', 'label', 'configmap', 'synthetic', 'mode=synthetic'], readOnly: 'false', effect: 'read' },
   { args: ['preview', '11111111-1111-4111-8111-111111111111'], readOnly: 'true', effect: 'read' },
   { args: ['confirm', '11111111-1111-4111-8111-111111111111', '--digest', 'a'.repeat(64)], readOnly: 'false', effect: 'write' },
 ])('Kubernetes preserves the native workflow and SecretRef profile: $args', async ({ args, readOnly, effect }) => {

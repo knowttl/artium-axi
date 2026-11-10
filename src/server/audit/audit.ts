@@ -37,7 +37,7 @@ export type AuditEvent = Context & (
   | { event: 'denial', outcome: ErrorCode }
   | { event: 'sign-in' | 'reauth' | 'password-change', outcome: Outcome, authenticationMethod?: 'sso' | 'local' | 'break-glass', providerId?: string, subject?: string }
   | { event: 'credential-issue', outcome: Outcome | 'attempt' | 'preview', targetId?: string }
-  | { event: 'lockout' | 'token-reuse' | 'token-create' | 'token-exchange' | 'token-revoke' | 'delegation-access', outcome: Outcome, targetId?: string }
+  | { event: 'lockout' | 'token-reuse' | 'token-create' | 'token-exchange' | 'token-revoke' | 'delegation-access' | 'protected-result-take', outcome: Outcome, targetId?: string }
   | { event: 'device-approve' | 'device-deny', outcome: Outcome, requestingAddress: string }
   | { event: 'sign-out', outcome: Outcome, action?: string, targetId?: string }
   | ({ event: 'credential-test' | 'health-check', outcome: Outcome, action?: string } & CredentialTestEvidence)

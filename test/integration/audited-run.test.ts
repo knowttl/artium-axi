@@ -698,6 +698,17 @@ describe('AWX native write failure recovery (R1)', () => {
   })
 })
 
+test('read-only GitHub instance permits an unconfirmed preview', async () => {
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'gh-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'gh-axi')")
+  const github = createGhAdapter({ getCredential: async () => ({ origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' }),
+    getSettings: () => ({ writes: { allowWrites: true, operations: ['issue comment'] } }) })
+  const identities = new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'synthetic-github', tool: 'gh-axi', revision: 1 }, value: {}, readOnly: true },
+  ]).seed(db))
+  const result = await runTool(db, audit, runner, token, { args: ['issue', 'comment', '42', '-R', 'canary/repo', '--body=synthetic'] }, github, identities, context)
+  expect(decode(result.stdout)).toMatchObject({ preview: { operation: 'issue comment' } })
+})
+
 test.each(['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT_LIMIT', 'UNKNOWN_OUTCOME'] as const)('GitHub preview sends nothing and interrupted %s execution returns read-back guidance', async code => {
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'gh-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'gh-axi')")
   const github = createGhAdapter({ getCredential: async () => ({ origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' }),
@@ -866,6 +877,28 @@ test('a classified write cancelled after child start records an unknown outcome'
   await expect(runTool(db, audit, runner, token, { args: ['sleep'] }, execution, resolver, { ...context, signal: controller.signal }))
     .rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME' })
   expect(db.prepare("SELECT outcome FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'UNKNOWN_OUTCOME' })
+})
+
+test('read-only Vectra allows help but denies execution before preparation', async () => {
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'vectra-axi')")
+  const credential = vi.fn(async () => ({ kind: 'qux' as const, apiVersion: '2.5' as const, auth: 'token' as const,
+    token: 'CANARY-vectra-token', origin: 'https://synthetic.invalid' }))
+  const vectra = createVectraAdapter({ getCredential: credential }, join(directory, 'vectra-writes.log'))
+  const identities = new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'synthetic-vectra', tool: 'vectra-axi', revision: 1 }, value: {}, readOnly: true },
+  ]).seed(db))
+  vi.spyOn(childProcess, 'spawn').mockImplementation((...spawnArgs: Parameters<typeof childProcess.spawn>) =>
+    actualChildProcess.spawn(process.execPath, ['-e', 'console.log("synthetic help")'], spawnArgs[2]))
+  const args = ['detection', 'triage', 'set', '--execute']
+  await expect(runTool(db, audit, runner, token, { args }, vectra, identities, context)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  expect(credential).not.toHaveBeenCalled()
+  const result = await runTool(db, audit, runner, token, { args: [...args, '--help'] }, vectra, identities,
+    { ...context, requestId: 'synthetic-help' })
+  expect(result).toMatchObject({ exitCode: 0, stdout: 'synthetic help\n' })
+  expect(db.prepare("SELECT event, outcome FROM audit WHERE tool = 'vectra-axi' ORDER BY id").all()).toEqual([
+    { event: 'denial', outcome: 'FLAG_BLOCKED' }, { event: 'run-start', outcome: 'started' },
+    { event: 'run-terminal', outcome: 'completed' },
+  ])
 })
 
 test('credential preparation failure completes its start with a safe code', async () => {

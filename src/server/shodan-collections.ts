@@ -11,7 +11,7 @@ import { ArtiumError } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
 import type { Audit } from './audit/audit.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
-import { shodanOwner, shodanScanBinding, type ShodanOwner } from './policy/shodan-stream.js'
+import { shodanOwner, shodanScanBinding, type ShodanOwner, type auditShodanDenials } from './policy/shodan-stream.js'
 import type { Runner } from './runner/runner.js'
 import { collectShodanEvents, inspectShodanScan, shodanMutation } from './shodan-scan-native.js'
 import type { registerShodanSessions } from './shodan-sessions.js'
@@ -27,9 +27,15 @@ interface Collection extends Omit<Plan, 'timer'> { state: 'running' | 'completed
   result?: Record<string, unknown>, job: Promise<void>, timer: NodeJS.Timeout, sessionId?: string, changed: EventEmitter }
 
 export function registerShodanCollections(app: FastifyInstance, db: Database.Database, resolver: IdentityResolver,
-  adapter: Adapter<unknown>, runner: Runner, audit: Audit, sessions: Sessions) {
+  adapter: Adapter<unknown>, runner: Runner, audit: Audit, sessions: Sessions, denials: ReturnType<typeof auditShodanDenials>) {
   const prefix = '/v1/tools/shodan-axi/scan-collections', root = join(dirname(db.name), 'tool-logs', 'shodan-axi', 'collections')
   const plans = new Map<string, Plan>(), collections = new Map<string, Collection>()
+  denials.register((request, owner) => {
+    const path = request.url.split('?')[0], body = request.body as { confirm?: unknown } | null
+    const id = path === prefix + '/start' && typeof body?.confirm === 'string' ? body.confirm : path.startsWith(prefix + '/') ? path.slice(prefix.length + 1).split('/')[0] : undefined
+    const resource = id && (path === prefix + '/start' ? plans.get(id) : collections.get(id))
+    if (resource && resource.owner.user === owner.user && resource.owner.family === owner.family) return { credentialId: resource.credential.id, instance: resource.instance }
+  })
   const initialized = (async () => {
     await mkdir(root, { recursive: true, mode: 0o700 })
     for (const name of await readdir(root)) if (name.startsWith('scan-')) await rm(join(root, name), { recursive: true, force: true })
@@ -55,6 +61,7 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
     const operations = [inspection.operation]
     const streamOperation = collecting ? 'OP-046' : undefined
     const credential = await resolver.resolve(owner.user, 'shodan-axi', instance)
+    denials.markCredential(request, credential)
     const binding = shodanScanBinding(db, owner, credential, operations, streamOperation)
     if (input.scanCreditBudget > binding.settings.maxScanCredits || input.maxRequests > binding.settings.maxRequests) throw new ArtiumError('INVALID_INPUT')
     if (plans.size >= 128 || [...plans.values()].filter(plan => plan.owner.user === owner.user).length >= 8) throw new ArtiumError('TOO_MANY_CALLS')
@@ -73,6 +80,7 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
   app.post(prefix + '/start', async request => {
     const owner = shodanOwner(db, request), body = parse(shodanScanInput.extend({ confirm: z.uuid(), instance: instanceNameSchema.optional() }), request.body), plan = plans.get(body.confirm)
     if (!plan || plan.owner.user !== owner.user || plan.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
+    denials.mark(request, plan)
     plans.delete(plan.id); clearTimeout(plan.timer)
     const { confirm: _confirm, instance, ...input } = body
     if (plan.expiresAt <= Date.now() || instance !== undefined && instance !== plan.instance
@@ -183,6 +191,7 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
   app.get<{ Params: { id: string }, Querystring: { waitMs?: string } }>(prefix + '/:id', async request => {
     const owner = shodanOwner(db, request), collection = collections.get(request.params.id)
     if (!collection || collection.owner.user !== owner.user || collection.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
+    denials.mark(request, collection)
     authorize(collection)
     const wait = request.query.waitMs === undefined ? 0 : Number(request.query.waitMs)
     if (!Number.isSafeInteger(wait) || wait < 0 || wait > 30000) throw new ArtiumError('INVALID_INPUT')

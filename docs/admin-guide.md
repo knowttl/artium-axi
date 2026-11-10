@@ -374,8 +374,9 @@ Delegated calls include the creator's user ID and `delegation_id`; the screen, A
 See [delegated capability boundaries](safety.md#delegated-sessions) for creation settings and their effect on existing tokens, and [token API usage](client-reference.md#delegated-tokens) for administrator listing and revocation.
 CSV quotes non-null values and leaves null fields empty; JSON lines preserves JSON types and nulls.
 The [API contracts](../src/shared/api.ts) own the persisted field definitions (`adminAuditRecordSchema`) and transfer evidence rules (`transferAuditSchema` and `transferEvidenceSchema`).
-The `credential_id` and `instance` fields identify the credential and its name snapshot on attributable administrator changes, credential tests and health checks, denials, run lifecycle, credential-issue, protected-result and upload events.
+The `credential_id` and `instance` fields identify the credential and its name snapshot on attributable administrator changes, credential tests and health checks, denials, run lifecycle, credential-issue, protected-result, protected-result-take and upload events.
 They remain null on records predating attribution and when an instance cannot be identified; the Instance column displays `default/unknown` for null names.
+Protected-result retrieval attempts emit `protected-result-take` records for success and refusal; Shodan session and scan-collection refusals emit `denial` records.
 The instance filter matches the stored name exactly across tools and excludes null names; exports preserve the stored fields and nulls.
 For hosted download availability, see the [supported capability boundaries](safety.md).
 An empty result produces a CSV header or an empty JSON-lines file.
@@ -398,7 +399,7 @@ ADO, AWX, UniFi, Technitium, Gitea and ordinary Kubernetes calls use host classi
 Technitium previews and reconciliation are read-classified; retained completed-mutation metadata and native audit IDs follow the [recovery guidance](runbook.md#retention-and-export).
 UniFi previews, receipt inspection and reconciliation are classified as reads; see its [native write boundary](safety.md#network-appliance-reads).
 Gitea previews and reconciliation calls are classified as reads; see its [native write boundary](safety.md#gitea-reads).
-Kubernetes preparation and saved previews report `read`; confirmation and server dry run are write-classified calls.
+Kubernetes preparation, saved previews and server dry runs report `read`; confirmation is a write-classified call.
 Kubernetes byte sessions instead emit `run-start` and `run-terminal` records with the operation kind, exit code and output byte counts, without a read/write `action` classification.
 Workspace and session controls emit `admin-change` records with `kubernetes-workspace-*` or `kubernetes-session-*` actions and the owned handle as `target_id`; refused workspace or session requests emit `denial` records.
 Identifiable raw ADO API mutations also emit an `ado-api` decision record; the [API contract](../src/shared/api.ts) owns its argument fields.

@@ -13,7 +13,7 @@ import type { Audit } from './audit/audit.js'
 import { inspectShodanStream } from './adapters/shodan-stream.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import { log } from './log.js'
-import { shodanBinding, shodanOwner, type ShodanOwner } from './policy/shodan-stream.js'
+import { shodanBinding, shodanOwner, type ShodanOwner, type auditShodanDenials } from './policy/shodan-stream.js'
 import type { CredentialReference } from './store/credential-store.js'
 import type { Runner } from './runner/runner.js'
 import { ShodanCapacity } from './shodan-capacity.js'
@@ -38,12 +38,18 @@ interface Session extends Omit<Plan, 'nativeToken' | 'timer'> {
 }
 
 export function registerShodanSessions(app: FastifyInstance, db: Database.Database, resolver: IdentityResolver,
-  adapter: Adapter<unknown>, runner: Runner, audit: Audit) {
+  adapter: Adapter<unknown>, runner: Runner, audit: Audit, denials: ReturnType<typeof auditShodanDenials>) {
   const root = join(dirname(db.name), 'tool-logs', 'shodan-axi', 'sessions')
   const plans = new Map<string, Plan>(), sessions = new Map<string, Session>(), pending = new Map<string, Pending>(), capacity = new ShodanCapacity()
   const shutdown: Array<() => Promise<void>> = []
   const reservedPlans = new Set<string>()
   const prefix = '/v1/tools/shodan-axi/sessions'
+  denials.register((request, owner) => {
+    const path = request.url.split('?')[0], body = request.body as { confirm?: unknown } | null
+    const id = path === prefix + '/start' && typeof body?.confirm === 'string' ? body.confirm : path.startsWith(prefix + '/') ? path.slice(prefix.length + 1).split('/')[0] : undefined
+    const resource = id && (path === prefix + '/start' ? plans.get(id) : sessions.get(id))
+    if (resource && resource.owner.user === owner.user && resource.owner.family === owner.family) return { credentialId: resource.credential.id, instance: resource.instance }
+  })
   const initialized = (async () => {
     await mkdir(root, { recursive: true, mode: 0o700 })
     for (const name of await readdir(root)) if (name.startsWith('session-')) await rm(join(root, name), { recursive: true, force: true })
@@ -93,9 +99,10 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
     await session.stopping
     if (session.discard) clear(session)
   }
-  const select = (request: Pick<FastifyRequest, 'headers'>, id: string, recheck = true) => {
+  const select = (request: FastifyRequest, id: string, recheck = true) => {
     const owner = shodanOwner(db, request), session = sessions.get(id)
     if (!session || session.owner.user !== owner.user || session.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
+    denials.mark(request, session)
     if (recheck) authorize(session)
     return session
   }
@@ -108,9 +115,10 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
     ...(session.retainedUntil ? { retainedUntil: session.retainedUntil } : {}),
     ...(session.summary ? { summary: session.summary } : {}) })
 
-  const preview = async (owner: ShodanOwner, input: Input, controller: AbortController, reserved?: Reservation, instance?: string) => {
+  const preview = async (owner: ShodanOwner, input: Input, controller: AbortController, reserved?: Reservation, instance?: string, request?: FastifyRequest) => {
     const args = await inspectShodanStream(input)
     const credential = reserved ? reserved.credential : await resolver.resolve(owner.user, 'shodan-axi', instance)
+    if (request) denials.markCredential(request, credential)
     const binding = shodanBinding(db, owner, credential, input.operation)
     await initialized
     const id = reserved?.id ?? randomUUID(), directory = join(root, `session-${id}`)
@@ -157,14 +165,15 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
     try {
       const owner = shodanOwner(db, request)
       const { instance, ...input } = parse(shodanStreamStart.extend({ instance: instanceNameSchema.optional() }), request.body)
-      return await preview(owner, input, controller, undefined, instance)
+      return await preview(owner, input, controller, undefined, instance, request)
     }
     finally { reply.raw.off('close', disconnect) }
   })
 
-  const start = async (owner: ShodanOwner, body: Input & { confirm: string, instance?: string }, clientAddress: string | null) => {
+  const start = async (owner: ShodanOwner, body: Input & { confirm: string, instance?: string }, clientAddress: string | null, request?: FastifyRequest) => {
     const plan = plans.get(body.confirm)
     if (!plan || plan.owner.user !== owner.user || plan.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
+    if (request) denials.mark(request, plan)
     plans.delete(plan.id); clearTimeout(plan.timer)
     try {
       const { confirm: _confirm, instance, ...input } = body
@@ -218,7 +227,7 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
   }
   app.post(prefix + '/start', request => {
     if (!request.body || typeof request.body !== 'object' || !('confirm' in request.body)) throw new ArtiumError('NOT_FOUND')
-    return start(shodanOwner(db, request), parse(shodanStreamStart.extend({ confirm: z.uuid(), instance: instanceNameSchema.optional() }), request.body), request.ip)
+    return start(shodanOwner(db, request), parse(shodanStreamStart.extend({ confirm: z.uuid(), instance: instanceNameSchema.optional() }), request.body), request.ip, request)
   })
 
   app.get<{ Params: { id: string }, Querystring: { waitMs?: string } }>(prefix + '/:id', async request => {
