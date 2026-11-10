@@ -682,6 +682,9 @@
         "initiatives-create": { "label": "Create" },
         "initiatives-update": { "label": "Update" },
         "initiatives-delete": { "label": "Delete", "risk": ["delete"] }
+      } },
+      { "title": "Raw API", "operations": {
+        "raw-write": { "label": "Raw API write", "risk": ["delete"] }
       } }
     ]
   },
@@ -787,6 +790,9 @@
       } },
       { "title": "Malware search", "operations": {
         "malquery search": { "label": "Search samples" }
+      } },
+      { "title": "Raw API", "operations": {
+        "raw write": { "label": "Raw API write", "risk": ["delete"] }
       } }
     ]
   },

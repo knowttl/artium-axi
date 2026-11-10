@@ -17835,7 +17835,7 @@
     {
       "command": "api get",
       "effect": "read",
-      "status": "blocked",
+      "status": "supported",
       "targetSlice": "f",
       "authorization": "read",
       "requiredAdminControl": "Managed account access; reads always allowed by write policy",
@@ -17852,7 +17852,7 @@
           "takesValue": false,
           "description": "Command help",
           "effect": "read",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "f",
           "authorization": "read",
           "requiredAdminControl": "Managed account access; reads always allowed by write policy",
@@ -17865,7 +17865,7 @@
           "description": "query string, k=v pairs joined by &",
           "takesValue": true,
           "effect": "read",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "f",
           "authorization": "read",
           "requiredAdminControl": "Managed account access; reads always allowed by write policy",
@@ -17878,7 +17878,7 @@
     {
       "command": "api post",
       "effect": "configuration write",
-      "status": "blocked",
+      "status": "supported",
       "targetSlice": "b",
       "authorization": "write",
       "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -17889,26 +17889,28 @@
         "required": 1
       },
       "help": "awx-axi api post <path> [--body-file <path>] [--confirm] [--dry-run]\n\nSends POST to the AWX API. Previews by default; --confirm sends it.\nRequires AWX_AXI_ALLOW_SECURITY_WRITES=1 and applicable configuration or delete gates.\nLaunch credential passwords require a private body file and AWX_AXI_ALLOW_CREDENTIAL_PASSWORDS=1.\nThe method, timestamp and status go to the write journal; the payload does not.\nRequest bodies must be in a private --body-file (0600).\n\nExamples:\n  awx-axi api post jobs/1839/cancel/ --confirm",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
           "takesValue": false,
           "description": "Command help",
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "b",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "body-file",
           "description": "path to a 0600 JSON file holding the request body",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -17916,40 +17918,42 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
           "description": "confirm live execution",
           "takesValue": false,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "b",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
           "description": "preview without mutating",
           "takesValue": false,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "b",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
     {
       "command": "api put",
       "effect": "configuration write",
-      "status": "blocked",
+      "status": "supported",
       "targetSlice": "b",
       "authorization": "write",
       "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -17960,26 +17964,28 @@
         "required": 1
       },
       "help": "awx-axi api put <path> [--body-file <path>] [--confirm] [--dry-run]\n\nSends PUT to the AWX API. Previews by default; --confirm sends it.\nRequires AWX_AXI_ALLOW_SECURITY_WRITES=1 and applicable configuration or delete gates.\nLaunch credential passwords require a private body file and AWX_AXI_ALLOW_CREDENTIAL_PASSWORDS=1.\nThe method, timestamp and status go to the write journal; the payload does not.\nRequest bodies must be in a private --body-file (0600).\n\nExamples:\n  awx-axi api put jobs/1839/cancel/ --confirm",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
           "takesValue": false,
           "description": "Command help",
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "b",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "body-file",
           "description": "path to a 0600 JSON file holding the request body",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -17987,40 +17993,42 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
           "description": "confirm live execution",
           "takesValue": false,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "b",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
           "description": "preview without mutating",
           "takesValue": false,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "b",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
     {
       "command": "api patch",
       "effect": "configuration write",
-      "status": "blocked",
+      "status": "supported",
       "targetSlice": "b",
       "authorization": "write",
       "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -18031,26 +18039,28 @@
         "required": 1
       },
       "help": "awx-axi api patch <path> [--body-file <path>] [--confirm] [--dry-run]\n\nSends PATCH to the AWX API. Previews by default; --confirm sends it.\nRequires AWX_AXI_ALLOW_SECURITY_WRITES=1 and applicable configuration or delete gates.\nLaunch credential passwords require a private body file and AWX_AXI_ALLOW_CREDENTIAL_PASSWORDS=1.\nThe method, timestamp and status go to the write journal; the payload does not.\nRequest bodies must be in a private --body-file (0600).\n\nExamples:\n  awx-axi api patch jobs/1839/cancel/ --confirm",
+      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
       "flags": [
         {
           "name": "help",
           "takesValue": false,
           "description": "Command help",
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "b",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "body-file",
           "description": "path to a 0600 JSON file holding the request body",
           "takesValue": true,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "c",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -18058,40 +18068,42 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "reason": "Not yet supported: requires secure input"
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "confirm",
           "description": "confirm live execution",
           "takesValue": false,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "b",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         },
         {
           "name": "dry-run",
           "description": "preview without mutating",
           "takesValue": false,
           "effect": "configuration write",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "b",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
-          "stdin": false
+          "stdin": false,
+          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
         }
       ]
     },
     {
       "command": "api delete",
       "effect": "destructive",
-      "status": "blocked",
+      "status": "supported",
       "targetSlice": "d",
       "authorization": "write",
       "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -18108,7 +18120,7 @@
           "takesValue": false,
           "description": "Command help",
           "effect": "destructive",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "d",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -18121,7 +18133,7 @@
           "description": "confirm live execution",
           "takesValue": false,
           "effect": "destructive",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "d",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
@@ -18134,7 +18146,7 @@
           "description": "preview without mutating",
           "takesValue": false,
           "effect": "destructive",
-          "status": "blocked",
+          "status": "supported",
           "targetSlice": "d",
           "authorization": "write",
           "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",

@@ -7,9 +7,9 @@ const packageRoot = new URL('node_modules/@knowttl/tenable-axi/', root)
 const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8'))
 const pin = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8'))[pkg.name]
 if (pkg.version !== pin.version) throw new Error('Pin mismatch for tenable-axi')
-const unsafeOverrides = ['config', 'profile', 'origin', 'output']
+const unsafeOverrides = ['config', 'profile', 'origin', 'output', 'out']
 const inputFileFlags = ['filter-file', 'body-file', 'ids-file', 'asset-ids-file', 'tag-ids-file']
-const blockedCommands = ['setup hooks', 'config path', 'profile list', 'hook', 'export attack download', 'export inventory download', 'raw get', 'raw write']
+const blockedCommands = ['setup hooks', 'config path', 'profile list', 'hook', 'export attack download', 'export inventory download']
 const commands = Object.entries(catalogue).sort(([a], [b]) => a.localeCompare(b)).map(([command, entry]) => ({
   command, effect: blockedCommands.includes(command) ? 'blocked' : Object.hasOwn(entry.flags, 'execute') ? 'write' : 'read',
   flags: entry.flags,
@@ -21,7 +21,7 @@ const data = { generatedBy: 'scripts/tenable-inventory.mjs', tool: 'tenable-axi'
   parserEvidence: 'Published command catalogue, mutation registry and reviewed native parsers and transport gates', sources,
   credentialSchema: JSON.parse(readFileSync(new URL('axi-credential.schema.json', packageRoot), 'utf8')),
   skillSha256: createHash('sha256').update(skill).digest('hex'),
-  nativeWriteSettings: { supportedOperations: Object.keys(mutationOperations).sort() },
+  nativeWriteSettings: { supportedOperations: [...Object.keys(mutationOperations), 'raw-write'].sort() },
   adapterBoundary: { unsafeOverrides, inputFileFlags, blockedCommands,
     inputs: { stdin: 'explicit file flag with - only', files: 'uploaded leaves only', downloads: 'unsupported' },
     nativeWrites: 'native preview, operation allow-list, execute, exact confirm and durable journal' },

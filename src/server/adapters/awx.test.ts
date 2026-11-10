@@ -134,6 +134,26 @@ test.each(inventory.commands.filter(route => ['write', 'configuration-write'].in
   expect(call.write?.checkArgs).toBeDefined()
 })
 
+test.each(['post', 'put', 'patch', 'delete'])('api %s reads its own path back after an uncertain outcome and keeps the uploaded body private', async method => {
+  const body = { name: 'body.json', contentBase64: Buffer.from('{"name":"CANARY-api-body"}').toString('base64') }
+  const call = await adapter(true).prepare(['api', method, 'labels/7/', ...method === 'delete' ? [] : ['--body-file', 'body.json'], '--confirm'], reference,
+    method === 'delete' ? {} : { files: [body] })
+  expect(call.write?.checkArgs).toEqual(['api', 'get', 'labels/7/'])
+  expect(call.args.join(' ')).not.toContain('CANARY-')
+  expect(call.fileArguments?.map(index => call.args[index])).toEqual(method === 'delete' ? [] : ['body.json'])
+})
+
+test.each([['post', 'labels/', 'POST'], ['delete', 'labels/7/', 'DELETE']])('api %s %s reaches the controller under the gates Artium derives from the single write switch', async (method, path, verb) => {
+  const call = await adapter(true).prepare(['api', method, path, '--confirm'], reference)
+  const transport = new RecordedTransport([{ status: 200, body: { id: 7 } }], { env: call.environment })
+  await main({ argv: call.args, env: call.environment, createTransport: () => transport, stdout: { write: () => {} } })
+  expect(transport.requests).toMatchObject([{ method: verb, route: path }])
+})
+
+test.each([['api', 'post', 'labels/'], ['api', 'delete', 'labels/7/']])('%s %s without confirm or dry-run is refused', async (...args) => {
+  await expect(adapter(true).prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+})
+
 test('an authorized dry-run remains a read even when confirm is present', async () => {
   const call = await adapter(true).prepare(['job', 'cancel', '42', '--confirm', '--dry-run'], reference)
   expect(call.effect).toBe('read')
@@ -373,7 +393,7 @@ test.each(inventory.discovery.commands.filter(command => !['auth status', 'docto
   const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
-  expect(help).toContain(`artium-axi awx-axi ${command} list`)
+  expect(help).toContain(`artium-axi awx-axi ${command === 'api' ? 'api get' : `${command} list`}`)
   if (command === 'inventory') expect(help).toContain('artium-axi awx-axi inventory host-bulk-create')
 })
 

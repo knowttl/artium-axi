@@ -314,6 +314,7 @@
       "configuration-file",
       "config-file",
       "messages-file",
+      "body-file",
       "extra-vars",
       "variables",
       "source-vars",
@@ -350,6 +351,7 @@
       "activity-stream",
       "team",
       "role",
+      "api",
       "auth status",
       "doctor"
     ],
@@ -3832,7 +3834,7 @@
     },
     {
       "command": "api get",
-      "effect": "blocked",
+      "effect": "read",
       "flags": {
         "help": "boolean",
         "query": "value"
@@ -3846,7 +3848,7 @@
     },
     {
       "command": "api post",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "body-file": "value",
@@ -3862,7 +3864,7 @@
     },
     {
       "command": "api put",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "body-file": "value",
@@ -3878,7 +3880,7 @@
     },
     {
       "command": "api patch",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "body-file": "value",
@@ -3894,7 +3896,7 @@
     },
     {
       "command": "api delete",
-      "effect": "blocked",
+      "effect": "configuration-write",
       "flags": {
         "help": "boolean",
         "confirm": "boolean",

@@ -13,7 +13,7 @@ import { awxInputBridge, awxPrivateOutput } from './awx-input.js'
 
 export const awxManifest = { ...inventory, ...inventory.adapterBoundary }
 export const awxWritePolicy = writePolicy({ unlocks: 'All AWX writes for this tenant, including configuration, deletion, removals and security administration, support preview and require explicit confirmation and AWX resource permission.',
-  blocked: 'API post, put, patch and delete remain blocked pending separate admission. Unsafe overrides remain blocked. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. SCM URLs must have no userinfo, credential query parameters or fragments; use --credential and credential create/edit --inputs-file for SCM secrets. Already-retained AWX logs from URLs set outside Artium are AWX-held data, outside Artium SCM input protection. Credential inputs-file and password-file accept stdin (-). Server file paths are refused.' })
+  blocked: 'Unsafe overrides remain blocked. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. SCM URLs must have no userinfo, credential query parameters or fragments; use --credential and credential create/edit --inputs-file for SCM secrets. Already-retained AWX logs from URLs set outside Artium are AWX-held data, outside Artium SCM input protection. Credential inputs-file and password-file accept stdin (-). Server file paths are refused.' })
 export const awxProfile = new CredentialProfile(inventory.credentialSchema, 'awx-axi')
 export const awxCredentialSchema = awxProfile.credentialSchema
 
@@ -102,6 +102,7 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
     checkArgs = [readGroup, 'show', rest[0], ...(readGroup === 'job' && flags.has('type') ? ['--type', String(flags.get('type'))] : [])]
   }
   if (route.command === 'user token-revoke') checkArgs = ['user', 'list', '--limit', '100']
+  if (positionals[0] === 'api') checkArgs = ['api', 'get', rest[0]]
   const normalized = [...(route.command === 'home' ? [] : positionals)]
   const fileArguments: number[] = []
   const structured: [number, string][] = []
@@ -140,6 +141,8 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       positions: args.map((_, index) => index).filter(index => index > 1) }),
     validateArgs: (args, input) => { awxArguments(args, input) },
     executesWrite: (args, input) => awxArguments(args, input).effect === 'write',
+    rawApi: { commands: ['api get', 'api post', 'api put', 'api patch', 'api delete'], writes: true,
+      help: (args, input) => awxArguments(args, input).invocation.help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => awxArguments(a, i).invocation, args, input),
     async prepare(args, reference, input) {
       const normalized = awxArguments(args, input)

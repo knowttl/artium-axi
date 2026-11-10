@@ -655,7 +655,7 @@ test('a classified write ending on a signal records an unknown outcome', async (
 
 describe('AWX native write failure recovery (R1)', () => {
   function execution(code: string) {
-    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'awx-axi')")
+    db.exec("UPDATE tools SET enabled = 1, raw_api_mode = 'read-writes' WHERE name = 'awx-axi'; INSERT INTO role_tools (role_id, tool, raw_api) VALUES ('synthetic-role', 'awx-axi', 1)")
     const awx = createAwxAdapter({ getCredential: async () => ({ origin: 'https://controller.example',
       token: 'CANARY-awx-token', allowWrites: true, allowConfigurationWrites: true }) })
     const prepare = awx.prepare.bind(awx)

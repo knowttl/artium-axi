@@ -17,8 +17,8 @@ export const tenableManifest = { ...inventory, ...inventory.adapterBoundary }
 export const tenableProfile = new CredentialProfile(inventory.credentialSchema, 'tenable-axi')
 export const tenableCredentialSchema = tenableProfile.credentialSchema
 export const tenableWritePolicy = writePolicy({ supportedOperations: inventory.nativeWriteSettings.supportedOperations,
-  unlocks: 'Selected business writes and export-job creation, with native preview, --execute, exact --confirm and journal gates.',
-  blocked: 'Raw write remains blocked pending separate admission. Operations outside the allow-list, local configuration, output downloads and credential or origin overrides remain blocked.' })
+  unlocks: 'Selected business writes, export-job creation and raw write, with native preview, --execute, exact --confirm and journal gates. Raw API permission is separate.',
+  blocked: 'Operations outside the allow-list, local configuration, output downloads, raw get --out and credential or origin overrides remain blocked.' })
 
 function tenableArguments(args: readonly string[], input: RunnerInput = {}) {
   const tokens = args.length ? [...args] : ['home']
@@ -73,6 +73,7 @@ export function createTenableAdapter(source: SecretSource, writeLog: string): Ad
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { tenableArguments(args, input) },
     executesWrite: (args, input) => tenableArguments(args, input).effect === 'write',
+    rawApi: { commands: ['raw get', 'raw write'], writes: true, help: (args, input) => tenableArguments(args, input).invocation.help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => tenableArguments(a, i).invocation, args, input),
     async prepare(args, reference, input) {
       const normalized = tenableArguments(args, input)

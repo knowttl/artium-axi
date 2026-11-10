@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { afterAll } from 'vitest'
 import { credentialFields } from '../admin/credential-form.js'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
+import { Runner } from '../runner/runner.js'
 import { createTenableAdapter, tenableCredentialSchema, tenableProfile, tenableWritePolicy } from './tenable.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import { toolFailure } from '../health/diagnostic.js'
@@ -72,6 +73,8 @@ test.each([
   ['export', 'attack', 'download', '--id', 'synthetic', '--output', '/tmp/output'],
   ['card', 'list', '--config=/tmp/config'], ['card', 'list', '--profile', 'other'],
   ['asset', 'list', '--filter-file', '/tmp/filter'], ['tag', 'value', 'create', '--body-file=/tmp/body'],
+  ['raw', 'get', '--path', '/api/v1/t1/tags/properties', '--out', '/tmp/output'],
+  ['raw', 'write', '--method', 'POST', '--path', '/api/v1/t1/tags', '--body-file', '/tmp/body'],
 ].map(args => ({ args })))('managed boundary refuses $args before credential resolution', async ({ args }) => {
   await expect(adapter.prepare(args, reference)).rejects.toMatchObject({ code: expect.stringMatching(/FLAG_BLOCKED|UNSUPPORTED_INPUT/) })
 })
@@ -86,6 +89,33 @@ test('file inputs normalize uploaded leaves and explicit stdin only', async () =
   expect(stdin.fileArguments).toEqual([])
   expect(stdin.files).toEqual([])
   await expect(adapter.prepare(['card', 'list'], reference, { stdin: '{}' })).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
+})
+
+test('raw get reads, raw write previews as a read and executes as a write, and raw-write is a selectable operation', async () => {
+  const file = { name: 'body.json', contentBase64: Buffer.from('{}').toString('base64') }
+  const write = ['raw', 'write', '--method', 'POST', '--path', '/api/v1/t1/tags', '--body-file', 'body.json']
+  const get = await adapter.prepare(['raw', 'get', '--path', '/api/v1/t1/tags/properties', '--query', 'limit=5'], reference)
+  expect(get).toMatchObject({ invocation: { command: 'raw get', help: false }, effect: 'read' })
+  const preview = await adapter.prepare(write, reference, { files: [file] })
+  expect(preview).toMatchObject({ invocation: { command: 'raw write', help: false }, effect: 'read', fileArguments: [7] })
+  const execute = await adapter.prepare([...write, '--execute', '--confirm', 'synthetic'], reference, { files: [file] })
+  expect(execute.effect).toBe('write')
+  expect(tenableWritePolicy.update({}, { enabled: true, operations: ['raw-write'], expectedRevision: 1 }))
+    .toEqual({ writes: { allowWrites: true, operations: ['raw-write'] } })
+})
+
+test('the pinned CLI previews a raw write from an uploaded body once raw-write is selected', async () => {
+  const granted = createTenableAdapter({ getCredential: async () => ({ ...credential, writes: { allowWrites: true, operations: ['raw-write'] } }) }, writeLog)
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    const input = { files: [{ name: 'body.json', contentBase64: Buffer.from('{"synthetic":true}').toString('base64') }] }
+    const call = await granted.prepare(['raw', 'write', '--method', 'POST', '--path', '/api/v1/t1/tags', '--body-file', 'body.json'], reference, input)
+    const result = await runner.run('synthetic-user', process.execPath,
+      [join(process.cwd(), 'tools/node_modules/@knowttl/tenable-axi/bin/tenable-axi.js'), ...call.args], call.environment, call.secrets,
+      call.limits, { ...input, fileArguments: call.fileArguments?.map(index => index + 1) }, call.files)
+    expect(result.exitCode, result.stdout + result.stderr).toBe(0)
+    expect(result.stdout).toMatch(/preview/)
+  } finally { await runner.shutdown() }
 })
 
 test('the write switch preserves the allow-list and disabled source policy wins', async () => {

@@ -227,6 +227,7 @@
       "initiatives-update",
       "inventory-export-assets",
       "inventory-export-findings",
+      "raw-write",
       "tags-assign-asset-tags",
       "tags-create-tag-category",
       "tags-create-tag-value",
@@ -242,7 +243,8 @@
       "config",
       "profile",
       "origin",
-      "output"
+      "output",
+      "out"
     ],
     "inputFileFlags": [
       "filter-file",
@@ -257,9 +259,7 @@
       "profile list",
       "hook",
       "export attack download",
-      "export inventory download",
-      "raw get",
-      "raw write"
+      "export inventory download"
     ],
     "inputs": {
       "stdin": "explicit file flag with - only",
@@ -282,6 +282,7 @@
       "finding",
       "home",
       "initiative",
+      "raw",
       "software",
       "tag"
     ],
@@ -911,7 +912,7 @@
     },
     {
       "command": "raw get",
-      "effect": "blocked",
+      "effect": "read",
       "flags": {
         "config": "Config path; default platform path",
         "profile": "Profile name; default credential precedence",
@@ -923,7 +924,7 @@
     },
     {
       "command": "raw write",
-      "effect": "blocked",
+      "effect": "write",
       "flags": {
         "config": "Config path; default platform path",
         "profile": "Profile name; default credential precedence",

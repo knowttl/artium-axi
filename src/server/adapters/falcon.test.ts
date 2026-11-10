@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { withFakeService } from '../../../test/fake-service/fixture.js'
 import { Runner } from '../runner/runner.js'
+import type { RunnerInput } from '../runner/input.js'
 import { createFalconAdapter, falconManifest, falconWritePolicy, prepareFalcon } from './falcon.js'
 import { CredentialProfile } from './credential-profile.js'
 import { prepareRunJournal } from './run-journal.js'
@@ -15,6 +16,7 @@ const writeCalls = [
   ['search', 'start', '--query', 'synthetic'], ['search', 'stop', 'synthetic-search'],
   ['host', 'usb', 'a'.repeat(32)], ['identity', 'activity', 'a'.repeat(32)], ['malquery', 'search', '--string', 'synthetic'],
   ['rtr', 'run', 'a'.repeat(32), '--command', 'ps', '--execute', '--confirm', `${'a'.repeat(32)}:ps`],
+  ['raw', 'write', '--method', 'POST', '--path', '/synthetic/v1', '--execute', '--confirm', 'synthetic'],
 ]
 beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), 'artium-falcon-test-'))
@@ -62,6 +64,63 @@ test.each(writeCalls.map(args => ({ args })))('the exact Falcon grant enables na
   expect(call.environment.FALCON_AXI_READ_ONLY).toBe('false')
   expect(call.effect).toBe('write')
   expect(call.args.slice(1)).toEqual(args)
+})
+
+const rawGrant = { writes: { allowWrites: true, operations: ['raw write'] } }
+const rawCredential = { clientId: 'CANARY-client', clientSecret: 'CANARY-secret', region: 'us-2' }
+const rawAdapter = (settings: Record<string, unknown> = {}) => createFalconAdapter({ getSettings: () => settings,
+  getCredential: async () => rawCredential }, join(directory, 'writes.log'))
+const synthetic = { id: 'synthetic', tool: 'falcon-axi' as const, revision: 1 }
+const nativeWrites = (call: { files: { content: string | Uint8Array }[] }) => JSON.parse(call.files[0].content as string).profiles.artium.writes
+
+test('raw get is a read that never carries the raw-write profile opt-in', async () => {
+  const call = await rawAdapter(rawGrant).prepare(['raw', 'get', '--path', '/synthetic/v1', '--query', 'limit=5'], synthetic)
+  expect(call).toMatchObject({ invocation: { command: 'raw get', help: false }, effect: 'read', environment: { FALCON_AXI_READ_ONLY: 'true' } })
+  expect(nativeWrites(call)).toBeUndefined()
+})
+
+test.each([
+  { args: ['--method', 'POST', '--path', '/synthetic/v1'], effect: 'read', readOnly: 'true' },
+  { args: ['--method', 'POST', '--path', '/synthetic/v1', '--execute', '--confirm', 'synthetic'], effect: 'write', readOnly: 'false' },
+])('raw write $args needs the exact grant and carries the native raw-write opt-in', async ({ args, effect, readOnly }) => {
+  const getCredential = vi.fn(async () => rawCredential)
+  await expect(createFalconAdapter({ getSettings: () => ({ writes: { allowWrites: true, operations: ['rtr run'] } }), getCredential })
+    .prepare(['raw', 'write', ...args], synthetic)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  expect(getCredential).not.toHaveBeenCalled()
+  const call = await rawAdapter(rawGrant).prepare(['raw', 'write', ...args], synthetic)
+  expect(call).toMatchObject({ effect, environment: { FALCON_AXI_READ_ONLY: readOnly } })
+  expect(nativeWrites(call)).toEqual({ allowWrites: true, operations: ['raw-write'] })
+})
+
+test('raw files are uploaded leaves or the single explicit stdin and nothing else', async () => {
+  const adapter = rawAdapter(rawGrant)
+  const file = { name: 'body.json', contentBase64: Buffer.from('{}').toString('base64') }
+  const write = ['raw', 'write', '--method', 'POST', '--path', '/synthetic/v1']
+  const uploaded = await adapter.prepare([...write, '--body-file=body.json'], synthetic, { files: [file] })
+  expect(uploaded.args.slice(1)).toEqual([...write, '--body-file', 'body.json'])
+  expect(uploaded.fileArguments?.map(index => uploaded.args[index])).toEqual(['body.json'])
+  const stdin = await adapter.prepare([...write, '--body-file', '-'], synthetic, { stdin: '{}' })
+  expect(stdin.fileArguments).toEqual([])
+  for (const [args, input] of [
+    [[...write, '--body-file', '/tmp/body.json'], {}],
+    [[...write, '--body-file', '-'], {}],
+    [write, { stdin: '{}' }],
+    [write, { files: [file] }],
+    [[...write, '--body-file', 'body.json'], { files: [file], stdin: '{}' }],
+  ] satisfies [string[], RunnerInput][]) await expect(adapter.prepare(args, synthetic, input)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
+})
+
+test('the pinned CLI previews a raw write from an uploaded body through the injected profile opt-in', async () => {
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    const input = { files: [{ name: 'body.json', contentBase64: Buffer.from('{"synthetic":true}').toString('base64') }] }
+    const call = await rawAdapter(rawGrant).prepare(['raw', 'write', '--method', 'POST', '--path', '/synthetic/v1', '--body-file', 'body.json'], synthetic, input)
+    const args = [join(process.cwd(), 'tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js'), ...call.args.slice(1)]
+    const result = await runner.run('synthetic-user', call.executable, args, call.environment, call.secrets, call.limits,
+      { ...input, fileArguments: call.fileArguments }, call.files)
+    expect(result.exitCode, result.stdout + result.stderr).toBe(0)
+    expect(result.stdout).toMatch(/preview:[\s\S]*method: POST[\s\S]*body_bytes: 18/)
+  } finally { await runner.shutdown() }
 })
 
 test('Falcon write switch keeps MalQuery off for legacy RTR opt-ins and retains choices while disabled', () => {
