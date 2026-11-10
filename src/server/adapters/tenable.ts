@@ -80,9 +80,15 @@ export function createTenableAdapter(source: SecretSource, writeLog: string): Ad
       if (reference.tool !== 'tenable-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const parsed = tenableCredentialSchema.safeParse(await source.getCredential(reference))
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
-      const readOnly = !toolAllowsWrites('tenable-axi', parsed.data)
-        || Boolean(source.getSettings && !toolAllowsWrites('tenable-axi', source.getSettings(reference)))
+      const rawWrite = normalized.invocation.command === 'raw write'
+      const readOnly = !rawWrite && (!toolAllowsWrites('tenable-axi', parsed.data)
+        || Boolean(source.getSettings && !toolAllowsWrites('tenable-axi', source.getSettings(reference))))
       const profile = tenableProfile.prepare('tenable-axi', parsed.data, writeLog, readOnly)
+      if (rawWrite) {
+        const configuration = JSON.parse(String(profile.files[0].content))
+        configuration.profiles.artium.writes = { allowWrites: true, operations: ['raw-write'] }
+        profile.files[0].content = JSON.stringify(configuration)
+      }
       const content = profile.files[0].content
       const identity = createHash('sha256').update(JSON.stringify([reference.id, reference.revision, content])).digest('hex')
       const directory = join(dirname(writeLog), 'profiles')

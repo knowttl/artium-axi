@@ -434,9 +434,9 @@ Set the tool's mode on its **Raw API** tab, shown only for tools with raw API ro
 Allow raw calls for a role in **Raw API access** on the role's page, for each granted tool that has raw API routes.
 Both [Raw API access](safety.md#raw-api-access) settings must permit a call, and a new tool grant starts without raw access.
 Each change is recorded as an `admin-change` audit event for the tool, with actions such as `set-tool-raw-api-read` and `grant-role-raw-api`; a request that changes nothing records nothing.
-Raw write execution requires `read-writes` raw mode, a raw role grant, the tool's write gate and native confirmation; no one of these grants bypasses the others.
-Falcon `raw write` and Tenable `raw-write` require **Allow writes** and their respective operation in the **Allowed operations** card, even for previews; execution also requires `--execute` and the exact native `--confirm`.
-AWX raw `api` writes require **Allow writes** and `--confirm` for execution, or `--dry-run` for preview; they have no separate allow-list.
+Raw writes require `read-writes` raw mode, a raw role grant and native confirmation.
+Falcon and Tenable raw writes require `--execute` and the exact native `--confirm` for execution.
+AWX raw `api` writes require `--confirm` for execution, or `--dry-run` for preview.
 
 Configure the ADO API write allow list in the server process environment; it is never accepted from a client or forwarded to the tool.
 Keys are `POST`, `PATCH`, `PUT` or `DELETE`; values are arrays of relative REST path patterns.

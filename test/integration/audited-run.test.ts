@@ -673,7 +673,9 @@ describe('AWX native write failure recovery (R1)', () => {
       const run = execution('CONTROLLER_UNREACHABLE')
       const args = [...route.command.split(' '), ...route.positionals.names.slice(0, route.positionals.required).map(() => '42'), '--confirm']
       await expect(run(args)).rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME',
-        next: expect.stringContaining('Check current state before trying again: artium-axi awx-axi ') })
+        next: expect.stringContaining(route.command.startsWith('api ')
+          ? 'Inspect the resource targeted or created by the request before retrying'
+          : 'Check current state before trying again: artium-axi awx-axi ') })
       expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get())
         .toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'unknown' })
       expect(readdirSync(join(directory, 'calls'))).toEqual([])

@@ -104,12 +104,11 @@ test('raw get reads, raw write previews as a read and executes as a write, and r
     .toEqual({ writes: { allowWrites: true, operations: ['raw-write'] } })
 })
 
-test('the pinned CLI previews a raw write from an uploaded body once raw-write is selected', async () => {
-  const granted = createTenableAdapter({ getCredential: async () => ({ ...credential, writes: { allowWrites: true, operations: ['raw-write'] } }) }, writeLog)
+test('the pinned CLI previews a raw write without a separate write grant', async () => {
   const runner = await Runner.create(join(directory, 'calls'))
   try {
     const input = { files: [{ name: 'body.json', contentBase64: Buffer.from('{"synthetic":true}').toString('base64') }] }
-    const call = await granted.prepare(['raw', 'write', '--method', 'POST', '--path', '/api/v1/t1/tags', '--body-file', 'body.json'], reference, input)
+    const call = await adapter.prepare(['raw', 'write', '--method', 'POST', '--path', '/api/v1/t1/tags', '--body-file', 'body.json'], reference, input)
     const result = await runner.run('synthetic-user', process.execPath,
       [join(process.cwd(), 'tools/node_modules/@knowttl/tenable-axi/bin/tenable-axi.js'), ...call.args], call.environment, call.secrets,
       call.limits, { ...input, fileArguments: call.fileArguments?.map(index => index + 1) }, call.files)

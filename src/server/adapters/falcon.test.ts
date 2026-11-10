@@ -82,12 +82,8 @@ test('raw get is a read that never carries the raw-write profile opt-in', async 
 test.each([
   { args: ['--method', 'POST', '--path', '/synthetic/v1'], effect: 'read', readOnly: 'true' },
   { args: ['--method', 'POST', '--path', '/synthetic/v1', '--execute', '--confirm', 'synthetic'], effect: 'write', readOnly: 'false' },
-])('raw write $args needs the exact grant and carries the native raw-write opt-in', async ({ args, effect, readOnly }) => {
-  const getCredential = vi.fn(async () => rawCredential)
-  await expect(createFalconAdapter({ getSettings: () => ({ writes: { allowWrites: true, operations: ['rtr run'] } }), getCredential })
-    .prepare(['raw', 'write', ...args], synthetic)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
-  expect(getCredential).not.toHaveBeenCalled()
-  const call = await rawAdapter(rawGrant).prepare(['raw', 'write', ...args], synthetic)
+])('raw write $args carries the native raw-write opt-in without a separate grant', async ({ args, effect, readOnly }) => {
+  const call = await rawAdapter().prepare(['raw', 'write', ...args], synthetic)
   expect(call).toMatchObject({ effect, environment: { FALCON_AXI_READ_ONLY: readOnly } })
   expect(nativeWrites(call)).toEqual({ allowWrites: true, operations: ['raw-write'] })
 })
@@ -114,7 +110,7 @@ test('the pinned CLI previews a raw write from an uploaded body through the inje
   const runner = await Runner.create(join(directory, 'calls'))
   try {
     const input = { files: [{ name: 'body.json', contentBase64: Buffer.from('{"synthetic":true}').toString('base64') }] }
-    const call = await rawAdapter(rawGrant).prepare(['raw', 'write', '--method', 'POST', '--path', '/synthetic/v1', '--body-file', 'body.json'], synthetic, input)
+    const call = await rawAdapter().prepare(['raw', 'write', '--method', 'POST', '--path', '/synthetic/v1', '--body-file', 'body.json'], synthetic, input)
     const args = [join(process.cwd(), 'tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js'), ...call.args.slice(1)]
     const result = await runner.run('synthetic-user', call.executable, args, call.environment, call.secrets, call.limits,
       { ...input, fileArguments: call.fileArguments }, call.files)

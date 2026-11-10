@@ -21,6 +21,10 @@ const { AwxAxiError, formatError } = await import(errorsModule)
 const credential = { origin: 'https://controller.example', token: 'CANARY-awx-token' }
 const reference = { id: 'synthetic-awx', tool: 'awx-axi' as const, revision: 1 }
 const adapter = (allowWrites = false, allowConfigurationWrites = false) => createAwxAdapter({ getCredential: async () => ({ ...credential, allowWrites, allowConfigurationWrites }) })
+test('raw mutation preview does not require the tenant write setting', async () => {
+  const call = await adapter().prepare(['api', 'post', 'jobs/42/cancel/', '--dry-run'], reference)
+  expect(call.environment.AWX_AXI_READ_ONLY).toBe('false')
+})
 const fixedSchemaLists = ['job', 'template', 'workflow', 'organization', 'system-job-template', 'system-job',
   'credential', 'ad-hoc', 'project', 'schedule', 'execution-environment', 'user', 'notification',
   'notification-template', 'activity-stream', 'team', 'role']

@@ -66,7 +66,7 @@ export function createFalconAdapter(source: SecretSource, writeLog = defaultWrit
       if (reference.tool !== 'falcon-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const access = falconWritePolicy.read(source.getSettings?.(reference) ?? {})
       const rawWrite = call.operation === 'raw write'
-      if ((call.executing || rawWrite) && (!access.enabled || !access.allowedOperations.includes(call.operation!))) throw new ArtiumError('FLAG_BLOCKED')
+      if (call.executing && !rawWrite && (!access.enabled || !access.allowedOperations.includes(call.operation!))) throw new ArtiumError('FLAG_BLOCKED')
       const prepared = profile.prepare('falcon-axi', await source.getCredential(reference), writeLog, !call.executing)
       if (rawWrite) {
         const configuration = JSON.parse(String(prepared.files[0].content))
