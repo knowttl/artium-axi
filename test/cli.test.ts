@@ -1630,7 +1630,7 @@ test('Artium errors preserve the server request ID and withhold streams', async 
 })
 
 test.each([{ tools: [], extra: true }, { stdout: 'untrusted' }, { tools: [{ name: 'unknown-axi', status: 'ok', version: '0.1.4', instances: [] }] },
-  { tools: [{ name: 'falcon-axi', status: 'ok', version: '1.0.0-rc.4' }] }])('malformed response does not print unvalidated data', async body => {
+  { tools: [{ name: 'falcon-axi', status: 'ok', version: '1.0.0' }] }])('malformed response does not print unvalidated data', async body => {
   requests = []
   response = { status: 200, body }
   expect(await cli(['tools'])).toMatchObject({ code: 1, stdout: expect.stringContaining('INVALID_RESPONSE'), stderr: '' })
@@ -1797,10 +1797,10 @@ test.each([
 
 test('tool detail uses pinned help without running the tool', async () => {
   requests = []
-  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '1.0.0-rc.4', instances: [] }] } }
+  response = { status: 200, body: { tools: [{ name: 'falcon-axi', status: 'ok', version: '1.0.0', instances: [] }] } }
   const result = await cli(['tools', 'show', 'falcon-axi'])
   expect(result).toMatchObject({ code: 0, stderr: '' })
-  expect(result.stdout).toContain('version: "1.0.0-rc.4"\nstatus: ok\nreadOnly: true\ninstances[0]{name,status,readOnly,description}:\ncommands[')
+  expect(result.stdout).toContain('version: "1.0.0"\nstatus: ok\nreadOnly: true\ninstances[0]{name,status,readOnly,description}:\ncommands[')
   expect(result.stdout).toContain('example: artium-axi --instance <name> falcon-axi detection list\nupstreamHelp:')
   expect(result.stdout).toContain('default 20, ceiling 10000')
   const discovery = decode(result.stdout) as { commands: string[] }
@@ -1821,11 +1821,11 @@ test.each([
   { tool: 'az-axi', example: 'sub list', version: '0.1.17' },
   { tool: 'mg-axi', example: 'entra user list', version: '0.1.20' },
   { tool: 'vectra-axi', example: 'detection list', version: '0.1.14' },
-  { tool: 'falcon-axi', example: 'detection list', version: '1.0.0-rc.4' },
+  { tool: 'falcon-axi', example: 'detection list', version: '1.0.0' },
   { tool: 'ldap-axi', example: 'user list --limit 1', version: '0.3.4' },
   { tool: 'ado-axi', example: 'project list --limit 1', version: '0.5.2' },
   { tool: 'gh-axi', example: 'repo list --limit 1', version: '0.1.51' },
-  { tool: 'awx-axi', example: 'job list --limit 1', version: '0.1.13' },
+  { tool: 'awx-axi', example: 'job list --limit 1', version: '0.1.14' },
   { tool: 'tenable-axi', example: 'card list --limit 1', version: '0.1.7' },
   { tool: 'hybrid-axi', example: 'quota', version: '0.1.5' },
   { tool: 'checkpoint-axi', example: 'email search --limit 1', version: '0.1.6' },

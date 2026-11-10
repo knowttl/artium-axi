@@ -1,7 +1,7 @@
 {
   "generatedBy": "scripts/awx-parity.mjs",
   "tool": "@knowttl/awx-axi",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "extraction": "Offline DOMAINS subcommands/flags/positionals/help; main --help and update --help; AUTH_HELP and SETUP_HELP; reviewed inventory router aliases and transport tags",
   "sources": [
     {
@@ -118,7 +118,7 @@
     },
     {
       "path": "dist/domains/host/index.js",
-      "sha256": "457dedad29de9fc7aefaa639fd5a44a8d7231e5b4b41a9647ccb495099f29aa0"
+      "sha256": "06189e272308dbe48a36f945ee932f01587072eec2cd57e55b534498402cb0d7"
     },
     {
       "path": "dist/domains/inventory-source/index.js",
