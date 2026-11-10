@@ -70,10 +70,12 @@ export async function shodanWrite(args: string[], createClient: () => Client, ou
   const importFile = command === 'alert import'
   const bodyPath = importFile ? positional.pop() : values.get('--body-file')
   const body = bodyPath === undefined ? undefined : await readPrivateFile(bodyPath, importFile ? shodanWriteBodyLimit : notifierBodyLimit)
+  let secrets: string[] = []
   if (body !== undefined && !importFile) {
     let parsed: z.ZodSafeParseResult<z.infer<typeof shodanNotifierBody>>
     try { parsed = shodanNotifierBody.safeParse(JSON.parse(body)) } catch { throw new ArtiumError('INVALID_INPUT', 'The notifier file is not valid JSON.') }
     if (!parsed.success || command === 'notifier create' && !parsed.data.provider) throw new ArtiumError('INVALID_INPUT', 'The notifier file needs an args object, and a provider for create.')
+    secrets = Object.values(parsed.data.args).map(String).filter(Boolean)
   }
   const parsed = shodanWriteInput.safeParse({ command, arguments: positional, allowOperations: grants, queryCreditBudget: integer('--query-credit-budget'), maxRequests: integer('--max-requests'),
     expires: integer('--expires'), vulns: values.get('--vulns'), silent: switches.has('--silent') || undefined, triggers: values.get('--triggers'), body, acceptUnknownCost: true })
@@ -81,9 +83,15 @@ export async function shodanWrite(args: string[], createClient: () => Client, ou
   const client = createClient()
   await client.authenticated('/v1/me', 'GET')
   const request = { ...parsed.data, ...(execute ? { confirm } : {}), ...(instance === undefined ? {} : { instance }) }
-  const result = z.record(z.string(), z.unknown()).safeParse(await client.transferSession(token => client.request(`${prefix}/${execute ? 'execute' : 'preview'}`, 'POST', request, token)))
+  const response = await client.transferSession(token => client.request(`${prefix}/${execute ? 'execute' : 'preview'}`, 'POST', request, token)).catch(error => {
+    if (secrets.length) throw new ArtiumError('INVALID_RESPONSE')
+    throw error
+  })
+  const result = z.record(z.string(), z.unknown()).safeParse(response)
   if (!result.success) throw new ArtiumError('INVALID_RESPONSE')
-  output('stdout', (switches.has('--json') ? JSON.stringify(result.data) : encode(result.data)) + '\n')
+  const rendered = switches.has('--json') ? JSON.stringify(result.data) : encode(result.data)
+  if (secrets.some(secret => rendered.includes(secret) || rendered.includes(JSON.stringify(secret).slice(1, -1)))) throw new ArtiumError('INVALID_RESPONSE')
+  output('stdout', rendered + '\n')
   if (result.data.status === 'OUTCOME_UNKNOWN' || result.data.status === 'READBACK_UNVERIFIED') process.exitCode = 1
   return true
 }

@@ -753,6 +753,19 @@ test('Shodan notifier create and alert import send local file content, never a p
 })
 
 test.each([
+  { command: ['create'], grant: 'OP-027', flags: ['--json'] },
+  { command: ['update', 'n1'], grant: 'OP-030', flags: ['--execute', '--confirm', writeToken] },
+])('Shodan notifier $command does not display an echoed provider secret', async ({ command, grant, flags }) => {
+  const secret = 'CANARY-provider-secret'
+  response = { status: 200, body: { confirm: writeToken, nested: { echoed: `value ${secret}` } } }
+  const path = privateFile(JSON.stringify({ provider: 'slack', args: { token: secret } }))
+  const result = await cli(['shodan-axi', 'notifier', ...command, '--body-file', path, '--allow-operation', grant,
+    '--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost', ...flags])
+  expect(result.code).not.toBe(0)
+  expect(result.stdout + result.stderr).not.toContain(secret)
+})
+
+test.each([
   { grants: 'OP-013', selected: ['OP-013'], execute: [], route: 'preview' },
   { grants: 'OP-013,OP-019', selected: ['OP-013', 'OP-019'], execute: ['--execute', '--confirm', writeToken], route: 'execute' },
 ])('Shodan alert import sends selected grants to $route', async ({ grants, selected, execute, route }) => {
