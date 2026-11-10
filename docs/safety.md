@@ -61,6 +61,8 @@ New tool rows default to mode `off`; new role tool grants default to no raw acce
 Saving a role's tool selection preserves raw access on retained grants.
 The governed routes are `api` for GitHub, Azure, Azure DevOps and Gitea, and `api get` for Microsoft Graph, Vectra and Hybrid Analysis.
 The reviewed inventories still determine which commands and flags are accepted; raw permission never widens that boundary or a tool's built-in restrictions.
+Falcon `raw` commands, Tenable `raw get` and `raw write`, and AWX `api` commands remain blocked.
+Microsoft Graph and AWX `api post`, `put`, `patch` and `delete`, Tenable `raw write`, and Falcon `raw` writes remain pending separate admission.
 
 Mode `off` denies raw calls; `read` permits read-classified calls; `read-writes` additionally permits write-classified calls on Azure, Azure DevOps and Gitea.
 Azure raw mutation previews are read-classified; executing a mutation requires `read-writes`.

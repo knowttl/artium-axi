@@ -12,7 +12,7 @@ The audit installed published `@knowttl/awx-axi@0.1.11` into an isolated tempora
 It walked exported CLI `main(argv, env, stdout)` using `--help` for the root, 22 domains, all 215 canonical commands, four client-local groups and 27 router aliases: 268 help invocations, with an empty environment and no controller calls.
 It compared every registered leaf and flag with the current Artium inventory and reviewed the published parser, inventory alias router and transport write tags.
 The executable is `dist/bin/awx-axi.js`; importing `dist/cli.js` alone does not execute the CLI.
-The repository pins the unscoped `awx-axi@0.1.11`; all 44 published JavaScript files were compared with the existing inventory's source hashes.
+The repository then pinned the unscoped `awx-axi@0.1.11`; all 44 published JavaScript files were compared with the existing inventory's source hashes.
 Only `dist/skill.js` differs, substituting scoped package names in invocation examples; command, flag, router and transport sources match.
 No real AWX service, credentials or tenant data were used.
 

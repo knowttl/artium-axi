@@ -511,7 +511,7 @@ See GitHub's [device-flow protocol](https://docs.github.com/en/apps/oauth-apps/b
 
 #### AWX
 
-Artium bundles the [pinned](../tools/package.json) `awx-axi` package without upstream modifications.
+Artium bundles the [pinned](../tools/package.json) `@knowttl/awx-axi` package without upstream modifications.
 At `/admin/tools/awx-axi`, add an instance with the controller HTTPS `origin`, then open it.
 Paste an existing personal access token into `token`, or choose password sign-in and enter a username and password.
 Follow the [runbook password sign-in flow](runbook.md#roles-credentials-and-health).
