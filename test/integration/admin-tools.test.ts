@@ -27,7 +27,8 @@ import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import type { MutableCredentialStore, ToolName } from '../../src/server/store/credential-store.js'
-import { adminCredentialSchema, adminInstanceSchema, adminToolSchema, errorResponseSchema, healthSchema, loginResponseSchema, toolsResponseSchema } from '../../src/shared/api.js'
+import { checkRawApiPolicy } from '../../src/server/policy/policy.js'
+import { adminCredentialSchema, adminInstanceSchema, adminRoleSchema, adminToolSchema, errorResponseSchema, healthSchema, loginResponseSchema, toolsResponseSchema } from '../../src/shared/api.js'
 import { toolsView, toolView } from '../../src/cli/views.js'
 import { errors, type ErrorCode } from '../../src/shared/errors.js'
 import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-transport.js'
@@ -2496,3 +2497,132 @@ test('a tool reports its failing enabled instance and recovers when that instanc
   await request('PATCH', '/falcon-axi/instances/west', { expectedId: west.id, expectedRevision: 1, enabled: false })
   expect((await (await request('GET', '/falcon-axi')).json()).health).toMatchObject({ status: 'ok', errorCode: null })
 })
+
+function roleRequest(method: string, path: string, body?: unknown, proof = headers) {
+  const { 'content-type': _contentType, ...withoutContentType } = proof
+  return fetch(`${url}/v1/admin/roles${path}`, { method, headers: body === undefined ? withoutContentType : proof,
+    body: body === undefined ? undefined : JSON.stringify(body) })
+}
+const adminChanges = () => db.prepare("SELECT action, target_id AS targetId, tool, user_id AS userId, outcome FROM audit WHERE event = 'admin-change' ORDER BY id").all()
+const rawApiMode = (tool: string) => db.prepare('SELECT raw_api_mode AS mode, revision FROM tools WHERE name = ?').get(tool)
+
+test('tools report the Raw API modes they can be set to', async () => {
+  const { tools } = await (await request('GET', '')).json() as { tools: unknown[] }
+  const rawApi = Object.fromEntries(tools.map(item => adminToolSchema.parse(item)).map(item => [item.name, item.rawApi]))
+  expect(rawApi['az-axi']).toEqual({ mode: 'off', modes: ['off', 'read', 'read-writes'] })
+  expect(rawApi['vectra-axi']).toEqual({ mode: 'off', modes: ['off', 'read'] })
+  expect(rawApi['falcon-axi']).toEqual({ mode: 'off', modes: [] })
+})
+
+test('an administrator changes a tool Raw API mode, the change is journaled and a repeat records nothing', async () => {
+  const before = adminToolSchema.parse(await (await request('GET', '/az-axi')).json())
+  const changed = await request('PATCH', '/az-axi/raw-api', { mode: 'read-writes', expectedRevision: before.revision })
+  expect(changed.status).toBe(200)
+  expect(adminToolSchema.parse(await changed.json())).toMatchObject({ rawApi: { mode: 'read-writes' }, revision: before.revision + 1, updatedBy: actor })
+  expect(rawApiMode('az-axi')).toEqual({ mode: 'read-writes', revision: before.revision + 1 })
+  expect(adminChanges()).toEqual([{ action: 'set-tool-raw-api-read-writes', targetId: 'az-axi', tool: 'az-axi', userId: actor, outcome: 'success' }])
+  const repeated = await request('PATCH', '/az-axi/raw-api', { mode: 'read-writes', expectedRevision: before.revision + 1 })
+  expect(repeated.status).toBe(200)
+  expect(adminChanges()).toHaveLength(1)
+  expect(rawApiMode('az-axi')).toEqual({ mode: 'read-writes', revision: before.revision + 1 })
+  await request('PATCH', '/az-axi/raw-api', { mode: 'off', expectedRevision: before.revision + 1 })
+  expect(adminChanges().map(change => (change as { action: string }).action)).toEqual(['set-tool-raw-api-read-writes', 'set-tool-raw-api-off'])
+})
+
+test.each([
+  ['a mode the tool cannot write with', 'vectra-axi', { mode: 'read-writes' }, 'INVALID_INPUT'],
+  ['a tool without raw API routes', 'falcon-axi', { mode: 'read' }, 'INVALID_INPUT'],
+  ['an unknown mode', 'az-axi', { mode: 'writes' }, 'INVALID_INPUT'],
+  ['a stale revision', 'az-axi', { mode: 'off', expectedRevision: 99 }, 'REVISION_CONFLICT'],
+] as const)('a tool Raw API change with %s is refused and recorded nowhere', async (_name, tool, body, code) => {
+  const current = adminToolSchema.parse(await (await request('GET', `/${tool}`)).json())
+  const before = rawApiMode(tool)
+  await failure(await request('PATCH', `/${tool}/raw-api`, { expectedRevision: current.revision, ...body }), code)
+  expect(rawApiMode(tool)).toEqual(before)
+  expect(adminChanges()).toEqual([])
+})
+
+test('only an administrator changes a tool Raw API mode', async () => {
+  const ordinary = await adminHeaders('synthetic-ordinary')
+  await failure(await request('PATCH', '/az-axi/raw-api', { mode: 'off', expectedRevision: 1 }, ordinary), 'ADMIN_REQUIRED')
+  expect(rawApiMode('az-axi')).toMatchObject({ mode: 'off' })
+})
+
+test('an administrator allows and removes Raw API on a role grant, journaled against the tool', async () => {
+  const before = adminRoleSchema.parse(await (await roleRequest('GET', '/synthetic-role')).json())
+  expect(before.rawApiTools).toEqual([])
+  const granted = await roleRequest('PUT', '/synthetic-role/tools/az-axi/raw-api', { enabled: true, expectedRevision: before.revision })
+  expect(granted.status).toBe(200)
+  expect(adminRoleSchema.parse(await granted.json())).toMatchObject({ rawApiTools: ['az-axi'], revision: before.revision + 1 })
+  const repeated = await roleRequest('PUT', '/synthetic-role/tools/az-axi/raw-api', { enabled: true, expectedRevision: before.revision + 1 })
+  expect(adminRoleSchema.parse(await repeated.json())).toMatchObject({ rawApiTools: ['az-axi'], revision: before.revision + 1 })
+  const revoked = await roleRequest('PUT', '/synthetic-role/tools/az-axi/raw-api', { enabled: false, expectedRevision: before.revision + 1 })
+  expect(adminRoleSchema.parse(await revoked.json())).toMatchObject({ rawApiTools: [], revision: before.revision + 2 })
+  expect(adminChanges()).toEqual([
+    { action: 'grant-role-raw-api', targetId: 'synthetic-role', tool: 'az-axi', userId: actor, outcome: 'success' },
+    { action: 'revoke-role-raw-api', targetId: 'synthetic-role', tool: 'az-axi', userId: actor, outcome: 'success' },
+  ])
+})
+
+test.each([
+  ['a tool without raw API routes', 'falcon-axi', 1, 'INVALID_INPUT'],
+  ['a tool the role does not grant', 'ado-axi', 1, 'INVALID_INPUT'],
+  ['a stale revision', 'az-axi', 99, 'REVISION_CONFLICT'],
+] as const)('a role Raw API change for %s is refused and recorded nowhere', async (_name, tool, expectedRevision, code) => {
+  db.exec("DELETE FROM role_tools WHERE tool = 'ado-axi'")
+  await failure(await roleRequest('PUT', `/synthetic-role/tools/${tool}/raw-api`, { enabled: true, expectedRevision }), code)
+  expect(db.prepare('SELECT COUNT(*) AS granted FROM role_tools WHERE raw_api = 1').get()).toEqual({ granted: 0 })
+  expect(adminChanges()).toEqual([])
+})
+
+test('Raw API settings made through the admin routes decide raw calls', async () => {
+  const az = adapters.find(adapter => adapter.name === 'az-axi')!
+  const raw = (args: string[]) => () => checkRawApiPolicy(db, actor, az, args)
+  const read = ['api', 'GET', '/subscriptions']
+  const write = ['api', 'PUT', '/subscriptions/synthetic', '--execute']
+  const setMode = async (mode: string) => {
+    const { revision } = adminToolSchema.parse(await (await request('GET', '/az-axi')).json())
+    expect((await request('PATCH', '/az-axi/raw-api', { mode, expectedRevision: revision })).status).toBe(200)
+  }
+  const setGrant = async (enabled: boolean) => {
+    const { revision } = adminRoleSchema.parse(await (await roleRequest('GET', '/synthetic-role')).json())
+    expect((await roleRequest('PUT', '/synthetic-role/tools/az-axi/raw-api', { enabled, expectedRevision: revision })).status).toBe(200)
+  }
+  await setGrant(true)
+  await setMode('off')
+  expect(raw(read)).toThrow(expect.objectContaining({ code: 'RAW_API_DENIED' }))
+  await setMode('read')
+  expect(raw(read)).not.toThrow()
+  expect(raw(write)).toThrow(expect.objectContaining({ code: 'RAW_API_DENIED' }))
+  await setMode('read-writes')
+  expect(raw(write)).not.toThrow()
+  await setGrant(false)
+  expect(raw(read)).toThrow(expect.objectContaining({ code: 'RAW_API_DENIED' }))
+})
+
+test('the tool and role pages offer the Raw API controls', async () => {
+  const cookie = await browserCookie()
+  const tool = await app.inject({ method: 'GET', url: '/admin/tools/az-axi?tab=raw-api', headers: { cookie } })
+  expect(tool.statusCode).toBe(200)
+  expect(tool.body).toContain('action="/v1/admin/tools/az-axi/raw-api"')
+  expect(tool.body.match(/name="mode" value="(off|read|read-writes)"( checked)?/g)).toEqual([
+    'name="mode" value="off" checked', 'name="mode" value="read"', 'name="mode" value="read-writes"'])
+  const readOnly = await app.inject({ method: 'GET', url: '/admin/tools/vectra-axi?tab=raw-api', headers: { cookie } })
+  expect(readOnly.body).not.toContain('value="read-writes"')
+  const unavailable = await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi?tab=raw-api', headers: { cookie } })
+  expect(unavailable.body).not.toContain('/raw-api"')
+  const role = await app.inject({ method: 'GET', url: '/admin/roles/synthetic-role', headers: { cookie } })
+  expect(role.body).toContain('action="/v1/admin/roles/synthetic-role/tools/az-axi/raw-api"')
+  expect(role.body).toContain('action="/v1/admin/roles/synthetic-role/tools/vectra-axi/raw-api"')
+  expect(role.body).not.toContain('/tools/falcon-axi/raw-api"')
+})
+
+async function browserCookie() {
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
+  payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
+  expect(login.statusCode).toBe(303)
+  return login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
+}

@@ -18,6 +18,8 @@ import { registerRoleRuleAdmin } from './role-rules.js'
 import { registerInvitationAdmin } from './invitations.js'
 import { registerSshAdmin } from './ssh.js'
 import type { ProviderCredentials } from '../store/provider-credentials.js'
+import type { ToolName } from '../store/credential-store.js'
+import { rawApiModes } from '../policy/policy.js'
 import { listUserSessions, revokeUserSession } from '../auth/user-sessions.js'
 
 type PublicUser = z.infer<typeof adminUserSchema>
@@ -94,10 +96,10 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
       .header('Cache-Control', 'no-store').send(Readable.from(download()))
   } })
 
-  function change<T>(request: FastifyRequest, action: string, id: string, read: (id: string) => T, mutation: (actor: string, now: number) => void): T {
+  function change<T>(request: FastifyRequest, action: string, id: string, read: (id: string) => T, mutation: (actor: string, now: number) => void, tool: ToolName | null = null): T {
     const actor = authorize(request)
     try {
-      return audit.change({ event: 'admin-change', action, targetId: id, userId: actor, tool: null,
+      return audit.change({ event: 'admin-change', action, targetId: id, userId: actor, tool,
         outcome: 'success', requestId: request.id, clientAddress: request.ip }, () => {
         authorize(request)
         mutation(actor, Date.now())
@@ -280,7 +282,8 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
       WHERE role_tool_instances.role_id = ? AND role_tool_instances.tool = ? ORDER BY credentials.name`)
     const instanceGrants = (db.prepare('SELECT tool FROM role_tools WHERE role_id = ? AND all_instances = 0 ORDER BY tool').all(id) as { tool: string }[])
       .map(({ tool }) => ({ tool, instances: (instanceNames.all(id, tool) as { name: string }[]).map(instance => instance.name) }))
-    return adminRoleSchema.parse({ ...row, tools, instanceGrants })
+    const rawApiTools = (db.prepare('SELECT tool FROM role_tools WHERE role_id = ? AND raw_api = 1 ORDER BY tool').all(id) as { tool: string }[]).map(row => row.tool)
+    return adminRoleSchema.parse({ ...row, tools, instanceGrants, rawApiTools })
   }
 
   app.route({ method: adminRoleRoutes.get.method, url: adminRoleRoutes.get.path, handler: async request => {
@@ -377,6 +380,24 @@ export function registerAdmin(app: FastifyInstance, db: Database.Database, audit
       for (const credentialId of credentialIds) grant.run(id, tool, credentialId)
       db.prepare('UPDATE roles SET revision = revision + 1, updated_at = ?, updated_by = ? WHERE id = ?').run(now, actor, id)
     })
+  } })
+  app.route({ method: adminRoleRoutes.rawApi.method, url: adminRoleRoutes.rawApi.path, handler: async request => {
+    authorize(request)
+    const { id, tool } = parse(adminRoleToolParamsSchema, request.params)
+    const input = parse(adminRoleRoutes.rawApi.input, request.body)
+    const role = readRole(id)
+    if (role.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+    if (!rawApiModes(tools.adapters.find(adapter => adapter.name === tool)).length) {
+      throw new ArtiumError('INVALID_INPUT', 'This tool has no raw API routes.', 'Raw API access applies only to tools with raw API routes.')
+    }
+    if (!role.tools.includes(tool)) {
+      throw new ArtiumError('INVALID_INPUT', 'This role does not grant that tool.', 'Grant the tool to the role before choosing its Raw API access.')
+    }
+    if (role.rawApiTools.includes(tool) === input.enabled) return role
+    return change(request, `${input.enabled ? 'grant' : 'revoke'}-role-raw-api`, id, readRole, (actor, now) => {
+      db.prepare('UPDATE role_tools SET raw_api = ? WHERE role_id = ? AND tool = ?').run(Number(input.enabled), id, tool)
+      db.prepare('UPDATE roles SET revision = revision + 1, updated_at = ?, updated_by = ? WHERE id = ?').run(now, actor, id)
+    }, tool)
   } })
   return authorize
 }
