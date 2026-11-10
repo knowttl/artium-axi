@@ -62,13 +62,14 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
     const check = () => authorize({ owner, credential, binding: binding.hash, operation })
     try {
       await initialized
+      const expiresAt = Date.now() + 15 * 60 * 1000
       const preview = await runner.runManaged(owner.user, undefined, signal => previewShodanWrite(directory, adapter, credential, input, operation,
         signal, check, runner.configuredCaPem))
       if (closing) throw new ArtiumError('CANCELLED')
       const plan: Plan = { id, owner, credential, instance: binding.instance, requestedInstance: instance, inputHash: inputHash(input), operation, token: preview.token, directory, binding: binding.hash,
-        expiresAt: Date.now() + 15 * 60 * 1000, timer: setTimeout(() => {}, 0) }
+        expiresAt, timer: setTimeout(() => {}, 0) }
       clearTimeout(plan.timer)
-      plan.timer = setTimeout(() => { void discard(plan) }, 15 * 60 * 1000).unref()
+      plan.timer = setTimeout(() => { void discard(plan) }, Math.max(0, expiresAt - Date.now())).unref()
       plans.set(id, plan)
       return { confirm: id, instance: plan.instance, command: input.command, operation,
         effects: preview.effects, ...input.body ? { arguments: Object.keys(input.body.args) } : {},

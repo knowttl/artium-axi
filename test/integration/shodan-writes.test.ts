@@ -8,6 +8,7 @@ import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { toolPaths } from '../../src/server/config.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
+import { auditShodanDenials } from '../../src/server/policy/shodan-stream.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { registerShodanSessions } from '../../src/server/shodan-sessions.js'
 import { registerShodanWrites } from '../../src/server/shodan-writes.js'
@@ -46,27 +47,31 @@ async function prepare({ directory, port, send }: { directory: string, port: num
   const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
   const real = createShodanAdapter(new EmbeddedSecretSource(store))
   let preparations = 0
+  let preparedAt = 0
   const adapter = { ...real, async prepare(...args: Parameters<typeof real.prepare>) {
     preparations++
+    preparedAt = Date.now()
     const call = await real.prepare(...args)
     for (const file of call.files) if (typeof file.content === 'string') file.content = file.content.replace('https://api.shodan.io', `https://localhost:${port}`)
     return call
   } }
   const audit = new Audit(db), resolver = new SharedIdentityResolver(store, db)
   const app = bare ? Fastify() : createApp({ db, runner, audit, credentialStore: store, environment: {}, resolver, adapters: [adapter] })
-  const plans = bare ? registerShodanWrites(app, db, resolver, adapter, runner, audit, registerShodanSessions(app, db, resolver, adapter, runner, audit)) : undefined
+  const plans = bare ? registerShodanWrites(app, db, resolver, adapter, runner, audit,
+    registerShodanSessions(app, db, resolver, adapter, runner, audit, auditShodanDenials(app, db, audit))) : undefined
   const token = issueTestAccessToken(db, user)
   const post = (path: string, payload: object, bearer = token) => app.inject({ method: 'POST', url: `/v1/tools/shodan-axi/writes/${path}`,
     headers: { authorization: `Bearer ${bearer}` }, payload })
   const requests = async () => (JSON.parse(await send('/__evidence')) as { requests: { method: string, path: string }[] }).requests
   const stagedPlans = () => readdirSync(join(directory, 'tool-logs/shodan-axi/writes'))
-  return { app, db, token, post, requests, stagedPlans, send, directory, preparations: () => preparations, plans }
+  return { app, db, token, post, requests, stagedPlans, send, directory, preparations: () => preparations, preparedAt: () => preparedAt, plans }
 }
 
 test('preview binds observed state without writing and execute applies it once', async () => {
-  await withWriteApp(async ({ db, post, requests, stagedPlans, send }) => {
+  await withWriteApp(async ({ db, post, requests, stagedPlans, send, preparedAt }) => {
     const preview = await post('preview', alert)
     expect(preview.statusCode, preview.body).toBe(200)
+    expect(preview.json().expiresAt).toBeLessThanOrEqual(preparedAt() + 15 * 60 * 1000)
     expect(preview.json()).toMatchObject({ instance: 'default', command: 'alert create', operation: 'OP-013', cost: 'unknown', queryCreditBudget: 2, maxRequests: 4,
       effects: [{ operation: 'OP-013', method: 'POST', target: 'Fresh alert', networks: ['198.51.100.0/24'] }] })
     expect(preview.body).not.toContain('CANARY-')
