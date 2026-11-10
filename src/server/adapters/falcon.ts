@@ -21,7 +21,7 @@ const defaultWriteLog = '/data/tool-logs/falcon-axi/writes.log'
 const capabilityPolicy = writePolicy({
   supportedOperations: falconWriteOperations,
   unlocks: 'Exact search, search-backed and MalQuery commands; restricted RTR with native profile opt-in and execution confirmation.',
-  blocked: 'Host changes, scripts and file transfers remain unavailable. RTR command restrictions and exact --execute/--confirm still apply.',
+  blocked: 'Raw commands remain blocked pending separate admission. Host changes, scripts and file transfers remain unavailable. RTR command restrictions and exact --execute/--confirm still apply.',
 })
 function capabilitySettings(settings: Record<string, unknown>) {
   return { writes: settings?.writes ?? { allowWrites: settings?.allowWrites === true,

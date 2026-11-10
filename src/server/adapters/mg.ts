@@ -26,7 +26,7 @@ export type MgCredential = z.infer<typeof mgCredentialSchema>
 export const mgManifest = { ...inventory, ...inventory.adapterBoundary }
 export const mgWritePolicy = writePolicy({ supportedOperations: inventory.nativeWriteSettings.supportedOperations,
   unlocks: 'Selected Graph group membership, user account state, session revocation, risk dismissal, conditional-access policy and mail operations; native execution and confirmation gates still apply.',
-  blocked: 'Operations outside the allow-list, raw API mutations, beta writes, unsupported targets and unsafe overrides remain blocked. Graph permissions and roles are still required.' })
+  blocked: 'API post, put, patch and delete remain blocked pending separate admission. Operations outside the allow-list, raw API mutations, beta writes, unsupported targets and unsafe overrides remain blocked. Graph permissions and roles are still required.' })
 
 function mgArguments(args: readonly string[], input: RunnerInput = {}, artifact = false) {
   const hunting = args.slice(0, 3).join(' ') === 'security hunting query'
