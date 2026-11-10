@@ -73,6 +73,7 @@ const transport = async request => {
     displayName: 'Synthetic Group', isAssignableToRole: false, securityEnabled: true, groupTypes: [], membershipRule: null }
   else if (url.pathname === `/v1.0/users/${userId}`) body = { id: userId }
   else if (url.pathname === `/v1.0/groups/${groupId}/members`) body = { value: [] }
+  else if (url.pathname === `/v1.0/users/${userId}/drive`) body = { id: 'synthetic-drive', driveType: 'business' }
   else throw new Error('Unreviewed fake Graph route')
   return { status: 200, headers: {}, body: JSON.stringify(body) }
 }
@@ -127,6 +128,17 @@ try {
         sends++
         rawRequest = { method: request.method, body: request.body ? JSON.parse(request.body) : null }
         return { status: request.method === 'DELETE' ? 204 : 200, headers: {}, body: request.method === 'DELETE' ? '' : JSON.stringify({ id: 'raw-id' }) }
+      }
+      if (url.pathname === `/v1.0/users/${userId}/drive/synthetic-item`) {
+        sends++
+        return { status: 200, headers: {}, body: JSON.stringify({ id: 'synthetic-item' }) }
+      }
+      if (url.pathname === '/v1.0/$batch') {
+        assert.equal(request.method, 'POST')
+        assert.equal(request.headers.Authorization, 'Bearer CANARY-graph-token')
+        sends++
+        rawRequest = { method: request.method, body: JSON.parse(request.body) }
+        return { status: 200, headers: {}, body: JSON.stringify({ responses: rawRequest.body.requests.map(({ id }) => ({ id, status: 200, body: {} })) }) }
       }
       assert.equal(request.method, 'POST')
       assert.equal(request.url, `https://graph.microsoft.com/v1.0/groups/${groupId}/members/$ref`)

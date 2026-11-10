@@ -102,6 +102,19 @@ test.each([
 })
 
 test.each([
+  [true, ['api', 'get', '/users'], true], [true, ['api', 'post', '/$batch', '--body', '{}'], true],
+  [true, ['api', 'get', '/users', '--help'], false], [true, ['entra', 'user', 'list'], false],
+  [false, ['api', 'get', '/users'], false], [false, ['api', 'post', '/$batch', '--body', '{}'], false],
+] as const)('rawReadWrites=%s lifts the file and batch denials only for a raw call: %j', async (rawReadWrites, args, lifted) => {
+  const adapter = createMgAdapter({ getCredential: async () => ({ ...identity, mode: 'application', auth: 'client-secret',
+    clientSecret: 'CANARY-secret', writes }) }, '/tmp/writes.log', publishedProfile())
+  const call = await adapter.prepare([...args], reference, undefined, { rawReadWrites })
+  const profile = JSON.parse(call.files[0].content as string).profiles.artium
+  if (lifted) expect(profile).toMatchObject({ rawBatch: true, sensitiveAreas: ['files'] })
+  else expect(profile).not.toHaveProperty('rawBatch')
+})
+
+test.each([
   ['api', 'post', '/users', '--scopes', 'https://graph.microsoft.com/User.ReadWrite.All'],
   ['api', 'post', '/users', '--profile', 'other'], ['api', 'post', '/users', '--config', '/data/artium.db'],
   ['api', 'head', '/users'], ['api', 'options', '/users'],

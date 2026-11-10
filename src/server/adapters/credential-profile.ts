@@ -135,6 +135,8 @@ export class CredentialProfile {
     }
     if (tool === 'mg-axi') {
       delete this.inputSchema.properties.rawWrites
+      delete this.inputSchema.properties.rawBatch
+      this.inputSchema.properties.sensitiveAreas = { type: 'array', maxItems: 0, default: [] }
       this.inputSchema.properties.writes.required = ['allowWrites', 'operations']
       this.inputSchema.properties.writes.properties.operations.minItems = 1
       this.inputSchema.properties.enabledPacks = { ...this.inputSchema.properties.enabledPacks,

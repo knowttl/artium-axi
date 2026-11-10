@@ -114,6 +114,18 @@ test.each([
   else expect(check).not.toThrow()
 })
 
+test.each([
+  ['read-writes', ['api', 'get', '/users'], true],
+  ['read-writes', ['api', 'post', '/$batch', '--body', '{}'], true],
+  ['read-writes', ['api', 'get', '/users', '--help'], false],
+  ['read-writes', ['entra', 'user', 'list'], false],
+  ['read', ['api', 'get', '/users'], false],
+] as const)('mode %s reports the raw read-writes grant for %j', (mode, args, expected) => {
+  db.prepare('UPDATE tools SET raw_api_mode = ? WHERE name = ?').run(mode, mg.name)
+  db.prepare('UPDATE role_tools SET raw_api = 1 WHERE tool = ?').run(mg.name)
+  expect(checkRawApiPolicy(db, 'synthetic-user', mg, [...args])).toBe(expected)
+})
+
 test('a raw route call the adapter cannot classify is treated as a write', () => {
   db.prepare('UPDATE tools SET raw_api_mode = ? WHERE name = ?').run('read', mg.name)
   db.prepare('UPDATE role_tools SET raw_api = 1 WHERE tool = ?').run(mg.name)

@@ -23,6 +23,7 @@ let directory: string
 let db: ReturnType<typeof openStore>
 let app: ReturnType<typeof createApp>
 let headers: Record<string, string>
+let profiles: Record<string, unknown>[]
 
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-mg-raw-writes-'))
@@ -36,8 +37,10 @@ beforeEach(async () => {
   const adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'),
     loadCredentialProfile('mg-axi', join(process.cwd(), 'tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json'))!)
   const prepare = adapter.prepare.bind(adapter)
+  profiles = []
   adapter.prepare = async (...input) => {
     const call = await prepare(...input)
+    profiles.push(JSON.parse(call.files[0].content as string).profiles.artium)
     return { ...call, executable: process.execPath, args: [join(process.cwd(), 'test/fake-tool/mg-adapter-child.mjs'), ...call.args] }
   }
   app = createApp({ db, audit: new Audit(db, Date.now, () => {}),
@@ -94,7 +97,61 @@ test('a raw write still needs the administrator write switch', async () => {
   expect(await run(execute('patch'))).toMatchObject({ output: { error: { code: 'WRITES_DISABLED' }, fakeSends: 0 } })
 })
 
-test('the native batch denial stays in force', async () => {
-  expect(await run(['api', 'post', '/$batch', '--body', '{}', '--execute', '--confirm', '/$batch']))
+const userPath = '/users/00000000-0000-0000-0000-000000000004'
+const batch = (requests: unknown[]) => ['api', 'post', '/$batch', '--body', JSON.stringify({ requests }), '--execute', '--confirm', '/$batch']
+const entry = (id: string, method: string, url: string) => ({ id, method, url })
+
+test('a batch is sent once when every inner request passes the policy of its single call', async () => {
+  const requests = [entry('1', 'GET', userPath), entry('2', 'GET', `${userPath}/drive`), entry('3', 'PATCH', `${userPath}/synthetic-raw`)]
+  expect(await run(batch(requests))).toMatchObject({ exitCode: 0, output: { fakeSends: 1, rawRequest: { method: 'POST', body: { requests } } } })
+})
+
+const singleWrite = (method: string, url: string) => ['api', method.toLowerCase(), url, '--body', '{}', '--execute', '--confirm', url]
+
+test('a file route write passes the single-call policy once the lifted denials apply', async () => {
+  expect(await run(singleWrite('PATCH', `${userPath}/drive/synthetic-item`))).toMatchObject({ exitCode: 0, output: { fakeSends: 1 } })
+})
+
+test.each([
+  ['a mail route while the mail pack is off', 'PATCH', `${userPath}/messages/synthetic-message`],
+  ['a security route while the security pack is off', 'POST', '/security/alerts_v2/synthetic-alert'],
+])('%s is refused alone and inside a batch before anything is sent', async (_name, method, url) => {
+  expect(await run(singleWrite(method, url))).toMatchObject({ output: { error: { code: 'POLICY_DENIED' }, fakeSends: 0 } })
+  expect(await run(batch([entry('1', 'GET', userPath), entry('2', method, url)])))
     .toMatchObject({ output: { error: { code: 'POLICY_DENIED' }, fakeSends: 0 } })
+})
+
+test('a nested batch is refused before anything is sent', async () => {
+  expect(await run(batch([entry('1', 'POST', '/$batch')]))).toMatchObject({ output: { error: { code: 'POLICY_DENIED' }, fakeSends: 0 } })
+})
+
+test.each([
+  ['an empty request list', []],
+  ['a request without a leading slash', [entry('1', 'GET', 'users')]],
+  ['an unsupported method', [entry('1', 'TRACE', userPath)]],
+  ['duplicate identifiers', [entry('1', 'GET', userPath), entry('1', 'GET', userPath)]],
+  ['more than twenty requests', Array.from({ length: 21 }, (_, index) => entry(String(index), 'GET', userPath))],
+])('a batch with %s is refused before anything is sent', async (_name, requests) => {
+  expect(await run(batch(requests))).toMatchObject({ output: { error: { code: 'POLICY_DENIED' }, fakeSends: 0 } })
+})
+
+test.each([
+  ['the tool mode is off', "UPDATE tools SET raw_api_mode = 'off' WHERE name = 'mg-axi'"],
+  ['the tool mode is read', "UPDATE tools SET raw_api_mode = 'read' WHERE name = 'mg-axi'"],
+  ['the role has no raw access', "UPDATE role_tools SET raw_api = 0 WHERE tool = 'mg-axi'"],
+])('a batch is denied before the native tool starts when %s', async (_name, change) => {
+  db.exec(change)
+  expect(await run(batch([entry('1', 'GET', userPath)]))).toMatchObject({ error: { code: 'RAW_API_DENIED' } })
+})
+
+test.each([
+  ['a named command', ['entra', 'user', 'list'], false],
+  ['raw help', ['api', 'post', rawPath, '--help'], false],
+  ['a raw write preview', ['api', 'patch', rawPath, '--body', '{}'], true],
+  ['an executed raw write', execute('delete'), true],
+] as const)('the native profile lifts the file and batch denials only as expected for %s', async (_name, args, lifted) => {
+  await call([...args])
+  expect(profiles).toHaveLength(1)
+  if (lifted) expect(profiles[0]).toMatchObject({ rawBatch: true, sensitiveAreas: ['files'] })
+  else expect(profiles[0]).not.toHaveProperty('rawBatch')
 })

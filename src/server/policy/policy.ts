@@ -36,10 +36,10 @@ export function rawApiModes(adapter: Adapter<unknown> | undefined): z.infer<type
 }
 
 export function checkRawApiPolicy(db: Database.Database, userId: string, adapter: Adapter<unknown>,
-  args: readonly string[], input?: RunnerInput, credentialId?: string): void {
+  args: readonly string[], input?: RunnerInput, credentialId?: string): boolean {
   const call = adapter.classify(args, input)
   const raw = adapter.rawApi?.commands.some(command => call.command === command || args.slice(0, command.split(' ').length).join(' ') === command)
-  if (!adapter.rawApi || !raw || call.command !== 'unknown' && adapter.rawApi.help(args, input)) return
+  if (!adapter.rawApi || !raw || call.command !== 'unknown' && adapter.rawApi.help(args, input)) return false
   const effect = adapter.rawApi.effect?.(args, input) ?? call.effect
   const { raw_api_mode: mode } = db.prepare('SELECT raw_api_mode FROM tools WHERE name = ?').get(adapter.name) as { raw_api_mode: string }
   const modeAllows = mode === 'read-writes' ? effect === 'read' || adapter.rawApi.writes : mode === 'read' && effect === 'read'
@@ -49,4 +49,5 @@ export function checkRawApiPolicy(db: Database.Database, userId: string, adapter
     WHERE user_roles.user_id = ? AND role_tools.tool = ? AND role_tools.raw_api = 1 LIMIT 1
   `).get(userId, adapter.name) : instanceGranted(db, userId, adapter.name, credentialId, true)
   if (!modeAllows || !granted) throw new ArtiumError('RAW_API_DENIED')
+  return mode === 'read-writes'
 }

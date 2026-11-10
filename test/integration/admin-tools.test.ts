@@ -1779,7 +1779,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'falcon-axi', version: '1.0.1', health: { status: 'unconfigured' } },
     { name: 'vectra-axi', version: '0.1.14', health: { status: 'unconfigured' } },
     { name: 'az-axi', version: '0.1.17', health: { status: 'unconfigured' } },
-    { name: 'mg-axi', version: '0.1.20', health: { status: 'disabled' } },
+    { name: 'mg-axi', version: '0.1.21', health: { status: 'disabled' } },
     { name: 'ldap-axi', version: '0.3.4', health: { status: 'disabled' } },
     { name: 'ado-axi', version: '0.5.2', health: { status: 'disabled' } },
     { name: 'awx-axi', version: '0.1.14', health: { status: 'disabled' } },
@@ -1802,7 +1802,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
 })
 test.each([
   { tool: 'az-axi', previousVersion: '0.1.7', version: '0.1.17' },
-  { tool: 'mg-axi', previousVersion: '0.1.6', version: '0.1.20' },
+  { tool: 'mg-axi', previousVersion: '0.1.6', version: '0.1.21' },
 ] as const)('$tool upgrade reports the bundled version while retaining configuration', async ({ tool, previousVersion, version }) => {
   const { tenantId, clientId, auth, clientSecret } = values[tool]
   const credential = { tenantId, clientId, auth, clientSecret }
