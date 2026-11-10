@@ -688,9 +688,6 @@ A missing scan ID does not prove submission failed.
 Shodan write plans expire after fifteen minutes and are discarded on relevant binding changes or shutdown; startup removes abandoned private directories under `<database directory>/tool-logs/shodan-axi/writes/`.
 After `OUTCOME_UNKNOWN`, `READBACK_UNVERIFIED` or a lost response, inspect the relevant upstream alert, notifier or organization state before considering another change.
 The returned native outcome includes completed and unsent steps when available; a failed readback does not establish that the mutation failed.
-Shodan confirmed-write commands call `/v1/tools/shodan-axi/writes/preview` and `/v1/tools/shodan-axi/writes/execute`.
-The server provides these routes for authorized owner sessions.
-A Shodan confirmed write that returns `OUTCOME_UNKNOWN` or `READBACK_UNVERIFIED` may have changed upstream state.
 Save the result, then read the affected object before another preview: `alert list`, `alert info <id>`, `notifier list` or `org info`.
 For `alert domain`, `alert import` and `alert clear`, compare the live alerts and notifiers with the result, because earlier steps may have applied.
 Select the original instance with `--instance <name>` before `shodan-axi` for these checks.
