@@ -342,7 +342,7 @@ See [package recovery](runbook.md#roles-credentials-and-health) for inventory or
 The confirmed-write commands call the `/v1/tools/shodan-axi/writes/preview` and `/v1/tools/shodan-axi/writes/execute` routes.
 These server routes are delivered separately, so the commands return an error against a server that does not yet provide them.
 Alert, notifier and organization changes run only through confirmed writes; ordinary `shodan-axi` runs still refuse them.
-They require an owner session, so delegated tokens cannot use them, and an administrator must grant each operation in the [write policy](tool-credentials.md#shodan).
+The client uses an authenticated session, and the [write policy](tool-credentials.md#shodan) defines administrator grants for these operations.
 Use `artium-axi shodan-axi alert create --help` for the command list without contacting the server.
 
 | Command | Required `--allow-operation` | Notes |
@@ -357,12 +357,12 @@ Use `artium-axi shodan-axi alert create --help` for the command list without con
 | `notifier create --body-file <path>`, `notifier update <id> --body-file <path>` | `OP-027`, `OP-030` | See notifier files below. |
 | `notifier remove <id>` | `OP-028` | |
 | `org add <email>`, `org remove <email>` | `OP-037`, `OP-038` | Add invites by email unless `--silent`; remove downgrades the member. |
-| `alert clear` | `OP-015` | Removes a snapshot of every alert fixed at preview. |
-| `alert domain <domain>` | `OP-040,OP-013,OP-019` | Creates an alert from indexed IPv4 addresses on the first DNS page; `--triggers <names>` overrides the default triggers. It does not track later DNS changes. |
-| `alert import <path>` | A subset of `OP-013,OP-019,OP-021,OP-023,OP-027` including `OP-013` | The server derives the exact steps from the file; see import files below. |
+| `alert clear` | `OP-015` | Bulk alert removal. |
+| `alert domain <domain>` | `OP-040,OP-013,OP-019` | Accepts `--triggers <names>`. |
+| `alert import <path>` | A subset of `OP-013,OP-019,OP-021,OP-023,OP-027` including `OP-013` | See import files below. |
 
 Every command also needs `--query-credit-budget`, `--max-requests` and `--accept-unknown-cost`, because write cost cannot be determined.
-The budgets must reach the upstream minimums and stay within the administrator ceilings; a value outside either returns `INVALID_INPUT`.
+The client accepts positive integer budgets up to 1000.
 Preview first, for example:
 
 ```sh
@@ -370,25 +370,21 @@ artium-axi shodan-axi alert remove 1A2B3C --allow-operation OP-015 --query-credi
 artium-axi shodan-axi alert remove 1A2B3C --allow-operation OP-015 --query-credit-budget 1 --max-requests 3 --accept-unknown-cost --execute --confirm <token> --json
 ```
 
-The preview reports the operation, target, method and effects without changing anything, and returns a single-use `confirm` token that expires after fifteen minutes.
-Repeat the exact preview arguments with `--execute --confirm <token>` to apply.
-A changed Shodan state between preview and execution is refused as stale; preview again.
-Put `--instance <name>` before `shodan-axi` on both calls when more than one instance is available; the confirmation stays bound to the previewed instance.
-An instance marked read-only refuses write previews as well as execution.
+The client sends a preview request by default and sends an execution request when given `--execute --confirm <token>`.
+Repeat the preview arguments when executing, and put `--instance <name>` before `shodan-axi` on both calls when selecting an instance.
+The client requires the confirmation token to be a UUID.
 
-Execution lists each step as `verified`, `acknowledged-unverified`, `failed` or `not-attempted`.
-A result with `status: OUTCOME_UNKNOWN` or `READBACK_UNVERIFIED` exits 1 and reports completed and unsent steps.
+A result with `status: OUTCOME_UNKNOWN` or `READBACK_UNVERIFIED` exits 1.
 Never retry blindly after either status; read the affected alert, notifier or organization first and follow the [uncertain-outcome recovery](runbook.md#retention-and-export).
 
 Notifier files hold provider secrets such as webhook URLs and chat tokens.
 `--body-file` is a local JSON file of the form `{"provider": "...", "description": "...", "args": {"<name>": "<value>"}}`; `provider` is required for create.
 The CLI reads the file and sends its content; the server never receives or opens a path.
-The file must be a regular file of at most 64 KiB, not a symbolic link, and private (mode 0600 on Linux and macOS); the CLI refuses it otherwise.
-Previews list argument names but never values, and Artium never writes request bodies to audit records or logs.
-`alert import` reads a private JSON or JSONL alert file of at most 1 MiB the same way, and its notifier definitions carry the same secrets.
+The file must be a non-empty regular file of at most 64 KiB, not a symbolic link, and inaccessible to group and other users on Linux and macOS (for example, mode 0600).
+The CLI rejects notifier responses containing values from `args` and suppresses request errors when those values are present.
+`alert import` reads a non-empty private file of at most 1 MiB the same way; its content can contain notifier secrets.
 
-Because bulk previews bind a fixed snapshot, `alert clear` and `alert import` preview the full ordered step list; review it before confirming.
-Writes are limited to the operations granted to you; ask an administrator when `FLAG_BLOCKED` or a missing grant refuses a command.
+Review the preview before confirming, and ask an administrator about missing grants.
 
 ## Check Point Email Security
 

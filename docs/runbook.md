@@ -690,10 +690,9 @@ After `OUTCOME_UNKNOWN`, `READBACK_UNVERIFIED` or a lost response, inspect the r
 The returned native outcome includes completed and unsent steps when available; a failed readback does not establish that the mutation failed.
 Shodan confirmed-write commands call `/v1/tools/shodan-axi/writes/preview` and `/v1/tools/shodan-axi/writes/execute`.
 These server routes are delivered separately, so the commands return an error against a server that does not yet provide them.
-A Shodan confirmed write that returns `OUTCOME_UNKNOWN` or `READBACK_UNVERIFIED` may have changed upstream state, and Artium never retries it.
-Save the result's `completed`, `uncertain` and `unsent` steps, then read the affected object before another preview: `alert list`, `alert info <id>`, `notifier list` or `org info`.
-For `alert domain`, `alert import` and `alert clear`, compare the live alerts and notifiers with the saved steps, because earlier steps may have applied.
-A `PLAN_STALE` refusal means Shodan state changed after the preview and nothing was sent; preview again.
+A Shodan confirmed write that returns `OUTCOME_UNKNOWN` or `READBACK_UNVERIFIED` may have changed upstream state.
+Save the result, then read the affected object before another preview: `alert list`, `alert info <id>`, `notifier list` or `org info`.
+For `alert domain`, `alert import` and `alert clear`, compare the live alerts and notifiers with the result, because earlier steps may have applied.
 Select the original instance with `--instance <name>` before `shodan-axi` for these checks.
 
 Shodan export jobs keep one gzip file under `<database directory>/tool-logs/shodan-axi/exports/export-<id>/` until it is retrieved once or the `exports` retention interval ends, counted from completion.
