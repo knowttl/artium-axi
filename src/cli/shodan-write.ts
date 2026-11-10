@@ -30,7 +30,7 @@ async function readPrivateFile(path: string, limit: number) {
   try {
     const stat = await handle.stat()
     if (!stat.isFile() || stat.size < 1 || stat.size > limit || process.platform !== 'win32' && (stat.mode & 0o077) !== 0) {
-      throw new ArtiumError('INVALID_INPUT', 'The input file must be a private regular file within the size limit.', `Use a non-empty file of at most ${limit} bytes with mode 0600.`)
+      throw new ArtiumError('INVALID_INPUT', 'The input file must be a private regular file within the size limit.', `Use a non-empty file of at most ${limit} bytes and run chmod 600 on it.`)
     }
     return await handle.readFile('utf8')
   } finally { await handle.close() }
@@ -84,13 +84,22 @@ export async function shodanWrite(args: string[], createClient: () => Client, ou
   await client.authenticated('/v1/me', 'GET')
   const request = { ...parsed.data, ...(execute ? { confirm } : {}), ...(instance === undefined ? {} : { instance }) }
   const response = await client.transferSession(token => client.request(`${prefix}/${execute ? 'execute' : 'preview'}`, 'POST', request, token)).catch(error => {
-    if (secrets.length) throw new ArtiumError('INVALID_RESPONSE')
+    if (secrets.length) throw new ArtiumError(error instanceof ArtiumError ? error.code : 'SERVER_UNAVAILABLE', undefined,
+      execute ? 'The write may have changed state. Inspect the notifier before retrying.' : undefined)
     throw error
   })
   const result = z.record(z.string(), z.unknown()).safeParse(response)
   if (!result.success) throw new ArtiumError('INVALID_RESPONSE')
-  const rendered = switches.has('--json') ? JSON.stringify(result.data) : encode(result.data)
-  if (secrets.some(secret => rendered.includes(secret) || rendered.includes(JSON.stringify(secret).slice(1, -1)))) throw new ArtiumError('INVALID_RESPONSE')
+  const redact = (value: unknown, key = ''): unknown => {
+    if (key === 'status' && typeof value === 'string' && ['preview', 'completed', 'verified', 'acknowledged-unverified', 'failed', 'not-attempted', 'OUTCOME_UNKNOWN', 'READBACK_UNVERIFIED'].includes(value)) return value
+    if (key === 'confirm' && z.uuid().safeParse(value).success) return value
+    if (typeof value === 'string') return secrets.reduce((text, secret) => text.split(secret).join('[REDACTED]'), value)
+    if (Array.isArray(value)) return value.map(item => redact(item))
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, item]) => [name === 'status' ? name : redact(name) as string, redact(item, name)]))
+    return value
+  }
+  const safe = redact(result.data)
+  const rendered = switches.has('--json') ? JSON.stringify(safe) : encode(safe)
   output('stdout', rendered + '\n')
   if (result.data.status === 'OUTCOME_UNKNOWN' || result.data.status === 'READBACK_UNVERIFIED') process.exitCode = 1
   return true

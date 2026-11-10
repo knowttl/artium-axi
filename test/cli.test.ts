@@ -761,8 +761,35 @@ test.each([
   const path = privateFile(JSON.stringify({ provider: 'slack', args: { token: secret } }))
   const result = await cli(['shodan-axi', 'notifier', ...command, '--body-file', path, '--allow-operation', grant,
     '--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost', ...flags])
-  expect(result.code).not.toBe(0)
+  expect(result.code).toBe(0)
   expect(result.stdout + result.stderr).not.toContain(secret)
+})
+
+test.each([
+  { command: ['create'], grant: 'OP-027', flags: ['--json'] },
+  { command: ['update', 'n1'], grant: 'OP-030', flags: [] },
+])('Shodan notifier $command preserves an outcome with a short secret', async ({ command, grant, flags }) => {
+  response = { status: 200, body: { status: 'OUTCOME_UNKNOWN' } }
+  const path = privateFile(JSON.stringify({ provider: 'slack', args: { token: 'a' } }))
+  const result = await cli(['shodan-axi', 'notifier', ...command, '--body-file', path, '--allow-operation', grant,
+    '--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost', ...flags])
+  expect(result.code).toBe(1)
+  expect(result.stdout).toContain('OUTCOME_UNKNOWN')
+})
+
+test.each([
+  { command: ['create'], grant: 'OP-027' },
+  { command: ['update', 'n1'], grant: 'OP-030' },
+])('Shodan notifier $command reports uncertain execution errors safely', async ({ command, grant }) => {
+  response = { status: 504, body: errorResponse(new ArtiumError('UNKNOWN_OUTCOME', 'CANARY-provider-secret'), 'synthetic-error') }
+  doctorResponses = { '/v1/me': { status: 200, body: {} } }
+  const path = privateFile(JSON.stringify({ provider: 'slack', args: { token: 'CANARY-provider-secret' } }))
+  const result = await cli(['shodan-axi', 'notifier', ...command, '--body-file', path, '--allow-operation', grant,
+    '--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost', '--execute', '--confirm', writeToken]).finally(() => { doctorResponses = undefined })
+  expect(result.code).toBe(1)
+  expect(result.stdout).toContain('UNKNOWN_OUTCOME')
+  expect(result.stdout).toContain('Inspect the notifier before retrying')
+  expect(result.stdout + result.stderr).not.toContain('CANARY-provider-secret')
 })
 
 test.each([

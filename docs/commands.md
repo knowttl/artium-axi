@@ -381,7 +381,9 @@ Notifier files hold provider secrets such as webhook URLs and chat tokens.
 `--body-file` is a local JSON file of the form `{"provider": "...", "description": "...", "args": {"<name>": "<value>"}}`; `provider` is required for create.
 The CLI reads the file and sends its content; the server never receives or opens a path.
 The file must be a non-empty regular file of at most 64 KiB, not a symbolic link, and inaccessible to group and other users on Linux and macOS (for example, mode 0600).
-The CLI rejects notifier responses containing values from `args` and suppresses request errors when those values are present.
+Because these files carry provider secrets, the CLI refuses unsafe permissions; run `chmod 600` on the file to make it private.
+The CLI redacts notifier argument values from response text and sanitizes request errors.
+If an execution request fails, inspect the notifier before retrying because the write may have changed state.
 `alert import` reads a non-empty private file of at most 1 MiB the same way; its content can contain notifier secrets.
 
 Review the preview before confirming, and ask an administrator about missing grants.
