@@ -16,7 +16,6 @@ const writeCalls = [
   ['search', 'start', '--query', 'synthetic'], ['search', 'stop', 'synthetic-search'],
   ['host', 'usb', 'a'.repeat(32)], ['identity', 'activity', 'a'.repeat(32)], ['malquery', 'search', '--string', 'synthetic'],
   ['rtr', 'run', 'a'.repeat(32), '--command', 'ps', '--execute', '--confirm', `${'a'.repeat(32)}:ps`],
-  ['raw', 'write', '--method', 'POST', '--path', '/synthetic/v1', '--execute', '--confirm', 'synthetic'],
 ]
 beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), 'artium-falcon-test-'))

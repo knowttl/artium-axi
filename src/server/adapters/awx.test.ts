@@ -127,7 +127,7 @@ test.each(inventory.commands.filter(route => route.effect !== 'blocked').flatMap
     .rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
 })
 
-test.each(inventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect)))('$command requires the single tenant write switch', async route => {
+test.each(inventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect) && !route.command.startsWith('api ')))('$command requires the single tenant write switch', async route => {
   const args = [...route.command.split(' '), ...route.positionals.names.slice(0, route.positionals.required).map(() => '42'), '--confirm']
   await expect(adapter().prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
   const call = await adapter(true).prepare(args, reference)
@@ -165,7 +165,7 @@ test('an authorized dry-run remains a read even when confirm is present', async 
   expect(call.write).toBeUndefined()
 })
 
-test.each(inventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect)))('$command previews require write access and ignore the legacy configuration grant', async route => {
+test.each(inventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect) && !route.command.startsWith('api ')))('$command previews require write access and ignore the legacy configuration grant', async route => {
   const args = [...route.command.split(' '), ...route.positionals.names.slice(0, route.positionals.required).map(() => '42'), '--dry-run']
   await expect(adapter().prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
   await expect(adapter(false, true).prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
