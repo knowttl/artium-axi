@@ -8,7 +8,8 @@ Run `artium-axi` for identity and tools together, or `artium-axi tools` when onl
 Run `artium-axi tools show <tool>` for its commands and a vetted example, then run `artium-axi <tool> <args>`.
 Follow the returned next commands; they already include the Artium prefix.
 A tool can have several named instances; `artium-axi tools` shows how many you can use and `artium-axi tools show <tool>` lists each with its status, read-only state and description.
-When a tool has more than one usable instance and the user has not named one, ask which to use, reading back the descriptions, then put `--instance <name>` before the tool name; a call that names none fails with `INSTANCE_REQUIRED`.
+For commands that select an instance, when a tool has more than one usable instance and the user has not named one, ask which to use, reading back the descriptions, then put `--instance <name>` before the tool name; a call that names none fails with `INSTANCE_REQUIRED`.
+Handle-based commands such as Shodan stream session status, read, extend and stop and Kubernetes workspace and session commands other than workspace create and session start use their existing handle and must not take `--instance`; see the [command reference](https://github.com/knowttl/artium-axi/blob/main/docs/commands.md) for the full exception list.
 Keep upstream arguments intact and use the managed credentials rather than configuring an upstream CLI directly.
 See [client input handling](https://github.com/knowttl/artium-axi/blob/main/docs/client-reference.md#command-surface-and-subcommands) for Azure stdin selection and Tenable local uploads or explicit stdin.
 
