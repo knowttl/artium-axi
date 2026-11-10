@@ -1,5 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { createHash } from 'node:crypto'
+import Fastify from 'fastify'
 import { expect, test, vi } from 'vitest'
 import { createShodanAdapter } from '../../src/server/adapters/shodan.js'
 import { createApp } from '../../src/server/app.js'
@@ -7,6 +9,8 @@ import { Audit } from '../../src/server/audit/audit.js'
 import { toolPaths } from '../../src/server/config.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
+import { registerShodanSessions } from '../../src/server/shodan-sessions.js'
+import { registerShodanWrites } from '../../src/server/shodan-writes.js'
 import { loadTrustedCa } from '../../src/server/trusted-ca.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
@@ -16,22 +20,23 @@ import { withFakeService } from '../fake-service/fixture.js'
 
 const user = 'synthetic-development-user'
 const writes = { grants: { [user]: ['OP-013', 'OP-027', 'OP-037', 'OP-038'] }, maxQueryCredits: 5, maxRequests: 10 }
+const allWrites = { ...writes, grants: { [user]: ['OP-013', 'OP-015', 'OP-016', 'OP-019', 'OP-020', 'OP-021', 'OP-022', 'OP-023', 'OP-024', 'OP-027', 'OP-028', 'OP-030', 'OP-037', 'OP-038', 'OP-070'] } }
 const alert = { command: 'alert create', arguments: ['Fresh alert', '198.51.100.0/24'], queryCreditBudget: 2, maxRequests: 4 }
 const member = { command: 'org add', arguments: ['new.member@example.test'], queryCreditBudget: 2, maxRequests: 4, silent: true }
 const notifier = { command: 'notifier create', arguments: [], queryCreditBudget: 2, maxRequests: 4,
   body: { provider: 'webhook', description: 'Synthetic', args: { url: 'https://hooks.example.test/CANARY-body-secret' } } }
 
-async function withWriteApp(check: (context: Awaited<ReturnType<typeof prepare>>) => Promise<void>, policy: object = writes) {
+async function withWriteApp(check: (context: Awaited<ReturnType<typeof prepare>>) => Promise<void>, policy: object = writes, bare = false) {
   const packageRoot = process.env.SHODAN_AXI_PACKAGE_DIR ?? join(process.cwd(), 'tools/node_modules/@knowttl/shodan-axi')
   const previous = toolPaths['shodan-axi']
   Object.assign(toolPaths, { 'shodan-axi': join(packageRoot, 'bin/shodan-axi.js') })
   await withFakeService(async fixture => {
-    const context = await prepare(fixture, policy)
+    const context = await prepare(fixture, policy, bare)
     try { await check(context) } finally { await context.app.close(); context.db.close() }
   }).finally(() => { Object.assign(toolPaths, { 'shodan-axi': previous }) })
 }
 
-async function prepare({ directory, port, send }: { directory: string, port: number, send: (path: string) => Promise<string> }, policy: object) {
+async function prepare({ directory, port, send }: { directory: string, port: number, send: (path: string) => Promise<string> }, policy: object, bare: boolean) {
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
   const db = openStore(join(directory, 'artium.db'), provider)
   await seedToolUser(db)
@@ -47,14 +52,15 @@ async function prepare({ directory, port, send }: { directory: string, port: num
     for (const file of call.files) if (typeof file.content === 'string') file.content = file.content.replace('https://api.shodan.io', `https://localhost:${port}`)
     return call
   } }
-  const app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {},
-    resolver: new SharedIdentityResolver(store, db), adapters: [adapter] })
+  const audit = new Audit(db), resolver = new SharedIdentityResolver(store, db)
+  const app = bare ? Fastify() : createApp({ db, runner, audit, credentialStore: store, environment: {}, resolver, adapters: [adapter] })
+  const plans = bare ? registerShodanWrites(app, db, resolver, adapter, runner, audit, registerShodanSessions(app, db, resolver, adapter, runner, audit)) : undefined
   const token = issueTestAccessToken(db, user)
   const post = (path: string, payload: object, bearer = token) => app.inject({ method: 'POST', url: `/v1/tools/shodan-axi/writes/${path}`,
     headers: { authorization: `Bearer ${bearer}` }, payload })
   const requests = async () => (JSON.parse(await send('/__evidence')) as { requests: { method: string, path: string }[] }).requests
   const stagedPlans = () => readdirSync(join(directory, 'tool-logs/shodan-axi/writes'))
-  return { app, db, token, post, requests, stagedPlans, send, directory, preparations: () => preparations }
+  return { app, db, token, post, requests, stagedPlans, send, directory, preparations: () => preparations, plans }
 }
 
 test('preview binds observed state without writing and execute applies it once', async () => {
@@ -220,6 +226,49 @@ test('notifier secrets stay out of previews, results and retained files', async 
       expect(stagedPlans()).toEqual([])
     } finally { logs.mockRestore() }
   })
+})
+
+test('retained notifier plans contain only the input hash', async () => {
+  await withWriteApp(async ({ post, plans }) => {
+    const preview = await post('preview', notifier)
+    expect(preview.statusCode, preview.body).toBe(200)
+    const retained = plans!.retainedPlans()
+    expect(retained).toHaveLength(1)
+    const canonical = '{"arguments":[],"body":{"args":{"url":"https://hooks.example.test/CANARY-body-secret"},"description":"Synthetic","provider":"webhook"},"command":"notifier create","maxRequests":4,"queryCreditBudget":2}'
+    expect(retained[0].inputHash).toBe(createHash('sha256').update(canonical).digest('hex'))
+    expect(retained[0]).not.toHaveProperty('input')
+    const serialized = JSON.stringify(retained)
+    const fields = (value: unknown): unknown[] => value && typeof value === 'object'
+      ? Object.values(value).flatMap(fields) : [value]
+    for (const value of [notifier.body.provider, notifier.body.description, ...Object.values(notifier.body.args), notifier.command]) {
+      expect(serialized).not.toContain(value)
+      expect(fields(retained)).not.toContain(value)
+    }
+  }, writes, true)
+})
+
+test.each([
+  { command: 'alert update', args: ['synthetic-alert', '198.51.100.0/24'], operation: 'OP-016', method: 'POST' },
+  { command: 'alert remove', args: ['synthetic-alert'], operation: 'OP-015', method: 'DELETE' },
+  { command: 'alert enable', args: ['synthetic-alert', 'open_database'], operation: 'OP-019', method: 'PUT' },
+  { command: 'alert disable', args: ['synthetic-alert', 'new_service'], operation: 'OP-020', method: 'DELETE' },
+  { command: 'alert ignore', args: ['synthetic-alert', 'new_service', '192.0.2.1:443'], operation: 'OP-021', method: 'PUT' },
+  { command: 'alert ignore', args: ['synthetic-alert', 'new_service', '192.0.2.1:443'], operation: 'OP-070', method: 'PUT', vulns: 'CVE-2024-1234' },
+  { command: 'alert unignore', args: ['synthetic-alert', 'new_service', '192.0.2.1:443'], operation: 'OP-022', method: 'DELETE' },
+  { command: 'alert notifier add', args: ['synthetic-alert', 'other-notifier'], operation: 'OP-023', method: 'PUT' },
+  { command: 'alert notifier remove', args: ['synthetic-alert', 'synthetic-notifier'], operation: 'OP-024', method: 'DELETE' },
+  { command: 'notifier update', args: ['synthetic-notifier'], operation: 'OP-030', method: 'PUT', body: notifier.body },
+  { command: 'notifier remove', args: ['synthetic-notifier'], operation: 'OP-028', method: 'DELETE' },
+])('$command previews and verifies its mutation ($operation)', async ({ command, args, operation, method, ...options }) => {
+  await withWriteApp(async ({ post }) => {
+    const input = { command, arguments: args, queryCreditBudget: 2, maxRequests: 4, ...options }
+    const preview = await post('preview', input)
+    expect(preview.statusCode, preview.body).toBe(200)
+    expect(preview.json()).toMatchObject({ operation, effects: [{ operation, method }] })
+    const result = await post('execute', { ...input, confirm: preview.json().confirm })
+    expect(result.statusCode, result.body).toBe(200)
+    expect(result.json()).toMatchObject({ status: 'completed', steps: [{ operation, status: 'verified' }] })
+  }, allWrites)
 })
 
 test('organization removal previews downgrade and verifies removal', async () => {

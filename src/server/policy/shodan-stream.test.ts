@@ -85,6 +85,17 @@ test('write and export bindings return the administrator ceilings for granted op
 })
 
 test.each([
+  { grants: ['OP-013', 'OP-019'], allowed: false },
+  { grants: ['OP-040', 'OP-013', 'OP-019'], allowed: true },
+])('domain alert binding requires all operations: $grants', ({ grants, allowed }) => {
+  const writes = { ...confirmedSettings.writes, grants: { 'synthetic-user': grants } }
+  configure({ writes })
+  const bind = () => shodanWriteBinding(db, owner, credential, ['OP-040', 'OP-013', 'OP-019'])
+  if (allowed) expect(bind().settings).toEqual(writes)
+  else expect(bind).toThrow(expect.objectContaining({ code: 'TOOL_NOT_GRANTED' }))
+})
+
+test.each([
   ['an ungranted write operation', () => shodanWriteBinding(db, owner, credential, ['OP-013', 'OP-037'])],
   ['an ungranted export command', () => shodanExportBinding(db, owner, credential, 'CLI-020')],
   ['a write grant used for an export', () => shodanExportBinding(db, owner, credential, 'OP-013')],
