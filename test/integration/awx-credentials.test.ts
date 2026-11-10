@@ -23,7 +23,7 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
       return { ...call, executable: process.execPath,
-        args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+        args: [join(process.cwd(), 'tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
     }
     // Ambient category gates must never enter the isolated child environment.
     vi.stubEnv('AWX_AXI_ALLOW_CONFIG_WRITES', '1')
@@ -163,7 +163,7 @@ test.each(['PATCH', 'PUT'] as const)('AWX password sign-in via %s bootstraps sco
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
       return { ...call, executable: process.execPath,
-        args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+        args: [join(process.cwd(), 'tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
     }
     const lines: string[] = []
     const runner = await Runner.create(join(directory, 'calls'))

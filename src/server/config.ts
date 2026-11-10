@@ -53,7 +53,7 @@ export const toolCredentialSchemaPaths = {
   'beyondtrust-axi': '/opt/tools/node_modules/@knowttl/beyondtrust-axi/axi-credential.schema.json',
   'hybrid-axi': '/opt/tools/node_modules/@knowttl/hybrid-axi/axi-credential.schema.json',
   'tenable-axi': '/opt/tools/node_modules/@knowttl/tenable-axi/axi-credential.schema.json',
-  'awx-axi': '/opt/tools/node_modules/awx-axi/axi-credential.schema.json',
+  'awx-axi': '/opt/tools/node_modules/@knowttl/awx-axi/axi-credential.schema.json',
   'falcon-axi': '/opt/tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/axi-credential.schema.json',
   'vectra-axi': '/opt/tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json',
   'az-axi': '/opt/tools/node_modules/@knowttl/az-axi/axi-credential.schema.json',

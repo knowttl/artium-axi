@@ -42,7 +42,7 @@ async function withTokenService(check: (context: {
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
       if (call.executable === process.execPath) call.args[3] = join(process.cwd(), 'tools/node_modules/.bin/awx-axi')
-      else return { ...call, executable: process.execPath, args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+      else return { ...call, executable: process.execPath, args: [join(process.cwd(), 'tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
       return call
     }
     const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
@@ -380,7 +380,7 @@ test.each(['read', 'write'])('AWX %s PAT creation delivers bytes once to the aut
     expect(logout.json()).toMatchObject({ error: { code: 'INVALID_INPUT', next: expect.stringContaining('user token-revoke') } })
     db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
     const revokePreview = await run(['user', 'token-revoke', '8', '--dry-run'])
-    expect(decode(revokePreview.json().stdout)).toMatchObject({ dry_run: { would_send: 'DELETE tokens/8/' } })
+    expect(decode(revokePreview.json().stdout)).toMatchObject({ dry_run: { would_send: 'DELETE tokens/***/' } })
     const revoked = await run(['user', 'token-revoke', '8', '--confirm'])
     expect(decode(revoked.json().stdout)).toMatchObject({ token: { id: 8, status: 'revoked' } })
     expect(revoked.body).not.toContain('CANARY-')

@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "mg-axi",
-  "version": "0.1.19",
-  "integrity": "sha512-8y7vQ32jGnzhMQ2zKBQWtLljZI1rgxkJVpY1Qxww2FtSnTwmaOzdo5+djdDXDJxYXE/azqI6Wrs6/5nceuL7jA==",
+  "version": "0.1.20",
+  "integrity": "sha512-ZOug+VqBcQaoEyA5ZZmUufeHiFdTqnsWUwYtUT6RKARiGIzrahNBos1yP3cgVjMmLY8Axsn2Eesrzz8d2GImlw==",
   "parserEvidence": "Installed pinned catalogue exports",
-  "packageManifestSha256": "2805d8d261be14b9b7601867c3bcfd78ab831cb7a383bf81308af91f7974c76e",
-  "skillSha256": "efdc55d2c4a7cee3dd46250bc844385c2b6c4ebf0c9e0072147c08599461f885",
+  "packageManifestSha256": "f0256210aa60f687e327095b7a17c5c11077a226c9299f0c2f28b00150733189",
+  "skillSha256": "7c45262eed6d4d2c06802be3a8435f70caa079608346b4ff4673205254ea2cc9",
   "environment": [
     {
       "name": "MG_AXI_CONFIG"
@@ -43,11 +43,11 @@
   "environmentSources": [
     {
       "path": "dist/profiles.js",
-      "sha256": "94c9684de6b0db8a41c7d66aa99ad9263b618dd37d76cbb6d0ecf639b3ce791c"
+      "sha256": "be6981102851325e8dce40dc523fe6d8b30e158fa3b9cd8d7bd3f26a03f7c434"
     },
     {
       "path": "dist/mutations.js",
-      "sha256": "ecfb0f5bf8bf4a388f1b5c53783b0904207c9b7b9a2d0f21808f58d80548d526"
+      "sha256": "8baea5392e687580ef054024298cacb1e86ddd778cd6d3c69df69f6d841a9f46"
     },
     {
       "path": "dist/msal-app-provider.js",
@@ -97,11 +97,11 @@
     "sources": [
       {
         "path": "dist/profiles.js",
-        "sha256": "94c9684de6b0db8a41c7d66aa99ad9263b618dd37d76cbb6d0ecf639b3ce791c"
+        "sha256": "be6981102851325e8dce40dc523fe6d8b30e158fa3b9cd8d7bd3f26a03f7c434"
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "ecfb0f5bf8bf4a388f1b5c53783b0904207c9b7b9a2d0f21808f58d80548d526"
+        "sha256": "8baea5392e687580ef054024298cacb1e86ddd778cd6d3c69df69f6d841a9f46"
       }
     ]
   },
@@ -198,15 +198,15 @@
     "sources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "74379919181b079e6323d8a76342fd4b32f253031886e3c42b3e61b9e3ecbefc"
+        "sha256": "e27e659c6e4f076f0e76f189766ca7aec6d215cbb0a6ff6905c4d01c969b5491"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "762b0e3bffbd311730cae8456d7cfc289f08b0fe3825632a8b5d2acef58d19c0"
+        "sha256": "82dc28873691debf768a45e4699fe8931d57db40da20b85df1ca06030c454eb5"
       },
       {
         "path": "dist/profiles.js",
-        "sha256": "94c9684de6b0db8a41c7d66aa99ad9263b618dd37d76cbb6d0ecf639b3ce791c"
+        "sha256": "be6981102851325e8dce40dc523fe6d8b30e158fa3b9cd8d7bd3f26a03f7c434"
       },
       {
         "path": "dist/msal-app-provider.js",
@@ -214,7 +214,7 @@
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "ecfb0f5bf8bf4a388f1b5c53783b0904207c9b7b9a2d0f21808f58d80548d526"
+        "sha256": "8baea5392e687580ef054024298cacb1e86ddd778cd6d3c69df69f6d841a9f46"
       }
     ]
   },
@@ -340,11 +340,11 @@
     "parserSources": [
       {
         "path": "dist/catalogue.js",
-        "sha256": "74379919181b079e6323d8a76342fd4b32f253031886e3c42b3e61b9e3ecbefc"
+        "sha256": "e27e659c6e4f076f0e76f189766ca7aec6d215cbb0a6ff6905c4d01c969b5491"
       },
       {
         "path": "dist/cli.js",
-        "sha256": "762b0e3bffbd311730cae8456d7cfc289f08b0fe3825632a8b5d2acef58d19c0"
+        "sha256": "82dc28873691debf768a45e4699fe8931d57db40da20b85df1ca06030c454eb5"
       },
       {
         "path": "dist/mail-message-writes.js",
@@ -368,7 +368,7 @@
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "ecfb0f5bf8bf4a388f1b5c53783b0904207c9b7b9a2d0f21808f58d80548d526"
+        "sha256": "8baea5392e687580ef054024298cacb1e86ddd778cd6d3c69df69f6d841a9f46"
       }
     ]
   },
@@ -561,6 +561,9 @@
     },
     {
       "name": "profile"
+    },
+    {
+      "name": "query"
     },
     {
       "name": "remove"
@@ -4991,6 +4994,7 @@
         "profile": "value",
         "api-version": "value",
         "odata": "value",
+        "query": "value",
         "cursor": "value",
         "scopes": "value",
         "limit": "value",
@@ -5001,6 +5005,82 @@
       "positionalInput": {
         "name": "path",
         "description": "Server-relative Graph path, e.g. /users",
+        "required": true
+      }
+    },
+    {
+      "command": "api post",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "body": "value",
+        "query": "value",
+        "scopes": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "config": "value"
+      },
+      "positionalInput": {
+        "name": "path",
+        "description": "Server-relative Graph path",
+        "required": true
+      }
+    },
+    {
+      "command": "api put",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "body": "value",
+        "query": "value",
+        "scopes": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "config": "value"
+      },
+      "positionalInput": {
+        "name": "path",
+        "description": "Server-relative Graph path",
+        "required": true
+      }
+    },
+    {
+      "command": "api patch",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "body": "value",
+        "query": "value",
+        "scopes": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "config": "value"
+      },
+      "positionalInput": {
+        "name": "path",
+        "description": "Server-relative Graph path",
+        "required": true
+      }
+    },
+    {
+      "command": "api delete",
+      "flags": {
+        "help": "boolean",
+        "profile": "value",
+        "api-version": "value",
+        "body": "value",
+        "query": "value",
+        "scopes": "value",
+        "execute": "boolean",
+        "confirm": "value",
+        "config": "value"
+      },
+      "positionalInput": {
+        "name": "path",
+        "description": "Server-relative Graph path",
         "required": true
       }
     },

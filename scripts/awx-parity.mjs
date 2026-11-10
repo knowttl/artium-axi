@@ -1,14 +1,14 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { DOMAINS, main } from '../tools/node_modules/awx-axi/dist/cli.js'
-import { AUTH_HELP } from '../tools/node_modules/awx-axi/dist/commands/auth.js'
-import { SETUP_HELP } from '../tools/node_modules/awx-axi/dist/commands/setup.js'
+import { DOMAINS, main } from '../tools/node_modules/@knowttl/awx-axi/dist/cli.js'
+import { AUTH_HELP } from '../tools/node_modules/@knowttl/awx-axi/dist/commands/auth.js'
+import { SETUP_HELP } from '../tools/node_modules/@knowttl/awx-axi/dist/commands/setup.js'
 
 const root = new URL('../', import.meta.url)
-const upstream = new URL('tools/node_modules/awx-axi/', root)
+const upstream = new URL('tools/node_modules/@knowttl/awx-axi/', root)
 const readJson = path => JSON.parse(readFileSync(new URL(path, root), 'utf8'))
-const pkg = readJson('tools/node_modules/awx-axi/package.json')
-if (pkg.version !== readJson('tools/package.json').dependencies['awx-axi']) throw new Error('AWX parity pin mismatch')
+const pkg = readJson('tools/node_modules/@knowttl/awx-axi/package.json')
+if (pkg.version !== readJson('tools/package.json').dependencies['@knowttl/awx-axi']) throw new Error('AWX parity pin mismatch')
 const inventory = readJson('tools/inventories/awx-axi.json')
 const routes = new Map(inventory.commands.map(route => [route.command, route]))
 const help = async argv => {
@@ -36,7 +36,7 @@ const flagForms = {
   control: ['help', 'confirm', 'dry-run', 'check'],
   pagination: ['limit', 'all', 'max-rows'],
   output: ['fields', 'tail', 'lines', 'full', 'ansi', 'download'],
-  filter: ['status', 'type', 'since', 'host', 'task', 'search', 'failed', 'failed-only', 'include-decided', 'event', 'kind'],
+  filter: ['status', 'type', 'since', 'host', 'task', 'search', 'failed', 'failed-only', 'include-decided', 'event', 'kind', 'query'],
   wait: ['wait', 'timeout', 'interval'],
   selector: ['template', 'workflow', 'inventory', 'project', 'organization', 'user', 'team', 'credential', 'credential-type', 'execution-environment',
     'instance-group', 'label', 'notification-template', 'child', 'source', 'source-project', 'job', 'workflow-job', 'project-update', 'inventory-update',
@@ -45,7 +45,7 @@ const flagForms = {
     'host-filter', 'update-on-launch', 'no-update-on-launch', 'enabled', 'disabled', 'facts', 'rrule', 'image', 'pull', 'scope', 'username', 'first-name',
     'last-name', 'email', 'is-superuser', 'is-system-auditor', 'no-superuser', 'no-system-auditor', 'notification-type', 'module-name', 'module'],
   structured: inventory.adapterBoundary.structuredInputFlags,
-  file: ['inputs-file', 'password-file', 'credential-passwords-file', 'hosts-file', 'configuration-file', 'config-file', 'messages-file'],
+  file: ['inputs-file', 'password-file', 'credential-passwords-file', 'hosts-file', 'configuration-file', 'config-file', 'messages-file', 'body-file'],
   client: ['allow-http'],
 }
 const formOf = new Map(Object.entries(flagForms).flatMap(([form, names]) => names.map(name => [name, form])))
@@ -141,7 +141,7 @@ const aliases = commands.filter(route => /^inventory (host|group|source)-/.test(
     flags: route.flags }))
 })
 // Reviewed decisions: changing the upstream surface must change these numbers and digest in the same diff as its classification.
-const reviewedSurface = { commands: 215, aliases: 27, flagOccurrences: 1052, routerSha256: 'e08ea3de7f2232b47e603772ca5baf86bc2907823d3e49dcedf7eb2d574f4393', surfaceSha256: '382775bb36c2711185342fb4625ef0d86aa311a223cdd9a92f7729d97f158477' }
+const reviewedSurface = { commands: 220, aliases: 27, flagOccurrences: 1070, routerSha256: 'e08ea3de7f2232b47e603772ca5baf86bc2907823d3e49dcedf7eb2d574f4393', surfaceSha256: '8af8358bb8158816fc1be036dd556b9669a174c1741c2429ddc70281a442fff8' }
 const surfaceLines = [...DOMAINS.flatMap(domain => domain.subcommands.flatMap(route => [`${domain.name} ${route.name} ${JSON.stringify(route.positionals)}`,
   ...route.flags.map(flag => `${domain.name} ${route.name} --${flag.name} ${flag.takesValue}`)])), ...aliases.map(alias => `${alias.command} => ${alias.canonicalCommand}`)].sort()
 const measuredSurface = { commands: commands.length, aliases: aliases.length, flagOccurrences: commands.reduce((count, route) => count + route.flags.length, 0),

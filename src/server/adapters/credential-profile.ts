@@ -132,6 +132,9 @@ export class CredentialProfile {
       this.inputSchema.properties.scope.description = 'Download scope supplied by your tenant administrator or Check Point support. Use printable ASCII with no spaces (characters ! through ~); comma-separated values are sent verbatim. Email downloads require this value as the scopes header. Attachment downloads use it as the scope query when set, and omit that query when unset. Artium uses this stored value for hosted transfers; there is no per-download scope override. Tenant scope authorization and the relationship between these selectors remain unverified; do not guess a value.'
     }
     if (tool === 'mg-axi') {
+      delete this.inputSchema.properties.rawWrites
+      this.inputSchema.properties.writes.required = ['allowWrites', 'operations']
+      this.inputSchema.properties.writes.properties.operations.minItems = 1
       this.inputSchema.properties.enabledPacks = { ...this.inputSchema.properties.enabledPacks,
         items: { enum: ['entra', 'security', 'mail'] }, minItems: 1, maxItems: 3, contains: { const: 'entra' } }
       this.inputSchema.allOf = [...this.inputSchema.allOf ?? [], {

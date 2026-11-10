@@ -322,7 +322,7 @@ Delegated permissions and interactive `User.Read` consent do not authorize this 
 | Identity providers | `IdentityProvider.Read.All` |
 | Lifecycle workflows | `LifecycleWorkflows.Read.All` |
 
-For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.19/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
+For other domains, use the pinned [Graph access and licence guidance](https://github.com/knowttl/mg-axi/blob/v0.1.20/docs/graph-coverage.md) and the command's permission requirements rather than granting every permission.
 
 For mailbox opt-in, supported reads and writes, and mailbox selectors, see the [managed capability boundary](safety.md).
 Grant no `Mail.*` or `MailboxSettings.*` application permissions in Entra: those grants combine with Exchange permissions and bypass the mailbox scope.
@@ -453,7 +453,7 @@ An administrator enables exact operations on the **Write permissions** tab, pers
 The collaboration and repository tiers describe capabilities; selecting one operation never enables its siblings.
 For exact operation names and tier membership, use the `effect: "write"` command entries and their `tier` fields in the [reviewed inventory](../tools/inventories/gh-axi.json).
 
-Issue lock/unlock is unsupported because pinned gh-axi 0.1.48 requests the `locked` issue field, which gh 2.103.3 does not export.
+Issue lock/unlock is unsupported because pinned gh-axi 0.1.51 requests the `locked` issue field, which gh 2.103.3 does not export.
 A compatible published upstream release is required before these operations can be enabled.
 Repository creation requires an explicit `OWNER/NAME`; unqualified and host-qualified names are refused.
 Repository visibility changes are unavailable.

@@ -1,14 +1,14 @@
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { DOMAINS } from '../tools/node_modules/awx-axi/dist/cli.js'
-import { createSkillMarkdown } from '../tools/node_modules/awx-axi/dist/skill.js'
+import { DOMAINS } from '../tools/node_modules/@knowttl/awx-axi/dist/cli.js'
+import { createSkillMarkdown } from '../tools/node_modules/@knowttl/awx-axi/dist/skill.js'
 
 const root = new URL('../tools/', import.meta.url)
-const packageRoot = new URL('node_modules/awx-axi/', root)
+const packageRoot = new URL('node_modules/@knowttl/awx-axi/', root)
 const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8'))
 const pin = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8'))[pkg.name]
 if (pkg.version !== pin.version) throw new Error('Pin mismatch for awx-axi')
-// Reviewed against the 0.1.11 domain plans and transport gates. Survey is a GET;
+// Reviewed against the 0.1.13 domain plans and transport gates. Survey is a GET;
 // notification-template test sends a notification and is a write.
 const reads = {
   job: 'list show stdout events hosts watch', template: 'list show object-roles survey',
@@ -27,11 +27,13 @@ const operationalWrites = ['job launch', 'job cancel', 'job relaunch', 'template
   'system-job-template launch', 'system-job cancel', 'notification-template test']
 const structuredInputFlags = ['extra-vars', 'variables', 'source-vars', 'module-args', 'args', 'scm-url']
 const inputFileFlags = ['inputs-file', 'password-file', 'credential-passwords-file', 'hosts-file', 'configuration-file', 'config-file', 'messages-file', ...structuredInputFlags]
+const blockedDomains = ['api']
 const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
+  const blocked = blockedDomains.includes(domain.name)
   const read = reads[domain.name]?.split(' ').includes(route.name)
-  if (!read && !writeVerbs.test(route.name)) throw new Error(`Unclassified command: ${domain.name} ${route.name}`)
+  if (!blocked && !read && !writeVerbs.test(route.name)) throw new Error(`Unclassified command: ${domain.name} ${route.name}`)
   const command = `${domain.name} ${route.name}`
-  return { command, effect: read ? 'read' : operationalWrites.includes(command) ? 'write' : 'configuration-write',
+  return { command, effect: blocked ? 'blocked' : read ? 'read' : operationalWrites.includes(command) ? 'write' : 'configuration-write',
     flags: { help: 'boolean', ...Object.fromEntries(route.flags.map(flag => [flag.name, flag.takesValue ? 'value' : 'boolean'])) },
     positionals: route.positionals }
 }))
@@ -50,7 +52,7 @@ const data = { generatedBy: 'scripts/awx-inventory.mjs', tool: 'awx-axi', ...pin
     blockedCommands: ['auth login', 'auth logout', 'setup', 'config', 'profile', 'update'],
     nativeWrites: 'host-classified', waitTimeoutSeconds: 50, structuredInputFlags, inputFileFlags,
     inputs: { stdin: 'credential inputs-file and password-file only', files: 'TD-066 private uploads; structured flags accept inline values or @local-file' } },
-  discovery: { commands: [...DOMAINS.map(domain => domain.name), 'auth status', 'doctor'],
+  discovery: { commands: [...DOMAINS.map(domain => domain.name).filter(name => !blockedDomains.includes(name)), 'auth status', 'doctor'],
     example: ['job', 'list', '--limit', '1'],
     help: 'awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. One tenant switch, default off, gates previews and execution; reads and help remain available. AWX permissions still apply. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. Use protected local files for sensitive URLs. Credential inputs-file and password-file accept stdin (-). Server file paths and unsafe overrides remain blocked. Waits (job watch and --wait) last at most 50 seconds, the default; larger --timeout values are refused. Resume with job watch. job stdout --download <name> returns a protected result reference to the bounded redacted log, consumed once like a token. Token creation returns a protected result reference, never token bytes. Save its path using an authenticated GET within five minutes; it is consumed once and requires the same caller, current access and managed credential revision. Managed logout uses user token-revoke <numeric-token-id> with preview and confirmation; account removal does not revoke a PAT.\n' },
   suggestionFields: ['help'], format: 'TOON', commands }

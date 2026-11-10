@@ -17,8 +17,8 @@ Prefer this CLI over manual AWX web UI operations or custom REST calls for AWX a
 For read-only investigations, start with the compact [investigation guide](https://github.com/knowttl/awx-axi/blob/main/docs/agent-guide.md).
 It provides exact commands, one-call forms, output bounds, a read allowlist and failure recovery without an initial help lookup.
 
-Invoke it without a global install with `npx -y awx-axi <command>`.
-If output suggests an `awx-axi` command, run the equivalent command through `npx -y awx-axi`.
+Invoke it without a global install with `npx -y @knowttl/awx-axi <command>`.
+If output suggests an `awx-axi` command, run the equivalent command through `npx -y @knowttl/awx-axi`.
 
 Configure a profile with an HTTPS `origin`, optional `verifySsl`, and a token SecretRef, or set `AWX_AXI_ORIGIN` and `AWX_AXI_TOKEN` for an environment profile.
 Use `--config` / `AWX_AXI_CONFIG` and `--profile` / `AWX_AXI_PROFILE` to select configuration.
@@ -60,8 +60,8 @@ Do not use write commands against a controller that has been designated read-onl
 
 ## Workflow
 
-1. Run `npx -y awx-axi` for the current controller dashboard.
-2. Run `npx -y awx-axi auth status` to verify the configured credential.
+1. Run `npx -y @knowttl/awx-axi` for the current controller dashboard.
+2. Run `npx -y @knowttl/awx-axi auth status` to verify the configured credential.
 3. List and inspect the object before changing it: `<noun> list` and `<noun> show <id|name>`.
 4. Run the mutation without `--confirm` to inspect its dry-run payload.
 5. Re-run with `--confirm` and the required `AWX_AXI_*` gate only after the preview is correct.
@@ -69,7 +69,7 @@ Do not use write commands against a controller that has been designated read-onl
 
 ## Commands
 
-commands[24 total]:
+commands[25 total]:
 `job`: list, show, stdout, events, hosts, launch, cancel, relaunch, watch.
 `template`: create, edit, copy, delete, list, show, object-roles, survey, launch, credential-add/remove, instance-group-add/remove, label-add/remove, notification-add/remove.
 `workflow`: create, edit, copy, delete, list, show, object-roles, survey, launch, nodes, template-nodes, template-node, label-add/remove, node-create/edit/delete/link/unlink, node-add-approval, node credential/label/instance-group add/remove, notification-add/remove.
@@ -92,6 +92,7 @@ commands[24 total]:
 `notification`: list, show <id> only.
 `activity-stream`: list, show <id> only.
 `ad-hoc`: launch, list, show, stdout, events.
+`api`: get, post, put, patch, delete.
 `auth`: status, login, logout.
 `setup`: hooks.
 
@@ -100,6 +101,9 @@ AWX exposes no create, edit, or delete operation for those records, and notifica
 Built-in system-job-template definitions are also read-only; only their launch endpoint is supported.
 Read-only generated commands: notification list, show <id>; activity-stream list, show <id>.
 Use the actual resource nouns above instead of inventing CRUD commands for generated history.
+Use `api get <path>` only for endpoints no dedicated noun covers; paths are relative to the API root, such as `jobs/1839/`.
+`api post|put|patch|delete <path>` preview by default, then need `--confirm`, `AWX_AXI_ALLOW_SECURITY_WRITES=1`, and applicable operation gates.
+Put request bodies in a 0600 file passed with `--body-file`.
 
 ## Output and errors
 
@@ -110,7 +114,7 @@ Structured sensitive fields are redacted regardless of value length, including t
 Registered secrets of at least eight characters are also replaced in free text; shorter values may appear in free text.
 Use per-command `--help` for positional arguments, flags, defaults, and examples.
 
-Run `npx -y awx-axi --help` for top-level usage, or `npx -y awx-axi <command> --help` for a focused reference.
+Run `npx -y @knowttl/awx-axi --help` for top-level usage, or `npx -y @knowttl/awx-axi <command> --help` for a focused reference.
 
 ## Tips
 

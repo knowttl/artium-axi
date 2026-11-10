@@ -1,13 +1,13 @@
 {
   "generatedBy": "scripts/checkpoint-inventory.mjs",
   "tool": "checkpoint-axi",
-  "version": "0.1.5",
-  "integrity": "sha512-zmBdIDk8Q0OjSysuRrZPvEgbqfNJQV4Op6cHrua9n69arnJ/yuOxFscCAXP5SUFyppXR3dOeMiA0c/fyXFwvWA==",
+  "version": "0.1.6",
+  "integrity": "sha512-G1r8SnyLl0e34GBDfsG1rpR0W06A9+cYprnHgEHMQlv45NaI9kUNwdIvPF+vAcpWlwiThIFy0Ss1V9HvrXXiEg==",
   "parserEvidence": "Published catalogue, fixed regional map and reviewed native parsers, write coordinator and download contracts",
   "sources": [
     {
       "path": "dist/src/catalogue.js",
-      "sha256": "fbac0730e6c3744a63c072b8e5243c1d668fbc7952398be80387b073f307dad6"
+      "sha256": "ddd2a3b44fbf6c6e047ff739e172b7f6c7ab88c38dfb9868b582451262ad6331"
     },
     {
       "path": "dist/src/cli.js",
@@ -27,7 +27,7 @@
     },
     {
       "path": "dist/src/local-commands.js",
-      "sha256": "0d2e310373850e04f96135f910e179e5014dd8050269ff5df0eb97c07d8478ce"
+      "sha256": "76c58a634c9465ad21e20ab3d067c6a58a5a7753c8f513e02e31aabb70bfa17e"
     },
     {
       "path": "dist/src/private-file.js",
@@ -39,7 +39,7 @@
     },
     {
       "path": "dist/src/reads.js",
-      "sha256": "1c83a607150bc23583662457f3ae09bab19e36fe5c5f581e5bb92501583159c0"
+      "sha256": "82b0031909b8d6ab897059ee909fe78697a89c0cd69e69c861befbe47101e97b"
     },
     {
       "path": "dist/src/redact.js",
@@ -56,6 +56,10 @@
     {
       "path": "dist/src/response-invalid.js",
       "sha256": "6626bf67e0b5f422c109d943ae50fe28cff6e83eb7ecc5e9bbb49fa5bae4ff66"
+    },
+    {
+      "path": "dist/src/setup-hooks.js",
+      "sha256": "b1e7e9ec12a81c57df1a5c199cf9b5fedae053f3c50a13c4684d79b669b863fa"
     },
     {
       "path": "dist/src/transport.js",
@@ -229,7 +233,7 @@
     "uae": "https://cloudinfra-gw.me.portal.checkpoint.com",
     "in": "https://cloudinfra-gw.in.portal.checkpoint.com"
   },
-  "skillSha256": "80241da4921bfa7dcbf97fa099cd57ce1c3d4313e0bad25a9e0e9788d9608a8f",
+  "skillSha256": "9d7e5e32af537f57f48e72654ee916ebce1f3e18cbbb2a950e831e94035ac757",
   "nativeWriteSettings": {
     "supportedOperations": [
       "attachment.download",
@@ -272,6 +276,7 @@
       "input"
     ],
     "blockedCommands": [
+      "setup hooks",
       "profile list",
       "config path",
       "exception clear",
@@ -608,7 +613,8 @@
         "profile": "Profile name; default CHECKPOINT_AXI_PROFILE, env profile, config default, or sole profile",
         "fields": "Comma-separated output fields; default all",
         "full": "Show full strings instead of 500-character previews; default false",
-        "help": "Show concise command help; default false"
+        "help": "Show concise command help; default false",
+        "offline": "Local status only; never resolve secrets or contact the API; default false"
       }
     },
     {
@@ -620,6 +626,13 @@
         "fields": "Comma-separated output fields; default all",
         "full": "Show full strings instead of 500-character previews; default false",
         "help": "Show concise command help; default false"
+      }
+    },
+    {
+      "command": "setup hooks",
+      "effect": "blocked",
+      "flags": {
+        "help": "Show command help"
       }
     },
     {

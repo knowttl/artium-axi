@@ -38,7 +38,7 @@ test.each([
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
       return { ...call, executable: process.execPath,
-        args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+        args: [join(process.cwd(), 'tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
     }
     const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
     const app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), adapters: [adapter], environment: {},
@@ -76,7 +76,7 @@ test('AWX user privilege removal and interrupted username changes persist with w
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
       return { ...call, executable: process.execPath,
-        args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+        args: [join(process.cwd(), 'tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
     }
     const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
     const app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), adapters: [adapter], environment: {},
@@ -123,7 +123,7 @@ test('AWX token revocation requires the tenant switch and confirmation and inval
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
       return { ...call, executable: process.execPath,
-        args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+        args: [join(process.cwd(), 'tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
     }
     const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
     const lines: string[] = []
@@ -144,7 +144,7 @@ test('AWX token revocation requires the tenant switch and confirmation and inval
       allowWrites = true
       expect((await request(args)).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
       const preview = await request([...args, '--dry-run'])
-      expect(decode(preview.json().stdout)).toMatchObject({ dry_run: { action: 'revoke', would_send: 'DELETE tokens/7/' } })
+      expect(decode(preview.json().stdout)).toMatchObject({ dry_run: { action: 'revoke', would_send: 'DELETE tokens/***/' } })
       expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
       await send('/__awx/configuration-permission?enabled=false', 'POST')
       const denied = await request([...args, '--confirm'])

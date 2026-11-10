@@ -33,7 +33,7 @@ test.each([
     const adapter = createAwxAdapter({ getCredential: async () => ({ origin: 'https://controller.example', token: 'CANARY-awx-token' }) })
     const call = await adapter.prepare([...command, 'synthetic', ...(attached ? [`--${flag}=${value}`] : [`--${flag}`, value]), '--confirm', '--help'],
       { id: 'synthetic', tool: 'awx-axi' })
-    const bin = join(directory, 'opt/tools/node_modules/awx-axi/dist/bin/awx-axi.js')
+    const bin = join(directory, 'opt/tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js')
     const expected = spawnSync(process.execPath, [bin, ...command, '--help'], { encoding: 'utf8' })
     const args = call.executable === process.execPath
       ? call.args.map((arg, index) => index === 3 ? join(directory, 'opt/tools/node_modules/.bin/awx-axi') : arg)

@@ -139,7 +139,7 @@ export function configurationTests(domains: string[]) {
         return { ...call, args }
       }
       return { ...call, executable: process.execPath,
-        args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args],
+        args: [join(process.cwd(), 'tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js'), ...call.args],
         fileArguments: call.fileArguments?.map(index => index + 1) }
     }
     const runner = await Runner.create(join(directory, 'calls'))

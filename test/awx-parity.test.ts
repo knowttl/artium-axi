@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
 
-const { DOMAINS } = await import(new URL('../tools/node_modules/awx-axi/dist/cli.js', import.meta.url).href)
+const { DOMAINS } = await import(new URL('../tools/node_modules/@knowttl/awx-axi/dist/cli.js', import.meta.url).href)
 const parity = JSON.parse(readFileSync(new URL('../tools/inventories/awx-axi-parity.json', import.meta.url), 'utf8'))
 
 type Flag = { name: string; takesValue: boolean; description: string }
@@ -29,8 +29,8 @@ const decisions = parity.commands as Decision[]
 const aliases = parity.aliases as Decision[]
 
 test('every pinned command has one reviewed decision and every alias maps to a canonical equivalent', () => {
-  expect(decisions).toHaveLength(215)
-  expect(new Set(decisions.map(decision => decision.command)).size).toBe(215)
+  expect(decisions).toHaveLength(220)
+  expect(new Set(decisions.map(decision => decision.command)).size).toBe(220)
   expect(aliases).toHaveLength(27)
   for (const alias of aliases) {
     const canonical = decisions.find(decision => decision.command === alias.canonicalCommand)
@@ -193,7 +193,7 @@ test('every flag decision matches the Artium route schema', () => {
     for (const flag of decision.flags) {
       const accepted = Object.hasOwn(route!.flags, flag.name)
       if (flag.status === 'supported') expect(accepted, `${decision.command} --${flag.name}`).toBe(true)
-      else expect(['managed equivalent', 'not applicable'], `${decision.command} --${flag.name}`).toContain(flag.status)
+      else expect(['managed equivalent', 'not applicable', 'blocked'], `${decision.command} --${flag.name}`).toContain(flag.status)
     }
     for (const name of Object.keys(route!.flags)) expect(decision.flags.map(flag => flag.name), decision.command).toContain(name)
   }

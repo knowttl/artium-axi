@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/gh-inventory.mjs",
   "tool": "gh-axi",
-  "version": "0.1.48",
-  "integrity": "sha512-OzQT70Aik2n0VOj/ilu7Z1KGn8+OSd2UGYjJYVXHaGIqnsS5B+nWReyACk+PFGFfWSb3h1BWUrwETI/ArSXeFg==",
+  "version": "0.1.51",
+  "integrity": "sha512-uZ/DIKzfmYOPkcHdM7Dn8fBmdO7bZt7QzcZ6ZXUz55m58UbdfemQ3rlZNYT6avH3h7d9tPAjwUeMJ9JmFqVjAA==",
   "parserEvidence": "Hand-reviewed published dispatch switches and per-command parsers; exact writes use host preview and confirmation",
   "skillSha256": "3d01b3112442275d52cc5847cb17543c710128f4591346e77eeecc30c45e76f3",
   "sdk": {
@@ -39,7 +39,7 @@
     },
     {
       "path": "dist/src/commands/api.js",
-      "sha256": "f40412051bea3b5c49c68224a5accd54b18fadada6cefab10280069506f311a1"
+      "sha256": "15f425dfef9f127a401b6cf9c7a2cbf9b505b4bc506afc6721ef866e27dafae0"
     },
     {
       "path": "dist/src/commands/discussion.js",
@@ -51,11 +51,11 @@
     },
     {
       "path": "dist/src/commands/home.js",
-      "sha256": "15ff96c95b737444afb082f538ff55a204062a82a9179f85931015fff211ab16"
+      "sha256": "d4371831cc6a5d0ddf342c08776adec98f131f109d6de43e3b3ae71d5adba071"
     },
     {
       "path": "dist/src/commands/issue.js",
-      "sha256": "5411613d5a01912ac261e95c0aafb909e05f406000440569f42b6768017b7bc2"
+      "sha256": "9c4f650cc4b5229da6807537e9c4a3c7e2250f81f7c6c66fe5a3a52c2ed5f244"
     },
     {
       "path": "dist/src/commands/label.js",
@@ -63,7 +63,7 @@
     },
     {
       "path": "dist/src/commands/pr.js",
-      "sha256": "1a4f2a52d8f4846fb7081af788d215e8f5637d232dc4468e2bb8dea9db25a70d"
+      "sha256": "5fa6912036a10b424ce783ef0f6d383405597807ae0a904ab88c9ac94bd0e6c8"
     },
     {
       "path": "dist/src/commands/project.js",
@@ -83,7 +83,7 @@
     },
     {
       "path": "dist/src/commands/search.js",
-      "sha256": "19fa5c8da4528604813b8a03e552213582b197449c617d5ff8736505ef1f5be2"
+      "sha256": "e86b89cc5597f2d8fc0aa552b3462264b9db8c7c1af6659314af2e63687fd641"
     },
     {
       "path": "dist/src/commands/secret.js",

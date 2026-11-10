@@ -11,7 +11,7 @@ if (pkg.version !== pin.version) throw new Error('Pin mismatch for checkpoint-ax
 const unsafeOverrides = ['config', 'profile', 'origin', 'out']
 const inputFileFlags = ['input']
 const downloadCommands = ['email download', 'attachment download', 'attachment download-all']
-const blockedCommands = ['profile list', 'config path', 'exception clear', ...downloadCommands]
+const blockedCommands = ['setup hooks', 'profile list', 'config path', 'exception clear', ...downloadCommands]
 const supportedOperations = ['email.quarantine', 'email.restore',
   ...['phishing-allow', 'phishing-block', 'spam-allow'].flatMap(kind => ['create', 'update', 'remove'].map(action => `exception.${kind}.${action}`)),
   'exception.anomaly.create', 'exception.anomaly.remove',
