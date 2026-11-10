@@ -24,7 +24,6 @@ let directory: string
 let db: ReturnType<typeof openStore>
 let app: ReturnType<typeof createApp>
 let headers: Record<string, string>
-let profiles: Record<string, unknown>[]
 let adapter: ReturnType<typeof createMgAdapter>
 
 beforeEach(async () => {
@@ -39,10 +38,8 @@ beforeEach(async () => {
   adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'),
     loadCredentialProfile('mg-axi', join(process.cwd(), 'tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json'))!)
   const prepare = adapter.prepare.bind(adapter)
-  profiles = []
   adapter.prepare = async (...input) => {
     const call = await prepare(...input)
-    profiles.push(JSON.parse(call.files[0].content as string).profiles.artium)
     return { ...call, executable: process.execPath, args: [join(process.cwd(), 'test/fake-tool/mg-adapter-child.mjs'), ...call.args] }
   }
   app = createApp({ db, audit: new Audit(db, Date.now, () => {}),
@@ -160,14 +157,15 @@ test.each([
   expect(await run(batch([entry('1', 'GET', userPath)]))).toMatchObject({ error: { code: 'RAW_API_DENIED' } })
 })
 
+test('a file route read succeeds when raw read-writes and role access are enabled', async () => {
+  expect(await run(['api', 'get', `${userPath}/drive`])).toMatchObject({ exitCode: 0, output: { fakeReads: 1 } })
+})
+
 test.each([
-  ['a named command', ['entra', 'user', 'list'], false],
-  ['raw help', ['api', 'post', rawPath, '--help'], false],
-  ['a raw write preview', ['api', 'patch', rawPath, '--body', '{}'], true],
-  ['an executed raw write', execute('delete'), true],
-] as const)('the native profile lifts the file and batch denials only as expected for %s', async (_name, args, lifted) => {
-  await call([...args])
-  expect(profiles).toHaveLength(1)
-  if (lifted) expect(profiles[0]).toMatchObject({ rawBatch: true, sensitiveAreas: ['files'] })
-  else expect(profiles[0]).not.toHaveProperty('rawBatch')
+  ['read mode', "UPDATE tools SET raw_api_mode = 'read' WHERE name = 'mg-axi'", { output: { error: { code: 'POLICY_DENIED' }, fakeReads: 0 } }],
+  ['off mode', "UPDATE tools SET raw_api_mode = 'off' WHERE name = 'mg-axi'", { error: { code: 'RAW_API_DENIED' } }],
+  ['no role access', "UPDATE role_tools SET raw_api = 0 WHERE tool = 'mg-axi'", { error: { code: 'RAW_API_DENIED' } }],
+])('a file route read is denied with %s', async (_name, change, expected) => {
+  db.exec(change)
+  expect(await run(['api', 'get', `${userPath}/drive`])).toMatchObject(expected)
 })
