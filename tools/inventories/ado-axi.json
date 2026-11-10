@@ -1,9 +1,9 @@
 {
   "generatedBy": "scripts/ado-inventory.mjs",
   "tool": "ado-axi",
-  "version": "0.5.1",
-  "integrity": "sha512-yA7m//5jr9Fi6Ec1tY1vaE3wINlJ8oeFGsNP7otUMXfBbBjrzZ4a14GKQ9XAr8Q3DBxYP2UF79VzBp9WbrXJKg==",
-  "skillSha256": "4edd829957303142e9784f8e98f8815a591c178ae1ec05a8e6cdf92eeb2abe09",
+  "version": "0.5.2",
+  "integrity": "sha512-cznBgianYqekDwzoP42phNi9+d04WP3SkZFMO5WuIJTkzO4ltGW5xEPjVlwYMXyCTPphMyLgdczdqtuzEm+JRQ==",
+  "skillSha256": "7a1cc81920564d263316ba8f23be7f8116dc19c2753113be5ef376d7c035a543",
   "parserEvidence": "Reviewed published dispatch switches, aliases and command flag constants",
   "sources": [
     {
@@ -56,7 +56,7 @@
     },
     {
       "path": "dist/commands/api.js",
-      "sha256": "254898b9dc4b96d1ba04ecb4d37efe847bed91a5e20fc90791f5a3d9471d9c71"
+      "sha256": "967bb321a02eb6ed3307ba0d985c351b5376ba0edd6509b888e7f800dc3acfba"
     },
     {
       "path": "dist/commands/classification.js",

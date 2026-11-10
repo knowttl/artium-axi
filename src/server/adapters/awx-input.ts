@@ -23,7 +23,7 @@ const resultFile = resultIndex < 0 ? undefined : argv.splice(resultIndex, 2)[1];
 const downloadIndex = argv.findIndex(arg => arg.startsWith('--download='));
 const download = downloadIndex < 0 ? undefined : argv.splice(downloadIndex, 1)[0].slice('--download='.length);
 const require = createRequire(executable);
-const awxModule = require.resolve('awx-axi');
+const awxModule = require.resolve('@knowttl/awx-axi');
 const { decode, encode } = await import(pathToFileURL(require.resolve('@toon-format/toon')).href);
 const { parse } = await import(pathToFileURL(createRequire(awxModule).resolve('yaml')).href);
 const { redactValue } = await import(new URL('./core/redact.js', pathToFileURL(awxModule)).href);

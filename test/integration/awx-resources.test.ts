@@ -31,7 +31,7 @@ test('AWX execution environment image edits and interrupted renames remain reada
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
       return { ...call, executable: process.execPath,
-        args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+        args: [join(process.cwd(), 'tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
     }
     const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
     const app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), adapters: [adapter], environment: {},
@@ -93,7 +93,7 @@ test('AWX machine credential writes preserve private inputs and reconcile interr
         call.args[3] = join(process.cwd(), 'tools/node_modules/.bin/awx-axi')
         return call
       }
-      return { ...call, executable: process.execPath, args: [join(process.cwd(), 'tools/node_modules/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
+      return { ...call, executable: process.execPath, args: [join(process.cwd(), 'tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js'), ...call.args] }
     }
     const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
     const lines: string[] = []

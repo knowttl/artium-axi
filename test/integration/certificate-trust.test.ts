@@ -715,7 +715,7 @@ test('a failed run preserves CLI output when the saved pin still matches', async
 })
 
 test.each([
-  { tool: 'awx-axi', protocol: 'https:', binary: 'awx-axi/dist/bin/awx-axi.js', args: ['job', 'list', '--limit', '1'],
+  { tool: 'awx-axi', protocol: 'https:', binary: '@knowttl/awx-axi/dist/bin/awx-axi.js', args: ['job', 'list', '--limit', '1'],
     credential: (origin: string) => ({ origin, token: 'CANARY-awx-token' }), adapter: (source: EmbeddedSecretSource) => createAwxAdapter(source) },
   { tool: 'vectra-axi', protocol: 'https:', binary: '@knowttl/vectra-axi/bin/vectra-axi.js', args: ['detection', 'list'],
     credential: (origin: string) => ({ origin, kind: 'qux', apiVersion: '2.5', auth: 'oauth', clientId: 'synthetic-vectra-id', clientSecret: 'CANARY-vectra-secret' }),

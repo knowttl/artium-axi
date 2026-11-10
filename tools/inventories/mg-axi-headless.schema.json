@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "@knowttl/mg-axi 0.1.19 headless application profile",
+  "title": "@knowttl/mg-axi 0.1.20 headless application profile",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -48,6 +48,10 @@
       "type": "boolean",
       "default": false
     },
+    "rawWrites": {
+      "type": "boolean",
+      "default": false
+    },
     "sensitiveAreas": {
       "type": "array",
       "maxItems": 0,
@@ -84,8 +88,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "allowWrites",
-        "operations"
+        "allowWrites"
       ],
       "properties": {
         "allowWrites": {
@@ -93,7 +96,6 @@
         },
         "operations": {
           "type": "array",
-          "minItems": 1,
           "maxItems": 64,
           "items": {
             "type": "string",

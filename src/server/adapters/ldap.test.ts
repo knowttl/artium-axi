@@ -8,7 +8,7 @@ import { decode } from '@toon-format/toon'
 
 const reference = { id: 'synthetic-ldap', tool: 'ldap-axi' as const, revision: 1 }
 const credential = { url: 'ldaps://directory.test:636', auth: 'simple', bindDn: 'uid=reader', bindPassword: 'CANARY-ldap-password' }
-const parserScript = 'import { parse } from "./tools/node_modules/@knowttl/ldap-axi/dist/src/cli.js"; process.stdout.write(JSON.stringify(parse(process.argv.slice(2)).flags))'
+const parserScript = 'import { parse } from "./tools/node_modules/@knowttl/ldap-axi/dist/src/cli-main.js"; process.stdout.write(JSON.stringify(parse(process.argv.slice(2)).flags))'
 
 test.each([
   credential,
@@ -96,7 +96,7 @@ test('a reference for another tool cannot retrieve LDAP credentials', async () =
 })
 
 test('LDAP discovery advertises hosted reads without credential overrides', () => {
-  const output = toolView({ name: 'ldap-axi', status: 'unconfigured', version: '0.3.2', instances: [] })
+  const output = toolView({ name: 'ldap-axi', status: 'unconfigured', version: '0.3.4', instances: [] })
   expect(output).toContain('artium-axi --instance <name> ldap-axi user list --limit 1')
   expect(output).toContain('--fields')
   expect((decode(output) as { commands: string[] }).commands).toEqual(expect.arrayContaining(['computer', 'server']))

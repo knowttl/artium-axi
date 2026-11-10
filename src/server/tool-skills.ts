@@ -17,13 +17,13 @@ const overlays = {
   'gh-axi': { sha256: ghInventory.skillSha256, sections: [] },
   'checkpoint-axi': { sha256: checkpointInventory.skillSha256, sections: [] },
   'hybrid-axi': { sha256: '89f8a9d5fc5d7afdaee0b44fc5e09b7c2380df9fce09166bf62f9d70063c92fe', sections: [] },
-  'tenable-axi': { sha256: 'b8a0370a3573fa4466265624023b7c1fa554e3f17abe4eb9b0f4cfd839246b21', sections: [] },
+  'tenable-axi': { sha256: '201b6eafab7a93dec234b41e0cbd8af22283d5f83e9359aac80d6f5dfcc3baf9', sections: [] },
   'awx-axi': { sha256: awxInventory.skillSha256, sections: ['Output and errors'] },
   'ado-axi': { sha256: adoInventory.skillSha256, sections: [] },
   'az-axi': { sha256: '8fee4f47425068234548e808506d21a3d6966382e155e914007cbc66c04d5c75', sections: ['Reads', 'Safe shell input', 'Writes', 'Conventions'] },
   'vectra-axi': { sha256: '4c14b7fa56eae1a9bdf24b3fdeefe6d77ba7c470b056bd854fb561eebb511714', sections: ['Safety'] },
-  'mg-axi': { sha256: 'efdc55d2c4a7cee3dd46250bc844385c2b6c4ebf0c9e0072147c08599461f885', sections: ['Safety'] },
-  'ldap-axi': { sha256: '0fd60163e192fce5bf6222d885e012638047b039af2b1a1df87a4d51057c148b', sections: ['Investigation reads', 'One invocation instead of hand-written loops', 'Keep output bounded'] },
+  'mg-axi': { sha256: '7c45262eed6d4d2c06802be3a8435f70caa079608346b4ff4673205254ea2cc9', sections: ['Safety'] },
+  'ldap-axi': { sha256: '293794b0132b11a249ca1e84d58ab8caa464c37daaf1d1f9a707c203a215698c', sections: ['Investigation reads', 'One invocation instead of hand-written loops', 'Keep output bounded'] },
   'falcon-axi': { sha256: toolManifests['falcon-axi'].skillSha256, sections: [] },
 } as const
 

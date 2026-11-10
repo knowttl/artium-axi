@@ -387,7 +387,7 @@ Tool codes `API_RESPONSE_INVALID`, `AUTH_RESPONSE_INVALID`, `RESPONSE_INVALID`, 
 Generic `UPSTREAM_ERROR` failures retain the tool's redacted diagnostic text and use the ordinary authentication, network or tool-failure classification.
 For Check Point schema-validation failures, `RESPONSE_INVALID` includes HTTP `status`, normalized `contentType`, a bounded redacted `shape`, and `issues` with failing JSON paths and received types, without response values or validator messages.
 Unavailable status or content type is `null`; unsafe keys become `<key>` and array paths use `[*]`.
-See the pinned [Check Point transport guidance](https://github.com/knowttl/checkpoint-axi/blob/v0.1.5/docs/reads.md#doctor-and-transport) for diagnostic limits and recovery.
+See the pinned [Check Point transport guidance](https://github.com/knowttl/checkpoint-axi/blob/v0.1.6/docs/reads.md#doctor-and-transport) for diagnostic limits and recovery.
 For BeyondTrust schema-validation failures, `API_RESPONSE_INVALID` includes HTTP `status`, normalized `contentType`, a bounded `shape` report containing JSON paths and value types, bounded validator `issuePaths`, and matching `issues` annotations, never response values or validation-library error text.
 Each issue annotation includes `path`, `received` and `expected` types (`unknown` when the expected type is unavailable or outside the safe type vocabulary), plus the Zod `code` when recognized.
 The reports echo only identifier-like, non-GUID object keys through the tool's redactor; every other object key appears as `<key>`, and array positions appear as `[*]`.

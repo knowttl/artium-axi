@@ -18,7 +18,7 @@ export const tenableProfile = new CredentialProfile(inventory.credentialSchema, 
 export const tenableCredentialSchema = tenableProfile.credentialSchema
 export const tenableWritePolicy = writePolicy({ supportedOperations: inventory.nativeWriteSettings.supportedOperations,
   unlocks: 'Selected business writes and export-job creation, with native preview, --execute, exact --confirm and journal gates.',
-  blocked: 'Operations outside the allow-list, local configuration, output downloads and credential or origin overrides remain blocked.' })
+  blocked: 'Raw write remains blocked pending separate admission. Operations outside the allow-list, local configuration, output downloads and credential or origin overrides remain blocked.' })
 
 function tenableArguments(args: readonly string[], input: RunnerInput = {}) {
   const tokens = args.length ? [...args] : ['home']

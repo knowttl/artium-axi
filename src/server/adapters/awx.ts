@@ -13,7 +13,7 @@ import { awxInputBridge, awxPrivateOutput } from './awx-input.js'
 
 export const awxManifest = { ...inventory, ...inventory.adapterBoundary }
 export const awxWritePolicy = writePolicy({ unlocks: 'All AWX writes for this tenant, including configuration, deletion, removals and security administration, support preview and require explicit confirmation and AWX resource permission.',
-  blocked: 'Unsafe overrides remain blocked. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. SCM URLs must have no userinfo, credential query parameters or fragments; use --credential and credential create/edit --inputs-file for SCM secrets. Already-retained AWX logs from URLs set outside Artium are AWX-held data, outside Artium SCM input protection. Credential inputs-file and password-file accept stdin (-). Server file paths are refused.' })
+  blocked: 'API post, put, patch and delete remain blocked pending separate admission. Unsafe overrides remain blocked. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. SCM URLs must have no userinfo, credential query parameters or fragments; use --credential and credential create/edit --inputs-file for SCM secrets. Already-retained AWX logs from URLs set outside Artium are AWX-held data, outside Artium SCM input protection. Credential inputs-file and password-file accept stdin (-). Server file paths are refused.' })
 export const awxProfile = new CredentialProfile(inventory.credentialSchema, 'awx-axi')
 export const awxCredentialSchema = awxProfile.credentialSchema
 

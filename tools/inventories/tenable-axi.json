@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/tenable-inventory.mjs",
   "tool": "tenable-axi",
-  "version": "0.1.6",
-  "integrity": "sha512-nE+1hpNUQ5uKydfD4Fe8wUq+f1BoaO25Sp2LfDf4sNl1OE54l15KiYC+86IREaI4kywnxqZcnnlSOyB7FIssvg==",
+  "version": "0.1.7",
+  "integrity": "sha512-q2b/Ubc9LlPCoTUTYMPwqBeVABpj148cnv/F2sFQcmYw8Ho1ROtJ1FlxME7sCIMJ9FUO032CR1Hh8eWvOPV6Ww==",
   "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
   "sources": [
     {
@@ -23,11 +23,11 @@
     },
     {
       "path": "dist/src/catalogue.js",
-      "sha256": "44e7f1adc29b56741b71af0fb1b95239f4fa7c0293f137b8fb9e5e03befcbd72"
+      "sha256": "a821a7141a961da10d2fdd353e31bd793c6f40c6c7c88e1410ee500768ab442f"
     },
     {
       "path": "dist/src/cli.js",
-      "sha256": "66e75b328ea54d9f278c8fc474a92d450f1f1477698c4922d66e1211c09f6514"
+      "sha256": "768361337e9df92cdf8c85d53b560d1077aa7cc2e6f4e6b600a3c66409204a68"
     },
     {
       "path": "dist/src/export-file.js",
@@ -59,7 +59,7 @@
     },
     {
       "path": "dist/src/inventory-export.js",
-      "sha256": "4272b9fa021946a271e5c0336eb3a83a88399e4633b95b4b7dfb992befc8a6ce"
+      "sha256": "cf9b6a05c5e7ef6634118fb21d3c6618310e344a4cd60dece0c6fcc09dc83775"
     },
     {
       "path": "dist/src/inventory.js",
@@ -90,6 +90,10 @@
       "sha256": "b52aa17032f025a81682f0459dcdbed45cf0ed84e10e5aefe31677c31f26414a"
     },
     {
+      "path": "dist/src/raw.js",
+      "sha256": "e4b5924ae0c8429df8ab64697c5e95d511317a64bbcd15b430258ee5553cfb82"
+    },
+    {
       "path": "dist/src/redact.js",
       "sha256": "e88631746e63a7fc08f206b58ddf3754ecea6f0ec21011c37ded0114dfbb6830"
     },
@@ -111,7 +115,7 @@
     },
     {
       "path": "dist/src/transport-core.js",
-      "sha256": "f0ec671ed86be3e76286495bd75723d448696a1f0060b99b8f582eaf1679bd34"
+      "sha256": "5b36b435cf238c91cb08aac33360bbec779bd1dc1fac6715c569f6ab2d03279e"
     },
     {
       "path": "dist/src/transport.js",
@@ -119,7 +123,7 @@
     },
     {
       "path": "dist/src/writes-core.js",
-      "sha256": "9b05c6b10a5806bb2d0b01d117080d510af5c0125c72485f4294fc18f9c92fb1"
+      "sha256": "c29e3380521392f1385920800ae147f2d89e408afa9fcad950e239207111738d"
     },
     {
       "path": "dist/src/writes.js",
@@ -209,7 +213,7 @@
       }
     }
   },
-  "skillSha256": "b8a0370a3573fa4466265624023b7c1fa554e3f17abe4eb9b0f4cfd839246b21",
+  "skillSha256": "201b6eafab7a93dec234b41e0cbd8af22283d5f83e9359aac80d6f5dfcc3baf9",
   "nativeWriteSettings": {
     "supportedOperations": [
       "apa-export-attack-path",
@@ -253,7 +257,9 @@
       "profile list",
       "hook",
       "export attack download",
-      "export inventory download"
+      "export inventory download",
+      "raw get",
+      "raw write"
     ],
     "inputs": {
       "stdin": "explicit file flag with - only",
@@ -900,6 +906,35 @@
         "profile": "Common selector; list still shows all profiles",
         "fields": "Comma-separated output fields; default all",
         "full": "Show full text; default false",
+        "help": "Show help; default false"
+      }
+    },
+    {
+      "command": "raw get",
+      "effect": "blocked",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "path": "Required absolute API path such as /api/v1/t1/tags/properties",
+        "query": "URL query such as limit=10&offset=0",
+        "out": "Save response bytes to a new file",
+        "help": "Show help; default false"
+      }
+    },
+    {
+      "command": "raw write",
+      "effect": "blocked",
+      "flags": {
+        "config": "Config path; default platform path",
+        "profile": "Profile name; default credential precedence",
+        "method": "Required POST, PUT, PATCH or DELETE",
+        "path": "Required absolute API path such as /api/v1/...",
+        "query": "URL query such as key=value",
+        "body-file": "JSON body file or - for stdin",
+        "execute": "Send after exact confirmation; default preview only",
+        "dry-run": "Preview only; incompatible with --execute",
+        "confirm": "Exact preview confirmation",
+        "intent-id": "Optional durable intent identifier",
         "help": "Show help; default false"
       }
     },

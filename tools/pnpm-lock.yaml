@@ -9,8 +9,11 @@ importers:
   .:
     dependencies:
       '@knowttl/ado-axi':
-        specifier: 0.5.1
-        version: 0.5.1
+        specifier: 0.5.2
+        version: 0.5.2
+      '@knowttl/awx-axi':
+        specifier: 0.1.13
+        version: 0.1.13
       '@knowttl/az-axi':
         specifier: 0.1.17
         version: 0.1.17
@@ -18,11 +21,11 @@ importers:
         specifier: 0.1.8
         version: 0.1.8
       '@knowttl/checkpoint-axi':
-        specifier: 0.1.5
-        version: 0.1.5
+        specifier: 0.1.6
+        version: 0.1.6
       '@knowttl/falcon-axi':
-        specifier: 1.0.0-rc.3
-        version: 1.0.0-rc.3
+        specifier: 1.0.0-rc.4
+        version: 1.0.0-rc.4
       '@knowttl/gitea-axi':
         specifier: 0.1.4
         version: 0.1.4
@@ -33,11 +36,11 @@ importers:
         specifier: 0.1.3
         version: 0.1.3
       '@knowttl/ldap-axi':
-        specifier: 0.3.2
-        version: 0.3.2
+        specifier: 0.3.4
+        version: 0.3.4
       '@knowttl/mg-axi':
-        specifier: 0.1.19
-        version: 0.1.19
+        specifier: 0.1.20
+        version: 0.1.20
       '@knowttl/proxmox-axi':
         specifier: 0.1.3
         version: 0.1.3
@@ -51,8 +54,8 @@ importers:
         specifier: 0.1.1
         version: 0.1.1
       '@knowttl/tenable-axi':
-        specifier: 0.1.6
-        version: 0.1.6
+        specifier: 0.1.7
+        version: 0.1.7
       '@knowttl/unifi-axi':
         specifier: 0.1.3
         version: 0.1.3
@@ -62,15 +65,12 @@ importers:
       '@toon-format/toon':
         specifier: 2.3.1
         version: 2.3.1
-      awx-axi:
-        specifier: 0.1.11
-        version: 0.1.11
       axi-sdk-js:
         specifier: 0.1.13
         version: 0.1.13
       gh-axi:
-        specifier: 0.1.48
-        version: 0.1.48
+        specifier: 0.1.51
+        version: 0.1.51
 
 packages:
 
@@ -92,12 +92,20 @@ packages:
   '@fast-csv/parse@4.3.6':
     resolution: {integrity: sha512-uRsLYksqpbDmWaSmzvJcuApSEe38+6NQZBUsuAyMZKqHxH0g1wcJgsKUvN3WC8tewaqFjBMMGrkHmC+T7k8LvA==}
 
+  '@iarna/toml@2.2.5':
+    resolution: {integrity: sha512-trnsAYxU3xnS1gPHPyU961coFyLkh4gAD/0zQ5mymY4yOZ+CYvsPqUbOFSw0aDM4y0tV7tiFxL/1XfXPNC6IPg==}
+
   '@isaacs/fs-minipass@4.0.1':
     resolution: {integrity: sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==}
     engines: {node: '>=18.0.0'}
 
-  '@knowttl/ado-axi@0.5.1':
-    resolution: {integrity: sha512-yA7m//5jr9Fi6Ec1tY1vaE3wINlJ8oeFGsNP7otUMXfBbBjrzZ4a14GKQ9XAr8Q3DBxYP2UF79VzBp9WbrXJKg==}
+  '@knowttl/ado-axi@0.5.2':
+    resolution: {integrity: sha512-cznBgianYqekDwzoP42phNi9+d04WP3SkZFMO5WuIJTkzO4ltGW5xEPjVlwYMXyCTPphMyLgdczdqtuzEm+JRQ==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  '@knowttl/awx-axi@0.1.13':
+    resolution: {integrity: sha512-ic3CSMaOLyc/iu5Y45hI6DX4bejSkub8ArTOIrDa4vc9W5ONQGWTAL6YcJ7a2rw4gFUYX//lq1nuwni+K1Hvdg==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -111,14 +119,14 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/checkpoint-axi@0.1.5':
-    resolution: {integrity: sha512-zmBdIDk8Q0OjSysuRrZPvEgbqfNJQV4Op6cHrua9n69arnJ/yuOxFscCAXP5SUFyppXR3dOeMiA0c/fyXFwvWA==}
+  '@knowttl/checkpoint-axi@0.1.6':
+    resolution: {integrity: sha512-G1r8SnyLl0e34GBDfsG1rpR0W06A9+cYprnHgEHMQlv45NaI9kUNwdIvPF+vAcpWlwiThIFy0Ss1V9HvrXXiEg==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/falcon-axi@1.0.0-rc.3':
-    resolution: {integrity: sha512-9MiSRNs2L49Pq+YCDHJpDysvvRKxp44Pfp/Al6z3SgtW1xbtMp955AE98pC6hJrQ5V7dKszf2D8rSN+5qQY1JA==}
-    engines: {node: '>=24.11.0 <25'}
+  '@knowttl/falcon-axi@1.0.0-rc.4':
+    resolution: {integrity: sha512-25lEUN0gGynrmjqtC60i5nq8iOmkrLtmVzMGt022VwM1BlcZWMMJ+lWNIGdPZ4oxn4bFW/xD89i879tUAE/Wtw==}
+    engines: {node: '>=22.18.0'}
     hasBin: true
 
   '@knowttl/gitea-axi@0.1.4':
@@ -136,13 +144,13 @@ packages:
     engines: {node: 24.14.0, npm: 11.9.0}
     hasBin: true
 
-  '@knowttl/ldap-axi@0.3.2':
-    resolution: {integrity: sha512-sbqAXW/D7S190FCid6euDfXWKTP+khtWeZSZy9BTICEskF+OF2w7Asd5OvT/EBiPVGQN5Sq+j6YBiH/dL3tPWA==}
+  '@knowttl/ldap-axi@0.3.4':
+    resolution: {integrity: sha512-mFhX4IZCOyNz3Fg+6IdE3C7dRmEuBQf/3OMYFV6WRbMu1qtNU6HRUg7KwyfdDDjHQruMKT4fSUjk8XS5B0owNw==}
     engines: {node: '>=24.11.0'}
     hasBin: true
 
-  '@knowttl/mg-axi@0.1.19':
-    resolution: {integrity: sha512-8y7vQ32jGnzhMQ2zKBQWtLljZI1rgxkJVpY1Qxww2FtSnTwmaOzdo5+djdDXDJxYXE/azqI6Wrs6/5nceuL7jA==}
+  '@knowttl/mg-axi@0.1.20':
+    resolution: {integrity: sha512-ZOug+VqBcQaoEyA5ZZmUufeHiFdTqnsWUwYtUT6RKARiGIzrahNBos1yP3cgVjMmLY8Axsn2Eesrzz8d2GImlw==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -166,8 +174,8 @@ packages:
     engines: {node: '>=24.14.0 <25', npm: '>=11.9.0 <12'}
     hasBin: true
 
-  '@knowttl/tenable-axi@0.1.6':
-    resolution: {integrity: sha512-nE+1hpNUQ5uKydfD4Fe8wUq+f1BoaO25Sp2LfDf4sNl1OE54l15KiYC+86IREaI4kywnxqZcnnlSOyB7FIssvg==}
+  '@knowttl/tenable-axi@0.1.7':
+    resolution: {integrity: sha512-q2b/Ubc9LlPCoTUTYMPwqBeVABpj148cnv/F2sFQcmYw8Ho1ROtJ1FlxME7sCIMJ9FUO032CR1Hh8eWvOPV6Ww==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -269,11 +277,6 @@ packages:
   available-typed-arrays@1.0.7:
     resolution: {integrity: sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==}
     engines: {node: '>= 0.4'}
-
-  awx-axi@0.1.11:
-    resolution: {integrity: sha512-lU2dJwxaspKkIyV58PGosCVa/0i9Jw2miuvI+45Vgkz4fZx0F1mbXGD6M2kryid/K6pnJs/RKKtCk5dXW8yLpA==}
-    engines: {node: '>=20'}
-    hasBin: true
 
   axi-sdk-js@0.1.13:
     resolution: {integrity: sha512-Ygh8qUN5kdwQ3ASw+BNzCKYpy5QYi18vfcEpqEOQOSrcyh6i4wChrPMtvVW0/3Sqho3xPH3CuFkP0QUma5oxxA==}
@@ -533,8 +536,8 @@ packages:
     resolution: {integrity: sha512-w9UMqWwJxHNOvoNzSJ2oPF5wvYcvP7jUvYzhp67yEhTi17ZDBBC1z9pTdGuzjD+EFIqLSYRweZjqfiPzQ06Ebg==}
     engines: {node: '>= 0.4'}
 
-  gh-axi@0.1.48:
-    resolution: {integrity: sha512-OzQT70Aik2n0VOj/ilu7Z1KGn8+OSd2UGYjJYVXHaGIqnsS5B+nWReyACk+PFGFfWSb3h1BWUrwETI/ArSXeFg==}
+  gh-axi@0.1.51:
+    resolution: {integrity: sha512-uZ/DIKzfmYOPkcHdM7Dn8fBmdO7bZt7QzcZ6ZXUz55m58UbdfemQ3rlZNYT6avH3h7d9tPAjwUeMJ9JmFqVjAA==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -1213,16 +1216,25 @@ snapshots:
       lodash.isundefined: 3.0.1
       lodash.uniq: 4.5.0
 
+  '@iarna/toml@2.2.5': {}
+
   '@isaacs/fs-minipass@4.0.1':
     dependencies:
       minipass: 7.1.3
     optional: true
 
-  '@knowttl/ado-axi@0.5.1':
+  '@knowttl/ado-axi@0.5.2':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
       cross-spawn: 7.0.6
+
+  '@knowttl/awx-axi@0.1.13':
+    dependencies:
+      '@toon-format/toon': 2.3.1
+      axi-sdk-js: 0.1.8
+      smol-toml: 1.9.1
+      yaml: 2.8.2
 
   '@knowttl/az-axi@0.1.17':
     dependencies:
@@ -1238,13 +1250,14 @@ snapshots:
       smol-toml: 1.6.0
       zod: 4.3.6
 
-  '@knowttl/checkpoint-axi@0.1.5':
+  '@knowttl/checkpoint-axi@0.1.6':
     dependencies:
+      '@iarna/toml': 2.2.5
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
       zod: 4.3.6
 
-  '@knowttl/falcon-axi@1.0.0-rc.3':
+  '@knowttl/falcon-axi@1.0.0-rc.4':
     dependencies:
       '@toon-format/toon': 4.1.1
       ajv: 8.20.0
@@ -1270,7 +1283,7 @@ snapshots:
       ajv: 8.20.0
       protobufjs: 7.6.6
 
-  '@knowttl/ldap-axi@0.3.2':
+  '@knowttl/ldap-axi@0.3.4':
     dependencies:
       '@toon-format/toon': 2.3.1
       ldapts: 9.2.0
@@ -1279,7 +1292,7 @@ snapshots:
       node-addon-api: 8.9.2
       node-gyp: 12.4.0
 
-  '@knowttl/mg-axi@0.1.19':
+  '@knowttl/mg-axi@0.1.20':
     dependencies:
       '@azure/msal-node': 7.0.1
       '@kusto/language-service-next': 12.4.1
@@ -1314,7 +1327,7 @@ snapshots:
       ajv: 8.17.1
       tr46: 6.0.0
 
-  '@knowttl/tenable-axi@0.1.6':
+  '@knowttl/tenable-axi@0.1.7':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13
@@ -1445,13 +1458,6 @@ snapshots:
   available-typed-arrays@1.0.7:
     dependencies:
       possible-typed-array-names: 1.1.0
-
-  awx-axi@0.1.11:
-    dependencies:
-      '@toon-format/toon': 2.3.1
-      axi-sdk-js: 0.1.8
-      smol-toml: 1.9.1
-      yaml: 2.8.2
 
   axi-sdk-js@0.1.13:
     dependencies:
@@ -1805,7 +1811,7 @@ snapshots:
       es-errors: 1.3.0
       get-intrinsic: 1.3.0
 
-  gh-axi@0.1.48:
+  gh-axi@0.1.51:
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13

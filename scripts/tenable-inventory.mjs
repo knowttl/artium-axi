@@ -9,7 +9,7 @@ const pin = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8'))[pk
 if (pkg.version !== pin.version) throw new Error('Pin mismatch for tenable-axi')
 const unsafeOverrides = ['config', 'profile', 'origin', 'output']
 const inputFileFlags = ['filter-file', 'body-file', 'ids-file', 'asset-ids-file', 'tag-ids-file']
-const blockedCommands = ['setup hooks', 'config path', 'profile list', 'hook', 'export attack download', 'export inventory download']
+const blockedCommands = ['setup hooks', 'config path', 'profile list', 'hook', 'export attack download', 'export inventory download', 'raw get', 'raw write']
 const commands = Object.entries(catalogue).sort(([a], [b]) => a.localeCompare(b)).map(([command, entry]) => ({
   command, effect: blockedCommands.includes(command) ? 'blocked' : Object.hasOwn(entry.flags, 'execute') ? 'write' : 'read',
   flags: entry.flags,

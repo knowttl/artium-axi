@@ -40,7 +40,7 @@ test.each(cases)('$tool maps host write switches to its native read-only setting
 test.each(cases.filter(item => item.tool !== 'az-axi'))('$tool schema-driven adapter maps the host write switch', async ({ tool, credential, args, create, optedInReadOnly }) => {
   const schema = { type: 'object', additionalProperties: false,
     properties: Object.fromEntries(Object.keys(credential).map(name => [name, { type: 'string' }])) }
-  if (tool !== 'falcon-axi') Object.assign(schema.properties, { writes: { type: 'object' } })
+  if (tool !== 'falcon-axi') Object.assign(schema.properties, { writes: { type: 'object', properties: { operations: { type: 'array' } } } })
   const profile = new CredentialProfile(schema, tool as ToolName)
   const value: Record<string, unknown> = { ...credential }
   const adapter = create({ getCredential: async () => value }, profile)

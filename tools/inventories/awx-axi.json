@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/awx-inventory.mjs",
   "tool": "awx-axi",
-  "version": "0.1.11",
-  "integrity": "sha512-lU2dJwxaspKkIyV58PGosCVa/0i9Jw2miuvI+45Vgkz4fZx0F1mbXGD6M2kryid/K6pnJs/RKKtCk5dXW8yLpA==",
+  "version": "0.1.13",
+  "integrity": "sha512-ic3CSMaOLyc/iu5Y45hI6DX4bejSkub8ArTOIrDa4vc9W5ONQGWTAL6YcJ7a2rw4gFUYX//lq1nuwni+K1Hvdg==",
   "parserEvidence": "Published domain registry, reviewed plan effects and transport safety gates",
   "sources": [
     {
@@ -11,11 +11,11 @@
     },
     {
       "path": "dist/cli.js",
-      "sha256": "db8f120dcd1f6a4d2e99a334bb7608170007f889c2ae6a230a3f2fdf9450711e"
+      "sha256": "aa02a89f61b7077e88d44c0b654b1c13ac5577e6c0a5beddafb63eb9490f87ff"
     },
     {
       "path": "dist/commands/auth.js",
-      "sha256": "cf8e52f33d6acb5091d009c23df4957da3d208d4e9417bdcbba547f4d7c8b690"
+      "sha256": "7719d65a7fd2b0b9a2020343d9415d5a38aa89e01be24ab639f6c331eb1178bc"
     },
     {
       "path": "dist/commands/home.js",
@@ -35,7 +35,7 @@
     },
     {
       "path": "dist/core/errors.js",
-      "sha256": "1eac1099f11889159b57b6b5bc810e080f0343ee8fab2a73ead8b59fa3b7ada5"
+      "sha256": "9cc9892d29b3b35b2bd0bfa01f8ad861e9736fa05340a00e6c3b0106fbbcad5b"
     },
     {
       "path": "dist/core/flags.js",
@@ -47,7 +47,7 @@
     },
     {
       "path": "dist/core/output.js",
-      "sha256": "7406df524ee329a3e2eb1f2b37295d8699de678e687525c8d55a3ce67d78dd0a"
+      "sha256": "262274e7997ea1d7f294d1e5e5202cc6165f9bf14cc097184c02a546c50e08ef"
     },
     {
       "path": "dist/core/paginate.js",
@@ -67,15 +67,19 @@
     },
     {
       "path": "dist/core/redact.js",
-      "sha256": "4fa205b30a3165738578c01ecfa5787bb6993ee11b07dbcb74b6401d4441679f"
+      "sha256": "2967fe27d396da8fbb3f1e9bb72fe440f04900a2a864c7f76e8a45baf78d9f4f"
     },
     {
       "path": "dist/core/registry.js",
-      "sha256": "08903d2ebdaa7364f2e3544a68d52189ce2f3ea8128da41b27a7ad6657cda3bf"
+      "sha256": "bb881ee8606e172397291f9ef558f7e58f7a4456d8702a8ed7afdf814361ff3c"
     },
     {
       "path": "dist/core/resolve.js",
       "sha256": "74e4976ab119cc8bb7fa36d158ca7c9ecd31ecd094b8946e2c639cadeeead1b5"
+    },
+    {
+      "path": "dist/core/stdout.js",
+      "sha256": "728d45f1b77afa5308d15e02a044791dde81ad44abb06a70e5c7ca499abbab7f"
     },
     {
       "path": "dist/core/tls-fetch.js",
@@ -83,95 +87,99 @@
     },
     {
       "path": "dist/core/transport.js",
-      "sha256": "afe5116739206fa77f5105076816c9d775658ad972d00698b0fdd9b1fec70721"
+      "sha256": "e5a1075a95919fbcebc77f9c93a88ce12d0fae144b2cc876f5c0c779144e635d"
     },
     {
       "path": "dist/domains/activity-stream/index.js",
-      "sha256": "633995f66b7e24cb4c6d98341e943a7e8d61b3b271503cb1b191b161b3fb927f"
+      "sha256": "c545f83cac562b7242161a49befe2ba6ab90ccbaabedd90f6dc147d880c9c41d"
     },
     {
       "path": "dist/domains/ad-hoc/index.js",
-      "sha256": "92f5395f74f449bb6fde43276764dfe965eaa8afb491a8f5e13323dc9a366084"
+      "sha256": "b9d0536ea5e517006506d38f39ff5392f29fc958d5347f1b454f926bba88e3c0"
+    },
+    {
+      "path": "dist/domains/api/index.js",
+      "sha256": "8df42506f8c57a2f9be38bcd0d5613281ba7a366d87355fb7ff23310d30e76f2"
     },
     {
       "path": "dist/domains/approval/index.js",
-      "sha256": "741282a1143b776ba0850cd8cc0ec3da913e1d354cc08f671b51cdea58621b1b"
+      "sha256": "4b3d46f5c153ba01dc335ddc38b5731ec0ce575aa207a622f7fb8c0401b0b633"
     },
     {
       "path": "dist/domains/credential/index.js",
-      "sha256": "00e5171e9b653f8266722cc53302748bbd54c874c07e60e2967f95797c7bcf05"
+      "sha256": "7a16e42e8cf93d7ed8b1496f0802f48a899f7eaae9c6828cc78b01a38a57830f"
     },
     {
       "path": "dist/domains/execution-environment/index.js",
-      "sha256": "0038065d8d51b9fe370e8e517ddcebfdb8ccf0b3ee512a89147eea413e918685"
+      "sha256": "35d55dd61e0d063b8d6d88844e51b6a9200d429988ae7ad39e9f1b3846e9f4e5"
     },
     {
       "path": "dist/domains/group/index.js",
-      "sha256": "7fdd83edd141372fcc5486ba07968137f913ac9a73147aa748127b523c4cc785"
+      "sha256": "6db6fee91e5d846860ac2a882c3d525b2ba631b25b01202a0eaa8aaa7b694035"
     },
     {
       "path": "dist/domains/host/index.js",
-      "sha256": "b877d333f0edb1b0b47179a73efa68d48f53c6fa27517d583c826cc1d4ad1ad0"
+      "sha256": "457dedad29de9fc7aefaa639fd5a44a8d7231e5b4b41a9647ccb495099f29aa0"
     },
     {
       "path": "dist/domains/inventory-source/index.js",
-      "sha256": "56d8f203514f688eb734c29c2db45930dcddb96bdb82424bf8cc835c493cb279"
+      "sha256": "3d3eb3cf33de7d86004754dbda2c7e799ded3eb3a8ba0dc2e5407bb866697782"
     },
     {
       "path": "dist/domains/inventory/index.js",
-      "sha256": "0352fc474d38aed258ab069a6a80da83d3acf00c9cccd37c3d26b16e8b6d8e2d"
+      "sha256": "e323bae84420295bf8457c05332ddac1fee8eee9b57f182e5f3c6fa765026ba9"
     },
     {
       "path": "dist/domains/job/index.js",
-      "sha256": "db22aa5cd3c15da799d7aaea4430c9a6aa5e04e7f5fa1a5cacb340799f34f38c"
+      "sha256": "175c152e0bc21aab396f2f4cb2f082a582fab247651e173412a230b8e70758bb"
     },
     {
       "path": "dist/domains/notification-template/index.js",
-      "sha256": "c3ddb6e7abcdc57583bc1ada57f30302f63b01a559381c2be196b7ee3bbfdc9b"
+      "sha256": "27a4e70ec1e8e6a4a2cbbb8c123aa0e97e25a240f0b9f750821960b121e5988c"
     },
     {
       "path": "dist/domains/notification/index.js",
-      "sha256": "d9c46319aabe8187e3417710c3ebeda5650b55463f84fa9baa3d6fe91edc1ced"
+      "sha256": "3e16553aa9e9a490078bd5d81a440b98b9d5fdcf3e84947195dc806dfa013265"
     },
     {
       "path": "dist/domains/organization/index.js",
-      "sha256": "65072b9afb1706b67b1f7c37c9d96bf12104d8ec56a214f06a512e6283fb0229"
+      "sha256": "710c9e06c214b779e3c59d1cd93b95377ec05f1a2fb7fd4b34ce4063c0446ba3"
     },
     {
       "path": "dist/domains/project/index.js",
-      "sha256": "eafb98f7148e2a5e8c194af16ebbaa7569ddf74344e367531ba9f6946a39ef46"
+      "sha256": "4610ceb5800f4e86ee3af187585d64a2710bedf1cc5af9c2b2875e67bf23393d"
     },
     {
       "path": "dist/domains/role/index.js",
-      "sha256": "0e5ee47acb703d2f202f01450eb87330140b97c430440eff31c4f33bab28a647"
+      "sha256": "93d36489cc02233ce7fd9e09c40f2ef2e6807e30d344477148b30efefb71cb58"
     },
     {
       "path": "dist/domains/schedule/index.js",
-      "sha256": "d3267a27432a6911027a2d5dc04177eb46db703ea012cc6d1cfe33c19be49694"
+      "sha256": "50c8b25ea520e381cbf0ebdaaaa824ccb54a4a42ccfe422f5dbc2bec1526c99f"
     },
     {
       "path": "dist/domains/system-job-template/index.js",
-      "sha256": "8f485966f9f290399dfaf2eedf21b4182d2dd712bb6833e1df377eabb53ebb04"
+      "sha256": "d3c867dc134a98e86794d452c1a01d3aa795e4e82b9a5be6db1a89227c78e8d7"
     },
     {
       "path": "dist/domains/system-job/index.js",
-      "sha256": "25bae07068cd93cf705c2bebcd8a4f6e5f6071c6b41951edb62527630e2c678f"
+      "sha256": "de362852d153403d120605e2ca75538cb39c0ac8ee28ad5ab066bb4404747afd"
     },
     {
       "path": "dist/domains/team/index.js",
-      "sha256": "eb3a4b5cff91f8ef1b07b64a934a3b9d9bc025cf2eb476f6aafa92086b9c07b6"
+      "sha256": "0284566cac2f31c4d83948a9e0a01bc7f512179430825acdf47693d286a9fea7"
     },
     {
       "path": "dist/domains/template/index.js",
-      "sha256": "92dd83d5adbba8b572b2bcec6090630a34d572b4a1346906dafdc8499d6f7941"
+      "sha256": "ea2f0a806245706917258452c40eb3e3e1653e9fa4d51b0abe1f9460f9bc3bab"
     },
     {
       "path": "dist/domains/user/index.js",
-      "sha256": "dc2de36112a32b61f34d631f642a134b317255a5f5a1c1f2da6f3cf6d09e7cf3"
+      "sha256": "fd49048a8dd7485aa8d6d60230f4646bccd4273b1c10772d0e512f0a2468b721"
     },
     {
       "path": "dist/domains/workflow/index.js",
-      "sha256": "811a3b1df2bfa7a2f76f6fb1c3464de91ed2b7c171788bc82ae4cd991ce4c52a"
+      "sha256": "54e07778729ba30ac0a2c52a8a57cd7c24954a862133b3aa01b24570223d6e50"
     },
     {
       "path": "dist/response-diagnostics.js",
@@ -179,7 +187,7 @@
     },
     {
       "path": "dist/skill.js",
-      "sha256": "ed64c8fbefe21a9f20e21393d7831e776ab24ad011e99084b609851f3f90500d"
+      "sha256": "45b317de6af2c0f3cbab088604de00d6176476b78248decaafd9c90c877c1ffc"
     }
   ],
   "credentialSchema": {
@@ -271,7 +279,7 @@
       }
     }
   },
-  "skillSha256": "50660f4e39ecf72c20a598ff4e5324aae780d223ffb7ab834a476f56b4d68284",
+  "skillSha256": "c3827349664baf52331c15419f7ca416829489c5a5118affb7ac18585a80e975",
   "adapterBoundary": {
     "unsafeOverrides": [
       "config",
@@ -419,6 +427,7 @@
         "failed": "boolean",
         "host": "value",
         "task": "value",
+        "full": "boolean",
         "limit": "value",
         "all": "boolean",
         "max-rows": "value",
@@ -3817,6 +3826,83 @@
       "positionals": {
         "names": [
           "<id|name>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "api get",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "query": "value"
+      },
+      "positionals": {
+        "names": [
+          "<path>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "api post",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "body-file": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<path>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "api put",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "body-file": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<path>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "api patch",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "body-file": "value",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<path>"
+        ],
+        "required": 1
+      }
+    },
+    {
+      "command": "api delete",
+      "effect": "blocked",
+      "flags": {
+        "help": "boolean",
+        "confirm": "boolean",
+        "dry-run": "boolean"
+      },
+      "positionals": {
+        "names": [
+          "<path>"
         ],
         "required": 1
       }

@@ -14,7 +14,7 @@ const metadata = await import(new URL('.typescript-build/src/metadata.js', base)
 const help = JSON.parse(read('.typescript-build/src/help.json')) as Record<string, string>
 const unsafeOverrides = ['region', 'member-cid', 'allow-unknown-origin', 'no-member-cid', 'config', 'profile']
 const writeCommands = ['search start', 'search stop', 'host usb', 'identity activity', 'malquery search', 'rtr run']
-const deferredCommands: string[] = []
+const deferredCommands: string[] = ['raw']
 const blockedCommands = ['setup', 'config', 'profile', 'credentials', 'credential', 'export', 'auth login', 'auth logout', ...deferredCommands]
 const admitted = native.commands.filter(entry => !blockedCommands.includes(entry.command)
   && !blockedCommands.includes(entry.command.split(' ')[0]))

@@ -2,16 +2,16 @@
   "generatedBy": "scripts/falcon-inventory.ts",
   "tool": "falcon-axi",
   "package": "@knowttl/falcon-axi",
-  "version": "1.0.0-rc.3",
-  "integrity": "sha512-9MiSRNs2L49Pq+YCDHJpDysvvRKxp44Pfp/Al6z3SgtW1xbtMp955AE98pC6hJrQ5V7dKszf2D8rSN+5qQY1JA==",
+  "version": "1.0.0-rc.4",
+  "integrity": "sha512-25lEUN0gGynrmjqtC60i5nq8iOmkrLtmVzMGt022VwM1BlcZWMMJ+lWNIGdPZ4oxn4bFW/xD89i879tUAE/Wtw==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "0767e2ec052db098f2fc953d040ad16ce53297790e6b1c1759aedbe2ae18fd6d"
+      "sha256": "46ecc80d900c5cbf467bef5160f62912e5abe2018b65295f076b8efed1a59bf8"
     },
     {
       "path": "artium-invocations.json",
-      "sha256": "3ea572bd9363a7f869a0bce59ec10563dba74cb7a7b8855fa690c86b396c0618"
+      "sha256": "4a4db595eb34ed8c4d68657d30d9e2af697dbb6a1e55d252f62fc8e410ec3f08"
     },
     {
       "path": ".typescript-build/native/checksums.json",
@@ -23,7 +23,7 @@
     },
     {
       "path": ".typescript-build/src/axi-credential.schema.json",
-      "sha256": "adb248794413a7b853e36a4a75b4a53bd7f9e6dade8be040d39165f4d926ee30"
+      "sha256": "09f9cdb3e033a2b4e076ee82b46e57f8e04574f19e8917935473b9dbd975ba42"
     },
     {
       "path": ".typescript-build/src/bin.js",
@@ -31,11 +31,11 @@
     },
     {
       "path": ".typescript-build/src/cli.js",
-      "sha256": "f37a94ddbebbb326483bf4a7ad60bcf890cf8b1e2cce6bedd16b2a138611146c"
+      "sha256": "6d621a6cac4441bb7c15365000bda8e04a5e52f0163342daa18bb69d189af792"
     },
     {
       "path": ".typescript-build/src/core.js",
-      "sha256": "b976d1a0f8f3cccedebae802f1644c15a0472c7f014ebec7613cf1ff462bd399"
+      "sha256": "9d4b23462ad08de78faadbcbad49810cb3745fd2f7c23b222923ec7657416603"
     },
     {
       "path": ".typescript-build/src/cql.js",
@@ -43,7 +43,7 @@
     },
     {
       "path": ".typescript-build/src/credentials.js",
-      "sha256": "0348d6647c077440fca971edcf59d20146b2058d95988d6d9746668aea387566"
+      "sha256": "3e5e9b650b0ede9c9102d91a9b043bcc768f2695f2190fa9e75f08fe4adbebb4"
     },
     {
       "path": ".typescript-build/src/cursor.js",
@@ -63,7 +63,7 @@
     },
     {
       "path": ".typescript-build/src/help.json",
-      "sha256": "896476e16bab9dcfdd818513156c4ab41c1b7614206547c0899e137caaba839c"
+      "sha256": "1fcce907e77f3adccbf884ac6e95eeaa4473a792446afb83088709a4dd759f32"
     },
     {
       "path": ".typescript-build/src/hook.js",
@@ -95,7 +95,7 @@
     },
     {
       "path": ".typescript-build/src/metadata.js",
-      "sha256": "26f98569532c241350868427a11362718555ee9957edf602f1a7bd32a0599f65"
+      "sha256": "94946bd97ce92157a23b6bf0ee94a9bb3ec9f49a92184e8c39f26a58352595d6"
     },
     {
       "path": ".typescript-build/src/origin.js",
@@ -106,8 +106,12 @@
       "sha256": "1a348bb4a13e0034d5919b218e02ddf7ed0036b51d78d06b488bda4fcb78f8eb"
     },
     {
+      "path": ".typescript-build/src/raw.js",
+      "sha256": "0d349e25f1dea1ebb5086a01de66e6acf3492a4e678138bfcdb73081febba32a"
+    },
+    {
       "path": ".typescript-build/src/render.js",
-      "sha256": "3714671a305930c1726ad647b3f0c3766ecce5f5e55edacc6242dd4100be068b"
+      "sha256": "09493516399dcc136f5591f2fc627e84087690f0b531b2340b133d7e2eef78cd"
     },
     {
       "path": ".typescript-build/src/response.js",
@@ -159,11 +163,15 @@
     },
     {
       "path": ".typescript-build/src/transport/https.js",
-      "sha256": "e8bd7921f387d64c3fbc84c2821d1dab01b6a4cd95e7c3810c3f5a25d6465b3a"
+      "sha256": "eec275013e61c95de4d4ac9a57f8ed71a2dfd84875e8490918f32993d6927a37"
     },
     {
       "path": ".typescript-build/src/transport/operations.js",
       "sha256": "f2ea3f6655fdc72745c25d1e3bd60828856299011e702861ee0162da1243d83c"
+    },
+    {
+      "path": ".typescript-build/src/transport/raw-authority.js",
+      "sha256": "c87bb6aa749ee10164742309622be7427fe1fcdb9c4c00cb1b6c5f49862f4de8"
     },
     {
       "path": ".typescript-build/src/transport/resolver.js",
@@ -175,7 +183,7 @@
     },
     {
       "path": ".typescript-build/src/version.js",
-      "sha256": "f44dfefc1948d6c291908260d5c0ed2ca3d6aec6164962f15cdbe84713e2d249"
+      "sha256": "b89b12e029cf9d9ac22ea6dcfef9429e7a0be5333dba0f844e96e1e3fcbb5069"
     },
     {
       "path": ".typescript-build/src/windows-acl.js",
@@ -207,7 +215,7 @@
     },
     {
       "path": "skills/falcon-axi/references/agent-guide.md",
-      "sha256": "d28c37c8f520c48848d5b24d09ff792eed1606713eea6dc6c973f760e39b9cc4"
+      "sha256": "513b189fc9a9043774e1885278af9eb5008fe0d1003b2112f041db63b99982ae"
     },
     {
       "path": "skills/falcon-axi/references/application-list.md",
@@ -498,6 +506,14 @@
       "sha256": "f8c7cdbfa58f1583e5ec34a7a6fe146b7c2cd3935143a00064bd7d73b6af74f4"
     },
     {
+      "path": "skills/falcon-axi/references/raw-get.md",
+      "sha256": "9ba4c001e37a952c17ed39c17a0a07f47030b8c67911a8732b7f5a194b09255f"
+    },
+    {
+      "path": "skills/falcon-axi/references/raw-write.md",
+      "sha256": "99320ae796390cdd338ac126769c4abf24ee9485290ceea974bfdec6256a21a9"
+    },
+    {
       "path": "skills/falcon-axi/references/recon-notification-list.md",
       "sha256": "cac492a39b08997b21b120665233f0237f6967261172f412bd741563d2639993"
     },
@@ -603,7 +619,7 @@
     },
     {
       "path": "skills/falcon-axi/SKILL.md",
-      "sha256": "c4929199fc77842e1a55779f9551499376c311effb8c5879042e5be4ee2beafd"
+      "sha256": "35dbd5ed669533e32b62896752bc1a7d28dd62733698373fed07f03c60ea52f6"
     }
   ],
   "credentialSchema": {
@@ -646,6 +662,26 @@
                 "reg query",
                 "users"
               ]
+            }
+          }
+        }
+      },
+      "writes": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "allowWrites",
+          "operations"
+        ],
+        "properties": {
+          "allowWrites": {
+            "type": "boolean"
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
             }
           }
         }
@@ -698,7 +734,7 @@
       }
     }
   },
-  "skillSha256": "c4929199fc77842e1a55779f9551499376c311effb8c5879042e5be4ee2beafd",
+  "skillSha256": "35dbd5ed669533e32b62896752bc1a7d28dd62733698373fed07f03c60ea52f6",
   "parser": {
     "path": ".typescript-build/src/parser.js",
     "sha256": "1a348bb4a13e0034d5919b218e02ddf7ed0036b51d78d06b488bda4fcb78f8eb",
@@ -755,9 +791,12 @@
     "credential",
     "export",
     "auth login",
-    "auth logout"
+    "auth logout",
+    "raw"
   ],
-  "deferredCommands": [],
+  "deferredCommands": [
+    "raw"
+  ],
   "commands": [
     {
       "command": "home",

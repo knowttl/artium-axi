@@ -1,11 +1,12 @@
 import { expect, test } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { decode, encode } from '@toon-format/toon'
-import { homeDiagnostic } from '../../../tools/node_modules/awx-axi/dist/commands/home.js'
-import { rawRegion } from '../../../tools/node_modules/awx-axi/dist/core/output.js'
-import { jobDomain } from '../../../tools/node_modules/awx-axi/dist/domains/job/index.js'
-import { main } from '../../../tools/node_modules/awx-axi/dist/cli.js'
-import { RecordedTransport } from '../../../tools/node_modules/awx-axi/dist/core/transport.js'
+import { homeDiagnostic } from '../../../tools/node_modules/@knowttl/awx-axi/dist/commands/home.js'
+import { rawRegion } from '../../../tools/node_modules/@knowttl/awx-axi/dist/core/output.js'
+import { redactResult } from '../../../tools/node_modules/@knowttl/awx-axi/dist/core/redact.js'
+import { jobDomain } from '../../../tools/node_modules/@knowttl/awx-axi/dist/domains/job/index.js'
+import { main } from '../../../tools/node_modules/@knowttl/awx-axi/dist/cli.js'
+import { RecordedTransport } from '../../../tools/node_modules/@knowttl/awx-axi/dist/core/transport.js'
 import inventory from '../../../tools/inventories/awx-axi.json' with { type: 'json' }
 import { toolAllowsWrites } from '../../shared/api.js'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
@@ -14,7 +15,7 @@ import { toolEndpoints } from '../tool-endpoints.js'
 import { createAwxAdapter, awxCredentialSchema, awxProfile } from './awx.js'
 
 // Load the published runtime without resolving its declarations through pnpm's symlink.
-const errorsModule = '../../../tools/node_modules/awx-axi/dist/core/errors.js'
+const errorsModule = '../../../tools/node_modules/@knowttl/awx-axi/dist/core/errors.js'
 const { AwxAxiError, formatError } = await import(errorsModule)
 
 const credential = { origin: 'https://controller.example', token: 'CANARY-awx-token' }
@@ -79,7 +80,7 @@ test.each([
 })
 
 test.each(['project create', 'project edit', 'job stdout', 'ad-hoc stdout'])('%s help explains SCM credentials and retained-log scope', command => {
-  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', ...command.split(' '), '--help'], { encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', ...command.split(' '), '--help'], { encoding: 'utf8' })
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
   expect(help).toContain('credential create/edit --inputs-file')
@@ -108,14 +109,14 @@ test('managed logout directs callers to explicit upstream PAT revocation', async
 })
 
 test('token creation help describes protected delivery through the managed client', () => {
-  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', 'user', 'token-create', '--help'], { encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', 'user', 'token-create', '--help'], { encoding: 'utf8' })
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
   expect(help).toContain('authenticated GET by the same caller')
   expect(help).toContain('Save within five minutes')
 })
 
-test.each(inventory.commands.flatMap(route => Object.keys(route.flags)
+test.each(inventory.commands.filter(route => route.effect !== 'blocked').flatMap(route => Object.keys(route.flags)
   .filter(name => name.endsWith('-file'))
   .map(flag => ({ command: route.command, flag, required: route.positionals.required }))))('$command --$flag requires secure input', async ({ command, flag, required }) => {
   await expect(adapter(true).prepare([...command.split(' '), ...Array<string>(required).fill('42'), `--${flag}`, 'CANARY-input', '--confirm'], reference))
@@ -165,7 +166,7 @@ test('batch host inspection is admitted without write authority', async () => {
 
 test.each(inventory.commands.filter(route => route.effect === 'configuration-write').map(route => route.command))('%s managed help describes configuration authority and excludes blocked input', async command => {
   const call = await adapter().prepare([...command.split(' '), '--help'], reference)
-  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
   expect(help).toContain(`artium-axi awx-axi ${command}`)
@@ -188,7 +189,7 @@ test.each([
     { command, requirement: 'ask_tags_on_launch' }, { command, requirement: 'ask_skip_tags_on_launch' },
   ]),
 ])('$command managed help retains $requirement', ({ command, requirement }) => {
-  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', ...command.split(' '), '--help'], { encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', ...command.split(' '), '--help'], { encoding: 'utf8' })
   expect(result.status).toBe(0)
   expect(rewriteSuggestions(result.stdout, 'awx-axi')).toContain(requirement)
 })
@@ -328,7 +329,7 @@ test('managed help replaces standalone login and TLS bypass advice', () => {
 })
 
 test('published AWX top-level help advertises managed commands without selectors or update', () => {
-  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', '--help'], { encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', '--help'], { encoding: 'utf8' })
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
   expect(help).toContain('artium-axi awx-axi')
@@ -336,7 +337,7 @@ test('published AWX top-level help advertises managed commands without selectors
 })
 
 test('managed job stdout help advertises every output mode with a managed download', () => {
-  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', 'job', 'stdout', '--help'], { encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', 'job', 'stdout', '--help'], { encoding: 'utf8' })
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
   expect(help).toContain('artium-axi awx-axi job stdout <id> [--tail <n> | --lines <a-b>] [--full] [--download <name>]')
@@ -345,7 +346,7 @@ test('managed job stdout help advertises every output mode with a managed downlo
 })
 
 test('job list help advertises the fields flag the pinned help documents', () => {
-  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', 'job', 'list', '--help'], { encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', 'job', 'list', '--help'], { encoding: 'utf8' })
   expect(result.status).toBe(0)
   expect(rewriteSuggestions(result.stdout, 'awx-axi')).toContain('artium-axi awx-axi job list [--status <s>]')
   expect(rewriteSuggestions(result.stdout, 'awx-axi')).toContain('[--fields <fields>]')
@@ -369,7 +370,7 @@ test('oversized job stdout suggests the managed download or failing events', asy
 
 test.each(inventory.discovery.commands.filter(command => !['auth status', 'doctor'].includes(command)))('%s noun-level help lists only managed commands', async command => {
   const call = await adapter().prepare([command, '--help'], reference)
-  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
   expect(help).toContain(`artium-axi awx-axi ${command} list`)
@@ -378,7 +379,7 @@ test.each(inventory.discovery.commands.filter(command => !['auth status', 'docto
 
 test.each(['auth status', 'doctor'])('%s published help uses managed credential guidance', async command => {
   const call = await adapter().prepare([...command.split(' '), '--help'], reference)
-  const result = spawnSync(process.execPath, ['tools/node_modules/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
   expect(help).toContain(`artium-axi awx-axi ${command}`)
@@ -420,8 +421,8 @@ test.each(['job', 'ad-hoc'])('%s stdout rewrites only the generated footer', nou
     `Run \`awx-axi ${noun} stdout 42 --lines 1-200\` to read from the start`,
     `Run \`awx-axi ${noun} events 42\` for event-level detail`,
   ]
-  const output = rawRegion({ header, label: 'stdout', body, help })
-  const expected = rawRegion({ header, label: 'stdout', body, help: help.map(value => value.replace('`awx-axi', '`artium-axi awx-axi')) })
+  const output = redactResult(rawRegion({ header, label: 'stdout', body, help })) as string
+  const expected = redactResult(rawRegion({ header, label: 'stdout', body, help: help.map(value => value.replace('`awx-axi', '`artium-axi awx-axi')) })) as string
   const rewritten = rewriteSuggestions(output, 'awx-axi')
   expect(rewritten).toBe(expected)
   expect(rewriteSuggestions(rewritten, 'awx-axi')).toBe(expected)
