@@ -392,6 +392,7 @@ Read transfers remain available with the administrator's Allow writes switch off
 SPICE stays in the existing one-shot memory result store; console and migration payloads are not text-redacted, logged or persisted.
 Uploads are verified in private staging before provider execution; failed cleanup retains capacity rather than permitting an unbounded fallback.
 Streams retain the [shared and delegated capacity limits](runbook.md#retention-and-export) and Runner admission, and live delivery rechecks the current family, credential, access and trust.
+For every caller, non-preview write streams also recheck the current write switch and operation grant.
 Revoking a delegated token terminates its live streams while the creator's own streams continue.
 Byte quotas, message bounds and expiry terminate the call; cancellation never authorizes reconnection or confirmation replay.
 Local synthetic verification does not establish live appliance commissioning.
