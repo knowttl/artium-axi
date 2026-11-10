@@ -29,7 +29,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi proxmox-axi stream limits` | Inspect authenticated host byte, staging, deadline and concurrency limits. |
 | `artium-axi proxmox-axi stream -- transfer\|duplex <native arguments>` | Use [private managed byte channels](client-reference.md#proxmox-managed-streams) for reviewed transfers and console/migration operations. |
 | `artium-axi technitium-axi [<args>]` | Read Technitium DNS data and use native confirmed writes with managed credentials and private result retrieval. |
-| `artium-axi shodan-axi [<args>]` | Read Shodan account and investigation data, run a bounded stream session or apply a confirmed alert, notifier or organization write with managed credentials; see [usage](#shodan). |
+| `artium-axi shodan-axi [<args>]` | Read Shodan account and investigation data or run a bounded stream session with managed credentials; confirmed write commands require separately delivered server routes; see [usage](#shodan). |
 | `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |
 | `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources or use administrator-enabled [mutation and bounded byte workflows](safety.md#kubernetes-reads), caller-owned workspaces and managed credentials with pinned kubectl. |
 | `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts, check authentication and run [confirmed managed commands](#ssh). |
@@ -339,6 +339,8 @@ See [package recovery](runbook.md#roles-credentials-and-health) for inventory or
 
 ### Shodan confirmed writes
 
+The confirmed-write commands call the `/v1/tools/shodan-axi/writes/preview` and `/v1/tools/shodan-axi/writes/execute` routes.
+These server routes are delivered separately, so the commands return an error against a server that does not yet provide them.
 Alert, notifier and organization changes run only through confirmed writes; ordinary `shodan-axi` runs still refuse them.
 They require an owner session, so delegated tokens cannot use them, and an administrator must grant each operation in the [write policy](tool-credentials.md#shodan).
 Use `artium-axi shodan-axi alert create --help` for the command list without contacting the server.
