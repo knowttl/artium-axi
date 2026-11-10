@@ -440,7 +440,8 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
     })
   })
   app.addHook('onError', async (request, _reply, error) => {
-    if (!request.url.startsWith('/v1/tools/kubernetes-axi/')) return
+    const path = request.url.split('?')[0]!
+    if (![prefix, '/v1/tools/kubernetes-axi/workspaces'].some(route => path === route || path.startsWith(route + '/'))) return
     let userId: string | null = null, delegationId: string | undefined, familyId: string | undefined
     try { const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? ''); userId = principal.userId; delegationId = principal.delegation?.id; familyId = principal.familyId } catch { /* Unverified callers remain unattributed. */ }
     const id = request.url.startsWith(prefix + '/') ? (request.params as { id?: string } | undefined)?.id : undefined
