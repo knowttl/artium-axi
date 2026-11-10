@@ -239,6 +239,10 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       unsupportedOperationCount: next.allowedOperations.length - operations.length,
       requestId: request.id, clientAddress: request.ip }]
   }
+  function settingsChanges(tool: ToolName, before: Record<string, unknown>, after: Record<string, unknown>) {
+    const keys = tool === 'kubernetes-axi' ? ['sessions'] : tool === 'shodan-axi' ? ['scans', 'sessions'] : []
+    return keys.flatMap(key => diffSettings(before[key], after[key], [key]))
+  }
   const githubDevice = new GithubDeviceFlow()
   function githubRevisions(expectedRevision: number, expectedToolRevision: number, expectedCredentialId: string | undefined, instance: string | undefined): void {
     const current = find('gh-axi', instance)
@@ -399,7 +403,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
       const now = Date.now()
       if (settings !== undefined) {
-        event.settingsChanges = diffSettings(current.nativeSettings, settings)
+        event.settingsChanges = settingsChanges(tool, current.nativeSettings, settings)
         events.push(...writeChange(request, actor, tool, current.nativeSettings, settings))
         replacements = bumpInstances(tool, actor, now, settings)
         db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
@@ -463,8 +467,9 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       }
     }
     let replacement: CredentialReference | undefined
-    const events: AuditEvent[] = [{ event: 'admin-change', action: route.auditEvent, targetId: tool,
-      userId: actor, tool, instance: name, outcome: 'success', requestId: request.id, clientAddress: request.ip }]
+    const event: Extract<AuditEvent, { event: 'admin-change' }> = { event: 'admin-change', action: route.auditEvent, targetId: tool,
+      userId: actor, tool, instance: name, outcome: 'success', requestId: request.id, clientAddress: request.ip }
+    const events: AuditEvent[] = [event]
     const result = audit.change(events, () => {
       authorize(request)
       const current = readTool(tool)
@@ -483,6 +488,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       }
       const { credential, settings: suppliedSettings } = splitSettings(tool, next)
       const settings = name === undefined ? suppliedSettings : current.nativeSettings
+      event.settingsChanges = settingsChanges(tool, current.nativeSettings, settings)
       events.push(...writeChange(request, actor, tool, current.nativeSettings, settings))
       const now = Date.now()
       replacement = writeCredential(tool, name, credential, input.expectedId, expectedRevision, actor, now, input.description)

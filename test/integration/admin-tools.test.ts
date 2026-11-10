@@ -316,52 +316,52 @@ test.each([
   expect(await disabled.json()).toMatchObject({ readOnly: true, health: { readOnly: true } })
 })
 
-test('saving native settings through the JSON editor journals the field-level change', async () => {
-  const first = await request('PATCH', '/az-axi', { expectedRevision: 1,
-    nativeSettings: { subscriptions: ['synthetic-a', 'synthetic-b'], managementGroup: 'synthetic-group', tlsDestinations: { keyVaults: ['syntheticvault'] } } })
-  expect(first.status).toBe(200)
-  const second = await request('PATCH', '/az-axi', { expectedRevision: 2,
-    nativeSettings: { subscriptions: ['synthetic-b', 'synthetic-c'], tlsDestinations: { keyVaults: ['syntheticvault'] } } })
-  expect(second.status).toBe(200)
-  const noChange = await request('PATCH', '/az-axi', { expectedRevision: 3,
-    nativeSettings: { subscriptions: ['synthetic-c', 'synthetic-b'], tlsDestinations: { keyVaults: ['syntheticvault'] } } })
-  expect(noChange.status).toBe(200)
-  const rows = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change' ORDER BY id").all() as { arguments: string | null }[]
-  expect(rows.map(row => row.arguments && JSON.parse(row.arguments))).toEqual([
-    { settings: [
-      { path: ['managementGroup'], before: null, after: 'synthetic-group' },
-      { path: ['subscriptions'], added: ['synthetic-a', 'synthetic-b'], removed: [] },
-      { path: ['tlsDestinations', 'keyVaults'], added: ['syntheticvault'], removed: [] },
-    ] },
-    { settings: [
-      { path: ['managementGroup'], before: 'synthetic-group', after: null },
-      { path: ['subscriptions'], added: ['synthetic-c'], removed: ['synthetic-a'] },
-    ] },
-    null,
+test('saving empty and repeated session grants journals each change', async () => {
+  const grants = [{}, { 'synthetic-user': [] }, { 'synthetic-user': ['exec'] },
+    { 'synthetic-user': ['exec', 'exec'] }, { 'synthetic-user': ['exec'] }, { 'synthetic-user': [] }, {}]
+  for (const [index, value] of grants.entries()) {
+    expect((await request('PATCH', '/kubernetes-axi', { expectedRevision: index + 1,
+      nativeSettings: { sessions: { grants: value } } })).status).toBe(200)
+  }
+  expect((await request('PATCH', '/kubernetes-axi', { expectedRevision: 8, nativeSettings: {} })).status).toBe(200)
+  const rows = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change' ORDER BY id").all() as { arguments: string }[]
+  expect(rows.map(row => JSON.parse(row.arguments))).toEqual([
+    { settings: [{ path: ['sessions', 'grants'], before: null, after: {} }] },
+    { settings: [{ path: ['sessions', 'grants', 'synthetic-user'], before: null, after: [] }] },
+    { settings: [{ path: ['sessions', 'grants', 'synthetic-user'], added: ['exec'], removed: [] }] },
+    { settings: [{ path: ['sessions', 'grants', 'synthetic-user'], added: ['exec'], removed: [] }] },
+    { settings: [{ path: ['sessions', 'grants', 'synthetic-user'], added: [], removed: ['exec'] }] },
+    { settings: [{ path: ['sessions', 'grants', 'synthetic-user'], added: [], removed: ['exec'] }] },
+    { settings: [{ path: ['sessions', 'grants', 'synthetic-user'], before: [], after: null }] },
+    { settings: [{ path: ['sessions', 'grants'], before: {}, after: null }] },
   ])
 })
 
-test('saving and removing empty native settings journals their presence', async () => {
-  expect((await request('PATCH', '/az-axi', { expectedRevision: 1,
-    nativeSettings: { subscriptions: [], tlsDestinations: {} } })).status).toBe(200)
-  expect((await request('PATCH', '/az-axi', { expectedRevision: 2,
-    nativeSettings: { subscriptions: [], tlsDestinations: { keyVaults: [] } } })).status).toBe(200)
-  expect((await request('PATCH', '/az-axi', { expectedRevision: 3,
-    nativeSettings: { subscriptions: [], tlsDestinations: {} } })).status).toBe(200)
-  expect((await request('PATCH', '/az-axi', { expectedRevision: 4, nativeSettings: {} })).status).toBe(200)
-  const rows = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change' ORDER BY id").all() as { arguments: string }[]
-  expect(rows.map(row => JSON.parse(row.arguments))).toEqual([
-    { settings: [
-      { path: ['subscriptions'], before: null, after: [] },
-      { path: ['tlsDestinations'], before: null, after: {} },
-    ] },
-    { settings: [{ path: ['tlsDestinations', 'keyVaults'], before: null, after: [] }] },
-    { settings: [{ path: ['tlsDestinations', 'keyVaults'], before: [], after: null }] },
-    { settings: [
-      { path: ['subscriptions'], before: [], after: null },
-      { path: ['tlsDestinations'], before: {}, after: null },
-    ] },
-  ])
+test.each([
+  { tool: 'kubernetes-axi', initial: { sessions: { grants: { 'synthetic-user': ['exec'] } } },
+    next: { sessions: { grants: { 'synthetic-user': ['logs'] } } },
+    changes: [{ path: ['sessions', 'grants', 'synthetic-user'], added: ['logs'], removed: ['exec'] }] },
+  { tool: 'shodan-axi', initial: { scans: { grants: { 'synthetic-user': ['OP-009'] }, maxScanCredits: 10, maxRequests: 10 },
+    sessions: { grants: { 'synthetic-user': ['OP-046'] }, perUser: 1, perCredential: 1, total: 1, sessionEvents: 1, totalEvents: 1,
+      sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 },
+    writes: { grants: { 'synthetic-user': ['OP-013'] }, maxQueryCredits: 1, maxRequests: 1 } },
+    next: { scans: { grants: { 'synthetic-user': ['OP-010'] }, maxScanCredits: 10, maxRequests: 10 },
+      sessions: { grants: { 'synthetic-user': ['OP-047'] }, perUser: 1, perCredential: 1, total: 1, sessionEvents: 1, totalEvents: 1,
+        sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 } },
+    changes: [{ path: ['scans', 'grants', 'synthetic-user'], added: ['OP-010'], removed: ['OP-009'] },
+      { path: ['sessions', 'grants', 'synthetic-user'], added: ['OP-047'], removed: ['OP-046'] }] },
+] as const)('$tool credential replacement journals scoped settings changes', async ({ tool, initial, next, changes }) => {
+  expect((await request('PATCH', `/${tool}`, { expectedRevision: 1, nativeSettings: initial })).status).toBe(200)
+  db.exec('DELETE FROM audit')
+  await replace(tool, { ...values[tool], ...next })
+  const row = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change'").get() as { arguments: string }
+  expect(JSON.parse(row.arguments)).toEqual({ settings: changes })
+})
+
+test('unrelated native settings are excluded from settings diffs', async () => {
+  expect((await request('PATCH', '/az-axi', { expectedRevision: 1, nativeSettings: { description: 'synthetic' } })).status).toBe(200)
+  const row = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change'").get() as { arguments: string | null }
+  expect(row.arguments).toBeNull()
 })
 
 test.each([

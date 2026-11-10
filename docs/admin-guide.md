@@ -386,11 +386,11 @@ There is no audit mutation or deletion route.
 Filter by event `tool-write-access` to review changes to effective write enablement, BeyondTrust delete permission or an operations allow-list, including changes made through the Advanced tab or complete credential replacement.
 These events identify the administrator and tool and record the new write policy without credentials or unrelated native settings; the [API contract](../src/shared/api.ts) owns the audit argument fields and treatment of unsupported legacy operation names.
 No-op write-access requests emit no change event.
-An Advanced-tab save of native settings adds `{"settings": [...]}` to the `arguments` of its `admin-change` event, one entry per changed setting with its `path`.
+An Advanced-tab save or complete credential replacement adds `{"settings": [...]}` to the `arguments` of its `admin-change` event for changes to Kubernetes session settings or Shodan scan and stream settings, one entry per changed setting with its `path`.
 A scalar entry carries `before` and `after`, with `null` meaning unset; a list entry carries the `added` and `removed` members, since list order is not a change.
 Objects are compared field by field.
-Write operation lists are left out because the catalogue-filtered `tool-write-access` event records them, and the advanced editor accepts arbitrary names there.
-A save that changes no setting records no `arguments`.
+Other native settings are excluded from this diff.
+A save that changes none of these settings records no `arguments`.
 Successful local password confirmations and SSO browser and bearer confirmations emit `reauth` events.
 Successful local sign-in, password confirmation and password-change records include `authentication_method` as `local` or `break-glass`.
 These events are flagged as `break-glass` for designated accounts, even before SSO activation; Audit highlights them and includes the same field in its exports and JSON stdout stream.

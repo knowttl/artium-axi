@@ -14,7 +14,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const shapeOf = (value: unknown) => value === undefined ? 'absent' : Array.isArray(value) ? 'list' : isRecord(value) ? 'object' : 'value'
 
 export function diffSettings(before: unknown, after: unknown, path: string[] = []): SettingChange[] {
-  if (path.at(-1) === 'operations' && ['writes', 'hostWrites'].includes(path.at(-2) ?? '')) return []
   const [from, to] = [shapeOf(before), shapeOf(after)]
   const shape = from === 'absent' ? to : to === 'absent' || from === to ? from : 'value'
   if ((from === 'absent' || to === 'absent') && (shape === 'object' || shape === 'list')) {
@@ -31,8 +30,13 @@ export function diffSettings(before: unknown, after: unknown, path: string[] = [
     const left = (Array.isArray(before) ? before : []) as Json[]
     const right = (Array.isArray(after) ? after : []) as Json[]
     const only = (items: Json[], other: Json[]) => {
-      const kept = new Set(other.map(item => JSON.stringify(item)))
-      return items.filter(item => !kept.has(JSON.stringify(item)))
+      const remaining = other.map(item => JSON.stringify(item))
+      return items.filter(item => {
+        const index = remaining.indexOf(JSON.stringify(item))
+        if (index === -1) return true
+        remaining.splice(index, 1)
+        return false
+      })
     }
     const added = only(right, left)
     const removed = only(left, right)
