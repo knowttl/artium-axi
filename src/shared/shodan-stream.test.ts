@@ -1,5 +1,7 @@
 import { expect, test } from 'vitest'
 import { nativeSettingsSchemas } from './api.js'
+import inventory from '../../tools/inventories/shodan-axi.json' with { type: 'json' }
+import { shodanWriteCommands, shodanWriteInput } from './shodan-stream.js'
 
 const schema = nativeSettingsSchemas['shodan-axi']
 const writes = { grants: { 'synthetic-user': ['OP-013'] }, maxQueryCredits: 10, maxRequests: 20 }
@@ -31,4 +33,19 @@ test.each([
   ['an unknown writes field', { writes: { ...writes, maxBytes: 1 } }],
 ])('%s is refused', (_name, settings) => {
   expect(schema.safeParse(settings).success).toBe(false)
+})
+
+test('write commands match the reviewed inventory exactly', () => {
+  const reviewed = inventory.confirmedWrites.filter(entry => entry.kind === 'write').map(entry => entry.command)
+  expect([...shodanWriteCommands].sort()).toEqual(reviewed.sort())
+})
+
+test.each([
+  ['a flag-shaped argument', { arguments: ['--config'] }],
+  ['a flag-shaped vulnerability list', { vulns: '-x' }],
+  ['more than three arguments', { arguments: ['a', 'b', 'c', 'd'] }],
+  ['an unlisted command', { command: 'alert clear' }],
+  ['an unknown field', { filename: '/tmp/x' }],
+])('a write request with %s is refused', (_name, change) => {
+  expect(shodanWriteInput.safeParse({ command: 'alert create', arguments: ['a', '192.0.2.1'], queryCreditBudget: 1, maxRequests: 4, ...change }).success).toBe(false)
 })

@@ -11,7 +11,7 @@ const previewSchema = z.object({ status: z.literal('preview'), token: z.uuid(), 
   limit: z.number(), maxBytes: z.number(), timeoutMs: z.number(), idleTimeoutMs: z.number(), cost: z.literal('unknown') }).passthrough()
 
 export async function runShodanNative(directory: string, args: string[],
-  profile: Pick<PreparedCall, 'environment' | 'files' | 'secrets'>, signal: AbortSignal, authorize: () => void, configuredCaPem?: string, beforeSpawn?: () => void) {
+  profile: Pick<PreparedCall, 'environment' | 'files' | 'secrets'>, signal: AbortSignal, authorize: () => void, configuredCaPem?: string, beforeSpawn?: () => void, acceptNativeFailure = false) {
   const root = join(directory, 'preview'), state = join(directory, 'state')
   const directories = Object.fromEntries(Object.entries({ HOME: 'home', XDG_CONFIG_HOME: 'config', XDG_DATA_HOME: 'data',
     XDG_CACHE_HOME: 'cache', XDG_RUNTIME_DIR: 'runtime', TMPDIR: 'tmp' }).map(([key, leaf]) => [key, join(root, leaf)]))
@@ -49,7 +49,7 @@ export async function runShodanNative(directory: string, args: string[],
       child.once('error', () => { failed = true })
       child.once('close', code => {
         clearTimeout(timer); signal.removeEventListener('abort', cancel)
-        if (failed || code !== 0) reject(new ArtiumError('TOOL_FAILED'))
+        if (failed || code !== 0 && !(acceptNativeFailure && stdout.length)) reject(new ArtiumError('TOOL_FAILED'))
         else {
           try { resolve(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(stdout))) }
           catch { reject(new ArtiumError('INVALID_RESPONSE')) }

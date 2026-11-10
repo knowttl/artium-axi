@@ -92,8 +92,10 @@ export function shodanScanBinding(db: Database.Database, owner: ShodanOwner, cre
 }
 
 export function shodanWriteBinding(db: Database.Database, owner: ShodanOwner, credential: CredentialReference, operations: readonly string[]) {
-  const { settings, instance, hash } = writableBinding(db, owner, credential, 'writes', operations)
-  return { settings, instance, hash }
+  const result = binding(db, owner, credential), settings = result.settings.writes
+  if (!settings || operations.some(operation => !settings.grants[owner.user]?.includes(operation))) throw new ArtiumError('TOOL_NOT_GRANTED')
+  if (result.readOnly) throw new ArtiumError('FLAG_BLOCKED')
+  return { settings, instance: result.instance, hash: result.hash }
 }
 
 export function shodanExportBinding(db: Database.Database, owner: ShodanOwner, credential: CredentialReference, operation: string) {

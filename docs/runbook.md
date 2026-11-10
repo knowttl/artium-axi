@@ -685,6 +685,10 @@ After a partial result or lost response, inspect upstream scan state with `artiu
 When multiple instances are available, select the original instance with `--instance <name>` before `shodan-axi` for these checks.
 A missing scan ID does not prove submission failed.
 
+Shodan write plans expire after fifteen minutes and are discarded on relevant binding changes or shutdown; startup removes abandoned private directories under `<database directory>/tool-logs/shodan-axi/writes/`.
+After `OUTCOME_UNKNOWN`, `READBACK_UNVERIFIED` or a lost response, inspect the relevant upstream alert, notifier or organization state before considering another change.
+The returned native outcome includes completed and unsent steps when available; a failed readback does not establish that the mutation failed.
+
 Kubernetes native mutation requests persist under `<database directory>/tool-logs/kubernetes-axi/workflow/` in private scopes bound to caller, sign-in family and credential revision.
 Each call removes its temporary SecretRef profile after process settlement; the native request plan, signing key, atomic claim and outcome remain together without copying claims between call directories.
 These plans can contain original resource payloads, including Secret data; protect the directory with the database and inspect only through the caller's saved preview.

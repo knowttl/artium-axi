@@ -27,7 +27,7 @@ For shared-credential tools, `POST /v1/tools/:tool/run` accepts an optional `ins
 `GET /v1/tools` lists each tool's usable instances with name, description, status and read-only state, never endpoints, and the served skill gains an instance paragraph while several are usable.
 When no name is supplied, exactly one usable instance granted to the caller is selected automatically; multiple granted, usable instances return `INSTANCE_REQUIRED`.
 Origin-only AWX credentials are not usable instances; see [instance health and administration](runbook.md#backup-restore-and-upgrade-rollback).
-An unknown or disabled name is refused, and an instance marked read-only blocks writes while allowing supported previews, except Shodan scan previews.
+An unknown or disabled name is refused, and an instance marked read-only blocks writes while allowing supported previews, except Shodan scan and write previews.
 A role grants a tool either on all of its instances, including instances added later, or on selected instances only; grants add up across a person's roles.
 An instance outside the caller's grants returns `INSTANCE_NOT_FOUND`, whether it exists or not.
 Administrators edit this on the tool's Access tab or with `PUT /v1/admin/roles/:id/tools/:tool/instances`.
@@ -436,8 +436,12 @@ Targeted scan submission requires administrator scan grants, explicit budgets an
 Scan preview, start and status require an owner session bound to the caller and original sign-in family; delegated tokens cannot use them.
 Optional collection reads the banner stream and filters records to the target networks; matching records do not prove scan ownership or complete upstream delivery.
 See [scan usage and terminal outcomes](commands.md#shodan) and [scan and stream grants](tool-credentials.md#shodan).
-Administrator `writes` and `exports` settings establish separate policy bindings for confirmed alert, notifier and organization writes and for search and alert downloads; see [write and export grants](tool-credentials.md#shodan).
-Write and export routes, previews and jobs are not available; ordinary tool runs refuse alert changes, downloads, dataset downloads and other writes.
+Confirmed alert, notifier and organization membership changes require an owner session, an exact per-user operation grant, a writable instance and budgets within administrator ceilings; see [write grants](tool-credentials.md#shodan).
+POST `/v1/tools/shodan-axi/writes/preview` with the [write input](../src/shared/shodan-stream.ts) and optional `instance` to bind a preview to the observed upstream state.
+Repeat the same input and instance with the returned `confirm` in POST `/v1/tools/shodan-axi/writes/execute` using the same user and sign-in family; confirmation is single-use and expires after fifteen minutes.
+Notifier previews expose argument names rather than values, and organization removal reports downgrade as an effect.
+See [write retention and recovery](runbook.md#retention-and-export) for uncertain outcomes.
+Export routes, previews and jobs are not available; ordinary tool runs refuse alert changes, downloads, dataset downloads and other writes.
 The client-side radar consumes an owner session's output under the same access restrictions; see [radar usage and local output](commands.md#shodan).
 The server adapter refuses local configuration, credential and endpoint overrides, stdin, uploaded files and result-file destinations before credential access.
 Help exposes only admitted routes; the standalone `doctor` alias is not admitted.

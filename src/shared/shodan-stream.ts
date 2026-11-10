@@ -21,7 +21,23 @@ export const shodanScanInput = z.strictObject({
   scanCreditBudget: positive(1000000), maxRequests: positive(1000),
   acceptUnknownCost: z.boolean().default(false),
 })
-export const shodanStreamPolicy = z.strictObject({
+export const shodanWriteCommands = ['alert create', 'alert remove', 'alert update', 'alert enable', 'alert disable', 'alert ignore', 'alert unignore',
+  'alert notifier add', 'alert notifier remove', 'notifier create', 'notifier remove', 'notifier update', 'org add', 'org remove'] as const
+const notFlag = (value: string) => !value.startsWith('-')
+export const shodanWriteInput = z.strictObject({
+  command: z.enum(shodanWriteCommands),
+  arguments: z.array(z.string().min(1).max(4096).refine(notFlag)).max(3).default([]),
+  queryCreditBudget: positive(1000), maxRequests: positive(1000),
+  expires: z.number().int().min(0).max(31536000).optional(),
+  vulns: z.string().min(1).max(4096).refine(notFlag).optional(),
+  silent: z.boolean().optional(),
+  body: z.strictObject({
+    provider: z.string().min(1).max(256).optional(), description: z.string().max(4096).optional(),
+    args: z.record(z.string().min(1).max(128), z.union([z.string().max(4096), z.number(), z.boolean()]))
+      .refine(args => Object.keys(args).length <= 32),
+  }).optional(),
+})
+export const shodanStreamPolicy =z.strictObject({
   grants: z.record(z.string().min(1).max(128), z.array(z.string().regex(/^OP-\d{3}$/)).max(32)),
   perUser: positive(100), perCredential: positive(100), total: positive(1000),
   sessionEvents: positive(100000), totalEvents: positive(1000000),

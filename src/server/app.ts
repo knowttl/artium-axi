@@ -59,6 +59,7 @@ import { registerKubernetesSessions } from './kubernetes-sessions.js'
 import { auditShodanDenials } from './policy/shodan-stream.js'
 import { registerShodanSessions } from './shodan-sessions.js'
 import { registerShodanCollections } from './shodan-collections.js'
+import { registerShodanWrites } from './shodan-writes.js'
 
 export function createApp(options: {
   db: Database.Database, audit: Audit, runner: Runner, resolver: IdentityResolver,
@@ -129,6 +130,7 @@ export function createApp(options: {
     const denials = auditShodanDenials(app, db, audit)
     const sessions = registerShodanSessions(app, db, resolver, shodan, runner, audit, denials)
     registerShodanCollections(app, db, resolver, shodan, runner, audit, sessions, denials)
+    registerShodanWrites(app, db, resolver, shodan, runner, audit, sessions)
   }
   if (kubernetes) {
     const workspaces = registerKubernetesWorkspaces(app, db, resolver, kubernetes, audit)

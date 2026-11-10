@@ -6,6 +6,7 @@ import { parse } from 'yaml'
 import { hybridResponse } from './hybrid.mjs'
 import { beyondtrustResponse } from './beyondtrust.mjs'
 import { checkpointResponse } from './checkpoint.mjs'
+import { shodanWrites } from './shodan-writes.mjs'
 const { kubernetesBytes } = await import(existsSync(new URL('./kubernetes-bytes.js', import.meta.url))
   ? './kubernetes-bytes.js' : './kubernetes-bytes.ts')
 const { unifiController } = await import(existsSync(new URL('./unifi.js', import.meta.url)) ? './unifi.js' : './unifi.ts')
@@ -13,6 +14,7 @@ const { proxmoxController } = await import(existsSync(new URL('./proxmox.js', im
 
 const requests = []
 const unifi = unifiController(event => requests.push(event))
+const shodanWriteRoutes = shodanWrites(event => requests.push(event))
 const proxmox = proxmoxController(event => requests.push(event))
 const resources = new Map()
 const awxAssociations = new Map()
@@ -117,15 +119,6 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       : url.pathname === '/shodan/scans' ? { matches: [job], total: 1, api_key: 'CANARY-issued-secret' } : job))
     return
   }
-  if (url.pathname === '/org') {
-    const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
-    requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
-    if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
-    res.end(JSON.stringify({ id: 'synthetic-org', name: 'Synthetic', admins: [],
-      members: [{ username: 'reader', email: 'reader@example.test', api_key: 'CANARY-issued-secret' }],
-      domains: ['example.test'], logo: false, api_key: 'CANARY-issued-secret' }))
-    return
-  }
   if (url.pathname === '/shodan/data' || url.pathname === '/shodan/data/synthetic') {
     const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
     requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
@@ -142,14 +135,11 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     res.end(JSON.stringify({ total: 2, facets: { port: [{ value: 443, count: 2 }] } }))
     return
   }
-  if (url.pathname === '/notifier/provider' || url.pathname === '/shodan/alert/info') {
+  if (url.pathname === '/notifier/provider') {
     const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
     requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
     if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
-    res.end(JSON.stringify(url.pathname === '/notifier/provider'
-      ? { email: { required: ['token'], args: { token: 'CANARY-notifier-secret' } } }
-      : [{ id: 'synthetic-alert', name: 'Synthetic', filters: { ip: ['192.0.2.0/24'] }, expiration: null,
-        notify: { token: 'CANARY-notifier-secret' } }]))
+    res.end(JSON.stringify({ email: { required: ['token'], args: { token: 'CANARY-notifier-secret' } } }))
     return
   }
   if (url.pathname === '/shodan/query' || url.pathname === '/api/v1/search/filters') {
@@ -187,6 +177,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
       : { member: false, credits: 7, display_name: null, created: '2026-01-01' }))
     return
   }
+  if (shodanWriteRoutes(req, res, url)) return
   if (unifi(req, res, url)) return
   if (proxmox(req, res, url)) return
   if (url.pathname === '/__kubernetes/bytes') { res.end(JSON.stringify(byteEvidence())); return }
