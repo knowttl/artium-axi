@@ -15,6 +15,8 @@ const reference = { id: 'synthetic-tenable', tool: 'tenable-axi' as const, revis
 const directory = mkdtempSync(join(process.cwd(), '.tmp-tenable-'))
 const writeLog = join(directory, 'writes.log')
 const adapter = createTenableAdapter({ getCredential: async () => credential }, writeLog)
+const rawSettings = { writes: { allowWrites: true, operations: ['raw-write'] } }
+const rawAdapter = createTenableAdapter({ getCredential: async () => ({ ...credential, ...rawSettings }) }, writeLog)
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
 test('dash-prefixed query values remain values during preparation', async () => {
@@ -96,19 +98,27 @@ test('raw get reads, raw write previews as a read and executes as a write, and r
   const write = ['raw', 'write', '--method', 'POST', '--path', '/api/v1/t1/tags', '--body-file', 'body.json']
   const get = await adapter.prepare(['raw', 'get', '--path', '/api/v1/t1/tags/properties', '--query', 'limit=5'], reference)
   expect(get).toMatchObject({ invocation: { command: 'raw get', help: false }, effect: 'read' })
-  const preview = await adapter.prepare(write, reference, { files: [file] })
+  const preview = await rawAdapter.prepare(write, reference, { files: [file] })
   expect(preview).toMatchObject({ invocation: { command: 'raw write', help: false }, effect: 'read', fileArguments: [7] })
-  const execute = await adapter.prepare([...write, '--execute', '--confirm', 'synthetic'], reference, { files: [file] })
+  const execute = await rawAdapter.prepare([...write, '--execute', '--confirm', 'synthetic'], reference, { files: [file] })
   expect(execute.effect).toBe('write')
   expect(tenableWritePolicy.update({}, { enabled: true, operations: ['raw-write'], expectedRevision: 1 }))
     .toEqual({ writes: { allowWrites: true, operations: ['raw-write'] } })
 })
 
-test('the pinned CLI previews a raw write without a separate write grant', async () => {
+test.each([{ extra: [] }, { extra: ['--execute', '--confirm', 'synthetic'] }])('raw write $extra requires the enabled exact operation', async ({ extra }) => {
+  const args = ['raw', 'write', '--method', 'POST', '--path', '/api/v1/t1/tags', ...extra]
+  await expect(adapter.prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  const denied = createTenableAdapter({ getCredential: async () => ({ ...credential, ...rawSettings }),
+    getSettings: () => ({ writes: { allowWrites: true, operations: ['inventory-export-assets'] } }) }, writeLog)
+  await expect(denied.prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+})
+
+test('the pinned CLI previews a raw write with the exact write grant', async () => {
   const runner = await Runner.create(join(directory, 'calls'))
   try {
     const input = { files: [{ name: 'body.json', contentBase64: Buffer.from('{"synthetic":true}').toString('base64') }] }
-    const call = await adapter.prepare(['raw', 'write', '--method', 'POST', '--path', '/api/v1/t1/tags', '--body-file', 'body.json'], reference, input)
+    const call = await rawAdapter.prepare(['raw', 'write', '--method', 'POST', '--path', '/api/v1/t1/tags', '--body-file', 'body.json'], reference, input)
     const result = await runner.run('synthetic-user', process.execPath,
       [join(process.cwd(), 'tools/node_modules/@knowttl/tenable-axi/bin/tenable-axi.js'), ...call.args], call.environment, call.secrets,
       call.limits, { ...input, fileArguments: call.fileArguments?.map(index => index + 1) }, call.files)

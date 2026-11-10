@@ -80,15 +80,15 @@ export function createTenableAdapter(source: SecretSource, writeLog: string): Ad
       if (reference.tool !== 'tenable-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const parsed = tenableCredentialSchema.safeParse(await source.getCredential(reference))
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
-      const rawWrite = normalized.invocation.command === 'raw write'
-      const readOnly = !rawWrite && (!toolAllowsWrites('tenable-axi', parsed.data)
-        || Boolean(source.getSettings && !toolAllowsWrites('tenable-axi', source.getSettings(reference))))
-      const profile = tenableProfile.prepare('tenable-axi', parsed.data, writeLog, readOnly)
-      if (rawWrite) {
-        const configuration = JSON.parse(String(profile.files[0].content))
-        configuration.profiles.artium.writes = { allowWrites: true, operations: ['raw-write'] }
-        profile.files[0].content = JSON.stringify(configuration)
+      const rawWrite = normalized.invocation.command === 'raw write' && !normalized.invocation.help
+      const readOnly = !toolAllowsWrites('tenable-axi', parsed.data)
+        || Boolean(source.getSettings && !toolAllowsWrites('tenable-axi', source.getSettings(reference)))
+      const allowed = (settings: Record<string, unknown>) => {
+        const access = tenableWritePolicy.read(settings)
+        return access.enabled && access.allowedOperations.includes('raw-write')
       }
+      if (rawWrite && (!allowed(parsed.data) || source.getSettings && !allowed(source.getSettings(reference)))) throw new ArtiumError('FLAG_BLOCKED')
+      const profile = tenableProfile.prepare('tenable-axi', parsed.data, writeLog, readOnly)
       const content = profile.files[0].content
       const identity = createHash('sha256').update(JSON.stringify([reference.id, reference.revision, content])).digest('hex')
       const directory = join(dirname(writeLog), 'profiles')

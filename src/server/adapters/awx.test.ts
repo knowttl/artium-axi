@@ -21,8 +21,9 @@ const { AwxAxiError, formatError } = await import(errorsModule)
 const credential = { origin: 'https://controller.example', token: 'CANARY-awx-token' }
 const reference = { id: 'synthetic-awx', tool: 'awx-axi' as const, revision: 1 }
 const adapter = (allowWrites = false, allowConfigurationWrites = false) => createAwxAdapter({ getCredential: async () => ({ ...credential, allowWrites, allowConfigurationWrites }) })
-test('raw mutation preview does not require the tenant write setting', async () => {
-  const call = await adapter().prepare(['api', 'post', 'jobs/42/cancel/', '--dry-run'], reference)
+test.each(['--dry-run', '--confirm'])('raw mutation %s requires the tenant write setting', async flag => {
+  await expect(adapter().prepare(['api', 'post', 'jobs/42/cancel/', flag], reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  const call = await adapter(true).prepare(['api', 'post', 'jobs/42/cancel/', flag], reference)
   expect(call.environment.AWX_AXI_READ_ONLY).toBe('false')
 })
 const fixedSchemaLists = ['job', 'template', 'workflow', 'organization', 'system-job-template', 'system-job',
@@ -127,7 +128,7 @@ test.each(inventory.commands.filter(route => route.effect !== 'blocked').flatMap
     .rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
 })
 
-test.each(inventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect) && !route.command.startsWith('api ')))('$command requires the single tenant write switch', async route => {
+test.each(inventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect)))('$command requires the single tenant write switch', async route => {
   const args = [...route.command.split(' '), ...route.positionals.names.slice(0, route.positionals.required).map(() => '42'), '--confirm']
   await expect(adapter().prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
   const call = await adapter(true).prepare(args, reference)
@@ -151,8 +152,18 @@ test.each(['post', 'put', 'patch', 'delete'])('api %s provides resource reconcil
 test.each([['post', 'labels/', 'POST'], ['delete', 'labels/7/', 'DELETE']])('api %s %s reaches the controller under the gates Artium derives from the single write switch', async (method, path, verb) => {
   const call = await adapter(true).prepare(['api', method, path, '--confirm'], reference)
   const transport = new RecordedTransport([{ status: 200, body: { id: 7 } }], { env: call.environment })
-  await main({ argv: call.args, env: call.environment, createTransport: () => transport, stdout: { write: () => {} } })
+  await main({ argv: call.args.slice(4), env: call.environment, createTransport: () => transport, stdout: { write: () => {} } })
   expect(transport.requests).toMatchObject([{ method: verb, route: path }])
+})
+
+test('native raw bulk job launch is rejected before a controller request', async () => {
+  const call = await adapter(true).prepare(['api', 'post', 'bulk/job_launch/', '--confirm'], reference)
+  const transport = new RecordedTransport([], { env: call.environment })
+  let output = ''
+  await main({ argv: call.args.slice(4), env: call.environment, createTransport: () => transport,
+    stdout: { write: chunk => { output += chunk } }, stderr: { write: chunk => { output += chunk } } })
+  expect(output).toContain('refuses bulk/job_launch/')
+  expect(transport.requests).toEqual([])
 })
 
 test.each([['api', 'post', 'labels/'], ['api', 'delete', 'labels/7/']])('%s %s without confirm or dry-run is refused', async (...args) => {

@@ -149,13 +149,12 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const normalized = awxArguments(args, input)
       if (reference.tool !== 'awx-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const allowed = (settings: Record<string, unknown>) => settings.allowWrites === true
-      const rawMutation = normalized.mutation && normalized.invocation.command.startsWith('api ')
-      const requiresWriteAccess = normalized.mutation && !rawMutation && !normalized.invocation.help
+      const requiresWriteAccess = normalized.mutation && !normalized.invocation.help
       if (requiresWriteAccess && source.getSettings && !allowed(source.getSettings(reference))) throw new ArtiumError('FLAG_BLOCKED')
       const value = await source.getCredential(reference)
       const parsed = awxCredentialSchema.safeParse(value)
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
-      const readOnly = !rawMutation && !allowed(parsed.data)
+      const readOnly = !allowed(parsed.data)
       if (requiresWriteAccess && readOnly) throw new ArtiumError('FLAG_BLOCKED')
       const profile = awxProfile.prepare('awx-axi', parsed.data, undefined, readOnly)
       if (normalized.mutation && !readOnly) Object.assign(profile.environment, {
@@ -165,7 +164,8 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const { structured, ...call } = normalized
       const prefix = ['--input-type=module', '-e', awxInputBridge, toolPaths['awx-axi']]
       const privateInput = structured.length || input?.files?.length || input?.stdin !== undefined
-      const privateRead = !call.invocation.help && ['inventory show', 'inventory constructed-show', 'project show', 'activity-stream show'].includes(call.invocation.command)
+      const privateRead = !call.invocation.help && (call.invocation.command.startsWith('api ')
+        || ['inventory show', 'inventory constructed-show', 'project show', 'activity-stream show'].includes(call.invocation.command))
       const tokenCreate = call.effect === 'write' && call.invocation.command === 'user token-create'
       const stdoutDownload = call.invocation.command === 'job stdout' && call.args.some(arg => arg.startsWith('--download='))
       const bridge = privateInput || privateRead || tokenCreate || stdoutDownload

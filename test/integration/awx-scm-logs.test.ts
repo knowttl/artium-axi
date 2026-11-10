@@ -79,7 +79,8 @@ test('AWX project SCM URLs remain private on later project and activity reads (S
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
     await seedToolUser(db)
-    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+    db.exec(`UPDATE tools SET enabled = 1, raw_api_mode = 'read-writes', native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi';
+      UPDATE role_tools SET raw_api = 1 WHERE role_id = 'synthetic-role' AND tool = 'awx-axi'`)
     let allowWrites = true
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
     const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
@@ -137,6 +138,14 @@ test('AWX project SCM URLs remain private on later project and activity reads (S
       await run(['project', 'edit', '42', '--scm-url', `https://scm.example/${'x'.repeat(1100)}`, '--confirm'])
       allowWrites = false
       expect(await run(['activity-stream', 'show', '3'])).toMatchObject({ 'activity-stream': { changes: '[activity changes redacted]' } })
+      allowWrites = true
+      const rawBody = upload('body.json', JSON.stringify({ scm_url: 'https://scm.example/repo?token=CANARY-stored-url' }))
+      const changed = await run(['api', 'patch', 'projects/42/', '--body-file', 'body.json', '--confirm'], { files: [rawBody] })
+      expect(JSON.stringify(changed)).toContain('[SCM URL redacted]')
+      for (const args of [['api', 'get', 'projects/42/'], ['api', 'get', 'projects/'],
+        ['api', 'post', 'projects/42/copy/', '--confirm']]) {
+        expect(JSON.stringify(await run(args))).toContain('[SCM URL redacted]')
+      }
       expect(lines.join('\n') + JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
     } finally { await app.close(); db.close() }
