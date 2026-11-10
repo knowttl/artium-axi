@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
-import { unlinkSync } from 'node:fs'
+import { realpathSync, unlinkSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 import { executeArgv } from '../../tools/node_modules/@knowttl/mg-axi/dist/cli.js'
 import { resolveSecret } from '../../tools/node_modules/@knowttl/mg-axi/dist/secrets.js'
 import { KqlValidationError } from '../../tools/node_modules/@knowttl/mg-axi/dist/kql.js'
@@ -76,6 +77,17 @@ const transport = async request => {
   else if (url.pathname === `/v1.0/users/${userId}/drive`) body = { id: 'synthetic-drive', driveType: 'business' }
   else throw new Error('Unreviewed fake Graph route')
   return { status: 200, headers: {}, body: JSON.stringify(body) }
+}
+const msalPackage = createRequire(realpathSync(new URL('../../tools/node_modules/@knowttl/mg-axi/package.json', import.meta.url))).resolve('@azure/msal-node/package.json')
+const { ConfidentialClientApplication } = await import(new URL('./dist/index.mjs', pathToFileURL(msalPackage)))
+ConfidentialClientApplication.prototype.acquireTokenByClientCredential = async function () {
+  credentialCalls++
+  return { accessToken: 'CANARY-graph-token', expiresOn: new Date(Date.now() + 3600000),
+    authority: 'https://login.microsoftonline.com/00000000-0000-0000-0000-000000000001/' }
+}
+globalThis.fetch = async (url, options) => {
+  const response = await transport({ url, ...options })
+  return new Response(response.body, { status: response.status, headers: response.headers })
 }
 try {
   const result = await executeArgv(process.argv.slice(2), { application, delegated: {}, transport,
