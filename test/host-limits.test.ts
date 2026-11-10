@@ -1,46 +1,16 @@
-import { beforeEach, expect, test, vi } from 'vitest'
+import { expect, test } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const host = vi.hoisted(() => ({ cpus: 0, memory: 0 }))
-
-vi.mock('node:os', () => ({ availableParallelism: () => host.cpus, totalmem: () => host.memory }))
-
-const { cpuLimit, memoryLimit } = await import(new URL('../scripts/host-limits.mjs', import.meta.url).href)
-
-beforeEach(() => { host.memory = 16 * 2 ** 30 })
-
-test.each([
-  [4, 6, '4'],
-  [2, 6, '2'],
-  [6, 6, '6'],
-  [24, 6, '6'],
-])('a host with %i CPUs caps a %i CPU request to %s', (cpus, requested, expected) => {
-  host.cpus = cpus
-  expect(cpuLimit(requested)).toBe(expected)
-})
-
-test.each([
-  [16384, 6144, '6144m'],
-  [6144, 6144, '6144m'],
-  [4096, 6144, '4096m'],
-  [4096, 256, '256m'],
-])('a host with %i MiB caps a %i MiB request to %s', (hostMib, requested, expected) => {
-  host.memory = hostMib * 2 ** 20
-  expect(memoryLimit(requested)).toBe(expected)
-})
-
 test.each(['scripts/build-fake-service-image.mjs', 'scripts/container-checks.mjs'])(
-  '%s requests four CPUs on a four-CPU host', script => {
+  '%s requests four CPUs from a four-CPU Docker daemon', script => {
     const directory = mkdtempSync(join(process.cwd(), '.tmp-host-limits-'))
     try {
-      const preload = join(directory, 'host.mjs')
       const log = join(directory, 'docker.jsonl')
-      writeFileSync(preload, "import os from 'node:os'; import { syncBuiltinESMExports } from 'node:module'; os.availableParallelism = () => 4; syncBuiltinESMExports()")
-      writeFileSync(join(directory, 'docker'), `#!${process.execPath}\nimport { appendFileSync } from 'node:fs'\nappendFileSync(process.env.DOCKER_LOG, JSON.stringify(process.argv.slice(2)) + '\\n')\nprocess.exit(process.argv[2] === 'info' || process.argv[2] === 'rm' ? 0 : 1)\n`, { mode: 0o755 })
+      writeFileSync(join(directory, 'docker'), `#!${process.execPath}\nimport { appendFileSync } from 'node:fs'\nconst args = process.argv.slice(2)\nappendFileSync(process.env.DOCKER_LOG, JSON.stringify(args) + '\\n')\nif (args[0] === 'info' && args[2] === '{{json .}}') console.log(JSON.stringify({ NCPU: 4, MemTotal: 4 * 2 ** 30 }))\nprocess.exit(args[0] === 'info' || args[0] === 'rm' ? 0 : 1)\n`, { mode: 0o755 })
       const result = spawnSync(process.execPath, [script], {
-        env: { ...process.env, ARTIUM_TEST_BUILDER: '', NODE_OPTIONS: `--import=${preload}`, PATH: `${directory}:${process.env.PATH}`, DOCKER_LOG: log },
+        env: { ...process.env, ARTIUM_TEST_BUILDER: '', PATH: `${directory}:${process.env.PATH}`, DOCKER_LOG: log },
         encoding: 'utf8', timeout: 120_000,
       })
       expect(result.error).toBeUndefined()
@@ -52,3 +22,17 @@ test.each(['scripts/build-fake-service-image.mjs', 'scripts/container-checks.mjs
     }
   }, 120_000,
 )
+
+test('Docker daemon memory and CPU limits cap requests', () => {
+  const directory = mkdtempSync(join(process.cwd(), '.tmp-host-limits-'))
+  try {
+    writeFileSync(join(directory, 'docker'), `#!${process.execPath}\nconsole.log(JSON.stringify({ NCPU: 4, MemTotal: 4 * 2 ** 30 }))\n`, { mode: 0o755 })
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', "import { cpuLimit, memoryLimit } from './scripts/host-limits.mjs'; console.log(JSON.stringify([cpuLimit(6), cpuLimit(2), memoryLimit(6144), memoryLimit(256)]))"], {
+      env: { ...process.env, PATH: `${directory}:${process.env.PATH}` }, encoding: 'utf8',
+    })
+    expect(result.status, result.stderr).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual(['4', '2', '4096m', '256m'])
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
