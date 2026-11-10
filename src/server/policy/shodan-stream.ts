@@ -19,7 +19,7 @@ export function shodanOwner(db: Database.Database, request: Pick<FastifyRequest,
 }
 
 export function auditShodanDenials(app: FastifyInstance, db: Database.Database, audit: Audit) {
-  const prefixes = ['/v1/tools/shodan-axi/sessions', '/v1/tools/shodan-axi/scan-collections']
+  const prefixes = ['/v1/tools/shodan-axi/sessions', '/v1/tools/shodan-axi/scan-collections', '/v1/tools/shodan-axi/exports']
   type Identity = { credentialId: string, instance: string }
   const identities = new WeakMap<FastifyRequest, Identity>()
   const lookups: Array<(request: FastifyRequest, owner: ShodanOwner) => Identity | undefined> = []

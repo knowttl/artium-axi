@@ -441,7 +441,10 @@ POST `/v1/tools/shodan-axi/writes/preview` with the [write input](../src/shared/
 Repeat the same input and instance with the returned `confirm` in POST `/v1/tools/shodan-axi/writes/execute` using the same user and sign-in family; confirmation is single-use and expires after fifteen minutes.
 Notifier previews expose argument names rather than values, and organization removal reports downgrade as an effect.
 See [write retention and recovery](runbook.md#retention-and-export) for uncertain outcomes.
-Export routes, previews and jobs are not available; ordinary tool runs refuse alert changes, downloads, dataset downloads and other writes.
+Administrator `writes` and `exports` settings establish separate policy bindings for confirmed alert, notifier and organization writes and for search and alert downloads; see [write and export grants](tool-credentials.md#shodan).
+Search and alert downloads run as retained export jobs: preview, start, status and a one-time retrieval require an owner session bound to the caller and original sign-in family, a `CLI-005` or `CLI-020` grant, a writable instance, and credit, request, record and byte bounds within the administrator's ceilings.
+Delegated tokens cannot use export routes, the server chooses the file destination and never returns its path, and a single-use confirmation expires after fifteen minutes.
+Ordinary tool runs refuse alert changes, downloads, dataset downloads and other writes.
 The client-side radar consumes an owner session's output under the same access restrictions; see [radar usage and local output](commands.md#shodan).
 The server adapter refuses local configuration, credential and endpoint overrides, stdin, uploaded files and result-file destinations before credential access.
 Help exposes only admitted routes; the standalone `doctor` alias is not admitted.

@@ -163,7 +163,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
     if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
     res.end(JSON.stringify(url.pathname === '/shodan/host/search'
-      ? { total: 1, matches: [{ ip_str: '192.0.2.1', port: 443, transport: 'tcp', timestamp: '2026-01-01T00:00:00Z', data: 'synthetic' }] }
+      ? { total: url.searchParams.get('query') === 'port:many' ? 250 : 1, matches: [{ ip_str: '192.0.2.1', port: 443, transport: 'tcp', timestamp: '2026-01-01T00:00:00Z', data: 'synthetic' }] }
       : { domain: 'example.test', data: [{ type: 'A', value: '192.0.2.1' }], more: false }))
     return
   }
