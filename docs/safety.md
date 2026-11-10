@@ -6,6 +6,7 @@ Contents:
 - [Agent session context](#agent-session-context)
 - [Raw API access](#raw-api-access)
 - [Delegated sessions](#delegated-sessions)
+- [BeyondTrust Endpoint Privilege Management](#beyondtrust-endpoint-privilege-management)
 - [Microsoft Graph](#microsoft-graph)
 - [Azure, Falcon and Vectra reads](#azure-falcon-and-vectra-reads)
 - [Gitea reads](#gitea-reads)
@@ -13,6 +14,7 @@ Contents:
 - [Kubernetes reads](#kubernetes-reads)
 - [Network appliance reads](#network-appliance-reads)
 - [Technitium DNS](#technitium-dns)
+- [Shodan](#shodan)
 - [Write gates by tool](#write-gates-by-tool)
 - [Initial read permissions](#initial-read-permissions)
 - [Storage and execution boundaries](#storage-and-execution-boundaries)
@@ -468,6 +470,8 @@ See [credential setup](tool-credentials.md#shodan), [commands](commands.md#shoda
 | UniFi | Exact native operation and variant grants plus native preview, confirmation and stable request ID; see [network appliance access](#network-appliance-reads). |
 | Proxmox | See [network appliance access](#network-appliance-reads) for native write grants, confirmation, private results and managed streams. |
 | Technitium DNS | See the [native write capability boundary](#technitium-dns). |
+| Shodan | Confirmed alert, notifier and organization writes, retained search and alert exports and targeted scans need separate administrator `writes`, `exports` and `scans` grants, an owner session, a writable instance and a single-use confirmation; see the [Shodan boundary](#shodan). |
+| BeyondTrust | Administrator `writes.allowWrites` with exact `writes.operations`, native preview, `--execute` and exact `--confirm`; deletes additionally need `writes.allowDeletes` and exact `--confirm-delete`; see the [BeyondTrust boundary](#beyondtrust-endpoint-privilege-management). |
 | Gitea | See the [native write capability boundary](#gitea-reads). |
 | Kubernetes | See the [native mutation capability boundary](#kubernetes-reads). |
 | SSH | See the [discovery, authentication and execution boundary](#ssh-reads). |

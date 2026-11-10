@@ -7,6 +7,8 @@ For requests involving data from Artium-managed tools, discover the tools availa
 Run `artium-axi` for identity and tools together, or `artium-axi tools` when only tool discovery is needed.
 Run `artium-axi tools show <tool>` for its commands and a vetted example, then run `artium-axi <tool> <args>`.
 Follow the returned next commands; they already include the Artium prefix.
+A tool can have several named instances; `artium-axi tools` shows how many you can use and `artium-axi tools show <tool>` lists each with its status, read-only state and description.
+When a tool has more than one usable instance and the user has not named one, ask which to use, reading back the descriptions, then put `--instance <name>` before the tool name; a call that names none fails with `INSTANCE_REQUIRED`.
 Keep upstream arguments intact and use the managed credentials rather than configuring an upstream CLI directly.
 See [client input handling](https://github.com/knowttl/artium-axi/blob/main/docs/client-reference.md#command-surface-and-subcommands) for Azure stdin selection and Tenable local uploads or explicit stdin.
 
@@ -91,8 +93,11 @@ Tool reference links describe upstream commands; Artium controls availability, c
 | `artium-axi` | Show identity, roles and available tools. |
 | `artium-axi --help [<command>]` | Show local client or tool-entry help without authentication. |
 | `artium-axi --version`, `-v`, `-V` | Print only the client package version without configuration or sign-in. |
+| `artium-axi --instance <name> <tool> [<args>]` | Select one named instance of a tool for this run, before the tool name; see the [command reference](https://github.com/knowttl/artium-axi/blob/main/docs/commands.md) for the commands that refuse it. |
 | `artium-axi login --username <username> [--password-stdin]` | Sign in with a local account using protected password input. |
 | `artium-axi login --sso` | Sign in through browser approval of the terminal code. |
+| `artium-axi login --token-stdin` | Exchange a delegated token using protected stdin. |
+| `artium-axi token create\|list\|revoke` | Manage delegated tokens; see the [delegated token reference](https://github.com/knowttl/artium-axi/blob/main/docs/client-reference.md#delegated-tokens). |
 | `artium-axi passwd [--password-stdin]` | Change the account password, then sign in again. |
 | `artium-axi logout` | Remove local tokens and attempt server-session revocation. |
 | `artium-axi whoami` | Show identity, roles, session expiry and server. |

@@ -48,7 +48,7 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 
 | Tool | Information to obtain | Fixed Artium credential test |
 | --- | --- | --- |
-| Falcon (`falcon-axi`) | Falcon API client ID, client secret, cloud region, optional Flight Control member CID. | `auth status`, followed by a permitted detection read to confirm API access. |
+| Falcon (`falcon-axi`) | Falcon API client ID, client secret, cloud region, optional Flight Control member CID. | `auth status`. |
 | Vectra (`vectra-axi`) | HTTPS origin, QUX/RUX deployment kind and API version, personal token or OAuth client ID and secret, optional private CA PEM. | `health list`; grant access to health reads as well as your intended data. |
 | Azure (`az-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, subscription IDs and optional workspace mapping. | `account list`; data-plane roles need their own permitted reads. |
 | Microsoft Graph (`mg-axi`) | Entra tenant ID, application client ID, client secret or certificate private key and SHA-256 thumbprint, administrator-consented Entra Graph permissions; optional scoped Exchange mail roles. | `entra user list --limit 1`; cannot check mail permissions or Exchange scope. |
@@ -58,6 +58,8 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 | AWX (`awx-axi`) | Controller HTTPS origin and either an existing personal access token or a username and password used once to mint one. | `job list --limit 1`; job read permissions are required. |
 | Tenable One (`tenable-axi`) | Access key and secret key; the origin is fixed to `https://cloud.tenable.com`. | `tag category list --limit 1`; needs only a valid key pair, with no Tenable One license or Exposure Management privilege. |
 | Check Point Email Security (`checkpoint-axi`) | Region, client ID, client secret, optional SaaS and scope. | `doctor`; regional authentication and one bounded email search. |
+| Hybrid Analysis (`hybrid-axi`) | See [Hybrid Analysis setup](#hybrid-analysis). | `quota`. |
+| BeyondTrust PM Cloud (`beyondtrust-axi`) | See [BeyondTrust PM Cloud setup](#beyondtrust-pm-cloud). | `doctor`; authentication and one bounded About read. |
 | UniFi (`unifi-axi`) | See [UniFi setup](#unifi). | `info`. |
 | Proxmox (`proxmox-axi`) | See [Proxmox setup](#proxmox). | `get /version`. |
 | Technitium DNS (`technitium-axi`) | See [Technitium setup](#technitium-dns). | `user session get`. |

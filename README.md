@@ -126,6 +126,7 @@ Connection settings are saved in `config.json` beside `session.json`; tool profi
 | `ARTIUM_AXI_URL` | HTTPS server URL override | Saved URL; required initially |
 | `ARTIUM_AXI_CA_FILE` | Additional PEM CA file | Saved CA path or Node trust |
 | `ARTIUM_AXI_PASSWORD` | Ordinary login password, before terminal prompt | Unset; refused in managed mode |
+| `ARTIUM_AXI_TOKEN` | Delegated token for `login` only | Unset; refused in managed mode |
 | `ARTIUM_AXI_CURRENT_PASSWORD` | Ordinary password-change current password | Terminal prompt |
 | `XDG_CONFIG_HOME` | Linux/macOS config base | `~/.config` |
 | `APPDATA` | Windows config base | Required on Windows |
