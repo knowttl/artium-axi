@@ -9,6 +9,7 @@ import { icon, pager } from './design/ui.js'
 import { escape } from './escape.js'
 import { timestamp } from './forms.js'
 import type { Audit, AuditRecord } from '../audit/audit.js'
+import { settingsChangesArgumentsSchema } from '../audit/settings-diff.js'
 
 // Rolling presets resolve to an inclusive UTC start when the page is requested.
 const ranges = { '24h': { label: '24 h', ms: 24 * 3600_000 }, '7d': { label: '7 days', ms: 7 * 24 * 3600_000 } } as const
@@ -100,6 +101,8 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
     if (selected) {
       const outcome = auditOutcome(selected)
       const diagnostic = selected.event === 'run-terminal' ? audit.runDiagnostic(selected.request_id) : undefined
+      const settingsChanges = selected.event === 'admin-change' && selected.arguments !== null
+        ? settingsChangesArgumentsSchema.safeParse(JSON.parse(selected.arguments)).data?.settings : undefined
       const fields = Object.entries(selected)
       const facts = [['Actor', escape(actor(selected.user_id))], ['Tool', escape(selected.tool ?? 'None')], ...(selected.instance ? [['Instance', escape(selected.instance)]] : []), ['Outcome', badge(outcome.word, outcome.tone)],
         ['Request ID', `<span class="copyfield" data-copy-scope><input value="${escape(selected.request_id)}" readonly aria-label="Request ID"><button type="button" class="btn btn-ghost btn-icon btn-sm" data-copy aria-label="Copy request ID">${icon('copy')}</button><span class="sr-only" data-copy-status role="status"></span></span>`],
@@ -108,6 +111,13 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
       panel = `<aside class="sheet docked" id="record" aria-labelledby="record-title"><div class="sheet-head"><div><h2 id="record-title">${escape(selected.event)} · ${outcome.tone === 'err' ? 'failed' : outcome.tone === 'ok' ? 'succeeded' : escape(outcome.word)}</h2>
         <p>${timestamp(selected.occurred_at)} · #${escape(selected.id)}</p></div><a class="btn btn-ghost btn-icon btn-sm" href="${escape(close)}" aria-label="Close details">${icon('x')}</a></div>
         <div class="sheet-body"><dl class="kv">${facts.map(([key, value]) => `<dt>${key}</dt><dd>${value}</dd>`).join('')}</dl>
+        ${settingsChanges ? `<div><h3>Settings changes</h3><dl class="kv">${settingsChanges.map(change => {
+          const show = (value: unknown) => value === null ? 'unset' : JSON.stringify(value)
+          const text = 'added' in change
+            ? [...change.added.map(item => '+ ' + show(item)), ...change.removed.map(item => '- ' + show(item))].join('\n')
+            : `${show(change.before)} → ${show(change.after)}`
+          return `<dt class="mono">${escape(change.path.join('.'))}</dt><dd><pre class="code">${escape(text)}</pre></dd>`
+        }).join('')}</dl></div>` : ''}
         ${diagnostic ? `<div><h3>Failure diagnostic</h3><pre class="code">${escape(JSON.stringify(diagnostic, null, 2))}</pre></div>` : ''}
         <details class="all-fields"><summary class="btn btn-secondary btn-sm">Show all ${fields.length} stored fields</summary><dl class="kv">${fields.map(([key, value]) =>
           `<dt>${escape(key)}</dt><dd>${value === null ? 'Not recorded' : timeFields.includes(key) ? timestamp(Number(value)) : escape(value)}</dd>`).join('')}</dl></details></div></aside>`

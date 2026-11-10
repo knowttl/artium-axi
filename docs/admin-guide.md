@@ -256,6 +256,7 @@ Choose **Save write permissions** and confirm the change, completing identity co
 See [write-access audit events](#audit-screen-and-api) to review saved changes.
 The **Advanced** tab (`?tab=advanced`) shows the saved write state, but **Replace settings** replaces all native settings and omitting write settings turns writes off.
 With JavaScript, the editor reports whether the input is a valid JSON object as you type; saving also validates the tool's native settings on the server.
+Each save records an `admin-change` audit event; changes to Kubernetes session grants or Shodan scan and stream grants include a field-level list shown as **Settings changes** in the audit record details; see [the audit screen](#audit-screen-and-api).
 See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for automatic checks after configuration changes, pending status, recovery retries and concurrency limits.
 Use **Test connection** on an instance, or **Test** in its row, for a current fixed read before enabling a configured tool; it asks for no confirmation dialog but still needs recent identity confirmation.
 For failed tests, follow the [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) and the [error reference](errors.md).
@@ -385,6 +386,11 @@ There is no audit mutation or deletion route.
 Filter by event `tool-write-access` to review changes to effective write enablement, BeyondTrust delete permission or an operations allow-list, including changes made through the Advanced tab or complete credential replacement.
 These events identify the administrator and tool and record the new write policy without credentials or unrelated native settings; the [API contract](../src/shared/api.ts) owns the audit argument fields and treatment of unsupported legacy operation names.
 No-op write-access requests emit no change event.
+An Advanced-tab save or complete credential replacement adds `{"settings": [...]}` to the `arguments` of its `admin-change` event for changes to Kubernetes session grants or Shodan scan and stream grants, one entry per changed setting with its `path`.
+An entry for an added or removed empty object or list carries `before` and `after`, with `null` meaning unset; other list changes carry the `added` and `removed` members, since list order is not a change.
+Objects are compared field by field.
+Other native settings are excluded from this diff.
+A save that changes none of these settings records no `arguments`.
 Successful local password confirmations and SSO browser and bearer confirmations emit `reauth` events.
 Successful local sign-in, password confirmation and password-change records include `authentication_method` as `local` or `break-glass`.
 These events are flagged as `break-glass` for designated accounts, even before SSO activation; Audit highlights them and includes the same field in its exports and JSON stdout stream.

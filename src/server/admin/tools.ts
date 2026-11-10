@@ -32,6 +32,7 @@ import { rawApiModes } from '../policy/policy.js'
 import type { Adapter } from '../adapters/types.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { Audit, AuditEvent } from '../audit/audit.js'
+import { diffSettings } from '../audit/settings-diff.js'
 import type { Runner } from '../runner/runner.js'
 import type { ToolHealth } from '../health/health.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
@@ -238,6 +239,11 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       unsupportedOperationCount: next.allowedOperations.length - operations.length,
       requestId: request.id, clientAddress: request.ip }]
   }
+  function settingsChanges(tool: ToolName, before: Record<string, unknown>, after: Record<string, unknown>) {
+    const keys = tool === 'kubernetes-axi' ? ['sessions'] : tool === 'shodan-axi' ? ['scans', 'sessions'] : []
+    return keys.flatMap(key => diffSettings((before[key] as { grants?: unknown } | undefined)?.grants,
+      (after[key] as { grants?: unknown } | undefined)?.grants, [key, 'grants']))
+  }
   const githubDevice = new GithubDeviceFlow()
   function githubRevisions(expectedRevision: number, expectedToolRevision: number, expectedCredentialId: string | undefined, instance: string | undefined): void {
     const current = find('gh-axi', instance)
@@ -389,14 +395,16 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const settings = input.nativeSettings === undefined ? undefined : parse(nativeSettingsSchemas[tool], input.nativeSettings)
     if (input.enabled && !adapters.some(adapter => adapter.name === tool)) throw new ArtiumError('TOOL_DISABLED')
     let replacements: CredentialReference[] = []
-    const events: AuditEvent[] = [{ event: 'admin-change', action: adminToolRoutes.patch.auditEvent, targetId: tool,
-      userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }]
+    const event: Extract<AuditEvent, { event: 'admin-change' }> = { event: 'admin-change', action: adminToolRoutes.patch.auditEvent, targetId: tool,
+      userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }
+    const events: AuditEvent[] = [event]
     const result = audit.change(events, () => {
       authorize(request)
       const current = readTool(tool)
       if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
       const now = Date.now()
       if (settings !== undefined) {
+        event.settingsChanges = settingsChanges(tool, current.nativeSettings, settings)
         events.push(...writeChange(request, actor, tool, current.nativeSettings, settings))
         replacements = bumpInstances(tool, actor, now, settings)
         db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
@@ -460,8 +468,9 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       }
     }
     let replacement: CredentialReference | undefined
-    const events: AuditEvent[] = [{ event: 'admin-change', action: route.auditEvent, targetId: tool,
-      userId: actor, tool, instance: name, outcome: 'success', requestId: request.id, clientAddress: request.ip }]
+    const event: Extract<AuditEvent, { event: 'admin-change' }> = { event: 'admin-change', action: route.auditEvent, targetId: tool,
+      userId: actor, tool, instance: name, outcome: 'success', requestId: request.id, clientAddress: request.ip }
+    const events: AuditEvent[] = [event]
     const result = audit.change(events, () => {
       authorize(request)
       const current = readTool(tool)
@@ -480,6 +489,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       }
       const { credential, settings: suppliedSettings } = splitSettings(tool, next)
       const settings = name === undefined ? suppliedSettings : current.nativeSettings
+      event.settingsChanges = settingsChanges(tool, current.nativeSettings, settings)
       events.push(...writeChange(request, actor, tool, current.nativeSettings, settings))
       const now = Date.now()
       replacement = writeCredential(tool, name, credential, input.expectedId, expectedRevision, actor, now, input.description)

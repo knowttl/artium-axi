@@ -9,6 +9,7 @@ import type { ToolName } from '../store/credential-store.js'
 import type { RunAction } from '../adapters/run-journal.js'
 import { redactArguments } from './redact.js'
 import type { SensitiveArguments } from './redact.js'
+import type { SettingChange } from './settings-diff.js'
 
 interface Context {
   userId: string | null
@@ -41,7 +42,7 @@ export type AuditEvent = Context & (
   | { event: 'device-approve' | 'device-deny', outcome: Outcome, requestingAddress: string }
   | { event: 'sign-out', outcome: Outcome, action?: string, targetId?: string }
   | ({ event: 'credential-test' | 'health-check', outcome: Outcome, action?: string } & CredentialTestEvidence)
-  | { event: 'admin-change', outcome: Outcome, action: string, targetId: string, subject?: string }
+  | { event: 'admin-change', outcome: Outcome, action: string, targetId: string, subject?: string, settingsChanges?: SettingChange[] }
   | { event: 'tool-write-access', outcome: Outcome, enabled: boolean, allowDeletes?: boolean, operations: string[], unsupportedOperationCount: number }
   | { event: 'invite-create' | 'invite-resend' | 'invite-revoke', outcome: Outcome, targetId: string }
   | { event: 'invite-claim' | 'identity-link', outcome: Outcome, targetId: string, providerId: string, subject: string }
@@ -255,6 +256,7 @@ export class Audit {
           ...(event.allowDeletes !== undefined ? { allowDeletes: event.allowDeletes } : {}),
           unsupportedOperationCount: event.unsupportedOperationCount }) :
         event.event === 'role-sync' ? JSON.stringify({ added: event.added, removed: event.removed }) :
+        event.event === 'admin-change' && event.settingsChanges?.length ? JSON.stringify({ settings: event.settingsChanges }) :
         event.event === 'device-approve' || event.event === 'device-deny' ? JSON.stringify({ requestingAddress: event.requestingAddress }) : null,
       request_id: event.requestId, exit_code: terminal?.exitCode ?? null,
       duration_ms: terminal ? Math.round(terminal.durationMs) : null,
