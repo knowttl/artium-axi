@@ -34,6 +34,7 @@ export interface PreparedCall {
   secrets: string[]
   fileArguments?: readonly number[]
   effect?: 'read' | 'write'
+  nativeReadOnlyPreview?: boolean
   protectedResult?: { operation: string } & ({ source: 'projection' } | { source: 'file', name: string, flag: string }
     | { source: 'pipe', flag: string, argumentIndex: number } | { source: 'proxmox' })
   write?: { operation: string, target: string, checkArgs: string[], afterCheck?: string }

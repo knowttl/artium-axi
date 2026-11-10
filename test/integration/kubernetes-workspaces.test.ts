@@ -64,6 +64,25 @@ async function create(files = [descriptor('nested/input.bin')], lifetimeSeconds 
 const upload = (id: string, path: string, bytes = binary) => app.inject({ method: 'PUT',
   url: `${prefix}/${id}/files/${path}`, headers: { ...headers, 'content-type': 'application/octet-stream' }, payload: bytes })
 
+test('read-only Kubernetes permits server dry runs and denies confirmation before preparation', async () => withFakeService(async ({ directory: fakeDirectory, port, send }) => {
+  const reference = credentials.findCredential('kubernetes-axi')!
+  credentials.replaceCredential('kubernetes-axi', { origin: `https://localhost:${port}`, auth: 'token', namespace: 'synthetic',
+    certificateAuthority: await readFile(join(fakeDirectory, 'ca.crt'), 'utf8'), token: 'CANARY-kubernetes-token' }, reference.revision!, user, Date.now())
+  db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'kubernetes-axi';
+    UPDATE credentials SET read_only = 1 WHERE tool = 'kubernetes-axi'`)
+  const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/run', headers, payload: { args } })
+  const dry = await run(['server-dry-run', '--', 'create', 'configmap', 'synthetic-dry', '--from-literal=mode=dry'])
+  expect(dry.json(), dry.body).toMatchObject({ exitCode: 0 })
+  const evidence = JSON.parse(await send('/__evidence')) as { mutations: number, requests: { method: string, dryRun?: boolean }[] }
+  expect(evidence.mutations).toBe(0)
+  expect(evidence.requests).toContainEqual(expect.objectContaining({ method: 'POST', dryRun: true }))
+  const denied = await run(['confirm', '11111111-1111-4111-8111-111111111111', '--digest', 'a'.repeat(64)])
+  expect(denied.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+  expect(db.prepare("SELECT event, outcome FROM audit WHERE tool = 'kubernetes-axi' AND event IN ('denial', 'run-start', 'run-terminal') ORDER BY id").all())
+    .toEqual([{ event: 'run-start', outcome: 'started' }, { event: 'run-terminal', outcome: 'completed' },
+      { event: 'denial', outcome: 'FLAG_BLOCKED' }])
+}), 60_000)
+
 test('an authenticated caller round trips a recursive tree with exact binary hashes', async () => {
   const manifest = Buffer.from('apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: synthetic\n')
   const id = await create([descriptor('nested/input.bin'), descriptor('manifests/config.yaml', manifest)])

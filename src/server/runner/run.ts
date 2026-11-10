@@ -195,7 +195,8 @@ export async function runTool<Credential>(
         audit.record({ ...identity, event: 'denial', outcome: 'FLAG_BLOCKED' })
         throw new ArtiumError('FLAG_BLOCKED')
       }
-      if ((readOnly || instanceReadOnly) && !(adapter.name === 'vectra-axi' && preview)) {
+      if ((readOnly || instanceReadOnly) && !(adapter.name === 'vectra-axi' && preview)
+        && !(instanceReadOnly && !readOnly && prepared.nativeReadOnlyPreview)) {
         prepared.environment = { ...prepared.environment, [`${adapter.name.toUpperCase().replaceAll('-', '_')}_READ_ONLY`]: 'true' }
       }
       const kubernetesRequests = prepared.kubernetesWorkflowRoot && reference ? {
