@@ -231,7 +231,7 @@ test.each([1, 2])('ambient context preserves guidance in one note with %i instan
     { name: 'lab', description: 'Lab', status: 'ok', readOnly: true },
     { name: 'production', description: 'Production', status: 'ok', readOnly: true },
   ].slice(0, count)
-  homeScenario = { tools: [{ name: 'falcon-axi', version: '1.0.0', status: 'ok', readOnly: true, instances }] }
+  homeScenario = { tools: [{ name: 'falcon-axi', version: '1.0.1', status: 'ok', readOnly: true, instances }] }
   const result = await run(['session-context'])
   expect(result).toMatchObject({ code: 0, stderr: '' })
   expect(decode(result.stdout)).toMatchObject({ artium: 'available',

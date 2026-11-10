@@ -152,7 +152,7 @@ try {
   console.log(`distribution: Linux download, SHA-256 rejection of corruption, standalone launcher, setup, login, password change and first call passed; sha256=${digest}`)
   const toolsText = await success(['tools'])
   const tools = decode(toolsText)
-  assert.deepEqual(tools.tools, [{ name: 'falcon-axi', status: 'ok', version: '1.0.0', readOnly: true, instances: 1 }])
+  assert.deepEqual(tools.tools, [{ name: 'falcon-axi', status: 'ok', version: '1.0.1', readOnly: true, instances: 1 }])
   decode(first)
   pass(1, 'Token-efficient output: TOON and upstream stream preservation')
   assert.deepEqual(Object.keys(tools.tools[0]), ['name', 'status', 'version', 'readOnly', 'instances'])
