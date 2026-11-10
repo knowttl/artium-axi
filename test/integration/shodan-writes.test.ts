@@ -2,9 +2,12 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import Fastify from 'fastify'
 import { expect, test, vi } from 'vitest'
 import { createShodanAdapter } from '../../src/server/adapters/shodan.js'
+import { SessionStore } from '../../src/cli/session.js'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { toolPaths } from '../../src/server/config.js'
@@ -19,6 +22,7 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { withFakeService } from '../fake-service/fixture.js'
+import { copyClientInput } from '../fixtures/client-inputs.js'
 
 const user = 'synthetic-development-user'
 const writes = { grants: { [user]: ['OP-013', 'OP-027', 'OP-037', 'OP-038'] }, maxQueryCredits: 5, maxRequests: 10 }
@@ -110,6 +114,40 @@ test('domain alert previews and executes its DNS and trigger steps', async () =>
     expect(JSON.parse(await send('/__shodan/state')).alerts['created-alert-1']).toMatchObject({ name: 'example.test', filters: { ip: ['192.0.2.1'] }, triggers: { malware: {} } })
   }, allWrites)
 })
+
+test('CLI domain preview reports a partial DNS page', async () => {
+  await withWriteApp(async ({ app, directory, send, token }) => {
+    await send('/__shodan/dns-more')
+    const url = await app.listen({ host: '127.0.0.1', port: 0 })
+    const bundle = copyClientInput('bundle', join(directory, 'client.mjs'))
+    new SessionStore(url, join(directory, 'artium-axi/session.json')).write({ status: 'authenticated', accessToken: token,
+      refreshToken: 'CANARY-refresh', accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 3600_000 })
+    const { stdout } = await promisify(execFile)(process.execPath, [bundle, 'shodan-axi', 'alert', 'domain', 'example.test',
+      '--triggers', 'malware', '--allow-operation', 'OP-040,OP-013,OP-019', '--query-credit-budget', '4', '--max-requests', '6', '--accept-unknown-cost', '--json'],
+    { env: { PATH: process.env.PATH, XDG_CONFIG_HOME: directory, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' } })
+    expect(JSON.parse(stdout)).toMatchObject({ dnsMore: true, futureDnsTracking: false })
+  }, allWrites)
+})
+
+test('maximum alert import retains its full preview and execution outcome', async () => {
+  const policy = { ...allWrites, maxQueryCredits: 1000, maxRequests: 1000 }
+  await withWriteApp(async ({ post, send }) => {
+    const triggers = Object.fromEntries(['a', 'b', 'c'].map(prefix => [prefix.repeat(128), {}]))
+    const alerts = Array.from({ length: 100 }, (_, index) => ({ name: `Imported-${index}`, filters: { ip: ['192.0.2.0/24'] }, triggers }))
+    const input = { command: 'alert import', arguments: [], importBody: Buffer.from(JSON.stringify(alerts)).toString('base64'),
+      allowOperations: ['OP-013', 'OP-019'], queryCreditBudget: 400, maxRequests: 802 }
+    const preview = await post('preview', input)
+    expect(preview.statusCode, preview.body).toBe(200)
+    expect(Buffer.byteLength(preview.body)).toBeGreaterThan(65536)
+    expect(preview.json().effects).toHaveLength(400)
+    const result = await post('execute', { ...input, confirm: preview.json().confirm })
+    expect(result.statusCode, result.body).toBe(200)
+    expect(result.json()).toMatchObject({ status: 'completed' })
+    expect(result.json().steps).toHaveLength(400)
+    expect(Object.keys(JSON.parse(await send('/__shodan/state')).alerts)).toHaveLength(101)
+    expect(preview.body + result.body).not.toContain('CANARY-shodan-key')
+  }, policy)
+}, 120_000)
 
 test('compressed alert import previews and executes from preserved bytes', async () => {
   await withWriteApp(async ({ post, send }) => {

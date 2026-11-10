@@ -50,7 +50,8 @@ async function invokeShodanWrite(directory: string, adapter: Adapter<unknown>, c
       ...input.triggers ? ['--triggers', input.triggers] : [],
       ...input.body ? ['--body-file', join(directory, 'preview', 'config', bodyFileName)] : [],
       ...confirmation ? ['--execute', '--confirm', confirmation] : []]
-    return await runShodanNative(directory, args, profile, signal, authorize, configuredCaPem, beforeSpawn, true)
+    return await runShodanNative(directory, args, profile, signal, authorize, configuredCaPem, beforeSpawn, true,
+      ['alert clear', 'alert domain', 'alert import'].includes(input.command) ? 4 * 1024 * 1024 : 65536)
   } finally {
     profile.secrets.fill(''); profile.files.length = 0
     for (const key of Object.keys(profile.environment)) delete profile.environment[key]
