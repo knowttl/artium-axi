@@ -1,7 +1,11 @@
 services:
   artium:
     image: artium-axi:local
-    build: .
+    build:
+      context: .
+      # Optional build-time CA for the gh download step: uncomment this secrets list and the extra_ca entry below.
+      # secrets:
+      #   - extra_ca
     read_only: true
     init: true
     logging:
@@ -39,6 +43,8 @@ services:
 secrets:
   artium_master_key:
     file: ./private/artium_master_key
+  # extra_ca:
+  #   file: ./private/artium_extra_ca.pem
   # artium_extra_ca:
   #   file: ./private/artium_extra_ca.pem
   # artium_bootstrap_password:
