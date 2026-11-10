@@ -57,7 +57,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
-      - name: Use resource checks from main for an existing tag
+      - name: Take container acceptance tooling from the workflow ref for an existing tag
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           git fetch --depth=1 origin "$GITHUB_SHA"
