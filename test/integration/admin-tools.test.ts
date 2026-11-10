@@ -341,6 +341,29 @@ test('saving native settings through the JSON editor journals the field-level ch
   ])
 })
 
+test('saving and removing empty native settings journals their presence', async () => {
+  expect((await request('PATCH', '/az-axi', { expectedRevision: 1,
+    nativeSettings: { subscriptions: [], tlsDestinations: {} } })).status).toBe(200)
+  expect((await request('PATCH', '/az-axi', { expectedRevision: 2,
+    nativeSettings: { subscriptions: [], tlsDestinations: { keyVaults: [] } } })).status).toBe(200)
+  expect((await request('PATCH', '/az-axi', { expectedRevision: 3,
+    nativeSettings: { subscriptions: [], tlsDestinations: {} } })).status).toBe(200)
+  expect((await request('PATCH', '/az-axi', { expectedRevision: 4, nativeSettings: {} })).status).toBe(200)
+  const rows = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change' ORDER BY id").all() as { arguments: string }[]
+  expect(rows.map(row => JSON.parse(row.arguments))).toEqual([
+    { settings: [
+      { path: ['subscriptions'], before: null, after: [] },
+      { path: ['tlsDestinations'], before: null, after: {} },
+    ] },
+    { settings: [{ path: ['tlsDestinations', 'keyVaults'], before: null, after: [] }] },
+    { settings: [{ path: ['tlsDestinations', 'keyVaults'], before: [], after: null }] },
+    { settings: [
+      { path: ['subscriptions'], before: [], after: null },
+      { path: ['tlsDestinations'], before: {}, after: null },
+    ] },
+  ])
+})
+
 test.each([
   { tool: 'falcon-axi', settings: { allowWrites: true }, writableTools: ['falcon-axi'] },
   { tool: 'az-axi', settings: { allowWrites: true }, writableTools: ['az-axi'] },

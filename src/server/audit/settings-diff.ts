@@ -17,6 +17,10 @@ export function diffSettings(before: unknown, after: unknown, path: string[] = [
   if (path.at(-1) === 'operations' && ['writes', 'hostWrites'].includes(path.at(-2) ?? '')) return []
   const [from, to] = [shapeOf(before), shapeOf(after)]
   const shape = from === 'absent' ? to : to === 'absent' || from === to ? from : 'value'
+  if ((from === 'absent' || to === 'absent') && (shape === 'object' || shape === 'list')) {
+    const present = from === 'absent' ? after : before
+    if (Object.keys(present as object).length === 0) return [{ path, before: (before ?? null) as Json, after: (after ?? null) as Json }]
+  }
   if (shape === 'object') {
     const left = isRecord(before) ? before : {}
     const right = isRecord(after) ? after : {}
