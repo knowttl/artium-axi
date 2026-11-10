@@ -61,13 +61,14 @@ For a shared-credential tool, the same role tool grant must also cover the selec
 Raw access on one role does not extend to an instance granted only by another role.
 New tool rows default to mode `off`; new role tool grants default to no raw access, including grants removed and later re-added.
 Saving a role's tool selection preserves raw access on retained grants.
-Administrators set the tool mode and the role grant in the browser or through the [administration API](runbook.md#roles-credentials-and-health); only modes the tool can honor are accepted, so `read-writes` is refused for tools whose raw routes cannot write.
+Administrators set the tool mode and the role grant in the browser or through the [administration API](runbook.md#roles-credentials-and-health).
 The governed routes are `api` for GitHub, Azure, Azure DevOps and Gitea, `api get`, `api post`, `api put`, `api patch` and `api delete` for Microsoft Graph, and `api get` for Vectra and Hybrid Analysis.
 The reviewed inventories still determine which commands and flags are accepted; raw permission never widens that boundary or a tool's built-in restrictions.
 Falcon `raw` commands, Tenable `raw get` and `raw write`, and AWX `api` commands remain blocked.
 AWX `api post`, `put`, `patch` and `delete`, Tenable `raw write`, and Falcon `raw` writes remain pending separate admission.
 
 Mode `off` denies raw calls; `read` permits read-classified calls; `read-writes` additionally permits write-classified calls on Azure, Azure DevOps, Gitea and Microsoft Graph.
+For tools whose raw routes cannot write, `read-writes` permits reads only and raw writes remain blocked.
 Azure raw mutation previews are read-classified; executing a mutation requires `read-writes`.
 Graph `api post`, `put`, `patch` and `delete` are write-classified, previews included, and Artium enables the native raw-write switch only for those calls after the mode and role checks pass.
 They also need administrator Allow writes on the Graph tool; they are not limited to its operations allow-list.

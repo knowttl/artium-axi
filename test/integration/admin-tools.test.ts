@@ -2510,7 +2510,7 @@ test('tools report the Raw API modes they can be set to', async () => {
   const { tools } = await (await request('GET', '')).json() as { tools: unknown[] }
   const rawApi = Object.fromEntries(tools.map(item => adminToolSchema.parse(item)).map(item => [item.name, item.rawApi]))
   expect(rawApi['az-axi']).toEqual({ mode: 'off', modes: ['off', 'read', 'read-writes'] })
-  expect(rawApi['vectra-axi']).toEqual({ mode: 'off', modes: ['off', 'read'] })
+  expect(rawApi['vectra-axi']).toEqual({ mode: 'off', modes: ['off', 'read', 'read-writes'] })
   expect(rawApi['falcon-axi']).toEqual({ mode: 'off', modes: [] })
 })
 
@@ -2530,7 +2530,6 @@ test('an administrator changes a tool Raw API mode, the change is journaled and 
 })
 
 test.each([
-  ['a mode the tool cannot write with', 'vectra-axi', { mode: 'read-writes' }, 'INVALID_INPUT'],
   ['a tool without raw API routes', 'falcon-axi', { mode: 'read' }, 'INVALID_INPUT'],
   ['an unknown mode', 'az-axi', { mode: 'writes' }, 'INVALID_INPUT'],
   ['a stale revision', 'az-axi', { mode: 'off', expectedRevision: 99 }, 'REVISION_CONFLICT'],
@@ -2600,6 +2599,16 @@ test('Raw API settings made through the admin routes decide raw calls', async ()
   expect(raw(read)).toThrow(expect.objectContaining({ code: 'RAW_API_DENIED' }))
 })
 
+test('read-writes mode on a read-only raw tool permits reads', async () => {
+  const vectra = adapters.find(adapter => adapter.name === 'vectra-axi')!
+  const tool = adminToolSchema.parse(await (await request('GET', '/vectra-axi')).json())
+  const role = adminRoleSchema.parse(await (await roleRequest('GET', '/synthetic-role')).json())
+  const changed = await request('PATCH', '/vectra-axi/raw-api', { mode: 'read-writes', expectedRevision: tool.revision })
+  expect(adminToolSchema.parse(await changed.json()).rawApi.mode).toBe('read-writes')
+  expect((await roleRequest('PUT', '/synthetic-role/tools/vectra-axi/raw-api', { enabled: true, expectedRevision: role.revision })).status).toBe(200)
+  expect(() => checkRawApiPolicy(db, actor, vectra, ['api', 'get', '--path', '/detections'])).not.toThrow()
+})
+
 test('the tool and role pages offer the Raw API controls', async () => {
   const cookie = await browserCookie()
   const tool = await app.inject({ method: 'GET', url: '/admin/tools/az-axi?tab=raw-api', headers: { cookie } })
@@ -2608,7 +2617,8 @@ test('the tool and role pages offer the Raw API controls', async () => {
   expect(tool.body.match(/name="mode" value="(off|read|read-writes)"( checked)?/g)).toEqual([
     'name="mode" value="off" checked', 'name="mode" value="read"', 'name="mode" value="read-writes"'])
   const readOnly = await app.inject({ method: 'GET', url: '/admin/tools/vectra-axi?tab=raw-api', headers: { cookie } })
-  expect(readOnly.body).not.toContain('value="read-writes"')
+  expect(readOnly.body.match(/name="mode" value="(off|read|read-writes)"( checked)?/g)).toEqual([
+    'name="mode" value="off" checked', 'name="mode" value="read"', 'name="mode" value="read-writes"'])
   const unavailable = await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi?tab=raw-api', headers: { cookie } })
   expect(unavailable.body).not.toContain('/raw-api"')
   const role = await app.inject({ method: 'GET', url: '/admin/roles/synthetic-role', headers: { cookie } })

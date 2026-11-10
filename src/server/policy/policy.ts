@@ -32,7 +32,7 @@ export function checkToolPolicy(db: Database.Database, userId: string, tool: Too
 
 export function rawApiModes(adapter: Adapter<unknown> | undefined): z.infer<typeof rawApiModeSchema>[] {
   if (!adapter?.rawApi) return []
-  return adapter.rawApi.writes ? ['off', 'read', 'read-writes'] : ['off', 'read']
+  return ['off', 'read', 'read-writes']
 }
 
 export function checkRawApiPolicy(db: Database.Database, userId: string, adapter: Adapter<unknown>,

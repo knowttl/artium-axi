@@ -59,7 +59,7 @@ type ToolName = z.infer<typeof toolSchema>
 export const rawApiModeWords: Record<z.infer<typeof adminToolSchema>['rawApi']['mode'], { label: string, detail: string }> = {
   off: { label: 'Off', detail: 'Raw API calls are refused.' },
   read: { label: 'Read', detail: 'Raw requests classified as reads are allowed.' },
-  'read-writes': { label: 'Read and writes', detail: 'Raw reads are allowed, and so are raw writes the tool supports. Write gates, operation grants and native confirmation still apply.' },
+  'read-writes': { label: 'Read and writes', detail: 'Raw reads are allowed. Raw writes are allowed only for tools with writable raw routes; write gates, operation grants and native confirmation still apply.' },
 }
 
 // Product display names and their two-letter marks, the one place tools are named for people.
