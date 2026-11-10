@@ -28,8 +28,8 @@
     "integrity": "sha512-hwsNnF+heZnqrsJdp9Y0M+zsjElqnhoRameyZGBoNmc2njKK/a+SNMynED49S+Ywyw88dJxIXifIxeRMEmRR2A=="
   },
   "@knowttl/shodan-axi": {
-    "version": "0.1.1",
-    "integrity": "sha512-6IuXgK94SoXuhAYEMisRPbLmBWxWuPs+i4Y6alf8CUfWbp9IGrEQYsfsJimI/lE2HMmxPsDYN+qdDBmmIDpYlQ=="
+    "version": "0.1.2",
+    "integrity": "sha512-FUVFX9QvSOU59vNkb3snSgASYoj3WhVghQk+fOAf6o1qj1TwocSnNtqRJhXk1Pe6x9Si8TCsGMyiFegCDQ5N4A=="
   },
   "axi-sdk-js": {
     "version": "0.1.13",

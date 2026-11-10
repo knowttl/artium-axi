@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { issueTestAccessToken } from '../../../test/fixtures/tokens.js'
 import { migrate } from '../store/db.js'
-import { shodanBinding, shodanOwner, shodanScanBinding } from './shodan-stream.js'
+import { shodanBinding, shodanExportBinding, shodanOwner, shodanScanBinding, shodanWriteBinding } from './shodan-stream.js'
 
 let db: Database.Database
 const credential = { id: 'synthetic-credential', tool: 'shodan-axi' as const, revision: 1 }
@@ -69,4 +69,49 @@ test('session and scan bindings reject a revoked instance grant', () => {
   db.exec("UPDATE role_tools SET all_instances=0 WHERE tool='shodan-axi'")
   expect(() => shodanBinding(db, owner, credential, 'OP-046')).toThrow(expect.objectContaining({ code: 'INSTANCE_NOT_FOUND' }))
   expect(() => shodanScanBinding(db, owner, credential, [])).toThrow(expect.objectContaining({ code: 'INSTANCE_NOT_FOUND' }))
+})
+
+const confirmedSettings = { writes: { grants: { 'synthetic-user': ['OP-013', 'OP-027'] }, maxQueryCredits: 10, maxRequests: 20 },
+  exports: { grants: { 'synthetic-user': ['CLI-005'] }, maxQueryCredits: 10, maxRequests: 20, maxRecords: 1000, maxBytes: 1024, retentionSeconds: 60 } }
+
+function configure(value: object) {
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='shodan-axi'").run(JSON.stringify(value))
+}
+
+test('write and export bindings return the administrator ceilings for granted operations', () => {
+  configure(confirmedSettings)
+  expect(shodanWriteBinding(db, owner, credential, ['OP-013', 'OP-027']).settings).toEqual(confirmedSettings.writes)
+  expect(shodanExportBinding(db, owner, credential, 'CLI-005').settings).toEqual(confirmedSettings.exports)
+})
+
+test.each([
+  ['an ungranted write operation', () => shodanWriteBinding(db, owner, credential, ['OP-013', 'OP-037'])],
+  ['an ungranted export command', () => shodanExportBinding(db, owner, credential, 'CLI-020')],
+  ['a write grant used for an export', () => shodanExportBinding(db, owner, credential, 'OP-013')],
+])('%s is refused', (_name, call) => {
+  configure(confirmedSettings)
+  expect(call).toThrow(expect.objectContaining({ code: 'TOOL_NOT_GRANTED' }))
+})
+
+test('write and export bindings are refused without their settings block', () => {
+  configure({ writes: confirmedSettings.writes })
+  expect(() => shodanExportBinding(db, owner, credential, 'CLI-005')).toThrow(expect.objectContaining({ code: 'TOOL_NOT_GRANTED' }))
+  configure({ exports: confirmedSettings.exports })
+  expect(() => shodanWriteBinding(db, owner, credential, ['OP-013'])).toThrow(expect.objectContaining({ code: 'TOOL_NOT_GRANTED' }))
+})
+
+test('write and export bindings refuse a read-only instance even when granted', () => {
+  configure(confirmedSettings)
+  db.exec("UPDATE credentials SET read_only=1 WHERE tool='shodan-axi'")
+  expect(() => shodanWriteBinding(db, owner, credential, ['OP-013'])).toThrow(expect.objectContaining({ code: 'FLAG_BLOCKED' }))
+  expect(() => shodanExportBinding(db, owner, credential, 'CLI-005')).toThrow(expect.objectContaining({ code: 'FLAG_BLOCKED' }))
+})
+
+test('write and export policy changes alter their binding hashes', () => {
+  configure(confirmedSettings)
+  const writes = shodanWriteBinding(db, owner, credential, ['OP-013']).hash, exports = shodanExportBinding(db, owner, credential, 'CLI-005').hash
+  configure({ ...confirmedSettings, writes: { ...confirmedSettings.writes, maxRequests: 19 } })
+  expect(shodanWriteBinding(db, owner, credential, ['OP-013']).hash).not.toBe(writes)
+  configure({ ...confirmedSettings, exports: { ...confirmedSettings.exports, maxBytes: 2048 } })
+  expect(shodanExportBinding(db, owner, credential, 'CLI-005').hash).not.toBe(exports)
 })

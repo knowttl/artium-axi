@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { shodanScanPolicy, shodanStreamPolicy } from './shodan-stream.js'
+import { shodanExportPolicy, shodanScanPolicy, shodanStreamPolicy, shodanWritePolicy } from './shodan-stream.js'
 import { kubernetesSessionPolicy } from './kubernetes.js'
 import { giteaWriteOperations, giteaTransferOperations, giteaTransferBytes } from './gitea-writes.js'
 import { errors } from './errors.js'
@@ -376,7 +376,8 @@ export const nativeSettingsSchemas = {
     hostWrites: z.strictObject({ allowWrites: z.boolean(),
       operations: z.array(z.enum(technitiumWriteOperations)).max(technitiumWriteOperations.length) }).optional(),
   }),
-  'shodan-axi': z.strictObject({ sessions: shodanStreamPolicy.optional(), scans: shodanScanPolicy.optional() }),
+  'shodan-axi': z.strictObject({ sessions: shodanStreamPolicy.optional(), scans: shodanScanPolicy.optional(),
+    writes: shodanWritePolicy.optional(), exports: shodanExportPolicy.optional() }),
   'ado-axi': z.strictObject({ allowWrites: z.boolean().optional() }),
   'mg-axi': z.strictObject({ enabledPacks: z.array(z.enum(['entra', 'security', 'mail'])).min(1).max(3)
     .refine(packs => packs.includes('entra') && new Set(packs).size === packs.length).optional(),

@@ -5,6 +5,16 @@ export const shodanScanPolicy = z.strictObject({
   grants: z.record(z.string().min(1).max(128), z.array(z.string().regex(/^OP-\d{3}$/)).max(32)),
   maxScanCredits: positive(1000000), maxRequests: positive(1000),
 })
+const operationGrants = (pattern: RegExp) => z.record(z.string().min(1).max(128), z.array(z.string().regex(pattern)).max(32))
+export const shodanWritePolicy = z.strictObject({
+  grants: operationGrants(/^OP-\d{3}$/),
+  maxQueryCredits: positive(1000), maxRequests: positive(1000),
+})
+export const shodanExportPolicy = z.strictObject({
+  grants: operationGrants(/^CLI-\d{3}$/),
+  maxQueryCredits: positive(1000), maxRequests: positive(1000),
+  maxRecords: positive(1000000), maxBytes: positive(1024 * 1024 * 1024), retentionSeconds: positive(86400),
+})
 export const shodanScanInput = z.strictObject({
   scope: z.strictObject({ kind: z.literal('targets'), targets: z.string().min(1).max(4096), force: z.boolean().default(false) }),
   waitSeconds: z.number().int().min(0).max(3600), limit: positive(10000), maxBytes: positive(1024 * 1024), idleTimeout: positive(3600000),

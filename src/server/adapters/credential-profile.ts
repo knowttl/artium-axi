@@ -14,7 +14,7 @@ import { toolAllowsWrites, falconWriteOperations, proxmoxWriteOperations, techni
 import { CredentialInput, credentialFormats, standardCredentialFormats } from './credential-input.js'
 import applicationMode from '../../shared/mg-application-mode.json' with { type: 'json' }
 import { kubernetesSessionPolicy } from '../../shared/kubernetes.js'
-import { shodanScanPolicy, shodanStreamPolicy } from '../../shared/shodan-stream.js'
+import { shodanExportPolicy, shodanScanPolicy, shodanStreamPolicy, shodanWritePolicy } from '../../shared/shodan-stream.js'
 export { isCanonicalHttpsOrigin } from './credential-input.js'
 
 type Schema = Record<string, any>
@@ -83,6 +83,8 @@ export class CredentialProfile {
     if (tool === 'shodan-axi') {
       this.inputSchema.properties.sessions = z.toJSONSchema(shodanStreamPolicy)
       this.inputSchema.properties.scans = z.toJSONSchema(shodanScanPolicy)
+      this.inputSchema.properties.writes = z.toJSONSchema(shodanWritePolicy)
+      this.inputSchema.properties.exports = z.toJSONSchema(shodanExportPolicy)
       this.inputSchema.required = ['auth', 'origin', 'apiKey']
       this.inputSchema.properties.auth = { const: 'api-key' }
       this.inputSchema.properties.origin = { type: 'string', const: 'https://api.shodan.io' }
@@ -313,6 +315,8 @@ export class CredentialProfile {
     if (tool === 'kubernetes-axi') delete parsed.value.collectionDelete
     if (tool === 'shodan-axi') delete parsed.value.sessions
     if (tool === 'shodan-axi') delete parsed.value.scans
+    if (tool === 'shodan-axi') delete parsed.value.writes
+    if (tool === 'shodan-axi') delete parsed.value.exports
     if (tool === 'kubernetes-axi') delete parsed.value.sessions
     if (tool === 'kubernetes-axi') delete parsed.value.acquireCredential
     if (tool === 'awx-axi') delete parsed.value.allowConfigurationWrites

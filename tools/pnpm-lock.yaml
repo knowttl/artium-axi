@@ -45,8 +45,8 @@ importers:
         specifier: 0.1.3
         version: 0.1.3
       '@knowttl/shodan-axi':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.1.2
+        version: 0.1.2
       '@knowttl/ssh-axi':
         specifier: 0.1.2
         version: 0.1.2
@@ -159,8 +159,8 @@ packages:
     engines: {node: '>=24.11.0'}
     hasBin: true
 
-  '@knowttl/shodan-axi@0.1.1':
-    resolution: {integrity: sha512-6IuXgK94SoXuhAYEMisRPbLmBWxWuPs+i4Y6alf8CUfWbp9IGrEQYsfsJimI/lE2HMmxPsDYN+qdDBmmIDpYlQ==}
+  '@knowttl/shodan-axi@0.1.2':
+    resolution: {integrity: sha512-FUVFX9QvSOU59vNkb3snSgASYoj3WhVghQk+fOAf6o1qj1TwocSnNtqRJhXk1Pe6x9Si8TCsGMyiFegCDQ5N4A==}
     engines: {node: '>=24.14.0 <25', npm: '>=11.9.0 <12'}
     hasBin: true
 
@@ -1305,7 +1305,7 @@ snapshots:
       '@toon-format/toon': 2.3.1
       ajv: 8.20.0
 
-  '@knowttl/shodan-axi@0.1.1':
+  '@knowttl/shodan-axi@0.1.2':
     dependencies:
       '@toon-format/toon': 2.3.1
       exceljs: 4.4.0
