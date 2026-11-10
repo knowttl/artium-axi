@@ -61,7 +61,7 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           git fetch --depth=1 origin "$GITHUB_SHA"
-          git checkout "$GITHUB_SHA" -- scripts
+          git checkout "$GITHUB_SHA" -- scripts test/runner/probe.mjs
       - uses: actions/setup-node@v7
         with:
           node-version: "24"

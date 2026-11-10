@@ -1,4 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { Evaluator, Lexer, Parser, data } from '@actions/expressions'
 import { parse } from 'yaml'
 import { expect, test } from 'vitest'
@@ -39,16 +41,51 @@ test.each([
   }
 })
 
-test('release-please runs only for pushes and the dispatched tag only for dispatches', () => {
+test.each([['push', 'true', 'false'], ['workflow_dispatch', 'false', 'true']])('release steps select the %s event', (event, release, existing) => {
   const steps = workflow.jobs['release-please'].steps
-  expect(steps.find(step => step.id === 'release')!.if).toBe("${{ github.event_name == 'push' }}")
-  expect(steps.find(step => step.id === 'existing')!.if).toBe("${{ github.event_name == 'workflow_dispatch' }}")
+  const context = { github: { event_name: event } }
+  expect(evaluate(steps.find(step => step.id === 'release')!.if!, context)).toBe(release)
+  expect(evaluate(steps.find(step => step.id === 'existing')!.if!, context)).toBe(existing)
 })
 
 test('container checks for a dispatched tag run the fixed scripts from main', () => {
-  const overlay = workflow.jobs.containers.steps.find(step => step.if?.includes('workflow_dispatch'))!
-  expect(workflow.jobs.containers.steps.indexOf(overlay)).toBe(1)
-  expect(overlay.run).toContain('git checkout "$GITHUB_SHA" -- scripts')
+  const steps = workflow.jobs.containers.steps
+  const overlay = steps[1]
+  expect(evaluate(overlay.if!, { github: { event_name: 'push' } })).toBe('false')
+  expect(evaluate(overlay.if!, { github: { event_name: 'workflow_dispatch' } })).toBe('true')
+  const directory = mkdtempSync(join(process.cwd(), '.tmp-release-'))
+  try {
+    const git = (...args: string[]) => {
+      const result = spawnSync('git', args, { cwd: directory, encoding: 'utf8' })
+      expect(result.status, result.stderr).toBe(0)
+      return result.stdout.trim()
+    }
+    git('init')
+    git('config', 'user.email', 'test@example.invalid')
+    git('config', 'user.name', 'Test')
+    mkdirSync(join(directory, 'scripts'))
+    mkdirSync(join(directory, 'test', 'runner'), { recursive: true })
+    writeFileSync(join(directory, 'scripts', 'check'), 'tag scripts')
+    writeFileSync(join(directory, 'test', 'runner', 'probe.mjs'), 'tag probe')
+    writeFileSync(join(directory, 'release'), 'tag release')
+    git('add', '.')
+    git('commit', '-m', 'tag')
+    const tag = git('rev-parse', 'HEAD')
+    writeFileSync(join(directory, 'scripts', 'check'), 'main scripts')
+    writeFileSync(join(directory, 'test', 'runner', 'probe.mjs'), 'main probe')
+    writeFileSync(join(directory, 'release'), 'main release')
+    git('commit', '-am', 'main')
+    const main = git('rev-parse', 'HEAD')
+    git('remote', 'add', 'origin', directory)
+    git('checkout', '--detach', tag)
+    const result = spawnSync('bash', ['-e', '-c', overlay.run!], { cwd: directory, env: { ...process.env, GITHUB_SHA: main }, encoding: 'utf8' })
+    expect(result.status, result.stderr).toBe(0)
+    expect(readFileSync(join(directory, 'scripts', 'check'), 'utf8')).toBe('main scripts')
+    expect(readFileSync(join(directory, 'test', 'runner', 'probe.mjs'), 'utf8')).toBe('main probe')
+    expect(readFileSync(join(directory, 'release'), 'utf8')).toBe('tag release')
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 })
 
 test('npm publication waits for container acceptance of the release tag', () => {
