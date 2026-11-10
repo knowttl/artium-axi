@@ -113,6 +113,11 @@ The publish job installs frozen dependencies, builds the project, then stages th
 It skips publication when no release was created or the staged version already exists on npm.
 After npm publication succeeds, the release-only image job builds the same release tag's Dockerfile for Linux amd64 and publishes `ghcr.io/knowttl/artium-axi:<release-tag>`.
 It preserves the pinned upstream tools and bundled client; server deployment remains a separate operation.
+To publish an existing release tag whose publication failed, run the workflow manually from `main` with the `tag` input set to that tag in `v1.2.3` format.
+A manual run builds and publishes from the tag, and takes only the container acceptance tooling from the workflow's own ref, `main`.
+After checking out the tag, the containers job replaces `scripts/container-checks.mjs`, the image, headless and runner check scripts, `scripts/host-limits.mjs` and `test/runner/probe.mjs` with their `main` versions.
+This applies the Docker resource caps to acceptance for tags that predate them; acceptance must still pass before publication.
+The npm publish and image jobs use the tag unchanged and run only after acceptance passes.
 The image carries OCI version, source and checked-out revision labels, BuildKit provenance and a GitHub build-provenance attestation bound to the pushed digest.
 The image job exposes the digest as an output and records the immutable `ghcr.io/knowttl/artium-axi@sha256:...` identity, tag and revision in the workflow summary.
 Use that digest for deployments and rollback records; version tags can move on a rerun.

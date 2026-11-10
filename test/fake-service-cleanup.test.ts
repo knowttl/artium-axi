@@ -40,6 +40,8 @@ vi.mock('node:child_process', async importOriginal => ({
       }
       if (docker.failure !== 'runner-build' || docker.partial) docker.images.add(image)
       if (docker.failure === 'runner-build') return { ...result, status: 1, stderr: 'Synthetic build failure' }
+    } else if (args[0] === 'info') {
+      result.stdout = JSON.stringify({ NCPU: 4, MemTotal: 4 * 2 ** 30 })
     } else if (args[0] === 'run' || (args[0] === 'network' && args[1] === 'create')) {
       if (args.includes('test/runner/probe.mjs')) docker.used.push(args[args.indexOf('node') - 1])
       const kind = args[0] === 'run' ? 'container' : 'network'

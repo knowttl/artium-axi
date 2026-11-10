@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { memoryLimit } from './host-limits.mjs'
 
 const image = `artium-test-runner-s09-10-${randomUUID()}`
 const containers = []
@@ -15,11 +16,12 @@ try {
   command(process.execPath, ['scripts/build-fake-service-image.mjs', '--runner', image], 0)
   for (const mode of ['tmpfs', 'memory']) {
     const name = `artium-test-runner-${randomUUID()}`
+    const memory = memoryLimit(mode === 'memory' ? 256 : 6144)
     containers.push(name)
     console.log(`container-resource: ${JSON.stringify({ container: name, image })}`)
     command('docker', ['run', '--name', name, '--pull', 'never', '--init', '--network', 'none', '--read-only',
-      '--memory', mode === 'memory' ? '256m' : '6g', '--memory-swap', mode === 'memory' ? '256m' : '6g', '--pids-limit', '192',
-      '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,nr_inodes=1024,mode=1777', image, 'node', 'test/runner/probe.mjs', mode])
+      '--memory', memory, '--memory-swap', memory, '--pids-limit', '192',
+      '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,nr_inodes=1024,mode=1777', image, 'node', 'test/runner/probe.mjs', mode, String(parseInt(memory, 10) * 2 ** 20)])
   }
 } catch (error) {
   console.error(`runner-container: unverified: ${error.message}`)

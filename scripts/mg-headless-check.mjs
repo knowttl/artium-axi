@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { performance } from 'node:perf_hooks'
+import { memoryLimit } from './host-limits.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const name = `artium-test-mg-${randomUUID()}`
@@ -26,7 +27,7 @@ try {
   { stdio: 'inherit' })
   if (result.error || result.status !== 0) throw new Error(result.error?.message ?? `Headless probe exited ${result.status}`)
   const adapter = spawnSync('docker', ['run', '--name', `${name}-adapter`, '--pull', 'never', '--network', 'none',
-    '--user', '10001:10001', '--memory', '768m', '--pids-limit', '192',
+    '--user', '10001:10001', '--memory', memoryLimit(768), '--pids-limit', '192',
     '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
     '--tmpfs', '/tmp:rw,noexec,nosuid,size=32m', '--env', 'HOME=/tmp',
     '--mount', `type=bind,src=${root},dst=/work,readonly`, '--workdir', '/work',

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { performance } from 'node:perf_hooks'
 import { buildInputs, digest } from './build-inputs.mjs'
+import { cpuLimit, memoryLimit } from './host-limits.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 process.chdir(root)
@@ -35,7 +36,7 @@ try {
   attempted = true
   await command('docker', ['run', '--detach', '--pull', 'never', '--privileged', '--name', builder,
     '--label', `artium-test.root=${root}`, '--label', `artium-test.token=${token}`,
-    '--cpus', '6', '--memory', '4g', '--tmpfs', '/var/lib/buildkit:rw,exec,size=3221225472',
+    '--cpus', cpuLimit(6), '--memory', memoryLimit(4096), '--tmpfs', '/var/lib/buildkit:rw,exec,size=3221225472',
     '--mount', `type=bind,src=${root},dst=/context,readonly`,
     'moby/buildkit:buildx-stable-1', '--oci-worker-snapshotter=overlayfs'])
   const env = { ...process.env, ARTIUM_TEST_BUILDER: builder, ARTIUM_TEST_BUILD_TOKEN: token }
@@ -97,19 +98,19 @@ try {
       const kubernetesSessions = `${builder}-kubernetes-sessions`
       recoveryContainers.push(kubernetesSessions)
       await command('docker', ['run', '--name', kubernetesSessions, '--pull', 'never', '--init', '--network', 'none', '--read-only',
-        '--memory', '6g', '--memory-swap', '6g', '--pids-limit', '192',
+        '--memory', memoryLimit(6144), '--memory-swap', memoryLimit(6144), '--pids-limit', '192',
         '--tmpfs', '/tmp:rw,nosuid,nodev,size=536870912,mode=1777',
         '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/dist/test/fake-service/kubernetes-sessions-probe.js'])
       const gitea = `${builder}-gitea`
       recoveryContainers.push(gitea)
       await command('docker', ['run', '--name', gitea, '--pull', 'never', '--init', '--network', 'none', '--read-only',
-        '--memory', '6g', '--memory-swap', '6g', '--pids-limit', '192',
+        '--memory', memoryLimit(6144), '--memory-swap', memoryLimit(6144), '--pids-limit', '192',
         '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
         '--tmpfs', '/tmp/artium-artifacts:rw,noexec,nosuid,nodev,size=1073741824,mode=0700,uid=10001,gid=10001',
         '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/dist/test/fake-service/gitea-probe.js'])
       recoveryContainers.push(artifacts)
       await command('docker', ['run', '--name', artifacts, '--pull', 'never', '--init', '--network', 'none', '--read-only',
-        '--memory', '6g', '--memory-swap', '6g', '--pids-limit', '192',
+        '--memory', memoryLimit(6144), '--memory-swap', memoryLimit(6144), '--pids-limit', '192',
         '--tmpfs', '/tmp:rw,nosuid,nodev,size=268435456,mode=1777',
         '--tmpfs', '/tmp/artium-artifacts:rw,noexec,nosuid,nodev,size=1073741824,mode=0700,uid=10001,gid=10001',
         '--mount', `type=bind,src=${root},dst=/work,readonly`, image, 'node', '/work/test/runner/artifact-probe.mjs'])
