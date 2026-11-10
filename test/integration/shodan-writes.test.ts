@@ -136,6 +136,30 @@ test('execute refuses changed input without sending the write', async () => {
   })
 })
 
+test.each([
+  { previewInstance: 'default', executeInstance: undefined },
+  { previewInstance: undefined, executeInstance: 'default' },
+])('execute refuses a changed instance field', async ({ previewInstance, executeInstance }) => {
+  await withWriteApp(async ({ post, requests }) => {
+    const preview = await post('preview', { ...alert, instance: previewInstance })
+    expect(preview.statusCode, preview.body).toBe(200)
+    const response = await post('execute', { ...alert, instance: executeInstance, confirm: preview.json().confirm })
+    expect([response.statusCode, response.json().error.code]).toEqual([400, 'INVALID_INPUT'])
+    expect((await requests()).filter(entry => entry.method !== 'GET')).toEqual([])
+  })
+})
+
+test('execute accepts the same explicitly selected instance', async () => {
+  await withWriteApp(async ({ post }) => {
+    const input = { ...alert, instance: 'default' }
+    const preview = await post('preview', input)
+    expect(preview.statusCode, preview.body).toBe(200)
+    const response = await post('execute', { ...input, confirm: preview.json().confirm })
+    expect(response.statusCode, response.body).toBe(200)
+    expect(response.json()).toMatchObject({ status: 'completed' })
+  })
+})
+
 test('concurrent previews cannot exceed the per-user plan quota', async () => {
   await withWriteApp(async ({ post }) => {
     for (let i = 0; i < 7; i++) expect((await post('preview', alert)).statusCode).toBe(200)

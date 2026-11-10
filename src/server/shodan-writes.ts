@@ -17,7 +17,7 @@ import { executeShodanWrite, previewShodanWrite, shodanWriteOperation } from './
 import type { CredentialReference } from './store/credential-store.js'
 
 type Input = z.infer<typeof shodanWriteInput>
-interface Plan { id: string, owner: ShodanOwner, credential: CredentialReference, instance: string, inputHash: string, operation: string,
+interface Plan { id: string, owner: ShodanOwner, credential: CredentialReference, instance: string, requestedInstance: string | undefined, inputHash: string, operation: string,
   token: string, directory: string, binding: string, expiresAt: number, timer: NodeJS.Timeout }
 
 function inputHash(input: Input) {
@@ -65,7 +65,7 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
       const preview = await runner.runManaged(owner.user, undefined, signal => previewShodanWrite(directory, adapter, credential, input, operation,
         signal, check, runner.configuredCaPem))
       if (closing) throw new ArtiumError('CANCELLED')
-      const plan: Plan = { id, owner, credential, instance: binding.instance, inputHash: inputHash(input), operation, token: preview.token, directory, binding: binding.hash,
+      const plan: Plan = { id, owner, credential, instance: binding.instance, requestedInstance: instance, inputHash: inputHash(input), operation, token: preview.token, directory, binding: binding.hash,
         expiresAt: Date.now() + 15 * 60 * 1000, timer: setTimeout(() => {}, 0) }
       clearTimeout(plan.timer)
       plan.timer = setTimeout(() => { void discard(plan) }, 15 * 60 * 1000).unref()
@@ -86,7 +86,7 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
     clearTimeout(plan.timer); plans.delete(plan.id)
     const { confirm: _confirm, instance, ...input } = body
     try {
-      if (plan.expiresAt <= Date.now() || instance !== undefined && instance !== plan.instance
+      if (plan.expiresAt <= Date.now() || instance !== plan.requestedInstance
         || inputHash(input) !== plan.inputHash) throw new ArtiumError('INVALID_INPUT')
       authorize(plan)
       const identity = { credentialId: plan.credential.id, instance: plan.instance }
