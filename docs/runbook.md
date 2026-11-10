@@ -690,11 +690,12 @@ After `OUTCOME_UNKNOWN`, `READBACK_UNVERIFIED` or a lost response, inspect the r
 The returned native outcome includes completed and unsent steps when available; a failed readback does not establish that the mutation failed.
 
 Shodan export jobs keep one gzip file under `<database directory>/tool-logs/shodan-axi/exports/export-<id>/` until it is retrieved once or the `exports` retention interval ends, counted from completion.
-A user may hold two export jobs and the server eight; a pending preview also holds a private directory until its confirmation is used or expires after fifteen minutes.
+A user may hold two export jobs and the server eight; a user may also hold eight pending previews and the server 128, including previews in progress.
+A pending preview holds a private directory until its confirmation is used or expires after fifteen minutes.
 An incomplete export stays retrievable and is reported as `partial`; a failed export keeps no file.
 Retrieval deletes the file whether or not the transfer finishes, so start a fresh preview and confirmation after an interrupted transfer.
 Shutdown or relevant authorization changes delete pending previews and retained files; restart removes abandoned `export-*` directories without restoring them.
-For `TOO_MANY_CALLS`, retrieve or wait out earlier exports.
+For `TOO_MANY_CALLS`, retrieve or wait out earlier exports, or wait for pending previews to expire.
 
 Kubernetes native mutation requests persist under `<database directory>/tool-logs/kubernetes-axi/workflow/` in private scopes bound to caller, sign-in family and credential revision.
 Each call removes its temporary SecretRef profile after process settlement; the native request plan, signing key, atomic claim and outcome remain together without copying claims between call directories.
