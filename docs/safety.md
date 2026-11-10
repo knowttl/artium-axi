@@ -57,6 +57,8 @@ Local integration tests execute installed commands and plugin exports; actual ag
 ## Raw API access
 
 Raw API calls require both the tool's `raw_api_mode` and a current role tool grant with `raw_api = 1`, in addition to ordinary tool access.
+For a shared-credential tool, the same role tool grant must also cover the selected instance, either through all-instance access or an explicit instance grant.
+Raw access on one role does not extend to an instance granted only by another role.
 New tool rows default to mode `off`; new role tool grants default to no raw access, including grants removed and later re-added.
 Saving a role's tool selection preserves raw access on retained grants.
 The governed routes are `api` for GitHub, Azure, Azure DevOps and Gitea, and `api get` for Microsoft Graph, Vectra and Hybrid Analysis.
