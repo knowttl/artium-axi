@@ -115,6 +115,26 @@ test('execute refuses changed input without sending the write', async () => {
   })
 })
 
+test('concurrent previews cannot exceed the per-user plan quota', async () => {
+  await withWriteApp(async ({ post }) => {
+    for (let i = 0; i < 7; i++) expect((await post('preview', alert)).statusCode).toBe(200)
+    const responses = await Promise.all([post('preview', alert), post('preview', alert)])
+    expect(responses.map(response => response.statusCode).sort()).toEqual([200, 429])
+  })
+})
+
+test('execute accepts notifier arguments in a different key order', async () => {
+  await withWriteApp(async ({ post }) => {
+    const body = { ...notifier.body, args: { url: 'https://hooks.example.test/synthetic', token: 'synthetic-token' } }
+    const preview = await post('preview', { ...notifier, body })
+    expect(preview.statusCode, preview.body).toBe(200)
+    const response = await post('execute', { ...notifier, body: { ...body, args: { token: 'synthetic-token', url: body.args.url } },
+      confirm: preview.json().confirm })
+    expect(response.statusCode, response.body).toBe(200)
+    expect(response.json()).toMatchObject({ status: 'completed' })
+  })
+})
+
 test('execute refuses when observed state changed after preview', async () => {
   await withWriteApp(async ({ post, requests, send, stagedPlans }) => {
     const { confirm } = (await post('preview', member)).json()

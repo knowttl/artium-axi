@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, readdir, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
@@ -24,6 +25,8 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
   adapter: Adapter<unknown>, runner: Runner, audit: Audit, sessions: ReturnType<typeof registerShodanSessions>) {
   const prefix = '/v1/tools/shodan-axi/writes', root = join(dirname(db.name), 'tool-logs', 'shodan-axi', 'writes')
   const plans = new Map<string, Plan>()
+  const pending = new Map<string, string>()
+  let closing = false
   const initialized = (async () => {
     await mkdir(root, { recursive: true, mode: 0o700 })
     for (const name of await readdir(root)) await rm(join(root, name), { recursive: true, force: true })
@@ -48,13 +51,16 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
     const credential = await resolver.resolve(owner.user, 'shodan-axi', instance)
     const binding = shodanWriteBinding(db, owner, credential, [operation])
     if (input.queryCreditBudget > binding.settings.maxQueryCredits || input.maxRequests > binding.settings.maxRequests) throw new ArtiumError('INVALID_INPUT')
-    if (plans.size >= 128 || [...plans.values()].filter(plan => plan.owner.user === owner.user).length >= 8) throw new ArtiumError('TOO_MANY_CALLS')
-    await initialized
+    if (closing || plans.size + pending.size >= 128 || [...plans.values()].filter(plan => plan.owner.user === owner.user).length
+      + [...pending.values()].filter(user => user === owner.user).length >= 8) throw new ArtiumError('TOO_MANY_CALLS')
     const id = randomUUID(), directory = join(root, `write-${id}`)
+    pending.set(id, owner.user)
     const check = () => authorize({ owner, credential, binding: binding.hash, operation })
     try {
+      await initialized
       const preview = await runner.runManaged(owner.user, undefined, signal => previewShodanWrite(directory, adapter, credential, input, operation,
         signal, check, runner.configuredCaPem))
+      if (closing) throw new ArtiumError('CANCELLED')
       const plan: Plan = { id, owner, credential, instance: binding.instance, input, operation, token: preview.token, directory, binding: binding.hash,
         expiresAt: Date.now() + 15 * 60 * 1000, timer: setTimeout(() => {}, 0) }
       clearTimeout(plan.timer)
@@ -66,7 +72,7 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
     } catch (error) {
       await rm(directory, { recursive: true, force: true })
       throw error
-    }
+    } finally { pending.delete(id) }
   })
 
   app.post(prefix + '/execute', async request => {
@@ -77,7 +83,7 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
     const { confirm: _confirm, instance, ...input } = body
     try {
       if (plan.expiresAt <= Date.now() || instance !== undefined && instance !== plan.instance
-        || JSON.stringify(input) !== JSON.stringify(plan.input)) throw new ArtiumError('INVALID_INPUT')
+        || !isDeepStrictEqual(input, plan.input)) throw new ArtiumError('INVALID_INPUT')
       authorize(plan)
       const identity = { credentialId: plan.credential.id, instance: plan.instance }
       const base = { userId: owner.user, tool: 'shodan-axi' as const, requestId: plan.id, clientAddress: request.ip, ...identity }
@@ -104,6 +110,7 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
   const monitor = setInterval(() => { void reconcile().catch(() => {}) }, 1000).unref()
   app.addHook('onSend', reconcile)
   sessions.onShutdown(async () => {
+    closing = true
     clearInterval(monitor)
     await Promise.all([...plans.values()].map(discard))
   })
