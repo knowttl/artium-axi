@@ -62,7 +62,7 @@ function vectraArguments(args: readonly string[], input: RunnerInput = {}) {
     } else normalized.push(token)
   }
   return { args: normalized, fileArguments, invocation: { command, help },
-    effect: args.some(arg => arg === '--execute' || arg.startsWith('--execute=')) ? 'write' as const : 'read' as const }
+    effect: !help && args.some(arg => arg === '--execute' || arg.startsWith('--execute=')) ? 'write' as const : 'read' as const }
 }
 
 export function createVectraAdapter(source: SecretSource, writeLog: string,
@@ -73,7 +73,7 @@ export function createVectraAdapter(source: SecretSource, writeLog: string,
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: vectraManifest.unsafeOverrides.map(name => `--${name}`),
     allowedFlagValues: {}, sensitiveArguments: () => ({ flags: ['--note'], positions: [] }),
     validateArgs: (args, input) => { vectraArguments(args, input) },
-    executesWrite: (args, input) => { const call = vectraArguments(args, input); return !call.invocation.help && call.effect === 'write' },
+    executesWrite: (args, input) => vectraArguments(args, input).effect === 'write',
     rawApi: { commands: ['api get'], writes: false, help: (args, input) => vectraArguments(args, input).invocation.help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(
       inventory.commands.map(route => ({ ...route, effect: vectraReadCommands.has(route.command) ? 'read' : 'write' })),

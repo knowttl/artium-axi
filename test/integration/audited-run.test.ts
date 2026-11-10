@@ -879,6 +879,28 @@ test('a classified write cancelled after child start records an unknown outcome'
   expect(db.prepare("SELECT outcome FROM audit WHERE event = 'run-terminal'").get()).toEqual({ outcome: 'UNKNOWN_OUTCOME' })
 })
 
+test('read-only Vectra allows help but denies execution before preparation', async () => {
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'vectra-axi')")
+  const credential = vi.fn(async () => ({ kind: 'qux' as const, apiVersion: '2.5' as const, auth: 'token' as const,
+    token: 'CANARY-vectra-token', origin: 'https://synthetic.invalid' }))
+  const vectra = createVectraAdapter({ getCredential: credential }, join(directory, 'vectra-writes.log'))
+  const identities = new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'synthetic-vectra', tool: 'vectra-axi', revision: 1 }, value: {}, readOnly: true },
+  ]).seed(db))
+  vi.spyOn(childProcess, 'spawn').mockImplementation((...spawnArgs: Parameters<typeof childProcess.spawn>) =>
+    actualChildProcess.spawn(process.execPath, ['-e', 'console.log("synthetic help")'], spawnArgs[2]))
+  const args = ['detection', 'triage', 'set', '--execute']
+  await expect(runTool(db, audit, runner, token, { args }, vectra, identities, context)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  expect(credential).not.toHaveBeenCalled()
+  const result = await runTool(db, audit, runner, token, { args: [...args, '--help'] }, vectra, identities,
+    { ...context, requestId: 'synthetic-help' })
+  expect(result).toMatchObject({ exitCode: 0, stdout: 'synthetic help\n' })
+  expect(db.prepare("SELECT event, outcome FROM audit WHERE tool = 'vectra-axi' ORDER BY id").all()).toEqual([
+    { event: 'denial', outcome: 'FLAG_BLOCKED' }, { event: 'run-start', outcome: 'started' },
+    { event: 'run-terminal', outcome: 'completed' },
+  ])
+})
+
 test('credential preparation failure completes its start with a safe code', async () => {
   getCredential.mockRejectedValueOnce(new Error('CANARY-private-diagnostic'))
   await expect(runTool(db, audit, runner, token, { args: ['print'] }, adapter, resolver, context)).rejects.toThrow('CANARY-private-diagnostic')

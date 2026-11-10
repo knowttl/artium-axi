@@ -190,7 +190,7 @@ export async function runTool<Credential>(
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
         : await adapter.prepare(args, reference!, input)
       const preview = prepared.preview || prepared.effect === 'read' && !prepared.protectedResult
-      const writes = () => prepared.effect === 'write' || !!prepared.write || !prepared.invocation?.help && !preview && writeRequested()
+      const writes = () => !prepared.invocation?.help && (prepared.effect === 'write' || !!prepared.write || !preview && writeRequested())
       if (instanceReadOnly && writes()) {
         audit.record({ ...identity, event: 'denial', outcome: 'FLAG_BLOCKED' })
         throw new ArtiumError('FLAG_BLOCKED')
