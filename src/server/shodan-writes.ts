@@ -1,7 +1,6 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readdir, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { isDeepStrictEqual } from 'node:util'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
@@ -18,8 +17,13 @@ import { executeShodanWrite, previewShodanWrite, shodanWriteOperation } from './
 import type { CredentialReference } from './store/credential-store.js'
 
 type Input = z.infer<typeof shodanWriteInput>
-interface Plan { id: string, owner: ShodanOwner, credential: CredentialReference, instance: string, input: Input, operation: string,
+interface Plan { id: string, owner: ShodanOwner, credential: CredentialReference, instance: string, inputHash: string, operation: string,
   token: string, directory: string, binding: string, expiresAt: number, timer: NodeJS.Timeout }
+
+function inputHash(input: Input) {
+  return createHash('sha256').update(JSON.stringify(input, (_key, value: unknown) =>
+    value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) : value)).digest('hex')
+}
 
 export function registerShodanWrites(app: FastifyInstance, db: Database.Database, resolver: IdentityResolver,
   adapter: Adapter<unknown>, runner: Runner, audit: Audit, sessions: ReturnType<typeof registerShodanSessions>) {
@@ -61,7 +65,7 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
       const preview = await runner.runManaged(owner.user, undefined, signal => previewShodanWrite(directory, adapter, credential, input, operation,
         signal, check, runner.configuredCaPem))
       if (closing) throw new ArtiumError('CANCELLED')
-      const plan: Plan = { id, owner, credential, instance: binding.instance, input, operation, token: preview.token, directory, binding: binding.hash,
+      const plan: Plan = { id, owner, credential, instance: binding.instance, inputHash: inputHash(input), operation, token: preview.token, directory, binding: binding.hash,
         expiresAt: Date.now() + 15 * 60 * 1000, timer: setTimeout(() => {}, 0) }
       clearTimeout(plan.timer)
       plan.timer = setTimeout(() => { void discard(plan) }, 15 * 60 * 1000).unref()
@@ -83,7 +87,7 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
     const { confirm: _confirm, instance, ...input } = body
     try {
       if (plan.expiresAt <= Date.now() || instance !== undefined && instance !== plan.instance
-        || !isDeepStrictEqual(input, plan.input)) throw new ArtiumError('INVALID_INPUT')
+        || inputHash(input) !== plan.inputHash) throw new ArtiumError('INVALID_INPUT')
       authorize(plan)
       const identity = { credentialId: plan.credential.id, instance: plan.instance }
       const base = { userId: owner.user, tool: 'shodan-axi' as const, requestId: plan.id, clientAddress: request.ip, ...identity }
@@ -91,7 +95,7 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
       const startedAt = Date.now()
       let result: Awaited<ReturnType<typeof executeShodanWrite>> | undefined
       try {
-        result = await runner.runManaged(owner.user, undefined, signal => executeShodanWrite(plan.directory, adapter, plan.credential, plan.input,
+        result = await runner.runManaged(owner.user, undefined, signal => executeShodanWrite(plan.directory, adapter, plan.credential, input,
           plan.operation, plan.token, signal, () => authorize(plan), runner.configuredCaPem))
         return result
       } finally {

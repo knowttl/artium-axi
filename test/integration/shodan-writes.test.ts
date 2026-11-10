@@ -1,6 +1,6 @@
-import { readdirSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { createShodanAdapter } from '../../src/server/adapters/shodan.js'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -15,7 +15,7 @@ import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { withFakeService } from '../fake-service/fixture.js'
 
 const user = 'synthetic-development-user'
-const writes = { grants: { [user]: ['OP-013', 'OP-027', 'OP-037'] }, maxQueryCredits: 5, maxRequests: 10 }
+const writes = { grants: { [user]: ['OP-013', 'OP-027', 'OP-037', 'OP-038'] }, maxQueryCredits: 5, maxRequests: 10 }
 const alert = { command: 'alert create', arguments: ['Fresh alert', '198.51.100.0/24'], queryCreditBudget: 2, maxRequests: 4 }
 const member = { command: 'org add', arguments: ['new.member@example.test'], queryCreditBudget: 2, maxRequests: 4, silent: true }
 const notifier = { command: 'notifier create', arguments: [], queryCreditBudget: 2, maxRequests: 4,
@@ -40,7 +40,9 @@ async function prepare({ directory, port, send }: { directory: string, port: num
   db.prepare("UPDATE tools SET enabled=1,native_settings=? WHERE name='shodan-axi'").run(JSON.stringify({ writes: policy }))
   const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
   const real = createShodanAdapter(new EmbeddedSecretSource(store))
+  let preparations = 0
   const adapter = { ...real, async prepare(...args: Parameters<typeof real.prepare>) {
+    preparations++
     const call = await real.prepare(...args)
     for (const file of call.files) if (typeof file.content === 'string') file.content = file.content.replace('https://api.shodan.io', `https://localhost:${port}`)
     return call
@@ -52,7 +54,7 @@ async function prepare({ directory, port, send }: { directory: string, port: num
     headers: { authorization: `Bearer ${bearer}` }, payload })
   const requests = async () => (JSON.parse(await send('/__evidence')) as { requests: { method: string, path: string }[] }).requests
   const stagedPlans = () => readdirSync(join(directory, 'tool-logs/shodan-axi/writes'))
-  return { app, db, token, post, requests, stagedPlans, send, directory }
+  return { app, db, token, post, requests, stagedPlans, send, directory, preparations: () => preparations }
 }
 
 test('preview binds observed state without writing and execute applies it once', async () => {
@@ -103,6 +105,25 @@ test('preview refuses a read-only credential before any upstream request', async
     const response = await post('preview', alert)
     expect([response.statusCode, response.json().error.code]).toEqual([400, 'FLAG_BLOCKED'])
     expect(await requests()).toEqual([])
+  })
+})
+
+test('preview gates run before credential preparation in order', async () => {
+  await withWriteApp(async ({ db, post, preparations }) => {
+    db.exec("UPDATE tools SET enabled=0 WHERE name='shodan-axi'; UPDATE credentials SET read_only=1 WHERE tool='shodan-axi'")
+    const ungranted = { ...alert, command: 'alert remove', arguments: ['synthetic-alert'], maxRequests: 11 }
+    expect((await post('preview', ungranted, 'invalid')).json().error.code).toBe('TOKEN_INVALID')
+    expect((await post('preview', ungranted)).json().error.code).toBe('TOOL_DISABLED')
+    db.exec("UPDATE tools SET enabled=1 WHERE name='shodan-axi'")
+    expect((await post('preview', ungranted)).json().error.code).toBe('TOOL_NOT_GRANTED')
+    expect((await post('preview', { ...alert, maxRequests: 11 })).json().error.code).toBe('FLAG_BLOCKED')
+    db.exec("UPDATE credentials SET read_only=0 WHERE tool='shodan-axi'")
+    expect((await post('preview', { ...alert, maxRequests: 11 })).json().error.code).toBe('INVALID_INPUT')
+    expect(preparations()).toBe(0)
+    for (let i = 0; i < 8; i++) expect((await post('preview', alert)).statusCode).toBe(200)
+    expect(preparations()).toBe(8)
+    expect((await post('preview', alert)).json().error.code).toBe('TOO_MANY_CALLS')
+    expect(preparations()).toBe(8)
   })
 })
 
@@ -158,15 +179,34 @@ test('execute reports an unknown outcome when the write response is lost', async
 })
 
 test('notifier secrets stay out of previews, results and retained files', async () => {
-  await withWriteApp(async ({ post, stagedPlans, db }) => {
-    const preview = await post('preview', notifier)
+  await withWriteApp(async ({ post, stagedPlans, db, directory }) => {
+    const logs = vi.spyOn(process.stderr, 'write')
+    try {
+      const preview = await post('preview', notifier)
+      expect(preview.statusCode, preview.body).toBe(200)
+      expect(preview.json()).toMatchObject({ operation: 'OP-027', arguments: ['url'], effects: [{ operation: 'OP-027', target: 'webhook' }] })
+      const root = join(directory, 'tool-logs/shodan-axi/writes')
+      const files = readdirSync(root, { recursive: true, withFileTypes: true }).filter(entry => entry.isFile())
+      for (const file of files) expect(readFileSync(join(file.parentPath, file.name)).includes('CANARY-body-secret')).toBe(false)
+      const executed = await post('execute', { ...notifier, confirm: preview.json().confirm })
+      expect(executed.statusCode, executed.body).toBe(200)
+      expect(executed.json()).toMatchObject({ status: 'completed', steps: [{ operation: 'OP-027', status: 'verified' }] })
+      expect(preview.body + executed.body + JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
+      expect(JSON.stringify(logs.mock.calls)).not.toContain('CANARY-body-secret')
+      expect(stagedPlans()).toEqual([])
+    } finally { logs.mockRestore() }
+  })
+})
+
+test('organization removal previews downgrade and verifies removal', async () => {
+  await withWriteApp(async ({ post }) => {
+    const input = { ...member, command: 'org remove', arguments: ['reader@example.test'], silent: undefined }
+    const preview = await post('preview', input)
     expect(preview.statusCode, preview.body).toBe(200)
-    expect(preview.json()).toMatchObject({ operation: 'OP-027', arguments: ['url'], effects: [{ operation: 'OP-027', target: 'webhook' }] })
-    const executed = await post('execute', { ...notifier, confirm: preview.json().confirm })
-    expect(executed.statusCode, executed.body).toBe(200)
-    expect(executed.json()).toMatchObject({ status: 'completed', steps: [{ operation: 'OP-027', status: 'verified' }] })
-    expect(preview.body + executed.body + JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
-    expect(stagedPlans()).toEqual([])
+    expect(preview.json()).toMatchObject({ operation: 'OP-038', effects: [{ operation: 'OP-038', method: 'DELETE', downgrade: true }] })
+    const result = await post('execute', { ...input, confirm: preview.json().confirm })
+    expect(result.statusCode, result.body).toBe(200)
+    expect(result.json()).toMatchObject({ status: 'completed', steps: [{ operation: 'OP-038', status: 'verified' }] })
   })
 })
 
