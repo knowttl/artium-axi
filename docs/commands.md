@@ -264,7 +264,6 @@ artium-axi shodan-axi domain example.test --allow-operation OP-040 --query-credi
 Use `artium-axi shodan-axi host --help` or `search --help` for command-specific flags.
 See the [supported boundary](safety.md#shodan) for available read families and credit requirements.
 Use `artium-axi shodan-axi version` to print the packaged version or `version --help` for help; `version` does not accept `--json`.
-For organization removal, the native tool reports downgrade as a preview effect, not an input flag.
 For a targeted scan, use `artium-axi shodan-axi scan submit --help` and ask an administrator to grant the required scan operations and budgets.
 Preview with `artium-axi shodan-axi scan submit 192.0.2.1 --allow-operation OP-009 --scan-credit-budget 1 --max-requests 1 --json`.
 Preview the exact arguments first, then repeat them with `--execute --confirm <token>`.
