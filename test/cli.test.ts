@@ -21,6 +21,8 @@ import { hostedStatus } from '../src/server/adapters/hosted-status.js'
 import { SessionStore } from '../src/cli/session.js'
 import { Client, DEFAULT_REQUEST_DEADLINE_MS } from '../src/cli/http.js'
 import { kubernetesHosted } from '../src/cli/kubernetes.js'
+import { shodanWrite } from '../src/cli/shodan-write.js'
+import { shodanBulkWriteDeadlineMs } from '../src/shared/shodan-write.js'
 import { cliVersion } from '../src/shared/version.js'
 import { ArtiumError, errorResponse, errors } from '../src/shared/errors.js'
 
@@ -719,6 +721,41 @@ function privateFile(content: string | Buffer, mode = 0o600) {
   writeFileSync(path, content, { mode })
   return path
 }
+
+test.each([
+  { name: 'clear', args: ['alert', 'clear', '--allow-operation', 'OP-015'] },
+  { name: 'domain', args: ['alert', 'domain', 'example.test', '--allow-operation', 'OP-040,OP-013,OP-019'] },
+  { name: 'import', args: ['alert', 'import', 'FILE', '--allow-operation', 'OP-013'] },
+].flatMap(item => [false, true].map(executeWrite => ({ ...item, executeWrite }))))
+('Shodan bulk $name survives the ordinary deadline and reports timeout: execute=$executeWrite', async ({ args, executeWrite }) => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  const path = `/v1/tools/shodan-axi/writes/${executeWrite ? 'execute' : 'preview'}`
+  const client = new Client({ ARTIUM_AXI_URL: url, ARTIUM_AXI_CA_FILE: join(directory, 'ca.crt'),
+    XDG_CONFIG_HOME: mkdtempSync(join(directory, 'shodan-deadline-')) })
+  client.sessions.write({ status: 'authenticated', accessToken: 'CANARY-token', refreshToken: 'CANARY-refresh',
+    accessExpiresAt: Date.now() + 3600_000, familyExpiresAt: Date.now() + 43200_000 })
+  doctorResponses = { '/v1/me': { status: 200, body: {} }, [path]: { status: 200, body: { status: 'completed' } } }
+  let signalWaiting!: () => void, releaseReply!: () => void
+  const waiting = new Promise<void>(resolve => { signalWaiting = resolve })
+  const release = new Promise<void>(resolve => { releaseReply = resolve })
+  beforeReply = async requestPath => { if (requestPath === path) { signalWaiting(); await release } }
+  const importPath = privateFile('[{"name":"edge","filters":{"ip":["192.0.2.0/24"]}}]')
+  let settled = false
+  const result = shodanWrite([...args.map(arg => arg === 'FILE' ? importPath : arg), ...writeBounds,
+    ...(executeWrite ? ['--execute', '--confirm', writeToken] : [])], () => client, () => {})
+    .then(value => { settled = true; return value }, error => { settled = true; return error })
+  try {
+    await waiting
+    await vi.advanceTimersByTimeAsync(90_001)
+    expect(settled).toBe(false)
+    await vi.advanceTimersByTimeAsync(shodanBulkWriteDeadlineMs)
+    const error = await result
+    expect(error).toMatchObject({ code: 'SERVER_UNAVAILABLE', ...(executeWrite ? { next: expect.stringContaining('Inspect affected objects before retrying') } : {}) })
+  } finally {
+    releaseReply(); client.cancel(); await result
+    beforeReply = undefined; doctorResponses = undefined; vi.useRealTimers()
+  }
+})
 
 test.each([
   { name: 'alert create', args: ['alert', 'create', 'edge', '192.0.2.0/24', '--allow-operation', 'OP-013', '--expires', '3600'],

@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
 export const shodanWriteBodyLimit = 1024 * 1024
+export const shodanBulkWriteDeadlineMs = 8 * 60 * 60 * 1000 + 30 * 60 * 1000
+export const shodanBulkWriteCommands = ['alert clear', 'alert domain', 'alert import'] as const
 
 export const shodanWriteCommands = {
   'alert create': { positional: 2, grants: ['OP-013'], flags: ['--expires'] },

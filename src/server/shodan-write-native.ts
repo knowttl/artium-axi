@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { z } from 'zod'
 import inventory from '../../tools/inventories/shodan-axi.json' with { type: 'json' }
 import type { shodanWriteInput } from '../shared/shodan-stream.js'
+import { shodanBulkWriteCommands, shodanBulkWriteDeadlineMs } from '../shared/shodan-write.js'
 import { ArtiumError } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
 import { runShodanNative } from './shodan-preview.js'
@@ -50,8 +51,9 @@ async function invokeShodanWrite(directory: string, adapter: Adapter<unknown>, c
       ...input.triggers ? ['--triggers', input.triggers] : [],
       ...input.body ? ['--body-file', join(directory, 'preview', 'config', bodyFileName)] : [],
       ...confirmation ? ['--execute', '--confirm', confirmation] : []]
+    const bulk = (shodanBulkWriteCommands as readonly string[]).includes(input.command)
     return await runShodanNative(directory, args, profile, signal, authorize, configuredCaPem, beforeSpawn, true,
-      ['alert clear', 'alert domain', 'alert import'].includes(input.command) ? 4 * 1024 * 1024 : 65536)
+      bulk ? 4 * 1024 * 1024 : 65536, bulk ? shodanBulkWriteDeadlineMs : 30000)
   } finally {
     profile.secrets.fill(''); profile.files.length = 0
     for (const key of Object.keys(profile.environment)) delete profile.environment[key]

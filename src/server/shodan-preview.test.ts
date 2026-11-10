@@ -1,11 +1,12 @@
 import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { inspectShodanStream } from './adapters/shodan-stream.js'
 import { shodanProfile } from './adapters/shodan.js'
 import { toolPaths } from './config.js'
 import { runShodanNative, shodanNativePreview } from './shodan-preview.js'
+import { shodanBulkWriteDeadlineMs } from '../shared/shodan-write.js'
 
 let root: string
 const previous = toolPaths['shodan-axi']
@@ -40,4 +41,26 @@ test.each([
   const result = await runShodanNative(root, [], profile, new AbortController().signal, () => {}, configuredCaPem)
   expect(result).toEqual({ ca: expected, ambient: null })
   expect(existsSync(join(root, 'preview'))).toBe(false)
+})
+
+test.each([{ deadline: undefined, survives: false }, { deadline: shodanBulkWriteDeadlineMs, survives: true }])
+('native process observes its configured deadline: extended=$survives', async ({ deadline, survives }) => {
+  const executable = join(root, 'native.mjs')
+  writeFileSync(executable, 'setInterval(() => {}, 1000)')
+  Object.assign(toolPaths, { 'shodan-axi': executable })
+  const profile = shodanProfile.prepare('shodan-axi', { auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' }, undefined, true)
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  let spawned!: () => void, settled = false
+  const started = new Promise<void>(resolve => { spawned = resolve })
+  const result = runShodanNative(root, [], profile, new AbortController().signal, () => {}, undefined, spawned, false, 65536, deadline)
+    .then(value => { settled = true; return value }, error => { settled = true; return error })
+  try {
+    await started
+    await vi.advanceTimersByTimeAsync(30_001)
+    if (survives) {
+      expect(settled).toBe(false)
+      await vi.advanceTimersByTimeAsync(shodanBulkWriteDeadlineMs - 30_001)
+    }
+    expect(await result).toMatchObject({ code: 'TOOL_FAILED' })
+  } finally { vi.useRealTimers() }
 })

@@ -3,7 +3,7 @@ import { open } from 'node:fs/promises'
 import { encode } from '@toon-format/toon'
 import { z } from 'zod'
 import { ArtiumError } from '../shared/errors.js'
-import { shodanNotifierBody, shodanWriteBodyLimit, shodanWriteCommands, type ShodanWriteCommand } from '../shared/shodan-write.js'
+import { shodanBulkWriteCommands, shodanBulkWriteDeadlineMs, shodanNotifierBody, shodanWriteBodyLimit, shodanWriteCommands, type ShodanWriteCommand } from '../shared/shodan-write.js'
 import { shodanWriteInput } from '../shared/shodan-stream.js'
 import type { Client } from './http.js'
 
@@ -87,7 +87,11 @@ export async function shodanWrite(args: string[], createClient: () => Client, ou
   const client = createClient()
   await client.authenticated('/v1/me', 'GET')
   const request = { ...parsed.data, ...(execute ? { confirm } : {}), ...(instance === undefined ? {} : { instance }) }
-  const response = await client.transferSession(token => client.request(`${prefix}/${execute ? 'execute' : 'preview'}`, 'POST', request, token)).catch(error => {
+  const bulk = (shodanBulkWriteCommands as readonly string[]).includes(command)
+  const response = await client.transferSession(token => client.request(`${prefix}/${execute ? 'execute' : 'preview'}`, 'POST', request, token,
+    false, undefined, bulk ? shodanBulkWriteDeadlineMs + 90_000 : undefined)).catch(error => {
+    if (bulk && execute && error instanceof ArtiumError && (error.code === 'SERVER_UNAVAILABLE' || error.code === 'INVALID_RESPONSE'))
+      throw new ArtiumError(error.code, undefined, 'The write may have changed state. Inspect affected objects before retrying.')
     if (secrets.length) throw new ArtiumError(error instanceof ArtiumError ? error.code : 'SERVER_UNAVAILABLE', undefined,
       execute ? 'The write may have changed state. Inspect the notifier before retrying.' : undefined)
     throw error
