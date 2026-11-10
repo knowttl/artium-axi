@@ -48,6 +48,28 @@ test.each([['push', 'true', 'false'], ['workflow_dispatch', 'false', 'true']])('
   expect(evaluate(steps.find(step => step.id === 'existing')!.if!, context)).toBe(existing)
 })
 
+test.each([
+  ['v0.0.38', 'refs/heads/main', 0, 'release_created=true\ntag_name=v0.0.38\nversion=0.0.38\n'],
+  ['v0.0.38', 'refs/heads/feature', 1, ''],
+  ['0.0.38', 'refs/heads/main', 1, ''],
+  ['v0.0.38-rc.1', 'refs/heads/main', 1, ''],
+  ['', 'refs/heads/main', 1, ''],
+])('dispatch selection handles tag %s on %s', (tag, ref, status, output) => {
+  const directory = mkdtempSync(join(process.cwd(), '.tmp-release-selection-'))
+  try {
+    const outputFile = join(directory, 'output')
+    writeFileSync(outputFile, '')
+    const step = workflow.jobs['release-please'].steps.find(item => item.id === 'existing')!
+    const result = spawnSync('bash', ['-e', '-c', step.run!], {
+      env: { ...process.env, TAG: tag, REF: ref, GITHUB_OUTPUT: outputFile }, encoding: 'utf8',
+    })
+    expect(result.status, result.stderr).toBe(status)
+    expect(readFileSync(outputFile, 'utf8')).toBe(output)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 test('container checks for a dispatched tag run the fixed scripts from main', () => {
   const steps = workflow.jobs.containers.steps
   const overlay = steps[1]
