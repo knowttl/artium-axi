@@ -7,7 +7,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { decode } from '@toon-format/toon'
 import { z } from 'zod'
 import { ArtiumError } from '../shared/errors.js'
-import { transferLimits } from '../shared/api.js'
+import { toolAllowsWrites, transferLimits } from '../shared/api.js'
 import { acceptsCliVersion } from '../shared/version.js'
 import { ProxmoxFrameMeter, ProxmoxStreamWire, proxmoxStreamStart } from '../shared/proxmox-stream.js'
 import type { ProxmoxAdapter, ProxmoxStreamSelection } from './adapters/proxmox.js'
@@ -87,6 +87,11 @@ export function registerProxmoxStreams(app: FastifyInstance, db: Database.Databa
   const authorize = (lease: Lease) => {
     if (lease.controller.signal.aborted || lease.expiresAt <= Date.now() || !access.valid(lease.owner)) throw new ArtiumError('TOKEN_INVALID')
     if (lease.selection.write && !lease.selection.preview && (db.prepare('SELECT read_only FROM credentials WHERE id = ?').get(lease.owner.credential.id) as { read_only: number }).read_only) throw new ArtiumError('FLAG_BLOCKED')
+    if (lease.selection.write && !lease.selection.preview) {
+      const settings = JSON.parse((db.prepare("SELECT native_settings FROM tools WHERE name = 'proxmox-axi'").get() as { native_settings: string }).native_settings)
+      if (!toolAllowsWrites('proxmox-axi', settings)) throw new ArtiumError('FLAG_BLOCKED')
+      adapter.authorizeOperation?.(classifyDelegatedCommand(adapter, lease.input.args, { stdin: lease.input.stdin }).command, settings)
+    }
     const { delegation, userId } = lease.owner
     if (delegation) {
       if (delegation.expiresAt <= Date.now() || delegationPaused(db, userId) || !db.prepare(

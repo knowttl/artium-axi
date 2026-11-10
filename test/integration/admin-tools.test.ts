@@ -2230,6 +2230,16 @@ async function instanceHeader(name: string, tool: ToolName = 'falcon-axi') {
 const eastValue = { ...values['falcon-axi'], clientSecret: 'CANARY-east-secret' }
 const westValue = { ...values['falcon-axi'], clientSecret: 'CANARY-west-secret', region: 'eu-1' }
 
+test('a write access save bumps the revision of every instance', async () => {
+  await createInstance('east', eastValue)
+  await createInstance('west', westValue)
+  const revisions = () => ['east', 'west'].map(name => store.findInstance('falcon-axi', name)!.revision)
+  const before = revisions()
+  expect((await request('PATCH', '/falcon-axi/write-access', { enabled: true, operations: ['malquery search'],
+    expectedRevision: await toolRevision('falcon-axi') })).status).toBe(200)
+  expect(revisions()).toEqual(before.map(revision => revision + 1))
+})
+
 test('instance credential changes preserve shared write access', async () => {
   await createInstance('east', eastValue)
   expect((await request('PATCH', '/falcon-axi/write-access', { enabled: true, operations: ['malquery search'],
