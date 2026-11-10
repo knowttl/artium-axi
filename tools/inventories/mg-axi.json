@@ -322,6 +322,7 @@
       "name",
       "odata",
       "body",
+      "query",
       "conditions",
       "grant-controls",
       "session-controls",

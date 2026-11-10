@@ -60,7 +60,18 @@ const run = async (args: string[]) => {
 const execute = (method: string) => ['api', method, rawPath, '--body', '{"displayName":"Synthetic"}', '--execute', '--confirm', rawPath]
 
 test.each(['post', 'put', 'patch', 'delete'])('api %s sends one request once the tool mode and role allow raw writes', async method => {
-  expect(await run(execute(method))).toMatchObject({ exitCode: 0, output: { fakeSends: 1 } })
+  expect(await run(execute(method))).toMatchObject({ exitCode: 0, output: { fakeSends: 1,
+    rawRequest: { method: method.toUpperCase(), body: { displayName: 'Synthetic' } } } })
+})
+
+test.each(['get', 'post', 'put', 'patch', 'delete'])('api %s query values are redacted in the audit', async method => {
+  await call(['api', method, rawPath, '--query', 'access_token=CANARY-secret'])
+  await call(['api', method, rawPath, '--query=access_token=CANARY-inline'])
+  const records = db.prepare("SELECT arguments FROM audit WHERE event = 'run-start' ORDER BY id").all() as { arguments: string }[]
+  expect(records.map(record => JSON.parse(record.arguments))).toEqual([
+    ['api', method, rawPath, '--query', '[redacted]'],
+    ['api', method, rawPath, '--query=[redacted]'],
+  ])
 })
 
 test.each(['post', 'put', 'patch', 'delete'])('api %s previews without sending', async method => {

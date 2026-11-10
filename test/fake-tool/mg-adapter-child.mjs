@@ -11,6 +11,7 @@ const userId = '00000000-0000-0000-0000-000000000004'
 let sends = 0
 let reads = 0
 let credentialCalls = 0
+let rawRequest
 const application = { async credential(profile) {
   credentialCalls++
   assert.equal(profile.mode, 'application')
@@ -124,6 +125,7 @@ try {
       if (url.pathname === `/v1.0/users/${userId}/synthetic-raw`) {
         assert.equal(request.headers.Authorization, 'Bearer CANARY-graph-token')
         sends++
+        rawRequest = { method: request.method, body: request.body ? JSON.parse(request.body) : null }
         return { status: request.method === 'DELETE' ? 204 : 200, headers: {}, body: request.method === 'DELETE' ? '' : JSON.stringify({ id: 'raw-id' }) }
       }
       assert.equal(request.method, 'POST')
@@ -136,7 +138,7 @@ try {
   const download = ['mail attachment save', 'mail message export'].includes(process.argv.slice(2, 5).join(' '))
   if (download && process.argv.includes('bad-hash')) result.sha256 = '0'.repeat(64)
   if (download && process.argv.includes('missing-journal')) unlinkSync(process.env.MG_AXI_WRITE_LOG)
-  console.log(typeof result === 'string' ? result : encode(download ? result : { ...result, fakeSends: sends, fakeReads: reads, credentialCalls }))
+  console.log(typeof result === 'string' ? result : encode(download ? result : { ...result, fakeSends: sends, fakeReads: reads, credentialCalls, ...(rawRequest ? { rawRequest } : {}) }))
 } catch (error) {
   if (!error.code) throw error
   assert.equal(sends, 0)
