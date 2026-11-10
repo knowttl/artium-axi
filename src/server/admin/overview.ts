@@ -13,7 +13,10 @@ import { adminRead, timestamp } from './forms.js'
 const changeWords: Record<string, string> = {
   'create-user': 'Added a user', 'update-user': 'Updated a person', 'assign-user-roles': 'Changed a person’s roles', 'archive-user': 'Archived a person',
   'unlock-user': 'Unlocked a person', 'reset-user-password': 'Reset a password', 'revoke-user-session': 'Revoked a session', 'revoke-user-sessions': 'Signed a person out everywhere',
-  'create-role': 'Created a role', 'rename-role': 'Renamed a role', 'replace-role-tools': 'Changed a role’s tools', 'replace-role-tool-instances': 'Changed a role’s instance access', 'delete-role': 'Deleted a role',
+  'create-role': 'Created a role', 'rename-role': 'Renamed a role', 'replace-role-tools': 'Changed a role’s tools', 'replace-role-tool-instances': 'Changed a role’s instance access',
+  'grant-role-raw-api': 'Allowed Raw API for a role', 'revoke-role-raw-api': 'Removed Raw API from a role',
+  'set-tool-raw-api-off': 'Turned Raw API off for a tool', 'set-tool-raw-api-read': 'Set a tool’s Raw API to read', 'set-tool-raw-api-read-writes': 'Set a tool’s Raw API to read and writes',
+'delete-role': 'Deleted a role',
   'update-tool': 'Updated a tool', 'replace-credential': 'Saved a tool credential', 'save-awx-origin': 'Saved the AWX address', 'connect-github-device': 'Connected GitHub',
   'trust-certificate': 'Trusted a certificate', 'remove-trusted-certificate': 'Removed a trusted certificate', 'tool-write-access': 'Changed write access',
   'create-provider': 'Added an SSO provider', 'update-provider': 'Updated an SSO provider', 'replace-provider-credential': 'Saved an SSO credential',

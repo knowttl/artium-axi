@@ -10,7 +10,7 @@ import { escape } from './escape.js'
 import { actionForm, adminRead, revision, timestamp } from './forms.js'
 import { editorProfile } from './credential-form.js'
 import { instancesPanel, readInstanceRows, registerInstancePages } from './instances.js'
-import { setupBadge, toolIcon, toolProducts, toolSetupState, writes as writesState } from './design/status.js'
+import { rawApiModeWords, setupBadge, toolIcon, toolProducts, toolSetupState, writes as writesState } from './design/status.js'
 import { callout, card, checkOption, icon, noteCard, sheet, sheetLink, steps, tabs } from './design/ui.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { ToolName } from '../store/credential-store.js'
@@ -62,9 +62,8 @@ function operationGroups(tool: ToolName, supported: readonly string[], family: u
   return [...groups.filter(configured), ...groups.filter(group => !configured(group))]
 }
 
-const tabNames = ['instances', 'writes', 'access', 'advanced'] as const
+const tabNames = ['instances', 'writes', 'raw-api', 'access', 'advanced'] as const
 type Tab = typeof tabNames[number]
-
 export function registerAdminPages(app: FastifyInstance, db: Database.Database,
   credentialProfiles: Partial<Record<ToolName, CredentialProfile>> = {}, trustedCertificates: readonly TrustedCertificate[] = []): void {
   const roleCounts = () => new Map((db.prepare('SELECT tool, COUNT(*) AS count FROM role_tools GROUP BY tool').all() as { tool: string, count: number }[])
@@ -113,9 +112,10 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const parsed = toolSchema.safeParse((request.params as { tool: string }).tool)
     if (!parsed.success) throw new ArtiumError('NOT_FOUND')
     const query = request.query as { tab?: string, q?: string, show?: string, sheet?: string }
-    const tab: Tab = tabNames.find(name => name === query.tab) ?? 'instances'
     const api = '/v1/admin/tools/' + parsed.data
     const tool = await adminRead(app, request, api, adminToolRoutes.get.response)
+    const rawCapable = tool.rawApi.modes.length > 0
+    const tab: Tab = tabNames.find(name => name === query.tab && (rawCapable || name !== 'raw-api')) ?? 'instances'
     const instanceRows = await readInstanceRows(app, request, db, tool)
     const configured = tool.name === 'ssh-axi' ? hasSshConfiguration(db) : instanceRows.some(row => row.instance!.configured)
     const csrf = reply.generateCsrf()
@@ -147,6 +147,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const navigation = tabs(`/admin/tools/${tool.name}`, tab, [
       { id: 'instances', label: 'Instances', icon: 'globe', note: String(instanceRows.length) },
       { id: 'writes', label: 'Write permissions', icon: 'zap', note: writesNote },
+      ...(rawCapable ? [{ id: 'raw-api', label: 'Raw API', icon: 'terminal' as const, note: rawApiModeWords[tool.rawApi.mode].label }] : []),
       { id: 'access', label: 'Access', icon: 'users', note: String(roles.length) },
       { id: 'advanced', label: 'Advanced', icon: 'sliders' },
     ], 'Tool sections')
@@ -157,6 +158,14 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       panel = instancesPanel({ tool, csrf, rows: instanceRows, profile: editorProfile(tool.name, credentialProfiles[tool.name]), sheet: query.sheet })
     } else if (tab === 'writes') {
       panel = writesPanel()
+    } else if (tab === 'raw-api') {
+      const options = tool.rawApi.modes.map(mode => `<label class="option"><input type="radio" name="mode" value="${mode}"${mode === tool.rawApi.mode ? ' checked' : ''}><div><strong>${rawApiModeWords[mode].label}</strong><span>${rawApiModeWords[mode].detail}</span></div></label>`).join('')
+      const form = formStart(api + '/raw-api', 'PATCH', `Change the Raw API mode for ${product}? It applies to every caller on the next call. This change is audited.`, '', 'card') +
+        `<div class="card-head"><div><h2>Raw API mode</h2><p>The most ${escape(product)} raw API calls may do for any caller.</p></div></div>
+        <div class="card-body"><fieldset class="options"><legend class="sr-only">Raw API mode</legend>${options}</fieldset>${revision(tool.revision)}</div>
+        <div class="card-foot"><span>Saving keeps the credential and other settings. Audited.</span><div class="actions"><button class="btn btn-primary btn-sm">Save Raw API mode</button></div></div></form>`
+      panel = `<div class="split has-aside"><div class="column">${form}</div><div class="column">${noteCard('Two settings are required',
+        `<p>A raw call needs this mode and the Raw API access switch on a role that grants ${escape(product)} to the caller. Set the switch on the role’s page.</p>`)}</div></div>`
     } else if (tab === 'access') {
       const instances = db.prepare('SELECT id, name, description FROM credentials WHERE tool = ? ORDER BY name').all(tool.name) as { id: string, name: string, description: string }[]
       const granted = db.prepare('SELECT credential_id AS id FROM role_tool_instances WHERE role_id = ? AND tool = ?')

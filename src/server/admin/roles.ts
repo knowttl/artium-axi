@@ -4,8 +4,8 @@ import { adminRoleRoutes, adminToolRoutes, adminUserParamsSchema, toolSchema } f
 import { ArtiumError } from '../../shared/errors.js'
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
-import { grantOrigin, personStatus, status, toolProducts, toolState } from './design/status.js'
-import { avatar, icon, pager } from './design/ui.js'
+import { grantOrigin, personStatus, rawApiModeWords, status, toolProducts, toolState } from './design/status.js'
+import { avatar, card, icon, pager } from './design/ui.js'
 import { escape } from './escape.js'
 import { adminRead, apiFormTag, changed, revision } from './forms.js'
 
@@ -92,6 +92,15 @@ export function registerRolesPages(app: FastifyInstance, db: Database.Database):
       <div class="card-head"><div><h2>Tools this role grants</h2><p>Changes apply to every member on their next call.</p></div></div>
       <div class="card-body"><fieldset class="tiles"><legend class="sr-only">Granted tools</legend><input name="tools" type="hidden" disabled data-type="array">${tiles}</fieldset></div>
       <div class="card-foot"><span>Saving replaces the whole selection. A tool must also be enabled before members can run it.</span><div class="actions"><button class="btn btn-primary btn-sm">Save tools</button><button type="reset" class="btn btn-ghost btn-sm" data-discard hidden>Discard</button></div></div></form></section>`
+    const rawRows = tools.filter(tool => tool.rawApi.modes.length > 0 && role.tools.includes(tool.name)).map(tool => {
+      const product = toolProducts[tool.name].name
+      return `<div class="list-row"><div class="grow"><strong>${escape(product)}</strong><p>Tool mode: ${rawApiModeWords[tool.rawApi.mode].label}.${tool.rawApi.mode === 'off' ? ' Members cannot make raw calls until an administrator changes it.' : ''}</p></div>
+        ${apiFormTag(csrf, `${api}/tools/${tool.name}/raw-api`, 'PUT', `Change ${role.name}’s Raw API access to ${product}? Changes apply to every member on the next call.`, 'class="row" data-confirm-action="Save access"')}${revision(role.revision)}
+        <label class="switch-row"><input type="checkbox" class="switch" role="switch" name="enabled" data-type="boolean" aria-label="Allow Raw API for ${escape(product)}"${role.rawApiTools.includes(tool.name) ? ' checked' : ''}><span>Allow</span></label>
+        <button class="btn btn-secondary btn-sm">Save</button></form></div>`
+    }).join('')
+    const rawApi = card('Raw API access', 'Lets members make raw API calls through the tools below. The tool’s Raw API mode sets what those calls may do.',
+      rawRows || '<p class="card-body muted">Grant a tool with raw API routes to offer this.</p>')
     const memberRows = members.users.map(user => `<tr><th scope="row"><a class="cell-main" href="/admin/users/${escape(encodeURIComponent(user.id))}">${avatar(user.displayName)}<span><strong>${escape(user.displayName)}</strong><span>${escape(user.username)}</span></span></a></th>
       <td><div class="chips">${[...new Set(user.roleGrants.filter(grant => grant.roleId === role.id).map(grant => grant.origin === 'direct' ? 'direct' : 'rule'))].map(grantOrigin).join('')}</div></td><td>${personStatus(user)}</td></tr>`).join('')
     const memberList = `<section class="card"><div class="card-head"><div><h2>Members</h2><p>Give or remove this role on a person's page, or map it from SSO groups with a role rule.</p></div></div>
@@ -107,7 +116,7 @@ export function registerRolesPages(app: FastifyInstance, db: Database.Database):
       ? `<p>Only an unused role can be deleted. Blocked by: ${escape(blocked.join(', '))}. ${members.totalCount ? 'Remove the role from each member. ' : ''}${rules ? 'Remove or retarget its rules in Sign-in &amp; SSO. ' : ''}${invitations ? 'Invitation history keeps the role.' : ''}</p></div><button class="btn btn-danger-outline btn-sm" type="button" disabled>Delete…</button>`
       : `<p>Deletes the role and its tool grants. This cannot be undone.</p></div>${apiFormTag(csrf, api, 'DELETE', `Delete ${role.name}? Its tool grants will be removed. This cannot be undone.`,
         `data-confirm-action="Delete role" data-confirm-name="${escape(role.name)}" data-success-url="/admin/roles" data-success-message="Role deleted."`)}${revision(role.revision)}<button class="btn btn-danger-outline btn-sm">Delete…</button></form>`
-    const content = `<div class="meta-line">${changed(db, role)}</div>${grants}${memberList}<section class="card danger"><div class="list-row"><div class="grow"><h2>Delete role</h2>${remove}</div></section>`
+    const content = `<div class="meta-line">${changed(db, role)}</div>${grants}${rawApi}${memberList}<section class="card danger"><div class="list-row"><div class="grow"><h2>Delete role</h2>${remove}</div></section>`
     return browserPage(reply, 'Roles', content, current, `${plural(members.totalCount, 'member')} · ${plural(role.tools.length, 'tool')}`, { heading: role.name, actions: rename })
   })
 }

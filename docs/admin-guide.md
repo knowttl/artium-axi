@@ -428,8 +428,11 @@ See the [API contract](../src/shared/api.ts) and [retention and export runbook](
 | `ARTIUM_AXI_AUDIT_STDOUT` | `1` streams committed audit records as JSON lines; SQLite remains authoritative. |
 | `ARTIUM_AXI_ADO_API_WRITE_PATHS` | Server-only JSON allow list by uppercase method. Example: `{"PATCH":["_apis/wit/workitems/*"]}`. See the path contract below and [implementation defaults](../src/server/adapters/ado-api.ts). |
 
-The current administration UI and API do not expose the tool mode or role grant for [Raw API access](safety.md#raw-api-access).
-Enabling a tool, granting it to a role or enabling Allow writes does not configure those separate raw permissions.
+Raw API access has two administrator settings, both separate from enabling a tool, granting it to a role or enabling Allow writes.
+Set the tool's mode on its **Raw API** tab, shown only for tools with raw API routes: Off, Read, or Read and writes.
+Allow raw calls for a role in **Raw API access** on the role's page, for each granted tool that has raw API routes.
+Both [Raw API access](safety.md#raw-api-access) settings must permit a call, and a new tool grant starts without raw access.
+Each change is recorded as an `admin-change` audit event for the tool, with actions such as `set-tool-raw-api-read` and `grant-role-raw-api`; a request that changes nothing records nothing.
 
 Configure the ADO API write allow list in the server process environment; it is never accepted from a client or forwarded to the tool.
 Keys are `POST`, `PATCH`, `PUT` or `DELETE`; values are arrays of relative REST path patterns.

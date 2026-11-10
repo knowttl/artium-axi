@@ -1,4 +1,6 @@
 import type Database from 'better-sqlite3'
+import type { z } from 'zod'
+import type { rawApiModeSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Adapter } from '../adapters/types.js'
 import type { RunnerInput } from '../runner/input.js'
@@ -26,6 +28,11 @@ export function checkToolPolicy(db: Database.Database, userId: string, tool: Too
   `).get(userId, tool)
   if (!grant) throw new ArtiumError('TOOL_NOT_GRANTED')
   if (credentialId !== undefined && !instanceGranted(db, userId, tool, credentialId)) throw new ArtiumError('INSTANCE_NOT_FOUND')
+}
+
+export function rawApiModes(adapter: Adapter<unknown> | undefined): z.infer<typeof rawApiModeSchema>[] {
+  if (!adapter?.rawApi) return []
+  return ['off', 'read', 'read-writes']
 }
 
 export function checkRawApiPolicy(db: Database.Database, userId: string, adapter: Adapter<unknown>,

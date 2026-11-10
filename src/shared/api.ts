@@ -427,10 +427,12 @@ export const toolWriteStateSchema = z.strictObject({ capable: z.boolean(), enabl
 export const writeAccessInputSchema = z.strictObject({ allowDeletes: z.boolean().optional(), enabled: z.boolean(),
   operations: z.array(z.string().min(1).max(256)).max(Math.max(126, giteaWriteOperations.length)).refine(operations => new Set(operations).size === operations.length).optional(),
   expectedRevision: z.number().int().positive() })
+export const rawApiModeSchema = z.enum(['off', 'read', 'read-writes'])
+export const toolRawApiSchema = z.strictObject({ mode: rawApiModeSchema, modes: z.array(rawApiModeSchema) })
 // Tool versions in adminToolSchema and toolsResponseSchema identify the server's bundled inventory,
 // independent of a retained store's pinned_version value.
 export const adminToolSchema = z.strictObject({ name: toolSchema, enabled: z.boolean(), version: z.string(),
-  writeAccess: toolWriteStateSchema,
+  writeAccess: toolWriteStateSchema, rawApi: toolRawApiSchema,
   readOnly: z.boolean().default(true),
   nativeSettings: z.record(z.string(), z.unknown()), revision: z.number().int().positive(),
   updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable(), health: healthSchema })
@@ -498,6 +500,9 @@ export const adminToolRoutes = {
   // Other native settings and credentials are preserved. Revision conflicts never mutate.
   writeAccess: { method: 'PATCH', path: '/v1/admin/tools/:tool/write-access', input: writeAccessInputSchema,
     response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'tool-write-access' },
+  rawApi: { method: 'PATCH', path: '/v1/admin/tools/:tool/raw-api',
+    input: z.strictObject({ mode: rawApiModeSchema, expectedRevision: z.number().int().positive() }),
+    response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: null },
   list: { method: 'GET', path: '/v1/admin/tools', input: z.strictObject({}),
     response: z.strictObject({ tools: z.array(adminToolSchema) }), authorization: 'administrator-and-recent-auth', auditEvent: null },
   patch: { method: 'PATCH', path: '/v1/admin/tools/:tool',
@@ -653,6 +658,7 @@ export const adminInvitationRoutes = {
 
 export const adminRoleSchema = z.strictObject({ id: accountId, name: z.string().min(1), tools: z.array(toolSchema),
   instanceGrants: z.array(z.strictObject({ tool: toolSchema, instances: z.array(instanceNameSchema) })),
+  rawApiTools: z.array(toolSchema),
   revision: z.number().int().positive(), updatedAt: z.number().int().nullable(), updatedBy: accountId.nullable() })
 export const adminRolesResponseSchema = z.strictObject({ roles: z.array(adminRoleSchema), nextCursor: accountId.nullable() })
 export const adminRoleRoutes = {
@@ -678,6 +684,9 @@ export const adminRoleRoutes = {
     input: z.strictObject({ scope: z.enum(['all', 'selected']), instances: z.array(instanceNameSchema).refine(names => new Set(names).size === names.length).default([]),
       expectedRevision: z.number().int().positive() }).refine(input => input.scope === 'all' || input.instances.length > 0),
     response: adminRoleSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'replace-role-tool-instances' },
+  rawApi: { method: 'PUT', path: '/v1/admin/roles/:id/tools/:tool/raw-api',
+    input: z.strictObject({ enabled: z.boolean(), expectedRevision: z.number().int().positive() }),
+    response: adminRoleSchema, authorization: 'administrator-and-recent-auth', auditEvent: null },
 } as const
 export const adminRoleToolParamsSchema = adminUserParamsSchema.extend({ tool: toolSchema })
 export const toolsResponseSchema = z.strictObject({
