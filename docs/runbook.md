@@ -463,7 +463,7 @@ Then choose password sign-in, enter the username and password and choose **Save 
 Until a token is saved, the credential remains unconfigured and ordinary calls cannot use the address-only record.
 The same sequence applies when switching controllers; the paste-a-token path remains available.
 See the [hosted credential contract](credential-standard.md#per-tool-host-facing-schemas) for the one-time token exchange and password handling.
-Graph and Vectra still restrict writes to the operations allow-list, and native confirmation gates still apply.
+See the [write capability boundaries](safety.md#write-gates-by-tool) for Graph and Vectra grants and native gates.
 Write-policy changes, including changes through the Advanced tab or complete credential replacement, commit atomically with a dedicated [write-access audit event](admin-guide.md#audit-screen-and-api).
 Stale revisions never mutate settings, and an audit failure rolls back the change.
 Tool lists and health responses report `readOnly`; LDAP remains fixed read-only.

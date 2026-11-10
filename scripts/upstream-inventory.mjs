@@ -56,7 +56,8 @@ const mgDownloads = { 'mail attachment save': 'mail', 'mail message export': 'ma
 mgWriteOperations.push(...mg.LEAVES.filter(leaf => mgCommandPacks[leaf.path] === 'mail' && leaf.flags?.execute)
   .map(leaf => leaf.path.replaceAll(' ', '.')))
 mgWriteOperations.push(...Object.keys(mgDownloads).map(command => command.replaceAll(' ', '.')))
-const mgAllowedCommands = ['home', 'doctor', 'entra', 'api get', ...Object.keys(mgCommandPacks)]
+const mgAllowedCommands = ['home', 'doctor', 'entra', 'api get', 'api post', 'api put', 'api patch', 'api delete',
+  ...Object.keys(mgCommandPacks)]
 const mgUnsafeOverrides = ['config', 'profile', 'tenant', 'client', 'scopes', 'client-secret-env', 'client-secret-file',
   'certificate-key-env', 'certificate-key-file', 'certificate-thumbprint-sha256', 'federated-token-file']
 const inventories = {
@@ -233,8 +234,8 @@ for (const [tool, commands] of Object.entries(inventories)) {
       commandPacks: { ...mgCommandPacks, ...mgDownloads },
       downloadCommands: Object.keys(mgDownloads),
       inputs: { stdin: 'cursor - only', files: 'security hunting query or mail rule create/update only: one UTF-8 query.kql or rule.json upload, at most 64 KiB; fixed runner leaf name', cursor: 'opaque token or stdin; never a path',
-        api: 'reviewed GET routes only; pinned Graph destination and operation gates retained' },
-      sensitiveFlags: ['cursor', 'search', 'filter', 'conversation', 'mailbox', 'id', 'ids', 'attachment', 'out', 'folder', 'destination', 'confirm', 'add', 'remove', 'name', 'odata', 'conditions', 'grant-controls', 'session-controls', 'display-name'],
+        api: 'reviewed GET routes, plus POST, PUT, PATCH and DELETE only in the Raw API read-writes mode; pinned Graph destination, built-in denials and native write gates retained' },
+      sensitiveFlags: ['cursor', 'search', 'filter', 'conversation', 'mailbox', 'id', 'ids', 'attachment', 'out', 'folder', 'destination', 'confirm', 'add', 'remove', 'name', 'odata', 'body', 'query', 'conditions', 'grant-controls', 'session-controls', 'display-name'],
       knownOutputScanValues: ['clientSecret and trimmed clientSecret', 'privateKey and normalized PEM', 'hunting query text'],
       outputScanLimit: 'Upstream-minted Graph tokens and assertions are not available during prepare; live redaction remains unverified.',
       resources: { nodeHeapMiB: 512, reason: 'Pinned 73 MiB operation inventory exceeds the default 128 MiB heap; fake read/write probes measure the bounded adapter allowance.' },

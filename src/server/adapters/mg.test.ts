@@ -1,4 +1,5 @@
 import { expect, test, vi } from 'vitest'
+import { redactArguments } from '../audit/redact.js'
 import { SecretScanner } from '../runner/scan.js'
 import { createMgAdapter } from './mg.js'
 import { loadCredentialProfile } from './credential-profile.js'
@@ -73,6 +74,48 @@ test('reviewed API GET retains its path and flags', async () => {
   const args = ['api', 'get', '/users', '--full']
   expect(() => adapter.validateArgs(args)).not.toThrow()
   expect((await adapter.prepare(args, reference)).args).toEqual(args)
+})
+
+const rawWriteArgs = (method: string) => ['api', method, '/users/synthetic', '--body', '{"displayName":"Synthetic"}', '--execute', '--confirm', '/users/synthetic']
+const publishedProfile = () => loadCredentialProfile('mg-axi', 'tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json')
+
+test.each([false, true].flatMap(published => ['post', 'put', 'patch', 'delete'].map(method => [published, method] as const)))(
+  'published=%s api %s retains its arguments and enables the native raw-write switch', async (published, method) => {
+    const adapter = createMgAdapter({ getCredential: async () => ({ ...identity, ...(published ? { mode: 'application' } : {}),
+      auth: published ? 'client-secret' : 'secret', clientSecret: 'CANARY-secret', writes }) }, '/tmp/writes.log',
+    published ? publishedProfile() : undefined)
+    const args = rawWriteArgs(method)
+    expect(adapter.classify(args)).toEqual({ command: `api ${method}`, effect: 'write' })
+    const call = await adapter.prepare(args, reference)
+    expect(call.args).toEqual(args)
+    expect(JSON.parse(call.files[0].content as string).profiles.artium).toMatchObject({ rawWrites: true, writes })
+  })
+
+test.each([
+  ['api', 'get', '/users'], ['entra', 'user', 'list'], ['api', 'post', '--help'],
+  ['api', 'post', '/users/synthetic', '--help'],
+].map(args => [args]))('%j never enables the native raw-write switch', async args => {
+  const adapter = createMgAdapter({ getCredential: async () => ({ ...identity, mode: 'application', auth: 'client-secret',
+    clientSecret: 'CANARY-secret', writes }) }, '/tmp/writes.log', publishedProfile())
+  const call = await adapter.prepare(args, reference)
+  expect(JSON.parse(call.files[0].content as string).profiles.artium).not.toHaveProperty('rawWrites')
+})
+
+test.each([
+  ['api', 'post', '/users', '--scopes', 'https://graph.microsoft.com/User.ReadWrite.All'],
+  ['api', 'post', '/users', '--profile', 'other'], ['api', 'post', '/users', '--config', '/data/artium.db'],
+  ['api', 'head', '/users'], ['api', 'options', '/users'],
+].map(args => [args]))('raw write boundary %j refuses credential retrieval', async args => {
+  const getCredential = vi.fn()
+  await expect(createMgAdapter({ getCredential }, '/tmp/writes.log').prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
+test('raw write bodies are redacted audit arguments', () => {
+  const adapter = createMgAdapter({ getCredential: vi.fn() }, '/tmp/writes.log')
+  const args = ['api', 'post', '/users', '--body', 'CANARY-private-value', '--body=CANARY-private-value']
+  expect(redactArguments(args, adapter.sensitiveArguments(args)))
+    .toEqual(['api', 'post', '/users', '--body', '[redacted]', '--body=[redacted]'])
 })
 
 test.each(['owners', 'users'])('device %s retains its positional ID and pagination flags', async command => {

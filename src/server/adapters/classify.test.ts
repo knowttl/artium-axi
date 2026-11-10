@@ -235,14 +235,18 @@ test.each([
   ['ado-axi', ['api', 'POST', '_apis/projects', '--body', '{}'], 'api', 'write', true],
   ['gitea-axi', ['api', 'repos/search'], 'api', 'read', true],
   ['gitea-axi', ['api', 'POST', 'repos/synthetic/synthetic/labels', '--allow-write', 'issueCreateLabel', '--preview'], 'api', 'write', true],
-  ['mg-axi', ['api', 'get', '/users'], 'api get', 'read', false],
+  ['mg-axi', ['api', 'get', '/users'], 'api get', 'read', true],
+  ['mg-axi', ['api', 'post', '/users'], 'api post', 'write', true],
+  ['mg-axi', ['api', 'put', '/users/synthetic'], 'api put', 'write', true],
+  ['mg-axi', ['api', 'patch', '/users/synthetic'], 'api patch', 'write', true],
+  ['mg-axi', ['api', 'delete', '/users/synthetic'], 'api delete', 'write', true],
   ['vectra-axi', ['api', 'get', '--path', '/detections'], 'api get', 'read', false],
   ['hybrid-axi', ['api', 'get', '/report'], 'api get', 'read', false],
 ] as const)('%s declares the raw API route that classifies %j', (tool, args, command, effect, writes) => {
   const adapter = adapters.find(item => item.name === tool)!
   vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', JSON.stringify({ POST: ['_apis/projects'] }))
   expect(adapter.classify(args)).toEqual({ command, effect })
-  expect(adapter.rawApi).toMatchObject({ commands: [command], writes })
+  expect(adapter.rawApi).toMatchObject({ commands: expect.arrayContaining([command]), writes })
 })
 
 test.each([
