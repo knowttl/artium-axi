@@ -16,6 +16,7 @@ tools/node_modules
 !libexec/ado-axi/
 !libexec/ado-axi/az
 !scripts/
+!scripts/install-gh.mjs
 !scripts/native-smoke.mjs
 !scripts/falcon-smoke.mjs
 !scripts/build-cli.mjs
