@@ -387,7 +387,7 @@ Filter by event `tool-write-access` to review changes to effective write enablem
 These events identify the administrator and tool and record the new write policy without credentials or unrelated native settings; the [API contract](../src/shared/api.ts) owns the audit argument fields and treatment of unsupported legacy operation names.
 No-op write-access requests emit no change event.
 An Advanced-tab save or complete credential replacement adds `{"settings": [...]}` to the `arguments` of its `admin-change` event for changes to Kubernetes session grants or Shodan scan and stream grants, one entry per changed setting with its `path`.
-A scalar entry carries `before` and `after`, with `null` meaning unset; a list entry carries the `added` and `removed` members, since list order is not a change.
+An entry for an added or removed empty object or list carries `before` and `after`, with `null` meaning unset; other list changes carry the `added` and `removed` members, since list order is not a change.
 Objects are compared field by field.
 Other native settings are excluded from this diff.
 A save that changes none of these settings records no `arguments`.
