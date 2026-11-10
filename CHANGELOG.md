@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.40](https://github.com/knowttl/artium-axi/compare/v0.0.39...v0.0.40) (2026-11-10)
+
+
+### Bug Fixes
+
+* support a private CA for image builds ([#359](https://github.com/knowttl/artium-axi/issues/359)) ([6d4083c](https://github.com/knowttl/artium-axi/commit/6d4083c036adfe48ad5c3a82e6f49413d4f7869e))
+* update Falcon AXI to 1.0.1 ([#361](https://github.com/knowttl/artium-axi/issues/361)) ([e424866](https://github.com/knowttl/artium-axi/commit/e424866edab415f08f6ea7d35fab12b883ab2f3f))
+
 ## [0.0.39](https://github.com/knowttl/artium-axi/compare/v0.0.38...v0.0.39) (2026-11-10)
 
 
