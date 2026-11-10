@@ -446,6 +446,7 @@ Write access ships with each write-capable tool but defaults to off independentl
 Follow [browser administration](admin-guide.md#browser-administration) to use the **Write permissions** tab or preserve write policy when replacing settings on the Advanced tab.
 For scripted administration, read `GET /v1/admin/tools` or `GET /v1/admin/tools/:tool` to review normalized `writeAccess` capability, current state, fixed read-only reasons, supported and allowed operations, and the actions a grant unlocks or leaves blocked.
 Use `PATCH /v1/admin/tools/:tool/write-access` to change only write access while preserving other native settings and credential values.
+Saving write access, even without changing it, or saving native settings advances every instance's credential revision and invalidates revision-bound work.
 Follow the [scripted administrator session procedure](#scripted-administrator-sessions); the request requires administrator capability, recent confirmation and the current tool revision.
 The [API contract](../src/shared/api.ts) (`adminToolRoutes.writeAccess`) owns the input and response fields and allow-list update semantics.
 For scripted [Raw API access](safety.md#raw-api-access) administration, read `rawApi.mode` and the settable `rawApi.modes` from `GET /v1/admin/tools/:tool`, then use `PATCH /v1/admin/tools/:tool/raw-api` to set the mode.
@@ -517,7 +518,7 @@ Success resets the retry backoff; authentication, TLS and configuration failures
 Runner admission failures also use the normal interval, except that queued checks rejected with `TOO_MANY_CALLS` stay due for a later tick.
 See [runner admission](#runner-admission) for the shared capacity and queue contract.
 Credential and certificate-trust changes request a fresh check for the affected enabled configured instance without a manual test.
-Native-settings and write-access changes request a fresh check when the tool has one eligible enabled credential instance.
+Native-settings and write-access saves request a fresh check for one eligible enabled credential instance when instances exist.
 While that check is running or queued and no current cached result exists, tool lists and administrator health responses report `checking` instead of `unknown`, including while waiting for runner capacity.
 GitHub device connection explicitly checks the new credential identity and revision even when the tool is disabled.
 If the runner admission wait expires or another check is in flight, the credential remains saved with a revision-bound `TOO_MANY_CALLS` result and the diagnostic `Credential check pending: runner busy.`

@@ -60,6 +60,40 @@ test('read-only Proxmox instances refuse stream writes but permit previews and r
   } finally { await app.close(); db.close(); rmSync(directory, { recursive: true, force: true }) }
 })
 
+test.each([
+  ['the write switch is turned off', { allowWrites: false, operations: inventory.writeOperations }],
+  ['the operation is removed from the grant', { allowWrites: true, operations: [] }],
+])('an admitted direct Proxmox write stream stops when %s with several instances', async (_name, revoked) => {
+  const directory = mkdtempSync(join(tmpdir(), 'artium-proxmox-write-fence-'))
+  const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+  const db = openStore(join(directory, 'store.db'), provider), store = createCredentialStore(db, provider)
+  const user = 'synthetic-development-user'
+  await seedToolUser(db)
+  const hostWrites = (settings: object) => db.prepare("UPDATE tools SET enabled=1, native_settings=? WHERE name='proxmox-axi'")
+    .run(JSON.stringify({ writes: { operations: inventory.writeOperations }, hostWrites: settings }))
+  hostWrites({ allowWrites: true, operations: inventory.writeOperations })
+  const value = { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }
+  const lab = store.createInstance('proxmox-axi', { name: 'lab', description: '' }, value, user, Date.now())
+  store.setInstanceFlags('proxmox-axi', 'lab', { readOnly: false }, lab.id, lab.revision, user, Date.now())
+  store.createInstance('proxmox-axi', { name: 'production', description: '' }, value, user, Date.now())
+  const app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db),
+    adapters: [createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))],
+    environment: {}, resolver: new SharedIdentityResolver(store), credentialStore: store })
+  const headers = { authorization: `Bearer ${issueTestAccessToken(db, user)}` }
+  const upload = ['transfer', 'create', '/nodes/{node}/storage/{storage}/upload', '--api-node', 'node', '--api-storage', 'local',
+    '--api-content', 'iso', '--api-filename', 'synthetic.iso', '--response-format', 'multipart',
+    '--confirm', `00000000-0000-4000-8000-000000000001.${'a'.repeat(64)}`]
+  try {
+    const lease = await app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/streams', headers,
+      payload: { instance: 'lab', args: upload, source: { bytes: 1, sha256: 'a'.repeat(64) } } })
+    expect(lease.statusCode).toBe(200)
+    hostWrites(revoked)
+    const stopped = await app.inject({ method: 'DELETE', url: `/v1/tools/proxmox-axi/streams/${lease.json().id}`, headers })
+    expect(stopped.statusCode).toBe(400)
+    expect(stopped.json().error.code).toBe('FLAG_BLOCKED')
+  } finally { await app.close(); db.close(); rmSync(directory, { recursive: true, force: true }) }
+})
+
 test('changing one Proxmox instance replaces only its cached ticket', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'artium-proxmox-tickets-'))
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
