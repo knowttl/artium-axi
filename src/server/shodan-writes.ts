@@ -42,7 +42,7 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
     return result.data
   }
   const authorize = (plan: Pick<Plan, 'owner' | 'credential' | 'binding' | 'operation'>) => {
-    if (shodanWriteBinding(db, plan.owner, plan.credential, [plan.operation]).hash !== plan.binding) throw new ArtiumError('REVISION_CONFLICT')
+    if (shodanWriteBinding(db, plan.owner, plan.credential, plan.operation.split(',')).hash !== plan.binding) throw new ArtiumError('REVISION_CONFLICT')
   }
   const discard = async (plan: Plan) => {
     clearTimeout(plan.timer); plans.delete(plan.id)
@@ -53,7 +53,7 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
     const owner = shodanOwner(db, request), { instance, ...input } = parse(shodanWriteInput.extend({ instance: instanceNameSchema.optional() }), request.body)
     const operation = shodanWriteOperation(input)
     const credential = await resolver.resolve(owner.user, 'shodan-axi', instance)
-    const binding = shodanWriteBinding(db, owner, credential, [operation])
+    const binding = shodanWriteBinding(db, owner, credential, operation.split(','))
     if (input.queryCreditBudget > binding.settings.maxQueryCredits || input.maxRequests > binding.settings.maxRequests) throw new ArtiumError('INVALID_INPUT')
     if (closing || plans.size + pending.size >= 128 || [...plans.values()].filter(plan => plan.owner.user === owner.user).length
       + [...pending.values()].filter(user => user === owner.user).length >= 8) throw new ArtiumError('TOO_MANY_CALLS')

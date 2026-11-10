@@ -3,7 +3,8 @@ import { open } from 'node:fs/promises'
 import { encode } from '@toon-format/toon'
 import { z } from 'zod'
 import { ArtiumError } from '../shared/errors.js'
-import { shodanNotifierBody, shodanWriteBodyLimit, shodanWriteCommands, shodanWriteInput, type ShodanWriteCommand } from '../shared/shodan-write.js'
+import { shodanNotifierBody, shodanWriteBodyLimit, shodanWriteCommands, type ShodanWriteCommand } from '../shared/shodan-write.js'
+import { shodanWriteInput } from '../shared/shodan-stream.js'
 import type { Client } from './http.js'
 
 const prefix = '/v1/tools/shodan-axi/writes'
@@ -71,14 +72,17 @@ export async function shodanWrite(args: string[], createClient: () => Client, ou
   const bodyPath = importFile ? positional.pop() : values.get('--body-file')
   const body = bodyPath === undefined ? undefined : await readPrivateFile(bodyPath, importFile ? shodanWriteBodyLimit : notifierBodyLimit)
   let secrets: string[] = []
+  let notifierBody: z.infer<typeof shodanNotifierBody> | undefined
   if (body !== undefined && !importFile) {
     let parsed: z.ZodSafeParseResult<z.infer<typeof shodanNotifierBody>>
     try { parsed = shodanNotifierBody.safeParse(JSON.parse(body)) } catch { throw new ArtiumError('INVALID_INPUT', 'The notifier file is not valid JSON.') }
     if (!parsed.success || command === 'notifier create' && !parsed.data.provider) throw new ArtiumError('INVALID_INPUT', 'The notifier file needs an args object, and a provider for create.')
+    notifierBody = parsed.data
     secrets = Object.values(parsed.data.args).map(String).filter(Boolean)
   }
-  const parsed = shodanWriteInput.safeParse({ command, arguments: positional, allowOperations: grants, queryCreditBudget: integer('--query-credit-budget'), maxRequests: integer('--max-requests'),
-    expires: integer('--expires'), vulns: values.get('--vulns'), silent: switches.has('--silent') || undefined, triggers: values.get('--triggers'), body, acceptUnknownCost: true })
+  const parsed = shodanWriteInput.safeParse({ command, arguments: positional, queryCreditBudget: integer('--query-credit-budget'), maxRequests: integer('--max-requests'),
+    expires: integer('--expires'), vulns: values.get('--vulns'), silent: switches.has('--silent') || undefined, triggers: values.get('--triggers'), body: notifierBody,
+    ...(importFile ? { importBody: body, allowOperations: grants } : {}) })
   if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
   const client = createClient()
   await client.authenticated('/v1/me', 'GET')
@@ -93,9 +97,10 @@ export async function shodanWrite(args: string[], createClient: () => Client, ou
   const redact = (value: unknown, key = ''): unknown => {
     if (key === 'status' && typeof value === 'string' && ['preview', 'completed', 'verified', 'acknowledged-unverified', 'failed', 'not-attempted', 'OUTCOME_UNKNOWN', 'READBACK_UNVERIFIED'].includes(value)) return value
     if (key === 'confirm' && z.uuid().safeParse(value).success) return value
-    if (typeof value === 'string') return secrets.reduce((text, secret) => text.split(secret).join('[REDACTED]'), value)
+    if (typeof value === 'string') return secrets.reduce((text, secret) => secret.length < 4
+      ? text === secret ? '[REDACTED]' : text : text.split(secret).join('[REDACTED]'), value)
     if (Array.isArray(value)) return value.map(item => redact(item))
-    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, item]) => [name === 'status' ? name : redact(name) as string, redact(item, name)]))
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, redact(item, name)]))
     return value
   }
   const safe = redact(result.data)

@@ -24,20 +24,6 @@ export const shodanWriteCommands = {
 
 export type ShodanWriteCommand = keyof typeof shodanWriteCommands
 
-const positive = (maximum: number) => z.number().int().min(1).max(maximum)
-export const shodanWriteInput = z.strictObject({
-  command: z.enum(Object.keys(shodanWriteCommands) as [ShodanWriteCommand, ...ShodanWriteCommand[]]),
-  arguments: z.array(z.string().min(1).max(4096)).max(3),
-  allowOperations: z.array(z.string().min(1)).min(1),
-  queryCreditBudget: positive(1000), maxRequests: positive(1000),
-  expires: z.number().int().min(0).max(31536000).optional(),
-  vulns: z.string().min(1).max(4096).optional(),
-  silent: z.literal(true).optional(),
-  triggers: z.string().min(1).max(4096).optional(),
-  body: z.string().min(1).max(shodanWriteBodyLimit).optional(),
-  acceptUnknownCost: z.literal(true),
-})
-
 export const shodanNotifierBody = z.strictObject({
   provider: z.string().min(1).optional(), description: z.string().optional(),
   args: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).refine(args => Object.keys(args).length > 0),

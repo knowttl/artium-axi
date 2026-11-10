@@ -21,7 +21,7 @@ import { withFakeService } from '../fake-service/fixture.js'
 
 const user = 'synthetic-development-user'
 const writes = { grants: { [user]: ['OP-013', 'OP-027', 'OP-037', 'OP-038'] }, maxQueryCredits: 5, maxRequests: 10 }
-const allWrites = { ...writes, grants: { [user]: ['OP-013', 'OP-015', 'OP-016', 'OP-019', 'OP-020', 'OP-021', 'OP-022', 'OP-023', 'OP-024', 'OP-027', 'OP-028', 'OP-030', 'OP-037', 'OP-038', 'OP-070'] } }
+const allWrites = { ...writes, grants: { [user]: ['OP-013', 'OP-015', 'OP-016', 'OP-019', 'OP-020', 'OP-021', 'OP-022', 'OP-023', 'OP-024', 'OP-027', 'OP-028', 'OP-030', 'OP-037', 'OP-038', 'OP-040', 'OP-070'] } }
 const alert = { command: 'alert create', arguments: ['Fresh alert', '198.51.100.0/24'], queryCreditBudget: 2, maxRequests: 4 }
 const member = { command: 'org add', arguments: ['new.member@example.test'], queryCreditBudget: 2, maxRequests: 4, silent: true }
 const notifier = { command: 'notifier create', arguments: [], queryCreditBudget: 2, maxRequests: 4,
@@ -95,12 +95,25 @@ test('preview binds observed state without writing and execute applies it once',
   })
 })
 
+test('domain alert previews and executes its DNS and trigger steps', async () => {
+  await withWriteApp(async ({ post, send }) => {
+    const input = { command: 'alert domain', arguments: ['example.test'], triggers: 'malware', queryCreditBudget: 4, maxRequests: 6 }
+    const preview = await post('preview', input)
+    expect(preview.statusCode, preview.body).toBe(200)
+    expect(preview.json().effects.map((effect: { operation: string }) => effect.operation)).toEqual(['OP-013', 'OP-019'])
+    const result = await post('execute', { ...input, confirm: preview.json().confirm })
+    expect(result.statusCode, result.body).toBe(200)
+    expect(result.json()).toMatchObject({ status: 'completed' })
+    expect(JSON.parse(await send('/__shodan/state')).alerts['created-alert-1']).toMatchObject({ name: 'example.test', filters: { ip: ['192.0.2.1'] }, triggers: { malware: {} } })
+  }, allWrites)
+})
+
 test.each([
   { name: 'ungranted operation', payload: { ...alert, command: 'alert remove', arguments: ['synthetic-alert'] }, code: 'TOOL_NOT_GRANTED', status: 403 },
   { name: 'request ceiling', payload: { ...alert, maxRequests: 11 }, code: 'INVALID_INPUT', status: 400 },
   { name: 'credit ceiling', payload: { ...alert, queryCreditBudget: 6 }, code: 'INVALID_INPUT', status: 400 },
   { name: 'flag-shaped argument', payload: { ...alert, arguments: ['--config', '198.51.100.0/24'] }, code: 'INVALID_INPUT', status: 400 },
-  { name: 'unlisted command', payload: { ...alert, command: 'alert clear', arguments: [] }, code: 'INVALID_INPUT', status: 400 },
+  { name: 'unlisted command', payload: { ...alert, command: 'alert download', arguments: [] }, code: 'INVALID_INPUT', status: 400 },
   { name: 'budget below the native minimum', payload: { ...alert, queryCreditBudget: 1, maxRequests: 1 }, code: 'INVALID_INPUT', status: 400 },
 ])('preview refuses $name before any upstream request', async ({ payload, code, status }) => {
   await withWriteApp(async ({ post, requests, stagedPlans }) => {

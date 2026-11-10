@@ -58,7 +58,7 @@ export function shodanWrites(record) {
       }
       else if (req.method === 'POST' && path === '/shodan/alert') {
         const input = JSON.parse(body)
-        const alert = { id: `created-alert-${++created}`, name: input.name, filters: input.filters, expiration: null }
+        const alert = { id: `created-alert-${++created}`, name: input.name, filters: input.filters, expiration: null, triggers: {} }
         alerts.set(alert.id, alert)
         reply(res, 200, alert)
       } else if (req.method === 'GET' && path === '/org') reply(res, 200, { id: 'synthetic-org', name: 'Synthetic', admins: [], members: [...members.values()],

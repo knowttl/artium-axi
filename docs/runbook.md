@@ -689,7 +689,7 @@ Shodan write plans expire after fifteen minutes and are discarded on relevant bi
 After `OUTCOME_UNKNOWN`, `READBACK_UNVERIFIED` or a lost response, inspect the relevant upstream alert, notifier or organization state before considering another change.
 The returned native outcome includes completed and unsent steps when available; a failed readback does not establish that the mutation failed.
 Shodan confirmed-write commands call `/v1/tools/shodan-axi/writes/preview` and `/v1/tools/shodan-axi/writes/execute`.
-These server routes are delivered separately, so the commands return an error against a server that does not yet provide them.
+The server provides these routes for authorized owner sessions.
 A Shodan confirmed write that returns `OUTCOME_UNKNOWN` or `READBACK_UNVERIFIED` may have changed upstream state.
 Save the result, then read the affected object before another preview: `alert list`, `alert info <id>`, `notifier list` or `org info`.
 For `alert domain`, `alert import` and `alert clear`, compare the live alerts and notifiers with the result, because earlier steps may have applied.

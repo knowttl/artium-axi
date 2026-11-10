@@ -473,7 +473,7 @@ See [credential setup](tool-credentials.md#shodan), [commands](commands.md#shoda
 | LDAP | Fixed read-only. |
 | UniFi | Exact native operation and variant grants plus native preview, confirmation and stable request ID; see [network appliance access](#network-appliance-reads). |
 | Proxmox | See [network appliance access](#network-appliance-reads) for native write grants, confirmation, private results and managed streams. |
-| Shodan | Alert, notifier and organization write commands require separately delivered server routes; see the [Shodan boundary](#shodan). Downloads stay unavailable. |
+| Shodan | Alert, notifier and organization writes require grants, budgets and confirmation; see the [Shodan boundary](#shodan). Downloads stay unavailable. |
 | Technitium DNS | See the [native write capability boundary](#technitium-dns). |
 | Shodan | Confirmed alert, notifier and organization writes, retained search and alert exports and targeted scans need separate administrator `writes`, `exports` and `scans` grants, an owner session, a writable instance and a single-use confirmation; see the [Shodan boundary](#shodan). |
 | BeyondTrust | Administrator `writes.allowWrites` with exact `writes.operations`, native preview, `--execute` and exact `--confirm`; deletes additionally need `writes.allowDeletes` and exact `--confirm-delete`; see the [BeyondTrust boundary](#beyondtrust-endpoint-privilege-management). |
