@@ -29,7 +29,7 @@ See [client input handling](client-reference.md#command-surface-and-subcommands)
 | `artium-axi proxmox-axi stream limits` | Inspect authenticated host byte, staging, deadline and concurrency limits. |
 | `artium-axi proxmox-axi stream -- transfer\|duplex <native arguments>` | Use [private managed byte channels](client-reference.md#proxmox-managed-streams) for reviewed transfers and console/migration operations. |
 | `artium-axi technitium-axi [<args>]` | Read Technitium DNS data and use native confirmed writes with managed credentials and private result retrieval. |
-| `artium-axi shodan-axi [<args>]` | Read Shodan account and investigation data or run a bounded stream session with managed credentials; see [usage](#shodan). |
+| `artium-axi shodan-axi [<args>]` | Read Shodan account and investigation data, run a bounded stream session or apply a confirmed alert, notifier or organization write with managed credentials; see [usage](#shodan). |
 | `artium-axi gitea-axi [<args>]` | Read Gitea metadata and perform administrator-enabled native writes with preview, confirmation and reconciliation. |
 | `artium-axi kubernetes-axi [<args>]` | Read Kubernetes resources or use administrator-enabled [mutation and bounded byte workflows](safety.md#kubernetes-reads), caller-owned workspaces and managed credentials with pinned kubectl. |
 | `artium-axi ssh-axi [<args>]` | Discover granted SSH hosts, check authentication and run [confirmed managed commands](#ssh). |
@@ -336,6 +336,57 @@ A failed export returns `TOOL_FAILED`; see [export retention and recovery](runbo
 Use `artium-axi shodan-axi download --help` or `alert download --help` for local help without contacting the server.
 For authentication failures, ask an administrator to replace the managed key using [Shodan credential setup](tool-credentials.md#shodan).
 See [package recovery](runbook.md#roles-credentials-and-health) for inventory or package mismatches.
+
+### Shodan confirmed writes
+
+Alert, notifier and organization changes run only through confirmed writes; ordinary `shodan-axi` runs still refuse them.
+They require an owner session, so delegated tokens cannot use them, and an administrator must grant each operation in the [write policy](tool-credentials.md#shodan).
+Use `artium-axi shodan-axi alert create --help` for the command list without contacting the server.
+
+| Command | Required `--allow-operation` | Notes |
+| --- | --- | --- |
+| `alert create <name> <networks>` | `OP-013` | `--expires <seconds>` is optional. |
+| `alert update <id> <networks>` | `OP-016` | Replaces the monitored networks. |
+| `alert remove <id>` | `OP-015` | |
+| `alert enable <id> <trigger>`, `alert disable <id> <trigger>` | `OP-019`, `OP-020` | |
+| `alert ignore <id> <trigger> <ip:port>` | `OP-021` | `--vulns CVE-...,CVE-...` ignores only those CVEs and requires `OP-070` instead. |
+| `alert unignore <id> <trigger> <ip:port>` | `OP-022` | |
+| `alert notifier add <id> <notifier>`, `alert notifier remove <id> <notifier>` | `OP-023`, `OP-024` | |
+| `notifier create --body-file <path>`, `notifier update <id> --body-file <path>` | `OP-027`, `OP-030` | See notifier files below. |
+| `notifier remove <id>` | `OP-028` | |
+| `org add <email>`, `org remove <email>` | `OP-037`, `OP-038` | Add invites by email unless `--silent`; remove downgrades the member. |
+| `alert clear` | `OP-015` | Removes a snapshot of every alert fixed at preview. |
+| `alert domain <domain>` | `OP-040,OP-013,OP-019` | Creates an alert from indexed IPv4 addresses on the first DNS page; `--triggers <names>` overrides the default triggers. It does not track later DNS changes. |
+| `alert import <path>` | A subset of `OP-013,OP-019,OP-021,OP-023,OP-027` including `OP-013` | The server derives the exact steps from the file; see import files below. |
+
+Every command also needs `--query-credit-budget`, `--max-requests` and `--accept-unknown-cost`, because write cost cannot be determined.
+The budgets must reach the upstream minimums and stay within the administrator ceilings; a value outside either returns `INVALID_INPUT`.
+Preview first, for example:
+
+```sh
+artium-axi shodan-axi alert remove 1A2B3C --allow-operation OP-015 --query-credit-budget 1 --max-requests 3 --accept-unknown-cost --json
+artium-axi shodan-axi alert remove 1A2B3C --allow-operation OP-015 --query-credit-budget 1 --max-requests 3 --accept-unknown-cost --execute --confirm <token> --json
+```
+
+The preview reports the operation, target, method and effects without changing anything, and returns a single-use `confirm` token that expires after fifteen minutes.
+Repeat the exact preview arguments with `--execute --confirm <token>` to apply.
+A changed Shodan state between preview and execution is refused as stale; preview again.
+Put `--instance <name>` before `shodan-axi` on both calls when more than one instance is available; the confirmation stays bound to the previewed instance.
+An instance marked read-only refuses write previews as well as execution.
+
+Execution lists each step as `verified`, `acknowledged-unverified`, `failed` or `not-attempted`.
+A result with `status: OUTCOME_UNKNOWN` or `READBACK_UNVERIFIED` exits 1 and reports completed and unsent steps.
+Never retry blindly after either status; read the affected alert, notifier or organization first and follow the [uncertain-outcome recovery](runbook.md#retention-and-export).
+
+Notifier files hold provider secrets such as webhook URLs and chat tokens.
+`--body-file` is a local JSON file of the form `{"provider": "...", "description": "...", "args": {"<name>": "<value>"}}`; `provider` is required for create.
+The CLI reads the file and sends its content; the server never receives or opens a path.
+The file must be a regular file of at most 64 KiB, not a symbolic link, and private (mode 0600 on Linux and macOS); the CLI refuses it otherwise.
+Previews list argument names but never values, and Artium never writes request bodies to audit records or logs.
+`alert import` reads a private JSON or JSONL alert file of at most 1 MiB the same way, and its notifier definitions carry the same secrets.
+
+Because bulk previews bind a fixed snapshot, `alert clear` and `alert import` preview the full ordered step list; review it before confirming.
+Writes are limited to the operations granted to you; ask an administrator when `FLAG_BLOCKED` or a missing grant refuses a command.
 
 ## Check Point Email Security
 

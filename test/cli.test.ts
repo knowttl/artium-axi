@@ -709,6 +709,96 @@ test.each([
     body: { ...body, instance: 'lab' }, version: cliVersion }])
 })
 
+const writeToken = '00000000-0000-4000-8000-000000000000'
+const writeBounds = ['--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost', '--json']
+const writeBody = { queryCreditBudget: 2, maxRequests: 4, acceptUnknownCost: true }
+
+function privateFile(content: string, mode = 0o600) {
+  const path = join(mkdtempSync(join(directory, 'shodan-write-')), 'input.json')
+  writeFileSync(path, content, { mode })
+  return path
+}
+
+test.each([
+  { name: 'alert create', args: ['alert', 'create', 'edge', '192.0.2.0/24', '--allow-operation', 'OP-013', '--expires', '3600'],
+    body: { command: 'alert create', arguments: ['edge', '192.0.2.0/24'], expires: 3600 } },
+  { name: 'alert ignore with CVEs', args: ['alert', 'ignore', 'a1', 'new_service', '192.0.2.1:80', '--vulns', 'CVE-2024-0001', '--allow-operation', 'OP-070'],
+    body: { command: 'alert ignore', arguments: ['a1', 'new_service', '192.0.2.1:80'], vulns: 'CVE-2024-0001' } },
+  { name: 'alert notifier remove', args: ['alert', 'notifier', 'remove', 'a1', 'n1', '--allow-operation', 'OP-024'],
+    body: { command: 'alert notifier remove', arguments: ['a1', 'n1'] } },
+  { name: 'org add without notification', args: ['org', 'add', 'member@example.test', '--silent', '--allow-operation', 'OP-037'],
+    body: { command: 'org add', arguments: ['member@example.test'], silent: true } },
+  { name: 'alert clear', args: ['alert', 'clear', '--allow-operation', 'OP-015'], body: { command: 'alert clear', arguments: [] } },
+  { name: 'alert domain', args: ['alert', 'domain', 'example.test', '--triggers', 'malware', '--allow-operation', 'OP-040,OP-013,OP-019'],
+    body: { command: 'alert domain', arguments: ['example.test'], triggers: 'malware' } },
+])('Shodan write preview sends $name', async ({ args, body }) => {
+  requests = []
+  response = { status: 200, body: { confirm: writeToken } }
+  expect(await cli(['--instance', 'lab', 'shodan-axi', ...args, ...writeBounds])).toMatchObject({ code: 0, stdout: `{"confirm":"${writeToken}"}\n` })
+  expect(requests.filter(request => request.path.startsWith('/v1/tools/'))).toEqual([{ path: '/v1/tools/shodan-axi/writes/preview',
+    token: 'Bearer CANARY-cli-token', body: { ...writeBody, ...body, instance: 'lab' }, version: cliVersion }])
+})
+
+test('Shodan notifier create and alert import send local file content, never a path', async () => {
+  requests = []
+  response = { status: 200, body: { confirm: writeToken } }
+  const notifier = JSON.stringify({ provider: 'slack', args: { webhook_url: 'https://hooks.example.test/CANARY-secret' } })
+  const alerts = JSON.stringify([{ name: 'edge', filters: { ip: ['192.0.2.0/24'] } }])
+  const notifierPath = privateFile(notifier), importPath = privateFile(alerts)
+  await cli(['shodan-axi', 'notifier', 'create', '--body-file', notifierPath, '--allow-operation', 'OP-027', ...writeBounds])
+  await cli(['shodan-axi', 'alert', 'import', importPath, '--allow-operation', 'OP-013,OP-019', ...writeBounds])
+  expect(requests.filter(request => request.path.startsWith('/v1/tools/')).map(request => request.body)).toEqual([
+    { ...writeBody, command: 'notifier create', arguments: [], body: notifier },
+    { ...writeBody, command: 'alert import', arguments: [], body: alerts }])
+})
+
+test('Shodan write execute sends the confirmation and exits 1 on an uncertain outcome', async () => {
+  requests = []
+  response = { status: 200, body: { status: 'OUTCOME_UNKNOWN', completed: [], unsent: [] } }
+  expect(await cli(['shodan-axi', 'alert', 'remove', 'a1', '--allow-operation', 'OP-015', '--execute', '--confirm', writeToken, ...writeBounds]))
+    .toMatchObject({ code: 1, stdout: '{"status":"OUTCOME_UNKNOWN","completed":[],"unsent":[]}\n' })
+  expect(requests.filter(request => request.path.startsWith('/v1/tools/'))).toEqual([{ path: '/v1/tools/shodan-axi/writes/execute',
+    token: 'Bearer CANARY-cli-token', body: { ...writeBody, command: 'alert remove', arguments: ['a1'], confirm: writeToken }, version: cliVersion }])
+})
+
+test.each([
+  { name: 'a missing grant', args: ['alert', 'remove', 'a1', ...writeBounds] },
+  { name: 'a grant for a different operation', args: ['alert', 'remove', 'a1', '--allow-operation', 'OP-016', ...writeBounds] },
+  { name: 'an extra grant', args: ['alert', 'remove', 'a1', '--allow-operation', 'OP-015,OP-016', ...writeBounds] },
+  { name: 'a plain ignore granted for the CVE operation', args: ['alert', 'ignore', 'a1', 't', '192.0.2.1:80', '--allow-operation', 'OP-070', ...writeBounds] },
+  { name: 'a missing credit budget', args: ['alert', 'remove', 'a1', '--allow-operation', 'OP-015', '--max-requests', '4', '--accept-unknown-cost'] },
+  { name: 'missing unknown-cost acceptance', args: ['alert', 'remove', 'a1', '--allow-operation', 'OP-015', '--query-credit-budget', '2', '--max-requests', '4'] },
+  { name: 'a confirmation without execute', args: ['alert', 'remove', 'a1', '--allow-operation', 'OP-015', '--confirm', writeToken, ...writeBounds] },
+  { name: 'an execute without confirmation', args: ['alert', 'remove', 'a1', '--allow-operation', 'OP-015', '--execute', ...writeBounds] },
+  { name: 'a flag from another command', args: ['alert', 'remove', 'a1', '--allow-operation', 'OP-015', '--silent', ...writeBounds] },
+  { name: 'a missing notifier file', args: ['notifier', 'create', '--allow-operation', 'OP-027', ...writeBounds] },
+  { name: 'a surplus positional argument', args: ['alert', 'remove', 'a1', 'a2', '--allow-operation', 'OP-015', ...writeBounds] },
+])('Shodan write refuses $name before any request', async ({ args }) => {
+  requests = []
+  expect(await cli(['shodan-axi', ...args])).toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT') })
+  expect(requests).toEqual([])
+})
+
+test.each([
+  { name: 'a group-readable file', content: JSON.stringify({ provider: 'slack', args: { a: 'b' } }), mode: 0o644 },
+  { name: 'invalid JSON', content: 'not json', mode: 0o600 },
+  { name: 'a body without args', content: JSON.stringify({ provider: 'slack' }), mode: 0o600 },
+  { name: 'a create body without a provider', content: JSON.stringify({ args: { a: 'b' } }), mode: 0o600 },
+  { name: 'an oversized body', content: JSON.stringify({ provider: 'slack', args: { a: 'x'.repeat(70000) } }), mode: 0o600 },
+])('Shodan notifier create refuses $name before any request', async ({ content, mode }) => {
+  requests = []
+  const path = privateFile(content, mode)
+  expect(await cli(['shodan-axi', 'notifier', 'create', '--body-file', path, '--allow-operation', 'OP-027', ...writeBounds]))
+    .toMatchObject({ code: 2, stdout: expect.stringContaining('INVALID_INPUT') })
+  expect(requests).toEqual([])
+})
+
+test('Shodan write help is local', async () => {
+  requests = []
+  expect(await cli(['shodan-axi', 'notifier', 'create', '--help'])).toMatchObject({ code: 0, stdout: expect.stringContaining('--body-file') })
+  expect(requests).toEqual([])
+})
+
 test('a server that rejects the instance field is refused with an upgrade next step', async () => {
   requests = []
   response = { status: 400, body: errorResponse(new ArtiumError('INVALID_INPUT'), 'synthetic-older-server') }

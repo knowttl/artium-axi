@@ -16,6 +16,7 @@ import { shodanSession } from './shodan-session.js'
 import { shodanRadar } from './shodan-radar.js'
 import { shodanScan } from './shodan-scan.js'
 import { shodanExport } from './shodan-export.js'
+import { shodanWrite } from './shodan-write.js'
 import { resolveProxmoxStream } from '../shared/proxmox-commands.js'
 import { ssoLogin } from './device.js'
 import { cliVersion } from '../shared/version.js'
@@ -104,6 +105,8 @@ async function main(args: string[]) {
     await shodanExport([...args.slice(1, args[1] === 'alert' ? 3 : 2), '--help'], () => new Client(process.env, managed), output)
     return
   }
+  if (command === 'shodan-axi' && args.some(arg => ['--help', '-h'].includes(arg))
+    && await shodanWrite(args.slice(1), () => new Client(process.env, managed), output)) return
   const toolWords = args.slice(1).filter(arg => !['--json', '--full', '--help', '-h'].includes(arg))
   const toolDiscovery = toolSchema.safeParse(command).success && (prefixHelp || toolWords.length === 0
     || args.slice(1).some(arg => ['--help', '-h'].includes(arg)) || toolWords[0] === 'help'
@@ -317,6 +320,8 @@ async function main(args: string[]) {
   if (command === 'shodan-axi' && await shodanScan(args.slice(1), () => new Client(process.env, managed), output, instance)
     .catch(error => { throw instanceErrorAdvice(error, instance) })) return
   if (command === 'shodan-axi' && await shodanExport(args.slice(1), () => new Client(process.env, managed), output, instance, managed)
+    .catch(error => { throw instanceErrorAdvice(error, instance) })) return
+  if (command === 'shodan-axi' && await shodanWrite(args.slice(1), () => new Client(process.env, managed), output, instance)
     .catch(error => { throw instanceErrorAdvice(error, instance) })) return
   const input = home || listing || whoami ? undefined : { ...await toolInput(command!, args.slice(1)), ...(instance === undefined ? {} : { instance }) }
   const client = new Client(process.env, managed)
