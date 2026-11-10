@@ -171,7 +171,7 @@ test('native raw bulk job launch is rejected before a controller request', async
   const transport = new RecordedTransport([], { env: call.environment })
   let output = ''
   await main({ argv: call.args.slice(4), env: call.environment, createTransport: () => transport,
-    stdout: { write: chunk => { output += chunk } }, stderr: { write: chunk => { output += chunk } } })
+    stdout: { write: chunk => { output += chunk } } })
   expect(output).toContain('refuses bulk/job_launch/')
   expect(transport.requests).toEqual([])
 })
