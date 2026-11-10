@@ -365,6 +365,31 @@ test('unrelated native settings are excluded from settings diffs', async () => {
 })
 
 test.each([
+  { tool: 'kubernetes-axi', initial: { sessions: { grants: { 'synthetic-user': ['exec'] }, lifetimeSeconds: 1 } },
+    limits: { sessions: { grants: { 'synthetic-user': ['exec'] }, lifetimeSeconds: 2 } },
+    changed: { sessions: { grants: { 'synthetic-user': ['logs'] }, lifetimeSeconds: 2 } },
+    changes: [{ path: ['sessions', 'grants', 'synthetic-user'], added: ['logs'], removed: ['exec'] }] },
+  { tool: 'shodan-axi', initial: { scans: { grants: { 'synthetic-user': ['OP-009'] }, maxScanCredits: 1, maxRequests: 1 },
+    sessions: { grants: { 'synthetic-user': ['OP-046'] }, perUser: 1, perCredential: 1, total: 1, sessionEvents: 1, totalEvents: 1,
+      sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 } },
+    limits: { scans: { grants: { 'synthetic-user': ['OP-009'] }, maxScanCredits: 2, maxRequests: 2 },
+      sessions: { grants: { 'synthetic-user': ['OP-046'] }, perUser: 2, perCredential: 2, total: 2, sessionEvents: 2, totalEvents: 2,
+        sessionBytes: 2, totalBytes: 2, retentionSeconds: 2, leaseSeconds: 2 } },
+    changed: { scans: { grants: { 'synthetic-user': ['OP-010'] }, maxScanCredits: 2, maxRequests: 2 },
+      sessions: { grants: { 'synthetic-user': ['OP-047'] }, perUser: 2, perCredential: 2, total: 2, sessionEvents: 2, totalEvents: 2,
+        sessionBytes: 2, totalBytes: 2, retentionSeconds: 2, leaseSeconds: 2 } },
+    changes: [{ path: ['scans', 'grants', 'synthetic-user'], added: ['OP-010'], removed: ['OP-009'] },
+      { path: ['sessions', 'grants', 'synthetic-user'], added: ['OP-047'], removed: ['OP-046'] }] },
+] as const)('$tool policy limits do not appear in grant diffs', async ({ tool, initial, limits, changed, changes }) => {
+  expect((await request('PATCH', `/${tool}`, { expectedRevision: 1, nativeSettings: initial })).status).toBe(200)
+  db.exec('DELETE FROM audit')
+  await replace(tool, { ...values[tool], ...limits })
+  expect((await request('PATCH', `/${tool}`, { expectedRevision: 3, nativeSettings: changed })).status).toBe(200)
+  const rows = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change' ORDER BY id").all() as { arguments: string | null }[]
+  expect(rows.map(row => row.arguments && JSON.parse(row.arguments))).toEqual([null, { settings: changes }])
+})
+
+test.each([
   { tool: 'falcon-axi', settings: { allowWrites: true }, writableTools: ['falcon-axi'] },
   { tool: 'az-axi', settings: { allowWrites: true }, writableTools: ['az-axi'] },
   { tool: 'mg-axi', settings: { writes: { allowWrites: true, operations: ['mg.entra.group.member.add'] } }, writableTools: ['mg-axi'] },

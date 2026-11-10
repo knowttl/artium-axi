@@ -241,7 +241,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
   }
   function settingsChanges(tool: ToolName, before: Record<string, unknown>, after: Record<string, unknown>) {
     const keys = tool === 'kubernetes-axi' ? ['sessions'] : tool === 'shodan-axi' ? ['scans', 'sessions'] : []
-    return keys.flatMap(key => diffSettings(before[key], after[key], [key]))
+    return keys.flatMap(key => diffSettings((before[key] as { grants?: unknown } | undefined)?.grants,
+      (after[key] as { grants?: unknown } | undefined)?.grants, [key, 'grants']))
   }
   const githubDevice = new GithubDeviceFlow()
   function githubRevisions(expectedRevision: number, expectedToolRevision: number, expectedCredentialId: string | undefined, instance: string | undefined): void {
