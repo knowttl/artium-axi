@@ -1,6 +1,7 @@
 import { configurationTests } from './awx-configuration-cases.js'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { request } from 'node:https'
 import { expect, test } from 'vitest'
 import { decode } from '@toon-format/toon'
 import { createApp } from '../../src/server/app.js'
@@ -139,9 +140,27 @@ test('AWX project SCM URLs remain private on later project and activity reads (S
       allowWrites = false
       expect(await run(['activity-stream', 'show', '3'])).toMatchObject({ 'activity-stream': { changes: '[activity changes redacted]' } })
       allowWrites = true
-      const rawBody = upload('body.json', JSON.stringify({ scm_url: 'https://scm.example/repo?token=CANARY-stored-url' }))
+      const refused = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: {
+        args: ['api', 'patch', 'projects/42/', '--body-file', 'body.json', '--confirm'],
+        files: [upload('body.json', JSON.stringify({ scm_url: 'https://scm.example/repo?token=CANARY-rejected' }))],
+      } })
+      expect(refused.json()).toMatchObject({ error: { code: 'UNSUPPORTED_INPUT' } })
+      await new Promise<void>((resolve, reject) => {
+        const req = request({ hostname: 'localhost', port, path: '/api/v2/projects/42/', method: 'PATCH',
+          ca: readFileSync(join(directory, 'ca.crt')), headers: { authorization: 'Bearer CANARY-awx-token', 'content-type': 'application/json' } }, response => {
+          if (response.statusCode !== 200) { reject(new Error(`Unexpected fake controller status ${response.statusCode}`)); return }
+          response.resume()
+          response.on('end', resolve)
+        })
+        req.on('error', reject)
+        req.end(JSON.stringify({ scm_url: 'https://scm.example/repo?token=CANARY-stored-url' }))
+      })
+      const rawBody = upload('body.json', JSON.stringify({ variables: 'internal_value: private-example' }))
+      const preview = await run(['api', 'patch', 'projects/42/', '--body-file', 'body.json', '--dry-run'], { files: [rawBody] })
+      expect(JSON.stringify(preview)).not.toContain('private-example')
       const changed = await run(['api', 'patch', 'projects/42/', '--body-file', 'body.json', '--confirm'], { files: [rawBody] })
       expect(JSON.stringify(changed)).toContain('[SCM URL redacted]')
+      expect(JSON.stringify(changed)).not.toContain('private-example')
       for (const args of [['api', 'get', 'projects/42/'], ['api', 'get', 'projects/'],
         ['api', 'post', 'projects/42/copy/', '--confirm']]) {
         expect(JSON.stringify(await run(args))).toContain('[SCM URL redacted]')

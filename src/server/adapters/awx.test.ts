@@ -84,6 +84,16 @@ test.each([
     next: expect.stringContaining('credential create/edit --inputs-file') })
 })
 
+test.each(['post', 'put', 'patch'].flatMap(method => ['--dry-run', '--confirm'].flatMap(action => [
+  { method, action, body: { scm_url: 'https://scm.example/repo?token=CANARY-secret' } },
+  { method, action, body: { nested: [{ scm_url: 'https://user@scm.example/repo' }] } },
+  { method, action, body: { scm_url: 'https://scm.example/repo#fragment' } },
+])))('raw $method $action rejects unsafe SCM URLs before dispatch', async ({ method, action, body }) => {
+  const file = { name: 'body.json', contentBase64: Buffer.from(JSON.stringify(body)).toString('base64') }
+  await expect(adapter(true).prepare(['api', method, 'projects/42/', '--body-file=body.json', action], reference, { files: [file] }))
+    .rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
+})
+
 test.each(['project create', 'project edit', 'job stdout', 'ad-hoc stdout'])('%s help explains SCM credentials and retained-log scope', command => {
   const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', ...command.split(' '), '--help'], { encoding: 'utf8' })
   expect(result.status).toBe(0)

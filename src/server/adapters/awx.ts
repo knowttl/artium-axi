@@ -17,6 +17,15 @@ export const awxWritePolicy = writePolicy({ unlocks: 'All AWX writes for this te
 export const awxProfile = new CredentialProfile(inventory.credentialSchema, 'awx-axi')
 export const awxCredentialSchema = awxProfile.credentialSchema
 
+function validateScmUrl(content: unknown) {
+  const url = typeof content === 'string' ? URL.parse(content) : null
+  if (!url || url.username || url.password || url.hash || [...url.searchParams.keys()].some(key =>
+    /password|passwd|passphrase|token|secret|credential|authorization|apikey|accesskey|privatekey|signature|^sig$|^auth$|^key$/i.test(key.replace(/[-_]/g, '')))) {
+    throw new ArtiumError('UNSUPPORTED_INPUT', 'SCM URLs must be valid URLs without userinfo, credential query parameters or fragments.',
+      'Use --credential to reference an AWX SCM credential. Supply its secrets through credential create/edit --inputs-file using the secure file channel.')
+  }
+}
+
 function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   validateFileInput('awx-axi', args, input)
   if (input.stdin !== undefined && args.some(arg => ['--help', '--version', '-v', '-V'].includes(arg))) throw new ArtiumError('UNSUPPORTED_INPUT')
@@ -110,17 +119,23 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
       const file = input.files?.find(file => file.name === value)
       const content = file ? Buffer.from(file.contentBase64, 'base64').toString('utf8') : value
       if (content.startsWith('@')) throw new ArtiumError('UNSUPPORTED_INPUT')
-      if (name === 'scm-url') {
-        const url = URL.parse(content)
-        if (!url || url.username || url.password || url.hash || [...url.searchParams.keys()].some(key =>
-          /password|passwd|passphrase|token|secret|credential|authorization|apikey|accesskey|privatekey|signature|^sig$|^auth$|^key$/i.test(key.replace(/[-_]/g, '')))) {
-          throw new ArtiumError('UNSUPPORTED_INPUT', 'SCM URLs must be valid URLs without userinfo, credential query parameters or fragments.',
-            'Use --credential to reference an AWX SCM credential. Supply its secrets through credential create/edit --inputs-file using the secure file channel.')
-        }
-      }
+      if (name === 'scm-url') validateScmUrl(content)
       normalized.push(`--${name}=private-input`)
       structured.push([normalized.length - 1, content])
     } else if (name.endsWith('-file')) {
+      if (positionals[0] === 'api' && name === 'body-file') {
+        const file = input.files!.find(file => file.name === value)!
+        let body: unknown
+        try { body = JSON.parse(Buffer.from(file.contentBase64, 'base64').toString('utf8')) } catch {}
+        const inspect = (item: unknown): void => {
+          if (!item || typeof item !== 'object') return
+          for (const [key, child] of Object.entries(item)) {
+            if (key === 'scm_url') validateScmUrl(child)
+            else inspect(child)
+          }
+        }
+        inspect(body)
+      }
       normalized.push(`--${name}`, String(value))
       if (value !== '-') fileArguments.push(normalized.length - 1)
     } else normalized.push(value === true ? `--${name}` : `--${name}=${value}`)

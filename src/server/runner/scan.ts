@@ -129,7 +129,7 @@ export class SecretScanner {
       if ((depth > 1 || key === 'payload') && Object.hasOwn(fields, key)) return value !== fields[key]
       if (protocolOutputFields.includes(key)) return false
       if (typeof value === 'string') return !masks.has(value) && this.#valuePatterns.some(pattern => pattern.test(value))
-      if (Array.isArray(value)) return value.some(child => containsSecret(child, '', depth + 1))
+      if (Array.isArray(value)) return value.some((child, index) => containsSecret(child, String(index), depth + 1))
       return value !== null && typeof value === 'object' && Object.entries(value).some(([name, child]) => containsSecret(child, name, depth + 1))
     }
     for (const stream of ['stdout', 'stderr'] as const) {

@@ -56,7 +56,7 @@ const redact = (value, key = '', depth = 0) => {
     const match = tokens.find(([pattern]) => pattern.test(value));
     if (match) return match[1];
   }
-  if (Array.isArray(value)) return value.map(child => redact(child, '', depth + 1));
+  if (Array.isArray(value)) return value.map((child, index) => redact(child, String(index), depth + 1));
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, child]) => [name, redact(child, name, depth + 1)]));
   return value;
 };
@@ -165,7 +165,7 @@ if (downloaded) {
 
 export function awxPrivateOutput(input: RunnerInput, structured: readonly (readonly [number, string])[], args: readonly string[]) {
   const inline = new Map(structured.map(([index, content]) => [args[index].slice(2).split('=', 1)[0], content]))
-  const output = privateOutput(Object.entries(inputFields).flatMap(([flag, defaultField]) => {
+  const inputs = Object.entries(inputFields).flatMap(([flag, defaultField]) => {
     const field = flag === 'extra-vars' && (args[0] === 'schedule' || args[0] === 'workflow' && ['node-create', 'node-edit'].includes(args[1]))
       ? 'extra_data' : defaultField
     let content = inline.get(flag)
@@ -177,7 +177,25 @@ export function awxPrivateOutput(input: RunnerInput, structured: readonly (reado
       content = name === '-' ? input.stdin : file && Buffer.from(file.contentBase64, 'base64').toString('utf8')
     }
     return content === undefined ? [] : [{ field, content }]
-  }))
+  })
+  const bodyIndex = args[0] === 'api' ? args.indexOf('--body-file') : -1
+  const bodyFile = bodyIndex < 0 ? undefined : input.files?.find(file => file.name === args[bodyIndex + 1])
+  if (bodyFile) {
+    const content = Buffer.from(bodyFile.contentBase64, 'base64').toString('utf8')
+    inputs.push({ field: 'raw_body', content })
+    let body: unknown
+    try { body = JSON.parse(content) } catch {}
+    const collect = (item: unknown): void => {
+      if (!item || typeof item !== 'object') return
+      for (const [key, value] of Object.entries(item)) {
+        if (value && typeof value === 'object') collect(value)
+        else inputs.push({ field: key === 'body' || protocolOutputFields.includes(key) ? 'raw_body' : key,
+          content: typeof value === 'string' ? value : '' })
+      }
+    }
+    collect(body)
+  }
+  const output = privateOutput(inputs)
   output.fields.scm_url = '[SCM URL redacted]'
   if (inline.has('scm-url')) delete output.fields.payload
   return output
