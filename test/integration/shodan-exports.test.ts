@@ -31,8 +31,10 @@ const row = { ip_str: '192.0.2.1', port: 443, transport: 'tcp', timestamp: '2026
 
 afterEach(() => { vi.useRealTimers() })
 
-async function exportFixture(check: (fixture: Awaited<ReturnType<typeof prepare>>) => Promise<void>, exports: object | null = policy) {
-  await withFakeService(async ({ directory, port }) => {
+async function exportFixture(check: (fixture: Awaited<ReturnType<typeof prepare>> & { send: (path: string) => Promise<string>, held: Promise<void> }) => Promise<void>, exports: object | null = policy) {
+  let heldRequest!: () => void
+  const held = new Promise<void>(resolve => { heldRequest = resolve })
+  await withFakeService(async ({ directory, port, send }) => {
     boundary.bootstrap = join(directory, 'shodan-fake-route.mjs')
     writeFileSync(boundary.bootstrap, `import https from 'node:https'
 import { syncBuiltinESMExports } from 'node:module'
@@ -44,8 +46,8 @@ https.request = (url, options, callback) => {
 syncBuiltinESMExports()
 `)
     const fixture = await prepare(directory, exports)
-    try { await check(fixture) } finally { await fixture.close() }
-  })
+    try { await check({ ...fixture, send, held }) } finally { await fixture.close() }
+  }, heldRequest)
 }
 
 async function prepare(directory: string, exports: object | null) {
@@ -178,6 +180,26 @@ test('a settings change discards a pending confirmation and its private files', 
     expect(readdirSync(exportRoot)).toHaveLength(1)
     setPolicy({ ...policy, retentionSeconds: 30 })
     expect((await post('/start', { ...download, confirm: preview.json().confirm })).statusCode).toBe(409)
+    expect(readdirSync(exportRoot)).toEqual([])
+  })
+})
+
+test('concurrent previews cannot exceed the per-user capacity', async () => {
+  await exportFixture(async ({ post, exportRoot }) => {
+    const responses = await Promise.all(Array.from({ length: 9 }, () => post('/preview', download)))
+    expect(responses.filter(response => response.statusCode === 200)).toHaveLength(8)
+    expect(responses.filter(response => response.json().error?.code === 'TOO_MANY_CALLS')).toHaveLength(1)
+    expect(readdirSync(exportRoot)).toHaveLength(8)
+  })
+})
+
+test('shutdown removes an in-flight preview directory', async () => {
+  await exportFixture(async ({ app, post, exportRoot, send, held }) => {
+    await send('/__shodan/count-wait')
+    const preview = post('/preview', download)
+    await held
+    await app.close()
+    await preview
     expect(readdirSync(exportRoot)).toEqual([])
   })
 })

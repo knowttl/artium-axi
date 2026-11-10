@@ -27,7 +27,7 @@ type Sessions = ReturnType<typeof registerShodanSessions>
 interface Plan { id: string, owner: ShodanOwner, credential: CredentialReference, instance: string, input: Input, operation: string,
   binding: string, retentionMs: number, directory: string, token: string, expiresAt: number, timer: NodeJS.Timeout }
 interface Export extends Omit<Plan, 'token' | 'timer' | 'expiresAt'> { state: 'running' | 'completed' | 'partial' | 'failed', controller: AbortController,
-  job: Promise<void>, timer: NodeJS.Timeout, changed: EventEmitter, retrieving: boolean, result?: Record<string, unknown> }
+  job: Promise<void>, timer: NodeJS.Timeout, changed: EventEmitter, retrieving: boolean, stream?: Readable, result?: Record<string, unknown> }
 
 const nativePreview = z.object({ status: z.literal('preview'), token: z.uuid(), operation: z.literal('OP-003'),
   total: z.number().int().nonnegative(), queryCredits: z.number().nonnegative() }).passthrough()
@@ -54,6 +54,8 @@ export function registerShodanExports(app: FastifyInstance, db: Database.Databas
   adapter: Adapter<unknown>, runner: Runner, audit: Audit, sessions: Sessions, denials: ReturnType<typeof auditShodanDenials>) {
   const prefix = '/v1/tools/shodan-axi/exports', root = join(dirname(db.name), 'tool-logs', 'shodan-axi', 'exports')
   const plans = new Map<string, Plan>(), jobs = new Map<string, Export>()
+  const pending = new Map<string, { user: string, controller: AbortController, job: Promise<unknown> }>()
+  let closing = false
   denials.register((request, owner) => {
     const path = request.url.split('?')[0], body = request.body as { confirm?: unknown } | null
     const id = path === prefix + '/start' && typeof body?.confirm === 'string' ? body.confirm : path.startsWith(prefix + '/') ? path.slice(prefix.length + 1).split('/')[0] : undefined
@@ -90,7 +92,7 @@ export function registerShodanExports(app: FastifyInstance, db: Database.Databas
     return runShodanNative(resource.directory, [...nativeArguments(resource.input, resource.directory), ...extra], profile, signal, check, runner.configuredCaPem, undefined, timeoutMs)
   }
   const discardDirectory = (directory: string) => rm(directory, { recursive: true, force: true })
-  const discardExport = async (job: Export) => { clearTimeout(job.timer); jobs.delete(job.id); await discardDirectory(job.directory) }
+  const discardExport = async (job: Export) => { clearTimeout(job.timer); jobs.delete(job.id); job.stream?.destroy(); await discardDirectory(job.directory) }
   const discardPlan = async (plan: Plan) => { clearTimeout(plan.timer); plans.delete(plan.id); await discardDirectory(plan.directory) }
 
   app.post(prefix + '/preview', async request => {
@@ -102,28 +104,36 @@ export function registerShodanExports(app: FastifyInstance, db: Database.Databas
     const binding = shodanExportBinding(db, owner, credential, operation), policy = binding.settings
     if (input.queryCreditBudget > policy.maxQueryCredits || input.maxRequests > policy.maxRequests || input.limit > policy.maxRecords
       || input.maxBytes > policy.maxBytes || !await exportBoundsAreSufficient(input)) throw new ArtiumError('INVALID_INPUT')
-    if (plans.size >= 128 || [...plans.values()].filter(plan => plan.owner.user === owner.user).length >= 8) throw new ArtiumError('TOO_MANY_CALLS')
-    await initialized
+    if (closing) throw new ArtiumError('CANCELLED')
+    if (plans.size + pending.size >= 128 || [...plans.values()].filter(plan => plan.owner.user === owner.user).length
+      + [...pending.values()].filter(preview => preview.user === owner.user).length >= 8) throw new ArtiumError('TOO_MANY_CALLS')
     const id = randomUUID(), directory = join(root, `export-${id}`)
-    await mkdir(join(directory, 'files'), { recursive: true, mode: 0o700 })
     const resource = { owner, credential, input, operation, binding: binding.hash, directory }
-    let preview: z.infer<typeof nativePreview>
-    try {
-      const parsed = nativePreview.safeParse(await runner.runManaged(owner.user, undefined, signal => nativeCall(resource, [], signal)))
-      if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
-      preview = parsed.data
-    } catch (error) {
-      await discardDirectory(directory)
-      throw error
-    }
-    const plan: Plan = { ...resource, id, instance: binding.instance, token: preview.token, retentionMs: policy.retentionSeconds * 1000,
-      expiresAt: Date.now() + 15 * 60 * 1000, timer: setTimeout(() => {}, 0) }
-    clearTimeout(plan.timer)
-    plan.timer = setTimeout(() => { void discardPlan(plan).catch(() => {}) }, 15 * 60 * 1000).unref()
-    plans.set(id, plan)
-    return { confirm: id, instance: plan.instance, command: input.command, operation, total: preview.total, queryCredits: preview.queryCredits,
-      limit: input.limit, maxBytes: input.maxBytes, queryCreditBudget: input.queryCreditBudget, maxRequests: input.maxRequests,
-      retentionSeconds: policy.retentionSeconds, expiresAt: plan.expiresAt }
+    const controller = new AbortController()
+    const job = Promise.resolve().then(async () => {
+      try {
+        await initialized
+        if (controller.signal.aborted) throw new ArtiumError('CANCELLED')
+        await mkdir(join(directory, 'files'), { recursive: true, mode: 0o700 })
+        const parsed = nativePreview.safeParse(await runner.runManaged(owner.user, controller.signal, signal => nativeCall(resource, [], signal)))
+        if (!parsed.success) throw new ArtiumError('INVALID_RESPONSE')
+        if (controller.signal.aborted) throw new ArtiumError('CANCELLED')
+        const preview = parsed.data
+        const plan: Plan = { ...resource, id, instance: binding.instance, token: preview.token, retentionMs: policy.retentionSeconds * 1000,
+          expiresAt: Date.now() + 15 * 60 * 1000, timer: setTimeout(() => {}, 0) }
+        clearTimeout(plan.timer)
+        plan.timer = setTimeout(() => { void discardPlan(plan).catch(() => {}) }, 15 * 60 * 1000).unref()
+        plans.set(id, plan)
+        return { confirm: id, instance: plan.instance, command: input.command, operation, total: preview.total, queryCredits: preview.queryCredits,
+          limit: input.limit, maxBytes: input.maxBytes, queryCreditBudget: input.queryCreditBudget, maxRequests: input.maxRequests,
+          retentionSeconds: policy.retentionSeconds, expiresAt: plan.expiresAt }
+      } catch (error) {
+        await discardDirectory(directory)
+        throw error
+      } finally { pending.delete(id) }
+    })
+    pending.set(id, { user: owner.user, controller, job })
+    return job
   })
 
   app.post(prefix + '/start', async request => {
@@ -200,14 +210,15 @@ export function registerShodanExports(app: FastifyInstance, db: Database.Databas
     authorize(job)
     if (job.state !== 'completed' && job.state !== 'partial') throw new ArtiumError('INVALID_INPUT')
     job.retrieving = true
-    clearTimeout(job.timer)
     const file = join(job.directory, 'files', job.state === 'completed' ? 'export.json.gz' : 'export.json.gz.partial')
     const result = job.result!
     reply.raw.once('close', () => { void discardExport(job).catch(() => {}) })
     reply.headers({ 'content-type': 'application/gzip', 'content-length': result.bytes as number, 'x-artium-export-sha256': result.sha256 as string,
       'x-artium-export-complete': String(result.complete), 'x-content-type-options': 'nosniff', 'cache-control': 'no-store, no-transform' })
+    const fileStream = createReadStream(file, { highWaterMark: 64 * 1024 })
+    job.stream = fileStream
     return reply.send(Readable.from((async function* () {
-      try { for await (const chunk of createReadStream(file, { highWaterMark: 64 * 1024 })) { authorize(job); yield chunk } }
+      try { for await (const chunk of fileStream) { authorize(job); yield chunk } }
       finally { await discardExport(job) }
     })(), { objectMode: false }))
   })
@@ -221,7 +232,9 @@ export function registerShodanExports(app: FastifyInstance, db: Database.Databas
   const monitor = setInterval(() => { void reconcile().catch(() => {}) }, 1000).unref()
   app.addHook('onSend', reconcile)
   sessions.onShutdown(async () => {
+    closing = true
     clearInterval(monitor)
+    await Promise.all([...pending.values()].map(async preview => { preview.controller.abort(); await preview.job.catch(() => {}) }))
     await Promise.all([...jobs.values()].map(async job => { job.controller.abort(); await job.job; await discardExport(job) }))
     await Promise.all([...plans.values()].map(discardPlan))
   })

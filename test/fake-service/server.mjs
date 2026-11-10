@@ -42,6 +42,7 @@ let kubernetesDropToken = false
 let shodanScanDrop = false
 let shodanStreamFail = false
 let shodanScanWaitStream = false
+let shodanCountWait = false
 let shodanDiscarded = 2
 let shodanScanStream
 const kubernetesConfigMaps = new Map(['synthetic-config', 'synthetic-second'].map(name => [name, {
@@ -78,6 +79,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   if (url.pathname === '/__shodan/scan-drop') { shodanScanDrop = url.searchParams.get('enabled') !== 'false'; res.end('{}'); return }
   if (url.pathname === '/__shodan/stream-fail') { shodanStreamFail = url.searchParams.get('enabled') !== 'false'; res.end('{}'); return }
   if (url.pathname === '/__shodan/scan-wait-stream') { shodanScanWaitStream = true; res.end('{}'); return }
+  if (url.pathname === '/__shodan/count-wait') { shodanCountWait = true; res.end('{}'); return }
   if (url.pathname === '/__shodan/stream-loss') { shodanDiscarded = Number(url.searchParams.get('count')); res.end('{}'); return }
   if (url.pathname === '/shodan/scan' && req.method === 'POST') {
     req.resume()
@@ -132,6 +134,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     const canaryReceived = url.searchParams.get('key') === 'CANARY-shodan-key'
     requests.push({ method: req.method, path: url.pathname, canaryReceived, parameters: [...url.searchParams.keys()] })
     if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
+    if (shodanCountWait) { process.send?.('held-request'); return }
     res.end(JSON.stringify({ total: 2, facets: { port: [{ value: 443, count: 2 }] } }))
     return
   }
