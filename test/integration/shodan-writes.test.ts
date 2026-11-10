@@ -210,6 +210,19 @@ test('execute reports an unknown outcome when the write response is lost', async
   })
 })
 
+test('execute reports an unverified readback after a successful write', async () => {
+  await withWriteApp(async ({ db, post, send }) => {
+    const preview = await post('preview', alert)
+    expect(preview.statusCode, preview.body).toBe(200)
+    await send('/__shodan/readback-mismatch')
+    const response = await post('execute', { ...alert, confirm: preview.json().confirm })
+    expect(response.statusCode, response.body).toBe(200)
+    expect(response.json()).toMatchObject({ status: 'READBACK_UNVERIFIED', completed: [], unsent: [] })
+    expect(JSON.parse(await send('/__shodan/state')).alerts['created-alert-1']).toMatchObject({ name: 'Fresh alert', filters: { ip: ['198.51.100.0/24'] } })
+    expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").all()).toEqual([{ outcome: 'interrupted', action: 'unknown' }])
+  })
+})
+
 test('notifier secrets stay out of previews, results and retained files', async () => {
   await withWriteApp(async ({ post, stagedPlans, db, directory, send }) => {
     const logs = vi.spyOn(process.stderr, 'write')
@@ -243,7 +256,7 @@ test('retained notifier plans contain only the input hash', async () => {
     const serialized = JSON.stringify(retained)
     const fields = (value: unknown): unknown[] => value && typeof value === 'object'
       ? [value, ...Object.entries(value).flatMap(([key, child]) => [key, ...fields(child)])] : [value]
-    expect(fields(retained)).not.toContain(notifier)
+    expect(fields(retained)).not.toContainEqual(notifier)
     for (const value of [notifier.body.provider, notifier.body.description, ...Object.values(notifier.body.args), notifier.command]) {
       expect(serialized).not.toContain(value)
       expect(fields(retained)).not.toContain(value)
@@ -289,6 +302,17 @@ test('organization removal previews downgrade and verifies removal', async () =>
     expect(result.statusCode, result.body).toBe(200)
     expect(result.json()).toMatchObject({ status: 'completed', steps: [{ operation: 'OP-038', status: 'verified' }] })
     expect(JSON.parse(await send('/__shodan/state')).members).not.toHaveProperty(['reader@example.test'])
+  })
+})
+
+test('organization invitation adds the member', async () => {
+  await withWriteApp(async ({ post, send }) => {
+    const preview = await post('preview', member)
+    expect(preview.statusCode, preview.body).toBe(200)
+    const result = await post('execute', { ...member, confirm: preview.json().confirm })
+    expect(result.statusCode, result.body).toBe(200)
+    expect(result.json()).toMatchObject({ status: 'completed', steps: [{ operation: 'OP-037', status: 'verified' }] })
+    expect(JSON.parse(await send('/__shodan/state')).members['new.member@example.test']).toEqual({ email: 'new.member@example.test' })
   })
 })
 

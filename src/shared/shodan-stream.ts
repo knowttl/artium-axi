@@ -7,7 +7,7 @@ export const shodanScanPolicy = z.strictObject({
 })
 const operationGrants = (pattern: RegExp) => z.record(z.string().min(1).max(128), z.array(z.string().regex(pattern)).max(32))
 export const shodanWritePolicy = z.strictObject({
-  grants: operationGrants(/^OP-(013|015|016|019|020|021|022|023|024|027|028|030|037|038|040|070)$/),
+  grants: operationGrants(/^OP-(013|015|016|019|020|021|022|023|024|027|028|030|037|038|070)$/),
   maxQueryCredits: positive(1000), maxRequests: positive(1000),
 })
 export const shodanExportPolicy = z.strictObject({

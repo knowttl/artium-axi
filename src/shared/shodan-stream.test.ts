@@ -14,7 +14,7 @@ test('writes and exports are separate optional settings blocks', () => {
 })
 
 test('all reviewed write operation IDs are accepted', () => {
-  const reviewed = ['OP-013', 'OP-015', 'OP-016', 'OP-019', 'OP-020', 'OP-021', 'OP-022', 'OP-023', 'OP-024', 'OP-027', 'OP-028', 'OP-030', 'OP-037', 'OP-038', 'OP-040', 'OP-070']
+  const reviewed = ['OP-013', 'OP-015', 'OP-016', 'OP-019', 'OP-020', 'OP-021', 'OP-022', 'OP-023', 'OP-024', 'OP-027', 'OP-028', 'OP-030', 'OP-037', 'OP-038', 'OP-070']
   expect(schema.parse({ writes: { ...writes, grants: { 'synthetic-user': reviewed } } }).writes?.grants['synthetic-user']).toEqual(reviewed)
 })
 
