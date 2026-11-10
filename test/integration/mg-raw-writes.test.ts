@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, test } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
+import { createDelegation, exchangeDelegation } from '../../src/server/auth/delegations.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -24,6 +25,7 @@ let db: ReturnType<typeof openStore>
 let app: ReturnType<typeof createApp>
 let headers: Record<string, string>
 let profiles: Record<string, unknown>[]
+let adapter: ReturnType<typeof createMgAdapter>
 
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), 'artium-mg-raw-writes-'))
@@ -34,7 +36,7 @@ beforeEach(async () => {
   allowRawApi(db, 'mg-axi')
   store.replaceCredential('mg-axi', credential, 0, 'synthetic-development-user', Date.now())
   db.prepare("UPDATE tools SET enabled = 1, native_settings = ? WHERE name = 'mg-axi'").run(JSON.stringify(writeSettings))
-  const adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'),
+  adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'),
     loadCredentialProfile('mg-axi', join(process.cwd(), 'tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json'))!)
   const prepare = adapter.prepare.bind(adapter)
   profiles = []
@@ -100,6 +102,20 @@ test('a raw write still needs the administrator write switch', async () => {
 const userPath = '/users/00000000-0000-0000-0000-000000000004'
 const batch = (requests: unknown[]) => ['api', 'post', '/$batch', '--body', JSON.stringify({ requests }), '--execute', '--confirm', '/$batch']
 const entry = (id: string, method: string, url: string) => ({ id, method, url })
+
+test.each(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])('delegated batch checks the inner %s command', async method => {
+  const grant = (commands: string[]) => {
+    const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
+      scope: { tools: [{ tool: 'mg-axi', commands }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 600000 }, [adapter])
+    return { authorization: `Bearer ${exchangeDelegation(db, minted.token).accessToken}` }
+  }
+  const args = batch([entry('1', method, rawPath)])
+  if (method === 'PATCH') args.splice(3, 2, `--body=${args[4]}`)
+  headers = grant(['api post'])
+  if (method !== 'POST') expect(await run(args)).toMatchObject({ error: { code: 'DELEGATED_SCOPE_DENIED' } })
+  headers = grant([...new Set(['api post', `api ${method.toLowerCase()}`])])
+  expect(await run(args)).toMatchObject({ exitCode: 0, output: { fakeSends: 1 } })
+})
 
 test('a batch is sent once when every inner request passes the policy of its single call', async () => {
   const requests = [entry('1', 'GET', userPath), entry('2', 'GET', `${userPath}/drive`), entry('3', 'PATCH', `${userPath}/synthetic-raw`)]

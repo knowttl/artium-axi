@@ -114,6 +114,25 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(
       inventory.commands.map(route => ({ ...route, effect: mgReadCommands.has(route.command) ? 'read' : 'write' })),
       (a, i) => mgArguments(a, i).invocation, args, input),
+    nestedOperations(args, input) {
+      if (mgArguments(args, input).invocation.command !== 'api post') return []
+      let path: string
+      try { path = decodeURIComponent(new URL(args[2], 'https://graph.microsoft.com').pathname) }
+      catch { return [] }
+      if (!/(?:^|\/)\$batch\/?$/i.test(path)) return []
+      const index = args.findIndex(arg => arg === '--body' || arg.startsWith('--body='))
+      if (index < 0) return []
+      let body: unknown
+      try { body = JSON.parse(args[index] === '--body' ? args[index + 1] : args[index].slice(7)) }
+      catch { return [] }
+      if (!body || typeof body !== 'object' || !('requests' in body) || !Array.isArray(body.requests)) return []
+      return body.requests.flatMap((request: unknown) => {
+        if (!request || typeof request !== 'object' || !('method' in request) || typeof request.method !== 'string') return []
+        const method = request.method.toLowerCase()
+        if (!['get', 'post', 'put', 'patch', 'delete'].includes(method)) return []
+        return [{ command: `api ${method}`, effect: method === 'get' ? 'read' as const : 'write' as const }]
+      })
+    },
     prepare: (args, reference, input, context) => prepare(args, reference, input, { rawReadWrites: context?.rawReadWrites === true }),
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'mg-axi' || !scope.selection.operation.startsWith('mail.')
