@@ -1,6 +1,6 @@
 import type { RunnerInput } from '../runner/input.js'
 import { protectedResultLimits } from '../config.js'
-import { privateOutput, protocolOutputFields } from '../runner/scan.js'
+import { privateOutput, protocolEnvelopeFields } from '../runner/scan.js'
 
 const inputFields = {
   variables: 'variables', 'extra-vars': 'extra_vars', 'source-vars': 'source_vars',
@@ -42,8 +42,9 @@ for (const [index, value] of values) {
 }
 const tokens = patterns.map(([pattern, mask]) => [new RegExp(pattern, 'u'), mask]);
 const masks = new Set([...Object.values(fields), ...patterns.map(([, mask]) => mask)]);
-const protocolFields = new Set(${JSON.stringify(protocolOutputFields)});
-const redact = (value, key = '', depth = 0) => {
+const protocolFields = ${JSON.stringify(protocolEnvelopeFields)};
+const redact = (value, key = '', depth = 0, parent = '') => {
+  if ((depth === 1 || depth === 2 && (parent === 'dry_run' || parent === 'api_response')) && protocolFields[parent]?.includes(key)) return value;
   if ((depth > 1 || key === 'payload') && Object.hasOwn(fields, key)) return fields[key];
   if (depth > 1 && key === 'changes' && typeof value === 'string') {
     try { return JSON.stringify(redact(JSON.parse(value), '', depth + 1)); } catch { return '[activity changes redacted]'; }
@@ -51,13 +52,12 @@ const redact = (value, key = '', depth = 0) => {
   if (depth > 1 && ['variables', 'source_vars'].includes(key) && typeof value === 'string') {
     try { return redactValue(parse(value)); } catch { return '***'; }
   }
-  if (protocolFields.has(key)) return value;
   if (typeof value === 'string' && !masks.has(value)) {
     const match = tokens.find(([pattern]) => pattern.test(value));
     if (match) return match[1];
   }
-  if (Array.isArray(value)) return value.map((child, index) => redact(child, String(index), depth + 1));
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, child]) => [name, redact(child, name, depth + 1)]));
+  if (Array.isArray(value)) return value.map((child, index) => redact(child, String(index), depth + 1, key));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, child]) => [name, redact(child, name, depth + 1, key)]));
   return value;
 };
 let downloaded;
@@ -189,7 +189,7 @@ export function awxPrivateOutput(input: RunnerInput, structured: readonly (reado
       if (!item || typeof item !== 'object') return
       for (const [key, value] of Object.entries(item)) {
         if (value && typeof value === 'object') collect(value)
-        else inputs.push({ field: key === 'body' || protocolOutputFields.includes(key) ? 'raw_body' : key,
+        else inputs.push({ field: key === 'body' ? 'raw_body' : key,
           content: typeof value === 'string' ? value : '' })
       }
     }

@@ -155,12 +155,16 @@ test('AWX project SCM URLs remain private on later project and activity reads (S
         req.on('error', reject)
         req.end(JSON.stringify({ scm_url: 'https://scm.example/repo?token=CANARY-stored-url' }))
       })
-      const rawBody = upload('body.json', JSON.stringify({ variables: 'internal_value: private-example' }))
+      const rawBody = upload('body.json', JSON.stringify({ variables: 'internal_value: private-example',
+        extra_vars: { label: 'private-label', code: 'private-code', action: 'private-action', type: 'private-type',
+          status: 'private-status', would_send: 'private-would-send', help: 'private-help' } }))
       const preview = await run(['api', 'patch', 'projects/42/', '--body-file', 'body.json', '--dry-run'], { files: [rawBody] })
       expect(JSON.stringify(preview)).not.toContain('private-example')
       const changed = await run(['api', 'patch', 'projects/42/', '--body-file', 'body.json', '--confirm'], { files: [rawBody] })
       expect(JSON.stringify(changed)).toContain('[SCM URL redacted]')
       expect(JSON.stringify(changed)).not.toContain('private-example')
+      expect(JSON.stringify(changed)).not.toMatch(/private-(label|code|action|type|status|would-send|help)/)
+      expect(changed).toMatchObject({ api_response: { status: 200 } })
       for (const args of [['api', 'get', 'projects/42/'], ['api', 'get', 'projects/'],
         ['api', 'post', 'projects/42/copy/', '--confirm']]) {
         expect(JSON.stringify(await run(args))).toContain('[SCM URL redacted]')

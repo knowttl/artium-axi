@@ -82,6 +82,12 @@ test.each(streams)('private-input scanning rejects exposed structured objects in
   expect(scanner.finish()).toBe(true)
 })
 
+test.each(['label', 'code', 'action', 'type', 'status', 'would_send', 'help'])('private-input scanning detects echoed %s inside an API response', key => {
+  const scanner = new SecretScanner([], privateOutput([{ field: key, content: 'private-example' }]))
+  scanner.scan('stdout', Buffer.from(`api_response:\n  status: 200\n  body:\n    extra_vars:\n      ${key}: private-example\n`))
+  expect(scanner.finish()).toBe(true)
+})
+
 test.each(streams)('private-input scanning detects nested values across chunks in %s (R1)', stream => {
   const scanner = new SecretScanner([], privateOutput([{ field: 'variables', content: 'a' }]))
   scanner.scan(stream, Buffer.from('dry_run:\n  payload:\n    env: '))
