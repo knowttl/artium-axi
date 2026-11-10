@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
-import { unlinkSync } from 'node:fs'
+import { realpathSync, unlinkSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 import { executeArgv } from '../../tools/node_modules/@knowttl/mg-axi/dist/cli.js'
 import { resolveSecret } from '../../tools/node_modules/@knowttl/mg-axi/dist/secrets.js'
 import { KqlValidationError } from '../../tools/node_modules/@knowttl/mg-axi/dist/kql.js'
@@ -73,8 +74,20 @@ const transport = async request => {
     displayName: 'Synthetic Group', isAssignableToRole: false, securityEnabled: true, groupTypes: [], membershipRule: null }
   else if (url.pathname === `/v1.0/users/${userId}`) body = { id: userId }
   else if (url.pathname === `/v1.0/groups/${groupId}/members`) body = { value: [] }
+  else if (url.pathname === `/v1.0/users/${userId}/drive`) body = { id: 'synthetic-drive', driveType: 'business' }
   else throw new Error('Unreviewed fake Graph route')
   return { status: 200, headers: {}, body: JSON.stringify(body) }
+}
+const msalPackage = createRequire(realpathSync(new URL('../../tools/node_modules/@knowttl/mg-axi/package.json', import.meta.url))).resolve('@azure/msal-node/package.json')
+const { ConfidentialClientApplication } = await import(new URL('./dist/index.mjs', pathToFileURL(msalPackage)))
+ConfidentialClientApplication.prototype.acquireTokenByClientCredential = async function () {
+  credentialCalls++
+  return { accessToken: 'CANARY-graph-token', expiresOn: new Date(Date.now() + 3600000),
+    authority: 'https://login.microsoftonline.com/00000000-0000-0000-0000-000000000001/' }
+}
+globalThis.fetch = async (url, options) => {
+  const response = await transport({ url, ...options })
+  return new Response(response.body, { status: response.status, headers: response.headers })
 }
 try {
   const result = await executeArgv(process.argv.slice(2), { application, delegated: {}, transport,
@@ -127,6 +140,17 @@ try {
         sends++
         rawRequest = { method: request.method, body: request.body ? JSON.parse(request.body) : null }
         return { status: request.method === 'DELETE' ? 204 : 200, headers: {}, body: request.method === 'DELETE' ? '' : JSON.stringify({ id: 'raw-id' }) }
+      }
+      if (url.pathname === `/v1.0/users/${userId}/drive/synthetic-item`) {
+        sends++
+        return { status: 200, headers: {}, body: JSON.stringify({ id: 'synthetic-item' }) }
+      }
+      if (url.pathname === '/v1.0/$batch') {
+        assert.equal(request.method, 'POST')
+        assert.equal(request.headers.Authorization, 'Bearer CANARY-graph-token')
+        sends++
+        rawRequest = { method: request.method, body: JSON.parse(request.body) }
+        return { status: 200, headers: {}, body: JSON.stringify({ responses: rawRequest.body.requests.map(({ id }) => ({ id, status: 200, body: {} })) }) }
       }
       assert.equal(request.method, 'POST')
       assert.equal(request.url, `https://graph.microsoft.com/v1.0/groups/${groupId}/members/$ref`)

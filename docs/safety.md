@@ -65,7 +65,7 @@ Saving a role's tool selection preserves raw access on retained grants.
 Administrators set the tool mode and the role grant in the browser or through the [administration API](runbook.md#roles-credentials-and-health).
 The browser exposes both controls for Falcon, Tenable and AWX.
 The governed routes are `api` for GitHub, Azure, Azure DevOps and Gitea, `api get`, `api post`, `api put`, `api patch` and `api delete` for Microsoft Graph and AWX, `api get` for Vectra and Hybrid Analysis, and `raw get` and `raw write` for Falcon and Tenable.
-The reviewed inventories still determine which commands and flags are accepted; raw permission never widens that boundary or a tool's built-in restrictions.
+The reviewed inventories still determine which commands and flags are accepted; raw permission never widens that boundary.
 Tenable `raw get --out` remains blocked because raw responses are never saved to server files.
 Raw request bodies and Falcon query files must be uploaded with the call; Tenable and Falcon also accept an explicit stdin (`-`), and AWX accepts uploads only.
 
@@ -74,7 +74,10 @@ For tools whose raw routes cannot write, `read-writes` permits reads only and ra
 Azure raw mutation previews are read-classified; executing a mutation requires `read-writes`.
 Graph `api post`, `put`, `patch` and `delete` are write-classified, previews included, and Artium enables the native raw-write switch only for those calls after the mode and role checks pass.
 They also need administrator Allow writes on the Graph tool; they are not limited to its operations allow-list.
-Graph's built-in denials stay in force, including the mail and security pack defaults, sensitive areas and `/$batch`.
+Graph's mail and security pack defaults stay in force.
+In `read-writes` mode, for a role with raw access, every Graph `api` call (including `api get`) also lifts the native file-area and `/$batch` denials; no other mode or credential setting does, and members cannot set them.
+A `/$batch` envelope is write-classified like any `api post`, and the native tool checks each inner request against the same pack, sensitive-area, version and method policy as its single call; nested batches and more than twenty requests are refused.
+Delegated calls also require a command grant for each inner request, and those grants are rechecked before execution.
 Tenable and Falcon `raw write` and AWX `api post`, `put`, `patch` and `delete` are write-classified even as previews, so each needs `read-writes`.
 Tenable and Falcon raw writes require Allow writes and their respective `raw-write` or `raw write` operation grant, including for previews, and retain native preview, execution confirmation and journaling.
 AWX raw writes require Allow writes and an explicit `--confirm` or `--dry-run`; AWX permissions still decide what the token may do.

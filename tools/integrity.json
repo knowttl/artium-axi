@@ -76,7 +76,7 @@
     "integrity": "sha512-mFhX4IZCOyNz3Fg+6IdE3C7dRmEuBQf/3OMYFV6WRbMu1qtNU6HRUg7KwyfdDDjHQruMKT4fSUjk8XS5B0owNw=="
   },
   "@knowttl/mg-axi": {
-    "version": "0.1.20",
-    "integrity": "sha512-ZOug+VqBcQaoEyA5ZZmUufeHiFdTqnsWUwYtUT6RKARiGIzrahNBos1yP3cgVjMmLY8Axsn2Eesrzz8d2GImlw=="
+    "version": "0.1.21",
+    "integrity": "sha512-r7vCNTWI38qKd6hmSjytfw4jsib52hWBg26pwCNtCQOPdXXwckUhkQ/U+DY4T4yH0Hex8i5bD/xD0ZJTv1+xTw=="
   }
 }

@@ -1,10 +1,10 @@
 {
   "generatedBy": "scripts/upstream-inventory.mjs",
   "tool": "mg-axi",
-  "version": "0.1.20",
-  "integrity": "sha512-ZOug+VqBcQaoEyA5ZZmUufeHiFdTqnsWUwYtUT6RKARiGIzrahNBos1yP3cgVjMmLY8Axsn2Eesrzz8d2GImlw==",
+  "version": "0.1.21",
+  "integrity": "sha512-r7vCNTWI38qKd6hmSjytfw4jsib52hWBg26pwCNtCQOPdXXwckUhkQ/U+DY4T4yH0Hex8i5bD/xD0ZJTv1+xTw==",
   "parserEvidence": "Installed pinned catalogue exports",
-  "packageManifestSha256": "f0256210aa60f687e327095b7a17c5c11077a226c9299f0c2f28b00150733189",
+  "packageManifestSha256": "c68d809e2ee7e5214103280215d0ec08e398de9163beaf4cc911af998196c735",
   "skillSha256": "7c45262eed6d4d2c06802be3a8435f70caa079608346b4ff4673205254ea2cc9",
   "environment": [
     {
@@ -43,11 +43,11 @@
   "environmentSources": [
     {
       "path": "dist/profiles.js",
-      "sha256": "be6981102851325e8dce40dc523fe6d8b30e158fa3b9cd8d7bd3f26a03f7c434"
+      "sha256": "1d6c1330e4451b3ca9c99e43905f0b3cf1418af2dc0cae98a74a2cb1f9358259"
     },
     {
       "path": "dist/mutations.js",
-      "sha256": "8baea5392e687580ef054024298cacb1e86ddd778cd6d3c69df69f6d841a9f46"
+      "sha256": "4addd6cdfe711b6b55bbd0a7cf1973b40510a2cc68082e7bf0a08f4e09f1807a"
     },
     {
       "path": "dist/msal-app-provider.js",
@@ -97,11 +97,11 @@
     "sources": [
       {
         "path": "dist/profiles.js",
-        "sha256": "be6981102851325e8dce40dc523fe6d8b30e158fa3b9cd8d7bd3f26a03f7c434"
+        "sha256": "1d6c1330e4451b3ca9c99e43905f0b3cf1418af2dc0cae98a74a2cb1f9358259"
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "8baea5392e687580ef054024298cacb1e86ddd778cd6d3c69df69f6d841a9f46"
+        "sha256": "4addd6cdfe711b6b55bbd0a7cf1973b40510a2cc68082e7bf0a08f4e09f1807a"
       }
     ]
   },
@@ -210,7 +210,7 @@
       },
       {
         "path": "dist/profiles.js",
-        "sha256": "be6981102851325e8dce40dc523fe6d8b30e158fa3b9cd8d7bd3f26a03f7c434"
+        "sha256": "1d6c1330e4451b3ca9c99e43905f0b3cf1418af2dc0cae98a74a2cb1f9358259"
       },
       {
         "path": "dist/msal-app-provider.js",
@@ -218,7 +218,7 @@
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "8baea5392e687580ef054024298cacb1e86ddd778cd6d3c69df69f6d841a9f46"
+        "sha256": "4addd6cdfe711b6b55bbd0a7cf1973b40510a2cc68082e7bf0a08f4e09f1807a"
       }
     ]
   },
@@ -378,7 +378,7 @@
       },
       {
         "path": "dist/mutations.js",
-        "sha256": "8baea5392e687580ef054024298cacb1e86ddd778cd6d3c69df69f6d841a9f46"
+        "sha256": "4addd6cdfe711b6b55bbd0a7cf1973b40510a2cc68082e7bf0a08f4e09f1807a"
       }
     ]
   },

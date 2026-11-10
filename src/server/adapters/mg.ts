@@ -26,7 +26,7 @@ export type MgCredential = z.infer<typeof mgCredentialSchema>
 export const mgManifest = { ...inventory, ...inventory.adapterBoundary }
 export const mgWritePolicy = writePolicy({ supportedOperations: inventory.nativeWriteSettings.supportedOperations,
   unlocks: 'Selected Graph group membership, user account state, session revocation, risk dismissal, conditional-access policy and mail operations; native execution and confirmation gates still apply.',
-  blocked: 'Named operations outside the allow-list, beta writes, unsupported targets and unsafe overrides remain blocked. API post, put, patch and delete additionally require the tool\'s Raw API read-writes mode and a role grant, and keep the native mail, security and sensitive-area denials. Graph permissions and roles are still required.' })
+  blocked: 'Named operations outside the allow-list, beta writes, unsupported targets and unsafe overrides remain blocked. API post, put, patch and delete additionally require the tool\'s Raw API read-writes mode and a role grant, and keep the native mail and security pack denials. Raw API calls in read-writes mode with a role grant also reach file areas and /$batch, with every batch request checked by the same native policy as a single call. Graph permissions and roles are still required.' })
 
 function mgArguments(args: readonly string[], input: RunnerInput = {}, artifact = false) {
   const hunting = args.slice(0, 3).join(' ') === 'security hunting query'
@@ -114,17 +114,37 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(
       inventory.commands.map(route => ({ ...route, effect: mgReadCommands.has(route.command) ? 'read' : 'write' })),
       (a, i) => mgArguments(a, i).invocation, args, input),
-    prepare,
+    nestedOperations(args, input) {
+      if (mgArguments(args, input).invocation.command !== 'api post') return []
+      let path: string
+      try { path = decodeURIComponent(new URL(args[2], 'https://graph.microsoft.com').pathname) }
+      catch { return [] }
+      if (!/(?:^|\/)\$batch\/?$/i.test(path)) return []
+      const index = args.findIndex(arg => arg === '--body' || arg.startsWith('--body='))
+      if (index < 0) return []
+      let body: unknown
+      try { body = JSON.parse(args[index] === '--body' ? args[index + 1] : args[index].slice(7)) }
+      catch { return [] }
+      if (!body || typeof body !== 'object' || !('requests' in body) || !Array.isArray(body.requests)) return []
+      return body.requests.flatMap((request: unknown) => {
+        if (!request || typeof request !== 'object' || !('method' in request) || typeof request.method !== 'string') return []
+        const method = request.method.toLowerCase()
+        if (!['get', 'post', 'put', 'patch', 'delete'].includes(method)) return []
+        return [{ command: `api ${method}`, effect: method === 'get' ? 'read' as const : 'write' as const }]
+      })
+    },
+    prepare: (args, reference, input, context) => prepare(args, reference, input, { rawReadWrites: context?.rawReadWrites === true }),
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'mg-axi' || !scope.selection.operation.startsWith('mail.')
         || reference.revision !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
-      const prepared = await prepare(args, reference, undefined, true)
+      const prepared = await prepare(args, reference, undefined, { artifact: true })
       prepared.environment.MG_AXI_WRITE_LOG = `${writeLog}.${scope.transferId}`
       return prepared
     },
   }
 
-  async function prepare(args: readonly string[], reference: Parameters<Adapter<unknown>['prepare']>[1], input?: RunnerInput, artifact = false) {
+  async function prepare(args: readonly string[], reference: Parameters<Adapter<unknown>['prepare']>[1], input?: RunnerInput,
+    { artifact = false, rawReadWrites = false } = {}) {
     const normalized = mgArguments(args, input, artifact)
     if (reference.tool !== 'mg-axi' || !profile && !reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
     const value = await source.getCredential(reference)
@@ -147,9 +167,11 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
     const query = normalized.invocation.command === 'security hunting query' && input?.files?.[0]
       ? Buffer.from(input.files[0].contentBase64, 'base64').toString('utf8').trim() : undefined
     const rawWrite = !normalized.invocation.help && /^api (?:post|put|patch|delete)$/.test(normalized.invocation.command)
+    const rawLift = rawReadWrites && !normalized.invocation.help && normalized.invocation.command.startsWith('api ')
     if (profile) {
       const prepared = profile.prepare('mg-axi', parsed.data, writeLog,
-        (parsed.data.writes as { allowWrites?: boolean } | undefined)?.allowWrites !== true, rawWrite ? { rawWrites: true } : {})
+        (parsed.data.writes as { allowWrites?: boolean } | undefined)?.allowWrites !== true,
+        { ...(rawWrite ? { rawWrites: true } : {}), ...(rawLift ? { rawBatch: true, sensitiveAreas: ['files'] } : {}) })
       return { executable: toolPaths['mg-axi'], ...normalized, ...prepared,
         secrets: [...prepared.secrets, ...(query ? [query] : [])],
         limits: { timeoutMs: runnerLimits.timeoutMs, nodeHeapMiB: 512 },
@@ -168,8 +190,8 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
         MG_AXI_READ_ONLY: String(writes?.allowWrites !== true), [holder]: secret },
       files: [{ name: 'mg-profile.json', content: JSON.stringify({ version: 1, defaultProfile: 'artium', profiles: {
         artium: { mode: 'application', tenantId, clientId, cloud: 'commercial', preview,
-          allowDeviceCode: false, enabledPacks: credential.enabledPacks ?? ['entra'], sensitiveAreas: [], credentialRef,
-          ...(writes === undefined ? {} : { writes }), ...(rawWrite ? { rawWrites: true } : {}) },
+          allowDeviceCode: false, enabledPacks: credential.enabledPacks ?? ['entra'], sensitiveAreas: rawLift ? ['files'] : [], credentialRef,
+          ...(writes === undefined ? {} : { writes }), ...(rawWrite ? { rawWrites: true } : {}), ...(rawLift ? { rawBatch: true } : {}) },
       } }) }],
       secrets: [...new Set([secret, credential.auth === 'secret' ? secret.trim()
         : secret.includes('\n') ? secret : secret.replace(/\\n/g, '\n'), ...(query ? [query] : [])])],

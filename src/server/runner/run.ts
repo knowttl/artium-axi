@@ -50,6 +50,7 @@ export async function runTool<Credential>(
     let familyId: string | undefined
     let readOnly = false
     let instanceReadOnly = false
+    let rawReadWrites = false
     let credentialCommands: string[] = []
     let reference: CredentialReference | undefined
     let resolutionFailure: { error: unknown, credentialId?: string, instance?: string } | undefined
@@ -136,7 +137,7 @@ export async function runTool<Credential>(
           resolutionFailure = { error, credentialId: named?.id, instance: named?.name }
         }
       }
-      if (reference) checkRawApiPolicy(db, userId, adapter, args, input, reference.id)
+      if (reference) rawReadWrites = checkRawApiPolicy(db, userId, adapter, args, input, reference.id)
       if (instanceReadOnly && writeRequested() && (adapter.executesWrite?.(args, input)
         ?? (!args.includes('--help') && !args.includes('--dry-run') && args.some(arg => /^--(?:confirm|execute)(?:=|$)/.test(arg))))) throw new ArtiumError('FLAG_BLOCKED')
       if (principal?.delegation && reference) authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand, reference.id, resolver)
@@ -188,7 +189,7 @@ export async function runTool<Credential>(
     try {
       if (resolutionFailure) throw resolutionFailure.error
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
-        : await adapter.prepare(args, reference!, input)
+        : await adapter.prepare(args, reference!, input, { rawReadWrites })
       const preview = prepared.preview || prepared.effect === 'read' && !prepared.protectedResult
       const writes = () => !prepared.invocation?.help && (prepared.effect === 'write' || !!prepared.write || !preview && writeRequested())
       if (instanceReadOnly && writes()) {
@@ -222,7 +223,8 @@ export async function runTool<Credential>(
           }
         } else authenticate(db, token)
         checkToolPolicy(db, userId, adapter.name, reference?.id)
-        checkRawApiPolicy(db, userId, adapter, args, input, reference?.id)
+        const stillReadWrites = checkRawApiPolicy(db, userId, adapter, args, input, reference?.id)
+        if (rawReadWrites && !stillReadWrites) throw new ArtiumError('RAW_API_DENIED')
         if (reference) {
           const current = db.prepare('SELECT enabled, read_only, revision FROM credentials WHERE id = ? AND tool = ?').get(reference.id, adapter.name) as { enabled: number, read_only: number, revision: number } | undefined
           if (!current || current.enabled !== 1 || beforeSpawn && current.revision !== reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')

@@ -727,7 +727,7 @@ test('an instance run preserves a specific server input diagnostic', async () =>
 test.each([{ args: [] }, { args: ['home'] }, { args: ['help'] }, { args: ['commands'] }, { args: ['--help'] }])('delegated discovery resolves a named instance: $args', async ({ args }) => {
   requests = []
   doctorResponses = {
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '0.1.20', commands: ['user list'], instances: [] }] } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '0.1.21', commands: ['user list'], instances: [] }] } },
     '/v1/tools/mg-axi/run': { status: 404, body: errorResponse(new ArtiumError('INSTANCE_NOT_FOUND'), 'synthetic-instance') },
   }
   try {
@@ -752,7 +752,7 @@ test.each([{ args: ['hash-download-bin', '--help'] }, { args: ['help', 'hash-dow
 
 test('delegated discovery keeps scoped help after instance resolution', async () => {
   doctorResponses = {
-    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '0.1.20', commands: ['user list'], instances: [] }] } },
+    '/v1/tools': { status: 200, body: { tools: [{ name: 'mg-axi', status: 'ok', version: '0.1.21', commands: ['user list'], instances: [] }] } },
     '/v1/tools/mg-axi/run': instanceRunResponse,
   }
   try {
@@ -1819,7 +1819,7 @@ test('tool detail refuses an inaccessible tool with an administrator next step',
 
 test.each([
   { tool: 'az-axi', example: 'sub list', version: '0.1.17' },
-  { tool: 'mg-axi', example: 'entra user list', version: '0.1.20' },
+  { tool: 'mg-axi', example: 'entra user list', version: '0.1.21' },
   { tool: 'vectra-axi', example: 'detection list', version: '0.1.14' },
   { tool: 'falcon-axi', example: 'detection list', version: '1.0.1' },
   { tool: 'ldap-axi', example: 'user list --limit 1', version: '0.3.4' },
