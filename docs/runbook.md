@@ -449,7 +449,7 @@ Use `PATCH /v1/admin/tools/:tool/write-access` to change only write access while
 Follow the [scripted administrator session procedure](#scripted-administrator-sessions); the request requires administrator capability, recent confirmation and the current tool revision.
 The [API contract](../src/shared/api.ts) (`adminToolRoutes.writeAccess`) owns the input and response fields and allow-list update semantics.
 For scripted [Raw API access](safety.md#raw-api-access) administration, read `rawApi.mode` and the settable `rawApi.modes` from `GET /v1/admin/tools/:tool`, then use `PATCH /v1/admin/tools/:tool/raw-api` to set the mode.
-Use `PUT /v1/admin/roles/:id/tools/:tool/raw-api` to allow or refuse raw calls on a role's existing grant; `GET /v1/admin/roles/:id` lists the granted tools in `rawApiTools`.
+Use `PUT /v1/admin/roles/:id/tools/:tool/raw-api` to allow or refuse raw calls on a role's existing grant; `GET /v1/admin/roles/:id` lists grants with raw access enabled in `rawApiTools`.
 Both requests need the same administrator session as above plus the current tool or role revision, and the contracts in `adminToolRoutes.rawApi` and `adminRoleRoutes.rawApi` own their fields.
 See the [AWX supported boundary](safety.md#write-gates-by-tool) before enabling its write switch or migrating saved legacy settings.
 See [GitHub setup and limitations](tool-credentials.md#github) before activation.
