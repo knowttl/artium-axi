@@ -56,6 +56,7 @@ import { hasSshConfiguration, type SshHosts } from './store/ssh-hosts.js'
 import { registerSshExecutions, type SshExecutionOptions } from './ssh-executions.js'
 import { registerKubernetesWorkspaces } from './kubernetes-workspaces.js'
 import { registerKubernetesSessions } from './kubernetes-sessions.js'
+import { auditShodanDenials } from './policy/shodan-stream.js'
 import { registerShodanSessions } from './shodan-sessions.js'
 import { registerShodanCollections } from './shodan-collections.js'
 
@@ -125,6 +126,7 @@ export function createApp(options: {
   const kubernetes = adapters.find(adapter => adapter.name === 'kubernetes-axi')
   const shodan = adapters.find(adapter => adapter.name === 'shodan-axi')
   if (shodan) {
+    auditShodanDenials(app, db, audit)
     const sessions = registerShodanSessions(app, db, resolver, shodan, runner, audit)
     registerShodanCollections(app, db, resolver, shodan, runner, audit, sessions)
   }
@@ -466,12 +468,23 @@ export function createApp(options: {
   registerAuditPage(app, db, audit)
   registerTokenPage(app, db)
   registerTransfers(app, db, audit, runner, resolver, adapters, options.artifactStore)
+  type ResultTake = { tool: 'technitium-axi' | 'awx-axi' | 'kubernetes-axi' | 'proxmox-axi', targetId: string,
+    userId: string | null, delegationId: string | null, credentialId?: string, instance?: string }
+  const resultTakes = new WeakMap<object, ResultTake>()
+  app.addHook('onError', async (request, _reply, error) => {
+    const attempt = resultTakes.get(request)
+    if (attempt) audit.record({ ...attempt, event: 'protected-result-take', requestId: request.id, clientAddress: request.ip,
+      outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
+  })
   for (const tool of ['technitium-axi', 'awx-axi', 'kubernetes-axi', 'proxmox-axi'] as const) app.get<{ Params: { operation: string, id: string } }>(`/v1/results/${tool}/:operation/:id`, async (request, reply) => {
+    const attempt: ResultTake = { tool, targetId: request.params.id, userId: null, delegationId: null }
+    resultTakes.set(request, attempt)
     if (tool === 'awx-axi' && !['token-create', 'stdout-download'].includes(request.params.operation)) throw new ArtiumError('NOT_FOUND')
     if (tool === 'kubernetes-axi' && request.params.operation !== 'token-create') throw new ArtiumError('NOT_FOUND')
     const token = bearer(request.headers.authorization)
     const principal = verifyPrincipal(db, token)
     const { userId, delegation, familyId } = principal
+    Object.assign(attempt, { userId, delegationId: delegation?.id ?? null })
     if (delegation && !delegationIncludesTool(delegation.scopeJson, tool)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
     checkToolPolicy(db, userId, tool)
     if (delegation && tool === 'proxmox-axi') {
@@ -484,6 +497,7 @@ export function createApp(options: {
     const bound = protectedResults.credential(request.params.id, resultOwner)
     const instance = db.prepare('SELECT name FROM credentials WHERE tool = ? AND id = ?').get(tool, bound.id) as { name: string } | undefined
     if (!instance) throw new ArtiumError('NOT_FOUND')
+    Object.assign(attempt, { credentialId: bound.id, instance: instance.name })
     const credential = await resolver.resolve(userId, tool, instance.name, delegation)
     if (delegation && tool === 'proxmox-axi') {
       const adapter = adapters.find(adapter => adapter.name === tool)!
@@ -497,6 +511,7 @@ export function createApp(options: {
     }
     const bytes = protectedResults.take(request.params.id, { ...resultOwner, credential,
       ...(tool === 'proxmox-axi' ? { trustRevision: proxmoxTrust(db, credential) } : {}) })
+    audit.record({ ...attempt, event: 'protected-result-take', requestId: request.id, clientAddress: request.ip, outcome: 'success' })
     return reply.header('cache-control', 'no-store').header('content-disposition', 'attachment; filename="result.bin"')
       .header('x-content-type-options', 'nosniff').header('x-artium-content-sha256', createHash('sha256').update(bytes).digest('hex'))
       .type('application/octet-stream').send(bytes)

@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto'
 import type Database from 'better-sqlite3'
-import type { FastifyRequest } from 'fastify'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { nativeSettingsSchemas } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
-import { verifyAccessFamily, verifyAccessToken } from '../auth/tokens.js'
+import type { Audit } from '../audit/audit.js'
+import { verifyAccessFamily, verifyAccessToken, verifyPrincipal } from '../auth/tokens.js'
 import type { CredentialReference } from '../store/credential-store.js'
 import { readCredentialTrust } from '../store/trusted-certificates.js'
 import { checkToolPolicy } from './policy.js'
@@ -15,6 +16,27 @@ export function shodanOwner(db: Database.Database, request: Pick<FastifyRequest,
   const user = verifyAccessToken(db, token)
   checkToolPolicy(db, user, 'shodan-axi')
   return { user, family: verifyAccessFamily(db, token) }
+}
+
+export function auditShodanDenials(app: FastifyInstance, db: Database.Database, audit: Audit) {
+  const prefixes = ['/v1/tools/shodan-axi/sessions', '/v1/tools/shodan-axi/scan-collections']
+  app.addHook('onError', async (request, _reply, error) => {
+    const path = request.url.split('?')[0]
+    if (!prefixes.some(prefix => path === prefix || path.startsWith(prefix + '/'))) return
+    let userId: string | null = null, delegationId: string | null = null
+    try {
+      const principal = verifyPrincipal(db, /^Bearer ([^\s]+)$/.exec(request.headers.authorization ?? '')?.[1] ?? '')
+      userId = principal.userId; delegationId = principal.delegation?.id ?? null
+    } catch { /* Unauthenticated denials have no actor. */ }
+    const body = request.body as { instance?: unknown } | null | undefined
+    const requested = typeof body?.instance === 'string' ? body.instance : undefined
+    const candidates = userId ? (requested !== undefined
+      ? db.prepare("SELECT id, name FROM credentials WHERE tool = 'shodan-axi' AND name = ?").all(requested)
+      : db.prepare("SELECT id, name FROM credentials WHERE tool = 'shodan-axi' AND enabled = 1 LIMIT 2").all()) as { id: string, name: string }[] : []
+    audit.record({ ...(candidates.length === 1 ? { credentialId: candidates[0]!.id, instance: candidates[0]!.name } : {}),
+      event: 'denial', userId, delegationId, tool: 'shodan-axi', requestId: request.id, clientAddress: request.ip,
+      outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
+  })
 }
 
 function binding(db: Database.Database, owner: ShodanOwner, credential: CredentialReference) {

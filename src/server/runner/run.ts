@@ -77,6 +77,13 @@ export async function runTool<Credential>(
         clientAddress: context.clientAddress, outcome, ...apiAudit })
       apiDecisionRecorded = true
     }
+    const writeRequested = () => {
+      const operations = [adapter.classify(args, input), ...(adapter.nestedOperations?.(args, input) ?? []),
+        ...(continuationCommand ? [{ command: continuationCommand, effect: 'write' as const }] : [])]
+      const raw = adapter.rawApi?.commands.some(command => operations[0].command === command || args.slice(0, command.split(' ').length).join(' ') === command)
+      return operations.some(operation => operation.effect === 'write' || credentialIssuingCommand(adapter.name, operation.command))
+        || !!raw && adapter.rawApi?.effect?.(args, input) === 'write'
+    }
     try {
       const principal = authenticate === verifyAccessToken ? verifyPrincipal(db, token) : null
       userId = principal?.userId ?? authenticate(db, token)
@@ -130,6 +137,7 @@ export async function runTool<Credential>(
         }
       }
       if (reference) checkRawApiPolicy(db, userId, adapter, args, input, reference.id)
+      if (instanceReadOnly && args.some(arg => /^--(?:confirm|execute)(?:=|$)/.test(arg)) && writeRequested()) throw new ArtiumError('FLAG_BLOCKED')
       if (principal?.delegation && reference) authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand, reference.id, resolver)
     } catch (error) {
       recordApiDecision('refused')
@@ -178,18 +186,14 @@ export async function runTool<Credential>(
     }
     try {
       if (resolutionFailure) throw resolutionFailure.error
-      const writeRequested = () => {
-        const operations = [adapter.classify(args, input), ...(adapter.nestedOperations?.(args, input) ?? []),
-          ...(continuationCommand ? [{ command: continuationCommand, effect: 'write' as const }] : [])]
-        const raw = adapter.rawApi?.commands.some(command => operations[0].command === command || args.slice(0, command.split(' ').length).join(' ') === command)
-        return operations.some(operation => operation.effect === 'write' || credentialIssuingCommand(adapter.name, operation.command))
-          || !!raw && adapter.rawApi?.effect?.(args, input) === 'write'
-      }
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
         : await adapter.prepare(args, reference!, input)
       const preview = prepared.preview || prepared.effect === 'read' && !prepared.protectedResult
       const writes = () => prepared.effect === 'write' || !!prepared.write || !prepared.invocation?.help && !preview && writeRequested()
-      if (instanceReadOnly && writes()) throw new ArtiumError('FLAG_BLOCKED')
+      if (instanceReadOnly && writes()) {
+        audit.record({ ...identity, event: 'denial', outcome: 'FLAG_BLOCKED' })
+        throw new ArtiumError('FLAG_BLOCKED')
+      }
       if ((readOnly || instanceReadOnly) && !(adapter.name === 'vectra-axi' && preview)) {
         prepared.environment = { ...prepared.environment, [`${adapter.name.toUpperCase().replaceAll('-', '_')}_READ_ONLY`]: 'true' }
       }

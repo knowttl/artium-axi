@@ -348,6 +348,20 @@ test.each([
   })
 }, 60_000)
 
+test('read-only instances refuse a confirmed write with a denial before any credential is used', async () => {
+  await withTokenService(async ({ app, db, store, headers, send }) => {
+    const reference = store.findCredential('awx-axi')!
+    const instance = store.createInstance('awx-axi', { name: 'readonly', description: '' }, store.readCredential(reference), 'synthetic-development-user', Date.now())
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+      payload: { instance: instance.name, args: ['user', 'token-create', '42', '--confirm'] } })
+    expect(response.json(), response.body).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+    expect(db.prepare("SELECT event, outcome, instance FROM audit WHERE tool = 'awx-axi' AND instance = 'readonly' ORDER BY id").all())
+      .toEqual([{ event: 'denial', outcome: 'FLAG_BLOCKED', instance: 'readonly' }])
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
+  })
+}, 60_000)
+
 test.each(['read', 'write'])('AWX %s PAT creation delivers bytes once to the authorized caller (S10)', async scope => {
   await withTokenService(async ({ app, db, store, headers, send, run, lines, directory }) => {
     const args = ['user', 'token-create', '42', '--scope', scope]
@@ -392,6 +406,12 @@ test.each(['read', 'write'])('AWX %s PAT creation delivers bytes once to the aut
       auth: 'Bearer', canaryReceived: true, body: { scope } })
     const audit = db.prepare("SELECT * FROM audit WHERE tool = 'awx-axi'").all()
     expect(audit).toContainEqual(expect.objectContaining({ event: 'protected-result', outcome: 'success' }))
+    expect(db.prepare("SELECT outcome, instance, target_id FROM audit WHERE event = 'protected-result-take' ORDER BY id").all()).toEqual([
+      { outcome: 'NOT_FOUND', instance: null, target_id: expect.any(String) },
+      { outcome: 'TOOL_NOT_GRANTED', instance: null, target_id: expect.any(String) },
+      { outcome: 'success', instance: 'default', target_id: expect.any(String) },
+      { outcome: 'NOT_FOUND', instance: null, target_id: expect.any(String) },
+    ])
     expect(lines.join('\n') + JSON.stringify(audit)).not.toContain('CANARY-')
     expect(readdirSync(join(directory, 'calls'))).toEqual([])
   })

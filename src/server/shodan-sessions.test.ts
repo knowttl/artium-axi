@@ -78,6 +78,17 @@ test('lease expiry status wait returns expired with the worker summary and retai
   }
 })
 
+test.each(['sessions', 'scan-collections'])('refused %s requests are recorded as denials with the credential instance', async route => {
+  const fixture = await sessionFixture()
+  const { app, db, headers } = fixture
+  try {
+    const refused = await app.inject({ method: 'POST', url: `/v1/tools/shodan-axi/${route}/preview`, headers, payload: { unexpected: true } })
+    expect(refused.statusCode).toBe(400)
+    expect(db.prepare("SELECT event, tool, outcome, instance FROM audit WHERE event = 'denial'").all())
+      .toEqual([{ event: 'denial', tool: 'shodan-axi', outcome: 'INVALID_INPUT', instance: 'default' }])
+  } finally { await fixture.close() }
+})
+
 test('closed sessions page through all retained events', async () => {
   const fixture = await sessionFixture()
   const { app, headers, prefix, input } = fixture
