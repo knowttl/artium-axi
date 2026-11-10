@@ -16,7 +16,7 @@ export function shodanWrites(record) {
     if (path === '/__shodan/member') { members.set(url.searchParams.get('email'), { email: url.searchParams.get('email') }); reply(res, 200, {}); return true }
     if (path === '/__shodan/state' && req.method === 'GET') { reply(res, 200, { alerts: Object.fromEntries(alerts), ignored, notifiers: Object.fromEntries(notifiers), members: Object.fromEntries(members) }); return true }
     const alertId = /^\/shodan\/alert\/([^/]+)\/info$/.exec(path)?.[1]
-    const alertMutation = /^\/shodan\/alert\/([^/]+)(?:\/(trigger|notifier)\/([^/]+)(?:\/ignore\/([^/]+))?)?$/.exec(path)
+    const alertMutation = /^\/shodan\/alert\/([^/]+)(?:\/(trigger|notifier)\/([^/]+)(?:\/ignore\/([^/]+)(?:\/([^/]+))?)?)?$/.exec(path)
     const memberEmail = /^\/org\/member\/([^/]+)$/.exec(path)?.[1]
     const notifierId = /^\/notifier\/([^/]+)$/.exec(path)?.[1]
     if (!['/shodan/alert/info', '/shodan/alert', '/org', '/notifier'].includes(path) && !alertId && !alertMutation && !memberEmail && !notifierId) return false
@@ -35,14 +35,14 @@ export function shodanWrites(record) {
       if (req.method === 'GET' && path === '/shodan/alert/info') reply(res, 200, [...alerts.values()].filter(alert => !(mismatchReadback && written && alert.id.startsWith('created-alert-'))))
       else if (req.method === 'GET' && alertId) alerts.has(alertId) && !(mismatchReadback && written) ? reply(res, 200, alerts.get(alertId)) : reply(res, 404, {})
       else if (alertMutation) {
-        const [, id, kind, item, service] = alertMutation, alert = alerts.get(id)
+        const [, id, kind, item, service, vulnerability] = alertMutation, alert = alerts.get(id)
         if (!alert) { reply(res, 404, {}); return }
         if (!kind && req.method === 'DELETE') alerts.delete(id)
         else if (!kind && req.method === 'POST') Object.assign(alert, JSON.parse(body))
         else if (kind === 'notifier' && req.method === 'PUT') alert.notifiers = [...new Set([...alert.notifiers, item])]
         else if (kind === 'notifier' && req.method === 'DELETE') alert.notifiers = alert.notifiers.filter(value => value !== item)
         else if (kind === 'trigger' && service && req.method === 'PUT') {
-          const parsed = body.startsWith('{') ? JSON.parse(body).vulns : new URLSearchParams(body).getAll('vulns')
+          const parsed = vulnerability ? decodeURIComponent(vulnerability) : body.startsWith('{') ? JSON.parse(body).vulns : new URLSearchParams(body).getAll('vulns')
           const vulns = (Array.isArray(parsed) ? parsed : parsed ? [parsed] : []).flatMap(value => String(value).split(',')).filter(Boolean)
           ignored[id] ??= {}; ignored[id][item] ??= {}; ignored[id][item][decodeURIComponent(service)] = vulns
           alert.triggers[item] ??= {}
@@ -54,7 +54,7 @@ export function shodanWrites(record) {
         } else if (kind === 'trigger' && req.method === 'PUT') alert.triggers[item] = {}
         else if (kind === 'trigger' && req.method === 'DELETE') delete alert.triggers[item]
         else { reply(res, 404, {}); return }
-        reply(res, 200, { success: true })
+        reply(res, 200, { success: true, id })
       }
       else if (req.method === 'POST' && path === '/shodan/alert') {
         const input = JSON.parse(body)

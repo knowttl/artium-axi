@@ -31,7 +31,8 @@ async function invokeShodanWrite(directory: string, adapter: Adapter<unknown>, c
   try {
     authorize()
     profile.environment.SHODAN_AXI_READ_ONLY = 'false'
-    if (input.body) profile.files.push({ name: bodyFileName, content: JSON.stringify(input.body) })
+    if (input.body) profile.files.push({ name: bodyFileName, content: JSON.stringify(input.body, (_key, value: unknown) =>
+      value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) : value) })
     const args = [...input.command.split(' '), ...input.arguments, '--json', '--allow-operation', operation, '--accept-unknown-cost',
       '--query-credit-budget', String(input.queryCreditBudget), '--max-requests', String(input.maxRequests),
       ...input.expires === undefined ? [] : ['--expires', String(input.expires)],
