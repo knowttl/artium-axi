@@ -7,7 +7,9 @@ COPY tools /opt/tools
 RUN pnpm install --frozen-lockfile --ignore-scripts && pnpm rebuild argon2 better-sqlite3 esbuild && pnpm --dir /opt/tools install --frozen-lockfile
 RUN --network=none /opt/tools/node_modules/.bin/ado-axi --version
 COPY scripts/install-gh.mjs ./scripts/install-gh.mjs
-RUN node scripts/install-gh.mjs
+RUN --mount=type=secret,id=extra_ca,required=false \
+    if [ -f /run/secrets/extra_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/extra_ca; fi; \
+    node scripts/install-gh.mjs
 RUN --network=none /usr/local/bin/gh --version && /opt/tools/node_modules/.bin/gh-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/awx-axi --version
 RUN --network=none /opt/tools/node_modules/.bin/tenable-axi --version

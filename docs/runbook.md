@@ -9,6 +9,7 @@ Contents:
 - [Proxy and certificate trust](#proxy-and-certificate-trust)
 - [TLS inspection and private upstream CAs](#tls-inspection-and-private-upstream-cas)
 - [Trusting one tool from the administration UI](#trusting-one-tool-from-the-administration-ui)
+- [Build-time CA for image builds](#build-time-ca-for-image-builds)
 - [CLI launchers and password changes](#cli-launchers-and-password-changes)
 - [Scripted administrator sessions](#scripted-administrator-sessions)
 - [Roles, credentials and health](#roles-credentials-and-health)
@@ -330,6 +331,17 @@ Confirmation in the same mode keeps previously confirmed entries trusted during 
 Switching between CA trust and strict pinning replaces the endpoint's entries in the other mode.
 These changes take effect on subsequent calls and survive server restarts.
 Use the server-wide bundle above for organization-wide inspection CAs instead of confirming the same CA separately for every tool.
+
+## Build-time CA for image builds
+
+Use this only when the image build's `gh` download fails behind a TLS-inspecting proxy.
+Obtain the public CA certificate and confirm its SHA-256 fingerprint through a trusted operator channel.
+Store its PEM file at `./private/artium_extra_ca.pem`, then uncomment the `build.secrets` entry and the top-level `extra_ca` secret in `compose.example.yaml`.
+Compose mounts the file only for the `gh` download step at `/run/secrets/extra_ca`, which sets `NODE_EXTRA_CA_CERTS` for that step.
+Without the secret, the build is unchanged and certificate verification stays strict.
+The pinned SHA-256 of the `gh` release still gates the downloaded bytes, so trusting the CA does not replace that check.
+The build secret is not copied into the final image.
+Run `docker compose -f compose.example.yaml build` to build with the CA.
 
 ## CLI launchers and password changes
 
