@@ -134,11 +134,12 @@ test.each(inventory.commands.filter(route => ['write', 'configuration-write'].in
   expect(call.write?.checkArgs).toBeDefined()
 })
 
-test.each(['post', 'put', 'patch', 'delete'])('api %s reads its own path back after an uncertain outcome and keeps the uploaded body private', async method => {
+test.each(['post', 'put', 'patch', 'delete'])('api %s provides resource reconciliation guidance and keeps the uploaded body private', async method => {
   const body = { name: 'body.json', contentBase64: Buffer.from('{"name":"CANARY-api-body"}').toString('base64') }
   const call = await adapter(true).prepare(['api', method, 'labels/7/', ...method === 'delete' ? [] : ['--body-file', 'body.json'], '--confirm'], reference,
     method === 'delete' ? {} : { files: [body] })
-  expect(call.write?.checkArgs).toEqual(['api', 'get', 'labels/7/'])
+  expect(call.write).toEqual({ operation: `api ${method}`, target: 'managed resource', checkArgs: [],
+    afterCheck: 'Inspect the resource targeted or created by the request before retrying; it may differ from the mutation URL' })
   expect(call.args.join(' ')).not.toContain('CANARY-')
   expect(call.fileArguments?.map(index => call.args[index])).toEqual(method === 'delete' ? [] : ['body.json'])
 })

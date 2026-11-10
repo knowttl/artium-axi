@@ -328,12 +328,12 @@ export async function runTool<Credential>(
         const unknownOutcome = !!write && !!execution && (!!completed || !!runnerError
           && ['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT_LIMIT', 'UNKNOWN_OUTCOME', 'TEMP_UNAVAILABLE'].includes(runnerError.code))
         if (write && unknownOutcome) {
-          const command = ['artium-axi', adapter.name, ...write.checkArgs].map(value =>
+          const command = write.checkArgs.length && ['artium-axi', adapter.name, ...write.checkArgs].map(value =>
             /^[a-zA-Z0-9_./:=,+@%-]+$/.test(value) ? value : `'${value.replaceAll("'", "'\\''")}'`).join(' ')
           const failure = Object.assign(new RunnerError(completed && error instanceof ArtiumError ? error.code : 'UNKNOWN_OUTCOME',
             `Unknown outcome for ${write.operation} ${write.target}.`,
             recovery ? `Native audit ID ${recovery.receipt.auditId}; native status ${recovery.receipt.status}. Keep the original input and confirmation. Reconcile this audit ID with the original binding or inspect state with a trusted read; never replay.`
-              : `The operation may have changed state and was not retried. Check current state before trying again: ${command}${write.afterCheck ? `. ${write.afterCheck}` : ''}`),
+              : `The operation may have changed state and was not retried. ${command ? `Check current state before trying again: ${command}${write.afterCheck ? '. ' : ''}` : ''}${write.afterCheck ?? ''}`),
           { durationMs: execution.durationMs, outputBytes: execution.outputBytes, processStarted: true,
             truncated: execution.truncated, recovery })
           Object.defineProperty(failure, 'cause', { value: error })

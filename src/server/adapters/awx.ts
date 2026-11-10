@@ -102,7 +102,6 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
     checkArgs = [readGroup, 'show', rest[0], ...(readGroup === 'job' && flags.has('type') ? ['--type', String(flags.get('type'))] : [])]
   }
   if (route.command === 'user token-revoke') checkArgs = ['user', 'list', '--limit', '100']
-  if (positionals[0] === 'api') checkArgs = ['api', 'get', rest[0]]
   const normalized = [...(route.command === 'home' ? [] : positionals)]
   const fileArguments: number[] = []
   const structured: [number, string][] = []
@@ -129,8 +128,10 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   return { args: normalized, fileArguments, structured, effect, configuration,
     mutation: ['write', 'configuration-write'].includes(route.effect),
     invocation: { command: route.command, help: false },
-    ...(effect === 'write' ? { write: { operation: route.command, target: 'managed resource', checkArgs,
-      afterCheck: 'Inspect the affected resource and any additional pages before retrying; absence from this limited read does not prove failure' } } : {}) }
+    ...(effect === 'write' ? { write: { operation: route.command, target: 'managed resource',
+      ...(positionals[0] === 'api'
+        ? { checkArgs: [], afterCheck: 'Inspect the resource targeted or created by the request before retrying; it may differ from the mutation URL' }
+        : { checkArgs, afterCheck: 'Inspect the affected resource and any additional pages before retrying; absence from this limited read does not prove failure' }) } } : {}) }
 }
 
 export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
