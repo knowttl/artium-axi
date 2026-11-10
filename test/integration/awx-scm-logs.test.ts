@@ -155,20 +155,20 @@ test('AWX project SCM URLs remain private on later project and activity reads (S
         req.on('error', reject)
         req.end(JSON.stringify({ scm_url: 'https://scm.example/repo?token=CANARY-stored-url' }))
       })
-      const rawBody = upload('body.json', JSON.stringify({ body: 12345, method: 'PATCH', path: 'projects/42/', nested: { body: false, method: true, path: 98765 }, variables: 'internal_value: private-example',
+      const rawBody = upload('body.json', JSON.stringify({ body: 12345, method: 'PATCH', path: 'projects/42/', hosts: [42], nested: { body: false, method: true, path: 98765 }, variables: 'internal_value: private-example',
         extra_vars: { label: 'private-label', code: 'private-code', action: 'private-action', type: 'private-type',
           status: 'private-status', would_send: 'private-would-send', help: 'private-help' } }))
       const preview = await run(['api', 'patch', 'projects/42/', '--body-file', 'body.json', '--dry-run'], { files: [rawBody] })
       expect(JSON.stringify(preview)).not.toContain('private-example')
+      expect(preview).toMatchObject({ dry_run: { method: 'PATCH', path: 'projects/42/' } })
       const changed = await run(['api', 'patch', 'projects/42/', '--body-file', 'body.json', '--confirm'], { files: [rawBody] })
       expect(JSON.stringify(changed)).toContain('[SCM URL redacted]')
       expect(JSON.stringify(changed)).not.toContain('private-example')
       expect(JSON.stringify(changed)).not.toMatch(/private-(label|code|action|type|status|would-send|help)/)
       expect(changed).toMatchObject({ api_response: { method: 'PATCH', path: 'projects/42/', status: 200 } })
-      expect(changed).toMatchObject({ api_response: { body: { body: '[structured input redacted, 0 bytes]',
-        method: '[structured input redacted, 5 bytes]', path: '[structured input redacted, 12 bytes]',
-        nested: { body: '[structured input redacted, 0 bytes]', method: '[structured input redacted, 5 bytes]',
-          path: '[structured input redacted, 12 bytes]' } } } })
+      const mask = `[structured input redacted, ${rawBody.size} bytes]`
+      expect(changed).toMatchObject({ api_response: { body: { body: mask, method: mask, path: mask, hosts: [42],
+        nested: { body: false, method: true, path: mask } } } })
       for (const args of [['api', 'get', 'projects/42/'], ['api', 'get', 'projects/'],
         ['api', 'post', 'projects/42/copy/', '--confirm']]) {
         expect(JSON.stringify(await run(args))).toContain('[SCM URL redacted]')

@@ -100,6 +100,12 @@ test('private-input scanning preserves API metadata while checking matching resp
   expect(scanner.finish()).toBe(false)
 })
 
+test('private-input scanning detects distinctive numeric values in response data', () => {
+  const scanner = new SecretScanner([], privateOutput([{ field: 'raw_body', content: '12345' }]))
+  scanner.scan('stdout', Buffer.from('api_response:\n  status: 200\n  body:\n    body: 12345\n'))
+  expect(scanner.finish()).toBe(true)
+})
+
 test.each(streams)('private-input scanning detects nested values across chunks in %s (R1)', stream => {
   const scanner = new SecretScanner([], privateOutput([{ field: 'variables', content: 'a' }]))
   scanner.scan(stream, Buffer.from('dry_run:\n  payload:\n    env: '))
