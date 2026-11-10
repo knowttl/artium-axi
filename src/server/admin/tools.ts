@@ -32,6 +32,7 @@ import { rawApiModes } from '../policy/policy.js'
 import type { Adapter } from '../adapters/types.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { Audit, AuditEvent } from '../audit/audit.js'
+import { diffSettings } from '../audit/settings-diff.js'
 import type { Runner } from '../runner/runner.js'
 import type { ToolHealth } from '../health/health.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
@@ -389,14 +390,16 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const settings = input.nativeSettings === undefined ? undefined : parse(nativeSettingsSchemas[tool], input.nativeSettings)
     if (input.enabled && !adapters.some(adapter => adapter.name === tool)) throw new ArtiumError('TOOL_DISABLED')
     let replacements: CredentialReference[] = []
-    const events: AuditEvent[] = [{ event: 'admin-change', action: adminToolRoutes.patch.auditEvent, targetId: tool,
-      userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }]
+    const event: Extract<AuditEvent, { event: 'admin-change' }> = { event: 'admin-change', action: adminToolRoutes.patch.auditEvent, targetId: tool,
+      userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }
+    const events: AuditEvent[] = [event]
     const result = audit.change(events, () => {
       authorize(request)
       const current = readTool(tool)
       if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
       const now = Date.now()
       if (settings !== undefined) {
+        event.settingsChanges = diffSettings(current.nativeSettings, settings)
         events.push(...writeChange(request, actor, tool, current.nativeSettings, settings))
         replacements = bumpInstances(tool, actor, now, settings)
         db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)

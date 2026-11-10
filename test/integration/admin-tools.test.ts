@@ -316,6 +316,31 @@ test.each([
   expect(await disabled.json()).toMatchObject({ readOnly: true, health: { readOnly: true } })
 })
 
+test('saving native settings through the JSON editor journals the field-level change', async () => {
+  const first = await request('PATCH', '/az-axi', { expectedRevision: 1,
+    nativeSettings: { subscriptions: ['synthetic-a', 'synthetic-b'], managementGroup: 'synthetic-group', tlsDestinations: { keyVaults: ['syntheticvault'] } } })
+  expect(first.status).toBe(200)
+  const second = await request('PATCH', '/az-axi', { expectedRevision: 2,
+    nativeSettings: { subscriptions: ['synthetic-b', 'synthetic-c'], tlsDestinations: { keyVaults: ['syntheticvault'] } } })
+  expect(second.status).toBe(200)
+  const noChange = await request('PATCH', '/az-axi', { expectedRevision: 3,
+    nativeSettings: { subscriptions: ['synthetic-c', 'synthetic-b'], tlsDestinations: { keyVaults: ['syntheticvault'] } } })
+  expect(noChange.status).toBe(200)
+  const rows = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change' ORDER BY id").all() as { arguments: string | null }[]
+  expect(rows.map(row => row.arguments && JSON.parse(row.arguments))).toEqual([
+    { settings: [
+      { path: ['managementGroup'], before: null, after: 'synthetic-group' },
+      { path: ['subscriptions'], added: ['synthetic-a', 'synthetic-b'], removed: [] },
+      { path: ['tlsDestinations', 'keyVaults'], added: ['syntheticvault'], removed: [] },
+    ] },
+    { settings: [
+      { path: ['managementGroup'], before: 'synthetic-group', after: null },
+      { path: ['subscriptions'], added: ['synthetic-c'], removed: ['synthetic-a'] },
+    ] },
+    null,
+  ])
+})
+
 test.each([
   { tool: 'falcon-axi', settings: { allowWrites: true }, writableTools: ['falcon-axi'] },
   { tool: 'az-axi', settings: { allowWrites: true }, writableTools: ['az-axi'] },

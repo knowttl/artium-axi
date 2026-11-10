@@ -193,6 +193,22 @@ test('administrators can inspect the loaded trusted CA metadata on Tools', async
   })
 })
 
+test('audit record details render the settings changes of an admin change', async () => {
+  const audit = new Audit(db, () => now, () => {})
+  audit.record({ event: 'admin-change', action: 'update-tool', targetId: 'az-axi', userId, tool: 'az-axi', outcome: 'success',
+    requestId: 'settings-change', clientAddress: null, settingsChanges: [
+      { path: ['managementGroup'], before: null, after: '<synthetic-group>' },
+      { path: ['subscriptions'], added: ['synthetic-c'], removed: ['synthetic-a'] },
+    ] })
+  const { id } = db.prepare("SELECT id FROM audit WHERE request_id = 'settings-change'").get() as { id: number }
+  await signIn()
+  const page = await request('GET', '/admin/audit?record=' + id)
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain('Settings changes')
+  expect(page.body).toContain('unset → &quot;&lt;synthetic-group&gt;&quot;')
+  expect(page.body).toContain('+ &quot;synthetic-c&quot;\n- &quot;synthetic-a&quot;')
+})
+
 test('security: failure diagnostics appear only in administrator row details, never audit exports or streams', async () => {
   const lines: string[] = []
   const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
