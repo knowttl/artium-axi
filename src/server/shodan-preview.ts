@@ -11,7 +11,9 @@ const previewSchema = z.object({ status: z.literal('preview'), token: z.uuid(), 
   limit: z.number(), maxBytes: z.number(), timeoutMs: z.number(), idleTimeoutMs: z.number(), cost: z.literal('unknown') }).passthrough()
 
 export async function runShodanNative(directory: string, args: string[],
-  profile: Pick<PreparedCall, 'environment' | 'files' | 'secrets'>, signal: AbortSignal, authorize: () => void, configuredCaPem?: string, beforeSpawn?: () => void, acceptNativeFailure = false) {
+  profile: Pick<PreparedCall, 'environment' | 'files' | 'secrets'>, signal: AbortSignal, authorize: () => void, configuredCaPem?: string, beforeSpawn?: () => void, failureOrTimeout: boolean | number = false) {
+  const acceptNativeFailure = failureOrTimeout === true
+  const timeoutMs = typeof failureOrTimeout === 'number' ? failureOrTimeout : 30000
   const root = join(directory, 'preview'), state = join(directory, 'state')
   const directories = Object.fromEntries(Object.entries({ HOME: 'home', XDG_CONFIG_HOME: 'config', XDG_DATA_HOME: 'data',
     XDG_CACHE_HOME: 'cache', XDG_RUNTIME_DIR: 'runtime', TMPDIR: 'tmp' }).map(([key, leaf]) => [key, join(root, leaf)]))
@@ -38,7 +40,7 @@ export async function runShodanNative(directory: string, args: string[],
       let bytes = 0, failed = false
       const kill = () => { if (child.pid) try { process.kill(-child.pid, 'SIGKILL') } catch { /* Already exited. */ } }
       const cancel = () => { failed = true; kill() }
-      const timer = setTimeout(cancel, 30000).unref()
+      const timer = setTimeout(cancel, timeoutMs).unref()
       signal.addEventListener('abort', cancel, { once: true })
       if (signal.aborted) cancel()
       for (const stream of [child.stdout, child.stderr]) stream.on('data', (chunk: Buffer) => {

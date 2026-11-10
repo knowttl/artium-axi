@@ -27,7 +27,7 @@ For shared-credential tools, `POST /v1/tools/:tool/run` accepts an optional `ins
 `GET /v1/tools` lists each tool's usable instances with name, description, status and read-only state, never endpoints, and the served skill gains an instance paragraph while several are usable.
 When no name is supplied, exactly one usable instance granted to the caller is selected automatically; multiple granted, usable instances return `INSTANCE_REQUIRED`.
 Origin-only AWX credentials are not usable instances; see [instance health and administration](runbook.md#backup-restore-and-upgrade-rollback).
-An unknown or disabled name is refused, and an instance marked read-only blocks writes while allowing supported previews, except Shodan scan and write previews.
+An unknown or disabled name is refused, and an instance marked read-only blocks writes while allowing supported previews, except Shodan scan, write and export previews.
 A role grants a tool either on all of its instances, including instances added later, or on selected instances only; grants add up across a person's roles.
 An instance outside the caller's grants returns `INSTANCE_NOT_FOUND`, whether it exists or not.
 Administrators edit this on the tool's Access tab or with `PUT /v1/admin/roles/:id/tools/:tool/instances`.
@@ -35,7 +35,7 @@ SSH uses caller-specific credentials and rejects an `instance` field.
 See the [command reference](commands.md) for CLI instance selection syntax and exclusions.
 Kubernetes workspace and session creation APIs accept an optional instance name and bind subsequent ID-based operations to that instance.
 Proxmox stream creation accepts an optional instance name, as does generic transfer preparation; subsequent actions use the instance bound to the stream or transfer.
-Shodan stream session and scan collection previews accept an instance selection and bind subsequent work to that instance; see the [command reference](commands.md#shodan).
+Shodan stream session, scan collection, write and export previews accept an instance selection and bind subsequent work to that instance; see the [Shodan boundary](#shodan).
 Other related workspace, session, stream and protected-result APIs do not carry an instance selection; multiple granted, enabled instances can therefore make those paths unavailable.
 Those paths check the role's instance grant when selecting credentials and recheck it for ongoing operations.
 See [instance administration](admin-guide.md#browser-administration) for managing named instances in the UI.
@@ -444,7 +444,14 @@ POST `/v1/tools/shodan-axi/writes/preview` with the [write input](../src/shared/
 Repeat the same input and instance with the returned `confirm` in POST `/v1/tools/shodan-axi/writes/execute` using the same user and sign-in family; confirmation is single-use and expires after fifteen minutes.
 Notifier previews expose argument names rather than values, and organization removal reports downgrade as an effect.
 See [write retention and recovery](runbook.md#retention-and-export) for uncertain outcomes.
-Export routes, previews and jobs are not available; ordinary tool runs refuse alert changes, downloads, dataset downloads and other writes.
+Administrator `writes` and `exports` settings establish separate policy bindings for confirmed alert, notifier and organization writes and for search and alert downloads; see [write and export grants](tool-credentials.md#shodan).
+Search and alert downloads run as retained export jobs: preview, start, status and a one-time retrieval require an owner session bound to the caller and original sign-in family, a `CLI-005` or `CLI-020` grant, a writable instance, and credit, request, record and byte bounds within the administrator's ceilings.
+Delegated tokens cannot use export routes, the server chooses the file destination and never returns its path, and a single-use confirmation expires after fifteen minutes.
+POST `/v1/tools/shodan-axi/exports/preview` with the [export input](../src/shared/shodan-stream.ts) and optional `instance`, then POST the same input and instance with the returned `confirm` to `/v1/tools/shodan-axi/exports/start`.
+GET `/v1/tools/shodan-axi/exports/<id>` returns the job state and result; optional `waitMs` waits up to 30000 milliseconds while it is running.
+POST `/v1/tools/shodan-axi/exports/<id>/retrieve` retrieves a completed or partial gzip file once; verify its SHA-256 against the status result or `x-artium-export-sha256` response header, and inspect `x-artium-export-complete` for completeness.
+See [export retention and recovery](runbook.md#retention-and-export) for capacity and interrupted retrieval.
+Ordinary tool runs refuse alert changes, downloads, dataset downloads and other writes.
 The client-side radar consumes an owner session's output under the same access restrictions; see [radar usage and local output](commands.md#shodan).
 The server adapter refuses local configuration, credential and endpoint overrides, stdin, uploaded files and result-file destinations before credential access.
 Help exposes only admitted routes; the standalone `doctor` alias is not admitted.

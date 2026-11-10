@@ -37,7 +37,15 @@ export const shodanWriteInput = z.strictObject({
       .refine(args => Object.keys(args).length <= 32),
   }).optional(),
 })
-export const shodanStreamPolicy =z.strictObject({
+const exportBounds = {
+  fields: z.array(z.string().regex(/^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/)).max(64).default([]),
+  limit: positive(1000000), maxBytes: positive(1024 * 1024 * 1024), queryCreditBudget: positive(1000), maxRequests: positive(1000),
+}
+export const shodanExportInput = z.discriminatedUnion('command', [
+  z.strictObject({ command: z.literal('download'), query: z.string().min(1).max(4096), ...exportBounds }),
+  z.strictObject({ command: z.literal('alert download'), alertId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/).optional(), ...exportBounds }),
+])
+export const shodanStreamPolicy = z.strictObject({
   grants: z.record(z.string().min(1).max(128), z.array(z.string().regex(/^OP-\d{3}$/)).max(32)),
   perUser: positive(100), perCredential: positive(100), total: positive(1000),
   sessionEvents: positive(100000), totalEvents: positive(1000000),
