@@ -49,6 +49,10 @@ export function auditShodanDenials(app: FastifyInstance, db: Database.Database, 
     mark(request: FastifyRequest, resource: { credential: CredentialReference, instance: string }) {
       identities.set(request, { credentialId: resource.credential.id, instance: resource.instance })
     },
+    markCredential(request: FastifyRequest, credential: CredentialReference) {
+      const row = db.prepare("SELECT name FROM credentials WHERE tool = 'shodan-axi' AND id = ?").get(credential.id) as { name: string } | undefined
+      if (row) identities.set(request, { credentialId: credential.id, instance: row.name })
+    },
   }
 }
 

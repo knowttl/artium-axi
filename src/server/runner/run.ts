@@ -137,7 +137,8 @@ export async function runTool<Credential>(
         }
       }
       if (reference) checkRawApiPolicy(db, userId, adapter, args, input, reference.id)
-      if (instanceReadOnly && args.some(arg => /^--(?:confirm|execute)(?:=|$)/.test(arg)) && writeRequested()) throw new ArtiumError('FLAG_BLOCKED')
+      if (instanceReadOnly && writeRequested() && (adapter.executesWrite?.(args, input)
+        ?? (!args.includes('--help') && !args.includes('--dry-run') && args.some(arg => /^--(?:confirm|execute)(?:=|$)/.test(arg))))) throw new ArtiumError('FLAG_BLOCKED')
       if (principal?.delegation && reference) authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand, reference.id, resolver)
     } catch (error) {
       recordApiDecision('refused')

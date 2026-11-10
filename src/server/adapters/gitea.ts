@@ -149,6 +149,7 @@ export function createGiteaAdapter(source: SecretSource, writeLog?: string): Ada
       return 'secretInput' in call && Boolean(call.secretInput)
     },
     validateArgs: (args, input) => { giteaArguments(args, input) },
+    executesWrite: (args, input) => { const call = giteaArguments(args, input); return 'effect' in call && call.effect === 'write' },
     rawApi: { commands: ['api'], writes: true, help: (args, input) => giteaArguments(args, input).invocation.help },
     classify(args, input) {
       let apiMutation = false

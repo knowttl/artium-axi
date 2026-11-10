@@ -698,6 +698,17 @@ describe('AWX native write failure recovery (R1)', () => {
   })
 })
 
+test('read-only GitHub instance permits an unconfirmed preview', async () => {
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'gh-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'gh-axi')")
+  const github = createGhAdapter({ getCredential: async () => ({ origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' }),
+    getSettings: () => ({ writes: { allowWrites: true, operations: ['issue comment'] } }) })
+  const identities = new SharedIdentityResolver(new FakeCredentialStore([
+    { reference: { id: 'synthetic-github', tool: 'gh-axi', revision: 1 }, value: {}, readOnly: true },
+  ]).seed(db))
+  const result = await runTool(db, audit, runner, token, { args: ['issue', 'comment', '42', '-R', 'canary/repo', '--body=synthetic'] }, github, identities, context)
+  expect(decode(result.stdout)).toMatchObject({ preview: { operation: 'issue comment' } })
+})
+
 test.each(['TIMEOUT', 'CANCELLED', 'PROCESS_SIGNAL', 'SECRET_IN_OUTPUT', 'OUTPUT_LIMIT', 'UNKNOWN_OUTCOME'] as const)('GitHub preview sends nothing and interrupted %s execution returns read-back guidance', async code => {
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'gh-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'gh-axi')")
   const github = createGhAdapter({ getCredential: async () => ({ origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' }),

@@ -61,6 +61,7 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
     const operations = [inspection.operation]
     const streamOperation = collecting ? 'OP-046' : undefined
     const credential = await resolver.resolve(owner.user, 'shodan-axi', instance)
+    denials.markCredential(request, credential)
     const binding = shodanScanBinding(db, owner, credential, operations, streamOperation)
     if (input.scanCreditBudget > binding.settings.maxScanCredits || input.maxRequests > binding.settings.maxRequests) throw new ArtiumError('INVALID_INPUT')
     if (plans.size >= 128 || [...plans.values()].filter(plan => plan.owner.user === owner.user).length >= 8) throw new ArtiumError('TOO_MANY_CALLS')
@@ -190,6 +191,7 @@ export function registerShodanCollections(app: FastifyInstance, db: Database.Dat
   app.get<{ Params: { id: string }, Querystring: { waitMs?: string } }>(prefix + '/:id', async request => {
     const owner = shodanOwner(db, request), collection = collections.get(request.params.id)
     if (!collection || collection.owner.user !== owner.user || collection.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
+    denials.mark(request, collection)
     authorize(collection)
     const wait = request.query.waitMs === undefined ? 0 : Number(request.query.waitMs)
     if (!Number.isSafeInteger(wait) || wait < 0 || wait > 30000) throw new ArtiumError('INVALID_INPUT')

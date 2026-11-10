@@ -106,6 +106,26 @@ test('a refused confirmed session is attributed to its owned plan', async () => 
   } finally { await fixture.close() }
 })
 
+test.each(['sessions', 'scan-collections'])('refused %s previews retain the resolved instance', async route => {
+  const fixture = await sessionFixture()
+  const { app, db, store, headers, input } = fixture
+  try {
+    const first = store.findCredential('shodan-axi')!
+    store.createInstance('shodan-axi', { name: 'second', description: '' }, store.readCredential(first), 'synthetic-development-user', Date.now())
+    const settings = JSON.parse((db.prepare("SELECT native_settings FROM tools WHERE name='shodan-axi'").get() as { native_settings: string }).native_settings)
+    settings.sessions.grants = {}
+    db.prepare("UPDATE tools SET native_settings=? WHERE name='shodan-axi'").run(JSON.stringify(settings))
+    const payload = route === 'sessions' ? { ...input, instance: 'default' } : {
+      instance: 'default', scope: { kind: 'targets', targets: '192.0.2.1', force: false }, waitSeconds: 0,
+      limit: 1, maxBytes: 1024, idleTimeout: 1000, scanCreditBudget: 1, maxRequests: 1, acceptUnknownCost: false,
+    }
+    const refused = await app.inject({ method: 'POST', url: `/v1/tools/shodan-axi/${route}/preview`, headers, payload })
+    expect(refused.statusCode).toBe(403)
+    expect(db.prepare("SELECT credential_id, instance FROM audit WHERE event = 'denial'").all())
+      .toEqual([{ credential_id: first.id, instance: 'default' }])
+  } finally { await fixture.close() }
+})
+
 test('closed sessions page through all retained events', async () => {
   const fixture = await sessionFixture()
   const { app, headers, prefix, input } = fixture

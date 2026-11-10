@@ -111,6 +111,17 @@ test('raw API writes receive the native switch only after path and host write au
   expect((await run(['api', '_apis/wit/workitems/42'])).json()).toMatchObject({ exitCode: 0, stdout: '{"writes":null}\n' })
 })
 
+test('read-only instance refuses raw writes before credential preparation', async () => {
+  vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', '{"PATCH":["_apis/wit/workitems/*"]}')
+  db.exec("UPDATE credentials SET read_only = 1 WHERE tool = 'ado-axi'")
+  const result = await run(['api', '_apis/wit/workitems/42', '--method', 'PATCH', '--body', '[]'])
+  expect(result.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+  expect(existsSync(join(directory, 'children.jsonl'))).toBe(false)
+  expect(db.prepare("SELECT event, outcome FROM audit WHERE tool = 'ado-axi' AND event IN ('denial', 'run-start', 'run-terminal')").all())
+    .toEqual([{ event: 'denial', outcome: 'FLAG_BLOCKED' }])
+  expect((await run(['work-item', 'delete', '--help'])).json()).toMatchObject({ exitCode: 0 })
+})
+
 test('raw API calls follow the tool mode and role grant, are audited as denials, and never block help or named commands', async () => {
   vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', '{"PATCH":["_apis/wit/workitems/*"]}')
   const read = ['api', '_apis/wit/workitems/42']

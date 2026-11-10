@@ -139,6 +139,7 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
     sensitiveArguments: args => ({ flags: Object.keys(Object.assign({}, ...inventory.commands.map(route => route.flags))).map(name => `--${name}`),
       positions: args.map((_, index) => index).filter(index => index > 1) }),
     validateArgs: (args, input) => { awxArguments(args, input) },
+    executesWrite: (args, input) => awxArguments(args, input).effect === 'write',
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => awxArguments(a, i).invocation, args, input),
     async prepare(args, reference, input) {
       const normalized = awxArguments(args, input)

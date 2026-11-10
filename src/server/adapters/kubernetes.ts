@@ -70,6 +70,10 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { argumentsForCall(args, input) },
+    executesWrite(args, input) {
+      const call = argumentsForCall(args, input)
+      return call.acquisition || call.workflow?.kind === 'confirm' || call.workflow?.kind === 'server-dry-run'
+    },
     kubernetesContinuation(args, input) {
       const { invocation, workflow } = argumentsForCall(args, input)
       if (invocation.help && (invocation.command === 'preview' || invocation.command === 'confirm')) {

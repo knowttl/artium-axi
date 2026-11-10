@@ -86,6 +86,7 @@ export function createUnifiAdapter(source: SecretSource, writeLog?: string): Ada
       positions: args.map((_, index) => index) }),
     sensitiveInput: (_args, input) => Boolean(input?.files?.length),
     validateArgs: (args, input) => { argumentsForCall(args, input) },
+    executesWrite: (args, input) => argumentsForCall(args, input).effect === 'write',
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => argumentsForCall(a, i).invocation, args, input),
     async prepare(args, reference, input) {
       const call = argumentsForCall(args, input)

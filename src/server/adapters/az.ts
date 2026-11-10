@@ -196,6 +196,7 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
         }),
     }),
     validateArgs: (args, input) => { azArguments(args, input) },
+    executesWrite: (args, input) => !!azArguments(args, input).write,
     rawApi: { commands: ['api'], writes: true, help: (args, input) => azArguments(args, input).invocation.help,
       effect: (args, input) => azArguments(args, input).rawEffect },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => azArguments(a, i).invocation, args, input),

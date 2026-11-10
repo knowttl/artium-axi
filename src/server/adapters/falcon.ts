@@ -57,6 +57,7 @@ export function createFalconAdapter(source: SecretSource, writeLog = defaultWrit
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => '--' + name),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { validateFalconArgs(args, input) },
+    executesWrite: (args, input) => parseFalconArgs(args, input).executing,
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => validateFalconArgs(a, i), args, input),
     async prepare(args, reference, input) {
       const call = parseFalconArgs(args, input)

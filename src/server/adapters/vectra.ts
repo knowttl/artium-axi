@@ -73,6 +73,7 @@ export function createVectraAdapter(source: SecretSource, writeLog: string,
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: vectraManifest.unsafeOverrides.map(name => `--${name}`),
     allowedFlagValues: {}, sensitiveArguments: () => ({ flags: ['--note'], positions: [] }),
     validateArgs: (args, input) => { vectraArguments(args, input) },
+    executesWrite: (args, input) => { const call = vectraArguments(args, input); return !call.invocation.help && call.effect === 'write' },
     rawApi: { commands: ['api get'], writes: false, help: (args, input) => vectraArguments(args, input).invocation.help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(
       inventory.commands.map(route => ({ ...route, effect: vectraReadCommands.has(route.command) ? 'read' : 'write' })),

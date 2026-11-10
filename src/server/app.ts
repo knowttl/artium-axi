@@ -485,6 +485,13 @@ export function createApp(options: {
     const principal = verifyPrincipal(db, token)
     const { userId, delegation, familyId } = principal
     Object.assign(attempt, { userId, delegationId: delegation?.id ?? null })
+    const resultOwner = { userId, tool, operation: request.params.operation,
+      ...(delegation || ['kubernetes-axi', 'proxmox-axi'].includes(tool) ? { familyId, familyOnly: !!delegation } : {}) }
+    try {
+      const bound = protectedResults.credential(request.params.id, resultOwner)
+      const instance = db.prepare('SELECT name FROM credentials WHERE tool = ? AND id = ?').get(tool, bound.id) as { name: string } | undefined
+      Object.assign(attempt, { credentialId: bound.id, instance: instance?.name })
+    } catch (error) { if (!(error instanceof ArtiumError && error.code === 'NOT_FOUND')) throw error }
     if (delegation && !delegationIncludesTool(delegation.scopeJson, tool)) throw new ArtiumError('DELEGATED_SCOPE_DENIED')
     checkToolPolicy(db, userId, tool)
     if (delegation && tool === 'proxmox-axi') {
@@ -492,8 +499,6 @@ export function createApp(options: {
       if (!adapter) throw new ArtiumError('TOOL_DISABLED')
       authorizeDelegatedOperation(db, userId, delegation, adapter, { command: 'result take', effect: 'write' })
     }
-    const resultOwner = { userId, tool, operation: request.params.operation,
-      ...(delegation || ['kubernetes-axi', 'proxmox-axi'].includes(tool) ? { familyId, familyOnly: !!delegation } : {}) }
     const bound = protectedResults.credential(request.params.id, resultOwner)
     const instance = db.prepare('SELECT name FROM credentials WHERE tool = ? AND id = ?').get(tool, bound.id) as { name: string } | undefined
     if (!instance) throw new ArtiumError('NOT_FOUND')

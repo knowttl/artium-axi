@@ -99,9 +99,10 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
     await session.stopping
     if (session.discard) clear(session)
   }
-  const select = (request: Pick<FastifyRequest, 'headers'>, id: string, recheck = true) => {
+  const select = (request: FastifyRequest, id: string, recheck = true) => {
     const owner = shodanOwner(db, request), session = sessions.get(id)
     if (!session || session.owner.user !== owner.user || session.owner.family !== owner.family) throw new ArtiumError('NOT_FOUND')
+    denials.mark(request, session)
     if (recheck) authorize(session)
     return session
   }
@@ -114,9 +115,10 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
     ...(session.retainedUntil ? { retainedUntil: session.retainedUntil } : {}),
     ...(session.summary ? { summary: session.summary } : {}) })
 
-  const preview = async (owner: ShodanOwner, input: Input, controller: AbortController, reserved?: Reservation, instance?: string) => {
+  const preview = async (owner: ShodanOwner, input: Input, controller: AbortController, reserved?: Reservation, instance?: string, request?: FastifyRequest) => {
     const args = await inspectShodanStream(input)
     const credential = reserved ? reserved.credential : await resolver.resolve(owner.user, 'shodan-axi', instance)
+    if (request) denials.markCredential(request, credential)
     const binding = shodanBinding(db, owner, credential, input.operation)
     await initialized
     const id = reserved?.id ?? randomUUID(), directory = join(root, `session-${id}`)
@@ -163,7 +165,7 @@ export function registerShodanSessions(app: FastifyInstance, db: Database.Databa
     try {
       const owner = shodanOwner(db, request)
       const { instance, ...input } = parse(shodanStreamStart.extend({ instance: instanceNameSchema.optional() }), request.body)
-      return await preview(owner, input, controller, undefined, instance)
+      return await preview(owner, input, controller, undefined, instance, request)
     }
     finally { reply.raw.off('close', disconnect) }
   })

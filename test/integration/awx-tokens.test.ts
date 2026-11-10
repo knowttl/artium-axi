@@ -359,6 +359,9 @@ test('read-only instances refuse a confirmed write with a denial before any cred
     expect(db.prepare("SELECT event, outcome, instance FROM audit WHERE tool = 'awx-axi' AND instance = 'readonly' ORDER BY id").all())
       .toEqual([{ event: 'denial', outcome: 'FLAG_BLOCKED', instance: 'readonly' }])
     expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
+    const preview = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+      payload: { instance: instance.name, args: ['user', 'token-create', '42', '--dry-run'] } })
+    expect(preview.json(), preview.body).toMatchObject({ exitCode: 0 })
   })
 }, 60_000)
 
@@ -422,7 +425,7 @@ test.each(['read', 'write'])('AWX %s PAT creation delivers bytes once to the aut
     expect(audit).toContainEqual(expect.objectContaining({ event: 'protected-result', outcome: 'success' }))
     expect(db.prepare("SELECT outcome, instance, target_id FROM audit WHERE event = 'protected-result-take' ORDER BY id").all()).toEqual([
       { outcome: 'NOT_FOUND', instance: null, target_id: expect.any(String) },
-      { outcome: 'TOOL_NOT_GRANTED', instance: null, target_id: expect.any(String) },
+      { outcome: 'TOOL_NOT_GRANTED', instance: 'default', target_id: expect.any(String) },
       { outcome: 'success', instance: 'default', target_id: expect.any(String) },
       { outcome: 'NOT_FOUND', instance: null, target_id: expect.any(String) },
     ])

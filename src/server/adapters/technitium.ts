@@ -139,6 +139,7 @@ export function createTechnitiumAdapter(source: SecretSource, writeLog?: string)
     sensitiveArguments: args => ({ flags: args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0]), positions: [] }),
     sensitiveInput: () => true,
     validateArgs: (args, input) => { argumentsForCall(args, input) },
+    executesWrite: (args, input) => argumentsForCall(args, input).effect === 'write',
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => argumentsForCall(a, i).invocation, args, input),
     async prepare(args, reference, input) {
       const call = argumentsForCall(args, input)

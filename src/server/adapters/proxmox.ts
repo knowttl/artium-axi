@@ -228,6 +228,7 @@ export function createProxmoxAdapter(source: SecretSource, writeLog?: string): P
       if (route?.effect === 'write' && route.operationId && !proxmoxWritePolicy.read(settings).allowedOperations.includes(route.operationId)) throw new ArtiumError('FLAG_BLOCKED')
     },
     validateArgs: (args, input) => { argumentsForCall(args, input) },
+    executesWrite: (args, input) => argumentsForCall(args, input).effect === 'write',
     nestedOperations(args, input) {
       const operations: { command: string, effect: 'read' | 'write' }[] = []
       argumentsForCall(args, input, false, route => operations.push({ command: route.command, effect: route.effect === 'read' ? 'read' : 'write' }))

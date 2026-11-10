@@ -55,6 +55,7 @@ export interface Adapter<Credential> {
   rawApi?: { commands: readonly string[], writes: boolean, help(args: readonly string[], input?: RunnerInput): boolean,
     effect?(args: readonly string[], input?: RunnerInput): 'read' | 'write' }
   classify(args: readonly string[], input?: RunnerInput): { command: string, effect: 'read' | 'write' }
+  executesWrite?(args: readonly string[], input?: RunnerInput): boolean
   nestedOperations?(args: readonly string[], input?: RunnerInput): { command: string, effect: 'read' | 'write' }[]
   kubernetesContinuation?(args: readonly string[], input?: RunnerInput):
     { command: 'preview' | 'confirm', help: true }
