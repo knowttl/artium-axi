@@ -28,6 +28,7 @@ const exactCommands: Partial<Record<ToolName, readonly string[]>> = {
 const escapeHatches: Partial<Record<ToolName, readonly string[]>> = {
   'ado-axi': ['api'], 'az-axi': ['api'], 'gitea-axi': ['api'], 'gh-axi': ['api'],
   'hybrid-axi': ['api get'], 'mg-axi': ['api get'], 'vectra-axi': ['api get'],
+  'falcon-axi': ['raw get', 'raw write'], 'tenable-axi': ['raw get', 'raw write'],
   'kubernetes-axi': kubernetes.commands.map(command => command.command).filter(command => command.startsWith('native -- ')),
 }
 const exactCommand = /^[^\s*]+(?: [^\s*]+)*$/

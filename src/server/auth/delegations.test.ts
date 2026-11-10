@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { migrate } from '../store/db.js'
-import { authorizeDelegatedCall, authorizeDelegatedOperation, checkDelegation, classifyDelegatedCommand, delegatedCommands, delegatedDiscovery, resolveDelegatedCommand } from './delegations.js'
+import { authorizeDelegatedCall, authorizeDelegatedOperation, checkDelegation, classifyDelegatedCommand, delegatedCommands, delegatedDiscovery, delegatedInstanceIds, resolveDelegatedCommand } from './delegations.js'
 import { delegationScopeSchema } from '../../shared/api.js'
 import { createAzAdapter } from '../adapters/az.js'
 import { createAdoAdapter } from '../adapters/ado.js'
@@ -13,6 +13,7 @@ import { createLdapAdapter } from '../adapters/ldap.js'
 import { createTechnitiumAdapter } from '../adapters/technitium.js'
 import { createHybridAdapter } from '../adapters/hybrid.js'
 import { createTenableAdapter } from '../adapters/tenable.js'
+import { createFalconAdapter } from '../adapters/falcon.js'
 import { createCheckpointAdapter } from '../adapters/checkpoint.js'
 import { createBeyondtrustAdapter } from '../adapters/beyondtrust.js'
 import { createProxmoxAdapter } from '../adapters/proxmox.js'
@@ -280,6 +281,25 @@ test.each([
   const scope = JSON.stringify({ tools: [{ tool }] })
   expect(() => checkDelegation(scope, false, adapter, command, 'read'))
     .toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
+})
+
+test.each([
+  { adapter: createFalconAdapter(source), command: 'raw get', effect: 'read' },
+  { adapter: createFalconAdapter(source), command: 'raw write', effect: 'read' },
+  { adapter: createFalconAdapter(source), command: 'raw write', effect: 'write' },
+  { adapter: createTenableAdapter(source, writeLog), command: 'raw get', effect: 'read' },
+  { adapter: createTenableAdapter(source, writeLog), command: 'raw write', effect: 'read' },
+  { adapter: createTenableAdapter(source, writeLog), command: 'raw write', effect: 'write' },
+] as const)('$adapter.name $command requires an exact grant for $effect', ({ adapter, command, effect }) => {
+  const wide = { scopeJson: JSON.stringify({ tools: [{ tool: adapter.name, instances: ['wide'] }] }), readOnly: false }
+  const exact = { scopeJson: JSON.stringify({ tools: [{ tool: adapter.name, commands: [resolveDelegatedCommand(command, adapter)], instances: ['exact'] }] }), readOnly: false }
+  expect(() => checkDelegation(wide.scopeJson, false, adapter, command, effect))
+    .toThrow(expect.objectContaining({ code: 'DELEGATED_SCOPE_DENIED' }))
+  expect(() => checkDelegation(exact.scopeJson, false, adapter, command, effect)).not.toThrow()
+  expect(delegatedCommands(wide.scopeJson, false, adapter)).not.toContain(command)
+  expect(delegatedCommands(exact.scopeJson, false, adapter)).toContain(command)
+  expect(delegatedInstanceIds(wide, adapter.name, command)).toEqual(new Set())
+  expect(delegatedInstanceIds(exact, adapter.name, command)).toEqual(new Set(['exact']))
 })
 
 test('exact picks do not grant sibling commands', () => {
