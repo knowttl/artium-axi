@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { performance } from 'node:perf_hooks'
+import { cpuLimit, memoryLimit } from './host-limits.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const cachedBuilder = process.env.ARTIUM_TEST_BUILDER
@@ -37,7 +38,7 @@ try {
     // The private BuildKit worker keeps cache on tmpfs. Removing it cannot prune another build.
     attempted = true
     docker(['run', '--detach', '--pull', 'never', '--privileged', '--name', builder,
-    '--cpus', '6', '--memory', large ? '4g' : '1g', '--tmpfs', `/var/lib/buildkit:rw,exec,size=${large ? 3221225472 : 536870912}`,
+    '--cpus', cpuLimit(6), '--memory', memoryLimit(large ? 4096 : 1024), '--tmpfs', `/var/lib/buildkit:rw,exec,size=${large ? 3221225472 : 536870912}`,
     '--mount', `type=bind,src=${cli ? join(root, 'test/walking-skeleton') : production || runner ? root : join(root, 'test/fake-service')},dst=/context,readonly`,
       'moby/buildkit:buildx-stable-1', `--oci-worker-snapshotter=${large ? 'overlayfs' : 'native'}`])
   }

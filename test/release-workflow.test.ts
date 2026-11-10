@@ -3,7 +3,7 @@ import { Evaluator, Lexer, Parser, data } from '@actions/expressions'
 import { parse } from 'yaml'
 import { expect, test } from 'vitest'
 
-type Step = { id?: string, uses?: string, if?: string, 'continue-on-error'?: boolean | string, with?: Record<string, unknown>, env?: Record<string, string> }
+type Step = { id?: string, uses?: string, run?: string, if?: string, 'continue-on-error'?: boolean | string, with?: Record<string, unknown>, env?: Record<string, string> }
 type Job = { needs?: string[], if?: string, 'continue-on-error'?: boolean | string, permissions?: Record<string, string>, outputs?: Record<string, string>, env?: Record<string, string>, steps: Step[] }
 const workflow = parse(readFileSync('.github/workflows/release-please.yml', 'utf8')) as {
   on: Record<string, unknown>, permissions: Record<string, string>, jobs: Record<string, Job>
@@ -20,9 +20,35 @@ function evaluate(expression: string, context: Record<string, unknown>): string 
   return new Evaluator(tree, value(context) as data.Dictionary).evaluate().coerceString()
 }
 
-test('publication is reachable only from a main push that creates a release', () => {
-  expect(workflow.on).toEqual({ push: { branches: ['main'] } })
+test('publication is reachable only from a main push that creates a release or a dispatched existing tag', () => {
+  expect(workflow.on).toEqual({
+    push: { branches: ['main'] },
+    workflow_dispatch: { inputs: { tag: { description: expect.any(String), required: true, type: 'string' } } },
+  })
   expect(image.needs).toEqual(['release-please', 'publish'])
+})
+
+test.each([
+  ['push outputs', { release: { release_created: 'true', tag_name: 'v1.2.3', version: '1.2.3' }, existing: {} }],
+  ['dispatch outputs', { release: {}, existing: { release_created: 'true', tag_name: 'v1.2.3', version: '1.2.3' } }],
+])('release outputs resolve from %s', (_name, steps) => {
+  const outputs = workflow.jobs['release-please'].outputs!
+  const context = Object.fromEntries(Object.entries(steps).map(([id, values]) => [id, { outputs: values }]))
+  for (const [key, expected] of [['release_created', 'true'], ['tag_name', 'v1.2.3'], ['version', '1.2.3']]) {
+    expect(evaluate(outputs[key], { steps: context })).toBe(expected)
+  }
+})
+
+test('release-please runs only for pushes and the dispatched tag only for dispatches', () => {
+  const steps = workflow.jobs['release-please'].steps
+  expect(steps.find(step => step.id === 'release')!.if).toBe("${{ github.event_name == 'push' }}")
+  expect(steps.find(step => step.id === 'existing')!.if).toBe("${{ github.event_name == 'workflow_dispatch' }}")
+})
+
+test('container checks for a dispatched tag run the fixed scripts from main', () => {
+  const overlay = workflow.jobs.containers.steps.find(step => step.if?.includes('workflow_dispatch'))!
+  expect(workflow.jobs.containers.steps.indexOf(overlay)).toBe(1)
+  expect(overlay.run).toContain('git checkout "$GITHUB_SHA" -- scripts')
 })
 
 test('npm publication waits for container acceptance of the release tag', () => {
