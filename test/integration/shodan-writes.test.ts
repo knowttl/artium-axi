@@ -32,14 +32,14 @@ const member = { command: 'org add', arguments: ['new.member@example.test'], que
 const notifier = { command: 'notifier create', arguments: [], queryCreditBudget: 2, maxRequests: 4,
   body: { provider: 'webhook', description: 'Synthetic', args: { url: 'https://hooks.example.test/CANARY-body-secret' } } }
 
-async function withWriteApp(check: (context: Awaited<ReturnType<typeof prepare>>) => Promise<void>, policy: object = writes, bare = false) {
+async function withWriteApp(check: (context: Awaited<ReturnType<typeof prepare>>) => Promise<void>, policy: object = writes, bare = false, onHeldRequest?: () => void) {
   const packageRoot = process.env.SHODAN_AXI_PACKAGE_DIR ?? join(process.cwd(), 'tools/node_modules/@knowttl/shodan-axi')
   const previous = toolPaths['shodan-axi']
   Object.assign(toolPaths, { 'shodan-axi': join(packageRoot, 'bin/shodan-axi.js') })
   await withFakeService(async fixture => {
     const context = await prepare(fixture, policy, bare)
     try { await check(context) } finally { await context.app.close(); context.db.close() }
-  }).finally(() => { Object.assign(toolPaths, { 'shodan-axi': previous }) })
+  }, onHeldRequest).finally(() => { Object.assign(toolPaths, { 'shodan-axi': previous }) })
 }
 
 async function prepare({ directory, port, send }: { directory: string, port: number, send: (path: string) => Promise<string> }, policy: object, bare: boolean) {
@@ -52,10 +52,8 @@ async function prepare({ directory, port, send }: { directory: string, port: num
   const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
   const real = createShodanAdapter(new EmbeddedSecretSource(store))
   let preparations = 0
-  let preparedAt = 0
   const adapter = { ...real, async prepare(...args: Parameters<typeof real.prepare>) {
     preparations++
-    preparedAt = Date.now()
     const call = await real.prepare(...args)
     for (const file of call.files) if (typeof file.content === 'string') file.content = file.content.replace('https://api.shodan.io', `https://localhost:${port}`)
     return call
@@ -69,14 +67,15 @@ async function prepare({ directory, port, send }: { directory: string, port: num
     headers: { authorization: `Bearer ${bearer}` }, payload })
   const requests = async () => (JSON.parse(await send('/__evidence')) as { requests: { method: string, path: string }[] }).requests
   const stagedPlans = () => readdirSync(join(directory, 'tool-logs/shodan-axi/writes'))
-  return { app, db, token, post, requests, stagedPlans, send, directory, preparations: () => preparations, preparedAt: () => preparedAt, plans }
+  return { app, db, token, post, requests, stagedPlans, send, directory, preparations: () => preparations, plans }
 }
 
 test('preview binds observed state without writing and execute applies it once', async () => {
-  await withWriteApp(async ({ db, post, requests, stagedPlans, send, preparedAt }) => {
+  await withWriteApp(async ({ db, post, requests, stagedPlans, send }) => {
     const preview = await post('preview', alert)
     expect(preview.statusCode, preview.body).toBe(200)
-    expect(preview.json().expiresAt).toBeLessThanOrEqual(preparedAt() + 15 * 60 * 1000)
+    expect(preview.json().expiresAt).toBeLessThanOrEqual(Date.now() + 15 * 60 * 1000)
+    expect(preview.json().expiresAt).toBeGreaterThan(Date.now())
     expect(preview.json()).toMatchObject({ instance: 'default', command: 'alert create', operation: 'OP-013', cost: 'unknown', queryCreditBudget: 2, maxRequests: 4,
       effects: [{ operation: 'OP-013', method: 'POST', target: 'Fresh alert', networks: ['198.51.100.0/24'] }] })
     expect(preview.body).not.toContain('CANARY-')
@@ -98,6 +97,33 @@ test('preview binds observed state without writing and execute applies it once',
     const second = (await post('preview', member)).json().confirm
     expect((await post('execute', { ...member, confirm: second }, stranger)).statusCode).toBe(404)
   })
+})
+
+test('slow bulk preview returns a usable confirmation bounded by the native plan', async () => {
+  let held!: () => void
+  const waiting = new Promise<void>(resolve => { held = resolve })
+  await withWriteApp(async ({ post, send, directory, stagedPlans }) => {
+    await send('/__shodan/hold-dns')
+    const input = { command: 'alert domain', arguments: ['example.test'], triggers: 'malware', queryCreditBudget: 4, maxRequests: 6 }
+    const realNow = Date.now()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(realNow - 16 * 60 * 1000)
+    try {
+      const pending = post('preview', input)
+      await waiting
+      vi.setSystemTime(realNow + 10_000)
+      await send('/__shodan/release-dns')
+      const preview = await pending
+      expect(preview.statusCode, preview.body).toBe(200)
+      const root = join(directory, 'tool-logs/shodan-axi/writes', stagedPlans()[0], 'state/shodan-axi/plans')
+      const nativePlan = JSON.parse(readFileSync(join(root, readdirSync(root).find(name => name.endsWith('.json'))!), 'utf8'))
+      expect(preview.json().expiresAt).toBe(nativePlan.created + 15 * 60 * 1000)
+      expect(preview.json().expiresAt).toBeGreaterThan(Date.now())
+      const result = await post('execute', { ...input, confirm: preview.json().confirm })
+      expect(result.statusCode, result.body).toBe(200)
+      expect(result.json()).toMatchObject({ status: 'completed' })
+    } finally { vi.useRealTimers() }
+  }, allWrites, false, () => held())
 })
 
 test('domain alert previews and executes its DNS and trigger steps', async () => {

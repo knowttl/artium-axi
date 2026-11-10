@@ -373,6 +373,8 @@ artium-axi shodan-axi alert remove 1A2B3C --allow-operation OP-015 --query-credi
 The client sends a preview request by default and sends an execution request when given `--execute --confirm <token>`.
 Repeat the preview arguments when executing, and put `--instance <name>` before `shodan-axi` on both calls when selecting an instance.
 The client requires the confirmation token to be a UUID.
+The native runner allows up to 8 hours 30 minutes for each bulk preview or execution; the CLI request deadline is 8 hours 31 minutes 30 seconds.
+Confirmation expires at the earlier of 15 minutes after preview completion and the native token's expiry.
 
 A result with `status: OUTCOME_UNKNOWN` or `READBACK_UNVERIFIED` exits 1.
 Never retry blindly after either status; read the affected alert, notifier or organization first and follow the [uncertain-outcome recovery](runbook.md#retention-and-export).

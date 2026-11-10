@@ -62,10 +62,11 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
     const check = () => authorize({ owner, credential, binding: binding.hash, operation })
     try {
       await initialized
-      const expiresAt = Date.now() + 15 * 60 * 1000
       const preview = await runner.runManaged(owner.user, undefined, signal => previewShodanWrite(directory, adapter, credential, input, operation,
         signal, check, runner.configuredCaPem))
       if (closing) throw new ArtiumError('CANCELLED')
+      const now = Date.now(), expiresAt = Math.min(now + 15 * 60 * 1000, preview.nativeExpiresAt)
+      if (expiresAt <= now) throw new ArtiumError('INVALID_RESPONSE')
       const plan: Plan = { id, owner, credential, instance: binding.instance, requestedInstance: instance, inputHash: inputHash(input), operation, token: preview.token, directory, binding: binding.hash,
         expiresAt, timer: setTimeout(() => {}, 0) }
       clearTimeout(plan.timer)

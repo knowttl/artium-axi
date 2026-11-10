@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import inventory from '../../tools/inventories/shodan-axi.json' with { type: 'json' }
 import type { shodanWriteInput } from '../shared/shodan-stream.js'
@@ -80,7 +81,12 @@ export async function previewShodanWrite(directory: string, adapter: Adapter<unk
     || input.command !== 'alert clear' && preview.data.effects.length === 0
     || !['alert clear', 'alert domain', 'alert import'].includes(input.command) && preview.data.effects.length !== 1
     || preview.data.effects.some(effect => !operation.split(',').includes(effect.operation))) throw new ArtiumError('INVALID_RESPONSE')
-  return preview.data
+  let saved: unknown
+  try { saved = JSON.parse(await readFile(join(directory, 'state', 'shodan-axi', 'plans', `${preview.data.token}.json`), 'utf8')) }
+  catch { throw new ArtiumError('INVALID_RESPONSE') }
+  const plan = z.object({ token: z.uuid(), created: z.number().int().nonnegative().safe() }).safeParse(saved)
+  if (!plan.success || plan.data.token !== preview.data.token || plan.data.created > Date.now()) throw new ArtiumError('INVALID_RESPONSE')
+  return { ...preview.data, nativeExpiresAt: plan.data.created + 15 * 60 * 1000 }
 }
 
 export async function executeShodanWrite(directory: string, adapter: Adapter<unknown>, credential: CredentialReference, input: Input,
