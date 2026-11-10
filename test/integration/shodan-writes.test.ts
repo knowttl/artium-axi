@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
+import { gzipSync } from 'node:zlib'
 import Fastify from 'fastify'
 import { expect, test, vi } from 'vitest'
 import { createShodanAdapter } from '../../src/server/adapters/shodan.js'
@@ -97,14 +98,29 @@ test('preview binds observed state without writing and execute applies it once',
 
 test('domain alert previews and executes its DNS and trigger steps', async () => {
   await withWriteApp(async ({ post, send }) => {
+    await send('/__shodan/dns-more')
     const input = { command: 'alert domain', arguments: ['example.test'], triggers: 'malware', queryCreditBudget: 4, maxRequests: 6 }
     const preview = await post('preview', input)
     expect(preview.statusCode, preview.body).toBe(200)
+    expect(preview.json()).toMatchObject({ dnsMore: true, futureDnsTracking: false })
     expect(preview.json().effects.map((effect: { operation: string }) => effect.operation)).toEqual(['OP-013', 'OP-019'])
     const result = await post('execute', { ...input, confirm: preview.json().confirm })
     expect(result.statusCode, result.body).toBe(200)
     expect(result.json()).toMatchObject({ status: 'completed' })
     expect(JSON.parse(await send('/__shodan/state')).alerts['created-alert-1']).toMatchObject({ name: 'example.test', filters: { ip: ['192.0.2.1'] }, triggers: { malware: {} } })
+  }, allWrites)
+})
+
+test('compressed alert import previews and executes from preserved bytes', async () => {
+  await withWriteApp(async ({ post, send }) => {
+    const content = gzipSync(JSON.stringify([{ name: 'Imported', filters: { ip: ['192.0.2.0/24'] } }]))
+    const input = { command: 'alert import', arguments: [], importBody: content.toString('base64'), allowOperations: ['OP-013'], queryCreditBudget: 2, maxRequests: 4 }
+    const preview = await post('preview', input)
+    expect(preview.statusCode, preview.body).toBe(200)
+    const result = await post('execute', { ...input, confirm: preview.json().confirm })
+    expect(result.statusCode, result.body).toBe(200)
+    expect(result.json()).toMatchObject({ status: 'completed' })
+    expect(JSON.parse(await send('/__shodan/state')).alerts['created-alert-1']).toMatchObject({ name: 'Imported', filters: { ip: ['192.0.2.0/24'] } })
   }, allWrites)
 })
 

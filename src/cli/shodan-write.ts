@@ -33,7 +33,7 @@ async function readPrivateFile(path: string, limit: number) {
     if (!stat.isFile() || stat.size < 1 || stat.size > limit || process.platform !== 'win32' && (stat.mode & 0o077) !== 0) {
       throw new ArtiumError('INVALID_INPUT', 'The input file must be a private regular file within the size limit.', `Use a non-empty file of at most ${limit} bytes and run chmod 600 on it.`)
     }
-    return await handle.readFile('utf8')
+    return await handle.readFile()
   } finally { await handle.close() }
 }
 
@@ -75,14 +75,14 @@ export async function shodanWrite(args: string[], createClient: () => Client, ou
   let notifierBody: z.infer<typeof shodanNotifierBody> | undefined
   if (body !== undefined && !importFile) {
     let parsed: z.ZodSafeParseResult<z.infer<typeof shodanNotifierBody>>
-    try { parsed = shodanNotifierBody.safeParse(JSON.parse(body)) } catch { throw new ArtiumError('INVALID_INPUT', 'The notifier file is not valid JSON.') }
+    try { parsed = shodanNotifierBody.safeParse(JSON.parse(body.toString('utf8'))) } catch { throw new ArtiumError('INVALID_INPUT', 'The notifier file is not valid JSON.') }
     if (!parsed.success || command === 'notifier create' && !parsed.data.provider) throw new ArtiumError('INVALID_INPUT', 'The notifier file needs an args object, and a provider for create.')
     notifierBody = parsed.data
     secrets = Object.values(parsed.data.args).map(String).filter(Boolean)
   }
   const parsed = shodanWriteInput.safeParse({ command, arguments: positional, queryCreditBudget: integer('--query-credit-budget'), maxRequests: integer('--max-requests'),
     expires: integer('--expires'), vulns: values.get('--vulns'), silent: switches.has('--silent') || undefined, triggers: values.get('--triggers'), body: notifierBody,
-    ...(importFile ? { importBody: body, allowOperations: grants } : {}) })
+    ...(importFile ? { importBody: body?.toString('base64'), allowOperations: grants } : {}) })
   if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
   const client = createClient()
   await client.authenticated('/v1/me', 'GET')

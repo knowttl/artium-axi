@@ -13,6 +13,7 @@ const { unifiController } = await import(existsSync(new URL('./unifi.js', import
 const { proxmoxController } = await import(existsSync(new URL('./proxmox.js', import.meta.url)) ? './proxmox.js' : './proxmox.ts')
 
 const requests = []
+let shodanDnsMore = false
 const unifi = unifiController(event => requests.push(event))
 const shodanWriteRoutes = shodanWrites(event => requests.push(event))
 const proxmox = proxmoxController(event => requests.push(event))
@@ -77,6 +78,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
   const url = new URL(req.url, `https://${req.headers.host}`)
   res.setHeader('content-type', 'application/json')
   if (url.pathname === '/__shodan/scan-drop') { shodanScanDrop = url.searchParams.get('enabled') !== 'false'; res.end('{}'); return }
+  if (url.pathname === '/__shodan/dns-more') { shodanDnsMore = true; res.end('{}'); return }
   if (url.pathname === '/__shodan/stream-fail') { shodanStreamFail = url.searchParams.get('enabled') !== 'false'; res.end('{}'); return }
   if (url.pathname === '/__shodan/scan-wait-stream') { shodanScanWaitStream = true; res.end('{}'); return }
   if (url.pathname === '/__shodan/count-wait') { shodanCountWait = true; res.end('{}'); return }
@@ -167,7 +169,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     if (!canaryReceived || req.method !== 'GET') { res.writeHead(401); res.end('{}'); return }
     res.end(JSON.stringify(url.pathname === '/shodan/host/search'
       ? { total: url.searchParams.get('query') === 'port:many' ? 250 : 1, matches: [{ ip_str: '192.0.2.1', port: 443, transport: 'tcp', timestamp: '2026-01-01T00:00:00Z', data: 'synthetic' }] }
-      : { domain: 'example.test', data: [{ type: 'A', value: '192.0.2.1' }], more: false }))
+      : { domain: 'example.test', data: [{ type: 'A', value: '192.0.2.1' }], more: shodanDnsMore }))
     return
   }
   if (url.pathname === '/api-info' || url.pathname === '/account/profile') {

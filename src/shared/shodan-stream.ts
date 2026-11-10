@@ -32,7 +32,8 @@ export const shodanWriteInput = z.strictObject({
   vulns: z.string().min(1).max(4096).refine(notFlag).optional(),
   silent: z.boolean().optional(),
   triggers: z.string().min(1).max(4096).refine(notFlag).optional(),
-  importBody: z.string().min(1).max(1024 * 1024).optional(),
+  importBody: z.base64().min(4).max(4 * Math.ceil(1024 * 1024 / 3))
+    .refine(value => value.length / 4 * 3 - (value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0) <= 1024 * 1024).optional(),
   allowOperations: z.array(z.enum(['OP-013', 'OP-019', 'OP-021', 'OP-023', 'OP-027'])).min(1).max(5).optional(),
   body: z.strictObject({
     provider: z.string().min(1).max(256).optional(), description: z.string().max(4096).optional(),

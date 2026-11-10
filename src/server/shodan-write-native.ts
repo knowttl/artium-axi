@@ -11,7 +11,7 @@ type Input = z.infer<typeof shodanWriteInput>
 const nativePreview = z.object({ status: z.literal('preview'), token: z.uuid(), effects: z.array(z.object({
   operation: z.string(), method: z.string(), target: z.string(), networks: z.array(z.string()).optional(),
   notify: z.boolean().optional(), downgrade: z.boolean().optional(),
-})) })
+})), dnsMore: z.boolean().optional(), futureDnsTracking: z.boolean().optional() })
 const nativeFailure = z.object({ error: z.string() }).passthrough()
 const nativeOutcome = z.object({ status: z.string() }).passthrough()
 const invalidInput = ['INVALID_INPUT', 'CREDIT_BUDGET_REQUIRED', 'WRITE_GRANT_REQUIRED']
@@ -42,7 +42,7 @@ async function invokeShodanWrite(directory: string, adapter: Adapter<unknown>, c
     profile.environment.SHODAN_AXI_READ_ONLY = 'false'
     if (input.body) profile.files.push({ name: bodyFileName, content: JSON.stringify(input.body, (_key, value: unknown) =>
       value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) : value) })
-    if (input.importBody) profile.files.push({ name: bodyFileName, content: input.importBody })
+    if (input.importBody) profile.files.push({ name: bodyFileName, content: Buffer.from(input.importBody, 'base64') })
     const args = [...input.command.split(' '), ...input.arguments, ...input.importBody ? [join(directory, 'preview', 'config', bodyFileName)] : [], '--json', '--allow-operation', operation, '--accept-unknown-cost',
       '--query-credit-budget', String(input.queryCreditBudget), '--max-requests', String(input.maxRequests),
       ...input.expires === undefined ? [] : ['--expires', String(input.expires)],
@@ -73,7 +73,8 @@ export async function previewShodanWrite(directory: string, adapter: Adapter<unk
   const value = await invokeShodanWrite(directory, adapter, credential, input, operation, undefined, signal, authorize, undefined, configuredCaPem)
   checkedOutcome(value)
   const preview = nativePreview.safeParse(value)
-  if (!preview.success || input.command !== 'alert clear' && preview.data.effects.length === 0
+  if (!preview.success || input.command === 'alert domain' && (preview.data.dnsMore === undefined || preview.data.futureDnsTracking === undefined)
+    || input.command !== 'alert clear' && preview.data.effects.length === 0
     || !['alert clear', 'alert domain', 'alert import'].includes(input.command) && preview.data.effects.length !== 1
     || preview.data.effects.some(effect => !operation.split(',').includes(effect.operation))) throw new ArtiumError('INVALID_RESPONSE')
   return preview.data

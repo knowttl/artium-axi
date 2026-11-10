@@ -1,6 +1,7 @@
 import { execFile, fork, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
 import { createHash } from 'node:crypto'
+import { gzipSync } from 'node:zlib'
 import { EventEmitter, once } from 'node:events'
 import { createServer } from 'node:https'
 import { createServer as createHttpServer } from 'node:http'
@@ -713,7 +714,7 @@ const writeToken = '00000000-0000-4000-8000-000000000000'
 const writeBounds = ['--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost', '--json']
 const writeBody = { queryCreditBudget: 2, maxRequests: 4 }
 
-function privateFile(content: string, mode = 0o600) {
+function privateFile(content: string | Buffer, mode = 0o600) {
   const path = join(mkdtempSync(join(directory, 'shodan-write-')), 'input.json')
   writeFileSync(path, content, { mode })
   return path
@@ -749,7 +750,26 @@ test('Shodan notifier create and alert import send local file content, never a p
   await cli(['shodan-axi', 'alert', 'import', importPath, '--allow-operation', 'OP-013,OP-019', ...writeBounds])
   expect(requests.filter(request => request.path.startsWith('/v1/tools/')).map(request => request.body)).toEqual([
     { ...writeBody, command: 'notifier create', arguments: [], body: JSON.parse(notifier) },
-    { ...writeBody, command: 'alert import', arguments: [], allowOperations: ['OP-013', 'OP-019'], importBody: alerts }])
+    { ...writeBody, command: 'alert import', arguments: [], allowOperations: ['OP-013', 'OP-019'], importBody: Buffer.from(alerts).toString('base64') }])
+})
+
+test.each([{ executeFlags: [] }, { executeFlags: ['--execute', '--confirm', writeToken] }])('Shodan alert import transmits compressed bytes for $executeFlags', async ({ executeFlags }) => {
+  requests = []
+  response = { status: 200, body: { confirm: writeToken } }
+  const content = gzipSync(JSON.stringify([{ name: 'edge', filters: { ip: ['192.0.2.0/24'] } }]))
+  const path = privateFile(content)
+  expect(await cli(['shodan-axi', 'alert', 'import', path, '--allow-operation', 'OP-013', ...writeBounds, ...executeFlags])).toMatchObject({ code: 0 })
+  expect(requests.filter(request => request.path.startsWith('/v1/tools/')).map(request => request.body)).toEqual([
+    { ...writeBody, command: 'alert import', arguments: [], allowOperations: ['OP-013'], importBody: content.toString('base64'),
+      ...(executeFlags.length ? { confirm: writeToken } : {}) }])
+})
+
+test.each([true, false])('Shodan domain preview displays DNS limitations with JSON %s', async json => {
+  response = { status: 200, body: { confirm: writeToken, dnsMore: true, futureDnsTracking: false } }
+  const result = await cli(['shodan-axi', 'alert', 'domain', 'example.test', '--allow-operation', 'OP-040,OP-013,OP-019',
+    '--query-credit-budget', '4', '--max-requests', '6', '--accept-unknown-cost', ...(json ? ['--json'] : [])])
+  expect(result.code).toBe(0)
+  expect(json ? JSON.parse(result.stdout) : decode(result.stdout)).toMatchObject({ dnsMore: true, futureDnsTracking: false })
 })
 
 test.each([
@@ -809,7 +829,7 @@ test.each([
   const path = privateFile(alerts)
   expect(await cli(['shodan-axi', 'alert', 'import', path, '--allow-operation', grants, ...execute, ...writeBounds])).toMatchObject({ code: 0 })
   expect(requests.filter(request => request.path.startsWith('/v1/tools/'))).toEqual([{ path: `/v1/tools/shodan-axi/writes/${route}`,
-    token: 'Bearer CANARY-cli-token', body: { ...writeBody, command: 'alert import', arguments: [], allowOperations: selected, importBody: alerts,
+    token: 'Bearer CANARY-cli-token', body: { ...writeBody, command: 'alert import', arguments: [], allowOperations: selected, importBody: Buffer.from(alerts).toString('base64'),
       ...(execute.length ? { confirm: writeToken } : {}) }, version: cliVersion }])
 })
 

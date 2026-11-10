@@ -73,6 +73,7 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
       plans.set(id, plan)
       return { confirm: id, instance: plan.instance, command: input.command, operation,
         effects: preview.effects, ...input.body ? { arguments: Object.keys(input.body.args) } : {},
+        ...input.command === 'alert domain' ? { dnsMore: preview.dnsMore, futureDnsTracking: preview.futureDnsTracking } : {},
         queryCreditBudget: input.queryCreditBudget, maxRequests: input.maxRequests, cost: 'unknown', expiresAt: plan.expiresAt }
     } catch (error) {
       await rm(directory, { recursive: true, force: true })
