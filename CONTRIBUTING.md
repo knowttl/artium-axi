@@ -105,6 +105,7 @@ Fix or revert a scheduled job failure on `main` before the next release.
 Run acceptance on demand when a change warrants early feedback.
 
 Docker must support a private privileged BuildKit worker and its task-owned tmpfs cache.
+Container checks cap their CPU and memory requests at the limits reported by the Docker daemon; a lower limit does not waive the artifact probe's memory requirements.
 If the host forbids privileged containers, record acceptance as unverified and arrange a permitted host before delivery when the check is required.
 Build before probing compiled output:
 
