@@ -133,7 +133,8 @@ export class SecretScanner {
     const containsSecret = (value: unknown, key = '', depth = 0, parent = ''): boolean => {
       if ((depth === 1 || depth === 2 && parent === 'dry_run' || depth === 2 && parent === 'api_response')
         && protocolEnvelopeFields[parent]?.includes(key)) return false
-      if ((depth > 1 || key === 'payload') && Object.hasOwn(fields, key)) return value !== fields[key]
+      if ((depth > 1 || key === 'payload') && !(depth === 2 && parent === 'api_response' && key === 'body')
+        && Object.hasOwn(fields, key)) return value !== fields[key]
       if (typeof value === 'string') return !masks.has(value) && this.#valuePatterns.some(pattern => pattern.test(value))
       if (Array.isArray(value)) return value.some((child, index) => containsSecret(child, String(index), depth + 1, key))
       return value !== null && typeof value === 'object' && Object.entries(value).some(([name, child]) => containsSecret(child, name, depth + 1, key))

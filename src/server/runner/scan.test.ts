@@ -88,6 +88,12 @@ test.each(['label', 'code', 'action', 'type', 'status', 'would_send', 'help'])('
   expect(scanner.finish()).toBe(true)
 })
 
+test.each(['12345', 'false'])('private-input scanning rejects echoed body value %s inside an API response', value => {
+  const scanner = new SecretScanner([], privateOutput([{ field: 'body', content: '' }]))
+  scanner.scan('stdout', Buffer.from(`api_response:\n  status: 200\n  body:\n    body: ${value}\n`))
+  expect(scanner.finish()).toBe(true)
+})
+
 test.each(streams)('private-input scanning detects nested values across chunks in %s (R1)', stream => {
   const scanner = new SecretScanner([], privateOutput([{ field: 'variables', content: 'a' }]))
   scanner.scan(stream, Buffer.from('dry_run:\n  payload:\n    env: '))

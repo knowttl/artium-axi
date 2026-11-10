@@ -45,7 +45,7 @@ const masks = new Set([...Object.values(fields), ...patterns.map(([, mask]) => m
 const protocolFields = ${JSON.stringify(protocolEnvelopeFields)};
 const redact = (value, key = '', depth = 0, parent = '') => {
   if ((depth === 1 || depth === 2 && (parent === 'dry_run' || parent === 'api_response')) && protocolFields[parent]?.includes(key)) return value;
-  if ((depth > 1 || key === 'payload') && Object.hasOwn(fields, key)) return fields[key];
+  if ((depth > 1 || key === 'payload') && !(depth === 2 && parent === 'api_response' && key === 'body') && Object.hasOwn(fields, key)) return fields[key];
   if (depth > 1 && key === 'changes' && typeof value === 'string') {
     try { return JSON.stringify(redact(JSON.parse(value), '', depth + 1)); } catch { return '[activity changes redacted]'; }
   }
@@ -189,8 +189,7 @@ export function awxPrivateOutput(input: RunnerInput, structured: readonly (reado
       if (!item || typeof item !== 'object') return
       for (const [key, value] of Object.entries(item)) {
         if (value && typeof value === 'object') collect(value)
-        else inputs.push({ field: key === 'body' ? 'raw_body' : key,
-          content: typeof value === 'string' ? value : '' })
+        else inputs.push({ field: key, content: typeof value === 'string' ? value : '' })
       }
     }
     collect(body)
