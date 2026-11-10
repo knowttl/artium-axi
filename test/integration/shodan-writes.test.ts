@@ -64,7 +64,7 @@ async function prepare({ directory, port, send }: { directory: string, port: num
 }
 
 test('preview binds observed state without writing and execute applies it once', async () => {
-  await withWriteApp(async ({ db, post, requests, stagedPlans }) => {
+  await withWriteApp(async ({ db, post, requests, stagedPlans, send }) => {
     const preview = await post('preview', alert)
     expect(preview.statusCode, preview.body).toBe(200)
     expect(preview.json()).toMatchObject({ instance: 'default', command: 'alert create', operation: 'OP-013', cost: 'unknown', queryCreditBudget: 2, maxRequests: 4,
@@ -77,6 +77,7 @@ test('preview binds observed state without writing and execute applies it once',
     expect(executed.statusCode, executed.body).toBe(200)
     expect(executed.json()).toMatchObject({ status: 'completed', steps: [{ operation: 'OP-013', status: 'verified' }] })
     expect((await requests()).filter(entry => entry.method === 'POST').map(entry => entry.path)).toEqual(['/shodan/alert'])
+    expect(JSON.parse(await send('/__shodan/state')).alerts['created-alert-1']).toMatchObject({ name: 'Fresh alert', filters: { ip: ['198.51.100.0/24'] } })
     expect(stagedPlans()).toEqual([])
     expect((await post('execute', { ...alert, confirm })).statusCode).toBe(404)
     const rows = db.prepare("SELECT event, outcome, action, arguments AS args FROM audit WHERE tool = 'shodan-axi' AND event IN ('run-start', 'run-terminal') ORDER BY id").all()
@@ -204,12 +205,13 @@ test('execute reports an unknown outcome when the write response is lost', async
     const response = await post('execute', { ...alert, confirm })
     expect(response.statusCode, response.body).toBe(200)
     expect(response.json()).toMatchObject({ status: 'OUTCOME_UNKNOWN', completed: [], uncertain: { operation: 'OP-013', status: 'failed' }, unsent: [] })
+    expect(JSON.parse(await send('/__shodan/state')).alerts['created-alert-1']).toMatchObject({ name: 'Fresh alert', filters: { ip: ['198.51.100.0/24'] } })
     expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").all()).toEqual([{ outcome: 'interrupted', action: 'unknown' }])
   })
 })
 
 test('notifier secrets stay out of previews, results and retained files', async () => {
-  await withWriteApp(async ({ post, stagedPlans, db, directory }) => {
+  await withWriteApp(async ({ post, stagedPlans, db, directory, send }) => {
     const logs = vi.spyOn(process.stderr, 'write')
     try {
       const preview = await post('preview', notifier)
@@ -221,6 +223,7 @@ test('notifier secrets stay out of previews, results and retained files', async 
       const executed = await post('execute', { ...notifier, confirm: preview.json().confirm })
       expect(executed.statusCode, executed.body).toBe(200)
       expect(executed.json()).toMatchObject({ status: 'completed', steps: [{ operation: 'OP-027', status: 'verified' }] })
+      expect(JSON.parse(await send('/__shodan/state')).notifiers['created-notifier-1']).toMatchObject({ provider: 'webhook', description: 'Synthetic', args: notifier.body.args })
       expect(preview.body + executed.body + JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
       expect(JSON.stringify(logs.mock.calls)).not.toContain('CANARY-body-secret')
       expect(stagedPlans()).toEqual([])
@@ -239,7 +242,8 @@ test('retained notifier plans contain only the input hash', async () => {
     expect(retained[0]).not.toHaveProperty('input')
     const serialized = JSON.stringify(retained)
     const fields = (value: unknown): unknown[] => value && typeof value === 'object'
-      ? Object.values(value).flatMap(fields) : [value]
+      ? [value, ...Object.entries(value).flatMap(([key, child]) => [key, ...fields(child)])] : [value]
+    expect(fields(retained)).not.toContain(notifier)
     for (const value of [notifier.body.provider, notifier.body.description, ...Object.values(notifier.body.args), notifier.command]) {
       expect(serialized).not.toContain(value)
       expect(fields(retained)).not.toContain(value)
@@ -248,31 +252,35 @@ test('retained notifier plans contain only the input hash', async () => {
 })
 
 test.each([
-  { command: 'alert update', args: ['synthetic-alert', '198.51.100.0/24'], operation: 'OP-016', method: 'POST' },
-  { command: 'alert remove', args: ['synthetic-alert'], operation: 'OP-015', method: 'DELETE' },
-  { command: 'alert enable', args: ['synthetic-alert', 'open_database'], operation: 'OP-019', method: 'PUT' },
-  { command: 'alert disable', args: ['synthetic-alert', 'new_service'], operation: 'OP-020', method: 'DELETE' },
-  { command: 'alert ignore', args: ['synthetic-alert', 'new_service', '192.0.2.1:443'], operation: 'OP-021', method: 'PUT' },
-  { command: 'alert ignore', args: ['synthetic-alert', 'new_service', '192.0.2.1:443'], operation: 'OP-070', method: 'PUT', vulns: 'CVE-2024-1234' },
-  { command: 'alert unignore', args: ['synthetic-alert', 'new_service', '192.0.2.1:443'], operation: 'OP-022', method: 'DELETE' },
-  { command: 'alert notifier add', args: ['synthetic-alert', 'other-notifier'], operation: 'OP-023', method: 'PUT' },
-  { command: 'alert notifier remove', args: ['synthetic-alert', 'synthetic-notifier'], operation: 'OP-024', method: 'DELETE' },
-  { command: 'notifier update', args: ['synthetic-notifier'], operation: 'OP-030', method: 'PUT', body: notifier.body },
-  { command: 'notifier remove', args: ['synthetic-notifier'], operation: 'OP-028', method: 'DELETE' },
-])('$command previews and verifies its mutation ($operation)', async ({ command, args, operation, method, ...options }) => {
-  await withWriteApp(async ({ post }) => {
+  { command: 'alert update', args: ['synthetic-alert', '198.51.100.0/24'], operation: 'OP-016', method: 'POST', expected: { alerts: { 'synthetic-alert': { filters: { ip: ['198.51.100.0/24'] } } } } },
+  { command: 'alert remove', args: ['synthetic-alert'], operation: 'OP-015', method: 'DELETE', absent: ['alerts', 'synthetic-alert'] },
+  { command: 'alert enable', args: ['synthetic-alert', 'open_database'], operation: 'OP-019', method: 'PUT', expected: { alerts: { 'synthetic-alert': { triggers: { open_database: {} } } } } },
+  { command: 'alert disable', args: ['synthetic-alert', 'new_service'], operation: 'OP-020', method: 'DELETE', absent: ['alerts', 'synthetic-alert', 'triggers', 'new_service'] },
+  { command: 'alert ignore', args: ['synthetic-alert', 'new_service', '192.0.2.2:443'], operation: 'OP-021', method: 'PUT', expected: { ignored: { 'synthetic-alert': { new_service: { '192.0.2.2:443': [] } } } } },
+  { command: 'alert ignore', args: ['synthetic-alert', 'new_service', '192.0.2.2:443'], operation: 'OP-070', method: 'PUT', vulns: 'CVE-2024-1234', expected: { ignored: { 'synthetic-alert': { new_service: { '192.0.2.2:443': ['CVE-2024-1234'] } } } } },
+  { command: 'alert unignore', args: ['synthetic-alert', 'new_service', '192.0.2.1:443'], operation: 'OP-022', method: 'DELETE', expected: { ignored: { 'synthetic-alert': { new_service: {} } } }, absent: ['ignored', 'synthetic-alert', 'new_service', '192.0.2.1:443'] },
+  { command: 'alert notifier add', args: ['synthetic-alert', 'other-notifier'], operation: 'OP-023', method: 'PUT', expected: { alerts: { 'synthetic-alert': { notifiers: ['synthetic-notifier', 'other-notifier'] } } } },
+  { command: 'alert notifier remove', args: ['synthetic-alert', 'synthetic-notifier'], operation: 'OP-024', method: 'DELETE', expected: { alerts: { 'synthetic-alert': { notifiers: [] } } } },
+  { command: 'notifier update', args: ['synthetic-notifier'], operation: 'OP-030', method: 'PUT', body: notifier.body, expected: { notifiers: { 'synthetic-notifier': { provider: 'webhook', description: 'Synthetic', args: notifier.body.args } } } },
+  { command: 'notifier remove', args: ['synthetic-notifier'], operation: 'OP-028', method: 'DELETE', absent: ['notifiers', 'synthetic-notifier'] },
+])('$command previews and verifies its mutation ($operation)', async ({ command, args, operation, method, expected, absent, ...options }) => {
+  await withWriteApp(async ({ post, send }) => {
     const input = { command, arguments: args, queryCreditBudget: 2, maxRequests: 4, ...options }
+    if (operation === 'OP-022') expect(JSON.parse(await send('/__shodan/state')).ignored['synthetic-alert'].new_service).toHaveProperty(['192.0.2.1:443'])
     const preview = await post('preview', input)
     expect(preview.statusCode, preview.body).toBe(200)
     expect(preview.json()).toMatchObject({ operation, effects: [{ operation, method }] })
     const result = await post('execute', { ...input, confirm: preview.json().confirm })
     expect(result.statusCode, result.body).toBe(200)
     expect(result.json()).toMatchObject({ status: 'completed', steps: [{ operation, status: 'verified' }] })
+    const state = JSON.parse(await send('/__shodan/state'))
+    if (expected) expect(state).toMatchObject(expected)
+    if (absent) expect(state).not.toHaveProperty(absent)
   }, allWrites)
 })
 
 test('organization removal previews downgrade and verifies removal', async () => {
-  await withWriteApp(async ({ post }) => {
+  await withWriteApp(async ({ post, send }) => {
     const input = { ...member, command: 'org remove', arguments: ['reader@example.test'], silent: undefined }
     const preview = await post('preview', input)
     expect(preview.statusCode, preview.body).toBe(200)
@@ -280,6 +288,7 @@ test('organization removal previews downgrade and verifies removal', async () =>
     const result = await post('execute', { ...input, confirm: preview.json().confirm })
     expect(result.statusCode, result.body).toBe(200)
     expect(result.json()).toMatchObject({ status: 'completed', steps: [{ operation: 'OP-038', status: 'verified' }] })
+    expect(JSON.parse(await send('/__shodan/state')).members).not.toHaveProperty(['reader@example.test'])
   })
 })
 

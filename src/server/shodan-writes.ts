@@ -118,5 +118,5 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
     clearInterval(monitor)
     await Promise.all([...plans.values()].map(discard))
   })
-  return { retainedPlans: () => [...plans.values()].map(({ timer: _timer, ...plan }) => plan) }
+  return { retainedPlans: (): readonly Readonly<Omit<Plan, 'timer'>>[] => [...plans.values()].map(({ timer: _timer, ...plan }) => plan) }
 }
