@@ -129,6 +129,7 @@ export async function runTool<Credential>(
           resolutionFailure = { error, credentialId: named?.id, instance: named?.name }
         }
       }
+      if (reference) checkRawApiPolicy(db, userId, adapter, args, input, reference.id)
       if (principal?.delegation && reference) authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand, reference.id, resolver)
     } catch (error) {
       recordApiDecision('refused')
@@ -215,7 +216,7 @@ export async function runTool<Credential>(
           }
         } else authenticate(db, token)
         checkToolPolicy(db, userId, adapter.name, reference?.id)
-        checkRawApiPolicy(db, userId, adapter, args, input)
+        checkRawApiPolicy(db, userId, adapter, args, input, reference?.id)
         if (reference) {
           const current = db.prepare('SELECT enabled, read_only, revision FROM credentials WHERE id = ? AND tool = ?').get(reference.id, adapter.name) as { enabled: number, read_only: number, revision: number } | undefined
           if (!current || current.enabled !== 1 || beforeSpawn && current.revision !== reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
