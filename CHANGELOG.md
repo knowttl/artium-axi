@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.0.41](https://github.com/knowttl/artium-axi/compare/v0.0.40...v0.0.41) (2026-11-10)
+
+
+### Features
+
+* add admin controls for raw API access ([#365](https://github.com/knowttl/artium-axi/issues/365)) ([0331906](https://github.com/knowttl/artium-axi/commit/0331906338d2b58d793f07bf8ba8fed7ba519128))
+* admit Microsoft Graph raw API writes ([#364](https://github.com/knowttl/artium-axi/issues/364)) ([20a792e](https://github.com/knowttl/artium-axi/commit/20a792ec3c1972f529d0e8541a98baaf15907c5b))
+
+
+### Bug Fixes
+
+* enforce write settings across tool instances and streams ([#366](https://github.com/knowttl/artium-axi/issues/366)) ([78e1a98](https://github.com/knowttl/artium-axi/commit/78e1a987086b4b7a87fd94e8033535275a987b52))
+* **server:** scope raw API grants to credential instances ([#362](https://github.com/knowttl/artium-axi/issues/362)) ([5a1c4c1](https://github.com/knowttl/artium-axi/commit/5a1c4c1d76421a5038c2db3dd6e9c3eb097441c2))
+
 ## [0.0.40](https://github.com/knowttl/artium-axi/compare/v0.0.39...v0.0.40) (2026-11-10)
 
 
