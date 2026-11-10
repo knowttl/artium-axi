@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.39](https://github.com/knowttl/artium-axi/compare/v0.0.38...v0.0.39) (2026-11-10)
+
+
+### Bug Fixes
+
+* refresh AXI tools and preserve managed command boundaries ([#356](https://github.com/knowttl/artium-axi/issues/356)) ([0e4fa88](https://github.com/knowttl/artium-axi/commit/0e4fa885a7fe56ed89c2cb639fe098c8c814bd1c))
+* refresh Falcon and AWX tool pins ([#358](https://github.com/knowttl/artium-axi/issues/358)) ([8cdc587](https://github.com/knowttl/artium-axi/commit/8cdc587678d2b87081c2f0ae658bb09d74e182e6))
+
 ## [0.0.38](https://github.com/knowttl/artium-axi/compare/v0.0.37...v0.0.38) (2026-11-09)
 
 
