@@ -554,6 +554,12 @@ Its `grants` map associates Artium user IDs with exact stream operation IDs from
 The [session policy schema](../src/shared/shodan-stream.ts) owns required quota fields and allowed ranges for concurrency, events, bytes, retention and leases.
 The optional `scans` native setting grants user IDs exact scan operations and sets `maxScanCredits` and `maxRequests` ceilings.
 Targeted collection requires a scan grant for `OP-009` and a banner stream session grant for `OP-046`.
+The optional `writes` and `exports` native settings each use a `grants` map from Artium user IDs to arrays of exact IDs.
+For `writes`, use confirmed-write operation IDs from the reviewed inventory's `confirmedWrites` list and set `maxQueryCredits` and `maxRequests` ceilings.
+For `exports`, use command IDs `CLI-005` (`download`) and `CLI-020` (`alert download`), kept distinct from the ordinary search grant `OP-003`, and set `maxQueryCredits`, `maxRequests`, `maxRecords`, `maxBytes` and `retentionSeconds` ceilings.
+The [policy schema](../src/shared/shodan-stream.ts) owns the required fields and allowed ranges.
+Each block is independent of `scans` and `sessions`, and its policy binding refuses a read-only instance or a missing user grant.
+These settings do not enable write or export workflows in this release.
 The [reviewed inventory](../tools/inventories/shodan-axi.json) owns the pinned upstream schema and command boundary; [hosted profile validation](../src/server/adapters/credential-profile.ts) owns these additional restrictions.
 See [commands](commands.md#shodan), the [capability boundary](safety.md#shodan) and [explicit connection testing](runbook.md#roles-credentials-and-health).
 Local fake-service evidence does not establish owner live acceptance.

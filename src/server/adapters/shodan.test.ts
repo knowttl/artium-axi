@@ -20,7 +20,7 @@ test('version supports exact delegation and packaged help (r2)', async () => {
   expect(decode(execFileSync(call.executable, call.args, { encoding: 'utf8' }))).toEqual({
     command: 'version', help: 'version - print the packaged version',
   })
-  expect(execFileSync(call.executable, [toolPaths['shodan-axi'], 'version'], { encoding: 'utf8' })).toBe('0.1.1\n')
+  expect(execFileSync(call.executable, [toolPaths['shodan-axi'], 'version'], { encoding: 'utf8' })).toBe('0.1.2\n')
 })
 
 test('tool-wide delegation discovers reviewed reads', () => {

@@ -426,7 +426,8 @@ Targeted scan submission requires administrator scan grants, explicit budgets an
 Scan preview, start and status require an owner session bound to the caller and original sign-in family; delegated tokens cannot use them.
 Optional collection reads the banner stream and filters records to the target networks; matching records do not prove scan ownership or complete upstream delivery.
 See [scan usage and terminal outcomes](commands.md#shodan) and [scan and stream grants](tool-credentials.md#shodan).
-Alert changes, dataset downloads and other writes are unavailable.
+Administrator `writes` and `exports` settings establish separate policy bindings for confirmed alert, notifier and organization writes and for search and alert downloads; see [write and export grants](tool-credentials.md#shodan).
+Write and export routes, previews and jobs are not available; ordinary tool runs refuse alert changes, downloads, dataset downloads and other writes.
 The client-side radar consumes an owner session's output under the same access restrictions; see [radar usage and local output](commands.md#shodan).
 The server adapter refuses local configuration, credential and endpoint overrides, stdin, uploaded files and result-file destinations before credential access.
 Help exposes only admitted routes; the standalone `doctor` alias is not admitted.

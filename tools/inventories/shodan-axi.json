@@ -2,16 +2,16 @@
   "generatedBy": "scripts/shodan-inventory.ts",
   "tool": "shodan-axi",
   "package": "@knowttl/shodan-axi",
-  "version": "0.1.1",
-  "integrity": "sha512-6IuXgK94SoXuhAYEMisRPbLmBWxWuPs+i4Y6alf8CUfWbp9IGrEQYsfsJimI/lE2HMmxPsDYN+qdDBmmIDpYlQ==",
+  "version": "0.1.2",
+  "integrity": "sha512-FUVFX9QvSOU59vNkb3snSgASYoj3WhVghQk+fOAf6o1qj1TwocSnNtqRJhXk1Pe6x9Si8TCsGMyiFegCDQ5N4A==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "cc078135ff1c631894f0494480373b96840e6b68e8f22f09614e0b2edae1ffe0"
+      "sha256": "9f13e6cb0daf522671ddf916ebcf7ee8c4e9b9f2af3a3bf7f0870364ae564ec9"
     },
     {
       "path": "command-inventory.json",
-      "sha256": "96978681eac92dc26efb1e13f8709faf613b9d9ca8f2cf1d5741534be5cbc826"
+      "sha256": "389e23c070c50b35d6d0de90476d2ad7d49926fb15609e80ebd90a7592d96304"
     },
     {
       "path": "axi-credential.schema.json",
@@ -27,7 +27,7 @@
     },
     {
       "path": "dist/bulk-export.js",
-      "sha256": "5465a6fd832b6ee9e6fb8060ce9a1c56ac47a0c87b3fb9453b7e3404bd91be7c"
+      "sha256": "74a2b5dec9d744753ddd26703f19736e5bda95659d0d1e66bb175bbcef80a152"
     },
     {
       "path": "dist/bulk-transfer.js",
@@ -43,7 +43,7 @@
     },
     {
       "path": "dist/cli.js",
-      "sha256": "782ab28970cd3836cb07d50361500d4d357456f9be51c2c4986b0c776edd801c"
+      "sha256": "8f71f298e638cc76e3fe6e9fbff50fc9d3c942ad4cafe1381019dadc320975fb"
     },
     {
       "path": "dist/contracts.js",
@@ -71,7 +71,11 @@
     },
     {
       "path": "dist/hosted-worker.js",
-      "sha256": "e1248be87d0ce59500f84849c008f00ced97ceecb108788cb21449cd26561ab1"
+      "sha256": "876c555e1ba136e6e03197209f85cb0a48e6d83641f338a9fa351448a5903ec8"
+    },
+    {
+      "path": "dist/hosted-writes.js",
+      "sha256": "a03d25d696073da96034458e9fc27495c4b255a49066740bb744ba813701ab2f"
     },
     {
       "path": "dist/investigation.js",
@@ -83,7 +87,7 @@
     },
     {
       "path": "dist/mutations.js",
-      "sha256": "76d534979d172c4d15b2afe87067078ae5ab38784a66c68f2d50c09adfc4494b"
+      "sha256": "ca7c593e66829823efc63315fe27af51229fab2c2fdad67d676cff404688883a"
     },
     {
       "path": "dist/private-file.js",
@@ -123,7 +127,7 @@
     },
     {
       "path": "dist/version.js",
-      "sha256": "9ea24786f22bdfd6e0392b0bcf7cf242162ef9e45ad37435201d3a8c100e57d5"
+      "sha256": "4d14633359a4538e76a42d3cba2da37df776375f4a0bfaaa535f3fdf8ce8a690"
     },
     {
       "path": "dist/windows-acl.js",
@@ -4612,6 +4616,170 @@
     ],
     "help": "Read Shodan account and investigation data with managed credentials. Search and domain lookups consume query credits. Local configuration and writes are unavailable.\n"
   },
+  "confirmedWrites": [
+    {
+      "command": "alert create",
+      "kind": "write",
+      "grants": [
+        "OP-013"
+      ],
+      "nativeOperations": [
+        "OP-013"
+      ]
+    },
+    {
+      "command": "alert remove",
+      "kind": "write",
+      "grants": [
+        "OP-015"
+      ],
+      "nativeOperations": [
+        "OP-015"
+      ]
+    },
+    {
+      "command": "alert update",
+      "kind": "write",
+      "grants": [
+        "OP-016"
+      ],
+      "nativeOperations": [
+        "OP-016"
+      ]
+    },
+    {
+      "command": "alert enable",
+      "kind": "write",
+      "grants": [
+        "OP-019"
+      ],
+      "nativeOperations": [
+        "OP-019"
+      ]
+    },
+    {
+      "command": "alert disable",
+      "kind": "write",
+      "grants": [
+        "OP-020"
+      ],
+      "nativeOperations": [
+        "OP-020"
+      ]
+    },
+    {
+      "command": "alert ignore",
+      "kind": "write",
+      "grants": [
+        "OP-021",
+        "OP-070"
+      ],
+      "nativeOperations": [
+        "OP-021",
+        "OP-070"
+      ]
+    },
+    {
+      "command": "alert unignore",
+      "kind": "write",
+      "grants": [
+        "OP-022"
+      ],
+      "nativeOperations": [
+        "OP-022"
+      ]
+    },
+    {
+      "command": "alert notifier add",
+      "kind": "write",
+      "grants": [
+        "OP-023"
+      ],
+      "nativeOperations": [
+        "OP-023"
+      ]
+    },
+    {
+      "command": "alert notifier remove",
+      "kind": "write",
+      "grants": [
+        "OP-024"
+      ],
+      "nativeOperations": [
+        "OP-024"
+      ]
+    },
+    {
+      "command": "notifier create",
+      "kind": "write",
+      "grants": [
+        "OP-027"
+      ],
+      "nativeOperations": [
+        "OP-027"
+      ]
+    },
+    {
+      "command": "notifier remove",
+      "kind": "write",
+      "grants": [
+        "OP-028"
+      ],
+      "nativeOperations": [
+        "OP-028"
+      ]
+    },
+    {
+      "command": "notifier update",
+      "kind": "write",
+      "grants": [
+        "OP-030"
+      ],
+      "nativeOperations": [
+        "OP-030"
+      ]
+    },
+    {
+      "command": "org add",
+      "kind": "write",
+      "grants": [
+        "OP-037"
+      ],
+      "nativeOperations": [
+        "OP-037"
+      ]
+    },
+    {
+      "command": "org remove",
+      "kind": "write",
+      "grants": [
+        "OP-038"
+      ],
+      "nativeOperations": [
+        "OP-038"
+      ]
+    },
+    {
+      "command": "download",
+      "kind": "export",
+      "grants": [
+        "CLI-005"
+      ],
+      "nativeOperations": [
+        "OP-003"
+      ]
+    },
+    {
+      "command": "alert download",
+      "kind": "export",
+      "grants": [
+        "CLI-020"
+      ],
+      "nativeOperations": [
+        "OP-003"
+      ]
+    }
+  ],
   "adapterBoundary": {
     "nativeWrites": "not admitted",
     "unsafeOverrides": [

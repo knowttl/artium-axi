@@ -8,10 +8,19 @@ const source = (path: string) => new URL(path, packageRoot)
 const pkg = JSON.parse(readFileSync(source('package.json'), 'utf8')) as { name: string, version: string }
 const pins = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8')) as Record<string, { version: string, integrity: string }>
 if (pkg.name !== '@knowttl/shodan-axi' || pkg.version !== pins[pkg.name]?.version) throw new Error('Shodan package mismatch')
-const upstream = JSON.parse(readFileSync(source('command-inventory.json'), 'utf8')) as { commands: Command[] }
+const upstream = JSON.parse(readFileSync(source('command-inventory.json'), 'utf8')) as { commands: Command[], hostedWrites: { approved: { command: string, operations: string[] }[] } }
 const unsafeOverrides = ['config', 'profile', 'origin', 'auth', 'api-key', 'key', 'token', 'env', 'file', 'input-file', 'result-file', 'filename', 'save', 'write-log', 'body-file']
 const admitted = ['OP-001', 'OP-002', 'OP-003', 'OP-004', 'OP-005', 'OP-006', 'OP-007', 'OP-008', 'OP-011', 'OP-012', 'OP-014', 'OP-017', 'OP-018', 'OP-025', 'OP-026', 'OP-029', 'OP-031', 'OP-032', 'OP-033', 'OP-034', 'OP-036', 'OP-039', 'OP-040', 'OP-041', 'OP-042', 'OP-043', 'OP-044', 'OP-045', 'OP-055', 'OP-056', 'OP-059', 'CLI-025']
-const booleanFlags = ['--json', '--help', '--history', '--ipv6', '--details', '--full', '--color', '--no-color', '--accept-unknown-cost']
+const confirmedWriteCommands = ['alert create', 'alert remove', 'alert update', 'alert enable', 'alert disable', 'alert ignore', 'alert unignore',
+  'alert notifier add', 'alert notifier remove', 'notifier create', 'notifier remove', 'notifier update', 'org add', 'org remove']
+const confirmedExportCommands = ['download', 'alert download']
+const confirmedWrites = [...confirmedWriteCommands, ...confirmedExportCommands].map(command => {
+  const approved = upstream.hostedWrites.approved.find(entry => entry.command === command)
+  const grants = confirmedExportCommands.includes(command) ? upstream.commands.filter(entry => entry.command === command).map(entry => entry.operation) : approved?.operations
+  if (!approved || !grants?.length || grants.some(grant => !grant)) throw new Error(`Shodan confirmed write missing: ${command}`)
+  return { command, kind: confirmedExportCommands.includes(command) ? 'export' : 'write', grants, nativeOperations: approved.operations }
+})
+const booleanFlags =['--json', '--help', '--history', '--ipv6', '--details', '--full', '--color', '--no-color', '--accept-unknown-cost']
 const commands = [...upstream.commands.filter(entry => (entry.effect === 'read' && entry.operation && admitted.includes(entry.operation) && entry.command !== 'doctor'))
   .map(entry => ({ command: entry.command, effect: 'read', operation: entry.operation, arguments: entry.arguments ?? [], ...(entry.outputSchema ? { outputSchema: entry.outputSchema } : {}),
     flags: Object.fromEntries(entry.flags.filter(flag => !unsafeOverrides.includes(flag.slice(2)))
@@ -46,6 +55,7 @@ const output = JSON.stringify({ generatedBy: 'scripts/shodan-inventory.ts', tool
     operation: entry.operation, selectors: entry.selectors ?? [], flags: entry.flags })),
   discovery: { commands: commands.map(entry => entry.command).filter(Boolean), example: ['info'],
     help: 'Read Shodan account and investigation data with managed credentials. Search and domain lookups consume query credits. Local configuration and writes are unavailable.\n' },
+  confirmedWrites,
   adapterBoundary: { nativeWrites: 'not admitted', unsafeOverrides } }, null, 2) + '\n'
 const destination = new URL('inventories/shodan-axi.json', root)
 if (process.argv.includes('--write')) writeFileSync(destination, output)

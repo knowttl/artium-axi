@@ -1717,7 +1717,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'unifi-axi', version: '0.1.3', health: { status: 'disabled' } },
     { name: 'proxmox-axi', version: '0.1.3', health: { status: 'disabled' } },
     { name: 'technitium-axi', version: '0.1.1', health: { status: 'disabled' } },
-    { name: 'shodan-axi', version: '0.1.1', health: { status: 'disabled' } },
+    { name: 'shodan-axi', version: '0.1.2', health: { status: 'disabled' } },
     { name: 'gitea-axi', version: '0.1.4', health: { status: 'disabled' } },
     { name: 'kubernetes-axi', version: '0.1.3', health: { status: 'disabled' } },
     { name: 'ssh-axi', version: '0.1.2', health: { status: 'disabled' } },
