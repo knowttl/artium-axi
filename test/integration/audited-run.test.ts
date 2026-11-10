@@ -655,7 +655,7 @@ test('a classified write ending on a signal records an unknown outcome', async (
 
 describe('AWX native write failure recovery (R1)', () => {
   function execution(code: string) {
-    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'awx-axi')")
+    db.exec("UPDATE tools SET enabled = 1, raw_api_mode = 'read-writes' WHERE name = 'awx-axi'; INSERT INTO role_tools (role_id, tool, raw_api) VALUES ('synthetic-role', 'awx-axi', 1)")
     const awx = createAwxAdapter({ getCredential: async () => ({ origin: 'https://controller.example',
       token: 'CANARY-awx-token', allowWrites: true, allowConfigurationWrites: true }) })
     const prepare = awx.prepare.bind(awx)
@@ -673,7 +673,9 @@ describe('AWX native write failure recovery (R1)', () => {
       const run = execution('CONTROLLER_UNREACHABLE')
       const args = [...route.command.split(' '), ...route.positionals.names.slice(0, route.positionals.required).map(() => '42'), '--confirm']
       await expect(run(args)).rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME',
-        next: expect.stringContaining('Check current state before trying again: artium-axi awx-axi ') })
+        next: expect.stringContaining(route.command.startsWith('api ')
+          ? 'Inspect the resource targeted or created by the request before retrying'
+          : 'Check current state before trying again: artium-axi awx-axi ') })
       expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get())
         .toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'unknown' })
       expect(readdirSync(join(directory, 'calls'))).toEqual([])

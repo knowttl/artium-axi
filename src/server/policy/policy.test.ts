@@ -10,6 +10,9 @@ import { createGiteaAdapter } from '../adapters/gitea.js'
 import { createMgAdapter } from '../adapters/mg.js'
 import { createVectraAdapter } from '../adapters/vectra.js'
 import { createHybridAdapter } from '../adapters/hybrid.js'
+import { createTenableAdapter } from '../adapters/tenable.js'
+import { createFalconAdapter } from '../adapters/falcon.js'
+import { createAwxAdapter } from '../adapters/awx.js'
 import { checkRawApiPolicy, checkToolPolicy } from './policy.js'
 
 let db: Database.Database
@@ -57,13 +60,16 @@ const log = join(process.cwd(), 'synthetic-policy.log')
 const az = createAzAdapter(source, log)
 const gh = createGhAdapter(source)
 const mg = createMgAdapter(source, log)
+const tenable = createTenableAdapter(source, log)
+const falcon = createFalconAdapter(source, log)
+const awx = createAwxAdapter(source)
 const adapters: Adapter<unknown>[] = [az, gh, mg, createAdoAdapter(source), createGiteaAdapter(source, log),
-  createVectraAdapter(source, log), createHybridAdapter(source, log)]
+  createVectraAdapter(source, log), createHybridAdapter(source, log), tenable, falcon, awx]
 
 beforeEach(() => {
   for (const adapter of adapters) {
-    db.prepare('INSERT INTO tools (name, enabled, pinned_version) VALUES (?, 1, ?)').run(adapter.name, 'synthetic-version')
-    db.prepare('INSERT INTO role_tools (role_id, tool) VALUES (?, ?)').run('synthetic-role', adapter.name)
+    db.prepare('INSERT OR IGNORE INTO tools (name, enabled, pinned_version) VALUES (?, 1, ?)').run(adapter.name, 'synthetic-version')
+    db.prepare('INSERT OR IGNORE INTO role_tools (role_id, tool) VALUES (?, ?)').run('synthetic-role', adapter.name)
   }
 })
 
@@ -89,6 +95,17 @@ test.each([
   ['mode off for a path value of --help', adapters.find(adapter => adapter.name === 'vectra-axi')!, 'off', 0, ['api', 'get', '--path', '--help'], 'RAW_API_DENIED'],
   ['mode off for disabled help', az, 'off', 0, ['api', 'GET', '/subscriptions', '--help=false'], 'RAW_API_DENIED'],
   ['mode off for another command', az, 'off', 0, ['account', 'list'], undefined],
+  ...([
+    [tenable, ['raw', 'get', '--path', '/api/v1/t1/tags/properties'], ['raw', 'write', '--method', 'POST', '--path', '/api/v1/t1/tags']],
+    [falcon, ['raw', 'get', '--path', '/synthetic/v1'], ['raw', 'write', '--method', 'POST', '--path', '/synthetic/v1']],
+    [awx, ['api', 'get', 'jobs/'], ['api', 'post', 'jobs/1/cancel/', '--confirm']],
+  ] as const).flatMap(([adapter, read, write]) => [
+    [`${adapter.name} mode off denies a raw read`, adapter, 'off', 1, read, 'RAW_API_DENIED'],
+    [`${adapter.name} mode read allows a raw read`, adapter, 'read', 1, read, undefined],
+    [`${adapter.name} mode read denies a raw write`, adapter, 'read', 1, write, 'RAW_API_DENIED'],
+    [`${adapter.name} mode read-writes without a role grant denies a raw write`, adapter, 'read-writes', 0, write, 'RAW_API_DENIED'],
+    [`${adapter.name} mode read-writes allows a raw write`, adapter, 'read-writes', 1, write, undefined],
+  ] as const),
 ] as const)('raw API policy: %s', (_name, adapter, mode, grant, args, code) => {
   db.prepare('UPDATE tools SET raw_api_mode = ? WHERE name = ?').run(mode, adapter.name)
   db.prepare('UPDATE role_tools SET raw_api = ? WHERE tool = ?').run(grant, adapter.name)
@@ -115,6 +132,12 @@ test.each([
   ['mg-axi', ['api', 'get', '/users', '--help']],
   ['vectra-axi', ['api', 'get', '--path', '/detections', '--help']],
   ['hybrid-axi', ['api', 'get', '/report', '--help']],
+  ['tenable-axi', ['raw', 'get', '--help']],
+  ['tenable-axi', ['raw', 'write', '--help']],
+  ['falcon-axi', ['raw', 'get', '--help']],
+  ['falcon-axi', ['raw', 'write', '--help']],
+  ['awx-axi', ['api', 'get', '--help']],
+  ['awx-axi', ['api', 'post', '--help']],
 ] as const)('%s local help %j needs no raw permission', (tool, args) => {
   const adapter = adapters.find(adapter => adapter.name === tool)!
   adapter.validateArgs(args)

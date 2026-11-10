@@ -103,9 +103,10 @@ GitHub PR details support field selection, for example `artium-axi gh-axi pr vie
 The [reviewed GitHub inventory](../tools/inventories/gh-axi.json) owns the accepted command and flag boundary.
 
 For AWX, the [generated parity matrix](awx-parity-matrix.md) compares pinned upstream commands and flags with the reviewed Artium boundary.
-With the [tenant write switch](safety.md#write-gates-by-tool) enabled, use `--dry-run` to preview a configuration command, then `--confirm` to execute it.
+With the [tenant write switch](safety.md#write-gates-by-tool) enabled, use `--dry-run` to preview a named configuration command, then `--confirm` to execute it.
 Configuration commands without `--help`, `--dry-run` or `--confirm` are refused; operational commands without `--confirm` remain previews.
-Previews are read-classified, and `--dry-run` takes precedence over `--confirm`.
+Named command previews are read-classified, and `--dry-run` takes precedence over `--confirm`.
+Raw `api` writes have separate [permissions and preview rules](safety.md#raw-api-access).
 Delegated read-only sessions refuse previews of commands classified as writes, including AWX configuration previews.
 Run a command with `--help` for its reviewed flags and required AWX resource permissions.
 AWX `--help` returns native help before private input handling; unused structured values are ignored and local input files are not read.

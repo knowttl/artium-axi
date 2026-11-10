@@ -21,6 +21,11 @@ const { AwxAxiError, formatError } = await import(errorsModule)
 const credential = { origin: 'https://controller.example', token: 'CANARY-awx-token' }
 const reference = { id: 'synthetic-awx', tool: 'awx-axi' as const, revision: 1 }
 const adapter = (allowWrites = false, allowConfigurationWrites = false) => createAwxAdapter({ getCredential: async () => ({ ...credential, allowWrites, allowConfigurationWrites }) })
+test.each(['--dry-run', '--confirm'])('raw mutation %s requires the tenant write setting', async flag => {
+  await expect(adapter().prepare(['api', 'post', 'jobs/42/cancel/', flag], reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  const call = await adapter(true).prepare(['api', 'post', 'jobs/42/cancel/', flag], reference)
+  expect(call.environment.AWX_AXI_READ_ONLY).toBe('false')
+})
 const fixedSchemaLists = ['job', 'template', 'workflow', 'organization', 'system-job-template', 'system-job',
   'credential', 'ad-hoc', 'project', 'schedule', 'execution-environment', 'user', 'notification',
   'notification-template', 'activity-stream', 'team', 'role']
@@ -79,6 +84,16 @@ test.each([
     next: expect.stringContaining('credential create/edit --inputs-file') })
 })
 
+test.each(['post', 'put', 'patch'].flatMap(method => ['--dry-run', '--confirm'].flatMap(action => [
+  { method, action, body: { scm_url: 'https://scm.example/repo?token=CANARY-secret' } },
+  { method, action, body: { nested: [{ scm_url: 'https://user@scm.example/repo' }] } },
+  { method, action, body: { scm_url: 'https://scm.example/repo#fragment' } },
+])))('raw $method $action rejects unsafe SCM URLs before dispatch', async ({ method, action, body }) => {
+  const file = { name: 'body.json', contentBase64: Buffer.from(JSON.stringify(body)).toString('base64') }
+  await expect(adapter(true).prepare(['api', method, 'projects/42/', '--body-file=body.json', action], reference, { files: [file] }))
+    .rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
+})
+
 test.each(['project create', 'project edit', 'job stdout', 'ad-hoc stdout'])('%s help explains SCM credentials and retained-log scope', command => {
   const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', ...command.split(' '), '--help'], { encoding: 'utf8' })
   expect(result.status).toBe(0)
@@ -134,13 +149,44 @@ test.each(inventory.commands.filter(route => ['write', 'configuration-write'].in
   expect(call.write?.checkArgs).toBeDefined()
 })
 
+test.each(['post', 'put', 'patch', 'delete'])('api %s provides resource reconciliation guidance and keeps the uploaded body private', async method => {
+  const body = { name: 'body.json', contentBase64: Buffer.from('{"name":"CANARY-api-body"}').toString('base64') }
+  const call = await adapter(true).prepare(['api', method, 'labels/7/', ...method === 'delete' ? [] : ['--body-file', 'body.json'], '--confirm'], reference,
+    method === 'delete' ? {} : { files: [body] })
+  expect(call.write).toEqual({ operation: `api ${method}`, target: 'managed resource', checkArgs: [],
+    afterCheck: 'Inspect the resource targeted or created by the request before retrying; it may differ from the mutation URL' })
+  expect(call.args.join(' ')).not.toContain('CANARY-')
+  expect(call.fileArguments?.map(index => call.args[index])).toEqual(method === 'delete' ? [] : ['body.json'])
+})
+
+test.each([['post', 'labels/', 'POST'], ['delete', 'labels/7/', 'DELETE']])('api %s %s reaches the controller under the gates Artium derives from the single write switch', async (method, path, verb) => {
+  const call = await adapter(true).prepare(['api', method, path, '--confirm'], reference)
+  const transport = new RecordedTransport([{ status: 200, body: { id: 7 } }], { env: call.environment })
+  await main({ argv: call.args.slice(4), env: call.environment, createTransport: () => transport, stdout: { write: () => {} } })
+  expect(transport.requests).toMatchObject([{ method: verb, route: path }])
+})
+
+test('native raw bulk job launch is rejected before a controller request', async () => {
+  const call = await adapter(true).prepare(['api', 'post', 'bulk/job_launch/', '--confirm'], reference)
+  const transport = new RecordedTransport([], { env: call.environment })
+  let output = ''
+  await main({ argv: call.args.slice(4), env: call.environment, createTransport: () => transport,
+    stdout: { write: chunk => { output += chunk } } })
+  expect(output).toContain('refuses bulk/job_launch/')
+  expect(transport.requests).toEqual([])
+})
+
+test.each([['api', 'post', 'labels/'], ['api', 'delete', 'labels/7/']])('%s %s without confirm or dry-run is refused', async (...args) => {
+  await expect(adapter(true).prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+})
+
 test('an authorized dry-run remains a read even when confirm is present', async () => {
   const call = await adapter(true).prepare(['job', 'cancel', '42', '--confirm', '--dry-run'], reference)
   expect(call.effect).toBe('read')
   expect(call.write).toBeUndefined()
 })
 
-test.each(inventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect)))('$command previews require write access and ignore the legacy configuration grant', async route => {
+test.each(inventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect) && !route.command.startsWith('api ')))('$command previews require write access and ignore the legacy configuration grant', async route => {
   const args = [...route.command.split(' '), ...route.positionals.names.slice(0, route.positionals.required).map(() => '42'), '--dry-run']
   await expect(adapter().prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
   await expect(adapter(false, true).prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
@@ -373,7 +419,7 @@ test.each(inventory.discovery.commands.filter(command => !['auth status', 'docto
   const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
   expect(result.status).toBe(0)
   const help = rewriteSuggestions(result.stdout, 'awx-axi')
-  expect(help).toContain(`artium-axi awx-axi ${command} list`)
+  expect(help).toContain(`artium-axi awx-axi ${command === 'api' ? 'api get' : `${command} list`}`)
   if (command === 'inventory') expect(help).toContain('artium-axi awx-axi inventory host-bulk-create')
 })
 

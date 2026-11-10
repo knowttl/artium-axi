@@ -791,12 +791,14 @@
     "credential",
     "export",
     "auth login",
-    "auth logout",
-    "raw"
+    "auth logout"
   ],
-  "deferredCommands": [
-    "raw"
-  ],
+  "adapterBoundary": {
+    "inputFileFlags": [
+      "body-file",
+      "query-file"
+    ]
+  },
   "commands": [
     {
       "command": "home",
@@ -2278,6 +2280,44 @@
       "positional": "device id"
     },
     {
+      "command": "raw get",
+      "flags": {
+        "help": "boolean",
+        "allow-unknown-origin": "boolean",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "region": "value",
+        "member-cid": "value",
+        "path": "value",
+        "query": "value",
+        "query-file": "value"
+      },
+      "effect": "read",
+      "positional": null
+    },
+    {
+      "command": "raw write",
+      "flags": {
+        "help": "boolean",
+        "allow-unknown-origin": "boolean",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "region": "value",
+        "member-cid": "value",
+        "execute": "boolean",
+        "method": "value",
+        "path": "value",
+        "query": "value",
+        "query-file": "value",
+        "body-file": "value",
+        "confirm": "value"
+      },
+      "effect": "write",
+      "positional": null
+    },
+    {
       "command": "auth status",
       "flags": {
         "help": "boolean",
@@ -2482,6 +2522,7 @@
       "correlation-rule",
       "case",
       "rtr",
+      "raw",
       "auth",
       "scopes",
       "sensor-usage",

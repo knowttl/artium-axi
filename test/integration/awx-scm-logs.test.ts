@@ -1,6 +1,7 @@
 import { configurationTests } from './awx-configuration-cases.js'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { request } from 'node:https'
 import { expect, test } from 'vitest'
 import { decode } from '@toon-format/toon'
 import { createApp } from '../../src/server/app.js'
@@ -79,7 +80,8 @@ test('AWX project SCM URLs remain private on later project and activity reads (S
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
     await seedToolUser(db)
-    db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
+    db.exec(`UPDATE tools SET enabled = 1, raw_api_mode = 'read-writes', native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi';
+      UPDATE role_tools SET raw_api = 1 WHERE role_id = 'synthetic-role' AND tool = 'awx-axi'`)
     let allowWrites = true
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
     const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
@@ -137,6 +139,40 @@ test('AWX project SCM URLs remain private on later project and activity reads (S
       await run(['project', 'edit', '42', '--scm-url', `https://scm.example/${'x'.repeat(1100)}`, '--confirm'])
       allowWrites = false
       expect(await run(['activity-stream', 'show', '3'])).toMatchObject({ 'activity-stream': { changes: '[activity changes redacted]' } })
+      allowWrites = true
+      const refused = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: {
+        args: ['api', 'patch', 'projects/42/', '--body-file', 'body.json', '--confirm'],
+        files: [upload('body.json', JSON.stringify({ scm_url: 'https://scm.example/repo?token=CANARY-rejected' }))],
+      } })
+      expect(refused.json()).toMatchObject({ error: { code: 'UNSUPPORTED_INPUT' } })
+      await new Promise<void>((resolve, reject) => {
+        const req = request({ hostname: 'localhost', port, path: '/api/v2/projects/42/', method: 'PATCH',
+          ca: readFileSync(join(directory, 'ca.crt')), headers: { authorization: 'Bearer CANARY-awx-token', 'content-type': 'application/json' } }, response => {
+          if (response.statusCode !== 200) { reject(new Error(`Unexpected fake controller status ${response.statusCode}`)); return }
+          response.resume()
+          response.on('end', resolve)
+        })
+        req.on('error', reject)
+        req.end(JSON.stringify({ scm_url: 'https://scm.example/repo?token=CANARY-stored-url' }))
+      })
+      const rawBody = upload('body.json', JSON.stringify({ body: 12345, method: 'PATCH', path: 'projects/42/', hosts: [42], nested: { body: false, method: true, path: 98765 }, variables: 'internal_value: private-example',
+        extra_vars: { label: 'private-label', code: 'private-code', action: 'private-action', type: 'private-type',
+          status: 'private-status', would_send: 'private-would-send', help: 'private-help' } }))
+      const preview = await run(['api', 'patch', 'projects/42/', '--body-file', 'body.json', '--dry-run'], { files: [rawBody] })
+      expect(JSON.stringify(preview)).not.toContain('private-example')
+      expect(preview).toMatchObject({ dry_run: { method: 'PATCH', path: 'projects/42/' } })
+      const changed = await run(['api', 'patch', 'projects/42/', '--body-file', 'body.json', '--confirm'], { files: [rawBody] })
+      expect(JSON.stringify(changed)).toContain('[SCM URL redacted]')
+      expect(JSON.stringify(changed)).not.toContain('private-example')
+      expect(JSON.stringify(changed)).not.toMatch(/private-(label|code|action|type|status|would-send|help)/)
+      expect(changed).toMatchObject({ api_response: { method: 'PATCH', path: 'projects/42/', status: 200 } })
+      const mask = `[structured input redacted, ${rawBody.size} bytes]`
+      expect(changed).toMatchObject({ api_response: { body: { body: mask, method: mask, path: mask, hosts: [42],
+        nested: { body: false, method: true, path: mask } } } })
+      for (const args of [['api', 'get', 'projects/42/'], ['api', 'get', 'projects/'],
+        ['api', 'post', 'projects/42/copy/', '--confirm']]) {
+        expect(JSON.stringify(await run(args))).toContain('[SCM URL redacted]')
+      }
       expect(lines.join('\n') + JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
     } finally { await app.close(); db.close() }

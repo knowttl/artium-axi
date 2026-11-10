@@ -13,9 +13,9 @@ const native = JSON.parse(read('artium-invocations.json')) as { commands: Comman
 const metadata = await import(new URL('.typescript-build/src/metadata.js', base).href) as { commands: NativeCommand[] }
 const help = JSON.parse(read('.typescript-build/src/help.json')) as Record<string, string>
 const unsafeOverrides = ['region', 'member-cid', 'allow-unknown-origin', 'no-member-cid', 'config', 'profile']
-const writeCommands = ['search start', 'search stop', 'host usb', 'identity activity', 'malquery search', 'rtr run']
-const deferredCommands: string[] = ['raw']
-const blockedCommands = ['setup', 'config', 'profile', 'credentials', 'credential', 'export', 'auth login', 'auth logout', ...deferredCommands]
+const writeCommands = ['search start', 'search stop', 'host usb', 'identity activity', 'malquery search', 'rtr run', 'raw write']
+const inputFileFlags = ['body-file', 'query-file']
+const blockedCommands = ['setup', 'config', 'profile', 'credentials', 'credential', 'export', 'auth login', 'auth logout']
 const admitted = native.commands.filter(entry => !blockedCommands.includes(entry.command)
   && !blockedCommands.includes(entry.command.split(' ')[0]))
 const globalFlags = Object.fromEntries(native.globalFlags.map(name => [name,
@@ -35,7 +35,7 @@ const data = { generatedBy: 'scripts/falcon-inventory.ts', tool: 'falcon-axi', p
   parser: { path: '.typescript-build/src/parser.js', sha256: sources.find(entry => entry.path === '.typescript-build/src/parser.js')!.sha256,
     aliases: {}, shortFlags: {}, repeats: 'last value wins', equals: true, booleanValues: 'refused', doubleDash: 'unknown flag' },
   flags: native.globalFlags.map(name => ({ name, disposition: unsafeOverrides.includes(name) ? 'server-owned' : 'passthrough' })),
-  unsafeOverrides, blockedCommands, deferredCommands, commands,
+  unsafeOverrides, blockedCommands, adapterBoundary: { inputFileFlags }, commands,
   environment: ['FALCON_AXI_READ_ONLY', 'FALCON_AXI_WRITE_LOG'].map(name => ({ name, disposition: 'injected' })),
   requirements: { runtime: 'node', timeoutMs: 65_000, temporaryFiles: ['falcon-axi/config.json'],
     nativeWrites: 'Exact administrator command grants and FALCON_AXI_READ_ONLY; search/MalQuery lifecycle dispatches natively, RTR retains profile opt-in, restrictions and exact execute/confirm.' },

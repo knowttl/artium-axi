@@ -250,6 +250,19 @@ test.each([
 })
 
 test.each([
+  ['tenable-axi', ['raw', 'get', '--path', '/api/v1/t1/tags/properties'], 'raw get', 'read'],
+  ['tenable-axi', ['raw', 'write', '--method', 'POST', '--path', '/api/v1/t1/tags', '--execute', '--confirm', 'synthetic'], 'raw write', 'write'],
+  ['falcon-axi', ['raw', 'get', '--path', '/synthetic/v1'], 'raw get', 'read'],
+  ['falcon-axi', ['raw', 'write', '--method', 'POST', '--path', '/synthetic/v1'], 'raw write', 'write'],
+  ['awx-axi', ['api', 'get', 'jobs/'], 'api get', 'read'],
+  ...['post', 'put', 'patch', 'delete'].map(method => ['awx-axi', ['api', method, 'jobs/1/cancel/', '--confirm'], `api ${method}`, 'write'] as const),
+] as const)('%s declares the raw API routes that classify %j', (tool, args, command, effect) => {
+  const adapter = adapters.find(item => item.name === tool)!
+  expect(adapter.classify(args)).toEqual({ command, effect })
+  expect(adapter.rawApi).toMatchObject({ commands: expect.arrayContaining([command]), writes: true })
+})
+
+test.each([
   [['api', 'GET', '/subscriptions'], 'read'],
   [['api', 'GET', '/subscriptions', '--execute=false'], 'read'],
   [['api', 'PUT', '/subscriptions/synthetic'], 'read'],

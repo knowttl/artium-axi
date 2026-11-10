@@ -1,6 +1,6 @@
 import type { RunnerInput } from '../runner/input.js'
 import { protectedResultLimits } from '../config.js'
-import { privateOutput, protocolOutputFields } from '../runner/scan.js'
+import { privateOutput, protocolEnvelopeFields } from '../runner/scan.js'
 
 const inputFields = {
   variables: 'variables', 'extra-vars': 'extra_vars', 'source-vars': 'source_vars',
@@ -42,22 +42,24 @@ for (const [index, value] of values) {
 }
 const tokens = patterns.map(([pattern, mask]) => [new RegExp(pattern, 'u'), mask]);
 const masks = new Set([...Object.values(fields), ...patterns.map(([, mask]) => mask)]);
-const protocolFields = new Set(${JSON.stringify(protocolOutputFields)});
-const redact = (value, key = '', depth = 0) => {
-  if ((depth > 1 || key === 'payload') && Object.hasOwn(fields, key)) return fields[key];
+const protocolFields = ${JSON.stringify(protocolEnvelopeFields)};
+const redact = (value, key = '', depth = 0, parent = '') => {
+  if (depth === 2 && parent === 'api_response' && key !== 'body') return value;
+  if (depth === 2 && parent === 'dry_run' && key !== 'payload' && Object.hasOwn(fields, 'raw_body')) return value;
+  if ((depth === 1 || depth === 2 && parent === 'dry_run') && protocolFields[parent]?.includes(key)) return value;
+  if ((depth > 1 || key === 'payload') && !(depth === 2 && parent === 'api_response' && key === 'body') && Object.hasOwn(fields, key)) return fields[key];
   if (depth > 1 && key === 'changes' && typeof value === 'string') {
     try { return JSON.stringify(redact(JSON.parse(value), '', depth + 1)); } catch { return '[activity changes redacted]'; }
+  }
+  if (['string', 'number'].includes(typeof value) && !masks.has(value)) {
+    const match = tokens.find(([pattern]) => pattern.test(String(value)));
+    if (match) return match[1];
   }
   if (depth > 1 && ['variables', 'source_vars'].includes(key) && typeof value === 'string') {
     try { return redactValue(parse(value)); } catch { return '***'; }
   }
-  if (protocolFields.has(key)) return value;
-  if (typeof value === 'string' && !masks.has(value)) {
-    const match = tokens.find(([pattern]) => pattern.test(value));
-    if (match) return match[1];
-  }
-  if (Array.isArray(value)) return value.map(child => redact(child, '', depth + 1));
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, child]) => [name, redact(child, name, depth + 1)]));
+  if (Array.isArray(value)) return value.map(child => redact(child, '', depth + 1, key));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, child]) => [name, redact(child, name, depth + 1, key)]));
   return value;
 };
 let downloaded;
@@ -165,7 +167,7 @@ if (downloaded) {
 
 export function awxPrivateOutput(input: RunnerInput, structured: readonly (readonly [number, string])[], args: readonly string[]) {
   const inline = new Map(structured.map(([index, content]) => [args[index].slice(2).split('=', 1)[0], content]))
-  const output = privateOutput(Object.entries(inputFields).flatMap(([flag, defaultField]) => {
+  const inputs = Object.entries(inputFields).flatMap(([flag, defaultField]) => {
     const field = flag === 'extra-vars' && (args[0] === 'schedule' || args[0] === 'workflow' && ['node-create', 'node-edit'].includes(args[1]))
       ? 'extra_data' : defaultField
     let content = inline.get(flag)
@@ -177,7 +179,25 @@ export function awxPrivateOutput(input: RunnerInput, structured: readonly (reado
       content = name === '-' ? input.stdin : file && Buffer.from(file.contentBase64, 'base64').toString('utf8')
     }
     return content === undefined ? [] : [{ field, content }]
-  }))
+  })
+  const bodyIndex = args[0] === 'api' ? args.indexOf('--body-file') : -1
+  const bodyFile = bodyIndex < 0 ? undefined : input.files?.find(file => file.name === args[bodyIndex + 1])
+  const rawValues: string[] = []
+  if (bodyFile) {
+    const content = Buffer.from(bodyFile.contentBase64, 'base64').toString('utf8')
+    inputs.push({ field: 'raw_body', content })
+    let body: unknown
+    try { body = JSON.parse(content) } catch {}
+    const collect = (item: unknown): void => {
+      if (typeof item === 'string' && item) rawValues.push(item)
+      else if (typeof item === 'number' && Math.abs(item) >= 1000) rawValues.push(String(item))
+      else if (item && typeof item === 'object') Object.values(item).forEach(collect)
+    }
+    collect(body)
+  }
+  const output = privateOutput(inputs)
+  for (const value of rawValues) output.patterns.push(...privateOutput([{ field: 'raw_body', content: value }]).patterns
+    .map(([pattern]) => [pattern, output.fields.raw_body] as [string, string]))
   output.fields.scm_url = '[SCM URL redacted]'
   if (inline.has('scm-url')) delete output.fields.payload
   return output

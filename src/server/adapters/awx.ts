@@ -13,9 +13,18 @@ import { awxInputBridge, awxPrivateOutput } from './awx-input.js'
 
 export const awxManifest = { ...inventory, ...inventory.adapterBoundary }
 export const awxWritePolicy = writePolicy({ unlocks: 'All AWX writes for this tenant, including configuration, deletion, removals and security administration, support preview and require explicit confirmation and AWX resource permission.',
-  blocked: 'API post, put, patch and delete remain blocked pending separate admission. Unsafe overrides remain blocked. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. SCM URLs must have no userinfo, credential query parameters or fragments; use --credential and credential create/edit --inputs-file for SCM secrets. Already-retained AWX logs from URLs set outside Artium are AWX-held data, outside Artium SCM input protection. Credential inputs-file and password-file accept stdin (-). Server file paths are refused.' })
+  blocked: 'Unsafe overrides remain blocked. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. SCM URLs must have no userinfo, credential query parameters or fragments; use --credential and credential create/edit --inputs-file for SCM secrets. Already-retained AWX logs from URLs set outside Artium are AWX-held data, outside Artium SCM input protection. Credential inputs-file and password-file accept stdin (-). Server file paths are refused.' })
 export const awxProfile = new CredentialProfile(inventory.credentialSchema, 'awx-axi')
 export const awxCredentialSchema = awxProfile.credentialSchema
+
+function validateScmUrl(content: unknown) {
+  const url = typeof content === 'string' ? URL.parse(content) : null
+  if (!url || url.username || url.password || url.hash || [...url.searchParams.keys()].some(key =>
+    /password|passwd|passphrase|token|secret|credential|authorization|apikey|accesskey|privatekey|signature|^sig$|^auth$|^key$/i.test(key.replace(/[-_]/g, '')))) {
+    throw new ArtiumError('UNSUPPORTED_INPUT', 'SCM URLs must be valid URLs without userinfo, credential query parameters or fragments.',
+      'Use --credential to reference an AWX SCM credential. Supply its secrets through credential create/edit --inputs-file using the secure file channel.')
+  }
+}
 
 function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   validateFileInput('awx-axi', args, input)
@@ -110,17 +119,23 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
       const file = input.files?.find(file => file.name === value)
       const content = file ? Buffer.from(file.contentBase64, 'base64').toString('utf8') : value
       if (content.startsWith('@')) throw new ArtiumError('UNSUPPORTED_INPUT')
-      if (name === 'scm-url') {
-        const url = URL.parse(content)
-        if (!url || url.username || url.password || url.hash || [...url.searchParams.keys()].some(key =>
-          /password|passwd|passphrase|token|secret|credential|authorization|apikey|accesskey|privatekey|signature|^sig$|^auth$|^key$/i.test(key.replace(/[-_]/g, '')))) {
-          throw new ArtiumError('UNSUPPORTED_INPUT', 'SCM URLs must be valid URLs without userinfo, credential query parameters or fragments.',
-            'Use --credential to reference an AWX SCM credential. Supply its secrets through credential create/edit --inputs-file using the secure file channel.')
-        }
-      }
+      if (name === 'scm-url') validateScmUrl(content)
       normalized.push(`--${name}=private-input`)
       structured.push([normalized.length - 1, content])
     } else if (name.endsWith('-file')) {
+      if (positionals[0] === 'api' && name === 'body-file') {
+        const file = input.files!.find(file => file.name === value)!
+        let body: unknown
+        try { body = JSON.parse(Buffer.from(file.contentBase64, 'base64').toString('utf8')) } catch {}
+        const inspect = (item: unknown): void => {
+          if (!item || typeof item !== 'object') return
+          for (const [key, child] of Object.entries(item)) {
+            if (key === 'scm_url') validateScmUrl(child)
+            else inspect(child)
+          }
+        }
+        inspect(body)
+      }
       normalized.push(`--${name}`, String(value))
       if (value !== '-') fileArguments.push(normalized.length - 1)
     } else normalized.push(value === true ? `--${name}` : `--${name}=${value}`)
@@ -128,8 +143,10 @@ function awxArguments(args: readonly string[], input: RunnerInput = {}) {
   return { args: normalized, fileArguments, structured, effect, configuration,
     mutation: ['write', 'configuration-write'].includes(route.effect),
     invocation: { command: route.command, help: false },
-    ...(effect === 'write' ? { write: { operation: route.command, target: 'managed resource', checkArgs,
-      afterCheck: 'Inspect the affected resource and any additional pages before retrying; absence from this limited read does not prove failure' } } : {}) }
+    ...(effect === 'write' ? { write: { operation: route.command, target: 'managed resource',
+      ...(positionals[0] === 'api'
+        ? { checkArgs: [], afterCheck: 'Inspect the resource targeted or created by the request before retrying; it may differ from the mutation URL' }
+        : { checkArgs, afterCheck: 'Inspect the affected resource and any additional pages before retrying; absence from this limited read does not prove failure' }) } } : {}) }
 }
 
 export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
@@ -140,6 +157,8 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       positions: args.map((_, index) => index).filter(index => index > 1) }),
     validateArgs: (args, input) => { awxArguments(args, input) },
     executesWrite: (args, input) => awxArguments(args, input).effect === 'write',
+    rawApi: { commands: ['api get', 'api post', 'api put', 'api patch', 'api delete'], writes: true,
+      help: (args, input) => awxArguments(args, input).invocation.help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => awxArguments(a, i).invocation, args, input),
     async prepare(args, reference, input) {
       const normalized = awxArguments(args, input)
@@ -160,7 +179,8 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const { structured, ...call } = normalized
       const prefix = ['--input-type=module', '-e', awxInputBridge, toolPaths['awx-axi']]
       const privateInput = structured.length || input?.files?.length || input?.stdin !== undefined
-      const privateRead = !call.invocation.help && ['inventory show', 'inventory constructed-show', 'project show', 'activity-stream show'].includes(call.invocation.command)
+      const privateRead = !call.invocation.help && (call.invocation.command.startsWith('api ')
+        || ['inventory show', 'inventory constructed-show', 'project show', 'activity-stream show'].includes(call.invocation.command))
       const tokenCreate = call.effect === 'write' && call.invocation.command === 'user token-create'
       const stdoutDownload = call.invocation.command === 'job stdout' && call.args.some(arg => arg.startsWith('--download='))
       const bridge = privateInput || privateRead || tokenCreate || stdoutDownload

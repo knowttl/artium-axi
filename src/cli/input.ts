@@ -90,7 +90,7 @@ export async function toolInput(tool: string, original: string[]) {
         if (!path?.startsWith('@')) continue
         path = path.slice(1)
       }
-      if (path === '-' && (tool === 'gitea-axi' && ['--input', '--body-file', '--notes-file'].includes(flag) || tool === 'tenable-axi' || tool === 'hybrid-axi' && flag === '--body-file'
+      if (path === '-' && (tool === 'gitea-axi' && ['--input', '--body-file', '--notes-file'].includes(flag) || tool === 'tenable-axi' || tool === 'falcon-axi' || tool === 'hybrid-axi' && flag === '--body-file'
         || tool === 'awx-axi' && (flag === '--password-file' || flag === '--inputs-file' && args[0] === 'credential'))) {
         if (input.stdin !== undefined) throw new ArtiumError('INVALID_INPUT')
         input.stdin = (await readBounded(process.stdin, inputLimits.stdinBytes, flag)).toString('utf8')

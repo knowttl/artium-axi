@@ -431,8 +431,11 @@ See the [API contract](../src/shared/api.ts) and [retention and export runbook](
 
 Raw API access has two administrator settings, both separate from enabling a tool, granting it to a role or enabling Allow writes.
 Set the tool's mode on its **Raw API** tab, shown only for tools with raw API routes: Off, Read, or Read and writes.
+Falcon, Tenable and AWX offer all three modes.
 Allow raw calls for a role in **Raw API access** on the role's page, for each granted tool that has raw API routes.
 Both [Raw API access](safety.md#raw-api-access) settings must permit a call, and a new tool grant starts without raw access.
+Raw write execution also requires the tool's write gate and native confirmation: Falcon and Tenable require Allow writes and their exact raw operation, and AWX requires its tenant Allow writes setting.
+These tool gates also apply to raw write previews.
 Each change is recorded as an `admin-change` audit event for the tool, with actions such as `set-tool-raw-api-read` and `grant-role-raw-api`; a request that changes nothing records nothing.
 
 Configure the ADO API write allow list in the server process environment; it is never accepted from a client or forwarded to the tool.

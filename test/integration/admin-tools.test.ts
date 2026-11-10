@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { createAwxAdapter } from '../../src/server/adapters/awx.js'
+import { createTenableAdapter } from '../../src/server/adapters/tenable.js'
 import { createVectraAdapter, vectraCredentialSchema } from '../../src/server/adapters/vectra.js'
 import { createAzAdapter } from '../../src/server/adapters/az.js'
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
@@ -1402,7 +1403,7 @@ test('Falcon write switch activates only the selected saved MalQuery operation',
     ...values['falcon-axi'], writes: { allowWrites: true, operations: ['malquery search'] } })
   const detail = await (await request('GET', '/falcon-axi')).json()
   expect(detail).toMatchObject({ readOnly: false, writeAccess: { capable: true, enabled: true, allowedOperations: ['malquery search'] } })
-  expect([...detail.writeAccess.supportedOperations].sort()).toEqual(['host usb', 'identity activity', 'malquery search', 'rtr run', 'search start', 'search stop'])
+  expect([...detail.writeAccess.supportedOperations].sort()).toEqual(['host usb', 'identity activity', 'malquery search', 'raw write', 'rtr run', 'search start', 'search stop'])
 })
 
 test.each(['az-axi', 'ado-axi', 'awx-axi'] as const)('%s write switch preserves native settings and credentials', async tool => {
@@ -2537,11 +2538,29 @@ const adminChanges = () => db.prepare("SELECT action, target_id AS targetId, too
 const rawApiMode = (tool: string) => db.prepare('SELECT raw_api_mode AS mode, revision FROM tools WHERE name = ?').get(tool)
 
 test('tools report the Raw API modes they can be set to', async () => {
+  const source = new EmbeddedSecretSource(store)
+  adapters.push(createAwxAdapter(source), createTenableAdapter(source, join(directory, 'tenable-writes.log')), createLdapAdapter(source))
   const { tools } = await (await request('GET', '')).json() as { tools: unknown[] }
   const rawApi = Object.fromEntries(tools.map(item => adminToolSchema.parse(item)).map(item => [item.name, item.rawApi]))
   expect(rawApi['az-axi']).toEqual({ mode: 'off', modes: ['off', 'read', 'read-writes'] })
   expect(rawApi['vectra-axi']).toEqual({ mode: 'off', modes: ['off', 'read', 'read-writes'] })
-  expect(rawApi['falcon-axi']).toEqual({ mode: 'off', modes: [] })
+  for (const tool of ['falcon-axi', 'tenable-axi', 'awx-axi']) {
+    expect(rawApi[tool]).toEqual({ mode: 'off', modes: ['off', 'read', 'read-writes'] })
+  }
+  expect(rawApi['ldap-axi']).toEqual({ mode: 'off', modes: [] })
+})
+
+test.each(['falcon-axi', 'tenable-axi', 'awx-axi'])('an administrator enables Raw API mode and role access for %s', async tool => {
+  const source = new EmbeddedSecretSource(store)
+  adapters.push(createAwxAdapter(source), createTenableAdapter(source, join(directory, 'tenable-writes.log')))
+  const before = adminToolSchema.parse(await (await request('GET', `/${tool}`)).json())
+  const changed = await request('PATCH', `/${tool}/raw-api`, { mode: 'read-writes', expectedRevision: before.revision })
+  expect(changed.status).toBe(200)
+  expect(adminToolSchema.parse(await changed.json()).rawApi.mode).toBe('read-writes')
+  const role = adminRoleSchema.parse(await (await roleRequest('GET', '/synthetic-role')).json())
+  const granted = await roleRequest('PUT', `/synthetic-role/tools/${tool}/raw-api`, { enabled: true, expectedRevision: role.revision })
+  expect(granted.status).toBe(200)
+  expect(adminRoleSchema.parse(await granted.json()).rawApiTools).toContain(tool)
 })
 
 test('an administrator changes a tool Raw API mode, the change is journaled and a repeat records nothing', async () => {
@@ -2560,10 +2579,11 @@ test('an administrator changes a tool Raw API mode, the change is journaled and 
 })
 
 test.each([
-  ['a tool without raw API routes', 'falcon-axi', { mode: 'read' }, 'INVALID_INPUT'],
+  ['a tool without raw API routes', 'ldap-axi', { mode: 'read' }, 'INVALID_INPUT'],
   ['an unknown mode', 'az-axi', { mode: 'writes' }, 'INVALID_INPUT'],
   ['a stale revision', 'az-axi', { mode: 'off', expectedRevision: 99 }, 'REVISION_CONFLICT'],
 ] as const)('a tool Raw API change with %s is refused and recorded nowhere', async (_name, tool, body, code) => {
+  adapters.push(createLdapAdapter(new EmbeddedSecretSource(store)))
   const current = adminToolSchema.parse(await (await request('GET', `/${tool}`)).json())
   const before = rawApiMode(tool)
   await failure(await request('PATCH', `/${tool}/raw-api`, { expectedRevision: current.revision, ...body }), code)
@@ -2594,10 +2614,11 @@ test('an administrator allows and removes Raw API on a role grant, journaled aga
 })
 
 test.each([
-  ['a tool without raw API routes', 'falcon-axi', 1, 'INVALID_INPUT'],
+  ['a tool without raw API routes', 'ldap-axi', 1, 'INVALID_INPUT'],
   ['a tool the role does not grant', 'ado-axi', 1, 'INVALID_INPUT'],
   ['a stale revision', 'az-axi', 99, 'REVISION_CONFLICT'],
 ] as const)('a role Raw API change for %s is refused and recorded nowhere', async (_name, tool, expectedRevision, code) => {
+  adapters.push(createLdapAdapter(new EmbeddedSecretSource(store)))
   db.exec("DELETE FROM role_tools WHERE tool = 'ado-axi'")
   await failure(await roleRequest('PUT', `/synthetic-role/tools/${tool}/raw-api`, { enabled: true, expectedRevision }), code)
   expect(db.prepare('SELECT COUNT(*) AS granted FROM role_tools WHERE raw_api = 1').get()).toEqual({ granted: 0 })
@@ -2640,6 +2661,8 @@ test('read-writes mode on a read-only raw tool permits reads', async () => {
 })
 
 test('the tool and role pages offer the Raw API controls', async () => {
+  const source = new EmbeddedSecretSource(store)
+  adapters.push(createAwxAdapter(source), createTenableAdapter(source, join(directory, 'tenable-writes.log')), createLdapAdapter(source))
   const cookie = await browserCookie()
   const tool = await app.inject({ method: 'GET', url: '/admin/tools/az-axi?tab=raw-api', headers: { cookie } })
   expect(tool.statusCode).toBe(200)
@@ -2649,12 +2672,17 @@ test('the tool and role pages offer the Raw API controls', async () => {
   const readOnly = await app.inject({ method: 'GET', url: '/admin/tools/vectra-axi?tab=raw-api', headers: { cookie } })
   expect(readOnly.body.match(/name="mode" value="(off|read|read-writes)"( checked)?/g)).toEqual([
     'name="mode" value="off" checked', 'name="mode" value="read"', 'name="mode" value="read-writes"'])
-  const unavailable = await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi?tab=raw-api', headers: { cookie } })
+  const unavailable = await app.inject({ method: 'GET', url: '/admin/tools/ldap-axi?tab=raw-api', headers: { cookie } })
   expect(unavailable.body).not.toContain('/raw-api"')
   const role = await app.inject({ method: 'GET', url: '/admin/roles/synthetic-role', headers: { cookie } })
   expect(role.body).toContain('action="/v1/admin/roles/synthetic-role/tools/az-axi/raw-api"')
   expect(role.body).toContain('action="/v1/admin/roles/synthetic-role/tools/vectra-axi/raw-api"')
-  expect(role.body).not.toContain('/tools/falcon-axi/raw-api"')
+  for (const name of ['falcon-axi', 'tenable-axi', 'awx-axi']) {
+    const page = await app.inject({ method: 'GET', url: `/admin/tools/${name}?tab=raw-api`, headers: { cookie } })
+    expect(page.body).toContain(`action="/v1/admin/tools/${name}/raw-api"`)
+    expect(role.body).toContain(`action="/v1/admin/roles/synthetic-role/tools/${name}/raw-api"`)
+  }
+  expect(role.body).not.toContain('/tools/ldap-axi/raw-api"')
 })
 
 async function browserCookie() {

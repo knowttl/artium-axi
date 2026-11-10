@@ -954,7 +954,8 @@ Start the candidate only against the rehearsal volume and verify fresh login, cr
 Migration 030 enables delegated token creation once for both new and upgraded stores, including stores where it was previously disabled, while preserving the lifetime cap and SSO sign-in window.
 Administrators can disable creation on `/admin/tokens` after migration; that choice survives subsequent restarts.
 See [delegated sessions](safety.md#delegated-sessions) for the creation switch's effect on existing tokens and revocation.
-Migration 031 sets the existing [governed Raw API tools](safety.md#raw-api-access) to `read` and enables raw access on their existing role tool grants, preserving raw reads while refusing raw mutations.
+Migration 031 sets the tools listed in its [migration](../src/server/store/migrations/031-raw-api.sql) to `read` and enables raw access on their existing role tool grants, preserving raw reads while refusing raw mutations.
+Falcon, Tenable and AWX are not included in that migration; their raw access remains subject to the [default restrictions](safety.md#raw-api-access).
 This is a one-time compatibility migration; tools and grants created afterward retain the default raw restrictions.
 During upgrade acceptance, check raw reads and mutation refusals separately from named commands; see the [administrative limitations](admin-guide.md#server-settings-and-custody).
 Migration 032 prepares the store for named credential instances; see [credential instance boundaries](safety.md#credential-instances) for current administration and execution limits.

@@ -243,11 +243,11 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | role children | read | supported | f | read |
 | role users | read | supported | f | read |
 | role teams | read | supported | f | read |
-| api get | read | blocked | f | read |
-| api post | configuration write | blocked | b | write |
-| api put | configuration write | blocked | b | write |
-| api patch | configuration write | blocked | b | write |
-| api delete | destructive | blocked | d | write |
+| api get | read | supported | f | read |
+| api post | configuration write | supported | b | write |
+| api put | configuration write | supported | b | write |
+| api patch | configuration write | supported | b | write |
+| api delete | destructive | supported | d | write |
 | home | read | supported | f | read |
 | auth login | client-local | managed equivalent | f | write |
 | auth status | read | supported | f | read |
@@ -2786,8 +2786,8 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | f | read | none |
-| --query | value | blocked | f | read | none |
+| --help | boolean | supported | f | read | none |
+| --query | value | supported | f | read | none |
 
 ### api post
 
@@ -2795,10 +2795,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --body-file | value | blocked | c | write | file |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --body-file | value | supported | c | write | file |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### api put
 
@@ -2806,10 +2806,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --body-file | value | blocked | c | write | file |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --body-file | value | supported | c | write | file |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### api patch
 
@@ -2817,10 +2817,10 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | b | write | none |
-| --body-file | value | blocked | c | write | file |
-| --confirm | boolean | blocked | b | write | none |
-| --dry-run | boolean | blocked | b | write | none |
+| --help | boolean | supported | b | write | none |
+| --body-file | value | supported | c | write | file |
+| --confirm | boolean | supported | b | write | none |
+| --dry-run | boolean | supported | b | write | none |
 
 ### api delete
 
@@ -2828,9 +2828,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | blocked | d | write | none |
-| --confirm | boolean | blocked | d | write | none |
-| --dry-run | boolean | blocked | d | write | none |
+| --help | boolean | supported | d | write | none |
+| --confirm | boolean | supported | d | write | none |
+| --dry-run | boolean | supported | d | write | none |
 
 ### home
 

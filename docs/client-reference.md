@@ -152,7 +152,7 @@ It captures bounded non-terminal stdin for Azure `rg query` (also `graph query`)
 Azure `api` captures non-terminal stdin only without an explicit body source (`--body`, `--body-file` or `--data`); method and path positionals do not supply a body.
 The pinned upstream accepts `--body` and `--body-file`; `--data` leaves stdin unread and is forwarded for normal unsupported-flag rejection.
 Flag values such as `--workspace <workspace>` do not count as positional input.
-Tool stdin is read to EOF with a fixed 5-second deadline, including Tenable file flags with `-`, Hybrid Analysis `--body-file -`, AWX credential `--inputs-file -` or user `--password-file -`, Proxmox `--protected-input`, and the Gitea explicit stdin flags described below.
+Tool stdin is read to EOF with a fixed 5-second deadline, including Tenable and Falcon file flags with `-`, Hybrid Analysis `--body-file -`, AWX credential `--inputs-file -` or user `--password-file -`, Proxmox `--protected-input`, and the Gitea explicit stdin flags described below.
 An open pipe that does not reach EOF fails with `INVALID_INPUT` and exit code 2 before sending a request, even if it has already supplied bytes.
 Close stdin, pass a local file with the relevant file flag, or use `--body`/`--body-file` for Azure `api`.
 Closed empty stdin remains valid transport input; the tool validates whether its command requires a query or body.
@@ -171,7 +171,8 @@ Clean URLs can be supplied inline or with `--scm-url @local-file`.
 See the [AWX safety boundary](safety.md#write-gates-by-tool) for SCM URL restrictions, credential input guidance, response redaction and the retained-log limitation.
 The server loads those structured values privately into upstream memory, keeping hosted process arguments free of secrets.
 For `--extra-vars`, Artium normalizes JSON/YAML objects to JSON for the pinned upstream parser; other structured flags preserve their text.
-All caller-supplied structured inputs remain opaque in previews and responses, including variables, survey and launch inputs, Ansible arguments, notification configuration/messages and uploaded structured files.
+Named-command structured inputs remain opaque in previews and responses, including variables, survey and launch inputs, Ansible arguments, notification configuration/messages and uploaded structured files.
+See [Raw API access](safety.md#raw-api-access) for AWX raw body redaction limits.
 Artium shows redacted placeholders with the original UTF-8 byte lengths; a hidden preview payload reports the combined input byte length.
 Workflow node create/edit and schedule extra variables use `extra_data` in private input metadata; other extra variables use `extra_vars`.
 Credential secrets continue to use the controlled file channel; see the [AWX boundary](safety.md#write-gates-by-tool) for the upstream protocol-token collision limitation.
@@ -191,6 +192,7 @@ Its native upload confirmation remains bound to the uploaded bytes and a stable 
 See the [Hybrid Analysis capability boundary](safety.md) for current download availability.
 Tenable uploads local inputs for the `adapterBoundary.inputFileFlags` declared in the [reviewed Tenable inventory](../tools/inventories/tenable-axi.json); each accepts `-` to read bounded stdin instead.
 Its run API accepts uploaded leaf names or `-` for explicit stdin; server file paths are unavailable.
+Falcon `--body-file` and `--query-file` also accept local uploads or `-` for bounded stdin.
 Check Point uploads private JSON inputs with `--input <local-file>`; the server receives only the uploaded leaf and materializes a private file for the pinned native parser.
 Check Point stdin and server paths are unavailable.
 Proxmox `--protected-input` accepts a private piped JSON object containing only `api` and `secrets`, at most 64 KiB; both fields must be objects.
