@@ -214,6 +214,14 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
   function invalidate(reference: CredentialReference | undefined): void {
     if (reference) for (const adapter of adapters) if (adapter.name === reference.tool) adapter.invalidateCredential?.(reference)
   }
+  function bumpInstances(tool: ToolName, actor: string, now: number, settings?: Record<string, unknown>): CredentialReference[] {
+    return (store?.listInstances(tool) ?? []).map(instance => {
+      const value = credentialStore().readCredential(instance) as Record<string, unknown>
+      const credential = splitSettings(tool, value).credential
+      if (settings !== undefined && !isAwxOriginOnly(tool, credential)) parse(schemaFor(tool), { ...credential, ...settings })
+      return credentialStore().replaceInstance(tool, instance.name, credential, instance.id, instance.revision, actor, now)
+    })
+  }
   function writeChange(request: FastifyRequest, actor: string, tool: ToolName,
     before: Record<string, unknown>, after: Record<string, unknown>): AuditEvent[] {
     const previous = writePolicies[tool].read(before)
@@ -311,18 +319,14 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
     const settings = writePolicies[tool].update(current.nativeSettings, input)
     const events = writeChange(request, actor, tool, current.nativeSettings, settings)
-    if (!events.length) return current
     let replacements: CredentialReference[] = []
     const result = audit.change(events, () => {
       authorize(request)
       const now = Date.now()
-      replacements = (store?.listInstances(tool) ?? []).map(instance => {
-        const value = credentialStore().readCredential(instance) as Record<string, unknown>
-        return credentialStore().replaceInstance(tool, instance.name, splitSettings(tool, value).credential, instance.id, instance.revision, actor, now)
-      })
-      db.prepare('UPDATE tools SET native_settings = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?')
+      replacements = bumpInstances(tool, actor, now)
+      if (events.length) db.prepare('UPDATE tools SET native_settings = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?')
         .run(JSON.stringify(settings), now, actor, tool)
-      db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
+      if (events.length || replacements.length) db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
       return readTool(tool)
     }).value
     replacements.forEach(invalidate)
@@ -366,7 +370,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const input = parse(adminToolRoutes.patch.input, request.body)
     const settings = input.nativeSettings === undefined ? undefined : parse(nativeSettingsSchemas[tool], input.nativeSettings)
     if (input.enabled && !adapters.some(adapter => adapter.name === tool)) throw new ArtiumError('TOOL_DISABLED')
-    let replacement: CredentialReference | undefined
+    let replacements: CredentialReference[] = []
     const events: AuditEvent[] = [{ event: 'admin-change', action: adminToolRoutes.patch.auditEvent, targetId: tool,
       userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }]
     const result = audit.change(events, () => {
@@ -376,22 +380,16 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       const now = Date.now()
       if (settings !== undefined) {
         events.push(...writeChange(request, actor, tool, current.nativeSettings, settings))
-        const reference = credentialStore().findCredential(tool)
-        if (reference) {
-          const value = credentialStore().readCredential(reference) as Record<string, unknown>
-          const credential = splitSettings(tool, value).credential
-          if (!isAwxOriginOnly(tool, credential)) parse(schemaFor(tool), { ...credential, ...settings })
-          replacement = credentialStore().replaceCredential(tool, credential, reference.revision!, actor, now)
-        }
+        replacements = bumpInstances(tool, actor, now, settings)
         db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
       }
       db.prepare(`UPDATE tools SET enabled = ?, native_settings = ?, pinned_version = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?`)
         .run(Number(input.enabled ?? current.enabled), JSON.stringify(settings ?? current.nativeSettings), toolManifests[tool].version, now, actor, tool)
       return readTool(tool)
     }).value
-    invalidate(replacement)
-    if (replacement) await health.refresh(tool, true)
-    return replacement ? readTool(tool) : result
+    replacements.forEach(invalidate)
+    if (replacements.length) await health.refresh(tool, true)
+    return replacements.length ? readTool(tool) : result
   } })
   const credentialRoutes = [adminToolRoutes.replace, adminToolRoutes.save, adminInstanceRoutes.create, adminInstanceRoutes.replace, adminInstanceRoutes.save]
   for (const route of credentialRoutes) app.route({ method: route.method, url: route.path, handler: async request => {

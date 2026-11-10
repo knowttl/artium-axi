@@ -1538,7 +1538,7 @@ test('write changes are audited without credentials or native setting values and
   const reference = store.findCredential('az-axi')
   const noOp = await request('PATCH', '/az-axi/write-access', { enabled: false, expectedRevision: 3 })
   expect(noOp.status).toBe(200)
-  expect(store.findCredential('az-axi')).toEqual(reference)
+  expect(store.findCredential('az-axi')).toEqual({ ...reference, revision: reference!.revision! + 1 })
   const records = db.prepare('SELECT * FROM audit').all()
   const changes = records.filter(record => (record as { event: string }).event === 'tool-write-access')
   expect(changes).toHaveLength(1)
@@ -2236,6 +2236,26 @@ test('a write access save bumps the revision of every instance', async () => {
   const revisions = () => ['east', 'west'].map(name => store.findInstance('falcon-axi', name)!.revision)
   const before = revisions()
   expect((await request('PATCH', '/falcon-axi/write-access', { enabled: true, operations: ['malquery search'],
+    expectedRevision: await toolRevision('falcon-axi') })).status).toBe(200)
+  expect(revisions()).toEqual(before.map(revision => revision + 1))
+})
+
+test('an unchanged write access save bumps the revision of every instance', async () => {
+  await createInstance('east', eastValue)
+  await createInstance('west', westValue)
+  const revisions = () => ['east', 'west'].map(name => store.findInstance('falcon-axi', name)!.revision)
+  const before = revisions()
+  expect((await request('PATCH', '/falcon-axi/write-access', { enabled: false,
+    expectedRevision: await toolRevision('falcon-axi') })).status).toBe(200)
+  expect(revisions()).toEqual(before.map(revision => revision + 1))
+})
+
+test('a native settings save bumps the revision of every instance', async () => {
+  await createInstance('east', eastValue)
+  await createInstance('west', westValue)
+  const revisions = () => ['east', 'west'].map(name => store.findInstance('falcon-axi', name)!.revision)
+  const before = revisions()
+  expect((await request('PATCH', '/falcon-axi', { nativeSettings: { allowWrites: true },
     expectedRevision: await toolRevision('falcon-axi') })).status).toBe(200)
   expect(revisions()).toEqual(before.map(revision => revision + 1))
 })
