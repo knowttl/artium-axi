@@ -2,12 +2,12 @@
   "generatedBy": "scripts/falcon-inventory.ts",
   "tool": "falcon-axi",
   "package": "@knowttl/falcon-axi",
-  "version": "1.0.0",
-  "integrity": "sha512-rHVLT59C2bkYsRAPuajWFd8SNRFegBj0QGsiyuSJcNrOrzrjT6YiNoVQrGHBcJoYwL7MgouOwJtch9G+Z1lK3A==",
+  "version": "1.0.1",
+  "integrity": "sha512-XG1EI5FLS5w2CwaZ+MgJwNFV9TIRwAuuK+vzlQOSRpgAD6N3hxjYhIdXa+tEe6/tVp26aaNwEabaVMHdAJ6aNQ==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "4c12d655c238db9a7d810e48cada2bcdcfcd89d12ff03030c503e1e066dd1a1b"
+      "sha256": "fff703a0d9831ef3fef1167b1139f1a08c36e9f8c5225af2a0d72c289acc0227"
     },
     {
       "path": "artium-invocations.json",
@@ -43,7 +43,7 @@
     },
     {
       "path": ".typescript-build/src/credentials.js",
-      "sha256": "3e5e9b650b0ede9c9102d91a9b043bcc768f2695f2190fa9e75f08fe4adbebb4"
+      "sha256": "ea0e57b3c671735de108d61c5917ed8d3740248cee28363e29663bc1c6c8aab2"
     },
     {
       "path": ".typescript-build/src/cursor.js",
@@ -183,11 +183,11 @@
     },
     {
       "path": ".typescript-build/src/version.js",
-      "sha256": "a12b0c6b8ead9495b7f81c4ee5ae4a51a1a3fe67c66c3274fa1a25cc2c4353fc"
+      "sha256": "c74c929111afb62230c4083d9645fe76aa477121367b30aae34e4e0e1dafd24c"
     },
     {
       "path": ".typescript-build/src/windows-acl.js",
-      "sha256": "b377dd66925049780540dd3ab4f2c539a6ba28e2e71aa15c6d806f34dfd7728b"
+      "sha256": "3bd31832901ce28f5d6cba8dbe1e22853fdc38bbef3b00b9eb262396f1ac2d58"
     },
     {
       "path": "native/prebuilds/linux-x64.node",

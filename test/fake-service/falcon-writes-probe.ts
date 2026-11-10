@@ -108,7 +108,7 @@ await withFakeService(async ({ directory, send }) => {
     assert.equal((await invoke(['detection', 'list'])).statusCode, 403)
     assert.ok((await evidence()).requests.every(row => row.canaryReceived), 'Every native request must use the managed canary identity')
     assert.doesNotMatch(JSON.stringify(db.prepare('SELECT * FROM audit').all()), /CANARY-|ARTIUM_SECRET_/)
-    console.log(JSON.stringify({ falcon: '1.0.0', writes: 'exact grants, default off', rtr: 'profile opt-in, command restriction, native confirm and cancellation cleanup',
+    console.log(JSON.stringify({ falcon: '1.0.1', writes: 'exact grants, default off', rtr: 'profile opt-in, command restriction, native confirm and cancellation cleanup',
       search: 'no automatic replay after lost response', network: 'guarded loopback only', credentials: 'profile SecretRefs and redacted audit' }))
   } finally { await app.close(); db.close(); await runner.shutdown() }
 }, () => held(), { port: 443, hosts: ['localhost', ...falconTestHosts] })

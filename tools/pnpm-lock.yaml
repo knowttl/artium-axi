@@ -24,8 +24,8 @@ importers:
         specifier: 0.1.6
         version: 0.1.6
       '@knowttl/falcon-axi':
-        specifier: 1.0.0
-        version: 1.0.0
+        specifier: 1.0.1
+        version: 1.0.1
       '@knowttl/gitea-axi':
         specifier: 0.1.4
         version: 0.1.4
@@ -124,8 +124,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/falcon-axi@1.0.0':
-    resolution: {integrity: sha512-rHVLT59C2bkYsRAPuajWFd8SNRFegBj0QGsiyuSJcNrOrzrjT6YiNoVQrGHBcJoYwL7MgouOwJtch9G+Z1lK3A==}
+  '@knowttl/falcon-axi@1.0.1':
+    resolution: {integrity: sha512-XG1EI5FLS5w2CwaZ+MgJwNFV9TIRwAuuK+vzlQOSRpgAD6N3hxjYhIdXa+tEe6/tVp26aaNwEabaVMHdAJ6aNQ==}
     engines: {node: '>=22.18.0'}
     hasBin: true
 
@@ -1257,7 +1257,7 @@ snapshots:
       axi-sdk-js: 0.1.13
       zod: 4.3.6
 
-  '@knowttl/falcon-axi@1.0.0':
+  '@knowttl/falcon-axi@1.0.1':
     dependencies:
       '@toon-format/toon': 4.1.1
       ajv: 8.20.0
