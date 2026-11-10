@@ -204,6 +204,18 @@ test('shutdown removes an in-flight preview directory', async () => {
   })
 })
 
+test('revoking a grant cancels an in-flight preview and removes its files', async () => {
+  await exportFixture(async ({ post, exportRoot, send, held, setPolicy }) => {
+    await send('/__shodan/count-wait')
+    const preview = post('/preview', download)
+    await held
+    expect(readdirSync(exportRoot)).toHaveLength(1)
+    setPolicy({ ...policy, grants: {} })
+    expect((await preview).statusCode).not.toBe(200)
+    expect(readdirSync(exportRoot)).toEqual([])
+  })
+})
+
 test('a retained export is removed when its retention elapses', async () => {
   await exportFixture(async ({ app, headers, post, finish, exportRoot }) => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })

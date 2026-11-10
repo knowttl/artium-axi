@@ -54,7 +54,7 @@ export function registerShodanExports(app: FastifyInstance, db: Database.Databas
   adapter: Adapter<unknown>, runner: Runner, audit: Audit, sessions: Sessions, denials: ReturnType<typeof auditShodanDenials>) {
   const prefix = '/v1/tools/shodan-axi/exports', root = join(dirname(db.name), 'tool-logs', 'shodan-axi', 'exports')
   const plans = new Map<string, Plan>(), jobs = new Map<string, Export>()
-  const pending = new Map<string, { user: string, controller: AbortController, job: Promise<unknown> }>()
+  const pending = new Map<string, Pick<Plan, 'owner' | 'credential' | 'operation' | 'binding'> & { controller: AbortController, job: Promise<unknown> }>()
   let closing = false
   denials.register((request, owner) => {
     const path = request.url.split('?')[0], body = request.body as { confirm?: unknown } | null
@@ -106,7 +106,7 @@ export function registerShodanExports(app: FastifyInstance, db: Database.Databas
       || input.maxBytes > policy.maxBytes || !await exportBoundsAreSufficient(input)) throw new ArtiumError('INVALID_INPUT')
     if (closing) throw new ArtiumError('CANCELLED')
     if (plans.size + pending.size >= 128 || [...plans.values()].filter(plan => plan.owner.user === owner.user).length
-      + [...pending.values()].filter(preview => preview.user === owner.user).length >= 8) throw new ArtiumError('TOO_MANY_CALLS')
+      + [...pending.values()].filter(preview => preview.owner.user === owner.user).length >= 8) throw new ArtiumError('TOO_MANY_CALLS')
     const id = randomUUID(), directory = join(root, `export-${id}`)
     const resource = { owner, credential, input, operation, binding: binding.hash, directory }
     const controller = new AbortController()
@@ -132,7 +132,7 @@ export function registerShodanExports(app: FastifyInstance, db: Database.Databas
         throw error
       } finally { pending.delete(id) }
     })
-    pending.set(id, { user: owner.user, controller, job })
+    pending.set(id, { ...resource, controller, job })
     return job
   })
 
@@ -224,6 +224,9 @@ export function registerShodanExports(app: FastifyInstance, db: Database.Databas
   })
 
   const reconcile = async () => {
+    await Promise.all([...pending.values()].map(async preview => {
+      try { authorize(preview) } catch { preview.controller.abort(); await preview.job.catch(() => {}) }
+    }))
     for (const plan of plans.values()) try { authorize(plan) } catch { await discardPlan(plan) }
     await Promise.all([...jobs.values()].map(async job => {
       try { authorize(job) } catch { job.controller.abort(); await job.job; await discardExport(job) }
