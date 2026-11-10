@@ -721,16 +721,16 @@ function privateFile(content: string, mode = 0o600) {
 
 test.each([
   { name: 'alert create', args: ['alert', 'create', 'edge', '192.0.2.0/24', '--allow-operation', 'OP-013', '--expires', '3600'],
-    body: { command: 'alert create', arguments: ['edge', '192.0.2.0/24'], expires: 3600 } },
+    body: { command: 'alert create', arguments: ['edge', '192.0.2.0/24'], allowOperations: ['OP-013'], expires: 3600 } },
   { name: 'alert ignore with CVEs', args: ['alert', 'ignore', 'a1', 'new_service', '192.0.2.1:80', '--vulns', 'CVE-2024-0001', '--allow-operation', 'OP-070'],
-    body: { command: 'alert ignore', arguments: ['a1', 'new_service', '192.0.2.1:80'], vulns: 'CVE-2024-0001' } },
+    body: { command: 'alert ignore', arguments: ['a1', 'new_service', '192.0.2.1:80'], allowOperations: ['OP-070'], vulns: 'CVE-2024-0001' } },
   { name: 'alert notifier remove', args: ['alert', 'notifier', 'remove', 'a1', 'n1', '--allow-operation', 'OP-024'],
-    body: { command: 'alert notifier remove', arguments: ['a1', 'n1'] } },
+    body: { command: 'alert notifier remove', arguments: ['a1', 'n1'], allowOperations: ['OP-024'] } },
   { name: 'org add without notification', args: ['org', 'add', 'member@example.test', '--silent', '--allow-operation', 'OP-037'],
-    body: { command: 'org add', arguments: ['member@example.test'], silent: true } },
-  { name: 'alert clear', args: ['alert', 'clear', '--allow-operation', 'OP-015'], body: { command: 'alert clear', arguments: [] } },
+    body: { command: 'org add', arguments: ['member@example.test'], allowOperations: ['OP-037'], silent: true } },
+  { name: 'alert clear', args: ['alert', 'clear', '--allow-operation', 'OP-015'], body: { command: 'alert clear', arguments: [], allowOperations: ['OP-015'] } },
   { name: 'alert domain', args: ['alert', 'domain', 'example.test', '--triggers', 'malware', '--allow-operation', 'OP-040,OP-013,OP-019'],
-    body: { command: 'alert domain', arguments: ['example.test'], triggers: 'malware' } },
+    body: { command: 'alert domain', arguments: ['example.test'], allowOperations: ['OP-040', 'OP-013', 'OP-019'], triggers: 'malware' } },
 ])('Shodan write preview sends $name', async ({ args, body }) => {
   requests = []
   response = { status: 200, body: { confirm: writeToken } }
@@ -748,8 +748,22 @@ test('Shodan notifier create and alert import send local file content, never a p
   await cli(['shodan-axi', 'notifier', 'create', '--body-file', notifierPath, '--allow-operation', 'OP-027', ...writeBounds])
   await cli(['shodan-axi', 'alert', 'import', importPath, '--allow-operation', 'OP-013,OP-019', ...writeBounds])
   expect(requests.filter(request => request.path.startsWith('/v1/tools/')).map(request => request.body)).toEqual([
-    { ...writeBody, command: 'notifier create', arguments: [], body: notifier },
-    { ...writeBody, command: 'alert import', arguments: [], body: alerts }])
+    { ...writeBody, command: 'notifier create', arguments: [], allowOperations: ['OP-027'], body: notifier },
+    { ...writeBody, command: 'alert import', arguments: [], allowOperations: ['OP-013', 'OP-019'], body: alerts }])
+})
+
+test.each([
+  { grants: 'OP-013', selected: ['OP-013'], execute: [], route: 'preview' },
+  { grants: 'OP-013,OP-019', selected: ['OP-013', 'OP-019'], execute: ['--execute', '--confirm', writeToken], route: 'execute' },
+])('Shodan alert import sends selected grants to $route', async ({ grants, selected, execute, route }) => {
+  requests = []
+  response = { status: 200, body: { confirm: writeToken } }
+  const alerts = JSON.stringify([{ name: 'edge', filters: { ip: ['192.0.2.0/24'] } }])
+  const path = privateFile(alerts)
+  expect(await cli(['shodan-axi', 'alert', 'import', path, '--allow-operation', grants, ...execute, ...writeBounds])).toMatchObject({ code: 0 })
+  expect(requests.filter(request => request.path.startsWith('/v1/tools/'))).toEqual([{ path: `/v1/tools/shodan-axi/writes/${route}`,
+    token: 'Bearer CANARY-cli-token', body: { ...writeBody, command: 'alert import', arguments: [], allowOperations: selected, body: alerts,
+      ...(execute.length ? { confirm: writeToken } : {}) }, version: cliVersion }])
 })
 
 test('Shodan write execute sends the confirmation and exits 1 on an uncertain outcome', async () => {
@@ -758,7 +772,7 @@ test('Shodan write execute sends the confirmation and exits 1 on an uncertain ou
   expect(await cli(['shodan-axi', 'alert', 'remove', 'a1', '--allow-operation', 'OP-015', '--execute', '--confirm', writeToken, ...writeBounds]))
     .toMatchObject({ code: 1, stdout: '{"status":"OUTCOME_UNKNOWN","completed":[],"unsent":[]}\n' })
   expect(requests.filter(request => request.path.startsWith('/v1/tools/'))).toEqual([{ path: '/v1/tools/shodan-axi/writes/execute',
-    token: 'Bearer CANARY-cli-token', body: { ...writeBody, command: 'alert remove', arguments: ['a1'], confirm: writeToken }, version: cliVersion }])
+    token: 'Bearer CANARY-cli-token', body: { ...writeBody, command: 'alert remove', arguments: ['a1'], allowOperations: ['OP-015'], confirm: writeToken }, version: cliVersion }])
 })
 
 test.each([

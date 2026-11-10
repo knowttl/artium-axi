@@ -75,7 +75,7 @@ export async function shodanWrite(args: string[], createClient: () => Client, ou
     try { parsed = shodanNotifierBody.safeParse(JSON.parse(body)) } catch { throw new ArtiumError('INVALID_INPUT', 'The notifier file is not valid JSON.') }
     if (!parsed.success || command === 'notifier create' && !parsed.data.provider) throw new ArtiumError('INVALID_INPUT', 'The notifier file needs an args object, and a provider for create.')
   }
-  const parsed = shodanWriteInput.safeParse({ command, arguments: positional, queryCreditBudget: integer('--query-credit-budget'), maxRequests: integer('--max-requests'),
+  const parsed = shodanWriteInput.safeParse({ command, arguments: positional, allowOperations: grants, queryCreditBudget: integer('--query-credit-budget'), maxRequests: integer('--max-requests'),
     expires: integer('--expires'), vulns: values.get('--vulns'), silent: switches.has('--silent') || undefined, triggers: values.get('--triggers'), body, acceptUnknownCost: true })
   if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
   const client = createClient()
