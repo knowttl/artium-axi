@@ -2,16 +2,16 @@
   "generatedBy": "scripts/falcon-inventory.ts",
   "tool": "falcon-axi",
   "package": "@knowttl/falcon-axi",
-  "version": "1.0.0-rc.4",
-  "integrity": "sha512-25lEUN0gGynrmjqtC60i5nq8iOmkrLtmVzMGt022VwM1BlcZWMMJ+lWNIGdPZ4oxn4bFW/xD89i879tUAE/Wtw==",
+  "version": "1.0.0",
+  "integrity": "sha512-rHVLT59C2bkYsRAPuajWFd8SNRFegBj0QGsiyuSJcNrOrzrjT6YiNoVQrGHBcJoYwL7MgouOwJtch9G+Z1lK3A==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "46ecc80d900c5cbf467bef5160f62912e5abe2018b65295f076b8efed1a59bf8"
+      "sha256": "4c12d655c238db9a7d810e48cada2bcdcfcd89d12ff03030c503e1e066dd1a1b"
     },
     {
       "path": "artium-invocations.json",
-      "sha256": "4a4db595eb34ed8c4d68657d30d9e2af697dbb6a1e55d252f62fc8e410ec3f08"
+      "sha256": "4ca8b41fb1d7b5d0aa1bc6c6939f039de8680669c597aab32b45deca30436f15"
     },
     {
       "path": ".typescript-build/native/checksums.json",
@@ -19,7 +19,7 @@
     },
     {
       "path": ".typescript-build/src/auth.js",
-      "sha256": "3ae6f8c0fc0bf2df88fcbc70a3a0272b62a81991ffd0679294781acb8dff2969"
+      "sha256": "dd96af8f75a4f058890ebce2de7f2f17178156f6b1c17fe2545be09a414c055a"
     },
     {
       "path": ".typescript-build/src/axi-credential.schema.json",
@@ -55,7 +55,7 @@
     },
     {
       "path": ".typescript-build/src/executable.js",
-      "sha256": "14a1130f263f47cc391c36b025fb844f1520bb17b7107d12915f1e043aec39b4"
+      "sha256": "f09956740a152c3ac4049c240a17ed2109d728022c4d47c91cbf49a3d447cd96"
     },
     {
       "path": ".typescript-build/src/exposure.js",
@@ -139,7 +139,7 @@
     },
     {
       "path": ".typescript-build/src/search.js",
-      "sha256": "7eff561a197932fa1c81bebd1c53d0ff3b644e09bec069b0760f9dd51a8c1fbf"
+      "sha256": "e58e396941110561acb9fb54226a1b1d935fd7d3528ee21687b69a68410a739d"
     },
     {
       "path": ".typescript-build/src/setup.js",
@@ -183,7 +183,7 @@
     },
     {
       "path": ".typescript-build/src/version.js",
-      "sha256": "b89b12e029cf9d9ac22ea6dcfef9429e7a0be5333dba0f844e96e1e3fcbb5069"
+      "sha256": "a12b0c6b8ead9495b7f81c4ee5ae4a51a1a3fe67c66c3274fa1a25cc2c4353fc"
     },
     {
       "path": ".typescript-build/src/windows-acl.js",
@@ -199,427 +199,427 @@
     },
     {
       "path": "skills/falcon-axi/references/account-list.md",
-      "sha256": "ab71c1713cb5b1e53c46acb15b2471c628f9a84b1459801cf240e62cb16c2553"
+      "sha256": "e2df5bb2e0f8ac2f6270434a3fd9fa6e8f24196f4eaddfb7c04a4dd03463b3ba"
     },
     {
       "path": "skills/falcon-axi/references/account-show.md",
-      "sha256": "ba11da413c9bca8a051f7abdbd7844d10361b31caa0db9a966a1df4f6a160818"
+      "sha256": "16cb087323619106d36857e4b187da14d67c554118de4f72b9bd02bf8a8af17f"
     },
     {
       "path": "skills/falcon-axi/references/actor-list.md",
-      "sha256": "9f96251573d4e783e2c3882afc3b8a39d6ce6d45a3ab373c6de745703d29541e"
+      "sha256": "713afe02acdbcc7b5891703e1632fee094e7fbd736b4ef46bd1b29db7db77e98"
     },
     {
       "path": "skills/falcon-axi/references/actor-show.md",
-      "sha256": "18f68a41c79af3cb825bb11ddfd2476e1eb769762a6ee9a14ef24e686fedd95e"
+      "sha256": "c8992079513d12c18510fd9ec3d70af0fe19efec6c148f82105b9440b19ae782"
     },
     {
       "path": "skills/falcon-axi/references/agent-guide.md",
-      "sha256": "513b189fc9a9043774e1885278af9eb5008fe0d1003b2112f041db63b99982ae"
+      "sha256": "e9ed7e3cacfc3430b398f094fb7bbb5e064cf65610598f6225851aa33e4ef024"
     },
     {
       "path": "skills/falcon-axi/references/application-list.md",
-      "sha256": "124946816d32aa8e595af7c8449aae3bed15901843de1473165ef7576bb5a66b"
+      "sha256": "432a73b9649fdd0b3e413a6f11d97a03b40a366105d7c4963c1003eec824c0a3"
     },
     {
       "path": "skills/falcon-axi/references/asset-list.md",
-      "sha256": "8578576ef9ea7bfd0b4a0f331419810bb771b4baa9e53ca68795c11a2d6be68c"
+      "sha256": "0eddd34be8712f298656b9d08544c734a676b2eedd03641ca0d9dd12c17b8c01"
     },
     {
       "path": "skills/falcon-axi/references/asset-show.md",
-      "sha256": "96b36b6ba5baec8a01ba2995a9bdd47b1a4be49f8a2ad73fb368947fa727f743"
+      "sha256": "d2c77bcb1bf25fdab838f8f6cdbc76f9858492012712f4dab13c7ae9e15b1fca"
     },
     {
       "path": "skills/falcon-axi/references/auth-status.md",
-      "sha256": "1505d64a6f9f7541257989e1bf63723a73329bd2f1e3a7ca4c89fee8c924392e"
+      "sha256": "9f9a4a411544f45b89e2a8d086c6ce2471951f904932c6a7d974295850b9f293"
     },
     {
       "path": "skills/falcon-axi/references/case-list.md",
-      "sha256": "0764df168026e986afb8a749d2a5bd1eb18a0cb58356197e2448810507c2b224"
+      "sha256": "057facbff9e83f25775e07695199d0c9f0bc9fa6f8f17a10ae7db0d89d61e44b"
     },
     {
       "path": "skills/falcon-axi/references/case-show.md",
-      "sha256": "6b307addf6223d25e8fa5b94708d6135c319fa4f96bcc1b49bb3f9cc9a46e126"
+      "sha256": "f26dadede9cca069ce9666108348dce685c50e61329dd77851d3fc68d3004a42"
     },
     {
       "path": "skills/falcon-axi/references/classification-list.md",
-      "sha256": "23e5ac0eecaad46526dc42ca5e9a07b9cb5b54fe57fc1d05883fbea9ce3d7a57"
+      "sha256": "6a15aa0988856aaf8f8198246235a6f7c675aa7d5eae7ff04cdd78d2649a302f"
     },
     {
       "path": "skills/falcon-axi/references/classification-show.md",
-      "sha256": "d4aead701ccd0989ed448c9908ed162645bdd43e22b217d822fb45e89b60999c"
+      "sha256": "37cc8dfb9f8d7478625271d49b1a258e72a877e246b95500506451c71c82e479"
     },
     {
       "path": "skills/falcon-axi/references/cloud-asset-list.md",
-      "sha256": "a26c2af04fab5579ae3ea4de6d1a63faac503aabe05ed2cb2d401b86dd9b96a9"
+      "sha256": "b98cf80c53cbd77eca2ea475a9e0797b7c77cd0dd52e4fd3b607981156b79d19"
     },
     {
       "path": "skills/falcon-axi/references/cloud-asset-show.md",
-      "sha256": "ce5cd03573c78c3624400a12dbb50d66c9c2de34e22beba46c8195dc17476097"
+      "sha256": "ca8fc722dd41b2a401f84a9abf6b59ed4671cd2ef3aaece54eeeef16ee9b524f"
     },
     {
       "path": "skills/falcon-axi/references/cloud-risk-list.md",
-      "sha256": "16813b732cd3eb0a12669a4f55c62b2955992d9ef4474b52982c9f7a6485326c"
+      "sha256": "476afe2c05d447420e9df46b42353e3299933f9a02c0394160066db11c0320a0"
     },
     {
       "path": "skills/falcon-axi/references/config-path.md",
-      "sha256": "efbd0c172526c324ffb765bb71816b0a4870f117868bb376823f030c57eeab13"
+      "sha256": "76b80b41a1a3515fe2325bb6643922560260ca855ba41d166c7f01278d3dcfd6"
     },
     {
       "path": "skills/falcon-axi/references/container-list.md",
-      "sha256": "045daed5ce27dc5f4c6ec8f570707643763802b3c0a05038b42996bce1ad8a4f"
+      "sha256": "c26ec34eae8ee8f6dcaa9a727d189ea574a0449e16f644de62fe9f312b82d697"
     },
     {
       "path": "skills/falcon-axi/references/correlation-rule-list.md",
-      "sha256": "c8252af639067e27cee3f256c662afbdc670ca5a5c789d811fef205feec05c87"
+      "sha256": "25e8d14e443a3b05edd3a857328408dfe54a8cd043683aa2bb7a7220d3bd4c87"
     },
     {
       "path": "skills/falcon-axi/references/cve-list.md",
-      "sha256": "cb52c10504c06d95537d0a2f395fc6d1a1cbbf3ad16febb1338a2270de9a7a35"
+      "sha256": "11ba4ceb905404511bb4f7f41c4bac1903d8fc4118beb1bd00507b0a68ec22b3"
     },
     {
       "path": "skills/falcon-axi/references/cve-show.md",
-      "sha256": "752f8abc9c2064ca607d0701fb9a6147c1f9c25543dd61a638570af587cdf97c"
+      "sha256": "852cb9e5e763904fbca30b0b8d65f1bbd6fec23676a3079a7a1550c067d66a06"
     },
     {
       "path": "skills/falcon-axi/references/data-policy-list.md",
-      "sha256": "6d1cb9d71de9b02e8281280b8f812188044015609f3126681012ef5bdc009bd9"
+      "sha256": "a3516a72cc7cb6481066c4304b33a671e47b7331450bd00ecedaccd767b887e9"
     },
     {
       "path": "skills/falcon-axi/references/data-policy-show.md",
-      "sha256": "a3534b578ae26cbbd6d0a4d49478fae0f08fc4e68db02ca32b5142a5253480b5"
+      "sha256": "b4cfd640f5bab4100d20cbdf9aa72bfa7a1cafdf8201703f3671e3530d14a660"
     },
     {
       "path": "skills/falcon-axi/references/detection-list.md",
-      "sha256": "37323b33c19efb9c4ed62a16bb9b5e4390d4056ca657336eb00cc85dd34e560d"
+      "sha256": "f851c67d9efc71c664933b38ae4ff29c7306ba33ce4167f65ef75e4f5aa3f03d"
     },
     {
       "path": "skills/falcon-axi/references/detection-process.md",
-      "sha256": "856a8abcfe8e06d041e9c7bc636d968105a1a423a2de0469e9b87aa2df8b8949"
+      "sha256": "c7b2a9ceb043493c1c50f07632abda1c7518850553ad16e3f0e072a36e7b4e2b"
     },
     {
       "path": "skills/falcon-axi/references/detection-show.md",
-      "sha256": "c86d2dfd232f7f54874a592dd976186f9c618810fa2f05cb313312da96e36eeb"
+      "sha256": "f032adb94e04f28e8f661a711e0b64b58c828abfe53af73f065b93a2048f731f"
     },
     {
       "path": "skills/falcon-axi/references/detection-summary.md",
-      "sha256": "681632c117001eca5371788e11f7cacc1b8033e29339c2b0b2948056b0a7b780"
+      "sha256": "7e6ed1f165cc1989c6b868693bed16d9213c52ecb5cb1e8431da2efe27d5441a"
     },
     {
       "path": "skills/falcon-axi/references/exclusion-list.md",
-      "sha256": "625d76d0253105c38b2eddf1571ac49997769b21e26c7d00177b7cb9e9a9f44c"
+      "sha256": "f1737734df17bffe2aabe28c1fc04c0b869f73570273b9270c77dc2de2e3b3a6"
     },
     {
       "path": "skills/falcon-axi/references/exclusion-show.md",
-      "sha256": "3ade56194b22f4eee4dc1c53c1f2661921f03d2adfd961645eb65126bfed80d7"
+      "sha256": "5d575a304ee250c728c36ddce32729c980fc6ab260d0b9fda059c2ba3d1df210"
     },
     {
       "path": "skills/falcon-axi/references/file-change-list.md",
-      "sha256": "4123c07eb95d77d86d5cd3f95d2a8dbdf5fd31e281a73e9f7fcce371678b12f2"
+      "sha256": "94602cf0179332c5c87cd3bdeb3024196f3af1e630014fd6d6e9471d14e90853"
     },
     {
       "path": "skills/falcon-axi/references/file-change-show.md",
-      "sha256": "5401bac03ce11a4cd61e45de56a44584625ca9ca337d3654531e2f55bf3920e4"
+      "sha256": "3a38023c1d3523aee6b0f5a68fe4d907cdca77dfe4749b12ca8462ff3f364cc7"
     },
     {
       "path": "skills/falcon-axi/references/firewall-group-list.md",
-      "sha256": "7d2b5829fbefc5db3578a28f04ca33082e6024d7f4f804ecca9e72b8a4c59b63"
+      "sha256": "1a33841cf4964d26687ebdb2f8dbddd214ff1625e8f631c4f1efbd6520c7fa94"
     },
     {
       "path": "skills/falcon-axi/references/firewall-rule-list.md",
-      "sha256": "1f806292a17ad1573d17176e5b9c5ff637718381bfaed00b95d9a031a6dcb592"
+      "sha256": "41dd9dc09742667ff4d4e12554881c453962cdc1514fb5d0cdbfc5657de9da78"
     },
     {
       "path": "skills/falcon-axi/references/firewall-rule-show.md",
-      "sha256": "837f367a1d3b4e307f1f6adf70734ed53a95e87e89f7cc58921fe585829a2d29"
+      "sha256": "b863148034f70099093c7fa8b1a4c18346331e7189327c004030a5ddcbf9cee9"
     },
     {
       "path": "skills/falcon-axi/references/host-group-list.md",
-      "sha256": "3e7bd33b4ece2015c1550fd67d0e7fc63e87383cbd9e1cad6e1eeeade2db7702"
+      "sha256": "bed07b67a15e5935ba945a1c2db27f09d095c075725da195a03f0059ee145ff6"
     },
     {
       "path": "skills/falcon-axi/references/host-group-members.md",
-      "sha256": "e49dd5ecb949146a1bed3a0dc038e6936fb8a762c01a418e3f1c6f547e9efa2c"
+      "sha256": "2391df89c5fa5425f81df338e0a4f076dfad314caef32c898d41d2badc531a7a"
     },
     {
       "path": "skills/falcon-axi/references/host-list.md",
-      "sha256": "6db32a39037236272d6c7183e08039cdd1fb5f1f4148610990ca952dad895e08"
+      "sha256": "e9c2a6a21947f19b2dadd0b9aacafe0f2f6c2cf4dd7ea0008a7d57435f10239a"
     },
     {
       "path": "skills/falcon-axi/references/host-logins.md",
-      "sha256": "e7ab70f30578d122bf028640d8865a8d87fa930733c6e032f9c6e60f3db31b0a"
+      "sha256": "698077a24ae4d7e1832f3c2c11615c947c64d476773f4ad27e0c3c676cdf8fcf"
     },
     {
       "path": "skills/falcon-axi/references/host-network.md",
-      "sha256": "8c60ad8bea643d2e62842be15e2b4efcc7b1edbbbaef8b49bc39d7563526a055"
+      "sha256": "ca51d9cda0f6b8b5a15a4fc50be3b1bce361019ae739ef027590933060dce181"
     },
     {
       "path": "skills/falcon-axi/references/host-show.md",
-      "sha256": "b041bc52861cff9dab4af36dd28ced25ebea5c2a29cb2696870ec79cb5b96cd1"
+      "sha256": "836d8110f61334c8572f8de15713a7bf518b6281f7e08d724f9f397a3984210c"
     },
     {
       "path": "skills/falcon-axi/references/host-usb.md",
-      "sha256": "f42b2dce73da44a9836e5e49d335e2ed033029b8366c70f7dbbae2c3fef61daa"
+      "sha256": "d83f089ddc91ebe27b5055beacb1074c1e7c965c08ad24e3e8c41839aa3beb75"
     },
     {
       "path": "skills/falcon-axi/references/identity-activity.md",
-      "sha256": "ff05f59e3edefbca6f17f7df94607c5e365c8ef0478d8e0bc75997b434b06eed"
+      "sha256": "10b2172fd5b0df3f507e2d17901a356a002aa41410b5a6a406bd00e5ce7075db"
     },
     {
       "path": "skills/falcon-axi/references/identity-assessment.md",
-      "sha256": "0a1e6108f5bda8e819665fb7ae4625258b5b570dbbe88afb676aeb5ed8e4ec17"
+      "sha256": "f61ccc39a4bc44203dd9ec5823b4cffa70018ac596bd41d98a90a4a0479c2b3a"
     },
     {
       "path": "skills/falcon-axi/references/identity-list.md",
-      "sha256": "0b1e7006c71b2b5aaabea1403c6a8e3b1d2d5769d2cb2e477e212ade5f615b58"
+      "sha256": "37cbd9f92894c6cf122371ce2252ed19864271e818a2a9289c54acb3c62e5a47"
     },
     {
       "path": "skills/falcon-axi/references/identity-rule-list.md",
-      "sha256": "bcc2b2d0f37d5aaf8c96ff7994bbf9e5177649fa317399b27c59a101d3a87323"
+      "sha256": "dec644d4c143f19ce296c8e6458bdf05db7634a0a9ae081fab9a68665648b807"
     },
     {
       "path": "skills/falcon-axi/references/identity-rule-show.md",
-      "sha256": "816f454f67f56b65d2c4ddae805fde740b5630dbcf4cc595c40aed3e58b183fd"
+      "sha256": "c7c43e459b24edcc6ffc4cfb9343d1c779c6205bdd72d55cc979770082913678"
     },
     {
       "path": "skills/falcon-axi/references/identity-sensor-list.md",
-      "sha256": "75f22f33580786877a43d25d3af179ef8b9a4967a1379cc1e837a575ebcb4e7d"
+      "sha256": "600b4b302debb9f2636e22fc5926937535b3a0283eb5f816cfbe9c74e3f506f4"
     },
     {
       "path": "skills/falcon-axi/references/identity-sensor-show.md",
-      "sha256": "b0653df7a42b5f54522473e846926b9e6594dfbb83d9f17280f780d562a00598"
+      "sha256": "cf3b9c50806ae9ff58a652678a655c6efca31acfcf84190291ad23f1bdef6c77"
     },
     {
       "path": "skills/falcon-axi/references/identity-show.md",
-      "sha256": "9aba31e0467238c2b52437b938d779e1875b1cde0fa0c212436ac6bf97bccf87"
+      "sha256": "505c8b6f05eef0a986dee71a834c3de50e476732c4f9ab2c9ebe227cc2eb7924"
     },
     {
       "path": "skills/falcon-axi/references/identity-timeline.md",
-      "sha256": "63e6d1c1dfd656308145ceba562a65551d98d69510677afdc5a7fba2e3c86183"
+      "sha256": "469ba41aa0146fa9dbfac9a9dd78a7ac85beed1d66b339199910094200fae0bb"
     },
     {
       "path": "skills/falcon-axi/references/image-list.md",
-      "sha256": "aa55c575b2ddafeba2ce9f95c5d4cec73baaae1d5d424a7832697c29a02f4ff2"
+      "sha256": "ea5cf6c5dedb86b24deb1d8ab49e24110d8b2cd1d2739b230685ad5f29ffe9cc"
     },
     {
       "path": "skills/falcon-axi/references/image-vulnerabilities.md",
-      "sha256": "a34b156c2345edd2b178e79a21203468165ef556b8928d9f92dc94601f2bab20"
+      "sha256": "9ef068c8831b401057682d9381f4a93e61c190b50c4b76734a958ee905a16858"
     },
     {
       "path": "skills/falcon-axi/references/indicator-list.md",
-      "sha256": "9a1e87f3dbdf379e3115c1edda1262719700cdebb13521cd6afbae9bbdb515c9"
+      "sha256": "8a307084012d0382fb3eaa8c70d45a76fe447fe2d6a7b3185365f2cbc4cebfe7"
     },
     {
       "path": "skills/falcon-axi/references/indicator-show.md",
-      "sha256": "b6723c8106575cac72a406c429025d29536095ed74f42783c365e8d431d2aa16"
+      "sha256": "172f4c74e4407f1c0c1fb21614a72515c90e4f69366a7c7c3935335f1ee5991e"
     },
     {
       "path": "skills/falcon-axi/references/ioa-group-list.md",
-      "sha256": "2a1e8a68b65a5ad067dd86ae62024ecdde2f70fd8cd48824b1cfadb3e51d668d"
+      "sha256": "b702759c964f02861989d69c636719a840b92c3d32cc9405d9c4948c0f8a50f5"
     },
     {
       "path": "skills/falcon-axi/references/ioc-hosts.md",
-      "sha256": "496ef6f16684192e2a99ac7ea44eb09fc1c288f439257f83c4569279bbc7cab9"
+      "sha256": "fa1a72fe6b876a0e1b928830c42983f5fdf83083334fcfb3653033aec54e66fc"
     },
     {
       "path": "skills/falcon-axi/references/ioc-list.md",
-      "sha256": "bceaf900f0f41fd53848f93cbe5b4c19b679c91a3b87de1b7b39d392b8fda812"
+      "sha256": "41f00f4a14890fcf3d54c92e483a07c58f846ce2dd04fc9feed3168ef6b266ed"
     },
     {
       "path": "skills/falcon-axi/references/ioc-processes.md",
-      "sha256": "fd1843d13d5dac2d32c9736e4bb9ffe6a581cf0011abb09c5c2b1dcda76cf06a"
+      "sha256": "ff803e45b2edb9c4f54c9b718aba60a55dd2fe97ea9637859a78a01e54c9f470"
     },
     {
       "path": "skills/falcon-axi/references/ioc-show.md",
-      "sha256": "c4aa827d51c8088296d14fa8fa071513c8ff655be3ed5204b1cd01517ffd7c84"
+      "sha256": "6255876bc0c4dd5cd803d8f01eeebcd712759144ed9b609b92acdb7f68a05b55"
     },
     {
       "path": "skills/falcon-axi/references/iom-list.md",
-      "sha256": "bd54ede4fd7f47e5207f3b11eebaaacac72ab142e1f3efed0d1e9737b7389f65"
+      "sha256": "724a6cd2a949ca869ea719d607621fe5b6812b0b4b23bb23e395cf4ac704392b"
     },
     {
       "path": "skills/falcon-axi/references/iom-show.md",
-      "sha256": "c600bd776db9f4a68e5cfea5c915a62435943ca1d0aab37851372f69cef23df7"
+      "sha256": "649445595dc3bdb601b40f11fbe91f90c0690ae4f01e8220ef42f06ad168ca89"
     },
     {
       "path": "skills/falcon-axi/references/iot-list.md",
-      "sha256": "7efb9a3736394f7a7da8e902fea6994fec34638386cd905f8122a57a8a803743"
+      "sha256": "58ce3e9255f5250ddf24297860755da1c943e3f302a43ba282477233b2e88424"
     },
     {
       "path": "skills/falcon-axi/references/login-list.md",
-      "sha256": "a1fb9006b807e9f18787fbc8190dad39a7fdd1e0846a06b15e46722012961e47"
+      "sha256": "05117a5e5992c117b99868bb3b4392c8598f12ad6cfd7caf3fe8fa1b9835fd49"
     },
     {
       "path": "skills/falcon-axi/references/malquery-quota.md",
-      "sha256": "7a755700976f3ff0d884089072a42c73c7fa95ba8192192b097705adb6e57b18"
+      "sha256": "577943636a5fef3afff1d8617f2ece8cbd1e797f18c278447589de587f39690f"
     },
     {
       "path": "skills/falcon-axi/references/malquery-search.md",
-      "sha256": "c83cfe63decca897de8bc295b291eb9dec7c43f6db21f17c31a06bab6ec41dfa"
+      "sha256": "9e348190c483a799229e7170b7858d973b9ca719ce0904b5f9c11cd27ea3ffa2"
     },
     {
       "path": "skills/falcon-axi/references/malquery-show.md",
-      "sha256": "df1de29466c4433a53d12933e04266557cc7ffac52576642c7c753453ec5d537"
+      "sha256": "5d1045932e345febc5445367832105146fb36b3706fa5e3b212bad4ee0a302bb"
     },
     {
       "path": "skills/falcon-axi/references/malquery-status.md",
-      "sha256": "419ca49824ef19a3f4137419ae574eab3dcec05040596371e6045e017447d599"
+      "sha256": "de49839d949b1712ae3aa1a5f5a44b944c103a67ed98b75f8d04266b884b5cdf"
     },
     {
       "path": "skills/falcon-axi/references/malware-list.md",
-      "sha256": "b8a4d2bee69a2428d251b506fb0e73efbd2c3e9a591cdd19c5136a09c94bc88d"
+      "sha256": "a870dbe1e82f8a526a0c790d0ddd68238435428e15af264e35e042a64ced2367"
     },
     {
       "path": "skills/falcon-axi/references/malware-show.md",
-      "sha256": "41d1465b9f9d76c8e3cc331e91db80203cc6948abcda4e330b0f8d76b81d2731"
+      "sha256": "cbdaf50b63e292f8e689341354265958752939c259f6994519579098c25eaf19"
     },
     {
       "path": "skills/falcon-axi/references/policy-list.md",
-      "sha256": "488fe33fc2506576c541e71024bd5cc8f339d9b65b10ad6d1473733e0c95e21c"
+      "sha256": "44bbcb7075cc2b40348543f5cb825939726ea94f2a1bad2e61c0ab7f8114dd44"
     },
     {
       "path": "skills/falcon-axi/references/policy-members.md",
-      "sha256": "5286da81dcaf0c9b34c7a65f97b3b5280c7e43a85c4fa992f5453affe3649cc6"
+      "sha256": "0a4a191bcdd0bb9fa37d6ae20ef9cdf187b0bb5df1fda42f497c817361cd6b41"
     },
     {
       "path": "skills/falcon-axi/references/policy-show.md",
-      "sha256": "3e4f5e0092515846d80ec6fc59200a85d40a59b1a84994a5780f61294824886d"
+      "sha256": "be0c56324d1e1ba20b939f9035d1b03aa63f21819cc3a806d51d6d2e66cfb3f0"
     },
     {
       "path": "skills/falcon-axi/references/process-show.md",
-      "sha256": "2cf40e5ffe28ebaea48d82a07b7d1f219482aa04cf03ae6979d185857115e0a8"
+      "sha256": "209cd270cfeeb359719554e41954551c4e2f031499ac300c9cd0b164f96199e7"
     },
     {
       "path": "skills/falcon-axi/references/process-tree.md",
-      "sha256": "1f70328281de74a0dc395ba6339994d2850a70532e258a1293f7cabdff4977aa"
+      "sha256": "69b137c19a8891ba45ff6a9a9fb01947cae48a99efda8cd946d3f49c8caa516b"
     },
     {
       "path": "skills/falcon-axi/references/profile-list.md",
-      "sha256": "7fdb08b25b250b25cce33e4c6333b58c144785a6474908dab39366461d37c80f"
+      "sha256": "daedd1f845d86a6fd94a413964f4d22140b0c044a50b56184db8ed0e8661e7d1"
     },
     {
       "path": "skills/falcon-axi/references/quarantine-list.md",
-      "sha256": "1606cc5d637c2c0752995e2c8cab8521f790aa2396bc8fc25d8e5d52f8e208a6"
+      "sha256": "d32ebf57658d1d560beec0b2e5881484dd1cca35e903d45f7401308788dba132"
     },
     {
       "path": "skills/falcon-axi/references/quarantine-show.md",
-      "sha256": "f8c7cdbfa58f1583e5ec34a7a6fe146b7c2cd3935143a00064bd7d73b6af74f4"
+      "sha256": "516fd01d9e7b6faff9d6d3f92e8a2ca8769d1c11fad2afb44065a644e392d27b"
     },
     {
       "path": "skills/falcon-axi/references/raw-get.md",
-      "sha256": "9ba4c001e37a952c17ed39c17a0a07f47030b8c67911a8732b7f5a194b09255f"
+      "sha256": "8fdaf318946a913bba96cfa0ddd08a6b7dc6abed748f931b497b771766243b14"
     },
     {
       "path": "skills/falcon-axi/references/raw-write.md",
-      "sha256": "99320ae796390cdd338ac126769c4abf24ee9485290ceea974bfdec6256a21a9"
+      "sha256": "0efc02347cd493909aa44008988f7195fb268605c1d64ff35e7107e63bf35ebb"
     },
     {
       "path": "skills/falcon-axi/references/recon-notification-list.md",
-      "sha256": "cac492a39b08997b21b120665233f0237f6967261172f412bd741563d2639993"
+      "sha256": "1e5131f403150b906a47e58e4af11dee0bb0afc8ee2df1d476f379f7fdd8d9c6"
     },
     {
       "path": "skills/falcon-axi/references/recon-notification-show.md",
-      "sha256": "d80578b1cc2ef81a8b6181e9a65072a52a2a71170a8fcac570dffc9fa2f044d0"
+      "sha256": "a913e819451853754c92b117dd4ba1ef4d4b7320890699984318fff18db4fb17"
     },
     {
       "path": "skills/falcon-axi/references/recon-record-list.md",
-      "sha256": "1bb79074f272376dcafd9e0464cf630d3fdeb3570bec4169b96dbee967a50875"
+      "sha256": "a2ac9087855bf812644629f627f85abce74d95844ee552281f16fbeafd0c4521"
     },
     {
       "path": "skills/falcon-axi/references/recon-record-show.md",
-      "sha256": "96fe71cde5a53dd8af4d99dd1ebcc772f6fbef4f3d675d7cd024a8ad68e1864b"
+      "sha256": "1b907e673e697baa6d265fc6d6d57fd69ca270e5b614f54e6801e50c08fda3a1"
     },
     {
       "path": "skills/falcon-axi/references/recon-rule-list.md",
-      "sha256": "fa504eeea17a35228aafd9dbb0bd7de0c558d30d3b2071902e8a0e28e0944278"
+      "sha256": "f1e02bf190ce2333238272798ad4c4b6a3c329beb17d5dcc60541f0639968ea7"
     },
     {
       "path": "skills/falcon-axi/references/recon-rule-show.md",
-      "sha256": "e5aee7d8088619f5213b963f07dc6e34182d6cadc2a91bdc1fa2d90992745011"
+      "sha256": "bfed254bd477a12e38f426ed1b7b96a76e109cdcd0f375fd2738977eb2b8558e"
     },
     {
       "path": "skills/falcon-axi/references/report-list.md",
-      "sha256": "78b4477820abab02b2bcff5540664c3786688d7d4393ed1ccc2c216c31a412cb"
+      "sha256": "6850293446ddb1394374381ba50149bccf2104fa4ffd92482989cdadf43cdb49"
     },
     {
       "path": "skills/falcon-axi/references/report-show.md",
-      "sha256": "e225d4703906ff389d3648036c605185173970ba27f7d3ac069e159899ec32c5"
+      "sha256": "f40219d18e71115ae0b64392bc26a5f3566f179a6d7c16f20ec5bb2b97ab943b"
     },
     {
       "path": "skills/falcon-axi/references/rtr-audit-list.md",
-      "sha256": "890905283066efd52beef9be27bbc173ded3f0d0cc4333e900c8a24d7038672f"
+      "sha256": "9f13fd9d6a3cb9287c2f302b59213c577382b626c18b2f31cdca2b309ade131c"
     },
     {
       "path": "skills/falcon-axi/references/rtr-run.md",
-      "sha256": "2262c5f656170fd4ee457f7e4b01cd86cb9b65ac776340a7d8997cee1152641f"
+      "sha256": "ff9bda944fa139b8b8b3f857b2c420dbe35b12eafe293d04522230d231c49acc"
     },
     {
       "path": "skills/falcon-axi/references/rtr-session-list.md",
-      "sha256": "42cfd907b371f58675b9d2d2cfdde6f6e5b6fd33e994b540ac28ce52a23b7ff5"
+      "sha256": "66c14fc38dc3a291c8992426808b0192ca05d1562f98a0b901bc34199a540272"
     },
     {
       "path": "skills/falcon-axi/references/rtr-session-show.md",
-      "sha256": "9414bd1b46a4b02b9fa2a53bf531557e31d9840c4461ef92e73fa18173b0d6fc"
+      "sha256": "11dd0075ac5c96539b4546100aa281b5bff7a9d197f98add4670ebed7549bce2"
     },
     {
       "path": "skills/falcon-axi/references/sandbox-list.md",
-      "sha256": "ad07fc7afd42cdb6cfd8b1d34ca12e4fc06b173fc8dcb577f53767242942ce39"
+      "sha256": "a97276e771b8684bc6e966da3b90019793d704eb0052e409da1435d2367e4abc"
     },
     {
       "path": "skills/falcon-axi/references/sandbox-show.md",
-      "sha256": "93cd005e9596f15be4190ed4fe179b6110814df1cdc3f826122415747cedb147"
+      "sha256": "82e6c1fd93cddb667dec69d5d34c859b0f765dc2e5f91cc736e7a42a13a70213"
     },
     {
       "path": "skills/falcon-axi/references/scopes.md",
-      "sha256": "e0dc357cc91c7217dbe52f4ccb15e18007ef726305acb3397630dcf85d78f408"
+      "sha256": "a7f70d1d7570e769197596149499a29a3ee3a426d35543ce1f9ff0ed1ed446c5"
     },
     {
       "path": "skills/falcon-axi/references/search-start.md",
-      "sha256": "cfbbd8dd9529888a6fe2e913f41ff9015074cdc8652e62dbfc2eea67b1dc8bb9"
+      "sha256": "8b913293d2fcf9a4b9caafbb156ed7f78a700e360d247db6fa9ca5c3a0c02a00"
     },
     {
       "path": "skills/falcon-axi/references/search-status.md",
-      "sha256": "830bc15d7ce86399dd695ce264e8d8c0cf2cf309741f505d061849b4065280dd"
+      "sha256": "6a040c781459be126740c099ec3997d19ad9c68c1c843846d4251ed3df331615"
     },
     {
       "path": "skills/falcon-axi/references/search-stop.md",
-      "sha256": "b33a401f6fa74708f7b2800dc08a433e3d82cfc82500a384504f0b4c97a3405e"
+      "sha256": "493d9af70fff5f9b031515df747389f8466c92d409d97f235bb34cf57dfa6181"
     },
     {
       "path": "skills/falcon-axi/references/sensor-usage-list.md",
-      "sha256": "beb7294a4bc5dcbc5c1016da85c472228402da437649998d7a8e82e5e4f40ecd"
+      "sha256": "af2ed01ae0fcffabca852e9a87e7759b1f22a4af3a2f982ce69574b19860cb3b"
     },
     {
       "path": "skills/falcon-axi/references/serverless-list.md",
-      "sha256": "eb347aa64a69885207dd6ff93ca88551f40f50a614860148f6a652987cbde25c"
+      "sha256": "277f0da26809d063732a788f6bf851f7acb220e34186ac936f039bf04a596704"
     },
     {
       "path": "skills/falcon-axi/references/setup-hooks.md",
-      "sha256": "98fd2588af7ce522653bd139e6038bc1f0ddca2e3cda7765197b5d2c6c622721"
+      "sha256": "c0803b9c6009b205fd86696929a235267f5bcd9d9c036e81705a90cd0e97c4ed"
     },
     {
       "path": "skills/falcon-axi/references/setup.md",
-      "sha256": "d5d5a3bcd2233eb04d11c9582b0e2ef6773a800c29b935b06dba984d573d9218"
+      "sha256": "0fde4a14a762e4093c0e029fab2807ec0be52730eeecf14aba5084915c3c07ba"
     },
     {
       "path": "skills/falcon-axi/references/shield-list.md",
-      "sha256": "fa5dad1f00d19899697b89b17dd58dd230b3dc025a8c9d372f6e61780f721e0c"
+      "sha256": "5152f62521d041e6315b9d8b476428c63b52b1fecfbd283d82bbe972a0ad6261"
     },
     {
       "path": "skills/falcon-axi/references/shield-show.md",
-      "sha256": "d9b934c58c9af4244b0b1245ab2da48d6b2ecacb2e08b5778aa1b75f22c21c09"
+      "sha256": "34eee8da9c25eb3bf6a295a3cd4f31c50981318e9162435e5434a466cd767efa"
     },
     {
       "path": "skills/falcon-axi/references/vuln-list.md",
-      "sha256": "17196a949aef68f70213c346e9211ef1c503fd91ac1907dfe0a87e5d0e5339b0"
+      "sha256": "2da9c0eae7aa29ffa9867bb12180b092be3697c8eeb43f6a2ee83470f339a98e"
     },
     {
       "path": "skills/falcon-axi/references/vuln-show.md",
-      "sha256": "ecd1c54a46db8732e60ac01eed9dcc2394d27fe6cfd0c6264262f82f3ed1b53e"
+      "sha256": "3e4506646280986043bbe1aea0aea6d99fd60be5615fb90bfc29f48421e43479"
     },
     {
       "path": "skills/falcon-axi/SKILL.md",
-      "sha256": "35dbd5ed669533e32b62896752bc1a7d28dd62733698373fed07f03c60ea52f6"
+      "sha256": "ca8a131e79e675b51b9fbe0b296a2740ca3445d8e76bfa61c681e0b16773b9d2"
     }
   ],
   "credentialSchema": {
@@ -734,7 +734,7 @@
       }
     }
   },
-  "skillSha256": "35dbd5ed669533e32b62896752bc1a7d28dd62733698373fed07f03c60ea52f6",
+  "skillSha256": "ca8a131e79e675b51b9fbe0b296a2740ca3445d8e76bfa61c681e0b16773b9d2",
   "parser": {
     "path": ".typescript-build/src/parser.js",
     "sha256": "1a348bb4a13e0034d5919b218e02ddf7ed0036b51d78d06b488bda4fcb78f8eb",
