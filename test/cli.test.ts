@@ -824,6 +824,25 @@ test.each([
 
 test.each([
   { command: ['create'], grant: 'OP-027' },
+  { command: ['update', 'n1'], grant: 'OP-030' },
+].flatMap(item => [false, true].flatMap(executeWrite => [false, true].map(json => ({ ...item, executeWrite, json })))))
+('Shodan notifier $command preserves matching identifiers: execute=$executeWrite JSON=$json', async ({ command, grant, executeWrite, json }) => {
+  const step = { operation: 'OP-030', target: 'n1', status: 'failed', recovery: 'n1' }
+  response = { status: 200, body: { status: executeWrite ? 'OUTCOME_UNKNOWN' : 'preview', confirm: writeToken,
+    effects: [{ target: 'n1', id: 'n1' }], completed: [step], uncertain: step, unsent: [step], steps: [step],
+    instance: 'n1', error: 'n1', command: 'n1', operation: 'n1', method: 'n1', expiresAt: 'n1', n1: 'n1' } }
+  const path = privateFile(JSON.stringify({ provider: 'slack', args: { token: 'n1' } }))
+  const result = await cli(['shodan-axi', 'notifier', ...command, '--body-file', path, '--allow-operation', grant,
+    '--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost',
+    ...(executeWrite ? ['--execute', '--confirm', writeToken] : []), ...(json ? ['--json'] : [])])
+  expect(result.code).toBe(executeWrite ? 1 : 0)
+  expect(json ? JSON.parse(result.stdout) : decode(result.stdout)).toEqual({ status: executeWrite ? 'OUTCOME_UNKNOWN' : 'preview', confirm: writeToken,
+    effects: [{ target: 'n1', id: 'n1' }], completed: [step], uncertain: step, unsent: [step], steps: [step],
+    instance: 'n1', error: 'n1', command: 'n1', operation: 'n1', method: 'n1', expiresAt: 'n1', n1: '[REDACTED]' })
+})
+
+test.each([
+  { command: ['create'], grant: 'OP-027' },
   { command: ['update', 'my-notifier'], grant: 'OP-030' },
 ].flatMap(item => [false, true].flatMap(executeWrite => [false, true].flatMap(json =>
   ['notifier', 'a', 'o'].map(secret => ({ ...item, executeWrite, json, secret }))))))
