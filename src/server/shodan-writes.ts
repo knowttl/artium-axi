@@ -42,7 +42,7 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
     return result.data
   }
   const authorize = (plan: Pick<Plan, 'owner' | 'credential' | 'binding' | 'operation'>) => {
-    if (shodanWriteBinding(db, plan.owner, plan.credential, [plan.operation]).hash !== plan.binding) throw new ArtiumError('REVISION_CONFLICT')
+    if (shodanWriteBinding(db, plan.owner, plan.credential, plan.operation.split(',')).hash !== plan.binding) throw new ArtiumError('REVISION_CONFLICT')
   }
   const discard = async (plan: Plan) => {
     clearTimeout(plan.timer); plans.delete(plan.id)
@@ -53,7 +53,7 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
     const owner = shodanOwner(db, request), { instance, ...input } = parse(shodanWriteInput.extend({ instance: instanceNameSchema.optional() }), request.body)
     const operation = shodanWriteOperation(input)
     const credential = await resolver.resolve(owner.user, 'shodan-axi', instance)
-    const binding = shodanWriteBinding(db, owner, credential, [operation])
+    const binding = shodanWriteBinding(db, owner, credential, operation.split(','))
     if (input.queryCreditBudget > binding.settings.maxQueryCredits || input.maxRequests > binding.settings.maxRequests) throw new ArtiumError('INVALID_INPUT')
     if (closing || plans.size + pending.size >= 128 || [...plans.values()].filter(plan => plan.owner.user === owner.user).length
       + [...pending.values()].filter(user => user === owner.user).length >= 8) throw new ArtiumError('TOO_MANY_CALLS')
@@ -62,10 +62,11 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
     const check = () => authorize({ owner, credential, binding: binding.hash, operation })
     try {
       await initialized
-      const expiresAt = Date.now() + 15 * 60 * 1000
       const preview = await runner.runManaged(owner.user, undefined, signal => previewShodanWrite(directory, adapter, credential, input, operation,
         signal, check, runner.configuredCaPem))
       if (closing) throw new ArtiumError('CANCELLED')
+      const now = Date.now(), expiresAt = Math.min(now + 15 * 60 * 1000, preview.nativeExpiresAt)
+      if (expiresAt <= now) throw new ArtiumError('INVALID_RESPONSE')
       const plan: Plan = { id, owner, credential, instance: binding.instance, requestedInstance: instance, inputHash: inputHash(input), operation, token: preview.token, directory, binding: binding.hash,
         expiresAt, timer: setTimeout(() => {}, 0) }
       clearTimeout(plan.timer)
@@ -73,6 +74,7 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
       plans.set(id, plan)
       return { confirm: id, instance: plan.instance, command: input.command, operation,
         effects: preview.effects, ...input.body ? { arguments: Object.keys(input.body.args) } : {},
+        ...input.command === 'alert domain' ? { dnsMore: preview.dnsMore, futureDnsTracking: preview.futureDnsTracking } : {},
         queryCreditBudget: input.queryCreditBudget, maxRequests: input.maxRequests, cost: 'unknown', expiresAt: plan.expiresAt }
     } catch (error) {
       await rm(directory, { recursive: true, force: true })
@@ -96,8 +98,14 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
       const startedAt = Date.now()
       let result: Awaited<ReturnType<typeof executeShodanWrite>> | undefined
       try {
-        result = await runner.runManaged(owner.user, undefined, signal => executeShodanWrite(plan.directory, adapter, plan.credential, input,
-          plan.operation, plan.token, signal, () => authorize(plan), runner.configuredCaPem))
+        result = await runner.runManaged(owner.user, undefined, async signal => {
+          const controller = new AbortController()
+          const timer = setInterval(() => { try { authorize(plan) } catch { controller.abort() } }, 60_000).unref()
+          try {
+            return await executeShodanWrite(plan.directory, adapter, plan.credential, input, plan.operation, plan.token,
+              AbortSignal.any([signal, controller.signal]), () => authorize(plan), runner.configuredCaPem)
+          } finally { clearInterval(timer) }
+        })
         return result
       } finally {
         const completed = result?.status === 'completed'

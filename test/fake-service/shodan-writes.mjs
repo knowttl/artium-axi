@@ -5,6 +5,9 @@ export function shodanWrites(record) {
   const notifiers = new Map([['synthetic-notifier', { id: 'synthetic-notifier', provider: 'webhook', description: 'Synthetic', args: { url: 'https://hooks.example.test/old' } }]])
   const ignored = { 'synthetic-alert': { new_service: { '192.0.2.1:443': [] } } }
   let dropWrites = false
+  let holdWrites = false
+  let heldWriteClosed = false
+  let notifyWriteClosed
   let mismatchReadback = false
   let written = false
   let created = 0
@@ -12,6 +15,12 @@ export function shodanWrites(record) {
   return (req, res, url) => {
     const path = url.pathname
     if (path === '/__shodan/write-drop') { dropWrites = url.searchParams.get('enabled') !== 'false'; reply(res, 200, {}); return true }
+    if (path === '/__shodan/hold-write') { holdWrites = true; reply(res, 200, {}); return true }
+    if (path === '/__shodan/wait-write-closed') {
+      if (heldWriteClosed) reply(res, 200, { closed: true })
+      else notifyWriteClosed = () => reply(res, 200, { closed: true })
+      return true
+    }
     if (path === '/__shodan/readback-mismatch') { mismatchReadback = true; reply(res, 200, {}); return true }
     if (path === '/__shodan/member') { members.set(url.searchParams.get('email'), { email: url.searchParams.get('email') }); reply(res, 200, {}); return true }
     if (path === '/__shodan/state' && req.method === 'GET') { reply(res, 200, { alerts: Object.fromEntries(alerts), ignored, notifiers: Object.fromEntries(notifiers), members: Object.fromEntries(members) }); return true }
@@ -26,6 +35,11 @@ export function shodanWrites(record) {
     const chunks = []
     req.on('data', chunk => chunks.push(chunk))
     req.on('end', () => {
+      if (holdWrites && req.method !== 'GET') {
+        req.socket.once('close', () => { heldWriteClosed = true; notifyWriteClosed?.() })
+        process.send?.('held-request')
+        return
+      }
       const body = Buffer.concat(chunks).toString()
       const reply = (res, status, value) => {
         if (req.method !== 'GET' && status >= 200 && status < 300) written = true
@@ -58,7 +72,7 @@ export function shodanWrites(record) {
       }
       else if (req.method === 'POST' && path === '/shodan/alert') {
         const input = JSON.parse(body)
-        const alert = { id: `created-alert-${++created}`, name: input.name, filters: input.filters, expiration: null }
+        const alert = { id: `created-alert-${++created}`, name: input.name, filters: input.filters, expiration: null, triggers: {} }
         alerts.set(alert.id, alert)
         reply(res, 200, alert)
       } else if (req.method === 'GET' && path === '/org') reply(res, 200, { id: 'synthetic-org', name: 'Synthetic', admins: [], members: [...members.values()],

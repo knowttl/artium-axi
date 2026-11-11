@@ -11,9 +11,9 @@ const previewSchema = z.object({ status: z.literal('preview'), token: z.uuid(), 
   limit: z.number(), maxBytes: z.number(), timeoutMs: z.number(), idleTimeoutMs: z.number(), cost: z.literal('unknown') }).passthrough()
 
 export async function runShodanNative(directory: string, args: string[],
-  profile: Pick<PreparedCall, 'environment' | 'files' | 'secrets'>, signal: AbortSignal, authorize: () => void, configuredCaPem?: string, beforeSpawn?: () => void, failureOrTimeout: boolean | number = false) {
+  profile: Pick<PreparedCall, 'environment' | 'files' | 'secrets'>, signal: AbortSignal, authorize: () => void, configuredCaPem?: string, beforeSpawn?: () => void, failureOrTimeout: boolean | number = false, outputLimit = 65536, deadlineMs = 30000) {
   const acceptNativeFailure = failureOrTimeout === true
-  const timeoutMs = typeof failureOrTimeout === 'number' ? failureOrTimeout : 30000
+  const timeoutMs = typeof failureOrTimeout === 'number' ? failureOrTimeout : deadlineMs
   const root = join(directory, 'preview'), state = join(directory, 'state')
   const directories = Object.fromEntries(Object.entries({ HOME: 'home', XDG_CONFIG_HOME: 'config', XDG_DATA_HOME: 'data',
     XDG_CACHE_HOME: 'cache', XDG_RUNTIME_DIR: 'runtime', TMPDIR: 'tmp' }).map(([key, leaf]) => [key, join(root, leaf)]))
@@ -45,7 +45,7 @@ export async function runShodanNative(directory: string, args: string[],
       if (signal.aborted) cancel()
       for (const stream of [child.stdout, child.stderr]) stream.on('data', (chunk: Buffer) => {
         bytes += chunk.length
-        if (bytes > 65536 || scanner.scan(stream === child.stdout ? 'stdout' : 'stderr', chunk)) { failed = true; kill(); return }
+        if (bytes > outputLimit || scanner.scan(stream === child.stdout ? 'stdout' : 'stderr', chunk)) { failed = true; kill(); return }
         if (stream === child.stdout) stdout.push(Buffer.from(chunk))
       })
       child.once('error', () => { failed = true })

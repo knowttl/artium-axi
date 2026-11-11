@@ -443,7 +443,7 @@ Optional collection reads the banner stream and filters records to the target ne
 See [scan usage and terminal outcomes](commands.md#shodan) and [scan and stream grants](tool-credentials.md#shodan).
 Confirmed alert, notifier and organization membership changes require an owner session, an exact per-user operation grant, a writable instance and budgets within administrator ceilings; see [write grants](tool-credentials.md#shodan).
 POST `/v1/tools/shodan-axi/writes/preview` with the [write input](../src/shared/shodan-stream.ts) and optional `instance` to bind a preview to the observed upstream state.
-Repeat the same input and instance with the returned `confirm` in POST `/v1/tools/shodan-axi/writes/execute` using the same user and sign-in family; confirmation is single-use and expires after fifteen minutes.
+Repeat the same input and instance with the returned `confirm` in POST `/v1/tools/shodan-axi/writes/execute` using the same user and sign-in family; confirmation is single-use and expires as described in the [command reference](commands.md#shodan-confirmed-writes).
 Notifier previews expose argument names rather than values, and organization removal reports downgrade as an effect.
 See [write retention and recovery](runbook.md#retention-and-export) for uncertain outcomes.
 Administrator `writes` and `exports` settings establish separate policy bindings for confirmed alert, notifier and organization writes and for search and alert downloads; see [write and export grants](tool-credentials.md#shodan).
@@ -455,6 +455,8 @@ POST `/v1/tools/shodan-axi/exports/<id>/retrieve` retrieves a completed or parti
 The client-side `download` and `alert download` commands drive these routes; see [export saving and local output](commands.md#shodan).
 See [export retention and recovery](runbook.md#retention-and-export) for capacity and interrupted retrieval.
 Ordinary tool runs refuse alert changes, downloads, dataset downloads and other writes.
+Delegated tokens cannot use the write routes.
+Notifier and import files are read by the client and sent in the request body; the CLI checks notifier responses for argument values as described in the [command reference](commands.md#shodan-confirmed-writes).
 The client-side radar consumes an owner session's output under the same access restrictions; see [radar usage and local output](commands.md#shodan).
 The server adapter refuses local configuration, credential and endpoint overrides, stdin, uploaded files and result-file destinations before credential access.
 Help exposes only admitted routes; the standalone `doctor` alias is not admitted.

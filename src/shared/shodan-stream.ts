@@ -8,7 +8,7 @@ export const shodanScanPolicy = z.strictObject({
 export const shodanQueryPolicy = z.strictObject({ maxQueryCredits: positive(1000) })
 const operationGrants = (pattern: RegExp) => z.record(z.string().min(1).max(128), z.array(z.string().regex(pattern)).max(32))
 export const shodanWritePolicy = z.strictObject({
-  grants: operationGrants(/^OP-(013|015|016|019|020|021|022|023|024|027|028|030|037|038|070)$/),
+  grants: operationGrants(/^OP-(013|015|016|019|020|021|022|023|024|027|028|030|037|038|040|070)$/),
   maxQueryCredits: positive(1000), maxRequests: positive(1000),
 })
 export const shodanExportPolicy = z.strictObject({
@@ -23,7 +23,7 @@ export const shodanScanInput = z.strictObject({
   acceptUnknownCost: z.boolean().default(false),
 })
 export const shodanWriteCommands = ['alert create', 'alert remove', 'alert update', 'alert enable', 'alert disable', 'alert ignore', 'alert unignore',
-  'alert notifier add', 'alert notifier remove', 'notifier create', 'notifier remove', 'notifier update', 'org add', 'org remove'] as const
+  'alert notifier add', 'alert notifier remove', 'notifier create', 'notifier remove', 'notifier update', 'org add', 'org remove', 'alert clear', 'alert domain', 'alert import'] as const
 const notFlag = (value: string) => !value.startsWith('-')
 export const shodanWriteInput = z.strictObject({
   command: z.enum(shodanWriteCommands),
@@ -32,6 +32,10 @@ export const shodanWriteInput = z.strictObject({
   expires: z.number().int().min(0).max(31536000).optional(),
   vulns: z.string().min(1).max(4096).refine(notFlag).optional(),
   silent: z.boolean().optional(),
+  triggers: z.string().min(1).max(4096).refine(notFlag).optional(),
+  importBody: z.base64().min(4).max(4 * Math.ceil(1024 * 1024 / 3))
+    .refine(value => value.length / 4 * 3 - (value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0) <= 1024 * 1024).optional(),
+  allowOperations: z.array(z.enum(['OP-013', 'OP-019', 'OP-021', 'OP-023', 'OP-027'])).min(1).max(5).optional(),
   body: z.strictObject({
     provider: z.string().min(1).max(256).optional(), description: z.string().max(4096).optional(),
     args: z.record(z.string().min(1).max(128), z.union([z.string().max(4096), z.number(), z.boolean()]))

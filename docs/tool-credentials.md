@@ -566,6 +566,7 @@ For `exports`, use command IDs `CLI-005` (`download`) and `CLI-020` (`alert down
 The [policy schema](../src/shared/shodan-stream.ts) owns the required fields and allowed ranges.
 Each block is independent of `scans` and `sessions`, and its policy binding refuses a read-only instance or a missing user grant.
 The `exports` setting enables retained export jobs under its ceilings and retention; see the [write boundary](safety.md#shodan) for confirmed writes.
+A `writes` grant is required for [confirmed write commands](commands.md#shodan-confirmed-writes), using the operation IDs listed there; `alert domain` also uses read operation `OP-040`.
 The [reviewed inventory](../tools/inventories/shodan-axi.json) owns the pinned upstream schema and command boundary; [hosted profile validation](../src/server/adapters/credential-profile.ts) owns these additional restrictions.
 See [commands](commands.md#shodan), the [capability boundary](safety.md#shodan) and [explicit connection testing](runbook.md#roles-credentials-and-health).
 Local fake-service evidence does not establish owner live acceptance.

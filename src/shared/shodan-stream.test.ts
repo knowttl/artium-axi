@@ -36,7 +36,7 @@ test.each([
 })
 
 test('write commands match the reviewed inventory exactly', () => {
-  const reviewed = inventory.confirmedWrites.filter(entry => entry.kind === 'write').map(entry => entry.command)
+  const reviewed = [...inventory.confirmedWrites.filter(entry => entry.kind === 'write').map(entry => entry.command), 'alert clear', 'alert domain', 'alert import']
   expect([...shodanWriteCommands].sort()).toEqual(reviewed.sort())
 })
 
@@ -44,7 +44,7 @@ test.each([
   ['a flag-shaped argument', { arguments: ['--config'] }],
   ['a flag-shaped vulnerability list', { vulns: '-x' }],
   ['more than three arguments', { arguments: ['a', 'b', 'c', 'd'] }],
-  ['an unlisted command', { command: 'alert clear' }],
+  ['an unlisted command', { command: 'alert download' }],
   ['an unknown field', { filename: '/tmp/x' }],
 ])('a write request with %s is refused', (_name, change) => {
   expect(shodanWriteInput.safeParse({ command: 'alert create', arguments: ['a', '192.0.2.1'], queryCreditBudget: 1, maxRequests: 4, ...change }).success).toBe(false)

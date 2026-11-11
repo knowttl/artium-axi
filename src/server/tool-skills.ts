@@ -42,7 +42,7 @@ export function loadToolSkill(tool: ToolName, path: string = toolSkillPaths[tool
     }
     if (tool === 'shodan-axi') {
       if (createHash('sha256').update(source).digest('hex') !== toolManifests[tool].sources.find(entry => entry.path === 'skills/shodan-axi/SKILL.md')?.sha256) throw new Error('Unreviewed skill')
-      return `---\nname: shodan-axi\ndescription: Read Shodan account information with Artium-managed credentials.\n---\n\n# Shodan\n\nUse \`artium-axi shodan-axi info\` or \`artium-axi shodan-axi account profile\`.\nArtium supplies the managed API key.\nLocal profiles, credential overrides, writes and other operations are unavailable.\n`
+      return `---\nname: shodan-axi\ndescription: Read Shodan account information with Artium-managed credentials.\n---\n\n# Shodan\n\nUse \`artium-axi shodan-axi info\` or \`artium-axi shodan-axi account profile\`.\nArtium supplies the managed API key.\nLocal profiles and credential overrides are unavailable.\nConfirmed-write commands call \`/v1/tools/shodan-axi/writes/preview\` and \`/v1/tools/shodan-axi/writes/execute\` on the server.\nAlert, notifier and organization changes need an administrator grant, a preview and an exact confirmation; run \`artium-axi shodan-axi alert remove --help\` for the commands, never write provider secrets into command arguments, and never retry an \`OUTCOME_UNKNOWN\` or \`READBACK_UNVERIFIED\` result before reading the object.\n`
     }
     if (tool === 'technitium-axi') {
       const manifest = toolManifests[tool]
