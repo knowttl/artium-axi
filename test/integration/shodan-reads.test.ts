@@ -153,9 +153,13 @@ test.each([
 })
 
 test.each([
-  ['search', 'port:443', 'OP-003'],
-  ['domain', 'example.test', 'OP-040'],
-])('queued %s uses the current administrator query credit ceiling', async (command, subject, operation) => {
+  ['search', 'port:443', 'OP-003', 'named', false],
+  ['search', 'port:443', 'OP-003', 'default', false],
+  ['search', 'port:443', 'OP-003', 'named', true],
+  ['domain', 'example.test', 'OP-040', 'named', false],
+  ['domain', 'example.test', 'OP-040', 'default', false],
+  ['domain', 'example.test', 'OP-040', 'named', true],
+])('queued %s %s uses the current administrator query credit ceiling', async (command, subject, operation, instance, updateNamed) => {
   await withFakeService(async ({ directory, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
@@ -177,17 +181,21 @@ test.each([
     try {
       const token = issueTestAccessToken(db, 'synthetic-development-user')
       const pending = app.inject({ method: 'POST', url: '/v1/tools/shodan-axi/run', headers: { authorization: `Bearer ${token}` },
-        payload: { instance: 'named', args: [command, subject, '--allow-operation', operation, '--query-credit-budget', '3'] } })
+        payload: { instance, args: [command, subject, '--allow-operation', operation, '--query-credit-budget', '3'] } })
       try {
         await runStarted
         await new Promise<void>(resolve => setImmediate(resolve))
         const current = store.findInstance('shodan-axi', 'default')!
         store.replaceInstance('shodan-axi', 'default', credential, current.id, current.revision, 'synthetic-development-user', Date.now())
+        if (updateNamed) {
+          const named = store.findInstance('shodan-axi', 'named')!
+          store.replaceInstance('shodan-axi', 'named', credential, named.id, named.revision, 'synthetic-development-user', Date.now())
+        }
         db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'shodan-axi'").run(JSON.stringify({ queries: { maxQueryCredits: 2 } }))
       } finally { release(); await Promise.all(occupied) }
       const response = await pending
       expect(response.json()).toMatchObject({ error: { code: 'INVALID_INPUT' } })
-      expect(db.prepare("SELECT outcome, instance FROM audit WHERE event = 'denial'").all()).toEqual([{ outcome: 'INVALID_INPUT', instance: 'named' }])
+      expect(db.prepare("SELECT outcome, instance FROM audit WHERE event = 'denial'").all()).toEqual([{ outcome: 'INVALID_INPUT', instance }])
       expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
     } finally {
       await app.close()

@@ -266,7 +266,6 @@ export async function runTool<Credential>(
             protectedPipe: protectedResult?.source === 'pipe'
               ? { ...protectedResult, receive: bytes => { privateBytes = Buffer.from(bytes) } } : undefined, ...overrides },
           { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => {
-            recheck(true)
             if (adapter.name === 'shodan-axi') {
               try { checkShodanQueryCredits(db, args) }
               catch (error) {
@@ -274,6 +273,7 @@ export async function runTool<Credential>(
                 throw error
               }
             }
+            recheck(true)
             if (prepared.beforeSpawn) {
               checkToolPolicy(db, identity.userId, adapter.name, reference?.id)
               prepared.beforeSpawn()
