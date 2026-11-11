@@ -18,7 +18,7 @@ const changeWords: Record<string, string> = {
   'set-tool-raw-api-off': 'Turned Raw API off for a tool', 'set-tool-raw-api-read': 'Set a tool’s Raw API to read', 'set-tool-raw-api-read-writes': 'Set a tool’s Raw API to read and writes',
 'delete-role': 'Deleted a role',
   'update-tool': 'Updated a tool', 'replace-credential': 'Saved a tool credential', 'save-awx-origin': 'Saved the AWX address', 'connect-github-device': 'Connected GitHub',
-  'trust-certificate': 'Trusted a certificate', 'remove-trusted-certificate': 'Removed a trusted certificate', 'tool-write-access': 'Changed write access',
+  'trust-certificate': 'Trusted a certificate', 'remove-trusted-certificate': 'Removed a trusted certificate', 'tool-write-access': 'Changed write access', 'update-tool-user-grants': 'Changed a person’s tool grants',
   'create-provider': 'Added an SSO provider', 'update-provider': 'Updated an SSO provider', 'replace-provider-credential': 'Saved an SSO credential',
   'create-role-rule': 'Added an SSO role rule', 'update-role-rule': 'Updated an SSO role rule', 'delete-role-rule': 'Removed an SSO role rule', 'update-local-policy': 'Changed sign-in policy',
   'invite-create': 'Created an invitation', 'invite-resend': 'Resent an invitation', 'invite-revoke': 'Revoked an invitation',

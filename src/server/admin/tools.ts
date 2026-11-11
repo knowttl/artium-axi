@@ -28,6 +28,7 @@ import { kubernetesProfile, kubernetesWritePolicy } from '../adapters/kubernetes
 import { sshWritePolicy } from '../adapters/ssh.js'
 import { exchangeAwxPassword, awxPasswordRequested } from '../adapters/awx-login.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
+import { userGrantPolicies } from '../../shared/user-grants.js'
 import { rawApiModes } from '../policy/policy.js'
 import type { Adapter } from '../adapters/types.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
@@ -240,8 +241,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       requestId: request.id, clientAddress: request.ip }]
   }
   function settingsChanges(tool: ToolName, before: Record<string, unknown>, after: Record<string, unknown>) {
-    const keys = tool === 'kubernetes-axi' ? ['sessions'] : tool === 'shodan-axi' ? ['scans', 'sessions'] : []
-    return keys.flatMap(key => diffSettings((before[key] as { grants?: unknown } | undefined)?.grants,
+    return Object.keys(userGrantPolicies[tool] ?? {}).flatMap(key => diffSettings((before[key] as { grants?: unknown } | undefined)?.grants,
       (after[key] as { grants?: unknown } | undefined)?.grants, [key, 'grants']))
   }
   const githubDevice = new GithubDeviceFlow()
@@ -335,6 +335,45 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       if (events.length) db.prepare('UPDATE tools SET native_settings = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?')
         .run(JSON.stringify(settings), now, actor, tool)
       if (events.length || replacements.length) db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
+      return readTool(tool)
+    }).value
+    replacements.forEach(invalidate)
+    if (replacements.length) await health.refresh(tool, true)
+    return replacements.length ? readTool(tool) : result
+  } })
+  app.route({ method: adminToolRoutes.userGrants.method, url: adminToolRoutes.userGrants.path, handler: async request => {
+    const actor = authorize(request)
+    const tool = toolName(request)
+    const input = parse(adminToolRoutes.userGrants.input, request.body)
+    const policy = userGrantPolicies[tool]?.[input.policy]
+    if (!policy) throw new ArtiumError('INVALID_INPUT', `${tool} has no per-person ${input.policy} grants.`)
+    const catalogue = policy.operations.map(operation => operation.id)
+    if (input.operations.some(operation => !catalogue.includes(operation))) throw new ArtiumError('INVALID_INPUT',
+      `Unknown ${input.policy} operation for ${tool}.`, `Choose from: ${catalogue.join(', ')}.`)
+    const operations = catalogue.filter(operation => input.operations.includes(operation))
+    let replacements: CredentialReference[] = []
+    const event: Extract<AuditEvent, { event: 'admin-change' }> = { event: 'admin-change', action: adminToolRoutes.userGrants.auditEvent, targetId: tool,
+      userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }
+    const result = audit.change(event, () => {
+      authorize(request)
+      const current = readTool(tool)
+      if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      if (operations.length && !db.prepare('SELECT 1 FROM users WHERE id = ? AND archived_at IS NULL').get(input.userId)) {
+        throw new ArtiumError('INVALID_INPUT', 'Choose an active person.')
+      }
+      const saved = current.nativeSettings[input.policy] as { grants: Record<string, string[]> } | undefined ?? { grants: {} }
+      const { [input.userId]: _, ...others } = saved.grants
+      const changed = nativeSettingsSchemas[tool].safeParse({ ...current.nativeSettings,
+        [input.policy]: { ...saved, grants: { ...others, ...(operations.length ? { [input.userId]: operations } : {}) } } })
+      if (!changed.success) throw new ArtiumError('INVALID_INPUT', `Set the ${input.policy} ceilings before granting people.`,
+        'Save the ceilings in Advanced native settings, then grant people here.')
+      const settings = changed.data as Record<string, unknown>
+      event.settingsChanges = settingsChanges(tool, current.nativeSettings, settings)
+      const now = Date.now()
+      replacements = bumpInstances(tool, actor, now, settings)
+      db.prepare('UPDATE tools SET native_settings = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?')
+        .run(JSON.stringify(settings), now, actor, tool)
+      db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
       return readTool(tool)
     }).value
     replacements.forEach(invalidate)

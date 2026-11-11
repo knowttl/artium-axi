@@ -337,6 +337,68 @@ test('saving empty and repeated session grants journals each change', async () =
   ])
 })
 
+function grantUser(tool: string, policy: string, userId: string, operations: string[], expectedRevision: number) {
+  return request('PUT', `/${tool}/user-grants`, { policy, userId, operations, expectedRevision })
+}
+
+test('per-person grants change one person at a time and journal each change', async () => {
+  expect((await grantUser('kubernetes-axi', 'sessions', 'synthetic-ordinary', ['exec', 'logs', 'exec'], 1)).status).toBe(200)
+  expect((await grantUser('kubernetes-axi', 'sessions', actor, ['watch'], 2)).status).toBe(200)
+  expect((await grantUser('kubernetes-axi', 'sessions', 'synthetic-ordinary', ['exec'], 3)).status).toBe(200)
+  const removed = await grantUser('kubernetes-axi', 'sessions', 'synthetic-ordinary', [], 4)
+  expect(removed.status).toBe(200)
+  expect(await removed.json()).toMatchObject({ revision: 5, nativeSettings: { sessions: { grants: { [actor]: ['watch'] } } } })
+  const rows = db.prepare("SELECT action, arguments FROM audit WHERE event = 'admin-change' ORDER BY id").all() as { action: string, arguments: string }[]
+  expect(rows.map(row => [row.action, JSON.parse(row.arguments)])).toEqual([
+    ['update-tool-user-grants', { settings: [{ path: ['sessions', 'grants', 'synthetic-ordinary'], added: ['logs', 'exec'], removed: [] }] }],
+    ['update-tool-user-grants', { settings: [{ path: ['sessions', 'grants', actor], added: ['watch'], removed: [] }] }],
+    ['update-tool-user-grants', { settings: [{ path: ['sessions', 'grants', 'synthetic-ordinary'], added: [], removed: ['logs'] }] }],
+    ['update-tool-user-grants', { settings: [{ path: ['sessions', 'grants', 'synthetic-ordinary'], added: [], removed: ['exec'] }] }],
+  ])
+})
+
+test('per-person Shodan grants keep ceilings and journal writes and exports', async () => {
+  const ceilings = { maxQueryCredits: 5, maxRequests: 6 }
+  const exportCeilings = { ...ceilings, maxRecords: 7, maxBytes: 8, retentionSeconds: 9 }
+  expect((await request('PATCH', '/shodan-axi', { expectedRevision: 1, nativeSettings: {
+    writes: { grants: {}, ...ceilings }, exports: { grants: {}, ...exportCeilings } } })).status).toBe(200)
+  db.exec('DELETE FROM audit')
+  expect((await grantUser('shodan-axi', 'writes', 'synthetic-ordinary', ['OP-021', 'OP-070'], 2)).status).toBe(200)
+  const granted = await grantUser('shodan-axi', 'exports', 'synthetic-ordinary', ['CLI-005'], 3)
+  expect(granted.status).toBe(200)
+  expect(await granted.json()).toMatchObject({ nativeSettings: {
+    writes: { grants: { 'synthetic-ordinary': ['OP-021', 'OP-070'] }, ...ceilings },
+    exports: { grants: { 'synthetic-ordinary': ['CLI-005'] }, ...exportCeilings } } })
+  const rows = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change' ORDER BY id").all() as { arguments: string }[]
+  expect(rows.map(row => JSON.parse(row.arguments))).toEqual([
+    { settings: [{ path: ['writes', 'grants', 'synthetic-ordinary'], added: ['OP-021', 'OP-070'], removed: [] }] },
+    { settings: [{ path: ['exports', 'grants', 'synthetic-ordinary'], added: ['CLI-005'], removed: [] }] },
+  ])
+})
+
+test('a stale grant for a person who no longer exists can be removed but not added', async () => {
+  expect((await request('PATCH', '/kubernetes-axi', { expectedRevision: 1,
+    nativeSettings: { sessions: { grants: { 'departed-user': ['exec'] } } } })).status).toBe(200)
+  await failure(await grantUser('kubernetes-axi', 'sessions', 'departed-user', ['logs'], 2), 'INVALID_INPUT')
+  const removed = await grantUser('kubernetes-axi', 'sessions', 'departed-user', [], 2)
+  expect(removed.status).toBe(200)
+  expect(await removed.json()).toMatchObject({ nativeSettings: { sessions: { grants: {} } } })
+})
+
+test.each([
+  { name: 'an operation outside the catalogue', tool: 'kubernetes-axi', policy: 'sessions', userId: 'synthetic-ordinary', operations: ['sudo'], code: 'INVALID_INPUT' },
+  { name: 'a Shodan policy without saved ceilings', tool: 'shodan-axi', policy: 'scans', userId: 'synthetic-ordinary', operations: ['OP-009'], code: 'INVALID_INPUT' },
+  { name: 'a policy the tool does not have', tool: 'kubernetes-axi', policy: 'exports', userId: 'synthetic-ordinary', operations: [], code: 'INVALID_INPUT' },
+  { name: 'a tool without per-person grants', tool: 'falcon-axi', policy: 'sessions', userId: 'synthetic-ordinary', operations: [], code: 'INVALID_INPUT' },
+  { name: 'an unknown person', tool: 'kubernetes-axi', policy: 'sessions', userId: 'unknown-user', operations: ['exec'], code: 'INVALID_INPUT' },
+  { name: 'a stale revision', tool: 'kubernetes-axi', policy: 'sessions', userId: 'synthetic-ordinary', operations: ['exec'], code: 'REVISION_CONFLICT', staleBy: 8 },
+] as const)('per-person grants reject $name without changing settings', async ({ tool, policy, userId, operations, code, ...rest }) => {
+  const before = await (await request('GET', `/${tool}`)).json() as { revision: number }
+  await failure(await grantUser(tool, policy, userId, [...operations], before.revision + ((rest as { staleBy?: number }).staleBy ?? 0)), code)
+  expect(await (await request('GET', `/${tool}`)).json()).toEqual(before)
+  expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event = 'admin-change'").get()).toEqual({ count: 0 })
+})
+
 test.each([
   { tool: 'kubernetes-axi', initial: { sessions: { grants: { 'synthetic-user': ['exec'] } } },
     next: { sessions: { grants: { 'synthetic-user': ['logs'] } } },
@@ -347,7 +409,8 @@ test.each([
     writes: { grants: { 'synthetic-user': ['OP-013'] }, maxQueryCredits: 1, maxRequests: 1 } },
     next: { scans: { grants: { 'synthetic-user': ['OP-010'] }, maxScanCredits: 10, maxRequests: 10 },
       sessions: { grants: { 'synthetic-user': ['OP-047'] }, perUser: 1, perCredential: 1, total: 1, sessionEvents: 1, totalEvents: 1,
-        sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 } },
+        sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 },
+      writes: { grants: { 'synthetic-user': ['OP-013'] }, maxQueryCredits: 1, maxRequests: 1 } },
     changes: [{ path: ['scans', 'grants', 'synthetic-user'], added: ['OP-010'], removed: ['OP-009'] },
       { path: ['sessions', 'grants', 'synthetic-user'], added: ['OP-047'], removed: ['OP-046'] }] },
 ] as const)('$tool credential replacement journals scoped settings changes', async ({ tool, initial, next, changes }) => {

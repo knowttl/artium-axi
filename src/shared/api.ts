@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { shodanExportPolicy, shodanQueryPolicy, shodanScanPolicy, shodanStreamPolicy, shodanWritePolicy } from './shodan-stream.js'
 import { kubernetesSessionPolicy } from './kubernetes.js'
+import { userGrantPolicyNameSchema } from './user-grants.js'
 import { giteaWriteOperations, giteaTransferOperations, giteaTransferBytes } from './gitea-writes.js'
 import { errors } from './errors.js'
 import { completedMutationSchema } from './mutation-outcome.js'
@@ -501,6 +502,12 @@ export const adminToolRoutes = {
   // Other native settings and credentials are preserved. Revision conflicts never mutate.
   writeAccess: { method: 'PATCH', path: '/v1/admin/tools/:tool/write-access', input: writeAccessInputSchema,
     response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'tool-write-access' },
+  // Replaces one person's operations inside a per-user grant policy; an empty list removes the person.
+  // Ceilings and other native settings are preserved. A person gaining operations must be an active user.
+  userGrants: { method: 'PUT', path: '/v1/admin/tools/:tool/user-grants',
+    input: z.strictObject({ policy: userGrantPolicyNameSchema, userId: z.string().min(1).max(128),
+      operations: z.array(z.string().min(1).max(32)).max(32), expectedRevision: z.number().int().positive() }),
+    response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'update-tool-user-grants' },
   rawApi: { method: 'PATCH', path: '/v1/admin/tools/:tool/raw-api',
     input: z.strictObject({ mode: rawApiModeSchema, expectedRevision: z.number().int().positive() }),
     response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: null },

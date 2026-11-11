@@ -110,7 +110,7 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/invitations` | Prepare and resend SSO invitations from sheets (`?sheet=new-invitation` opens creation without JavaScript; submission requires JavaScript); revoke from the table; a banner explains when no enabled provider can accept claims; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 | `/account` | Review your roles and tools, set up the CLI, manage temporary access tokens and sessions, and change your local-account password. |
 | `/admin/tools` | Review installed tools in a table with instance count, state, enablement, write state, granting roles and last checked time; filter by All, Enabled or Needs attention or by name; the server-wide trusted CA bundle appears as a read-only card at the bottom. |
-| `/admin/tools/:tool` | Header with state, write badges and an **Enabled** switch, a setup strip and tabs: Instances, Write permissions, Access and Advanced. Instances lists the tool's named instances and opens the Add instance and Edit sheets. Access lists the granting roles and their instance scopes, with a sheet per role to choose All instances or Selected instances. See [SSH setup](tool-credentials.md#ssh) for its separate host binding requirements. |
+| `/admin/tools/:tool` | Header with state, write badges and an **Enabled** switch, a setup strip and tabs: Instances, Write permissions, Access and Advanced. Instances lists the tool's named instances and opens the Add instance and Edit sheets. Access lists the granting roles and their instance scopes, with a sheet per role to choose All instances or Selected instances. Kubernetes and Shodan Access also list per-person grants, with a picker to grant a person operations and a sheet to edit or remove each person's grants. See [SSH setup](tool-credentials.md#ssh) for its separate host binding requirements. |
 | `/admin/tools/:tool/instances/:name` | Instance detail: header with status, writes, **Test connection** and an **Enabled** switch for this instance, a setup strip, the Connection editor, Trusted certificates and a danger zone that deletes the instance after its name is typed. |
 | `/admin/ssh` | SSH hosts, host-key trust, account bindings and caller grants, with links to the credentials and audit screens; see [SSH setup](tool-credentials.md#ssh). |
 | `/admin/ssh/credentials` | Save, replace or delete the dedicated encrypted SSH credentials that bindings use; stored keys and passphrases are never shown. |
@@ -258,7 +258,13 @@ Choose **Save write permissions** and confirm the change, completing identity co
 See [write-access audit events](#audit-screen-and-api) to review saved changes.
 The **Advanced** tab (`?tab=advanced`) shows the saved write state, but **Replace settings** replaces all native settings and omitting write settings turns writes off.
 With JavaScript, the editor reports whether the input is a valid JSON object as you type; saving also validates the tool's native settings on the server.
-Each save records an `admin-change` audit event; changes to Kubernetes session grants or Shodan scan and stream grants include a field-level list shown as **Settings changes** in the audit record details; see [the audit screen](#audit-screen-and-api).
+Each save records an `admin-change` audit event; changes to Kubernetes session grants or Shodan scan, stream, write and export grants include a field-level list shown as **Settings changes** in the audit record details; see [the audit screen](#audit-screen-and-api).
+Per-person grants stay per person.
+On the **Access** tab of Kubernetes and Shodan, each grant policy lists the people granted operations.
+Choose **Grant a person** to pick an active person and the operations to allow, or **Edit** to change one person's operations; clearing every operation removes the person.
+A save replaces only that person's grants, keeps ceilings and other settings, and records an `update-tool-user-grants` audit event with the same **Settings changes** list.
+Kubernetes session grants need no ceilings.
+A Shodan policy must have its ceilings saved in **Advanced** before people can be granted here.
 See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for automatic checks after configuration changes, pending status, recovery retries and concurrency limits.
 Use **Test connection** on an instance, or **Test** in its row, for a current fixed read before enabling a configured tool; it asks for no confirmation dialog but still needs recent identity confirmation.
 For failed tests, follow the [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) and the [error reference](errors.md).
