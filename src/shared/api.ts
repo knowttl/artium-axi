@@ -503,7 +503,7 @@ export const adminToolRoutes = {
   writeAccess: { method: 'PATCH', path: '/v1/admin/tools/:tool/write-access', input: writeAccessInputSchema,
     response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'tool-write-access' },
   // Replaces one person's operations inside a per-user grant policy; an empty list removes the person.
-  // Ceilings and other native settings are preserved. A person gaining operations must be enabled and unarchived.
+  // Ceilings and other native settings are preserved. Only adding operations requires an enabled, unarchived person.
   userGrants: { method: 'PUT', path: '/v1/admin/tools/:tool/user-grants',
     input: z.strictObject({ policy: userGrantPolicyNameSchema, userId: z.string().min(1).max(128),
       operations: z.array(z.string().min(1).max(32)).max(32), expectedRevision: z.number().int().positive() }),

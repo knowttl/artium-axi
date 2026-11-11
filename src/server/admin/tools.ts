@@ -368,10 +368,11 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       authorize(request)
       const current = readTool(tool)
       if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
-      if (operations.length && !db.prepare('SELECT 1 FROM users WHERE id = ? AND archived_at IS NULL AND disabled = 0').get(input.userId)) {
+      const saved = current.nativeSettings[input.policy] as { grants: Record<string, string[]> } | undefined ?? { grants: {} }
+      if (operations.some(operation => !(saved.grants[input.userId] ?? []).includes(operation)) &&
+        !db.prepare('SELECT 1 FROM users WHERE id = ? AND archived_at IS NULL AND disabled = 0').get(input.userId)) {
         throw new ArtiumError('INVALID_INPUT', 'Choose an active person.')
       }
-      const saved = current.nativeSettings[input.policy] as { grants: Record<string, string[]> } | undefined ?? { grants: {} }
       const { [input.userId]: _, ...others } = saved.grants
       const changed = nativeSettingsSchemas[tool].safeParse({ ...current.nativeSettings,
         [input.policy]: { ...saved, grants: { ...others, ...(operations.length ? { [input.userId]: operations } : {}) } } })

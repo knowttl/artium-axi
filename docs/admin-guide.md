@@ -263,6 +263,7 @@ Each save records an `admin-change` audit event; changes to Kubernetes session g
 Per-person grants stay per person.
 On the **Access** tab of Kubernetes and Shodan, each grant policy lists the people granted operations.
 Choose **Grant a person** to pick an enabled, unarchived person and the operations to allow, or **Edit** to change one person's operations; clearing every operation removes the person, including disabled or departed people.
+Existing grants for disabled or departed people can be partially or fully removed; adding operations requires an enabled, unarchived person.
 A save replaces only that person's grants, keeps ceilings and other settings, and records an `update-tool-user-grants` audit event with the same **Settings changes** list.
 Kubernetes session grants need no ceilings.
 A Shodan policy must have its ceilings saved in **Advanced** before people can be granted here.

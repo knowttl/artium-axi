@@ -360,13 +360,20 @@ test.each(grantPolicyCases)('$tool $policy credential replacement preserves gran
   expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ nativeSettings: { [policy]: { ...updated, grants: {} } } })
 })
 
-test('disabled people cannot receive grants but their grants can be cleared', async () => {
-  expect((await grantUser('kubernetes-axi', 'sessions', 'synthetic-ordinary', ['exec'], 1)).status).toBe(200)
+test.each([
+  { tool: 'kubernetes-axi', policy: 'sessions', operations: ['exec', 'logs'], added: 'watch', settings: { sessions: { grants: {} } } },
+  { tool: 'shodan-axi', policy: 'writes', operations: ['OP-021', 'OP-070'], added: 'OP-013', settings: { writes: { grants: {}, maxQueryCredits: 5, maxRequests: 6 } } },
+] as const)('$tool allows partial removal for disabled people but rejects additions', async ({ tool, policy, operations, added, settings }) => {
+  db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify(settings), tool)
+  expect((await grantUser(tool, policy, 'synthetic-ordinary', [...operations], 1)).status).toBe(200)
   db.prepare('UPDATE users SET disabled = 1 WHERE id = ?').run('synthetic-ordinary')
-  await failure(await grantUser('kubernetes-axi', 'sessions', 'synthetic-ordinary', ['exec', 'logs'], 2), 'INVALID_INPUT')
-  const removed = await grantUser('kubernetes-axi', 'sessions', 'synthetic-ordinary', [], 2)
+  await failure(await grantUser(tool, policy, 'synthetic-ordinary', [operations[0], added], 2), 'INVALID_INPUT')
+  const partial = await grantUser(tool, policy, 'synthetic-ordinary', [operations[0]], 2)
+  expect(partial.status).toBe(200)
+  expect(await partial.json()).toMatchObject({ nativeSettings: { [policy]: { grants: { 'synthetic-ordinary': [operations[0]] } } } })
+  const removed = await grantUser(tool, policy, 'synthetic-ordinary', [], 3)
   expect(removed.status).toBe(200)
-  expect(await removed.json()).toMatchObject({ nativeSettings: { sessions: { grants: {} } } })
+  expect(await removed.json()).toMatchObject({ nativeSettings: { [policy]: { grants: {} } } })
 })
 
 test('per-person grants change one person at a time and journal each change', async () => {
@@ -416,9 +423,12 @@ test('Shodan stream selector grants survive editing', async () => {
 
 test('a stale grant for a person who no longer exists can be removed but not added', async () => {
   db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'kubernetes-axi'")
-    .run(JSON.stringify({ sessions: { grants: { 'departed-user': ['exec'] } } }))
-  await failure(await grantUser('kubernetes-axi', 'sessions', 'departed-user', ['logs'], 1), 'INVALID_INPUT')
-  const removed = await grantUser('kubernetes-axi', 'sessions', 'departed-user', [], 1)
+    .run(JSON.stringify({ sessions: { grants: { 'departed-user': ['exec', 'logs'] } } }))
+  await failure(await grantUser('kubernetes-axi', 'sessions', 'departed-user', ['watch'], 1), 'INVALID_INPUT')
+  const partial = await grantUser('kubernetes-axi', 'sessions', 'departed-user', ['logs'], 1)
+  expect(partial.status).toBe(200)
+  expect(await partial.json()).toMatchObject({ nativeSettings: { sessions: { grants: { 'departed-user': ['logs'] } } } })
+  const removed = await grantUser('kubernetes-axi', 'sessions', 'departed-user', [], 2)
   expect(removed.status).toBe(200)
   expect(await removed.json()).toMatchObject({ nativeSettings: { sessions: { grants: {} } } })
 })
