@@ -15,16 +15,7 @@ const proxmoxContracts = (JSON.parse(read('proxmox-axi', 'dist/contracts.json'))
 const reviewedWrites = JSON.parse(readFileSync(new URL('inventories/write-operations.json', root), 'utf8')) as {
   'proxmox-axi': { groups: { operations: Record<string, unknown> }[] } }
 const reviewedProxmoxOperations = new Set(reviewedWrites['proxmox-axi'].groups.flatMap(group => Object.keys(group.operations)))
-const reviewedProxmoxReads = new Set(['task status', 'task log', 'task wait', 'journal show', 'journal reconcile',
-  'home', 'doctor', 'help', 'ls', 'inventory', 'ls /cluster/resources', 'ls /cluster/status', 'ls /nodes',
-  'ls /nodes/{node}/lxc', 'ls /nodes/{node}/qemu', 'ls /nodes/{node}/storage', 'ls /nodes/{node}/tasks',
-  'ls /nodes/{node}/tasks/{upid}/log', 'ls /storage', 'get /access/permissions', 'get /cluster/nextid',
-  'get /cluster/resources', 'get /cluster/status', 'get /nodes', 'get /nodes/{node}/lxc', 'get /nodes/{node}/qemu',
-  'get /nodes/{node}/status', 'get /nodes/{node}/storage', 'get /nodes/{node}/storage/{storage}/status',
-  'get /nodes/{node}/tasks', 'get /nodes/{node}/tasks/{upid}/log', 'get /nodes/{node}/tasks/{upid}/status',
-  'get /nodes/{node}/version', 'get /storage', 'get /version', 'get /cluster/firewall/options',
-  'get /nodes/{node}/firewall/options', 'get /nodes/{node}/lxc/{vmid}/firewall/options',
-  'get /nodes/{node}/qemu/{vmid}/firewall/options'])
+const blockedCommands = ['setup', 'update', 'auth', 'config', 'profile']
 const proxmoxOperations = proxmoxContracts.filter(contract => contract.callable
   && reviewedProxmoxOperations.has(contract.id)
   && (['write', 'batch'].includes(contract.policy.effect)
@@ -36,7 +27,7 @@ const reviewedProxmoxConfigFields: Record<string, string[]> = {
   'set /nodes/{node}/qemu/{vmid}/config': ['cores', 'description', 'digest', 'memory', 'name', 'node', 'onboot', 'vmid'],
 }
 const proxmoxCommands = proxmox.commands.filter(entry => !entry.stream && (entry.effect === 'read'
-  ? !entry.privateResult && (entry.command.startsWith('schema ') || reviewedProxmoxReads.has(entry.command))
+  ? !entry.privateResult && !blockedCommands.includes(entry.command.split(' ')[0])
   : entry.operationId && proxmoxJsonOperations.includes(entry.operationId))).map(entry => ({ ...entry,
     privateResult: proxmoxOperations.some(contract => contract.id === entry.operationId && contract.policy.secrets === 'private-result'),
     sensitiveInputs: [...new Set(proxmoxOperations.filter(contract => contract.id === entry.operationId)
@@ -110,7 +101,7 @@ for (const [tool, spec] of Object.entries(specifications)) {
       ...(tool === 'unifi-axi' ? { inputFileFlags: ['body-file'] } : {}),
       nativeWrites: tool === 'unifi-axi' ? 'native preview, exact grants, confirmation and durable request IDs'
         : 'JSON and managed byte writes with independent native/host grants, exact single-use preview confirmation, private results and durable journals',
-      blockedCommands: ['setup', 'update', 'auth', 'config', 'profile'] },
+      blockedCommands },
     commands, discovery: { commands: commands.map(entry => entry.command).filter(Boolean), example: spec.example,
       help: tool === 'unifi-axi'
         ? 'UniFi managed reads and native write previews. Run each command with --help for selectors and limits.\nExecution requires administrator Allow writes and exact native operation/variant grants; preview first, then repeat with --execute --confirm <confirmation> --request-id <stable-id>.\nUpload private JSON through --body-file. Use write show/reconcile with the same request ID after uncertainty; never resend automatically.\nLocal configuration, credential overrides, secret export and byte transports are unavailable in hosted execution.\n'

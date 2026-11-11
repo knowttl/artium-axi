@@ -106,6 +106,19 @@ test.each(['/cluster/firewall/options', '/nodes/{node}/firewall/options',
     expect(() => createProxmoxAdapter(source).validateArgs(['get', path])).not.toThrow()
   })
 
+test.each([['get', '/nodes/{node}/aplinfo'], ['ls', '/nodes/{node}/aplinfo'],
+  ['get', '/nodes/{node}/lxc/{vmid}/status/current'], ['get', '/nodes/{node}/qemu/{vmid}/status/current'],
+  ['get', '/nodes/{node}/lxc/{vmid}/snapshot'], ['ls', '/nodes/{node}/qemu/{vmid}/snapshot'],
+  ['get', '/nodes/{node}/lxc/{vmid}/snapshot/{snapname}'], ['ls', '/nodes/{node}/qemu/{vmid}/snapshot/{snapname}'],
+  ['get', '/nodes/{node}/storage/{storage}/content'], ['ls', '/nodes/{node}/storage/{storage}/content'],
+  ['get', '/nodes/{node}/storage/{storage}/content/{volume}']])('Proxmox admits plain read %j', (...args) => {
+  expect(() => createProxmoxAdapter(source).validateArgs(args)).not.toThrow()
+})
+
+test.each([['auth', 'status'], ['profile', 'list'], ['config', 'path']])('Proxmox refuses local command %j', (...args) => {
+  expect(() => createProxmoxAdapter(source).validateArgs(args)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }))
+})
+
 test.each([['get', '/nodes/{node}/network'], ['ls', '/nodes/{node}/network'],
   ['get', '/cluster/firewall/rules'], ['ls', '/cluster/firewall/aliases'],
   ['set', '/cluster/firewall/options']])('Proxmox refuses unreviewed private reads and new writes %j', (...args) => {

@@ -1804,6 +1804,19 @@
       }
     },
     {
+      "command": "ls /nodes/{node}/aplinfo",
+      "effect": "read",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-node": "value"
+      }
+    },
+    {
       "command": "ls /nodes/{node}/lxc",
       "effect": "read",
       "sensitiveInputs": [],
@@ -1814,6 +1827,35 @@
         "fields": "value",
         "full": "boolean",
         "api-node": "value"
+      }
+    },
+    {
+      "command": "ls /nodes/{node}/lxc/{vmid}/snapshot",
+      "effect": "read",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-node": "value",
+        "api-vmid": "value"
+      }
+    },
+    {
+      "command": "ls /nodes/{node}/lxc/{vmid}/snapshot/{snapname}",
+      "effect": "read",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-node": "value",
+        "api-snapname": "value",
+        "api-vmid": "value"
       }
     },
     {
@@ -1828,6 +1870,35 @@
         "full": "boolean",
         "api-full": "value",
         "api-node": "value"
+      }
+    },
+    {
+      "command": "ls /nodes/{node}/qemu/{vmid}/snapshot",
+      "effect": "read",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-node": "value",
+        "api-vmid": "value"
+      }
+    },
+    {
+      "command": "ls /nodes/{node}/qemu/{vmid}/snapshot/{snapname}",
+      "effect": "read",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-node": "value",
+        "api-snapname": "value",
+        "api-vmid": "value"
       }
     },
     {
@@ -1846,6 +1917,22 @@
         "api-node": "value",
         "api-storage": "value",
         "api-target": "value"
+      }
+    },
+    {
+      "command": "ls /nodes/{node}/storage/{storage}/content",
+      "effect": "read",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-content": "value",
+        "api-node": "value",
+        "api-storage": "value",
+        "api-vmid": "value"
       }
     },
     {
@@ -10185,6 +10272,23 @@
       }
     },
     {
+      "command": "get /nodes/{node}/aplinfo",
+      "effect": "read",
+      "operationId": "OP-GET-66bdd31664",
+      "method": "GET",
+      "path": "/nodes/{node}/aplinfo",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "catalogue": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-node": "value"
+      }
+    },
+    {
       "command": "get /nodes/{node}/firewall/options",
       "effect": "read",
       "operationId": "OP-GET-75276fb252",
@@ -10237,6 +10341,61 @@
       }
     },
     {
+      "command": "get /nodes/{node}/lxc/{vmid}/snapshot",
+      "effect": "read",
+      "operationId": "OP-GET-3dd428bcd4",
+      "method": "GET",
+      "path": "/nodes/{node}/lxc/{vmid}/snapshot",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "catalogue": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-node": "value",
+        "api-vmid": "value"
+      }
+    },
+    {
+      "command": "get /nodes/{node}/lxc/{vmid}/snapshot/{snapname}",
+      "effect": "read",
+      "operationId": "OP-GET-cad4dcb48f",
+      "method": "GET",
+      "path": "/nodes/{node}/lxc/{vmid}/snapshot/{snapname}",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "catalogue": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-node": "value",
+        "api-snapname": "value",
+        "api-vmid": "value"
+      }
+    },
+    {
+      "command": "get /nodes/{node}/lxc/{vmid}/status/current",
+      "effect": "read",
+      "operationId": "OP-GET-3e89cf9759",
+      "method": "GET",
+      "path": "/nodes/{node}/lxc/{vmid}/status/current",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "catalogue": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-node": "value",
+        "api-vmid": "value"
+      }
+    },
+    {
       "command": "get /nodes/{node}/qemu",
       "effect": "read",
       "operationId": "OP-GET-ee0e17bebb",
@@ -10260,6 +10419,61 @@
       "operationId": "OP-GET-ea412bbbf8",
       "method": "GET",
       "path": "/nodes/{node}/qemu/{vmid}/firewall/options",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "catalogue": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-node": "value",
+        "api-vmid": "value"
+      }
+    },
+    {
+      "command": "get /nodes/{node}/qemu/{vmid}/snapshot",
+      "effect": "read",
+      "operationId": "OP-GET-21328c5bed",
+      "method": "GET",
+      "path": "/nodes/{node}/qemu/{vmid}/snapshot",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "catalogue": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-node": "value",
+        "api-vmid": "value"
+      }
+    },
+    {
+      "command": "get /nodes/{node}/qemu/{vmid}/snapshot/{snapname}",
+      "effect": "read",
+      "operationId": "OP-GET-31cf78f27d",
+      "method": "GET",
+      "path": "/nodes/{node}/qemu/{vmid}/snapshot/{snapname}",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "catalogue": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-node": "value",
+        "api-snapname": "value",
+        "api-vmid": "value"
+      }
+    },
+    {
+      "command": "get /nodes/{node}/qemu/{vmid}/status/current",
+      "effect": "read",
+      "operationId": "OP-GET-51ca5330c0",
+      "method": "GET",
+      "path": "/nodes/{node}/qemu/{vmid}/status/current",
       "sensitiveInputs": [],
       "flags": {
         "help": "boolean",
@@ -10309,6 +10523,45 @@
         "api-node": "value",
         "api-storage": "value",
         "api-target": "value"
+      }
+    },
+    {
+      "command": "get /nodes/{node}/storage/{storage}/content",
+      "effect": "read",
+      "operationId": "OP-GET-090607ccf4",
+      "method": "GET",
+      "path": "/nodes/{node}/storage/{storage}/content",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "catalogue": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-content": "value",
+        "api-node": "value",
+        "api-storage": "value",
+        "api-vmid": "value"
+      }
+    },
+    {
+      "command": "get /nodes/{node}/storage/{storage}/content/{volume}",
+      "effect": "read",
+      "operationId": "OP-GET-d6c763e6d8",
+      "method": "GET",
+      "path": "/nodes/{node}/storage/{storage}/content/{volume}",
+      "sensitiveInputs": [],
+      "flags": {
+        "help": "boolean",
+        "format": "value",
+        "catalogue": "value",
+        "limit": "value",
+        "fields": "value",
+        "full": "boolean",
+        "api-node": "value",
+        "api-storage": "value",
+        "api-volume": "value"
       }
     },
     {
@@ -10499,9 +10752,15 @@
       "ls /cluster/resources",
       "ls /cluster/status",
       "ls /nodes",
+      "ls /nodes/{node}/aplinfo",
       "ls /nodes/{node}/lxc",
+      "ls /nodes/{node}/lxc/{vmid}/snapshot",
+      "ls /nodes/{node}/lxc/{vmid}/snapshot/{snapname}",
       "ls /nodes/{node}/qemu",
+      "ls /nodes/{node}/qemu/{vmid}/snapshot",
+      "ls /nodes/{node}/qemu/{vmid}/snapshot/{snapname}",
       "ls /nodes/{node}/storage",
+      "ls /nodes/{node}/storage/{storage}/content",
       "ls /nodes/{node}/tasks",
       "ls /nodes/{node}/tasks/{upid}/log",
       "ls /storage",
@@ -11193,13 +11452,22 @@
       "get /cluster/resources",
       "get /cluster/status",
       "get /nodes",
+      "get /nodes/{node}/aplinfo",
       "get /nodes/{node}/firewall/options",
       "get /nodes/{node}/lxc",
       "get /nodes/{node}/lxc/{vmid}/firewall/options",
+      "get /nodes/{node}/lxc/{vmid}/snapshot",
+      "get /nodes/{node}/lxc/{vmid}/snapshot/{snapname}",
+      "get /nodes/{node}/lxc/{vmid}/status/current",
       "get /nodes/{node}/qemu",
       "get /nodes/{node}/qemu/{vmid}/firewall/options",
+      "get /nodes/{node}/qemu/{vmid}/snapshot",
+      "get /nodes/{node}/qemu/{vmid}/snapshot/{snapname}",
+      "get /nodes/{node}/qemu/{vmid}/status/current",
       "get /nodes/{node}/status",
       "get /nodes/{node}/storage",
+      "get /nodes/{node}/storage/{storage}/content",
+      "get /nodes/{node}/storage/{storage}/content/{volume}",
       "get /nodes/{node}/storage/{storage}/status",
       "get /nodes/{node}/tasks",
       "get /nodes/{node}/tasks/{upid}/log",
