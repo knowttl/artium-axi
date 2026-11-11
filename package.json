@@ -29,6 +29,8 @@
     "test:security": "vitest run --testNamePattern security --passWithNoTests",
     "lint": "tsc --noEmit",
     "errors:generate": "node scripts/errors-reference.mjs --write",
+    "offered:generate": "node scripts/offered-commands.mjs",
+    "pin:freshness": "node scripts/pin-freshness.mjs",
     "check": "node scripts/errors-reference.mjs && pnpm lint && pnpm test && pnpm build && pnpm test:axi",
     "hygiene:check": "node scripts/hygiene-check.mjs"
   },

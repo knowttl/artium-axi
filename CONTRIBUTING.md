@@ -1,6 +1,6 @@
 # Contributing
 
-[Build from source](#build-from-source) · [Local validation and delivery](#local-validation-and-delivery) · [Container acceptance](#container-acceptance) · [Compatibility policy](#compatibility-policy) · [Private hygiene check](#private-hygiene-check) · [Historical verification records](#historical-verification-records)
+[Build from source](#build-from-source) · [Local validation and delivery](#local-validation-and-delivery) · [Container acceptance](#container-acceptance) · [Upstream pin freshness](#upstream-pin-freshness) · [Compatibility policy](#compatibility-policy) · [Private hygiene check](#private-hygiene-check) · [Historical verification records](#historical-verification-records)
 
 Use Linux and the Node and pnpm versions declared in [package.json](package.json).
 The [source toolchain](#build-from-source) lists the remaining build prerequisites and approved native dependencies.
@@ -128,6 +128,19 @@ Reuse evidence only when relevant input and compiled-output digests match the ca
 Changed relevant inputs require fresh checks.
 A failed or refused required check remains unverified until resolved.
 See the [release runbook](docs/runbook.md#npm-client-releases) for release evidence requirements.
+
+## Upstream pin freshness
+
+The scheduled [pin-freshness workflow](.github/workflows/pin-freshness.yml) runs `node scripts/pin-freshness.mjs` (also available locally as `pnpm pin:freshness`) every Monday and on demand.
+It compares each pin in `tools/package.json` with the latest version `npm view` reports and fails while any pin is behind or the registry cannot be read.
+It never changes a pin.
+Review the newer release, re-pin `tools/package.json`, `tools/pnpm-lock.yaml` and `tools/integrity.json` together, then regenerate the inventories.
+
+Re-pinning also runs the offered-versus-admitted review in `test/offered-commands.test.ts`.
+For gh-axi, ado-axi, ldap-axi, proxmox-axi, gitea-axi, shodan-axi and mg-axi it reads the commands the installed upstream package offers.
+Every offered command must be admitted by the tool inventory, blocked by its `blockedCommands`, or recorded as reviewed but unadmitted in `tools/offered-review.json`.
+A new gh-axi top-level group missing from the inventory group list and from `blockedCommands` fails with its own message.
+Admit or block each new command in the inventory generator, or run `pnpm offered:generate` to record an unadmitted decision and review the resulting `tools/offered-review.json` diff.
 
 ## Compatibility policy
 
