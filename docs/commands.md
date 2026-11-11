@@ -278,7 +278,7 @@ See the [collection attribution boundary](safety.md#shodan) and [result retentio
 For stream session access and quotas, ask an administrator to configure the [Shodan session policy](tool-credentials.md#shodan).
 For example, `artium-axi shodan-axi stream session preview --operation OP-047 --selector --asn --value AS64496 --limit 10 --max-bytes 4096 --timeout 10000 --idle-timeout 5000 --accept-unknown-cost --json` validates a native plan without starting a stream.
 Use `artium-axi shodan-axi stream session preview --help` for the full set of bounds.
-When more than one instance is available, put `--instance <name>` before `shodan-axi` on `stream session preview` and the `scan submit` preview.
+When more than one instance is available, put `--instance <name>` before `shodan-axi` on `stream session preview`, the `scan submit` preview and the `download` or `alert download` preview.
 The session or collection stays bound to the previewed instance; if `--instance` is supplied on `start` or scan execution, it must match the preview.
 Later stream session `status`, `read`, `extend` and `stop` use the session ID without `--instance`.
 The required `--accept-unknown-cost` acknowledges that cost cannot be determined; the response reports the selected operation, selector, bounds and effective limits with `status: preview` and `cost: unknown`.
@@ -316,6 +316,23 @@ The session's initial `expiresAt` deadline starts at admission and is bounded by
 See [session retention and recovery](runbook.md#retention-and-export) for output expiry, cleanup and capacity recovery.
 Exceeding a ceiling returns `INVALID_INPUT`; exhausted preview or session capacity returns `TOO_MANY_CALLS`.
 For a missing or expired start confirmation (`NOT_FOUND`), obtain a fresh preview; for changed start arguments (`INVALID_INPUT`), repeat the exact preview arguments with the new confirmation.
+Search and alert results can be saved as retained gzip JSONL exports; ask an administrator for the `CLI-005` (`download`) or `CLI-020` (`alert download`) [export grant](tool-credentials.md#shodan).
+Preview with `artium-axi shodan-axi download 'port:22' --limit 100 --max-bytes 1048576 --query-credit-budget 1 --max-requests 1 --output /home/me/shodan/ssh.json.gz --json`.
+For an alert, use `artium-axi shodan-axi alert download --alert-id <id>` with the same bounds and `--output`.
+All four bounds are required, and `--fields <a,b>` optionally limits the exported fields.
+The preview reports the match total, query credits, bounds, retention and a single-use `confirm` token that expires after fifteen minutes.
+Repeat the exact preview arguments with `--execute --confirm <token>` to start the export, wait for it to finish and save it.
+Put `--instance <name>` before `shodan-axi` on the preview; the export stays bound to the previewed instance, and an `--instance` supplied on execution must match.
+The CLI prints `export: <id>` on standard error while it waits, then the saved path, record `count`, upstream `total`, `complete`, byte size and SHA-256.
+A complete export is saved at `--output` and exits 0.
+An incomplete export, for example one that reached a bound, is saved at `--output` with a `.partial` suffix and exits 1; inspect `count` and `total` before relying on it.
+Saving requires Linux and a new normalized absolute path in an existing directory owned by the current user with mode 0700 and no symlink components.
+Neither the `--output` path nor the same path with `.partial` appended may exist, and both are checked before the preview or any credits are spent.
+The file has mode 0600 and is never overwritten.
+The CLI saves only after the downloaded size and SHA-256 match the server's job result and response headers; otherwise it exits 1 and leaves nothing at the destination.
+The server releases the export after a single retrieval, so a failed save needs a new preview, confirmation and credit spend.
+A failed export returns `TOOL_FAILED`; see [export retention and recovery](runbook.md#retention-and-export).
+Use `artium-axi shodan-axi download --help` or `alert download --help` for local help without contacting the server.
 For authentication failures, ask an administrator to replace the managed key using [Shodan credential setup](tool-credentials.md#shodan).
 See [package recovery](runbook.md#roles-credentials-and-health) for inventory or package mismatches.
 
