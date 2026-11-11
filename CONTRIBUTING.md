@@ -134,7 +134,7 @@ See the [release runbook](docs/runbook.md#npm-client-releases) for release evide
 The scheduled [pin-freshness workflow](.github/workflows/pin-freshness.yml) runs `node scripts/pin-freshness.mjs` (also available locally as `pnpm pin:freshness`) every Monday and on demand.
 It compares each pin in `tools/package.json` with the latest version `npm view` reports and fails while any pin is behind or the registry cannot be read.
 It never changes a pin.
-Review the newer release, re-pin `tools/package.json` and `tools/pnpm-lock.yaml` together, then regenerate the inventories.
+Review the newer release, re-pin `tools/package.json`, `tools/pnpm-lock.yaml` and `tools/integrity.json` together, then regenerate the inventories.
 
 Re-pinning also runs the offered-versus-admitted review in `test/offered-commands.test.ts`.
 For gh-axi, ado-axi, ldap-axi, proxmox-axi, gitea-axi, shodan-axi and mg-axi it reads the commands the installed upstream package offers.
