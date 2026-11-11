@@ -316,7 +316,7 @@ async function main(args: string[]) {
   if (command === 'shodan-axi' && await shodanRadar(args.slice(1), () => new Client(process.env, managed), output)) return
   if (command === 'shodan-axi' && await shodanScan(args.slice(1), () => new Client(process.env, managed), output, instance)
     .catch(error => { throw instanceErrorAdvice(error, instance) })) return
-  if (command === 'shodan-axi' && await shodanExport(args.slice(1), () => new Client(process.env, managed), output, instance)
+  if (command === 'shodan-axi' && await shodanExport(args.slice(1), () => new Client(process.env, managed), output, instance, managed)
     .catch(error => { throw instanceErrorAdvice(error, instance) })) return
   const input = home || listing || whoami ? undefined : { ...await toolInput(command!, args.slice(1)), ...(instance === undefined ? {} : { instance }) }
   const client = new Client(process.env, managed)

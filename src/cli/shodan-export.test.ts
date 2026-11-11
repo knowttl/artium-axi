@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { once } from 'node:events'
 import { createServer } from 'node:http'
@@ -6,18 +6,22 @@ import { mkdir, mkdtemp, readFile, readdir, rm, stat, symlink, writeFile } from 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
+import { gzipSync } from 'node:zlib'
+import type { Writable } from 'node:stream'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { copyClientInput } from '../../test/fixtures/client-inputs.js'
 import { SessionStore } from './session.js'
 
 const id = '00000000-0000-4000-8000-000000000001'
 const confirm = '00000000-0000-4000-8000-000000000002'
-const gzip = Buffer.from([0x1f, 0x8b, 8, 0, 1, 2, 3, 4, 255, 128])
+const gzip = gzipSync('{"ip_str":"192.0.2.1"}\n{"ip_str":"192.0.2.2"}\n')
 const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
-type Scenario = 'complete' | 'partial' | 'digest' | 'header-digest' | 'completeness' | 'failed' | 'destination-created'
+type Scenario = 'complete' | 'partial' | 'digest' | 'header-digest' | 'completeness' | 'failed' | 'destination-created' | 'waiting'
 let directory: string, saves: string, scenario: Scenario, requests: { path: string, body: unknown }[]
 let server: ReturnType<typeof createServer>, url: string
 let bundle: string
+let releaseStatus: (() => void) | undefined
+let statusStarted: (() => void) | undefined
 
 beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), 'artium-export-'))
@@ -25,6 +29,8 @@ beforeEach(async () => {
   await mkdir(saves, { mode: 0o700 })
   scenario = 'complete'
   requests = []
+  releaseStatus = undefined
+  statusStarted = undefined
   server = createServer(async (request, response) => {
     let body = ''
     for await (const chunk of request) body += chunk
@@ -36,6 +42,7 @@ beforeEach(async () => {
         'x-artium-export-complete': String(scenario === 'completeness' ? !complete : complete) })
       response.end(scenario === 'digest' ? Buffer.alloc(gzip.length, 7) : gzip)
     } else if (request.url!.includes(`/exports/${id}`)) {
+      if (scenario === 'waiting') await new Promise<void>(resolve => { releaseStatus = resolve; statusStarted?.() })
       if (scenario === 'destination-created') await writeFile(join(saves, 'export.json.gz'), 'sentinel')
       response.end(JSON.stringify(scenario === 'failed' ? { id, state: 'failed', result: { error: 'INTERNAL_ERROR' } }
         : { id, state: complete ? 'completed' : 'partial', result: { count: 2, total: complete ? 2 : 5, complete, bytes: gzip.length,
@@ -52,6 +59,7 @@ beforeEach(async () => {
   bundle = copyClientInput('bundle', join(directory, 'client.mjs'))
 })
 afterEach(async () => {
+  releaseStatus?.()
   await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
   await rm(directory, { recursive: true, force: true })
 })
@@ -64,6 +72,25 @@ async function run(args: string[]) {
 }
 const bounds = ['--limit', '2', '--max-bytes', '4096', '--query-credit-budget', '1', '--max-requests', '1']
 const execute = ['--execute', '--confirm', confirm]
+
+test.each([['download', 'port:22'], ['alert', 'download']])('managed %s announces the export before waiting', async (...command) => {
+  scenario = 'waiting'
+  const waiting = new Promise<void>(resolve => { statusStarted = resolve })
+  const child = spawn(process.execPath, [bundle, '--managed-session', 'shodan-axi', ...command.flat(), ...bounds, ...execute,
+    '--output', join(saves, 'export.json.gz')],
+  { env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' }, stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe'] })
+  const closed = once(child, 'close')
+  ;(child.stdio[3] as Writable).end(JSON.stringify({ serverUrl: url, accessToken: 'CANARY-token' }))
+  try {
+    const [[notice]] = await Promise.all([once(child.stdout!, 'data'), waiting])
+    expect(notice.toString()).toBe(`export: ${id}\n`)
+    expect(child.exitCode).toBeNull()
+  } finally {
+    child.kill('SIGKILL')
+    releaseStatus?.()
+    await closed
+  }
+})
 
 test('saves a complete export at the requested path after verifying it', async () => {
   const output = join(saves, 'export.json.gz')

@@ -4,6 +4,7 @@ import { shodanExportInput } from '../shared/shodan-stream.js'
 import { ArtiumError } from '../shared/errors.js'
 import { artifactDestination } from './artifact-save.js'
 import type { Client } from './http.js'
+import type { ManagedSession } from './managed-session.js'
 
 const prefix = '/v1/tools/shodan-axi/exports'
 const help = `usage: artium-axi shodan-axi download <query> --output <absolute-new-path> [options]
@@ -24,7 +25,7 @@ const statusSchema = z.discriminatedUnion('state', [
   z.object({ state: z.enum(['completed', 'partial']), result: exportResult }),
 ])
 
-export async function shodanExport(args: string[], createClient: () => Client, output: (stream: 'stdout' | 'stderr', text: string) => void, instance?: string) {
+export async function shodanExport(args: string[], createClient: () => Client, output: (stream: 'stdout' | 'stderr', text: string) => void, instance?: string, managed?: ManagedSession) {
   const alert = args[0] === 'alert' && args[1] === 'download'
   if (!alert && args[0] !== 'download') return false
   if (args.includes('--help')) {
@@ -74,7 +75,8 @@ export async function shodanExport(args: string[], createClient: () => Client, o
     const started = z.object({ id: z.uuid() }).safeParse(await call('/start', { ...parsed.data, confirm }))
     if (!started.success) throw new ArtiumError('INVALID_RESPONSE')
     const id = started.data.id
-    output('stderr', `export: ${id}\n`)
+    if (managed) managed.notice(`export: ${id}\n`)
+    else output('stderr', `export: ${id}\n`)
     let status: z.infer<typeof statusSchema>
     do {
       const next = statusSchema.safeParse(await client.authenticated(`${prefix}/${id}?waitMs=20000`, 'GET'))

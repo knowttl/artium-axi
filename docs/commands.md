@@ -323,7 +323,7 @@ All four bounds are required, and `--fields <a,b>` optionally limits the exporte
 The preview reports the match total, query credits, bounds, retention and a single-use `confirm` token that expires after fifteen minutes.
 Repeat the exact preview arguments with `--execute --confirm <token>` to start the export, wait for it to finish and save it.
 Put `--instance <name>` before `shodan-axi` on the preview; the export stays bound to the previewed instance, and an `--instance` supplied on execution must match.
-The CLI prints `export: <id>` on standard error while it waits, then the saved path, record `count`, upstream `total`, `complete`, byte size and SHA-256.
+The CLI prints `export: <id>` on standard error while it waits, or as a standard output notice in managed-session mode, then the saved path, record `count`, upstream `total`, `complete`, byte size and SHA-256.
 A complete export is saved at `--output` and exits 0.
 An incomplete export, for example one that reached a bound, is saved at `--output` with a `.partial` suffix and exits 1; inspect `count` and `total` before relying on it.
 Saving requires Linux and a new normalized absolute path in an existing directory owned by the current user with mode 0700 and no symlink components.
