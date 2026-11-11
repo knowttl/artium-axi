@@ -112,6 +112,9 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/tools` | Review installed tools in a table with instance count, state, enablement, write state, granting roles and last checked time; filter by All, Enabled or Needs attention or by name; the server-wide trusted CA bundle appears as a read-only card at the bottom. |
 | `/admin/tools/:tool` | Header with state, write badges and an **Enabled** switch, a setup strip and tabs: Instances, Write permissions, Access and Advanced. Instances lists the tool's named instances and opens the Add instance and Edit sheets. Access lists the granting roles and their instance scopes, with a sheet per role to choose All instances or Selected instances. See [SSH setup](tool-credentials.md#ssh) for its separate host binding requirements. |
 | `/admin/tools/:tool/instances/:name` | Instance detail: header with status, writes, **Test connection** and an **Enabled** switch for this instance, a setup strip, the Connection editor, Trusted certificates and a danger zone that deletes the instance after its name is typed. |
+| `/admin/ssh` | SSH hosts, host-key trust, account bindings and caller grants, with links to the credentials and audit screens; see [SSH setup](tool-credentials.md#ssh). |
+| `/admin/ssh/credentials` | Save, replace or delete the dedicated encrypted SSH credentials that bindings use; stored keys and passphrases are never shown. |
+| `/admin/ssh/audit` | Retained SSH executions with escaped output samples, recent connection events and denials, and a metadata-only export of the page. |
 | `/admin/credentials` | Redirect to the merged tools index. |
 | `/admin/roles` | List roles with their tools, member and SSO rule counts, and create a role. |
 | `/admin/roles/:id` | Rename a role, replace tool grants, review members and delete an unused role by typing its name. |
@@ -203,10 +206,9 @@ Each tool holds named instances.
 An instance is one credential with a permanent name, a description that agents read, an enabled switch and a read-only switch.
 The **Instances** tab (`?tab=instances`, the default) lists them with endpoint, status, writes, last checked time, and the row actions Test, Edit and a **…** menu to disable, enable or delete.
 **Add instance** opens a sheet with the name, the description and the credential editor, except for AWX as described below.
-The name is lowercase letters, digits and hyphens, never changes and is what agents type after `--instance`.
+The name is 1 to 32 lowercase letters, digits and hyphens, never starts with a hyphen, never changes and is what agents type after `--instance`.
 New instances start enabled and read-only.
-Calls that omit `--instance` fail with `INSTANCE_REQUIRED` when more than one enabled, configured instance is granted to the caller.
-Shodan accepts one instance until its streams are instance-aware.
+Instance-selecting calls that omit `--instance` fail with `INSTANCE_REQUIRED` when more than one enabled, configured instance is granted to the caller; handle-based commands use their existing handle instead, as described in the [command reference](commands.md).
 For AWX, save the controller address in the sheet, then open the instance to inspect its certificate, save credentials and edit its description.
 **Edit** changes the description and the read-only switch; the tool's Write permissions stay the ceiling and an instance can only narrow them.
 Open an instance to change its connection, test it, inspect and trust its certificates, enable or disable it, or delete it.
@@ -298,7 +300,7 @@ Local checks cannot prove provider credential acceptance or access-policy config
 Saving provider settings or credentials disables that provider; review and enable it again afterwards.
 Disabling all providers restores ordinary local password sign-in; existing artium sessions remain active.
 Local sign-in continues to work while all providers are disabled.
-On a local administrator's user detail page, use **Designate break-glass administrator** to prepare emergency password access.
+On a local administrator's user detail page, use **Make break-glass admin…** to prepare emergency password access.
 Designation requires recent identity confirmation, checks the user revision and is audited.
 The users table and signed-in account menu identify designated accounts.
 Removing designation revokes that account's browser and CLI sessions; demotion also clears designation, and claiming an SSO link removes it.
@@ -396,29 +398,31 @@ Successful local sign-in, password confirmation and password-change records incl
 These events are flagged as `break-glass` for designated accounts, even before SSO activation; Audit highlights them and includes the same field in its exports and JSON stdout stream.
 SSO reauthentication events include the authentication method, provider and validated subject.
 Device approval and refusal emit `device-approve` and `device-deny` events, with the requesting IP in `arguments.requestingAddress` and the approving or denying browser's IP in `client_address`.
-For Azure, Graph and Vectra, each `run-terminal` record uses `action` to report `write` when the native tool journal contains valid JSON object records for that run, or `read` when a successful run leaves its supported journal absent or empty.
-This records journal activity, including mutation intents, rather than guaranteeing that a remote change succeeded.
-LDAP runs report `read` from its inventory's read-only declaration.
-Falcon passive calls and RTR previews report `read`; native RTR journal activity reports `write` and missing or incomplete evidence remains `unknown`.
-Search and MalQuery submissions do not emit RTR journals, so their classified mutation audit remains `unknown` without that evidence, even when a job/request ID is returned.
-ADO, AWX, UniFi, Technitium, Gitea and ordinary Kubernetes calls use host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`.
-Technitium previews and reconciliation are read-classified; retained completed-mutation metadata and native audit IDs follow the [recovery guidance](runbook.md#retention-and-export).
-UniFi previews, receipt inspection and reconciliation are classified as reads; see its [native write boundary](safety.md#network-appliance-reads).
-Gitea previews and reconciliation calls are classified as reads; see its [native write boundary](safety.md#gitea-reads).
-Kubernetes preparation, saved previews and server dry runs report `read`; confirmation is a write-classified call.
+
+| Tool or call | `run-terminal` action classification |
+| --- | --- |
+| Azure, Graph and Vectra | `write` when the native tool journal contains valid JSON object records for that run; `read` when a successful run leaves its supported journal absent or empty; `unknown` for calls requiring journal evidence when failures have no journal records or evidence is malformed or unreadable. Journal activity includes mutation intents and does not guarantee a remote change succeeded. |
+| LDAP | `read` from its inventory's read-only declaration. |
+| Falcon | Passive calls and RTR previews report `read`; native RTR journal activity reports `write` and missing or incomplete evidence remains `unknown`. Search and MalQuery submissions do not emit RTR journals, so their classified mutation audit remains `unknown` without that evidence, even when a job/request ID is returned. |
+| ADO, AWX, UniFi, Technitium, Gitea and ordinary Kubernetes calls | Host classification: reads report `read`, successful write calls report `write`, and failed or interrupted writes report `unknown`. |
+| Technitium | Previews and reconciliation are read-classified; retained completed-mutation metadata and native audit IDs follow the [recovery guidance](runbook.md#retention-and-export). |
+| UniFi | Previews, receipt inspection and reconciliation are classified as reads; see its [native write boundary](safety.md#network-appliance-reads). |
+| Gitea | Previews and reconciliation calls are classified as reads; see its [native write boundary](safety.md#gitea-reads). |
+| Kubernetes | Preparation, saved previews and server dry runs report `read`; confirmation is a write-classified call. |
+| GitHub | Uses host classification; see its [supported boundary](safety.md). |
+| Tenable, Hybrid Analysis and Check Point | Writes use shared native journals with invocation-specific attribution; see the [retention and export runbook](runbook.md#retention-and-export). |
+| BeyondTrust | Executed writes report `write` when their isolated native intent is present, otherwise `unknown`; `native_audit_id` carries the native intent ID or the durable host fallback ID. |
+| All tools | Recovered interrupted runs report `unknown`. |
+
 Kubernetes byte sessions instead emit `run-start` and `run-terminal` records with the operation kind, exit code and output byte counts, without a read/write `action` classification.
 Workspace and session controls emit `admin-change` records with `kubernetes-workspace-*` or `kubernetes-session-*` actions and the owned handle as `target_id`; refused workspace or session requests emit `denial` records.
 Identifiable raw ADO API mutations also emit an `ado-api` decision record; the [API contract](../src/shared/api.ts) owns its argument fields.
 The decision is `allowed` immediately before runner admission or `refused` on validation, policy or credential refusal.
 The record identifies the authenticated user when available; execution outcome remains in the normal run-terminal record.
 Body text is never included in this decision journal, and audit persistence failure prevents forwarding.
-GitHub also uses host classification; see its [supported boundary](safety.md).
 See [GitHub setup](tool-credentials.md#github) for device connection, token lifecycle and reconnect guidance, and its [certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui).
-Tenable, Hybrid Analysis and Check Point writes use shared native journals with invocation-specific attribution; see the [retention and export runbook](runbook.md#retention-and-export).
-BeyondTrust executed writes report `write` when their isolated native intent is present, otherwise `unknown`; `native_audit_id` carries the native intent ID or the durable host fallback ID.
 See [BeyondTrust intent storage and reconciliation](runbook.md#retention-and-export) before interpreting an interrupted write.
 Check Point download evidence is host-owned and leaves native journal fields empty.
-For Azure, Graph and Vectra calls requiring journal evidence, failures without journal records and malformed or unreadable evidence report `unknown`; recovered interrupted runs for every tool also report `unknown`.
 See the [API contract](../src/shared/api.ts) and [retention and export runbook](runbook.md#retention-and-export).
 
 ### Server settings and custody
