@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
-import { link, open, unlink } from 'node:fs/promises'
+import { link, lstat, open, rename, unlink } from 'node:fs/promises'
 import type { FileHandle } from 'node:fs/promises'
 import type { IncomingMessage } from 'node:http'
 import { basename, dirname, isAbsolute, resolve } from 'node:path'
@@ -24,7 +24,7 @@ async function privateParent(destination: string): Promise<FileHandle> {
 
 // Linux directory descriptors keep all subsequent operations relative to the
 // checked private directory. No artifact path is ever followed through a symlink.
-export async function artifactDestination(destination: string) {
+export async function artifactDestination(destination: string, replaceRegular = false) {
   if (process.platform !== 'linux' || !isAbsolute(destination) || resolve(destination) !== destination || basename(destination) === '') {
     throw new ArtiumError('ARTIFACT_SAVE_FAILED')
   }
@@ -37,12 +37,46 @@ export async function artifactDestination(destination: string) {
   try {
     const info = await parent.stat()
     const target = `/proc/self/fd/${parent.fd}/${basename(destination)}`
-    // Fail before native execution when the confirmed new destination exists.
-    try {
-      const existing = await open(target, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
-      await existing.close()
-      throw new ArtiumError('ARTIFACT_SAVE_FAILED')
-    } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
+    const check = async () => {
+      const current = await privateParent(destination)
+      try {
+        const actual = await current.stat()
+        if (info.dev !== actual.dev || info.ino !== actual.ino) throw new ArtiumError('ARTIFACT_SAVE_FAILED')
+      } finally { await current.close() }
+      try {
+        const existing = await lstat(target)
+        if (!replaceRegular || !existing.isFile()) throw new ArtiumError('ARTIFACT_SAVE_FAILED')
+      } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
+    }
+    await check()
+    const receive = async (response: IncomingMessage, expected: { contentType: string, digestHeader: string, bytes: number, sha256: string }, signal: AbortSignal, beforeSave?: () => Promise<void>) => {
+      signal.throwIfAborted()
+      if (response.headers['content-type'] !== expected.contentType
+        || response.headers['content-length'] !== String(expected.bytes)
+        || response.headers[expected.digestHeader] !== expected.sha256
+        || response.headers['content-encoding'] || response.headers['content-range']) throw new ArtiumError('INVALID_RESPONSE')
+      temporary = `/proc/self/fd/${parent.fd}/.artium-${randomUUID()}.tmp`
+      file = await open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600)
+      const hash = createHash('sha256')
+      let size = 0
+      for await (const chunk of response) {
+        signal.throwIfAborted()
+        size += chunk.length
+        if (size > expected.bytes) throw new ArtiumError('INVALID_RESPONSE')
+        hash.update(chunk)
+        await file.writeFile(chunk)
+      }
+      if (size !== expected.bytes || hash.digest('hex') !== expected.sha256) throw new ArtiumError('INVALID_RESPONSE')
+      await file.sync()
+      await file.close()
+      file = undefined
+      await beforeSave?.()
+      await check()
+      signal.throwIfAborted()
+      if (replaceRegular) await rename(temporary, target)
+      else await link(temporary, target)
+      if (replaceRegular) temporary = undefined
+    }
     return {
       async saveBytes(bytes: Uint8Array) {
         temporary = `/proc/self/fd/${parent.fd}/.artium-${randomUUID()}.tmp`
@@ -62,36 +96,13 @@ export async function artifactDestination(destination: string) {
         } finally { await current.close() }
         await link(temporary, target)
       },
-      async save(response: IncomingMessage, archive: z.infer<typeof transferArchiveSchema>, signal: AbortSignal) {
-        signal.throwIfAborted()
-        if (response.headers['content-type'] !== 'application/octet-stream'
-          || response.headers['content-length'] !== String(archive.archiveBytes)
-          || response.headers['x-artium-archive-sha256'] !== archive.archiveSha256
-          || response.headers['content-encoding'] || response.headers['content-range']) throw new ArtiumError('INVALID_RESPONSE')
-        temporary = `/proc/self/fd/${parent.fd}/.artium-${randomUUID()}.tmp`
-        file = await open(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600)
-        const hash = createHash('sha256')
-        let size = 0
-        for await (const chunk of response) {
-          signal.throwIfAborted()
-          size += chunk.length
-          if (size > archive.archiveBytes) throw new ArtiumError('INVALID_RESPONSE')
-          hash.update(chunk)
-          await file.writeFile(chunk)
-        }
-        if (size !== archive.archiveBytes || hash.digest('hex') !== archive.archiveSha256) throw new ArtiumError('INVALID_RESPONSE')
-        await file.sync()
-        await file.close()
-        file = undefined
-        const current = await privateParent(destination)
-        try {
-          const actual = await current.stat()
-          if (info.dev !== actual.dev || info.ino !== actual.ino) throw new ArtiumError('ARTIFACT_SAVE_FAILED')
-        } finally { await current.close() }
-        // link is atomic and fails if any entry, including a symlink, exists.
-        // rename would silently overwrite the destination.
-        signal.throwIfAborted()
-        await link(temporary, target)
+      save(response: IncomingMessage, archive: z.infer<typeof transferArchiveSchema>, signal: AbortSignal) {
+        return receive(response, { contentType: 'application/octet-stream', digestHeader: 'x-artium-archive-sha256',
+          bytes: archive.archiveBytes, sha256: archive.archiveSha256 }, signal)
+      },
+      check,
+      saveExport(response: IncomingMessage, expected: { bytes: number, sha256: string }, signal: AbortSignal, beforeSave: () => Promise<void>) {
+        return receive(response, { contentType: 'application/gzip', digestHeader: 'x-artium-export-sha256', ...expected }, signal, beforeSave)
       },
       async close() {
         if (closed) return

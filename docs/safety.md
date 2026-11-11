@@ -452,6 +452,7 @@ Delegated tokens cannot use export routes, the server chooses the file destinati
 POST `/v1/tools/shodan-axi/exports/preview` with the [export input](../src/shared/shodan-stream.ts) and optional `instance`, then POST the same input and instance with the returned `confirm` to `/v1/tools/shodan-axi/exports/start`.
 GET `/v1/tools/shodan-axi/exports/<id>` returns the job state and result; optional `waitMs` waits up to 30000 milliseconds while it is running.
 POST `/v1/tools/shodan-axi/exports/<id>/retrieve` retrieves a completed or partial gzip file once; verify its SHA-256 against the status result or `x-artium-export-sha256` response header, and inspect `x-artium-export-complete` for completeness.
+The client-side `download` and `alert download` commands drive these routes; see [export saving and local output](commands.md#shodan).
 See [export retention and recovery](runbook.md#retention-and-export) for capacity and interrupted retrieval.
 Ordinary tool runs refuse alert changes, downloads, dataset downloads and other writes.
 The client-side radar consumes an owner session's output under the same access restrictions; see [radar usage and local output](commands.md#shodan).
