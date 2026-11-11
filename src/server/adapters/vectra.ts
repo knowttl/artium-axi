@@ -80,7 +80,7 @@ function vectraArguments(args: readonly string[], input: RunnerInput = {}) {
 export function createVectraAdapter(source: SecretSource, writeLog: string,
   profile = loadCredentialProfile('vectra-axi')): Adapter<unknown> {
   if (!isAbsolute(writeLog)) throw new TypeError('Native write log path must be absolute')
-  return withCredentialProfile({
+  const adapter = withCredentialProfile({
     name: 'vectra-axi', executable: toolPaths['vectra-axi'], credentialSchema: vectraCredentialSchema,
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: vectraManifest.unsafeOverrides.map(name => `--${name}`),
     allowedFlagValues: {}, sensitiveArguments: () => ({ flags: ['--note'], positions: [] }),
@@ -143,4 +143,13 @@ export function createVectraAdapter(source: SecretSource, writeLog: string,
       }
     },
   }, source, writeLog, profile, vectraArguments)
+  return { ...adapter, async prepare(args, reference, input, context) {
+    const call = vectraArguments(args, input)
+    if (call.effect === 'write') {
+      const credential = await source.getCredential(reference) as Record<string, unknown>
+      vectraWritePolicy.authorize(source.getSettings?.(reference) ?? credential, allowed => allowed.startsWith(`${credential.kind}.`)
+        && vectraOperationAccepts(call.invocation.command, allowed.slice(`${credential.kind}.`.length), args))
+    }
+    return adapter.prepare(args, reference, input, context)
+  } }
 }

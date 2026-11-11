@@ -2,14 +2,21 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { createAdoAdapter } from '../../src/server/adapters/ado.js'
+import { createAwxAdapter } from '../../src/server/adapters/awx.js'
+import { createAzAdapter } from '../../src/server/adapters/az.js'
+import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import { createBeyondtrustAdapter } from '../../src/server/adapters/beyondtrust.js'
 import { createCheckpointAdapter } from '../../src/server/adapters/checkpoint.js'
 import { loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
 import { createGhAdapter } from '../../src/server/adapters/gh.js'
+import { createGiteaAdapter } from '../../src/server/adapters/gitea.js'
 import { createHybridAdapter } from '../../src/server/adapters/hybrid.js'
 import { createMgAdapter } from '../../src/server/adapters/mg.js'
+import { createTechnitiumAdapter } from '../../src/server/adapters/technitium.js'
 import { createTenableAdapter } from '../../src/server/adapters/tenable.js'
 import type { Adapter } from '../../src/server/adapters/types.js'
+import { createUnifiAdapter } from '../../src/server/adapters/unifi.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -19,6 +26,7 @@ import type { ToolName } from '../../src/server/store/credential-store.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
+import { azureTestTenant, FakeTokenTransport } from '../fixtures/azure-token-transport.js'
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 
 const mgProfile = join(process.cwd(), 'tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json')
@@ -31,6 +39,12 @@ const credentials = {
   'mg-axi': { mode: 'application', auth: 'client-secret', clientSecret: 'CANARY-graph-secret', enabledPacks: ['entra', 'mail'],
     tenantId: '00000000-0000-0000-0000-000000000001', clientId: '00000000-0000-0000-0000-000000000002' },
   'gh-axi': { origin: 'https://github.com', auth: 'token', token: 'CANARY-github-token' },
+  'az-axi': { auth: 'secret', tenantId: azureTestTenant, clientId: '22222222-2222-4222-8222-222222222222', clientSecret: 'CANARY-azure-secret' },
+  'ado-axi': { org: 'synthetic-org', project: 'Synthetic Project', auth: 'pat', token: 'CANARY-ado-pat' },
+  'awx-axi': { origin: 'https://controller.example', token: 'CANARY-awx-token' },
+  'unifi-axi': { origin: 'https://synthetic.invalid', apiKey: 'CANARY-unifi-key' },
+  'technitium-axi': { origin: 'https://synthetic.invalid', auth: 'token', tokenKind: 'api', token: 'CANARY-technitium-token' },
+  'gitea-axi': { origin: 'https://gitea.synthetic.invalid', tokenOrigin: 'https://gitea.synthetic.invalid', token: 'CANARY-gitea-token' },
 } as const
 type AdapterTool = keyof typeof credentials
 
@@ -42,6 +56,12 @@ const adapters: Record<AdapterTool, (source: EmbeddedSecretSource, writeLog: str
   'vectra-axi': createVectraAdapter,
   'mg-axi': (source, writeLog) => createMgAdapter(source, writeLog, loadCredentialProfile('mg-axi', mgProfile)!),
   'gh-axi': source => createGhAdapter(source),
+  'az-axi': (source, writeLog) => createAzAdapter(source, writeLog, new AzureTokenCache(new FakeTokenTransport())),
+  'ado-axi': source => createAdoAdapter(source),
+  'awx-axi': source => createAwxAdapter(source),
+  'unifi-axi': createUnifiAdapter,
+  'technitium-axi': createTechnitiumAdapter,
+  'gitea-axi': createGiteaAdapter,
 }
 
 const nativeResult = { stdout: '', stderr: '', exitCode: 0, durationMs: 1, outputBytes: { stdout: 0, stderr: 0 },
@@ -121,22 +141,40 @@ test.each([
   expect(native).toHaveBeenCalledOnce()
 })
 
-test.each(Object.keys(credentials).filter(tool => tool !== 'vectra-axi') as Exclude<AdapterTool, 'vectra-axi'>[])(
+const reads: Record<Exclude<AdapterTool, 'vectra-axi'>, { args: string[], settings: Record<string, unknown> }> = {
+  'hybrid-axi': { args: ['quota'], settings: { writes: { allowWrites: true, operations: ['submitUrl'] } } },
+  'checkpoint-axi': { args: ['email', 'search'], settings: { writes: { allowWrites: true, operations: ['email.quarantine'] } } },
+  'beyondtrust-axi': { args: ['computer', 'list'], settings: { writes: { allowWrites: true, operations: ['computer.archive'] } } },
+  'tenable-axi': { args: ['card', 'list', '--limit', '1'], settings: { writes: { allowWrites: true, operations: ['raw-write'] } } },
+  'mg-axi': { args: ['entra', 'user', 'list'], settings: { writes: { allowWrites: true, operations: ['mail.message.trash'] }, enabledPacks: ['entra', 'mail'] } },
+  'gh-axi': { args: ['issue', 'list', '-R', 'canary/repo'], settings: { writes: { allowWrites: true, operations: ['issue comment'] } } },
+  'az-axi': { args: ['auth', 'status'], settings: { allowWrites: true } },
+  'ado-axi': { args: ['work-item', 'list'], settings: { allowWrites: true } },
+  'awx-axi': { args: ['job', 'list'], settings: { allowWrites: true } },
+  'unifi-axi': { args: ['site', 'list'], settings: { writes: { allowWrites: true, operations: [] } } },
+  'technitium-axi': { args: ['status'], settings: { hostWrites: { allowWrites: true, operations: [] } } },
+  'gitea-axi': { args: ['repo', 'list'], settings: { writes: { allowWrites: true, operations: [] } } },
+}
+
+test.each(Object.keys(reads) as (keyof typeof reads)[])(
   '%s runs a read-only instance with the native read-only switch on although tool writes are enabled', async tool => {
-    const reads = {
-      'hybrid-axi': { args: ['quota'], operation: 'submitUrl' },
-      'checkpoint-axi': { args: ['email', 'search'], operation: 'email.quarantine' },
-      'beyondtrust-axi': { args: ['computer', 'list'], operation: 'computer.archive' },
-      'tenable-axi': { args: ['card', 'list', '--limit', '1'], operation: 'raw-write' },
-      'mg-axi': { args: ['entra', 'user', 'list'], operation: 'mail.message.trash' },
-      'gh-axi': { args: ['issue', 'list', '-R', 'canary/repo'], operation: 'issue comment' },
-    }
     const native = vi.spyOn(runner, 'run').mockResolvedValue(nativeResult)
     const switchName = `${tool.toUpperCase().replaceAll('-', '_')}_READ_ONLY`
-    grantWrites(tool, [reads[tool].operation])
+    db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify(reads[tool].settings), tool)
     await run(tool, reads[tool].args)
     expect(native.mock.calls[0][3][switchName]).not.toBe('true')
     db.prepare('UPDATE credentials SET read_only = 1 WHERE tool = ?').run(tool)
     await run(tool, reads[tool].args)
     expect(native.mock.calls[1][3][switchName]).toBe('true')
   })
+
+test('vectra-axi refuses an executing write whose operation is selected only for the other deployment kind', async () => {
+  const native = vi.spyOn(runner, 'run').mockResolvedValue(nativeResult)
+  const args = ['detection', 'close', '--id', '42', '--execute', '--confirm', 'detection 42']
+  grantWrites('vectra-axi', ['rux.detection.close'])
+  await expect(run('vectra-axi', args)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  expect(native).not.toHaveBeenCalled()
+  grantWrites('vectra-axi', ['qux.detection.close'])
+  expect(await run('vectra-axi', args)).toMatchObject({ exitCode: 0 })
+  expect(native).toHaveBeenCalledOnce()
+})
