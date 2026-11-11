@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.0.44](https://github.com/knowttl/artium-axi/compare/v0.0.43...v0.0.44) (2026-11-11)
+
+
+### Features
+
+* admit Proxmox plain reads by deny-list instead of a hard-coded allow-list ([#392](https://github.com/knowttl/artium-axi/issues/392)) ([e2e3b44](https://github.com/knowttl/artium-axi/commit/e2e3b44afa64855fa1ceb5a8d19888f6d37a8d8a))
+* **server:** admit gh E3 writes and require every subcommand to be admitted or blocked ([#390](https://github.com/knowttl/artium-axi/issues/390)) ([624fd19](https://github.com/knowttl/artium-axi/commit/624fd199c8a105c6dbd6b36b7ef2eed3ea5abee6))
+* **server:** audit every raw API call and add per-tool raw route patterns ([#388](https://github.com/knowttl/artium-axi/issues/388)) ([b8f4342](https://github.com/knowttl/artium-axi/commit/b8f4342777a3100c5a2ea8244b233c0208865fd5))
+
+
+### Bug Fixes
+
+* **server:** enforce operation allow-lists at the host for six more tools ([#394](https://github.com/knowttl/artium-axi/issues/394)) ([f73534f](https://github.com/knowttl/artium-axi/commit/f73534fda3652d79a37960d431799abae4db02fb))
+
 ## [0.0.43](https://github.com/knowttl/artium-axi/compare/v0.0.42...v0.0.43) (2026-11-11)
 
 
