@@ -118,6 +118,40 @@ test.each([
   })
 })
 
+test.each([
+  ['search', 'port:443', 'OP-003'],
+  ['domain', 'example.test', 'OP-040'],
+])('%s above the administrator query credit ceiling is refused with a denial audit row', async (command, subject, operation) => {
+  await withFakeService(async ({ directory }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    const store = createCredentialStore(db, provider)
+    store.replaceCredential('shodan-axi', { auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' },
+      0, 'synthetic-development-user', Date.now())
+    db.prepare("UPDATE tools SET enabled = 1, native_settings = ? WHERE name = 'shodan-axi'").run(JSON.stringify({ queries: { maxQueryCredits: 2 } }))
+    const runner = await Runner.create(join(directory, 'calls'))
+    let credentialReads = 0
+    const source = new EmbeddedSecretSource(store)
+    const adapter = createShodanAdapter({ getCredential: reference => { credentialReads++; return source.getCredential(reference) } })
+    const app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {},
+      resolver: new SharedIdentityResolver(store), adapters: [adapter] })
+    try {
+      const token = issueTestAccessToken(db, 'synthetic-development-user')
+      const response = await app.inject({ method: 'POST', url: '/v1/tools/shodan-axi/run', headers: { authorization: `Bearer ${token}` },
+        payload: { args: [command, subject, '--allow-operation', operation, '--query-credit-budget', '3'] } })
+      expect(response.json().error.code).toBe('INVALID_INPUT')
+      expect(credentialReads).toBe(0)
+      expect(db.prepare("SELECT tool, outcome FROM audit WHERE event = 'denial'").all()).toEqual([{ tool: 'shodan-axi', outcome: 'INVALID_INPUT' }])
+      expect(db.prepare("SELECT 1 FROM audit WHERE event = 'run-start'").all()).toEqual([])
+    } finally {
+      await app.close()
+      await runner.shutdown()
+      db.close()
+    }
+  })
+})
+
 test('credential replacement and scheduled health checks do not probe Shodan', async () => {
   await withFakeService(async ({ directory }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })

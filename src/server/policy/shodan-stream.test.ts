@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { issueTestAccessToken } from '../../../test/fixtures/tokens.js'
 import { migrate } from '../store/db.js'
-import { shodanBinding, shodanExportBinding, shodanOwner, shodanScanBinding, shodanWriteBinding } from './shodan-stream.js'
+import { checkShodanQueryCredits, shodanBinding, shodanExportBinding, shodanOwner, shodanScanBinding, shodanWriteBinding } from './shodan-stream.js'
 
 let db: Database.Database
 const credential = { id: 'synthetic-credential', tool: 'shodan-axi' as const, revision: 1 }
@@ -105,6 +105,24 @@ test('write and export bindings refuse a read-only instance even when granted', 
   db.exec("UPDATE credentials SET read_only=1 WHERE tool='shodan-axi'")
   expect(() => shodanWriteBinding(db, owner, credential, ['OP-013'])).toThrow(expect.objectContaining({ code: 'FLAG_BLOCKED' }))
   expect(() => shodanExportBinding(db, owner, credential, 'CLI-005')).toThrow(expect.objectContaining({ code: 'FLAG_BLOCKED' }))
+})
+
+test.each([
+  ['a budget at the ceiling', ['search', 'port:443', '--query-credit-budget', '2'], undefined],
+  ['an inline budget at the ceiling', ['domain', 'example.test', '--query-credit-budget=2'], undefined],
+  ['a call without a budget', ['info'], undefined],
+  ['a budget above the ceiling', ['search', 'port:443', '--query-credit-budget', '3'], 'INVALID_INPUT'],
+  ['an inline budget above the ceiling', ['domain', 'example.test', '--query-credit-budget=3'], 'INVALID_INPUT'],
+  ['a non-numeric budget', ['search', 'port:443', '--query-credit-budget', 'many'], 'INVALID_INPUT'],
+])('query credit ceiling: %s', (_name, args, code) => {
+  configure({ queries: { maxQueryCredits: 2 } })
+  if (code) expect(() => checkShodanQueryCredits(db, args)).toThrow(expect.objectContaining({ code }))
+  else expect(() => checkShodanQueryCredits(db, args)).not.toThrow()
+})
+
+test('query credits are unbounded without a queries setting', () => {
+  configure(confirmedSettings)
+  expect(() => checkShodanQueryCredits(db, ['search', 'port:443', '--query-credit-budget', '1000'])).not.toThrow()
 })
 
 test('write and export policy changes alter their binding hashes', () => {

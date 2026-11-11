@@ -103,3 +103,13 @@ export function shodanExportBinding(db: Database.Database, owner: ShodanOwner, c
   return { settings, instance, hash }
 }
 
+
+export function checkShodanQueryCredits(db: Database.Database, args: readonly string[]) {
+  const index = args.findIndex(arg => arg === '--query-credit-budget' || arg.startsWith('--query-credit-budget='))
+  if (index < 0) return
+  const tool = db.prepare("SELECT native_settings FROM tools WHERE name='shodan-axi'").get() as { native_settings: string }
+  const ceiling = nativeSettingsSchemas['shodan-axi'].parse(JSON.parse(tool.native_settings)).queries?.maxQueryCredits
+  if (ceiling === undefined) return
+  const value = args[index]!.startsWith('--query-credit-budget=') ? args[index]!.slice('--query-credit-budget='.length) : args[index + 1]
+  if (!/^[1-9]\d*$/.test(value ?? '') || Number(value) > ceiling) throw new ArtiumError('INVALID_INPUT')
+}

@@ -556,6 +556,8 @@ Its `grants` map associates Artium user IDs with exact stream operation IDs from
 The [session policy schema](../src/shared/shodan-stream.ts) owns required quota fields and allowed ranges for concurrency, events, bytes, retention and leases.
 The optional `scans` native setting grants user IDs exact scan operations and sets `maxScanCredits` and `maxRequests` ceilings.
 Targeted collection requires a scan grant for `OP-009` and a banner stream session grant for `OP-046`.
+The optional `queries` native setting sets a `maxQueryCredits` ceiling on the `--query-credit-budget` of ordinary `search` and `domain` reads.
+A call above the ceiling is refused with `INVALID_INPUT` and a denial audit row before any credential is read; without the setting, only the upstream budget rules apply.
 The optional `writes` and `exports` native settings each use a `grants` map from Artium user IDs to arrays of exact IDs.
 For `writes`, use confirmed-write operation IDs from the reviewed inventory's `confirmedWrites` list and set `maxQueryCredits` and `maxRequests` ceilings.
 For `exports`, use command IDs `CLI-005` (`download`) and `CLI-020` (`alert download`), kept distinct from the ordinary search grant `OP-003`, and set `maxQueryCredits`, `maxRequests`, `maxRecords`, `maxBytes` and `retentionSeconds` ceilings.

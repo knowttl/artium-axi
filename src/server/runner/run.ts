@@ -12,6 +12,7 @@ import { authorizeDelegatedCall, authorizeDelegatedOperation, credentialIssuingC
 import type { CredentialReference } from '../store/credential-store.js'
 import type { IdentityResolver } from '../policy/identity-resolver.js'
 import { checkRawApiPolicy, checkToolPolicy } from '../policy/policy.js'
+import { checkShodanQueryCredits } from '../policy/shodan-stream.js'
 import { RunnerError } from './runner.js'
 import type { Runner, RunnerResult, RunnerLimits } from './runner.js'
 import { toolFailure, toolFailureCode } from '../health/diagnostic.js'
@@ -141,6 +142,7 @@ export async function runTool<Credential>(
       if (instanceReadOnly && writeRequested() && (adapter.executesWrite?.(args, input)
         ?? (!args.includes('--help') && !args.includes('--dry-run') && args.some(arg => /^--(?:confirm|execute)(?:=|$)/.test(arg))))) throw new ArtiumError('FLAG_BLOCKED')
       if (principal?.delegation && reference) authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand, reference.id, resolver)
+      if (adapter.name === 'shodan-axi') checkShodanQueryCredits(db, args)
     } catch (error) {
       recordApiDecision('refused')
       const requested = request && typeof request === 'object' && 'instance' in request && typeof request.instance === 'string' ? request.instance : undefined
