@@ -156,7 +156,7 @@ test('release upload binds client files to confirmation and hands the runner sta
   } finally { rmSync(directory, { recursive: true, force: true }) }
 })
 
-test('release upload recovery lists assets for the affected tag', async () => {
+test('release upload recovery lists assets for the affected tag, including drafts', async () => {
   const file = { name: 'checksums.txt', size: 3, contentBase64: Buffer.from('one').toString('base64') }
   const args = ['release', 'upload', 'v1', file.name, '-R', 'canary/repo']
   const adapter = createGhAdapter({ getCredential: async () => credential,
@@ -166,8 +166,9 @@ test('release upload recovery lists assets for the affected tag', async () => {
   const recovery = await adapter.prepare(call.write!.checkArgs, reference)
   const read = executeWrite(recovery)
   expect(recovery.effect).toBe('read')
-  expect(read.calls).toEqual([['api', '/repos/canary/repo/releases/tags/v1', '--method', 'GET']])
-  expect(decode(read.result.stdout)).toEqual({ tag_name: 'v1', assets: [{ name: 'checksums.txt', state: 'uploaded' }, { name: 'package.tar.gz', state: 'uploaded' }] })
+  expect(read.calls).toEqual([['api', '/repos/canary/repo/releases?per_page=100', '--method', 'GET', '--paginate',
+    '--jq', '.[] | select(.tag_name == "v1") | {tag_name, draft, assets: [.assets[] | {name, state, size}]}']])
+  expect(decode(read.result.stdout)).toEqual({ tag_name: 'v1', draft: true, assets: [{ name: 'checksums.txt', state: 'uploaded', size: 3 }] })
 })
 
 test.each([
