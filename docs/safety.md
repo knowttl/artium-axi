@@ -341,6 +341,10 @@ Native `--` reads require [Raw API access](#raw-api-access); compact reads and p
 Compact lists retain at most 100 rows and report completeness, resource version and opaque continuation; repeat the same selectors with `--continue` to resume.
 Compact Secret reads expose metadata only; native Secret contents, last-applied Secret configuration and ordinary credential routes are refused.
 Ordinary log reads are bounded snapshots; rollout status requires `--watch=false`.
+`events` and `wait` are not admitted, with or without `native --`.
+The pinned `@knowttl/kubernetes-axi` 0.1.3 grammar refuses both with `CAPABILITY_UNAVAILABLE`, so admitting them would add commands that always fail.
+`get events` is the supported path for bounded event reads.
+Admit `events` and `wait` when a pinned tool release implements them.
 Self-subject access and identity reviews are passive authorization checks, even though Kubernetes uses POST for them.
 Writes default off and require administrator **Allow writes**.
 Use `prepare -- <mutation>`, inspect `preview <request-key>`, then `confirm <request-key> --digest <exact-digest>` through `artium-axi kubernetes-axi`.
