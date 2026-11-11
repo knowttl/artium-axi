@@ -832,14 +832,14 @@ test.each([
 ].flatMap(item => [false, true].map(json => ({ ...item, json }))))
 ('Shodan notifier $command redacts secrets in execution steps JSON=$json', async ({ command, grant, json }) => {
   const secret = 'CANARY-provider-secret'
-  const step = { operation: grant, target: 'n1', status: 'failed', detail: secret }
+  const step = { operation: grant, target: 'n1', status: 'failed', detail: `failed: ${secret}` }
   response = { status: 200, body: { status: 'READBACK_UNVERIFIED', completed: [step], unsent: [step], steps: [step] } }
   const path = privateFile(JSON.stringify({ provider: 'slack', args: { token: secret } }))
   const result = await cli(['shodan-axi', 'notifier', ...command, '--body-file', path, '--allow-operation', grant,
     '--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost', '--execute', '--confirm', writeToken, ...(json ? ['--json'] : [])])
   expect(result.code).toBe(1)
   expect(result.stdout + result.stderr).not.toContain(secret)
-  const safeStep = { ...step, detail: '[REDACTED]' }
+  const safeStep = { ...step, detail: 'failed: [REDACTED]' }
   expect(json ? JSON.parse(result.stdout) : decode(result.stdout)).toEqual({ status: 'READBACK_UNVERIFIED', completed: [safeStep], unsent: [safeStep], steps: [safeStep] })
 })
 
