@@ -685,7 +685,7 @@ After a partial result or lost response, inspect upstream scan state with `artiu
 When multiple instances are available, select the original instance with `--instance <name>` before `shodan-axi` for these checks.
 A missing scan ID does not prove submission failed.
 
-Shodan write plans expire after fifteen minutes and are discarded on relevant binding changes or shutdown; startup removes abandoned private directories under `<database directory>/tool-logs/shodan-axi/writes/`.
+Shodan write plans expire as described in the [command reference](commands.md#shodan-confirmed-writes) and are discarded on relevant binding changes or shutdown; startup removes abandoned private directories under `<database directory>/tool-logs/shodan-axi/writes/`.
 After `OUTCOME_UNKNOWN`, `READBACK_UNVERIFIED` or a lost response, inspect the relevant upstream alert, notifier or organization state before considering another change.
 The returned native outcome includes completed and unsent steps when available; a failed readback does not establish that the mutation failed.
 Save the result, then read the affected object before another preview: `alert list`, `alert info <id>`, `notifier list` or `org info`.

@@ -443,7 +443,7 @@ Optional collection reads the banner stream and filters records to the target ne
 See [scan usage and terminal outcomes](commands.md#shodan) and [scan and stream grants](tool-credentials.md#shodan).
 Confirmed alert, notifier and organization membership changes require an owner session, an exact per-user operation grant, a writable instance and budgets within administrator ceilings; see [write grants](tool-credentials.md#shodan).
 POST `/v1/tools/shodan-axi/writes/preview` with the [write input](../src/shared/shodan-stream.ts) and optional `instance` to bind a preview to the observed upstream state.
-Repeat the same input and instance with the returned `confirm` in POST `/v1/tools/shodan-axi/writes/execute` using the same user and sign-in family; confirmation is single-use and expires after fifteen minutes.
+Repeat the same input and instance with the returned `confirm` in POST `/v1/tools/shodan-axi/writes/execute` using the same user and sign-in family; confirmation is single-use and expires as described in the [command reference](commands.md#shodan-confirmed-writes).
 Notifier previews expose argument names rather than values, and organization removal reports downgrade as an effect.
 See [write retention and recovery](runbook.md#retention-and-export) for uncertain outcomes.
 Administrator `writes` and `exports` settings establish separate policy bindings for confirmed alert, notifier and organization writes and for search and alert downloads; see [write and export grants](tool-credentials.md#shodan).
@@ -455,8 +455,7 @@ POST `/v1/tools/shodan-axi/exports/<id>/retrieve` retrieves a completed or parti
 The client-side `download` and `alert download` commands drive these routes; see [export saving and local output](commands.md#shodan).
 See [export retention and recovery](runbook.md#retention-and-export) for capacity and interrupted retrieval.
 Ordinary tool runs refuse alert changes, downloads, dataset downloads and other writes.
-Confirmed alert, notifier and organization writes, including the bulk `alert clear`, `alert domain` and `alert import`, run only through the dedicated owner-session write routes with a per-user `writes` grant, administrator budget ceilings and a single-use preview confirmation; see [confirmed write usage](commands.md#shodan-confirmed-writes).
-Delegated tokens, read-only instances and callers without the exact grant are refused, and ordinary tool runs still refuse every alert, notifier and organization change.
+Delegated tokens cannot use the write routes.
 Notifier and import files are read by the client and sent in the request body; the CLI checks notifier responses for argument values as described in the [command reference](commands.md#shodan-confirmed-writes).
 The client-side radar consumes an owner session's output under the same access restrictions; see [radar usage and local output](commands.md#shodan).
 The server adapter refuses local configuration, credential and endpoint overrides, stdin, uploaded files and result-file destinations before credential access.
@@ -473,7 +472,7 @@ See [credential setup](tool-credentials.md#shodan), [commands](commands.md#shoda
 | LDAP | Fixed read-only. |
 | UniFi | Exact native operation and variant grants plus native preview, confirmation and stable request ID; see [network appliance access](#network-appliance-reads). |
 | Proxmox | See [network appliance access](#network-appliance-reads) for native write grants, confirmation, private results and managed streams. |
-| Shodan | Alert, notifier and organization writes require grants, budgets and confirmation; see the [Shodan boundary](#shodan). Downloads stay unavailable. |
+| Shodan | Alert, notifier and organization writes require grants, budgets and confirmation; see the [Shodan boundary](#shodan). |
 | Technitium DNS | See the [native write capability boundary](#technitium-dns). |
 | Shodan | Confirmed alert, notifier and organization writes, retained search and alert exports and targeted scans need separate administrator `writes`, `exports` and `scans` grants, an owner session, a writable instance and a single-use confirmation; see the [Shodan boundary](#shodan). |
 | BeyondTrust | Administrator `writes.allowWrites` with exact `writes.operations`, native preview, `--execute` and exact `--confirm`; deletes additionally need `writes.allowDeletes` and exact `--confirm-delete`; see the [BeyondTrust boundary](#beyondtrust-endpoint-privilege-management). |
