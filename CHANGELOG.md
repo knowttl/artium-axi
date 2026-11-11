@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.0.42](https://github.com/knowttl/artium-axi/compare/v0.0.41...v0.0.42) (2026-11-11)
+
+
+### Features
+
+* add Shodan write and export policy settings ([#368](https://github.com/knowttl/artium-axi/issues/368)) ([f12ecc5](https://github.com/knowttl/artium-axi/commit/f12ecc5bfa1d544dacf27f5bdd5d2aebb027715d))
+* **admin:** manage per-person tool grants ([#381](https://github.com/knowttl/artium-axi/issues/381)) ([3edd00f](https://github.com/knowttl/artium-axi/commit/3edd00f1bcbd7a22045dae1628c193cc2e3b6cc3))
+* cap Shodan query credit budgets ([#380](https://github.com/knowttl/artium-axi/issues/380)) ([65a9242](https://github.com/knowttl/artium-axi/commit/65a9242709b71cbf6ad374a21eac731b61557612))
+* **cli:** add confirmed Shodan write commands ([#371](https://github.com/knowttl/artium-axi/issues/371)) ([0c7ed1d](https://github.com/knowttl/artium-axi/commit/0c7ed1df9e7eff972f5d68837a0a2ee3680cacc8))
+* **cli:** add Shodan export downloads ([#377](https://github.com/knowttl/artium-axi/issues/377)) ([efc6ef7](https://github.com/knowttl/artium-axi/commit/efc6ef7c85ddf7adf8f129f5a11d438e2dbda3fa))
+* enable raw API access for Tenable, Falcon and AWX ([#367](https://github.com/knowttl/artium-axi/issues/367)) ([02e5c90](https://github.com/knowttl/artium-axi/commit/02e5c900cb1c377e9c5ff03eb4faaf1a65f652e5))
+* **server:** add confirmed Shodan writes ([#372](https://github.com/knowttl/artium-axi/issues/372)) ([a541ed5](https://github.com/knowttl/artium-axi/commit/a541ed542dd680eeaf85ea09ea1ce8829b97d782))
+* **server:** add retained Shodan export jobs ([#375](https://github.com/knowttl/artium-axi/issues/375)) ([243ea0d](https://github.com/knowttl/artium-axi/commit/243ea0d657d80134072cc4a9eee90de2982d8033))
+* **server:** enable governed Graph batch and file access ([#374](https://github.com/knowttl/artium-axi/issues/374)) ([dc10b74](https://github.com/knowttl/artium-axi/commit/dc10b74e5be27251c6ee2d7e2dcfa542fa3a5059))
+
+
+### Bug Fixes
+
+* classify Azure raw API calls by effect ([#378](https://github.com/knowttl/artium-axi/issues/378)) ([280c790](https://github.com/knowttl/artium-axi/commit/280c7909d29c04cad04cfed26b5fbe16a6651a3f))
+* **server:** audit native settings grant changes ([#373](https://github.com/knowttl/artium-axi/issues/373)) ([78ff168](https://github.com/knowttl/artium-axi/commit/78ff168afb82221591257872f41a846527305cd0))
+* **server:** close audit and read-only enforcement gaps ([#370](https://github.com/knowttl/artium-axi/issues/370)) ([6ccb358](https://github.com/knowttl/artium-axi/commit/6ccb35878412ea1bdfa9c701c339c9ec6e7e9999))
+* **server:** enforce raw API access for Kubernetes native commands ([#379](https://github.com/knowttl/artium-axi/issues/379)) ([27c73fa](https://github.com/knowttl/artium-axi/commit/27c73fac338526099ff1aa533d79246fa11f62c1))
+
 ## [0.0.41](https://github.com/knowttl/artium-axi/compare/v0.0.40...v0.0.41) (2026-11-10)
 
 
