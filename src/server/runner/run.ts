@@ -267,6 +267,13 @@ export async function runTool<Credential>(
               ? { ...protectedResult, receive: bytes => { privateBytes = Buffer.from(bytes) } } : undefined, ...overrides },
           { ...input, fileArguments: prepared.fileArguments }, prepared.files, () => {
             recheck(true)
+            if (adapter.name === 'shodan-axi') {
+              try { checkShodanQueryCredits(db, args) }
+              catch (error) {
+                audit.record({ ...identity, event: 'denial', outcome: error instanceof ArtiumError ? error.code : 'INTERNAL_ERROR' })
+                throw error
+              }
+            }
             if (prepared.beforeSpawn) {
               checkToolPolicy(db, identity.userId, adapter.name, reference?.id)
               prepared.beforeSpawn()
