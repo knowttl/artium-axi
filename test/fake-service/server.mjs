@@ -872,7 +872,36 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     req.on('data', chunk => { body += chunk })
     req.on('end', () => {
       if (body) recorded.body = JSON.parse(body)
-      if (url.pathname.endsWith('/_apis/projects') && req.method === 'GET') {
+      if (apiPath === '/_apis/synthetic-pages' && req.method === 'GET') {
+        const token = url.searchParams.get('continuationToken')
+        if (!token) res.setHeader('x-ms-continuationtoken', 'next-page')
+        res.end(JSON.stringify({ value: [{ id: token ? 'second' : 'first' }] }))
+      } else if (apiPath === '/_apis/wiki/wikis' && req.method === 'GET') {
+        res.end(JSON.stringify({ value: [{ id: 'synthetic-wiki', name: 'Synthetic.wiki', type: 'projectWiki' }] }))
+      } else if (apiPath === '/_apis/wiki/wikis/Synthetic.wiki/pages' && ['GET', 'PUT'].includes(req.method)) {
+        const path = url.searchParams.get('path')
+        const key = `ado-wiki-${path}`
+        const page = resources.get(key) ?? (path === '/Home' ? { id: 1, path, content: 'Original content' } : undefined)
+        if (req.method === 'GET' && !page) {
+          res.writeHead(404)
+          res.end('{}')
+        } else if (req.method === 'GET') {
+          res.setHeader('ETag', '"synthetic-etag"')
+          res.end(JSON.stringify(page))
+        } else {
+          recorded.ifMatch = req.headers['if-match'] ?? null
+          if (page && recorded.ifMatch !== '"synthetic-etag"') {
+            res.writeHead(412)
+            res.end('{}')
+          } else {
+            mutations++
+            const updated = { id: page?.id ?? 2, path, content: recorded.body.content }
+            resources.set(key, updated)
+            res.setHeader('ETag', '"synthetic-etag"')
+            res.end(JSON.stringify(updated))
+          }
+        }
+      } else if (url.pathname.endsWith('/_apis/projects') && req.method === 'GET') {
         res.end(JSON.stringify({ value: [{ id: 'synthetic-project', name: 'Synthetic Project', state: 'wellFormed' }], count: 1 }))
       } else if (url.pathname.endsWith('/_apis/connectionData') && req.method === 'GET') {
         res.end(JSON.stringify({ authenticatedUser: { id: 'synthetic-user', providerDisplayName: 'Synthetic User' } }))

@@ -211,6 +211,58 @@ test('established routes, aliases and defaults dispatch through the pinned binar
   })
 }, 180_000)
 
+test('wiki routes and paginated API reads work through the pinned binary', async () => {
+  await withFakeService(async ({ directory, port, send }) => {
+    const adapter = (allowWrites: boolean) => createAdoAdapter({ getCredential: async () => ({ org: 'synthetic-org',
+      project: 'Synthetic Project', auth: 'pat', token: 'CANARY-ado-pat', allowWrites }) })
+    const reference = { id: 'synthetic-ado', tool: 'ado-axi' as const, revision: 1 }
+    const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
+    const run = async (args: string[], allowWrites = false) => {
+      const result = await runPinned(runner, port, await adapter(allowWrites).prepare(args, reference))
+      expect(result.exitCode, result.stdout + result.stderr).toBe(0)
+      return decode(result.stdout)
+    }
+    const wiki = '/synthetic-org/Synthetic%20Project/_apis/wiki/wikis'
+    const page = `${wiki}/Synthetic.wiki/pages`
+    try {
+      await send('/__ado/reset', 'POST')
+      expect(await run(['wiki', 'list'])).toMatchObject({ wikis: [{ id: 'synthetic-wiki', name: 'Synthetic.wiki' }] })
+      expect(await run(['wiki', 'page', 'get', '--wiki', 'Synthetic.wiki', '--path', '/Home'])).toMatchObject({
+        page: { path: '/Home', content: 'Original content', etag: '"synthetic-etag"' },
+      })
+      for (const operation of ['create', 'update']) {
+        for (const content of [['--content', 'New content'], ['--content=New content']]) {
+          await send('/__ado/reset', 'POST')
+          const path = operation === 'create' ? '/New' : '/Home'
+          const args = ['wiki', 'page', operation, '--wiki', 'Synthetic.wiki', '--path', path, ...content]
+          await expect(adapter(false).prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+          expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
+          expect(await run(args, true)).toMatchObject({ [operation === 'create' ? 'created' : 'updated']: { path } })
+          expect(await run(['wiki', 'page', 'get', '--wiki', 'Synthetic.wiki', '--path', path])).toMatchObject({
+            page: { path, content: 'New content' },
+          })
+          expect(JSON.parse(await send('/__evidence'))).toMatchObject({ mutations: 1, requests: expect.arrayContaining([
+            expect.objectContaining({ method: 'PUT', path: page, query: expect.objectContaining({ path }),
+              body: { content: 'New content' }, ifMatch: operation === 'update' ? '"synthetic-etag"' : null }),
+          ]) })
+        }
+      }
+      for (const paginate of [['--paginate'], ['--paginate=true'], ['--paginate', 'true']]) {
+        await send('/__ado/reset', 'POST')
+        expect(await run(['api', '_apis/synthetic-pages', ...paginate])).toMatchObject({
+          pages: [{ value: [{ id: 'first' }] }, { value: [{ id: 'second' }] }],
+        })
+        expect(JSON.parse(await send('/__evidence')).requests).toEqual([
+          expect.objectContaining({ method: 'GET', path: '/synthetic-org/Synthetic%20Project/_apis/synthetic-pages',
+            query: expect.not.objectContaining({ continuationToken: expect.anything() }) }),
+          expect.objectContaining({ method: 'GET', path: '/synthetic-org/Synthetic%20Project/_apis/synthetic-pages',
+            query: expect.objectContaining({ continuationToken: 'next-page' }) }),
+        ])
+      }
+    } finally { await runner.shutdown() }
+  })
+})
+
 test('explicit text flag values reach the pinned binary unchanged', async () => {
   const text = '---\nSummary\r\nValue=kept\u2028Final paragraph'
   const org = '/synthetic-org'
