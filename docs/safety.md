@@ -265,7 +265,10 @@ Repository reads require `--repo OWNER/NAME`; item reads retain the native numbe
 Artium supplies the HTTPS origin, origin-bound token SecretRef, and TLS trust.
 Profile, host, credential, header and endpoint overrides are refused before forwarding.
 Credential-bearing and unclassified raw routes are refused.
-Code search, pending workflow commands and local git workflows are unavailable through this adapter.
+`run view`, `run watch`, `workflow list`, `workflow view` and `search code` are not admitted.
+The pinned Gitea tool answers each with `CAPABILITY_GAP` on Gitea 1.23.4, which exposes Actions task summaries only and no code search, so admitting them would add commands that always fail.
+Admit them when a pinned tool release implements them.
+`run list` is the supported Actions read, and local git workflows are unavailable through this adapter.
 Writes default off and require an administrator to enable Allow writes and select exact native operation IDs.
 The caller must also pass the matching `--allow-write` operation IDs and first use `--preview`.
 Inspect the returned plan, then replace `--preview` with `--confirm UUID` on the identical command to execute it.
