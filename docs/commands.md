@@ -327,8 +327,9 @@ The CLI prints `export: <id>` on standard error while it waits, then the saved p
 A complete export is saved at `--output` and exits 0.
 An incomplete export, for example one that reached a bound, is saved at `--output` with a `.partial` suffix and exits 1; inspect `count` and `total` before relying on it.
 Saving requires Linux and a new normalized absolute path in an existing directory owned by the current user with mode 0700 and no symlink components.
-Neither the `--output` path nor the same path with `.partial` appended may exist, and both are checked before the preview or any credits are spent.
-The file has mode 0600 and is never overwritten.
+The `--output` path must not exist and is checked before the preview or any credits are spent.
+An incomplete export replaces an existing regular file at the `.partial` path; symlinks and other entries there are refused.
+The file has mode 0600, and the `--output` path is never overwritten.
 The CLI saves only after the downloaded size and SHA-256 match the server's job result and response headers; otherwise it exits 1 and leaves nothing at the destination.
 The server releases the export after a single retrieval, so a failed save needs a new preview, confirmation and credit spend.
 A failed export returns `TOOL_FAILED`; see [export retention and recovery](runbook.md#retention-and-export).

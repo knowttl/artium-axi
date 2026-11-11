@@ -12,7 +12,7 @@ Preview first with --limit, --max-bytes, --query-credit-budget and --max-request
 Repeat the same options with --execute --confirm <token> to run the retained export and save it.
 The file is gzip JSONL. A complete export is saved at --output; an incomplete one is saved at --output.partial and exits 1.
 Saving requires Linux and a new normalized absolute path in an existing directory owned by the current user with mode 0700 and no symlink components.
-Neither the --output path nor the same path with a .partial suffix may exist. The file has mode 0600, its size and SHA-256 are verified, and it is never overwritten.
+The --output path must not exist. An incomplete export replaces an existing regular --output.partial file. The file has mode 0600, and its size and SHA-256 are verified.
 The server releases the export after one retrieval, so a failed save needs a new preview and confirmation.
 Add --json for JSON output instead of the default TOON output.
 `
@@ -65,7 +65,6 @@ export async function shodanExport(args: string[], createClient: () => Client, o
   process.once('SIGTERM', interrupt)
   try {
     destinations.push(await artifactDestination(path))
-    destinations.push(await artifactDestination(path + '.partial'))
     await client.authenticated('/v1/me', 'GET')
     const call = (route: string, body: object) => client.transferSession(token => client.request(prefix + route, 'POST', instance === undefined ? body : { ...body, instance }, token))
     if (!confirm) {
@@ -85,10 +84,12 @@ export async function shodanExport(args: string[], createClient: () => Client, o
     if (status.state === 'failed') throw new ArtiumError('TOOL_FAILED', 'The Shodan export failed.', 'Start a fresh preview and confirmation.')
     const { result } = status
     if (result.complete !== (status.state === 'completed')) throw new ArtiumError('INVALID_RESPONSE')
+    await destinations[0].check()
+    if (!result.complete) destinations.push(await artifactDestination(path + '.partial', true))
     const [target, saved] = result.complete ? [destinations[0], path] : [destinations[1], path + '.partial']
     await client.transferSession(token => client.artifact(`${prefix}/${id}/retrieve`, {}, token, '', result.retainedUntil, (response, signal) => {
       if (response.headers['x-artium-export-complete'] !== String(result.complete)) throw new ArtiumError('INVALID_RESPONSE')
-      return target.saveExport(response, result, signal)
+      return target.saveExport(response, result, signal, destinations[0].check)
     }))
     output('stdout', format({ saved, count: result.count, total: result.total, complete: result.complete, bytes: result.bytes, sha256: result.sha256 }))
     if (!result.complete) process.exitCode = 1
