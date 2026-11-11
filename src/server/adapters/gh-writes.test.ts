@@ -155,6 +155,20 @@ test('release upload binds client files to confirmation and hands the runner sta
   } finally { rmSync(directory, { recursive: true, force: true }) }
 })
 
+test('release upload recovery lists assets for the affected repository', async () => {
+  const file = { name: 'checksums.txt', size: 3, contentBase64: Buffer.from('one').toString('base64') }
+  const args = ['release', 'upload', 'v1', file.name, '-R', 'canary/repo']
+  const adapter = createGhAdapter({ getCredential: async () => credential,
+    getSettings: () => ({ writes: { allowWrites: true, operations: ['release upload'] } }) })
+  const confirm = (await adapter.prepare(args, reference, { files: [file] })).preview!.confirm
+  const call = await adapter.prepare([...args, '--confirm', confirm], reference, { files: [file] })
+  const recovery = await adapter.prepare(call.write!.checkArgs, reference)
+  const read = executeWrite(recovery)
+  expect(recovery.effect).toBe('read')
+  expect(read.calls).toEqual([['api', '/repos/canary/repo/releases?per_page=100', '--method', 'GET', '--paginate']])
+  expect(decode(read.result.stdout)).toEqual([{ tag_name: 'v1', assets: [{ name: 'checksums.txt', state: 'uploaded' }, { name: 'package.tar.gz', state: 'uploaded' }] }])
+})
+
 test.each([
   ['no files', ['release', 'upload', 'v1', 'a.txt', '-R', 'canary/repo'], []],
   ['an unreferenced file', ['release', 'upload', 'v1', 'a.txt', '-R', 'canary/repo'], ['a.txt', 'b.txt']],

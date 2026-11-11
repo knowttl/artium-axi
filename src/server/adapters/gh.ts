@@ -215,6 +215,7 @@ function readBack(call: ReturnType<typeof ghArguments>) {
     : ['api', `/repos/${repo}/actions/workflows?per_page=100`, '--paginate']
   else if (route === 'pr revert') checkArgs = ['pr', 'list', '--state', 'all', '--limit', '100']
   else if (route === 'issue transfer') checkArgs = ['issue', 'list', '--state', 'all', '--limit', '100']
+  else if (route === 'release upload') checkArgs = ['api', `/repos/${repo}/releases?per_page=100`, '--paginate', '--full']
   else if (group === 'repo' && action === 'create') checkArgs = ['repo', 'list', rest[0].split('/')[0], '--limit', '100']
   else if (group === 'repo' && action === 'fork') checkArgs = ['api', `/repos/${repo}/forks?per_page=100`]
   else if (action === 'create') checkArgs = [group, 'list', '--limit', '100', ...(['issue', 'pr'].includes(group) ? ['--state', 'all'] : [])]
