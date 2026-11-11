@@ -308,6 +308,29 @@ test('execute reports an unknown outcome when the write response is lost', async
   })
 })
 
+test('revoking a grant cancels an active bulk write', async () => {
+  let held!: () => void
+  const waiting = new Promise<void>(resolve => { held = resolve })
+  await withWriteApp(async ({ db, post, send }) => {
+    const input = { command: 'alert clear', arguments: [], queryCreditBudget: 2, maxRequests: 4 }
+    const preview = await post('preview', input)
+    expect(preview.statusCode, preview.body).toBe(200)
+    await send('/__shodan/hold-write')
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    try {
+      const pending = post('execute', { ...input, confirm: preview.json().confirm })
+      await waiting
+      db.prepare("UPDATE tools SET native_settings=? WHERE name='shodan-axi'").run(JSON.stringify({ writes }))
+      await vi.advanceTimersByTimeAsync(60_000)
+      const response = await pending
+      expect(response.json().error.code).toBe('UNKNOWN_OUTCOME')
+      expect(JSON.parse(await send('/__shodan/wait-write-closed'))).toEqual({ closed: true })
+      expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").all()).toEqual([{ outcome: 'interrupted', action: 'unknown' }])
+      expect(JSON.parse(await send('/__shodan/state')).alerts).toHaveProperty('synthetic-alert')
+    } finally { vi.useRealTimers() }
+  }, allWrites, false, () => held())
+})
+
 test('execute reports an unverified readback after a successful write', async () => {
   await withWriteApp(async ({ db, post, send }) => {
     const preview = await post('preview', alert)

@@ -98,8 +98,14 @@ export function registerShodanWrites(app: FastifyInstance, db: Database.Database
       const startedAt = Date.now()
       let result: Awaited<ReturnType<typeof executeShodanWrite>> | undefined
       try {
-        result = await runner.runManaged(owner.user, undefined, signal => executeShodanWrite(plan.directory, adapter, plan.credential, input,
-          plan.operation, plan.token, signal, () => authorize(plan), runner.configuredCaPem))
+        result = await runner.runManaged(owner.user, undefined, async signal => {
+          const controller = new AbortController()
+          const timer = setInterval(() => { try { authorize(plan) } catch { controller.abort() } }, 60_000).unref()
+          try {
+            return await executeShodanWrite(plan.directory, adapter, plan.credential, input, plan.operation, plan.token,
+              AbortSignal.any([signal, controller.signal]), () => authorize(plan), runner.configuredCaPem)
+          } finally { clearInterval(timer) }
+        })
         return result
       } finally {
         const completed = result?.status === 'completed'
