@@ -376,7 +376,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         !db.prepare('SELECT 1 FROM users WHERE id = ? AND archived_at IS NULL AND disabled = 0').get(input.userId)) {
         throw new ArtiumError('INVALID_INPUT', 'Choose an active person.')
       }
-      if (!added.length && operations.length === previous.length && operations.every(operation => previous.includes(operation))) return current
+      if (!added.length && operations.length === previous.length && operations.every(operation => previous.includes(operation)) &&
+        (operations.length > 0 || !Object.hasOwn(saved.grants, input.userId))) return current
       const { [input.userId]: _, ...others } = saved.grants
       const changed = nativeSettingsSchemas[tool].safeParse({ ...current.nativeSettings,
         [input.policy]: { ...saved, grants: { ...others, ...(operations.length ? { [input.userId]: operations } : {}) } } })

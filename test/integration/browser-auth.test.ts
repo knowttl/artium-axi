@@ -260,6 +260,23 @@ test('a person grant saved from the Access sheet reaches the tool settings', asy
   expect((await request('GET', '/admin/tools/kubernetes-axi?tab=access')).body).toContain('<strong>synthetic-second</strong><p>exec</p>')
 })
 
+test('removing an empty grant returns the person to the Access picker', async () => {
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'kubernetes-axi'")
+    .run(JSON.stringify({ sessions: { grants: { 'synthetic-second': [] } } }))
+  await signIn()
+  const before = (await request('GET', '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-add')).body
+  expect(before).toContain('<strong>synthetic-second</strong><p>None</p>')
+  expect(/<select [^>]*name="userId"[^>]*>(.*?)<\/select>/s.exec(before)![1]).not.toContain('synthetic-second')
+  const csrf = await token('/admin/tools/kubernetes-axi?tab=access')
+  const response = await app.inject({ method: 'PUT', url: '/v1/admin/tools/kubernetes-axi/user-grants', headers: {
+    host: 'localhost', origin: 'http://localhost', accept: 'application/json', cookie: Object.entries(cookies).map(([key, value]) => `${key}=${value}`).join('; '),
+  }, payload: { _csrf: csrf, policy: 'sessions', userId: 'synthetic-second', operations: [], expectedRevision: 1 } })
+  expect(response.statusCode, response.body).toBe(200)
+  const after = (await request('GET', '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-add')).body
+  expect(after).not.toContain('<strong>synthetic-second</strong><p>None</p>')
+  expect(/<select [^>]*name="userId"[^>]*>(.*?)<\/select>/s.exec(after)![1]).toContain('value="synthetic-second"')
+})
+
 test('administrators can inspect the loaded trusted CA metadata on Tools', async () => {
   await withFakeService(async ({ directory: certs }) => {
     await app.close()

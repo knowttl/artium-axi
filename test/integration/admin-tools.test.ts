@@ -328,6 +328,21 @@ const grantPolicyCases = [
   { tool: 'shodan-axi', policy: 'exports', operation: 'CLI-005', limits: { maxQueryCredits: 1, maxRequests: 1, maxRecords: 1, maxBytes: 1, retentionSeconds: 1 }, updated: { maxQueryCredits: 2, maxRequests: 1, maxRecords: 1, maxBytes: 1, retentionSeconds: 1 } },
 ] as const
 
+test.each(grantPolicyCases)('$tool $policy removes and journals an empty grant entry', async ({ tool, policy, limits }) => {
+  db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?')
+    .run(JSON.stringify({ [policy]: { ...limits, grants: { 'synthetic-ordinary': [] } } }), tool)
+  const removed = await grantUser(tool, policy, 'synthetic-ordinary', [], 1)
+  expect(removed.status).toBe(200)
+  expect(await removed.json()).toMatchObject({ revision: 2, nativeSettings: { [policy]: { ...limits, grants: {} } } })
+  const row = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change'").get() as { arguments: string }
+  expect(JSON.parse(row.arguments)).toEqual({ settings: [{ path: [policy, 'grants', 'synthetic-ordinary'], before: [], after: null }] })
+  db.exec('DELETE FROM audit')
+  const unchanged = await grantUser(tool, policy, 'synthetic-ordinary', [], 2)
+  expect(unchanged.status).toBe(200)
+  expect(await unchanged.json()).toMatchObject({ revision: 2, nativeSettings: { [policy]: { ...limits, grants: {} } } })
+  expect(db.prepare("SELECT * FROM audit WHERE event = 'admin-change'").all()).toEqual([])
+})
+
 test.each(grantPolicyCases)('$tool $policy Advanced settings preserve grants and journal removal', async ({ tool, policy, operation, limits, updated }) => {
   const grants = { 'synthetic-ordinary': [operation] }
   db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify({ [policy]: { ...limits, grants } }), tool)
