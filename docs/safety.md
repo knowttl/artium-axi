@@ -73,7 +73,7 @@ Raw request bodies and Falcon query files must be uploaded with the call; Tenabl
 
 Mode `off` denies raw calls; `read` permits read-classified calls; `read-writes` additionally permits write-classified calls on Azure, Azure DevOps, Gitea, Microsoft Graph, Tenable, Falcon and AWX.
 For tools whose raw routes cannot write, `read-writes` permits reads only and raw writes remain blocked.
-Azure raw mutation previews are read-classified; executing a mutation requires `read-writes`.
+Azure raw GET calls and mutation previews are read-classified, including for read-only instances and delegated tokens; executing a mutation requires `read-writes`.
 Graph `api post`, `put`, `patch` and `delete` are write-classified, previews included, and Artium enables the native raw-write switch only for those calls after the mode and role checks pass.
 They also need administrator Allow writes on the Graph tool; they are not limited to its operations allow-list.
 Graph's mail and security pack defaults stay in force.
@@ -141,7 +141,7 @@ Workspace downloads and session artifact retrieval require their own exact pick 
 Read-only tokens cannot start any session or create a workspace, including for logs and watch sessions.
 Session kinds retain their administrator grants and write settings; credential-producing operations additionally require their exact pick.
 Delegated workspaces and sessions are limited to two per creator per surface, leaving capacity for the creator, and are bound to the exchanged family so revocation ends that family's work.
-Unknown commands, parsing failures and dynamic or conditional inventory effects default to write; reviewed read-command labels remain reads even when those commands have outside effects.
+Unknown commands, parsing failures and dynamic or conditional inventory effects default to write unless an adapter resolves the effect, as with [Azure raw API calls](#raw-api-access); reviewed read-command labels remain reads even when those commands have outside effects.
 Read-only tokens refuse write-classified commands, including previews and Kubernetes prepare/preview workflows, but do not prevent all outbound data or spending.
 Hybrid Analysis quick scans, for example, still send samples or URLs to a third party as reads.
 Tool-wide grants exclude credential-producing commands and broad API and native escape hatches; those require exact selections, and credential-producing commands additionally require a writable token.
