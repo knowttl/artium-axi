@@ -215,6 +215,30 @@ test.each([
   expect(await toolInput('gh-axi', args)).toEqual({ args, stdin: 'synthetic content' })
 })
 
+test('GitHub release upload sends client file bytes and forwards only file names', async () => {
+  const first = join(directory, 'checksums.txt')
+  const second = join(directory, 'notes.md')
+  writeFileSync(first, 'one')
+  writeFileSync(second, 'two')
+  const request = await toolInput('gh-axi', ['release', 'upload', 'v1', first, '-R', 'canary/repo', second, '--confirm', 'synthetic-confirm'])
+  expect(request.args).toEqual(['release', 'upload', 'v1', 'checksums.txt', '-R', 'canary/repo', 'notes.md', '--confirm', 'synthetic-confirm'])
+  expect(request.files).toEqual([{ name: 'checksums.txt', size: 3, contentBase64: Buffer.from('one').toString('base64') },
+    { name: 'notes.md', size: 3, contentBase64: Buffer.from('two').toString('base64') }])
+})
+
+test.each([
+  ['help', ['release', 'upload', '--help']],
+  ['another command', ['release', 'view', 'v1', '-R', 'canary/repo']],
+])('GitHub %s reads no local file', async (_, args) => {
+  expect(await toolInput('gh-axi', args)).toEqual({ args })
+})
+
+test('GitHub release upload refuses files over the upload limit', async () => {
+  const path = join(directory, 'large-asset.bin')
+  writeFileSync(path, Buffer.alloc(inputLimits.fileBytes + 1))
+  await expect(toolInput('gh-axi', ['release', 'upload', 'v1', path, '-R', 'canary/repo'])).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+})
+
 test.each([
   ['gist', 'create', '--filename=synthetic.txt', '--secret', '--help'],
   ['gist', 'edit', 'abc123', '--desc=synthetic'], ['issue', 'list', '-R', 'canary/repo'],

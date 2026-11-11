@@ -50,11 +50,22 @@ export function inputFileFlags(tool: string, args: readonly string[]): string[] 
   return flags.filter(name => Object.hasOwn(route.flags, name))
 }
 
+export function ghReleaseUploadFileIndexes(args: readonly string[]): number[] {
+  if (args[0] !== 'release' || args[1] !== 'upload' || args.some(arg => ['--help', '-h'].includes(arg))) return []
+  const positionals: number[] = []
+  for (let index = 2; index < args.length; index++) {
+    if (!args[index].startsWith('-')) positionals.push(index)
+    else if (['-R', '--repo', '--confirm'].includes(args[index])) index++
+  }
+  return positionals.slice(1)
+}
+
 export function validateFileInput(tool: string, args: readonly string[], input: RunInput): void {
   if (!input.files?.length) return
   if (tool === 'gitea-axi') args = normalizeGiteaFileArguments(args)
   const flags = inputFileFlags(tool, args)
   const names = new Set<string>()
+  if (tool === 'gh-axi') for (const index of ghReleaseUploadFileIndexes(args)) names.add(args[index])
   if (!args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
     for (let index = 0; index < args.length; index++) {
       const token = args[index]

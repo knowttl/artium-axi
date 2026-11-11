@@ -224,18 +224,29 @@
       "stack",
       "issue lock",
       "issue unlock",
+      "issue delete",
       "project delete",
+      "project field-create",
+      "project field-delete",
+      "project item-delete",
       "pr checkout",
       "repo clone",
       "gist clone",
+      "gist delete",
       "run watch",
       "run download",
-      "release download"
+      "run delete",
+      "release download",
+      "release delete",
+      "label delete",
+      "variable delete",
+      "secret set",
+      "secret delete"
     ],
     "nativeWrites": "host-classified; exact operations, preview and confirmation",
     "inputs": {
       "stdin": "gist create/edit with filename only",
-      "files": "unsupported"
+      "files": "release upload client files only"
     }
   },
   "discovery": {
@@ -261,12 +272,111 @@
       "--limit",
       "1"
     ],
-    "help": "gh-axi repo list [<owner>] [--limit <n>]\nManaged GitHub API access. Use -R OWNER/NAME for repository commands. Writes require an administrator-enabled exact operation, host preview and --confirm. api accepts [GET] <relative-path>; GraphQL and other methods are refused. Stdin only for gist create/edit with --filename; no files.\n"
+    "help": "gh-axi repo list [<owner>] [--limit <n>]\nManaged GitHub API access. Use -R OWNER/NAME for repository commands. Writes require an administrator-enabled exact operation, host preview and --confirm. api accepts [GET] <relative-path>; GraphQL and other methods are refused. Stdin only for gist create/edit with --filename; only release upload reads client files.\n"
   },
   "suggestionFields": [
     "help"
   ],
   "format": "TOON",
+  "upstreamCommands": [
+    "pr list",
+    "pr view",
+    "pr create",
+    "pr edit",
+    "pr close",
+    "pr merge",
+    "pr review",
+    "pr checks",
+    "pr diff",
+    "pr checkout",
+    "pr ready",
+    "pr reopen",
+    "pr comment",
+    "pr update-branch",
+    "pr revert",
+    "issue list",
+    "issue view",
+    "issue create",
+    "issue edit",
+    "issue close",
+    "issue reopen",
+    "issue comment",
+    "issue delete",
+    "issue lock",
+    "issue unlock",
+    "issue pin",
+    "issue unpin",
+    "issue transfer",
+    "issue subissue add",
+    "issue subissue remove",
+    "issue subissue list",
+    "project list",
+    "project view",
+    "project item-list",
+    "project field-list",
+    "project field-create",
+    "project field-delete",
+    "project item-add",
+    "project item-create",
+    "project item-edit",
+    "project item-archive",
+    "project item-delete",
+    "project create",
+    "project edit",
+    "project close",
+    "project copy",
+    "project delete",
+    "release list",
+    "release view",
+    "release create",
+    "release edit",
+    "release delete",
+    "release download",
+    "release upload",
+    "secret list",
+    "secret set",
+    "secret delete",
+    "variable list",
+    "variable set",
+    "variable delete",
+    "run list",
+    "run view",
+    "run watch",
+    "run rerun",
+    "run cancel",
+    "run delete",
+    "run download",
+    "gist list",
+    "gist view",
+    "gist edit",
+    "gist rename",
+    "gist create",
+    "gist delete",
+    "gist clone",
+    "discussion list",
+    "discussion view",
+    "discussion comment",
+    "label list",
+    "label create",
+    "label edit",
+    "label delete",
+    "repo view",
+    "repo create",
+    "repo edit",
+    "repo clone",
+    "repo fork",
+    "repo list",
+    "workflow list",
+    "workflow view",
+    "workflow run",
+    "workflow enable",
+    "workflow disable",
+    "search issues",
+    "search prs",
+    "search repos",
+    "search commits",
+    "search code"
+  ],
   "commands": [
     {
       "command": "issue list",
@@ -775,6 +885,30 @@
       "tier": "collaboration"
     },
     {
+      "command": "issue subissue add",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "confirm": "value"
+      },
+      "positionals": "variadic",
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "issue subissue remove",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "confirm": "value"
+      },
+      "positionals": 2,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
       "command": "pr create",
       "effect": "write",
       "flags": {
@@ -825,6 +959,31 @@
         "help": "boolean",
         "repo": "value",
         "body": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "pr close",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "comment": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "collaboration"
+    },
+    {
+      "command": "pr reopen",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
         "confirm": "value"
       },
       "positionals": 1,
@@ -1224,6 +1383,18 @@
       "tier": "repository"
     },
     {
+      "command": "issue unpin",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
       "command": "issue transfer",
       "effect": "write",
       "flags": {
@@ -1233,6 +1404,74 @@
         "confirm": "value"
       },
       "positionals": 1,
+      "repository": true,
+      "tier": "repository"
+    },
+    {
+      "command": "project create",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "owner": "value",
+        "title": "value",
+        "confirm": "value"
+      },
+      "positionals": 0,
+      "repository": false,
+      "tier": "repository"
+    },
+    {
+      "command": "project edit",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "owner": "value",
+        "title": "value",
+        "description": "value",
+        "readme": "value",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": false,
+      "tier": "repository"
+    },
+    {
+      "command": "project close",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "owner": "value",
+        "undo": "boolean",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": false,
+      "tier": "repository"
+    },
+    {
+      "command": "project copy",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "source-owner": "value",
+        "target-owner": "value",
+        "title": "value",
+        "drafts": "boolean",
+        "confirm": "value"
+      },
+      "positionals": 1,
+      "repository": false,
+      "tier": "repository"
+    },
+    {
+      "command": "release upload",
+      "effect": "write",
+      "flags": {
+        "help": "boolean",
+        "repo": "value",
+        "confirm": "value"
+      },
+      "positionals": "variadic",
       "repository": true,
       "tier": "repository"
     }

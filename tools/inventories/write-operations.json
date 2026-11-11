@@ -726,11 +726,16 @@
         "issue close": { "label": "Close" },
         "issue reopen": { "label": "Reopen" },
         "issue pin": { "label": "Pin" },
+        "issue unpin": { "label": "Unpin" },
+        "issue subissue add": { "label": "Add sub-issues" },
+        "issue subissue remove": { "label": "Remove sub-issue" },
         "issue transfer": { "label": "Transfer" }
       } },
       { "title": "Pull requests", "operations": {
         "pr create": { "label": "Create" },
         "pr edit": { "label": "Edit" },
+        "pr close": { "label": "Close" },
+        "pr reopen": { "label": "Reopen" },
         "pr comment": { "label": "Comment" },
         "pr review": { "label": "Review" },
         "pr ready": { "label": "Mark ready" },
@@ -746,6 +751,10 @@
         "label edit": { "label": "Edit" }
       } },
       { "title": "Projects", "operations": {
+        "project create": { "label": "Create" },
+        "project edit": { "label": "Edit" },
+        "project close": { "label": "Close or reopen" },
+        "project copy": { "label": "Copy" },
         "project item-add": { "label": "Add item" },
         "project item-create": { "label": "Create item" },
         "project item-edit": { "label": "Edit item" },
@@ -753,7 +762,8 @@
       } },
       { "title": "Releases", "operations": {
         "release create": { "label": "Create" },
-        "release edit": { "label": "Edit" }
+        "release edit": { "label": "Edit" },
+        "release upload": { "label": "Upload client files" }
       } },
       { "title": "Workflows and runs", "operations": {
         "workflow run": { "label": "Run workflow" },

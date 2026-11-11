@@ -181,7 +181,8 @@ Server paths, nested `@path` references and stdin for other AWX flags are refuse
 Authentication, role checks, write confirmations, redaction and call limits apply as usual.
 GitHub writes require an administrator-enabled exact operation, then an Artium preview and `--confirm <returned-value>` on the same request.
 GitHub gist create/edit with `--filename` captures bounded piped stdin; repeat identical content when confirming.
-Other GitHub commands leave stdin unread and reject input through the API; local files are unavailable.
+Other GitHub commands leave stdin unread and reject input through the API.
+GitHub `release upload TAG FILE...` is the only GitHub command that reads local files; the client uploads them with the request.
 See [GitHub write setup](tool-credentials.md#github) for operation tiers and recovery after `UNKNOWN_OUTCOME`.
 Vectra file inputs use named uploads through the run API, or bounded stdin where the upstream flag accepts `-`; the [reviewed Vectra inventory](../tools/inventories/vectra-axi.json) owns the accepted file flags.
 The bundled CLI uploads Vectra files through those declared flags, including `--note-file <local-path>` for long notes; it does not capture Vectra stdin, and server file paths are unavailable.

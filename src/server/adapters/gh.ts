@@ -15,7 +15,7 @@ import { GithubAppTokenCache } from './github-app-tokens.js'
 export const ghManifest = { ...inventory, ...inventory.adapterBoundary }
 export const ghWritePolicy = writePolicy({ supportedOperations: ghWriteOperations,
   unlocks: 'Exact collaboration and repository operations, each off by default. Preview first, then repeat the same request with its --confirm value.',
-  blocked: 'Deletes, secret set, merge --admin, API non-GET, local git commands, downloads and local file inputs remain unavailable.' })
+  blocked: 'Deletes, secret set, merge --admin, API non-GET, local git commands, downloads and server file paths remain unavailable. Release upload accepts only files read by the client.' })
 
 function authorizeOperation(command: string, settings: Record<string, unknown>) {
   const state = ghWritePolicy.read(settings)
@@ -93,8 +93,8 @@ function parseGhArguments(args: readonly string[]) {
       flags.set(name, '')
     } else {
       const value = match[2] ?? args[++index]
-      const text = ['body', 'notes', 'desc', 'description', 'title', 'comment', 'text', 'subject'].includes(name)
-      const emptyContent = ['body', 'notes', 'desc', 'description', 'text'].includes(name)
+      const text = ['body', 'notes', 'desc', 'description', 'readme', 'title', 'comment', 'text', 'subject'].includes(name)
+      const emptyContent = ['body', 'notes', 'desc', 'description', 'readme', 'text'].includes(name)
       if (value === undefined || value === '' && !emptyContent || value.startsWith('-') && match[2] === undefined
         || (text ? /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/ : /[\x00-\x1f\x7f]/).test(value)) throw new ArtiumError('INVALID_INPUT')
       flags.set(name, value)
@@ -107,7 +107,7 @@ function parseGhArguments(args: readonly string[]) {
 }
 
 function ghArguments(args: readonly string[], input: RunnerInput = {}) {
-  if (input.files?.length) throw new ArtiumError('UNSUPPORTED_INPUT')
+  if (input.files?.length && args.slice(0, 2).join(' ') !== 'release upload') throw new ArtiumError('UNSUPPORTED_INPUT')
   if (input.stdin !== undefined && !['gist create', 'gist edit'].includes(args.slice(0, 2).join(' '))) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (args.length === 1 && ['--version', '-v', '-V'].includes(args[0])) {
     return { args: ['--version'], invocation: { command: 'version', help: false } }
@@ -135,11 +135,18 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
   const help = flags.has('help')
   const stdin = ['gist create', 'gist edit'].includes(route.command) && flags.has('filename') && !help
   if (input.stdin !== undefined && !stdin || stdin && !input.stdin?.trim()) throw new ArtiumError('UNSUPPORTED_INPUT')
-  if (!help && route.effect === 'write' && rest.length !== Number(route.positionals)) throw new ArtiumError('INVALID_INPUT')
+  if (!help && route.effect === 'write' && (route.positionals === 'variadic' ? rest.length < 2 : rest.length !== Number(route.positionals))) throw new ArtiumError('INVALID_INPUT')
+  if (!help && route.command.startsWith('issue subissue ') && route.effect === 'write' && rest.some(value => !/^\d+$/.test(value))) throw new ArtiumError('INVALID_INPUT')
+  const uploads = route.command === 'release upload' && !help ? rest.slice(1) : []
+  if ((input.files?.length ?? 0) !== uploads.length || new Set(uploads).size !== uploads.length
+    || uploads.some(name => name.includes('#') || !input.files!.some(file => file.name === name))) throw new ArtiumError('UNSUPPORTED_INPUT',
+    'Release upload accepts only distinct files read by the client, without # labels.')
   if (route.command === 'repo create' && rest.some(value => !repositoryName.test(value))) throw new ArtiumError('FLAG_BLOCKED')
   if (!help && route.effect === 'write' && route.command.startsWith('project ')
-    && !/^[A-Za-z0-9_-]+$/.test(flags.get('owner') ?? '')) throw new ArtiumError('INVALID_INPUT',
-    'Project writes require an explicit owner login.', 'Pass --owner OWNER for the affected project and its recovery commands.')
+    && (route.command === 'project copy' ? ['source-owner', 'target-owner'] : ['owner'])
+      .some(name => !/^[A-Za-z0-9_-]+$/.test(flags.get(name) ?? ''))) throw new ArtiumError('INVALID_INPUT',
+    'Project writes require an explicit owner login.',
+    'Pass --owner OWNER (--source-owner and --target-owner for project copy) for the affected project and its recovery commands.')
   if (route.command === 'repo create' && !help && ['public', 'private', 'internal'].filter(name => flags.has(name)).length !== 1) throw new ArtiumError('INVALID_INPUT')
   if (route.command === 'gist create' && !help && (!stdin || ['public', 'secret'].filter(name => flags.has(name)).length !== 1)) throw new ArtiumError('INVALID_INPUT')
   if (route.command === 'gist edit' && !help && !stdin && !flags.has('desc')) throw new ArtiumError('INVALID_INPUT')
@@ -185,7 +192,8 @@ function ghArguments(args: readonly string[], input: RunnerInput = {}) {
       && !(route.command === 'project item-edit' && name === 'owner')).flatMap(([name, value]) => name === 'field'
     ? fields.map(value => `--field=${value}`) : allFlags[name] === 'boolean'
     ? [nativeGh && route.command === 'issue edit' && name === 'no-type' ? '--remove-type' : `--${name}`] : route.command === 'run view' && ['job', 'conclusion'].includes(name)
-      ? [`--${name}`, value] : [`--${name}=${value}`])], invocation: { command: route.command, help, nativeGh },
+      ? [`--${name}`, value] : [`--${name}=${value}`])], fileArguments: uploads.map((_, index) => command.length + 1 + index),
+    invocation: { command: route.command, help, nativeGh },
     mutation: route.effect === 'write' && !help ? { route: route.command, rest, flags, confirm: flags.get('confirm') } : undefined }
 }
 
@@ -194,8 +202,12 @@ function readBack(call: ReturnType<typeof ghArguments>) {
   const [group, action] = route.split(' ')
   const repo = flags.get('repo')
   let checkArgs: string[]
-  if (group === 'project') checkArgs = ['project', ...(action === 'item-edit' ? ['list'] : ['item-list', ...rest]),
-    '--owner', flags.get('owner')!, '--limit', '100']
+  if (group === 'project') {
+    const owner = flags.get(route === 'project copy' ? 'target-owner' : 'owner')!
+    checkArgs = ['project', ...['edit', 'close'].includes(action) ? ['view', rest[0], '--owner', owner]
+      : [...['create', 'copy', 'item-edit'].includes(action) ? ['list'] : ['item-list', ...rest], '--owner', owner, '--limit', '100']]
+  }
+  else if (route.startsWith('issue subissue ')) checkArgs = ['issue', 'subissue', 'list', rest[0]]
   else if (group === 'label' || group === 'variable') checkArgs = [group, 'list']
   else if (group === 'workflow' && action === 'run') checkArgs = ['run', 'list', '--workflow', rest[0], '--limit', '100']
   else if (group === 'workflow') checkArgs = /^\d+$/.test(rest[0])
@@ -203,6 +215,8 @@ function readBack(call: ReturnType<typeof ghArguments>) {
     : ['api', `/repos/${repo}/actions/workflows?per_page=100`, '--paginate']
   else if (route === 'pr revert') checkArgs = ['pr', 'list', '--state', 'all', '--limit', '100']
   else if (route === 'issue transfer') checkArgs = ['issue', 'list', '--state', 'all', '--limit', '100']
+  else if (route === 'release upload') checkArgs = ['api', `/repos/${repo}/releases?per_page=100`, '--paginate',
+    '--jq', `.[] | select(.tag_name == ${JSON.stringify(rest[0])}) | {tag_name, draft, assets: [.assets[] | {name, state, size}]}`]
   else if (group === 'repo' && action === 'create') checkArgs = ['repo', 'list', rest[0].split('/')[0], '--limit', '100']
   else if (group === 'repo' && action === 'fork') checkArgs = ['api', `/repos/${repo}/forks?per_page=100`]
   else if (action === 'create') checkArgs = [group, 'list', '--limit', '100', ...(['issue', 'pr'].includes(group) ? ['--state', 'all'] : [])]

@@ -33,7 +33,7 @@ const downloadExecutionFlags = [
 
 const commands = {
   'gh-axi': { usage: 'artium-axi gh-axi [<args>]', purpose: 'Read and update GitHub data with managed credentials.',
-    flags: ['Repository commands require -R OWNER/NAME. Writes require an administrator-enabled exact operation: preview, then repeat with its --confirm value. api is GET only; deletes, secret set, merge --admin, local git, files and downloads are unavailable. Only gist create/edit with --filename accepts piped stdin.'], example: 'artium-axi gh-axi repo list --limit 1' },
+    flags: ['Repository commands require -R OWNER/NAME. Writes require an administrator-enabled exact operation: preview, then repeat with its --confirm value. api is GET only; deletes, secret set, merge --admin, local git and downloads are unavailable. Only release upload reads client files. Only gist create/edit with --filename accepts piped stdin.'], example: 'artium-axi gh-axi repo list --limit 1' },
   home: { usage: 'artium-axi [tools [show <tool>]|whoami|login|token|passwd|logout|doctor|setup|update|download|[--instance <name>] <tool> <args>]', purpose: 'Show your identity, roles and available tools.',
     flags: ['--version, -v, -V (default false; print the client package version and exit)',
       '--instance <name> (before the tool name; selects one named instance for that run; refused for ssh-axi, Proxmox result, Kubernetes tunnel, credential and workspace or session commands other than workspace create and session start, and Shodan radar; accepted by Shodan stream session preview and start, scan submit, download and alert download)'], example: 'artium-axi' },
