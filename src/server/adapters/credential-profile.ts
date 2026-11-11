@@ -320,6 +320,7 @@ export class CredentialProfile {
     if (tool === 'shodan-axi') delete parsed.value.scans
     if (tool === 'shodan-axi') delete parsed.value.writes
     if (tool === 'shodan-axi') delete parsed.value.exports
+    if (tool === 'shodan-axi') delete parsed.value.queries
     if (tool === 'kubernetes-axi') delete parsed.value.sessions
     if (tool === 'kubernetes-axi') delete parsed.value.acquireCredential
     if (tool === 'awx-axi') delete parsed.value.allowConfigurationWrites

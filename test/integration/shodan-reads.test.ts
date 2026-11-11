@@ -41,7 +41,7 @@ syncBuiltinESMExports()
     const previousPath = toolPaths['shodan-axi']
     Object.assign(toolPaths, { 'shodan-axi': join(packageRoot, 'bin/shodan-axi.js') })
     try {
-      const adapter = createShodanAdapter({ getCredential: async () => ({ auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' }) })
+      const adapter = createShodanAdapter({ getCredential: async () => ({ auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key', queries: { maxQueryCredits: 2 } }) })
       const call = await adapter.prepare([...args, '--json'], { id: 'synthetic-credential', tool: 'shodan-axi', revision: 1 })
       const result = await runner.run('synthetic-user', call.executable, ['--import', bootstrap, ...call.args], call.environment, call.secrets, { ...call.limits, publicContent: call.publicContent }, {}, call.files)
       expect(result.exitCode).toBe(0)
