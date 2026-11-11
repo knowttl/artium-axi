@@ -64,9 +64,14 @@ await withFakeService(async ({ directory, port, send }) => {
       assert.equal(detail.statusCode, 200, detail.body)
       const response = await app.inject({ url: '/v1/admin/tools/kubernetes-axi', method: 'PATCH',
         headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: {
-          expectedRevision: detail.json().revision, nativeSettings: { allowWrites, acquireCredential, sessions: { grants: { 'synthetic-development-user': grants } } },
+          expectedRevision: detail.json().revision, nativeSettings: { allowWrites, acquireCredential, sessions: {} },
         } })
       assert.equal(response.statusCode, 200, response.body)
+      const granted = await app.inject({ url: '/v1/admin/tools/kubernetes-axi/user-grants', method: 'PUT',
+        headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: {
+          policy: 'sessions', userId: 'synthetic-development-user', operations: grants, expectedRevision: response.json().revision,
+        } })
+      assert.equal(granted.statusCode, 200, granted.body)
     }
     const start = async (kind: z.infer<typeof kubernetesSessionKind>, args: string[], extra = {}) => {
       const response = await request(prefix, 'POST', { kind, argv: ['watch', 'logs'].includes(kind) ? args : ['prepare', '--', ...args], ...extra })
