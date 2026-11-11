@@ -110,7 +110,7 @@ When the command or operation is known during instance selection, delegated call
 Kubernetes session lists include only sessions on instances permitted by the `session list` selection.
 Tool lists, generated help and skills include only commands permitted by the token, the creator's current usable instances and grants, tool enablement, delegated read-only restriction and administrator Allow writes switch.
 Tools with no permitted commands are omitted, and tool lists report the effective read-only state.
-GitHub and Proxmox stream discovery also reflect their administrator operation allow-lists.
+Discovery for GitHub, Microsoft Graph, Vectra, Tenable One, Check Point, BeyondTrust and Hybrid Analysis, and Proxmox stream discovery, also reflect their administrator operation allow-lists.
 For ordinary tool commands, other adapter-internal operation allow-lists, including UniFi, Falcon, Gitea, Technitium, ordinary Proxmox JSON operations and Kubernetes credential acquisition, remain execution safeguards; reflecting them in discovery is a follow-up.
 Permitted native leaf commands retain their native argument help; locally generated Kubernetes hosted help filters command and session-kind listings to the same permitted set as discovery.
 Download help, including help for a selected transfer leaf, shows the hosted download interface with only permitted operations and their selector, type and destination requirements.
