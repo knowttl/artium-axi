@@ -13,6 +13,7 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { rotateKey } from '../../src/server/store/rotate-key.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { withFakeService } from '../fake-service/fixture.js'
+import { grantToolAccess } from '../fixtures/tokens.js'
 import { FakeTokenTransport, azureTestTenant, azureTestToken } from '../fixtures/azure-token-transport.js'
 
 test('all three adapters run with persisted credentials after offline rotation', async () => {
@@ -40,7 +41,8 @@ test('all three adapters run with persisted credentials after offline rotation',
     try {
       const store = createCredentialStore(db, newProvider)
       const source = new EmbeddedSecretSource(store)
-      const resolver = new SharedIdentityResolver(store)
+      grantToolAccess(db, 'synthetic-user')
+      const resolver = new SharedIdentityResolver(store, db)
       const falcon = await createFalconAdapter(source).prepare(['detection', 'list'], await resolver.resolve('synthetic-user', 'falcon-axi'))
       const falconResult = await runner.run('synthetic-user', process.execPath,
         ['-e', 'console.log(process.env.ARTIUM_SECRET_0 === "CANARY-falcon-secret")'],

@@ -13,6 +13,13 @@ export async function seedToolUser(db: Database.Database): Promise<void> {
     INSERT INTO role_tools (role_id, tool) SELECT 'synthetic-role', name FROM tools`)
 }
 
+export function grantToolAccess(db: Database.Database, userId: string): void {
+  db.prepare("INSERT INTO users (id, username, display_name, password_hash) VALUES (?, ?, ?, 'CANARY-hash')").run(userId, userId, userId)
+  db.exec(`INSERT OR IGNORE INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
+    INSERT OR IGNORE INTO role_tools (role_id, tool) SELECT 'synthetic-role', name FROM tools`)
+  db.prepare("INSERT INTO user_roles (user_id, role_id) VALUES (?, 'synthetic-role')").run(userId)
+}
+
 export function allowRawApi(db: Database.Database, tool: string, mode: 'read' | 'read-writes' = 'read-writes',
   write: string[] = ['POST **', 'PATCH **', 'PUT **', 'DELETE **']): void {
   db.prepare('UPDATE tools SET raw_api_mode = ?, raw_api_routes = ? WHERE name = ?').run(mode, JSON.stringify({ get: [], write }), tool)

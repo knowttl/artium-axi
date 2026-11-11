@@ -82,7 +82,7 @@ beforeEach(async () => {
       ARTIUM_TEST_RSS_FILE: join(directory, 'rss.json'), ARTIUM_TEST_READY_FILE: join(directory, 'ready.json') },
   } })
   const runner = await Runner.create(join(directory, 'calls'))
-  app = createApp({ db, audit, runner, adapters: [adapter], resolver: new SharedIdentityResolver(credentials),
+  app = createApp({ db, audit, runner, adapters: [adapter], resolver: new SharedIdentityResolver(credentials, db),
     credentialStore: credentials, artifactStore: store, environment: {} })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   token = issueTestAccessToken(db, user)

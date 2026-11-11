@@ -26,7 +26,7 @@ test('AWX enabling writes in one tenant does not grant another tenant write acce
     const adapter = createAwxAdapter(new EmbeddedSecretSource(store))
     const app = createApp({ db, audit: new Audit(db, Date.now, () => {}),
       runner: await Runner.create(join(directory, name, 'calls')), adapters: [adapter],
-      credentialStore: store, resolver: new SharedIdentityResolver(store), environment: {} })
+      credentialStore: store, resolver: new SharedIdentityResolver(store, db), environment: {} })
     return { db, app, adapter, reference, store }
   }))
   try {

@@ -47,7 +47,7 @@ test('hosted stream preview, read and stop use the real packaged worker with pri
     mkdirSync(abandoned, { recursive: true })
     writeFileSync(join(abandoned, 'profile'), 'CANARY-abandoned')
     const app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {},
-      resolver: new SharedIdentityResolver(store), adapters: [adapter] })
+      resolver: new SharedIdentityResolver(store, db), adapters: [adapter] })
     try {
       const url = await app.listen({ host: '127.0.0.1', port: 0 })
       expect(existsSync(abandoned)).toBe(false)

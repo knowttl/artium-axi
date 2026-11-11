@@ -35,7 +35,7 @@ test.each(['module-args', 'args'].flatMap(flag => ['inline', 'upload'].map(chann
       const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
       const lines: string[] = []
       const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => lines.push(line)), adapters: [adapter], environment: {},
-        resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db)) })
+        resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db), db) })
       const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
       const content = 'url=https://synthetic.invalid url_password=CANARY-module-password'
       const args = ['ad-hoc', 'launch', '7', '--module-name', 'uri', `--${flag}`, channel === 'inline' ? content : 'args.txt']
@@ -83,7 +83,7 @@ test('AWX protocol metadata survives structured values through completion and un
     }
     const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
     const app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), adapters: [adapter], environment: {},
-      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db)) })
+      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db), db) })
     const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
     const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
     try {
@@ -137,7 +137,7 @@ test.each([
           pem: [controller, receiver].map(service => readFileSync(join(service.directory, 'ca.crt'), 'utf8')).join('\n'), certificates: [],
         })
         const app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), adapters: [adapter], environment: {},
-          resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db)) })
+          resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db), db) })
         try {
           const value = `--origin=https://localhost:${receiver.port}`
           const request = { args: [...args, ...(channel === 'separate' ? [`--${flag}`, value]

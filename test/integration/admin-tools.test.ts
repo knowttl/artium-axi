@@ -125,7 +125,7 @@ beforeEach(async () => {
   runner = await Runner.create(join(directory, 'calls'))
   vi.spyOn(credentialTls, 'credentialFetch').mockRejectedValue(new Error('Unexpected synthetic network request'))
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {}, adapters,
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   headers = await adminHeaders()
   db.exec('DELETE FROM audit')
@@ -703,7 +703,7 @@ test('schema-driven replacement reaches the isolated runner and keeps secrets ou
     args: [...fakeTool.args, 'hosted-profile', 'vectra-axi'],
   }))
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const value = { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId, auth: 'certificate',
     privateKey: 'CANARY-hosted-key', thumbprintSha256: 'a'.repeat(64), writes: values['vectra-axi'].writes }
@@ -733,7 +733,7 @@ test.each([
   const profile = loadCredentialProfile('mg-axi', join(process.cwd(), 'tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json'))!
   const adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), profile)
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const value = { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId,
     auth: 'client-secret', clientSecret: 'CANARY-graph-secret', enabledPacks }
@@ -767,7 +767,7 @@ test.each([
   const adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), profile)
   vi.spyOn(adapter, 'prepare').mockRejectedValue(new Error('Synthetic credential check unavailable'))
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   expect((await request('PATCH', '/mg-axi', { nativeSettings: { enabledPacks: ['entra', 'mail'] }, expectedRevision: 1 })).status).toBe(200)
   const response = await request('PATCH', '/mg-axi/credential', { value: {
@@ -787,7 +787,7 @@ test('mg-axi refuses enabling mail for an existing delegated credential', async 
   store.replaceCredential('mg-axi', { mode: 'delegated', tenantId: azureTestTenant,
     clientId: values['mg-axi'].clientId, token: 'CANARY-msal-cache' }, 0, actor, 123)
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   await failure(await request('PATCH', '/mg-axi', {
     nativeSettings: { enabledPacks: ['entra', 'mail'] }, expectedRevision: 1,
@@ -822,7 +822,7 @@ test.each([
   const adapter = tool === 'mg-axi' ? createMgAdapter(source, join(directory, 'writes.log'), profile)
     : createVectraAdapter(source, join(directory, 'writes.log'), profile)
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const original = tool === 'mg-axi' ? { mode: 'application', tenantId: azureTestTenant,
     clientId: values['mg-axi'].clientId, auth: 'client-secret', clientSecret: 'CANARY-original' }
@@ -841,7 +841,7 @@ test.each(['PUT', 'PATCH'])('%s credential normalizes safe input and reports cha
   const profile = loadCredentialProfile('vectra-axi', join(process.cwd(), 'tools/node_modules/@knowttl/vectra-axi/axi-credential.schema.json'))!
   const adapter = createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), profile)
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('vectra-axi')
   const logged = vi.spyOn(app.log, 'error')
@@ -884,7 +884,7 @@ test.each([
     args: [...fakeTool.args, 'print', 'synthetic-health-output'],
   }))
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   expect((await replace('vectra-axi', value)).metadata.origin).toBe(value.origin)
   expect(store.readCredential(store.findCredential('vectra-axi')!)).toEqual(value)
@@ -900,7 +900,7 @@ test.each([
   const profile = new CredentialProfile(profileSchema)
   const adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), profile)
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [...adapters, adapter],
-    environment: {}, resolver: new SharedIdentityResolver(store) })
+    environment: {}, resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const response = await request('GET', '/mg-axi/credential')
   expect(response.status).toBe(200)
@@ -1325,7 +1325,7 @@ test.each([
     executable: fakeTool.executable, args: [...fakeTool.args, ...output] }))
   runner = await Runner.create(join(directory, 'calls'))
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {}, adapters: [adapter],
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   expect(store.findCredential('gh-axi')).toBeUndefined()
   const started = await startGithubDevice()
@@ -1366,7 +1366,7 @@ test('disabled GitHub device connection checks its revision once runner capacity
     if (record.event === 'health-check' && record.tool === 'gh-axi' && record.outcome === 'success') completed()
   })
   app = createApp({ db, runner, audit, credentialStore: store, environment: {}, adapters: [adapter],
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const controller = new AbortController()
   const calls = Array.from({ length: runnerLimits.globalCalls }, (_, index) =>
@@ -1426,7 +1426,7 @@ test('GitHub reconnect during an in-flight check checks the new revision while d
       && record.outcome === 'success') completed()
   })
   app = createApp({ db, runner, audit, credentialStore: store, environment: {}, adapters: [adapter],
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const oldCheck = request('POST', '/gh-axi/test', {})
   await running
@@ -1512,7 +1512,7 @@ test.each([
   runner = await Runner.create(join(directory, 'calls'))
   const adapter = createAdoAdapter(new EmbeddedSecretSource(store))
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   db.exec("UPDATE tools SET enabled = 0 WHERE name = 'ado-axi'")
   await replace('ado-axi', value)
@@ -1556,7 +1556,7 @@ test.each([
   const adapter = tool === 'mg-axi' ? createMgAdapter(source, join(directory, 'writes.log'), profile)
     : createVectraAdapter(source, join(directory, 'writes.log'), profile)
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   // Disabled tools do not run health checks after saving.
   db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run(tool)
@@ -1906,7 +1906,7 @@ test('a write-access check stays pending while ordinary calls fill the runner an
       && ++rejections === 2) rejectedAgain()
   })
   app = createApp({ db, runner, audit, credentialStore: store, environment: {}, adapters,
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const controller = new AbortController()
   const calls = Array.from({ length: runnerLimits.globalCalls }, (_, index) =>
@@ -2059,7 +2059,7 @@ test.each([
   const adapter = tool === 'az-axi' ? createAzAdapter(source, join(directory, 'az-writes.log'), cache)
     : createMgAdapter(source, join(directory, 'mg-writes.log'))
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {}, adapters: [adapter],
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   headers = await adminHeaders()
 
@@ -2497,7 +2497,7 @@ test('Graph canonical credential can be tested while disabled and enabled for au
     args: [join(process.cwd(), 'test/fake-tool/mg-adapter-child.mjs'), ...args],
   }))
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   db.exec("UPDATE tools SET enabled = 0 WHERE name = 'mg-axi'")
   const credential = { mode: 'application', tenantId: azureTestTenant, clientId: values['mg-axi'].clientId,

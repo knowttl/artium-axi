@@ -28,6 +28,10 @@ export const mgWritePolicy = writePolicy({ supportedOperations: inventory.native
   unlocks: 'Selected Graph group membership, user account state, session revocation, risk dismissal, conditional-access policy and mail operations; native execution and confirmation gates still apply.',
   blocked: 'Named operations outside the allow-list, beta writes, unsupported targets and unsafe overrides remain blocked. API post, put, patch and delete additionally require the tool\'s Raw API read-writes mode and a role grant, and keep the native mail and security pack denials. Raw API calls in read-writes mode with a role grant also reach file areas and /$batch, with every batch request checked by the same native policy as a single call. Graph permissions and roles are still required.' })
 
+const mgOperations: Record<string, string> = {
+  'entra user revoke-sessions': 'entra.user.revokeSessions', 'entra group member add': 'mg.entra.group.member.add',
+}
+
 function mgArguments(args: readonly string[], input: RunnerInput = {}, artifact = false) {
   const hunting = args.slice(0, 3).join(' ') === 'security hunting query'
   const rule = ['mail rule create', 'mail rule update'].includes(args.slice(0, 3).join(' '))
@@ -110,6 +114,8 @@ export function createMgAdapter(source: SecretSource, writeLog: string,
     allowedFlagValues: {}, sensitiveArguments: args => ({ flags: mgManifest.sensitiveFlags.map(name => `--${name}`),
       positions: args.slice(0, 3).join(' ') === 'security hunting query' ? args.map((_, index) => index) : [] }),
     validateArgs: (args, input) => { mgArguments(args, input) },
+    authorizeOperation: (command, settings) => mgWritePolicy.authorize(settings, command.startsWith('api ') ? undefined
+      : allowed => allowed === (mgOperations[command] ?? command.replaceAll(' ', '.'))),
     rawApi: { commands: ['api get', 'api post', 'api put', 'api patch', 'api delete'], writes: true, help: (args, input) => mgArguments(args, input).invocation.help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(
       inventory.commands.map(route => ({ ...route, effect: mgReadCommands.has(route.command) ? 'read' : 'write' })),

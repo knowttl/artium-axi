@@ -32,7 +32,7 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
     vi.stubEnv('AWX_AXI_WRITE_LOG', join(directory, 'ambient-writes.log'))
     const runner = await Runner.create(join(directory, 'calls'))
     const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [adapter],
-      credentialStore: store, resolver: new SharedIdentityResolver(store), environment: {} })
+      credentialStore: store, resolver: new SharedIdentityResolver(store, db), environment: {} })
     try {
       await seedToolUser(db)
       db.exec('UPDATE users SET administrator = 1')
@@ -168,7 +168,7 @@ test.each(['PATCH', 'PUT'] as const)('AWX password sign-in via %s bootstraps sco
     const lines: string[] = []
     const runner = await Runner.create(join(directory, 'calls'))
     const app = createApp({ db, audit: new Audit(db, Date.now, line => { lines.push(line) }), runner, adapters: [adapter],
-      credentialStore: store, resolver: new SharedIdentityResolver(store), environment: {} })
+      credentialStore: store, resolver: new SharedIdentityResolver(store, db), environment: {} })
     const password = 'CANARY-awx-password'
     const username = 'synthetic-awx'
     const minted = 'CANARY-awx-minted-token'

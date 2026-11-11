@@ -146,8 +146,17 @@ export async function runTool<Credential>(
         rawReadWrites = raw.readWrites
         apiRoute = raw.route
       }
-      if (instanceReadOnly && writeRequested() && (adapter.executesWrite?.(args, input)
-        ?? (!args.includes('--help') && !args.includes('--dry-run') && args.some(arg => /^--(?:confirm|execute)(?:=|$)/.test(arg))))) throw new ArtiumError('FLAG_BLOCKED')
+      const executesWrite = (instanceReadOnly || adapter.authorizeOperation) && writeRequested() && (adapter.executesWrite?.(args, input)
+        ?? (!args.includes('--help') && !args.includes('--dry-run') && args.some(arg => /^--(?:confirm|execute)(?:=|$)/.test(arg))))
+      if (instanceReadOnly && executesWrite) throw new ArtiumError('FLAG_BLOCKED')
+      if (executesWrite && adapter.authorizeOperation) {
+        const settings = JSON.parse((db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(adapter.name) as { native_settings: string }).native_settings)
+        const classification = adapter.classify(args, input)
+        if (classification.effect === 'write') adapter.authorizeOperation(classification.command, settings, args, input)
+        for (const operation of adapter.nestedOperations?.(args, input) ?? []) {
+          if (operation.effect === 'write') adapter.authorizeOperation(operation.command, settings)
+        }
+      }
       if (principal?.delegation && reference) authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand, reference.id, resolver)
       if (adapter.name === 'shodan-axi') checkShodanQueryCredits(db, args)
     } catch (error) {

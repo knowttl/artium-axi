@@ -45,7 +45,7 @@ beforeEach(async () => {
   }
   app = createApp({ db, audit: new Audit(db, Date.now, () => {}),
     runner: await Runner.create(join(directory, 'calls')), adapters: [adapter], credentialStore: store,
-    resolver: new SharedIdentityResolver(store), environment: {} })
+    resolver: new SharedIdentityResolver(store, db), environment: {} })
   headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
 })
 
@@ -94,7 +94,7 @@ test.each([
 
 test('a raw write still needs the administrator write switch', async () => {
   db.prepare("UPDATE tools SET native_settings = '{}' WHERE name = 'mg-axi'").run()
-  expect(await run(execute('patch'))).toMatchObject({ output: { error: { code: 'WRITES_DISABLED' }, fakeSends: 0 } })
+  expect(await run(execute('patch'))).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
 })
 
 const userPath = '/users/00000000-0000-0000-0000-000000000004'

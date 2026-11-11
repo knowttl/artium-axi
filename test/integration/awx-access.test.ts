@@ -42,7 +42,7 @@ test.each([
     }
     const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
     const app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), adapters: [adapter], environment: {},
-      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db)) })
+      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db), db) })
     const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
     const run = async (args: string[]) => {
       const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
@@ -80,7 +80,7 @@ test('AWX user privilege removal and interrupted username changes persist with w
     }
     const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
     const app = createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), adapters: [adapter], environment: {},
-      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db)) })
+      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db), db) })
     const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
     const request = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
     const run = async (args: string[]) => {
@@ -128,7 +128,7 @@ test('AWX token revocation requires the tenant switch and confirmation and inval
     const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
     const lines: string[] = []
     const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => lines.push(line)), adapters: [adapter], environment: {},
-      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db)) })
+      resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db), db) })
     const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
     const request = async (args: string[]) => {
       const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })

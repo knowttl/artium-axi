@@ -73,7 +73,7 @@ async function withTechnitium(check: (fixture: {
       }
     }
     const app = createApp({ db, runner, audit: new Audit(db), environment: {}, credentialStore: store,
-      resolver: new SharedIdentityResolver(store), adapters: [adapter] })
+      resolver: new SharedIdentityResolver(store, db), adapters: [adapter] })
     const failures: Error[] = []
     app.addHook('onError', async (_request, _reply, error) => { failures.push(error) })
     try {

@@ -14,7 +14,7 @@ export interface IdentityResolver {
 }
 
 export class SharedIdentityResolver implements IdentityResolver {
-  constructor(private readonly store: Pick<CredentialStore, 'listInstances' | 'readCredential'>, private readonly grants?: Database.Database) {}
+  constructor(private readonly store: Pick<CredentialStore, 'listInstances' | 'readCredential'>, private readonly grants: Database.Database) {}
 
   hasInstances(tool: ToolName): boolean { return this.store.listInstances(tool).length > 0 }
 
@@ -25,7 +25,7 @@ export class SharedIdentityResolver implements IdentityResolver {
   private reachable(userId: string, tool: ToolName, delegation?: Delegation, command?: string): CredentialInstance[] {
     const scoped = delegatedInstanceIds(delegation, tool, command)
     return this.store.listInstances(tool).filter(candidate => (!scoped || scoped.has(candidate.id)) &&
-      (!this.grants || instanceGranted(this.grants, userId, tool, candidate.id)))
+      instanceGranted(this.grants, userId, tool, candidate.id))
   }
 
   usableInstances(userId: string, tool: ToolName, delegation?: Delegation, command?: string): CredentialInstance[] {

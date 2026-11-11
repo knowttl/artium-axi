@@ -93,7 +93,7 @@ beforeAll(async () => {
     { kind: 'qux', apiVersion: '2.5', origin: 'https://production.example', auth: 'token', token: 'CANARY-design-token' }, 'synthetic-development-user', Date.now())
   db.exec(`INSERT INTO ssh_hosts (id, address, port, approved_host_keys, allowed_addresses, enabled) VALUES ('synthetic-host', 'host.example', 22, '[]', '[]', 1)`)
   app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: {},
-    adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([])), providerCredentials: new ProviderCredentials(db, key), credentialStore: store })
+    adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([]), db), providerCredentials: new ProviderCredentials(db, key), credentialStore: store })
   admin = createBrowserSession(db, 'synthetic-development-user', 'CANARY-csrf').id
   ordinary = createBrowserSession(db, 'synthetic-ordinary', 'CANARY-csrf').id
 })

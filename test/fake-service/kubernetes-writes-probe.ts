@@ -35,7 +35,7 @@ await withFakeService(async ({ directory, port, send }) => {
   let runner = await Runner.create(join(directory, 'calls'))
   const adapter = await createKubernetesAdapter(new EmbeddedSecretSource(store), undefined, workflow)
   const application = () => createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [adapter], credentialStore: store,
-    resolver: new SharedIdentityResolver(store), environment: {} })
+    resolver: new SharedIdentityResolver(store, db), environment: {} })
   let app = application()
   try {
     const login = async (username = 'synthetic-user') => {

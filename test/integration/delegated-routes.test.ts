@@ -102,7 +102,7 @@ test('administrator-created delegated sessions cannot use admin, reauthenticatio
   const registered: string[] = []
   const app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')),
     onRoute: (method, url) => { for (const item of Array.isArray(method) ? method : [method]) registered.push(`${item} ${url}`) },
-    resolver: new SharedIdentityResolver(store), credentialStore: store, sshHosts: new SshHosts(db, provider),
+    resolver: new SharedIdentityResolver(store, db), credentialStore: store, sshHosts: new SshHosts(db, provider),
     sshExecution: { provider, writeLog: join(directory, 'writes.log'), executable: join(process.cwd(), 'tools/node_modules/@knowttl/ssh-axi/dist/hosted.js') },
     adapters: [await createKubernetesAdapter(new EmbeddedSecretSource(store), join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), join(directory, 'requests')),
       createProxmoxAdapter(new EmbeddedSecretSource(store))], environment: {} })

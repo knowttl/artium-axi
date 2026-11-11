@@ -138,7 +138,7 @@ beforeEach(async () => {
     auth: 'token', token: 'CANARY-never-sent' }, 0, 'synthetic-development-user', Date.now())
   runner = await Runner.create(join(directory, 'calls'))
   app = createApp({ db, runner, audit: new Audit(db),
-    credentialStore: store, resolver: new SharedIdentityResolver(store), environment: {}, adapters: [] })
+    credentialStore: store, resolver: new SharedIdentityResolver(store, db), environment: {}, adapters: [] })
   const login = await app.inject({ method: 'POST', url: '/v1/auth/login',
     payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })
   headers = { authorization: 'Bearer ' + login.json().accessToken }
@@ -774,7 +774,7 @@ test.each([
       return { ...call, executable: process.execPath, args: [join(process.cwd(), 'tools/node_modules', scenario.binary), ...call.args] }
     }
     const run = (requestId: string) => runTool(db, new Audit(db), runner, headers.authorization.slice(7), { args: [...scenario.args] }, adapter,
-      new SharedIdentityResolver(store), { requestId, clientAddress: null })
+      new SharedIdentityResolver(store, db), { requestId, clientAddress: null })
     const passed = await run('before-pin-rotation')
     expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
     service.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('self-signed-rotated') })
@@ -832,7 +832,7 @@ test.each(['ca', 'pin'] as const)('Technitium saved %s trust matches the endpoin
   const health = new ToolHealth(db, new Audit(db), runner, [adapter], store)
   try {
     const result = await runTool(db, new Audit(db), runner, headers.authorization.slice(7),
-      { args: ['user', 'session', 'get', '--json'] }, adapter, new SharedIdentityResolver(store),
+      { args: ['user', 'session', 'get', '--json'] }, adapter, new SharedIdentityResolver(store, db),
       { requestId: 'alternate-tls-identity', clientAddress: null, protectedResults })
     expect(result.exitCode, result.stdout + result.stderr).toBe(0)
     const downloaded = protectedResults.take(JSON.parse(result.stdout).result.id, { userId: 'synthetic-development-user',

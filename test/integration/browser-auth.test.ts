@@ -43,7 +43,7 @@ beforeEach(async () => {
   now = Date.now()
   vi.spyOn(Date, 'now').mockImplementation(() => now)
   app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: {},
-    adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([])), credentialStore: createCredentialStore(db, keyProvider) })
+    adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([]), db), credentialStore: createCredentialStore(db, keyProvider) })
   cookies = {}
 })
 
@@ -304,7 +304,7 @@ test('administrators can inspect the loaded trusted CA metadata on Tools', async
     await app.close()
     const bundle = loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(certs, 'ca.crt') })!
     app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls'), bundle), environment: {},
-      adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([])), credentialStore: createCredentialStore(db, keyProvider) })
+      adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([]), db), credentialStore: createCredentialStore(db, keyProvider) })
     expect((await request('GET', '/admin/tools')).statusCode).toBe(303)
     await signIn()
     const response = await request('GET', '/admin/tools')
@@ -757,7 +757,7 @@ test('overview names each broken access link with the action that fixes it', asy
   const store = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
   app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: {},
     adapters: [createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))],
-    credentialStore: store, resolver: new SharedIdentityResolver(store) })
+    credentialStore: store, resolver: new SharedIdentityResolver(store, db) })
   db.exec(`UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi';
     INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'oidc', 'https://identity.example');
     INSERT INTO invitations (id, token_hash, provider_id, expected_username, display_name, created_at, created_by, expires_at)
@@ -783,7 +783,7 @@ test.each([
   if (cached) db.prepare('INSERT INTO tool_health (tool, credential_id, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, ?, ?)')
     .run('awx-axi', credential.id, credential.revision, now, cached, cached === 'error' ? 'UPSTREAM_NETWORK_FAILED' : null)
   app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: {},
-    adapters: [createAwxAdapter(new EmbeddedSecretSource(store))], credentialStore: store, resolver: new SharedIdentityResolver(store) })
+    adapters: [createAwxAdapter(new EmbeddedSecretSource(store))], credentialStore: store, resolver: new SharedIdentityResolver(store, db) })
   await signIn()
   const response = await request('GET', '/admin')
   expect(response.statusCode).toBe(200)

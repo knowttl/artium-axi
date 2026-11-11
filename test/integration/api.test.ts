@@ -49,7 +49,7 @@ beforeEach(async () => {
   })
   getCredential.mockClear()
   options = { db, runner, audit: new Audit(db), environment, adapters: [adapter],
-    resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference: { id: 'synthetic-credential', tool: 'falcon-axi' }, value: {} }]).seed(db)) }
+    resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference: { id: 'synthetic-credential', tool: 'falcon-axi' }, value: {} }]).seed(db), db) }
   app = createApp(options)
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const login = await fetch(`${url}/v1/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' },

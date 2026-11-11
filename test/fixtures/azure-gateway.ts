@@ -51,7 +51,7 @@ export async function withAzureGateway(check: (fixture: {
           ARTIUM_TEST_AZURE_ORIGIN: `https://localhost:${port}` } }
     } }
     const app = createApp({ db, audit: new Audit(db), runner, adapters: [hosted],
-      resolver: new SharedIdentityResolver(store), environment: {} })
+      resolver: new SharedIdentityResolver(store, db), environment: {} })
     try {
       allowRawApi(db, 'az-axi')
       db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.6' WHERE name = 'az-axi'")

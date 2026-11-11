@@ -72,15 +72,18 @@ export function createBeyondtrustAdapter(source: SecretSource, writeLog: string)
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { beyondtrustArguments(args, input) },
     executesWrite: (args, input) => beyondtrustArguments(args, input).effect === 'write',
+    authorizeOperation(command, settings) {
+      const operation = command === 'user preferences set' ? 'user.preferences' : command.replaceAll(' ', '.')
+      beyondtrustWritePolicy.authorize(settings, allowed => allowed === operation)
+    },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => beyondtrustArguments(a, i).invocation, args, input),
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'beyondtrust-axi' || transferTool(scope.selection.operation) !== reference.tool
         || reference.revision !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
+      const settings = source.getSettings?.(reference) ?? await source.getCredential(reference) as Record<string, unknown>
+      beyondtrustWritePolicy.authorize(settings, allowed => allowed === scope.selection.operation)
       const parsed = beyondtrustCredentialSchema.safeParse(await source.getCredential(reference))
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
-      const settings = source.getSettings?.(reference) ?? parsed.data
-      const state = beyondtrustWritePolicy.read(settings)
-      if (!state.enabled || !state.allowedOperations.includes(scope.selection.operation)) throw new ArtiumError('FLAG_BLOCKED')
       const profile = beyondtrustProfile.prepare('beyondtrust-axi', { ...parsed.data, downloads: { allow: true },
         writes: { allowWrites: false, allowDeletes: false, operations: [] } }, writeLog, true)
       return { executable: toolPaths['beyondtrust-axi'], args, ...profile, limits: { timeoutMs: runnerLimits.timeoutMs } }

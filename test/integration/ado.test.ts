@@ -376,7 +376,7 @@ test.each([
     }
     const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
     const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [adapter],
-      credentialStore: store, resolver: new SharedIdentityResolver(store), environment: {} })
+      credentialStore: store, resolver: new SharedIdentityResolver(store, db), environment: {} })
     try {
       await seedToolUser(db)
       allowRawApi(db, 'ado-axi', 'read-writes', [])

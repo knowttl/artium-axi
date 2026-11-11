@@ -33,7 +33,7 @@ beforeEach(async () => {
   const store = createCredentialStore(db, key)
   credentials = new ProviderCredentials(db, key)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db),
-    adapters: [], credentialStore: store, providerCredentials: credentials, resolver: new SharedIdentityResolver(store), environment: {} })
+    adapters: [], credentialStore: store, providerCredentials: credentials, resolver: new SharedIdentityResolver(store, db), environment: {} })
   const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })
   headers = { authorization: 'Bearer ' + login.json().accessToken }
   const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })

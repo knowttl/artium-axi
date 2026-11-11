@@ -135,7 +135,7 @@ test.each([
     const source = new EmbeddedSecretSource(store)
     const adapter = createShodanAdapter({ getCredential: reference => { credentialReads++; return source.getCredential(reference) } })
     const app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {},
-      resolver: new SharedIdentityResolver(store), adapters: [adapter] })
+      resolver: new SharedIdentityResolver(store, db), adapters: [adapter] })
     try {
       const token = issueTestAccessToken(db, 'synthetic-development-user')
       const response = await app.inject({ method: 'POST', url: '/v1/tools/shodan-axi/run', headers: { authorization: `Bearer ${token}` },
@@ -174,7 +174,7 @@ test.each([
     const runStarted = new Promise<void>(resolve => { started = resolve })
     const audit = new Audit(db, Date.now, line => { if (JSON.parse(line).event === 'run-start') started() })
     const app = createApp({ db, runner, audit, credentialStore: store, environment: {},
-      resolver: new SharedIdentityResolver(store), adapters: [createShodanAdapter(new EmbeddedSecretSource(store))] })
+      resolver: new SharedIdentityResolver(store, db), adapters: [createShodanAdapter(new EmbeddedSecretSource(store))] })
     let release!: () => void
     const gate = new Promise<void>(resolve => { release = resolve })
     const occupied = Array.from({ length: runnerLimits.userCalls }, () => runner.runManaged('synthetic-development-user', undefined, () => gate))
@@ -290,7 +290,7 @@ syncBuiltinESMExports()
       return { ...call, args: ['--import', bootstrap, ...call.args] }
     }
     const app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {},
-      resolver: new SharedIdentityResolver(store), adapters: [adapter] })
+      resolver: new SharedIdentityResolver(store, db), adapters: [adapter] })
     try {
       const url = await app.listen({ host: '127.0.0.1', port: 0 })
       const token = issueTestAccessToken(db, 'synthetic-development-user')

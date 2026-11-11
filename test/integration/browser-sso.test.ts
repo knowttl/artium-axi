@@ -34,7 +34,7 @@ beforeEach(async () => {
   credentials = new ProviderCredentials(db, key)
   fake = await seedBrowserSso(db, credentials, 'https://localhost/auth/sso/synthetic-entra/callback')
   app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' },
-    adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([])), providerCredentials: credentials,
+    adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([]), db), providerCredentials: credentials,
     ssoFetch: fake.fetch })
 })
 

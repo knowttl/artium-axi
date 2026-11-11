@@ -35,7 +35,7 @@ beforeEach(async () => {
   const runner = await Runner.create(join(directory, 'calls'))
   app = createApp({ db, runner, audit: new Audit(db), environment: {},
     adapters: [createFalconAdapter({ getCredential: async () => ({}) }), createLdapAdapter({ getCredential: async () => ({}) })],
-    resolver: new SharedIdentityResolver(new FakeCredentialStore([])) })
+    resolver: new SharedIdentityResolver(new FakeCredentialStore([]), db) })
   headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
   vi.spyOn(toolSkills, 'loadToolSkill').mockImplementation(tool => loadToolSkill(tool,
     `tools/node_modules/@knowttl/${tool}/skills/${tool}/SKILL.md`))

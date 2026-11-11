@@ -10,6 +10,7 @@ import { encryptCredential } from '../store/crypto.js'
 import { EnvironmentKeyProvider } from '../store/key-provider.js'
 import { Runner } from '../runner/runner.js'
 import { FakeCredentialStore } from '../../../test/fixtures/credential-store.js'
+import { grantToolAccess } from '../../../test/fixtures/tokens.js'
 import { toolPaths } from '../config.js'
 
 let directory: string
@@ -33,7 +34,8 @@ test('Falcon prepares the persisted shared credential after database reopen', as
     expect(store.findCredential('az-axi')).toBeUndefined()
     expect(store.readCredential({ ...reference, id: 'missing' })).toBeUndefined()
     expect(store.readCredential({ ...reference, tool: 'vectra-axi' })).toBeUndefined()
-    const identity = await new SharedIdentityResolver(store).resolve('synthetic-user', 'falcon-axi')
+    grantToolAccess(reopened, 'synthetic-user')
+    const identity = await new SharedIdentityResolver(store, reopened).resolve('synthetic-user', 'falcon-axi')
     const adapter = createFalconAdapter(new EmbeddedSecretSource(store))
     const prepared = await adapter.prepare(['detection', 'list', '--help'], identity)
     expect(prepared).toMatchObject({

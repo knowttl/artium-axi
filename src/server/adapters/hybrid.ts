@@ -18,6 +18,12 @@ export const hybridWritePolicy = writePolicy({ supportedOperations: inventory.na
   unlocks: 'Sandbox submissions, YARA create/update/delete, consuming hunting matches and four reviewed sample, dropped-file and memory downloads selected independently, with native preview, --execute, exact --confirm and durable journal. Use artium-axi download for authenticated one-shot CLI verified saving.',
   blocked: 'Unselected writes, ordinary tool-run downloads, browser artifact saving, local configuration and origin overrides are blocked. Downloads require the dedicated artifact mount and current user permission; administrator selection cannot grant upstream entitlement.' })
 
+const hybridOperations: Record<string, string> = {
+  'hunting matches': 'huntingMatches', 'hunting yara create': 'yaraCreate', 'hunting yara update': 'yaraUpdate',
+  'hunting yara delete': 'yaraDelete', 'quick-scan submit': 'convertQuickScan', 'submit dropped-file': 'submitDroppedFile',
+  'submit file': 'submitFile', 'submit url': 'submitUrl',
+}
+
 function hybridArguments(args: readonly string[], input: RunnerInput = {}) {
   const tokens = args.length ? [...args] : ['home']
   if (tokens.length === 1 && ['--version', '-v', '-V', '--help'].includes(tokens[0])) return {
@@ -80,10 +86,13 @@ export function createHybridAdapter(source: SecretSource, writeLog: string): Ada
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { hybridArguments(args, input) },
     executesWrite: (args, input) => hybridArguments(args, input).effect === 'write',
+    authorizeOperation: (command, settings) => hybridWritePolicy.authorize(settings, allowed => allowed === hybridOperations[command]),
     rawApi: { commands: ['api get'], writes: false, help: (args, input) => hybridArguments(args, input).invocation.help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => hybridArguments(a, i).invocation, args, input),
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'hybrid-axi' || reference.revision !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
+      const settings = source.getSettings?.(reference) ?? await source.getCredential(reference) as Record<string, unknown>
+      hybridWritePolicy.authorize(settings, allowed => allowed === scope.selection.operation)
       const parsed = hybridCredentialSchema.safeParse(await source.getCredential(reference))
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
       // Only the authenticated transfer owner calls this internal handoff after

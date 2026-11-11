@@ -35,11 +35,12 @@ test('pinned Vectra native gates, local parity, durable logs and user audit surv
     const db = openStore(join(directory, 'data', 'artium.db'), new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
     db.exec("UPDATE tools SET enabled = 1, pinned_version = '0.1.14' WHERE name = 'vectra-axi'")
     await seedToolUser(db)
+    db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'vectra-axi'").run(JSON.stringify({ writes: credential.writes }))
     const runner = await Runner.create(join(directory, 'calls'))
     const lines: string[] = []
     const identities = new FakeCredentialStore([{ reference: { id: 'synthetic-vectra', tool: 'vectra-axi' }, value: credential, readOnly: false }]).seed(db)
     const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => { lines.push(line) }),
-      resolver: new SharedIdentityResolver(identities), adapters: [adapter], environment: {} })
+      resolver: new SharedIdentityResolver(identities, db), adapters: [adapter], environment: {} })
     try {
       const login = await app.inject({ method: 'POST', url: '/v1/auth/login',
         payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })

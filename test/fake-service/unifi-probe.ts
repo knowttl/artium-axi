@@ -35,7 +35,7 @@ await withFakeService(async ({ directory, port, send }) => {
   const log = join(directory, 'journal', 'writes.log')
   const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner,
     adapters: [createUnifiAdapter(new EmbeddedSecretSource(store), log)], credentialStore: store,
-    resolver: new SharedIdentityResolver(store), environment: {} })
+    resolver: new SharedIdentityResolver(store, db), environment: {} })
   try {
     const login = async () => {
       const response = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })

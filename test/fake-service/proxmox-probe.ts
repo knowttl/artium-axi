@@ -28,7 +28,7 @@ await withFakeService(async ({ directory, port, send }) => {
   let runner = await Runner.create(join(directory, 'calls')), terminal: (() => void) | undefined
   const application = () => createApp({ db, runner, credentialStore: store, environment: {},
     audit: new Audit(db, Date.now, line => { const event = JSON.parse(line); if (event.event === 'run-terminal' && event.outcome === 'UNKNOWN_OUTCOME') terminal?.() }),
-    adapters: [createProxmoxAdapter(new EmbeddedSecretSource(store), log)], resolver: new SharedIdentityResolver(store) })
+    adapters: [createProxmoxAdapter(new EmbeddedSecretSource(store), log)], resolver: new SharedIdentityResolver(store, db) })
   let app = application()
   try {
     const login = async () => {

@@ -47,7 +47,10 @@ db.exec(`INSERT INTO users (id, username, display_name, password_hash) VALUES ('
   INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
   INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'mg-axi');`)
 const token = issueTestAccessToken(db, 'synthetic-user')
-const resolver = new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db))
+const resolver = new SharedIdentityResolver(new FakeCredentialStore([{ reference, value: {} }]).seed(db), db)
+const selectWrites = () => db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'mg-axi'")
+  .run(JSON.stringify({ writes: credential.writes, enabledPacks: credential.enabledPacks }))
+selectWrites()
 let request = 0
 const run = (args, input = {}) => runTool(db, audit, runner, token, { args, ...input }, adapter, resolver,
   { requestId: `synthetic-graph-run-${++request}`, clientAddress: '192.0.2.1' })
@@ -193,13 +196,14 @@ try {
   assert.match(confirmation.stdout, /CONFIRM_REQUIRED/)
   assert.equal(confirmation.exitCode, 1)
   credential.writes.allowWrites = false
-  const disabled = await run([...write, '--execute', '--confirm', group])
-  assert.match(disabled.stdout, /WRITES_DISABLED/)
+  selectWrites()
+  await assert.rejects(run([...write, '--execute', '--confirm', group]), error => error.code === 'FLAG_BLOCKED')
   credential.writes.allowWrites = true
   credential.writes.operations = ['mg.entra.user.update']
-  const scoped = await run([...write, '--execute', '--confirm', group])
-  assert.match(scoped.stdout, /OPERATION_NOT_WRITABLE/)
+  selectWrites()
+  await assert.rejects(run([...write, '--execute', '--confirm', group]), error => error.code === 'FLAG_BLOCKED')
   credential.writes.operations = ['mg.entra.group.member.add']
+  selectWrites()
   const written = await run([...write, '--execute', '--confirm', group])
   assert.equal(written.exitCode, 0, written.stdout + written.stderr)
   assert.match(written.stdout, /fakeSends: 1/)
@@ -209,6 +213,7 @@ try {
   assert.equal(journal[1].outcome, 'SUCCESS')
   credential.enabledPacks = ['entra', 'mail']
   credential.writes.operations = ['mail.rule.create', 'mail.message.trash']
+  selectWrites()
   const ruleText = JSON.stringify({ displayName: 'Reviewed', sequence: 1, isEnabled: true,
     conditions: { subjectContains: ['Synthetic private condition'] }, actions: { markAsRead: true } })
   writeFileSync(join(directory, 'rule.json'), ruleText)
