@@ -18,7 +18,8 @@ globalThis.fetch = (input, options) => {
       res.on('data', chunk => chunks.push(chunk))
       res.on('error', reject)
       res.on('end', () => resolve(new Response(Buffer.concat(chunks), {
-        status: res.statusCode, headers: { 'content-type': res.headers['content-type'] ?? 'application/json' },
+        status: res.statusCode, headers: Object.entries(res.headers).flatMap(([name, value]) =>
+          value === undefined ? [] : Array.isArray(value) ? value.map(item => [name, item]) : [[name, value]]),
       })))
     })
     req.on('error', reject)

@@ -79,6 +79,10 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
       `Valid flags: ${Object.keys(routeFlags).filter(flag => !adoManifest.unsafeOverrides.includes(flag)).map(flag => `--${flag}`).join(', ')}.`)
   }
   if (rest.length > route.positionals) throw new ArtiumError('INVALID_INPUT')
+  if (command.startsWith('wiki page') && flags.has('file')) throw new ArtiumError('FLAG_BLOCKED')
+  if (route.effect === 'write' && command.startsWith('wiki page') && !flags.has('help') && !(flags.has('wiki') && flags.has('path'))) {
+    throw new ArtiumError('INVALID_INPUT', 'Wiki page writes require --wiki and --path.')
+  }
   let effect = route.effect
   if (command === 'api') {
     const verb = /^(GET|POST|PATCH|PUT|DELETE|HEAD|OPTIONS)$/i.test(rest[0] ?? '') ? rest[0].toUpperCase() : undefined
@@ -172,6 +176,9 @@ function readBack(call: ReturnType<typeof adoArguments>): PreparedCall['write'] 
       checkArgs = ['repo', 'show', '--repo', repo!, '--full']
       if (operation === 'import') afterCheck = 'Inspect repository import requests before retrying; repository details alone do not establish import completion'
     }
+  } else if (group === 'wiki') {
+    checkArgs = ['wiki', 'page', 'get', '--wiki', call.flags.get('wiki')!, '--path', call.flags.get('path')!, '--full']
+    afterCheck = 'Compare the page content and ETag before retrying; a missing page after create does not prove the write failed'
   } else {
     checkArgs = ['ref', 'list', '--full']
     selectors = ['repo', 'name']
@@ -189,7 +196,7 @@ export function createAdoAdapter(source: SecretSource, cache = new AzureTokenCac
     name: 'ado-axi', executable: toolPaths['ado-axi'], credentialSchema: adoCredentialSchema, credentialProfile: adoProfile,
     invalidateCredential: reference => { cache.replace(reference.id, reference.revision!) },
     timeoutMs: runnerLimits.timeoutMs, blockedFlags: adoManifest.unsafeOverrides.map(name => `--${name}`), allowedFlagValues: {},
-    sensitiveArguments: args => ({ flags: ['--body', '--description', '--title', '--set', '--query', '--comment', '--definition', '--policy-json', '--artifacts', '--source-url'],
+    sensitiveArguments: args => ({ flags: ['--body', '--description', '--title', '--set', '--query', '--comment', '--content', '--definition', '--policy-json', '--artifacts', '--source-url'],
       positions: args.map((_, index) => index).filter(index => index > 0 && !args[index].startsWith('-')) }),
     validateArgs: (args, input) => { adoArguments(args, input) },
     executesWrite: (args, input) => adoArguments(args, input).effect === 'write',

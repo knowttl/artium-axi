@@ -209,6 +209,7 @@
       "test",
       "repo",
       "ref",
+      "wiki",
       "project",
       "security",
       "service-endpoint",
@@ -227,7 +228,7 @@
       "--limit",
       "1"
     ],
-    "help": "ado-axi project list [--name <filter>] [--limit <n>] [--fields <fields>]\napi defaults to GET; -X/--method POST|PATCH|PUT|DELETE requires allowWrites, a server-listed relative path and bounded JSON --body. Decisions are journaled (TD-067). No stdin or files. For pipeline watch use --timeout 50 or less.\n"
+    "help": "ado-axi project list [--name <filter>] [--limit <n>] [--fields <fields>]\nwiki page create|update --wiki <id|name> --path <page> --content <text> requires allowWrites; --file is unavailable.\napi defaults to GET; -X/--method POST|PATCH|PUT|DELETE requires allowWrites, a server-listed relative path and bounded JSON --body. Decisions are journaled (TD-067). No stdin or files. For pipeline watch use --timeout 50 or less.\n"
   },
   "suggestionFields": [
     "help"
@@ -1598,6 +1599,78 @@
       "aliases": []
     },
     {
+      "command": "wiki list",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "limit": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "wiki page get",
+      "effect": "read",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "wiki": "value",
+        "path": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "wiki page create",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "wiki": "value",
+        "path": "value",
+        "content": "value",
+        "file": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
+      "command": "wiki page update",
+      "effect": "write",
+      "flags": {
+        "profile": "value",
+        "org": "value",
+        "project": "value",
+        "config": "value",
+        "help": "boolean",
+        "full": "boolean",
+        "fields": "value",
+        "wiki": "value",
+        "path": "value",
+        "content": "value",
+        "file": "value",
+        "if-match": "value"
+      },
+      "positionals": 0,
+      "aliases": []
+    },
+    {
       "command": "project list",
       "effect": "read",
       "flags": {
@@ -1993,7 +2066,8 @@
         "limit": "value",
         "content-type": "value",
         "no-project": "boolean",
-        "raw": "boolean"
+        "raw": "boolean",
+        "paginate": "boolean"
       },
       "positionals": 2,
       "aliases": []

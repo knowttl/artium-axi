@@ -114,7 +114,7 @@
     "boundaries": {
       "attachments": "refused; adapter has no accepted file channel",
       "artifactDownloads": "refused; no local output transport",
-      "wiki": "dedicated upstream wiki commands are not admitted in this release; hosted wiki writes use the raw API gate; wiki admission ships in a separate admissions change that updates this text",
+      "wiki": "At the 0.5.0 migration stage, dedicated wiki commands were not admitted; see docs/safety.md for the current boundary.",
       "liveTenantAcceptance": "unverified",
       "fullLocalSuite": "pending no-mistakes Test",
       "containers": "required, pending offline-compatible execution",

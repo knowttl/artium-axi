@@ -7,6 +7,7 @@ import { decode, encode } from '@toon-format/toon'
 import inventory from '../../../tools/inventories/ado-axi.json' with { type: 'json' }
 import { rewriteSuggestions } from '../../cli/rewrite.js'
 import { toolView } from '../../cli/views.js'
+import { redactArguments } from '../audit/redact.js'
 import { prepareRunJournal } from './run-journal.js'
 import { adoCredentialSchema, adoProfile, createAdoAdapter } from './ado.js'
 import { AzureTokenCache } from './azure-token-cache.js'
@@ -105,10 +106,55 @@ test.each([
     check: ['pipeline', 'runs', '--limit', '1000', '--pipeline', '7', '--branch', 'refs/heads/feature'] },
   ...['create', 'delete'].map(operation => ({ args: ['refs', operation, '--repo', 'Synthetic Repo', '--name', 'feature'],
     check: ['ref', 'list', '--full', '--repo', 'Synthetic Repo', '--name', 'feature'] })),
+  ...['create', 'update'].map(operation => ({ args: ['wiki', 'page', operation, '--wiki', 'Synthetic.wiki', '--path', '/Home', '--content', '# Synthetic'],
+    check: ['wiki', 'page', 'get', '--wiki', 'Synthetic.wiki', '--path', '/Home', '--full'] })),
 ])('provides an operation-specific recovery read for $args', async ({ args, check }) => {
   const call = await adapter(true).prepare([...args, '--project', 'Other Project'], reference)
   expect(call.write?.checkArgs).toEqual([...check, '--project', 'Other Project'])
   expect((await adapter().prepare(call.write!.checkArgs, reference)).effect).toBe('read')
+})
+
+test.each([
+  ['wiki', 'list', '--limit', '5'], ['wiki', 'page', 'get', '--wiki', 'Synthetic.wiki', '--path', '/Home', '--full'],
+].map(args => [args]))('classifies wiki reads without write access: %j', async args => {
+  expect((await adapter().prepare(args, reference)).effect).toBe('read')
+})
+
+test.each([
+  ['wiki', 'page', 'create', '--wiki', 'Synthetic.wiki', '--path', '/Home', '--content', '# Synthetic'],
+  ['wiki', 'page', 'update', '--wiki', 'Synthetic.wiki', '--path', '/Home', '--content', '# Synthetic', '--if-match', '"etag"'],
+].map(args => [args]))('gates wiki writes behind allowWrites: %j', async args => {
+  await expect(adapter().prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  expect((await adapter(true).prepare(args, reference)).environment.ADO_AXI_WRITES).toBe('1')
+})
+
+test.each(['create', 'update'].map(operation => [operation]))('refuses wiki %s --file because server-local paths are unsupported', async operation => {
+  const getCredential = vi.fn()
+  await expect(createAdoAdapter({ getCredential }).prepare(['wiki', 'page', operation, '--wiki', 'Synthetic.wiki', '--path', '/Home', '--file', '/etc/hostname'], reference))
+    .rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
+test.each([
+  ['wiki', 'page', 'create', '--wiki', 'Synthetic.wiki', '--content', 'x'],
+  ['wiki', 'page', 'update', '--path', '/Home', '--content', 'x'],
+].map(args => [args]))('requires --wiki and --path for wiki writes: %j', async args => {
+  await expect(adapter(true).prepare(args, reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+})
+
+test.each(['create', 'update'].flatMap(operation => [
+  { args: ['wiki', 'page', operation, '--content', 'CANARY-wiki-content'], expected: ['wiki', '[redacted]', '[redacted]', '--content', '[redacted]'] },
+  { args: ['wiki', 'page', operation, '--content=CANARY-wiki-content'], expected: ['wiki', '[redacted]', '[redacted]', '--content=[redacted]'] },
+]))('redacts wiki page content in journaled arguments: $args', ({ args, expected }) => {
+  expect(redactArguments(args, adapter(true).sensitiveArguments!(args))).toEqual(expected)
+})
+
+test.each([
+  ['api', '_apis/wiki/wikis', '--paginate'], ['api', '_apis/wiki/wikis', '--paginate=true'], ['api', '--paginate', 'true', '_apis/wiki/wikis'],
+].map(args => [args]))('accepts --paginate as a boolean on api GET: %j', async args => {
+  const call = await adapter().prepare(args, reference)
+  expect(call.effect).toBe('read')
+  expect(call.args).toEqual(['api', '_apis/wiki/wikis', '--paginate=true'])
 })
 
 test.each([{ stdin: '' }, { stdin: '{}' }, { files: [{ name: 'body', contentBase64: 'eA==' }] }])('refuses stdin and files: %j', async input => {
