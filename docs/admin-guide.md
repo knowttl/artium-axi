@@ -237,7 +237,7 @@ See the [hosted contract](credential-standard.md#9-hosted-contract-artium-axi) f
 Falcon has guided fields; see its [current credential handling](credential-standard.md#per-tool-host-facing-schemas).
 Browser saves keep native settings and retain blank stored secrets for the same identity.
 Complete credential replacement keeps saved per-person grants for each supplied policy, ignoring supplied grant maps; omitting a policy removes it and its grants.
-Instance credential create, replace and save apply supplied per-person policy settings while preserving their saved grants; omitted policies remain unchanged.
+Instance credential create, replace and save do not change shared tool settings.
 Identity changes require new secrets as defined by the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`).
 **Test after saving** is on by default in the credential-bearing Add instance sheet and the instance's Connection card and reports a harmless credential check inline; clear it to save without testing.
 After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.

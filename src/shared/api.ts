@@ -557,7 +557,7 @@ const instanceBase = '/v1/admin/tools/:tool/instances'
 const instanceRevisions = { expectedId: z.string(), expectedRevision: z.number().int().positive() }
 // Instance mutations name the instance id and revision the administrator observed; a stale or recreated instance
 // fails with REVISION_CONFLICT without mutation. Create starts read-only and enabled. Credential saves follow the
-// tool credential rules; supplied per-person policy settings also update the shared tool settings.
+// tool credential rules; instance credential routes do not change shared tool settings.
 export const adminInstanceRoutes = {
   list: { method: 'GET', path: instanceBase, input: z.strictObject({}),
     response: z.strictObject({ instances: z.array(adminInstanceSchema) }) },

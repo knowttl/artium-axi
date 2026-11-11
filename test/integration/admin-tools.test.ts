@@ -375,19 +375,27 @@ test.each(grantPolicyCases)('$tool $policy credential replacement preserves gran
   expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ nativeSettings: { [policy]: { ...updated, grants: {} } } })
 })
 
-test.each(grantPolicyCases)('$tool $policy instance credential paths preserve grants and apply ceilings', async ({ tool, policy, operation, limits, updated }) => {
+test.each(grantPolicyCases)('$tool $policy instance credential paths leave shared settings unchanged', async ({ tool, policy, operation, limits, updated }) => {
   const grants = { 'synthetic-ordinary': [operation] }
   db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify({ [policy]: { ...limits, grants } }), tool)
   const value = { ...values[tool], [policy]: { ...updated, grants: { 'other-user': [operation] } } }
-  const instance = await createInstance('east', value, tool)
-  expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ nativeSettings: { [policy]: { ...updated, grants } } })
+  const sibling = await createInstance('west', values[tool], tool)
+  const revision = await toolRevision(tool)
+  const health = db.prepare('SELECT * FROM tool_health WHERE credential_id = ?').all(sibling.id)
+  await failure(await request('POST', `/${tool}/instances`, { name: 'east', value, expectedToolRevision: revision }), 'INVALID_INPUT')
+  const instance = await createInstance('east', values[tool], tool)
+  expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ revision, nativeSettings: { [policy]: { ...limits, grants } } })
   const replaced = await request('PUT', `/${tool}/instances/east/credential`, { value, expectedId: instance.id,
-    expectedRevision: instance.revision, expectedToolRevision: await toolRevision(tool) })
+    expectedRevision: instance.revision, expectedToolRevision: revision })
   expect(replaced.status).toBe(200)
-  expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ nativeSettings: { [policy]: { ...updated, grants } } })
-  const saved = await request('PATCH', `/${tool}/instances/east/credential`, { value, ...await instanceHeader('east', tool), expectedToolRevision: await toolRevision(tool) })
+  expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ revision, nativeSettings: { [policy]: { ...limits, grants } } })
+  const header = await instanceHeader('east', tool)
+  await failure(await request('PATCH', `/${tool}/instances/east/credential`, { value, ...header, expectedToolRevision: revision }), 'INVALID_INPUT')
+  const saved = await request('PATCH', `/${tool}/instances/east/credential`, { value: values[tool], ...header, expectedToolRevision: revision })
   expect(saved.status).toBe(200)
-  expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ nativeSettings: { [policy]: { ...updated, grants } } })
+  expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ revision, nativeSettings: { [policy]: { ...limits, grants } } })
+  expect(store.findInstance(tool, 'west')!.revision).toBe(sibling.revision)
+  expect(db.prepare('SELECT * FROM tool_health WHERE credential_id = ?').all(sibling.id)).toEqual(health)
 })
 
 test('unchanged grants preserve tool and credential revisions and health', async () => {
