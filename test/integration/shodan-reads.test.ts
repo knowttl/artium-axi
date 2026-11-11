@@ -178,6 +178,8 @@ test.each([
     let release!: () => void
     const gate = new Promise<void>(resolve => { release = resolve })
     const occupied = Array.from({ length: runnerLimits.userCalls }, () => runner.runManaged('synthetic-development-user', undefined, () => gate))
+    const previousPath = toolPaths['shodan-axi']
+    Object.assign(toolPaths, { 'shodan-axi': join(process.cwd(), 'tools/node_modules/@knowttl/shodan-axi/bin/shodan-axi.js') })
     try {
       const token = issueTestAccessToken(db, 'synthetic-development-user')
       const pending = app.inject({ method: 'POST', url: '/v1/tools/shodan-axi/run', headers: { authorization: `Bearer ${token}` },
@@ -198,6 +200,7 @@ test.each([
       expect(db.prepare("SELECT outcome, instance FROM audit WHERE event = 'denial'").all()).toEqual([{ outcome: 'INVALID_INPUT', instance }])
       expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
     } finally {
+      Object.assign(toolPaths, { 'shodan-axi': previousPath })
       await app.close()
       await runner.shutdown()
       db.close()
