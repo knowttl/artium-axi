@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.43](https://github.com/knowttl/artium-axi/compare/v0.0.42...v0.0.43) (2026-11-11)
+
+
+### Features
+
+* support Azure DevOps wiki commands and API pagination ([#382](https://github.com/knowttl/artium-axi/issues/382)) ([a64b1d6](https://github.com/knowttl/artium-axi/commit/a64b1d692c6f3c53d3759a9ba425a4d19ddbf4c0))
+
 ## [0.0.42](https://github.com/knowttl/artium-axi/compare/v0.0.41...v0.0.42) (2026-11-11)
 
 
