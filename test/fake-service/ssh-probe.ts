@@ -97,7 +97,7 @@ const app = createApp({ db, audit: new Audit(db, Date.now, line => {
   const record = JSON.parse(line) as { event: string, request_id: string }
   if (record.event === 'run-terminal') { terminals.add(record.request_id); events.emit(record.request_id) }
 }), runner, credentialStore: store, sshExecution: { provider, writeLog: join(directory, 'writes.log') },
-  sshHosts: hosts, resolver: new SharedIdentityResolver(store), environment: {},
+  sshHosts: hosts, resolver: new SharedIdentityResolver(store, db), environment: {},
   adapters: [createSshAdapter(hosts, join(directory, 'writes.log'))] })
 let dropSubmitReply = false
 app.addHook('onSend', async (request, reply, payload) => {

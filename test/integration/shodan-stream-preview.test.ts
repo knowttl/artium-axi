@@ -30,7 +30,7 @@ test('granted stream preview validates the native plan without starting a sessio
     db.prepare("UPDATE tools SET enabled=1, native_settings=? WHERE name='shodan-axi'").run(JSON.stringify(settings))
     const runner = await Runner.create(join(directory, 'calls'))
     const app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {},
-      resolver: new SharedIdentityResolver(store), adapters: [createShodanAdapter(new EmbeddedSecretSource(store))] })
+      resolver: new SharedIdentityResolver(store, db), adapters: [createShodanAdapter(new EmbeddedSecretSource(store))] })
     try {
       const token = issueTestAccessToken(db, 'synthetic-development-user')
       const headers = { authorization: `Bearer ${token}` }

@@ -34,7 +34,7 @@ test('instance selection reaches the service and invalid selections fail closed'
       'falcon-axi': join(process.cwd(), 'tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js') })
     const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
     const source = new EmbeddedSecretSource(store)
-    const app = createApp({ db, runner, audit: new Audit(db), resolver: new SharedIdentityResolver(store),
+    const app = createApp({ db, runner, audit: new Audit(db), resolver: new SharedIdentityResolver(store, db),
       adapters: [createGiteaAdapter(source), createFalconAdapter(source, join(directory, 'writes.log'))], environment: {} })
     const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
     const run = (payload: object) => app.inject({ method: 'POST', url: '/v1/tools/gitea-axi/run', headers,

@@ -21,6 +21,18 @@ export const tenableWritePolicy = writePolicy({ supportedOperations: inventory.n
   unlocks: 'Selected business writes, export-job creation and raw write, with native preview, --execute, exact --confirm and journal gates. Raw API permission is separate.',
   blocked: 'Operations outside the allow-list, local configuration, output downloads, raw get --out and credential or origin overrides remain blocked.' })
 
+const tenableOperations: Record<string, string> = {
+  'combination create': 'combinations-create', 'combination update': 'combinations-update', 'combination delete': 'combinations-delete',
+  'initiative create': 'initiatives-create', 'initiative update': 'initiatives-update', 'initiative delete': 'initiatives-delete',
+  'export asset start': 'inventory-export-assets', 'export finding start': 'inventory-export-findings',
+  'export attack-path start': 'apa-export-attack-path', 'export attack-technique start': 'apa-export-attack-technique',
+  'export mitre-heatmap start': 'apa-export-mitre-heatmap', 'raw write': 'raw-write',
+  'tag assignment add': 'tags-assign-asset-tags', 'tag assignment remove': 'tags-assign-asset-tags',
+  'tag category create': 'tags-create-tag-category', 'tag category update': 'tags-edit-tag-category', 'tag category delete': 'tags-delete-tag-category',
+  'tag value create': 'tags-create-tag-value', 'tag value update': 'tags-update-tag-value', 'tag value delete': 'tags-delete-tag-value',
+  'tag value bulk-delete': 'tags-delete-tag-values-bulk',
+}
+
 function tenableArguments(args: readonly string[], input: RunnerInput = {}) {
   const tokens = args.length ? [...args] : ['home']
   const version = tokens.length === 1 && ['--version', '-v', '-V', '--help'].includes(tokens[0])
@@ -74,6 +86,7 @@ export function createTenableAdapter(source: SecretSource, writeLog: string): Ad
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { tenableArguments(args, input) },
     executesWrite: (args, input) => tenableArguments(args, input).effect === 'write',
+    authorizeOperation: (command, settings) => tenableWritePolicy.authorize(settings, allowed => allowed === tenableOperations[command]),
     rawApi: { commands: ['raw get', 'raw write'], writes: true, help: (args, input) => tenableArguments(args, input).invocation.help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => tenableArguments(a, i).invocation, args, input),
     async prepare(args, reference, input) {

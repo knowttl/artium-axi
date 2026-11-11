@@ -39,7 +39,7 @@ await withFakeService(async ({ directory, port, send }) => {
     VALUES ('synthetic-ca', ?, ?, 'synthetic', 'synthetic', ?, ?, 'ca', ?, 'synthetic-development-user')`).run(reference.id, origin + '/', pem, pem, Date.now())
   const adapter = await createKubernetesAdapter(new EmbeddedSecretSource(store))
   const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [adapter], credentialStore: store,
-    resolver: new SharedIdentityResolver(store), environment: {} })
+    resolver: new SharedIdentityResolver(store, db), environment: {} })
   try {
     const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })
     assert.equal(login.statusCode, 200, login.body)

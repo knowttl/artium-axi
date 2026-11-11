@@ -17,7 +17,13 @@ export function writePolicy(options: {
       reason: options.reason ?? null, supportedOperations: supportedOperations ? [...supportedOperations] : null,
       allowedOperations: supportedOperations ? [...writes?.operations ?? []] : [], unlocks: options.unlocks, blocked: options.blocked }
   }
-  return { read, update(settings: Settings, input: WriteUpdate): Settings {
+  function authorize(settings: Settings, accepts?: (operation: string) => boolean) {
+    const state = read(settings)
+    if (!state.enabled || accepts && !state.allowedOperations.some(accepts)) {
+      throw new ArtiumError('FLAG_BLOCKED', 'This write operation is not enabled for the tool.', 'Ask an administrator to select the operation in the tool write access settings.')
+    }
+  }
+  return { read, authorize, update(settings: Settings, input: WriteUpdate): Settings {
     if (input.allowDeletes !== undefined && !options.allowDeletes) throw new ArtiumError('INVALID_INPUT', 'This tool does not use a delete grant.')
     if (options.reason) throw new ArtiumError('INVALID_INPUT', options.reason)
     if (!supportedOperations) {

@@ -63,7 +63,7 @@ beforeEach(async () => {
       args: [join(process.cwd(), 'test/fake-tool/mg-adapter-child.mjs'), ...call.args] }
   })
   app = createApp({ db, audit, runner: await Runner.create(join(directory, 'calls')), adapters: [adapter],
-    resolver: new SharedIdentityResolver(credentials), credentialStore: credentials, artifactStore: store, environment: {} })
+    resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials, artifactStore: store, environment: {} })
   await app.ready()
   const token = issueTestAccessToken(db, 'synthetic-development-user')
   headers = { authorization: `Bearer ${token}`, 'x-artium-reauth-ticket': issueRecentAuthTicket(db, token).ticket,

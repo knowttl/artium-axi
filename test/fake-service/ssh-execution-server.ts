@@ -12,7 +12,7 @@ const provider = new EnvironmentKeyProvider(process.env)
 const db = openStore(join(directory, 'data', 'artium.db'), provider)
 const store = createCredentialStore(db, provider)
 const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner: await Runner.create(join(directory, 'restart-calls')),
-  credentialStore: store, sshHosts: new SshHosts(db, provider), resolver: new SharedIdentityResolver(store), adapters: [],
+  credentialStore: store, sshHosts: new SshHosts(db, provider), resolver: new SharedIdentityResolver(store, db), adapters: [],
   sshExecution: { provider, writeLog: join(directory, 'writes.log') }, environment: {} })
 const url = await app.listen({ host: '127.0.0.1', port: 0 })
 process.send?.({ url })

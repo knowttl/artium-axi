@@ -31,7 +31,7 @@ await withFakeService(async ({ directory, port, send }) => {
   const runner = await Runner.create(join(directory, 'calls'))
   const app = createApp({ db, runner, credentialStore: store, environment: { ARTIUM_PVE_TRANSFER_BYTES: '1048576', ARTIUM_PVE_STREAM_MS: '60000' },
     audit: new Audit(db), adapters: [createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'journal', 'writes.log'))],
-    resolver: new SharedIdentityResolver(store) })
+    resolver: new SharedIdentityResolver(store, db) })
   try {
     const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })
     assert.equal(login.statusCode, 200, login.body)

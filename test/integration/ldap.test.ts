@@ -39,7 +39,7 @@ beforeEach(async () => {
   }
   const runner = await Runner.create(join(directory, 'calls'))
   app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [adapter],
-    credentialStore: store, resolver: new SharedIdentityResolver(store), environment: {} })
+    credentialStore: store, resolver: new SharedIdentityResolver(store, db), environment: {} })
   const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: {
     username: 'synthetic-user', password: 'CANARY-local-password' } })
   const session = loginResponseSchema.parse(login.json())

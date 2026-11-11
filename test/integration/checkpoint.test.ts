@@ -56,7 +56,7 @@ async function withCheckpoint(check: (fixture: {
       capacityBytes: transferLimits.reservedBytes, freeBytes: transferLimits.reservedBytes,
       memoryMax: artifactDefaults.containerBytes, memoryCurrent: 0, swapMax: 0, swapCurrent: 0 }) })
     const app = createApp({ db, audit, runner, adapters: [adapter], credentialStore: credentials,
-      resolver: new SharedIdentityResolver(credentials), artifactStore, environment: {} })
+      resolver: new SharedIdentityResolver(credentials, db), artifactStore, environment: {} })
     const url = await app.listen({ host: '127.0.0.1', port: 0 })
     const token = issueTestAccessToken(db, 'synthetic-development-user')
     new SessionStore(url, join(directory, 'artium-axi/session.json')).write({ status: 'authenticated', accessToken: token,

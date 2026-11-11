@@ -58,7 +58,7 @@ async function withTool(item: Case, check: (fixture: {
     Object.assign(toolPaths, { [item.tool]: join(process.cwd(), 'tools/node_modules/@knowttl', item.tool, item.executable) })
     Object.assign(toolSkillPaths, { [item.tool]: join(process.cwd(), 'tools/node_modules/@knowttl', item.tool, item.skill) })
     const app = createApp({ db, runner, audit: new Audit(db), environment: {}, credentialStore: store,
-      resolver: new SharedIdentityResolver(store), adapters: [item.tool === 'gitea-axi' ? createGiteaAdapter(new EmbeddedSecretSource(store))
+      resolver: new SharedIdentityResolver(store, db), adapters: [item.tool === 'gitea-axi' ? createGiteaAdapter(new EmbeddedSecretSource(store))
         : item.tool === 'unifi-axi' ? createUnifiAdapter(new EmbeddedSecretSource(store)) : createProxmoxAdapter(new EmbeddedSecretSource(store))] })
     try {
       const url = await app.listen({ host: '127.0.0.1', port: 0 })

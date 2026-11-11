@@ -33,7 +33,7 @@ await withFakeService(async ({ directory, port, send }) => {
   const password = { origin, caBundle, auth: 'password', userId: 'automation@pve', password: 'CANARY-proxmox-password' }
   store.replaceCredential('proxmox-axi', { origin, caBundle, auth: 'api-token', tokenId: 'reader@pve!automation', token: 'CANARY-proxmox-token' },
     0, 'synthetic-development-user', Date.now())
-  const source = new EmbeddedSecretSource(store), resolver = new SharedIdentityResolver(store)
+  const source = new EmbeddedSecretSource(store), resolver = new SharedIdentityResolver(store, db)
   const adapter = createProxmoxAdapter(source, join(directory, 'journal', 'writes.log'))
   let runner = await Runner.create(calls), closed = false, isolated: ProxmoxAccess | undefined
   const application = () => createApp({ db, runner, credentialStore: store, environment: {}, audit: new Audit(db), adapters: [adapter], resolver })

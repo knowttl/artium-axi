@@ -39,7 +39,7 @@ beforeEach(async () => {
   await seedToolUser(db)
   const runner = await Runner.create(join(directory, 'calls'))
   app = createApp({ db, runner, audit: new Audit(db), environment: {}, adapters: [],
-    resolver: new SharedIdentityResolver(new FakeCredentialStore([])) })
+    resolver: new SharedIdentityResolver(new FakeCredentialStore([]), db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   store = new SessionStore(url, join(directory, 'artium-axi', 'session.json'))
 })
@@ -122,7 +122,7 @@ test('first call discovers tools and preserves fake output, then no access expla
   }))
   const runner = await Runner.create(join(directory, 'calls'))
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: credentials, adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(credentials) })
+    resolver: new SharedIdentityResolver(credentials, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   store = new SessionStore(url, join(directory, 'artium-axi', 'session.json'))
   expect(await login()).toMatchObject({ code: 0 })
@@ -163,7 +163,7 @@ test('doctor shows a failed tool after a manual test of a wrong fake credential'
   })
   const runner = await Runner.create(join(directory, 'calls'))
   app = createApp({ db, runner, audit: new Audit(db), credentialStore: credentials, adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(credentials) })
+    resolver: new SharedIdentityResolver(credentials, db) })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   store = new SessionStore(url, join(directory, 'artium-axi', 'session.json'))
   expect(await login()).toMatchObject({ code: 0 })

@@ -57,7 +57,7 @@ beforeEach(async () => {
   auditLines = []
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db, Date.now, line => auditLines.push(line)),
     adapters: [createRunnerTestAdapter(new EmbeddedSecretSource(credentials), true)], environment: {},
-    resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
 })
 afterEach(async () => { await app.close(); db.close(); rmSync(directory, { recursive: true, force: true }) })
@@ -98,7 +98,7 @@ test('minting writable SSH access warns about all granted hosts and sudo', async
   const hosts = new SshHosts(db, provider)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-ssh')), audit: new Audit(db),
     adapters: [createSshAdapter(hosts, join(directory, 'writes.log'))], environment: {},
-    resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
   const result = await cli(['token', 'create', '--label', 'Synthetic', '--tool', 'ssh-axi', '--expires',
@@ -153,7 +153,7 @@ test.each([
     join(process.cwd(), 'tools/node_modules/@knowttl/ssh-axi/dist/hosted.js'))
   const runner = await Runner.create(join(directory, 'calls-ssh-help'))
   app = createApp({ db, runner, audit: new Audit(db), adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
     scope: { tools: [{ tool: 'ssh-axi' }] }, readOnly: false, reusable: false,
@@ -178,7 +178,7 @@ test('non-granted managed SSH command help is refused (R2)', async () => {
   const adapter = createSshAdapter(new SshHosts(db, provider), join(directory, 'writes.log'),
     join(process.cwd(), 'tools/node_modules/@knowttl/ssh-axi/dist/hosted.js'))
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-ssh-help')), audit: new Audit(db),
-    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
     scope: { tools: [{ tool: 'ssh-axi', commands: ['execution list'] }] }, readOnly: true, reusable: false,
@@ -200,7 +200,7 @@ test.each([
   db.prepare('UPDATE tools SET enabled = 1, native_settings = ? WHERE name = ?').run('{"allowWrites":true}', 'az-axi')
   const adapter = createAzAdapter(new EmbeddedSecretSource(credentials), join(directory, 'writes.log'))
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-wildcards')), audit: new Audit(db),
-    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   const owner = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
   const recent = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: owner, payload: { password } })
   const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
@@ -234,7 +234,7 @@ test.each<{ tool: ToolName, command: string, args: string[], parse?: (text: stri
     : tool === 'ssh-axi' ? createSshAdapter(new SshHosts(db, provider), writeLog)
     : tool === 'unifi-axi' ? createUnifiAdapter(source, writeLog) : createGhAdapter(source)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-discovery')), audit: new Audit(db),
-    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
     scope: { tools: [{ tool, commands: [command] }] }, readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
@@ -291,7 +291,7 @@ test.each([
     0, 'synthetic-development-user', Date.now())
   const adapter = createProxmoxAdapter(new EmbeddedSecretSource(credentials), join(directory, 'writes.log'))
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-private-result')), audit: new Audit(db),
-    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
     scope: { tools: [{ tool: 'proxmox-axi', commands }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 600000 }, [adapter])
   const response = await app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/run',
@@ -326,7 +326,7 @@ test.each([
   const adapter = createProxmoxAdapter(new EmbeddedSecretSource(credentials), join(directory, 'writes.log'))
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-batch')), audit: new Audit(db),
     adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
     scope: { tools: [{ tool: 'proxmox-axi', commands }] }, readOnly, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
   const exchanged = exchangeDelegation(db, minted.token)
@@ -348,7 +348,7 @@ test.each<{ tool: 'proxmox-axi' | 'unifi-axi', args: string[], allowed: string, 
   const source = new EmbeddedSecretSource(credentials)
   const adapter = tool === 'proxmox-axi' ? createProxmoxAdapter(source) : createUnifiAdapter(source)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-listings')), audit: new Audit(db),
-    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic', scope: { tools: [{ tool }] },
     readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
   const exchanged = exchangeDelegation(db, minted.token)
@@ -375,7 +375,7 @@ test.each([
   } }
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-leaf-help')), audit: new Audit(db),
     adapters: [adapter], environment: {},
-    resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
     scope: { tools: [{ tool: 'gh-axi', commands: ['issue create'] }] }, readOnly: false, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
@@ -427,7 +427,7 @@ test.each([
   const adapter = await createKubernetesAdapter(new EmbeddedSecretSource(credentials),
     join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), join(directory, 'requests'))
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-hosted-help')), audit: new Audit(db),
-    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const grant = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
     scope: { tools: [{ tool: 'kubernetes-axi', commands: [selection] }] }, readOnly: false, reusable: false,
@@ -455,7 +455,7 @@ test.each([
   const adapter = await createKubernetesAdapter(new EmbeddedSecretSource(credentials),
     join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), join(directory, 'requests'))
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-hosted-help')), audit: new Audit(db),
-    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const grant = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
     scope: { tools: [{ tool: 'kubernetes-axi', commands: [selection] }] }, readOnly: false, reusable: false,
@@ -566,7 +566,7 @@ test('revocation aborts an in-flight delegated read', async () => {
   const readyFile = join(directory, 'ready.json')
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-running')), audit: new Audit(db),
     adapters: [createRunnerTestAdapter(new EmbeddedSecretSource(credentials), { readyFile })], environment: {},
-    resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
   const token = await mint()
@@ -590,7 +590,7 @@ test.each(['get /version', 'create /access/users/{userid}/token/{tokenid}'])('mi
   db.exec(`UPDATE tools SET enabled = 1, native_settings = '{"hostWrites":{"allowWrites":true,"operations":[]}}' WHERE name = 'proxmox-axi'`)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-proxmox')), audit: new Audit(db),
     adapters: [createProxmoxAdapter(new EmbeddedSecretSource(credentials))], environment: {},
-    resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
   const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password } })
   const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
@@ -608,7 +608,7 @@ test('managed Proxmox stream help requires the selected operation', async () => 
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'proxmox-axi'")
   const adapter = createProxmoxAdapter(new EmbeddedSecretSource(credentials))
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-proxmox-help')), audit: new Audit(db),
-    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   const delegation = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
     scope: { tools: [{ tool: 'proxmox-axi', commands: ['transfer get /nodes/{node}/rrd'] }] },
@@ -636,7 +636,7 @@ test.each([
   const source = new EmbeddedSecretSource(credentials)
   const adapter = tool === 'az-axi' ? createAzAdapter(source, join(directory, 'writes.log')) : createGhAdapter(source)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-help')), audit: new Audit(db),
-    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
     scope: { tools: [{ tool, commands: [pattern] }] }, readOnly: true, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
   const exchanged = exchangeDelegation(db, minted.token)
@@ -671,7 +671,7 @@ test.each([
       join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), join(directory, 'requests'))]
   const adapter = adapters.find(item => item.name === tool)!
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-canonical')), audit: new Audit(db),
-    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
   const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password } })
   const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
@@ -697,7 +697,7 @@ test('Kubernetes token preparation requires an exact writable pick before resolv
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-kubernetes')), audit: new Audit(db),
     adapters: [await createKubernetesAdapter(new EmbeddedSecretSource(credentials),
       join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), join(directory, 'requests'))],
-    environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    environment: {}, resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
   expect((await cli(['login', '--username', 'synthetic-user', '--password-stdin'], `${password}\n`)).code).toBe(0)
   for (const [config, extra, expected] of [
@@ -733,7 +733,7 @@ test.each([
   const adapter = await createKubernetesAdapter({ getCredential: async () => { throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED') },
     getSettings: () => ({ allowWrites: true }) }, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), root)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-continuations')), audit: new Audit(db),
-    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials), credentialStore: credentials })
+    adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
     scope: { tools: [{ tool: 'kubernetes-axi', commands: [grant] }] }, readOnly, reusable: false, expiresAt: Date.now() + 600_000 }, [adapter])
   const exchanged = exchangeDelegation(db, minted.token)

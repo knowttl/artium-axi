@@ -57,7 +57,7 @@ test('managed Hybrid Analysis reads and native guarded writes use the published 
       filesystemType: 0x01021994, capacityBytes: transferLimits.reservedBytes, freeBytes: transferLimits.reservedBytes,
       memoryMax: artifactDefaults.containerBytes, memoryCurrent: 0, swapMax: 0, swapCurrent: 0 }) })
     const app = createApp({ db, audit, runner, adapters: [adapter], artifactStore,
-      credentialStore: store, resolver: new SharedIdentityResolver(store), environment: {} })
+      credentialStore: store, resolver: new SharedIdentityResolver(store, db), environment: {} })
     try {
       await seedToolUser(db)
       db.exec('UPDATE users SET administrator = 1')

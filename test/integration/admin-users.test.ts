@@ -31,7 +31,7 @@ const createInput = { username: ' Synthetic-New ', displayName: 'Synthetic New',
 async function start(connection: Database.Database) {
   const runner = await Runner.create(join(directory, 'calls'))
   const server = createApp({ db: connection, runner, audit: new Audit(connection), environment: {}, adapters: [],
-    resolver: new SharedIdentityResolver(new FakeCredentialStore([])) })
+    resolver: new SharedIdentityResolver(new FakeCredentialStore([]), db) })
   return { server, address: await server.listen({ host: '127.0.0.1', port: 0 }) }
 }
 

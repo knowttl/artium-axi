@@ -37,7 +37,7 @@ beforeEach(async () => {
   }
   app = createApp({ db, audit: new Audit(db, Date.now, () => {}),
     runner: await Runner.create(join(directory, 'calls')), adapters: [adapter], credentialStore: store,
-    resolver: new SharedIdentityResolver(store), environment: {} })
+    resolver: new SharedIdentityResolver(store, db), environment: {} })
   headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
   // Ambient server settings must never unlock a read child.
   vi.stubEnv('ADO_AXI_WRITES', '1')

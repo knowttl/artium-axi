@@ -57,7 +57,7 @@ beforeEach(async () => {
     if (record.event === 'run-terminal') completed(record.outcome)
   })
   app = createApp({ db, runner, audit, environment: {}, adapters: [execution],
-    resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference: { id: 'synthetic-credential', tool }, value: {} }]).seed(db)) })
+    resolver: new SharedIdentityResolver(new FakeCredentialStore([{ reference: { id: 'synthetic-credential', tool }, value: {} }]).seed(db), db) })
   const url = await app.listen({ host: '127.0.0.1', port: 0 })
   client = new Client({ ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1', XDG_CONFIG_HOME: directory })
   writeFileSync(join(directory, 'report.txt'), content)

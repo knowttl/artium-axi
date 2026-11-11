@@ -72,7 +72,7 @@ beforeEach(async () => {
   runner = await Runner.create(join(directory, 'calls'))
   health = new ToolHealth(db, new Audit(db), runner, [adapter], store)
   app = createApp({ db, audit: new Audit(db), runner, adapters: [adapter], credentialStore: store,
-    resolver: new SharedIdentityResolver(store), environment: {} })
+    resolver: new SharedIdentityResolver(store, db), environment: {} })
 })
 afterEach(async () => {
   await app.close()
@@ -173,7 +173,7 @@ test.each([
   const restartedAudit = new Audit(db)
   health = new ToolHealth(db, restartedAudit, runner, [adapter], store)
   app = createApp({ db, audit: restartedAudit, runner, adapters: [adapter], credentialStore: store,
-    resolver: new SharedIdentityResolver(store), environment: {} })
+    resolver: new SharedIdentityResolver(store, db), environment: {} })
   expect(health.diagnostic('falcon-axi', 1, Date.now())).toBeUndefined()
   expect(restartedAudit.runDiagnostic('retained-check')).toEqual(diagnostic)
   db.prepare('UPDATE users SET administrator = 1').run()

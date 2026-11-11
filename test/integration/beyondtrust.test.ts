@@ -70,7 +70,7 @@ async function withBeyondtrust(check: (fixture: {
     const rejectNetwork = vi.spyOn(credentialTls, 'credentialFetch').mockRejectedValue(new Error('Unexpected synthetic network request'))
     const preflight = options.invalidResponse ? vi.spyOn(healthPreflight, 'preflight').mockResolvedValue() : undefined
     const app = createApp({ db, audit, runner, adapters: [adapter], credentialStore: credentials,
-      resolver: new SharedIdentityResolver(credentials), artifactStore, environment: {} })
+      resolver: new SharedIdentityResolver(credentials, db), artifactStore, environment: {} })
     const url = await app.listen({ host: '127.0.0.1', port: 0 })
     const token = issueTestAccessToken(db, 'synthetic-development-user')
     new SessionStore(url, join(directory, 'artium-axi/session.json')).write({ status: 'authenticated', accessToken: token,
@@ -107,7 +107,7 @@ async function withBeyondtrust(check: (fixture: {
       }
       const run = async (args: string[], input = {}) => {
         if (options.interruption) return runTool(db, audit, runner, token, { args, ...input }, adapter,
-          new SharedIdentityResolver(credentials), { requestId: crypto.randomUUID(), clientAddress: '127.0.0.1', signal: options.signal })
+          new SharedIdentityResolver(credentials, db), { requestId: crypto.randomUUID(), clientAddress: '127.0.0.1', signal: options.signal })
         const response = await post('/v1/tools/beyondtrust-axi/run', { args, ...input })
         expect(response.status, await response.clone().text()).toBe(200)
         const result = await response.json()

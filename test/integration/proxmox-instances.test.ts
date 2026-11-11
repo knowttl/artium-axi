@@ -36,7 +36,7 @@ test('read-only Proxmox instances refuse stream writes but permit previews and r
   const instance = store.createInstance('proxmox-axi', { name: 'lab', description: '' }, value, user, Date.now())
   const app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db),
     adapters: [createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))],
-    environment: {}, resolver: new SharedIdentityResolver(store), credentialStore: store })
+    environment: {}, resolver: new SharedIdentityResolver(store, db), credentialStore: store })
   const headers = { authorization: `Bearer ${issueTestAccessToken(db, user)}` }
   const upload = ['transfer', 'create', '/nodes/{node}/storage/{storage}/upload', '--api-node', 'node', '--api-storage', 'local',
     '--api-content', 'iso', '--api-filename', 'synthetic.iso', '--response-format', 'multipart']
@@ -78,7 +78,7 @@ test.each([
   store.createInstance('proxmox-axi', { name: 'production', description: '' }, value, user, Date.now())
   const app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db),
     adapters: [createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))],
-    environment: {}, resolver: new SharedIdentityResolver(store), credentialStore: store })
+    environment: {}, resolver: new SharedIdentityResolver(store, db), credentialStore: store })
   const headers = { authorization: `Bearer ${issueTestAccessToken(db, user)}` }
   const upload = ['transfer', 'create', '/nodes/{node}/storage/{storage}/upload', '--api-node', 'node', '--api-storage', 'local',
     '--api-content', 'iso', '--api-filename', 'synthetic.iso', '--response-format', 'multipart',
@@ -152,7 +152,7 @@ test('changing one Proxmox instance stops only its active byte transfer', async 
   store.createInstance('proxmox-axi', { name: 'production', description: '' }, value, user, Date.now())
   const adapter = createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
   const app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db), adapters: [adapter],
-    environment: {}, resolver: new SharedIdentityResolver(store), credentialStore: store })
+    environment: {}, resolver: new SharedIdentityResolver(store, db), credentialStore: store })
   const token = issueTestAccessToken(db, user), headers = { authorization: `Bearer ${token}` }
   const args = ['transfer', 'get', '/nodes/{node}/rrd', '--api-node', 'node', '--api-ds', 'cpu', '--api-timeframe', 'hour', '--response-format', 'png']
   const start = (instance?: string) => app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/streams', headers, payload: { ...(instance ? { instance } : {}), args } })

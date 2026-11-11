@@ -40,7 +40,7 @@ async function sessionFixture(capacity = 1, leaseSeconds = 1) {
   db.prepare("UPDATE tools SET enabled=1,native_settings=? WHERE name='shodan-axi'").run(JSON.stringify({ sessions }))
   const runner = await Runner.create(join(directory, 'calls'))
   const app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {},
-    resolver: new SharedIdentityResolver(store), adapters: [createShodanAdapter(new EmbeddedSecretSource(store))] })
+    resolver: new SharedIdentityResolver(store, db), adapters: [createShodanAdapter(new EmbeddedSecretSource(store))] })
   Object.assign(toolPaths, { 'shodan-axi': join(process.cwd(), 'tools/node_modules/@knowttl/shodan-axi/bin/shodan-axi.js') })
   const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
   const prefix = '/v1/tools/shodan-axi/sessions'

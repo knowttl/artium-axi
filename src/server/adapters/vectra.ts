@@ -37,6 +37,14 @@ export const vectraManifest = {
   ...inventory.adapterBoundary,
 }
 
+function vectraOperationAccepts(command: string, operation: string): boolean {
+  if (command === 'assignment set') return /^(?:host|account)\.assignment\.(?:create|reassign|unassign)$/.test(operation)
+  if (command === 'assignment resolve') return /^(?:host|account)\.assignment\.resolve$/.test(operation)
+  if (command === 'group member add' || command === 'group member remove') return operation === 'group.member.set'
+  if (/^detection (?:close|open)$/.test(command)) return operation === command.replace(' ', '.') || operation === `${command.replace(' ', '.')}-bulk`
+  return operation === command.replace(/^(assignment outcome|triage rule|notification destination) /, (_, noun: string) => `${noun.replace(' ', '-')}.`).replaceAll(' ', '.')
+}
+
 // Normalize reviewed file flags so the runner can replace only uploaded leaf names.
 function vectraArguments(args: readonly string[], input: RunnerInput = {}) {
   if (vectraManifest.blockedCommands.includes(args[0])) throw new ArtiumError('FLAG_BLOCKED')
@@ -74,6 +82,7 @@ export function createVectraAdapter(source: SecretSource, writeLog: string,
     allowedFlagValues: {}, sensitiveArguments: () => ({ flags: ['--note'], positions: [] }),
     validateArgs: (args, input) => { vectraArguments(args, input) },
     executesWrite: (args, input) => vectraArguments(args, input).effect === 'write',
+    authorizeOperation: (command, settings) => vectraWritePolicy.authorize(settings, allowed => vectraOperationAccepts(command, allowed.replace(/^(?:qux|rux)\./, ''))),
     rawApi: { commands: ['api get'], writes: false, help: (args, input) => vectraArguments(args, input).invocation.help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(
       inventory.commands.map(route => ({ ...route, effect: vectraReadCommands.has(route.command) ? 'read' : 'write' })),

@@ -35,7 +35,7 @@ beforeEach(async () => {
   hosts = new SshHosts(db, provider)
   const runner = await Runner.create(join(directory, 'calls'))
   app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner,
-    resolver: new SharedIdentityResolver(store), credentialStore: store, sshHosts: hosts, adapters: [], environment: {} })
+    resolver: new SharedIdentityResolver(store, db), credentialStore: store, sshHosts: hosts, adapters: [], environment: {} })
   const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })
   expect(login.statusCode).toBe(200)
   headers = { authorization: `Bearer ${login.json().accessToken}` }

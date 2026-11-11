@@ -26,6 +26,9 @@ export const checkpointWritePolicy = {
   read(settings: Record<string, unknown>) {
     return policy((settings.writes as { operations?: string[] } | undefined)?.operations).read(settings)
   },
+  authorize(settings: Record<string, unknown>, accepts: (operation: string) => boolean) {
+    policy((settings.writes as { operations?: string[] } | undefined)?.operations).authorize(settings, accepts)
+  },
   update(settings: Record<string, unknown>, input: Parameters<ReturnType<typeof policy>['update']>[1]) {
     return policy(input.operations ?? (settings.writes as { operations?: string[] } | undefined)?.operations).update(settings, input)
   },
@@ -84,15 +87,19 @@ export function createCheckpointAdapter(source: SecretSource, writeLog: string):
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { checkpointArguments(args, input) },
     executesWrite: (args, input) => checkpointArguments(args, input).effect === 'write',
+    authorizeOperation(command, settings) {
+      checkpointWritePolicy.authorize(settings, allowed => command === 'event action' ? allowed.startsWith('event.action.')
+        : command.startsWith('exception ') ? /^exception\.[^.]+\./.test(allowed) && allowed.endsWith(`.${command.slice('exception '.length)}`)
+          : allowed === command.replaceAll(' ', '.'))
+    },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => checkpointArguments(a, i).invocation, args, input),
     async prepareArtifact(args, reference, scope) {
       if (reference.tool !== 'checkpoint-axi' || transferTool(scope.selection.operation) !== reference.tool
         || reference.revision !== scope.credentialRevision) throw new ArtiumError('REVISION_CONFLICT')
+      const settings = source.getSettings?.(reference) ?? await source.getCredential(reference) as Record<string, unknown>
+      checkpointWritePolicy.authorize(settings, allowed => allowed === scope.selection.operation)
       const parsed = checkpointCredentialSchema.safeParse(await source.getCredential(reference))
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
-      const settings = source.getSettings?.(reference) ?? parsed.data
-      const state = checkpointWritePolicy.read(settings)
-      if (!state.enabled || !state.allowedOperations.includes(scope.selection.operation)) throw new ArtiumError('FLAG_BLOCKED')
       const profile = checkpointProfile.prepare('checkpoint-axi', { ...parsed.data, downloads: { allow: true },
         writes: { allowWrites: false, operations: [] } }, writeLog, true)
       return { executable: toolPaths['checkpoint-axi'], args, ...profile, limits: { timeoutMs: runnerLimits.timeoutMs } }

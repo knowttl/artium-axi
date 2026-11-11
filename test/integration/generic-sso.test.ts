@@ -39,7 +39,7 @@ beforeEach(async () => {
       secretMethod: 'client_secret_basic', clientSecret: 'CANARY-basic+/:= secret' }))
   discoveryFailure = undefined
   app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), adapters: [],
-    environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' }, resolver: new SharedIdentityResolver(new FakeCredentialStore([])),
+    environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' }, resolver: new SharedIdentityResolver(new FakeCredentialStore([]), db),
     providerCredentials: credentials, ssoFetch: async (url, options) => {
       const index = providers.findIndex(provider => url.startsWith(provider.issuer + '/'))
       if (index < 0) throw new Error('Unexpected fake destination')

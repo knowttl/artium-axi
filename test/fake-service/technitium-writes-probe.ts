@@ -29,7 +29,7 @@ await withFakeService(async ({ directory, port, send }) => {
   let runner = await Runner.create(calls)
   const adapter = createTechnitiumAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
   const application = () => createApp({ db, runner, audit: new Audit(db, Date.now, () => {}), environment: {}, credentialStore: store,
-    resolver: new SharedIdentityResolver(store), adapters: [adapter] })
+    resolver: new SharedIdentityResolver(store, db), adapters: [adapter] })
   let app = application()
   try {
     const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })

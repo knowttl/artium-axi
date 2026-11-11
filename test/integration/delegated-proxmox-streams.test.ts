@@ -27,7 +27,7 @@ test.each([
   store.replaceCredential('proxmox-axi', { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }, 0, user, Date.now())
   const adapter = createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
   const app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db), adapters: [adapter],
-    environment: {}, resolver: new SharedIdentityResolver(store), credentialStore: store })
+    environment: {}, resolver: new SharedIdentityResolver(store, db), credentialStore: store })
   const start = (token: string) => app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/streams',
     headers: { authorization: `Bearer ${token}` }, payload: { args: command.split(' ') } })
   try {
@@ -90,7 +90,7 @@ test.each([
   store.replaceCredential('proxmox-axi', { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }, 0, user, Date.now())
   const adapter = createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
   const app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db), adapters: [adapter],
-    environment: {}, resolver: new SharedIdentityResolver(store), credentialStore: store })
+    environment: {}, resolver: new SharedIdentityResolver(store, db), credentialStore: store })
   const start = (token: string, args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/streams',
     headers: { authorization: `Bearer ${token}` }, payload: { args } })
   try {
@@ -122,7 +122,7 @@ test('delegated streams reserve owner capacity and revocation preserves owner le
   store.replaceCredential('proxmox-axi', { origin: 'https://synthetic.invalid', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }, 0, user, Date.now())
   const adapter = createProxmoxAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
   const app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db), adapters: [adapter],
-    environment: {}, resolver: new SharedIdentityResolver(store), credentialStore: store })
+    environment: {}, resolver: new SharedIdentityResolver(store, db), credentialStore: store })
   const args = ['transfer', 'get', '/nodes/{node}/rrd', '--api-node', 'node', '--api-ds', 'cpu', '--api-timeframe', 'hour', '--response-format', 'png']
   const headers = (token: string) => ({ authorization: `Bearer ${token}` })
   const start = (token: string, command = args) => app.inject({ method: 'POST', url: '/v1/tools/proxmox-axi/streams', headers: headers(token), payload: { args: command } })

@@ -33,7 +33,7 @@ beforeEach(async () => {
   app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner: await Runner.create(join(directory, 'calls')),
     credentialStore: store, sshHosts: hosts, sshExecution: { provider, writeLog: join(directory, 'writes.log'),
       executable: join(process.cwd(), 'tools/node_modules/@knowttl/ssh-axi/dist/hosted.js') },
-    resolver: new SharedIdentityResolver(store), adapters: [], environment: {} })
+    resolver: new SharedIdentityResolver(store, db), adapters: [], environment: {} })
   const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })
   headers = { authorization: `Bearer ${login.json().accessToken}` }
 })

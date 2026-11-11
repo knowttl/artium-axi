@@ -40,7 +40,7 @@ async function withReadService(check: (context: {
     const runner = await Runner.create(join(directory, 'calls'), { pem: readFileSync(join(directory, 'ca.crt'), 'utf8'), certificates: [] })
     const lines: string[] = []
     const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => lines.push(line)), adapters: [adapter],
-      resolver: new SharedIdentityResolver(store), credentialStore: store, environment: {} })
+      resolver: new SharedIdentityResolver(store, db), credentialStore: store, environment: {} })
     const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
     const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
     try { await check({ app, db, headers, send, run, lines, directory }) }

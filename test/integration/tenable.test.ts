@@ -35,7 +35,7 @@ test('managed Tenable saves secret keys, reads, tests health and gates business 
     }
     const runner = await Runner.create(join(directory, 'calls'), loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'ca.crt') }))
     const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [adapter],
-      credentialStore: store, resolver: new SharedIdentityResolver(store), environment: {} })
+      credentialStore: store, resolver: new SharedIdentityResolver(store, db), environment: {} })
     try {
       await seedToolUser(db)
       db.exec('UPDATE users SET administrator = 1')
@@ -143,7 +143,10 @@ test('managed Tenable saves secret keys, reads, tests health and gates business 
       const off = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/tenable-axi/write-access', headers,
         payload: { enabled: false, expectedRevision: (await settings()).json().revision } })
       expect(off.statusCode).toBe(200)
-      expect((await run([...create, '--execute', '--confirm', plan.preview.confirm])).stdout).toContain('WRITES_DISABLED')
+      const disabled = await app.inject({ method: 'POST', url: '/v1/tools/tenable-axi/run', headers,
+        payload: { args: [...create, '--execute', '--confirm', plan.preview.confirm] } })
+      expect(disabled.statusCode).toBe(400)
+      expect(disabled.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
       const audit = db.prepare("SELECT action, arguments FROM audit WHERE tool = 'tenable-axi'").all()
       expect(audit).toEqual(expect.arrayContaining([expect.objectContaining({ action: 'write' })]))
       expect(JSON.stringify(audit)).not.toContain('CANARY-tenable')
