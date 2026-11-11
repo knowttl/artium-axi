@@ -7,6 +7,7 @@ import type { Diagnostic, ErrorCode } from '../../shared/errors.js'
 import { safeDiagnostic } from '../health/diagnostic.js'
 import type { ToolName } from '../store/credential-store.js'
 import type { RunAction } from '../adapters/run-journal.js'
+import type { RawApiCall } from '../policy/raw-api.js'
 import { redactArguments } from './redact.js'
 import type { SensitiveArguments } from './redact.js'
 import type { SettingChange } from './settings-diff.js'
@@ -28,7 +29,8 @@ type CredentialTestEvidence = { checkedAt: number | null, credentialRevision: nu
 export type AuditEvent = Context & (
   | { event: 'protected-result', outcome: 'success', result: { id: string, operation: string, bytes: number, sha256: string } }
   | ({ event: 'upload', outcome: 'success', file: { name: string, size: number, sha256: string } } & Arguments)
-  | { event: 'ado-api', outcome: 'allowed' | 'refused', method: string, path: string | null, bodySha256: string, bodyBytes: number }
+  | ({ event: 'raw-api', outcome: 'allowed' | 'refused', route: string | null } & RawApiCall)
+  | { event: 'raw-api-result', outcome: 'success' | 'failure', upstreamStatus: number | null, exitCode: number }
   | { event: 'transfer', outcome: z.infer<typeof transferOutcomeSchema>, credentialRevision: number,
     transfer: z.infer<typeof transferAuditSchema> }
   | ({ event: 'run-start', outcome: 'started' } & Arguments & Partial<CredentialTestEvidence>)
@@ -249,8 +251,9 @@ export class Audit {
       arguments: event.event === 'upload' ? JSON.stringify({ command: redactArguments(event.args, event.sensitive), file: event.file }) :
         event.event === 'protected-result' ? JSON.stringify({ id: event.result.id, operation: event.result.operation,
           bytes: event.result.bytes, sha256: event.result.sha256 }) :
-        event.event === 'ado-api' ? JSON.stringify({ method: event.method, path: event.path,
-          decision: event.outcome, bodySha256: event.bodySha256, bodyBytes: event.bodyBytes }) :
+        event.event === 'raw-api' ? JSON.stringify({ method: event.method, path: event.path, query: event.query,
+          decision: event.outcome, route: event.route, bodySha256: event.bodySha256, bodyBytes: event.bodyBytes }) :
+        event.event === 'raw-api-result' ? JSON.stringify({ upstreamStatus: event.upstreamStatus, exitCode: event.exitCode }) :
         event.event === 'run-start' ? JSON.stringify(redactArguments(event.args, event.sensitive)) :
         event.event === 'tool-write-access' ? JSON.stringify({ enabled: event.enabled, operations: event.operations,
           ...(event.allowDeletes !== undefined ? { allowDeletes: event.allowDeletes } : {}),

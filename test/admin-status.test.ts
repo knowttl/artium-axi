@@ -4,6 +4,10 @@ import { auditOutcome, toolState } from '../src/server/admin/design/status.js'
 test.each([
   ['ado-api', 'allowed', null, 'ok'],
   ['ado-api', 'refused', null, 'err'],
+  ['raw-api', 'allowed', null, 'ok'],
+  ['raw-api', 'refused', null, 'err'],
+  ['raw-api-result', 'success', null, 'ok'],
+  ['raw-api-result', 'failure', null, 'err'],
   ['transfer', 'ready', null, 'ok'],
   ['transfer', 'delivery-completed', null, 'ok'],
   ['transfer', 'preview', null, 'neutral'],

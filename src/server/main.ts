@@ -30,6 +30,7 @@ import { checkAuthSettings } from './auth/settings.js'
 import { bootstrapAdministrator } from './auth/bootstrap.js'
 import { serverDefaults } from './config.js'
 import { SharedIdentityResolver } from './policy/identity-resolver.js'
+import { migrateAdoApiWritePaths } from './policy/raw-api-env-migration.js'
 import { Runner } from './runner/runner.js'
 import { createCredentialStore, openStore } from './store/db.js'
 import { ProviderCredentials } from './store/provider-credentials.js'
@@ -62,6 +63,7 @@ async function main() {
     const store = createCredentialStore(db, provider)
     runner = await Runner.create(serverDefaults.temporaryDirectory, trustedCa)
     const audit = new Audit(db)
+    if (migrateAdoApiWritePaths(db, audit)) log('info', 'migrated-ado-api-write-paths')
     const source = new EmbeddedSecretSource(store)
     const kubernetesRequests = join(dirname(database), 'tool-logs', 'kubernetes-axi', 'workflow')
     const azureTokens = new AzureTokenCache()

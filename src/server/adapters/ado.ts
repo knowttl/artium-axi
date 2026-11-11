@@ -95,7 +95,7 @@ function adoArguments(args: readonly string[], input: RunnerInput = {}) {
       }
     } else {
       const normalizedPath = normalizeAdoApiPath(path ?? '')
-      checkAdoApiWrite(method, normalizedPath, flags)
+      checkAdoApiWrite(method, flags)
       positionals.splice(1, positionals.length - 1, normalizedPath)
       flags.set('method', method)
       effect = 'write'

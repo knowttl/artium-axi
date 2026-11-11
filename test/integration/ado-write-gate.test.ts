@@ -107,15 +107,16 @@ test.each([
 
 test('raw API writes receive the native switch only after path and host write authorization', async () => {
   const args = ['api', '_apis/wit/workitems/42', '--method', 'PATCH', '--body', '[]']
-  expect((await run(args)).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+  allowRawApi(db, 'ado-axi', 'read-writes', [])
+  expect((await run(args)).json()).toMatchObject({ error: { code: 'RAW_API_DENIED' } })
   expect(existsSync(join(directory, 'children.jsonl'))).toBe(false)
-  vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', '{"PATCH":["_apis/wit/workitems/*"]}')
+  allowRawApi(db, 'ado-axi', 'read-writes', ['PATCH _apis/wit/workitems/*'])
   expect((await run(args)).json()).toMatchObject({ exitCode: 0, stdout: '{"writes":"1"}\n' })
   expect((await run(['api', '_apis/wit/workitems/42'])).json()).toMatchObject({ exitCode: 0, stdout: '{"writes":null}\n' })
 })
 
 test('read-only instance refuses raw writes before credential preparation', async () => {
-  vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', '{"PATCH":["_apis/wit/workitems/*"]}')
+  allowRawApi(db, 'ado-axi', 'read-writes', ['PATCH _apis/wit/workitems/*'])
   db.exec("UPDATE credentials SET read_only = 1 WHERE tool = 'ado-axi'")
   const result = await run(['api', '_apis/wit/workitems/42', '--method', 'PATCH', '--body', '[]'])
   expect(result.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
@@ -126,7 +127,6 @@ test('read-only instance refuses raw writes before credential preparation', asyn
 })
 
 test('raw API calls follow the tool mode and role grant, are audited as denials, and never block help or named commands', async () => {
-  vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', '{"PATCH":["_apis/wit/workitems/*"]}')
   const read = ['api', '_apis/wit/workitems/42']
   const write = ['api', '_apis/wit/workitems/42', '--method', 'PATCH', '--body', '[]']
   const code = async (args: string[]) => (await run(args)).json().error?.code
@@ -144,6 +144,32 @@ test('raw API calls follow the tool mode and role grant, are audited as denials,
   expect(await code(['project', 'list'])).toBeUndefined()
   expect(db.prepare("SELECT outcome FROM audit WHERE event = 'denial' AND tool = 'ado-axi' ORDER BY id").all().map(row => (row as { outcome: string }).outcome))
     .toEqual(['RAW_API_DENIED', 'RAW_API_DENIED', 'RAW_API_DENIED'])
+})
+
+test('every raw call is journaled with its decision, matched route and result, refusals included', async () => {
+  allowRawApi(db, 'ado-axi', 'read', [])
+  db.exec(`UPDATE tools SET raw_api_routes = '{"get":["_apis/wit/**"],"write":[]}' WHERE name = 'ado-axi'`)
+  const emptySha = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+  expect((await run(['api', '_apis/wit/workitems/42', '--query', '$expand=all'])).json()).toMatchObject({ exitCode: 0 })
+  expect((await run(['api', '_apis/git/repositories'])).json()).toMatchObject({ error: { code: 'RAW_API_DENIED' } })
+  expect(db.prepare("SELECT event, outcome, arguments FROM audit WHERE event IN ('raw-api', 'raw-api-result') ORDER BY id").all()).toEqual([
+    { event: 'raw-api', outcome: 'allowed', arguments: JSON.stringify({ method: 'GET', path: '_apis/wit/workitems/42',
+      query: [{ name: '$expand', sha256: '5ef5ef0364b6939c4ca61f34b393f7b368d1be8619647aaf83d5b395919ab629' }],
+      decision: 'allowed', route: '_apis/wit/**', bodySha256: emptySha, bodyBytes: 0 }) },
+    { event: 'raw-api-result', outcome: 'success', arguments: JSON.stringify({ upstreamStatus: null, exitCode: 0 }) },
+    { event: 'raw-api', outcome: 'refused', arguments: JSON.stringify({ method: 'GET', path: '_apis/git/repositories', query: [],
+      decision: 'refused', route: null, bodySha256: emptySha, bodyBytes: 0 }) },
+  ])
+})
+
+test('a refused raw call carrying a delegation token is journaled without the token', async () => {
+  allowRawApi(db, 'ado-axi', 'read', [])
+  const token = `artd_${'A'.repeat(43)}`
+  expect((await run(['api', `_apis/wit/${token}`])).json()).toMatchObject({ error: { code: 'INVALID_INPUT' } })
+  const records = db.prepare("SELECT outcome, arguments FROM audit WHERE event = 'raw-api'").all() as { outcome: string, arguments: string }[]
+  expect(records).toEqual([{ outcome: 'refused', arguments: JSON.stringify({ method: '', path: null, query: [], decision: 'refused', route: null,
+    bodySha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', bodyBytes: 0 }) }])
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(token)
 })
 
 test.each([

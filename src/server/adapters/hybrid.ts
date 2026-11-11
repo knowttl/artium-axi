@@ -11,6 +11,7 @@ import { writePolicy } from './write-policy.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 export const hybridManifest = { ...inventory, ...inventory.adapterBoundary }
+export const hybridBooleanFlags = ['help', 'full', 'labs', 'offline', 'execute', 'dry-run']
 export const hybridProfile = new CredentialProfile(inventory.credentialSchema, 'hybrid-axi')
 export const hybridCredentialSchema = hybridProfile.credentialSchema
 export const hybridWritePolicy = writePolicy({ supportedOperations: inventory.nativeWriteSettings.supportedOperations,
@@ -48,7 +49,7 @@ function hybridArguments(args: readonly string[], input: RunnerInput = {}) {
     if (!Object.hasOwn(route.flags, name)) throw unknownFlag('hybrid-axi', route.command, token, Object.keys(route.flags).filter(name => !hybridManifest.unsafeOverrides.includes(name)))
     if (flags.has(name)) throw new ArtiumError('INVALID_INPUT')
     flags.add(name)
-    if (['help', 'full', 'labs', 'offline', 'execute', 'dry-run'].includes(name)) {
+    if (hybridBooleanFlags.includes(name)) {
       if (inline !== undefined) throw new ArtiumError('INVALID_INPUT')
       normalized.push(token)
       continue

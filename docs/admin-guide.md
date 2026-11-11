@@ -431,10 +431,13 @@ Device approval and refusal emit `device-approve` and `device-deny` events, with
 
 Kubernetes byte sessions instead emit `run-start` and `run-terminal` records with the operation kind, exit code and output byte counts, without a read/write `action` classification.
 Workspace and session controls emit `admin-change` records with `kubernetes-workspace-*` or `kubernetes-session-*` actions and the owned handle as `target_id`; refused workspace or session requests emit `denial` records.
-Identifiable raw ADO API mutations also emit an `ado-api` decision record; the [API contract](../src/shared/api.ts) owns its argument fields.
+Every identifiable raw API call on any tool emits a `raw-api` decision record, allowed or refused; the [API contract](../src/shared/api.ts) owns its argument fields.
+Its arguments carry the method, normalized path (null when no safe path exists), query parameter names with SHA-256 hashes of their values, the decision, the matched route pattern (null when none applied), and the SHA-256 and byte length of the request body.
 The decision is `allowed` immediately before runner admission or `refused` on validation, policy or credential refusal.
 The record identifies the authenticated user when available; execution outcome remains in the normal run-terminal record.
-Body text is never included in this decision journal, and audit persistence failure prevents forwarding.
+A call that reached the tool also emits a `raw-api-result` record with the exit code and the upstream HTTP status when the native tool reports one (null otherwise).
+Body text and query values are never included in this decision journal, and audit persistence failure prevents forwarding.
+Records written before this change use the event name `ado-api` and cover only raw ADO mutations.
 See [GitHub setup](tool-credentials.md#github) for device connection, token lifecycle and reconnect guidance, and its [certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui).
 See [BeyondTrust intent storage and reconciliation](runbook.md#retention-and-export) before interpreting an interrupted write.
 Check Point download evidence is host-owned and leaves native journal fields empty.
@@ -452,7 +455,7 @@ See the [API contract](../src/shared/api.ts) and [retention and export runbook](
 | `ARTIUM_AXI_ADMIN_PASSWORD_FILE` | UTF-8 file containing the exact first-start password, without an added newline. |
 | `ARTIUM_AXI_TRUSTED_PROXIES` | Comma-separated verified proxy source IP addresses; default trusts none. |
 | `ARTIUM_AXI_AUDIT_STDOUT` | `1` streams committed audit records as JSON lines; SQLite remains authoritative. |
-| `ARTIUM_AXI_ADO_API_WRITE_PATHS` | Server-only JSON allow list by uppercase method. Example: `{"PATCH":["_apis/wit/workitems/*"]}`. See the path contract below and [implementation defaults](../src/server/adapters/ado-api.ts). |
+| `ARTIUM_AXI_ADO_API_WRITE_PATHS` | Deprecated. Read once at startup to seed the Azure DevOps write routes described below; ignored afterwards. |
 
 Raw API access has two administrator settings, both separate from enabling a tool, granting it to a role or enabling Allow writes.
 Set the tool's mode on its **Raw API** tab, shown only for tools with raw API routes: Off, Read, or Read and writes.
@@ -463,12 +466,23 @@ Raw write execution also requires the tool's write gate and native confirmation:
 These tool gates also apply to raw write previews.
 Each change is recorded as an `admin-change` audit event for the tool, with actions such as `set-tool-raw-api-read` and `grant-role-raw-api`; a request that changes nothing records nothing.
 
-Configure the ADO API write allow list in the server process environment; it is never accepted from a client or forwarded to the tool.
-Keys are `POST`, `PATCH`, `PUT` or `DELETE`; values are arrays of relative REST path patterns.
-Each pattern matches the complete normalized relative path, case sensitively; a whole segment `*` matches exactly one nonempty segment.
+Each tool with raw API routes also has route patterns, set under **Route patterns** on its **Raw API** tab.
+They are never accepted from a client or forwarded to the tool, and each change is an `admin-change` event with action `set-tool-raw-api-routes` listing the added and removed patterns.
+Write routes are required for any raw write: with none, every raw write is refused whatever the mode.
+Tools whose raw routes can only read show GET routes only.
+Each write route is a method and a relative path, such as `PATCH _apis/wit/workitems/*`; the method is `POST`, `PATCH`, `PUT` or `DELETE`.
+GET routes are optional relative paths; with none, raw reads may use any path, and with some, a raw read must match one.
+A pattern matches the complete normalized relative path, case sensitively; a whole segment `*` matches exactly one nonempty segment, and a final `**` segment matches the named prefix and anything below it.
 Other segments match literally after canonical percent encoding.
-No default pattern permits writes; invalid JSON or a non-object configuration refuses writes, and invalid or nonmatching patterns do not authorize a path.
-Empty segments, dot segments, encoded traversal, nested percent encodings, URLs, backslashes, controls, query strings and fragments are refused for writes.
+A path that cannot be normalized matches nothing, so it is refused whenever the applicable list is nonempty.
+Empty segments, dot segments, encoded traversal, nested percent encodings, backslashes, controls, query strings and fragments cannot be normalized.
+Azure absolute URLs match by their path, Gitea paths match with their `api/v1/` prefix, and Kubernetes native calls match as `resource/name` for the first `--` command, without subcommand words such as `history` in `rollout history`.
+A Kubernetes call naming more than one `TYPE/NAME` argument has no normalized path.
+Azure DevOps raw writes additionally require a JSON `--body` within the adapter's byte limit.
+On the first start after upgrading, a valid `ARTIUM_AXI_ADO_API_WRITE_PATHS` value seeds the Azure DevOps write routes as `METHOD pattern` entries, only if the tool has never had routes saved, and the migration is journaled as `migrate-tool-raw-api-routes`.
+Entries that never authorized a path are dropped, and later changes to the variable have no effect.
+The migration also drops any entry longer than 256 characters and every entry after the first 50, the limits of the write route list; review the migrated routes after upgrading if the variable held more.
+The **Raw API** column on the Tools list shows each tool's mode.
 See the [command reference](commands.md) for path scope and body syntax, and [supported write gates](safety.md#write-gates-by-tool) for administrator enablement.
 
 The server listens on HTTP port 8080 behind a trusted HTTPS reverse proxy.

@@ -29,7 +29,8 @@ import { sshWritePolicy } from '../adapters/ssh.js'
 import { exchangeAwxPassword, awxPasswordRequested } from '../adapters/awx-login.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
 import { userGrantPolicies } from '../../shared/user-grants.js'
-import { rawApiModes } from '../policy/policy.js'
+import { parseRawApiRoutes, rawApiModes } from '../policy/policy.js'
+import { validateRawApiRoutes } from '../policy/raw-api.js'
 import type { Adapter } from '../adapters/types.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { Audit, AuditEvent } from '../audit/audit.js'
@@ -143,9 +144,9 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     if (name !== undefined && reference?.id !== expectedId) throw new ArtiumError('REVISION_CONFLICT')
   }
   function readTool(tool: ToolName): z.infer<typeof adminToolSchema> {
-    const row = db.prepare(`SELECT name, enabled, native_settings AS nativeSettings, raw_api_mode AS rawApiMode,
+    const row = db.prepare(`SELECT name, enabled, native_settings AS nativeSettings, raw_api_mode AS rawApiMode, raw_api_routes AS rawApiRoutes,
       revision, updated_at AS updatedAt, updated_by AS updatedBy FROM tools WHERE name = ?`).get(tool) as
-      { name: ToolName, enabled: number, nativeSettings: string, rawApiMode: z.infer<typeof adminToolSchema>['rawApi']['mode'], revision: number, updatedAt: number | null, updatedBy: string | null } | undefined
+      { name: ToolName, enabled: number, nativeSettings: string, rawApiMode: z.infer<typeof adminToolSchema>['rawApi']['mode'], rawApiRoutes: string | null, revision: number, updatedAt: number | null, updatedBy: string | null } | undefined
     if (!row) throw new ArtiumError('NOT_FOUND')
     // A tool reports its worst enabled instance: a failing one, else unknown until every enabled instance has a current result.
     const instances = (store?.listInstances(tool) ?? []).filter(instance => !isAwxOriginOnly(tool, store!.readCredential(instance)))
@@ -169,9 +170,10 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const writeAccess = writePolicies[tool].read(nativeSettings)
     const readOnly = !writeAccess.enabled
     const diagnostic = cached && selectedId ? options.health.diagnostic(tool, health.credentialRevision, health.checkedAt, selectedId) : undefined
-    const { rawApiMode, ...fields } = row
+    const { rawApiMode, rawApiRoutes, ...fields } = row
+    const adapter = adapters.find(adapter => adapter.name === tool)
     return adminToolSchema.parse({ ...fields, version: toolManifests[tool].version, enabled: Boolean(row.enabled),
-      nativeSettings, readOnly, writeAccess, rawApi: { mode: rawApiMode, modes: rawApiModes(adapters.find(adapter => adapter.name === tool)) },
+      nativeSettings, readOnly, writeAccess, rawApi: { mode: rawApiMode, modes: rawApiModes(adapter), writes: adapter?.rawApi?.writes ?? false, routes: parseRawApiRoutes(rawApiRoutes) },
       health: { ...health, readOnly, ...(diagnostic ? { diagnostic } : {}) } })
   }
   function readCredential(tool: ToolName): z.infer<typeof adminCredentialSchema> {
@@ -410,6 +412,25 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       authorize(request)
       db.prepare('UPDATE tools SET raw_api_mode = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?')
         .run(input.mode, Date.now(), actor, tool)
+      return readTool(tool)
+    }).value
+  } })
+  app.route({ method: adminToolRoutes.rawApiRoutes.method, url: adminToolRoutes.rawApiRoutes.path, handler: async request => {
+    const actor = authorize(request)
+    const tool = toolName(request)
+    const { expectedRevision, ...routes } = parse(adminToolRoutes.rawApiRoutes.input, request.body)
+    const current = readTool(tool)
+    if (!current.rawApi.modes.length) throw new ArtiumError('INVALID_INPUT', `${tool} has no raw API routes.`)
+    validateRawApiRoutes(routes)
+    if (current.revision !== expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+    const settingsChanges = diffSettings(current.rawApi.routes, routes, ['rawApiRoutes'])
+    const stored = db.prepare('SELECT raw_api_routes FROM tools WHERE name = ?').get(tool) as { raw_api_routes: string | null }
+    if (!settingsChanges.length && stored.raw_api_routes !== null) return current
+    return audit.change({ event: 'admin-change', action: adminToolRoutes.rawApiRoutes.auditEvent, targetId: tool,
+      userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip, settingsChanges }, () => {
+      authorize(request)
+      db.prepare('UPDATE tools SET raw_api_routes = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?')
+        .run(JSON.stringify(routes), Date.now(), actor, tool)
       return readTool(tool)
     }).value
   } })

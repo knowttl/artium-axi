@@ -80,7 +80,8 @@ test('AWX project SCM URLs remain private on later project and activity reads (S
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
     await seedToolUser(db)
-    db.exec(`UPDATE tools SET enabled = 1, raw_api_mode = 'read-writes', native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi';
+    db.exec(`UPDATE tools SET enabled = 1, raw_api_mode = 'read-writes', raw_api_routes = '{"get":[],"write":["POST **","PUT **","PATCH **","DELETE **"]}',
+        native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi';
       UPDATE role_tools SET raw_api = 1 WHERE role_id = 'synthetic-role' AND tool = 'awx-axi'`)
     let allowWrites = true
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }

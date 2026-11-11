@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3'
 import { createHash } from 'node:crypto'
 import { validateFileInput } from '../../shared/file-input.js'
 import { decode, encode } from '@toon-format/toon'
-import { runRequestSchema } from '../../shared/api.js'
+import { runInputSchema, runRequestSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Adapter, PreparedCall } from '../adapters/types.js'
 import { prepareRunJournal } from '../adapters/run-journal.js'
@@ -19,7 +19,7 @@ import { toolFailure, toolFailureCode } from '../health/diagnostic.js'
 import { readCredentialTrust } from '../store/trusted-certificates.js'
 import { hostedStatus } from '../adapters/hosted-status.js'
 import { logRun } from './log.js'
-import { adoApiAudit } from '../adapters/ado-api.js'
+import { readRawApiCall, upstreamStatus } from '../policy/raw-api.js'
 import type { ProtectedResults } from '../protected-results.js'
 import { kubernetesRequestCommand } from './kubernetes-requests.js'
 import { proxmoxTrust, type ProxmoxAccess } from './proxmox.js'
@@ -68,15 +68,18 @@ export async function runTool<Credential>(
     let input: { stdin?: string, files?: { name: string, contentBase64: string }[] }
     const started = Date.now()
     let result: RunnerResult
-    // Audit identifiable mutations even when request limits reject their arguments.
     const apiArgs = request && typeof request === 'object' && 'args' in request && Array.isArray(request.args)
       && request.args.every((value: unknown) => typeof value === 'string') ? request.args as string[] : undefined
-    const apiAudit = adapter.name === 'ado-axi' && apiArgs && !/artd_[A-Za-z0-9_-]{43}/.test(JSON.stringify(apiArgs)) ? adoApiAudit(apiArgs) : undefined
+    const apiInput = runInputSchema.safeParse(request && typeof request === 'object'
+      ? { stdin: 'stdin' in request ? request.stdin : undefined, files: 'files' in request ? request.files : undefined } : {})
+    const apiCall = apiArgs && readRawApiCall(adapter, apiArgs, apiInput.success ? apiInput.data : {})
+    const apiAudit = apiCall && /artd_[A-Za-z0-9_-]{43}/i.test(JSON.stringify(apiCall)) ? { ...apiCall, method: '', path: null, query: [] } : apiCall
     let apiDecisionRecorded = false
+    let apiRoute: string | null = null
     const recordApiDecision = (outcome: 'allowed' | 'refused') => {
       if (!apiAudit || apiDecisionRecorded) return
-      audit.record({ event: 'ado-api', userId, delegationId, tool: adapter.name, requestId: context.requestId,
-        clientAddress: context.clientAddress, outcome, ...apiAudit })
+      audit.record({ event: 'raw-api', userId, delegationId, tool: adapter.name, requestId: context.requestId,
+        clientAddress: context.clientAddress, credentialId: reference?.id, instance: reference ? instance : undefined, outcome, route: outcome === 'allowed' ? apiRoute : null, ...apiAudit })
       apiDecisionRecorded = true
     }
     const writeRequested = () => {
@@ -115,7 +118,7 @@ export async function runTool<Credential>(
       }
       adapter.validateArgs(args, input)
       validateFileInput(adapter.name, args, input)
-      checkRawApiPolicy(db, userId, adapter, args, input)
+      apiRoute = checkRawApiPolicy(db, userId, adapter, args, input).route
       continuation = adapter.kubernetesContinuation?.(args, input)
       let selectionCommand: string | undefined
       if (principal?.delegation) {
@@ -138,7 +141,11 @@ export async function runTool<Credential>(
           resolutionFailure = { error, credentialId: named?.id, instance: named?.name }
         }
       }
-      if (reference) rawReadWrites = checkRawApiPolicy(db, userId, adapter, args, input, reference.id)
+      if (reference) {
+        const raw = checkRawApiPolicy(db, userId, adapter, args, input, reference.id)
+        rawReadWrites = raw.readWrites
+        apiRoute = raw.route
+      }
       if (instanceReadOnly && writeRequested() && (adapter.executesWrite?.(args, input)
         ?? (!args.includes('--help') && !args.includes('--dry-run') && args.some(arg => /^--(?:confirm|execute)(?:=|$)/.test(arg))))) throw new ArtiumError('FLAG_BLOCKED')
       if (principal?.delegation && reference) authorizeDelegatedCall(db, userId, principal.delegation, adapter, args, input, continuationCommand, reference.id, resolver)
@@ -159,6 +166,13 @@ export async function runTool<Credential>(
     const identity = { userId, delegationId, tool: adapter.name, requestId: context.requestId, clientAddress: context.clientAddress,
       credentialId: reference?.id ?? resolutionFailure?.credentialId, instance: reference ? instance : resolutionFailure?.instance }
     const family = () => familyId ?? verifyAccessFamily(db, token)
+    let apiResultRecorded = false
+    const recordApiResult = (done: RunnerResult | undefined) => {
+      if (!apiAudit || !done || apiResultRecorded) return
+      apiResultRecorded = true
+      audit.record({ ...identity, event: 'raw-api-result', outcome: done.exitCode === 0 ? 'success' : 'failure',
+        upstreamStatus: upstreamStatus(done.stdout), exitCode: done.exitCode })
+    }
     for (const command of credentialCommands) audit.record({ ...identity, event: 'credential-issue', targetId: command, outcome: 'attempt' })
     for (const file of adapter.sensitiveInput?.(args, input) ? [] : input.files ?? []) {
       const bytes = Buffer.from(file.contentBase64, 'base64')
@@ -225,7 +239,7 @@ export async function runTool<Credential>(
           }
         } else authenticate(db, token)
         checkToolPolicy(db, userId, adapter.name, reference?.id)
-        const stillReadWrites = checkRawApiPolicy(db, userId, adapter, args, input, reference?.id)
+        const stillReadWrites = checkRawApiPolicy(db, userId, adapter, args, input, reference?.id).readWrites
         if (rawReadWrites && !stillReadWrites) throw new ArtiumError('RAW_API_DENIED')
         if (reference) {
           const current = db.prepare('SELECT enabled, read_only, revision FROM credentials WHERE id = ? AND tool = ?').get(reference.id, adapter.name) as { enabled: number, read_only: number, revision: number } | undefined
@@ -329,6 +343,7 @@ export async function runTool<Credential>(
     } catch (error) {
       reservation?.cancel()
       recordApiDecision('refused')
+      recordApiResult(completed)
       const runnerError = error instanceof RunnerError ? error : undefined
       const execution = completed ?? (runnerError?.processStarted ? runnerError : undefined)
       const recovery = completed?.completedMutation ?? runnerError?.recovery
@@ -359,6 +374,7 @@ export async function runTool<Credential>(
         throw error
       }
     } finally { privateBytes?.fill(0) }
+    recordApiResult(completed)
     const errorCode = result.exitCode === 0 ? null : toolFailureCode(result.stdout, result.stderr) ?? null
     const outcome = errorCode === 'OUTCOME_UNKNOWN' ? 'UNKNOWN_OUTCOME' : 'completed'
     recordTerminal({ ...identity, event: 'run-terminal', action: await journal?.action(result.exitCode === 0, result.stdout) ?? 'unknown',

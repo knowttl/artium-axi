@@ -13,8 +13,9 @@ export async function seedToolUser(db: Database.Database): Promise<void> {
     INSERT INTO role_tools (role_id, tool) SELECT 'synthetic-role', name FROM tools`)
 }
 
-export function allowRawApi(db: Database.Database, tool: string, mode: 'read' | 'read-writes' = 'read-writes'): void {
-  db.prepare('UPDATE tools SET raw_api_mode = ? WHERE name = ?').run(mode, tool)
+export function allowRawApi(db: Database.Database, tool: string, mode: 'read' | 'read-writes' = 'read-writes',
+  write: string[] = ['POST **', 'PATCH **', 'PUT **', 'DELETE **']): void {
+  db.prepare('UPDATE tools SET raw_api_mode = ?, raw_api_routes = ? WHERE name = ?').run(mode, JSON.stringify({ get: [], write }), tool)
   db.prepare('UPDATE role_tools SET raw_api = 1 WHERE tool = ?').run(tool)
 }
 
