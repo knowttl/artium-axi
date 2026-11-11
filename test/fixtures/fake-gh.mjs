@@ -36,8 +36,8 @@ if (process.env.ARTIUM_TEST_GH_WRITES === '1') {
   else if (args[0] === 'api' && /^\/repos\/canary\/repo\/actions\/workflows(?:\/123|\?per_page=100)$/.test(args[1])) {
     console.log(JSON.stringify(args[1].endsWith('/123') ? workflows[50] : { workflows }))
   }
-  else if (args[0] === 'api' && args[1] === '/repos/canary/repo/releases?per_page=100') {
-    console.log(JSON.stringify([{ tag_name: 'v1', assets: [{ name: 'checksums.txt', state: 'uploaded' }, { name: 'package.tar.gz', state: 'uploaded' }] }]))
+  else if (args[0] === 'api' && args[1] === '/repos/canary/repo/releases/tags/v1') {
+    console.log(JSON.stringify({ tag_name: 'v1', assets: [{ name: 'checksums.txt', state: 'uploaded' }, { name: 'package.tar.gz', state: 'uploaded' }] }))
   }
   else if (args[0] === 'api' && args[1] === 'graphql') console.log(JSON.stringify({ data: {
     repository: { discussion: { id: 'synthetic-discussion' }, pullRequest: { state: 'MERGED' },

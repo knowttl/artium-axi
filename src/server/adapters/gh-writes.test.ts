@@ -155,7 +155,7 @@ test('release upload binds client files to confirmation and hands the runner sta
   } finally { rmSync(directory, { recursive: true, force: true }) }
 })
 
-test('release upload recovery lists assets for the affected repository', async () => {
+test('release upload recovery lists assets for the affected tag', async () => {
   const file = { name: 'checksums.txt', size: 3, contentBase64: Buffer.from('one').toString('base64') }
   const args = ['release', 'upload', 'v1', file.name, '-R', 'canary/repo']
   const adapter = createGhAdapter({ getCredential: async () => credential,
@@ -165,8 +165,8 @@ test('release upload recovery lists assets for the affected repository', async (
   const recovery = await adapter.prepare(call.write!.checkArgs, reference)
   const read = executeWrite(recovery)
   expect(recovery.effect).toBe('read')
-  expect(read.calls).toEqual([['api', '/repos/canary/repo/releases?per_page=100', '--method', 'GET', '--paginate']])
-  expect(decode(read.result.stdout)).toEqual([{ tag_name: 'v1', assets: [{ name: 'checksums.txt', state: 'uploaded' }, { name: 'package.tar.gz', state: 'uploaded' }] }])
+  expect(read.calls).toEqual([['api', '/repos/canary/repo/releases/tags/v1', '--method', 'GET']])
+  expect(decode(read.result.stdout)).toEqual({ tag_name: 'v1', assets: [{ name: 'checksums.txt', state: 'uploaded' }, { name: 'package.tar.gz', state: 'uploaded' }] })
 })
 
 test.each([
@@ -360,9 +360,10 @@ test.each([
   ['project', 'item-edit', '--owner=canary', '--id=synthetic-item', '--project-id=synthetic-project', '--field-id=synthetic-field', '--text='],
   ['label', 'edit', 'synthetic', '-R', 'canary/repo', '--description='],
   ['repo', 'edit', '-R', 'canary/repo', '--description='],
+  ['project', 'edit', '1', '--owner=canary', '--readme='],
 ])('forwards explicitly empty editable content through %j', async (...args) => {
   const { calls } = executeWrite(await confirmed(args))
-  expect(calls.some(call => call.includes('') || call.some(arg => /^(?:--(?:body|notes|desc|description|text)=|description=)$/.test(arg)))).toBe(true)
+  expect(calls.some(call => call.includes('') || call.some(arg => /^(?:--(?:body|notes|desc|description|readme|text)=|description=)$/.test(arg)))).toBe(true)
 })
 
 test('confirmation fails after request, input, credential revision or policy changes', async () => {
