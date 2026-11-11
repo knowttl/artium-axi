@@ -261,10 +261,12 @@ With JavaScript, the editor reports whether the input is a valid JSON object as 
 Each save records an `admin-change` audit event; changes to Kubernetes session grants or Shodan scan, stream, write and export grants include a field-level list shown as **Settings changes** in the audit record details; see [the audit screen](#audit-screen-and-api).
 Per-person grants stay per person.
 On the **Access** tab of Kubernetes and Shodan, each grant policy lists the people granted operations.
-Choose **Grant a person** to pick an active person and the operations to allow, or **Edit** to change one person's operations; clearing every operation removes the person.
+Choose **Grant a person** to pick an enabled, unarchived person and the operations to allow, or **Edit** to change one person's operations; clearing every operation removes the person, including disabled or departed people.
 A save replaces only that person's grants, keeps ceilings and other settings, and records an `update-tool-user-grants` audit event with the same **Settings changes** list.
 Kubernetes session grants need no ceilings.
 A Shodan policy must have its ceilings saved in **Advanced** before people can be granted here.
+The **Advanced** editor shows policy settings without per-person grants, which are managed on **Access**.
+Omitting a policy in **Advanced** turns it off and removes its grants, with the removal recorded in **Settings changes**.
 See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for automatic checks after configuration changes, pending status, recovery retries and concurrency limits.
 Use **Test connection** on an instance, or **Test** in its row, for a current fixed read before enabling a configured tool; it asks for no confirmation dialog but still needs recent identity confirmation.
 For failed tests, follow the [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) and the [error reference](errors.md).

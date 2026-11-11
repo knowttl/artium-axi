@@ -358,7 +358,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       authorize(request)
       const current = readTool(tool)
       if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
-      if (operations.length && !db.prepare('SELECT 1 FROM users WHERE id = ? AND archived_at IS NULL').get(input.userId)) {
+      if (operations.length && !db.prepare('SELECT 1 FROM users WHERE id = ? AND archived_at IS NULL AND disabled = 0').get(input.userId)) {
         throw new ArtiumError('INVALID_INPUT', 'Choose an active person.')
       }
       const saved = current.nativeSettings[input.policy] as { grants: Record<string, string[]> } | undefined ?? { grants: {} }
@@ -431,7 +431,6 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const actor = authorize(request)
     const tool = toolName(request)
     const input = parse(adminToolRoutes.patch.input, request.body)
-    const settings = input.nativeSettings === undefined ? undefined : parse(nativeSettingsSchemas[tool], input.nativeSettings)
     if (input.enabled && !adapters.some(adapter => adapter.name === tool)) throw new ArtiumError('TOOL_DISABLED')
     let replacements: CredentialReference[] = []
     const event: Extract<AuditEvent, { event: 'admin-change' }> = { event: 'admin-change', action: adminToolRoutes.patch.auditEvent, targetId: tool,
@@ -441,6 +440,15 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       authorize(request)
       const current = readTool(tool)
       if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      const submitted = input.nativeSettings === undefined ? undefined : { ...input.nativeSettings }
+      if (submitted) for (const key of Object.keys(userGrantPolicies[tool] ?? {})) {
+        const policy = submitted[key]
+        if (policy === null || typeof policy !== 'object' || Array.isArray(policy)) continue
+        if (Object.hasOwn(policy, 'grants')) throw new ArtiumError('INVALID_INPUT', 'Per-person grants cannot be edited here.', 'Use the Access tab to manage per-person grants.')
+        const saved = current.nativeSettings[key] as { grants: unknown } | undefined
+        submitted[key] = { ...policy, grants: saved?.grants ?? {} }
+      }
+      const settings = submitted === undefined ? undefined : parse(nativeSettingsSchemas[tool], submitted)
       const now = Date.now()
       if (settings !== undefined) {
         event.settingsChanges = settingsChanges(tool, current.nativeSettings, settings)

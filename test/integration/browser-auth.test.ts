@@ -207,6 +207,33 @@ test('tool Access holds back Shodan grants until the policy ceilings are saved',
   expect(after).not.toContain('id="sheet-grants-sessions-add"')
 })
 
+test('Advanced hides per-person grants and preserves policy settings', async () => {
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'kubernetes-axi'")
+    .run(JSON.stringify({ sessions: { grants: { 'synthetic-second': ['exec'] } } }))
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'shodan-axi'")
+    .run(JSON.stringify({ scans: { grants: { 'synthetic-second': ['OP-009'] }, maxScanCredits: 10, maxRequests: 5 } }))
+  await signIn()
+  const kubernetes = (await request('GET', '/admin/tools/kubernetes-axi?tab=advanced')).body
+  const shodan = (await request('GET', '/admin/tools/shodan-axi?tab=advanced')).body
+  for (const page of [kubernetes, shodan]) {
+    const textarea = /<textarea name="nativeSettings"[^>]*>(.*?)<\/textarea>/s.exec(page)![1]!
+    expect(textarea).not.toContain('grants')
+    expect(page).toContain('Per-person grants are managed with the picker on the Access tab.')
+    expect(page).toContain('Omitting a policy turns it off and removes its grants.')
+  }
+  expect(kubernetes).toContain('&quot;sessions&quot;: {}')
+  expect(shodan).toContain('&quot;maxScanCredits&quot;: 10')
+})
+
+test('tool Access excludes disabled people from the add picker', async () => {
+  db.prepare('UPDATE users SET disabled = 1 WHERE id = ?').run('synthetic-second')
+  await signIn()
+  const page = (await request('GET', '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-add')).body
+  const picker = /<select [^>]*name="userId"[^>]*>(.*?)<\/select>/s.exec(page)![1]!
+  expect(picker).toContain(`value="${userId}"`)
+  expect(picker).not.toContain('synthetic-second')
+})
+
 test('a person grant saved from the Access sheet reaches the tool settings', async () => {
   await signIn()
   const csrf = await token('/admin/tools/kubernetes-axi?tab=access')

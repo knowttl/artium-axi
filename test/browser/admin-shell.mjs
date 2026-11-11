@@ -1192,7 +1192,7 @@ test('Kubernetes mutation workflows default off and require the administrator sw
     }), 'Master switch enabled bulk deletion');
     check(await page.eval(() => document.querySelector('main').innerText.includes('server-dry-run')), 'Native workflow settings guidance missing');
     await page.fill('[name=nativeSettings]', JSON.stringify({ allowWrites: true, acquireCredential: true, sessions: {
-      grants: { 'synthetic-development-user': ['exec', 'logs', 'port-forward'] }, lifetimeSeconds: 300, outputBytes: 65536,
+      lifetimeSeconds: 300, outputBytes: 65536,
     } }));
     await page.click('form:has([name=nativeSettings]) button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
@@ -1202,9 +1202,19 @@ test('Kubernetes mutation workflows default off and require the administrator sw
     check(await page.eval(() => {
       const settings = JSON.parse(document.querySelector('[name=nativeSettings]').value);
       return settings.allowWrites === true && settings.collectionDelete !== true && settings.acquireCredential === true
-        && JSON.stringify(settings.sessions.grants['synthetic-development-user']) === JSON.stringify(['exec', 'logs', 'port-forward'])
+        && !('grants' in settings.sessions)
         && settings.sessions.lifetimeSeconds === 300 && settings.sessions.outputBytes === 65536;
-    }), 'Explicit session grants or limits did not persist');
+    }), 'Session limits did not persist');
+    await page.open(base + '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-add');
+    await page.wait('#sheet-grants-sessions-add[open]');
+    await page.eval(() => { document.querySelector('#sheet-grants-sessions-add [name=userId]').value = 'synthetic-development-user'; });
+    await page.click('#sheet-grants-sessions-add [name=operations][value=exec]');
+    await page.click('#sheet-grants-sessions-add [name=operations][value=logs]');
+    await page.click('#sheet-grants-sessions-add [name=operations][value=port-forward]');
+    await page.click('#sheet-grants-sessions-add form button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('a[href*="grants-sessions-synthetic-development-user"]');
+    check(await page.eval(() => document.querySelector('main').innerText.includes('logs, exec, port-forward')), 'Session grants did not persist');
   `)
 })
 
