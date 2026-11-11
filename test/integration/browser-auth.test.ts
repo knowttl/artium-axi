@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { browserCookie } from '../../src/server/auth/browser.js'
@@ -219,6 +220,27 @@ test('tool Access retains outside operations and identifies Shodan grants', asyn
   expect(page).toContain('<input type="checkbox" name="operations" value="OP-010" checked>')
   expect(page).toContain('stream (OP-047), stream (OP-048)')
   expect(page).toContain('alert ignore (OP-021), alert ignore (OP-070)')
+})
+
+test('tool Access shows each saved outside operation once', async () => {
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'shodan-axi'").run(JSON.stringify({
+    scans: { grants: { 'synthetic-second': [...Array(32).fill('OP-010'), 'OP-009'] }, maxScanCredits: 10, maxRequests: 10 },
+  }))
+  await signIn()
+  const response = await request('GET', '/admin/tools/shodan-axi?tab=access&sheet=grants-scans-synthetic-second')
+  expect(response.statusCode).toBe(200)
+  const nodes = (node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['element'][] => [
+    ...('tagName' in node ? [node] : []), ...('childNodes' in node ? node.childNodes.flatMap(nodes) : []),
+  ]
+  const sheet = nodes(parse(response.body)).find(node => node.attrs.some(attr =>
+    attr.name === 'id' && attr.value === 'sheet-grants-scans-synthetic-second'))!
+  const inputs = nodes(sheet).filter(node => node.tagName === 'input' &&
+    node.attrs.some(attr => attr.name === 'name' && attr.value === 'operations') &&
+    node.attrs.some(attr => attr.name === 'type' && attr.value === 'checkbox'))
+  expect(inputs.filter(node => node.attrs.some(attr => attr.name === 'value' && attr.value === 'OP-010')))
+    .toMatchObject([{ attrs: expect.arrayContaining([{ name: 'checked', value: '' }]) }])
+  expect(inputs.filter(node => node.attrs.some(attr => attr.name === 'value' && attr.value === 'OP-009')))
+    .toHaveLength(1)
 })
 
 test('Advanced hides per-person grants and preserves policy settings', async () => {

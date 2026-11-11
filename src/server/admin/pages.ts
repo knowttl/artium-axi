@@ -221,7 +221,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
         const grants = Object.entries(saved?.grants ?? {}).sort(([left], [right]) => left.localeCompare(right))
         const granted = new Set(grants.map(([id]) => id))
         const grantSheet = (name: string, title: string, userId: string | undefined, selected: readonly string[]) => {
-          const outside = selected.filter(operation => !catalogue.has(operation))
+          const outside = [...new Set(selected)].filter(operation => !catalogue.has(operation))
           const who = userId === undefined
             ? field(`${name}-user`, 'Person', attributes => `<select ${attributes} name="userId" required>${people.filter(person => !granted.has(person.id)).map(person =>
               `<option value="${escape(person.id)}">${escape(person.username)}${person.displayName === person.username ? '' : ` (${escape(person.displayName)})`}</option>`).join('')}</select>`)
