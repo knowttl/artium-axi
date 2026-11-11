@@ -460,7 +460,10 @@ A compatible published upstream release is required before these operations can 
 Repository creation requires an explicit `OWNER/NAME`; unqualified and host-qualified names are refused.
 Repository visibility changes are unavailable.
 PR merge uses `--method merge|squash|rebase`; release create/edit uses `--notes` for inline release notes.
-Every project write requires `--owner OWNER` so recovery checks inspect the intended user's or organization's projects.
+Every project write requires `--owner OWNER`, or `--source-owner` and `--target-owner` for `project copy`, so recovery checks inspect the intended user's or organization's projects.
+Project visibility changes are unavailable.
+`pr close` and `pr reopen` are collaboration operations; `issue unpin`, `project create|edit|close|copy` and `release upload` are repository operations.
+`issue subissue add|remove` accept numeric issue numbers within one repository.
 For `project item-edit`, Artium uses this owner for confirmation and recovery; the mutation itself selects the item by ID.
 
 Artium owns write preview and confirmation because upstream gh-axi has neither.
@@ -471,6 +474,9 @@ For example, preview `artium-axi gh-axi issue comment 42 -R OWNER/NAME --body "R
 Keep the command before its flags.
 PR creation requires explicit title, body, base and head branches; local git sources remain unavailable.
 Release creation accepts no asset paths.
+`release upload TAG FILE...` reads each file on the client and sends it with the request, so it never reads server paths.
+It accepts at most 8 distinct files, 1 MiB each and 4 MiB in total, rejects `#` labels and never replaces an existing asset.
+Repeat the same files when confirming; their contents are part of the confirmation.
 Gist creation requires `--public` or `--secret`, a `--filename` and piped content; a secret gist is unlisted, not private.
 Gist edits accept inline descriptions or piped replacement content with `--filename`; local paths and file removal stay blocked.
 Workflow `--field name=value` supports literal values; `@file` values are refused.

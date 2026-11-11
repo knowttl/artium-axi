@@ -37,7 +37,9 @@ if (process.env.ARTIUM_TEST_GH_WRITES === '1') {
     console.log(JSON.stringify(args[1].endsWith('/123') ? workflows[50] : { workflows }))
   }
   else if (args[0] === 'api' && args[1] === 'graphql') console.log(JSON.stringify({ data: {
-    repository: { discussion: { id: 'synthetic-discussion' }, pullRequest: { state: 'MERGED' } },
+    repository: { discussion: { id: 'synthetic-discussion' }, pullRequest: { state: 'MERGED' },
+      ...Object.fromEntries(['parent', 'c0', 'c1', 'c2'].map(alias => [alias, { id: `synthetic-${alias}`, number: 1 }])) },
+    addSubIssue: { subIssue: { number: 2 } }, removeSubIssue: { issue: { number: 1 } },
     addDiscussionComment: { comment: { id: 'synthetic-comment', url: 'https://github.example/canary/repo/discussions/1#comment' } },
     node: { state: 'MERGED', mergeStateStatus: 'CLEAN' },
   } }))

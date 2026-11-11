@@ -8,6 +8,7 @@ import inventory from '../../../tools/inventories/gh-axi.json' with { type: 'jso
 import { nativeSettingsSchemas } from '../../shared/api.js'
 import { createGhAdapter, ghWritePolicy } from './gh.js'
 import { prepareRunJournal } from './run-journal.js'
+import { writeInput } from '../runner/input.js'
 import { redactArguments } from '../audit/redact.js'
 import { GithubAppTokenCache } from './github-app-tokens.js'
 import { hostedStatus } from './hosted-status.js'
@@ -41,6 +42,12 @@ const samples = [
   ['gist edit', ['abc123'], ['--filename=synthetic.txt']], ['gist rename', ['abc123', 'old.txt', 'new.txt'], []],
   ['variable set', ['SYNTHETIC'], ['--body=content']],
   ['issue pin', ['1'], []], ['issue transfer', ['1'], ['--to-repo=canary/destination']],
+  ['pr close', ['1'], ['--comment=synthetic']], ['pr reopen', ['1'], []], ['issue unpin', ['1'], []],
+  ['issue subissue add', ['1', '2', '3'], []], ['issue subissue remove', ['1', '2'], []],
+  ['project create', [], ['--owner=canary', '--title=synthetic']],
+  ['project edit', ['1'], ['--owner=canary', '--title=synthetic', '--description=synthetic', '--readme=line one\nline two']],
+  ['project close', ['1'], ['--owner=canary', '--undo']],
+  ['project copy', ['1'], ['--source-owner=canary', '--target-owner=canary-copy', '--title=synthetic', '--drafts']],
 ] satisfies [string, string[], string[]][]
 
 test.each(samples)('%s requires its exact admin operation and host confirmation', async (operation, rest, flags) => {
@@ -87,8 +94,7 @@ function executeWrite(call: PreparedCall, input?: { stdin?: string }, environmen
   } finally { rmSync(directory, { recursive: true, force: true }) }
 }
 
-async function confirmed(args: string[]) {
-  const operation = args.slice(0, 2).join(' ')
+async function confirmed(args: string[], operation = args.slice(0, 2).join(' ')) {
   const adapter = createGhAdapter({ getCredential: async () => credential,
     getSettings: () => ({ writes: { allowWrites: true, operations: [operation] } }) })
   const confirm = (await adapter.prepare(args, reference)).preview!.confirm
@@ -99,6 +105,68 @@ test('transfer acknowledges completion without returning the destination issue a
   const call = await confirmed(['issue', 'transfer', '42', '-R', 'canary/repo', '--to-repo=canary/destination'])
   const { result } = executeWrite(call)
   expect(decode(result.stdout)).toEqual({ status: 'transferred', checkArgs: ['issue', 'list', '--state', 'all', '--limit', '100', '-R', 'canary/destination'] })
+})
+
+test.each([
+  ['project copy', ['project', 'copy', '1', '--source-owner=canary', '--target-owner=canary-copy', '--title=synthetic'],
+    ['project', 'list', '--owner', 'canary-copy', '--limit', '100']],
+  ['project close', ['project', 'close', '1', '--owner=canary'], ['project', 'view', '1', '--owner', 'canary']],
+  ['project create', ['project', 'create', '--owner=canary', '--title=synthetic'], ['project', 'list', '--owner', 'canary', '--limit', '100']],
+  ['issue subissue add', ['issue', 'subissue', 'add', '1', '2', '-R', 'canary/repo'], ['issue', 'subissue', 'list', '1', '-R', 'canary/repo']],
+  ['issue subissue remove', ['issue', 'subissue', 'remove', '1', '2', '-R', 'canary/repo'], ['issue', 'subissue', 'list', '1', '-R', 'canary/repo']],
+  ['pr close', ['pr', 'close', '1', '-R', 'canary/repo'], ['pr', 'view', '1', '--comments', '-R', 'canary/repo']],
+])('%s recovers through the affected resource', async (operation, args, checkArgs) => {
+  const call = await confirmed(args, operation)
+  expect(call.write?.checkArgs).toEqual(checkArgs)
+  expect((await createGhAdapter({ getCredential: async () => credential }).prepare(checkArgs, reference)).effect).toBe('read')
+})
+
+test.each([
+  ['project copy', ['project', 'copy', '1', '--source-owner=canary', '--title=synthetic'], 'INVALID_INPUT'],
+  ['project copy', ['project', 'copy', '1', '--source-owner=@me', '--target-owner=canary', '--title=synthetic'], 'INVALID_INPUT'],
+  ['project edit', ['project', 'edit', '1', '--owner=canary', '--visibility=PUBLIC'], 'INVALID_INPUT'],
+  ['issue subissue add', ['issue', 'subissue', 'add', '1', '-R', 'canary/repo'], 'INVALID_INPUT'],
+  ['issue subissue add', ['issue', 'subissue', 'add', '1', 'canary/repo#2', '-R', 'canary/repo'], 'INVALID_INPUT'],
+  ['issue subissue remove', ['issue', 'subissue', 'remove', '1', '2', '3', '-R', 'canary/repo'], 'INVALID_INPUT'],
+  ['pr close', ['pr', 'close', '1', '-R', 'canary/repo', '--delete-branch'], 'FLAG_BLOCKED'],
+  ['release upload', ['release', 'upload', 'v1', '-R', 'canary/repo'], 'INVALID_INPUT'],
+] satisfies [string, string[], string][])('%s refuses %j', async (operation, args, code) => {
+  const adapter = createGhAdapter({ getCredential: async () => credential,
+    getSettings: () => ({ writes: { allowWrites: true, operations: [operation] } }) })
+  await expect(adapter.prepare(args, reference)).rejects.toMatchObject({ code })
+})
+
+test('release upload binds client files to confirmation and hands the runner staged names', async () => {
+  const file = { name: 'checksums.txt', size: 3, contentBase64: Buffer.from('one').toString('base64') }
+  const args = ['release', 'upload', 'v1', file.name, '-R', 'canary/repo']
+  const adapter = createGhAdapter({ getCredential: async () => credential,
+    getSettings: () => ({ writes: { allowWrites: true, operations: ['release upload'] } }) })
+  const confirm = (await adapter.prepare(args, reference, { files: [file] })).preview!.confirm
+  const changed = { ...file, contentBase64: Buffer.from('two').toString('base64') }
+  await expect(adapter.prepare([...args, '--confirm', confirm], reference, { files: [changed] })).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+  const call = await adapter.prepare([...args, '--confirm', confirm], reference, { files: [file] })
+  expect(call.fileArguments).toEqual([3])
+  expect(call.args.slice(0, 4)).toEqual(['release', 'upload', 'v1', file.name])
+  const directory = mkdtempSync(join(tmpdir(), 'artium-gh-upload-'))
+  try {
+    const resolved = await writeInput(directory, call.args, { files: [file], fileArguments: call.fileArguments })
+    const { calls } = executeWrite({ ...call, args: resolved })
+    expect(calls).toEqual([['release', 'upload', 'v1', join(directory, 'inputs', file.name), '--repo', 'canary/repo']])
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+})
+
+test.each([
+  ['no files', ['release', 'upload', 'v1', 'a.txt', '-R', 'canary/repo'], []],
+  ['an unreferenced file', ['release', 'upload', 'v1', 'a.txt', '-R', 'canary/repo'], ['a.txt', 'b.txt']],
+  ['a repeated name', ['release', 'upload', 'v1', 'a.txt', 'a.txt', '-R', 'canary/repo'], ['a.txt']],
+  ['a label suffix', ['release', 'upload', 'v1', 'a.txt#label', '-R', 'canary/repo'], ['a.txt#label']],
+  ['help with a file', ['release', 'upload', '--help'], ['a.txt']],
+  ['another command', ['issue', 'comment', '1', '-R', 'canary/repo', '--body=x'], ['a.txt']],
+])('release upload refuses %s', async (_, args, names) => {
+  const files = names.map(name => ({ name, size: 1, contentBase64: 'eA==' }))
+  const adapter = createGhAdapter({ getCredential: async () => credential,
+    getSettings: () => ({ writes: { allowWrites: true, operations: ['release upload', 'issue comment'] } }) })
+  await expect(adapter.prepare(args, reference, { files })).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
 })
 
 test('issue comments return the created identity without reading a later participant comment', async () => {

@@ -57,9 +57,13 @@ write('issue edit', 'collaboration', 'title body add-label remove-label add-assi
 write('issue comment', 'collaboration', 'body')
 write('issue close', 'collaboration', 'reason duplicate-of comment')
 write('issue reopen', 'collaboration')
+write('issue subissue add', 'collaboration', '', '', 'variadic')
+write('issue subissue remove', 'collaboration', '', '', 2)
 write('pr create', 'collaboration', 'title body base head assignee reviewer label milestone project', 'draft', 0)
 write('pr edit', 'collaboration', 'title body add-label remove-label add-assignee remove-assignee add-reviewer remove-reviewer milestone base')
 write('pr comment', 'collaboration', 'body')
+write('pr close', 'collaboration', 'comment')
+write('pr reopen', 'collaboration')
 write('pr ready', 'collaboration', '', 'undo')
 write('pr review', 'collaboration', 'body match-head-commit', 'approve request-changes comment')
 write('discussion comment', 'collaboration', 'body')
@@ -87,10 +91,22 @@ write('gist edit', 'repository', 'desc filename', '', 1, false)
 write('gist rename', 'repository', '', '', 3, false)
 write('variable set', 'repository', 'body')
 write('issue pin', 'repository')
+write('issue unpin', 'repository')
 write('issue transfer', 'repository', 'to-repo')
+write('project create', 'repository', 'owner title', '', 0, false)
+write('project edit', 'repository', 'owner title description readme', '', 1, false)
+write('project close', 'repository', 'owner', 'undo', 1, false)
+write('project copy', 'repository', 'source-owner target-owner title', 'drafts', 1, false)
+write('release upload', 'repository', '', '', 'variadic')
 for (const command of commands.filter(route => ['release create', 'release edit'].includes(route.command))) {
   for (const flag of command.command === 'release edit' ? ['draft', 'prerelease', 'latest'] : ['latest']) command.flags[flag] = 'boolean-value'
 }
+const upstreamCommands = ['pr', 'issue', 'project', 'release', 'secret', 'variable', 'run', 'gist', 'discussion', 'label', 'repo', 'workflow'].flatMap(group => {
+  const help = readFileSync(new URL(`dist/src/commands/${group}.js`, packageRoot), 'utf8')
+  const [main, subissue = []] = [...help.matchAll(/^subcommands\[\d+\]:\n {2}(.+)$/gm)].map(match => match[1].split(', ').map(item => item.split(' ')[0]))
+  return [...main.filter(name => !subissue.length || name !== 'subissue').map(name => `${group} ${name}`),
+    ...subissue.map(name => `${group} subissue ${name}`)]
+})
 const digest = path => createHash('sha256').update(readFileSync(path)).digest('hex')
 function sources(directory, prefix) {
   return readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)).flatMap(entry => {
@@ -110,12 +126,14 @@ const data = { generatedBy: 'scripts/gh-inventory.mjs', tool: 'gh-axi', ...pin,
   gh: JSON.parse(readFileSync(new URL('gh-source.json', root))),
   sources: [...sources(new URL('dist/', packageRoot), 'dist/'), ...sources(new URL('dist/', sdk), 'axi-sdk-js/dist/')],
   adapterBoundary: { unsafeOverrides: ['hostname', 'watch', 'attach', 'body-file', 'notes-file', 'input', 'file', 'add', 'raw-field', 'header', 'admin', 'delete-branch', 'source', 'push', 'clone', 'remote'],
-    blockedCommands: ['home', 'update', 'setup', 'stack', 'issue lock', 'issue unlock', 'project delete', 'pr checkout', 'repo clone', 'gist clone', 'run watch', 'run download', 'release download'],
+    blockedCommands: ['home', 'update', 'setup', 'stack', 'issue lock', 'issue unlock', 'issue delete', 'project delete', 'project field-create', 'project field-delete', 'project item-delete',
+      'pr checkout', 'repo clone', 'gist clone', 'gist delete', 'run watch', 'run download', 'run delete', 'release download', 'release delete', 'label delete',
+      'variable delete', 'secret set', 'secret delete'],
     nativeWrites: 'host-classified; exact operations, preview and confirmation', inputs: { stdin: 'gist create/edit with filename only', files: 'unsupported' } },
   discovery: { commands: [...new Set(commands.map(route => route.command.split(' ')[0]))],
     example: ['repo', 'list', '--limit', '1'],
     help: 'gh-axi repo list [<owner>] [--limit <n>]\nManaged GitHub API access. Use -R OWNER/NAME for repository commands. Writes require an administrator-enabled exact operation, host preview and --confirm. api accepts [GET] <relative-path>; GraphQL and other methods are refused. Stdin only for gist create/edit with --filename; no files.\n' },
-  suggestionFields: ['help'], format: 'TOON', commands }
+  suggestionFields: ['help'], format: 'TOON', upstreamCommands, commands }
 const destination = new URL('inventories/gh-axi.json', root)
 const contents = JSON.stringify(data, null, 2) + '\n'
 if (process.argv.includes('--write')) writeFileSync(destination, contents)

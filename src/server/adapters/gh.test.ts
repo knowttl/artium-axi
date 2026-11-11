@@ -22,6 +22,14 @@ test.each(inventory.commands)('permits the reviewed $command help route', async 
   expect((await adapter.prepare(args, reference)).effect).toBe('read')
 })
 
+test('every upstream subcommand is either admitted or deliberately blocked', () => {
+  const admitted = new Set(inventory.commands.map(route => route.command))
+  const blocked = inventory.adapterBoundary.blockedCommands
+  const isBlocked = (command: string) => blocked.some(prefix => command === prefix || command.startsWith(prefix + ' '))
+  expect(inventory.upstreamCommands.filter(command => !admitted.has(command) && !isBlocked(command))).toEqual([])
+  expect(inventory.upstreamCommands.filter(command => admitted.has(command) && isBlocked(command))).toEqual([])
+})
+
 test.each([
   ['issue', 'create'], ['issue', 'delete', '1'], ['issue', 'subissue', 'add', '1', '2'],
   ['project', 'delete', '1', '--owner', 'canary'],

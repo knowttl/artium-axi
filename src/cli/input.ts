@@ -8,7 +8,7 @@ import gitea from '../../tools/inventories/gitea-axi.json' with { type: 'json' }
 import { inputLimits, runRequestSchema } from '../shared/api.js'
 import type { RunInput } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
-import { inputFileFlags, normalizeGiteaFileArguments, validateFileInput } from '../shared/file-input.js'
+import { ghReleaseUploadFileIndexes, inputFileFlags, normalizeGiteaFileArguments, validateFileInput } from '../shared/file-input.js'
 import { technitiumToolInput } from './technitium-input.js'
 
 async function readBounded(stream: Readable, limit: number, stdinAlternative?: string): Promise<Buffer> {
@@ -46,6 +46,20 @@ export async function toolInput(tool: string, original: string[]) {
     input.stdin = (await readBounded(process.stdin, 65536, '--protected-input with closed stdin')).toString('utf8')
   }
   let totalFileBytes = 0
+  async function stageFile(path: string, name: string, limit: number) {
+    if (input.files?.some(file => file.name === name)) throw new ArtiumError('INVALID_INPUT', 'Upload file names must be distinct.')
+    if ((input.files?.length ?? 0) >= inputLimits.files) throw new ArtiumError('INVALID_INPUT', 'Too many upload files.')
+    const content = await readBounded(createReadStream(path), limit)
+    totalFileBytes += content.length
+    if (totalFileBytes > inputLimits.totalFileBytes) throw new ArtiumError('INVALID_INPUT', 'Uploads exceed the total byte limit.')
+    input.files ??= []
+    input.files.push({ name, size: content.length, contentBase64: content.toString('base64') })
+  }
+  if (tool === 'gh-axi') for (const index of ghReleaseUploadFileIndexes(args)) {
+    const name = basename(args[index])
+    await stageFile(args[index], name, inputLimits.fileBytes)
+    args[index] = name
+  }
   if (tool === 'gh-axi' && ['gist create', 'gist edit'].includes(args.slice(0, 2).join(' '))
     && args.some(arg => arg === '--filename' || arg.startsWith('--filename='))
     && !args.some(arg => ['--help', '-h'].includes(arg))) {
@@ -99,13 +113,7 @@ export async function toolInput(tool: string, original: string[]) {
       if (!path || path === '-') throw new ArtiumError('UNSUPPORTED_INPUT', 'A file flag requires a local file path.')
       if (mgUpload && (path.split(/[\\/]/).includes('..') || input.files?.length)) throw new ArtiumError('INVALID_INPUT')
       const name = mgUpload ? hunting ? 'query.kql' : 'rule.json' : basename(path)
-      if (input.files?.some(file => file.name === name)) throw new ArtiumError('INVALID_INPUT', 'Upload file names must be distinct.')
-      if ((input.files?.length ?? 0) >= inputLimits.files) throw new ArtiumError('INVALID_INPUT', 'Too many upload files.')
-      const content = await readBounded(createReadStream(path), mgUpload ? 65536 : inputLimits.fileBytes)
-      totalFileBytes += content.length
-      if (totalFileBytes > inputLimits.totalFileBytes) throw new ArtiumError('INVALID_INPUT', 'Uploads exceed the total byte limit.')
-      input.files ??= []
-      input.files.push({ name, size: content.length, contentBase64: content.toString('base64') })
+      await stageFile(path, name, mgUpload ? 65536 : inputLimits.fileBytes)
       args[index] = equals < 0 ? name : `${flag}=${name}`
     }
     let leading = 0
