@@ -694,7 +694,7 @@ A user may hold two export jobs and the server eight; a user may also hold eight
 A pending preview holds a private directory until its confirmation is used or expires after fifteen minutes.
 An incomplete export stays retrievable and is reported as `partial`; a failed export keeps no file.
 Retrieval deletes the file whether or not the transfer finishes, so start a fresh preview and confirmation after an interrupted transfer.
-The `artium-axi shodan-axi download` and `alert download` commands retrieve once; a save that fails verification or a path check after retrieval leaves nothing at the destination and needs a fresh export.
+The `artium-axi shodan-axi download` and `alert download` commands retrieve once; a save that fails verification or a path check after retrieval does not create or replace the destination and needs a fresh export.
 Shutdown or relevant authorization changes delete pending previews and retained files; restart removes abandoned `export-*` directories without restoring them.
 For `TOO_MANY_CALLS`, retrieve or wait out earlier exports, or wait for pending previews to expire.
 

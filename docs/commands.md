@@ -279,7 +279,7 @@ For stream session access and quotas, ask an administrator to configure the [Sho
 For example, `artium-axi shodan-axi stream session preview --operation OP-047 --selector --asn --value AS64496 --limit 10 --max-bytes 4096 --timeout 10000 --idle-timeout 5000 --accept-unknown-cost --json` validates a native plan without starting a stream.
 Use `artium-axi shodan-axi stream session preview --help` for the full set of bounds.
 When more than one instance is available, put `--instance <name>` before `shodan-axi` on `stream session preview`, the `scan submit` preview and the `download` or `alert download` preview.
-The session or collection stays bound to the previewed instance; if `--instance` is supplied on `start` or scan execution, it must match the preview.
+The session, collection or export stays bound to the previewed instance; if `--instance` is supplied on execution, it must match the preview.
 Later stream session `status`, `read`, `extend` and `stop` use the session ID without `--instance`.
 The required `--accept-unknown-cost` acknowledges that cost cannot be determined; the response reports the selected operation, selector, bounds and effective limits with `status: preview` and `cost: unknown`.
 Optional `--events`, `--bytes`, `--retention` and `--lease` values may lower administrator ceilings; retention and lease values are in seconds, while timeout values are in milliseconds.
@@ -330,7 +330,7 @@ Saving requires Linux and a new normalized absolute path in an existing director
 The `--output` path must not exist and is checked before the preview or any credits are spent.
 An incomplete export replaces an existing regular file at the `.partial` path; symlinks and other entries there are refused.
 The file has mode 0600, and the `--output` path is never overwritten.
-The CLI saves only after the downloaded size and SHA-256 match the server's job result and response headers; otherwise it exits 1 and leaves nothing at the destination.
+The CLI saves only after the downloaded size and SHA-256 match the server's job result and response headers; otherwise it exits 1 without creating or replacing the destination.
 The server releases the export after a single retrieval, so a failed save needs a new preview, confirmation and credit spend.
 A failed export returns `TOOL_FAILED`; see [export retention and recovery](runbook.md#retention-and-export).
 Use `artium-axi shodan-axi download --help` or `alert download --help` for local help without contacting the server.
