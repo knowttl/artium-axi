@@ -28,6 +28,7 @@ import { kubernetesProfile, kubernetesWritePolicy } from '../adapters/kubernetes
 import { sshWritePolicy } from '../adapters/ssh.js'
 import { exchangeAwxPassword, awxPasswordRequested } from '../adapters/awx-login.js'
 import { toolManifests } from '../../shared/tool-manifests.js'
+import { userGrantPolicies } from '../../shared/user-grants.js'
 import { rawApiModes } from '../policy/policy.js'
 import type { Adapter } from '../adapters/types.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
@@ -214,6 +215,16 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     return { credential: Object.fromEntries(Object.entries(value).filter(([key]) => !keys.includes(key))),
       settings: Object.fromEntries(Object.entries(value).filter(([key]) => keys.includes(key))) }
   }
+  function preserveUserGrants(tool: ToolName, submitted: Record<string, unknown>, current: Record<string, unknown>) {
+    const result = { ...submitted }
+    for (const key of Object.keys(userGrantPolicies[tool] ?? {})) {
+      const policy = result[key]
+      if (policy === null || typeof policy !== 'object' || Array.isArray(policy)) continue
+      const saved = current[key] as { grants: unknown } | undefined
+      result[key] = { ...policy, grants: saved?.grants ?? {} }
+    }
+    return result
+  }
   function invalidate(reference: CredentialReference | undefined): void {
     if (reference) for (const adapter of adapters) if (adapter.name === reference.tool) adapter.invalidateCredential?.(reference)
   }
@@ -240,8 +251,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       requestId: request.id, clientAddress: request.ip }]
   }
   function settingsChanges(tool: ToolName, before: Record<string, unknown>, after: Record<string, unknown>) {
-    const keys = tool === 'kubernetes-axi' ? ['sessions'] : tool === 'shodan-axi' ? ['scans', 'sessions'] : []
-    return keys.flatMap(key => diffSettings((before[key] as { grants?: unknown } | undefined)?.grants,
+    return Object.keys(userGrantPolicies[tool] ?? {}).flatMap(key => diffSettings((before[key] as { grants?: unknown } | undefined)?.grants,
       (after[key] as { grants?: unknown } | undefined)?.grants, [key, 'grants']))
   }
   const githubDevice = new GithubDeviceFlow()
@@ -341,6 +351,52 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     if (replacements.length) await health.refresh(tool, true)
     return replacements.length ? readTool(tool) : result
   } })
+  app.route({ method: adminToolRoutes.userGrants.method, url: adminToolRoutes.userGrants.path, handler: async request => {
+    const actor = authorize(request)
+    const tool = toolName(request)
+    const input = parse(adminToolRoutes.userGrants.input, request.body)
+    const policy = userGrantPolicies[tool]?.[input.policy]
+    if (!policy) throw new ArtiumError('INVALID_INPUT', `${tool} has no per-person ${input.policy} grants.`)
+    const catalogue = policy.operations.map(operation => operation.id)
+    let replacements: CredentialReference[] = []
+    const event: Extract<AuditEvent, { event: 'admin-change' }> = { event: 'admin-change', action: adminToolRoutes.userGrants.auditEvent, targetId: tool,
+      userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }
+    const events: AuditEvent[] = []
+    const result = audit.change(events, () => {
+      authorize(request)
+      const current = readTool(tool)
+      if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      const saved = current.nativeSettings[input.policy] as { grants: Record<string, string[]> } | undefined ?? { grants: {} }
+      const previous = [...new Set(saved.grants[input.userId] ?? [])]
+      const added = input.operations.filter(operation => !previous.includes(operation))
+      if (added.some(operation => !catalogue.includes(operation))) throw new ArtiumError('INVALID_INPUT',
+        `Unknown ${input.policy} operation for ${tool}.`, `Choose from: ${catalogue.join(', ')}.`)
+      const operations = [...new Set([...previous.filter(operation => input.operations.includes(operation)), ...catalogue.filter(operation => added.includes(operation))])]
+      if (added.length &&
+        !db.prepare('SELECT 1 FROM users WHERE id = ? AND archived_at IS NULL AND disabled = 0').get(input.userId)) {
+        throw new ArtiumError('INVALID_INPUT', 'Choose an active person.')
+      }
+      if (!added.length && operations.length === previous.length && operations.every(operation => previous.includes(operation)) &&
+        (operations.length > 0 || !Object.hasOwn(saved.grants, input.userId))) return current
+      const { [input.userId]: _, ...others } = saved.grants
+      const changed = nativeSettingsSchemas[tool].safeParse({ ...current.nativeSettings,
+        [input.policy]: { ...saved, grants: { ...others, ...(operations.length ? { [input.userId]: operations } : {}) } } })
+      if (!changed.success) throw new ArtiumError('INVALID_INPUT', `Set the ${input.policy} ceilings before granting people.`,
+        'Save the ceilings in Advanced native settings, then grant people here.')
+      const settings = changed.data as Record<string, unknown>
+      event.settingsChanges = settingsChanges(tool, current.nativeSettings, settings)
+      events.push(event)
+      const now = Date.now()
+      replacements = bumpInstances(tool, actor, now, settings)
+      db.prepare('UPDATE tools SET native_settings = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?')
+        .run(JSON.stringify(settings), now, actor, tool)
+      db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
+      return readTool(tool)
+    }).value
+    replacements.forEach(invalidate)
+    if (replacements.length) await health.refresh(tool, true)
+    return replacements.length ? readTool(tool) : result
+  } })
   app.route({ method: adminToolRoutes.rawApi.method, url: adminToolRoutes.rawApi.path, handler: async request => {
     const actor = authorize(request)
     const tool = toolName(request)
@@ -392,7 +448,6 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const actor = authorize(request)
     const tool = toolName(request)
     const input = parse(adminToolRoutes.patch.input, request.body)
-    const settings = input.nativeSettings === undefined ? undefined : parse(nativeSettingsSchemas[tool], input.nativeSettings)
     if (input.enabled && !adapters.some(adapter => adapter.name === tool)) throw new ArtiumError('TOOL_DISABLED')
     let replacements: CredentialReference[] = []
     const event: Extract<AuditEvent, { event: 'admin-change' }> = { event: 'admin-change', action: adminToolRoutes.patch.auditEvent, targetId: tool,
@@ -402,6 +457,13 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       authorize(request)
       const current = readTool(tool)
       if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
+      const submitted = input.nativeSettings
+      if (submitted) for (const key of Object.keys(userGrantPolicies[tool] ?? {})) {
+        const policy = submitted[key]
+        if (policy === null || typeof policy !== 'object' || Array.isArray(policy)) continue
+        if (Object.hasOwn(policy, 'grants')) throw new ArtiumError('INVALID_INPUT', 'Per-person grants cannot be edited here.', 'Use the Access tab to manage per-person grants.')
+      }
+      const settings = submitted === undefined ? undefined : parse(nativeSettingsSchemas[tool], preserveUserGrants(tool, submitted, current.nativeSettings))
       const now = Date.now()
       if (settings !== undefined) {
         event.settingsChanges = settingsChanges(tool, current.nativeSettings, settings)
@@ -440,7 +502,13 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         value = { ...fields, ...certificateFields(value.certificatePem, sha256) }
       } catch { throw new ArtiumError('INVALID_INPUT', 'The PEM must contain one certificate and its matching unencrypted private key.', 'Choose a matching certificate and key, then save again.') }
     }
+    const policyKeys = Object.keys(userGrantPolicies[tool] ?? {})
     if (saving && Object.keys(splitSettings(tool, value).settings).length) throw new ArtiumError('INVALID_INPUT')
+    if (name === undefined && policyKeys.length) {
+      const current = readTool(tool)
+      if (current.revision !== input.expectedToolRevision) throw new ArtiumError('REVISION_CONFLICT')
+      value = preserveUserGrants(tool, value, current.nativeSettings)
+    }
     const awx = tool === 'awx-axi'
     const normalized = profile ? (saving || awx ? profile.normalizeInput(value) : profile.parseInput(value)) : undefined
     const normalizations = [...normalized?.normalizations ?? []]
@@ -495,7 +563,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       replacement = writeCredential(tool, name, credential, input.expectedId, expectedRevision, actor, now, input.description)
       events[0]!.credentialId = replacement.id
       events[0]!.instance = credentialStore().listInstances(tool).find(item => item.id === replacement!.id)!.name
-      db.prepare(`UPDATE tools SET native_settings = ?, pinned_version = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?`)
+      if (name === undefined) db.prepare(`UPDATE tools SET native_settings = ?, pinned_version = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?`)
         .run(JSON.stringify(settings), toolManifests[tool].version, now, actor, tool)
       db.prepare('DELETE FROM tool_health WHERE credential_id = ?').run(replacement.id)
       return { ...readCredentialView(tool, name), ...(normalizations.length ? { normalizations } : {}) }

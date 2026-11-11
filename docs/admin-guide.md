@@ -110,7 +110,7 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/invitations` | Prepare and resend SSO invitations from sheets (`?sheet=new-invitation` opens creation without JavaScript; submission requires JavaScript); revoke from the table; a banner explains when no enabled provider can accept claims; see [Sign-in settings](admin-guide.md#sign-in-settings). |
 | `/account` | Review your roles and tools, set up the CLI, manage temporary access tokens and sessions, and change your local-account password. |
 | `/admin/tools` | Review installed tools in a table with instance count, state, enablement, write state, granting roles and last checked time; filter by All, Enabled or Needs attention or by name; the server-wide trusted CA bundle appears as a read-only card at the bottom. |
-| `/admin/tools/:tool` | Header with state, write badges and an **Enabled** switch, a setup strip and tabs: Instances, Write permissions, Access and Advanced. Instances lists the tool's named instances and opens the Add instance and Edit sheets. Access lists the granting roles and their instance scopes, with a sheet per role to choose All instances or Selected instances. See [SSH setup](tool-credentials.md#ssh) for its separate host binding requirements. |
+| `/admin/tools/:tool` | Header with state, write badges and an **Enabled** switch, a setup strip and tabs: Instances, Write permissions, Access and Advanced. Instances lists the tool's named instances and opens the Add instance and Edit sheets. Access lists the granting roles and their instance scopes, with a sheet per role to choose All instances or Selected instances. Kubernetes and Shodan Access also list per-person grants, with a picker to grant a person operations and a sheet to edit or remove each person's grants. See [SSH setup](tool-credentials.md#ssh) for its separate host binding requirements. |
 | `/admin/tools/:tool/instances/:name` | Instance detail: header with status, writes, **Test connection** and an **Enabled** switch for this instance, a setup strip, the Connection editor, Trusted certificates and a danger zone that deletes the instance after its name is typed. |
 | `/admin/ssh` | SSH hosts, host-key trust, account bindings and caller grants, with links to the credentials and audit screens; see [SSH setup](tool-credentials.md#ssh). |
 | `/admin/ssh/credentials` | Save, replace or delete the dedicated encrypted SSH credentials that bindings use; stored keys and passphrases are never shown. |
@@ -236,6 +236,8 @@ Azure and Graph certificate editors accept one PEM file containing one certifica
 See the [hosted contract](credential-standard.md#9-hosted-contract-artium-axi) for profile injection.
 Falcon has guided fields; see its [current credential handling](credential-standard.md#per-tool-host-facing-schemas).
 Browser saves keep native settings and retain blank stored secrets for the same identity.
+Complete credential replacement keeps saved per-person grants for each supplied policy, ignoring supplied grant maps; omitting a policy removes it and its grants.
+Instance credential create, replace and save do not change shared tool settings.
 Identity changes require new secrets as defined by the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`).
 **Test after saving** is on by default in the credential-bearing Add instance sheet and the instance's Connection card and reports a harmless credential check inline; clear it to save without testing.
 After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.
@@ -256,9 +258,20 @@ See the [Vectra supported boundary and native write gates](safety.md) before sel
 Review the Vectra grant warnings: host/account close closes every active detection with no single inverse, assignment resolve is permanent, group deletion orphans triage rule references, syslog/Kafka redirects detection exports, and Match enablement changes cause a reboot.
 Choose **Save write permissions** and confirm the change, completing identity confirmation if requested.
 See [write-access audit events](#audit-screen-and-api) to review saved changes.
-The **Advanced** tab (`?tab=advanced`) shows the saved write state, but **Replace settings** replaces all native settings and omitting write settings turns writes off.
+The **Advanced** tab (`?tab=advanced`) shows the saved write state, but **Replace settings** replaces native settings subject to the per-person grant rules below, and omitting write settings turns writes off.
 With JavaScript, the editor reports whether the input is a valid JSON object as you type; saving also validates the tool's native settings on the server.
-Each save records an `admin-change` audit event; changes to Kubernetes session grants or Shodan scan and stream grants include a field-level list shown as **Settings changes** in the audit record details; see [the audit screen](#audit-screen-and-api).
+Each save records an `admin-change` audit event; changes to Kubernetes session grants or Shodan scan, stream, write and export grants include a field-level list shown as **Settings changes** in the audit record details; see [the audit screen](#audit-screen-and-api).
+Per-person grants stay per person.
+On the **Access** tab of Kubernetes and Shodan, each grant policy lists the people granted operations.
+Choose **Grant a person** to pick an enabled, unarchived person and the operations to allow, or **Edit** to change one person's operations; clearing every operation removes the person, including disabled or departed people.
+Existing grants for disabled or departed people can be partially or fully removed; adding operations requires an enabled, unarchived person.
+Existing operations outside the current catalogue remain selected when editing and may be retained or removed; new operations must be in the catalogue.
+A save that leaves grants unchanged preserves tool and credential revisions.
+A save replaces only that person's grants, keeps ceilings and other settings, and records an `update-tool-user-grants` audit event with the same **Settings changes** list.
+Kubernetes session grants need no ceilings.
+A Shodan policy must have its ceilings saved in **Advanced** before people can be granted here.
+The **Advanced** editor shows policy settings without per-person grants, which are managed on **Access**.
+Omitting a policy in **Advanced** turns it off and removes its grants, with the removal recorded in **Settings changes**.
 See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for automatic checks after configuration changes, pending status, recovery retries and concurrency limits.
 Use **Test connection** on an instance, or **Test** in its row, for a current fixed read before enabling a configured tool; it asks for no confirmation dialog but still needs recent identity confirmation.
 For failed tests, follow the [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) and the [error reference](errors.md).
@@ -388,7 +401,9 @@ There is no audit mutation or deletion route.
 Filter by event `tool-write-access` to review changes to effective write enablement, BeyondTrust delete permission or an operations allow-list, including changes made through the Advanced tab or complete credential replacement.
 These events identify the administrator and tool and record the new write policy without credentials or unrelated native settings; the [API contract](../src/shared/api.ts) owns the audit argument fields and treatment of unsupported legacy operation names.
 No-op write-access requests emit no change event.
-An Advanced-tab save or complete credential replacement adds `{"settings": [...]}` to the `arguments` of its `admin-change` event for changes to Kubernetes session grants or Shodan scan and stream grants, one entry per changed setting with its `path`.
+A grant change adds `{"settings": [...]}` to the `arguments` of its `admin-change` event with action `update-tool-user-grants`.
+An Advanced-tab save or complete credential replacement adds the same field to its `admin-change` event when omitting a Kubernetes session or Shodan scan, stream, write or export policy removes grants.
+Each changed setting has one entry with its `path`.
 An entry for an added or removed empty object or list carries `before` and `after`, with `null` meaning unset; other list changes carry the `added` and `removed` members, since list order is not a change.
 Objects are compared field by field.
 Other native settings are excluded from this diff.

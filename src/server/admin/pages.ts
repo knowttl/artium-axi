@@ -1,8 +1,9 @@
 import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
 import type { z } from 'zod'
-import { adminToolRoutes, toolSchema } from '../../shared/api.js'
+import { adminToolRoutes, nativeSettingsSchemas, toolSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
+import { userGrantPolicies } from '../../shared/user-grants.js'
 import operationCatalogue from '../../../tools/inventories/write-operations.json' with { type: 'json' }
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
@@ -11,7 +12,7 @@ import { actionForm, adminRead, revision, timestamp } from './forms.js'
 import { editorProfile } from './credential-form.js'
 import { instancesPanel, readInstanceRows, registerInstancePages } from './instances.js'
 import { rawApiModeWords, setupBadge, toolIcon, toolProducts, toolSetupState, writes as writesState } from './design/status.js'
-import { callout, card, checkOption, icon, noteCard, sheet, sheetLink, steps, tabs } from './design/ui.js'
+import { callout, card, checkOption, field, icon, noteCard, sheet, sheetLink, steps, tabs } from './design/ui.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { ToolName } from '../store/credential-store.js'
 import type { TrustedCertificate } from '../trusted-ca.js'
@@ -20,9 +21,9 @@ import { hasSshConfiguration } from '../store/ssh-hosts.js'
 const settingsGuide = {
   'ssh-axi': 'Writes default off. Confirmed execution additionally requires a writable host and current caller grants; sudo needs its distinct approved account and credential. Receipts prevent replay and execution show recovers a result. Reusable connections belong to one user and session. Audit reads and metadata exports are available at /admin/ssh/audit.',
   'technitium-axi': 'Host Write permission for the exact operation, native writes.allowWrites: true and the exact operation in native writes.operations are required. The host and native gates are independent and default off. Native previews require both grants. Use private input files and exact confirmation. Protected results expire after five minutes and require the same user, current tool grant and credential revision.',
-  'shodan-axi': 'Optional sessions, scans, writes and exports each map Artium user IDs to exact operation grants and set their ceilings; each is independent and off until saved. Scans need OP-009 and collection also needs a banner stream session grant for OP-046. Writes use confirmed-write operation IDs; exports use CLI-005 and CLI-020. Scans, writes and exports require an owner session, a writable instance and a preview with single-use confirmation. Use {} to clear settings.',
+  'shodan-axi': 'Optional sessions, scans, writes and exports each have independent ceilings and are off until saved. Pick people and exact operations on the Access tab once the ceilings of a policy are saved here. Scans need OP-009 and collection also needs a banner stream session grant for OP-046. Writes use confirmed-write operation IDs; exports use CLI-005 and CLI-020. Scans, writes and exports require an owner session, a writable instance and a preview with single-use confirmation. Use {} to clear settings.',
   'gitea-axi': 'Writes default off. Use Allow writes and select exact native operation IDs, then require caller preview and confirmation. Secret values use protected --input; opaque attachments use --file or --attach and managed download grants. Local workflows remain unavailable.',
-  'kubernetes-axi': 'Writes default off. Use {"allowWrites": true} for native prepare, offline preview, exact-digest confirmation and explicit server-dry-run. Bulk deletion additionally requires {"collectionDelete": true}. Saving write settings invalidates earlier prepared requests. Caller-owned workspaces support file inputs. Bounded watch, logs, exec, attach, apply, create, cp and port-forward sessions require explicit per-user sessions.grants; no sessions are granted by default. Mutating sessions additionally require Allow writes and native exact-digest confirmation; watch and logs remain reads. Port forwarding uses authenticated tunnels with loopback-only client listeners. Service-account token issuance additionally requires {"acquireCredential": true}; tokens are delivered once through credential --credential-fd to a private pipe. Interactive/editor/helper execution remains unavailable.',
+  'kubernetes-axi': 'Writes default off. Use {"allowWrites": true} for native prepare, offline preview, exact-digest confirmation and explicit server-dry-run. Bulk deletion additionally requires {"collectionDelete": true}. Saving write settings invalidates earlier prepared requests. Caller-owned workspaces support file inputs. Bounded watch, logs, exec, attach, apply, create, cp and port-forward sessions require explicit per-user grants; no sessions are granted by default. Mutating sessions additionally require Allow writes and native exact-digest confirmation; watch and logs remain reads. Port forwarding uses authenticated tunnels with loopback-only client listeners. Service-account token issuance additionally requires {"acquireCredential": true}; tokens are delivered once through credential --credential-fd to a private pipe. Interactive/editor/helper execution remains unavailable. Pick people and session kinds on the Access tab.',
   'unifi-axi': 'writes.allowWrites defaults off. Select exact vendor operation IDs in writes.operations, including the required management/action variant grants. Writes preview first; execution requires --execute, the matching --confirm and a stable --request-id. Use write show/reconcile after uncertainty; never resend a claimed request.',
   'proxmox-axi': 'Set exact native grants in writes.operations. Write permissions controls the independent hostWrites gate, off by default; both must permit every operation and batch child. Preview first, then exact --confirm. Protected results, memory authentication and streams remain pending in separate capability slices.',
   'gh-axi': 'Writes default off. Select exact collaboration or repository operations with writes: { allowWrites: true, operations: ["issue comment"] }. Preview each write, then repeat with the returned --confirm. Deletes, secret set, merge --admin and API non-GET stay blocked.',
@@ -189,17 +190,67 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       }).join('')
       panel = card(`Roles that grant ${product}`, 'Enabling alone gives nobody access. Assign these roles to people on People.',
         rows || '<p class="empty">No roles grant this tool. Open a role and select this tool to give its members access.</p>',
-        { actions: '<a class="btn btn-secondary btn-sm" href="/admin/roles">Manage roles</a>' }) + sheets.join('')
+        { actions: '<a class="btn btn-secondary btn-sm" href="/admin/roles">Manage roles</a>' }) + sheets.join('') + userGrantCards()
     } else {
       const writeState = `writes ${writes.enabled ? 'on' : 'off'}`
-      panel = callout('warn', 'This replaces all native settings', 'Saving keeps the credential and clears cached health. Omitting write settings turns writes off. Use Write permissions for everyday changes.', '') +
+      const policies = userGrantPolicies[tool.name] ?? {}
+      const settings = { ...tool.nativeSettings }
+      for (const key of Object.keys(policies)) {
+        if (settings[key] !== undefined) {
+          const { grants: _, ...rest } = settings[key] as Record<string, unknown>
+          settings[key] = rest
+        }
+      }
+      const grantNote = Object.keys(policies).length ? ' Per-person grants are managed with the picker on the Access tab. Omitting a policy turns it off and removes its grants.' : ''
+      panel = callout('warn', 'This replaces all native settings', 'Saving keeps the credential and clears cached health. Omitting write settings turns writes off. Use Write permissions for everyday changes.' + grantNote, '') +
         formStart(api, 'PATCH', 'Replace native settings while keeping the credential?', '', 'card') +
-        `<div class="card-head"><div><h2>Native settings (JSON)</h2><p>Current: ${escape(writeState)}.</p></div></div><div class="card-body"><input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}"><p>${escape(settingsGuide[tool.name])}</p><label>Native settings (JSON object)<textarea name="nativeSettings" data-type="json" data-json-check rows="10" required spellcheck="false">${escape(JSON.stringify(tool.nativeSettings, null, 2))}</textarea></label><p class="note" data-json-status aria-live="polite"></p></div>
+        `<div class="card-head"><div><h2>Native settings (JSON)</h2><p>Current: ${escape(writeState)}.</p></div></div><div class="card-body"><input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}"><p>${escape(settingsGuide[tool.name])}</p>${grantNote ? '<p class="note">Per-person grants are managed with the picker on the Access tab.</p>' : ''}<label>Native settings (JSON object)<textarea name="nativeSettings" data-type="json" data-json-check rows="10" required spellcheck="false">${escape(JSON.stringify(settings, null, 2))}</textarea></label><p class="note" data-json-status aria-live="polite"></p></div>
         <div class="card-foot"><span>{} clears settings.</span><div class="actions"><button class="btn btn-secondary btn-sm">Replace settings</button></div></div></form>`
     }
     // The filter form sits outside the write form; its controls join it through the form attribute.
     const filterForm = tab === 'writes' && writes.capable && writes.supportedOperations ? `<form id="ops-filter" method="get" action="/admin/tools/${tool.name}" hidden><input type="hidden" name="tab" value="writes"></form>` : ''
     return browserPage(reply, product, setup + result + navigation + panel + filterForm, current, undefined, { lead: toolIcon(tool.name, 'lg'), heading: product, meta, actions: `<div class="actions">${enable}</div>`, helpTopic: 'Tools' })
+
+    function userGrantCards(): string {
+      const people = db.prepare('SELECT id, username, display_name AS displayName FROM users WHERE archived_at IS NULL AND disabled = 0 ORDER BY username').all() as { id: string, username: string, displayName: string }[]
+      const accessHref = (sheetName?: string) => `/admin/tools/${tool.name}?tab=access${sheetName ? '&sheet=' + encodeURIComponent(sheetName) : ''}`
+      return Object.entries(userGrantPolicies[tool.name] ?? {}).map(([key, policy]) => {
+        const saved = tool.nativeSettings[key] as { grants: Record<string, string[]> } | undefined
+        const creatable = saved !== undefined || nativeSettingsSchemas[tool.name].safeParse({ ...tool.nativeSettings, [key]: { grants: {} } }).success
+        const catalogue = new Map(policy.operations.map(operation => [operation.id, operation.label]))
+        const grants = Object.entries(saved?.grants ?? {}).sort(([left], [right]) => left.localeCompare(right))
+        const granted = new Set(grants.map(([id]) => id))
+        const grantSheet = (name: string, title: string, userId: string | undefined, selected: readonly string[]) => {
+          const outside = [...new Set(selected)].filter(operation => !catalogue.has(operation))
+          const who = userId === undefined
+            ? field(`${name}-user`, 'Person', attributes => `<select ${attributes} name="userId" required>${people.filter(person => !granted.has(person.id)).map(person =>
+              `<option value="${escape(person.id)}">${escape(person.username)}${person.displayName === person.username ? '' : ` (${escape(person.displayName)})`}</option>`).join('')}</select>`)
+            : `<input type="hidden" name="userId" value="${escape(userId)}">`
+          return sheet({ name, open: query.sheet === name, closeHref: accessHref(), title, description: policy.description,
+            body: `${who}<fieldset class="options"><legend>Operations</legend><input type="hidden" name="operations" disabled data-type="array">${[...policy.operations, ...outside.map(id => ({ id, label: id }))].map(operation =>
+              checkOption(`<input type="checkbox" name="operations" value="${escape(operation.id)}"${selected.includes(operation.id) ? ' checked' : ''}>`, operation.label, operation.id)).join('')}</fieldset>
+              <input type="hidden" name="policy" value="${escape(key)}">${revision(tool.revision)}`,
+            submit: '<button class="btn btn-primary">Save grants</button>',
+            wrap: inner => actionForm(csrf, `${api}/user-grants`, 'PUT', inner,
+              { consequence: `Replace this person’s ${policy.title.toLowerCase()} grants for ${product}? Clearing every operation removes the person. The change applies on their next call and is audited.`,
+                title: 'Save grants', action: 'Save grants' }) })
+        }
+        const rows = grants.map(([id, operations]) => {
+          const person = people.find(candidate => candidate.id === id)
+          const name = `grants-${key}-${id}`
+          const labels = operations.map(operation => { const label = catalogue.get(operation); return label && label !== operation ? `${label} (${operation})` : operation }).join(', ') || 'None'
+          return { sheet: grantSheet(name, `${policy.title} for ${person?.username ?? id}`, id, operations),
+            row: `<div class="list-row">${icon('users')}<div class="grow"><strong>${escape(person?.username ?? id)}</strong>${person ? '' : ' <span class="badge warn">Not an active person</span>'}<p>${escape(labels)}</p></div>${sheetLink(name, accessHref(name), 'Edit', 'btn btn-ghost btn-sm')}</div>` }
+        })
+        const addName = `grants-${key}-add`
+        const add = creatable && people.some(person => !granted.has(person.id))
+        return card(`${policy.title} by person`, policy.description,
+          rows.map(row => row.row).join('') || '<p class="empty">No one is granted. Nobody can use this until you grant a person.</p>',
+          { actions: add ? sheetLink(addName, accessHref(addName), 'Grant a person', 'btn btn-secondary btn-sm') : undefined,
+            foot: creatable ? undefined : 'Set the ceilings for this policy in Advanced native settings before granting people here.' })
+          + rows.map(row => row.sheet).join('') + (add ? grantSheet(addName, `Grant ${policy.title.toLowerCase()}`, undefined, []) : '')
+      }).join('')
+    }
 
     function writesPanel(): string {
       const blocked = noteCard(awx ? 'Capability boundary' : 'Always blocked', `<p>${escape(writes.blocked)}</p>`)

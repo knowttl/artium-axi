@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { shodanExportPolicy, shodanQueryPolicy, shodanScanPolicy, shodanStreamPolicy, shodanWritePolicy } from './shodan-stream.js'
 import { kubernetesSessionPolicy } from './kubernetes.js'
+import { userGrantPolicyNameSchema } from './user-grants.js'
 import { giteaWriteOperations, giteaTransferOperations, giteaTransferBytes } from './gitea-writes.js'
 import { errors } from './errors.js'
 import { completedMutationSchema } from './mutation-outcome.js'
@@ -501,6 +502,12 @@ export const adminToolRoutes = {
   // Other native settings and credentials are preserved. Revision conflicts never mutate.
   writeAccess: { method: 'PATCH', path: '/v1/admin/tools/:tool/write-access', input: writeAccessInputSchema,
     response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'tool-write-access' },
+  // Replaces one person's operations inside a per-user grant policy; an empty list removes the person.
+  // Saved operations may be retained or removed; additions require a catalogue operation and an enabled, unarchived person.
+  userGrants: { method: 'PUT', path: '/v1/admin/tools/:tool/user-grants',
+    input: z.strictObject({ policy: userGrantPolicyNameSchema, userId: z.string().min(1).max(128),
+      operations: z.array(z.string().min(1).max(32)).max(32), expectedRevision: z.number().int().positive() }),
+    response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'update-tool-user-grants' },
   rawApi: { method: 'PATCH', path: '/v1/admin/tools/:tool/raw-api',
     input: z.strictObject({ mode: rawApiModeSchema, expectedRevision: z.number().int().positive() }),
     response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: null },
@@ -550,7 +557,7 @@ const instanceBase = '/v1/admin/tools/:tool/instances'
 const instanceRevisions = { expectedId: z.string(), expectedRevision: z.number().int().positive() }
 // Instance mutations name the instance id and revision the administrator observed; a stale or recreated instance
 // fails with REVISION_CONFLICT without mutation. Create starts read-only and enabled. Credential saves follow the
-// tool credential rules and advance only the instance revision and the tool revision.
+// tool credential rules; instance credential routes do not change shared tool settings.
 export const adminInstanceRoutes = {
   list: { method: 'GET', path: instanceBase, input: z.strictObject({}),
     response: z.strictObject({ instances: z.array(adminInstanceSchema) }) },

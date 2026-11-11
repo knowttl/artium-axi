@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { browserCookie } from '../../src/server/auth/browser.js'
@@ -172,6 +173,130 @@ test('tool Access can restore all instances after the last selected instance is 
   }, payload: { _csrf: csrf, scope: 'all', expectedRevision: 1 } })
   expect(response.statusCode, response.body).toBe(200)
   expect(db.prepare("SELECT all_instances FROM role_tools WHERE role_id = 'synthetic-role' AND tool = 'falcon-axi'").get()).toEqual({ all_instances: 1 })
+})
+
+test('tool Access lists per-person grants and offers a picker of people without grants', async () => {
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'kubernetes-axi'")
+    .run(JSON.stringify({ sessions: { grants: { 'synthetic-second': ['exec', 'logs'], 'departed-user': ['watch'] } } }))
+  await signIn()
+  const page = (await request('GET', '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-add')).body
+  expect(page).toContain('Interactive sessions by person')
+  expect(page).toContain('<strong>synthetic-second</strong><p>exec, logs</p>')
+  expect(page).toContain('<strong>departed-user</strong> <span class="badge warn">Not an active person</span><p>watch</p>')
+  const picker = /<select [^>]*name="userId"[^>]*>(.*?)<\/select>/s.exec(page)![1]!
+  expect(picker).toContain(`value="${userId}"`)
+  expect(picker).not.toContain('synthetic-second')
+  expect(page).toContain('id="sheet-grants-sessions-add" aria-labelledby="sheet-grants-sessions-add-title" open')
+  expect(page).toContain('action="/v1/admin/tools/kubernetes-axi/user-grants"')
+  expect(page).toContain('<input type="hidden" name="policy" value="sessions">')
+  const edit = (await request('GET', '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-synthetic-second')).body
+  expect(edit).toContain('<input type="hidden" name="userId" value="synthetic-second">')
+  expect(edit).toContain('<input type="checkbox" name="operations" value="exec" checked>')
+  expect(edit).toContain('<input type="checkbox" name="operations" value="watch">')
+})
+
+test('tool Access holds back Shodan grants until the policy ceilings are saved', async () => {
+  await signIn()
+  const before = (await request('GET', '/admin/tools/shodan-axi?tab=access')).body
+  expect(before).toContain('Set the ceilings for this policy in Advanced native settings before granting people here.')
+  expect(before).not.toContain('Grant a person')
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'shodan-axi'")
+    .run(JSON.stringify({ scans: { grants: {}, maxScanCredits: 10, maxRequests: 10 } }))
+  const after = (await request('GET', '/admin/tools/shodan-axi?tab=access')).body
+  expect(after.match(/Grant a person/g)).toHaveLength(1)
+  expect(after).toContain('id="sheet-grants-scans-add"')
+  expect(after).not.toContain('id="sheet-grants-sessions-add"')
+})
+
+test('tool Access retains outside operations and identifies Shodan grants', async () => {
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'shodan-axi'").run(JSON.stringify({
+    scans: { grants: { 'synthetic-second': ['OP-009', 'OP-010'] }, maxScanCredits: 10, maxRequests: 10 },
+    sessions: { grants: { 'synthetic-second': ['OP-047', 'OP-048'] }, perUser: 1, perCredential: 1, total: 1,
+      sessionEvents: 1, totalEvents: 1, sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 },
+    writes: { grants: { 'synthetic-second': ['OP-021', 'OP-070'] }, maxQueryCredits: 1, maxRequests: 1 },
+  }))
+  await signIn()
+  const page = (await request('GET', '/admin/tools/shodan-axi?tab=access&sheet=grants-scans-synthetic-second')).body
+  expect(page).toContain('<input type="checkbox" name="operations" value="OP-010" checked>')
+  expect(page).toContain('stream (OP-047), stream (OP-048)')
+  expect(page).toContain('alert ignore (OP-021), alert ignore (OP-070)')
+})
+
+test('tool Access shows each saved outside operation once', async () => {
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'shodan-axi'").run(JSON.stringify({
+    scans: { grants: { 'synthetic-second': [...Array(31).fill('OP-010'), 'OP-009'] }, maxScanCredits: 10, maxRequests: 10 },
+  }))
+  await signIn()
+  const response = await request('GET', '/admin/tools/shodan-axi?tab=access&sheet=grants-scans-synthetic-second')
+  expect(response.statusCode).toBe(200)
+  const nodes = (node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['element'][] => [
+    ...('tagName' in node ? [node] : []), ...('childNodes' in node ? node.childNodes.flatMap(nodes) : []),
+  ]
+  const sheet = nodes(parse(response.body)).find(node => node.attrs.some(attr =>
+    attr.name === 'id' && attr.value === 'sheet-grants-scans-synthetic-second'))!
+  const inputs = nodes(sheet).filter(node => node.tagName === 'input' &&
+    node.attrs.some(attr => attr.name === 'name' && attr.value === 'operations') &&
+    node.attrs.some(attr => attr.name === 'type' && attr.value === 'checkbox'))
+  expect(inputs.filter(node => node.attrs.some(attr => attr.name === 'value' && attr.value === 'OP-010')))
+    .toMatchObject([{ attrs: expect.arrayContaining([{ name: 'checked', value: '' }]) }])
+  expect(inputs.filter(node => node.attrs.some(attr => attr.name === 'value' && attr.value === 'OP-009')))
+    .toHaveLength(1)
+})
+
+test('Advanced hides per-person grants and preserves policy settings', async () => {
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'kubernetes-axi'")
+    .run(JSON.stringify({ sessions: { grants: { 'synthetic-second': ['exec'] } } }))
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'shodan-axi'")
+    .run(JSON.stringify({ scans: { grants: { 'synthetic-second': ['OP-009'] }, maxScanCredits: 10, maxRequests: 5 } }))
+  await signIn()
+  const kubernetes = (await request('GET', '/admin/tools/kubernetes-axi?tab=advanced')).body
+  const shodan = (await request('GET', '/admin/tools/shodan-axi?tab=advanced')).body
+  for (const page of [kubernetes, shodan]) {
+    const textarea = /<textarea name="nativeSettings"[^>]*>(.*?)<\/textarea>/s.exec(page)![1]!
+    expect(textarea).not.toContain('grants')
+    expect(page).toContain('Per-person grants are managed with the picker on the Access tab.')
+    expect(page).toContain('Omitting a policy turns it off and removes its grants.')
+  }
+  expect(kubernetes).toContain('&quot;sessions&quot;: {}')
+  expect(shodan).toContain('&quot;maxScanCredits&quot;: 10')
+})
+
+test('tool Access excludes disabled people from the add picker', async () => {
+  db.prepare('UPDATE users SET disabled = 1 WHERE id = ?').run('synthetic-second')
+  await signIn()
+  const page = (await request('GET', '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-add')).body
+  const picker = /<select [^>]*name="userId"[^>]*>(.*?)<\/select>/s.exec(page)![1]!
+  expect(picker).toContain(`value="${userId}"`)
+  expect(picker).not.toContain('synthetic-second')
+})
+
+test('a person grant saved from the Access sheet reaches the tool settings', async () => {
+  await signIn()
+  const csrf = await token('/admin/tools/kubernetes-axi?tab=access')
+  const response = await app.inject({ method: 'PUT', url: '/v1/admin/tools/kubernetes-axi/user-grants', headers: {
+    host: 'localhost', origin: 'http://localhost', accept: 'application/json', cookie: Object.entries(cookies).map(([key, value]) => `${key}=${value}`).join('; '),
+  }, payload: { _csrf: csrf, policy: 'sessions', userId: 'synthetic-second', operations: ['exec'], expectedRevision: 1 } })
+  expect(response.statusCode, response.body).toBe(200)
+  expect(JSON.parse((db.prepare("SELECT native_settings FROM tools WHERE name = 'kubernetes-axi'").get() as { native_settings: string }).native_settings))
+    .toEqual({ sessions: { grants: { 'synthetic-second': ['exec'] } } })
+  expect((await request('GET', '/admin/tools/kubernetes-axi?tab=access')).body).toContain('<strong>synthetic-second</strong><p>exec</p>')
+})
+
+test('removing an empty grant returns the person to the Access picker', async () => {
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'kubernetes-axi'")
+    .run(JSON.stringify({ sessions: { grants: { 'synthetic-second': [] } } }))
+  await signIn()
+  const before = (await request('GET', '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-add')).body
+  expect(before).toContain('<strong>synthetic-second</strong><p>None</p>')
+  expect(/<select [^>]*name="userId"[^>]*>(.*?)<\/select>/s.exec(before)![1]).not.toContain('synthetic-second')
+  const csrf = await token('/admin/tools/kubernetes-axi?tab=access')
+  const response = await app.inject({ method: 'PUT', url: '/v1/admin/tools/kubernetes-axi/user-grants', headers: {
+    host: 'localhost', origin: 'http://localhost', accept: 'application/json', cookie: Object.entries(cookies).map(([key, value]) => `${key}=${value}`).join('; '),
+  }, payload: { _csrf: csrf, policy: 'sessions', userId: 'synthetic-second', operations: [], expectedRevision: 1 } })
+  expect(response.statusCode, response.body).toBe(200)
+  const after = (await request('GET', '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-add')).body
+  expect(after).not.toContain('<strong>synthetic-second</strong><p>None</p>')
+  expect(/<select [^>]*name="userId"[^>]*>(.*?)<\/select>/s.exec(after)![1]).toContain('value="synthetic-second"')
 })
 
 test('administrators can inspect the loaded trusted CA metadata on Tools', async () => {
