@@ -468,7 +468,6 @@ Project visibility changes are unavailable.
 After an uncertain `project edit`, the recovery check `project view` shows the title and short description but not the README.
 No admitted read exposes a project README: pinned gh-axi omits it from `project view`, the Projects REST resource has no README field and GraphQL is refused.
 Confirm an uncertain README change in the GitHub web interface before repeating the write.
-`pr close` and `pr reopen` are collaboration operations; `issue unpin`, `project create|edit|close|copy` and `release upload` are repository operations.
 `issue subissue add|remove` accept numeric issue numbers within one repository.
 For `project item-edit`, Artium uses this owner for confirmation and recovery; the mutation itself selects the item by ID.
 
