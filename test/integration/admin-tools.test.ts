@@ -2844,6 +2844,15 @@ test('tools report the Raw API modes they can be set to', async () => {
 
 const rawApiRoutes = (tool: string) => db.prepare('SELECT raw_api_routes AS routes, revision FROM tools WHERE name = ?').get(tool)
 
+test('saving empty raw routes records an explicit setting', async () => {
+  const before = adminToolSchema.parse(await (await request('GET', '/az-axi')).json())
+  const routes = { get: [], write: [] }
+  expect((await request('PUT', '/az-axi/raw-api/routes', { ...routes, expectedRevision: before.revision })).status).toBe(200)
+  expect(rawApiRoutes('az-axi')).toEqual({ routes: JSON.stringify(routes), revision: before.revision + 1 })
+  expect((await request('PUT', '/az-axi/raw-api/routes', { ...routes, expectedRevision: before.revision + 1 })).status).toBe(200)
+  expect(rawApiRoutes('az-axi')).toEqual({ routes: JSON.stringify(routes), revision: before.revision + 1 })
+})
+
 test('an administrator sets raw route patterns, the change is journaled with its patterns and a repeat records nothing', async () => {
   const before = adminToolSchema.parse(await (await request('GET', '/az-axi')).json())
   const routes = { get: ['subscriptions/**'], write: ['PUT subscriptions/*/tags/default'] }

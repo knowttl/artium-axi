@@ -74,7 +74,7 @@ const readers: Record<string, Reader> = {
     } },
   'gh-axi': { values: ['jq', 'template', 'repo', 'method'], shorts: { '-R': 'repo' }, request: (positionals, flags) => ({
     method: (last(flags, 'method') ?? (positionals.length === 3 ? positionals[1] : 'GET')).toUpperCase(), target: positionals.at(-1) ?? '', body: '' }) },
-  'gitea-axi': { values: ['allow-write', 'confirm', 'method', 'field', 'raw-field', 'input'], request: (positionals, flags, input) => {
+  'gitea-axi': { values: ['allow-write', 'confirm', 'method', 'field', 'raw-field', 'input'], shorts: { '-X': 'method' }, request: (positionals, flags, input) => {
     const [pathname, ...query] = (positionals.at(-1) ?? '').split('?')
     const bare = pathname.replace(/^\//, '')
     return { method: (positionals.length === 3 ? positionals[1] : last(flags, 'method') ?? 'GET').toUpperCase(),

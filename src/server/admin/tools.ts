@@ -423,7 +423,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     validateRawApiRoutes(routes)
     if (current.revision !== expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
     const settingsChanges = diffSettings(current.rawApi.routes, routes, ['rawApiRoutes'])
-    if (!settingsChanges.length) return current
+    const stored = db.prepare('SELECT raw_api_routes FROM tools WHERE name = ?').get(tool) as { raw_api_routes: string | null }
+    if (!settingsChanges.length && stored.raw_api_routes !== null) return current
     return audit.change({ event: 'admin-change', action: adminToolRoutes.rawApiRoutes.auditEvent, targetId: tool,
       userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip, settingsChanges }, () => {
       authorize(request)

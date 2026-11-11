@@ -3,6 +3,8 @@ import { afterEach, beforeEach, expect, test } from 'vitest'
 import { Audit } from '../audit/audit.js'
 import { migrate } from '../store/db.js'
 import { migrateAdoApiWritePaths } from './raw-api-env-migration.js'
+import { parseRawApiRoutes } from './policy.js'
+import { matchRawApiRoute } from './raw-api.js'
 
 let db: Database.Database
 let audit: Audit
@@ -33,6 +35,21 @@ test('entries that never authorized a path are dropped', () => {
   const environment = { ARTIUM_AXI_ADO_API_WRITE_PATHS: '{"PATCH":["_apis/ok/*",7,"/leading","a/../b"],"GET":["_apis/read"],"post":["_apis/lower"]}' }
   expect(migrateAdoApiWritePaths(db, audit, environment)).toBe(true)
   expect(stored()).toMatchObject({ routes: JSON.stringify({ get: [], write: ['PATCH _apis/ok/*'] }) })
+})
+
+test('legacy double-star segments stay literal at every position', () => {
+  migrateAdoApiWritePaths(db, audit, { ARTIUM_AXI_ADO_API_WRITE_PATHS: JSON.stringify({ PATCH: ['_apis/**', '_apis/**/item'] }) })
+  const routes = parseRawApiRoutes((stored() as { routes: string }).routes)
+  expect(matchRawApiRoute(routes.write, true, { method: 'PATCH', path: '_apis/**' })).toBe('PATCH _apis/%2A%2A')
+  expect(matchRawApiRoute(routes.write, true, { method: 'PATCH', path: '_apis/**/item' })).toBe('PATCH _apis/%2A%2A/item')
+  expect(matchRawApiRoute(routes.write, true, { method: 'PATCH', path: '_apis/projects/item' })).toBeUndefined()
+})
+
+test('migration persists only routes accepted by the admin schema', () => {
+  const patterns = ['x'.repeat(256), ...Array.from({ length: 51 }, (_, i) => `items/${i}`)]
+  migrateAdoApiWritePaths(db, audit, { ARTIUM_AXI_ADO_API_WRITE_PATHS: JSON.stringify({ PATCH: patterns }) })
+  const routes = parseRawApiRoutes((stored() as { routes: string }).routes)
+  expect(routes.write).toEqual(patterns.slice(1, 51).map(pattern => `PATCH ${pattern}`))
 })
 
 test.each(['{invalid', '[]', '"x"', '{}'])('environment value %s migrates to no write routes', value => {
