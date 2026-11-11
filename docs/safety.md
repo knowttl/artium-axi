@@ -378,7 +378,7 @@ Synthetic verification does not establish live cluster commissioning.
 
 UniFi admits the pinned package's implemented read commands, including application information, sites, inventory and policies.
 The package retains its version, schema and contract-conflict checks.
-Proxmox admits only the reviewed ordinary reads and offline discovery commands in the [pinned inventory](../tools/inventories/proxmox-axi.json).
+Proxmox admits every plain read and offline discovery command in the [pinned inventory](../tools/inventories/proxmox-axi.json), except private-result reads and local authentication, profile and configuration commands.
 Firewall option reads are available at cluster, node, QEMU and LXC scopes.
 Private-result firewall and node-network reads remain unavailable; extending protected-result delivery to reads requires an owner decision.
 Use `artium-axi unifi-axi info --help` or `artium-axi proxmox-axi get /version --help`, and `artium-axi tools show <tool>` for admitted commands.
