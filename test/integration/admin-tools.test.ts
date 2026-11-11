@@ -404,6 +404,22 @@ test('unchanged grants preserve tool and credential revisions and health', async
   expect(db.prepare("SELECT * FROM audit WHERE event = 'admin-change'").all()).toEqual([])
 })
 
+test.each(grantPolicyCases)('$tool $policy duplicate grants do not change on an unchanged save', async ({ tool, policy, operation, limits }) => {
+  await replace(tool)
+  const grants = { 'synthetic-ordinary': [operation, operation] }
+  db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify({ [policy]: { ...limits, grants } }), tool)
+  const before = await (await request('GET', `/${tool}`)).json()
+  const credential = store.findCredential(tool)!
+  const health = db.prepare('SELECT * FROM tool_health WHERE tool = ?').all(tool)
+  db.exec('DELETE FROM audit')
+  const response = await grantUser(tool, policy, 'synthetic-ordinary', [operation], 2)
+  expect(response.status).toBe(200)
+  expect(await response.json()).toEqual(before)
+  expect(store.findCredential(tool)!.revision).toBe(credential.revision)
+  expect(db.prepare('SELECT * FROM tool_health WHERE tool = ?').all(tool)).toEqual(health)
+  expect(db.prepare("SELECT * FROM audit WHERE event = 'admin-change'").all()).toEqual([])
+})
+
 test.each([
   { policy: 'scans', operations: ['OP-009', 'OP-010'], settings: { maxScanCredits: 1, maxRequests: 1 } },
   { policy: 'sessions', operations: ['OP-046', 'OP-047'], settings: { perUser: 1, perCredential: 1, total: 1, sessionEvents: 1, totalEvents: 1, sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 } },

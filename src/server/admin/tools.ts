@@ -367,7 +367,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       const current = readTool(tool)
       if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
       const saved = current.nativeSettings[input.policy] as { grants: Record<string, string[]> } | undefined ?? { grants: {} }
-      const previous = saved.grants[input.userId] ?? []
+      const previous = [...new Set(saved.grants[input.userId] ?? [])]
       const added = input.operations.filter(operation => !previous.includes(operation))
       if (added.some(operation => !catalogue.includes(operation))) throw new ArtiumError('INVALID_INPUT',
         `Unknown ${input.policy} operation for ${tool}.`, `Choose from: ${catalogue.join(', ')}.`)
