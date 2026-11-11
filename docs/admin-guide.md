@@ -476,7 +476,8 @@ A pattern matches the complete normalized relative path, case sensitively; a who
 Other segments match literally after canonical percent encoding.
 A path that cannot be normalized matches nothing, so it is refused whenever the applicable list is nonempty.
 Empty segments, dot segments, encoded traversal, nested percent encodings, backslashes, controls, query strings and fragments cannot be normalized.
-Azure absolute URLs match by their path, Gitea paths match with their `api/v1/` prefix, and Kubernetes native calls match as `resource/name` for the first `--` command.
+Azure absolute URLs match by their path, Gitea paths match with their `api/v1/` prefix, and Kubernetes native calls match as `resource/name` for the first `--` command, without subcommand words such as `history` in `rollout history`.
+A Kubernetes call naming more than one `TYPE/NAME` argument has no normalized path.
 Azure DevOps raw writes additionally require a JSON `--body` within the adapter's byte limit.
 On the first start after upgrading, a valid `ARTIUM_AXI_ADO_API_WRITE_PATHS` value seeds the Azure DevOps write routes as `METHOD pattern` entries, only if the tool has never had routes saved, and the migration is journaled as `migrate-tool-raw-api-routes`.
 Entries that never authorized a path are dropped, and later changes to the variable have no effect.

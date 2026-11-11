@@ -124,9 +124,14 @@ const readers: Record<string, Reader> = {
     request: positionals => ({ method: 'GET', target: positionals[2] ?? '', body: '' }) },
   'falcon-axi': { inventory: falconInventory, queryFlags: ['query'], request: nativeRequest },
   'tenable-axi': { inventory: tenableInventory, booleans: tenableBooleanFlags, queryFlags: ['query'], request: nativeRequest },
-  'kubernetes-axi': { inventory: kubernetesInventory, request: (positionals, flags) => ({
-    method: positionals[0].toUpperCase(), target: positionals.slice(1).join('/'), body: '',
-    query: ['namespace', 'selector', 'field-selector'].flatMap(name => (flags.get(name) ?? []).map((value): [string, string] => [name, value])) }) },
+  'kubernetes-axi': { inventory: kubernetesInventory, request: (positionals, flags) => {
+    const verb = kubernetesInventory.commands.filter(route => route.command.startsWith('native -- '))
+      .map(route => route.command.split(' ').slice(2)).filter(words => words.every((word, index) => positionals[index] === word))
+      .reduce((longest, words) => words.length > longest.length ? words : longest, positionals.slice(0, 1))
+    const resources = positionals.slice(verb.length)
+    return { method: positionals[0].toUpperCase(), target: resources.length > 1 && resources.some(resource => resource.includes('/')) ? '' : resources.join('/'),
+      body: '', query: ['namespace', 'selector', 'field-selector'].flatMap(name => (flags.get(name) ?? []).map((value): [string, string] => [name, value])) }
+  } },
 }
 
 export function readRawApiCall(adapter: Adapter<unknown>, args: readonly string[], input: RunnerInput = {}): RawApiCall | undefined {
