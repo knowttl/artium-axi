@@ -111,6 +111,7 @@ test.each([
   ['project copy', ['project', 'copy', '1', '--source-owner=canary', '--target-owner=canary-copy', '--title=synthetic'],
     ['project', 'list', '--owner', 'canary-copy', '--limit', '100']],
   ['project close', ['project', 'close', '1', '--owner=canary'], ['project', 'view', '1', '--owner', 'canary']],
+  ['project edit', ['project', 'edit', '1', '--owner=canary', '--title=synthetic', '--readme='], ['project', 'view', '1', '--owner', 'canary']],
   ['project create', ['project', 'create', '--owner=canary', '--title=synthetic'], ['project', 'list', '--owner', 'canary', '--limit', '100']],
   ['issue subissue add', ['issue', 'subissue', 'add', '1', '2', '-R', 'canary/repo'], ['issue', 'subissue', 'list', '1', '-R', 'canary/repo']],
   ['issue subissue remove', ['issue', 'subissue', 'remove', '1', '2', '-R', 'canary/repo'], ['issue', 'subissue', 'list', '1', '-R', 'canary/repo']],

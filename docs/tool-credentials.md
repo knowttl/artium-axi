@@ -448,6 +448,9 @@ Save, run **Test connection**, enable the tool and grant it to a role.
 Try `artium-axi gh-axi repo list --limit 1`, then `artium-axi gh-axi issue list -R OWNER/NAME --limit 10`.
 See the [supported GitHub boundary](safety.md) for repository selection, dashboard limitations and blocked operations.
 The [reviewed inventory](../tools/inventories/gh-axi.json) owns the command allow-list, write tiers and upstream source digests.
+Every upstream subcommand in a listed group must be admitted or blocked, and a test fails otherwise.
+That test guards only the groups listed in [scripts/gh-inventory.mjs](../scripts/gh-inventory.mjs).
+When regenerating the inventory for a new pinned gh-axi release, review the upstream command groups and add any new group to that list.
 `api` accepts `[GET] <relative-path>` with optional output shaping; GraphQL, other methods, request fields, headers and input bodies are refused.
 
 GitHub writes default off.
@@ -462,6 +465,9 @@ Repository visibility changes are unavailable.
 PR merge uses `--method merge|squash|rebase`; release create/edit uses `--notes` for inline release notes.
 Every project write requires `--owner OWNER`, or `--source-owner` and `--target-owner` for `project copy`, so recovery checks inspect the intended user's or organization's projects.
 Project visibility changes are unavailable.
+After an uncertain `project edit`, the recovery check `project view` shows the title and short description but not the README.
+No admitted read exposes a project README: pinned gh-axi omits it from `project view`, the Projects REST resource has no README field and GraphQL is refused.
+Confirm an uncertain README change in the GitHub web interface before repeating the write.
 `pr close` and `pr reopen` are collaboration operations; `issue unpin`, `project create|edit|close|copy` and `release upload` are repository operations.
 `issue subissue add|remove` accept numeric issue numbers within one repository.
 For `project item-edit`, Artium uses this owner for confirmation and recovery; the mutation itself selects the item by ID.
