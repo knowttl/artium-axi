@@ -50,15 +50,15 @@ function adoPaths(tokens) {
     stop: end === -1 ? '' : tokens[end] }
 }
 
-async function adoSurface() {
+export async function adoSurface(helpModule = upstreamFile('ado-axi', 'dist/help.js')) {
   const entry = inventory('ado-axi')
-  const { COMMAND_HELP } = await import(upstreamFile('ado-axi', 'dist/help.js').href)
+  const { COMMAND_HELP } = await import(helpModule.href)
   const offered = Object.entries(COMMAND_HELP).flatMap(([group, text]) => {
     const [header, ...lines] = text.split('\n')
     const alternatives = header.match(new RegExp(`^ado-axi ${group} <([a-z|-]+)>$`))?.[1].split('|') ?? []
     const usage = [header, ...lines].filter(line => line.startsWith('ado-axi ')).map(line => adoPaths(words(line).slice(1)).paths[0])
-    const verbs = lines.filter(line => /^[a-z]/.test(line) && !line.startsWith('ado-axi ')).map(line => adoPaths(words(line)))
-      .filter(({ paths, stop }) => paths[0].length && /^[<[(#-]/.test(stop)).flatMap(({ paths }) => paths.map(path => [group, ...path]))
+    const verbs = lines.filter(line => /^[a-z]/.test(line) && !line.startsWith('ado-axi ')).map(line => adoPaths(words(line.split(/ {2,}/)[0])))
+      .filter(({ paths, stop }) => paths[0].length && /^(?:$|[<[(#-])/.test(stop)).flatMap(({ paths }) => paths.map(path => [group, ...path]))
     return [[group], ...alternatives.map(verb => [group, verb]), ...usage, ...verbs].map(path => path.join(' '))
   })
   const admitted = entry.commands.flatMap(route => [route.command, ...route.aliases])

@@ -1,9 +1,10 @@
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { expect, test } from 'vitest'
 
-const { ghSurface, unadmittedCommands, unknownGhGroups } = await import(new URL('../scripts/offered-commands.mjs', import.meta.url).href)
+const { adoSurface, ghSurface, unadmittedCommands, unknownGhGroups } = await import(new URL('../scripts/offered-commands.mjs', import.meta.url).href)
 const review = JSON.parse(readFileSync(new URL('../tools/offered-review.json', import.meta.url), 'utf8')) as Record<string, string[]>
 
 test.each(Object.keys(review))('%s offers no command that is neither admitted, blocked nor reviewed in tools/offered-review.json', async tool => {
@@ -28,6 +29,17 @@ console.log(first === '--help'
     chmodSync(binary, 0o755)
     expect(unknownGhGroups(binary)).toEqual(['agent-task'])
     expect(ghSurface(binary).offered).toEqual(['home', 'issue list', 'issue view', 'agent-task list', 'agent-task view'])
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('an ado-axi verb that takes no arguments is reported as offered', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'artium-offered-'))
+  try {
+    const helpModule = join(directory, 'help.mjs')
+    writeFileSync(helpModule, `export const COMMAND_HELP = { cache: 'ado-axi cache\\n\\nlist  [--limit 30]\\nsync  refreshes the cache' }\n`)
+    expect([...new Set((await adoSurface(pathToFileURL(helpModule))).offered)]).toEqual(['cache', 'cache list', 'cache sync'])
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
