@@ -280,6 +280,16 @@ test.each([[['sub', 'list', '--help']], [['home', '--help']], [['--help']], [['-
 })
 
 test.each([
+  [['api', 'GET', '/subscriptions'], 'read'],
+  [['api', 'PATCH', '/subscriptions/synthetic-subscription/resourceGroups/synthetic'], 'read'],
+  [['api', 'PUT', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--execute'], 'write'],
+  [['sub', 'list'], 'read'],
+])('classify %j as %s', (args, effect) => {
+  const adapter = createAzAdapter({ getCredential: async () => credential }, writeLog)
+  expect(adapter.classify(args).effect).toBe(effect)
+})
+
+test.each([
   { args: ['api', 'PUT', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--execute'], operation: 'PUT',
     target: '/subscriptions/synthetic-subscription/resourceGroups/synthetic',
     checkArgs: ['api', 'GET', '/subscriptions/synthetic-subscription/resourceGroups/synthetic', '--full'] },

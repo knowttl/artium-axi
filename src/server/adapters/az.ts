@@ -199,7 +199,15 @@ export function createAzAdapter(source: SecretSource, writeLog: string, cache = 
     executesWrite: (args, input) => !!azArguments(args, input).write,
     rawApi: { commands: ['api'], writes: true, help: (args, input) => azArguments(args, input).invocation.help,
       effect: (args, input) => azArguments(args, input).rawEffect },
-    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => azArguments(a, i).invocation, args, input),
+    classify(args: readonly string[], input?: RunnerInput) {
+      let rawEffect: 'read' | 'write' | undefined
+      const result = classifyCommand(inventory.commands, (a, i) => {
+        const call = azArguments(a, i)
+        rawEffect = call.invocation.command === 'api' ? call.rawEffect : undefined
+        return call.invocation
+      }, args, input)
+      return rawEffect ? { ...result, effect: rawEffect } : result
+    },
     async prepare(args, reference, input) {
       const normalized = azArguments(args, input)
       if (reference.tool !== 'az-axi' || !reference.revision) throw new ArtiumError('CREDENTIAL_INVALID')
