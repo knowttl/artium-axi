@@ -42,9 +42,8 @@ const azResources = ['arm', 'graph', 'logs', 'registry', 'storage', 'vault']
 const azUnsafeOverrides = ['config', 'profile', 'tenant']
 const mgDownloads = { 'mail attachment save': 'mail', 'mail message export': 'mail' }
 const mgPackPrefixes = ['mail', 'security']
-const mgDeniedPackCommands = Object.keys(mgDownloads)
 const mgCommandPacks = Object.fromEntries(mg.LEAVES
-  .filter(leaf => mgPackPrefixes.includes(leaf.path.split(' ')[0]) && !mgDeniedPackCommands.includes(leaf.path))
+  .filter(leaf => mgPackPrefixes.includes(leaf.path.split(' ')[0]) && !Object.hasOwn(mgDownloads, leaf.path))
   .map(leaf => [leaf.path, leaf.path.split(' ')[0]]))
 // Mail handlers derive coordinator operation IDs from these reviewed command paths.
 mgWriteOperations.push(...mg.LEAVES.filter(leaf => mgCommandPacks[leaf.path] === 'mail' && leaf.flags?.execute)
