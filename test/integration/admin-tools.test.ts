@@ -376,6 +376,16 @@ test('per-person Shodan grants keep ceilings and journal writes and exports', as
   ])
 })
 
+test('Shodan stream selector grants survive editing', async () => {
+  const operations = ['OP-046', 'OP-047', 'OP-048', 'OP-049', 'OP-050', 'OP-051', 'OP-052', 'OP-053', 'OP-065']
+  const sessions = { grants: { 'synthetic-ordinary': operations }, perUser: 1, perCredential: 1, total: 1, sessionEvents: 1, totalEvents: 1,
+    sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 }
+  expect((await request('PATCH', '/shodan-axi', { expectedRevision: 1, nativeSettings: { sessions } })).status).toBe(200)
+  const saved = await grantUser('shodan-axi', 'sessions', 'synthetic-ordinary', operations, 2)
+  expect(saved.status).toBe(200)
+  expect(await saved.json()).toMatchObject({ nativeSettings: { sessions } })
+})
+
 test('a stale grant for a person who no longer exists can be removed but not added', async () => {
   expect((await request('PATCH', '/kubernetes-axi', { expectedRevision: 1,
     nativeSettings: { sessions: { grants: { 'departed-user': ['exec'] } } } })).status).toBe(200)

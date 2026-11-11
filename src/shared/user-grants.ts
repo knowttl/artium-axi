@@ -23,7 +23,7 @@ export const userGrantPolicies: Record<string, Record<string, UserGrantPolicy>> 
       operations: [{ id: 'OP-009', label: 'scan submit' }] },
     sessions: { title: 'Stream sessions', description: 'People who may start banner and threat stream sessions.',
       operations: shodanInventory.streamCommands.filter(entry => /^OP-\d{3}$/.test(entry.operation))
-        .map(entry => ({ id: entry.operation, label: entry.command })) },
+        .flatMap(entry => [entry.operation, ...entry.selectors].map(id => ({ id, label: entry.command }))) },
     writes: { title: 'Confirmed writes', description: 'People who may run each confirmed alert, notifier and organization change.',
       operations: unique(confirmed('write').flatMap(entry => entry.grants.map(id => ({ id, label: entry.command })))) },
     exports: { title: 'Exports', description: 'People who may start retained download exports.',
