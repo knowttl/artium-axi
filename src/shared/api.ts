@@ -434,7 +434,7 @@ export const writeAccessInputSchema = z.strictObject({ allowDeletes: z.boolean()
 export const rawApiModeSchema = z.enum(['off', 'read', 'read-writes'])
 const rawApiRoutePatterns = z.array(z.string().min(1).max(256)).max(50)
 export const rawApiRoutesSchema = z.strictObject({ get: rawApiRoutePatterns, write: rawApiRoutePatterns })
-export const toolRawApiSchema = z.strictObject({ mode: rawApiModeSchema, modes: z.array(rawApiModeSchema), routes: rawApiRoutesSchema })
+export const toolRawApiSchema = z.strictObject({ mode: rawApiModeSchema, modes: z.array(rawApiModeSchema), writes: z.boolean(), routes: rawApiRoutesSchema })
 // Tool versions in adminToolSchema and toolsResponseSchema identify the server's bundled inventory,
 // independent of a retained store's pinned_version value.
 export const adminToolSchema = z.strictObject({ name: toolSchema, enabled: z.boolean(), version: z.string(),

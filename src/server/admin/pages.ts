@@ -168,8 +168,9 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
         <div class="card-foot"><span>Saving keeps the credential and other settings. Audited.</span><div class="actions"><button class="btn btn-primary btn-sm">Save Raw API mode</button></div></div></form>`
       const routes = formStart(api + '/raw-api/routes', 'PUT', `Change the raw route patterns for ${product}? They apply to every caller on the next call. This change is audited.`, '', 'card') +
         `<div class="card-head"><div><h2>Route patterns</h2><p>Which paths ${escape(product)} raw calls may use. One pattern per line.</p></div></div>
-        <div class="card-body"><label>Write routes<textarea name="write" data-type="lines" rows="4" spellcheck="false">${escape(tool.rawApi.routes.write.join('\n'))}</textarea></label>
-        <p class="note">Required for any raw write. Each line is a method and a relative path, such as <code>PATCH _apis/wit/workitems/*</code>. Methods: POST, PATCH, PUT or DELETE.</p>
+        <div class="card-body">${tool.rawApi.writes ? `<label>Write routes<textarea name="write" data-type="lines" rows="4" spellcheck="false">${escape(tool.rawApi.routes.write.join('\n'))}</textarea></label>
+        <p class="note">Required for any raw write. Each line is a method and a relative path, such as <code>PATCH _apis/wit/workitems/*</code>. Methods: POST, PATCH, PUT or DELETE.</p>`
+          : `<input type="hidden" name="write" data-type="lines" value="${escape(tool.rawApi.routes.write.join('\n'))}">`}
         <label>GET routes (optional)<textarea name="get" data-type="lines" rows="4" spellcheck="false">${escape(tool.rawApi.routes.get.join('\n'))}</textarea></label>
         <p class="note">Leave empty to allow any path for raw reads. A <code>*</code> segment matches exactly one segment and a final <code>**</code> matches any deeper path.</p>${revision(tool.revision)}</div>
         <div class="card-foot"><span>Saving keeps the credential and other settings. Audited.</span><div class="actions"><button class="btn btn-primary btn-sm">Save route patterns</button></div></div></form>`

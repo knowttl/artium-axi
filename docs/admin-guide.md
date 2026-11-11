@@ -469,6 +469,7 @@ Each change is recorded as an `admin-change` audit event for the tool, with acti
 Each tool with raw API routes also has route patterns, set under **Route patterns** on its **Raw API** tab.
 They are never accepted from a client or forwarded to the tool, and each change is an `admin-change` event with action `set-tool-raw-api-routes` listing the added and removed patterns.
 Write routes are required for any raw write: with none, every raw write is refused whatever the mode.
+Tools whose raw routes can only read show GET routes only.
 Each write route is a method and a relative path, such as `PATCH _apis/wit/workitems/*`; the method is `POST`, `PATCH`, `PUT` or `DELETE`.
 GET routes are optional relative paths; with none, raw reads may use any path, and with some, a raw read must match one.
 A pattern matches the complete normalized relative path, case sensitively; a whole segment `*` matches exactly one nonempty segment, and a final `**` segment matches the named prefix and anything below it.
@@ -479,6 +480,7 @@ Azure absolute URLs match by their path, Gitea paths match with their `api/v1/` 
 Azure DevOps raw writes additionally require a JSON `--body` within the adapter's byte limit.
 On the first start after upgrading, a valid `ARTIUM_AXI_ADO_API_WRITE_PATHS` value seeds the Azure DevOps write routes as `METHOD pattern` entries, only if the tool has never had routes saved, and the migration is journaled as `migrate-tool-raw-api-routes`.
 Entries that never authorized a path are dropped, and later changes to the variable have no effect.
+The migration also drops any entry longer than 256 characters and every entry after the first 50, the limits of the write route list; review the migrated routes after upgrading if the variable held more.
 The **Raw API** column on the Tools list shows each tool's mode.
 See the [command reference](commands.md) for path scope and body syntax, and [supported write gates](safety.md#write-gates-by-tool) for administrator enablement.
 

@@ -72,8 +72,8 @@ export async function runTool<Credential>(
       && request.args.every((value: unknown) => typeof value === 'string') ? request.args as string[] : undefined
     const apiInput = runInputSchema.safeParse(request && typeof request === 'object'
       ? { stdin: 'stdin' in request ? request.stdin : undefined, files: 'files' in request ? request.files : undefined } : {})
-    const apiAudit = apiArgs && !/artd_[A-Za-z0-9_-]{43}/.test(JSON.stringify(apiArgs))
-      ? readRawApiCall(adapter, apiArgs, apiInput.success ? apiInput.data : {}) : undefined
+    const apiCall = apiArgs && readRawApiCall(adapter, apiArgs, apiInput.success ? apiInput.data : {})
+    const apiAudit = apiCall && /artd_[A-Za-z0-9_-]{43}/i.test(JSON.stringify(apiCall)) ? { ...apiCall, method: '', path: null, query: [] } : apiCall
     let apiDecisionRecorded = false
     let apiRoute: string | null = null
     const recordApiDecision = (outcome: 'allowed' | 'refused') => {

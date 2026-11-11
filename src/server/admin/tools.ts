@@ -171,8 +171,9 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const readOnly = !writeAccess.enabled
     const diagnostic = cached && selectedId ? options.health.diagnostic(tool, health.credentialRevision, health.checkedAt, selectedId) : undefined
     const { rawApiMode, rawApiRoutes, ...fields } = row
+    const adapter = adapters.find(adapter => adapter.name === tool)
     return adminToolSchema.parse({ ...fields, version: toolManifests[tool].version, enabled: Boolean(row.enabled),
-      nativeSettings, readOnly, writeAccess, rawApi: { mode: rawApiMode, modes: rawApiModes(adapters.find(adapter => adapter.name === tool)), routes: parseRawApiRoutes(rawApiRoutes) },
+      nativeSettings, readOnly, writeAccess, rawApi: { mode: rawApiMode, modes: rawApiModes(adapter), writes: adapter?.rawApi?.writes ?? false, routes: parseRawApiRoutes(rawApiRoutes) },
       health: { ...health, readOnly, ...(diagnostic ? { diagnostic } : {}) } })
   }
   function readCredential(tool: ToolName): z.infer<typeof adminCredentialSchema> {

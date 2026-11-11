@@ -14,6 +14,7 @@ import { writePolicy } from './write-policy.js'
 import { invalidCommand, unknownFlag } from './input-diagnostics.js'
 
 export const tenableManifest = { ...inventory, ...inventory.adapterBoundary }
+export const tenableBooleanFlags = ['help', 'full', 'all', 'include-resolved', 'execute', 'dry-run']
 export const tenableProfile = new CredentialProfile(inventory.credentialSchema, 'tenable-axi')
 export const tenableCredentialSchema = tenableProfile.credentialSchema
 export const tenableWritePolicy = writePolicy({ supportedOperations: inventory.nativeWriteSettings.supportedOperations,
@@ -52,7 +53,7 @@ function tenableArguments(args: readonly string[], input: RunnerInput = {}) {
       if (value !== '-') fileArguments.push(normalized.length - 1)
     } else {
       normalized.push(token)
-      if (name && !['help', 'full', 'all', 'include-resolved', 'execute', 'dry-run'].includes(name)
+      if (name && !tenableBooleanFlags.includes(name)
         && !token.includes('=') && tokens[index + 1] !== undefined && !tokens[index + 1].startsWith('--')) {
         normalized.push(tokens[++index])
       }
