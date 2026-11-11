@@ -379,7 +379,9 @@ test.each([
       credentialStore: store, resolver: new SharedIdentityResolver(store), environment: {} })
     try {
       await seedToolUser(db)
-      allowRawApi(db, 'ado-axi')
+      allowRawApi(db, 'ado-axi', 'read-writes', [])
+      const allowRawWrites = (...write: string[]) => db.prepare("UPDATE tools SET raw_api_routes = ? WHERE name = 'ado-axi'")
+        .run(JSON.stringify({ get: [], write }))
       db.exec('UPDATE users SET administrator = 1')
       const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: {
         username: 'synthetic-user', password: 'CANARY-local-password' } })
@@ -421,7 +423,7 @@ test.each([
       const patchBody = '[{"op":"add","path":"/fields/System.Title","value":"Synthetic raw TD-067"}]'
       const rawBody = patchBody.padEnd(ADO_API_BODY_MAX_BYTES)
       const rawPath = '_apis/wit/workitems/42'
-      vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', JSON.stringify({ PATCH: ['_apis/wit/workitems/*'] }))
+      allowRawWrites('PATCH _apis/wit/workitems/*')
       const rawWrite = ['api', rawPath, '-X', 'PATCH', '--content-type', 'json-patch', '--body', rawBody, '--no-project']
       expect((await run(rawWrite)).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
       const switched = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/ado-axi', headers,
@@ -431,6 +433,7 @@ test.each([
       expect(written.statusCode, written.body).toBe(200)
       expect(written.json()).toMatchObject({ exitCode: 0 })
       expect((await run(['api', 'POST', '_apis/projects'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      expect((await run(['api', 'PATCH', '_apis/projects', '--body', '{}'])).json()).toMatchObject({ error: { code: 'RAW_API_DENIED' } })
       expect((await run(['api', '_apis/projects'], { stdin: '{}' })).json()).toMatchObject({ error: { code: 'UNSUPPORTED_INPUT' } })
       const redacted = await run(['api', '_apis/redaction'])
       expect(redacted.json()).toMatchObject({ error: { code: 'SECRET_IN_OUTPUT' } })
@@ -451,7 +454,9 @@ test.each([
       expect(JSON.stringify(audit)).not.toContain(Buffer.from(':CANARY-ado-pat').toString('base64'))
       // TD-067: exercise the real HTTP policy, credential, runner and pinned API command.
       await send('/__ado/reset', 'POST')
-      for (const path of ['_apis/wit/workitems/43/other', '../_apis/wit/workitems/42',
+      expect((await run(['api', '_apis/wit/workitems/43/other', '--method=PATCH', '--body', rawBody])).json())
+        .toMatchObject({ error: { code: 'RAW_API_DENIED' } })
+      for (const path of ['../_apis/wit/workitems/42',
         '_apis/%2e%2e/wit/workitems/42', '_apis/%252e%252e/wit/workitems/42',
         '_apis/wit/../workitems/42', '_apis/wit/./workitems/42', '_apis/wit%2fworkitems/42',
         '_apis/wit%5cworkitems/42', '_apis/wit/workitems/%zz',
@@ -467,24 +472,28 @@ test.each([
         expect((await run(['api', rawPath, '--method', 'PATCH', '--body', body])).json())
           .toMatchObject({ error: { code: 'INVALID_INPUT' } })
       }
-      for (const configuration of [undefined, '{}', '{invalid', '[]']) {
-        vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', configuration)
-        expect((await run(rawWrite)).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      for (const write of [[], ['PATCH _apis/projects'], ['POST _apis/wit/workitems/*']]) {
+        allowRawWrites(...write)
+        expect((await run(rawWrite)).json()).toMatchObject({ error: { code: 'RAW_API_DENIED' } })
       }
       expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
-      vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', JSON.stringify({ PATCH: ['_apis/wit/workitems/*'] }))
+      allowRawWrites('PATCH _apis/wit/workitems/*')
       expect((await run(rawWrite)).json()).toMatchObject({ exitCode: 0 })
       expect(JSON.parse(await send('/__evidence')).requests).toEqual([
         expect.objectContaining({ method: 'PATCH', path: '/synthetic-org/_apis/wit/workitems/42', body: JSON.parse(rawBody) }),
       ])
-      const journal = db.prepare("SELECT user_id, outcome, arguments FROM audit WHERE event = 'ado-api' ORDER BY id").all() as
+      const journal = db.prepare("SELECT user_id, outcome, arguments FROM audit WHERE event = 'raw-api' ORDER BY id").all() as
         { user_id: string, outcome: string, arguments: string }[]
       expect(journal).toContainEqual({ user_id: 'synthetic-development-user', outcome: 'refused', arguments: JSON.stringify({
-        method: 'PATCH', path: rawPath, decision: 'refused', bodySha256: createHash('sha256').update(rawBody).digest('hex'), bodyBytes: Buffer.byteLength(rawBody),
+        method: 'PATCH', path: rawPath, query: [], decision: 'refused', route: null,
+        bodySha256: createHash('sha256').update(rawBody).digest('hex'), bodyBytes: Buffer.byteLength(rawBody),
       }) })
       expect(journal.at(-1)).toEqual({ user_id: 'synthetic-development-user', outcome: 'allowed', arguments: JSON.stringify({
-        method: 'PATCH', path: rawPath, decision: 'allowed', bodySha256: createHash('sha256').update(rawBody).digest('hex'), bodyBytes: Buffer.byteLength(rawBody),
+        method: 'PATCH', path: rawPath, query: [], decision: 'allowed', route: 'PATCH _apis/wit/workitems/*',
+        bodySha256: createHash('sha256').update(rawBody).digest('hex'), bodyBytes: Buffer.byteLength(rawBody),
       }) })
+      expect(db.prepare("SELECT outcome, arguments FROM audit WHERE event = 'raw-api-result' ORDER BY id DESC LIMIT 1").get())
+        .toEqual({ outcome: 'success', arguments: JSON.stringify({ upstreamStatus: null, exitCode: 0 }) })
       expect(journal.map(row => JSON.parse(row.arguments))).toContainEqual(expect.objectContaining({ path: null, decision: 'refused' }))
       expect(journal.map(row => JSON.parse(row.arguments))).toContainEqual(expect.objectContaining({
         decision: 'refused', bodyBytes: ADO_API_BODY_MAX_BYTES + 2,
@@ -497,7 +506,7 @@ test.each([
         { method: 'DELETE', path: '_apis/git/repositories/Synthetic%20Repo/pullrequests/42/reviewers/11111111-1111-4111-8111-111111111111', body: {} },
       ]) {
         await send('/__ado/reset', 'POST')
-        vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', JSON.stringify({ [row.method]: [row.path] }))
+        allowRawWrites(`${row.method} ${row.path}`)
         const response = await run(['api', row.path, '--method', row.method, '--body', JSON.stringify(row.body)])
         expect(response.json(), response.body).toMatchObject({ exitCode: 0 })
         expect(JSON.parse(await send('/__evidence')).requests).toEqual([
@@ -508,7 +517,7 @@ test.each([
       db.prepare("DELETE FROM role_tools WHERE tool = 'ado-axi'").run()
       expect((await run(rawWrite)).json()).toMatchObject({ error: { code: 'TOOL_NOT_GRANTED' } })
       expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
-      expect(db.prepare("SELECT user_id, outcome FROM audit WHERE event = 'ado-api' ORDER BY id DESC LIMIT 1").get())
+      expect(db.prepare("SELECT user_id, outcome FROM audit WHERE event = 'raw-api' ORDER BY id DESC LIMIT 1").get())
         .toEqual({ user_id: 'synthetic-development-user', outcome: 'refused' })
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
       // Enabling writes replaces the credential revision and invalidates its token.

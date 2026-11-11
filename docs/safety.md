@@ -70,6 +70,7 @@ The reviewed inventories still determine which commands and flags are accepted; 
 Tenable `raw get --out` remains blocked because raw responses are never saved to server files.
 Raw request bodies and Falcon query files must be uploaded with the call; Tenable and Falcon also accept an explicit stdin (`-`), and AWX accepts uploads only.
 
+A tool's administrator route patterns further limit raw calls: any raw write needs a matching write route, and raw reads must match a GET route when any are set; see [route patterns](admin-guide.md#server-settings-and-custody).
 Mode `off` denies raw calls; `read` permits read-classified calls; `read-writes` additionally permits write-classified calls on Azure, Azure DevOps, Gitea, Microsoft Graph, Tenable, Falcon and AWX.
 For tools whose raw routes cannot write, `read-writes` permits reads only and raw writes remain blocked.
 Azure raw GET calls and mutation previews are read-classified, including for read-only instances and delegated tokens; executing a mutation requires `read-writes`.

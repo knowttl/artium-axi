@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, afterEach, expect, test, vi } from 'vitest'
+import { afterAll, expect, test } from 'vitest'
 import { createAdoAdapter } from './ado.js'
 import { createAwxAdapter } from './awx.js'
 import { createAzAdapter } from './az.js'
@@ -39,7 +39,6 @@ const adapters = [createAwxAdapter(source), createAzAdapter(source, log), create
   createLdapAdapter(source), createMgAdapter(source, log), createVectraAdapter(source, log),
   createSshAdapter(new SshHosts(db, provider), log, join(process.cwd(), 'tools/node_modules/@knowttl/ssh-axi/dist/hosted.js'))]
 afterAll(() => { db.close(); rmSync(directory, { recursive: true, force: true }) })
-afterEach(() => { vi.unstubAllEnvs() })
 
 type Route = { command: string, effect?: string, canonicalCommand?: string }
 const inventoryCases = adapters.flatMap(adapter => {
@@ -224,7 +223,6 @@ test.each([
 
 test('Azure DevOps API method overrides do not turn mutations into reads', () => {
   const adapter = adapters.find(item => item.name === 'ado-axi')!
-  vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', JSON.stringify({ POST: ['_apis/projects'] }))
   expect(adapter.classify(['api', '_apis/projects', '--method', 'POST', '--body', '{}', '--help'])).toEqual({ command: 'api', effect: 'write' })
   expect(adapter.classify(['api', '--method', 'GET', '--help'])).toEqual({ command: 'api', effect: 'read' })
 })
@@ -244,7 +242,6 @@ test.each([
   ['hybrid-axi', ['api', 'get', '/report'], 'api get', 'read', false],
 ] as const)('%s declares the raw API route that classifies %j', (tool, args, command, effect, writes) => {
   const adapter = adapters.find(item => item.name === tool)!
-  vi.stubEnv('ARTIUM_AXI_ADO_API_WRITE_PATHS', JSON.stringify({ POST: ['_apis/projects'] }))
   expect(adapter.classify(args)).toEqual({ command, effect })
   expect(adapter.rawApi).toMatchObject({ commands: expect.arrayContaining([command]), writes })
 })

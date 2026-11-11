@@ -318,8 +318,10 @@ export const adminAuditQuerySchema = auditFiltersSchema.extend({
 export const adminAuditExportRoute = { method: 'GET', path: '/v1/admin/audit/export',
   input: auditFiltersSchema.extend({ format: z.enum(['csv', 'jsonl']) }).refine(orderedAuditRange),
   response: z.string(), authorization: 'administrator-and-recent-auth', auditEvent: null } as const
-// TD-067 ado-api events store method, normalized path (null if unsafe), decision,
-// bodySha256 and bodyBytes in arguments. Body content is never part of that journal.
+// raw-api events (ado-api before raw-api covered every tool) store method, normalized path (null if unsafe),
+// query names with SHA-256 value hashes, decision, matched route pattern, bodySha256 and bodyBytes in arguments.
+// raw-api-result events store the upstream HTTP status when the native tool reports it, and the exit code.
+// Body and query value content is never part of that journal.
 export const adminAuditRecordSchema = z.strictObject({
   id: z.number().int().positive(), occurred_at: z.number().int(), event: z.string(), user_id: z.string().nullable(),
   delegation_id: z.string().nullable(),
@@ -430,7 +432,9 @@ export const writeAccessInputSchema = z.strictObject({ allowDeletes: z.boolean()
   operations: z.array(z.string().min(1).max(256)).max(Math.max(126, giteaWriteOperations.length)).refine(operations => new Set(operations).size === operations.length).optional(),
   expectedRevision: z.number().int().positive() })
 export const rawApiModeSchema = z.enum(['off', 'read', 'read-writes'])
-export const toolRawApiSchema = z.strictObject({ mode: rawApiModeSchema, modes: z.array(rawApiModeSchema) })
+const rawApiRoutePatterns = z.array(z.string().min(1).max(256)).max(50)
+export const rawApiRoutesSchema = z.strictObject({ get: rawApiRoutePatterns, write: rawApiRoutePatterns })
+export const toolRawApiSchema = z.strictObject({ mode: rawApiModeSchema, modes: z.array(rawApiModeSchema), routes: rawApiRoutesSchema })
 // Tool versions in adminToolSchema and toolsResponseSchema identify the server's bundled inventory,
 // independent of a retained store's pinned_version value.
 export const adminToolSchema = z.strictObject({ name: toolSchema, enabled: z.boolean(), version: z.string(),
@@ -511,6 +515,11 @@ export const adminToolRoutes = {
   rawApi: { method: 'PATCH', path: '/v1/admin/tools/:tool/raw-api',
     input: z.strictObject({ mode: rawApiModeSchema, expectedRevision: z.number().int().positive() }),
     response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: null },
+  // GET patterns are relative paths and optional; write patterns are "METHOD path" and required for any raw write.
+  // A "*" segment matches one segment and a final "**" matches any deeper path.
+  rawApiRoutes: { method: 'PUT', path: '/v1/admin/tools/:tool/raw-api/routes',
+    input: rawApiRoutesSchema.extend({ expectedRevision: z.number().int().positive() }),
+    response: adminToolSchema, authorization: 'administrator-and-recent-auth', auditEvent: 'set-tool-raw-api-routes' },
   list: { method: 'GET', path: '/v1/admin/tools', input: z.strictObject({}),
     response: z.strictObject({ tools: z.array(adminToolSchema) }), authorization: 'administrator-and-recent-auth', auditEvent: null },
   patch: { method: 'PATCH', path: '/v1/admin/tools/:tool',

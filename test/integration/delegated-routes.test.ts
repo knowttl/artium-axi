@@ -63,7 +63,7 @@ for (const tool of ['hybrid', 'checkpoint', 'mg', 'beyondtrust', 'gitea']) {
 classify('DELETE', `/v1/tools/proxmox-axi/streams/:id /v1/tools/kubernetes-axi/workspaces/:id
   /v1/tools/kubernetes-axi/sessions/:id /v1/admin/tools/:tool/certificates
   /v1/admin/sso/role-rules/:id /v1/admin/roles/:id`, 'denied')
-classify('PUT', `/v1/admin/tools/awx-axi/origin /v1/admin/tools/:tool/credential /v1/admin/tools/:tool/user-grants /v1/admin/users/:id/roles
+classify('PUT', `/v1/admin/tools/awx-axi/origin /v1/admin/tools/:tool/credential /v1/admin/tools/:tool/user-grants /v1/admin/tools/:tool/raw-api/routes /v1/admin/users/:id/roles
   /v1/admin/roles/:id/tools /v1/admin/roles/:id/tools/:tool/instances /v1/admin/roles/:id/tools/:tool/raw-api /v1/tools/kubernetes-axi/workspaces/:id/files/*`, 'denied')
 classify('PATCH', `/v1/admin/token-settings /v1/admin/tools/:tool/write-access /v1/admin/tools/:tool/raw-api /v1/admin/tools/:tool /v1/admin/tools/:tool/credential
   /v1/admin/sso/providers/:id/activation /v1/admin/sso/providers/:id /v1/admin/sso/providers/:id/credential

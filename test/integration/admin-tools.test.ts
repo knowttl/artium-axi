@@ -2833,12 +2833,45 @@ test('tools report the Raw API modes they can be set to', async () => {
   adapters.push(createAwxAdapter(source), createTenableAdapter(source, join(directory, 'tenable-writes.log')), createLdapAdapter(source))
   const { tools } = await (await request('GET', '')).json() as { tools: unknown[] }
   const rawApi = Object.fromEntries(tools.map(item => adminToolSchema.parse(item)).map(item => [item.name, item.rawApi]))
-  expect(rawApi['az-axi']).toEqual({ mode: 'off', modes: ['off', 'read', 'read-writes'] })
-  expect(rawApi['vectra-axi']).toEqual({ mode: 'off', modes: ['off', 'read', 'read-writes'] })
+  const routes = { get: [], write: [] }
+  expect(rawApi['az-axi']).toEqual({ mode: 'off', modes: ['off', 'read', 'read-writes'], routes })
+  expect(rawApi['vectra-axi']).toEqual({ mode: 'off', modes: ['off', 'read', 'read-writes'], routes })
   for (const tool of ['falcon-axi', 'tenable-axi', 'awx-axi']) {
-    expect(rawApi[tool]).toEqual({ mode: 'off', modes: ['off', 'read', 'read-writes'] })
+    expect(rawApi[tool]).toEqual({ mode: 'off', modes: ['off', 'read', 'read-writes'], routes })
   }
-  expect(rawApi['ldap-axi']).toEqual({ mode: 'off', modes: [] })
+  expect(rawApi['ldap-axi']).toEqual({ mode: 'off', modes: [], routes })
+})
+
+const rawApiRoutes = (tool: string) => db.prepare('SELECT raw_api_routes AS routes, revision FROM tools WHERE name = ?').get(tool)
+
+test('an administrator sets raw route patterns, the change is journaled with its patterns and a repeat records nothing', async () => {
+  const before = adminToolSchema.parse(await (await request('GET', '/az-axi')).json())
+  const routes = { get: ['subscriptions/**'], write: ['PUT subscriptions/*/tags/default'] }
+  const changed = await request('PUT', '/az-axi/raw-api/routes', { ...routes, expectedRevision: before.revision })
+  expect(changed.status).toBe(200)
+  expect(adminToolSchema.parse(await changed.json())).toMatchObject({ rawApi: { routes }, revision: before.revision + 1, updatedBy: actor })
+  expect(rawApiRoutes('az-axi')).toEqual({ routes: JSON.stringify(routes), revision: before.revision + 1 })
+  expect(db.prepare("SELECT action, target_id AS targetId, arguments FROM audit WHERE event = 'admin-change'").all()).toEqual([{
+    action: 'set-tool-raw-api-routes', targetId: 'az-axi', arguments: JSON.stringify({ settings: [
+      { path: ['rawApiRoutes', 'get'], added: routes.get, removed: [] },
+      { path: ['rawApiRoutes', 'write'], added: routes.write, removed: [] }] }) }])
+  expect((await request('PUT', '/az-axi/raw-api/routes', { ...routes, expectedRevision: before.revision + 1 })).status).toBe(200)
+  expect(adminChanges()).toHaveLength(1)
+})
+
+test.each([
+  ['a tool without raw API routes', 'ldap-axi', { get: [], write: [] }, 'INVALID_INPUT'],
+  ['a write pattern without a method', 'az-axi', { get: [], write: ['subscriptions/*'] }, 'INVALID_INPUT'],
+  ['a write pattern with a read method', 'az-axi', { get: [], write: ['GET subscriptions/*'] }, 'INVALID_INPUT'],
+  ['a GET pattern with a leading slash', 'az-axi', { get: ['/subscriptions'], write: [] }, 'INVALID_INPUT'],
+  ['a stale revision', 'az-axi', { get: [], write: [], expectedRevision: 99 }, 'REVISION_CONFLICT'],
+] as const)('raw route patterns with %s are refused and recorded nowhere', async (_name, tool, body, code) => {
+  adapters.push(createLdapAdapter(new EmbeddedSecretSource(store)))
+  const current = adminToolSchema.parse(await (await request('GET', `/${tool}`)).json())
+  const before = rawApiRoutes(tool)
+  await failure(await request('PUT', `/${tool}/raw-api/routes`, { expectedRevision: current.revision, ...body }), code)
+  expect(rawApiRoutes(tool)).toEqual(before)
+  expect(adminChanges()).toEqual([])
 })
 
 test.each(['falcon-axi', 'tenable-axi', 'awx-axi'])('an administrator enables Raw API mode and role access for %s', async tool => {
@@ -2936,6 +2969,9 @@ test('Raw API settings made through the admin routes decide raw calls', async ()
   expect(raw(read)).not.toThrow()
   expect(raw(write)).toThrow(expect.objectContaining({ code: 'RAW_API_DENIED' }))
   await setMode('read-writes')
+  expect(raw(write)).toThrow(expect.objectContaining({ code: 'RAW_API_DENIED' }))
+  const { revision } = adminToolSchema.parse(await (await request('GET', '/az-axi')).json())
+  expect((await request('PUT', '/az-axi/raw-api/routes', { get: [], write: ['PUT subscriptions/*'], expectedRevision: revision })).status).toBe(200)
   expect(raw(write)).not.toThrow()
   await setGrant(false)
   expect(raw(read)).toThrow(expect.objectContaining({ code: 'RAW_API_DENIED' }))
@@ -2958,6 +2994,7 @@ test('the tool and role pages offer the Raw API controls', async () => {
   const tool = await app.inject({ method: 'GET', url: '/admin/tools/az-axi?tab=raw-api', headers: { cookie } })
   expect(tool.statusCode).toBe(200)
   expect(tool.body).toContain('action="/v1/admin/tools/az-axi/raw-api"')
+  expect(tool.body).toContain('action="/v1/admin/tools/az-axi/raw-api/routes"')
   expect(tool.body.match(/name="mode" value="(off|read|read-writes)"( checked)?/g)).toEqual([
     'name="mode" value="off" checked', 'name="mode" value="read"', 'name="mode" value="read-writes"'])
   const readOnly = await app.inject({ method: 'GET', url: '/admin/tools/vectra-axi?tab=raw-api', headers: { cookie } })

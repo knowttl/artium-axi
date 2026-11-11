@@ -75,6 +75,8 @@ beforeEach(() => {
   }
 })
 
+const anyWriteRoutes = JSON.stringify({ get: [], write: ['POST **', 'PATCH **', 'PUT **', 'DELETE **'] })
+
 test.each([
   ['a new tool and role grant', az, 'off', 0, ['api', 'GET', '/subscriptions'], 'RAW_API_DENIED'],
   ['mode off with a role grant', az, 'off', 1, ['api', 'GET', '/subscriptions'], 'RAW_API_DENIED'],
@@ -115,7 +117,7 @@ test.each([
     [`${adapter.name} mode read-writes allows a raw write`, adapter, 'read-writes', 1, write, undefined],
   ] as const),
 ] as const)('raw API policy: %s', (_name, adapter, mode, grant, args, code) => {
-  db.prepare('UPDATE tools SET raw_api_mode = ? WHERE name = ?').run(mode, adapter.name)
+  db.prepare('UPDATE tools SET raw_api_mode = ?, raw_api_routes = ? WHERE name = ?').run(mode, anyWriteRoutes, adapter.name)
   db.prepare('UPDATE role_tools SET raw_api = ? WHERE tool = ?').run(grant, adapter.name)
   const check = () => checkRawApiPolicy(db, 'synthetic-user', adapter, args)
   if (code) expect(check).toThrow(expect.objectContaining({ code }))
@@ -129,9 +131,29 @@ test.each([
   ['read-writes', ['entra', 'user', 'list'], false],
   ['read', ['api', 'get', '/users'], false],
 ] as const)('mode %s reports the raw read-writes grant for %j', (mode, args, expected) => {
-  db.prepare('UPDATE tools SET raw_api_mode = ? WHERE name = ?').run(mode, mg.name)
+  db.prepare('UPDATE tools SET raw_api_mode = ?, raw_api_routes = ? WHERE name = ?').run(mode, anyWriteRoutes, mg.name)
   db.prepare('UPDATE role_tools SET raw_api = 1 WHERE tool = ?').run(mg.name)
-  expect(checkRawApiPolicy(db, 'synthetic-user', mg, [...args])).toBe(expected)
+  expect(checkRawApiPolicy(db, 'synthetic-user', mg, [...args]).readWrites).toBe(expected)
+})
+
+const ado = adapters.find(adapter => adapter.name === 'ado-axi')!
+test.each([
+  ['a write with no write routes', null, ['api', 'PATCH', '_apis/wit/workitems/1', '--body', '{}'], 'RAW_API_DENIED', null],
+  ['a write with only GET routes', { get: ['_apis/**'], write: [] }, ['api', 'PATCH', '_apis/wit/workitems/1', '--body', '{}'], 'RAW_API_DENIED', null],
+  ['a write matching a write route', { get: [], write: ['PATCH _apis/wit/workitems/*'] }, ['api', 'PATCH', '_apis/wit/workitems/1', '--body', '{}'], undefined, 'PATCH _apis/wit/workitems/*'],
+  ['a write with another method', { get: [], write: ['PATCH _apis/wit/workitems/*'] }, ['api', 'POST', '_apis/wit/workitems/1', '--body', '{}'], 'RAW_API_DENIED', null],
+  ['a write outside the write routes', { get: [], write: ['PATCH _apis/wit/workitems/*'] }, ['api', 'PATCH', '_apis/git/repositories/1', '--body', '{}'], 'RAW_API_DENIED', null],
+  ['a read with no GET routes', null, ['api', '_apis/projects'], undefined, null],
+  ['a read matching a GET route', { get: ['_apis/projects/**'], write: [] }, ['api', '_apis/projects/1'], undefined, '_apis/projects/**'],
+  ['a read outside the GET routes', { get: ['_apis/projects/**'], write: [] }, ['api', '_apis/git/repositories'], 'RAW_API_DENIED', null],
+  ['a read with write routes only', { get: [], write: ['PATCH _apis/wit/workitems/*'] }, ['api', '_apis/git/repositories'], undefined, null],
+  ['a read with an unsafe path under GET routes', { get: ['_apis/**'], write: [] }, ['api', '_apis/%2e%2e/secrets'], 'RAW_API_DENIED', null],
+] as const)('raw routes: %s', (_name, routes, args, code, route) => {
+  db.prepare("UPDATE tools SET raw_api_mode = 'read-writes', raw_api_routes = ? WHERE name = 'ado-axi'").run(routes && JSON.stringify(routes))
+  db.prepare("UPDATE role_tools SET raw_api = 1 WHERE tool = 'ado-axi'").run()
+  const check = () => checkRawApiPolicy(db, 'synthetic-user', ado, args)
+  if (code) expect(check).toThrow(expect.objectContaining({ code }))
+  else expect(check().route).toBe(route)
 })
 
 test('a raw route call the adapter cannot classify is treated as a write', () => {

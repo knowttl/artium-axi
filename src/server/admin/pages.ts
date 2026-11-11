@@ -99,8 +99,9 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       <td data-label="Instances" class="muted">${count} ${tool.name === 'ssh-axi' ? 'host' : 'instance'}${count === 1 ? '' : 's'}</td>
       <td data-label="State">${setupBadge(state)}${failing && count > 1 ? `<p class="hint">${failing} of ${count} failing</p>` : ''}</td><td data-label="Enabled" class="muted"><span class="row"><span class="switch${tool.enabled ? ' on' : ''}" aria-hidden="true"></span>${tool.enabled ? 'On' : 'Off'}</span></td>
       <td data-label="Writes">${writesState({ capable: tool.writeAccess.capable, enabled: !tool.readOnly, operations: tool.writeAccess.supportedOperations ? tool.writeAccess.allowedOperations.length : null }, 'status')}</td>
+      <td data-label="Raw API" class="muted">${tool.rawApi.modes.length ? rawApiModeWords[tool.rawApi.mode].label : 'None'}</td>
       <td data-label="Roles" class="muted">${roles.get(tool.name) ?? 0}</td><td data-label="Last checked" class="num faint">${timestamp(tool.health.checkedAt, 'Never')}</td></tr>`).join('')
-    const table = `<section class="card"><table class="tbl stack-sm"><caption class="sr-only">Tools</caption><thead><tr><th scope="col">Tool</th><th scope="col">Instances</th><th scope="col">State</th><th scope="col">Enabled</th><th scope="col">Writes</th><th scope="col">Roles</th><th scope="col" class="num">Last checked</th></tr></thead><tbody>${body}</tbody></table>${visible.length ? '' : '<p class="empty">No tools match these filters. <a href="/admin/tools">Show all tools</a>.</p>'}</section>`
+    const table = `<section class="card"><table class="tbl stack-sm"><caption class="sr-only">Tools</caption><thead><tr><th scope="col">Tool</th><th scope="col">Instances</th><th scope="col">State</th><th scope="col">Enabled</th><th scope="col">Writes</th><th scope="col">Raw API</th><th scope="col">Roles</th><th scope="col" class="num">Last checked</th></tr></thead><tbody>${body}</tbody></table>${visible.length ? '' : '<p class="empty">No tools match these filters. <a href="/admin/tools">Show all tools</a>.</p>'}</section>`
     const trust = trustedCertificates.length
       ? `<table class="tbl stack-sm"><caption class="sr-only">Server-wide trusted CA bundle</caption><thead><tr><th scope="col">Subject</th><th scope="col">Issuer</th><th scope="col">Expires (UTC)</th><th scope="col">SHA-256 fingerprint</th></tr></thead><tbody>${trustedCertificates.map(certificate => `<tr><td>${escape(certificate.subject)}</td><td data-label="Issuer">${escape(certificate.issuer)}</td><td data-label="Expires">${escape(certificate.expiresAt)}</td><td data-label="SHA-256"><code>${escape(certificate.fingerprint)}</code></td></tr>`).join('')}</tbody></table>`
       : ''
@@ -165,7 +166,14 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
         `<div class="card-head"><div><h2>Raw API mode</h2><p>The most ${escape(product)} raw API calls may do for any caller.</p></div></div>
         <div class="card-body"><fieldset class="options"><legend class="sr-only">Raw API mode</legend>${options}</fieldset>${revision(tool.revision)}</div>
         <div class="card-foot"><span>Saving keeps the credential and other settings. Audited.</span><div class="actions"><button class="btn btn-primary btn-sm">Save Raw API mode</button></div></div></form>`
-      panel = `<div class="split has-aside"><div class="column">${form}</div><div class="column">${noteCard('Two settings are required',
+      const routes = formStart(api + '/raw-api/routes', 'PUT', `Change the raw route patterns for ${product}? They apply to every caller on the next call. This change is audited.`, '', 'card') +
+        `<div class="card-head"><div><h2>Route patterns</h2><p>Which paths ${escape(product)} raw calls may use. One pattern per line.</p></div></div>
+        <div class="card-body"><label>Write routes<textarea name="write" data-type="lines" rows="4" spellcheck="false">${escape(tool.rawApi.routes.write.join('\n'))}</textarea></label>
+        <p class="note">Required for any raw write. Each line is a method and a relative path, such as <code>PATCH _apis/wit/workitems/*</code>. Methods: POST, PATCH, PUT or DELETE.</p>
+        <label>GET routes (optional)<textarea name="get" data-type="lines" rows="4" spellcheck="false">${escape(tool.rawApi.routes.get.join('\n'))}</textarea></label>
+        <p class="note">Leave empty to allow any path for raw reads. A <code>*</code> segment matches exactly one segment and a final <code>**</code> matches any deeper path.</p>${revision(tool.revision)}</div>
+        <div class="card-foot"><span>Saving keeps the credential and other settings. Audited.</span><div class="actions"><button class="btn btn-primary btn-sm">Save route patterns</button></div></div></form>`
+      panel = `<div class="split has-aside"><div class="column">${form}${routes}</div><div class="column">${noteCard('Two settings are required',
         `<p>A raw call needs this mode and the Raw API access switch on a role that grants ${escape(product)} to the caller. Set the switch on the role’s page.</p>`)}</div></div>`
     } else if (tab === 'access') {
       const instances = db.prepare('SELECT id, name, description FROM credentials WHERE tool = ? ORDER BY name').all(tool.name) as { id: string, name: string, description: string }[]

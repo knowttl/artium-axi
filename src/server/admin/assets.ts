@@ -597,6 +597,7 @@ document.addEventListener('submit', async event => {
       if (input.dataset.type === 'boolean') body[input.name] = input.type === 'checkbox' ? input.checked : input.value === 'true';
       if (input.dataset.type === 'number') body[input.name] = Number(input.value);
       if (input.dataset.type === 'array') body[input.name] = fields.getAll(input.name);
+      if (input.dataset.type === 'lines') body[input.name] = input.value.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean);
       if (input.dataset.type === 'json') {
         try { body[input.name] = JSON.parse(input.value); }
         catch { message.textContent = 'Enter valid JSON in ' + input.name + '.'; message.focus(); return; }

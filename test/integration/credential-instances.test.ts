@@ -57,7 +57,7 @@ test('instance selection reaches the service and invalid selections fail closed'
       for (const name of ['lab', 'production']) {
         const rows = db.prepare('SELECT event, credential_id, instance FROM audit WHERE instance = ? ORDER BY id').all(name)
         const id = store.findInstance('gitea-axi', name)!.id
-        expect(rows).toEqual([{ event: 'run-start', credential_id: id, instance: name }, { event: 'run-terminal', credential_id: id, instance: name }])
+        expect(rows).toEqual(['run-start', 'raw-api', 'raw-api-result', 'run-terminal'].map(event => ({ event, credential_id: id, instance: name })))
       }
       expect(db.prepare("SELECT outcome, credential_id, instance FROM audit WHERE event = 'denial' ORDER BY id").all()).toEqual([
         { outcome: 'INVALID_INPUT', credential_id: null, instance: null }])

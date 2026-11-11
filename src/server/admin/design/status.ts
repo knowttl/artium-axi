@@ -118,7 +118,7 @@ export function auditOutcome(record: { event: string, outcome: string, exit_code
     return record.outcome === 'completed' && record.exit_code === 0 ? { word: 'completed', tone: 'ok' }
       : { word: record.outcome === 'completed' ? `completed · exit ${record.exit_code ?? 'unknown'}` : record.outcome, tone: 'err' }
   }
-  if (record.event === 'ado-api') return { word: record.outcome, tone: record.outcome === 'allowed' ? 'ok' : 'err' }
+  if (record.event === 'raw-api' || record.event === 'ado-api') return { word: record.outcome, tone: record.outcome === 'allowed' ? 'ok' : 'err' }
   if (record.event === 'transfer') {
     const tone = record.outcome === 'ready' || record.outcome === 'delivery-completed' ? 'ok'
       : ['preview', 'deleted', 'expired'].includes(record.outcome) ? 'neutral' : 'err'
