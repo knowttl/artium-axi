@@ -40,18 +40,12 @@ const azShortFlags = { h: 'help', s: 'subscription', g: 'resource-group', n: 'na
   l: 'location', w: 'workspace', t: 'timespan', q: 'graph-query' }
 const azResources = ['arm', 'graph', 'logs', 'registry', 'storage', 'vault']
 const azUnsafeOverrides = ['config', 'profile', 'tenant']
-const mgCommandPacks = {
-  'security hunting query': 'security',
-  'mail folder list': 'mail', 'mail folder show': 'mail',
-  'mail message list': 'mail', 'mail message show': 'mail',
-  'mail attachment list': 'mail', 'mail settings show': 'mail',
-  'mail rule list': 'mail', 'mail rule show': 'mail', 'mail category list': 'mail',
-  'mail message tag': 'mail', 'mail message flag': 'mail', 'mail message mark': 'mail',
-  'mail message move': 'mail', 'mail message copy': 'mail', 'mail message trash': 'mail',
-  'mail folder create': 'mail', 'mail folder delete': 'mail', 'mail category create': 'mail',
-  'mail rule create': 'mail', 'mail rule update': 'mail', 'mail rule delete': 'mail',
-}
 const mgDownloads = { 'mail attachment save': 'mail', 'mail message export': 'mail' }
+const mgPackPrefixes = ['mail', 'security']
+const mgDeniedPackCommands = Object.keys(mgDownloads)
+const mgCommandPacks = Object.fromEntries(mg.LEAVES
+  .filter(leaf => mgPackPrefixes.includes(leaf.path.split(' ')[0]) && !mgDeniedPackCommands.includes(leaf.path))
+  .map(leaf => [leaf.path, leaf.path.split(' ')[0]]))
 // Mail handlers derive coordinator operation IDs from these reviewed command paths.
 mgWriteOperations.push(...mg.LEAVES.filter(leaf => mgCommandPacks[leaf.path] === 'mail' && leaf.flags?.execute)
   .map(leaf => leaf.path.replaceAll(' ', '.')))
