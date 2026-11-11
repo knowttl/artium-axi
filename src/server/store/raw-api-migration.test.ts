@@ -24,6 +24,19 @@ afterEach(() => {
   rmSync(directory, { recursive: true, force: true })
 })
 
+test('upgrade keeps Kubernetes native commands readable for current grants', () => {
+  db.exec("INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role')")
+  for (const tool of ['kubernetes-axi', 'ldap-axi']) {
+    db.prepare("INSERT INTO tools (name, pinned_version) VALUES (?, 'synthetic-version')").run(tool)
+    db.prepare('INSERT INTO role_tools (role_id, tool) VALUES (?, ?)').run('synthetic-role', tool)
+  }
+  migrate(db)
+  expect(db.prepare('SELECT name, raw_api_mode FROM tools ORDER BY name').all())
+    .toEqual([{ name: 'kubernetes-axi', raw_api_mode: 'read' }, { name: 'ldap-axi', raw_api_mode: 'off' }])
+  expect(db.prepare('SELECT tool, raw_api FROM role_tools ORDER BY tool').all())
+    .toEqual([{ tool: 'kubernetes-axi', raw_api: 1 }, { tool: 'ldap-axi', raw_api: 0 }])
+})
+
 test('upgrade keeps existing raw routes readable for current grants and leaves every other tool off', () => {
   const rawTools = ['gh-axi', 'az-axi', 'ado-axi', 'gitea-axi', 'mg-axi', 'vectra-axi', 'hybrid-axi']
   const otherTools = ['falcon-axi', 'ldap-axi']

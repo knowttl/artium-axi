@@ -70,6 +70,7 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { argumentsForCall(args, input) },
+    rawApi: { commands: ['native'], writes: false, help: (args, input) => argumentsForCall(args, input).invocation.help },
     executesWrite(args, input) {
       const call = argumentsForCall(args, input)
       return call.workflow?.kind === 'confirm'

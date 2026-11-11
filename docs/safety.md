@@ -65,8 +65,7 @@ Raw writes require the applicable tool write gate and native confirmation in add
 New tool rows default to mode `off`; new role tool grants default to no raw access, including grants removed and later re-added.
 Saving a role's tool selection preserves raw access on retained grants.
 Administrators set the tool mode and the role grant in the browser or through the [administration API](runbook.md#roles-credentials-and-health).
-The browser exposes both controls for Falcon, Tenable and AWX.
-The governed routes are `api` for GitHub, Azure, Azure DevOps and Gitea, `api get`, `api post`, `api put`, `api patch` and `api delete` for Microsoft Graph and AWX, `api get` for Vectra and Hybrid Analysis, and `raw get` and `raw write` for Falcon and Tenable.
+The governed routes are `api` for GitHub, Azure, Azure DevOps and Gitea, `api get`, `api post`, `api put`, `api patch` and `api delete` for Microsoft Graph and AWX, `api get` for Vectra and Hybrid Analysis, `raw get` and `raw write` for Falcon and Tenable, and `native --` for Kubernetes.
 The reviewed inventories still determine which commands and flags are accepted; raw permission never widens that boundary.
 Tenable `raw get --out` remains blocked because raw responses are never saved to server files.
 Raw request bodies and Falcon query files must be uploaded with the call; Tenable and Falcon also accept an explicit stdin (`-`), and AWX accepts uploads only.
@@ -335,6 +334,7 @@ Artium supplies the saved HTTPS origin, cluster CA, namespace and token or clien
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for Kubernetes trust requirements and projection; native chain, hostname and validity checks remain enabled.
 Exact leaf-pin support for Go transports is tracked in [the follow-up issue](https://github.com/knowttl/artium-axi/issues/276).
 Use `artium-axi kubernetes-axi get pods` for compact metadata or `artium-axi kubernetes-axi native -- get deployments -o json` for reviewed upstream formats.
+Native `--` reads require [Raw API access](#raw-api-access); compact reads and prepare, preview and confirm mutations do not.
 Compact lists retain at most 100 rows and report completeness, resource version and opaque continuation; repeat the same selectors with `--continue` to resume.
 Compact Secret reads expose metadata only; native Secret contents, last-applied Secret configuration and ordinary credential routes are refused.
 Ordinary log reads are bounded snapshots; rollout status requires `--watch=false`.
