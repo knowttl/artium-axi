@@ -6,7 +6,7 @@ import { expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { createShodanAdapter } from '../../src/server/adapters/shodan.js'
 import { Audit } from '../../src/server/audit/audit.js'
-import { healthDefaults, toolPaths } from '../../src/server/config.js'
+import { healthDefaults, runnerLimits, toolPaths } from '../../src/server/config.js'
 import { ToolHealth } from '../../src/server/health/health.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -41,7 +41,7 @@ syncBuiltinESMExports()
     const previousPath = toolPaths['shodan-axi']
     Object.assign(toolPaths, { 'shodan-axi': join(packageRoot, 'bin/shodan-axi.js') })
     try {
-      const adapter = createShodanAdapter({ getCredential: async () => ({ auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' }) })
+      const adapter = createShodanAdapter({ getCredential: async () => ({ auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key', queries: { maxQueryCredits: 2 } }) })
       const call = await adapter.prepare([...args, '--json'], { id: 'synthetic-credential', tool: 'shodan-axi', revision: 1 })
       const result = await runner.run('synthetic-user', call.executable, ['--import', bootstrap, ...call.args], call.environment, call.secrets, { ...call.limits, publicContent: call.publicContent }, {}, call.files)
       expect(result.exitCode).toBe(0)
@@ -114,6 +114,96 @@ test.each([
     } finally {
       await runner.shutdown()
       Object.assign(toolPaths, { 'shodan-axi': previousPath })
+    }
+  })
+})
+
+test.each([
+  ['search', 'port:443', 'OP-003'],
+  ['domain', 'example.test', 'OP-040'],
+])('%s above the administrator query credit ceiling is refused with a denial audit row', async (command, subject, operation) => {
+  await withFakeService(async ({ directory }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    const store = createCredentialStore(db, provider)
+    store.replaceCredential('shodan-axi', { auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' },
+      0, 'synthetic-development-user', Date.now())
+    db.prepare("UPDATE tools SET enabled = 1, native_settings = ? WHERE name = 'shodan-axi'").run(JSON.stringify({ queries: { maxQueryCredits: 2 } }))
+    const runner = await Runner.create(join(directory, 'calls'))
+    let credentialReads = 0
+    const source = new EmbeddedSecretSource(store)
+    const adapter = createShodanAdapter({ getCredential: reference => { credentialReads++; return source.getCredential(reference) } })
+    const app = createApp({ db, runner, audit: new Audit(db), credentialStore: store, environment: {},
+      resolver: new SharedIdentityResolver(store), adapters: [adapter] })
+    try {
+      const token = issueTestAccessToken(db, 'synthetic-development-user')
+      const response = await app.inject({ method: 'POST', url: '/v1/tools/shodan-axi/run', headers: { authorization: `Bearer ${token}` },
+        payload: { args: [command, subject, '--allow-operation', operation, '--query-credit-budget', '3'] } })
+      expect(response.json().error.code).toBe('INVALID_INPUT')
+      expect(credentialReads).toBe(0)
+      expect(db.prepare("SELECT tool, outcome FROM audit WHERE event = 'denial'").all()).toEqual([{ tool: 'shodan-axi', outcome: 'INVALID_INPUT' }])
+      expect(db.prepare("SELECT 1 FROM audit WHERE event = 'run-start'").all()).toEqual([])
+    } finally {
+      await app.close()
+      await runner.shutdown()
+      db.close()
+    }
+  })
+})
+
+test.each([
+  ['search', 'port:443', 'OP-003', 'named', false],
+  ['search', 'port:443', 'OP-003', 'default', false],
+  ['search', 'port:443', 'OP-003', 'named', true],
+  ['domain', 'example.test', 'OP-040', 'named', false],
+  ['domain', 'example.test', 'OP-040', 'default', false],
+  ['domain', 'example.test', 'OP-040', 'named', true],
+])('queued %s %s uses the current administrator query credit ceiling', async (command, subject, operation, instance, updateNamed) => {
+  await withFakeService(async ({ directory, send }) => {
+    const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
+    const db = openStore(join(directory, 'artium.db'), provider)
+    await seedToolUser(db)
+    const store = createCredentialStore(db, provider)
+    const credential = { auth: 'api-key', origin: 'https://api.shodan.io', apiKey: 'CANARY-shodan-key' }
+    store.replaceCredential('shodan-axi', credential, 0, 'synthetic-development-user', Date.now())
+    store.createInstance('shodan-axi', { name: 'named', description: '' }, credential, 'synthetic-development-user', Date.now())
+    db.prepare("UPDATE tools SET enabled = 1 WHERE name = 'shodan-axi'").run()
+    const runner = await Runner.create(join(directory, 'calls'))
+    let started!: () => void
+    const runStarted = new Promise<void>(resolve => { started = resolve })
+    const audit = new Audit(db, Date.now, line => { if (JSON.parse(line).event === 'run-start') started() })
+    const app = createApp({ db, runner, audit, credentialStore: store, environment: {},
+      resolver: new SharedIdentityResolver(store), adapters: [createShodanAdapter(new EmbeddedSecretSource(store))] })
+    let release!: () => void
+    const gate = new Promise<void>(resolve => { release = resolve })
+    const occupied = Array.from({ length: runnerLimits.userCalls }, () => runner.runManaged('synthetic-development-user', undefined, () => gate))
+    const previousPath = toolPaths['shodan-axi']
+    Object.assign(toolPaths, { 'shodan-axi': join(process.cwd(), 'tools/node_modules/@knowttl/shodan-axi/bin/shodan-axi.js') })
+    try {
+      const token = issueTestAccessToken(db, 'synthetic-development-user')
+      const pending = app.inject({ method: 'POST', url: '/v1/tools/shodan-axi/run', headers: { authorization: `Bearer ${token}` },
+        payload: { instance, args: [command, subject, '--allow-operation', operation, '--query-credit-budget', '3'] } })
+      try {
+        await runStarted
+        await new Promise<void>(resolve => setImmediate(resolve))
+        const current = store.findInstance('shodan-axi', 'default')!
+        store.replaceInstance('shodan-axi', 'default', credential, current.id, current.revision, 'synthetic-development-user', Date.now())
+        if (updateNamed) {
+          const named = store.findInstance('shodan-axi', 'named')!
+          store.replaceInstance('shodan-axi', 'named', credential, named.id, named.revision, 'synthetic-development-user', Date.now())
+        }
+        db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'shodan-axi'").run(JSON.stringify({ queries: { maxQueryCredits: 2 } }))
+      } finally { release(); await Promise.all(occupied) }
+      const response = await pending
+      expect(response.json()).toMatchObject({ error: { code: 'INVALID_INPUT' } })
+      expect(db.prepare("SELECT outcome, instance FROM audit WHERE event = 'denial'").all()).toEqual([{ outcome: 'INVALID_INPUT', instance }])
+      expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
+    } finally {
+      Object.assign(toolPaths, { 'shodan-axi': previousPath })
+      await app.close()
+      await runner.shutdown()
+      db.close()
     }
   })
 })

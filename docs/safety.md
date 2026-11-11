@@ -432,7 +432,7 @@ Local fake-service checks do not establish live server acceptance.
 
 Shodan permits account and investigation reads through the [reviewed inventory](../tools/inventories/shodan-axi.json).
 These include host, count and search reads, DNS and InternetDB lookups, query and trends catalogues, organization and dataset listings, scan, alert and notifier reads, and tools headers and public-IP discovery.
-Search and domain lookups consume query credits and require an exact operation grant and query credit budget; see [command examples](commands.md#shodan).
+Search and domain lookups consume query credits and require an exact operation grant and query credit budget, which an administrator `queries` ceiling can cap; see [command examples](commands.md#shodan) and [query ceiling](tool-credentials.md#shodan).
 InternetDB host lookups run without loading the stored API key.
 An explicitly granted stream preview validates selectors and bounded resource limits against the pinned package without opening a stream.
 Confirmed stream sessions run with bounded leases and retained output; lease extensions require a separate preview and confirmation within the reserved limit; see [commands](commands.md#shodan).
