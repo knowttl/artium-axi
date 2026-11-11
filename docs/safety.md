@@ -87,7 +87,6 @@ AWX raw request body values are masked by value in responses, so a caller's own 
 Response values matching a caller's input may also be masked even when they originated elsewhere; preview and response metadata remain intact.
 The pinned AWX CLI rejects `api post bulk/job_launch/ --confirm` before sending a request; other routes remain subject to native restrictions.
 Other tool write gates and operation grants continue to apply.
-There is no shared method/path pattern policy; Azure DevOps retains its [server method/path allow list](admin-guide.md#server-settings-and-custody).
 Parsed local help does not require raw permission, but other authorization requirements still apply.
 Delegated raw calls additionally require an exact command selection under the [delegated session rules](#delegated-sessions).
 

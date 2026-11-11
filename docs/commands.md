@@ -93,7 +93,7 @@ Raw routes require the separate [Raw API permission](safety.md#raw-api-access); 
 `artium-axi ado-axi api <relative-path>` defaults to GET without a body; add `--paginate` on GET to follow continuation tokens for JSON responses, without `--raw`.
 For a listed write, use `artium-axi ado-axi api _apis/wit/workitems/42 -X PATCH --content-type json-patch --body '[{"op":"add","path":"/fields/System.Title","value":"Synthetic title"}]' --no-project`.
 Select POST, PATCH, PUT or DELETE with `-X <method>`, `--method <method>` or a positional method before the path; if both forms are supplied, they must agree.
-Writes require the [supported write permissions](safety.md#write-gates-by-tool) and [server method/path allow list](admin-guide.md#server-settings-and-custody).
+Writes require the [supported write permissions](safety.md#write-gates-by-tool) and a matching administrator [write route pattern](admin-guide.md#server-settings-and-custody).
 The path is relative to the managed organization and selected project, or organization only with `--no-project`.
 Writes refuse `--host` and `--query`; use `--api-version` for the REST version.
 The required `--body` must be valid JSON within [the adapter's `ADO_API_BODY_MAX_BYTES` limit](../src/server/adapters/ado-api.ts), measured in UTF-8 bytes including whitespace.
