@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import { readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 
@@ -101,12 +102,35 @@ write('release upload', 'repository', '', '', 'variadic')
 for (const command of commands.filter(route => ['release create', 'release edit'].includes(route.command))) {
   for (const flag of command.command === 'release edit' ? ['draft', 'prerelease', 'latest'] : ['latest']) command.flags[flag] = 'boolean-value'
 }
-const upstreamCommands = ['pr', 'issue', 'project', 'release', 'secret', 'variable', 'run', 'gist', 'discussion', 'label', 'repo', 'workflow'].flatMap(group => {
-  const help = readFileSync(new URL(`dist/src/commands/${group}.js`, packageRoot), 'utf8')
-  const [main, subissue = []] = [...help.matchAll(/^subcommands\[\d+\]:\n {2}(.+)$/gm)].map(match => match[1].split(', ').map(item => item.split(' ')[0]))
-  return [...main.filter(name => !subissue.length || name !== 'subissue').map(name => `${group} ${name}`),
-    ...subissue.map(name => `${group} subissue ${name}`)]
-})
+const groups = ['pr', 'issue', 'project', 'release', 'secret', 'variable', 'run', 'gist', 'discussion', 'label', 'repo', 'workflow', 'search']
+const topHelp = execFileSync(process.execPath, [new URL('dist/bin/gh-axi.js', packageRoot).pathname, '--help'], { encoding: 'utf8' }).split('\n')
+const topLine = topHelp.findIndex(line => /^commands\[\d+\]:$/.test(line))
+if (topLine < 0) throw new Error('Missing upstream command catalogue')
+const topCommands = topHelp[topLine + 1].trim().split(', ').filter(name => name !== '(none)=dashboard')
+if (topCommands.some(name => ![...groups, 'api', 'setup', 'stack'].includes(name))) throw new Error('Unreviewed upstream command group')
+const upstreamCommands = []
+process.env.GH_BIN = '/dev/null'
+function helpSubcommands(help) {
+  const line = help.split('\n').findIndex(line => /^subcommands\[\d+\]:$/.test(line))
+  if (line < 0) throw new Error('Missing upstream subcommand catalogue')
+  return help.split('\n')[line + 1].trim().split(', ').map(item => item.split(' ')[0])
+}
+for (const group of groups) {
+  const module = await import(new URL(`dist/src/commands/${group}.js`, packageRoot))
+  const dispatch = module[`${group}Command`]
+  const flags = module[`${group.toUpperCase()}_FLAGS`]
+  const names = flags ? Object.keys(flags) : helpSubcommands(await dispatch(['--help']))
+  for (const name of names) {
+    const nested = group === 'issue' && name === 'subissue'
+    const paths = nested ? helpSubcommands(await dispatch(['subissue', '--help'])).map(child => [name, child]) : [[name]]
+    for (const path of paths) {
+      let result
+      try { result = await dispatch([...path, '--artium-inventory-invalid-flag']) } catch (error) { result = error.message }
+      if (/Unknown (?:\w+ )?(?:subcommand|search type):/i.test(result)) throw new Error(`Upstream dispatch rejected ${group} ${path.join(' ')}`)
+      upstreamCommands.push([group, ...path].join(' '))
+    }
+  }
+}
 const digest = path => createHash('sha256').update(readFileSync(path)).digest('hex')
 function sources(directory, prefix) {
   return readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)).flatMap(entry => {

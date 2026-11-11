@@ -370,7 +370,12 @@
     "workflow view",
     "workflow run",
     "workflow enable",
-    "workflow disable"
+    "workflow disable",
+    "search issues",
+    "search prs",
+    "search repos",
+    "search commits",
+    "search code"
   ],
   "commands": [
     {
