@@ -13,6 +13,7 @@ import { createHybridAdapter } from '../adapters/hybrid.js'
 import { createTenableAdapter } from '../adapters/tenable.js'
 import { createFalconAdapter } from '../adapters/falcon.js'
 import { createAwxAdapter } from '../adapters/awx.js'
+import { createKubernetesAdapter } from '../adapters/kubernetes.js'
 import { checkRawApiPolicy, checkToolPolicy } from './policy.js'
 
 let db: Database.Database
@@ -63,8 +64,9 @@ const mg = createMgAdapter(source, log)
 const tenable = createTenableAdapter(source, log)
 const falcon = createFalconAdapter(source, log)
 const awx = createAwxAdapter(source)
+const kubernetes = await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'))
 const adapters: Adapter<unknown>[] = [az, gh, mg, createAdoAdapter(source), createGiteaAdapter(source, log),
-  createVectraAdapter(source, log), createHybridAdapter(source, log), tenable, falcon, awx]
+  createVectraAdapter(source, log), createHybridAdapter(source, log), tenable, falcon, awx, kubernetes]
 
 beforeEach(() => {
   for (const adapter of adapters) {
@@ -95,6 +97,12 @@ test.each([
   ['mode off for a path value of --help', adapters.find(adapter => adapter.name === 'vectra-axi')!, 'off', 0, ['api', 'get', '--path', '--help'], 'RAW_API_DENIED'],
   ['mode off for disabled help', az, 'off', 0, ['api', 'GET', '/subscriptions', '--help=false'], 'RAW_API_DENIED'],
   ['mode off for another command', az, 'off', 0, ['account', 'list'], undefined],
+  ['kubernetes mode off denies native', kubernetes, 'off', 1, ['native', '--', 'get', 'pods'], 'RAW_API_DENIED'],
+  ['kubernetes mode read without a role grant denies native', kubernetes, 'read', 0, ['native', '--', 'get', 'pods'], 'RAW_API_DENIED'],
+  ['kubernetes mode read allows native', kubernetes, 'read', 1, ['native', '--', 'get', 'pods', '-o', 'json'], undefined],
+  ['kubernetes mode read-writes allows native', kubernetes, 'read-writes', 1, ['native', '--', 'get', 'pods'], undefined],
+  ['kubernetes mode off allows compact reads', kubernetes, 'off', 0, ['get', 'pods'], undefined],
+  ['kubernetes mode off allows prepared mutations', kubernetes, 'off', 0, ['prepare', '--', 'delete', 'pod', 'synthetic'], undefined],
   ...([
     [tenable, ['raw', 'get', '--path', '/api/v1/t1/tags/properties'], ['raw', 'write', '--method', 'POST', '--path', '/api/v1/t1/tags']],
     [falcon, ['raw', 'get', '--path', '/synthetic/v1'], ['raw', 'write', '--method', 'POST', '--path', '/synthetic/v1']],
@@ -150,6 +158,7 @@ test.each([
   ['falcon-axi', ['raw', 'write', '--help']],
   ['awx-axi', ['api', 'get', '--help']],
   ['awx-axi', ['api', 'post', '--help']],
+  ['kubernetes-axi', ['native', '--', 'get', '--help']],
 ] as const)('%s local help %j needs no raw permission', (tool, args) => {
   const adapter = adapters.find(adapter => adapter.name === tool)!
   adapter.validateArgs(args)

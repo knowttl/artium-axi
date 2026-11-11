@@ -970,6 +970,7 @@ See [delegated sessions](safety.md#delegated-sessions) for the creation switch's
 Migration 031 sets the tools listed in its [migration](../src/server/store/migrations/031-raw-api.sql) to `read` and enables raw access on their existing role tool grants, preserving raw reads while refusing raw mutations.
 Falcon, Tenable and AWX are not included in that migration; their raw access remains subject to the [default restrictions](safety.md#raw-api-access).
 This is a one-time compatibility migration; tools and grants created afterward retain the default raw restrictions.
+Migration 034 applies the same one-time treatment to Kubernetes, whose `native --` commands now require Raw API access: existing Kubernetes tool rows move to `read` and existing role grants gain raw access.
 During upgrade acceptance, check raw reads and mutation refusals separately from named commands; see the [administrative limitations](admin-guide.md#server-settings-and-custody).
 Migration 032 prepares the store for named credential instances; see [credential instance boundaries](safety.md#credential-instances) for current administration and execution limits.
 Existing credentials become `default` instances with an empty description, enabled and without the instance read-only flag, preserving their IDs, encrypted contents, revisions and update attribution.
