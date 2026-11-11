@@ -7,6 +7,7 @@ import { decode, encode } from '@toon-format/toon'
 import inventory from '../../../tools/inventories/ado-axi.json' with { type: 'json' }
 import { rewriteSuggestions } from '../../cli/rewrite.js'
 import { toolView } from '../../cli/views.js'
+import { redactArguments } from '../audit/redact.js'
 import { prepareRunJournal } from './run-journal.js'
 import { adoCredentialSchema, adoProfile, createAdoAdapter } from './ado.js'
 import { AzureTokenCache } from './azure-token-cache.js'
@@ -141,9 +142,11 @@ test.each([
   await expect(adapter(true).prepare(args, reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
 })
 
-test('redacts wiki page content in journaled arguments', () => {
-  const args = ['wiki', 'page', 'update', '--wiki', 'Synthetic.wiki', '--path', '/Home', '--content', 'CANARY-wiki-content']
-  expect(adapter(true).sensitiveArguments!(args).flags).toContain('--content')
+test.each(['create', 'update'].flatMap(operation => [
+  { args: ['wiki', 'page', operation, '--content', 'CANARY-wiki-content'], expected: ['wiki', '[redacted]', '[redacted]', '--content', '[redacted]'] },
+  { args: ['wiki', 'page', operation, '--content=CANARY-wiki-content'], expected: ['wiki', '[redacted]', '[redacted]', '--content=[redacted]'] },
+]))('redacts wiki page content in journaled arguments: $args', ({ args, expected }) => {
+  expect(redactArguments(args, adapter(true).sensitiveArguments!(args))).toEqual(expected)
 })
 
 test.each([
