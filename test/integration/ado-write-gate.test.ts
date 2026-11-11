@@ -162,6 +162,16 @@ test('every raw call is journaled with its decision, matched route and result, r
   ])
 })
 
+test('a refused raw call carrying a delegation token is journaled without the token', async () => {
+  allowRawApi(db, 'ado-axi', 'read', [])
+  const token = `artd_${'A'.repeat(43)}`
+  expect((await run(['api', `_apis/wit/${token}`])).json()).toMatchObject({ error: { code: 'INVALID_INPUT' } })
+  const records = db.prepare("SELECT outcome, arguments FROM audit WHERE event = 'raw-api'").all() as { outcome: string, arguments: string }[]
+  expect(records).toEqual([{ outcome: 'refused', arguments: JSON.stringify({ method: '', path: null, query: [], decision: 'refused', route: null,
+    bodySha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', bodyBytes: 0 }) }])
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(token)
+})
+
 test.each([
   ['work-item', 'attach', '42', '--file', '/tmp/synthetic.txt'],
   ['work-item', 'attachment', 'get', '42', '--name', 'synthetic.txt'],
