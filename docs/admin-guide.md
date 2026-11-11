@@ -401,7 +401,9 @@ There is no audit mutation or deletion route.
 Filter by event `tool-write-access` to review changes to effective write enablement, BeyondTrust delete permission or an operations allow-list, including changes made through the Advanced tab or complete credential replacement.
 These events identify the administrator and tool and record the new write policy without credentials or unrelated native settings; the [API contract](../src/shared/api.ts) owns the audit argument fields and treatment of unsupported legacy operation names.
 No-op write-access requests emit no change event.
-An Advanced-tab save or complete credential replacement adds `{"settings": [...]}` to the `arguments` of its `admin-change` event when omitting a Kubernetes session or Shodan scan, stream, write or export policy removes grants, one entry per changed setting with its `path`.
+A grant change adds `{"settings": [...]}` to the `arguments` of its `admin-change` event with action `update-tool-user-grants`.
+An Advanced-tab save or complete credential replacement adds the same field to its `admin-change` event when omitting a Kubernetes session or Shodan scan, stream, write or export policy removes grants.
+Each changed setting has one entry with its `path`.
 An entry for an added or removed empty object or list carries `before` and `after`, with `null` meaning unset; other list changes carry the `added` and `removed` members, since list order is not a change.
 Objects are compared field by field.
 Other native settings are excluded from this diff.

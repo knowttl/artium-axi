@@ -708,7 +708,7 @@ Kubernetes workspaces and byte sessions are separate temporary capabilities unde
 They belong to one caller, sign-in family and credential revision; startup removes abandoned files and never resumes or replays a session.
 Workspaces accept at most 100 regular files, 100 MiB per file and 250 MiB total, with four reservations per user and eight globally.
 Their default lifetime is five minutes, bounded to thirty minutes; every upload must match its declared size and SHA-256.
-Byte sessions require explicit caller grants in advanced native settings, for example `{"allowWrites":true,"sessions":{"grants":{"<user-id>":["exec","cp"]},"lifetimeSeconds":300,"outputBytes":1048576}}`.
+Byte sessions require explicit caller grants; select the intended session operations for each person on the tool's [Access tab](admin-guide.md#browser-administration).
 Keep Allow writes off until the intended mutation kinds are authorized; read-only `logs` and `watch` still need their own caller grants.
 Each session owns one operation and one worker, with no reusable transport or later command on that worker.
 Sessions retain at most 1 MiB of stdout/stderr within a 64 MiB observed-output limit, have a five-minute default and thirty-minute maximum lifetime, and reserve four slots per user and eight globally including retained results.
