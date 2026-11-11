@@ -429,6 +429,27 @@ test.each(grantPolicyCases)('$tool $policy duplicate grants do not change on an 
 })
 
 test.each([
+  { tool: 'kubernetes-axi', policy: 'sessions', existing: 'exec', added: 'logs', limits: { lifetimeSeconds: 10 } },
+  { tool: 'shodan-axi', policy: 'scans', existing: 'OP-010', added: 'OP-009', limits: { maxScanCredits: 1, maxRequests: 1 } },
+  { tool: 'shodan-axi', policy: 'sessions', existing: 'OP-046', added: 'OP-047', limits: { perUser: 1, perCredential: 1, total: 1, sessionEvents: 1, totalEvents: 1, sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 } },
+  { tool: 'shodan-axi', policy: 'writes', existing: 'OP-021', added: 'OP-070', limits: { maxQueryCredits: 1, maxRequests: 1 } },
+  { tool: 'shodan-axi', policy: 'exports', existing: 'CLI-005', added: 'CLI-020', limits: { maxQueryCredits: 1, maxRequests: 1, maxRecords: 1, maxBytes: 1, retentionSeconds: 1 } },
+] as const)('$tool $policy audits effective changes to duplicate grants', async ({ tool, policy, existing, added, limits }) => {
+  const grants = { 'synthetic-ordinary': [existing, existing] }
+  db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify({ [policy]: { ...limits, grants } }), tool)
+  const response = await grantUser(tool, policy, 'synthetic-ordinary', [existing, added], 1)
+  expect(response.status).toBe(200)
+  expect(await response.json()).toMatchObject({ nativeSettings: { [policy]: { grants: { 'synthetic-ordinary': [existing, added] } } } })
+  const row = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change'").get() as { arguments: string }
+  expect(JSON.parse(row.arguments)).toEqual({ settings: [{ path: [policy, 'grants', 'synthetic-ordinary'], added: [added], removed: [] }] })
+  db.exec('DELETE FROM audit')
+  db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify({ [policy]: { ...limits, grants } }), tool)
+  expect((await request('PATCH', `/${tool}`, { expectedRevision: 2, nativeSettings: {} })).status).toBe(200)
+  const removal = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change'").get() as { arguments: string }
+  expect(JSON.parse(removal.arguments)).toEqual({ settings: [{ path: [policy, 'grants', 'synthetic-ordinary'], added: [], removed: [existing] }] })
+})
+
+test.each([
   { policy: 'scans', operations: ['OP-009', 'OP-010'], settings: { maxScanCredits: 1, maxRequests: 1 } },
   { policy: 'sessions', operations: ['OP-046', 'OP-047'], settings: { perUser: 1, perCredential: 1, total: 1, sessionEvents: 1, totalEvents: 1, sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 } },
   { policy: 'writes', operations: ['OP-021', 'OP-070'], settings: { maxQueryCredits: 1, maxRequests: 1 } },

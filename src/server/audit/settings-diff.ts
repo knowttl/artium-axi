@@ -30,13 +30,9 @@ export function diffSettings(before: unknown, after: unknown, path: string[] = [
     const left = (Array.isArray(before) ? before : []) as Json[]
     const right = (Array.isArray(after) ? after : []) as Json[]
     const only = (items: Json[], other: Json[]) => {
-      const remaining = other.map(item => JSON.stringify(item))
-      return items.filter(item => {
-        const index = remaining.indexOf(JSON.stringify(item))
-        if (index === -1) return true
-        remaining.splice(index, 1)
-        return false
-      })
+      const existing = new Set(other.map(item => JSON.stringify(item)))
+      return [...new Map(items.map(item => [JSON.stringify(item), item])).entries()]
+        .filter(([key]) => !existing.has(key)).map(([, item]) => item)
     }
     const added = only(right, left)
     const removed = only(left, right)
