@@ -551,8 +551,8 @@ Local fake-service checks do not establish live server acceptance.
 In the managed credential editor, set `auth: api-key`, `origin: https://api.shodan.io` and enter the API key in `apiKey`.
 Artium encrypts the key and supplies an isolated private profile containing an environment SecretRef; callers do not configure local profiles or environment keys.
 The hosted schema requires that fixed origin and API key authentication; `streamOrigin` is unavailable.
-Configure the optional `sessions` policy ceilings on the tool's Advanced tab, then select people and operations on its [Access tab](admin-guide.md#browser-administration).
-Its `grants` map associates Artium user IDs with exact stream operation IDs from the reviewed inventory.
+Configure the optional `sessions`, `scans`, `writes` and `exports` policy ceilings on the tool's Advanced tab, then select people and operations on its [Access tab](admin-guide.md#browser-administration).
+The `sessions` policy's `grants` map associates Artium user IDs with exact stream operation IDs from the reviewed inventory.
 The [session policy schema](../src/shared/shodan-stream.ts) owns required quota fields and allowed ranges for concurrency, events, bytes, retention and leases.
 The optional `scans` native setting grants user IDs exact scan operations and sets `maxScanCredits` and `maxRequests` ceilings.
 Targeted collection requires a scan grant for `OP-009` and a banner stream session grant for `OP-046`.

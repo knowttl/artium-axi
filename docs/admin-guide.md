@@ -258,7 +258,7 @@ See the [Vectra supported boundary and native write gates](safety.md) before sel
 Review the Vectra grant warnings: host/account close closes every active detection with no single inverse, assignment resolve is permanent, group deletion orphans triage rule references, syslog/Kafka redirects detection exports, and Match enablement changes cause a reboot.
 Choose **Save write permissions** and confirm the change, completing identity confirmation if requested.
 See [write-access audit events](#audit-screen-and-api) to review saved changes.
-The **Advanced** tab (`?tab=advanced`) shows the saved write state, but **Replace settings** replaces all native settings and omitting write settings turns writes off.
+The **Advanced** tab (`?tab=advanced`) shows the saved write state, but **Replace settings** replaces native settings subject to the per-person grant rules below, and omitting write settings turns writes off.
 With JavaScript, the editor reports whether the input is a valid JSON object as you type; saving also validates the tool's native settings on the server.
 Each save records an `admin-change` audit event; changes to Kubernetes session grants or Shodan scan, stream, write and export grants include a field-level list shown as **Settings changes** in the audit record details; see [the audit screen](#audit-screen-and-api).
 Per-person grants stay per person.
