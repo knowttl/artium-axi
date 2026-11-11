@@ -814,12 +814,29 @@ test.each([
   { command: ['update', 'n1'], grant: 'OP-030', flags: ['--execute', '--confirm', writeToken] },
 ])('Shodan notifier $command does not display an echoed provider secret', async ({ command, grant, flags }) => {
   const secret = 'CANARY-provider-secret'
-  response = { status: 200, body: { confirm: writeToken, nested: { echoed: `value ${secret}` } } }
+  response = { status: 200, body: { confirm: writeToken, nested: { echoed: secret } } }
   const path = privateFile(JSON.stringify({ provider: 'slack', args: { token: secret } }))
   const result = await cli(['shodan-axi', 'notifier', ...command, '--body-file', path, '--allow-operation', grant,
     '--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost', ...flags])
   expect(result.code).toBe(0)
   expect(result.stdout + result.stderr).not.toContain(secret)
+})
+
+test.each([
+  { command: ['create'], grant: 'OP-027' },
+  { command: ['update', 'my-notifier'], grant: 'OP-030' },
+].flatMap(item => [false, true].flatMap(executeWrite => [false, true].flatMap(json =>
+  ['notifier', 'a', 'o'].map(secret => ({ ...item, executeWrite, json, secret }))))))
+('Shodan notifier $command preserves recovery text with $secret: execute=$executeWrite JSON=$json', async ({ command, grant, executeWrite, json, secret }) => {
+  response = { status: 200, body: { status: executeWrite ? 'OUTCOME_UNKNOWN' : 'preview', confirm: writeToken,
+    'my-notifier': { target: 'my-notifier', recovery: 'Inspect my-notifier before retrying', echoed: secret } } }
+  const path = privateFile(JSON.stringify({ provider: 'slack', args: { token: secret } }))
+  const result = await cli(['shodan-axi', 'notifier', ...command, '--body-file', path, '--allow-operation', grant,
+    '--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost',
+    ...(executeWrite ? ['--execute', '--confirm', writeToken] : []), ...(json ? ['--json'] : [])])
+  expect(result.code).toBe(executeWrite ? 1 : 0)
+  expect(json ? JSON.parse(result.stdout) : decode(result.stdout)).toEqual({ status: executeWrite ? 'OUTCOME_UNKNOWN' : 'preview', confirm: writeToken,
+    'my-notifier': { target: 'my-notifier', recovery: 'Inspect my-notifier before retrying', echoed: '[REDACTED]' } })
 })
 
 test.each([
