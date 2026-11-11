@@ -26,6 +26,27 @@ export const shodanWriteCommands = {
 
 export type ShodanWriteCommand = keyof typeof shodanWriteCommands
 
+export const shodanWriteEffect = z.object({
+  operation: z.string(), method: z.string(), target: z.string(), networks: z.array(z.string()).optional(),
+  notify: z.boolean().optional(), downgrade: z.boolean().optional(),
+}).passthrough()
+
+export const shodanWritePreview = z.object({
+  confirm: z.uuid(), instance: z.string().min(1), command: z.enum(Object.keys(shodanWriteCommands) as [ShodanWriteCommand, ...ShodanWriteCommand[]]),
+  operation: z.string().min(1), effects: z.array(shodanWriteEffect), queryCreditBudget: z.number().int().positive(),
+  maxRequests: z.number().int().positive(), cost: z.literal('unknown'), expiresAt: z.number().int().nonnegative(),
+}).passthrough()
+
+const shodanWriteStep = z.object({ operation: z.string(), target: z.string(),
+  status: z.enum(['verified', 'acknowledged-unverified', 'failed', 'not-attempted']) }).passthrough()
+export const shodanWriteOutcome = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('completed'), steps: z.array(shodanWriteStep) }).passthrough(),
+  z.object({ status: z.literal('OUTCOME_UNKNOWN'), completed: z.array(shodanWriteStep), uncertain: shodanWriteStep,
+    unsent: z.array(shodanWriteStep), steps: z.array(shodanWriteStep) }).passthrough(),
+  z.object({ status: z.literal('READBACK_UNVERIFIED'), completed: z.array(shodanWriteStep),
+    unsent: z.array(shodanWriteStep), steps: z.array(shodanWriteStep) }).passthrough(),
+])
+
 export const shodanNotifierBody = z.strictObject({
   provider: z.string().min(1).optional(), description: z.string().optional(),
   args: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).refine(args => Object.keys(args).length > 0),

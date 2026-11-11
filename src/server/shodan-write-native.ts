@@ -3,17 +3,15 @@ import { readFile } from 'node:fs/promises'
 import { z } from 'zod'
 import inventory from '../../tools/inventories/shodan-axi.json' with { type: 'json' }
 import type { shodanWriteInput } from '../shared/shodan-stream.js'
-import { shodanBulkWriteCommands, shodanBulkWriteDeadlineMs } from '../shared/shodan-write.js'
+import { shodanBulkWriteCommands, shodanBulkWriteDeadlineMs, shodanWriteEffect } from '../shared/shodan-write.js'
 import { ArtiumError } from '../shared/errors.js'
 import type { Adapter } from './adapters/types.js'
 import { runShodanNative } from './shodan-preview.js'
 import type { CredentialReference } from './store/credential-store.js'
 
 type Input = z.infer<typeof shodanWriteInput>
-const nativePreview = z.object({ status: z.literal('preview'), token: z.uuid(), effects: z.array(z.object({
-  operation: z.string(), method: z.string(), target: z.string(), networks: z.array(z.string()).optional(),
-  notify: z.boolean().optional(), downgrade: z.boolean().optional(),
-})), dnsMore: z.boolean().optional(), futureDnsTracking: z.boolean().optional() })
+const nativePreview = z.object({ status: z.literal('preview'), token: z.uuid(), effects: z.array(shodanWriteEffect.strip()),
+  dnsMore: z.boolean().optional(), futureDnsTracking: z.boolean().optional() })
 const nativeFailure = z.object({ error: z.string() }).passthrough()
 const nativeOutcome = z.object({ status: z.string() }).passthrough()
 const invalidInput = ['INVALID_INPUT', 'CREDIT_BUDGET_REQUIRED', 'WRITE_GRANT_REQUIRED']

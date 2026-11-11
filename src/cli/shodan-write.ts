@@ -3,7 +3,7 @@ import { open } from 'node:fs/promises'
 import { encode } from '@toon-format/toon'
 import { z } from 'zod'
 import { ArtiumError } from '../shared/errors.js'
-import { shodanBulkWriteCommands, shodanBulkWriteDeadlineMs, shodanNotifierBody, shodanWriteBodyLimit, shodanWriteCommands, type ShodanWriteCommand } from '../shared/shodan-write.js'
+import { shodanBulkWriteCommands, shodanBulkWriteDeadlineMs, shodanNotifierBody, shodanWriteBodyLimit, shodanWriteCommands, shodanWriteOutcome, shodanWritePreview, type ShodanWriteCommand } from '../shared/shodan-write.js'
 import { shodanWriteInput } from '../shared/shodan-stream.js'
 import type { Client } from './http.js'
 
@@ -91,7 +91,7 @@ export async function shodanWrite(args: string[], createClient: () => Client, ou
   const recovery = `The write may have changed state. Inspect ${bulk ? 'affected objects' : command.startsWith('notifier ') ? 'the notifier' : command.startsWith('org ') ? 'the organization' : 'the alert'} before retrying.`
   const result = await client.transferSession(token => client.request(`${prefix}/${execute ? 'execute' : 'preview'}`, 'POST', request, token,
     false, undefined, bulk ? shodanBulkWriteDeadlineMs + 90_000 : undefined)).then(response => {
-    const result = z.record(z.string(), z.unknown()).safeParse(response)
+    const result = (execute ? shodanWriteOutcome : shodanWritePreview).safeParse(response)
     if (!result.success) throw new ArtiumError('INVALID_RESPONSE')
     return result.data
   }).catch(error => {
@@ -111,6 +111,6 @@ export async function shodanWrite(args: string[], createClient: () => Client, ou
   const safe = redact(result)
   const rendered = switches.has('--json') ? JSON.stringify(safe) : encode(safe)
   output('stdout', rendered + '\n')
-  if (result.status === 'OUTCOME_UNKNOWN' || result.status === 'READBACK_UNVERIFIED') process.exitCode = 1
+  if (execute && 'status' in result && (result.status === 'OUTCOME_UNKNOWN' || result.status === 'READBACK_UNVERIFIED')) process.exitCode = 1
   return true
 }

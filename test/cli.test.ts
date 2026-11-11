@@ -715,6 +715,10 @@ test.each([
 const writeToken = '00000000-0000-4000-8000-000000000000'
 const writeBounds = ['--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost', '--json']
 const writeBody = { queryCreditBudget: 2, maxRequests: 4 }
+const writePreview = { confirm: writeToken, instance: 'lab', command: 'alert remove', operation: 'OP-015', effects: [],
+  queryCreditBudget: 2, maxRequests: 4, cost: 'unknown', expiresAt: 2000000000000 }
+const writeStep = { operation: 'OP-015', target: 'a1', status: 'failed' }
+const writeUnknown = { status: 'OUTCOME_UNKNOWN', completed: [], uncertain: writeStep, unsent: [], steps: [writeStep] }
 
 function privateFile(content: string | Buffer, mode = 0o600) {
   const path = join(mkdtempSync(join(directory, 'shodan-write-')), 'input.json')
@@ -771,15 +775,15 @@ test.each([
     body: { command: 'alert domain', arguments: ['example.test'], triggers: 'malware' } },
 ])('Shodan write preview sends $name', async ({ args, body }) => {
   requests = []
-  response = { status: 200, body: { confirm: writeToken } }
-  expect(await cli(['--instance', 'lab', 'shodan-axi', ...args, ...writeBounds])).toMatchObject({ code: 0, stdout: `{"confirm":"${writeToken}"}\n` })
+  response = { status: 200, body: writePreview }
+  expect(await cli(['--instance', 'lab', 'shodan-axi', ...args, ...writeBounds])).toMatchObject({ code: 0, stdout: `${JSON.stringify(writePreview)}\n` })
   expect(requests.filter(request => request.path.startsWith('/v1/tools/'))).toEqual([{ path: '/v1/tools/shodan-axi/writes/preview',
     token: 'Bearer CANARY-cli-token', body: { ...writeBody, ...body, instance: 'lab' }, version: cliVersion }])
 })
 
 test('Shodan notifier create and alert import send local file content, never a path', async () => {
   requests = []
-  response = { status: 200, body: { confirm: writeToken } }
+  response = { status: 200, body: writePreview }
   const notifier = JSON.stringify({ provider: 'slack', args: { webhook_url: 'https://hooks.example.test/CANARY-secret' } })
   const alerts = JSON.stringify([{ name: 'edge', filters: { ip: ['192.0.2.0/24'] } }])
   const notifierPath = privateFile(notifier), importPath = privateFile(alerts)
@@ -792,7 +796,7 @@ test('Shodan notifier create and alert import send local file content, never a p
 
 test.each([{ executeFlags: [] }, { executeFlags: ['--execute', '--confirm', writeToken] }])('Shodan alert import transmits compressed bytes for $executeFlags', async ({ executeFlags }) => {
   requests = []
-  response = { status: 200, body: { confirm: writeToken } }
+  response = { status: 200, body: executeFlags.length ? { status: 'completed', steps: [] } : writePreview }
   const content = gzipSync(JSON.stringify([{ name: 'edge', filters: { ip: ['192.0.2.0/24'] } }]))
   const path = privateFile(content)
   expect(await cli(['shodan-axi', 'alert', 'import', path, '--allow-operation', 'OP-013', ...writeBounds, ...executeFlags])).toMatchObject({ code: 0 })
@@ -802,7 +806,7 @@ test.each([{ executeFlags: [] }, { executeFlags: ['--execute', '--confirm', writ
 })
 
 test.each([true, false])('Shodan domain preview displays DNS limitations with JSON %s', async json => {
-  response = { status: 200, body: { confirm: writeToken, dnsMore: true, futureDnsTracking: false } }
+  response = { status: 200, body: { ...writePreview, dnsMore: true, futureDnsTracking: false } }
   const result = await cli(['shodan-axi', 'alert', 'domain', 'example.test', '--allow-operation', 'OP-040,OP-013,OP-019',
     '--query-credit-budget', '4', '--max-requests', '6', '--accept-unknown-cost', ...(json ? ['--json'] : [])])
   expect(result.code).toBe(0)
@@ -814,7 +818,7 @@ test.each([
   { command: ['update', 'n1'], grant: 'OP-030', flags: ['--execute', '--confirm', writeToken] },
 ])('Shodan notifier $command does not display an echoed provider secret', async ({ command, grant, flags }) => {
   const secret = 'CANARY-provider-secret'
-  response = { status: 200, body: { confirm: writeToken, nested: { echoed: secret } } }
+  response = { status: 200, body: { ...(flags.includes('--execute') ? { status: 'completed', steps: [] } : writePreview), nested: { echoed: secret } } }
   const path = privateFile(JSON.stringify({ provider: 'slack', args: { token: secret } }))
   const result = await cli(['shodan-axi', 'notifier', ...command, '--body-file', path, '--allow-operation', grant,
     '--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost', ...flags])
@@ -828,17 +832,15 @@ test.each([
 ].flatMap(item => [false, true].flatMap(executeWrite => [false, true].map(json => ({ ...item, executeWrite, json })))))
 ('Shodan notifier $command preserves matching identifiers: execute=$executeWrite JSON=$json', async ({ command, grant, executeWrite, json }) => {
   const step = { operation: 'OP-030', target: 'n1', status: 'failed', recovery: 'n1' }
-  response = { status: 200, body: { status: executeWrite ? 'OUTCOME_UNKNOWN' : 'preview', confirm: writeToken,
-    effects: [{ target: 'n1', id: 'n1' }], completed: [step], uncertain: step, unsent: [step], steps: [step],
-    instance: 'n1', error: 'n1', command: 'n1', operation: 'n1', method: 'n1', expiresAt: 'n1', n1: 'n1' } }
+  const output = { ...writePreview, ...(executeWrite ? { status: 'OUTCOME_UNKNOWN', completed: [step], uncertain: step, unsent: [step], steps: [step] } : {}),
+    effects: [{ operation: 'OP-030', method: 'PUT', target: 'n1', id: 'n1' }], instance: 'n1', error: 'n1', method: 'n1', n1: 'n1' }
+  response = { status: 200, body: output }
   const path = privateFile(JSON.stringify({ provider: 'slack', args: { token: 'n1' } }))
   const result = await cli(['shodan-axi', 'notifier', ...command, '--body-file', path, '--allow-operation', grant,
     '--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost',
     ...(executeWrite ? ['--execute', '--confirm', writeToken] : []), ...(json ? ['--json'] : [])])
   expect(result.code).toBe(executeWrite ? 1 : 0)
-  expect(json ? JSON.parse(result.stdout) : decode(result.stdout)).toEqual({ status: executeWrite ? 'OUTCOME_UNKNOWN' : 'preview', confirm: writeToken,
-    effects: [{ target: 'n1', id: 'n1' }], completed: [step], uncertain: step, unsent: [step], steps: [step],
-    instance: 'n1', error: 'n1', command: 'n1', operation: 'n1', method: 'n1', expiresAt: 'n1', n1: '[REDACTED]' })
+  expect(json ? JSON.parse(result.stdout) : decode(result.stdout)).toEqual({ ...output, n1: '[REDACTED]' })
 })
 
 test.each([
@@ -847,14 +849,15 @@ test.each([
 ].flatMap(item => [false, true].flatMap(executeWrite => [false, true].flatMap(json =>
   ['notifier', 'a', 'o'].map(secret => ({ ...item, executeWrite, json, secret }))))))
 ('Shodan notifier $command preserves recovery text with $secret: execute=$executeWrite JSON=$json', async ({ command, grant, executeWrite, json, secret }) => {
-  response = { status: 200, body: { status: executeWrite ? 'OUTCOME_UNKNOWN' : 'preview', confirm: writeToken,
-    'my-notifier': { target: 'my-notifier', recovery: 'Inspect my-notifier before retrying', echoed: secret } } }
+  const output = { ...writePreview, ...(executeWrite ? writeUnknown : {}),
+    'my-notifier': { target: 'my-notifier', recovery: 'Inspect my-notifier before retrying', echoed: secret } }
+  response = { status: 200, body: output }
   const path = privateFile(JSON.stringify({ provider: 'slack', args: { token: secret } }))
   const result = await cli(['shodan-axi', 'notifier', ...command, '--body-file', path, '--allow-operation', grant,
     '--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost',
     ...(executeWrite ? ['--execute', '--confirm', writeToken] : []), ...(json ? ['--json'] : [])])
   expect(result.code).toBe(executeWrite ? 1 : 0)
-  expect(json ? JSON.parse(result.stdout) : decode(result.stdout)).toEqual({ status: executeWrite ? 'OUTCOME_UNKNOWN' : 'preview', confirm: writeToken,
+  expect(json ? JSON.parse(result.stdout) : decode(result.stdout)).toEqual({ ...output,
     'my-notifier': { target: 'my-notifier', recovery: 'Inspect my-notifier before retrying', echoed: '[REDACTED]' } })
 })
 
@@ -862,19 +865,19 @@ test.each([
   { command: ['create'], grant: 'OP-027', flags: ['--json'] },
   { command: ['update', 'n1'], grant: 'OP-030', flags: [] },
 ])('Shodan notifier $command preserves an outcome with a short secret', async ({ command, grant, flags }) => {
-  response = { status: 200, body: { status: 'OUTCOME_UNKNOWN' } }
+  response = { status: 200, body: flags.includes('--execute') ? writeUnknown : writePreview }
   const path = privateFile(JSON.stringify({ provider: 'slack', args: { token: 'a' } }))
   const result = await cli(['shodan-axi', 'notifier', ...command, '--body-file', path, '--allow-operation', grant,
     '--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost', ...flags])
-  expect(result.code).toBe(1)
-  expect(result.stdout).toContain('OUTCOME_UNKNOWN')
+  expect(result.code).toBe(flags.includes('--execute') ? 1 : 0)
+  expect(result.stdout).toContain(flags.includes('--execute') ? 'OUTCOME_UNKNOWN' : writeToken)
 })
 
 test('Shodan notifier preview keeps confirmation keys with a short secret', async () => {
-  response = { status: 200, body: { confirm: writeToken, command: 'notifier create' } }
+  response = { status: 200, body: { ...writePreview, command: 'notifier create' } }
   const path = privateFile(JSON.stringify({ provider: 'slack', args: { token: 'o' } }))
   const result = await cli(['shodan-axi', 'notifier', 'create', '--body-file', path, '--allow-operation', 'OP-027', ...writeBounds])
-  expect(JSON.parse(result.stdout)).toEqual({ confirm: writeToken, command: 'notifier create' })
+  expect(JSON.parse(result.stdout)).toEqual({ ...writePreview, command: 'notifier create' })
 })
 
 test.each([
@@ -897,7 +900,7 @@ test.each([
   { grants: 'OP-013,OP-019', selected: ['OP-013', 'OP-019'], execute: ['--execute', '--confirm', writeToken], route: 'execute' },
 ])('Shodan alert import sends selected grants to $route', async ({ grants, selected, execute, route }) => {
   requests = []
-  response = { status: 200, body: { confirm: writeToken } }
+  response = { status: 200, body: execute.length ? { status: 'completed', steps: [] } : writePreview }
   const alerts = JSON.stringify([{ name: 'edge', filters: { ip: ['192.0.2.0/24'] } }])
   const path = privateFile(alerts)
   expect(await cli(['shodan-axi', 'alert', 'import', path, '--allow-operation', grants, ...execute, ...writeBounds])).toMatchObject({ code: 0 })
@@ -908,9 +911,9 @@ test.each([
 
 test('Shodan write execute sends the confirmation and exits 1 on an uncertain outcome', async () => {
   requests = []
-  response = { status: 200, body: { status: 'OUTCOME_UNKNOWN', completed: [], unsent: [] } }
+  response = { status: 200, body: writeUnknown }
   expect(await cli(['shodan-axi', 'alert', 'remove', 'a1', '--allow-operation', 'OP-015', '--execute', '--confirm', writeToken, ...writeBounds]))
-    .toMatchObject({ code: 1, stdout: '{"status":"OUTCOME_UNKNOWN","completed":[],"unsent":[]}\n' })
+    .toMatchObject({ code: 1, stdout: `${JSON.stringify(writeUnknown)}\n` })
   expect(requests.filter(request => request.path.startsWith('/v1/tools/'))).toEqual([{ path: '/v1/tools/shodan-axi/writes/execute',
     token: 'Bearer CANARY-cli-token', body: { ...writeBody, command: 'alert remove', arguments: ['a1'], confirm: writeToken }, version: cliVersion }])
 })
@@ -922,6 +925,8 @@ test.each([
 ].flatMap(item => [false, true].flatMap(executeWrite => [
   { ...item, executeWrite, failure: 'truncated JSON', reply: { status: 200, body: undefined, raw: '{"status":' }, code: 'INVALID_RESPONSE' },
   { ...item, executeWrite, failure: 'invalid response shape', reply: { status: 200, body: [] }, code: 'INVALID_RESPONSE' },
+  { ...item, executeWrite, failure: 'empty response object', reply: { status: 200, body: {} }, code: 'INVALID_RESPONSE' },
+  { ...item, executeWrite, failure: 'unknown outcome status', reply: { status: 200, body: { status: 'unrecognized', steps: [] } }, code: 'INVALID_RESPONSE' },
   { ...item, executeWrite, failure: 'lost response', reply: { status: 503, body: errorResponse(new ArtiumError('SERVER_UNAVAILABLE'), 'synthetic-error') }, code: 'SERVER_UNAVAILABLE' },
 ])))('Shodan $name write handles $failure: execute=$executeWrite', async ({ args, object, executeWrite, reply, code }) => {
   const route = `/v1/tools/shodan-axi/writes/${executeWrite ? 'execute' : 'preview'}`
@@ -934,6 +939,17 @@ test.each([
       expect(result.stdout).toContain('The write may have changed state')
       expect(result.stdout).toContain(`Inspect ${object} before retrying`)
     } else expect(result.stdout).not.toContain('The write may have changed state')
+  } finally { doctorResponses = undefined }
+})
+
+test('Shodan write preview refuses a response without confirmation', async () => {
+  const { confirm: _confirm, ...body } = writePreview
+  doctorResponses = { '/v1/me': { status: 200, body: {} }, '/v1/tools/shodan-axi/writes/preview': { status: 200, body } }
+  try {
+    const result = await cli(['shodan-axi', 'alert', 'remove', 'a1', '--allow-operation', 'OP-015', ...writeBounds])
+    expect(result.code).toBe(1)
+    expect(result.stdout).toContain('INVALID_RESPONSE')
+    expect(result.stdout).not.toContain('The write may have changed state')
   } finally { doctorResponses = undefined }
 })
 
