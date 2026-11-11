@@ -360,6 +360,58 @@ test.each(grantPolicyCases)('$tool $policy credential replacement preserves gran
   expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ nativeSettings: { [policy]: { ...updated, grants: {} } } })
 })
 
+test.each(grantPolicyCases)('$tool $policy instance credential paths preserve grants and apply ceilings', async ({ tool, policy, operation, limits, updated }) => {
+  const grants = { 'synthetic-ordinary': [operation] }
+  db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify({ [policy]: { ...limits, grants } }), tool)
+  const value = { ...values[tool], [policy]: { ...updated, grants: { 'other-user': [operation] } } }
+  const instance = await createInstance('east', value, tool)
+  expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ nativeSettings: { [policy]: { ...updated, grants } } })
+  const replaced = await request('PUT', `/${tool}/instances/east/credential`, { value, expectedId: instance.id,
+    expectedRevision: instance.revision, expectedToolRevision: await toolRevision(tool) })
+  expect(replaced.status).toBe(200)
+  expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ nativeSettings: { [policy]: { ...updated, grants } } })
+  const saved = await request('PATCH', `/${tool}/instances/east/credential`, { value, ...await instanceHeader('east', tool), expectedToolRevision: await toolRevision(tool) })
+  expect(saved.status).toBe(200)
+  expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ nativeSettings: { [policy]: { ...updated, grants } } })
+})
+
+test('unchanged grants preserve tool and credential revisions and health', async () => {
+  await replace('kubernetes-axi')
+  expect((await grantUser('kubernetes-axi', 'sessions', 'synthetic-ordinary', ['exec', 'logs'], 2)).status).toBe(200)
+  const before = await (await request('GET', '/kubernetes-axi')).json()
+  const credential = store.findCredential('kubernetes-axi')!
+  const health = db.prepare("SELECT * FROM tool_health WHERE tool = 'kubernetes-axi'").all()
+  db.exec('DELETE FROM audit')
+  expect((await grantUser('kubernetes-axi', 'sessions', 'synthetic-ordinary', ['exec', 'logs'], 3)).status).toBe(200)
+  expect(await (await request('GET', '/kubernetes-axi')).json()).toEqual(before)
+  expect(store.findCredential('kubernetes-axi')!.revision).toBe(credential.revision)
+  expect(db.prepare("SELECT * FROM tool_health WHERE tool = 'kubernetes-axi'").all()).toEqual(health)
+  expect(db.prepare("SELECT * FROM audit WHERE event = 'admin-change'").all()).toEqual([])
+})
+
+test.each([
+  { policy: 'scans', operations: ['OP-009', 'OP-010'], settings: { maxScanCredits: 1, maxRequests: 1 } },
+  { policy: 'sessions', operations: ['OP-046', 'OP-047'], settings: { perUser: 1, perCredential: 1, total: 1, sessionEvents: 1, totalEvents: 1, sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 } },
+  { policy: 'writes', operations: ['OP-021', 'OP-070'], settings: { maxQueryCredits: 1, maxRequests: 1 } },
+  { policy: 'exports', operations: ['CLI-005', 'CLI-020'], settings: { maxQueryCredits: 1, maxRequests: 1, maxRecords: 1, maxBytes: 1, retentionSeconds: 1 } },
+] as const)('disabled people can partially remove Shodan $policy grants', async ({ policy, operations, settings }) => {
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'shodan-axi'")
+    .run(JSON.stringify({ [policy]: { ...settings, grants: { 'synthetic-ordinary': operations } } }))
+  db.prepare('UPDATE users SET disabled = 1 WHERE id = ?').run('synthetic-ordinary')
+  const partial = await grantUser('shodan-axi', policy, 'synthetic-ordinary', [operations[1]], 1)
+  expect(partial.status).toBe(200)
+  expect(await partial.json()).toMatchObject({ nativeSettings: { [policy]: { grants: { 'synthetic-ordinary': [operations[1]] } } } })
+  await failure(await grantUser('shodan-axi', policy, 'synthetic-ordinary', [...operations], 2), 'INVALID_INPUT')
+})
+
+test('new operations outside the catalogue are rejected', async () => {
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'shodan-axi'")
+    .run(JSON.stringify({ scans: { grants: { 'synthetic-ordinary': ['OP-009'] }, maxScanCredits: 1, maxRequests: 1 } }))
+  await failure(await grantUser('shodan-axi', 'scans', 'synthetic-ordinary', ['OP-009', 'OP-010'], 1), 'INVALID_INPUT')
+  expect(await (await request('GET', '/shodan-axi')).json()).toMatchObject({ revision: 1,
+    nativeSettings: { scans: { grants: { 'synthetic-ordinary': ['OP-009'] } } } })
+})
+
 test.each([
   { tool: 'kubernetes-axi', policy: 'sessions', operations: ['exec', 'logs'], added: 'watch', settings: { sessions: { grants: {} } } },
   { tool: 'shodan-axi', policy: 'writes', operations: ['OP-021', 'OP-070'], added: 'OP-013', settings: { writes: { grants: {}, maxQueryCredits: 5, maxRequests: 6 } } },

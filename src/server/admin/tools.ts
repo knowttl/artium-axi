@@ -228,8 +228,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
   function invalidate(reference: CredentialReference | undefined): void {
     if (reference) for (const adapter of adapters) if (adapter.name === reference.tool) adapter.invalidateCredential?.(reference)
   }
-  function bumpInstances(tool: ToolName, actor: string, now: number, settings?: Record<string, unknown>): CredentialReference[] {
-    return (store?.listInstances(tool) ?? []).map(instance => {
+  function bumpInstances(tool: ToolName, actor: string, now: number, settings?: Record<string, unknown>, exceptId?: string): CredentialReference[] {
+    return (store?.listInstances(tool) ?? []).filter(instance => instance.id !== exceptId).map(instance => {
       const value = credentialStore().readCredential(instance) as Record<string, unknown>
       const credential = splitSettings(tool, value).credential
       if (settings !== undefined && !isAwxOriginOnly(tool, credential)) parse(schemaFor(tool), { ...credential, ...settings })
@@ -358,21 +358,25 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const policy = userGrantPolicies[tool]?.[input.policy]
     if (!policy) throw new ArtiumError('INVALID_INPUT', `${tool} has no per-person ${input.policy} grants.`)
     const catalogue = policy.operations.map(operation => operation.id)
-    if (input.operations.some(operation => !catalogue.includes(operation))) throw new ArtiumError('INVALID_INPUT',
-      `Unknown ${input.policy} operation for ${tool}.`, `Choose from: ${catalogue.join(', ')}.`)
-    const operations = catalogue.filter(operation => input.operations.includes(operation))
     let replacements: CredentialReference[] = []
     const event: Extract<AuditEvent, { event: 'admin-change' }> = { event: 'admin-change', action: adminToolRoutes.userGrants.auditEvent, targetId: tool,
       userId: actor, tool, outcome: 'success', requestId: request.id, clientAddress: request.ip }
-    const result = audit.change(event, () => {
+    const events: AuditEvent[] = []
+    const result = audit.change(events, () => {
       authorize(request)
       const current = readTool(tool)
       if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
       const saved = current.nativeSettings[input.policy] as { grants: Record<string, string[]> } | undefined ?? { grants: {} }
-      if (operations.some(operation => !(saved.grants[input.userId] ?? []).includes(operation)) &&
+      const previous = saved.grants[input.userId] ?? []
+      const added = input.operations.filter(operation => !previous.includes(operation))
+      if (added.some(operation => !catalogue.includes(operation))) throw new ArtiumError('INVALID_INPUT',
+        `Unknown ${input.policy} operation for ${tool}.`, `Choose from: ${catalogue.join(', ')}.`)
+      const operations = [...new Set([...previous.filter(operation => input.operations.includes(operation)), ...catalogue.filter(operation => added.includes(operation))])]
+      if (added.length &&
         !db.prepare('SELECT 1 FROM users WHERE id = ? AND archived_at IS NULL AND disabled = 0').get(input.userId)) {
         throw new ArtiumError('INVALID_INPUT', 'Choose an active person.')
       }
+      if (!added.length && operations.length === previous.length && operations.every(operation => previous.includes(operation))) return current
       const { [input.userId]: _, ...others } = saved.grants
       const changed = nativeSettingsSchemas[tool].safeParse({ ...current.nativeSettings,
         [input.policy]: { ...saved, grants: { ...others, ...(operations.length ? { [input.userId]: operations } : {}) } } })
@@ -380,6 +384,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         'Save the ceilings in Advanced native settings, then grant people here.')
       const settings = changed.data as Record<string, unknown>
       event.settingsChanges = settingsChanges(tool, current.nativeSettings, settings)
+      events.push(event)
       const now = Date.now()
       replacements = bumpInstances(tool, actor, now, settings)
       db.prepare('UPDATE tools SET native_settings = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?')
@@ -496,8 +501,10 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         value = { ...fields, ...certificateFields(value.certificatePem, sha256) }
       } catch { throw new ArtiumError('INVALID_INPUT', 'The PEM must contain one certificate and its matching unencrypted private key.', 'Choose a matching certificate and key, then save again.') }
     }
-    if (saving && Object.keys(splitSettings(tool, value).settings).length) throw new ArtiumError('INVALID_INPUT')
-    if (!saving && Object.keys(userGrantPolicies[tool] ?? {}).length) {
+    const supplied = splitSettings(tool, value).settings
+    const policyKeys = Object.keys(userGrantPolicies[tool] ?? {})
+    if (saving && Object.keys(supplied).some(key => name === undefined || !policyKeys.includes(key))) throw new ArtiumError('INVALID_INPUT')
+    if (policyKeys.length) {
       const current = readTool(tool)
       if (current.revision !== input.expectedToolRevision) throw new ArtiumError('REVISION_CONFLICT')
       value = preserveUserGrants(tool, value, current.nativeSettings)
@@ -529,6 +536,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       }
     }
     let replacement: CredentialReference | undefined
+    let updatedInstances: CredentialReference[] = []
     const event: Extract<AuditEvent, { event: 'admin-change' }> = { event: 'admin-change', action: route.auditEvent, targetId: tool,
       userId: actor, tool, instance: name, outcome: 'success', requestId: request.id, clientAddress: request.ip }
     const events: AuditEvent[] = [event]
@@ -546,14 +554,19 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         const secrets = credentialProfiles[tool]?.fields().filter(field => field.schema['x-secret'] && field.schema['x-ephemeral'] !== true)
           .map(field => field.name) ?? legacySecretFields[tool]
         const retained = sameIdentity ? Object.fromEntries(secrets.filter(key => Object.hasOwn(stored, key)).map(key => [key, stored[key]])) : {}
-        next = parse(schemaFor(tool), { ...retained, ...value, ...current.nativeSettings }) as Record<string, unknown>
+        next = parse(schemaFor(tool), { ...retained, ...current.nativeSettings, ...value }) as Record<string, unknown>
       }
       const { credential, settings: suppliedSettings } = splitSettings(tool, next)
-      const settings = name === undefined ? suppliedSettings : current.nativeSettings
+      const settings = name === undefined ? suppliedSettings : { ...current.nativeSettings,
+        ...Object.fromEntries(Object.entries(suppliedSettings).filter(([key]) => Object.hasOwn(supplied, key) && policyKeys.includes(key))) }
       event.settingsChanges = settingsChanges(tool, current.nativeSettings, settings)
       events.push(...writeChange(request, actor, tool, current.nativeSettings, settings))
       const now = Date.now()
       replacement = writeCredential(tool, name, credential, input.expectedId, expectedRevision, actor, now, input.description)
+      if (name !== undefined && Object.keys(supplied).some(key => policyKeys.includes(key))) {
+        updatedInstances = bumpInstances(tool, actor, now, settings, replacement.id)
+        db.prepare('DELETE FROM tool_health WHERE tool = ?').run(tool)
+      }
       events[0]!.credentialId = replacement.id
       events[0]!.instance = credentialStore().listInstances(tool).find(item => item.id === replacement!.id)!.name
       db.prepare(`UPDATE tools SET native_settings = ?, pinned_version = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?`)
@@ -562,6 +575,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       return { ...readCredentialView(tool, name), ...(normalizations.length ? { normalizations } : {}) }
     }).value
     invalidate(replacement)
+    updatedInstances.forEach(invalidate)
     await health.refresh(tool, true, replacement!.id)
     return result
   } })

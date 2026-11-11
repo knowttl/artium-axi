@@ -207,6 +207,20 @@ test('tool Access holds back Shodan grants until the policy ceilings are saved',
   expect(after).not.toContain('id="sheet-grants-sessions-add"')
 })
 
+test('tool Access retains outside operations and identifies Shodan grants', async () => {
+  db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'shodan-axi'").run(JSON.stringify({
+    scans: { grants: { 'synthetic-second': ['OP-009', 'OP-010'] }, maxScanCredits: 10, maxRequests: 10 },
+    sessions: { grants: { 'synthetic-second': ['OP-047', 'OP-048'] }, perUser: 1, perCredential: 1, total: 1,
+      sessionEvents: 1, totalEvents: 1, sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 },
+    writes: { grants: { 'synthetic-second': ['OP-021', 'OP-070'] }, maxQueryCredits: 1, maxRequests: 1 },
+  }))
+  await signIn()
+  const page = (await request('GET', '/admin/tools/shodan-axi?tab=access&sheet=grants-scans-synthetic-second')).body
+  expect(page).toContain('<input type="checkbox" name="operations" value="OP-010" checked>')
+  expect(page).toContain('stream (OP-047), stream (OP-048)')
+  expect(page).toContain('alert ignore (OP-021), alert ignore (OP-070)')
+})
+
 test('Advanced hides per-person grants and preserves policy settings', async () => {
   db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'kubernetes-axi'")
     .run(JSON.stringify({ sessions: { grants: { 'synthetic-second': ['exec'] } } }))

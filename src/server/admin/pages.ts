@@ -227,9 +227,8 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
               `<option value="${escape(person.id)}">${escape(person.username)}${person.displayName === person.username ? '' : ` (${escape(person.displayName)})`}</option>`).join('')}</select>`)
             : `<input type="hidden" name="userId" value="${escape(userId)}">`
           return sheet({ name, open: query.sheet === name, closeHref: accessHref(), title, description: policy.description,
-            body: `${who}<fieldset class="options"><legend>Operations</legend><input type="hidden" name="operations" disabled data-type="array">${policy.operations.map(operation =>
+            body: `${who}<fieldset class="options"><legend>Operations</legend><input type="hidden" name="operations" disabled data-type="array">${[...policy.operations, ...outside.map(id => ({ id, label: id }))].map(operation =>
               checkOption(`<input type="checkbox" name="operations" value="${escape(operation.id)}"${selected.includes(operation.id) ? ' checked' : ''}>`, operation.label, operation.id)).join('')}</fieldset>
-              ${outside.length ? `<p class="hint">Saved grants outside this list (${escape(outside.join(', '))}) are removed when you save.</p>` : ''}
               <input type="hidden" name="policy" value="${escape(key)}">${revision(tool.revision)}`,
             submit: '<button class="btn btn-primary">Save grants</button>',
             wrap: inner => actionForm(csrf, `${api}/user-grants`, 'PUT', inner,
@@ -239,7 +238,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
         const rows = grants.map(([id, operations]) => {
           const person = people.find(candidate => candidate.id === id)
           const name = `grants-${key}-${id}`
-          const labels = operations.map(operation => catalogue.get(operation) ?? operation).join(', ') || 'None'
+          const labels = operations.map(operation => { const label = catalogue.get(operation); return label && label !== operation ? `${label} (${operation})` : operation }).join(', ') || 'None'
           return { sheet: grantSheet(name, `${policy.title} for ${person?.username ?? id}`, id, operations),
             row: `<div class="list-row">${icon('users')}<div class="grow"><strong>${escape(person?.username ?? id)}</strong>${person ? '' : ' <span class="badge warn">Not an active person</span>'}<p>${escape(labels)}</p></div>${sheetLink(name, accessHref(name), 'Edit', 'btn btn-ghost btn-sm')}</div>` }
         })
