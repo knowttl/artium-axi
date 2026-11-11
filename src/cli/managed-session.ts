@@ -98,9 +98,9 @@ export class ManagedSession {
 
   // Identity approval and pre-execution notices must reach the caller before
   // the pending operation. Tool output retains the buffered flush contract.
-  notice(text: string) {
-    if (new SecretScanner(this.secrets).scan('stdout', Buffer.from(text))) throw new ArtiumError('SECRET_IN_OUTPUT')
-    process.stdout.write(text)
+  notice(text: string, stream: 'stdout' | 'stderr' = 'stdout') {
+    if (new SecretScanner(this.secrets).scan(stream, Buffer.from(text))) throw new ArtiumError('SECRET_IN_OUTPUT')
+    process[stream].write(text)
   }
 
   flush() {

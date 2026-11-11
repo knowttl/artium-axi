@@ -13,9 +13,11 @@ import { copyClientInput } from '../../test/fixtures/client-inputs.js'
 import { SessionStore } from './session.js'
 
 const id = '00000000-0000-4000-8000-000000000001'
-const confirm = '00000000-0000-4000-8000-000000000002'
+const confirm = id
 const gzip = gzipSync('{"ip_str":"192.0.2.1"}\n{"ip_str":"192.0.2.2"}\n')
 const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
+const preview = { confirm, instance: 'lab', command: 'download', operation: 'CLI-005', total: 2, queryCredits: 1,
+  limit: 2, maxBytes: 4096, queryCreditBudget: 1, maxRequests: 1, retentionSeconds: 600, expiresAt: 2000000000000 }
 type Scenario = 'complete' | 'partial' | 'digest' | 'header-digest' | 'completeness' | 'failed' | 'destination-created' | 'waiting'
 let directory: string, saves: string, scenario: Scenario, requests: { path: string, body: unknown }[]
 let server: ReturnType<typeof createServer>, url: string
@@ -44,12 +46,14 @@ beforeEach(async () => {
     } else if (request.url!.includes(`/exports/${id}`)) {
       if (scenario === 'waiting') await new Promise<void>(resolve => { releaseStatus = resolve; statusStarted?.() })
       if (scenario === 'destination-created') await writeFile(join(saves, 'export.json.gz'), 'sentinel')
-      response.end(JSON.stringify(scenario === 'failed' ? { id, state: 'failed', result: { error: 'INTERNAL_ERROR' } }
-        : { id, state: complete ? 'completed' : 'partial', result: { count: 2, total: complete ? 2 : 5, complete, bytes: gzip.length,
+      response.end(JSON.stringify(scenario === 'failed' ? { id, instance: 'lab', state: 'failed', result: { error: 'INTERNAL_ERROR' } }
+        : { id, instance: 'lab', state: complete ? 'completed' : 'partial', result: { count: 2, total: complete ? 2 : 5, complete, bytes: gzip.length,
           sha256: digest(gzip), requests: 1, retainedUntil: Date.now() + 60000 } }))
     } else if (request.url!.endsWith('/start')) response.end(JSON.stringify({ id, state: 'running' }))
-    else if (request.url!.endsWith('/preview')) response.end(JSON.stringify({ confirm, total: 2 }))
-    else response.end('{}')
+    else if (request.url!.endsWith('/preview')) response.end(JSON.stringify(preview))
+    else if (request.url === '/v1/me') response.end(JSON.stringify({ username: 'canary', displayName: 'Canary', administrator: false,
+      roles: ['reader'], accessExpiresAt: 2000000000000, sessionExpiresAt: 2000000000000 }))
+    else { response.statusCode = 404; response.end() }
   })
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
@@ -77,14 +81,21 @@ test.each([['download', 'port:22'], ['alert', 'download']])('managed %s announce
   scenario = 'waiting'
   const waiting = new Promise<void>(resolve => { statusStarted = resolve })
   const child = spawn(process.execPath, [bundle, '--managed-session', 'shodan-axi', ...command.flat(), ...bounds, ...execute,
-    '--output', join(saves, 'export.json.gz')],
+    '--output', join(saves, 'export.json.gz'), '--json'],
   { env: { PATH: process.env.PATH, ARTIUM_AXI_URL: url, ARTIUM_AXI_TEST_HTTP: '1' }, stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe'] })
   const closed = once(child, 'close')
+  let stdout = ''
+  child.stdout!.setEncoding('utf8')
+  child.stdout!.on('data', chunk => { stdout += chunk })
   ;(child.stdio[3] as Writable).end(JSON.stringify({ serverUrl: url, accessToken: 'CANARY-token' }))
   try {
-    const [[notice]] = await Promise.all([once(child.stdout!, 'data'), waiting])
+    const [[notice]] = await Promise.all([once(child.stderr!, 'data'), waiting])
     expect(notice.toString()).toBe(`export: ${id}\n`)
     expect(child.exitCode).toBeNull()
+    releaseStatus!()
+    const [code] = await closed
+    expect(code).toBe(0)
+    expect(JSON.parse(stdout)).toMatchObject({ saved: join(saves, 'export.json.gz'), complete: true })
   } finally {
     child.kill('SIGKILL')
     releaseStatus?.()
@@ -169,7 +180,7 @@ test.each([
 test('preview sends the search input and instance without writing', async () => {
   const output = join(saves, 'export.json.gz')
   const result = await run(['--instance', 'lab', 'shodan-axi', 'download', 'port:22', ...bounds, '--fields', 'ip_str,port', '--output', output, '--json'])
-  expect(result).toEqual({ code: 0, stderr: '', stdout: JSON.stringify({ confirm, total: 2 }) + '\n' })
+  expect(result).toEqual({ code: 0, stderr: '', stdout: JSON.stringify(preview) + '\n' })
   expect(requests.filter(request => request.path.includes('/exports/'))).toEqual([{ path: '/v1/tools/shodan-axi/exports/preview',
     body: { command: 'download', query: 'port:22', fields: ['ip_str', 'port'], limit: 2, maxBytes: 4096, queryCreditBudget: 1, maxRequests: 1, instance: 'lab' } }])
   expect(await readdir(saves)).toEqual([])

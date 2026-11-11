@@ -75,7 +75,7 @@ export async function shodanExport(args: string[], createClient: () => Client, o
     const started = z.object({ id: z.uuid() }).safeParse(await call('/start', { ...parsed.data, confirm }))
     if (!started.success) throw new ArtiumError('INVALID_RESPONSE')
     const id = started.data.id
-    if (managed) managed.notice(`export: ${id}\n`)
+    if (managed) managed.notice(`export: ${id}\n`, 'stderr')
     else output('stderr', `export: ${id}\n`)
     let status: z.infer<typeof statusSchema>
     do {
