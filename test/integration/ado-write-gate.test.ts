@@ -56,7 +56,8 @@ const run = (args: string[], extra = {}) => app.inject({ method: 'POST', url: '/
 test.each(['project list', 'query run synthetic-query', 'area list', 'iteration list', 'work-item link types',
   'security group list', 'service-endpoint list', 'variable-group list', 'agent list --pool 1', 'pool list', 'queue list',
   'user list', 'team list', 'repo policy list', 'pipeline show 7', 'pipeline variable list --pipeline 7',
-  'pipeline release list', 'pipeline folder list', 'pipeline runs artifact list 8', 'work-item delete --help'])(
+  'pipeline release list', 'pipeline folder list', 'pipeline runs artifact list 8', 'work-item delete --help',
+  'wiki list', 'wiki page get --wiki Synthetic.wiki --path /Home', 'api _apis/wiki/wikis --paginate'])(
   '%s runs a child without the write switch even when server writes are enabled', async command => {
     const result = await run(command.split(' '))
     expect(result.json(), result.body).toMatchObject({ exitCode: 0, stdout: '{"writes":null}\n' })
@@ -83,6 +84,8 @@ test.each([
   ['repo', 'policy', 'create', '--policy-json', '{}'],
   ['repo', 'policy', 'update', '7', '--policy-json', '{}'],
   ['repo', 'policy', 'delete', '7', '--if-rev', '3', '--confirm-delete'],
+  ['wiki', 'page', 'create', '--wiki', 'Synthetic.wiki', '--path', '/Home', '--content', '# Synthetic'],
+  ['wiki', 'page', 'update', '--wiki', 'Synthetic.wiki', '--path', '/Home', '--content', '# Synthetic'],
 ].map(args => [args]))('%j only reaches the child with the write switch after host authorization', async args => {
   db.exec("UPDATE tools SET native_settings = '{}' WHERE name = 'ado-axi'")
   expect((await run(args)).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })

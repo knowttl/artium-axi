@@ -91,6 +91,10 @@ route('repo file', 'read', 'repo path ref commit limit', '', 2, ['repo cat'])
 route('ref list', 'read', 'repo name limit')
 route('ref create', 'write', 'repo name source source-object-id')
 route('ref delete', 'write', 'repo name old-object-id')
+route('wiki list', 'read', 'limit')
+route('wiki page get', 'read', 'wiki path')
+route('wiki page create', 'write', 'wiki path content file')
+route('wiki page update', 'write', 'wiki path content file if-match')
 route('project list', 'read', 'limit name')
 route('project show', 'read', 'id limit', '', 1)
 for (const group of ['service-endpoint', 'variable-group', 'agent', 'pool', 'queue', 'user']) {
@@ -106,7 +110,7 @@ route('security group show', 'read', 'id limit', '', 1)
 route('security membership list', 'read', 'id direction limit', '', 1, ['security group membership list'])
 route('security permission list', 'read', 'namespace token subject limit')
 route('security permission show', 'read', 'namespace token subject limit')
-route('api', 'read', 'method body query api-version host limit content-type', 'no-project raw', 2)
+route('api', 'read', 'method body query api-version host limit content-type', 'no-project raw paginate', 2)
 route('config', 'blocked')
 for (const sub of ['list', 'show', 'path', 'init', 'add']) route(`config ${sub}`, 'blocked')
 route('update', 'blocked')
@@ -123,10 +127,10 @@ const data = { generatedBy: 'scripts/ado-inventory.mjs', tool: 'ado-axi', ...pin
     nativeWrites: 'host-classified', inputs: { stdin: 'unsupported', files: 'unsupported' } },
   aliases: { wi: 'work-item', workitem: 'work-item', 'work-items': 'work-item', prs: 'pr', pipelines: 'pipeline',
     tests: 'test', repos: 'repo', refs: 'ref', projects: 'project' },
-  discovery: { commands: ['work-item', 'query', 'area', 'iteration', 'pr', 'pipeline', 'test', 'repo', 'ref', 'project',
+  discovery: { commands: ['work-item', 'query', 'area', 'iteration', 'pr', 'pipeline', 'test', 'repo', 'ref', 'wiki', 'project',
     'security', 'service-endpoint', 'variable-group', 'agent', 'pool', 'queue', 'user', 'team', 'api', 'doctor'],
     example: ['project', 'list', '--limit', '1'],
-    help: 'ado-axi project list [--name <filter>] [--limit <n>] [--fields <fields>]\napi defaults to GET; -X/--method POST|PATCH|PUT|DELETE requires allowWrites, a server-listed relative path and bounded JSON --body. Decisions are journaled (TD-067). No stdin or files. For pipeline watch use --timeout 50 or less.\n' },
+    help: 'ado-axi project list [--name <filter>] [--limit <n>] [--fields <fields>]\nwiki page create|update --wiki <id|name> --path <page> --content <text> requires allowWrites; --file is unavailable.\napi defaults to GET; -X/--method POST|PATCH|PUT|DELETE requires allowWrites, a server-listed relative path and bounded JSON --body. Decisions are journaled (TD-067). No stdin or files. For pipeline watch use --timeout 50 or less.\n' },
   suggestionFields: ['help'], format: 'TOON', commands }
 const destination = new URL('inventories/ado-axi.json', root)
 const contents = JSON.stringify(data, null, 2) + '\n'
