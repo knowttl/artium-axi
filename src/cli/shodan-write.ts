@@ -88,16 +88,19 @@ export async function shodanWrite(args: string[], createClient: () => Client, ou
   await client.authenticated('/v1/me', 'GET')
   const request = { ...parsed.data, ...(execute ? { confirm } : {}), ...(instance === undefined ? {} : { instance }) }
   const bulk = (shodanBulkWriteCommands as readonly string[]).includes(command)
-  const response = await client.transferSession(token => client.request(`${prefix}/${execute ? 'execute' : 'preview'}`, 'POST', request, token,
-    false, undefined, bulk ? shodanBulkWriteDeadlineMs + 90_000 : undefined)).catch(error => {
-    if (bulk && execute && error instanceof ArtiumError && (error.code === 'SERVER_UNAVAILABLE' || error.code === 'INVALID_RESPONSE'))
-      throw new ArtiumError(error.code, undefined, 'The write may have changed state. Inspect affected objects before retrying.')
+  const recovery = `The write may have changed state. Inspect ${bulk ? 'affected objects' : command.startsWith('notifier ') ? 'the notifier' : command.startsWith('org ') ? 'the organization' : 'the alert'} before retrying.`
+  const result = await client.transferSession(token => client.request(`${prefix}/${execute ? 'execute' : 'preview'}`, 'POST', request, token,
+    false, undefined, bulk ? shodanBulkWriteDeadlineMs + 90_000 : undefined)).then(response => {
+    const result = z.record(z.string(), z.unknown()).safeParse(response)
+    if (!result.success) throw new ArtiumError('INVALID_RESPONSE')
+    return result.data
+  }).catch(error => {
+    if (execute && error instanceof ArtiumError && (error.code === 'SERVER_UNAVAILABLE' || error.code === 'INVALID_RESPONSE'))
+      throw new ArtiumError(error.code, undefined, recovery)
     if (secrets.length) throw new ArtiumError(error instanceof ArtiumError ? error.code : 'SERVER_UNAVAILABLE', undefined,
-      execute ? 'The write may have changed state. Inspect the notifier before retrying.' : undefined)
+      execute ? recovery : undefined)
     throw error
   })
-  const result = z.record(z.string(), z.unknown()).safeParse(response)
-  if (!result.success) throw new ArtiumError('INVALID_RESPONSE')
   const redact = (value: unknown, key = ''): unknown => {
     if (['confirm', 'status', 'error', 'command', 'operation', 'method', 'target', 'id', 'completed', 'uncertain', 'unsent', 'steps', 'instance', 'expires', 'expiresAt', 'expiresIn', 'expiry', 'recovery'].includes(key)) return value
     if (typeof value === 'string') return secrets.includes(value) ? '[REDACTED]' : value
@@ -105,9 +108,9 @@ export async function shodanWrite(args: string[], createClient: () => Client, ou
     if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, redact(item, name)]))
     return value
   }
-  const safe = redact(result.data)
+  const safe = redact(result)
   const rendered = switches.has('--json') ? JSON.stringify(safe) : encode(safe)
   output('stdout', rendered + '\n')
-  if (result.data.status === 'OUTCOME_UNKNOWN' || result.data.status === 'READBACK_UNVERIFIED') process.exitCode = 1
+  if (result.status === 'OUTCOME_UNKNOWN' || result.status === 'READBACK_UNVERIFIED') process.exitCode = 1
   return true
 }

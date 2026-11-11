@@ -916,6 +916,28 @@ test('Shodan write execute sends the confirmation and exits 1 on an uncertain ou
 })
 
 test.each([
+  { name: 'alert', args: ['alert', 'remove', 'a1', '--allow-operation', 'OP-015'], object: 'the alert' },
+  { name: 'organization', args: ['org', 'remove', 'member@example.test', '--allow-operation', 'OP-038'], object: 'the organization' },
+  { name: 'notifier', args: ['notifier', 'remove', 'n1', '--allow-operation', 'OP-028'], object: 'the notifier' },
+].flatMap(item => [false, true].flatMap(executeWrite => [
+  { ...item, executeWrite, failure: 'truncated JSON', reply: { status: 200, body: undefined, raw: '{"status":' }, code: 'INVALID_RESPONSE' },
+  { ...item, executeWrite, failure: 'invalid response shape', reply: { status: 200, body: [] }, code: 'INVALID_RESPONSE' },
+  { ...item, executeWrite, failure: 'lost response', reply: { status: 503, body: errorResponse(new ArtiumError('SERVER_UNAVAILABLE'), 'synthetic-error') }, code: 'SERVER_UNAVAILABLE' },
+])))('Shodan $name write handles $failure: execute=$executeWrite', async ({ args, object, executeWrite, reply, code }) => {
+  const route = `/v1/tools/shodan-axi/writes/${executeWrite ? 'execute' : 'preview'}`
+  doctorResponses = { '/v1/me': { status: 200, body: {} }, [route]: reply }
+  try {
+    const result = await cli(['shodan-axi', ...args, ...writeBounds, ...(executeWrite ? ['--execute', '--confirm', writeToken] : [])])
+    expect(result.code).toBe(1)
+    expect(result.stdout).toContain(code)
+    if (executeWrite) {
+      expect(result.stdout).toContain('The write may have changed state')
+      expect(result.stdout).toContain(`Inspect ${object} before retrying`)
+    } else expect(result.stdout).not.toContain('The write may have changed state')
+  } finally { doctorResponses = undefined }
+})
+
+test.each([
   { name: 'a missing grant', args: ['alert', 'remove', 'a1', ...writeBounds] },
   { name: 'a grant for a different operation', args: ['alert', 'remove', 'a1', '--allow-operation', 'OP-016', ...writeBounds] },
   { name: 'an extra grant', args: ['alert', 'remove', 'a1', '--allow-operation', 'OP-015,OP-016', ...writeBounds] },
