@@ -384,7 +384,7 @@ Notifier files hold provider secrets such as webhook URLs and chat tokens.
 The CLI reads the file and sends its content; the server never receives or opens a path.
 The file must be a non-empty regular file of at most 64 KiB, not a symbolic link, and inaccessible to group and other users on Linux and macOS (for example, mode 0600).
 Because these files carry provider secrets, the CLI refuses unsafe permissions; run `chmod 600` on the file to make it private.
-The CLI redacts response strings that exactly match notifier argument values, except in identifier and recovery fields; response keys are preserved.
+The CLI redacts notifier argument values embedded in `reason`, `message`, `detail` and `help` response fields, and exact matches in other response strings except identifier and recovery fields; response keys are preserved.
 The CLI sanitizes notifier request errors.
 If an execution request fails, inspect the notifier before retrying because the write may have changed state.
 `alert import` reads a non-empty private file of at most 1 MiB the same way; its content can contain notifier secrets and may be gzip-compressed.
