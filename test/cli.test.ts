@@ -829,6 +829,23 @@ test.each([
 test.each([
   { command: ['create'], grant: 'OP-027' },
   { command: ['update', 'n1'], grant: 'OP-030' },
+].flatMap(item => [false, true].map(json => ({ ...item, json }))))
+('Shodan notifier $command redacts secrets in execution steps JSON=$json', async ({ command, grant, json }) => {
+  const secret = 'CANARY-provider-secret'
+  const step = { operation: grant, target: 'n1', status: 'failed', detail: secret }
+  response = { status: 200, body: { status: 'READBACK_UNVERIFIED', completed: [step], unsent: [step], steps: [step] } }
+  const path = privateFile(JSON.stringify({ provider: 'slack', args: { token: secret } }))
+  const result = await cli(['shodan-axi', 'notifier', ...command, '--body-file', path, '--allow-operation', grant,
+    '--query-credit-budget', '2', '--max-requests', '4', '--accept-unknown-cost', '--execute', '--confirm', writeToken, ...(json ? ['--json'] : [])])
+  expect(result.code).toBe(1)
+  expect(result.stdout + result.stderr).not.toContain(secret)
+  const safeStep = { ...step, detail: '[REDACTED]' }
+  expect(json ? JSON.parse(result.stdout) : decode(result.stdout)).toEqual({ status: 'READBACK_UNVERIFIED', completed: [safeStep], unsent: [safeStep], steps: [safeStep] })
+})
+
+test.each([
+  { command: ['create'], grant: 'OP-027' },
+  { command: ['update', 'n1'], grant: 'OP-030' },
 ].flatMap(item => [false, true].flatMap(executeWrite => [false, true].map(json => ({ ...item, executeWrite, json })))))
 ('Shodan notifier $command preserves matching identifiers: execute=$executeWrite JSON=$json', async ({ command, grant, executeWrite, json }) => {
   const step = { operation: 'OP-030', target: 'n1', status: 'failed', recovery: 'n1' }

@@ -102,8 +102,7 @@ export async function shodanWrite(args: string[], createClient: () => Client, ou
     throw error
   })
   const redact = (value: unknown, key = ''): unknown => {
-    if (['confirm', 'status', 'error', 'command', 'operation', 'method', 'target', 'id', 'completed', 'uncertain', 'unsent', 'steps', 'instance', 'expires', 'expiresAt', 'expiresIn', 'expiry', 'recovery'].includes(key)) return value
-    if (typeof value === 'string') return secrets.includes(value) ? '[REDACTED]' : value
+    if (typeof value === 'string') return ['confirm', 'status', 'error', 'command', 'operation', 'method', 'target', 'id', 'instance', 'expires', 'expiresAt', 'expiresIn', 'expiry', 'recovery'].includes(key) || !secrets.includes(value) ? value : '[REDACTED]'
     if (Array.isArray(value)) return value.map(item => redact(item))
     if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, redact(item, name)]))
     return value
