@@ -64,7 +64,7 @@ try {
   }
   // Health is seeded above; omit its credential source so background probes stay offline.
   app = createApp({ db, audit: new Audit(db), runner, adapters: [adapter],
-    resolver: new SharedIdentityResolver(store), environment: {} })
+    resolver: new SharedIdentityResolver(store, db), environment: {} })
   await app.ready()
   createTestCertificates(directory, ['localhost'])
   server = createServer({ key: readFileSync(join(directory, 'server.key')), cert: readFileSync(join(directory, 'server.crt')) }, async (request, reply) => {

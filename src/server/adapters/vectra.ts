@@ -37,11 +37,15 @@ export const vectraManifest = {
   ...inventory.adapterBoundary,
 }
 
-function vectraOperationAccepts(command: string, operation: string): boolean {
-  if (command === 'assignment set') return /^(?:host|account)\.assignment\.(?:create|reassign|unassign)$/.test(operation)
-  if (command === 'assignment resolve') return /^(?:host|account)\.assignment\.resolve$/.test(operation)
+function vectraOperationAccepts(command: string, operation: string, args?: readonly string[]): boolean {
+  const has = (flag: string) => !!args?.some(arg => arg === `--${flag}` || arg.startsWith(`--${flag}=`))
+  const entity = !args ? '(?:host|account)' : has('account') ? 'account' : 'host'
+  const verbs = !args ? 'create|reassign|unassign' : has('unassign') ? 'unassign' : 'create|reassign'
+  if (command === 'assignment set') return new RegExp(`^${entity}\\.assignment\\.(?:${verbs})$`).test(operation)
+  if (command === 'assignment resolve') return new RegExp(`^${entity}\\.assignment\\.resolve$`).test(operation)
   if (command === 'group member add' || command === 'group member remove') return operation === 'group.member.set'
-  if (/^detection (?:close|open)$/.test(command)) return operation === command.replace(' ', '.') || operation === `${command.replace(' ', '.')}-bulk`
+  if (/^detection (?:close|open)$/.test(command)) return (!args || !has('ids')) && operation === command.replace(' ', '.')
+    || (!args || has('ids')) && operation === `${command.replace(' ', '.')}-bulk`
   return operation === command.replace(/^(assignment outcome|triage rule|notification destination) /, (_, noun: string) => `${noun.replace(' ', '-')}.`).replaceAll(' ', '.')
 }
 
@@ -82,7 +86,7 @@ export function createVectraAdapter(source: SecretSource, writeLog: string,
     allowedFlagValues: {}, sensitiveArguments: () => ({ flags: ['--note'], positions: [] }),
     validateArgs: (args, input) => { vectraArguments(args, input) },
     executesWrite: (args, input) => vectraArguments(args, input).effect === 'write',
-    authorizeOperation: (command, settings) => vectraWritePolicy.authorize(settings, allowed => vectraOperationAccepts(command, allowed.replace(/^(?:qux|rux)\./, ''))),
+    authorizeOperation: (command, settings, args) => vectraWritePolicy.authorize(settings, allowed => vectraOperationAccepts(command, allowed.replace(/^(?:qux|rux)\./, ''), args)),
     rawApi: { commands: ['api get'], writes: false, help: (args, input) => vectraArguments(args, input).invocation.help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(
       inventory.commands.map(route => ({ ...route, effect: vectraReadCommands.has(route.command) ? 'read' : 'write' })),

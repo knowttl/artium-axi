@@ -87,8 +87,12 @@ export function createCheckpointAdapter(source: SecretSource, writeLog: string):
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { checkpointArguments(args, input) },
     executesWrite: (args, input) => checkpointArguments(args, input).effect === 'write',
-    authorizeOperation(command, settings) {
-      checkpointWritePolicy.authorize(settings, allowed => command === 'event action' ? allowed.startsWith('event.action.')
+    authorizeOperation(command, settings, args, input) {
+      const normalized = args && checkpointArguments(args, input).args
+      const operation = normalized && (command === 'event action'
+        ? `event.action.${normalized.includes('--name') ? normalized[normalized.indexOf('--name') + 1] : ''}`
+        : command.startsWith('exception ') ? `exception.${normalized[2]}.${command.slice('exception '.length)}` : undefined)
+      checkpointWritePolicy.authorize(settings, allowed => operation ? allowed === operation : command === 'event action' ? allowed.startsWith('event.action.')
         : command.startsWith('exception ') ? /^exception\.[^.]+\./.test(allowed) && allowed.endsWith(`.${command.slice('exception '.length)}`)
           : allowed === command.replaceAll(' ', '.'))
     },

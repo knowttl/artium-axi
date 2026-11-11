@@ -72,7 +72,7 @@ const server = createApp({ db, audit: new Audit(db), runner: await Runner.create
   ...(process.env.ARTIUM_TEST_SSO === '1' ? { ssoFetch: (...args) =>
     (args[0].startsWith('https://generic.example/') ? genericSso : sso).fetch(...args) } : {}),
   credentialStore: store, sshHosts: new SshHosts(db, key), sshExecution: { provider: key, writeLog: join(directory, 'ssh-writes.log') },
-  providerCredentials: new ProviderCredentials(db, key), resolver: new SharedIdentityResolver(store), environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' } })
+  providerCredentials: new ProviderCredentials(db, key), resolver: new SharedIdentityResolver(store, db), environment: { ARTIUM_AXI_TRUSTED_PROXIES: '127.0.0.1' } })
 let offset = 0
 const realNow = Date.now.bind(Date)
 Date.now = () => realNow() + offset

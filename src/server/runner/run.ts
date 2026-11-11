@@ -151,7 +151,9 @@ export async function runTool<Credential>(
       if (instanceReadOnly && executesWrite) throw new ArtiumError('FLAG_BLOCKED')
       if (executesWrite && adapter.authorizeOperation) {
         const settings = JSON.parse((db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(adapter.name) as { native_settings: string }).native_settings)
-        for (const operation of [adapter.classify(args, input), ...adapter.nestedOperations?.(args, input) ?? []]) {
+        const classification = adapter.classify(args, input)
+        if (classification.effect === 'write') adapter.authorizeOperation(classification.command, settings, args, input)
+        for (const operation of adapter.nestedOperations?.(args, input) ?? []) {
           if (operation.effect === 'write') adapter.authorizeOperation(operation.command, settings)
         }
       }
