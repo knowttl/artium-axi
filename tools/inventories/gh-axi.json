@@ -246,7 +246,7 @@
     "nativeWrites": "host-classified; exact operations, preview and confirmation",
     "inputs": {
       "stdin": "gist create/edit with filename only",
-      "files": "unsupported"
+      "files": "release upload client files only"
     }
   },
   "discovery": {
@@ -272,7 +272,7 @@
       "--limit",
       "1"
     ],
-    "help": "gh-axi repo list [<owner>] [--limit <n>]\nManaged GitHub API access. Use -R OWNER/NAME for repository commands. Writes require an administrator-enabled exact operation, host preview and --confirm. api accepts [GET] <relative-path>; GraphQL and other methods are refused. Stdin only for gist create/edit with --filename; no files.\n"
+    "help": "gh-axi repo list [<owner>] [--limit <n>]\nManaged GitHub API access. Use -R OWNER/NAME for repository commands. Writes require an administrator-enabled exact operation, host preview and --confirm. api accepts [GET] <relative-path>; GraphQL and other methods are refused. Stdin only for gist create/edit with --filename; only release upload reads client files.\n"
   },
   "suggestionFields": [
     "help"

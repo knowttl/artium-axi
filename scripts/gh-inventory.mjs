@@ -153,10 +153,10 @@ const data = { generatedBy: 'scripts/gh-inventory.mjs', tool: 'gh-axi', ...pin,
     blockedCommands: ['home', 'update', 'setup', 'stack', 'issue lock', 'issue unlock', 'issue delete', 'project delete', 'project field-create', 'project field-delete', 'project item-delete',
       'pr checkout', 'repo clone', 'gist clone', 'gist delete', 'run watch', 'run download', 'run delete', 'release download', 'release delete', 'label delete',
       'variable delete', 'secret set', 'secret delete'],
-    nativeWrites: 'host-classified; exact operations, preview and confirmation', inputs: { stdin: 'gist create/edit with filename only', files: 'unsupported' } },
+    nativeWrites: 'host-classified; exact operations, preview and confirmation', inputs: { stdin: 'gist create/edit with filename only', files: 'release upload client files only' } },
   discovery: { commands: [...new Set(commands.map(route => route.command.split(' ')[0]))],
     example: ['repo', 'list', '--limit', '1'],
-    help: 'gh-axi repo list [<owner>] [--limit <n>]\nManaged GitHub API access. Use -R OWNER/NAME for repository commands. Writes require an administrator-enabled exact operation, host preview and --confirm. api accepts [GET] <relative-path>; GraphQL and other methods are refused. Stdin only for gist create/edit with --filename; no files.\n' },
+    help: 'gh-axi repo list [<owner>] [--limit <n>]\nManaged GitHub API access. Use -R OWNER/NAME for repository commands. Writes require an administrator-enabled exact operation, host preview and --confirm. api accepts [GET] <relative-path>; GraphQL and other methods are refused. Stdin only for gist create/edit with --filename; only release upload reads client files.\n' },
   suggestionFields: ['help'], format: 'TOON', upstreamCommands, commands }
 const destination = new URL('inventories/gh-axi.json', root)
 const contents = JSON.stringify(data, null, 2) + '\n'
