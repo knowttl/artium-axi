@@ -236,6 +236,7 @@ Azure and Graph certificate editors accept one PEM file containing one certifica
 See the [hosted contract](credential-standard.md#9-hosted-contract-artium-axi) for profile injection.
 Falcon has guided fields; see its [current credential handling](credential-standard.md#per-tool-host-facing-schemas).
 Browser saves keep native settings and retain blank stored secrets for the same identity.
+Complete credential replacement keeps saved per-person grants for each supplied policy, ignoring supplied grant maps; omitting a policy removes it and its grants.
 Identity changes require new secrets as defined by the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`).
 **Test after saving** is on by default in the credential-bearing Add instance sheet and the instance's Connection card and reports a harmless credential check inline; clear it to save without testing.
 After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.
@@ -396,7 +397,7 @@ There is no audit mutation or deletion route.
 Filter by event `tool-write-access` to review changes to effective write enablement, BeyondTrust delete permission or an operations allow-list, including changes made through the Advanced tab or complete credential replacement.
 These events identify the administrator and tool and record the new write policy without credentials or unrelated native settings; the [API contract](../src/shared/api.ts) owns the audit argument fields and treatment of unsupported legacy operation names.
 No-op write-access requests emit no change event.
-An Advanced-tab save or complete credential replacement adds `{"settings": [...]}` to the `arguments` of its `admin-change` event for changes to Kubernetes session grants or Shodan scan and stream grants, one entry per changed setting with its `path`.
+An Advanced-tab save or complete credential replacement adds `{"settings": [...]}` to the `arguments` of its `admin-change` event when omitting a Kubernetes session or Shodan scan, stream, write or export policy removes grants, one entry per changed setting with its `path`.
 An entry for an added or removed empty object or list carries `before` and `after`, with `null` meaning unset; other list changes carry the `added` and `removed` members, since list order is not a change.
 Objects are compared field by field.
 Other native settings are excluded from this diff.

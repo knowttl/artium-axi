@@ -316,37 +316,19 @@ test.each([
   expect(await disabled.json()).toMatchObject({ readOnly: true, health: { readOnly: true } })
 })
 
-test('replacing credentials journals empty and repeated session grants', async () => {
-  const grants = [{}, { 'synthetic-user': [] }, { 'synthetic-user': ['exec'] },
-    { 'synthetic-user': ['exec', 'exec'] }, { 'synthetic-user': ['exec'] }, { 'synthetic-user': [] }, {}]
-  for (const [index, value] of grants.entries()) {
-    await replace('kubernetes-axi', { ...values['kubernetes-axi'], sessions: { grants: value } }, index)
-  }
-  expect((await request('PATCH', '/kubernetes-axi', { expectedRevision: 8, nativeSettings: {} })).status).toBe(200)
-  const rows = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change' ORDER BY id").all() as { arguments: string }[]
-  expect(rows.map(row => JSON.parse(row.arguments))).toEqual([
-    { settings: [{ path: ['sessions', 'grants'], before: null, after: {} }] },
-    { settings: [{ path: ['sessions', 'grants', 'synthetic-user'], before: null, after: [] }] },
-    { settings: [{ path: ['sessions', 'grants', 'synthetic-user'], added: ['exec'], removed: [] }] },
-    { settings: [{ path: ['sessions', 'grants', 'synthetic-user'], added: ['exec'], removed: [] }] },
-    { settings: [{ path: ['sessions', 'grants', 'synthetic-user'], added: [], removed: ['exec'] }] },
-    { settings: [{ path: ['sessions', 'grants', 'synthetic-user'], added: [], removed: ['exec'] }] },
-    { settings: [{ path: ['sessions', 'grants', 'synthetic-user'], before: [], after: null }] },
-    { settings: [{ path: ['sessions', 'grants'], before: {}, after: null }] },
-  ])
-})
-
 function grantUser(tool: string, policy: string, userId: string, operations: string[], expectedRevision: number) {
   return request('PUT', `/${tool}/user-grants`, { policy, userId, operations, expectedRevision })
 }
 
-test.each([
+const grantPolicyCases = [
   { tool: 'kubernetes-axi', policy: 'sessions', operation: 'exec', limits: { lifetimeSeconds: 10 }, updated: { lifetimeSeconds: 20 } },
   { tool: 'shodan-axi', policy: 'scans', operation: 'OP-009', limits: { maxScanCredits: 1, maxRequests: 1 }, updated: { maxScanCredits: 2, maxRequests: 1 } },
   { tool: 'shodan-axi', policy: 'sessions', operation: 'OP-047', limits: { perUser: 1, perCredential: 1, total: 1, sessionEvents: 1, totalEvents: 1, sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 }, updated: { perUser: 2, perCredential: 1, total: 1, sessionEvents: 1, totalEvents: 1, sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 } },
   { tool: 'shodan-axi', policy: 'writes', operation: 'OP-021', limits: { maxQueryCredits: 1, maxRequests: 1 }, updated: { maxQueryCredits: 2, maxRequests: 1 } },
   { tool: 'shodan-axi', policy: 'exports', operation: 'CLI-005', limits: { maxQueryCredits: 1, maxRequests: 1, maxRecords: 1, maxBytes: 1, retentionSeconds: 1 }, updated: { maxQueryCredits: 2, maxRequests: 1, maxRecords: 1, maxBytes: 1, retentionSeconds: 1 } },
-] as const)('$tool $policy Advanced settings preserve grants and journal removal', async ({ tool, policy, operation, limits, updated }) => {
+] as const
+
+test.each(grantPolicyCases)('$tool $policy Advanced settings preserve grants and journal removal', async ({ tool, policy, operation, limits, updated }) => {
   const grants = { 'synthetic-ordinary': [operation] }
   db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify({ [policy]: { ...limits, grants } }), tool)
   const saved = await request('PATCH', `/${tool}`, { expectedRevision: 1, nativeSettings: { [policy]: updated } })
@@ -360,6 +342,22 @@ test.each([
   expect((await request('PATCH', `/${tool}`, { expectedRevision: 2, nativeSettings: {} })).status).toBe(200)
   const row = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change'").get() as { arguments: string }
   expect(JSON.parse(row.arguments)).toEqual({ settings: [{ path: [policy, 'grants', 'synthetic-ordinary'], added: [], removed: [operation] }] })
+})
+
+test.each(grantPolicyCases)('$tool $policy credential replacement preserves grants and journals omission', async ({ tool, policy, operation, limits, updated }) => {
+  const grants = { 'synthetic-ordinary': [operation] }
+  db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify({ [policy]: { ...limits, grants } }), tool)
+  await replace(tool, { ...values[tool], [policy]: { ...updated, grants: { 'other-user': [operation] } } })
+  expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ nativeSettings: { [policy]: { ...updated, grants } } })
+  await replace(tool, { ...values[tool], [policy]: { ...updated, grants: {} } }, 1)
+  expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ nativeSettings: { [policy]: { ...updated, grants } } })
+  db.exec('DELETE FROM audit')
+  await replace(tool, values[tool], 2)
+  expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ nativeSettings: {} })
+  const row = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change'").get() as { arguments: string }
+  expect(JSON.parse(row.arguments)).toEqual({ settings: [{ path: [policy, 'grants', 'synthetic-ordinary'], added: [], removed: [operation] }] })
+  await replace(tool, { ...values[tool], [policy]: { ...updated, grants: { 'other-user': [operation] } } }, 3)
+  expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ nativeSettings: { [policy]: { ...updated, grants: {} } } })
 })
 
 test('disabled people cannot receive grants but their grants can be cleared', async () => {
@@ -441,8 +439,7 @@ test.each([
 
 test.each([
   { tool: 'kubernetes-axi', initial: { sessions: { grants: { 'synthetic-user': ['exec'] } } },
-    next: { sessions: { grants: { 'synthetic-user': ['logs'] } } },
-    changes: [{ path: ['sessions', 'grants', 'synthetic-user'], added: ['logs'], removed: ['exec'] }] },
+    next: { sessions: { grants: { 'synthetic-user': ['logs'] } } } },
   { tool: 'shodan-axi', initial: { scans: { grants: { 'synthetic-user': ['OP-009'] }, maxScanCredits: 10, maxRequests: 10 },
     sessions: { grants: { 'synthetic-user': ['OP-046'] }, perUser: 1, perCredential: 1, total: 1, sessionEvents: 1, totalEvents: 1,
       sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 },
@@ -450,15 +447,14 @@ test.each([
     next: { scans: { grants: { 'synthetic-user': ['OP-010'] }, maxScanCredits: 10, maxRequests: 10 },
       sessions: { grants: { 'synthetic-user': ['OP-047'] }, perUser: 1, perCredential: 1, total: 1, sessionEvents: 1, totalEvents: 1,
         sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 },
-      writes: { grants: { 'synthetic-user': ['OP-013'] }, maxQueryCredits: 1, maxRequests: 1 } },
-    changes: [{ path: ['scans', 'grants', 'synthetic-user'], added: ['OP-010'], removed: ['OP-009'] },
-      { path: ['sessions', 'grants', 'synthetic-user'], added: ['OP-047'], removed: ['OP-046'] }] },
-] as const)('$tool credential replacement journals scoped settings changes', async ({ tool, initial, next, changes }) => {
+      writes: { grants: { 'synthetic-user': ['OP-013'] }, maxQueryCredits: 1, maxRequests: 1 } } },
+] as const)('$tool credential replacement ignores supplied grant changes', async ({ tool, initial, next }) => {
   db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify(initial), tool)
   db.exec('DELETE FROM audit')
   await replace(tool, { ...values[tool], ...next })
-  const row = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change'").get() as { arguments: string }
-  expect(JSON.parse(row.arguments)).toEqual({ settings: changes })
+  expect(await (await request('GET', `/${tool}`)).json()).toMatchObject({ nativeSettings: initial })
+  const row = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change'").get() as { arguments: string | null }
+  expect(row.arguments).toBeNull()
 })
 
 test('unrelated native settings are excluded from settings diffs', async () => {
@@ -470,8 +466,7 @@ test('unrelated native settings are excluded from settings diffs', async () => {
 test.each([
   { tool: 'kubernetes-axi', initial: { sessions: { grants: { 'synthetic-user': ['exec'] }, lifetimeSeconds: 1 } },
     limits: { sessions: { grants: { 'synthetic-user': ['exec'] }, lifetimeSeconds: 2 } },
-    changed: { sessions: { grants: { 'synthetic-user': ['logs'] }, lifetimeSeconds: 2 } },
-    changes: [{ path: ['sessions', 'grants', 'synthetic-user'], added: ['logs'], removed: ['exec'] }] },
+    changed: { sessions: { grants: { 'synthetic-user': ['logs'] }, lifetimeSeconds: 2 } } },
   { tool: 'shodan-axi', initial: { scans: { grants: { 'synthetic-user': ['OP-009'] }, maxScanCredits: 1, maxRequests: 1 },
     sessions: { grants: { 'synthetic-user': ['OP-046'] }, perUser: 1, perCredential: 1, total: 1, sessionEvents: 1, totalEvents: 1,
       sessionBytes: 1, totalBytes: 1, retentionSeconds: 1, leaseSeconds: 1 } },
@@ -480,16 +475,14 @@ test.each([
         sessionBytes: 2, totalBytes: 2, retentionSeconds: 2, leaseSeconds: 2 } },
     changed: { scans: { grants: { 'synthetic-user': ['OP-010'] }, maxScanCredits: 2, maxRequests: 2 },
       sessions: { grants: { 'synthetic-user': ['OP-047'] }, perUser: 2, perCredential: 2, total: 2, sessionEvents: 2, totalEvents: 2,
-        sessionBytes: 2, totalBytes: 2, retentionSeconds: 2, leaseSeconds: 2 } },
-    changes: [{ path: ['scans', 'grants', 'synthetic-user'], added: ['OP-010'], removed: ['OP-009'] },
-      { path: ['sessions', 'grants', 'synthetic-user'], added: ['OP-047'], removed: ['OP-046'] }] },
-] as const)('$tool policy limits do not appear in grant diffs', async ({ tool, initial, limits, changed, changes }) => {
+        sessionBytes: 2, totalBytes: 2, retentionSeconds: 2, leaseSeconds: 2 } } },
+] as const)('$tool policy limits do not appear in grant diffs', async ({ tool, initial, limits, changed }) => {
   db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify(initial), tool)
   db.exec('DELETE FROM audit')
   await replace(tool, { ...values[tool], ...limits })
   await replace(tool, { ...values[tool], ...changed }, 1)
   const rows = db.prepare("SELECT arguments FROM audit WHERE event = 'admin-change' ORDER BY id").all() as { arguments: string | null }[]
-  expect(rows.map(row => row.arguments && JSON.parse(row.arguments))).toEqual([null, { settings: changes }])
+  expect(rows.map(row => row.arguments && JSON.parse(row.arguments))).toEqual([null, null])
 })
 
 test.each([

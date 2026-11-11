@@ -215,6 +215,16 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     return { credential: Object.fromEntries(Object.entries(value).filter(([key]) => !keys.includes(key))),
       settings: Object.fromEntries(Object.entries(value).filter(([key]) => keys.includes(key))) }
   }
+  function preserveUserGrants(tool: ToolName, submitted: Record<string, unknown>, current: Record<string, unknown>) {
+    const result = { ...submitted }
+    for (const key of Object.keys(userGrantPolicies[tool] ?? {})) {
+      const policy = result[key]
+      if (policy === null || typeof policy !== 'object' || Array.isArray(policy)) continue
+      const saved = current[key] as { grants: unknown } | undefined
+      result[key] = { ...policy, grants: saved?.grants ?? {} }
+    }
+    return result
+  }
   function invalidate(reference: CredentialReference | undefined): void {
     if (reference) for (const adapter of adapters) if (adapter.name === reference.tool) adapter.invalidateCredential?.(reference)
   }
@@ -440,15 +450,13 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       authorize(request)
       const current = readTool(tool)
       if (current.revision !== input.expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
-      const submitted = input.nativeSettings === undefined ? undefined : { ...input.nativeSettings }
+      const submitted = input.nativeSettings
       if (submitted) for (const key of Object.keys(userGrantPolicies[tool] ?? {})) {
         const policy = submitted[key]
         if (policy === null || typeof policy !== 'object' || Array.isArray(policy)) continue
         if (Object.hasOwn(policy, 'grants')) throw new ArtiumError('INVALID_INPUT', 'Per-person grants cannot be edited here.', 'Use the Access tab to manage per-person grants.')
-        const saved = current.nativeSettings[key] as { grants: unknown } | undefined
-        submitted[key] = { ...policy, grants: saved?.grants ?? {} }
       }
-      const settings = submitted === undefined ? undefined : parse(nativeSettingsSchemas[tool], submitted)
+      const settings = submitted === undefined ? undefined : parse(nativeSettingsSchemas[tool], preserveUserGrants(tool, submitted, current.nativeSettings))
       const now = Date.now()
       if (settings !== undefined) {
         event.settingsChanges = settingsChanges(tool, current.nativeSettings, settings)
@@ -488,6 +496,11 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       } catch { throw new ArtiumError('INVALID_INPUT', 'The PEM must contain one certificate and its matching unencrypted private key.', 'Choose a matching certificate and key, then save again.') }
     }
     if (saving && Object.keys(splitSettings(tool, value).settings).length) throw new ArtiumError('INVALID_INPUT')
+    if (!saving && Object.keys(userGrantPolicies[tool] ?? {}).length) {
+      const current = readTool(tool)
+      if (current.revision !== input.expectedToolRevision) throw new ArtiumError('REVISION_CONFLICT')
+      value = preserveUserGrants(tool, value, current.nativeSettings)
+    }
     const awx = tool === 'awx-axi'
     const normalized = profile ? (saving || awx ? profile.normalizeInput(value) : profile.parseInput(value)) : undefined
     const normalizations = [...normalized?.normalizations ?? []]
