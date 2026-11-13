@@ -1,7 +1,6 @@
-import { execFileSync } from 'node:child_process'
 import { X509Certificate } from 'node:crypto'
 import { once } from 'node:events'
-import { mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { request } from 'node:http'
 import { createServer } from 'node:https'
 import { tmpdir } from 'node:os'
@@ -17,6 +16,7 @@ import { Runner } from './runner.js'
 import { loadTrustedCa } from '../trusted-ca.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-go-pin-'))
+const gh = join(process.cwd(), 'tools/node_modules/.bin/gh')
 const pem = (name: string) => readFileSync(join(directory, name + '.crt'), 'utf8')
 let endpoint: string
 let applicationRequests: string[] = []
@@ -127,7 +127,6 @@ test.each(['token', 'device'] as const)('native gh carries the managed %s identi
     ...(auth === 'token' ? { token: 'CANARY-managed-token' } : { accessToken: 'CANARY-managed-token', login: 'synthetic-user' }) }),
   }).prepare(['api', '/rate_limit'], { id: 'synthetic-credential', tool: 'gh-axi', revision: 1 })
   const runner = await Runner.create(join(directory, 'calls'))
-  const gh = realpathSync(execFileSync('which', ['gh'], { encoding: 'utf8' }).trim())
   try {
     const run = () => runner.run('synthetic-user', gh, call.args, call.environment, call.secrets,
       { ...call.limits, credentialTrust: trust() })
@@ -148,7 +147,6 @@ test.each(['token', 'device'] as const)('bundled gh-axi enforces the pin for the
     ...(auth === 'token' ? { token: 'CANARY-managed-token' } : { accessToken: 'CANARY-managed-token', login: 'synthetic-user' }) }),
   }).prepare(['api', '/rate_limit'], { id: 'synthetic-credential', tool: 'gh-axi', revision: 1 })
   const runner = await Runner.create(join(directory, 'calls'))
-  const gh = realpathSync(execFileSync('which', ['gh'], { encoding: 'utf8' }).trim())
   try {
     const run = () => runner.run('synthetic-user', process.execPath,
       [join(process.cwd(), 'tools/node_modules/gh-axi/dist/bin/gh-axi.js'), ...call.args],
@@ -182,7 +180,6 @@ test('runner cancellation closes the pinned gh connection and removes the privat
     .prepare(['api', '/held'], { id: 'synthetic-credential', tool: 'gh-axi', revision: 1 })
   const runner = await Runner.create(join(directory, 'calls'))
   const controller = new AbortController()
-  const gh = realpathSync(execFileSync('which', ['gh'], { encoding: 'utf8' }).trim())
   const reached = once(server, 'request')
   const running = runner.run('synthetic-user', gh, call.args, call.environment, call.secrets,
     { ...call.limits, credentialTrust: trust(), signal: controller.signal })
