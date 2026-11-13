@@ -115,12 +115,19 @@ test('auth examples do not assign flags to logout', () => {
   const preload = `import { registerHooks } from 'node:module';
 registerHooks({ load(url, context, nextLoad) {
   const result = nextLoad(url, context);
-  if (url.endsWith('/dist/commands/auth.js')) result.source = result.source.toString().replace('awx-axi auth login --profile production', 'awx-axi auth login --example-only');
+  if (url.endsWith('/dist/commands/auth.js')) {
+    const source = result.source.toString();
+    const example = 'awx-axi auth login --profile production';
+    if (!source.includes(example)) throw new Error('Auth example fixture not found');
+    result.source = source.replace(example, 'awx-axi auth login --example-only');
+    process.stderr.write('Auth example fixture applied\\n');
+  }
   return result;
 } });`
   const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
     fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
   expect(result.status).toBe(0)
+  expect(result.stderr).toContain('Auth example fixture applied')
 })
 
 test('setup flags belong only to their documented subcommand', () => {
