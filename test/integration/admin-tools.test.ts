@@ -2261,7 +2261,7 @@ test('fixed tools list has pinned versions and performs no credential reads or r
     { name: 'technitium-axi', version: '0.1.1', health: { status: 'disabled' } },
     { name: 'shodan-axi', version: '0.1.2', health: { status: 'disabled' } },
     { name: 'gitea-axi', version: '0.1.4', health: { status: 'disabled' } },
-    { name: 'kubernetes-axi', version: '0.1.4', health: { status: 'disabled' } },
+    { name: 'kubernetes-axi', version: '0.1.5', health: { status: 'disabled' } },
     { name: 'ssh-axi', version: '0.1.2', health: { status: 'disabled' } },
   ])
   expect(read).not.toHaveBeenCalled()

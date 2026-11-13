@@ -31,6 +31,7 @@ let applicationRequests: string[] = []
 let kubernetes = false
 let methods: string[] = []
 let storedIdentity: { certificate: string, privateKey: string }
+let otherStoredIdentity: { certificate: string, privateKey: string }
 const server = createServer((incoming, response) => {
   applicationRequests.push(incoming.headers.authorization ?? '')
   methods.push(incoming.method!)
@@ -72,6 +73,10 @@ beforeAll(async () => {
       clientCertificate: pem('client'), privateKey: readFileSync(join(directory, 'client.key'), 'utf8') }, 0, 'synthetic-user', Date.now())
     const credential = await new EmbeddedSecretSource(store).getCredential(reference) as { clientCertificate: string, privateKey: string }
     storedIdentity = { certificate: credential.clientCertificate, privateKey: credential.privateKey }
+    const otherReference = store.replaceCredential('kubernetes-axi', { origin: 'https://localhost', auth: 'certificate',
+      clientCertificate: pem('client-only'), privateKey: readFileSync(join(directory, 'server.key'), 'utf8') }, 1, 'synthetic-user', Date.now())
+    const otherCredential = await new EmbeddedSecretSource(store).getCredential(otherReference) as { clientCertificate: string, privateKey: string }
+    otherStoredIdentity = { certificate: otherCredential.clientCertificate, privateKey: otherCredential.privateKey }
   } finally { db.close() }
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
@@ -299,28 +304,96 @@ ghTest.each(['token', 'device'] as const)(`bundled gh-axi enforces the pin for t
   } finally { await runner.shutdown() }
 })
 
-test('kubectl client-certificate pins remain refused before spawn', async () => {
-  const call = await (await createKubernetesAdapter({ getCredential: async () => ({ origin: endpoint,
-    auth: 'certificate', clientCertificate: pem('leaf'), privateKey: 'CANARY-private-key', certificateAuthority: pem('ca') }) },
-  join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'))).prepare(
-    ['get', 'pods'], { id: 'synthetic-credential', tool: 'kubernetes-axi', revision: 1 })
-  const runner = await Runner.create(join(directory, 'calls'))
-  try {
-    await expect(runner.run('synthetic-user', process.execPath, ['-e', 'process.exit(0)'], call.environment, call.secrets,
-      { ...call.limits, credentialTrust: trust() })).rejects.toMatchObject({ code: 'INVALID_INPUT', processStarted: false })
-  } finally { await runner.shutdown() }
-})
-
 const kubectlTest = process.platform === 'linux' && process.arch === 'x64' ? test : test.skip
 const kubernetesBinary = join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js')
-async function kubernetesCall(runner: Runner, args: string[], saved = trust(), token = 'CANARY-kubernetes-token', signal?: AbortSignal) {
+async function kubernetesCall(runner: Runner, args: string[], saved = trust(), token = 'CANARY-kubernetes-token', signal?: AbortSignal,
+  identity?: Record<string, string>) {
   const adapter = await createKubernetesAdapter({ getCredential: async () => ({ origin: endpoint,
-    auth: 'token', token, certificateAuthority: pem('ca') }), getSettings: () => ({ allowWrites: true }) },
+    ...(identity ?? { auth: 'token', token }), certificateAuthority: pem('ca') }), getSettings: () => ({ allowWrites: true }) },
   kubernetesBinary, join(directory, 'workflow'))
   const call = await adapter.prepare(args, { id: 'synthetic-credential', tool: 'kubernetes-axi', revision: 1 })
   return runner.run('synthetic-user', call.executable, [call.args[0], '--json', ...call.args.slice(1)], call.environment, call.secrets,
     { ...call.limits, signal, credentialTrust: saved, kubernetesRequests: { root: join(directory, 'workflow'), scope: 'a'.repeat(64) } }, {}, call.files)
 }
+
+kubectlTest.each([
+  { scenario: 'correct pin and client', certificate: 'leaf', pin: 'leaf', client: 'client', success: true },
+  { scenario: 'wrong pin', certificate: 'rotated', pin: 'leaf', client: 'client', success: false },
+  { scenario: 'wrong server name', certificate: 'mismatch', pin: 'mismatch', client: 'client', success: false },
+  { scenario: 'wrong client certificate', certificate: 'leaf', pin: 'leaf', client: 'other-ca-leaf', success: false },
+  { scenario: 'expired server certificate', certificate: 'expired', pin: 'expired', client: 'client', success: false },
+].flatMap(scenario => [
+  { ...scenario, args: ['version'], requests: 1 },
+  { ...scenario, args: ['native', '--', 'get', '--raw=/version'], requests: 2 },
+]))('managed certificate $args with $scenario enforces exact pins (#276)', async ({ certificate, pin, client, success, args, requests }) => {
+  const received: string[] = []
+  const mutual = createServer({ requestCert: true, rejectUnauthorized: true, ca: pem('ca'),
+    key: readFileSync(join(directory, 'server.key')), cert: pem(certificate) + pem('intermediate') }, (incoming, response) => {
+    received.push((incoming.socket as import('node:tls').TLSSocket).getPeerCertificate().subject.CN as string)
+    response.setHeader('content-type', 'application/json')
+    response.end('{"major":"1","minor":"32","gitVersion":"v1.32.2"}')
+  })
+  mutual.listen(0, '127.0.0.1')
+  await once(mutual, 'listening')
+  const origin = `https://localhost:${(mutual.address() as { port: number }).port}`
+  const saved = [{ ...trust()[0], endpoint: origin, pem: pem('ca'), leafFingerprint: new X509Certificate(pem(pin)).fingerprint256 }]
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    const result = await kubernetesCall(runner, args, saved, undefined, undefined, {
+      origin, auth: 'certificate', clientCertificate: client === 'client' ? storedIdentity.certificate : pem(client),
+      privateKey: client === 'client' ? storedIdentity.privateKey : readFileSync(join(directory, 'server.key'), 'utf8'),
+    })
+    expect(result.exitCode === 0, result.stdout + result.stderr).toBe(success)
+    expect(received).toEqual(success ? Array(requests).fill('synthetic-kubernetes-client') : [])
+    expect(result.stdout + result.stderr).not.toContain(storedIdentity.privateKey)
+    expect(readdirSync(join(directory, 'calls'))).toEqual([])
+  } finally {
+    await runner.shutdown()
+    mutual.closeAllConnections()
+    await new Promise<void>(resolve => mutual.close(() => resolve()))
+  }
+})
+
+kubectlTest('managed certificate capability is refused for another cluster endpoint', async () => {
+  const adapter = await createKubernetesAdapter({ getCredential: async () => ({ origin: endpoint,
+    auth: 'certificate', clientCertificate: storedIdentity.certificate, privateKey: storedIdentity.privateKey,
+    certificateAuthority: pem('ca') }) }, kubernetesBinary)
+  const call = await adapter.prepare(['version'], { id: 'synthetic-credential', tool: 'kubernetes-axi', revision: 1 })
+  const config = call.files.find(file => file.name === 'kubernetes-axi/config.json')!
+  const content = JSON.parse(String(config.content))
+  content.profiles.artium.origin = endpoint.replace('localhost', '127.0.0.1')
+  config.content = JSON.stringify(content)
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    const result = await runner.run('synthetic-user', call.executable, call.args, call.environment, call.secrets,
+      { ...call.limits, credentialTrust: trust() }, {}, call.files)
+    expect(result.exitCode).not.toBe(0)
+    expect(result.stdout + result.stderr).toContain('original cluster endpoint')
+    expect(applicationRequests).toEqual([])
+  } finally { await runner.shutdown() }
+})
+
+test('pinned certificate child receives a private file and only the endpoint certificate capability', async () => {
+  const adapter = await createKubernetesAdapter({ getCredential: async () => ({ origin: endpoint,
+    auth: 'certificate', clientCertificate: storedIdentity.certificate, privateKey: storedIdentity.privateKey,
+    certificateAuthority: pem('ca') }) }, kubernetesBinary)
+  const call = await adapter.prepare(['version'], { id: 'synthetic-credential', tool: 'kubernetes-axi', revision: 1 })
+  const probe = `export async function main(args, host) {
+    const fs = await import('node:fs');
+    const key = JSON.parse(fs.readFileSync('kubernetes-axi/config.json', 'utf8')).profiles.artium.privateKey;
+    process.stdout.write(JSON.stringify({ secrets: Object.keys(process.env).filter(name => name.startsWith('ARTIUM_SECRET_')),
+      mode: fs.statSync(key.file).mode & 511, endpoint: host.transport.endpoint, capabilities: host.transport.capabilities }));
+  }`
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    const result = await runner.run('synthetic-user', call.executable, call.args, call.environment, call.secrets,
+      { ...call.limits, systemCaBundle: { ...call.limits.systemCaBundle as import('./runner.js').GoTransportTrust & { transport: 'kubectl' },
+        hostModule: 'data:text/javascript,' + encodeURIComponent(probe) }, credentialTrust: trust() }, {}, call.files)
+    expect(result.exitCode, result.stderr).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({ secrets: [], mode: 0o600, endpoint, capabilities: { clientCertificate: true } })
+    expect(readdirSync(join(directory, 'calls'))).toEqual([])
+  } finally { await runner.shutdown() }
+})
 
 kubectlTest.each([
   { args: ['version'], requests: 1 },
@@ -360,28 +433,51 @@ kubectlTest('an unrelated Kubernetes pin does not restrict the original trusted 
   } finally { await runner.shutdown() }
 })
 
-kubectlTest('pinned Kubernetes workflow preparation preserves identity binding across relay instances', async () => {
+kubectlTest.each([
+  { auth: 'token', mode: 'pin' }, { auth: 'certificate', mode: 'ca' },
+] as const)('Kubernetes $auth workflow with $mode trust preserves identity binding across calls', async ({ auth, mode }) => {
   kubernetes = true
   const runner = await Runner.create(join(directory, 'calls'))
   const prepare = ['prepare', '--', 'create', 'configmap', 'synthetic-new', '--from-literal=mode=prepared']
+  const saved = [{ ...trust()[0], mode }]
+  const identity = auth === 'certificate' ? { auth, clientCertificate: storedIdentity.certificate, privateKey: storedIdentity.privateKey } : undefined
+  const run = (args: string[]) => kubernetesCall(runner, args, saved, undefined, undefined, identity)
   try {
-    serve('rotated')
-    expect((await kubernetesCall(runner, prepare)).exitCode).not.toBe(0)
+    serve('other-ca-leaf')
+    expect((await run(prepare)).exitCode).not.toBe(0)
     expect(applicationRequests).toEqual([])
     serve('leaf')
-    const prepared = await kubernetesCall(runner, prepare)
+    const prepared = await run(prepare)
     expect(prepared.exitCode, prepared.stdout + prepared.stderr).toBe(0)
     const { request } = JSON.parse(prepared.stdout)
-    const preview = await kubernetesCall(runner, ['preview', request])
+    const preview = await run(['preview', request])
     expect(preview.exitCode, preview.stdout + preview.stderr).toBe(0)
     const { digest } = JSON.parse(preview.stdout)
     expect(methods.every(method => method === 'GET')).toBe(true)
-    const changed = await kubernetesCall(runner, ['confirm', request, '--digest', digest], trust(), 'CANARY-other-token')
+    const changedIdentity = auth === 'certificate'
+      ? { auth, clientCertificate: otherStoredIdentity.certificate, privateKey: otherStoredIdentity.privateKey } : undefined
+    const changed = await kubernetesCall(runner, ['confirm', request, '--digest', digest], saved, 'CANARY-other-token', undefined, changedIdentity)
     expect(JSON.parse(changed.stdout).error.code).toBe('PREVIEW_MISMATCH')
-    const confirmed = await kubernetesCall(runner, ['confirm', request, '--digest', digest])
+    const confirmed = await run(['confirm', request, '--digest', digest])
     expect(confirmed.exitCode, confirmed.stdout + confirmed.stderr).toBe(0)
     expect(JSON.parse(confirmed.stdout)).toMatchObject({ state: 'complete', results: [{ outcome: 'committed' }] })
     expect(methods).toContain('POST')
+  } finally { await runner.shutdown() }
+})
+
+kubectlTest.each([
+  ['prepare', '--', 'create', 'configmap', 'synthetic-new', '--from-literal=mode=prepared'],
+  ['server-dry-run', '--', 'create', 'configmap', 'synthetic-new', '--from-literal=mode=prepared'],
+  ['preview', '11111111-1111-4111-8111-111111111111'],
+  ['confirm', '11111111-1111-4111-8111-111111111111', '--digest', 'a'.repeat(64)],
+])('pinned certificate workflow stays refused pending stable identity binding: %j', async (...args) => {
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    await expect(kubernetesCall(runner, args, trust(), undefined, undefined, {
+      auth: 'certificate', clientCertificate: storedIdentity.certificate, privateKey: storedIdentity.privateKey,
+    })).rejects.toMatchObject({ code: 'INVALID_INPUT', processStarted: false,
+      message: 'certificate-pinned changes need kubernetes-axi binding fix' })
+    expect(applicationRequests).toEqual([])
   } finally { await runner.shutdown() }
 })
 
@@ -425,8 +521,12 @@ test.each([
   } finally { await runner.shutdown() }
 })
 
-test.each([['--native-config', '/synthetic/helper-config'], ['--trust-exec'], ['--tls-server-name', 'synthetic.invalid']])(
-  'Kubernetes keeps identity overrides refused: %j', async (...args) => {
+test.each([
+  { identity: 'ExecCredential helper', args: ['--native-config', '/synthetic/helper-config', '--trust-exec'] },
+  { identity: 'native kubeconfig certificate', args: ['--native-config', '/synthetic/certificate-config'] },
+  { identity: 'unmanaged client certificate', args: ['--client-certificate', '/synthetic/client.crt'] },
+  { identity: 'server-name override', args: ['--tls-server-name', 'synthetic.invalid'] },
+])('Kubernetes keeps $identity refused', async ({ args }) => {
     const adapter = await createKubernetesAdapter({ getCredential: async () => ({}) }, kubernetesBinary)
     expect(() => adapter.validateArgs([...args, 'version'])).toThrow(expect.objectContaining({ code: 'FLAG_BLOCKED' }))
   })

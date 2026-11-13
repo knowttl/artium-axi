@@ -2,12 +2,12 @@
   "generatedBy": "scripts/kubernetes-inventory.ts",
   "tool": "kubernetes-axi",
   "package": "@knowttl/kubernetes-axi",
-  "version": "0.1.4",
-  "integrity": "sha512-/1Gbo64mFCbx6Vjst4ziV4kwdUtFNBZetnKHBqSiwvnbpRcm9tZSVsiYl9CRj/mYgzlz6dgoDbn5DOAjSzb50Q==",
+  "version": "0.1.5",
+  "integrity": "sha512-x+uYI0s338p26RSuMfauOSzOW8jE9LKVrPZZJAHGs+YHziMoDraGi9cXxKEJL+2NxD3SylWGIzj4G8klD6m8pQ==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "87b34a166f4a1b94f243442aa34ccf1209df17e90efddd8dba4feff8ff1cb069"
+      "sha256": "f37aea4b35fcb41c26e22f6e4a51d7c36b0725ccc4057efdee8e246b9d193272"
     },
     {
       "path": "axi-credential.schema.json",
@@ -79,7 +79,7 @@
     },
     {
       "path": "dist/hosted-session.js",
-      "sha256": "efa1f43c9e9e2ed88168ee6063f4c503b2c7a00328e148d73e312061a893de92"
+      "sha256": "bc0766831223ad16e8d45a715284e9ee186bcd1ff4595e4c8e0b4249c989eabb"
     },
     {
       "path": "dist/metadata-pin.d.ts",
@@ -103,7 +103,7 @@
     },
     {
       "path": "dist/native.js",
-      "sha256": "1fd956b5ed1ab0e889e5b49505bb95f3bbd7de1a9f36c2ea8eece4f58dd04fcf"
+      "sha256": "0583c3bf1c3a782dea3749aaf7b75fe1fef885abb2729454d35255fa724d354f"
     },
     {
       "path": "dist/private-files.d.ts",
@@ -159,15 +159,15 @@
     },
     {
       "path": "dist/runner.js",
-      "sha256": "192bd7b89a263ad0064fa192bad2fb7047e17be1215d39289274c4930bf9ec6b"
+      "sha256": "32466bdefe4881b404733b35728faca278d3eca40b27b37bbfe9175de2e26a9f"
     },
     {
       "path": "dist/transport.d.ts",
-      "sha256": "f7ae453bee960897d46467977c65616d7f0c9e522034971298a8da71fbbaca68"
+      "sha256": "0e7659e3ec3028e306a488ac5a64279abe2fa25462d20a01745601e84f3d3b47"
     },
     {
       "path": "dist/transport.js",
-      "sha256": "2e5b1d70669190147a97612a12b8e721d54ac40bfc5844841c361ac38d1b1d81"
+      "sha256": "e71aeb5a6f7104b5f21e92834e9201ba39e63c25159537ec6606942c6ae31a6b"
     },
     {
       "path": "dist/workspace-tar.d.ts",
@@ -2631,6 +2631,6 @@
       "get",
       "pods"
     ],
-    "help": "Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported. Static token reads and mutation workflows also support saved strict leaf pins; client certificates and hosted byte sessions require issuing CA trust.\nAdministrator-enabled mutations require prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>; server-dry-run -- <mutation> is separately explicit.\nUse workspace create to stage regular files and session start for one bounded operation. Every session kind needs an explicit caller grant in administrator native settings; mutation kinds also require Allow writes.\nUse session show/output/confirm/cancel and session artifact for owned recovery and verified bytes. Workspace references use workspace:<path>; copy downloads use artifact:<path>.\nLogs and watch sessions start immediately as reads; other session kinds require native preview and exact-digest confirmation.\nUse an explicitly granted port-forward session with tunnel <session-id> --port <remote-port> for authenticated forwarding to local 127.0.0.1 listeners.\nService-account token issuance requires Allow writes and acquireCredential=true; use native prepare/preview/confirm, then credential <result-id> --credential-fd <fd> for one-shot delivery to a private writable pipe or socket numbered 5 or higher.\nLocal configuration, impersonation and interactive execution remain unavailable.\n"
+    "help": "Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported. Managed token reads and mutation workflows also support saved strict leaf pins, as do managed client-certificate compact and native reads. Pinned client-certificate mutation workflows remain refused pending a native identity-binding fix; native kubeconfig certificates, credential helpers, TLS server-name overrides and hosted byte sessions remain refused with pins.\nAdministrator-enabled mutations require prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>; server-dry-run -- <mutation> is separately explicit.\nUse workspace create to stage regular files and session start for one bounded operation. Every session kind needs an explicit caller grant in administrator native settings; mutation kinds also require Allow writes.\nUse session show/output/confirm/cancel and session artifact for owned recovery and verified bytes. Workspace references use workspace:<path>; copy downloads use artifact:<path>.\nLogs and watch sessions start immediately as reads; other session kinds require native preview and exact-digest confirmation.\nUse an explicitly granted port-forward session with tunnel <session-id> --port <remote-port> for authenticated forwarding to local 127.0.0.1 listeners.\nService-account token issuance requires Allow writes and acquireCredential=true; use native prepare/preview/confirm, then credential <result-id> --credential-fd <fd> for one-shot delivery to a private writable pipe or socket numbered 5 or higher.\nLocal configuration, impersonation and interactive execution remain unavailable.\n"
   }
 }
