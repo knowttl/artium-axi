@@ -466,19 +466,55 @@ kubectlTest.each([
 })
 
 kubectlTest.each([
-  ['prepare', '--', 'create', 'configmap', 'synthetic-new', '--from-literal=mode=prepared'],
-  ['server-dry-run', '--', 'create', 'configmap', 'synthetic-new', '--from-literal=mode=prepared'],
-  ['preview', '11111111-1111-4111-8111-111111111111'],
-  ['confirm', '11111111-1111-4111-8111-111111111111', '--digest', 'a'.repeat(64)],
-])('pinned certificate workflow stays refused pending stable identity binding: %j', async (...args) => {
+  { change: 'certificate', changed: () => ({ clientCertificate: otherStoredIdentity.certificate }) },
+  { change: 'key', changed: () => ({ privateKey: otherStoredIdentity.privateKey }) },
+])('pinned mutual-TLS workflow rejects a changed $change and confirms the original identity (#276)', async ({ changed }) => {
+  kubernetes = true
+  const received: string[] = []
+  const posts: string[] = []
+  const mutual = createServer({ requestCert: true, rejectUnauthorized: true, ca: pem('ca'),
+    key: readFileSync(join(directory, 'server.key')), cert: pem('leaf') + pem('intermediate') }, (incoming, response) => {
+    received.push((incoming.socket as import('node:tls').TLSSocket).getPeerCertificate().subject.CN as string)
+    if (incoming.method === 'POST') posts.push(incoming.url!)
+    server.emit('request', incoming, response)
+  })
+  mutual.listen(0, '127.0.0.1')
+  await once(mutual, 'listening')
+  const origin = `https://localhost:${(mutual.address() as { port: number }).port}`
+  const saved = [{ ...trust()[0], endpoint: origin }]
+  const identity = { origin, auth: 'certificate', clientCertificate: storedIdentity.certificate, privateKey: storedIdentity.privateKey }
   const runner = await Runner.create(join(directory, 'calls'))
+  const run = (args: string[], credential = identity) => kubernetesCall(runner, args, saved, undefined, undefined, credential)
+  const mutation = ['create', 'configmap', 'synthetic-new', '--from-literal=mode=prepared']
   try {
-    await expect(kubernetesCall(runner, args, trust(), undefined, undefined, {
-      auth: 'certificate', clientCertificate: storedIdentity.certificate, privateKey: storedIdentity.privateKey,
-    })).rejects.toMatchObject({ code: 'INVALID_INPUT', processStarted: false,
-      message: 'certificate-pinned changes need kubernetes-axi binding fix' })
-    expect(applicationRequests).toEqual([])
-  } finally { await runner.shutdown() }
+    const prepared = await run(['prepare', '--', ...mutation])
+    expect(prepared.exitCode, prepared.stdout + prepared.stderr).toBe(0)
+    const { request } = JSON.parse(prepared.stdout)
+    const preview = await run(['preview', request])
+    expect(preview.exitCode, preview.stdout + preview.stderr).toBe(0)
+    const { digest } = JSON.parse(preview.stdout)
+    expect(methods).not.toContain('POST')
+    const confirm = ['confirm', request, '--digest', digest]
+    const rejected = await run(confirm, { ...identity, ...changed() })
+    expect(rejected.exitCode).not.toBe(0)
+    expect(JSON.parse(rejected.stdout).error.code).toBe('PREVIEW_MISMATCH')
+    expect(methods).not.toContain('POST')
+    const confirmed = await run(confirm)
+    expect(confirmed.exitCode, confirmed.stdout + confirmed.stderr).toBe(0)
+    expect(JSON.parse(confirmed.stdout)).toMatchObject({ state: 'complete', results: [{ outcome: 'committed' }] })
+    expect(methods.filter(method => method === 'POST')).toEqual(['POST'])
+    expect(received).toEqual(Array(received.length).fill('synthetic-kubernetes-client'))
+    const dryRun = await run(['server-dry-run', '--', ...mutation])
+    expect(dryRun.exitCode, dryRun.stdout + dryRun.stderr).toBe(0)
+    expect(posts).toHaveLength(2)
+    expect(new URL(posts[0], origin).searchParams.has('dryRun')).toBe(false)
+    expect(new URL(posts[1], origin).searchParams.get('dryRun')).toBe('All')
+    expect(readdirSync(join(directory, 'calls'))).toEqual([])
+  } finally {
+    await runner.shutdown()
+    mutual.closeAllConnections()
+    await new Promise<void>(resolve => mutual.close(() => resolve()))
+  }
 })
 
 test('hosted Kubernetes byte sessions keep refusing saved pins', async () => {

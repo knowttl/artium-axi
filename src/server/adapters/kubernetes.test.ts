@@ -129,7 +129,8 @@ test('Kubernetes managed native help describes supported strict leaf pins', asyn
     truncated: { stdout: false, stderr: false } })
   const document = decode(rewriteSuggestions(result.stdout, 'kubernetes-axi', false,
     { command: 'native --', help: true })) as { help: string[] }
-  expect(document.help.join('\n')).toContain('Static token reads and mutation workflows also support saved strict leaf pins; client certificates and hosted byte sessions require issuing CA trust.')
+  expect(document.help.join('\n')).toContain('Managed token and client-certificate reads and mutation workflows also support saved strict leaf pins.')
+  expect(document.help.join('\n')).toContain('Native kubeconfig certificates, credential helpers, TLS server-name overrides and hosted byte sessions remain refused with pins.')
 })
 
 test('Kubernetes native resource data with help-shaped fields is preserved byte for byte', () => {

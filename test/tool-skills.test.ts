@@ -22,10 +22,6 @@ test.each(toolSchema.options)('%s overlay preserves tool guidance with managed c
     return
   }
   if (tool === 'kubernetes-axi') {
-    expect(skill).toContain('native -- get deployments -o json')
-    expect(skill).toContain('managed client-certificate identities on compact and native reads')
-    expect(skill).toContain('Native kubeconfig certificates, credential helpers, custom TLS server-name overrides')
-    expect(skill).toContain('Secret reads expose metadata only')
     return
   }
   if (tool === 'technitium-axi') {

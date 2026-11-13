@@ -67,7 +67,7 @@ export class CredentialProfile {
       this.inputSchema.properties.collectionDelete = { type: 'boolean', title: 'Allow Kubernetes bulk deletion',
         description: 'Requires Allow writes and native frozen-target confirmation. Off by default.' }
       this.inputSchema.properties.origin.format = 'canonical-https-origin'
-      this.inputSchema.properties.certificateAuthority.description = 'Paste the cluster issuing CA PEM. Managed tokens also support strict leaf pins for reads and mutation workflows; managed client certificates support pinned reads only. Certificate mutation workflows and hosted byte sessions require issuing CA trust.'
+      this.inputSchema.properties.certificateAuthority.description = 'Paste the cluster issuing CA PEM. Managed tokens and client certificates also support strict leaf pins for reads and mutation workflows. Hosted byte sessions require issuing CA trust.'
       this.inputSchema.properties.clientCertificate.description = 'Paste the client certificate PEM for certificate authentication. Changing it requires a new private key.'
     }
     if (tool === 'technitium-axi') {
