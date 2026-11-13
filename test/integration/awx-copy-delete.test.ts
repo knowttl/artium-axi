@@ -167,11 +167,13 @@ test.each(resources)('AWX $kind create, copy and delete journey changes state on
       const copied = await confirmed([...resource.copy, String(ids.first), '--name', 'Synthetic copy'])
       expect(JSON.stringify(decode(copied.json().stdout))).toContain(`${ids.copy}`)
       await count(2)
+      expect((await run([...resource.remove, String(ids.copy), '--dry-run'])).json()).toMatchObject({ exitCode: 0 })
       await confirmed([...resource.remove, String(ids.copy)])
       await count(1)
     }
     setWrites(true)
     await send('/__awx/configuration-permission?enabled=false', 'POST')
+    expect((await run([...resource.remove, String(ids.first), '--dry-run'])).json()).toMatchObject({ exitCode: 0 })
     const denied = await run([...resource.remove, String(ids.first), '--confirm'])
     expect(denied.json(), denied.body).toMatchObject({ exitCode: 1, stdout: expect.stringContaining('FORBIDDEN') })
     await count(1)
@@ -233,6 +235,7 @@ test.each([
   await withAwx(async ({ run, setWrites, send, evidence, audit }) => {
     const created = await run([...setup, '--confirm'])
     expect(created.json(), created.body).toMatchObject({ exitCode: 0 })
+    if (args[1] === 'delete') expect((await run([...args, '--dry-run'])).json()).toMatchObject({ exitCode: 0 })
     await send('/__awx/write-outcome?drop=true', 'POST')
     const interrupted = await run([...args, '--confirm'])
     expect(interrupted.json(), interrupted.body).toMatchObject({ error: { code: 'UNKNOWN_OUTCOME', next: expect.stringContaining(next) } })
@@ -275,6 +278,7 @@ test.each(acceptance)('AWX $kind write previews, then reports the controller den
     expect(denied.json(), denied.body).toMatchObject({ exitCode: 1, stdout: expect.stringContaining('FORBIDDEN') })
     expect((await evidence()).requests.filter(request => request.method === method && request.path === path)).toHaveLength(1)
     await send('/__awx/configuration-permission?enabled=true', 'POST')
+    if (method === 'DELETE') expect((await run([...args, '--dry-run'], input)).json()).toMatchObject({ exitCode: 0 })
     const confirmed = await run([...args, '--confirm'], input)
     expect(confirmed.json(), confirmed.body).toMatchObject({ exitCode: 0 })
     expect((await evidence()).requests.filter(request => request.method === method && request.path === path)).toHaveLength(2)
@@ -283,6 +287,7 @@ test.each(acceptance)('AWX $kind write previews, then reports the controller den
 
 test.each(acceptance)('AWX $kind write keeps private input out of responses, audit and runner files (S14)', async ({ args, input }) => {
   await withAwx(async ({ run, lines, directory, evidence }) => {
+    if (args[1] === 'delete') expect((await run([...args, '--dry-run'], input)).json()).toMatchObject({ exitCode: 0 })
     const response = await run([...args, '--confirm'], input)
     expect(response.json(), response.body).toMatchObject({ exitCode: 0 })
     expect(response.body).not.toContain('CANARY-')
