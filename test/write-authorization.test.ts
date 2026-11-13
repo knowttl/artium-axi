@@ -92,7 +92,8 @@ const hosted = (operations: string[]) => ({ hostWrites: { allowWrites: true, ope
 test.each([
   { adapter: createUnifiAdapter(source, writeLog), command: 'acl-rule create', accepted: selected(['createAclRule']), refused: selected(['deleteAclRule']) },
   { adapter: createFalconAdapter(source, writeLog), command: 'search start', accepted: selected(['search start']), refused: selected(['search stop']) },
-  { adapter: createGiteaAdapter(source, writeLog), command: 'issue create', accepted: selected(['issueCreateIssue']), refused: selected([]) },
+  { adapter: createGiteaAdapter(source, writeLog), command: 'issue create', accepted: selected(['issueCreateIssue']), refused: selected(['issueEditIssue']),
+    args: ['issue', 'create', '--repo', 'owner/repository', '--title', 'Synthetic', '--allow-write', 'issueCreateIssue', '--preview'] },
   { adapter: createGiteaAdapter(source, writeLog), command: 'issue create', accepted: selected(['issueCreateIssue', 'issueDeleteComment']), refused: selected(['issueCreateIssue']),
     args: ['issue', 'create', '--repo', 'owner/repository', '--title', 'Synthetic', '--allow-write', 'issueCreateIssue,issueDeleteComment', '--preview'] },
   { adapter: createTechnitiumAdapter(source, writeLog), command: 'admin cluster init', accepted: hosted(['OP-119']),

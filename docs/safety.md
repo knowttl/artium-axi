@@ -111,7 +111,8 @@ Kubernetes session lists include only sessions on instances permitted by the `se
 Tool lists, generated help and skills include only commands permitted by the token, the creator's current usable instances and grants, tool enablement, delegated read-only restriction and administrator Allow writes switch.
 Tools with no permitted commands are omitted, and tool lists report the effective read-only state.
 Discovery for GitHub, Microsoft Graph, Vectra, Tenable One, Check Point, BeyondTrust, Hybrid Analysis, UniFi, Falcon, Gitea, Technitium, Proxmox and Kubernetes credential acquisition also reflect their administrator operation allow-lists, through the same adapter hook that refuses execution before any credential is read.
-Gitea names its operations at call time with `--allow-write`, so discovery lists its mutating commands whenever at least one operation is selected and each call is checked against the exact operations it names.
+Gitea names its operations at call time with `--allow-write`, so discovery does not list its mutating commands until an exact per-command table exists in a later change.
+This under-advertises permitted writes; each call is checked against the exact operations it names.
 Permitted native leaf commands retain their native argument help; locally generated Kubernetes hosted help filters command and session-kind listings to the same permitted set as discovery.
 Download help, including help for a selected transfer leaf, shows the hosted download interface with only permitted operations and their selector, type and destination requirements.
 Leaf help outside the token's scope is refused.

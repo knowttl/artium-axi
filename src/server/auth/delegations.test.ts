@@ -21,6 +21,7 @@ import { createKubernetesAdapter } from '../adapters/kubernetes.js'
 import { createGhAdapter } from '../adapters/gh.js'
 import { createGiteaAdapter } from '../adapters/gitea.js'
 import { createUnifiAdapter } from '../adapters/unifi.js'
+import giteaInventory from '../../../tools/inventories/gitea-axi.json' with { type: 'json' }
 
 const source = { getCredential: async () => { throw new Error('Unexpected credential access') } }
 const writeLog = join(process.cwd(), 'synthetic-writes.log')
@@ -51,7 +52,8 @@ test.each([
   { adapter: createFalconAdapter(source), settings: { writes: { allowWrites: false, operations: ['search start'] } }, readOnly: false,
     candidates: ['host list', 'search start', 'search stop'], allowed: ['host list'], enabled: true, granted: true },
   { adapter: createGiteaAdapter(source, writeLog), settings: { writes: { allowWrites: true, operations: ['issueCreateIssue'] } }, readOnly: false,
-    candidates: ['repo view', 'issue create', 'issue edit'], allowed: ['repo view', 'issue create', 'issue edit'], enabled: true, granted: true },
+    candidates: ['repo view', ...giteaInventory.commands.filter(route => route.effect === 'write').map(route => route.command)],
+    allowed: ['repo view'], enabled: true, granted: true },
   { adapter: createGiteaAdapter(source, writeLog), settings: { writes: { allowWrites: true, operations: [] } }, readOnly: false,
     candidates: ['repo view', 'issue create', 'issue edit'], allowed: ['repo view'], enabled: true, granted: true },
   { adapter: createTechnitiumAdapter(source), readOnly: false, enabled: true, granted: true,
