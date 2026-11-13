@@ -10,7 +10,7 @@ import { Runner } from '../../src/server/runner/runner.js'
 import { openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { withFakeService } from '../fake-service/fixture.js'
-import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
+import { allowRawApi, issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import type { RunInput } from '../../src/shared/api.js'
 
@@ -70,6 +70,7 @@ const resources: Resource[] = [
 async function withAwx(check: (context: {
   run: (args: string[], input?: RunInput) => Promise<{ json: () => any, body: string }>
   setWrites: (enabled: boolean) => void
+  setDeletes: (enabled: boolean) => void
   send: (path: string, method?: string) => Promise<string>
   evidence: () => Promise<{ mutations: number, requests: { method: string, path: string, canaryReceived: boolean }[] }>
   audit: () => unknown[]
@@ -80,10 +81,12 @@ async function withAwx(check: (context: {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
     const db = openStore(join(directory, 'artium.db'), provider)
     await seedToolUser(db)
+    allowRawApi(db, 'awx-axi')
     db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
     let allowWrites = true
+    let allowDeletes = true
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
-    const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`, token: 'CANARY-awx-token', allowWrites }) })
+    const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`, token: 'CANARY-awx-token', allowWrites, allowDeletes }) })
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
@@ -100,6 +103,7 @@ async function withAwx(check: (context: {
       await check({
         run: (args, input = {}) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args, ...input } }),
         setWrites: enabled => { allowWrites = enabled },
+        setDeletes: enabled => { allowDeletes = enabled },
         send,
         evidence: async () => JSON.parse(await send('/__evidence')),
         audit: () => db.prepare("SELECT action, outcome FROM audit WHERE tool = 'awx-axi' AND event = 'run-terminal' ORDER BY id").all(),
@@ -110,6 +114,35 @@ async function withAwx(check: (context: {
     } finally { await app.close(); db.close() }
   })
 }
+
+test('AWX destructive commands refuse the missing separate grant while ordinary configuration writes work (237d)', async () => {
+  await withAwx(async ({ run, setDeletes, evidence }) => {
+    setDeletes(false)
+    const before = await evidence()
+    const commands = [
+      ['inventory', 'delete', '42'], ['inventory', 'host-delete', '42'],
+      ['inventory', 'host-bulk-delete'], ['inventory', 'host-bulk-create'],
+      ['inventory', 'group-delete', '42'], ['inventory', 'source-delete', '42'],
+      ['credential', 'delete', '42'], ['user', 'delete', '42'], ['team', 'delete', '42'],
+      ['organization', 'delete', '42'], ['template', 'delete', '42'], ['workflow', 'delete', '42'],
+      ['workflow', 'node-delete', '42'], ['schedule', 'delete', '42'], ['project', 'delete', '42'],
+      ['execution-environment', 'delete', '42'], ['notification-template', 'delete', '42'],
+      ['api', 'delete', 'hosts/42/'],
+    ]
+    for (const command of commands) {
+      for (const flag of ['--dry-run', '--confirm']) {
+        const refused = await run([...command, flag])
+        expect(refused.json(), refused.body).toMatchObject({ error: { code: 'FLAG_BLOCKED',
+          message: 'Destructive deletes and bulk host operations are disabled for this tool.',
+          next: expect.stringContaining('Allow destructive deletes') } })
+      }
+    }
+    expect((await evidence()).requests).toEqual(before.requests)
+    const created = await run(['organization', 'create', 'Synthetic ordinary write', '--confirm'])
+    expect(created.json(), created.body).toMatchObject({ exitCode: 0 })
+    expect((await evidence()).mutations).toBe(before.mutations + 1)
+  })
+}, 60_000)
 
 test.each(resources)('AWX $kind create, copy and delete journey changes state only while writes are enabled (S13)', async resource => {
   await withAwx(async ({ run, setWrites, send, evidence, audit }) => {
@@ -134,11 +167,13 @@ test.each(resources)('AWX $kind create, copy and delete journey changes state on
       const copied = await confirmed([...resource.copy, String(ids.first), '--name', 'Synthetic copy'])
       expect(JSON.stringify(decode(copied.json().stdout))).toContain(`${ids.copy}`)
       await count(2)
+      expect((await run([...resource.remove, String(ids.copy), '--dry-run'])).json()).toMatchObject({ exitCode: 0 })
       await confirmed([...resource.remove, String(ids.copy)])
       await count(1)
     }
     setWrites(true)
     await send('/__awx/configuration-permission?enabled=false', 'POST')
+    expect((await run([...resource.remove, String(ids.first), '--dry-run'])).json()).toMatchObject({ exitCode: 0 })
     const denied = await run([...resource.remove, String(ids.first), '--confirm'])
     expect(denied.json(), denied.body).toMatchObject({ exitCode: 1, stdout: expect.stringContaining('FORBIDDEN') })
     await count(1)
@@ -200,6 +235,7 @@ test.each([
   await withAwx(async ({ run, setWrites, send, evidence, audit }) => {
     const created = await run([...setup, '--confirm'])
     expect(created.json(), created.body).toMatchObject({ exitCode: 0 })
+    if (args[1] === 'delete') expect((await run([...args, '--dry-run'])).json()).toMatchObject({ exitCode: 0 })
     await send('/__awx/write-outcome?drop=true', 'POST')
     const interrupted = await run([...args, '--confirm'])
     expect(interrupted.json(), interrupted.body).toMatchObject({ error: { code: 'UNKNOWN_OUTCOME', next: expect.stringContaining(next) } })
@@ -242,6 +278,7 @@ test.each(acceptance)('AWX $kind write previews, then reports the controller den
     expect(denied.json(), denied.body).toMatchObject({ exitCode: 1, stdout: expect.stringContaining('FORBIDDEN') })
     expect((await evidence()).requests.filter(request => request.method === method && request.path === path)).toHaveLength(1)
     await send('/__awx/configuration-permission?enabled=true', 'POST')
+    if (method === 'DELETE') expect((await run([...args, '--dry-run'], input)).json()).toMatchObject({ exitCode: 0 })
     const confirmed = await run([...args, '--confirm'], input)
     expect(confirmed.json(), confirmed.body).toMatchObject({ exitCode: 0 })
     expect((await evidence()).requests.filter(request => request.method === method && request.path === path)).toHaveLength(2)
@@ -250,6 +287,7 @@ test.each(acceptance)('AWX $kind write previews, then reports the controller den
 
 test.each(acceptance)('AWX $kind write keeps private input out of responses, audit and runner files (S14)', async ({ args, input }) => {
   await withAwx(async ({ run, lines, directory, evidence }) => {
+    if (args[1] === 'delete') expect((await run([...args, '--dry-run'], input)).json()).toMatchObject({ exitCode: 0 })
     const response = await run([...args, '--confirm'], input)
     expect(response.json(), response.body).toMatchObject({ exitCode: 0 })
     expect(response.body).not.toContain('CANARY-')

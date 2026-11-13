@@ -20,11 +20,26 @@ const { AwxAxiError, formatError } = await import(errorsModule)
 
 const credential = { origin: 'https://controller.example', token: 'CANARY-awx-token' }
 const reference = { id: 'synthetic-awx', tool: 'awx-axi' as const, revision: 1 }
-const adapter = (allowWrites = false, allowConfigurationWrites = false) => createAwxAdapter({ getCredential: async () => ({ ...credential, allowWrites, allowConfigurationWrites }) })
+const adapter = (allowWrites = false, allowConfigurationWrites = false, allowDeletes = false) => createAwxAdapter({ getCredential: async () => ({ ...credential, allowWrites, allowConfigurationWrites, allowDeletes }) })
 test.each(['--dry-run', '--confirm'])('raw mutation %s requires the tenant write setting', async flag => {
   await expect(adapter().prepare(['api', 'post', 'jobs/42/cancel/', flag], reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
-  const call = await adapter(true).prepare(['api', 'post', 'jobs/42/cancel/', flag], reference)
+  const call = await adapter(true, false, true).prepare(['api', 'post', 'jobs/42/cancel/', flag], reference)
   expect(call.environment.AWX_AXI_READ_ONLY).toBe('false')
+})
+
+test('ordinary AWX writes never receive the delete switch without the separate grant', async () => {
+  const call = await adapter(true).prepare(['organization', 'create', 'Synthetic organization', '--confirm'], reference)
+  expect(call.environment).toMatchObject({ AWX_AXI_READ_ONLY: 'false', AWX_AXI_ALLOW_CONFIG_WRITES: '1' })
+  expect(call.environment).not.toHaveProperty('AWX_AXI_ALLOW_DELETES')
+})
+
+test.each([
+  { settings: { allowWrites: true }, credential: { allowWrites: true, allowDeletes: true } },
+  { settings: { allowWrites: true, allowDeletes: true }, credential: { allowWrites: true } },
+])('AWX deletes require agreement between current and resolved settings: $settings', async ({ settings, credential: grants }) => {
+  const managed = createAwxAdapter({ getSettings: () => settings, getCredential: async () => ({ ...credential, ...grants }) })
+  await expect(managed.prepare(['organization', 'delete', '42', '--confirm'], reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED',
+    next: expect.stringContaining('Allow destructive deletes') })
 })
 const fixedSchemaLists = ['job', 'template', 'workflow', 'organization', 'system-job-template', 'system-job',
   'credential', 'ad-hoc', 'project', 'schedule', 'execution-environment', 'user', 'notification',
@@ -52,7 +67,7 @@ test.each(['notification', 'notification-template'].flatMap(group => [
 test.each(['create', 'edit'].flatMap(operation => ['configuration-file', 'config-file', 'messages-file'].map(flag => ({ operation, flag }))))(
   'notification-template $operation --$flag keeps uploaded bytes out of process arguments', async ({ operation, flag }) => {
     const content = '{"token":"CANARY-notification-input"}'
-    const call = await adapter(true).prepare(['notification-template', operation, '42', `--${flag}`, 'notification.json', '--confirm'], reference,
+    const call = await adapter(true, false, true).prepare(['notification-template', operation, '42', `--${flag}`, 'notification.json', '--confirm'], reference,
       { files: [{ name: 'notification.json', contentBase64: Buffer.from(content).toString('base64') }] })
     expect(call.args.join(' ')).not.toContain('CANARY-')
     expect(call.fileArguments?.map(index => call.args[index])).toEqual(['notification.json'])
@@ -80,7 +95,7 @@ test.each([
   { url, args: ['project', verb, '42', '--scm-url', 'scm.txt', action], input: {
     files: [{ name: 'scm.txt', contentBase64: Buffer.from(url).toString('base64') }] } },
 ]))))('rejects secret-bearing SCM input before execution: $args', async ({ args, input }) => {
-  await expect(adapter(true).prepare(args, reference, input)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT',
+  await expect(adapter(true, false, true).prepare(args, reference, input)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT',
     next: expect.stringContaining('credential create/edit --inputs-file') })
 })
 
@@ -90,7 +105,7 @@ test.each(['post', 'put', 'patch'].flatMap(method => ['--dry-run', '--confirm'].
   { method, action, body: { scm_url: 'https://scm.example/repo#fragment' } },
 ])))('raw $method $action rejects unsafe SCM URLs before dispatch', async ({ method, action, body }) => {
   const file = { name: 'body.json', contentBase64: Buffer.from(JSON.stringify(body)).toString('base64') }
-  await expect(adapter(true).prepare(['api', method, 'projects/42/', '--body-file=body.json', action], reference, { files: [file] }))
+  await expect(adapter(true, false, true).prepare(['api', method, 'projects/42/', '--body-file=body.json', action], reference, { files: [file] }))
     .rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
 })
 
@@ -110,16 +125,16 @@ test.each([
   { args: ['team', 'credential-create', '42', '--inputs-file', '-', '--dry-run'], input: { stdin: '{}' } },
   { args: ['job', 'list'], input: { stdin: 'CANARY-unrequested-stdin' } },
 ])('refuses server paths and undeclared stdin: $args', async ({ args, input }) => {
-  await expect(adapter(true).prepare(args, reference, input)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
+  await expect(adapter(true, false, true).prepare(args, reference, input)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
 })
 
 test.each(inventory.commands.filter(route => route.effect === 'blocked' && route.command !== 'auth logout'))('$command retains the managed client-local boundary', async route => {
   await expect(adapter().prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') })
-  await expect(adapter(true).prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') })
+  await expect(adapter(true, false, true).prepare(route.command.split(' '), reference)).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('not yet supported') })
 })
 
 test('managed logout directs callers to explicit upstream PAT revocation', async () => {
-  await expect(adapter(true).prepare(['auth', 'logout'], reference)).rejects.toMatchObject({ code: 'INVALID_INPUT',
+  await expect(adapter(true, false, true).prepare(['auth', 'logout'], reference)).rejects.toMatchObject({ code: 'INVALID_INPUT',
     next: expect.stringContaining('user token-revoke <numeric-token-id> --dry-run') })
 })
 
@@ -134,14 +149,14 @@ test('token creation help describes protected delivery through the managed clien
 test.each(inventory.commands.filter(route => route.effect !== 'blocked').flatMap(route => Object.keys(route.flags)
   .filter(name => name.endsWith('-file'))
   .map(flag => ({ command: route.command, flag, required: route.positionals.required }))))('$command --$flag requires secure input', async ({ command, flag, required }) => {
-  await expect(adapter(true).prepare([...command.split(' '), ...Array<string>(required).fill('42'), `--${flag}`, 'CANARY-input', '--confirm'], reference))
+  await expect(adapter(true, false, true).prepare([...command.split(' '), ...Array<string>(required).fill('42'), `--${flag}`, 'CANARY-input', '--confirm'], reference))
     .rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
 })
 
 test.each(inventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect)))('$command requires the single tenant write switch', async route => {
   const args = [...route.command.split(' '), ...route.positionals.names.slice(0, route.positionals.required).map(() => '42'), '--confirm']
   await expect(adapter().prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
-  const call = await adapter(true).prepare(args, reference)
+  const call = await adapter(true, false, true).prepare(args, reference)
   expect(call.effect).toBe('write')
   expect(call.environment).toMatchObject({ AWX_AXI_READ_ONLY: 'false', ARTIUM_SECRET_0: credential.token })
   expect(call.environment).toMatchObject({ AWX_AXI_ALLOW_CONFIG_WRITES: '1', AWX_AXI_ALLOW_DELETES: '1', AWX_AXI_ALLOW_SECURITY_WRITES: '1' })
@@ -151,7 +166,7 @@ test.each(inventory.commands.filter(route => ['write', 'configuration-write'].in
 
 test.each(['post', 'put', 'patch', 'delete'])('api %s provides resource reconciliation guidance and keeps the uploaded body private', async method => {
   const body = { name: 'body.json', contentBase64: Buffer.from('{"name":"CANARY-api-body"}').toString('base64') }
-  const call = await adapter(true).prepare(['api', method, 'labels/7/', ...method === 'delete' ? [] : ['--body-file', 'body.json'], '--confirm'], reference,
+  const call = await adapter(true, false, true).prepare(['api', method, 'labels/7/', ...method === 'delete' ? [] : ['--body-file', 'body.json'], '--confirm'], reference,
     method === 'delete' ? {} : { files: [body] })
   expect(call.write).toEqual({ operation: `api ${method}`, target: 'managed resource', checkArgs: [],
     afterCheck: 'Inspect the resource targeted or created by the request before retrying; it may differ from the mutation URL' })
@@ -160,14 +175,14 @@ test.each(['post', 'put', 'patch', 'delete'])('api %s provides resource reconcil
 })
 
 test.each([['post', 'labels/', 'POST'], ['delete', 'labels/7/', 'DELETE']])('api %s %s reaches the controller under the gates Artium derives from the single write switch', async (method, path, verb) => {
-  const call = await adapter(true).prepare(['api', method, path, '--confirm'], reference)
+  const call = await adapter(true, false, true).prepare(['api', method, path, '--confirm'], reference)
   const transport = new RecordedTransport([{ status: 200, body: { id: 7 } }], { env: call.environment })
   await main({ argv: call.args.slice(4), env: call.environment, createTransport: () => transport, stdout: { write: () => {} } })
   expect(transport.requests).toMatchObject([{ method: verb, route: path }])
 })
 
 test('native raw bulk job launch is rejected before a controller request', async () => {
-  const call = await adapter(true).prepare(['api', 'post', 'bulk/job_launch/', '--confirm'], reference)
+  const call = await adapter(true, false, true).prepare(['api', 'post', 'bulk/job_launch/', '--confirm'], reference)
   const transport = new RecordedTransport([], { env: call.environment })
   let output = ''
   await main({ argv: call.args.slice(4), env: call.environment, createTransport: () => transport,
@@ -177,11 +192,11 @@ test('native raw bulk job launch is rejected before a controller request', async
 })
 
 test.each([['api', 'post', 'labels/'], ['api', 'delete', 'labels/7/']])('%s %s without confirm or dry-run is refused', async (...args) => {
-  await expect(adapter(true).prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  await expect(adapter(true, false, true).prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
 })
 
 test('an authorized dry-run remains a read even when confirm is present', async () => {
-  const call = await adapter(true).prepare(['job', 'cancel', '42', '--confirm', '--dry-run'], reference)
+  const call = await adapter(true, false, true).prepare(['job', 'cancel', '42', '--confirm', '--dry-run'], reference)
   expect(call.effect).toBe('read')
   expect(call.write).toBeUndefined()
 })
@@ -190,7 +205,7 @@ test.each(inventory.commands.filter(route => ['write', 'configuration-write'].in
   const args = [...route.command.split(' '), ...route.positionals.names.slice(0, route.positionals.required).map(() => '42'), '--dry-run']
   await expect(adapter().prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
   await expect(adapter(false, true).prepare(args, reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
-  expect((await adapter(true).prepare(args, reference)).effect).toBe('read')
+  expect((await adapter(true, false, true).prepare(args, reference)).effect).toBe('read')
 })
 
 test.each(inventory.commands.filter(route => route.effect === 'read'))('$command remains available without write access', async route => {
@@ -249,7 +264,7 @@ test.each([
   { command: 'execution-environment edit', group: 'execution-environment' }, { command: 'team edit', group: 'team' },
   { command: 'notification-template edit', group: 'notification-template' },
 ])('$command recovery covers both rename outcomes', async ({ command, group }) => {
-  const call = await adapter(true).prepare([...command.split(' '), 'Old', '--name', 'New', '--confirm'], reference)
+  const call = await adapter(true, false, true).prepare([...command.split(' '), 'Old', '--name', 'New', '--confirm'], reference)
   expect(call.write?.checkArgs).toEqual([group, 'list', '--limit', '100'])
   const recovery = await adapter().prepare(call.write!.checkArgs, reference)
   expect(recovery.effect).toBe('read')
@@ -257,13 +272,13 @@ test.each([
 })
 
 test('user rename recovery covers both usernames', async () => {
-  const call = await adapter(true).prepare(['user', 'edit', 'old-user', '--username', 'new-user', '--confirm'], reference)
+  const call = await adapter(true, false, true).prepare(['user', 'edit', 'old-user', '--username', 'new-user', '--confirm'], reference)
   expect(call.write?.checkArgs).toEqual(['user', 'list', '--limit', '100'])
   expect((await adapter().prepare(call.write!.checkArgs, reference)).effect).toBe('read')
 })
 
 test('token revocation recovery does not treat the token ID as a user ID', async () => {
-  const call = await adapter(true).prepare(['user', 'token-revoke', '42', '--confirm'], reference)
+  const call = await adapter(true, false, true).prepare(['user', 'token-revoke', '42', '--confirm'], reference)
   expect(call.write?.checkArgs).toEqual(['user', 'list', '--limit', '100'])
   expect((await adapter().prepare(call.write!.checkArgs, reference)).effect).toBe('read')
 })
@@ -291,7 +306,7 @@ test.each([
   ['ad-hoc', 'launch'], ['system-job-template', 'launch', '42'], ['job', 'relaunch', '42'],
   ...['job', 'workflow', 'project-update', 'inventory-update', 'ad-hoc', 'system', 'all'].map(type => ['job', 'relaunch', '42', '--type', type]),
 ])('new-run recovery includes every run type for %j', async (...args) => {
-  const call = await adapter(true).prepare([...args, '--confirm'], reference)
+  const call = await adapter(true, false, true).prepare([...args, '--confirm'], reference)
   expect(call.write?.checkArgs).toEqual(['job', 'list', '--type', 'all', '--limit', '100'])
   const recovery = await adapter().prepare(call.write!.checkArgs, reference)
   expect(recovery.effect).toBe('read')
@@ -480,18 +495,18 @@ test.each([
   { command: ['job', 'launch', '42', '--wait', '--confirm'], timeout: '--timeout=50' },
   { command: ['job', 'watch', '42', '--timeout', '7'], timeout: '--timeout=7' },
 ])('waits are bounded by the runner lifetime: $command', async ({ command, timeout }) => {
-  const call = await adapter(true).prepare(command, reference)
+  const call = await adapter(true, false, true).prepare(command, reference)
   expect(call.args.filter(arg => arg.startsWith('--timeout'))).toEqual([timeout])
 })
 
 test.each(['0', '51', '600', '3600', '1e1', '-1', 'soon'])('a wait of --timeout %s is refused with resume guidance', async timeout => {
-  await expect(adapter(true).prepare(['job', 'watch', '42', '--timeout', timeout], reference)).rejects.toMatchObject({
+  await expect(adapter(true, false, true).prepare(['job', 'watch', '42', '--timeout', timeout], reference)).rejects.toMatchObject({
     code: 'INVALID_INPUT', message: 'Waits last from 1 to 50 seconds.', next: expect.stringContaining('job watch') })
-  await expect(adapter(true).prepare(['project', 'sync', '42', '--wait', '--timeout', timeout, '--confirm'], reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+  await expect(adapter(true, false, true).prepare(['project', 'sync', '42', '--wait', '--timeout', timeout, '--confirm'], reference)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
 })
 
 test('an approval timeout is not a wait and keeps its own value', async () => {
-  const call = await adapter(true).prepare(['workflow', 'node-add-approval', '42', '--name', 'Synthetic', '--timeout', '3600', '--confirm'], reference)
+  const call = await adapter(true, false, true).prepare(['workflow', 'node-add-approval', '42', '--name', 'Synthetic', '--timeout', '3600', '--confirm'], reference)
   expect(call.args).toContain('--timeout=3600')
 })
 

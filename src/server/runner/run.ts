@@ -24,6 +24,8 @@ import type { ProtectedResults } from '../protected-results.js'
 import { kubernetesRequestCommand } from './kubernetes-requests.js'
 import { proxmoxTrust, type ProxmoxAccess } from './proxmox.js'
 
+const awxPreviews = new WeakMap<Database.Database, Set<string>>()
+
 export interface RunContext {
   requestId: string
   clientAddress: string | null
@@ -215,6 +217,17 @@ export async function runTool<Credential>(
       if (resolutionFailure) throw resolutionFailure.error
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
         : await adapter.prepare(args, reference!, input, { rawReadWrites })
+      const awxDelete = adapter.name === 'awx-axi' && !prepared.invocation?.help
+        && /(?:^|[ -])delete$/.test(prepared.invocation?.command ?? '')
+      const awxPreviewKey = awxDelete && reference ? createHash('sha256').update(JSON.stringify({
+        userId, delegationId, family: family(), reference, args: args.filter(arg => arg !== '--dry-run' && arg !== '--confirm'), input,
+        settings: db.prepare('SELECT revision, native_settings FROM tools WHERE name = ?').get(adapter.name),
+      })).digest('hex') : undefined
+      let previews = awxPreviews.get(db)
+      if (!previews) { previews = new Set(); awxPreviews.set(db, previews) }
+      if (awxPreviewKey && args.includes('--confirm') && !args.includes('--dry-run') && !previews.delete(awxPreviewKey)) {
+        throw new ArtiumError('FLAG_BLOCKED', 'A matching successful dry-run is required before deletion.', 'Repeat the same request with --dry-run, then --confirm.')
+      }
       const preview = prepared.preview || prepared.effect === 'read' && !prepared.protectedResult
       const writes = () => !prepared.invocation?.help && (prepared.effect === 'write' || !!prepared.write || !preview && writeRequested())
       if (instanceReadOnly && writes()) {
@@ -314,6 +327,7 @@ export async function runTool<Credential>(
         return invoke()
       })
       if (!prepared.preview) completed = { ...result, outputBytes: { ...result.outputBytes } }
+      if (awxPreviewKey && args.includes('--dry-run') && result.exitCode === 0 && !result.timedOut && !result.truncated.stdout && !result.truncated.stderr) previews.add(awxPreviewKey)
       if (result.exitCode !== 0 && result.completedMutation) throw Object.assign(new RunnerError('UNKNOWN_OUTCOME'), {
         processStarted: true, durationMs: result.durationMs, outputBytes: result.outputBytes, truncated: result.truncated,
         recovery: result.completedMutation,

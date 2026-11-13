@@ -664,26 +664,27 @@ describe('AWX native write failure recovery (R1)', () => {
     db.exec(`UPDATE tools SET enabled = 1, raw_api_mode = 'read-writes', raw_api_routes = '{"get":[],"write":["POST **","PUT **","PATCH **","DELETE **"]}' WHERE name = 'awx-axi';
       INSERT INTO role_tools (role_id, tool, raw_api) VALUES ('synthetic-role', 'awx-axi', 1)`)
     const awx = createAwxAdapter({ getCredential: async () => ({ origin: 'https://controller.example',
-      token: 'CANARY-awx-token', allowWrites: true, allowConfigurationWrites: true }) })
+      token: 'CANARY-awx-token', allowWrites: true, allowDeletes: true, allowConfigurationWrites: true }) })
     const prepare = awx.prepare.bind(awx)
     awx.prepare = async (...input) => ({ ...await prepare(...input), executable: fakeTool.executable,
-      args: [...fakeTool.args, 'tool-failure', code] })
+      args: [...fakeTool.args, ...(input[0].includes('--dry-run') ? ['print', 'synthetic preview'] : ['tool-failure', code])] })
     const identities = new SharedIdentityResolver(new FakeCredentialStore([
       { reference: { id: 'synthetic-awx', tool: 'awx-axi', revision: 1 }, value: {} },
     ]).seed(db), db)
     return (args: string[]) => runTool(db, audit, runner, token, { args }, awx, identities,
-      { ...context, protectedResults: new ProtectedResults() })
+      { ...context, requestId: args.includes('--dry-run') ? 'synthetic-preview' : context.requestId, protectedResults: new ProtectedResults() })
   }
 
   test.each(awxInventory.commands.filter(route => ['write', 'configuration-write'].includes(route.effect)))(
     '$command returns read-back guidance after a lost response', async route => {
       const run = execution('CONTROLLER_UNREACHABLE')
       const args = [...route.command.split(' '), ...route.positionals.names.slice(0, route.positionals.required).map(() => '42'), '--confirm']
+      expect(await run([...args.slice(0, -1), '--dry-run'])).toMatchObject({ exitCode: 0 })
       await expect(run(args)).rejects.toMatchObject({ code: 'UNKNOWN_OUTCOME',
         next: expect.stringContaining(route.command.startsWith('api ')
           ? 'Inspect the resource targeted or created by the request before retrying'
           : 'Check current state before trying again: artium-axi awx-axi ') })
-      expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal'").get())
+      expect(db.prepare("SELECT outcome, action FROM audit WHERE event = 'run-terminal' ORDER BY id DESC").get())
         .toEqual({ outcome: 'UNKNOWN_OUTCOME', action: 'unknown' })
       expect(readdirSync(join(directory, 'calls'))).toEqual([])
     })

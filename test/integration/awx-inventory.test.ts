@@ -29,7 +29,7 @@ test.each([
     let allowWrites = true
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
     const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
-      token: 'CANARY-awx-token', allowWrites }) })
+      token: 'CANARY-awx-token', allowWrites, allowDeletes: true }) })
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
@@ -116,7 +116,7 @@ test.each([
       let allowWrites = true
       const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
       const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
-        token: 'CANARY-awx-token', allowWrites }) })
+        token: 'CANARY-awx-token', allowWrites, allowDeletes: true }) })
       const prepare = adapter.prepare.bind(adapter)
       adapter.prepare = async (...input) => {
         const call = await prepare(...input)
@@ -133,6 +133,7 @@ test.each([
         expect(created.json(), created.body).toMatchObject({ exitCode: 0 })
         allowWrites = enabled
         await send(`/__awx/configuration-permission?enabled=${permission}`, 'POST')
+        if (enabled) expect((await run(['inventory', remove, '42', '--dry-run'])).json()).toMatchObject({ exitCode: 0 })
         const before = JSON.parse(await send('/__evidence'))
         const removed = await run(['inventory', remove, '42', '--confirm'])
         expect(removed.json(), removed.body).toMatchObject(result)
@@ -158,7 +159,7 @@ test('AWX inventory variables remain private on later reads with writes disabled
     let allowWrites = true
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
     const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
-      token: 'CANARY-awx-token', allowWrites }) })
+      token: 'CANARY-awx-token', allowWrites, allowDeletes: true }) })
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
@@ -223,9 +224,10 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
     await seedToolUser(db)
     db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
     let allowWrites = false
+    let allowDeletes = false
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
     const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
-      token: 'CANARY-awx-token', allowWrites }) })
+      token: 'CANARY-awx-token', allowWrites, allowDeletes }) })
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
@@ -261,12 +263,22 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
       expect((await evidence()).mutations).toBe(0)
 
       allowWrites = true
+      for (const [args, files] of [[create, [names]], [remove, [upload('ids.json', '[42]')]]] as const) {
+        for (const flag of ['--dry-run', '--confirm']) {
+          expect((await run([...args, flag], [...files])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED',
+            next: expect.stringContaining('Allow destructive deletes') } })
+        }
+      }
+      expect((await evidence()).mutations).toBe(0)
+      allowDeletes = true
+      expect((await run(['inventory', 'delete', '42', '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED', message: expect.stringContaining('matching successful dry-run') } })
       const preview = await run([...create, '--dry-run'], [names])
       expect(preview.json(), preview.body).toMatchObject({ exitCode: 0 })
       expect(decode(preview.json().stdout)).toMatchObject({ dry_run: { action: 'create', type: 'hosts', would_send: 'POST bulk/host_create/' } })
       expect(preview.body).not.toContain('CANARY-bulk-secret')
       const idsPreview = await run([...remove, '--dry-run'], [upload('ids.json', '[42,43,99]')])
       expect(decode(idsPreview.json().stdout)).toMatchObject({ dry_run: { action: 'delete', type: 'hosts', would_send: 'POST bulk/host_delete/' } })
+      expect((await run([...remove, '--confirm'], [upload('ids.json', '[42,43,44]')])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED', message: expect.stringContaining('matching successful dry-run') } })
       expect((await evidence()).mutations).toBe(0)
 
       await send('/__awx/configuration-permission?enabled=false', 'POST')
@@ -305,9 +317,13 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
       expect(invalidBatch.json(), invalidBatch.body).toMatchObject({ exitCode: 2, stdout: expect.stringContaining('VALIDATION_ERROR') })
       expect((await hostIds('--limit', '100')).ids).toEqual([42, 43, 44])
 
+      const deletePreview = await run([...remove, '--dry-run'], [upload('ids.json', '[42,43,44]')])
+      expect(deletePreview.json(), deletePreview.body).toMatchObject({ exitCode: 0 })
+      expect(decode(deletePreview.json().stdout)).toMatchObject({ dry_run: { action: 'delete', type: 'hosts', would_send: 'POST bulk/host_delete/' } })
       const deleted = await run([...remove, '--confirm'], [upload('ids.json', '[42,43,44]')])
       expect(deleted.json(), deleted.body).toMatchObject({ exitCode: 0 })
       expect((await hostIds('--limit', '100')).ids).toEqual([])
+      expect((await run([...remove, '--confirm'], [upload('ids.json', '[42,43,44]')])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED', message: expect.stringContaining('matching successful dry-run') } })
 
       for (const { mode, unconfirmed } of [
         { mode: 'missing', unconfirmed: [42, 43, 44] },
@@ -320,6 +336,7 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
       ]) {
         expect((await run([...create, '--confirm'], [names])).json()).toMatchObject({ exitCode: 0 })
         await send(`/__awx/bulk-delete-response?mode=${mode}`, 'POST')
+        expect((await run([...remove, '--dry-run'], [upload('ids.json', '[42,43,44]')])).json()).toMatchObject({ exitCode: 0 })
         const result = await run([...remove, '--confirm'], [upload('ids.json', '[42,43,44]')])
         expect(result.json(), result.body).toMatchObject({ exitCode: 1 })
         expect(decode(result.json().stdout)).toMatchObject({ code: 'PARTIAL_OUTCOME', requested: 3, unconfirmed_hosts: unconfirmed })
@@ -333,13 +350,14 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
       // Malformed host files are refused by the pinned CLI before any request.
       const before = (await evidence()).mutations
       for (const content of ['{"name":"x"}', '["not-an-id"]', '[0]']) {
-        expect((await run([...remove, '--confirm'], [upload('ids.json', content)])).json()).toMatchObject({ exitCode: 2 })
+        expect((await run([...remove, '--dry-run'], [upload('ids.json', content)])).json()).toMatchObject({ exitCode: 2 })
       }
       expect((await evidence()).mutations).toBe(before)
 
       // A dropped connection leaves the outcome unknown; the recovery read is a limited page.
       expect((await run([...create, '--confirm'], [names])).json()).toMatchObject({ exitCode: 0 })
       await send('/__awx/write-outcome?drop=true', 'POST')
+      expect((await run([...remove, '--dry-run'], [upload('ids.json', '[44]')])).json()).toMatchObject({ exitCode: 0 })
       const interrupted = await run([...remove, '--confirm'], [upload('ids.json', '[44]')])
       expect(interrupted.json(), interrupted.body).toMatchObject({ error: { code: 'UNKNOWN_OUTCOME',
         next: expect.stringMatching(/awx-axi host list --limit 100.*absence from this limited read does not prove failure/) } })

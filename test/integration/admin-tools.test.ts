@@ -1720,6 +1720,36 @@ test('Falcon write switch activates only the selected saved MalQuery operation',
   expect([...detail.writeAccess.supportedOperations].sort()).toEqual(['host usb', 'identity activity', 'malquery search', 'raw write', 'rtr run', 'search start', 'search stop'])
 })
 
+test('AWX destructive delete grant defaults off and saves independently with an audit record', async () => {
+  await replace('awx-axi')
+  const initial = await (await request('GET', '/awx-axi')).json()
+  expect(initial.nativeSettings.allowDeletes).toBeUndefined()
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
+  payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
+  const page = await app.inject({ method: 'GET', url: '/admin/tools/awx-axi?tab=writes',
+    headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain('name="allowDeletes" data-type="boolean"><div><b>Allow destructive deletes</b>')
+  const enabled = await request('PATCH', '/awx-axi/write-access', { enabled: true, allowDeletes: true, expectedRevision: 2 })
+  expect(enabled.status).toBe(200)
+  expect(await enabled.json()).toMatchObject({ nativeSettings: { allowWrites: true, allowDeletes: true } })
+  const grantedPage = await app.inject({ method: 'GET', url: '/admin/tools/awx-axi?tab=writes',
+    headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
+  expect(grantedPage.body).toContain('name="allowDeletes" data-type="boolean" checked><div><b>Allow destructive deletes</b>')
+  const disabled = await request('PATCH', '/awx-axi/write-access', { enabled: true, allowDeletes: false, expectedRevision: 3 })
+  expect(disabled.status).toBe(200)
+  expect(await disabled.json()).toMatchObject({ nativeSettings: { allowWrites: true, allowDeletes: false } })
+  expect(store.readCredential(store.findCredential('awx-axi')!)).toMatchObject({ ...values['awx-axi'], allowWrites: true, allowDeletes: false })
+  const events = db.prepare("SELECT arguments FROM audit WHERE event = 'tool-write-access' AND tool = 'awx-axi' ORDER BY id").all() as { arguments: string }[]
+  expect(events.map(event => JSON.parse(event.arguments))).toEqual([
+    expect.objectContaining({ enabled: true, allowDeletes: true }),
+    expect.objectContaining({ enabled: true, allowDeletes: false }),
+  ])
+})
+
 test.each(['az-axi', 'ado-axi', 'awx-axi'] as const)('%s write switch preserves native settings and credentials', async tool => {
   await replace(tool)
   const settings = tool === 'az-axi' ? { allowWrites: true, subscriptions: ['synthetic-subscription'],
