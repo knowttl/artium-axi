@@ -2,12 +2,12 @@
   "generatedBy": "scripts/falcon-inventory.ts",
   "tool": "falcon-axi",
   "package": "@knowttl/falcon-axi",
-  "version": "1.0.1",
-  "integrity": "sha512-XG1EI5FLS5w2CwaZ+MgJwNFV9TIRwAuuK+vzlQOSRpgAD6N3hxjYhIdXa+tEe6/tVp26aaNwEabaVMHdAJ6aNQ==",
+  "version": "1.1.0",
+  "integrity": "sha512-iOnTT7V6cwf7dcBrfnOaSbT2FZ+BfWlB5huN9cWw52/Fm2H+7D5wURzzOsyxZ2SUd8Fre1ndtXtiaHkmxGjBWA==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "fff703a0d9831ef3fef1167b1139f1a08c36e9f8c5225af2a0d72c289acc0227"
+      "sha256": "35badd3ec877a610860974807563a1803977b378b4b8504d95942028046f7561"
     },
     {
       "path": "artium-invocations.json",
@@ -43,7 +43,7 @@
     },
     {
       "path": ".typescript-build/src/credentials.js",
-      "sha256": "ea0e57b3c671735de108d61c5917ed8d3740248cee28363e29663bc1c6c8aab2"
+      "sha256": "241b541b1664bb3a5f47d3b75442d4b219a8bac61a38096e684512c301d4a425"
     },
     {
       "path": ".typescript-build/src/cursor.js",
@@ -107,7 +107,7 @@
     },
     {
       "path": ".typescript-build/src/raw.js",
-      "sha256": "0d349e25f1dea1ebb5086a01de66e6acf3492a4e678138bfcdb73081febba32a"
+      "sha256": "5097f40bc12f28817da5f739f3218c928ad9891804fc1ae1d8a868669a5dec07"
     },
     {
       "path": ".typescript-build/src/render.js",
@@ -183,7 +183,7 @@
     },
     {
       "path": ".typescript-build/src/version.js",
-      "sha256": "c74c929111afb62230c4083d9645fe76aa477121367b30aae34e4e0e1dafd24c"
+      "sha256": "0d455dbe36c03ee50c8346836a3d2e2da9599187b11c529b26c66db0b85fca30"
     },
     {
       "path": ".typescript-build/src/windows-acl.js",
@@ -215,7 +215,7 @@
     },
     {
       "path": "skills/falcon-axi/references/agent-guide.md",
-      "sha256": "e9ed7e3cacfc3430b398f094fb7bbb5e064cf65610598f6225851aa33e4ef024"
+      "sha256": "d261918741701be9b99b39aeda4fa3ec5e9aa87587d53434d84e59829b4dc7a1"
     },
     {
       "path": "skills/falcon-axi/references/application-list.md",

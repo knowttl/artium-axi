@@ -127,6 +127,32 @@ test('the pinned CLI previews a raw write with the exact write grant', async () 
   } finally { await runner.shutdown() }
 })
 
+test('tenable binds the credential id and revision for reads and writes', async () => {
+  for (const args of [['card', 'list'], ['raw', 'write', '--method', 'POST', '--path', '/api/v1/t1/tags']]) {
+    const call = await rawAdapter.prepare(args, { ...reference, revision: 7 })
+    expect(call.environment.TENABLE_AXI_CREDENTIAL_REVISION).toBe('synthetic-tenable:7')
+  }
+})
+
+test('the pinned CLI refuses a confirmation previewed under another credential instance', async () => {
+  const runner = await Runner.create(join(directory, 'calls'))
+  const input = { files: [{ name: 'body.json', contentBase64: Buffer.from('{"synthetic":true}').toString('base64') }] }
+  const write = ['raw', 'write', '--method', 'POST', '--path', '/api/v1/t1/tags', '--body-file', 'body.json']
+  const cli = join(process.cwd(), 'tools/node_modules/@knowttl/tenable-axi/bin/tenable-axi.js')
+  const run = async (args: string[], instance: typeof reference) => {
+    const call = await rawAdapter.prepare(args, instance, input)
+    return runner.run('synthetic-user', process.execPath, [cli, ...call.args], call.environment, call.secrets,
+      call.limits, { ...input, fileArguments: call.fileArguments?.map(index => index + 1) }, call.files)
+  }
+  try {
+    const preview = await run(write, reference)
+    const confirm = JSON.parse(/confirm: (".+")/.exec(preview.stdout)![1]) as string
+    const other = await run([...write, '--execute', '--confirm', confirm], { ...reference, id: 'other-tenable' })
+    expect(other.exitCode).not.toBe(0)
+    expect(other.stdout + other.stderr).toContain('CREDENTIAL_CHANGED')
+  } finally { await runner.shutdown() }
+})
+
 test('the write switch preserves the allow-list and disabled source policy wins', async () => {
   const settings = tenableWritePolicy.update({}, { enabled: true, operations: ['inventory-export-assets'], expectedRevision: 1 })
   expect(tenableWritePolicy.read(settings)).toMatchObject({ capable: true, enabled: true, allowedOperations: ['inventory-export-assets'] })

@@ -120,6 +120,32 @@ test('the pinned CLI previews a raw write from an uploaded body through the inje
   } finally { await runner.shutdown() }
 })
 
+test('falcon binds the credential id and revision for reads and raw writes', async () => {
+  for (const args of [['raw', 'get', '--path', '/synthetic/v1'], ['raw', 'write', '--method', 'POST', '--path', '/synthetic/v1']]) {
+    const call = await rawAdapter(rawGrant).prepare(args, { ...synthetic, revision: 7 })
+    expect(call.environment.FALCON_AXI_CREDENTIAL_REVISION).toBe('synthetic:7')
+  }
+})
+
+test('the pinned CLI refuses a raw write confirmation previewed under another credential instance', async () => {
+  const runner = await Runner.create(join(directory, 'calls'))
+  const input = { files: [{ name: 'body.json', contentBase64: Buffer.from('{"synthetic":true}').toString('base64') }] }
+  const write = ['raw', 'write', '--method', 'POST', '--path', '/synthetic/v1', '--body-file', 'body.json']
+  const cli = join(process.cwd(), 'tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js')
+  const run = async (args: string[], instance: typeof synthetic) => {
+    const call = await rawAdapter(rawGrant).prepare(args, instance, input)
+    return runner.run('synthetic-user', call.executable, [cli, ...call.args.slice(1)], call.environment, call.secrets, call.limits,
+      { ...input, fileArguments: call.fileArguments }, call.files)
+  }
+  try {
+    const preview = await run(write, synthetic)
+    const confirm = /confirm: (.+)/.exec(preview.stdout)![1].replace(/^"|"$/g, '')
+    const other = await run([...write, '--execute', '--confirm', confirm], { ...synthetic, id: 'other-falcon' })
+    expect(other.exitCode).not.toBe(0)
+    expect(other.stdout + other.stderr).toContain('CREDENTIAL_CHANGED')
+  } finally { await runner.shutdown() }
+})
+
 test('Falcon write switch keeps MalQuery off for legacy RTR opt-ins and retains choices while disabled', () => {
   expect(falconWritePolicy.read({})).toMatchObject({ enabled: false, allowedOperations: [] })
   expect(falconWritePolicy.read({ allowWrites: true })).toMatchObject({ capable: true, enabled: true, allowedOperations: ['rtr run'] })

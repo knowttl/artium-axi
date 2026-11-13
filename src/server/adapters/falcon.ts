@@ -76,6 +76,7 @@ export function createFalconAdapter(source: SecretSource, writeLog = defaultWrit
       return { executable: process.execPath, args: [toolPaths['falcon-axi'], ...call.args], invocation: call.invocation,
         fileArguments: call.fileArguments.map(index => index + 1),
         effect: call.executing ? 'write' : 'read', ...prepared,
+        environment: { ...prepared.environment, FALCON_AXI_CREDENTIAL_REVISION: `${reference.id}:${reference.revision}` },
         limits: { ...falconLimits, ...(call.device ? { falconRtrDevice: call.device } : {}) } }
     },
   }
