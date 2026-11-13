@@ -237,7 +237,7 @@ export function createProxmoxAdapter(source: SecretSource, writeLog?: string): P
     sensitiveArguments: args => ({ flags: args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0]), positions: args.map((_, index) => index) }),
     sensitiveInput: () => true,
     authorizeOperation,
-    validateArgs: (args, input) => { argumentsForCall(args, input) },
+    validateArgs: (args, input) => argumentsForCall(args, input).invocation,
     executesWrite: (args, input) => argumentsForCall(args, input).effect === 'write',
     nestedOperations(args, input) {
       const operations: { command: string, effect: 'read' | 'write' }[] = []

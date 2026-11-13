@@ -89,7 +89,7 @@ export function createUnifiAdapter(source: SecretSource, writeLog?: string): Ada
     sensitiveArguments: args => ({ flags: args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0]),
       positions: args.map((_, index) => index) }),
     sensitiveInput: (_args, input) => Boolean(input?.files?.length),
-    validateArgs: (args, input) => { argumentsForCall(args, input) },
+    validateArgs: (args, input) => argumentsForCall(args, input).invocation,
     executesWrite: (args, input) => argumentsForCall(args, input).effect === 'write',
     authorizeOperation,
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => argumentsForCall(a, i).invocation, args, input),

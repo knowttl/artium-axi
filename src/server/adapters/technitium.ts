@@ -150,7 +150,7 @@ export function createTechnitiumAdapter(source: SecretSource, writeLog?: string)
     blockedFlags: inventory.adapterBoundary.unsafeOverrides.map(name => `--${name}`), allowedFlagValues: {},
     sensitiveArguments: args => ({ flags: args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0]), positions: [] }),
     sensitiveInput: () => true,
-    validateArgs: (args, input) => { argumentsForCall(args, input) },
+    validateArgs: (args, input) => argumentsForCall(args, input).invocation,
     executesWrite: (args, input) => argumentsForCall(args, input).effect === 'write',
     authorizeOperation,
     classify(args, input) {

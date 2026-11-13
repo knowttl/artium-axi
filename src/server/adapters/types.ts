@@ -62,7 +62,7 @@ export interface Adapter<Credential> {
     { command: 'preview' | 'confirm', help: true }
     | { command: 'preview' | 'confirm', help: false, root: string | undefined, key: string } | undefined
   authorizeOperation?(command: string, settings: Record<string, unknown>, args?: readonly string[], input?: RunnerInput): void
-  validateArgs(args: readonly string[], input?: RunnerInput): void
+  validateArgs(args: readonly string[], input?: RunnerInput): void | { help?: boolean }
   prepare(args: readonly string[], reference: CredentialReference, input?: RunnerInput, context?: { rawReadWrites: boolean }): Promise<PreparedCall>
   prepareForCaller?(args: readonly string[], userId: string, input?: RunnerInput): Promise<PreparedCall>
   prepareArtifact?(args: string[], reference: CredentialReference, scope: TransferScope): Promise<PreparedCall>

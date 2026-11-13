@@ -142,10 +142,7 @@ export function authorizeDelegatedOperation(db: Database.Database, userId: strin
   const settings = JSON.parse(row.native_settings)
   if (classification.effect === 'write' || credentialIssuingCommand(adapter.name, classification.command)) {
     if (!toolAllowsWrites(adapter.name, settings)) throw new ArtiumError('FLAG_BLOCKED')
-    if (args && commandInvocations(adapter.name, classification.command).some(command => args.join(' ') === `${command} --help`)) {
-      adapter.validateArgs(args, input)
-      return
-    }
+    if (args?.some(arg => ['--help', '--help=true', '-h'].includes(arg)) && adapter.validateArgs(args, input)?.help) return
     adapter.authorizeOperation?.(classification.command, settings, args, input)
   }
 }

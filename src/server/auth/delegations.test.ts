@@ -112,10 +112,10 @@ test.each([
 test.each([
   { adapter: createGiteaAdapter(source, writeLog), command: 'issue create' },
   { adapter: createGiteaAdapter(source, writeLog), command: 'issue edit' },
-  { adapter: createUnifiAdapter(source, writeLog), command: 'acl-rule create' },
+  { adapter: createUnifiAdapter(source, writeLog), command: 'acl-rule create', options: ['--site', 'synthetic'] },
   { adapter: createFalconAdapter(source, writeLog), command: 'search start' },
   { adapter: createProxmoxAdapter(source), command: 'task cancel', settings: { hostWrites: { allowWrites: true, operations: [] } } },
-])('$adapter.name delegated $command help does not require a write operation', ({ adapter, command, settings = { writes: { allowWrites: true, operations: [] } } }) => {
+])('$adapter.name delegated $command help does not require a write operation', ({ adapter, command, options = [], settings = { writes: { allowWrites: true, operations: [] } } }) => {
   const db = new Database(':memory:')
   try {
     migrate(db)
@@ -127,7 +127,7 @@ test.each([
       .run(adapter.name, 'synthetic', JSON.stringify(settings))
     db.prepare("INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', ?)").run(adapter.name)
     const delegation = { scopeJson: JSON.stringify({ tools: [{ tool: adapter.name }] }), readOnly: false }
-    expect(() => authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, [...command.split(' '), '--help'])).not.toThrow()
+    expect(() => authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, [...command.split(' '), '--help', ...options])).not.toThrow()
     expect(delegatedDiscovery(db, 'synthetic-user', delegation, [adapter])[0].commands).not.toContain(command)
   } finally { db.close() }
 })

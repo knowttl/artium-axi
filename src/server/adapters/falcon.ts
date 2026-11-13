@@ -61,7 +61,7 @@ export function createFalconAdapter(source: SecretSource, writeLog = defaultWrit
     blockedFlags: inventory.unsafeOverrides.map(flag => '--' + flag), allowedFlagValues: {},
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => '--' + name),
       positions: args.map((_, index) => index) }),
-    validateArgs: (args, input) => { validateFalconArgs(args, input) },
+    validateArgs: (args, input) => validateFalconArgs(args, input),
     executesWrite: (args, input) => parseFalconArgs(args, input).executing,
     authorizeOperation,
     rawApi: { commands: ['raw get', 'raw write'], writes: true, help: (args, input) => validateFalconArgs(args, input).help },
