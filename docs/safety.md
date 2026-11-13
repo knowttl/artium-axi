@@ -110,10 +110,13 @@ When the command or operation is known during instance selection, delegated call
 Kubernetes session lists include only sessions on instances permitted by the `session list` selection.
 Tool lists, generated help and skills include only commands permitted by the token, the creator's current usable instances and grants, tool enablement, delegated read-only restriction and administrator Allow writes switch.
 Tools with no permitted commands are omitted, and tool lists report the effective read-only state.
-Discovery for GitHub, Microsoft Graph, Vectra, Tenable One, Check Point, BeyondTrust, Hybrid Analysis, UniFi, Falcon, Gitea, Technitium, Proxmox and Kubernetes credential acquisition also reflect their administrator operation allow-lists, through the same adapter hook that refuses execution before any credential is read.
+Discovery for GitHub, Microsoft Graph, Vectra, Tenable One, Check Point, BeyondTrust, Hybrid Analysis, UniFi, Falcon, Gitea, Technitium and Proxmox also reflects their administrator operation allow-lists, through the same adapter hook that refuses execution before any credential is read.
+Kubernetes credential acquisition discovery also reflects the administrator `acquireCredential` setting.
 Gitea discovery lists a mutating command when its required native operation is allowed.
 Commands whose required operation depends on arguments remain hidden from discovery; execution checks the operations named with `--allow-write`.
 This under-advertises permitted writes; each call is checked against the exact operations it names.
+Technitium `dns-client resolve` remains discoverable for reads without an import grant; an import still requires the grant described in the [command reference](commands.md).
+Proxmox batch discovery requires a grant for the batch operation and at least one eligible child operation; each actual child is checked at execution.
 Permitted native leaf commands retain their native argument help; locally generated Kubernetes hosted help filters command and session-kind listings to the same permitted set as discovery.
 Download help, including help for a selected transfer leaf, shows the hosted download interface with only permitted operations and their selector, type and destination requirements.
 Leaf help outside the token's scope is refused.
