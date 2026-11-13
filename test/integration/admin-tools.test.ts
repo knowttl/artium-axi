@@ -1014,7 +1014,7 @@ test.each([
   const page = await app.inject({ method: 'GET', url: `/admin/tools/${tool}/instances/certificate-support`,
     headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
   expect(page.statusCode, page.body).toBe(200)
-  if (supported) expect(page.body).toContain('Trust this certificate')
+  if (supported) expect(page.body).toContain('Initial trust fills Certificate verification.')
   else {
     expect(page.body).toContain('This tool does not support a shared trusted certificate field.')
     expect(page.body).toContain('Trust this certificate')

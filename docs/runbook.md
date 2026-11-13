@@ -296,10 +296,11 @@ Confirm that you compared the displayed fingerprint, then choose **Trust this ce
 Initial setup fills the supported shared certificate fields and saves endpoint trust; tools without shared fields show that limitation and retain confirmed endpoint trust.
 The UI automatically tests the connection and shows **Connected** or the server-reported failure message.
 Client-side failures show a safe network or unreadable-response category and error name, without raw exception messages or response text.
-Certificate rotation and replacement remain manual; a mismatched saved fingerprint is not replaced by initial setup.
+Certificate rotation and replacement remain manual; initial setup refuses to replace an existing certificate or fingerprint.
 Removing an endpoint trust record retains the separately saved Certificate verification fields; clear those fields too when revoking that trust.
 CA trust is selected when an issuing CA is available; self-signed endpoints select strict leaf pinning.
 UniFi also saves and verifies the leaf fingerprint with CA trust, so replace the certificate and fingerprint manually after leaf renewal.
+Proxmox also verifies any separately saved fingerprint, which can reject a renewed leaf under the trusted CA.
 GitHub supports strict leaf pins through a private per-call HTTP socket relay that verifies the upstream TLS connection before sending application data.
 Kubernetes remains an exception: its editor accepts only an issuing CA, and strict leaf pinning is refused.
 For self-signed Kubernetes endpoints or a missing issuing CA, configure the server-wide bundle above.

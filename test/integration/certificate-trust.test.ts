@@ -442,7 +442,6 @@ test.each([
   ['technitium-axi', 'caFile', 'self-signed', 'pin', () => ({ origin: endpoint, auth: 'token', tokenKind: 'api', token: 'CANARY-token' })],
   ['ldap-axi', 'caFile', 'self-signed', 'pin', () => ({ url: endpoint.replace('https:', 'ldaps:'), auth: 'simple', bindDn: 'cn=reader,dc=synthetic,dc=test', password: 'CANARY-password' })],
   ['vectra-axi', 'caBundle', 'self-signed', 'pin', () => ({ kind: 'qux', apiVersion: '2.5', origin: endpoint, auth: 'token', token: 'CANARY-token' })],
-  ['kubernetes-axi', 'certificateAuthority', 'leaf', 'ca', () => ({ origin: endpoint, auth: 'token', token: 'CANARY-token', certificateAuthority: pem('other-ca') })],
 ] as const)('%s fills initial trust through the shared fields', async (tool, field, certificate, mode, value) => {
   serve(certificate, certificate === 'leaf')
   store.createInstance(tool, { name: 'initial', description: '' }, value(), 'synthetic-development-user', Date.now())
@@ -481,17 +480,27 @@ test('UniFi initial trust supplies the certificate-name prerequisite', async () 
   await expect(preflight('unifi-axi', next, readCredentialTrust(db, reference))).resolves.toBeUndefined()
 })
 
-test('initial field filling refuses a mismatched saved fingerprint', async () => {
-  const value = { origin: endpoint, apiKey: 'CANARY-key', tls: { trustedCertificatePem: pem('leaf'),
-    peerFingerprintSha256: new X509Certificate(pem('leaf')).fingerprint256.replaceAll(':', '') } }
-  const reference = store.createInstance('unifi-axi', { name: 'existing', description: '' }, value, 'synthetic-development-user', Date.now())
-  const url = '/v1/admin/tools/unifi-axi/instances/existing/certificates'
+test.each([
+  ['unifi-axi', () => ({ origin: endpoint, apiKey: 'CANARY-key', tls: { trustedCertificatePem: pem('leaf'),
+    peerFingerprintSha256: new X509Certificate(pem('leaf')).fingerprint256.replaceAll(':', '') } })],
+  ['proxmox-axi', () => ({ origin: endpoint, auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token', caBundle: pem('other-ca') })],
+  ['proxmox-axi', () => ({ origin: endpoint, auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token',
+    certificatePin: { origin: endpoint, sha256: new X509Certificate(pem('self-signed')).fingerprint256.replaceAll(':', ''), replaceHostname: false } })],
+  ['technitium-axi', () => ({ origin: endpoint, auth: 'token', tokenKind: 'api', token: 'CANARY-token', caFile: pem('other-ca') })],
+  ['ldap-axi', () => ({ url: endpoint.replace('https:', 'ldaps:'), auth: 'simple', bindDn: 'cn=reader,dc=synthetic,dc=test', password: 'CANARY-password', caFile: pem('other-ca') })],
+  ['vectra-axi', () => ({ kind: 'qux', apiVersion: '2.5', origin: endpoint, auth: 'token', token: 'CANARY-token', caBundle: pem('other-ca') })],
+  ['kubernetes-axi', () => ({ origin: endpoint, auth: 'token', token: 'CANARY-token', certificateAuthority: pem('other-ca') })],
+] as const)('%s initial field filling preserves existing trust material', async (tool, createValue) => {
+  if (tool === 'kubernetes-axi') serve('leaf', true)
+  const value = createValue()
+  const reference = store.createInstance(tool, { name: 'existing', description: '' }, value, 'synthetic-development-user', Date.now())
+  const url = `/v1/admin/tools/${tool}/instances/existing/certificates`
   const inspection = (await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })).json()
   const saved = await app.inject({ method: 'POST', url: url + '/trust', headers, payload: {
-    inspectionId: inspection.inspectionId, confirmedFingerprint: inspection.chain[0].fingerprint, mode: 'pin', fillFields: true,
+    inspectionId: inspection.inspectionId, confirmedFingerprint: inspection.chain[0].fingerprint, mode: tool === 'kubernetes-axi' ? 'ca' : 'pin', fillFields: true,
   } })
   expect(saved.statusCode).toBe(400)
-  expect(saved.json().error.message).toContain('Replace the certificate and fingerprint manually')
+  expect(saved.json().error.message).toContain('must be replaced manually')
   expect(store.readCredential(reference)).toEqual(value)
   expect(readCredentialTrust(db, reference)).toEqual([])
 })

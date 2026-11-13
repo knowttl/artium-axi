@@ -27,11 +27,11 @@ export const tlsFieldDefinitions = {
 export function initialCertificateTrust(tool: ToolName, value: Record<string, unknown>, pem: string, fingerprint: string, mode: 'ca' | 'pin') {
   const settings = credentialTlsSettings[tool]
   if (!settings.certificate) throw new ArtiumError('INVALID_INPUT', 'This tool does not support a shared trusted certificate field. Use endpoint trust instead.')
-  const savedFingerprint = settings.fingerprint?.split('.').reduce<any>((parent, key) => parent?.[key], value)
-  const normalized = fingerprint.replaceAll(':', '').toLowerCase()
-  if (savedFingerprint && String(savedFingerprint).replaceAll(':', '').toLowerCase() !== normalized) {
-    throw new ArtiumError('INVALID_INPUT', 'The saved fingerprint differs. Replace the certificate and fingerprint manually in Certificate verification.')
+  const read = (path: string) => path.split('.').reduce<any>((parent, key) => parent?.[key], value)
+  if (read(settings.certificate) || (settings.fingerprint && read(settings.fingerprint))) {
+    throw new ArtiumError('INVALID_INPUT', 'An existing certificate or fingerprint must be replaced manually in Certificate verification.')
   }
+  const normalized = fingerprint.replaceAll(':', '').toLowerCase()
   const next = { ...value }
   const write = (path: string, content: string) => {
     const [root, key] = path.split('.') as [string, string?]
@@ -40,7 +40,7 @@ export function initialCertificateTrust(tool: ToolName, value: Record<string, un
   }
   write(settings.certificate, pem)
   if (settings.fingerprint && !settings.pin) write(settings.fingerprint, normalized)
-  if (settings.pin && mode === 'pin' && !savedFingerprint) {
+  if (settings.pin && mode === 'pin') {
     write(settings.fingerprint!, normalized)
     next[settings.pin] = { ...(next[settings.pin] as object), origin: value.origin, replaceHostname: false }
   }
