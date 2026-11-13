@@ -10,10 +10,6 @@ const upstream = new URL('tools/node_modules/@knowttl/awx-axi/', root)
 const readJson = path => JSON.parse(readFileSync(new URL(path, root), 'utf8'))
 const pkg = readJson('tools/node_modules/@knowttl/awx-axi/package.json')
 if (pkg.version !== readJson('tools/package.json').dependencies['@knowttl/awx-axi']) throw new Error('AWX parity pin mismatch')
-const inventory = readJson('tools/inventories/awx-axi.json')
-const routes = new Map(inventory.commands.map(route => [route.command, route]))
-const securityAdministrationCommands = inventory.commands.filter(route => route.securityAdministration).map(route => route.command)
-const securityAdministrationDeletes = securityAdministrationCommands.filter(command => /(?:^|[ -])delete$/.test(command))
 const help = async argv => {
   let output = ''
   await main({ argv, env: {}, stdout: { write: chunk => { output += chunk } } })
@@ -45,6 +41,7 @@ for (const route of offered.filter(route => localCommands.includes(route.command
 }
 const complete = (decision, commandFlag = false) => decision
   && ['name', 'status', 'effect', 'targetSlice', 'authorization'].every(key => typeof decision[key] === 'string' && decision[key].trim())
+  && ['reason', 'requiredAdminControl'].some(key => typeof decision[key] === 'string' && decision[key].trim())
   && (!commandFlag || typeof decision.takesValue === 'boolean')
 const undecided = offered.flatMap(route => {
   const decision = decisions.get(route.command)
@@ -52,7 +49,10 @@ const undecided = offered.flatMap(route => {
 })
 undecided.push(...globalNames.filter(name => !complete(recorded.globals.find(flag => flag.name === name))).map(name => `global --${name}`))
 if (undecided.length) throw new Error(`Missing AWX support decision: ${undecided.join(', ')}; review support in scripts/awx-inventory.mjs and scripts/awx-parity.mjs, then record each decision in tools/inventories/awx-axi-parity.json before regeneration`)
-if (!import.meta.url.endsWith('?decisions-only')) {
+const { data: inventory } = await import('./awx-inventory.mjs')
+const routes = new Map(inventory.commands.map(route => [route.command, route]))
+const securityAdministrationCommands = inventory.commands.filter(route => route.securityAdministration).map(route => route.command)
+const securityAdministrationDeletes = securityAdministrationCommands.filter(command => /(?:^|[ -])delete$/.test(command))
 const baseControls = {
   read: 'Managed account access; reads always allowed by write policy',
   write: 'Administrator-controlled per-tenant writes switch, default OFF; preview, explicit confirmation, coordination, audit and unknown-outcome recovery',
@@ -235,4 +235,3 @@ for (const [path, contents] of [['tools/inventories/awx-axi-parity.json', JSON.s
   else if (readFileSync(destination, 'utf8') !== contents) throw new Error(`AWX parity matrix stale: ${path}; run node scripts/awx-parity.mjs --write and review classifications`)
 }
 console.log(`parity: awx-axi ${pkg.version}, ${commands.length} commands, ${aliases.length} aliases, ${commands.reduce((count, route) => count + route.flags.length, 0)} command flags, ${globals.length} selection globals, ${versionFlags.length} version flags`)
-}

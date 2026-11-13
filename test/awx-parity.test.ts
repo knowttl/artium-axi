@@ -43,6 +43,32 @@ syncBuiltinESMExports();`
   expect(result.stderr).toContain('support decision')
 })
 
+test('inventory regeneration checks the reviewed surface before writing AWX artifacts', () => {
+  const registry = new URL('../tools/node_modules/@knowttl/awx-axi/dist/cli.js', import.meta.url).href
+  const preload = `import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+import { DOMAINS } from ${JSON.stringify(registry)};
+DOMAINS.find(item => item.name === 'job').subcommands.find(item => item.name === 'list').flags.push({ name: 'confirm', takesValue: false, description: 'Synthetic' });
+const read = fs.readFileSync;
+fs.readFileSync = function(path, ...args) {
+  const contents = read.call(this, path, ...args);
+  if (!String(path).endsWith('/tools/inventories/awx-axi-parity.json')) return contents;
+  const data = JSON.parse(contents);
+  data.commands.find(item => item.command === 'job list').flags.push(data.commands.find(item => item.command === 'job cancel').flags.find(flag => flag.name === 'confirm'));
+  return JSON.stringify(data);
+};
+const write = fs.writeFileSync;
+fs.writeFileSync = function(path, ...args) {
+  if (/\\/(inventories\\/awx-axi(?:-parity)?\\.json|skills\\/awx-axi\\/SKILL\\.md|docs\\/awx-parity-matrix\\.md)$/.test(String(path))) throw new Error('AWX artifact written before parity check');
+  return write.call(this, path, ...args);
+};
+syncBuiltinESMExports();`
+  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/upstream-inventory.mjs', import.meta.url)), '--write'], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain('Unreviewed AWX surface change')
+})
+
 test('parity rejects a newly accepted auth flag without a decision', () => {
   const preload = `import { registerHooks } from 'node:module';
 registerHooks({ load(url, context, nextLoad) {
@@ -128,6 +154,9 @@ test.each([
   { kind: 'domain flag', mutation: "data.commands.find(item => item.command === 'job list').flags.find(flag => flag.name === 'limit').status = ''", name: 'job list --limit' },
   { kind: 'local flag', mutation: "data.commands.find(item => item.command === 'auth login').flags = [{ name: 'allow-http' }]", name: 'auth login --allow-http' },
   { kind: 'global flag', mutation: "data.globals = data.globals.map(flag => flag.name === 'config' ? { name: flag.name } : flag)", name: 'global --config' },
+  { kind: 'domain flag without explanation', mutation: "const flag = data.commands.find(item => item.command === 'job list').flags.find(item => item.name === 'limit'); delete flag.reason; delete flag.requiredAdminControl", name: 'job list --limit' },
+  { kind: 'local flag without explanation', mutation: "const flag = data.commands.find(item => item.command === 'auth login').flags.find(item => item.name === 'allow-http'); delete flag.reason; delete flag.requiredAdminControl", name: 'auth login --allow-http' },
+  { kind: 'global flag without explanation', mutation: "const flag = data.globals.find(item => item.name === 'config'); delete flag.reason; delete flag.requiredAdminControl", name: 'global --config' },
   ...['effect', 'targetSlice', 'authorization', 'takesValue'].map(field => ({ kind: `local flag without ${field}`, mutation: `delete data.commands.find(item => item.command === 'auth login').flags.find(flag => flag.name === 'allow-http').${field}`, name: 'auth login --allow-http' })),
   ...['effect', 'targetSlice', 'authorization'].map(field => ({ kind: `global flag without ${field}`, mutation: `delete data.globals.find(flag => flag.name === 'config').${field}`, name: 'global --config' })),
 ].flatMap(item => [[], ['--write']].map(args => ({ ...item, args }))))('parity rejects an incomplete $kind decision', ({ mutation, name, args }) => {

@@ -16,12 +16,9 @@ import './falcon-inventory.ts'
 import './kubernetes-inventory.ts'
 import './ssh-inventory.ts'
 
-if (process.argv.includes('--write')) {
-  await import('./awx-parity.mjs?decisions-only')
-  await import('./awx-inventory.mjs')
-}
 await import('./awx-parity.mjs')
-await import('./awx-inventory.mjs')
+const { updateInventory } = await import('./awx-inventory.mjs')
+updateInventory()
 
 const root = new URL('../tools/', import.meta.url)
 const load = (tool, path) => import(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))
