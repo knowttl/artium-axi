@@ -299,6 +299,7 @@ Client-side failures show a safe network or unreadable-response category and err
 Certificate rotation and replacement remain manual; a mismatched saved fingerprint is not replaced by initial setup.
 Removing an endpoint trust record retains the separately saved Certificate verification fields; clear those fields too when revoking that trust.
 CA trust is selected when an issuing CA is available; self-signed endpoints select strict leaf pinning.
+UniFi also saves and verifies the leaf fingerprint with CA trust, so replace the certificate and fingerprint manually after leaf renewal.
 GitHub supports strict leaf pins through a private per-call HTTP socket relay that verifies the upstream TLS connection before sending application data.
 Kubernetes remains an exception: its editor accepts only an issuing CA, and strict leaf pinning is refused.
 For self-signed Kubernetes endpoints or a missing issuing CA, configure the server-wide bundle above.
@@ -313,8 +314,8 @@ Azure inspection includes login, ARM, Graph and Log Analytics.
 For Storage, Key Vault and ACR, save service names in the Azure native setting `tlsDestinations`, for example `{"storageAccounts":["synthetic"],"keyVaults":["synthetic-vault"],"registries":["syntheticregistry"]}`.
 These saved names produce endpoints under `blob.core.windows.net`, `vault.azure.net` and `azurecr.io` respectively; URLs and caller-supplied inspection hosts are refused.
 A complete private chain trusts the issuing CA, while a self-signed endpoint trusts its own certificate for tools supporting leaf pins.
-CA trust accepts renewed leaves under the stored issuing CA, including when that CA is an intermediate.
-The server may present the leaf and issuing intermediate without the root; confirmation anchors trust on the presented intermediate and accepts renewed leaves it issues.
+CA trust accepts renewed leaves under the stored issuing CA, including when that CA is an intermediate, provided no separately saved leaf fingerprint rejects them.
+The server may present the leaf and issuing intermediate without the root; confirmation anchors trust on the presented intermediate and accepts renewed leaves it issues, subject to any separately saved fingerprint.
 Except for the GitHub CLI child without strict pins, connections to an endpoint with confirmed CA trust or strict pins must validate against its saved anchors; a different CA is rejected even if the server otherwise trusts it.
 Strict leaf pinning also checks the observed leaf fingerprint before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
 On a pin mismatch, the error explains that the stored fingerprint differs from the presented one; re-inspect the certificate on the affected instance page.
