@@ -459,6 +459,20 @@ test('saving unrelated credentials preserves a CA leaf without a fingerprint', a
   expect(listed.certificates[0].leaf.expiresAt).toBe(initial.chain[0].expiresAt)
 })
 
+test('removing trust succeeds with an invalid saved endpoint', async () => {
+  store.createInstance('unifi-axi', { name: 'rotation', description: '' }, { origin: endpoint, apiKey: 'CANARY-key' }, 'synthetic-development-user', Date.now())
+  const base = '/v1/admin/tools/unifi-axi/instances/rotation/certificates'
+  const inspection = (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
+  expect((await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: inspection.inspectionId, confirmedFingerprint: inspection.chain[0].fingerprint, mode: 'ca', fillFields: true } })).statusCode).toBe(200)
+  const listed = (await app.inject({ method: 'GET', url: base, headers })).json()
+  const instance = store.findInstance('unifi-axi', 'rotation')!
+  const value = store.readCredential(instance) as Record<string, unknown>
+  store.replaceInstance('unifi-axi', 'rotation', { ...value, origin: 'invalid-origin' }, instance.id, instance.revision, 'synthetic-development-user', Date.now())
+  const removed = await app.inject({ method: 'DELETE', url: base, headers, payload: { id: listed.certificates[0].id } })
+  expect(removed.statusCode, removed.body).toBe(200)
+  expect((await app.inject({ method: 'GET', url: base, headers })).json().certificates).toEqual([])
+})
+
 test.each([
   ['unifi-axi', { origin: 'invalid-origin', apiKey: 'CANARY-key' }],
   ['proxmox-axi', { origin: 'invalid-origin', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }],

@@ -217,7 +217,9 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       current(reference)
       db.prepare('DELETE FROM trusted_certificates WHERE id = ? AND credential_id = ?').run(id, reference.id)
       const value = store!.readCredential(reference) as Record<string, unknown>
-      const endpoint = certificateEndpoint(toolEndpoints(reference.tool, value)[0]!).href
+      let endpoint: string | undefined
+      try { endpoint = certificateEndpoint(toolEndpoints(reference.tool, value)[0]!).href }
+      catch (error) { if (!(error instanceof TypeError)) throw error }
       const fingerprint = endpoint === pin.endpoint ? savedCertificateTrust(reference.tool, value).fingerprint : undefined
       syncConfirmedLeaves(db, reference.id, fingerprint, [pin.endpoint])
       db.prepare('DELETE FROM tool_health WHERE credential_id = ?').run(reference.id)
