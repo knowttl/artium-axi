@@ -1,5 +1,5 @@
 {
-  "generatedBy": "scripts/ado-inventory.mjs",
+  "generatedBy": "scripts/ado-inventory.ts",
   "tool": "ado-axi",
   "version": "0.5.2",
   "integrity": "sha512-cznBgianYqekDwzoP42phNi9+d04WP3SkZFMO5WuIJTkzO4ltGW5xEPjVlwYMXyCTPphMyLgdczdqtuzEm+JRQ==",

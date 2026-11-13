@@ -1,5 +1,5 @@
 {
-  "generatedBy": "scripts/ldap-inventory.mjs",
+  "generatedBy": "scripts/ldap-inventory.ts",
   "tool": "ldap-axi",
   "version": "0.3.4",
   "integrity": "sha512-mFhX4IZCOyNz3Fg+6IdE3C7dRmEuBQf/3OMYFV6WRbMu1qtNU6HRUg7KwyfdDDjHQruMKT4fSUjk8XS5B0owNw==",

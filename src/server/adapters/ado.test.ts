@@ -321,11 +321,11 @@ test.each(inventory.sources)('requires review when the recorded $path digest cha
     mkdirSync(join(directory, 'scripts'))
     mkdirSync(join(directory, 'tools/inventories'), { recursive: true })
     symlinkSync(join(process.cwd(), 'tools/node_modules'), join(directory, 'tools/node_modules'), 'dir')
-    writeFileSync(join(directory, 'scripts/ado-inventory.mjs'), readFileSync('scripts/ado-inventory.mjs'))
+    writeFileSync(join(directory, 'scripts/ado-inventory.ts'), readFileSync('scripts/ado-inventory.ts'))
     writeFileSync(join(directory, 'tools/integrity.json'), readFileSync('tools/integrity.json'))
     const changed = { ...inventory, sources: inventory.sources.map(entry => entry.path === source.path ? { ...entry, sha256: '0'.repeat(64) } : entry) }
     writeFileSync(join(directory, 'tools/inventories/ado-axi.json'), JSON.stringify(changed, null, 2) + '\n')
-    const result = spawnSync(process.execPath, [join(directory, 'scripts/ado-inventory.mjs')], { encoding: 'utf8' })
+    const result = spawnSync(process.execPath, [join(directory, 'scripts/ado-inventory.ts')], { encoding: 'utf8' })
     expect(result.status).not.toBe(0)
     expect(result.stderr).toContain('Inventory out of date: ado-axi')
   } finally { rmSync(directory, { recursive: true, force: true }) }
