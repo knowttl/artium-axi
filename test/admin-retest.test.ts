@@ -6,9 +6,9 @@ const secret = 'CANARY-unlabelled-credential'
 const quotedSecret = '"CANARY several secret words"'
 const cases = [
   { name: 'localised network rejection', failure: new TypeError('Échec réseau ' + secret), kind: 'network',
-    expected: 'Connection test: Could not reach the artium admin server. Run Test connection again.' },
+    expected: 'Connection test: Could not reach the artium admin server (TypeError). Run Test connection again.' },
   { name: 'known network code', failure: Object.assign(new Error(quotedSecret), { cause: { code: 'ECONNREFUSED' } }), kind: 'network',
-    expected: 'Connection test: Could not reach the artium admin server. Run Test connection again.' },
+    expected: 'Connection test: Could not reach the artium admin server (ECONNREFUSED). Run Test connection again.' },
   { name: 'arbitrary exception fields', failure: { name: secret, code: quotedSecret, message: secret }, kind: 'network',
     expected: 'Connection test: Could not reach the artium admin server. Run Test connection again.' },
   { name: 'unlabelled credential in invalid JSON', response: new Response(secret), kind: 'json',
