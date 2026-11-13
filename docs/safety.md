@@ -41,12 +41,11 @@ Shodan stream session, scan collection, write and export previews accept an inst
 Other related workspace, session, stream and protected-result APIs do not carry an instance selection; multiple granted, enabled instances can therefore make those paths unavailable.
 Those paths check the role's instance grant when selecting credentials and recheck it for ongoing operations.
 See [instance administration](admin-guide.md#browser-administration) for managing named instances in the UI.
-A confirmation previewed on one instance is refused on another, and after any credential or settings save on the same instance.
-Host-owned confirmations (GitHub, Gitea and transfers) bind the credential revision themselves.
-For Proxmox, Tenable and Falcon `raw write`, Artium passes `<tool>_AXI_CREDENTIAL_REVISION=<credential id>:<revision>` on every call and the native tool folds it into the confirmation, failing with `CREDENTIAL_CHANGED` (Proxmox keeps `CONFIRMATION_MISMATCH`).
-Preview again on the current instance, then confirm with the new value.
-Azure, Azure DevOps, AWX and Falcon `rtr run` have no preview to bind: their confirmation is a boolean or a value the caller types without a preview, such as a resource name, `--confirm-delete`, `--confirm` or `<device>:<command>`.
-A preview on another instance carries no authority there; each execution is authorized afresh against the selected instance's grant, read-only state and write policy.
+Host-owned confirmations (GitHub, Gitea and transfers) bind the credential identity and revision.
+For Proxmox writes, Tenable writes and Falcon `raw write`, Artium passes the credential ID and revision to the native tool, which binds them to the confirmation and refuses a different instance or revision with `CREDENTIAL_CHANGED` (Proxmox uses `CONFIRMATION_MISMATCH`).
+After a credential or write-setting change, preview again on the current instance and confirm with the new value.
+Azure, Azure DevOps, AWX and Falcon `rtr run` use a boolean confirmation or a value the caller types, such as a resource name, `--confirm-delete`, `--confirm` or `<device>:<command>`, rather than a confirmation bound to a preview.
+Each execution is authorized afresh against the selected instance's grant, read-only state and write policy.
 External secret sources and per-user credentials for shared-credential tools are unsupported.
 
 ## Agent session context
