@@ -7,7 +7,7 @@ import { afterEach, beforeEach, expect, test } from 'vitest'
 
 let directory: string
 let base: string
-const selector = resolve('scripts/test-gate.mjs')
+const selector = resolve('scripts/test-gate.ts')
 
 function write(path: string, text: string) {
   mkdirSync(dirname(join(directory, path)), { recursive: true })
@@ -21,7 +21,7 @@ function git(...args: string[]) {
 }
 
 function plan(...args: string[]) {
-  const result = spawnSync(process.execPath, ['scripts/test-gate.mjs', '--plan', ...args], { cwd: directory, encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['scripts/test-gate.ts', '--plan', ...args], { cwd: directory, encoding: 'utf8' })
   expect(result.status, result.stdout + result.stderr).toBe(0)
   return decode(result.stdout) as { mode: string; base: string | null; changed: string[];
     tests: string[]; checks: string[][]; inputSha256: string; reasons: string[] }
@@ -30,8 +30,8 @@ function plan(...args: string[]) {
 beforeEach(() => {
   directory = mkdtempSync(join(tmpdir(), 'artium-gate-'))
   write('.gitignore', 'node_modules\n')
-  write('scripts/errors-reference.mjs', "import { writeFileSync } from 'node:fs'; writeFileSync('checked', 'reference current')\n")
-  copyFileSync(selector, join(directory, 'scripts/test-gate.mjs'))
+  write('scripts/errors-reference.ts', "import { writeFileSync } from 'node:fs'; writeFileSync('checked', 'reference current')\n")
+  copyFileSync(selector, join(directory, 'scripts/test-gate.ts'))
   symlinkSync(resolve('node_modules'), join(directory, 'node_modules'), 'dir')
   write('docs/guide.md', '# Guide\n')
   write('docs/errors.md', '# Synthetic error reference\n')
@@ -83,12 +83,12 @@ afterEach(() => rmSync(directory, { recursive: true, force: true }))
 
 test('documentation selects only generated-reference validation', () => {
   write('docs/guide.md', '# Updated guide\n')
-  expect(plan()).toMatchObject({ mode: 'docs', base, tests: [], checks: [['node', 'scripts/errors-reference.mjs']] })
+  expect(plan()).toMatchObject({ mode: 'docs', base, tests: [], checks: [['node', 'scripts/errors-reference.ts']] })
 })
 
 test.each([
-  { path: 'docs/awx-parity-matrix.md', checks: [['node', 'scripts/errors-reference.mjs'], ['node', 'scripts/awx-parity.mjs']] },
-  { path: 'docs/errors.md', checks: [['node', 'scripts/errors-reference.mjs']] },
+  { path: 'docs/awx-parity-matrix.md', checks: [['node', 'scripts/errors-reference.ts'], ['node', 'scripts/awx-parity.mjs']] },
+  { path: 'docs/errors.md', checks: [['node', 'scripts/errors-reference.ts']] },
 ])('changing $path selects its freshness checker without runtime tests', ({ path, checks }) => {
   write(path, '# Stale generated reference\n')
   expect(plan()).toMatchObject({ mode: 'docs', tests: [], checks })
@@ -103,8 +103,8 @@ test.each([
 })
 
 test.each([
-  { path: 'docs/awx-parity-matrix.md', checks: [['node', 'scripts/errors-reference.mjs'], ['node', 'scripts/awx-parity.mjs']] },
-  { path: 'docs/errors.md', checks: [['node', 'scripts/errors-reference.mjs']] },
+  { path: 'docs/awx-parity-matrix.md', checks: [['node', 'scripts/errors-reference.ts'], ['node', 'scripts/awx-parity.mjs']] },
+  { path: 'docs/errors.md', checks: [['node', 'scripts/errors-reference.ts']] },
 ])('deleting $path selects its freshness checker without runtime tests', ({ path, checks }) => {
   unlinkSync(join(directory, path))
   expect(plan()).toMatchObject({ mode: 'docs', tests: [], checks })
@@ -175,15 +175,15 @@ test.each(['src/server/app.ts', 'src/server/adapters/types.ts', 'pnpm-lock.yaml'
   '%s requires the full suite', path => {
     write(path, '{"changed":true}\n')
     expect(plan()).toMatchObject({ mode: 'full', checks: [
-      ['node', 'scripts/errors-reference.mjs'], ['node', 'scripts/upstream-inventory.mjs'],
-      ['node', 'scripts/mg-headless-schema.mjs'], ['pnpm', 'lint'], ['pnpm', 'exec', 'vitest', 'run'],
+      ['node', 'scripts/errors-reference.ts'], ['node', 'scripts/upstream-inventory.mjs'],
+      ['node', 'scripts/mg-headless-schema.ts'], ['pnpm', 'lint'], ['pnpm', 'exec', 'vitest', 'run'],
     ] })
   })
 
 test('README changes retain the installed-package journeys without server tests', () => {
   write('README.md', '# Updated package documentation\n')
   expect(plan()).toMatchObject({ mode: 'affected', tests: ['test/client-package.test.ts', 'test/npm-package.test.ts'],
-    checks: [['node', 'scripts/errors-reference.mjs'], ['pnpm', 'exec', 'vitest', 'run',
+    checks: [['node', 'scripts/errors-reference.ts'], ['pnpm', 'exec', 'vitest', 'run',
       'test/client-package.test.ts', 'test/npm-package.test.ts']] })
 })
 
@@ -246,24 +246,24 @@ test('release and periodic full override includes otherwise unrelated tests', ()
 
 test('the executable runs the selected reference check', () => {
   write('docs/guide.md', '# Guide changed\n')
-  const result = spawnSync(process.execPath, ['scripts/test-gate.mjs'], { cwd: directory, encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['scripts/test-gate.ts'], { cwd: directory, encoding: 'utf8' })
   expect(result.status).toBe(0)
   expect(readFileSync(join(directory, 'checked'), 'utf8')).toBe('reference current')
 })
 
 test('a failing selected check stops the gate with its exit status', () => {
-  write('scripts/errors-reference.mjs', 'process.exit(17)\n')
-  git('add', 'scripts/errors-reference.mjs')
+  write('scripts/errors-reference.ts', 'process.exit(17)\n')
+  git('add', 'scripts/errors-reference.ts')
   git('-c', 'user.name=Synthetic Developer', '-c', 'user.email=developer@example.test',
     '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'Failing boundary fixture')
   git('update-ref', 'refs/remotes/origin/main', 'HEAD')
   write('docs/guide.md', '# Guide changed\n')
-  const result = spawnSync(process.execPath, ['scripts/test-gate.mjs'], { cwd: directory, encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['scripts/test-gate.ts'], { cwd: directory, encoding: 'utf8' })
   expect(result.status).toBe(17)
 })
 
 test('unknown flags fail before execution', () => {
-  const result = spawnSync(process.execPath, ['scripts/test-gate.mjs', '--typo'], { cwd: directory, encoding: 'utf8' })
+  const result = spawnSync(process.execPath, ['scripts/test-gate.ts', '--typo'], { cwd: directory, encoding: 'utf8' })
   expect(result.status).toBe(2)
   expect(decode(result.stdout)).toMatchObject({ error: "Unknown option '--typo'" })
 })

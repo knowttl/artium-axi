@@ -5,6 +5,9 @@
     "erasableSyntaxOnly": true
   },
   "include": [
+    "scripts/errors-reference.ts",
+    "scripts/mg-headless-schema.ts",
+    "scripts/test-gate.ts",
     "scripts/ado-inventory.ts",
     "scripts/hybrid-inventory.ts",
     "scripts/ldap-inventory.ts",

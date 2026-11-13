@@ -72,7 +72,7 @@ Executable entry points reached by the import graph select their consumer tests;
 Explicit owners retain CLI bundles and installed package journeys where applicable.
 Embedded skills run CLI and package checks rather than taking the documentation shortcut.
 Generated inventories, schemas, dynamic fixtures, other shared code, toolchain changes, unknown paths, deleted runtime inputs, missing or ambiguous bases, unchanged inputs and empty runtime test selections require the full suite.
-Every selection checks `docs/errors.md` freshness with `scripts/errors-reference.mjs`.
+Every selection checks `docs/errors.md` freshness with `scripts/errors-reference.ts`.
 Changes or deletions of `docs/awx-parity-matrix.md` also select `scripts/awx-parity.mjs`; these generated-reference edits and other documentation-only edits select no runtime tests.
 README and license changes also run the package journeys that copy those files.
 Freshness checks and types run for runtime changes.
