@@ -271,14 +271,14 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
       }
       expect((await evidence()).mutations).toBe(0)
       allowDeletes = true
-      expect((await run(['inventory', 'delete', '42', '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      expect((await run(['inventory', 'delete', '42', '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED', message: expect.stringContaining('matching successful dry-run') } })
       const preview = await run([...create, '--dry-run'], [names])
       expect(preview.json(), preview.body).toMatchObject({ exitCode: 0 })
       expect(decode(preview.json().stdout)).toMatchObject({ dry_run: { action: 'create', type: 'hosts', would_send: 'POST bulk/host_create/' } })
       expect(preview.body).not.toContain('CANARY-bulk-secret')
       const idsPreview = await run([...remove, '--dry-run'], [upload('ids.json', '[42,43,99]')])
       expect(decode(idsPreview.json().stdout)).toMatchObject({ dry_run: { action: 'delete', type: 'hosts', would_send: 'POST bulk/host_delete/' } })
-      expect((await run([...remove, '--confirm'], [upload('ids.json', '[42,43,44]')])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+      expect((await run([...remove, '--confirm'], [upload('ids.json', '[42,43,44]')])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED', message: expect.stringContaining('matching successful dry-run') } })
       expect((await evidence()).mutations).toBe(0)
 
       await send('/__awx/configuration-permission?enabled=false', 'POST')
@@ -323,6 +323,7 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
       const deleted = await run([...remove, '--confirm'], [upload('ids.json', '[42,43,44]')])
       expect(deleted.json(), deleted.body).toMatchObject({ exitCode: 0 })
       expect((await hostIds('--limit', '100')).ids).toEqual([])
+      expect((await run([...remove, '--confirm'], [upload('ids.json', '[42,43,44]')])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED', message: expect.stringContaining('matching successful dry-run') } })
 
       for (const { mode, unconfirmed } of [
         { mode: 'missing', unconfirmed: [42, 43, 44] },

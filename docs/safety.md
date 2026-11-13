@@ -83,7 +83,7 @@ Delegated calls also require a command grant for each inner request, and those g
 Tenable and Falcon `raw write` and AWX `api post`, `put`, `patch` and `delete` are write-classified even as previews, so each needs `read-writes`.
 Tenable and Falcon raw writes require Allow writes and their respective `raw-write` or `raw write` operation grant, including for previews, and retain native preview, execution confirmation and journaling.
 AWX raw writes require Allow writes and an explicit `--confirm` or `--dry-run`; AWX permissions still decide what the token may do.
-For AWX deletes, including raw API and bulk host deletes, `--confirm` is a boolean and is not bound to a specific prior preview; Artium does not add that binding.
+For AWX deletes, including raw API and bulk host deletes, a successful `--dry-run` is required for the same caller and request before `--confirm`; each preview can be used once.
 AWX raw request body values are masked by value in responses, so a caller's own short numeric or boolean inputs may be echoed when they cannot be distinguished from unrelated data.
 Response values matching a caller's input may also be masked even when they originated elsewhere; preview and response metadata remain intact.
 The pinned AWX CLI rejects `api post bulk/job_launch/ --confirm` before sending a request; other routes remain subject to native restrictions.
