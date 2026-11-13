@@ -107,7 +107,7 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
         const credential = await resolver.resolve(session.owner.user, 'kubernetes-axi', session.instance, session.owner.delegation)
         if (credential.id !== binding.credential.id || credential.revision !== binding.credential.revision) throw new ArtiumError('REVISION_CONFLICT')
         const prepared = await adapter.prepare(['version'], credential)
-        if (typeof prepared.limits.systemCaBundle !== 'object') throw new ArtiumError('CREDENTIAL_INVALID')
+        if (prepared.limits.systemCaBundle?.transport !== 'kubectl') throw new ArtiumError('CREDENTIAL_INVALID')
         const trustPem = runner.caBundleFor(prepared.limits.systemCaBundle.endpoint, readCredentialTrust(db, credential))
         let scanner: SecretScanner | undefined = new SecretScanner(prepared.secrets)
         let metadataScanner: SecretScanner | undefined = new SecretScanner(prepared.secrets)

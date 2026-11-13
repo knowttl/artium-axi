@@ -24,7 +24,11 @@ import { classifyCertificateFailure, observeCertificate } from '../credential-tl
 import { nodeTrustBootstrap, pythonTrustBootstrap } from './runtime-trust.js'
 import { acquireFalconRtrLock } from './falcon-rtr-lock.js'
 import { kubernetesRequestProfile } from './kubernetes-requests.js'
+import { pinnedHttp } from './pinned-http.js'
 import type { CompletedMutation, MutationReceipt } from '../../shared/mutation-outcome.js'
+
+export type GoTransportTrust = { transport: 'github' } | { endpoint: string, transport: 'kubectl' }
+const goPinEnforcement = { github: 'http-unix', kubectl: 'refuse' } satisfies Record<GoTransportTrust['transport'], 'http-unix' | 'refuse'>
 
 export interface RunnerLimits {
   delegated?: boolean
@@ -40,7 +44,7 @@ export interface RunnerLimits {
   timeoutMs?: number
   terminationGraceMs?: number
   runtime?: 'python'
-  systemCaBundle?: boolean | { endpoint: string }
+  systemCaBundle?: GoTransportTrust
   nodeHeapMiB?: number
   signal?: AbortSignal
   credentialTrust?: readonly CredentialTrust[]
@@ -103,7 +107,7 @@ export class Runner {
   get configuredCaPem(): string | undefined { return this.trustedCa?.pem }
 
   caBundleFor(endpoint: string, credentialTrust: readonly CredentialTrust[]): string {
-    return runtimeTrust({ systemCaBundle: { endpoint }, credentialTrust }, this.trustedCa).trustPem
+    return runtimeTrust({ systemCaBundle: { endpoint, transport: 'kubectl' }, credentialTrust }, this.trustedCa).trustPem
   }
 
   static async create(root = join(tmpdir(), 'artium-calls'), trustedCa?: TrustedCaBundle): Promise<Runner> {
@@ -197,9 +201,10 @@ function signalGroup(pid: number | undefined, signal: NodeJS.Signals | 0): boole
 }
 
 function runtimeTrust(limits: Pick<RunnerLimits, 'systemCaBundle' | 'credentialTrust'>, trustedCa?: TrustedCaBundle) {
-  const caEndpoint = typeof limits.systemCaBundle === 'object' ? certificateEndpoint(limits.systemCaBundle.endpoint).href : undefined
+  const caEndpoint = limits.systemCaBundle?.transport === 'kubectl' ? certificateEndpoint(limits.systemCaBundle.endpoint).href : undefined
   const credentialTrust = (limits.credentialTrust ?? []).filter(certificate => !caEndpoint || certificateEndpoint(certificate.endpoint).href === caEndpoint)
-  if (limits.systemCaBundle && credentialTrust.some(certificate => certificate.mode !== 'ca')) {
+  if (limits.systemCaBundle && goPinEnforcement[limits.systemCaBundle.transport] !== 'http-unix'
+    && credentialTrust.some(certificate => certificate.mode !== 'ca')) {
     throw new RunnerError('INVALID_INPUT', 'This tool requires an issuing CA; certificate pinning is unavailable.')
   }
   const trustPem = trustedCa || credentialTrust.length || limits.systemCaBundle
@@ -248,6 +253,7 @@ async function execute(
     XDG_RUNTIME_DIR: join(directory, 'runtime'),
   }
   let kubernetesProfile: string | undefined
+  let relay: Awaited<ReturnType<typeof pinnedHttp>> | undefined
   const privateChunks: Buffer[] = []
   let result: RunnerResult | undefined
   let pending: Error | undefined
@@ -256,6 +262,12 @@ async function execute(
       if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
       try {
         await Promise.all(Object.values(directories).map(path => mkdir(path, { mode: 0o700 })))
+        if (limits.systemCaBundle && goPinEnforcement[limits.systemCaBundle.transport] === 'http-unix'
+          && credentialTrust.some(certificate => certificate.mode === 'pin')) {
+          const socketPath = join(directory, 'http.sock')
+          relay = await pinnedHttp(socketPath, credentialTrust, trustedCa?.pem)
+          files = [...files, { name: 'gh/config.yml', content: `http_unix_socket: ${JSON.stringify(socketPath)}\n` }]
+        }
         if (limits.kubernetesRequests) kubernetesProfile = await kubernetesRequestProfile(
           limits.kubernetesRequests.root, limits.kubernetesRequests.scope, basename(directory))
         const names = new Set<string>()
@@ -556,6 +568,7 @@ async function execute(
     } finally {
       for (const chunk of privateChunks) chunk.fill(0)
       const cleanup = await Promise.allSettled([
+        ...(relay ? [relay.close()] : []),
         ...(kubernetesProfile ? [rm(kubernetesProfile, { force: true }), rm(`${kubernetesProfile}.tmp`, { force: true })] : []),
         rm(directory, { recursive: true, force: true }),
       ])

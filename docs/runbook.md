@@ -287,21 +287,23 @@ The confirmation window and inspection API report the leaf and trust anchor expi
 For a short-lived intermediate anchor, the window warns that it will rotate and recommends trusting the long-lived root through the server-wide bundle to avoid repeated confirmation.
 Expiry warnings do not block confirmation or change hostname and date verification.
 **Trust certificate for this tool** defaults to **Trust the CA**; choose **Strict leaf pinning** explicitly to require confirmation after each leaf rotation.
-GitHub and Kubernetes are exceptions: their editors accept only an issuing CA, and strict leaf pinning is refused because these tools do not implement it.
-For self-signed endpoints or a missing issuing CA with either tool, configure the server-wide bundle above.
-The GitHub CLI child receives system roots, the server bundle and credential CAs together through a private `SSL_CERT_FILE`; those CAs are additive across the child's connections rather than restricted to the inspected endpoint.
+GitHub supports strict leaf pins through a private per-call HTTP socket relay that verifies the upstream TLS connection before sending application data.
+Kubernetes remains an exception: its editor accepts only an issuing CA, and strict leaf pinning is refused.
+For self-signed Kubernetes endpoints or a missing issuing CA, configure the server-wide bundle above.
+Without strict pins, the GitHub CLI child receives system roots, the server bundle and credential CAs through a private `SSL_CERT_FILE`; those CAs are additive across the child's connections.
+With strict pins, both gh-axi and direct native GitHub calls use the relay, which restricts saved anchors and fingerprints to the inspected hostname and port and uses normal server trust for unrelated endpoints.
 For Kubernetes, system roots, the server bundle and confirmed CAs for the saved cluster origin are appended to the profile's `certificateAuthority` in a private per-call profile for bundled kubectl.
 No certificate file or private key is accepted by this flow.
 
 Trust is stored with that tool’s credential and audited with the administrator, time, tool, subject and fingerprint.
-Except for the GitHub CLI child described above, each confirmed certificate applies only to the inspected endpoint's hostname and port; other endpoints of the same tool require their own confirmations.
+Except for the GitHub CLI child without strict pins described above, each confirmed certificate applies only to the inspected endpoint's hostname and port; other endpoints of the same tool require their own confirmations.
 Azure inspection includes login, ARM, Graph and Log Analytics.
 For Storage, Key Vault and ACR, save service names in the Azure native setting `tlsDestinations`, for example `{"storageAccounts":["synthetic"],"keyVaults":["synthetic-vault"],"registries":["syntheticregistry"]}`.
 These saved names produce endpoints under `blob.core.windows.net`, `vault.azure.net` and `azurecr.io` respectively; URLs and caller-supplied inspection hosts are refused.
 A complete private chain trusts the issuing CA, while a self-signed endpoint trusts its own certificate for tools supporting leaf pins.
 CA trust accepts renewed leaves under the stored issuing CA, including when that CA is an intermediate.
 The server may present the leaf and issuing intermediate without the root; confirmation anchors trust on the presented intermediate and accepts renewed leaves it issues.
-Except for the GitHub CLI child, connections to an endpoint with confirmed CA trust or strict pins must validate against its saved anchors; a different CA is rejected even if the server otherwise trusts it.
+Except for the GitHub CLI child without strict pins, connections to an endpoint with confirmed CA trust or strict pins must validate against its saved anchors; a different CA is rejected even if the server otherwise trusts it.
 Strict leaf pinning also checks the observed leaf fingerprint before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
 On a pin mismatch, the error explains that the stored fingerprint differs from the presented one; re-inspect the certificate on the affected instance page.
 For failed tool runs, including background health checks, the shared runner checks endpoints with strict pins and replaces the CLI error with this message if it observes a different leaf fingerprint.

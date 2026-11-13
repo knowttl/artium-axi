@@ -329,7 +329,7 @@ test('the Go trust boundary refuses strict pins before starting a child', async 
   const runner = await Runner.create(join(directory, 'calls'))
   try {
     await expect(runner.run('synthetic-user', process.execPath, ['-e', 'process.exit(0)'], {}, [], {
-      systemCaBundle: true, credentialTrust: [{ endpoint: 'https://github.example/', pem: 'synthetic-pem',
+      systemCaBundle: { endpoint: 'https://github.example/', transport: 'kubectl' }, credentialTrust: [{ endpoint: 'https://github.example/', pem: 'synthetic-pem',
         fingerprint: 'synthetic', leafFingerprint: 'synthetic', mode: 'pin' }],
     })).rejects.toMatchObject({ code: 'INVALID_INPUT' })
   } finally { await runner.shutdown(); rmSync(directory, { recursive: true, force: true }) }

@@ -73,7 +73,7 @@ test('Kubernetes uses a private SecretRef and owned CA projection', async () => 
   expect(profile.token).toEqual({ env: 'ARTIUM_SECRET_0' })
   expect(call.environment.ARTIUM_SECRET_0).toBe(credential.token)
   expect(call.files[0].appendTrustedCaAt).toEqual(['profiles', 'artium', 'certificateAuthority'])
-  expect(call.limits.systemCaBundle).toEqual({ endpoint: credential.origin })
+  expect(call.limits.systemCaBundle).toEqual({ endpoint: credential.origin, transport: 'kubectl' })
   expect(toolAllowsWrites('kubernetes-axi', { allowWrites: true })).toBe(true)
 })
 

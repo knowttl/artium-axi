@@ -219,7 +219,7 @@ export function registerInstancePages(app: FastifyInstance, db: Database.Databas
     const inspect = endpoints.length ? form(`${path}/certificates/inspect`, 'POST',
       `${endpoints.length > 1 ? `<label class="sr-only" for="endpoint-index">Saved TLS endpoint</label><select id="endpoint-index" name="endpointIndex" data-type="number">${endpoints.map((endpoint, index) => `<option value="${index}">${escape(endpoint.host)}</option>`).join('')}</select>` : `<input type="hidden" name="endpointIndex" data-type="number" value="0"><span class="mono">${escape(endpoints[0]!.host)}</span>`}<button class="btn btn-secondary btn-sm">${icon('cert')}Inspect certificate</button>`,
       undefined, `class="row" data-inspect-certificate${offered ? '' : ' hidden'}`) : ''
-    const trustModes = ['gh-axi', 'kubernetes-axi'].includes(tool.name)
+    const trustModes = tool.name === 'kubernetes-axi'
       ? '<option value="ca">Trust the issuing CA</option></select></label><p>This tool requires an issuing CA. Leaf pinning is unavailable. Use the server trusted CA bundle for self-signed endpoints.</p>'
       : '<option value="ca">Trust the issuing CA (recommended, renewed certificates keep working)</option><option value="pin">Strict leaf pinning (re-trust after every rotation)</option></select></label><p>Self-signed endpoints keep a leaf pin. Hostname and date verification always apply.</p>'
     const dialog = `<dialog id="certificate-inspection" class="modal" aria-labelledby="certificate-inspection-title"><div class="modal-body"><h2 id="certificate-inspection-title">Trust this certificate for ${escape(instance.name)}?</h2>
