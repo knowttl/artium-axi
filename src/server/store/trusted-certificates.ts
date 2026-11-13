@@ -33,23 +33,24 @@ export function credentialCertificates(db: Database.Database, credentialId: stri
   return rows.map(row => {
     const { hostname, href } = certificateEndpoint(row.endpoint)
     const state = row.mode === 'ca' ? confirmed.get(href) : undefined
-    const leafPem = state ? state.pem : row.leaf_pem
+    const leafPem = state === undefined ? row.leaf_pem : state?.pem ?? null
     const leaf = leafPem === null ? null : certificateDetails(new X509Certificate(leafPem), hostname)
     return { id: row.id, endpoint: href, mode: row.mode, createdAt: row.created_at,
       certificate: certificateDetails(new X509Certificate(row.pem), hostname),
-      leaf, leafFingerprint: state ? state.fingerprint : leaf!.fingerprint }
+      leaf, leafFingerprint: state === undefined ? leaf!.fingerprint : state?.fingerprint ?? null }
   })
 }
 
 function readConfirmedLeaves(db: Database.Database, credentialId: string) {
   return (db.prepare(`SELECT endpoint, confirmed_leaf_pem AS pem, confirmed_leaf_fingerprint AS fingerprint
-    FROM certificate_endpoint_state WHERE credential_id = ? AND confirmed_leaf_fingerprint IS NOT NULL`).all(credentialId) as
-    { endpoint: string, pem: string | null, fingerprint: string }[])
-    .map(row => ({ endpoint: certificateEndpoint(row.endpoint).href, leaf: { fingerprint: row.fingerprint, pem: row.pem } }))
+    FROM certificate_endpoint_state WHERE credential_id = ? AND (confirmed_leaf_fingerprint IS NOT NULL OR confirmed_leaf_pem IS NOT NULL)`).all(credentialId) as
+    { endpoint: string, pem: string | null, fingerprint: string | null }[])
+    .map(row => ({ endpoint: certificateEndpoint(row.endpoint).href, leaf: row.fingerprint === '' ? null :
+      { fingerprint: row.fingerprint ?? new X509Certificate(row.pem!).fingerprint256, pem: row.pem } }))
 }
 
 export function readConfirmedLeaf(db: Database.Database, credentialId: string, endpoint: string) {
-  return readConfirmedLeaves(db, credentialId).find(item => item.endpoint === certificateEndpoint(endpoint).href)?.leaf ?? null
+  return readConfirmedLeaves(db, credentialId).find(item => item.endpoint === certificateEndpoint(endpoint).href)?.leaf
 }
 
 export function endpointRevision(db: Database.Database, credentialId: string, endpoint: string) {
@@ -57,11 +58,11 @@ export function endpointRevision(db: Database.Database, credentialId: string, en
     .get(credentialId, certificateEndpoint(endpoint).href) as { revision: number } | undefined)?.revision ?? 0
 }
 
-export function writeConfirmedLeaf(db: Database.Database, credentialId: string, endpoint: string, leaf: ConfirmedLeaf | null) {
+export function writeConfirmedLeaf(db: Database.Database, credentialId: string, endpoint: string, leaf: ConfirmedLeaf | null | undefined) {
   db.prepare(`INSERT INTO certificate_endpoint_state (credential_id, endpoint, revision, confirmed_leaf_pem, confirmed_leaf_fingerprint) VALUES (?, ?, 1, ?, ?)
     ON CONFLICT(credential_id, endpoint) DO UPDATE SET revision = revision + 1,
     confirmed_leaf_pem = excluded.confirmed_leaf_pem, confirmed_leaf_fingerprint = excluded.confirmed_leaf_fingerprint`)
-    .run(credentialId, certificateEndpoint(endpoint).href, leaf?.pem ?? null, leaf?.fingerprint ?? null)
+    .run(credentialId, certificateEndpoint(endpoint).href, leaf?.pem ?? null, leaf === null ? '' : leaf?.fingerprint ?? null)
 }
 
 export function syncConfirmedLeaves(db: Database.Database, credentialId: string, savedFingerprint: string | undefined, endpoints: string[]) {

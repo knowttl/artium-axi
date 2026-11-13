@@ -10,7 +10,7 @@ import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
-import { createCredentialStore, openStore } from '../../src/server/store/db.js'
+import { createCredentialStore, migrate, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { readCredentialTrust } from '../../src/server/store/trusted-certificates.js'
 import { preflight } from '../../src/server/health/preflight.js'
@@ -437,4 +437,53 @@ test('removing one CA record keeps the confirmed leaf for the remaining record',
   const listed = (await app.inject({ method: 'GET', url: base, headers })).json()
   expect(listed.certificates).toHaveLength(1)
   expect(listed.certificates[0].leaf.fingerprint).toBe(renewal.chain[0].fingerprint)
+})
+
+test('upgrading a confirmed CA renewal preserves the displayed leaf', async () => {
+  store.createInstance('unifi-axi', { name: 'rotation', description: '' }, { origin: endpoint, apiKey: 'CANARY-key' }, 'synthetic-development-user', Date.now())
+  const base = '/v1/admin/tools/unifi-axi/instances/rotation/certificates'
+  const inspect = async () => (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
+  const initial = await inspect()
+  expect((await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: initial.inspectionId, confirmedFingerprint: initial.chain[0].fingerprint, mode: 'ca', fillFields: true } })).statusCode).toBe(200)
+  serve('rotated')
+  const renewal = await inspect()
+  expect((await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: renewal.inspectionId, confirmedFingerprint: renewal.chain[0].fingerprint, mode: 'ca', replace: true } })).statusCode).toBe(200)
+  db.exec('ALTER TABLE certificate_endpoint_state DROP COLUMN confirmed_leaf_fingerprint; DELETE FROM migrations WHERE version = 37')
+  migrate(db)
+  expect((await app.inject({ method: 'GET', url: base, headers })).json().certificates[0].leaf.fingerprint).toBe(renewal.chain[0].fingerprint)
+  const after = await inspect()
+  expect(after.previousFingerprints).toEqual([])
+  expect(after.warnings).not.toContain('This endpoint was previously trusted with a different fingerprint. This may be rotation or interception.')
+})
+
+test.each(['edit', 'remove'] as const)('clearing a confirmed leaf through %s does not revive an old leaf', async action => {
+  store.createInstance('proxmox-axi', { name: 'rotation', description: '' }, { origin: endpoint, auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }, 'synthetic-development-user', Date.now())
+  const base = '/v1/admin/tools/proxmox-axi/instances/rotation'
+  const inspect = async () => (await app.inject({ method: 'POST', url: base + '/certificates/inspect', headers, payload: {} })).json()
+  const initial = await inspect()
+  expect((await app.inject({ method: 'POST', url: base + '/certificates/trust', headers, payload: { inspectionId: initial.inspectionId, confirmedFingerprint: initial.chain[0].fingerprint, mode: 'ca', fillFields: true } })).statusCode).toBe(200)
+  const initialInstance = store.findInstance('proxmox-axi', 'rotation')!
+  const initialTool = (await app.inject({ method: 'GET', url: '/v1/admin/tools/proxmox-axi', headers })).json()
+  const initialValue = store.readCredential(initialInstance) as Record<string, unknown>
+  const pinned = await app.inject({ method: 'PATCH', url: base + '/credential', headers, payload: { expectedId: initialInstance.id, expectedRevision: initialInstance.revision, expectedToolRevision: initialTool.revision, value: { ...initialValue, certificatePin: { origin: endpoint, sha256: fingerprint('leaf'), replaceHostname: false } } } })
+  expect(pinned.statusCode, pinned.body).toBe(200)
+  serve('rotated')
+  const renewal = await inspect()
+  expect((await app.inject({ method: 'POST', url: base + '/certificates/trust', headers, payload: { inspectionId: renewal.inspectionId, confirmedFingerprint: renewal.chain[0].fingerprint, mode: 'ca', replace: true } })).statusCode).toBe(200)
+  const instance = store.findInstance('proxmox-axi', 'rotation')!
+  if (action === 'edit') {
+    const tool = (await app.inject({ method: 'GET', url: '/v1/admin/tools/proxmox-axi', headers })).json()
+    const value = store.readCredential(instance) as Record<string, unknown>
+    const edited = await app.inject({ method: 'PATCH', url: base + '/credential', headers, payload: { expectedId: instance.id, expectedRevision: instance.revision, expectedToolRevision: tool.revision, value: { ...value, certificatePin: null } } })
+    expect(edited.statusCode, edited.body).toBe(200)
+  } else {
+    db.prepare('UPDATE certificate_endpoint_state SET confirmed_leaf_pem = NULL, confirmed_leaf_fingerprint = NULL WHERE credential_id = ?').run(instance.id)
+    db.prepare('INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run('synthetic-second-ca', instance.id, endpoint, new X509Certificate(pem('ca')).fingerprint256, new X509Certificate(pem('leaf')).fingerprint256, pem('ca'), pem('leaf'), 'ca', Date.now(), 'synthetic-development-user')
+    expect((await app.inject({ method: 'DELETE', url: base + '/certificates', headers, payload: { id: 'synthetic-second-ca' } })).statusCode).toBe(200)
+  }
+  expect((await app.inject({ method: 'GET', url: base + '/certificates', headers })).json().certificates[0]).toMatchObject({ leaf: null, leafFingerprint: null })
+  const after = await inspect()
+  expect(after.previousFingerprints).toEqual([])
+  expect(after.warnings).not.toContain('This endpoint was previously trusted with a different fingerprint. This may be rotation or interception.')
 })

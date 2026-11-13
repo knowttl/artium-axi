@@ -73,7 +73,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
         .run(randomUUID(), reference.id, inspection.endpoint, inspection.anchor.fingerprint, inspection.chain[0].fingerprint,
           inspection.pem, inspection.leafPem, mode, Date.now(), actor)
       }
-      writeConfirmedLeaf(db, reference.id, inspection.endpoint, replace && mode === 'ca' ? { fingerprint: inspection.chain[0].fingerprint, pem: inspection.leafPem } : null)
+      writeConfirmedLeaf(db, reference.id, inspection.endpoint, mode === 'ca' ? { fingerprint: inspection.chain[0].fingerprint, pem: inspection.leafPem } : null)
       db.prepare('DELETE FROM tool_health WHERE credential_id = ?').run(reference.id)
     })
   }
@@ -113,11 +113,11 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       inspection.pem = saved.pem!
     }
     const fingerprintMismatch = saved.fingerprint && saved.fingerprint.replaceAll(':', '').toLowerCase() !== inspection.chain[0].fingerprint.replaceAll(':', '').toLowerCase()
-    if (fingerprintMismatch || certificatePinError(certificates.map(pin => ({ mode: pin.mode, leafFingerprint: pin.leafFingerprint })), inspection.chain[0].fingerprint)) {
+    if (fingerprintMismatch || certificatePinError(certificates.map(pin => ({ mode: pin.mode, leafFingerprint: pin.leafFingerprint ?? '' })), inspection.chain[0].fingerprint)) {
       inspection.verificationError = 'CERTIFICATE_PIN_MISMATCH'
       inspection.reason = 'The saved SHA-256 fingerprint does not match the presented certificate.'
     }
-    const previousFingerprints = certificates.filter(pin => pin.leafFingerprint !== inspection.chain[0].fingerprint).map(pin => pin.leafFingerprint)
+    const previousFingerprints = certificates.flatMap(pin => pin.leafFingerprint && pin.leafFingerprint !== inspection.chain[0].fingerprint ? [pin.leafFingerprint] : [])
     const savedMismatch = saved.certificate && (saved.isCa
       ? chainError && saved.certificate.fingerprint256 !== inspection.anchor.fingerprint
       : saved.certificate.fingerprint256 !== inspection.chain[0].fingerprint)
