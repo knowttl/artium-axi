@@ -375,8 +375,8 @@ Its **24 h** and **7 days** time ranges set From to that long before each page r
 Use `requestId=<id>` to correlate a call's records.
 Use `failed=1` to select only `run-terminal` records with a non-zero or missing exit code, or an outcome other than `completed`; omit it or use `failed=0` to disable this restriction.
 This filter does not change stored outcomes: a non-zero tool exit can still have outcome `completed`.
-When a normal managed run exits non-zero, its terminal record retains a reviewed failure code in `error_code` from the tool output, including supported Azure `AADSTS` codes.
-Audit records exclude failure messages, help text and tool output; an unrecognized or unreviewed code leaves `error_code` empty while keeping the exit code.
+When a normal managed run exits non-zero, its terminal record retains an accepted failure code in `error_code` from the tool output, including reviewed diagnostic codes and runtime transport codes.
+Audit records exclude failure messages, help text and tool output; an unrecognized code leaves `error_code` empty while keeping the exit code.
 Records contain actor, UTC time, event, outcome, request ID, redacted arguments and safe execution metadata.
 Each upload accepted by command input validation emits an `upload` event before credential preparation and tool execution, except for the protected inputs below.
 Its `arguments` contains the redacted command and file metadata: uploaded leaf name, decoded byte size and server-computed SHA-256, never the original local path or file contents.

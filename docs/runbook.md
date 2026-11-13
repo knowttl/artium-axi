@@ -406,7 +406,7 @@ A preflight failure at any inventory endpoint stops the test, even if the health
 LDAP URLs negotiate StartTLS before the handshake; LDAPS starts TLS directly.
 Preflight sends no credentials.
 All administrator tests, certificate retests, background checks and retained run diagnostics share a structured validator.
-Only fixed stages, reviewed tool codes, certificate trust states, check time and credential revision survive; messages, hints, hosts, issuers, provider text and response excerpts are discarded.
+Only fixed stages, reviewed tool codes or runtime transport codes, validated Azure provider codes, bounded upstream HTTP statuses, certificate trust states, check time and credential revision survive; messages, hints, hosts, issuers, provider text and response excerpts are discarded.
 Failure summaries use the error catalogue; background checks run the tool without preflight.
 Checks admitted to run also update revision-bound cached health on `/admin/tools`, except for transient admission or authorization failures.
 Failures before admission, including missing credentials, overlapping checks and unavailable adapters, return configuration-stage diagnostics without replacing cached health; an absent credential revision is `null`.
@@ -435,7 +435,7 @@ Audit records retain categories, timing, revision, exit status and byte counts, 
 Failed tool runs, including credential-test and background health-check runs, separately retain validated structured diagnostics in an administrator-only SQLite table keyed by request ID for 14 days.
 The stored diagnostic is bounded to 4 KiB of serialized JSON and appears in the terminal record's [audit detail panel](admin-guide.md#audit-screen-and-api); it is excluded from the audit API, CSV/JSONL exports, audit stream and operational logs.
 Legacy rows are validated on read and show only recognized structured fields or a fixed details-unavailable note; upgrading does not migrate or delete stored rows.
-Operational and audit error-code fields also accept only reviewed constants, never arbitrary upstream tokens.
+Operational and audit error-code fields accept catalogue codes, reviewed diagnostic codes and runtime transport codes, never arbitrary upstream tokens.
 Expired diagnostics are hidden immediately and removed by startup and daily retention; protect database backups separately because retention does not rewrite existing backups.
 Ordinary users receive catalogue categories without this administrator detail.
 For local accounts, start with `POST /v1/auth/login`, with JSON `{ "username": "synthetic-admin", "password": "<password>" }` supplied from protected stdin or a protected file, never command arguments.
