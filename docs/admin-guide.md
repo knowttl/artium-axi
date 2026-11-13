@@ -222,6 +222,13 @@ For SSH, follow [dedicated host setup](tool-credentials.md#ssh) instead of the e
 Field labels use schema titles when available, then plain labels for known fields, falling back to the property name; help uses schema descriptions before tool-specific fallback guidance and displays any declared schema default.
 Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](credential-standard.md) profile schemas.
 Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object fields as advanced JSON and string lists one value per line.
+TLS trust uses structured fields instead of JSON.
+**Connect via IP address** is available for UniFi, and **Certificate name to verify** is available for Technitium; other tools explain that these overrides are unsupported.
+Saved certificates and SHA-256 fingerprints are read-only, and editing other fields retains trust for the same endpoint.
+Paste PEM contents, not a server file path, or upload a PEM file in the certificate entry disclosure to enter or replace credential trust; UniFi requires the certificate and fingerprint together.
+Remove optional credential trust with its removal control and save; Kubernetes requires a CA and permits replacement only.
+The instance's **Trusted certificates** flow manages separate instance trust.
+Certificate verification and identity confirmation remain required.
 Profile-backed credential saves normalize safe differences only when the schema rejects the original value; already valid values, including secrets, remain byte for byte unchanged.
 Rejected strings can have surrounding whitespace removed, including nested object and list values; secret interior whitespace is preserved.
 For Vectra, `origin` accepts surrounding whitespace, a trailing slash, uppercase scheme or host and an explicit default port, saving a canonical HTTPS origin.

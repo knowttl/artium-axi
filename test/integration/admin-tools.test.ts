@@ -15,8 +15,8 @@ import { createAdoAdapter } from '../../src/server/adapters/ado.js'
 import { createGhAdapter } from '../../src/server/adapters/gh.js'
 import { GithubAppTokenCache } from '../../src/server/adapters/github-app-tokens.js'
 import * as credentialTls from '../../src/server/credential-tls.js'
-import { generateKeyPairSync } from 'node:crypto'
-import { connect as connectTls } from 'node:tls'
+import { generateKeyPairSync, X509Certificate } from 'node:crypto'
+import { connect as connectTls, createServer as createTlsServer } from 'node:tls'
 import { failedTlsSocket } from '../fixtures/failed-tls-socket.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import type { Adapter } from '../../src/server/adapters/types.js'
@@ -41,6 +41,7 @@ import profileSchema from '../fixtures/axi-credential.schema.json' with { type: 
 import { createSshAdapter } from '../../src/server/adapters/ssh.js'
 import { SshHosts } from '../../src/server/store/ssh-hosts.js'
 import { encryptCredential } from '../../src/server/store/crypto.js'
+import { preflight } from '../../src/server/health/preflight.js'
 
 let directory: string
 let db: Database.Database
@@ -1185,6 +1186,142 @@ test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'] as const)('%s save re
   expect(store.readCredential(store.findCredential(tool)!)).toEqual(current)
   expect(db.prepare("SELECT action, user_id FROM audit WHERE event = 'admin-change' ORDER BY id DESC LIMIT 1").get())
     .toEqual({ action: 'replace-credential', user_id: actor })
+})
+
+test.each([
+  ['ldap-axi', 'caFile'], ['vectra-axi', 'caBundle'], ['proxmox-axi', 'caBundle'],
+  ['technitium-axi', 'caFile'], ['kubernetes-axi', 'certificateAuthority'],
+] as const)('%s save keeps omitted certificate trust when editing other fields', async (tool, field) => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run(tool)
+  createTestCertificates(directory, ['localhost'])
+  const trust = { [field]: readFileSync(join(directory, 'ca.crt'), 'utf8') }
+  const configured: Record<string, unknown> = { ...values[tool], ...trust }
+  const { [field]: _certificate, ...value } = configured
+  const { writes: _writes, ...editable } = value
+  await replace(tool, { ...value, ...trust })
+  expect((await save(tool, editable, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual({ ...value, ...trust })
+})
+
+test.each([
+  ['ldap-axi', 'caFile'], ['vectra-axi', 'caBundle'], ['proxmox-axi', 'caBundle'], ['technitium-axi', 'caFile'],
+] as const)('%s replaces and removes credential CA trust', async (tool, field) => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run(tool)
+  createTestCertificates(directory, ['localhost'])
+  const original = readFileSync(join(directory, 'ca.crt'), 'utf8')
+  const replacement = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const { writes: _writes, ...value } = values[tool] as Record<string, unknown>
+  await replace(tool, { ...value, [field]: original })
+  expect((await save(tool, { ...value, [field]: replacement }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual({ ...value, [field]: replacement })
+  expect((await save(tool, { ...value, [field]: null }, 2)).status).toBe(200)
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual(value)
+})
+
+test('Proxmox replaces and removes its origin-bound fingerprint pin', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('proxmox-axi')
+  const value = values['proxmox-axi']
+  const pin = { origin: value.origin, sha256: 'a'.repeat(64), replaceHostname: false }
+  await replace('proxmox-axi', { ...value, certificatePin: pin })
+  expect((await save('proxmox-axi', { ...value, certificatePin: { sha256: 'b'.repeat(64) } }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('proxmox-axi')!)).toEqual({ ...value, certificatePin: { ...pin, sha256: 'b'.repeat(64) } })
+  expect((await save('proxmox-axi', { ...value, certificatePin: null }, 2)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('proxmox-axi')!)).toEqual(value)
+})
+
+test('Proxmox creates a pin that replaces hostname verification', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('proxmox-axi')
+  createTestCertificates(directory, ['localhost'])
+  const certificate = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const server = createTlsServer({ key: readFileSync(join(directory, 'server.key')), cert: certificate })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const origin = `https://127.0.0.1:${(server.address() as { port: number }).port}`
+    const value = { ...values['proxmox-axi'], origin }
+    await replace('proxmox-axi', value)
+    const pin = { sha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', ''), replaceHostname: true }
+    expect((await save('proxmox-axi', { ...value, certificatePin: pin }, 1)).status).toBe(200)
+    const credential = store.readCredential(store.findCredential('proxmox-axi')!) as Record<string, unknown>
+    expect(credential.certificatePin).toEqual({ ...pin, origin })
+    await expect(preflight('proxmox-axi', credential)).resolves.toBeUndefined()
+  } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
+})
+
+test('UniFi removes its certificate pair and connection override together', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('unifi-axi')
+  createTestCertificates(directory, ['localhost'])
+  const certificate = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const tls = { trustedCertificatePem: certificate, peerFingerprintSha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', ''), connectAddress: '127.0.0.1' }
+  await replace('unifi-axi', { ...values['unifi-axi'], tls })
+  expect((await save('unifi-axi', { ...values['unifi-axi'], tls: null }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('unifi-axi')!)).toEqual(values['unifi-axi'])
+})
+
+test('UniFi structured address changes retain certificate and fingerprint and allow clearing the override', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('unifi-axi')
+  createTestCertificates(directory, ['localhost'])
+  const certificate = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const tls = { trustedCertificatePem: certificate, peerFingerprintSha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', '') }
+  await replace('unifi-axi', { ...values['unifi-axi'], tls })
+  expect((await save('unifi-axi', { ...values['unifi-axi'], tls: { connectAddress: '127.0.0.1' } }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('unifi-axi')!)).toEqual({ ...values['unifi-axi'], tls: { ...tls, connectAddress: '127.0.0.1' } })
+  expect((await save('unifi-axi', { ...values['unifi-axi'], tls: { connectAddress: null } }, 2)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('unifi-axi')!)).toEqual({ ...values['unifi-axi'], tls })
+})
+
+test.each(['certificate', 'fingerprint', 'both'] as const)('UniFi %s replacement requires the complete trust pair', async supplied => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('unifi-axi')
+  createTestCertificates(directory, ['localhost'])
+  const original = readFileSync(join(directory, 'ca.crt'), 'utf8')
+  const certificate = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const tls = { trustedCertificatePem: original, peerFingerprintSha256: new X509Certificate(original).fingerprint256.replaceAll(':', ''), connectAddress: '127.0.0.1' }
+  const replacement = { ...(supplied !== 'fingerprint' ? { trustedCertificatePem: certificate } : {}),
+    ...(supplied !== 'certificate' ? { peerFingerprintSha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', '') } : {}) }
+  await replace('unifi-axi', { ...values['unifi-axi'], tls })
+  const response = await save('unifi-axi', { ...values['unifi-axi'], tls: replacement }, 1)
+  if (supplied === 'both') expect(response.status).toBe(200)
+  else {
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: 'Enter the trusted certificate and SHA-256 fingerprint together.' } })
+  }
+  expect(store.readCredential(store.findCredential('unifi-axi')!)).toEqual({ ...values['unifi-axi'], tls: supplied === 'both' ? { ...tls, ...replacement } : tls })
+})
+
+test.each(['kubernetes-axi', 'unifi-axi'] as const)('%s saves replacement certificate trust', async tool => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run(tool)
+  createTestCertificates(directory, ['localhost'])
+  const certificate = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const trust = tool === 'kubernetes-axi' ? { certificateAuthority: certificate } : {
+    tls: { trustedCertificatePem: certificate, peerFingerprintSha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', '') },
+  }
+  await replace(tool)
+  expect((await save(tool, { ...values[tool], ...trust }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual({ ...values[tool], ...trust })
+})
+
+test('save does not carry certificate trust to a different endpoint', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('technitium-axi')
+  await replace('technitium-axi', { ...values['technitium-axi'], caFile: 'CANARY-ca', tlsServerName: 'localhost' })
+  const changed = { ...values['technitium-axi'], origin: 'https://other.example' }
+  expect((await save('technitium-axi', changed, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('technitium-axi')!)).toEqual(changed)
+})
+
+test('Proxmox save preserves an omitted legacy certificate pin', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('proxmox-axi')
+  createTestCertificates(directory, ['localhost'])
+  const certificatePin = { origin: values['proxmox-axi'].origin,
+    sha256: new X509Certificate(readFileSync(join(directory, 'server.crt'))).fingerprint256.replaceAll(':', '') }
+  await replace('proxmox-axi', { ...values['proxmox-axi'], certificatePin })
+  expect((await save('proxmox-axi', { ...values['proxmox-axi'] }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('proxmox-axi')!)).toEqual({ ...values['proxmox-axi'], certificatePin })
+})
+
+test('Technitium certificate name can be cleared without removing its saved CA', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('technitium-axi')
+  await replace('technitium-axi', { ...values['technitium-axi'], caFile: 'CANARY-ca', tlsServerName: 'localhost' })
+  expect((await save('technitium-axi', { ...values['technitium-axi'], tlsServerName: null }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('technitium-axi')!)).toEqual({ ...values['technitium-axi'], caFile: 'CANARY-ca' })
 })
 
 test('save can configure credentials without repeating separately saved settings', async () => {

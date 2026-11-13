@@ -15,6 +15,8 @@ import { kubernetesProfile } from '../adapters/kubernetes.js'
 import { nativeSettingsSchemas } from '../../shared/api.js'
 import type { ToolName } from '../store/credential-store.js'
 import { escape } from './escape.js'
+import { tlsCredentialRoots } from '../credential-tls-settings.js'
+import { tlsFields } from './tls-fields.js'
 
 // Legacy adapters need a host editor even when no published profile is available.
 export function editorProfile(tool: ToolName, profile?: CredentialProfile): CredentialProfile {
@@ -86,7 +88,6 @@ const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
     auth: 'Use token authentication with the token supplied by your Technitium administrator.',
     tokenKind: 'Choose the supplied token kind: api, session or single-use. Changing it requires a replacement token; single-use tokens are never retried.',
     username: 'Optional username associated with the supplied token. This field does not sign in or change the token identity.',
-    tlsServerName: 'Optional DNS name verified in the server certificate when connecting to this origin. Certificate-chain and validity checks remain required.',
   },
   'gitea-axi': {
     origin: 'Gitea HTTPS origin, without a path. Changing it requires a new token.',
@@ -97,7 +98,6 @@ const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
     origin: 'UniFi Network HTTPS origin, without a path. Changing it requires a new API key.',
     siteId: 'Optional default site ID. Caller site selectors must still identify an admitted read.',
     apiContract: 'Optional read contract for an unverified application version: 10.6.109 or 11.0.97.',
-    tls: 'Optional trusted certificate PEM and its peer SHA-256 fingerprint; connectAddress can select the approved IP while retaining certificate identity verification.',
   },
   'proxmox-axi': {
     origin: 'Proxmox HTTPS origin, without a path. Changing it requires a replacement credential.',
@@ -105,7 +105,6 @@ const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
     tokenId: 'Full API token identity, for example reader@pve!automation. Changing it requires a new token.',
     userId: 'Proxmox username including realm, for example automation@pve. Changing it requires a new password.',
     password: 'Stored only in the managed credential profile. Issued ticket/CSRF state lasts at most five minutes in memory; users have no separate Proxmox login.',
-    certificatePin: 'Optional SHA-256 certificate pin bound to this exact origin. Cannot be combined with a CA bundle.',
   },
   'ado-axi': {
     ...applicationHelp,
@@ -144,7 +143,6 @@ const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
   'ldap-axi': {
     url: 'Directory URL, for example ldaps://directory.example. LDAP requires Start TLS.',
     bindDn: 'Directory bind identity, for example cn=reader,dc=example.', base: 'Optional search base, for example dc=example.',
-    caFile: 'Paste trusted CA certificate PEM contents. Line breaks are preserved; do not enter a file path.',
     auth: 'Artium uses simple bind authentication with the supplied bind identity and password.',
     pageSize: 'Optional number of directory entries per page.',
     startTls: 'Required for ldap:// URLs; leave at the default for ldaps:// URLs, which are already encrypted.', tlsMaxVersion: 'Optional TLS maximum version.',
@@ -153,7 +151,6 @@ const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
     clientId: applicationHelp.clientId,
     auth: applicationHelp.auth,
     origin: 'HTTPS origin only, for example https://appliance.example. Changing it requires new secrets.',
-    caBundle: 'Paste trusted CA certificate PEM contents. Line breaks are preserved; do not enter a file path.',
     kind: 'Qux supports token or OAuth; Rux requires OAuth. Qux uses API 2.5 and Rux uses 3.4.',
     apiVersion: 'Use 2.5 for Qux or 3.4 for Rux.',
     applianceRelease: 'Optional release label for Qux appliances.',
@@ -162,19 +159,19 @@ const fieldHelp: Partial<Record<ToolName, Record<string, string>>> = {
 
 // Plain labels for schema properties that carry no title of their own.
 const fieldLabels: Record<string, string> = {
-  accessKey: 'Access key', apiKey: 'API key', apiVersion: 'API version', appId: 'App ID', applianceRelease: 'Release label',
-  auth: 'Authentication', base: 'Search base', bindDn: 'Bind DN', bindPassword: 'Bind password', caBundle: 'CA certificate',
-  caFile: 'CA certificate', clientId: 'Client ID', clientSecret: 'Client secret', host: 'API host', installationId: 'Installation ID',
+  accessKey: 'Access key', apiKey: 'API key', apiContract: 'API contract', apiVersion: 'API version', appId: 'App ID', applianceRelease: 'Release label',
+  auth: 'Authentication', base: 'Search base', bindDn: 'Bind DN', bindPassword: 'Bind password',
+  clientId: 'Client ID', clientSecret: 'Client secret', host: 'API host', installationId: 'Installation ID',
   kind: 'Appliance type', memberCid: 'Member CID', mode: 'Mode', org: 'Organization', origin: 'URL', pageSize: 'Page size',
   password: 'Password', permissions: 'Permissions', privateKey: 'Private key', project: 'Project', region: 'Region',
   repositories: 'Repositories', saas: 'SaaS application name', scope: 'Scope', secretKey: 'Secret key', signIn: 'Sign-in',
-  startTls: 'Start TLS', tenantId: 'Tenant ID', thumbprint: 'Certificate thumbprint (SHA-1)',
+  siteId: 'Site ID', startTls: 'Start TLS', tenantId: 'Tenant ID', thumbprint: 'Certificate thumbprint (SHA-1)',
   thumbprintSha256: 'Certificate thumbprint (SHA-256)', tlsMaxVersion: 'Maximum TLS version', token: 'API token', url: 'Directory URL',
   username: 'Username',
 }
 
 export function credentialFields(tool: ToolName | undefined, profile: CredentialProfile, metadata: Record<string, unknown>, configured: boolean): string {
-  const excluded = new Set([...(tool ? Object.keys(nativeSettingsSchemas[tool].shape) : []), 'tokenEnv', 'secretEnv'])
+  const excluded = new Set([...(tool ? [...Object.keys(nativeSettingsSchemas[tool].shape), ...tlsCredentialRoots(tool)] : []), 'tokenEnv', 'secretEnv'])
   if (tool === 'gh-axi') for (const name of ['accessToken', 'accessTokenExpiresAt', 'login']) excluded.add(name)
   const fields = profile.fields().filter(field => !excluded.has(field.name))
     .sort((a, b) => Number(['signIn', 'mode', 'auth', 'kind'].includes(b.name)) - Number(['signIn', 'mode', 'auth', 'kind'].includes(a.name)))
@@ -198,7 +195,7 @@ export function credentialFields(tool: ToolName | undefined, profile: Credential
       input = `<select ${attributes} data-profile-type="json"><option value="">Use the default</option><option value="true"${value === true ? ' selected' : ''}>True</option><option value="false"${value === false ? ' selected' : ''}>False</option></select>`
     } else if (schema.type === 'array' && (schema.items?.type === 'string' || schema.items?.const)) {
       input = `<textarea ${attributes} data-profile-type="list" rows="3">${escape(Array.isArray(value) ? value.join('\n') : '')}</textarea><p>One value per line.</p>`
-    } else if (secret || ['caFile', 'caBundle', 'certificateAuthority', 'clientCertificate'].includes(name) || !['string', 'number', 'integer'].includes(schema.type)) {
+    } else if (secret || name === 'clientCertificate' || !['string', 'number', 'integer'].includes(schema.type)) {
       const type = secret || schema.type === 'string' ? 'string' : 'json'
       input = `<textarea ${attributes} data-profile-type="${type}" rows="6" spellcheck="false">${escape(value === undefined ? '' : type === 'json' ? JSON.stringify(value) : String(value))}</textarea>`
     } else {
@@ -207,6 +204,6 @@ export function credentialFields(tool: ToolName | undefined, profile: Credential
     return `<div data-credential-field="${escape(name)}"${secret ? ' data-secret' : ''}${ephemeral ? ' data-ephemeral' : ''}><label>${label}${input}</label><p id="${escape(hint)}">${escape(help + defaultHelp)}</p>${secret && configured && !ephemeral ? '<p data-stored-secret>Stored when configured below. Leave blank to keep; enter a value to replace.</p>' : ''}</div>`
   }).join('')
   return `<div data-credential-editor data-schema="${escape(JSON.stringify(profile.inputSchema))}" data-identity="${escape(JSON.stringify(Object.fromEntries(['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org', 'appId', 'installationId', 'tokenId', 'userId', 'tokenKind', 'clientCertificate'].map(key => [key, metadata[key] ?? null]))))}" data-configured="${configured}"><p>Non-secret values are pre-filled. Secrets are never displayed. Leave a secret blank to keep it, or enter a replacement. Changing authentication, mode, kind, tenant, client, origin, organization, App ID, installation ID, token identity, user identity, token kind or client certificate requires new secrets.${tool ? ' Saving keeps native settings and clears cached health.' : ' Saving keeps SSO sign-in disabled.'}</p>${fields}
-    <div data-certificate hidden><label>Certificate and private key (one PEM file)<input type="file" data-certificate-file accept=".pem"></label><label>Or paste certificate and private key<textarea data-certificate-pem rows="8" autocomplete="off" spellcheck="false"></textarea></label><p>Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.</p></div>
+    ${tool ? tlsFields(tool, metadata) : ''}<div data-certificate hidden><label>Certificate and private key (one PEM file)<input type="file" data-certificate-file accept=".pem"></label><label>Or paste certificate and private key<textarea data-certificate-pem rows="8" autocomplete="off" spellcheck="false"></textarea></label><p>Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.</p></div>
     <details><summary>Advanced: profile schema and requirements</summary><pre>${escape(JSON.stringify(profile.inputSchema, null, 2))}</pre></details></div>`
 }

@@ -1,13 +1,89 @@
+import { deepStrictEqual } from 'node:assert'
 import { readFileSync, readdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
-import { CredentialProfile } from '../src/server/adapters/credential-profile.js'
-import { credentialFields } from '../src/server/admin/credential-form.js'
+import { CredentialProfile, loadCredentialProfile } from '../src/server/adapters/credential-profile.js'
+import { credentialFields, editorProfile } from '../src/server/admin/credential-form.js'
+import { toolCredentialSchemaPaths } from '../src/server/config.js'
+import { credentialTlsSettings } from '../src/server/credential-tls-settings.js'
+import { toolSchema } from '../src/shared/api.js'
 import type { ToolName } from '../src/server/store/credential-store.js'
 
 const inventories = new URL('../tools/inventories/', import.meta.url)
 const profiles = readdirSync(inventories).filter(name => name.endsWith('.json')).flatMap(name => {
   const inventory = JSON.parse(readFileSync(new URL(name, inventories), 'utf8'))
   return inventory.credentialSchema ? [[name.slice(0, -5) as ToolName, inventory.credentialSchema] as const] : []
+})
+
+const schemaRegistry = Object.fromEntries(Object.entries(toolCredentialSchemaPaths).map(([name, path]) => {
+  const tool = name as ToolName
+  const published = path ? loadCredentialProfile(tool, path.replace('/opt/tools/', fileURLToPath(new URL('../tools/', import.meta.url)))) : undefined
+  if (path && !published) throw new Error(`Missing credential schema: ${tool}`)
+  return [tool, { configured: published, editor: editorProfile(tool, published) }]
+})) as Record<ToolName, { configured: CredentialProfile | undefined, editor: CredentialProfile }>
+
+function assertTlsFieldsRegistered(registry: typeof schemaRegistry) {
+  const leaves = (schema: Record<string, any>, path: string): string[] => schema.properties
+    ? Object.entries(schema.properties).flatMap(([name, child]) => leaves(child as Record<string, any>, `${path}.${name}`)) : [path]
+  const unregistered = Object.entries(registry).flatMap(([name, profiles]) => {
+    const settings = credentialTlsSettings[name as ToolName]
+    const registered = new Set(Object.values(settings))
+    if (settings.pin) for (const field of ['origin', 'replaceHostname']) registered.add(`${settings.pin}.${field}`)
+    return [profiles.configured, profiles.editor].flatMap(profile => profile?.fields() ?? []).filter(field => !['startTls', 'tlsMaxVersion'].includes(field.name)
+      && /^(tls|caFile|caBundle|certificateAuthority|certificatePin|connectAddress|serverName|trustedCertificate|peerFingerprint)/i.test(field.name))
+      .flatMap(field => leaves(field.schema, field.name)).filter(path => !registered.has(path)).map(path => `${name}.${path}`)
+  })
+  deepStrictEqual(unregistered, [], 'Every declared TLS trust field must be registered in the shared TLS layer')
+}
+
+test('every credential schema registers its TLS trust fields in the shared layer', () => {
+  assertTlsFieldsRegistered(schemaRegistry)
+})
+
+test('the schema guard rejects a seeded unregistered TLS field in the real registry', () => {
+  const schema = structuredClone(schemaRegistry['gh-axi'].editor.schema)
+  schema.properties.caFile = structuredClone(schemaRegistry['ldap-axi'].editor.inputSchema.properties.caFile)
+  const seeded = { ...schemaRegistry, 'gh-axi': { ...schemaRegistry['gh-axi'], editor: new CredentialProfile(schema, 'gh-axi') } }
+  expect(() => assertTlsFieldsRegistered(seeded)).toThrow('gh-axi.caFile')
+})
+
+test('the schema guard rejects a seeded unregistered TLS field in a configured profile', () => {
+  const schema = structuredClone(schemaRegistry['unifi-axi'].configured!.schema)
+  schema.properties.caFile = structuredClone(schemaRegistry['ldap-axi'].editor.inputSchema.properties.caFile)
+  const seeded = { ...schemaRegistry, 'unifi-axi': { ...schemaRegistry['unifi-axi'], configured: new CredentialProfile(schema, 'unifi-axi') } }
+  expect(() => assertTlsFieldsRegistered(seeded)).toThrow('unifi-axi.caFile')
+})
+
+test.each(toolSchema.options)('%s explains supported certificate identity settings', tool => {
+  const published = profiles.find(([name]) => name === tool)
+  const profile = editorProfile(tool, published ? new CredentialProfile(published[1], tool) : undefined)
+  const html = credentialFields(tool, profile, {}, false)
+  if (tool === 'ssh-axi') { expect(html).not.toContain('Certificate verification'); return }
+  const settings = { connectAddress: tool === 'unifi-axi' ? 'tls.connectAddress' : undefined,
+    serverName: tool === 'technitium-axi' ? 'tlsServerName' : undefined }
+  for (const [kind, label] of [['connectAddress', 'Connect via IP address'], ['serverName', 'Certificate name to verify']] as const) {
+    expect(html).toContain(label)
+    if (settings[kind]) expect(html).toContain(`data-profile-field="${settings[kind]}"`)
+    else expect(html).toContain(kind === 'connectAddress' ? 'does not support a separate connection IP' : 'does not support a separate certificate name')
+  }
+})
+
+test.each([
+  ['ldap-axi', { caFile: 'CANARY-LDAP-CA' }, 'CANARY-LDAP-CA', undefined, 'caFile', undefined],
+  ['vectra-axi', { caBundle: 'CANARY-VECTRA-CA' }, 'CANARY-VECTRA-CA', undefined, 'caBundle', undefined],
+  ['technitium-axi', { caFile: 'CANARY-DNS-CA' }, 'CANARY-DNS-CA', undefined, 'caFile', undefined],
+  ['proxmox-axi', { caBundle: 'CANARY-PROXMOX-CA', certificatePin: { sha256: 'CANARY-PIN' } }, 'CANARY-PROXMOX-CA', 'CANARY-PIN', 'caBundle', 'certificatePin'],
+  ['kubernetes-axi', { certificateAuthority: 'CANARY-CLUSTER-CA' }, 'CANARY-CLUSTER-CA', undefined, 'certificateAuthority', undefined],
+  ['unifi-axi', { tls: { trustedCertificatePem: 'CANARY-UNIFI-CA', peerFingerprintSha256: 'CANARY-UNIFI-PIN' } }, 'CANARY-UNIFI-CA', 'CANARY-UNIFI-PIN', 'tls.trustedCertificatePem', 'tls'],
+] as const)('%s displays saved trust and offers supported replacement', (tool, metadata, certificate, fingerprint, entry, hidden) => {
+  const published = profiles.find(([name]) => name === tool)
+  const profile = editorProfile(tool, published ? new CredentialProfile(published[1], tool) : undefined)
+  const html = credentialFields(tool, profile, metadata, true)
+  expect(html).toContain(`<pre>${certificate}</pre>`)
+  if (fingerprint) expect(html).toContain(`<pre>${fingerprint}</pre>`)
+  if (entry) expect(html).toContain(`data-profile-field="${entry}"`)
+  if (tool === 'unifi-axi') expect(html).toContain('data-profile-field="tls.peerFingerprintSha256"')
+  if (hidden) expect(html).not.toContain(`data-profile-field="${hidden}"`)
 })
 
 test.each(profiles)('%s explains every visible non-secret credential field', (tool, schema) => {

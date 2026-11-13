@@ -73,8 +73,8 @@ The [credential standard](credential-standard.md#9-hosted-contract-artium-axi) o
 At `/admin/tools/unifi-axi`, enter the Network application's HTTPS origin without a path and its API key.
 Use an identity authorized for the intended application, inventory and policy reads.
 The [reviewed UniFi inventory](../tools/inventories/unifi-axi.json) owns the pinned profile schema; the [host profile restrictions](../src/server/adapters/credential-profile.ts) require an explicit key and canonical HTTPS origin.
-Enter optional site, contract and TLS settings through the schema-backed editor, which shows their requirements.
-When supplying the advanced `tls` object, provide trusted certificate PEM and the peer SHA-256 fingerprint together.
+Enter optional site and contract settings through the schema-backed editor.
+The certificate verification section accepts trusted certificate PEM and the peer SHA-256 fingerprint in separate fields, with PEM paste or upload; enter both together when adding or replacing trust.
 Its optional `connectAddress` selects the connection IP while certificate identity remains bound to the origin, including when the origin is an IP literal.
 Certificate chain, validity, identity and fingerprint verification remain required.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
@@ -141,8 +141,9 @@ Authorized Artium users have no separate Proxmox sign-in step; stored passwords 
 See the [custody amendment](credential-standard.md#proxmox-memory-authentication-and-protected-result-amendment) for ticket caching, password handling and authentication failure rules.
 TFA-enabled accounts cannot use automatic password sign-in; configure an API token instead.
 The token-forbidden password and TFA management operations require the stored username/password branch and its upstream privileges.
-For a credential-specific CA bundle, paste PEM contents into `caBundle`, never a server file path; Artium materializes it privately for each call.
-Alternatively, the advanced `certificatePin` object binds a certificate fingerprint to the exact origin and cannot be combined with `caBundle`; follow the editor's schema requirements.
+The connection editor displays saved `caBundle` PEM and `certificatePin` fingerprints read-only and retains them when editing other fields for the same endpoint.
+Use the certificate and fingerprint controls to replace or remove credential trust; pins remain bound to their exact origin and cannot be combined with a CA bundle.
+For a fingerprint pin, **Use fingerprint instead of hostname verification** permits a certificate that cannot match the endpoint hostname; enable it only when needed.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
 After saving, testing, enabling and granting the tool, use `artium-axi proxmox-axi get /version` for the first managed read.
 JSON writes require exact operation IDs in native `writes.operations` and the independent host grant list controlled by **Write permissions**.
@@ -236,7 +237,7 @@ For RUX, select `kind=rux`, `apiVersion=3.4`, `auth=oauth`, `clientId` and `clie
 Create a QUX personal token under **My Profile** using a local account, or have a Vectra administrator create an OAuth API client under **Manage > API Clients** and record the displayed ID and secret.
 Tokens inherit their user's rights and clients inherit their assigned role; grant read access to health and the Hosts, Accounts, Detections or other areas you need.
 See [Vectra's credential issuance guidance](https://github.com/vectranetworks/vectraautomatedresponse#getting-a-vectra-api-token-for-vectra-detect-api-v2) and the pinned [Vectra configuration contract](https://github.com/knowttl/vectra-axi/tree/v0.1.14#configuration) for deployment-specific requirements.
-For a credential-specific private CA, paste its PEM contents into `caBundle`; enter no server file path.
+Saved credential-specific `caBundle` PEM is displayed read-only and retained on edits for the same endpoint; use the certificate controls to replace or remove it.
 For shared trust across tools, follow the [private CA runbook](runbook.md#tls-inspection-and-private-upstream-cas).
 Keep the Advanced tab native settings empty for read-only use; optional writes need the native operation allowlist and upstream permissions.
 Save, run **Test connection**, enable and grant the tool, then run `artium-axi vectra-axi detection list --limit 1` to check the intended read domain.
@@ -369,9 +370,9 @@ At `/admin/tools/ldap-axi`, enter `url`, choose `auth=simple`, and enter `bindDn
 Use `ldaps://<directory-host>:636` with `startTls` left at the default (unset) or explicitly `false`, or `ldap://<directory-host>:389` with `startTls=true`.
 Saving an `ldaps://` URL with `startTls=true` is rejected with `INVALID_INPUT` and the message `startTls must be false for this URL.`
 Plaintext simple bind, anonymous authentication, disabled certificate verification and caller-supplied connection or credential overrides are refused.
-For a credential-specific private CA, supply its PEM contents in `caFile`, not a server file path.
+Saved credential-specific `caFile` PEM is displayed read-only and retained on edits for the same endpoint; use the certificate controls to replace or remove it.
 For shared trust across tools, follow the [private CA runbook](runbook.md#tls-inspection-and-private-upstream-cas).
-The multi-line `caFile` editor preserves newlines through saving and private CA file materialization for each call.
+Stored `caFile` PEM preserves newlines through saving and private CA file materialization for each call.
 Artium's CLI has no credential-save command.
 Optional `base` limits the search context; otherwise the pinned tool discovers the directory's default naming context.
 Optional `pageSize` is an integer from 1 to 1000, and `tlsMaxVersion=1.2` supports TLS 1.2-only endpoints while retaining verification.
@@ -550,7 +551,8 @@ The [reviewed Technitium inventory](../tools/inventories/technitium-axi.json) ow
 Enter a canonical HTTPS `origin`, `auth: token`, the token's actual `tokenKind` (`api`, `session` or `single-use`) and the token value in the managed credential editor.
 Artium encrypts the value and supplies a private SecretRef for each invocation.
 Changing the origin, authentication or token kind requires a replacement secret.
-Optional `caFile` contains trusted CA PEM contents, and `tlsServerName` selects the name verified by native calls, manual preflight and certificate inspection.
+Saved `caFile` PEM is displayed read-only; use the certificate controls to replace or remove it.
+**Certificate name to verify** edits `tlsServerName`, which selects the name verified by native calls, manual preflight and certificate inspection.
 For writes, configure native `writes: {"allowWrites":true,"operations":["OP-057"]}` and separately enable Write permission with the exact host operation grants; see the [write boundary](safety.md#technitium-dns).
 The connection test uses authenticated `user session get`; the unauthenticated `status` read alone does not validate a token.
 

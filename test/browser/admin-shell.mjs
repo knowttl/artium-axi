@@ -1069,28 +1069,78 @@ test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalizatio
 })
 }
 
-test('LDAP CA PEM and multi-line secret keep exact newlines from browser to stored credential and delivered files', async () => {
+test('LDAP saved CA PEM survives browser edits and multi-line secrets reach delivered files unchanged', async () => {
   const pem = '-----BEGIN CERTIFICATE-----\nCANARY-first-line\nCANARY-second-line\n-----END CERTIFICATE-----\n'
   const password = 'CANARY-first-line\nCANARY-second-line\n'
   browser(`
-    await addInstance('ldap-axi');
-    await page.fill('[data-profile-field=url]', 'ldaps://directory.example');
-    await page.eval(() => { const auth = document.querySelector('[data-profile-field=auth]'); auth.value = '"simple"'; auth.dispatchEvent(new Event('change', { bubbles: true })); });
-    await page.fill('[data-profile-field=bindDn]', 'cn=reader,dc=example');
+    await createInstance('ldap-axi', { url: 'ldaps://directory.example', auth: 'simple', bindDn: 'cn=reader,dc=example', bindPassword: 'CANARY-original', caFile: ${JSON.stringify(pem)} });
     await page.fill('textarea[data-profile-field=bindPassword]', ${JSON.stringify(password)});
-    await page.fill('textarea[data-profile-field=caFile]', ${JSON.stringify(pem)});
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'LDAP test failed: ' + await page.eval(() => document.querySelector('[data-test-result]').textContent));
     await openInstance('ldap-axi');
-    check(await page.eval(() => document.querySelector('[data-profile-field=caFile]').value) === ${JSON.stringify(pem)}, 'PEM was not pre-filled exactly');
+    check(await page.eval(() => document.querySelector('fieldset pre').textContent === ${JSON.stringify(pem)} &&
+      !document.querySelector('fieldset pre').isContentEditable && document.querySelector('textarea[data-profile-field=caFile]').value === ''), 'Saved PEM or separate replacement input was incorrect');
   `)
   const { stored, delivered } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/ldap-axi'))).json()
   assert.equal(stored.caFile, pem)
   assert.equal(stored.bindPassword, password)
   assert.equal(delivered.caFile, pem)
   assert.equal(delivered.bindPassword, password)
+})
+
+for (const tool of ['technitium-axi', 'unifi-axi']) for (const edited of [false, true]) test(tool + ' endpoint changes ' + (edited ? 'keep explicitly edited' : 'omit untouched') + ' certificate overrides', async () => {
+  const certificate = fixture.certificatePem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/)[0]
+  const tls = { trustedCertificatePem: certificate, peerFingerprintSha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', ''), connectAddress: '127.0.0.1' }
+  const value = tool === 'unifi-axi'
+    ? { origin: 'https://controller.example', apiKey: 'CANARY-key', tls }
+    : { origin: 'https://dns.example', auth: 'token', tokenKind: 'api', token: 'CANARY-token', tlsServerName: 'dns.example' }
+  const field = tool === 'unifi-axi' ? 'tls.connectAddress' : 'tlsServerName'
+  browser(`
+    await createInstance('${tool}', ${JSON.stringify(value)});
+    await page.click('[data-save-and-test]');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
+    check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(tool === 'unifi-axi' ? tls.connectAddress : value.tlsServerName)}), 'Unchanged override was lost');
+    await page.fill('[data-profile-field=origin]', 'https://replacement.example');
+    await page.fill('[data-profile-field=${tool === 'unifi-axi' ? 'apiKey' : 'token'}]', 'CANARY-new-secret');
+    if (${edited}) {
+      await page.fill('[data-profile-field="${field}"]', ${JSON.stringify(tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example')});
+      ${tool === 'unifi-axi' ? `await page.click('details:has([data-profile-field="tls.trustedCertificatePem"]) summary'); await page.fill('[data-profile-field="tls.trustedCertificatePem"]', ${JSON.stringify(certificate)}); await page.fill('[data-profile-field="tls.peerFingerprintSha256"]', ${JSON.stringify(tls.peerFingerprintSha256)});` : ''}
+    }
+    await page.click('[data-save-and-test]');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="3"]');
+    check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(edited ? (tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example') : '')}), 'Endpoint override was incorrect');
+  `)
+  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/' + tool))).json()
+  assert.equal(stored.origin, 'https://replacement.example')
+  assert.equal(tool === 'unifi-axi' ? stored.tls?.connectAddress : stored.tlsServerName, edited ? (tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example') : undefined)
+})
+
+for (const field of ['certificate', 'fingerprint']) test('UniFi ' + field + ' replacement requires both trust values', async () => {
+  const certificate = fixture.certificatePem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/)[0]
+  const fingerprint = new X509Certificate(certificate).fingerprint256.replaceAll(':', '')
+  const tls = { trustedCertificatePem: certificate, peerFingerprintSha256: fingerprint }
+  browser(`
+    await createInstance('unifi-axi', ${JSON.stringify({ origin: 'https://controller.example', apiKey: 'CANARY-key', tls })});
+    await page.click('[data-save-and-test]');
+    await page.click('details:has([data-profile-field="tls.trustedCertificatePem"]) summary');
+    await page.fill('[data-profile-field="${field === 'certificate' ? 'tls.trustedCertificatePem' : 'tls.peerFingerprintSha256'}"]', ${JSON.stringify(field === 'certificate' ? certificate : fingerprint)});
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#message:not(:empty)');
+    check(await page.eval(() => document.querySelector('#message').textContent.includes('Enter the trusted certificate and SHA-256 fingerprint together.')), 'Missing paired trust error');
+    await page.fill('[data-profile-field="${field === 'certificate' ? 'tls.peerFingerprintSha256' : 'tls.trustedCertificatePem'}"]', ${JSON.stringify(field === 'certificate' ? fingerprint : certificate)});
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
+  `)
+  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/unifi-axi'))).json()
+  assert.deepEqual(stored.tls, tls)
 })
 
 for (const tool of ['az-axi', 'mg-axi']) test(tool + ' certificate PEM calculates the fingerprint and saves the matching key', async () => {

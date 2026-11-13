@@ -39,6 +39,7 @@ import type { Runner } from '../runner/runner.js'
 import type { ToolHealth } from '../health/health.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
 import { readCredentialTrust } from '../store/trusted-certificates.js'
+import { retainCredentialTls, tlsCredentialRoots } from '../credential-tls-settings.js'
 import { isAwxOriginOnly } from '../store/credential-store.js'
 import { isCanonicalHttpsOrigin } from '../adapters/credential-input.js'
 import { hasSshConfiguration, type SshHosts } from '../store/ssh-hosts.js'
@@ -188,8 +189,9 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       metadata: credentialMetadata(tool, value, Boolean(reference)) })
   }
   function credentialMetadata(tool: ToolName, value: Record<string, unknown>, stored: boolean) {
-    return stored && credentialProfiles[tool] && !isAwxOriginOnly(tool, value) ? credentialProfiles[tool].metadata(value)
+    const metadata = stored && credentialProfiles[tool] && !isAwxOriginOnly(tool, value) ? credentialProfiles[tool].metadata(value)
       : Object.fromEntries(publicFields[tool].filter(field => value[field] !== undefined).map(field => [field, value[field]]))
+    return { ...metadata, ...Object.fromEntries(tlsCredentialRoots(tool).filter(key => Object.hasOwn(value, key)).map(key => [key, value[key]])) }
   }
   function readInstance(tool: ToolName, name: string): z.infer<typeof adminInstanceSchema> {
     const instance = requireInstance(tool, name)
@@ -575,7 +577,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         const secrets = credentialProfiles[tool]?.fields().filter(field => field.schema['x-secret'] && field.schema['x-ephemeral'] !== true)
           .map(field => field.name) ?? legacySecretFields[tool]
         const retained = sameIdentity ? Object.fromEntries(secrets.filter(key => Object.hasOwn(stored, key)).map(key => [key, stored[key]])) : {}
-        next = parse(schemaFor(tool), { ...retained, ...value, ...current.nativeSettings }) as Record<string, unknown>
+        next = parse(schemaFor(tool), { ...retained, ...retainCredentialTls(tool, stored, value), ...current.nativeSettings }) as Record<string, unknown>
       }
       const { credential, settings: suppliedSettings } = splitSettings(tool, next)
       const settings = name === undefined ? suppliedSettings : current.nativeSettings
