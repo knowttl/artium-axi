@@ -1,13 +1,6 @@
 # Credential TLS trust
 
-A saved exact leaf pin is mandatory on the connection carrying application data, even when the same endpoint also has a CA record.
-CA records build the verified chain and never suppress a pin.
-CA-only credentials retain issuing-CA trust, and pin-only credentials retain exact-leaf trust.
-Hostname, validity and chain verification remain enabled.
-Proxmox `certificatePin.replaceHostname` is an intentional Proxmox-only exception that skips hostname comparison while retaining the exact leaf pin on every connection.
-
-Existing setups that relied on a CA to override a stale pin fail until the pin is updated.
-Follow the [inspection and renewal procedure](runbook.md#trusting-one-tool-from-the-administration-ui), compare the new fingerprint through an independent trusted route, then renew trust or replace the fingerprint in Certificate verification.
+For certificate trust behavior and renewal, see the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui).
 
 ## Routes
 
