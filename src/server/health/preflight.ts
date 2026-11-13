@@ -10,6 +10,7 @@ import { startLdapTls } from '../ldap-starttls.js'
 import type { ToolName } from '../store/credential-store.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import { certificateErrorCodePattern, diagnosticError } from './diagnostic.js'
+import { ArtiumError } from '../../shared/errors.js'
 
 function verificationCode(error: unknown): string {
   const code = (error as NodeJS.ErrnoException)?.code
@@ -120,9 +121,14 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
 }
 
 export async function preflight(tool: ToolName, credential: Record<string, unknown>, trust: readonly CredentialTrust[] = []): Promise<void> {
+  if (tool === 'kubernetes-axi' && credential.tlsServerName
+    && !trust.some(certificate => certificate.mode === 'pin'
+      && certificateEndpoint(certificate.endpoint).href === certificateEndpoint(String(credential.origin)).href)) {
+    throw new ArtiumError('INVALID_INPUT', 'A managed Kubernetes certificate name requires an exact certificate pin for the saved endpoint.')
+  }
   const tls = tool === 'unifi-axi' ? credential.tls as NativeTls & { trustedCertificatePem?: string } | undefined : undefined
   const native: NativeTls = tool === 'proxmox-axi' ? { certificatePin: credential.certificatePin as NativeTls['certificatePin'] }
-    : tool === 'technitium-axi' ? { serverName: credential.tlsServerName as string | undefined } : tls ?? {}
+    : ['technitium-axi', 'kubernetes-axi'].includes(tool) ? { serverName: credential.tlsServerName as string | undefined } : tls ?? {}
   const ca = credential.caBundle ?? credential.caFile ?? credential.certificateAuthority
     ?? tls?.trustedCertificatePem
   for (const endpoint of toolEndpoints(tool, credential)) {

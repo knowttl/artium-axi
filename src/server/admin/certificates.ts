@@ -97,7 +97,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     const endpointCa = endpointTrustRecords[0]?.pem
     const maxVersion = reference.tool === 'ldap-axi' && value.tlsMaxVersion === '1.2' ? 'TLSv1.2' : undefined
     const connectAddress = reference.tool === 'unifi-axi' ? (value.tls as { connectAddress?: string } | undefined)?.connectAddress : undefined
-    const serverName = reference.tool === 'technitium-axi' ? value.tlsServerName as string | undefined : undefined
+    const serverName = ['technitium-axi', 'kubernetes-axi'].includes(reference.tool) ? value.tlsServerName as string | undefined : undefined
     const savedCaTrust = isCa && savedCa ? [{ endpoint: certificateEndpoint(endpoint).href, pem: savedCa, fingerprint: '', leafFingerprint: '', mode: 'ca' as const }] : []
     const inspection = await inspectCertificate(endpoint, savedCa, maxVersion, connectAddress, serverName, endpointTrustRecords.length ? endpointTrustRecords : savedCaTrust)
     const savedInspection = savedCaTrust.length && endpointCa && endpointCa !== savedCa

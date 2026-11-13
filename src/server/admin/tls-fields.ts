@@ -14,7 +14,9 @@ export function tlsFields(tool: ToolName, metadata: Record<string, unknown>): st
     const control = kind === 'certificate'
       ? `<textarea ${attributes} rows="6" spellcheck="false"></textarea><label>Upload PEM certificate<input id="${id}-file" type="file" data-tls-file="${path}" accept=".pem"></label>`
       : `<input ${attributes}${['connectAddress', 'serverName'].includes(kind) ? ' data-profile-clearable' : ''} type="text" value="${escape(value)}">`
-    return `<div data-credential-field="${path}"><label for="${id}">${field.label}</label>${control}<p id="${id}-hint">${escape(field.help)}</p></div>`
+    const help = field.help + (tool === 'kubernetes-axi' && kind === 'serverName'
+      ? ' Requires a saved exact certificate pin for this endpoint. Calls and credential tests refuse a name without that pin.' : '')
+    return `<div data-credential-field="${path}"><label for="${id}">${field.label}</label>${control}<p id="${id}-hint">${escape(help)}</p></div>`
   }
   const connection = (['connectAddress', 'serverName'] as const).map(kind => settings[kind]
     ? input(kind, settings[kind], String(read(settings[kind]) ?? ''))

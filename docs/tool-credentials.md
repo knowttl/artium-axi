@@ -106,6 +106,10 @@ See [SSH command usage](commands.md#ssh), the [capability boundary](safety.md#ss
 #### Kubernetes
 
 At `/admin/tools/kubernetes-axi`, enter the HTTPS cluster `origin`, `certificateAuthority` issuing CA PEM and optional default `namespace`.
+When the connection address differs from the certificate DNS name, use **Certificate name to verify** (`tlsServerName`) in the shared Certificate verification fields and save an exact pin for that endpoint.
+The managed name requires that pin for calls and credential tests; CA-only trust is refused with a name set.
+Clear the name to verify the saved endpoint using issuing CA trust.
+This setting applies only to managed token operations and managed client-certificate reads through the relay; pinned client-certificate mutation workflows and hosted sessions remain refused.
 Choose token authentication and enter the token itself, or certificate authentication with `clientCertificate` PEM and its matching private key.
 Artium stores secret values encrypted and supplies private SecretRefs to the pinned tool; callers cannot supply credentials or local kubeconfig files.
 Changing the cluster origin, authentication type or client certificate requires replacement secrets.

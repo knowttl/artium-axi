@@ -60,7 +60,7 @@ test.each(toolSchema.options)('%s explains supported certificate identity settin
   const html = credentialFields(tool, profile, {}, false)
   if (tool === 'ssh-axi') { expect(html).not.toContain('Certificate verification'); return }
   const settings = { connectAddress: tool === 'unifi-axi' ? 'tls.connectAddress' : undefined,
-    serverName: tool === 'technitium-axi' ? 'tlsServerName' : undefined }
+    serverName: ['technitium-axi', 'kubernetes-axi'].includes(tool) ? 'tlsServerName' : undefined }
   for (const [kind, label] of [['connectAddress', 'Connect via IP address'], ['serverName', 'Certificate name to verify']] as const) {
     expect(html).toContain(label)
     if (settings[kind]) expect(html).toContain(`data-profile-field="${settings[kind]}"`)

@@ -1137,12 +1137,14 @@ test('LDAP saved CA PEM survives browser edits and multi-line secrets reach deli
   assert.equal(delivered.bindPassword, password)
 })
 
-for (const tool of ['technitium-axi', 'unifi-axi']) for (const edited of [false, true]) test(tool + ' endpoint changes ' + (edited ? 'keep explicitly edited' : 'omit untouched') + ' certificate overrides', async () => {
+for (const tool of ['technitium-axi', 'unifi-axi', 'kubernetes-axi']) for (const edited of [false, true]) test(tool + ' endpoint changes ' + (edited ? 'keep explicitly edited' : 'omit untouched') + ' certificate overrides', async () => {
   const certificate = fixture.certificatePem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/)[0]
   const tls = { trustedCertificatePem: certificate, peerFingerprintSha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', ''), connectAddress: '127.0.0.1' }
   const value = tool === 'unifi-axi'
     ? { origin: 'https://controller.example', apiKey: 'CANARY-key', tls }
-    : { origin: 'https://dns.example', auth: 'token', tokenKind: 'api', token: 'CANARY-token', tlsServerName: 'dns.example' }
+    : tool === 'kubernetes-axi'
+      ? { origin: 'https://cluster.example', auth: 'token', token: 'CANARY-token', certificateAuthority: certificate, tlsServerName: 'cluster.example' }
+      : { origin: 'https://dns.example', auth: 'token', tokenKind: 'api', token: 'CANARY-token', tlsServerName: 'dns.example' }
   const field = tool === 'unifi-axi' ? 'tls.connectAddress' : 'tlsServerName'
   browser(`
     await createInstance('${tool}', ${JSON.stringify(value)});
@@ -1153,6 +1155,7 @@ for (const tool of ['technitium-axi', 'unifi-axi']) for (const edited of [false,
     check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(tool === 'unifi-axi' ? tls.connectAddress : value.tlsServerName)}), 'Unchanged override was lost');
     await page.fill('[data-profile-field=origin]', 'https://replacement.example');
     await page.fill('[data-profile-field=${tool === 'unifi-axi' ? 'apiKey' : 'token'}]', 'CANARY-new-secret');
+    ${tool === 'kubernetes-axi' ? `await page.click('details:has([data-profile-field="certificateAuthority"]) summary'); await page.fill('[data-profile-field="certificateAuthority"]', ${JSON.stringify(certificate)});` : ''}
     if (${edited}) {
       await page.fill('[data-profile-field="${field}"]', ${JSON.stringify(tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example')});
       ${tool === 'unifi-axi' ? `await page.click('details:has([data-profile-field="tls.trustedCertificatePem"]) summary'); await page.fill('[data-profile-field="tls.trustedCertificatePem"]', ${JSON.stringify(certificate)}); await page.fill('[data-profile-field="tls.peerFingerprintSha256"]', ${JSON.stringify(tls.peerFingerprintSha256)});` : ''}

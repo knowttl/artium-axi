@@ -285,7 +285,8 @@ Trust is only as safe as the network path during inspection: an intercepted cert
 The window highlights weak keys, validity and hostname problems, and fingerprints that differ from previously trusted certificates at the endpoint.
 When the certificate does not match the name being verified, inspection offers a name change for supported settings if the certificate has a usable DNS name.
 The action keeps the connection address and saves the certificate name for verification; it does not grant trust or automatically test the connection.
-Technitium retains its IP or DNS connection address and updates **Certificate name to verify**.
+Technitium and Kubernetes retain their IP or DNS connection address and update **Certificate name to verify**.
+Kubernetes requires a saved exact pin for that endpoint before calls or credential tests can use the managed name; inspection remains available to establish that trust.
 UniFi changes the origin to the certificate name and retains the connection IP; for initial setup, choose **Trust this certificate** to fill its trusted certificate and fingerprint, then inspect again to use the name.
 UniFi cannot preserve a DNS connection address with this action, and unsupported tools show a refusal reason.
 If the endpoint changes, existing instance trust moves to the new endpoint; if both endpoints already have trust records, remove the conflicting records before retrying.
@@ -317,7 +318,10 @@ Kubernetes managed static token identities support strict leaf pins through the 
 Managed client-certificate identities support strict pins for compact and native reads and mutation workflows, including prepare, preview, confirm and server-dry-run.
 For these pinned calls, the relay receives the managed client certificate and private key only for the saved endpoint; the private key stays in credential handling and private files, never child process arguments, environment variables or logs.
 Workflow identity binding uses the resolved client certificate and private key, so unchanged credentials can confirm across calls with fresh private-key files; changing either credential requires fresh preparation.
-Native kubeconfig certificates, ExecCredential helpers, TLS server-name overrides, hosted byte sessions and upgrade connections remain refused with strict pins; use issuing CA trust for supported operations without pins.
+Managed Kubernetes profiles can set **Certificate name to verify** (`tlsServerName`) when the saved connection address differs from the certificate DNS name.
+With an exact pin for that endpoint, Artium preconfigures the relay name and declares its server-name capability only for that endpoint; every call still verifies the name, validity, chain or exact pin, and leaf fingerprint.
+A managed name without a saved exact pin is refused, including CA-only trust; clear the name to use issuing CA trust with the saved endpoint name.
+Native kubeconfig certificates, ExecCredential helpers, caller TLS server-name overrides, hosted byte sessions and upgrade connections remain refused with strict pins; use issuing CA trust for supported operations without pins.
 For self-signed Kubernetes endpoints or a missing issuing CA, managed token and client-certificate identities can use strict pins.
 Without strict pins, the GitHub CLI child receives system roots, the server bundle and credential CAs through a private `SSL_CERT_FILE`; those CAs are additive across the child's connections.
 With strict pins, both gh-axi and direct native GitHub calls use the relay, which restricts saved anchors and fingerprints to the inspected hostname and port and uses normal server trust for unrelated endpoints.

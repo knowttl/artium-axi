@@ -105,7 +105,7 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
       if (workflow && !workflowRoot) throw new ArtiumError('TEMP_UNAVAILABLE')
       const value = await source.getCredential(reference)
       const profile = kubernetesProfile.prepare('kubernetes-axi', value, undefined, !writable)
-      const credential = value as { origin: string, auth: string, clientCertificate: string, privateKey: string }
+      const credential = value as { origin: string, auth: string, clientCertificate: string, privateKey: string, tlsServerName?: string }
       return { ...call, executable: process.execPath, args: [executable, ...call.args],
         effect: workflow === 'confirm' ? 'write' : 'read',
         ...(workflow === 'prepare' || workflow === 'server-dry-run' ? { nativeReadOnlyPreview: true } : {}),
@@ -118,6 +118,7 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
           KUBERNETES_AXI_COLLECTION_DELETE: String(Boolean(writable && settings.collectionDelete === true)) },
         limits: { timeoutMs: inventory.requirements.timeoutMs, systemCaBundle: {
           endpoint: credential.origin, transport: 'kubectl',
+          ...(credential.tlsServerName ? { serverName: credential.tlsServerName } : {}),
           hostModule: new URL('../dist/cli.js', pathToFileURL(executable)).href,
           ...(credential.auth === 'certificate' ? { clientIdentity: {
             certificate: credential.clientCertificate, privateKey: credential.privateKey,
