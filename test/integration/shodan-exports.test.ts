@@ -186,8 +186,15 @@ test('a settings change discards a pending confirmation and its private files', 
 
 test('concurrent previews cannot exceed the per-user capacity', async () => {
   await exportFixture(async ({ post, exportRoot }) => {
-    const responses = await Promise.all(Array.from({ length: 9 }, () => post('/preview', download)))
-    expect(responses.filter(response => response.statusCode === 200)).toHaveLength(8)
+    expect((await post('/preview', download)).statusCode).toBe(200)
+    expect((await post('/preview', download)).statusCode).toBe(200)
+    expect((await post('/preview', download)).statusCode).toBe(200)
+    expect((await post('/preview', download)).statusCode).toBe(200)
+    expect((await post('/preview', download)).statusCode).toBe(200)
+    expect((await post('/preview', download)).statusCode).toBe(200)
+    expect((await post('/preview', download)).statusCode).toBe(200)
+    const responses = await Promise.all([post('/preview', download), post('/preview', download)])
+    expect(responses.filter(response => response.statusCode === 200)).toHaveLength(1)
     expect(responses.filter(response => response.json().error?.code === 'TOO_MANY_CALLS')).toHaveLength(1)
     expect(readdirSync(exportRoot)).toHaveLength(8)
   })

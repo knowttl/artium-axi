@@ -253,7 +253,7 @@ See [credential rotation](runbook.md#roles-credentials-and-health).
 Use the **Write permissions** tab (`?tab=writes`) on a tool page to change writes without replacing other native settings.
 Writes default to off; the master **Allow writes** switch is absent on fixed read-only tools, which show the reason instead.
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
-For AWX, use **Allow writes** and the separate **Allow destructive deletes** switch, both off by default, and review the [AWX write boundary](safety.md#write-gates-by-tool) for its scope, preview requirements, legacy settings and operations awaiting support.
+For AWX, use **Allow writes**, **Allow destructive deletes** and **Allow security administration**, each off by default, and review the [AWX write boundary](safety.md#write-gates-by-tool) for its scope, preview requirements, legacy settings and operations awaiting support.
 For tools with an operations allow-list, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
 With JavaScript enabled, the **Allowed operations** card and each group have **Select all** and **Clear all** controls that affect only operations shown by the current filters, including deletes when shown; the card-level pair covers every group, collapsed ones included, and the selected count updates as you go.
 See the [UniFi capability boundary](safety.md#network-appliance-reads) for required operation and variant grants.
@@ -469,7 +469,7 @@ Set the tool's mode on its **Raw API** tab, shown only for tools with raw API ro
 Falcon, Tenable and AWX offer all three modes.
 Allow raw calls for a role in **Raw API access** on the role's page, for each granted tool that has raw API routes.
 Both [Raw API access](safety.md#raw-api-access) settings must permit a call, and a new tool grant starts without raw access.
-Raw write execution also requires the tool's write gate and native confirmation: Falcon and Tenable require Allow writes and their exact raw operation, and AWX requires its tenant Allow writes setting.
+Raw write execution also requires the tool's write gate and native confirmation: Falcon and Tenable require Allow writes and their exact raw operation, and AWX requires its tenant Allow writes setting, plus Allow security administration for raw writes to security resources and Allow destructive deletes for api delete.
 These tool gates also apply to raw write previews.
 Each change is recorded as an `admin-change` audit event for the tool, with actions such as `set-tool-raw-api-read` and `grant-role-raw-api`; a request that changes nothing records nothing.
 

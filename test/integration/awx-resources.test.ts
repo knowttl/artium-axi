@@ -26,7 +26,7 @@ test('AWX execution environment image edits and interrupted renames remain reada
     let allowWrites = true
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
     const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
-      token: 'CANARY-awx-token', allowWrites }) })
+      token: 'CANARY-awx-token', allowWrites, allowSecurityAdministration: true }) })
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
@@ -85,7 +85,7 @@ test('AWX machine credential writes preserve private inputs and reconcile interr
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
     let allowWrites = true
     const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
-      token: 'CANARY-awx-token', allowWrites }) })
+      token: 'CANARY-awx-token', allowWrites, allowSecurityAdministration: true }) })
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
@@ -125,6 +125,8 @@ test('AWX machine credential writes preserve private inputs and reconcile interr
       ]) })
       const call = await adapter.prepare(create, reference, input)
       expect(call.args.join(' ')).not.toContain('CANARY-')
+      await run(['team', 'credential-create', '7', '--name', 'Synthetic team machine', '--credential-type', '7',
+        '--inputs-file', 'machine.json', '--dry-run'], { files: [upload('machine.json', '{"password":"CANARY-team-machine"}')] })
       await send('/__awx/write-outcome?drop=true', 'POST')
       const interrupted = await run(['team', 'credential-create', '7', '--name', 'Synthetic team machine', '--credential-type', '7',
         '--inputs-file', 'machine.json', '--confirm'], { files: [upload('machine.json', '{"password":"CANARY-team-machine"}')] })

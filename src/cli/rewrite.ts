@@ -388,6 +388,8 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
       if (!help.includes(descriptions)) help = help.trimEnd() + '\n' + descriptions + '\n'
       const permission = `AWX must authorize ${route.command} and access to each referenced resource.`
       if (!help.includes(permission)) help = help.trimEnd() + '\n' + permission + '\n'
+      if (route.securityAdministration) help = help.trimEnd()
+        + '\nThis command additionally requires administrator Allow security administration (allowSecurityAdministration). A successful matching --dry-run is required before each --confirm.\n'
     }
     if (['project create', 'project edit', 'job stdout', 'ad-hoc stdout'].includes(command ?? '')) {
       help = help.trimEnd() + '\nSCM URLs must have no userinfo, credential query parameters or fragments. Use --credential with SCM secrets supplied through credential create/edit --inputs-file. Already-retained AWX logs from URLs set outside Artium are AWX-held data, outside Artium SCM input protection.\n'

@@ -12,7 +12,7 @@ import { validateFileInput } from '../../shared/file-input.js'
 import { awxInputBridge, awxPrivateOutput } from './awx-input.js'
 
 export const awxManifest = { ...inventory, ...inventory.adapterBoundary }
-export const awxWritePolicy = writePolicy({ allowDeletes: true, unlocks: 'AWX writes for this tenant support preview and require explicit confirmation and AWX resource permission. Deletes and bulk host operations additionally require Allow destructive deletes, off by default.',
+export const awxWritePolicy = writePolicy({ allowDeletes: true, allowSecurityAdministration: true, unlocks: 'AWX writes for this tenant support preview and require explicit confirmation and AWX resource permission. Deletes and bulk host operations additionally require Allow destructive deletes. Security administration additionally requires Allow security administration. Both grants default off.',
   blocked: 'Unsafe overrides remain blocked. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. SCM URLs must have no userinfo, credential query parameters or fragments; use --credential and credential create/edit --inputs-file for SCM secrets. Already-retained AWX logs from URLs set outside Artium are AWX-held data, outside Artium SCM input protection. Credential inputs-file and password-file accept stdin (-). Server file paths are refused.' })
 export const awxProfile = new CredentialProfile(inventory.credentialSchema, 'awx-axi')
 export const awxCredentialSchema = awxProfile.credentialSchema
@@ -164,20 +164,26 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const normalized = awxArguments(args, input)
       if (reference.tool !== 'awx-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const destructive = !normalized.invocation.help && /(?:^|[ -])delete$|^inventory host-bulk-create$/.test(normalized.invocation.command)
-      const authorizeDeletes = (settings: Record<string, unknown>) => {
+      const security = normalized.mutation && (inventory.commands.find(route => route.command === normalized.invocation.command)?.securityAdministration === true
+        || normalized.invocation.command.startsWith('api ') && /\/(?:organizations|users|teams|roles|tokens|personal_tokens)(?:\/|$)/.test(
+          decodeURIComponent(new URL(normalized.args[2], 'https://controller.example/api/v2/').pathname)))
+      const authorizeMutations = (settings: Record<string, unknown>) => {
         if (destructive && settings.allowDeletes !== true) throw new ArtiumError('FLAG_BLOCKED',
           'Destructive deletes and bulk host operations are disabled for this tool.',
           'Ask an administrator to enable Allow destructive deletes, then preview with --dry-run and repeat with --confirm.')
+        if (security && settings.allowSecurityAdministration !== true) throw new ArtiumError('FLAG_BLOCKED',
+          'Security administration is disabled for this tool.',
+          'Ask an administrator to enable Allow security administration (allowSecurityAdministration), then preview with --dry-run and repeat with --confirm.')
       }
       const allowed = (settings: Record<string, unknown>) => settings.allowWrites === true
       const requiresWriteAccess = normalized.mutation && !normalized.invocation.help
       const settings = source.getSettings?.(reference)
-      if (settings) authorizeDeletes(settings)
+      if (settings) authorizeMutations(settings)
       if (requiresWriteAccess && settings && !allowed(settings)) throw new ArtiumError('FLAG_BLOCKED')
       const value = await source.getCredential(reference)
       const parsed = awxCredentialSchema.safeParse(value)
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
-      authorizeDeletes(parsed.data)
+      authorizeMutations(parsed.data)
       const readOnly = !allowed(parsed.data)
       if (requiresWriteAccess && readOnly) throw new ArtiumError('FLAG_BLOCKED')
       const profile = awxProfile.prepare('awx-axi', parsed.data, undefined, readOnly)
@@ -196,7 +202,7 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       const bridge = privateInput || privateRead || tokenCreate || stdoutDownload
       const output = bridge ? awxPrivateOutput(input ?? {}, structured, call.args) : undefined
       if (output) profile.files.push({ name: 'awx-input.json', content: JSON.stringify({ values: structured, output }) })
-      return { executable: bridge ? process.execPath : toolPaths['awx-axi'], ...call,
+      return { executable: bridge ? process.execPath : toolPaths['awx-axi'], ...call, requiresPreview: security,
         ...(tokenCreate ? { protectedResult: { source: 'file' as const, operation: 'token-create', name: 'awx-token.txt', flag: '--artium-result' } } : {}),
         ...(stdoutDownload ? { protectedResult: { source: 'file' as const, operation: 'stdout-download', name: 'awx-stdout.log', flag: '--artium-result' } } : {}),
         ...(bridge ? { args: [...prefix, ...call.args], fileArguments: call.fileArguments.map(index => index + prefix.length) } : {}),

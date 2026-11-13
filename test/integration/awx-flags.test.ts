@@ -48,6 +48,75 @@ async function withReadService(check: (context: {
   })
 }
 
+const securityCommands = [
+  'organization create', 'organization edit', 'organization delete',
+  'organization admin-add', 'organization admin-remove', 'organization user-add', 'organization user-remove',
+  'organization team-add', 'organization team-remove', 'organization galaxy-credential-add', 'organization galaxy-credential-remove',
+  'user create', 'user edit', 'user delete', 'user token-create', 'user token-revoke',
+  'team create', 'team edit', 'team delete', 'team user-add', 'team user-remove', 'team credential-create',
+  'role grant', 'role revoke',
+]
+
+test('AWX security administration defaults off even with writes and deletes enabled', async () => {
+  await withReadService(async ({ db, run, send }) => {
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowDeletes":true}' WHERE name = 'awx-axi'`)
+    for (const command of securityCommands) {
+      for (const flag of ['--dry-run', '--confirm']) {
+        const response = await run([...command.split(' '), '42', flag])
+        expect(response.json(), command).toMatchObject({ error: { code: 'FLAG_BLOCKED',
+          next: expect.stringContaining('Allow security administration') } })
+      }
+    }
+    db.exec(`UPDATE tools SET raw_api_mode = 'read-writes', raw_api_routes = '{"get":[],"write":["PATCH **"]}' WHERE name = 'awx-axi';
+      UPDATE role_tools SET raw_api = 1 WHERE tool = 'awx-axi'`)
+    for (const path of ['users/42/', 'teams/42/', 'roles/7/users/', 'tokens/8/', 'organizations/42/']) {
+      const response = await run(['api', 'patch', path, '--confirm'])
+      expect(response.json(), path).toMatchObject({ error: { code: 'FLAG_BLOCKED',
+        next: expect.stringContaining('Allow security administration') } })
+    }
+    expect(JSON.parse(await send('/__evidence'))).toEqual({ requests: [], mutations: 0 })
+  })
+}, 60_000)
+
+test('AWX ordinary configuration still previews and executes with only Allow writes', async () => {
+  await withReadService(async ({ db, run, send }) => {
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    const args = ['inventory', 'create', 'Synthetic inventory', '--organization', '7']
+    const preview = await run([...args, '--dry-run'])
+    expect(decode(preview.json().stdout)).toMatchObject({ dry_run: { would_send: 'POST inventories/' } })
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
+    const created = await run([...args, '--confirm'])
+    expect(created.json(), created.body).toMatchObject({ exitCode: 0 })
+    expect(JSON.parse(await send('/__evidence')).mutations).toBe(1)
+  })
+}, 60_000)
+
+test('AWX security administration requires a matching preview for each confirmed mutation', async () => {
+  await withReadService(async ({ db, run, send, lines }) => {
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowSecurityAdministration":true}' WHERE name = 'awx-axi'`)
+    for (const args of [
+      ['user', 'create', 'synthetic-person'],
+      ['organization', 'create', 'Synthetic organization'],
+      ['team', 'create', 'Synthetic team', '--organization', '7'],
+      ['role', 'grant', '7', '--user', '42'],
+      ['user', 'token-create', '42'],
+    ]) {
+      const refused = await run([...args, '--confirm'])
+      expect(refused.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED', next: expect.stringContaining('--dry-run') } })
+      const before = JSON.parse(await send('/__evidence')).mutations
+      const preview = await run([...args, '--dry-run'])
+      expect(preview.json(), preview.body).toMatchObject({ exitCode: 0, stdout: expect.stringContaining('dry_run') })
+      expect(JSON.parse(await send('/__evidence')).mutations).toBe(before)
+      const confirmed = await run([...args, '--confirm'])
+      expect(confirmed.json(), confirmed.body).toMatchObject({ exitCode: 0 })
+      expect(JSON.parse(await send('/__evidence')).mutations).toBe(before + 1)
+      expect(confirmed.body).not.toContain('CANARY-')
+      expect((await run([...args, '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
+    }
+    expect(lines.join('\n') + JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-')
+  })
+}, 60_000)
+
 test.each([
   { args: ['job', 'list', '--fields', 'id,name,status'], expected: { jobs: [expect.objectContaining({ id: 42 })] } },
   { args: ['job', 'events', '42', '--type', 'job'], expected: { events: [expect.objectContaining({ id: 5, failed: true })] } },
