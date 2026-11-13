@@ -2,51 +2,34 @@ import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { isDeepStrictEqual } from 'node:util'
 import { DOMAINS, main } from '../tools/node_modules/@knowttl/awx-axi/dist/cli.js'
-import { AUTH_HELP, authCommand } from '../tools/node_modules/@knowttl/awx-axi/dist/commands/auth.js'
-import { SETUP_HELP, setupCommand } from '../tools/node_modules/@knowttl/awx-axi/dist/commands/setup.js'
+import { AUTH_HELP } from '../tools/node_modules/@knowttl/awx-axi/dist/commands/auth.js'
+import { SETUP_HELP } from '../tools/node_modules/@knowttl/awx-axi/dist/commands/setup.js'
 
 const root = new URL('../', import.meta.url)
 const upstream = new URL('tools/node_modules/@knowttl/awx-axi/', root)
 const readJson = path => JSON.parse(readFileSync(new URL(path, root), 'utf8'))
 const pkg = readJson('tools/node_modules/@knowttl/awx-axi/package.json')
 if (pkg.version !== readJson('tools/package.json').dependencies['@knowttl/awx-axi']) throw new Error('AWX parity pin mismatch')
+const sourceFiles = readdirSync(new URL('dist/', upstream), { recursive: true }).filter(path => path.endsWith('.js')).sort()
+const executableDigest = createHash('sha256')
+for (const path of sourceFiles) executableDigest.update(path).update('\0').update(readFileSync(new URL(`dist/${path}`, upstream))).update('\0')
+if (executableDigest.digest('hex') !== '010fb8e0c744c9782513d93b77c3d829a14eb560c1f1bc3f708809756c799d89') throw new Error('upstream executable surface changed; re-review support decisions')
 const help = async argv => {
   let output = ''
   await main({ argv, env: {}, stdout: { write: chunk => { output += chunk } } })
   return output
 }
-let registeredCommands
-const entries = Object.entries
-Object.entries = object => {
-  if (object?.auth && object?.setup && object?.doctor) registeredCommands = Object.keys(object)
-  return entries(object)
-}
-let topHelp
-try {
-  topHelp = await help(['--help'])
-} finally {
-  Object.entries = entries
-}
-if (!registeredCommands) throw new Error('Cannot discover executable AWX commands')
-let setupSuggestions
-try {
-  await setupCommand(['parity-unknown-probe'])
-} catch (error) {
-  setupSuggestions = error.suggestions?.find(item => item.startsWith('valid subcommands for `awx-axi setup`: '))
-}
-if (!setupSuggestions) throw new Error('Cannot discover executable AWX setup commands')
+const topHelp = await help(['--help'])
 const updateHelp = await help(['update', '--help'])
 const globalNames = [...topHelp.match(/^globals: (.*)$/m)[1].matchAll(/--([a-z0-9-]+)/g)].map(match => match[1])
 const recorded = readJson('tools/inventories/awx-axi-parity.json')
 const decisions = new Map(recorded.commands.map(route => [route.command, route]))
-const localCommands = [
+const localCommands = [...new Set([
   ...AUTH_HELP.match(/usage: awx-axi auth ([a-z0-9|-]+)/)[1].split('|').map(name => `auth ${name}`),
   ...SETUP_HELP.match(/usage: awx-axi setup ([a-z0-9|-]+)/)[1].split('|').map(name => `setup ${name}`),
-  ...setupSuggestions.split(': ')[1].split(', ').map(name => `setup ${name}`),
   ...topHelp.match(/^commands: "(.*)"$/m)[1].split(', ').filter(command => !['auth', 'setup'].includes(command)),
-  ...registeredCommands.filter(command => !['auth', 'setup', 'config', 'profile'].includes(command) && !DOMAINS.some(domain => domain.name === command)),
   updateHelp.match(/^command: ([a-z0-9-]+)$/m)[1],
-]
+])]
 const offered = [...DOMAINS.flatMap(domain => domain.subcommands.map(route => ({ command: `${domain.name} ${route.name}`, flags: route.flags }))),
   ...[...new Set(localCommands)].map(command => ({ command, flags: [] }))]
 const missingCommands = offered.filter(route => !decisions.has(route.command)).map(route => route.command)
@@ -59,19 +42,6 @@ for (const route of offered.filter(route => localCommands.includes(route.command
   route.flags = [...output.matchAll(/--([a-z][a-z0-9-]*)/g)]
     .filter(match => !globalNames.includes(match[1]) && match[1] !== 'help')
     .map(match => ({ name: match[1] }))
-  if (['auth', 'setup'].includes(group)) {
-    let suggestions
-    try {
-      await (group === 'auth' ? authCommand([name, '--parity-unknown-probe'], { env: {}, selection: {} }) : setupCommand([name, '--parity-unknown-probe']))
-    } catch (error) {
-      suggestions = error.suggestions
-    }
-    const list = suggestions?.find(item => item.startsWith(`valid flags for \`${route.command}\`: `))
-    if (!list) throw new Error(`Cannot discover executable AWX flags for ${route.command}`)
-    for (const match of list.matchAll(/--([a-z][a-z0-9-]*)/g)) {
-      if (!route.flags.some(flag => flag.name === match[1])) route.flags.push({ name: match[1] })
-    }
-  }
 }
 const complete = (decision, commandFlag = false) => decision
   && ['name', 'status', 'effect', 'targetSlice', 'authorization'].every(key => typeof decision[key] === 'string' && decision[key].trim())
@@ -111,7 +81,6 @@ const authorizationFor = (command, effect) => ['read', 'client-local'].includes(
   : effect === 'destructive' || command === 'inventory host-bulk-create' ? 'destructive' : 'write'
 const configurationControl = 'Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission'
 const destructiveControl = 'Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission'
-const sourceFiles = readdirSync(new URL('dist/', upstream), { recursive: true }).filter(path => path.endsWith('.js')).sort()
 const sources = sourceFiles.map(path => ({ path: `dist/${path}`, sha256: createHash('sha256').update(readFileSync(new URL(`dist/${path}`, upstream))).digest('hex') }))
 const security = (domain, name) => ['user', 'team', 'role', 'credential'].includes(domain)
   || /credential|^(?:user|admin|team)-(?:add|remove)$/.test(name)

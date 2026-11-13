@@ -139,6 +139,7 @@ Review the newer release, re-pin `tools/package.json`, `tools/pnpm-lock.yaml` an
 
 Re-pinning also runs the offered-versus-admitted review in `test/offered-commands.test.ts`.
 For awx-axi, the local freshness gate compares the pinned commands and their flags, plus selection globals, against recorded support decisions in `tools/inventories/awx-axi-parity.json` before inventory freshness checks.
+Published help and domain metadata identify named capabilities, while a SHA-256 guard requires re-review when pinned executable files change.
 Missing decisions fail with the command or flag name and the decision file, including a previously known flag newly offered on another command.
 Review support in `scripts/awx-inventory.mjs` and `scripts/awx-parity.mjs`, record each new decision in `tools/inventories/awx-axi-parity.json`, update the reviewed surface when required, then regenerate with `node scripts/upstream-inventory.mjs --write` and review the resulting decisions.
 Regeneration rejects a recorded classification that differs from the generator; reconcile both before writing the updated matrix.

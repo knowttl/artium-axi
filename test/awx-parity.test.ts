@@ -69,43 +69,20 @@ syncBuiltinESMExports();`
   expect(result.stderr).toContain('Unreviewed AWX surface change')
 })
 
-test.each([{ args: [] }, { args: ['--write'] }])('parity rejects a newly accepted auth flag without a decision in mode $args', ({ args }) => {
-  const preload = `import { registerHooks } from 'node:module';
-registerHooks({ load(url, context, nextLoad) {
-  const result = nextLoad(url, context);
-  if (url.endsWith('/dist/commands/auth.js')) result.source = result.source.toString()
-    .replace('[{ name: "allow-http"', '[{ name: "synthetic-parity-flag", takesValue: false, description: "Synthetic" }, { name: "allow-http"');
-  return result;
-} });`
-  const hook = `data:text/javascript,${encodeURIComponent(preload)}`
-  const auth = new URL('../tools/node_modules/@knowttl/awx-axi/dist/commands/auth.js', import.meta.url).href
-  const probe = `import { authCommand } from ${JSON.stringify(auth)};
-try { await authCommand(['login', '--synthetic-parity-flag'], { env: {}, selection: {} }); }
-catch (error) { console.log(error.message); }`
-  const accepted = spawnSync(process.execPath, ['--import', hook, '--input-type=module', '-e', probe], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
-  expect(accepted.stdout).toContain('auth login needs AWX_AXI_USERNAME and AWX_AXI_PASSWORD')
-  const result = spawnSync(process.execPath, ['--import', hook, fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url)), ...args], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+test.each([{ args: [] }, { args: ['--write'] }])('parity requires review when executable bytes change in mode $args', ({ args }) => {
+  const preload = `import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const read = fs.readFileSync;
+fs.readFileSync = function(path, ...args) {
+  const contents = read.call(this, path, ...args);
+  if (String(path).endsWith('/dist/commands/auth.js')) return Buffer.concat([contents, Buffer.from('\\n')]);
+  return contents;
+};
+syncBuiltinESMExports();`
+  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url)), ...args], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
   expect(result.status).toBe(1)
-  expect(result.stderr).toContain('auth login --synthetic-parity-flag')
-  expect(result.stderr).toContain('support decision')
-})
-
-test.each([
-  { kind: 'setup', file: '/dist/commands/setup.js', from: 'const SUBCOMMANDS = ["hooks"]', to: 'const SUBCOMMANDS = ["hooks", "synthetic"]', probe: `import { setupCommand } from './tools/node_modules/@knowttl/awx-axi/dist/commands/setup.js'; try { await setupCommand(['synthetic', '--unknown']); } catch (error) { console.log(error.message); }`, accepted: 'unknown flag --unknown', name: 'setup synthetic' },
-  { kind: 'top-level', file: '/dist/cli.js', from: 'auth: (args) => authCommand(args, context)', to: 'synthetic: async () => ({ synthetic: "executed" }), auth: (args) => authCommand(args, context)', probe: `import { main } from './tools/node_modules/@knowttl/awx-axi/dist/cli.js'; await main({ argv: ['synthetic'], env: {} });`, accepted: 'synthetic: executed', name: 'synthetic' },
-])('parity rejects an undocumented executable $kind command', ({ file, from, to, probe, accepted, name }) => {
-  const preload = `import { registerHooks } from 'node:module';
-registerHooks({ load(url, context, nextLoad) {
-  const result = nextLoad(url, context);
-  if (url.endsWith(${JSON.stringify(file)})) result.source = result.source.toString().replace(${JSON.stringify(from)}, ${JSON.stringify(to)});
-  return result;
-} });`
-  const hook = `data:text/javascript,${encodeURIComponent(preload)}`
-  const execution = spawnSync(process.execPath, ['--import', hook, '--input-type=module', '-e', probe], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
-  expect(execution.stdout).toContain(accepted)
-  const result = spawnSync(process.execPath, ['--import', hook, fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
-  expect(result.status).toBe(1)
-  expect(result.stderr).toContain(`Missing AWX support decision: ${name}`)
+  expect(result.stderr).toContain('upstream executable surface changed; re-review support decisions')
 })
 
 test.each([
