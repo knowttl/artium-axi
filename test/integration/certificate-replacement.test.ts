@@ -231,9 +231,9 @@ test.each(['tool', 'instance'] as const)('%s rejects an inspection older than a 
   expect(rejected.json().error.message).toContain('Inspect the certificate again')
   const trust = readCredentialTrust(db, reference)
   expect(trust.map(item => item.leafFingerprint)).toEqual([newer.chain[0].fingerprint])
-  await expect(credentialFetch(endpoint, {}, trust)).resolves.toMatchObject({ status: 200 })
+  await expect(credentialFetch(endpoint, { method: 'GET' }, trust)).resolves.toMatchObject({ status: 200 })
   serve('rotated')
-  await expect(credentialFetch(endpoint, {}, trust)).rejects.toThrow()
+  await expect(credentialFetch(endpoint, { method: 'GET' }, trust)).rejects.toThrow()
 })
 
 test('CA fingerprint replacement leaves a different endpoint CA record untouched', async () => {

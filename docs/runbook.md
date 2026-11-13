@@ -298,11 +298,12 @@ The UI automatically tests the connection and shows **Connected** or a failure c
 Failures can include the server and upstream HTTP statuses, catalogued error, failed step, recognized tool, transport or Azure provider code, or certificate trust classification.
 Network and unreadable-response failures show a category; invalid JSON and unexpected response formats have separate guidance.
 The automatic retest does not display raw exception messages, response text or tool diagnostic text.
-When a saved pin or paired fingerprint differs from the presented certificate, inspection offers **Replace trusted certificate**.
+When a saved strict pin differs from the presented certificate, inspection offers **Replace trusted certificate**.
+For CA trust with a paired fingerprint, replacement is offered when the fingerprint differs and the presented certificate verifies against the saved CA trust.
 Compare and confirm the new fingerprint before replacement; recent identity confirmation is still required.
 Strict pin replacement updates supported shared fields and removes previous pin records for every equivalent spelling of the inspected endpoint.
 CA-mode replacement updates the paired leaf fingerprint and leaves existing CA records unchanged.
-If the issuing CA changed, update the CA manually.
+If CA verification fails, check the certificate's hostname, validity and chain; update the CA manually if the issuing CA changed.
 Replacement preserves strict leaf pinning or CA trust, and automatically tests the connection.
 Strict pins reject the old leaf and other leaves from the same CA; CA trust continues to allow leaves signed by the confirmed CA.
 Removing an endpoint trust record retains the separately saved Certificate verification fields; clear those fields too when revoking that trust.
@@ -348,11 +349,7 @@ Automatic intermediate repair is not included because treating a repaired interm
 If an endpoint omits an intermediate below a confirmed root, confirm that intermediate as the CA anchor or configure the endpoint to present its complete chain.
 
 The instance page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
-This flow also fills supported credential-level fields during initial trust; use the [credential editor](admin-guide.md#browser-administration) to replace or remove a credential-level CA or pin when it rotates.
-For a leaf rotation, re-inspect the saved endpoint and confirm the replacement fingerprint when offered.
-Strict pin replacement removes prior endpoint pins, including records using equivalent endpoint spellings.
-CA-mode replacement updates the paired leaf fingerprint without changing existing CA records.
-If the issuing CA changed, update the CA manually.
+Use the [credential editor](admin-guide.md#browser-administration) to replace a changed CA or remove credential-level trust.
 Use **Remove endpoint trust** to retire endpoint entries, and clear separately saved credential trust when it should no longer apply.
 These changes take effect on subsequent calls and survive server restarts.
 Use the server-wide bundle above for organization-wide inspection CAs instead of confirming the same CA separately for every tool.
