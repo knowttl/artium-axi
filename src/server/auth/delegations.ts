@@ -135,14 +135,14 @@ export function resolveDelegatedCommand(command: string, adapter: Adapter<unknow
 
 export function authorizeDelegatedOperation(db: Database.Database, userId: string,
   delegation: { scopeJson: string, readOnly: boolean }, adapter: Adapter<unknown>,
-  classification: { command: string, effect: 'read' | 'write', help?: boolean }, instanceId?: string) {
+  classification: { command: string, effect: 'read' | 'write', help?: boolean }, instanceId?: string, args?: readonly string[], input?: RunnerInput) {
   checkToolPolicy(db, userId, adapter.name)
   checkDelegation(delegation.scopeJson, delegation.readOnly, adapter, classification.command, classification.effect, classification.help, instanceId)
   const row = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(adapter.name) as { native_settings: string }
   const settings = JSON.parse(row.native_settings)
   if (classification.effect === 'write' || credentialIssuingCommand(adapter.name, classification.command)) {
     if (!toolAllowsWrites(adapter.name, settings)) throw new ArtiumError('FLAG_BLOCKED')
-    adapter.authorizeOperation?.(classification.command, settings)
+    adapter.authorizeOperation?.(classification.command, settings, args, input)
   }
 }
 
@@ -158,7 +158,8 @@ export function authorizeDelegatedCall(db: Database.Database, userId: string,
     .map(operation => ({ ...operation, command: commandOperation(adapter.name, operation.command) }))]
   const help = adapter.name === 'ssh-axi' && args.includes('--help')
     && ssh.managedCommands.some(route => route.command === classification.command)
-  for (const operation of operations) authorizeDelegatedOperation(db, userId, delegation, adapter, { ...operation, help }, instanceId)
+  for (const [index, operation] of operations.entries()) authorizeDelegatedOperation(db, userId, delegation, adapter, { ...operation, help }, instanceId,
+    index === 0 && continuationCommand === undefined ? args : undefined, index === 0 && continuationCommand === undefined ? input : undefined)
   return operations
 }
 

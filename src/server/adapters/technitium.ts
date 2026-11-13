@@ -153,7 +153,12 @@ export function createTechnitiumAdapter(source: SecretSource, writeLog?: string)
     validateArgs: (args, input) => { argumentsForCall(args, input) },
     executesWrite: (args, input) => argumentsForCall(args, input).effect === 'write',
     authorizeOperation,
-    classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => argumentsForCall(a, i).invocation, args, input),
+    classify(args, input) {
+      const classification = classifyCommand(inventory.commands, (a, i) => argumentsForCall(a, i).invocation, args, input)
+      if (classification.command === 'dns-client resolve' && (args.length === 2 || !argumentsForCall(args, input).write))
+        return { ...classification, effect: 'read' }
+      return classification
+    },
     async prepare(args, reference, input) {
       const call = argumentsForCall(args, input)
       if (reference.tool !== 'technitium-axi') throw new ArtiumError('CREDENTIAL_INVALID')

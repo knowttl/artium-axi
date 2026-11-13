@@ -65,7 +65,7 @@ test.each([
     candidates: ['status', 'admin cluster init'], allowed: ['status'] },
   { adapter: createTechnitiumAdapter(source), readOnly: false, enabled: true, granted: true,
     settings: { hostWrites: { allowWrites: true, operations: ['OP-119'] }, writes: { allowWrites: true, operations: ['OP-119'] } },
-    candidates: ['status', 'dns-client resolve'], allowed: ['status'] },
+    candidates: ['status', 'dns-client resolve'], allowed: ['status', 'dns-client resolve'] },
   { adapter: createTechnitiumAdapter(source), readOnly: false, enabled: true, granted: true,
     settings: { hostWrites: { allowWrites: true, operations: ['OP-077.import'] }, writes: { allowWrites: true, operations: ['OP-077.import'] } },
     candidates: ['status', 'dns-client resolve'], allowed: ['status', 'dns-client resolve'] },
@@ -98,6 +98,34 @@ test.each([
       expect(discovered.filter(command => candidates.includes(command))).toEqual([...allowed].sort())
     } finally { db.close() }
   })
+
+test.each([
+  { host: [], native: [], importAllowed: false },
+  { host: ['OP-077.import'], native: [], importAllowed: false },
+  { host: [], native: ['OP-077.import'], importAllowed: false },
+  { host: ['OP-077.import'], native: ['OP-077.import'], importAllowed: true },
+])('Technitium delegated DNS resolution checks import grants: $host $native', ({ host, native, importAllowed }) => {
+  const adapter = createTechnitiumAdapter(source, writeLog)
+  const db = new Database(':memory:')
+  try {
+    migrate(db)
+    db.exec(`INSERT INTO users (id, username, display_name, password_hash)
+      VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash');
+      INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
+      INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role')`)
+    db.prepare('INSERT INTO tools (name, enabled, pinned_version, native_settings) VALUES (?, 1, ?, ?)')
+      .run(adapter.name, 'synthetic', JSON.stringify({ hostWrites: { allowWrites: true, operations: host }, writes: { allowWrites: true, operations: native } }))
+    db.prepare("INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'technitium-axi')").run()
+    const delegation = { scopeJson: JSON.stringify({ tools: [{ tool: adapter.name }] }), readOnly: false }
+    const args = ['dns-client', 'resolve', '--input-file', 'input.json']
+    const input = (value: boolean) => ({ files: [{ name: 'input.json', contentBase64: Buffer.from(JSON.stringify({ parameters: { domain: 'synthetic.test', ...(value ? { import: true } : {}) } })).toString('base64') }] })
+    expect(delegatedDiscovery(db, 'synthetic-user', delegation, [adapter])[0].commands).toContain('dns-client resolve')
+    expect(() => authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, args, input(false))).not.toThrow()
+    const authorizeImport = () => authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, args, input(true))
+    if (importAllowed) expect(authorizeImport).not.toThrow()
+    else expect(authorizeImport).toThrow(expect.objectContaining({ code: 'FLAG_BLOCKED' }))
+  } finally { db.close() }
+})
 
 test.each([
   { adapter: createAzAdapter(source, writeLog), command: 'group list' },
