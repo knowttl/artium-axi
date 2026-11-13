@@ -217,8 +217,9 @@ test.each([
 ])('security #419: $route drops unlabelled upstream credentials from every diagnostic sink', async ({ actor, retest, replacement }) => {
   const untrusted = 'UnlabelledCanaryCredential419'
   const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
-  vi.spyOn(runner, 'run').mockResolvedValueOnce({ ...result, stdout: '',
-    stderr: `code: ${untrusted}\nmessage: ${untrusted}\nhint: ${untrusted}`, exitCode: 1 })
+  const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+  vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) =>
+    original.spawn(fakeTool.executable, [...fakeTool.args, 'failure', `code: ${untrusted}\nmessage: ${untrusted}\nhint: ${untrusted}`], options))
   const check = replacement
     ? health.checkReplacement('falcon-axi', actor, 'route-check', null, () => {})
     : health.check('falcon-axi', actor, 'route-check', null, undefined, undefined, retest)

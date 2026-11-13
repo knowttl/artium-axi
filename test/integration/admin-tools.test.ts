@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { spawn } from 'node:child_process'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
@@ -42,6 +43,11 @@ import { createSshAdapter } from '../../src/server/adapters/ssh.js'
 import { SshHosts } from '../../src/server/store/ssh-hosts.js'
 import { encryptCredential } from '../../src/server/store/crypto.js'
 import { preflight } from '../../src/server/health/preflight.js'
+
+vi.mock('node:child_process', async importOriginal => {
+  const original = await importOriginal<typeof import('node:child_process')>()
+  return { ...original, spawn: vi.fn(original.spawn) }
+})
 
 let directory: string
 let db: Database.Database
@@ -194,9 +200,10 @@ test.each([
 ])('security #419: $path retest=$retest exposes only structured health diagnostics', async ({ path, retest }) => {
   await replace('falcon-axi')
   const canary = 'UnlabelledRouteCredential419'
-  const prepare = adapters[0].prepare.bind(adapters[0])
-  vi.spyOn(adapters[0], 'prepare').mockImplementationOnce(async (args, reference) => ({ ...await prepare(args, reference),
-    executable: fakeTool.executable, args: [...fakeTool.args, 'failure', `code: ${canary}\nmessage: ${canary}`] }))
+  vi.mocked(adapters[0].prepare).mockRestore()
+  const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+  vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) =>
+    original.spawn(fakeTool.executable, [...fakeTool.args, 'failure', `code: ${canary}\nmessage: ${canary}`], options))
   const response = await request('POST', path, {}, { ...headers, ...(retest ? { 'x-artium-retest': '1' } : {}) })
   expect(response.status).toBe(503)
   expect(await response.json()).toMatchObject({ error: { code: 'TOOL_FAILED', diagnostic: { stage: 'tool run', message: 'Details unavailable.' } } })

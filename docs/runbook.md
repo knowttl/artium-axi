@@ -413,7 +413,7 @@ Failures before admission, including missing credentials, overlapping checks and
 Manual preflight certificate-verification diagnostics identify the chain as self-signed or untrusted when available.
 For TLS failures, follow [TLS inspection and private upstream CAs](#tls-inspection-and-private-upstream-cas).
 Use the failure category and stage to repair token-acquisition failures; see the [error reference](errors.md) for categories and next steps.
-Azure identity-provider HTTP service failures, including throttling and server errors, return `TOOL_FAILED` at the token-acquisition stage with service-availability advice; credential rejection returns `UPSTREAM_AUTH_FAILED`.
+Azure identity-provider HTTP service failures, including throttling and server errors, return `TOOL_FAILED` at the token-acquisition stage; credential rejection returns `UPSTREAM_AUTH_FAILED`.
 These Azure diagnostics never include raw response bodies.
 Tool codes `API_RESPONSE_INVALID`, `AUTH_RESPONSE_INVALID`, `RESPONSE_INVALID`, `MALFORMED_RESPONSE`, `INVALID_RESPONSE` and `PROTOCOL_ERROR` return `UPSTREAM_RESPONSE_INVALID` at the response stage.
 Generic `UPSTREAM_ERROR` failures use the ordinary authentication, network or tool-failure classification.
