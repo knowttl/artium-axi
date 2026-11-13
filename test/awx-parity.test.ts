@@ -69,12 +69,11 @@ syncBuiltinESMExports();`
   expect(result.stderr).toContain('Unreviewed AWX surface change')
 })
 
-test('parity rejects a newly accepted auth flag without a decision', () => {
+test.each([{ args: [] }, { args: ['--write'] }])('parity rejects a newly accepted auth flag without a decision in mode $args', ({ args }) => {
   const preload = `import { registerHooks } from 'node:module';
 registerHooks({ load(url, context, nextLoad) {
   const result = nextLoad(url, context);
   if (url.endsWith('/dist/commands/auth.js')) result.source = result.source.toString()
-    .replace('--allow-http opts this profile', '--synthetic-parity-flag and --allow-http opts this profile')
     .replace('[{ name: "allow-http"', '[{ name: "synthetic-parity-flag", takesValue: false, description: "Synthetic" }, { name: "allow-http"');
   return result;
 } });`
@@ -85,7 +84,7 @@ try { await authCommand(['login', '--synthetic-parity-flag'], { env: {}, selecti
 catch (error) { console.log(error.message); }`
   const accepted = spawnSync(process.execPath, ['--import', hook, '--input-type=module', '-e', probe], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
   expect(accepted.stdout).toContain('auth login needs AWX_AXI_USERNAME and AWX_AXI_PASSWORD')
-  const result = spawnSync(process.execPath, ['--import', hook, fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url)), '--write'], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  const result = spawnSync(process.execPath, ['--import', hook, fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url)), ...args], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
   expect(result.status).toBe(1)
   expect(result.stderr).toContain('auth login --synthetic-parity-flag')
   expect(result.stderr).toContain('support decision')

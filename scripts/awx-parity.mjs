@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { isDeepStrictEqual } from 'node:util'
 import { DOMAINS, main } from '../tools/node_modules/@knowttl/awx-axi/dist/cli.js'
-import { AUTH_HELP } from '../tools/node_modules/@knowttl/awx-axi/dist/commands/auth.js'
-import { SETUP_HELP } from '../tools/node_modules/@knowttl/awx-axi/dist/commands/setup.js'
+import { AUTH_HELP, authCommand } from '../tools/node_modules/@knowttl/awx-axi/dist/commands/auth.js'
+import { SETUP_HELP, setupCommand } from '../tools/node_modules/@knowttl/awx-axi/dist/commands/setup.js'
 
 const root = new URL('../', import.meta.url)
 const upstream = new URL('tools/node_modules/@knowttl/awx-axi/', root)
@@ -38,6 +38,19 @@ for (const route of offered.filter(route => localCommands.includes(route.command
   route.flags = [...output.matchAll(/--([a-z][a-z0-9-]*)/g)]
     .filter(match => !globalNames.includes(match[1]) && match[1] !== 'help')
     .map(match => ({ name: match[1] }))
+  if (['auth', 'setup'].includes(group)) {
+    let suggestions
+    try {
+      await (group === 'auth' ? authCommand([name, '--parity-unknown-probe'], { env: {}, selection: {} }) : setupCommand([name, '--parity-unknown-probe']))
+    } catch (error) {
+      suggestions = error.suggestions
+    }
+    const list = suggestions?.find(item => item.startsWith(`valid flags for \`${route.command}\`: `))
+    if (!list) throw new Error(`Cannot discover executable AWX flags for ${route.command}`)
+    for (const match of list.matchAll(/--([a-z][a-z0-9-]*)/g)) {
+      if (!route.flags.some(flag => flag.name === match[1])) route.flags.push({ name: match[1] })
+    }
+  }
 }
 const complete = (decision, commandFlag = false) => decision
   && ['name', 'status', 'effect', 'targetSlice', 'authorization'].every(key => typeof decision[key] === 'string' && decision[key].trim())
