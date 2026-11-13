@@ -24,25 +24,32 @@ export async function pinnedHttp(socketPath: string, trust: readonly CredentialT
     const target = new URL(incoming.url, `https://${incoming.headers.host}`)
     const scoped = trust.filter(item => certificateEndpoint(item.endpoint).href === certificateEndpoint(target).href)
     const upstreamOptions = endpoint === certificateEndpoint(target).href ? options : undefined
-    const upstream = request(target, { method: incoming.method, headers: incoming.headers,
-      ...(upstreamOptions?.clientIdentity ? {
-        cert: upstreamOptions.clientIdentity.certificate, key: upstreamOptions.clientIdentity.privateKey,
-      } : {}),
-      ...(upstreamOptions?.serverName ? { servername: upstreamOptions.serverName } : {}),
-      ...credentialTlsOptions(scoped, ca), agent: false }, result => {
-      response.writeHead(result.statusCode!, result.headers)
-      result.pipe(response)
-      result.once('error', () => response.destroy())
-    })
-    outgoing.add(upstream)
-    upstream.once('close', () => outgoing.delete(upstream))
-    upstream.on('error', error => {
+    const fail = (error: NodeJS.ErrnoException) => {
       if (response.headersSent) response.destroy()
       else response.writeHead(502, { 'content-type': 'application/json' }).end(JSON.stringify({
-        message: (error as NodeJS.ErrnoException).code === 'CERTIFICATE_PIN_MISMATCH'
+        message: error.code === 'CERTIFICATE_PIN_MISMATCH'
           ? 'CERTIFICATE_PIN_MISMATCH' : 'Upstream TLS connection failed',
       }))
-    })
+    }
+    let upstream: ClientRequest
+    try {
+      upstream = request(target, { method: incoming.method, headers: incoming.headers,
+        ...(upstreamOptions?.clientIdentity ? {
+          cert: upstreamOptions.clientIdentity.certificate, key: upstreamOptions.clientIdentity.privateKey,
+        } : {}),
+        ...(upstreamOptions?.serverName ? { servername: upstreamOptions.serverName } : {}),
+        ...credentialTlsOptions(scoped, ca), agent: false }, result => {
+        response.writeHead(result.statusCode!, result.headers)
+        result.pipe(response)
+        result.once('error', () => response.destroy())
+      })
+    } catch (error) {
+      fail(error as NodeJS.ErrnoException)
+      return
+    }
+    outgoing.add(upstream)
+    upstream.once('close', () => outgoing.delete(upstream))
+    upstream.on('error', fail)
     response.once('close', () => upstream.destroy())
     response.on('error', () => upstream.destroy())
     incoming.once('error', () => upstream.destroy())

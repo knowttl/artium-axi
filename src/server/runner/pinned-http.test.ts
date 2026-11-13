@@ -149,6 +149,22 @@ test('the host server name controls SNI and hostname verification on the pinned 
   } finally { server.off('secureConnection', observe) }
 })
 
+test.each(['malformed certificate', 'malformed key', 'mismatched key'])('rejects a %s without stopping the relay', async scenario => {
+  const identity = {
+    certificate: scenario === 'malformed certificate' ? 'invalid' : storedIdentity.certificate,
+    privateKey: scenario === 'malformed key' ? 'invalid' : scenario === 'mismatched key'
+      ? readFileSync(join(directory, 'server.key'), 'utf8') : storedIdentity.privateKey,
+  }
+  const socketPath = join(directory, 'invalid-identity.sock')
+  const relay = await pinnedHttp(socketPath, trust(), undefined, { endpoint, clientIdentity: identity })
+  try {
+    const failure = { status: 502, body: '{"message":"Upstream TLS connection failed"}' }
+    expect(await requestRelay(socketPath)).toEqual(failure)
+    expect(await requestRelay(socketPath)).toEqual(failure)
+    expect(applicationRequests).toEqual([])
+  } finally { await relay.close() }
+})
+
 test.each([
   { scenario: 'correct client and leaf', client: 'client', certificate: 'leaf', pin: 'leaf', serverName: 'localhost',
     status: 200, body: 'authenticated', peers: ['synthetic-kubernetes-client'] },
