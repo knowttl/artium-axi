@@ -21,23 +21,24 @@ const help = async argv => {
 }
 const topHelp = await help(['--help'])
 const updateHelp = await help(['update', '--help'])
-const globalNames = [...topHelp.match(/^globals: (.*)$/m)[1].matchAll(/--([a-z-]+)/g)].map(match => match[1])
+const globalNames = [...topHelp.match(/^globals: (.*)$/m)[1].matchAll(/--([a-z0-9-]+)/g)].map(match => match[1])
 const recorded = readJson('tools/inventories/awx-axi-parity.json')
 const decisions = new Map(recorded.commands.map(route => [route.command, route]))
 const localCommands = [
-  ...AUTH_HELP.match(/usage: awx-axi auth ([a-z|]+)/)[1].split('|').map(name => `auth ${name}`),
-  ...SETUP_HELP.match(/usage: awx-axi setup ([\w|-]+)/)[1].split('|').map(name => `setup ${name}`),
+  ...AUTH_HELP.match(/usage: awx-axi auth ([a-z0-9|-]+)/)[1].split('|').map(name => `auth ${name}`),
+  ...SETUP_HELP.match(/usage: awx-axi setup ([a-z0-9|-]+)/)[1].split('|').map(name => `setup ${name}`),
   ...topHelp.match(/^commands: "(.*)"$/m)[1].split(', ').filter(command => !['auth', 'setup'].includes(command)),
-  updateHelp.match(/^command: (\w+)$/m)[1],
+  updateHelp.match(/^command: ([a-z0-9-]+)$/m)[1],
 ]
 const offered = [...DOMAINS.flatMap(domain => domain.subcommands.map(route => ({ command: `${domain.name} ${route.name}`, flags: route.flags }))),
   ...localCommands.map(command => ({ command, flags: [] }))]
 const missingCommands = offered.filter(route => !decisions.has(route.command)).map(route => route.command)
 if (missingCommands.length) throw new Error(`Missing AWX support decision: ${missingCommands.join(', ')}; record each decision in tools/inventories/awx-axi-parity.json`)
 for (const route of offered.filter(route => localCommands.includes(route.command))) {
-  const output = route.command.startsWith('auth ')
-    ? AUTH_HELP.split(new RegExp(`\\n  ${route.command.slice(5)}\\s+`))[1]?.split(/\n  [a-z]+\s{2,}/)[0] ?? ''
-    : route.command.startsWith('setup ') ? SETUP_HELP : await help([...route.command.split(' '), '--help'])
+  const [group, name] = route.command.split(' ')
+  const output = ['auth', 'setup'].includes(group)
+    ? (group === 'auth' ? AUTH_HELP : SETUP_HELP).split(new RegExp(`\\n  ${name}[ \\t]{2,}`))[1]?.split(/\n(?:  [a-z0-9-]+[ \t]{2,}|\s*\n|[^ \t])/)[0] ?? ''
+    : await help([...route.command.split(' '), '--help'])
   route.flags = [...output.matchAll(/--([a-z][a-z0-9-]*)/g)]
     .filter(match => !globalNames.includes(match[1]) && match[1] !== 'help')
     .map(match => ({ name: match[1] }))
@@ -166,7 +167,7 @@ for (const command of ['home', ...localCommands]) {
   const effect = remoteRead ? 'read' : 'client-local'
   const specs = [{ name: 'help', takesValue: false, description: 'Command help' }]
   if (command === 'auth login') specs.push(...[...AUTH_HELP.matchAll(/--(allow-http)\b/g)].slice(0, 1).map(match => ({ name: match[1], takesValue: false, description: 'Opt into unencrypted HTTP; unavailable in Artium HTTPS accounts' })))
-  if (command === 'update') specs.push(...[...updateHelp.matchAll(/^  "--([a-z-]+)": (.*)$/gm)].map(match => ({ name: match[1], takesValue: false, description: match[2] })))
+  if (command === 'update') specs.push(...[...updateHelp.matchAll(/^  "--([a-z0-9-]+)": (.*)$/gm)].map(match => ({ name: match[1], takesValue: false, description: match[2] })))
   const authorization = ['auth login', 'auth logout'].includes(command) ? 'write' : 'read'
   commands.push({ command, effect, status, reason, targetSlice: command === 'auth logout' ? 'e' : 'f', authorization, requiredAdminControl: requiredControl(command, authorization),
     flags: [...flagsFor(command, specs, effect, 'f', status), ...offered.find(route => route.command === command)?.flags

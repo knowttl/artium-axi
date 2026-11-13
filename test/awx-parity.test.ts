@@ -51,6 +51,8 @@ test.each([
   { kind: 'auth flag', file: '/dist/commands/auth.js', from: '--allow-http opts this profile', to: '--synthetic-parity-flag and --allow-http opts this profile', name: 'auth login --synthetic-parity-flag', args: [] },
   { kind: 'auth flag during regeneration', file: '/dist/commands/auth.js', from: '--allow-http opts this profile', to: '--synthetic-parity-flag and --allow-http opts this profile', name: 'auth login --synthetic-parity-flag', args: ['--write'] },
   { kind: 'setup subcommand', file: '/dist/commands/setup.js', from: 'usage: awx-axi setup hooks', to: 'usage: awx-axi setup hooks|synthetic', name: 'setup synthetic', args: [] },
+  { kind: 'global flag with a digit', file: '/dist/cli.js', from: 'globals: "--config <path>', to: 'globals: "--config2 <path>, --config <path>', name: 'global --config2', args: [] },
+  { kind: 'auth subcommand with digits and hyphens', file: '/dist/commands/auth.js', from: 'auth login|status|logout', to: 'auth login|status|logout|login-2', name: 'auth login-2', args: [] },
 ])('parity rejects an unreviewed upstream $kind', ({ file, from, to, name, args }) => {
   const preload = `import { registerHooks } from 'node:module';
 registerHooks({ load(url, context, nextLoad) {
@@ -63,6 +65,44 @@ registerHooks({ load(url, context, nextLoad) {
   expect(result.status).toBe(1)
   expect(result.stderr).toContain(name)
   expect(result.stderr).toContain('support decision')
+})
+
+test('auth examples do not assign flags to logout', () => {
+  const preload = `import { registerHooks } from 'node:module';
+registerHooks({ load(url, context, nextLoad) {
+  const result = nextLoad(url, context);
+  if (url.endsWith('/dist/commands/auth.js')) result.source = result.source.toString().replace('awx-axi auth login --profile production', 'awx-axi auth login --example-only');
+  return result;
+} });`
+  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(0)
+})
+
+test('setup flags belong only to their documented subcommand', () => {
+  const preload = `import fs from 'node:fs';
+import { registerHooks, syncBuiltinESMExports } from 'node:module';
+const read = fs.readFileSync;
+fs.readFileSync = function(path, ...args) {
+  const contents = read.call(this, path, ...args);
+  if (!String(path).endsWith('/tools/inventories/awx-axi-parity.json')) return contents;
+  const data = JSON.parse(contents);
+  data.commands.push({ ...data.commands.find(item => item.command === 'setup hooks'), command: 'setup synthetic' });
+  return JSON.stringify(data);
+};
+syncBuiltinESMExports();
+registerHooks({ load(url, context, nextLoad) {
+  const result = nextLoad(url, context);
+  if (url.endsWith('/dist/commands/setup.js')) result.source = result.source.toString()
+    .replace('usage: awx-axi setup hooks', 'usage: awx-axi setup hooks|synthetic')
+    .replace('hooks    install session-start hooks for Claude Code, Codex, and OpenCode', 'hooks    install --hooks-only\\n  synthetic    another command');
+  return result;
+} });`
+  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain('setup hooks --hooks-only')
+  expect(result.stderr).not.toContain('setup synthetic --hooks-only')
 })
 
 test.each([
