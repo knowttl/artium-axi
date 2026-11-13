@@ -47,10 +47,10 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
   function currentTrust(reference: CredentialReference, endpoint: string, revision: number) {
     if ((trustState(reference, endpoint)?.revision ?? 0) !== revision) throw new ArtiumError('REVISION_CONFLICT', 'Endpoint trust changed. Inspect the certificate again.')
   }
-  function endpointTrust(reference: CredentialReference, endpoint: string, leafPem: string) {
+  function endpointTrust(reference: CredentialReference, endpoint: string) {
     const certificates = credentialCertificates(db, reference.id).filter(item => item.endpoint === certificateEndpoint(endpoint).href)
     const value = store!.readCredential(reference) as Record<string, unknown>
-    const saved = savedCertificateTrust(reference.tool, value, leafPem, certificates)
+    const saved = savedCertificateTrust(reference.tool, value, certificates)
     return { certificates, value, saved, mode: saved.mode }
   }
   function save(request: FastifyRequest, actor: string, reference: CredentialReference,
@@ -62,7 +62,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       authorize(request)
       current(reference)
       currentTrust(reference, inspection.endpoint, trustRevision)
-      const { certificates: existing, value, saved, mode: existingMode } = endpointTrust(reference, inspection.endpoint, inspection.leafPem)
+      const { certificates: existing, value, saved, mode: existingMode } = endpointTrust(reference, inspection.endpoint)
       if (!replace && (existing.length || saved.pem || saved.fingerprint)) throw new ArtiumError('INVALID_INPUT', 'Existing trust must be replaced explicitly.')
       if (replace && existingMode !== mode) throw new ArtiumError('INVALID_INPUT', 'Certificate trust must retain the existing trust mode.')
       if (replace && mode === 'ca' && (!caVerified || !saved.fingerprint)) throw new ArtiumError('INVALID_INPUT', 'The issuing CA changed; update the CA manually.')
@@ -114,7 +114,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     authorize(request)
     current(reference)
     currentTrust(reference, endpoint.href, trustRevision)
-    const { certificates, saved, mode: trustMode } = endpointTrust(reference, inspection.endpoint, inspection.leafPem)
+    const { certificates, saved, mode: trustMode } = endpointTrust(reference, inspection.endpoint)
     const chainError = inspection.verificationError
     const caVerified = !chainError && !savedInspection.verificationError && inspection.chain[0].fingerprint === savedInspection.chain[0].fingerprint
     if (saved.certificate && saved.isCa && caVerified) {
@@ -193,7 +193,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       'Confirm the displayed SHA-256 fingerprint before trusting this certificate.')
     if (!item.inspection.verificationError && !replace) throw new ArtiumError('INVALID_INPUT', item.inspection.reason)
     const { anchor, chain } = item.inspection
-    const existingMode = endpointTrust(reference, item.inspection.endpoint, item.inspection.leafPem).mode
+    const existingMode = endpointTrust(reference, item.inspection.endpoint).mode
     if (existingMode && existingMode !== mode) throw new ArtiumError('INVALID_INPUT', 'Certificate trust must retain the existing trust mode.')
     const hasCA = anchor.ca && anchor.fingerprint !== chain[0].fingerprint
     if (reference.tool === 'kubernetes-axi' && (mode !== 'ca' || !hasCA && !item.caVerified)) throw new ArtiumError('INVALID_INPUT',

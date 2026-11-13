@@ -43,6 +43,8 @@ beforeAll(async () => {
   createInspectionCertificates(directory, 'http://127.0.0.1:1/issuer')
   execFileSync('openssl', ['x509', '-in', 'self-signed.crt', '-signkey', 'server.key', '-preserve_dates',
     '-clrext', '-extfile', 'inspection.cnf', '-extensions', 'root', '-out', 'self-signed-ca.crt'], { cwd: directory, stdio: 'pipe' })
+  execFileSync('openssl', ['x509', '-req', '-in', 'server.csr', '-CA', 'ca.crt', '-CAkey', 'ca.key', '-set_serial', '101',
+    '-subj', '/CN=Artium synthetic test CA', '-days', '3650', '-extfile', 'inspection.cnf', '-extensions', 'root', '-out', 'self-issued.crt'], { cwd: directory, stdio: 'pipe' })
   server.on('tlsClientError', () => {})
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
@@ -73,24 +75,28 @@ afterAll(async () => {
 })
 
 test.each([
-  ['self-signed leaf with a matching paired fingerprint', 'self-signed-ca', 'self-signed-ca', 'self-signed-rotated', [], 'pin'],
-  ['issuing CA with a paired leaf fingerprint', 'intermediate', 'leaf', 'rotated', [], 'ca'],
-  ['self-signed CA signing another leaf', 'ca', 'ca', 'root-issued', [], 'ca'],
-  ['self-signed certificate without a paired fingerprint', 'ca', undefined, 'self-signed-rotated', [], 'ca'],
-  ['self-signed certificate with a different paired fingerprint', 'ca', 'leaf', 'self-signed-rotated', [], 'ca'],
-  ['explicit CA record', 'ca', 'ca', 'self-signed-rotated', [{ mode: 'ca' }], 'ca'],
-  ['explicit pin record', 'ca', undefined, 'root-issued', [{ mode: 'pin' }], 'pin'],
-  ['saved ordinary leaf', 'leaf', 'leaf', 'rotated', [], 'pin'],
-] as const)('saved trust resolves %s', (_name, saved, paired, presented, records, mode) => {
+  ['self-signed leaf with a matching paired fingerprint', 'self-signed-ca', 'self-signed-ca', [], 'pin'],
+  ['issuing CA with a paired leaf fingerprint', 'intermediate', 'leaf', [], 'ca'],
+  ['self-signed pin', 'ca', 'ca', [], 'pin'],
+  ['self-issued certificate signed by another key', 'self-issued', 'self-issued', [], 'ca'],
+  ['self-signed certificate without a paired fingerprint', 'ca', undefined, [], 'ca'],
+  ['self-signed certificate with a different paired fingerprint', 'ca', 'leaf', [], 'ca'],
+  ['explicit CA record', 'ca', 'ca', [{ mode: 'ca' }], 'ca'],
+  ['explicit pin record', 'ca', undefined, [{ mode: 'pin' }], 'pin'],
+  ['saved ordinary leaf', 'leaf', 'leaf', [], 'pin'],
+] as const)('saved trust resolves %s', (_name, saved, paired, records, mode) => {
   expect(savedCertificateTrust('unifi-axi', { tls: { trustedCertificatePem: pem(saved),
-    peerFingerprintSha256: paired && fingerprint(paired) } }, pem(presented), records).mode).toBe(mode)
+    peerFingerprintSha256: paired && fingerprint(paired) } }, records).mode).toBe(mode)
 })
 
-test('a manually saved self-signed CA-capable leaf renews only as a confirmed strict pin', async () => {
+test.each([
+  ['self-signed-ca', 'self-signed-rotated'],
+  ['ca', 'root-issued'],
+])('a manually saved self-signed CA-capable leaf %s renews only as a confirmed strict pin', async (oldLeaf, newLeaf) => {
   store.createInstance('unifi-axi', { name: 'rotation', description: '' }, { origin: endpoint, apiKey: 'CANARY-key',
-    tls: { trustedCertificatePem: pem('self-signed-ca'), peerFingerprintSha256: fingerprint('self-signed-ca') } }, 'synthetic-development-user', Date.now())
+    tls: { trustedCertificatePem: pem(oldLeaf), peerFingerprintSha256: fingerprint(oldLeaf) } }, 'synthetic-development-user', Date.now())
   const base = '/v1/admin/tools/unifi-axi/instances/rotation/certificates'
-  serve('self-signed-rotated')
+  serve(newLeaf)
   const inspection = (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
   expect(inspection).toMatchObject({ rotation: true, trustMode: 'pin' })
   const payload = { inspectionId: inspection.inspectionId, confirmedFingerprint: inspection.chain[0].fingerprint, mode: 'pin', replace: true, fillFields: true }
@@ -100,11 +106,11 @@ test('a manually saved self-signed CA-capable leaf renews only as a confirmed st
   expect(saved.statusCode, saved.body).toBe(200)
   const reference = store.findInstance('unifi-axi', 'rotation')!
   const value = store.readCredential(reference) as Record<string, unknown>
-  expect(value.tls).toEqual({ trustedCertificatePem: pem('self-signed-rotated'), peerFingerprintSha256: fingerprint('self-signed-rotated') })
+  expect(value.tls).toEqual({ trustedCertificatePem: pem(newLeaf), peerFingerprintSha256: fingerprint(newLeaf) })
   const trust = readCredentialTrust(db, reference)
   expect(trust.map(item => item.mode)).toEqual(['pin'])
   await expect(preflight('unifi-axi', value, trust)).resolves.toBeUndefined()
-  serve('self-signed-ca')
+  server.setSecureContext({ key: readFileSync(join(directory, oldLeaf === 'ca' ? 'ca.key' : 'server.key')), cert: pem(oldLeaf) })
   await expect(preflight('unifi-axi', value, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
   serve('leaf')
   await expect(preflight('unifi-axi', value, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
