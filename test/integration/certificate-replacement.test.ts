@@ -439,6 +439,39 @@ test('removing one CA record keeps the confirmed leaf for the remaining record',
   expect(listed.certificates[0].leaf.fingerprint).toBe(renewal.chain[0].fingerprint)
 })
 
+test('saving unrelated credentials preserves a CA leaf without a fingerprint', async () => {
+  store.createInstance('proxmox-axi', { name: 'rotation', description: '' }, { origin: endpoint, auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }, 'synthetic-development-user', Date.now())
+  const base = '/v1/admin/tools/proxmox-axi/instances/rotation'
+  const initial = (await app.inject({ method: 'POST', url: base + '/certificates/inspect', headers, payload: {} })).json()
+  expect((await app.inject({ method: 'POST', url: base + '/certificates/trust', headers, payload: { inspectionId: initial.inspectionId, confirmedFingerprint: initial.chain[0].fingerprint, mode: 'ca', fillFields: true } })).statusCode).toBe(200)
+  const instance = store.findInstance('proxmox-axi', 'rotation')!
+  const tool = (await app.inject({ method: 'GET', url: '/v1/admin/tools/proxmox-axi', headers })).json()
+  const value = store.readCredential(instance) as Record<string, unknown>
+  const saved = await app.inject({ method: 'PATCH', url: base + '/credential', headers, payload: { expectedId: instance.id, expectedRevision: instance.revision, expectedToolRevision: tool.revision, value: { ...value, token: 'CANARY-new-token' } } })
+  expect(saved.statusCode, saved.body).toBe(200)
+  const listed = (await app.inject({ method: 'GET', url: base + '/certificates', headers })).json()
+  expect(listed.certificates[0].leaf.fingerprint).toBe(initial.chain[0].fingerprint)
+  expect(listed.certificates[0].leaf.expiresAt).toBe(initial.chain[0].expiresAt)
+})
+
+test('editing an endpoint and fingerprint only updates the new endpoint', async () => {
+  store.createInstance('unifi-axi', { name: 'rotation', description: '' }, { origin: endpoint, apiKey: 'CANARY-key' }, 'synthetic-development-user', Date.now())
+  const base = '/v1/admin/tools/unifi-axi/instances/rotation'
+  const initial = (await app.inject({ method: 'POST', url: base + '/certificates/inspect', headers, payload: {} })).json()
+  expect((await app.inject({ method: 'POST', url: base + '/certificates/trust', headers, payload: { inspectionId: initial.inspectionId, confirmedFingerprint: initial.chain[0].fingerprint, mode: 'ca', fillFields: true } })).statusCode).toBe(200)
+  const instance = store.findInstance('unifi-axi', 'rotation')!
+  const newEndpoint = 'https://localhost:1/'
+  db.prepare('INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('synthetic-other-endpoint', instance.id, newEndpoint, new X509Certificate(pem('ca')).fingerprint256, new X509Certificate(pem('leaf')).fingerprint256, pem('ca'), pem('leaf'), 'ca', Date.now(), 'synthetic-development-user')
+  const tool = (await app.inject({ method: 'GET', url: '/v1/admin/tools/unifi-axi', headers })).json()
+  const value = store.readCredential(instance) as { tls: Record<string, unknown> }
+  const saved = await app.inject({ method: 'PATCH', url: base + '/credential', headers, payload: { expectedId: instance.id, expectedRevision: instance.revision, expectedToolRevision: tool.revision, value: { ...value, origin: 'https://localhost:1', tls: { ...value.tls, peerFingerprintSha256: fingerprint('rotated') } } } })
+  expect(saved.statusCode, saved.body).toBe(200)
+  const listed = (await app.inject({ method: 'GET', url: base + '/certificates', headers })).json()
+  expect(listed.certificates.find((item: { endpoint: string }) => item.endpoint === endpoint + '/').leafFingerprint).toBe(initial.chain[0].fingerprint)
+  expect(listed.certificates.find((item: { endpoint: string }) => item.endpoint === newEndpoint).leafFingerprint).toBe(new X509Certificate(pem('rotated')).fingerprint256)
+})
+
 test('upgrading a confirmed CA renewal preserves the displayed leaf', async () => {
   store.createInstance('unifi-axi', { name: 'rotation', description: '' }, { origin: endpoint, apiKey: 'CANARY-key' }, 'synthetic-development-user', Date.now())
   const base = '/v1/admin/tools/unifi-axi/instances/rotation/certificates'

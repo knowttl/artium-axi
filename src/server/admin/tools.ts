@@ -39,8 +39,10 @@ import { diffSettings } from '../audit/settings-diff.js'
 import type { Runner } from '../runner/runner.js'
 import type { ToolHealth } from '../health/health.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
-import { credentialCertificates, readCredentialTrust, syncConfirmedLeaves } from '../store/trusted-certificates.js'
+import { readCredentialTrust, syncConfirmedLeaves } from '../store/trusted-certificates.js'
 import { credentialTlsSettings, retainCredentialTls, savedCertificateTrust, tlsCredentialRoots } from '../credential-tls-settings.js'
+import { toolEndpoints } from '../tool-endpoints.js'
+import { certificateEndpoint } from '../certificate-endpoint.js'
 import { isAwxOriginOnly } from '../store/credential-store.js'
 import { isCanonicalHttpsOrigin } from '../adapters/credential-input.js'
 import { hasSshConfiguration, type SshHosts } from '../store/ssh-hosts.js'
@@ -573,8 +575,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       if (saving && (reference?.revision ?? 0) !== expectedRevision) throw new ArtiumError('REVISION_CONFLICT')
       expectIdentity(name, reference, input.expectedId)
       let next = value
+      const stored = reference ? credentialStore().readCredential(reference) as Record<string, unknown> : {}
       if (saving) {
-        const stored = reference ? credentialStore().readCredential(reference) as Record<string, unknown> : {}
         const sameIdentity = ['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org', 'appId', 'installationId', 'tokenId', 'userId', 'tokenKind', 'clientCertificate'].every(key => stored[key] === value[key])
         const secrets = credentialProfiles[tool]?.fields().filter(field => field.schema['x-secret'] && field.schema['x-ephemeral'] !== true)
           .map(field => field.name) ?? legacySecretFields[tool]
@@ -587,8 +589,15 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       events.push(...writeChange(request, actor, tool, current.nativeSettings, settings))
       const now = Date.now()
       replacement = writeCredential(tool, name, credential, input.expectedId, expectedRevision, actor, now, input.description)
-      if (credentialTlsSettings[tool].fingerprint) syncConfirmedLeaves(db, replacement.id, savedCertificateTrust(tool, credential).fingerprint,
-        credentialCertificates(db, replacement.id).filter(item => item.mode === 'ca').map(item => item.endpoint))
+      if (reference && credentialTlsSettings[tool].fingerprint) {
+        const endpoint = certificateEndpoint(toolEndpoints(tool, credential)[0]!).href
+        const previousEndpoint = certificateEndpoint(toolEndpoints(tool, stored)[0]!).href
+        const fingerprint = savedCertificateTrust(tool, credential).fingerprint
+        const previous = endpoint === previousEndpoint ? savedCertificateTrust(tool, stored).fingerprint : undefined
+        if (fingerprint?.replaceAll(':', '').toLowerCase() !== previous?.replaceAll(':', '').toLowerCase()) {
+          syncConfirmedLeaves(db, replacement.id, fingerprint, [endpoint])
+        }
+      }
       events[0]!.credentialId = replacement.id
       events[0]!.instance = credentialStore().listInstances(tool).find(item => item.id === replacement!.id)!.name
       if (name === undefined) db.prepare(`UPDATE tools SET native_settings = ?, pinned_version = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?`)
