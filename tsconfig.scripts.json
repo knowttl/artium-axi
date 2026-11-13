@@ -7,6 +7,11 @@
   "include": [
     "scripts/beyondtrust-inventory.ts",
     "scripts/checkpoint-inventory.ts",
-    "scripts/tenable-inventory.ts"
+    "scripts/tenable-inventory.ts",
+    "test/fake-tool/ado-gate-child.ts",
+    "test/fake-tool/ldap-adapter-child.ts",
+    "test/fake-tool/technitium-publication-fault.ts",
+    "test/fixtures/credential-worker.ts",
+    "test/fixtures/fake-gh.ts"
   ]
 }

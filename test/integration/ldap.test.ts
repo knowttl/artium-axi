@@ -35,7 +35,7 @@ beforeEach(async () => {
   adapter.prepare = async (...args) => {
     const call = await prepare(...args)
     return { ...call, executable: process.execPath,
-      args: [join(process.cwd(), 'test/fake-tool/ldap-adapter-child.mjs'), ...call.args] }
+      args: [join(process.cwd(), 'test/fake-tool/ldap-adapter-child.ts'), ...call.args] }
   }
   const runner = await Runner.create(join(directory, 'calls'))
   app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [adapter],

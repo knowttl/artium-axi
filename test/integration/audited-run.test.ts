@@ -1,5 +1,5 @@
 import * as childProcess from 'node:child_process'
-import { chmodSync, copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import * as filesystem from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -806,9 +806,9 @@ test.each([
 ])('a nonzero $operation result after $scenario with $auth auth returns recovery without retry', async ({ operation, scenario, auth, args, calls, recovery }) => {
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'gh-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'gh-axi')")
   grantWrites('gh-axi', [operation])
-  const fake = join(directory, 'gh.mjs')
+  const fake = join(directory, 'gh.ts')
   const log = join(directory, 'gh-calls.jsonl')
-  copyFileSync('test/fixtures/fake-gh.mjs', fake)
+  writeFileSync(fake, readFileSync('test/fixtures/fake-gh.ts', 'utf8').replace('#!/usr/bin/env node', `#!${process.execPath}`))
   chmodSync(fake, 0o755)
   const github = createGhAdapter({ getCredential: async () => auth === 'device'
     ? { origin: 'https://github.com', auth: 'device', accessToken: 'CANARY-github-token', login: 'synthetic' }

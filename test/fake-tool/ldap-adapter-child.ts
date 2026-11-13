@@ -1,8 +1,15 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { run } from '../../tools/node_modules/@knowttl/ldap-axi/dist/src/cli.js'
+const upstream = '../../tools/node_modules/@knowttl/ldap-axi/dist/src/cli.js'
+const { run }: { run: (argv: string[], dependencies: { openDirectory: typeof openDirectory }) =>
+  Promise<{ stdout: string; stderr: string; exitCode: number }> } = await import(upstream)
 
-const result = await run(process.argv.slice(2), { openDirectory: async options => {
+const openDirectory = async (options: {
+  url: string
+  authPlan: { mode: string; credentials: { dn: string; password: string } }
+  tlsNoVerify: boolean
+  caFile?: string
+}) => {
   assert.equal(options.url, 'ldaps://directory.test:636')
   assert.equal(options.authPlan.mode, 'simple')
   assert.equal(options.authPlan.credentials.dn, 'uid=reader')
@@ -12,7 +19,7 @@ const result = await run(process.argv.slice(2), { openDirectory: async options =
   return {
     flavor: 'ldapv3',
     async rootDSE() { return { flavor: 'ldapv3', attributes: { namingContexts: ['ou=people'], supportedExtension: [] } } },
-    async *searchPages(request) {
+    async *searchPages(request: { base: string; filter: string }) {
       assert.equal(request.base, 'ou=people')
       yield { entries: request.filter.includes('(objectClass=device)')
         ? [{ dn: 'cn=synthetic-computer,ou=people', attributes: { cn: ['Synthetic Computer'], objectClass: ['device'] } }]
@@ -20,7 +27,8 @@ const result = await run(process.argv.slice(2), { openDirectory: async options =
     },
     async close() {},
   }
-} })
+}
+const result = await run(process.argv.slice(2), { openDirectory })
 process.stdout.write(result.stdout)
 process.stderr.write(result.stderr)
 process.exitCode = result.exitCode
