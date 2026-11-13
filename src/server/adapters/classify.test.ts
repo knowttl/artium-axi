@@ -46,7 +46,7 @@ const inventoryCases = adapters.flatMap(adapter => {
     commands: Route[], writeCommands?: Route[], workflows?: Route[], managedCommands?: Route[], streamCommands?: Route[]
   }
   return [...inventory.commands, ...(inventory.writeCommands ?? []), ...(inventory.workflows ?? []), ...(inventory.managedCommands ?? []), ...(inventory.streamCommands ?? [])].map(route => {
-    const reviewedRead = adapter.name === 'ldap-axi'
+    const reviewedRead = adapter.name === 'ldap-axi' || adapter.name === 'technitium-axi' && route.command === 'dns-client resolve'
     const workflow = inventory.workflows?.includes(route)
     const effect = !workflow && (reviewedRead || route.effect === 'read' || route.effect === 'local') ? 'read' : 'write'
     return { adapter, command: route.command, canonical: route.canonicalCommand ?? (route.command || 'home'), effect }
