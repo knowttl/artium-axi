@@ -472,8 +472,8 @@ export const certificateInspectionSchema = z.strictObject({
   nameChange: z.strictObject({ certificateName: z.string().nullable(), connectAddress: z.string(), refusalReason: z.string().nullable() }).nullable(),
 })
 export const trustedCredentialCertificateSchema = z.strictObject({
-  id: z.string(), endpoint: z.string(), certificate: certificateDetailsSchema, leaf: certificateDetailsSchema,
-  mode: z.enum(['ca', 'pin']), createdAt: z.number().int(),
+  id: z.string(), endpoint: z.string(), certificate: certificateDetailsSchema, leaf: certificateDetailsSchema.nullable(),
+  leafFingerprint: z.string(), mode: z.enum(['ca', 'pin']), createdAt: z.number().int(),
 })
 // Inspection accepts only an inventory endpoint index, never a host or URL.
 // Trust accepts an actor-bound, five-minute inspection handle, never PEM or keys.

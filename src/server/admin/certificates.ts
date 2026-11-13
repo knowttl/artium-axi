@@ -10,7 +10,7 @@ import { certificateEndpoint } from '../certificate-endpoint.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import type { CredentialReference, MutableCredentialStore } from '../store/credential-store.js'
 import type { ToolHealth } from '../health/health.js'
-import { credentialCertificates, readCredentialTrust } from '../store/trusted-certificates.js'
+import { credentialCertificates, endpointRevision, readConfirmedLeaf, readCredentialTrust, syncConfirmedLeaves, writeConfirmedLeaf } from '../store/trusted-certificates.js'
 import { certificateNameChange, certificateTrustFields, savedCertificateTrust, useCertificateName } from '../credential-tls-settings.js'
 import { certificatePinError } from '../credential-tls.js'
 
@@ -35,17 +35,8 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
   function current(reference: CredentialReference) {
     if (observed(reference)?.revision !== reference.revision) throw new ArtiumError('REVISION_CONFLICT')
   }
-  function trustState(reference: CredentialReference, endpoint: string) {
-    return db.prepare('SELECT revision, confirmed_leaf_pem AS leaf FROM certificate_endpoint_state WHERE credential_id = ? AND endpoint = ?')
-      .get(reference.id, certificateEndpoint(endpoint).href) as { revision: number, leaf: string | null } | undefined
-  }
-  function updateTrustState(reference: CredentialReference, endpoint: string, leaf: string | null) {
-    db.prepare(`INSERT INTO certificate_endpoint_state (credential_id, endpoint, revision, confirmed_leaf_pem) VALUES (?, ?, 1, ?)
-      ON CONFLICT(credential_id, endpoint) DO UPDATE SET revision = revision + 1, confirmed_leaf_pem = excluded.confirmed_leaf_pem`)
-      .run(reference.id, certificateEndpoint(endpoint).href, leaf)
-  }
   function currentTrust(reference: CredentialReference, endpoint: string, revision: number) {
-    if ((trustState(reference, endpoint)?.revision ?? 0) !== revision) throw new ArtiumError('REVISION_CONFLICT', 'Endpoint trust changed. Inspect the certificate again.')
+    if (endpointRevision(db, reference.id, endpoint) !== revision) throw new ArtiumError('REVISION_CONFLICT', 'Endpoint trust changed. Inspect the certificate again.')
   }
   function endpointTrust(reference: CredentialReference, endpoint: string) {
     const certificates = credentialCertificates(db, reference.id).filter(item => item.endpoint === certificateEndpoint(endpoint).href)
@@ -82,7 +73,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
         .run(randomUUID(), reference.id, inspection.endpoint, inspection.anchor.fingerprint, inspection.chain[0].fingerprint,
           inspection.pem, inspection.leafPem, mode, Date.now(), actor)
       }
-      updateTrustState(reference, inspection.endpoint, replace && mode === 'ca' ? inspection.leafPem : null)
+      writeConfirmedLeaf(db, reference.id, inspection.endpoint, replace && mode === 'ca' ? { fingerprint: inspection.chain[0].fingerprint, pem: inspection.leafPem } : null)
       db.prepare('DELETE FROM tool_health WHERE credential_id = ?').run(reference.id)
     })
   }
@@ -100,7 +91,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     if (!value) throw new ArtiumError('REVISION_CONFLICT')
     const endpoint = toolEndpoints(reference.tool, value)[endpointIndex]
     if (!endpoint) throw new ArtiumError('INVALID_INPUT')
-    const trustRevision = trustState(reference, endpoint.href)?.revision ?? 0
+    const trustRevision = endpointRevision(db, reference.id, endpoint.href)
     const endpointTrustRecords = readCredentialTrust(db, reference).filter(item => item.mode === 'ca' && certificateEndpoint(item.endpoint).href === certificateEndpoint(endpoint).href)
     const { pem: savedCa, isCa } = savedCertificateTrust(reference.tool, value, endpointTrustRecords)
     const endpointCa = endpointTrustRecords[0]?.pem
@@ -122,11 +113,11 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       inspection.pem = saved.pem!
     }
     const fingerprintMismatch = saved.fingerprint && saved.fingerprint.replaceAll(':', '').toLowerCase() !== inspection.chain[0].fingerprint.replaceAll(':', '').toLowerCase()
-    if (fingerprintMismatch || certificatePinError(certificates.map(pin => ({ mode: pin.mode, leafFingerprint: pin.leaf.fingerprint })), inspection.chain[0].fingerprint)) {
+    if (fingerprintMismatch || certificatePinError(certificates.map(pin => ({ mode: pin.mode, leafFingerprint: pin.leafFingerprint })), inspection.chain[0].fingerprint)) {
       inspection.verificationError = 'CERTIFICATE_PIN_MISMATCH'
       inspection.reason = 'The saved SHA-256 fingerprint does not match the presented certificate.'
     }
-    const previousFingerprints = certificates.filter(pin => pin.leaf.fingerprint !== inspection.chain[0].fingerprint).map(pin => pin.leaf.fingerprint)
+    const previousFingerprints = certificates.filter(pin => pin.leafFingerprint !== inspection.chain[0].fingerprint).map(pin => pin.leafFingerprint)
     const savedMismatch = saved.certificate && (saved.isCa
       ? chainError && saved.certificate.fingerprint256 !== inspection.anchor.fingerprint
       : saved.certificate.fingerprint256 !== inspection.chain[0].fingerprint)
@@ -170,9 +161,9 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
         for (const certificate of existing) {
           db.prepare('UPDATE trusted_certificates SET endpoint = ? WHERE id = ?').run(newEndpoint, certificate.id)
         }
-        const leaf = trustState(reference, oldEndpoint)?.leaf ?? null
-        updateTrustState(reference, oldEndpoint, null)
-        updateTrustState(reference, newEndpoint, leaf)
+        const leaf = readConfirmedLeaf(db, reference.id, oldEndpoint)
+        writeConfirmedLeaf(db, reference.id, oldEndpoint, null)
+        writeConfirmedLeaf(db, reference.id, newEndpoint, leaf)
       }
       const instance = observed(item.reference)!
       store!.replaceInstance(reference.tool, instance.name, credentialValue, reference.id, instance.revision, actor, Date.now())
@@ -218,7 +209,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       authorize(request)
       current(reference)
       db.prepare('DELETE FROM trusted_certificates WHERE id = ? AND credential_id = ?').run(id, reference.id)
-      updateTrustState(reference, pin.endpoint, null)
+      syncConfirmedLeaves(db, reference.id, readConfirmedLeaf(db, reference.id, pin.endpoint)?.fingerprint, [pin.endpoint])
       db.prepare('DELETE FROM tool_health WHERE credential_id = ?').run(reference.id)
     })
     await health?.refresh(reference.tool, true, reference.id)

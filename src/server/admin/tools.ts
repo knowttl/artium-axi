@@ -39,8 +39,8 @@ import { diffSettings } from '../audit/settings-diff.js'
 import type { Runner } from '../runner/runner.js'
 import type { ToolHealth } from '../health/health.js'
 import type { CredentialReference, MutableCredentialStore, ToolName } from '../store/credential-store.js'
-import { readCredentialTrust } from '../store/trusted-certificates.js'
-import { retainCredentialTls, tlsCredentialRoots } from '../credential-tls-settings.js'
+import { credentialCertificates, readCredentialTrust, syncConfirmedLeaves } from '../store/trusted-certificates.js'
+import { credentialTlsSettings, retainCredentialTls, savedCertificateTrust, tlsCredentialRoots } from '../credential-tls-settings.js'
 import { isAwxOriginOnly } from '../store/credential-store.js'
 import { isCanonicalHttpsOrigin } from '../adapters/credential-input.js'
 import { hasSshConfiguration, type SshHosts } from '../store/ssh-hosts.js'
@@ -587,6 +587,8 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       events.push(...writeChange(request, actor, tool, current.nativeSettings, settings))
       const now = Date.now()
       replacement = writeCredential(tool, name, credential, input.expectedId, expectedRevision, actor, now, input.description)
+      if (credentialTlsSettings[tool].fingerprint) syncConfirmedLeaves(db, replacement.id, savedCertificateTrust(tool, credential).fingerprint,
+        credentialCertificates(db, replacement.id).filter(item => item.mode === 'ca').map(item => item.endpoint))
       events[0]!.credentialId = replacement.id
       events[0]!.instance = credentialStore().listInstances(tool).find(item => item.id === replacement!.id)!.name
       if (name === undefined) db.prepare(`UPDATE tools SET native_settings = ?, pinned_version = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE name = ?`)

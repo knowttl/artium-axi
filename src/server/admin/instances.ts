@@ -210,10 +210,10 @@ export function registerInstancePages(app: FastifyInstance, db: Database.Databas
     // An invalid saved credential must remain editable after a profile upgrade.
     try { endpoints = toolEndpoints(tool.name, { ...instance.metadata, ...tool.nativeSettings }) } catch { /* Save a valid endpoint before inspecting. */ }
     const soon = Date.now() + 30 * 86400000
-    const expiring = pins.some(pin => Date.parse(pin.leaf.expiresAt) <= soon || Date.parse(pin.certificate.expiresAt) <= soon)
+    const expiring = pins.some(pin => (pin.leaf !== null && Date.parse(pin.leaf.expiresAt) <= soon) || Date.parse(pin.certificate.expiresAt) <= soon)
     const pinRows = pins.map(pin => `<tr><td class="mono">${escape(pin.endpoint)}</td><td data-label="Trust"><span class="badge">${pin.mode === 'pin' ? 'Pinned certificate' : 'Issuing CA'}</span></td>
-      <td data-label="SHA-256"><div><p class="mono">${escape(pin.certificate.fingerprint)}</p>${pin.leaf.fingerprint !== pin.certificate.fingerprint ? `<p class="faint">Endpoint: <span class="mono">${escape(pin.leaf.fingerprint)}</span></p>` : ''}<p class="faint">${escape(pin.certificate.subject)}</p></div></td>
-      <td data-label="Expires"><div>${escape(pin.certificate.expiresAt)}${pin.leaf.expiresAt !== pin.certificate.expiresAt ? `<p class="faint">Endpoint: ${escape(pin.leaf.expiresAt)}</p>` : ''}</div></td>
+      <td data-label="SHA-256"><div><p class="mono">${escape(pin.certificate.fingerprint)}</p>${pin.leafFingerprint !== pin.certificate.fingerprint ? `<p class="faint">Endpoint: <span class="mono">${escape(pin.leafFingerprint)}</span></p>` : ''}${pin.leaf ? '' : '<p class="faint">Certificate details not yet inspected.</p>'}<p class="faint">${escape(pin.certificate.subject)}</p></div></td>
+      <td data-label="Expires"><div>${escape(pin.certificate.expiresAt)}${pin.leaf && pin.leaf.expiresAt !== pin.certificate.expiresAt ? `<p class="faint">Endpoint: ${escape(pin.leaf.expiresAt)}</p>` : ''}</div></td>
       <td class="num">${form(`${path}/certificates`, 'DELETE', `<input type="hidden" name="id" value="${escape(pin.id)}"><button class="btn btn-secondary btn-sm">Remove endpoint trust</button>`, { consequence: 'Remove this endpoint trust record? Separately saved Certificate verification fields remain.' })}</td></tr>`).join('')
     const pinTable = pins.length
       ? `<table class="tbl stack-sm"><caption class="sr-only">Trusted certificates</caption><thead><tr><th scope="col">Endpoint</th><th scope="col">Trust</th><th scope="col">Fingerprint (SHA-256)</th><th scope="col">Expires</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${pinRows}</tbody></table>`

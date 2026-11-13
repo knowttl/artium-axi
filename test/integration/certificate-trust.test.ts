@@ -558,7 +558,7 @@ test.each([
   expect((await request('POST', '/trust', { inspectionId: result.inspectionId, confirmedFingerprint: result.chain[0].fingerprint, mode })).statusCode).toBe(200)
   const listed = adminCertificateRoutes.list.response.parse((await request('GET')).json()).certificates[0]
   expect(listed.mode).toBe(mode)
-  expect(listed.leaf.subject).toBe('DNS:localhost')
+  expect(listed.leaf).toMatchObject({ subject: 'DNS:localhost' })
   expect(listed.certificate.subject).toBe(result.anchor.subject)
   expect(loadTrustedCa({ ARTIUM_AXI_EXTRA_CA_FILE: join(directory, 'empty-subject.crt') })!.certificates[0].subject)
     .toBe('DNS:localhost')
