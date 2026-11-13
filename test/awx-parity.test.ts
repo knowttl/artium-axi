@@ -5,6 +5,11 @@ import { expect, test } from 'vitest'
 
 const { DOMAINS } = await import(new URL('../tools/node_modules/@knowttl/awx-axi/dist/cli.js', import.meta.url).href)
 const parity = JSON.parse(readFileSync(new URL('../tools/inventories/awx-axi-parity.json', import.meta.url), 'utf8'))
+const noWrites = `data:text/javascript,${encodeURIComponent(`import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+fs.writeFileSync = () => {};
+fs.mkdirSync = () => {};
+syncBuiltinESMExports();`)}`
 
 test.each([
   { kind: 'command', mutation: 'domain.subcommands.push({ ...route, name: "synthetic-parity-command" })', name: 'job synthetic-parity-command' },
@@ -16,7 +21,7 @@ test.each([
 const domain = DOMAINS.find(item => item.name === 'job');
 const route = domain.subcommands.find(item => item.name === 'list');
 ${mutation};`
-  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
     fileURLToPath(new URL('../scripts/upstream-inventory.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
   expect(result.status).toBe(1)
   expect(result.stderr).toContain(name)
@@ -36,7 +41,7 @@ fs.writeFileSync = function(path, ...args) {
   return write.call(this, path, ...args);
 };
 syncBuiltinESMExports();`
-  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
     fileURLToPath(new URL('../scripts/upstream-inventory.mjs', import.meta.url)), '--write'], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
   expect(result.status).toBe(1)
   expect(result.stderr).toContain('job list --synthetic-parity-flag')
@@ -63,7 +68,7 @@ fs.writeFileSync = function(path, ...args) {
   return write.call(this, path, ...args);
 };
 syncBuiltinESMExports();`
-  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
     fileURLToPath(new URL('../scripts/upstream-inventory.mjs', import.meta.url)), '--write'], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
   expect(result.status).toBe(1)
   expect(result.stderr).toContain('Unreviewed AWX surface change')
@@ -79,7 +84,7 @@ fs.readFileSync = function(path, ...args) {
   return contents;
 };
 syncBuiltinESMExports();`
-  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
     fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url)), ...args], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
   expect(result.status).toBe(1)
   expect(result.stderr).toContain('upstream executable surface changed; re-review support decisions')
@@ -99,7 +104,7 @@ registerHooks({ load(url, context, nextLoad) {
   if (url.endsWith(${JSON.stringify(file)})) result.source = result.source.toString().replace(${JSON.stringify(from)}, ${JSON.stringify(to)});
   return result;
 } });`
-  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
     fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url)), ...args], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
   expect(result.status).toBe(1)
   expect(result.stderr).toContain(name)
@@ -113,7 +118,7 @@ registerHooks({ load(url, context, nextLoad) {
   if (url.endsWith('/dist/commands/auth.js')) result.source = result.source.toString().replace('awx-axi auth login --profile production', 'awx-axi auth login --example-only');
   return result;
 } });`
-  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
     fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
   expect(result.status).toBe(0)
 })
@@ -138,7 +143,7 @@ registerHooks({ load(url, context, nextLoad) {
     .replace('hooks    install session-start hooks for Claude Code, Codex, and OpenCode', 'hooks    install --hooks-only\\n  synthetic    another command');
   return result;
 } });`
-  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
     fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
   expect(result.status).toBe(1)
   expect(result.stderr).toContain('setup hooks --hooks-only')
@@ -166,7 +171,7 @@ fs.readFileSync = function(path, ...args) {
   return JSON.stringify(data);
 };
 syncBuiltinESMExports();`
-  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
     fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url)), ...args], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
   expect(result.status).toBe(1)
   expect(result.stderr).toContain('support decision')
@@ -189,7 +194,7 @@ fs.readFileSync = function(path, ...args) {
   return JSON.stringify(data);
 };
 syncBuiltinESMExports();`
-  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
     fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url)), '--write'], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
   expect(result.status).toBe(1)
   expect(result.stderr).toContain('support decisions differ')
