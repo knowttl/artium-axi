@@ -443,7 +443,7 @@ test.each([
   ['ldap-axi', 'caFile', 'self-signed', 'pin', () => ({ url: endpoint.replace('https:', 'ldaps:'), auth: 'simple', bindDn: 'cn=reader,dc=synthetic,dc=test', password: 'CANARY-password' })],
   ['vectra-axi', 'caBundle', 'self-signed', 'pin', () => ({ kind: 'qux', apiVersion: '2.5', origin: endpoint, auth: 'token', token: 'CANARY-token' })],
 ] as const)('%s fills initial trust through the shared fields', async (tool, field, certificate, mode, value) => {
-  serve(certificate, certificate === 'leaf')
+  serve(certificate)
   store.createInstance(tool, { name: 'initial', description: '' }, value(), 'synthetic-development-user', Date.now())
   const url = `/v1/admin/tools/${tool}/instances/initial/certificates`
   const inspection = (await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })).json()
@@ -455,7 +455,7 @@ test.each([
   const next = store.readCredential(reference) as Record<string, unknown>
   expect(next[field]).toEqual(tool === 'unifi-axi' ? { trustedCertificatePem: pem('self-signed'),
     peerFingerprintSha256: new X509Certificate(pem('self-signed')).fingerprint256.replaceAll(':', '').toLowerCase() }
-    : pem(certificate === 'leaf' ? 'intermediate' : 'self-signed'))
+    : pem('self-signed'))
   await expect(preflight(tool, next, readCredentialTrust(db, reference))).resolves.toBeUndefined()
   expect(bytes).toBe(0)
 })

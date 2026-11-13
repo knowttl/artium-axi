@@ -296,7 +296,7 @@ Confirm that you compared the displayed fingerprint, then choose **Trust this ce
 Initial setup fills the supported shared certificate fields and saves endpoint trust; tools without shared fields show that limitation and retain confirmed endpoint trust.
 The UI automatically tests the connection and shows **Connected** or the server-reported failure message.
 Client-side failures show a safe network or unreadable-response category and error name, without raw exception messages or response text.
-Certificate rotation and replacement remain manual; initial setup refuses to replace an existing certificate or fingerprint.
+When filling shared fields, initial setup refuses to replace an existing certificate or fingerprint; replace those fields manually.
 Removing an endpoint trust record retains the separately saved Certificate verification fields; clear those fields too when revoking that trust.
 CA trust is selected when an issuing CA is available; self-signed endpoints select strict leaf pinning.
 UniFi also saves and verifies the leaf fingerprint with CA trust, so replace the certificate and fingerprint manually after leaf renewal.
@@ -340,12 +340,12 @@ Automatic intermediate repair is not included because treating a repaired interm
 If an endpoint omits an intermediate below a confirmed root, confirm that intermediate as the CA anchor or configure the endpoint to present its complete chain.
 
 The instance page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
-This flow manages instance trust separately from credential-level trust; use the [credential editor](admin-guide.md#browser-administration) to replace or remove a credential-level CA or pin when it rotates.
+This flow also fills supported credential-level fields during initial trust; use the [credential editor](admin-guide.md#browser-administration) to replace or remove a credential-level CA or pin when it rotates.
 For CA rotation or a leaf rotation in strict pinning mode, re-inspect the saved endpoint.
-If inspection reports that no trust is needed, use **Remove trust** to retire the old entries and let the endpoint use the server's existing trust.
-Otherwise, confirm the replacement, then use **Remove trust** to retire the old entry.
-Confirmation in the same mode keeps previously confirmed entries trusted during rolling rotation.
-Switching between CA trust and strict pinning replaces the endpoint's entries in the other mode.
+If inspection reports that no trust is needed, use **Remove endpoint trust** to retire the old entries and clear any separately saved credential trust to let the endpoint use the server's existing trust.
+For tools with shared certificate fields, manage existing endpoint trust and replace those fields manually.
+For tools without shared certificate fields, confirm the replacement, then use **Remove endpoint trust** to retire the old entry.
+For these tools, confirmation in the same mode keeps previously confirmed entries trusted during rolling rotation; switching between CA trust and strict pinning replaces the endpoint's entries in the other mode.
 These changes take effect on subsequent calls and survive server restarts.
 Use the server-wide bundle above for organization-wide inspection CAs instead of confirming the same CA separately for every tool.
 
