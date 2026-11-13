@@ -35,7 +35,9 @@ export function savedCertificateTrust(tool: ToolName, value: Record<string, unkn
   }
   const leaf = leafPem ? new X509Certificate(leafPem) : undefined
   const issuer = certificate && leaf && leaf.fingerprint256 !== certificate.fingerprint256 && leaf.checkIssued(certificate) && leaf.verify(certificate.publicKey)
-  const isCa = Boolean(certificate?.ca || issuer)
+  const selfSignedPin = certificate && leaf && certificate.issuer === certificate.subject
+    && fingerprint?.replaceAll(':', '').toLowerCase() === certificate.fingerprint256.replaceAll(':', '').toLowerCase()
+  const isCa = Boolean(issuer || certificate?.ca && !selfSignedPin)
   const mode: 'pin' | 'ca' | null = records.some(record => record.mode === 'ca') ? 'ca'
     : records.length ? 'pin' : certificate ? isCa ? 'ca' : 'pin' : fingerprint ? 'pin' : null
   return { pem, fingerprint, certificate, isCa, mode }
