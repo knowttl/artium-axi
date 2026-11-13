@@ -14,6 +14,7 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { readCredentialTrust } from '../../src/server/store/trusted-certificates.js'
 import { preflight } from '../../src/server/health/preflight.js'
 import { credentialFetch } from '../../src/server/credential-tls.js'
+import { savedCertificateTrust } from '../../src/server/credential-tls-settings.js'
 import { createInspectionCertificates } from '../fake-service/certificates.mjs'
 import { seedToolUser } from '../fixtures/tokens.js'
 
@@ -66,6 +67,17 @@ afterEach(async () => {
 afterAll(async () => {
   await new Promise<void>(resolve => server.close(() => resolve()))
   rmSync(directory, { recursive: true, force: true })
+})
+
+test.each([
+  ['CA only', 'vectra-axi', () => ({ caBundle: pem('ca') }), [], 'ca'],
+  ['UniFi CA and fingerprint', 'unifi-axi', () => ({ tls: { trustedCertificatePem: pem('ca'), peerFingerprintSha256: fingerprint('leaf') } }), [], 'ca'],
+  ['Proxmox CA and fingerprint', 'proxmox-axi', () => ({ caBundle: pem('ca'), certificatePin: { sha256: fingerprint('leaf') } }), [], 'ca'],
+  ['standalone Proxmox pin', 'proxmox-axi', () => ({ certificatePin: { sha256: fingerprint('leaf') } }), [], 'pin'],
+  ['endpoint pin', 'vectra-axi', () => ({}), [{ mode: 'pin' as const }], 'pin'],
+  ['no trust', 'vectra-axi', () => ({}), [], null],
+] as const)('resolves %s trust mode', (_name, tool, value, records, mode) => {
+  expect(savedCertificateTrust(tool, value(), pem('rotated'), records).mode).toBe(mode)
 })
 
 test.each([
@@ -153,9 +165,55 @@ test.each([
   else expect(next).toMatchObject({ caBundle: pem('ca'), certificatePin: { origin: endpoint, sha256: fingerprint('rotated'), replaceHostname: true } })
   const trust = readCredentialTrust(db, reference)
   expect(trust.map(item => item.mode)).toEqual(['ca'])
+  expect(trust[0].pem).toBe(pem('ca'))
   await expect(preflight(tool, next, trust)).resolves.toBeUndefined()
   serve('leaf')
   await expect(preflight(tool, next, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+})
+
+test('a verified CA is retained when the server omits its issuer', async () => {
+  store.createInstance('unifi-axi', { name: 'rotation', description: '' }, { origin: endpoint, apiKey: 'CANARY-key', tls: { trustedCertificatePem: pem('ca'), peerFingerprintSha256: fingerprint('leaf') } }, 'synthetic-development-user', Date.now())
+  server.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('root-issued') })
+  const base = '/v1/admin/tools/unifi-axi/instances/rotation/certificates'
+  const inspection = (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
+  expect(inspection).toMatchObject({ rotation: true, trustMode: 'ca', anchor: { fingerprint: new X509Certificate(pem('ca')).fingerprint256 } })
+  const response = await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: inspection.inspectionId, confirmedFingerprint: inspection.chain[0].fingerprint, mode: 'ca', replace: true } })
+  expect(response.statusCode, response.body).toBe(200)
+  const reference = store.findInstance('unifi-axi', 'rotation')!
+  expect(readCredentialTrust(db, reference)[0].pem).toBe(pem('ca'))
+  await expect(preflight('unifi-axi', store.readCredential(reference) as Record<string, unknown>, readCredentialTrust(db, reference))).resolves.toBeUndefined()
+})
+
+test.each([false, true])('mode mismatch with replace=%s leaves endpoint pin intact', async replace => {
+  const reference = store.replaceCredential('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: endpoint, auth: 'token', token: 'CANARY-token' }, 0, 'synthetic-development-user', Date.now())
+  const base = '/v1/admin/tools/vectra-axi/certificates'
+  const inspect = async () => (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
+  const first = await inspect()
+  expect((await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: first.inspectionId, confirmedFingerprint: first.chain[0].fingerprint, mode: 'pin' } })).statusCode).toBe(200)
+  const before = readCredentialTrust(db, reference)
+  serve('rotated')
+  const renewal = await inspect()
+  const response = await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: renewal.inspectionId, confirmedFingerprint: renewal.chain[0].fingerprint, mode: 'ca', replace, fillFields: false } })
+  expect(response.statusCode).toBe(400)
+  expect(readCredentialTrust(db, reference)).toEqual(before)
+})
+
+test('standalone Proxmox pin can be replaced', async () => {
+  const pin = { origin: endpoint, sha256: fingerprint('leaf'), replaceHostname: false }
+  store.createInstance('proxmox-axi', { name: 'rotation', description: '' }, { origin: endpoint, auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token', certificatePin: pin }, 'synthetic-development-user', Date.now())
+  serve('rotated')
+  const base = '/v1/admin/tools/proxmox-axi/instances/rotation/certificates'
+  const inspection = (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
+  expect(inspection).toMatchObject({ trustMode: 'pin', rotation: true })
+  const response = await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: inspection.inspectionId, confirmedFingerprint: inspection.chain[0].fingerprint, mode: 'pin', replace: true } })
+  expect(response.statusCode, response.body).toBe(200)
+  const reference = store.findInstance('proxmox-axi', 'rotation')!
+  const value = store.readCredential(reference) as Record<string, unknown>
+  expect(value.certificatePin).toEqual({ ...pin, sha256: fingerprint('rotated') })
+  expect(value.caBundle).toBeUndefined()
+  await expect(preflight('proxmox-axi', value, readCredentialTrust(db, reference))).resolves.toBeUndefined()
+  serve('leaf')
+  await expect(preflight('proxmox-axi', value, readCredentialTrust(db, reference))).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
 })
 
 test('same CA renewal does not offer replacement without a leaf fingerprint', async () => {

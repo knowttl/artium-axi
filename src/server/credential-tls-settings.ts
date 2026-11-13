@@ -24,7 +24,7 @@ export const tlsFieldDefinitions = {
   fingerprint: { label: 'SHA-256 fingerprint', help: 'Enter the 64 hexadecimal characters shown by the appliance. Compare through an independent trusted route.' },
 }
 
-export function savedCertificateTrust(tool: ToolName, value: Record<string, unknown>, leafPem?: string) {
+export function savedCertificateTrust(tool: ToolName, value: Record<string, unknown>, leafPem?: string, records: readonly { mode: 'ca' | 'pin' }[] = []) {
   const settings = credentialTlsSettings[tool]
   const read = (path?: string) => path?.split('.').reduce<any>((parent, key) => parent?.[key], value)
   const pem = read(settings.certificate) as string | undefined
@@ -35,8 +35,10 @@ export function savedCertificateTrust(tool: ToolName, value: Record<string, unkn
   }
   const leaf = leafPem ? new X509Certificate(leafPem) : undefined
   const issuer = certificate && leaf && leaf.fingerprint256 !== certificate.fingerprint256 && leaf.checkIssued(certificate) && leaf.verify(certificate.publicKey)
-  const mode: 'pin' | 'ca' | null = certificate ? certificate.ca || issuer ? 'ca' : 'pin' : null
-  return { pem, fingerprint, certificate, mode }
+  const isCa = Boolean(certificate?.ca || issuer)
+  const mode: 'pin' | 'ca' | null = records.some(record => record.mode === 'ca') ? 'ca'
+    : records.length ? 'pin' : certificate ? isCa ? 'ca' : 'pin' : fingerprint ? 'pin' : null
+  return { pem, fingerprint, certificate, isCa, mode }
 }
 
 export function certificateTrustFields(tool: ToolName, value: Record<string, unknown>, pem: string, fingerprint: string, mode: 'ca' | 'pin', replace = false) {
@@ -53,7 +55,7 @@ export function certificateTrustFields(tool: ToolName, value: Record<string, unk
     if (key) next[root] = { ...(next[root] as object), [key]: content }
     else next[root] = content
   }
-  write(settings.certificate, pem)
+  if (!(replace && settings.pin && !read(settings.certificate))) write(settings.certificate, pem)
   if (settings.fingerprint && !settings.pin) write(settings.fingerprint, normalized)
   if (settings.pin && (mode === 'pin' || value[settings.pin])) {
     write(settings.fingerprint!, normalized)

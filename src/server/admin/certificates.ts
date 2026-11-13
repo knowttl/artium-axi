@@ -5,7 +5,7 @@ import type { z } from 'zod'
 import { adminCertificateRoutes, adminInstanceRoutes, adminToolParamsSchema, certificateInspectionSchema, instanceNameSchema, nativeSettingsSchemas } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
-import { inspectCertificate } from '../certificate-inspection.js'
+import { certificateDetails, inspectCertificate } from '../certificate-inspection.js'
 import { certificateEndpoint } from '../certificate-endpoint.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import type { CredentialReference, MutableCredentialStore } from '../store/credential-store.js'
@@ -17,7 +17,7 @@ import { certificatePinError } from '../credential-tls.js'
 export function registerCertificateAdmin(app: FastifyInstance, db: Database.Database, audit: Audit,
   authorize: (request: FastifyRequest) => string, store?: MutableCredentialStore, health?: ToolHealth): void {
   const pending = new Map<string, { actor: string, reference: CredentialReference, expiresAt: number,
-    inspection: Awaited<ReturnType<typeof inspectCertificate>>, savedCaVerified: boolean }>()
+    inspection: Awaited<ReturnType<typeof inspectCertificate>> }>()
   function parse<S extends z.ZodType>(schema: S, value: unknown): z.output<S> {
     const parsed = schema.safeParse(value)
     if (!parsed.success) throw new ArtiumError('INVALID_INPUT')
@@ -38,12 +38,11 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
   function endpointTrust(reference: CredentialReference, endpoint: string, leafPem: string) {
     const certificates = credentialCertificates(db, reference.id).filter(item => item.endpoint === certificateEndpoint(endpoint).href)
     const value = store!.readCredential(reference) as Record<string, unknown>
-    const saved = savedCertificateTrust(reference.tool, value, leafPem)
-    const mode = certificates.some(item => item.mode === 'ca') ? 'ca' : certificates.length ? 'pin' : saved.mode
-    return { certificates, value, saved, mode }
+    const saved = savedCertificateTrust(reference.tool, value, leafPem, certificates)
+    return { certificates, value, saved, mode: saved.mode }
   }
   function save(request: FastifyRequest, actor: string, reference: CredentialReference,
-    inspection: Awaited<ReturnType<typeof inspectCertificate>>, mode: 'ca' | 'pin', fillFields: boolean, replace: boolean, savedCaVerified: boolean) {
+    inspection: Awaited<ReturnType<typeof inspectCertificate>>, mode: 'ca' | 'pin', fillFields: boolean, replace: boolean) {
     audit.change({ event: 'admin-change', action: 'trust-certificate',
       targetId: inspection.anchor.fingerprint, subject: inspection.anchor.subject,
       userId: actor, tool: reference.tool, credentialId: reference.id, instance: observed(reference)?.name, outcome: 'success',
@@ -51,13 +50,13 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       authorize(request)
       current(reference)
       const { certificates: existing, value, saved, mode: existingMode } = endpointTrust(reference, inspection.endpoint, inspection.leafPem)
-      if (replace && existingMode !== mode) throw new ArtiumError('INVALID_INPUT', 'Certificate replacement must retain the existing trust mode.')
-      if (fillFields || replace && saved.mode) {
+      if (existingMode && existingMode !== mode || replace && !existingMode) throw new ArtiumError('INVALID_INPUT', 'Certificate trust must retain the existing trust mode.')
+      if (fillFields || replace && (saved.pem || saved.fingerprint)) {
         if (!replace && existing.some(item => item.leaf.fingerprint !== inspection.chain[0].fingerprint)) {
           throw new ArtiumError('INVALID_INPUT', 'Endpoint trust already exists. Manage certificate replacement manually in Certificate verification and Trusted certificates.')
         }
         if (!replace && existing.some(item => item.mode !== mode)) throw new ArtiumError('INVALID_INPUT', 'Keep the existing endpoint trust mode when filling certificate fields.')
-        const next = certificateTrustFields(reference.tool, value, mode === 'pin' ? inspection.leafPem : savedCaVerified ? saved.pem! : inspection.pem,
+        const next = certificateTrustFields(reference.tool, value, mode === 'pin' ? inspection.leafPem : inspection.pem,
           inspection.chain[0].fingerprint, mode, replace)
         const credentialValue = Object.fromEntries(Object.entries(next).filter(([key]) => !Object.hasOwn(nativeSettingsSchemas[reference.tool].shape, key)))
         const instance = observed(reference)!
@@ -100,13 +99,17 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     current(reference)
     const { certificates, saved, mode: trustMode } = endpointTrust(reference, inspection.endpoint, inspection.leafPem)
     const chainError = inspection.verificationError
+    if (saved.certificate && saved.isCa && !chainError && (!endpointCa || endpointCa === savedCa)) {
+      inspection.anchor = certificateDetails(saved.certificate, inspection.hostname)
+      inspection.pem = saved.pem!
+    }
     const fingerprintMismatch = saved.fingerprint && saved.fingerprint.replaceAll(':', '').toLowerCase() !== inspection.chain[0].fingerprint.replaceAll(':', '').toLowerCase()
     if (fingerprintMismatch || certificatePinError(certificates.map(pin => ({ mode: pin.mode, leafFingerprint: pin.leaf.fingerprint })), inspection.chain[0].fingerprint)) {
       inspection.verificationError = 'CERTIFICATE_PIN_MISMATCH'
       inspection.reason = 'The saved SHA-256 fingerprint does not match the presented certificate.'
     }
     const previousFingerprints = certificates.filter(pin => pin.leaf.fingerprint !== inspection.chain[0].fingerprint).map(pin => pin.leaf.fingerprint)
-    const savedMismatch = saved.certificate && (saved.mode === 'ca'
+    const savedMismatch = saved.certificate && (saved.isCa
       ? chainError && saved.certificate.fingerprint256 !== inspection.anchor.fingerprint
       : saved.certificate.fingerprint256 !== inspection.chain[0].fingerprint)
     const rotation = Boolean(trustMode && (fingerprintMismatch || (trustMode === 'pin' && previousFingerprints.length) || (trustMode === 'ca' && certificates.length && chainError) || savedMismatch))
@@ -114,7 +117,7 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     for (const [id, item] of pending) if (item.expiresAt <= Date.now()) pending.delete(id)
     if (pending.size >= 100) pending.delete(pending.keys().next().value!)
     const inspectionId = randomUUID()
-    pending.set(inspectionId, { actor, reference, inspection, savedCaVerified: Boolean(saved.mode === 'ca' && !chainError && (!endpointCa || endpointCa === savedCa)), expiresAt: Date.now() + 5 * 60 * 1000 })
+    pending.set(inspectionId, { actor, reference, inspection, expiresAt: Date.now() + 5 * 60 * 1000 })
     const { pem: _pem, leafPem: _leafPem, ...details } = inspection
     return certificateInspectionSchema.parse({ ...details, inspectionId, credentialRevision: reference.revision, previousFingerprints, trustMode, rotation,
       nameChange: certificateNameChange(reference.tool, value, endpoint, inspection.leafPem) })
@@ -164,13 +167,15 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       'Confirm the displayed SHA-256 fingerprint before trusting this certificate.')
     if (!item.inspection.verificationError && !replace) throw new ArtiumError('INVALID_INPUT', item.inspection.reason)
     const { anchor, chain } = item.inspection
+    const existingMode = endpointTrust(reference, item.inspection.endpoint, item.inspection.leafPem).mode
+    if (existingMode && existingMode !== mode) throw new ArtiumError('INVALID_INPUT', 'Certificate trust must retain the existing trust mode.')
     const hasCA = anchor.ca && anchor.fingerprint !== chain[0].fingerprint
     if (reference.tool === 'kubernetes-axi' && (mode !== 'ca' || !hasCA)) throw new ArtiumError('INVALID_INPUT',
       'This tool requires the issuing CA. Strict leaf pinning is unavailable; configure the trusted CA bundle instead.')
     if (mode === 'ca' && !hasCA && !chain[0].selfSigned) throw new ArtiumError('INVALID_INPUT',
       'CA trust is unavailable because no issuing CA was obtained. Choose strict leaf pinning explicitly.')
     save(request, actor, item.reference, item.inspection,
-      mode === 'ca' && chain[0].selfSigned ? 'pin' : mode, fillFields, replace, item.savedCaVerified)
+      mode === 'ca' && chain[0].selfSigned ? 'pin' : mode, fillFields, replace)
     pending.delete(inspectionId)
     return { trusted: true as const }
   },
