@@ -83,7 +83,7 @@ Delegated calls also require a command grant for each inner request, and those g
 Tenable and Falcon `raw write` and AWX `api post`, `put`, `patch` and `delete` are write-classified even as previews, so each needs `read-writes`.
 Tenable and Falcon raw writes require Allow writes and their respective `raw-write` or `raw write` operation grant, including for previews, and retain native preview, execution confirmation and journaling.
 AWX raw writes require Allow writes and an explicit `--confirm` or `--dry-run`; AWX permissions still decide what the token may do.
-For AWX deletes, including raw API and bulk host deletes, a successful `--dry-run` is required for the same caller and request before `--confirm`; each preview can be used once.
+For AWX deletes, including raw API and bulk host deletes, a successful `--dry-run` is required for the same caller, sign-in family, delegation, tool instance, settings and request before `--confirm`; each preview can be used once and is lost when the server restarts.
 AWX raw request body values are masked by value in responses, so a caller's own short numeric or boolean inputs may be echoed when they cannot be distinguished from unrelated data.
 Response values matching a caller's input may also be masked even when they originated elsewhere; preview and response metadata remain intact.
 The pinned AWX CLI rejects `api post bulk/job_launch/ --confirm` before sending a request; other routes remain subject to native restrictions.
@@ -508,7 +508,7 @@ Already-retained AWX logs from URLs set outside Artium are AWX-held data and are
 Artium does not scrub historical logs or scan current projects for stdout redaction values; ordinary log URLs remain unchanged.
 
 AWX `host inspect` reads a bounded batch of selected hosts, with optional inventory scoping and explicit per-host completeness, errors and previews.
-This read does not itself mutate hosts; bulk host create and delete are separate writes under the same single tenant writes switch, and the [reviewed AWX inventory](../tools/inventories/awx-axi.json) owns the command and flag boundary.
+This read does not itself mutate hosts; bulk host create and delete are separate writes governed by the [AWX write controls](#write-gates-by-tool), and the [reviewed AWX inventory](../tools/inventories/awx-axi.json) owns the command and flag boundary.
 See [bulk outcome recovery](runbook.md#retention-and-export) for controller confirmation requirements and safe readback before retrying.
 Inventory and constructed-inventory detail reads parse JSON/YAML variable documents and redact sensitive keys before returning them; malformed documents are replaced with `***`.
 Constructed inventories expose only the reads supported by the pinned CLI.
