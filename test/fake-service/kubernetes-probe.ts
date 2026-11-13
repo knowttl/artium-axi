@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { X509Certificate } from 'node:crypto'
-import { mkdirSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
+import { readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { join } from 'node:path'
 import { decode } from '@toon-format/toon'
 import { withFakeService } from './fixture.js'
-import { createTestCertificates, createTestClientCertificate } from './certificates.mjs'
+import { createTestClientCertificate } from './certificates.mjs'
 import { createKubernetesAdapter } from '../../src/server/adapters/kubernetes.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { createApp } from '../../src/server/app.js'
@@ -81,20 +82,19 @@ await withFakeService(async ({ directory, port, send }) => {
       assert.ok(response.statusCode >= 400, response.body)
     }
     assert.equal((await evidence()).requests.length, before)
-    const otherDirectory = join(directory, 'other')
-    mkdirSync(otherDirectory)
-    createTestCertificates(otherDirectory, ['localhost'])
-    const otherPem = readFileSync(join(otherDirectory, 'ca.crt'), 'utf8')
-    const otherLeaf = readFileSync(join(otherDirectory, 'server.crt'), 'utf8')
-    db.prepare("UPDATE trusted_certificates SET mode = 'pin', fingerprint = ?, leaf_fingerprint = ?, pem = ?, leaf_pem = ?")
-      .run(new X509Certificate(otherPem).fingerprint256, new X509Certificate(otherLeaf).fingerprint256, otherPem, otherLeaf)
+    execFileSync('openssl', ['x509', '-req', '-in', 'server.csr', '-CA', 'ca.crt', '-CAkey', 'ca.key',
+      '-set_serial', '100', '-days', '3650', '-extfile', 'authority.cnf', '-extensions', 'server',
+      '-out', 'other-server.crt'], { cwd: directory, stdio: 'pipe', timeout: 10_000 })
+    const otherLeaf = readFileSync(join(directory, 'other-server.crt'), 'utf8')
+    db.prepare("UPDATE trusted_certificates SET mode = 'pin', leaf_fingerprint = ?, leaf_pem = ?")
+      .run(new X509Certificate(otherLeaf).fingerprint256, otherLeaf)
     const pinned = await invoke(['get', 'pods'])
     assert.equal(pinned.statusCode, 200, pinned.body)
     assert.equal(pinned.json().exitCode, 1, pinned.body)
     assert.match(pinned.json().stderr, /CERTIFICATE_PIN_MISMATCH/)
     assert.equal((await evidence()).requests.length, before)
-    db.prepare("UPDATE trusted_certificates SET mode = 'ca', fingerprint = ?, leaf_fingerprint = ?, pem = ?, leaf_pem = ?")
-      .run(fingerprint, leafFingerprint, pem, leaf)
+    db.prepare("UPDATE trusted_certificates SET mode = 'ca', leaf_fingerprint = ?, leaf_pem = ?")
+      .run(leafFingerprint, leaf)
     db.prepare("UPDATE trusted_certificates SET endpoint = 'https://other.example/'").run()
     const unrelated = await invoke(['get', 'pods'])
     assert.equal(unrelated.statusCode, 200, unrelated.body)
