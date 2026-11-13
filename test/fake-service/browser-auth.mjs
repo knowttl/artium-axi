@@ -159,7 +159,7 @@ server.post('/test/sso', async () => {
   return { seeded: true }
 })
 server.get('/test/tools/:tool', async request => {
-  const reference = store.findCredential(request.params.tool)
+  const reference = store.findInstance(request.params.tool, 'default')
   return { stored: reference ? store.readCredential(reference) : null,
     delivered: request.params.tool === 'ldap-axi' && existsSync(deliveryFile) ? JSON.parse(readFileSync(deliveryFile, 'utf8')) : null }
 })
