@@ -55,7 +55,7 @@ export function certificateTrustFields(tool: ToolName, value: Record<string, unk
     if (key) next[root] = { ...(next[root] as object), [key]: content }
     else next[root] = content
   }
-  if (!(replace && settings.pin && !read(settings.certificate))) write(settings.certificate, pem)
+  if (!(replace && (mode === 'ca' || settings.pin && !read(settings.certificate)))) write(settings.certificate, pem)
   if (settings.fingerprint && !settings.pin) write(settings.fingerprint, normalized)
   if (settings.pin && (mode === 'pin' || value[settings.pin])) {
     write(settings.fingerprint!, normalized)

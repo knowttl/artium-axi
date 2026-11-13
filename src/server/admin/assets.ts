@@ -495,7 +495,7 @@ function showCertificateInspection(result) {
     line(details, 'Issuing CA to trust: ' + result.anchor.subject + '; SHA-256: ' + result.anchor.fingerprint);
   }
   const form = dialog.querySelector('[data-trust-certificate]');
-  form.hidden = !result.verificationError && !result.rotation;
+  form.hidden = result.trustMode ? !result.rotation : !result.verificationError;
   let replacement = form.elements.replace;
   if (!replacement) {
     replacement = document.createElement('input');
@@ -510,7 +510,7 @@ function showCertificateInspection(result) {
   form.elements.inspectionId.value = result.inspectionId;
   form.elements.confirmedFingerprint.checked = false;
   form.elements.confirmedFingerprint.value = result.chain[0].fingerprint;
-  const hasCA = result.anchor.ca && result.anchor.fingerprint !== result.chain[0].fingerprint;
+  const hasCA = result.rotation && result.trustMode === 'ca' || result.anchor.ca && result.anchor.fingerprint !== result.chain[0].fingerprint;
   const supportsPin = Boolean(form.elements.mode.querySelector('option[value="pin"]'));
   if (!supportsPin && !hasCA) {
     form.hidden = true;

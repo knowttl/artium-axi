@@ -115,7 +115,8 @@ test.each([
   expect(bytes).toBe(0)
 })
 
-test.each(['pin', 'ca'] as const)('%s replacement removes normalized legacy records through tool routes', async mode => {
+test('pin replacement removes normalized legacy records through tool routes', async () => {
+  const mode = 'pin'
   const reference = store.replaceCredential('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: endpoint, auth: 'token', token: 'CANARY-token' }, 0, 'synthetic-development-user', Date.now())
   const base = '/v1/admin/tools/vectra-axi/certificates'
   const inspect = async () => (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
@@ -135,17 +136,15 @@ test.each(['pin', 'ca'] as const)('%s replacement removes normalized legacy reco
   expect(bytes).toBe(0)
 })
 
-test('Kubernetes replaces its shared CA while retaining CA trust', async () => {
+test('a changed Kubernetes CA requires manual update', async () => {
   store.createInstance('kubernetes-axi', { name: 'rotation', description: '' }, { origin: endpoint, auth: 'token', token: 'CANARY-token', certificateAuthority: pem('other-ca') }, 'synthetic-development-user', Date.now())
   const base = '/v1/admin/tools/kubernetes-axi/instances/rotation/certificates'
   const inspection = (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
-  expect(inspection).toMatchObject({ rotation: true, trustMode: 'ca' })
+  expect(inspection).toMatchObject({ rotation: false, trustMode: 'ca', reason: 'The issuing CA changed; update the CA manually.' })
   const saved = await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: inspection.inspectionId, confirmedFingerprint: inspection.chain[0].fingerprint, mode: 'ca', replace: true, fillFields: true } })
-  expect(saved.statusCode, saved.body).toBe(200)
+  expect(saved.statusCode, saved.body).toBe(400)
   const reference = store.findInstance('kubernetes-axi', 'rotation')!
-  expect(store.readCredential(reference)).toMatchObject({ certificateAuthority: pem('intermediate') })
-  serve('rotated')
-  await expect(preflight('kubernetes-axi', store.readCredential(reference) as Record<string, unknown>, readCredentialTrust(db, reference))).resolves.toBeUndefined()
+  expect(store.readCredential(reference)).toMatchObject({ certificateAuthority: pem('other-ca') })
 })
 
 test.each([
@@ -164,8 +163,7 @@ test.each([
   if (tool === 'unifi-axi') expect(next.tls).toEqual({ trustedCertificatePem: pem('ca'), peerFingerprintSha256: fingerprint('rotated') })
   else expect(next).toMatchObject({ caBundle: pem('ca'), certificatePin: { origin: endpoint, sha256: fingerprint('rotated'), replaceHostname: true } })
   const trust = readCredentialTrust(db, reference)
-  expect(trust.map(item => item.mode)).toEqual(['ca'])
-  expect(trust[0].pem).toBe(pem('ca'))
+  expect(trust).toEqual([])
   await expect(preflight(tool, next, trust)).resolves.toBeUndefined()
   serve('leaf')
   await expect(preflight(tool, next, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
@@ -180,7 +178,7 @@ test('a verified CA is retained when the server omits its issuer', async () => {
   const response = await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: inspection.inspectionId, confirmedFingerprint: inspection.chain[0].fingerprint, mode: 'ca', replace: true } })
   expect(response.statusCode, response.body).toBe(200)
   const reference = store.findInstance('unifi-axi', 'rotation')!
-  expect(readCredentialTrust(db, reference)[0].pem).toBe(pem('ca'))
+  expect(readCredentialTrust(db, reference)).toEqual([])
   await expect(preflight('unifi-axi', store.readCredential(reference) as Record<string, unknown>, readCredentialTrust(db, reference))).resolves.toBeUndefined()
 })
 
@@ -196,6 +194,38 @@ test.each([false, true])('mode mismatch with replace=%s leaves endpoint pin inta
   const response = await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: renewal.inspectionId, confirmedFingerprint: renewal.chain[0].fingerprint, mode: 'ca', replace, fillFields: false } })
   expect(response.statusCode).toBe(400)
   expect(readCredentialTrust(db, reference)).toEqual(before)
+})
+
+test.each([false, true])('initial trust with fillFields=%s cannot add a second pin', async fillFields => {
+  const reference = store.replaceCredential('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: endpoint, auth: 'token', token: 'CANARY-token' }, 0, 'synthetic-development-user', Date.now())
+  const base = '/v1/admin/tools/vectra-axi/certificates'
+  const inspect = async () => (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
+  const initial = await inspect()
+  expect((await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: initial.inspectionId, confirmedFingerprint: initial.chain[0].fingerprint, mode: 'pin' } })).statusCode).toBe(200)
+  const before = readCredentialTrust(db, reference)
+  serve('rotated')
+  const renewal = await inspect()
+  const response = await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: renewal.inspectionId, confirmedFingerprint: renewal.chain[0].fingerprint, mode: 'pin', fillFields, replace: false } })
+  expect(response.statusCode).toBe(400)
+  expect(readCredentialTrust(db, reference)).toEqual(before)
+})
+
+test('CA fingerprint replacement leaves a different endpoint CA record untouched', async () => {
+  store.createInstance('unifi-axi', { name: 'rotation', description: '' }, { origin: endpoint, apiKey: 'CANARY-key', tls: { trustedCertificatePem: pem('ca'), peerFingerprintSha256: fingerprint('leaf') } }, 'synthetic-development-user', Date.now())
+  const reference = store.findInstance('unifi-axi', 'rotation')!
+  db.prepare('INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('synthetic-ca', reference.id, endpoint.toUpperCase(), new X509Certificate(pem('intermediate')).fingerprint256, new X509Certificate(pem('leaf')).fingerprint256, pem('intermediate'), pem('leaf'), 'ca', Date.now(), 'synthetic-development-user')
+  const before = readCredentialTrust(db, reference)
+  serve('rotated')
+  const base = '/v1/admin/tools/unifi-axi/instances/rotation/certificates'
+  const inspection = (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
+  expect(inspection).toMatchObject({ rotation: true, trustMode: 'ca' })
+  const response = await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: inspection.inspectionId, confirmedFingerprint: inspection.chain[0].fingerprint, mode: 'ca', replace: true } })
+  expect(response.statusCode, response.body).toBe(200)
+  expect(readCredentialTrust(db, reference)).toEqual(before)
+  const next = store.readCredential(store.findInstance('unifi-axi', 'rotation')!) as Record<string, unknown>
+  expect(next.tls).toEqual({ trustedCertificatePem: pem('ca'), peerFingerprintSha256: fingerprint('rotated') })
+  await expect(preflight('unifi-axi', next, before)).resolves.toBeUndefined()
 })
 
 test('standalone Proxmox pin can be replaced', async () => {
@@ -250,11 +280,9 @@ test('UniFi replaces CA setup without losing its required leaf fingerprint', asy
 
 test('Proxmox CA replacement also updates its separate pin without changing pin options', async () => {
   const pin = { origin: endpoint, sha256: fingerprint('leaf'), replaceHostname: true }
-  store.createInstance('proxmox-axi', { name: 'rotation', description: '' }, { origin: endpoint, auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token', caBundle: pem('other-ca'), certificatePin: pin }, 'synthetic-development-user', Date.now())
+  store.createInstance('proxmox-axi', { name: 'rotation', description: '' }, { origin: endpoint, auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token', caBundle: pem('ca'), certificatePin: pin }, 'synthetic-development-user', Date.now())
   const base = '/v1/admin/tools/proxmox-axi/instances/rotation/certificates'
   const inspect = async () => (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
-  const initial = await inspect()
-  expect((await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: initial.inspectionId, confirmedFingerprint: initial.chain[0].fingerprint, mode: 'ca' } })).statusCode).toBe(200)
   serve('rotated')
   const renewal = await inspect()
   expect(renewal.trustMode).toBe('ca')
@@ -264,7 +292,7 @@ test('Proxmox CA replacement also updates its separate pin without changing pin 
   const next = store.readCredential(reference) as Record<string, unknown>
   expect(next.certificatePin).toEqual({ ...pin, sha256: fingerprint('rotated') })
   const trust = readCredentialTrust(db, reference)
-  expect(trust.map(item => item.mode)).toEqual(['ca'])
+  expect(trust).toEqual([])
   await expect(preflight('proxmox-axi', next, trust)).resolves.toBeUndefined()
   serve('leaf')
   await expect(preflight('proxmox-axi', next, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
