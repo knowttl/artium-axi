@@ -74,7 +74,7 @@ At `/admin/tools/unifi-axi`, enter the Network application's HTTPS origin withou
 Use an identity authorized for the intended application, inventory and policy reads.
 The [reviewed UniFi inventory](../tools/inventories/unifi-axi.json) owns the pinned profile schema; the [host profile restrictions](../src/server/adapters/credential-profile.ts) require an explicit key and canonical HTTPS origin.
 Enter optional site and contract settings through the schema-backed editor.
-The certificate verification section accepts trusted certificate PEM and the peer SHA-256 fingerprint in separate fields, with PEM paste or upload.
+The certificate verification section accepts trusted certificate PEM and the peer SHA-256 fingerprint in separate fields, with PEM paste or upload; enter both together when adding or replacing trust.
 Its optional `connectAddress` selects the connection IP while certificate identity remains bound to the origin, including when the origin is an IP literal.
 Certificate chain, validity, identity and fingerprint verification remain required.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
@@ -142,7 +142,7 @@ See the [custody amendment](credential-standard.md#proxmox-memory-authentication
 TFA-enabled accounts cannot use automatic password sign-in; configure an API token instead.
 The token-forbidden password and TFA management operations require the stored username/password branch and its upstream privileges.
 The connection editor displays saved `caBundle` PEM and `certificatePin` fingerprints read-only and retains them when editing other fields for the same endpoint.
-Use the certificate and fingerprint controls to replace or remove credential trust; pins remain bound to their exact origin.
+Use the certificate and fingerprint controls to replace or remove credential trust; pins remain bound to their exact origin and cannot be combined with a CA bundle.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
 After saving, testing, enabling and granting the tool, use `artium-axi proxmox-axi get /version` for the first managed read.
 JSON writes require exact operation IDs in native `writes.operations` and the independent host grant list controlled by **Write permissions**.

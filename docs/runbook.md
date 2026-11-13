@@ -324,6 +324,7 @@ Automatic intermediate repair is not included because treating a repaired interm
 If an endpoint omits an intermediate below a confirmed root, confirm that intermediate as the CA anchor or configure the endpoint to present its complete chain.
 
 The instance page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
+This flow manages instance trust separately from credential-level trust; use the [credential editor](admin-guide.md#browser-administration) to replace or remove a credential-level CA or pin when it rotates.
 For CA rotation or a leaf rotation in strict pinning mode, re-inspect the saved endpoint.
 If inspection reports that no trust is needed, use **Remove trust** to retire the old entries and let the endpoint use the server's existing trust.
 Otherwise, confirm the replacement, then use **Remove trust** to retire the old entry.
