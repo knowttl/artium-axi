@@ -208,7 +208,7 @@ Create users with `user create synthetic-person`, or edit them with `user edit <
 Both accept `--username`, `--first-name`, `--last-name`, `--email`, `--is-superuser` and `--is-system-auditor`; editing also accepts `--no-superuser` and `--no-system-auditor` to remove those privileges.
 Passwords use a protected local `--password-file password.txt` or bounded stdin with `--password-file -`, never command arguments.
 Grant or revoke a role with `role grant|revoke <role-id|name> --user <id|username>` or `--team <id|name>`.
-All these writes require the tenant writes switch and the same `--dry-run` / `--confirm` flow, including membership removals and privilege changes.
+These writes, including membership removals and privilege changes, require the grants and `--dry-run` / `--confirm` flow described in the [AWX write boundary](safety.md#write-gates-by-tool).
 Inspect current state with organization, user and team list/show commands, `team users`, `role users` and `role teams`; these reads remain available with writes disabled.
 The pinned upstream organization read output does not enumerate association membership.
 After an interrupted user rename, follow [AWX recovery guidance](runbook.md#retention-and-export).
