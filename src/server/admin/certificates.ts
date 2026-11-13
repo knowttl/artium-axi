@@ -106,6 +106,13 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     current(reference)
     currentTrust(reference, endpoint.href, trustRevision)
     const { certificates, saved, mode: trustMode } = endpointTrust(reference, inspection.endpoint)
+    const confirmed = readConfirmedLeaf(db, reference.id, inspection.endpoint)
+    const presentedFingerprint = inspection.chain[0].fingerprint.replaceAll(':', '').toLowerCase()
+    if (confirmed && confirmed.pem === null && confirmed.fingerprint.replaceAll(':', '').toLowerCase() === presentedFingerprint
+      && saved.fingerprint?.replaceAll(':', '').toLowerCase() === presentedFingerprint) {
+      db.prepare('UPDATE certificate_endpoint_state SET confirmed_leaf_pem = ? WHERE credential_id = ? AND endpoint = ?')
+        .run(inspection.leafPem, reference.id, certificateEndpoint(inspection.endpoint).href)
+    }
     const chainError = inspection.verificationError
     const caVerified = !chainError && !savedInspection.verificationError && inspection.chain[0].fingerprint === savedInspection.chain[0].fingerprint
     if (saved.certificate && saved.isCa && caVerified) {

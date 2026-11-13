@@ -406,11 +406,16 @@ test('a hand-edited CA fingerprint keeps the table and re-inspection on the save
   const edited = await app.inject({ method: 'PATCH', url: base + '/credential', headers, payload: { expectedId: instance.id, expectedRevision: instance.revision,
     expectedToolRevision: tool.revision, value: { ...value, tls: { ...value.tls, peerFingerprintSha256: fingerprint('rotated') } } } })
   expect(edited.statusCode, edited.body).toBe(200)
+  serve('leaf')
+  const mismatch = await inspect()
+  expect(mismatch).toMatchObject({ rotation: true, verificationError: 'CERTIFICATE_PIN_MISMATCH' })
+  expect((await app.inject({ method: 'GET', url: base + '/certificates', headers })).json().certificates[0]).toMatchObject({ leaf: null, leafFingerprint: new X509Certificate(pem('rotated')).fingerprint256 })
+  serve('rotated')
   const after = await inspect()
   expect(after).toMatchObject({ rotation: false, verificationError: null, previousFingerprints: [] })
   expect(after.warnings).not.toContain('This endpoint was previously trusted with a different fingerprint. This may be rotation or interception.')
   const listed = (await app.inject({ method: 'GET', url: base + '/certificates', headers })).json()
-  expect(listed.certificates[0]).toMatchObject({ leaf: null, leafFingerprint: new X509Certificate(pem('rotated')).fingerprint256 })
+  expect(listed.certificates[0]).toMatchObject({ leaf: { fingerprint: new X509Certificate(pem('rotated')).fingerprint256 }, leafFingerprint: new X509Certificate(pem('rotated')).fingerprint256 })
   const reference = store.findInstance('unifi-axi', 'rotation')!
   const next = store.readCredential(reference) as Record<string, unknown>
   const trust = readCredentialTrust(db, reference)
@@ -472,6 +477,24 @@ test('editing an endpoint and fingerprint only updates the new endpoint', async 
   expect(listed.certificates.find((item: { endpoint: string }) => item.endpoint === newEndpoint).leafFingerprint).toBe(new X509Certificate(pem('rotated')).fingerprint256)
 })
 
+test('moving to an endpoint without a fingerprint clears its old leaf', async () => {
+  store.createInstance('proxmox-axi', { name: 'rotation', description: '' }, { origin: endpoint, auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }, 'synthetic-development-user', Date.now())
+  const base = '/v1/admin/tools/proxmox-axi/instances/rotation'
+  const initial = (await app.inject({ method: 'POST', url: base + '/certificates/inspect', headers, payload: {} })).json()
+  expect((await app.inject({ method: 'POST', url: base + '/certificates/trust', headers, payload: { inspectionId: initial.inspectionId, confirmedFingerprint: initial.chain[0].fingerprint, mode: 'ca', fillFields: true } })).statusCode).toBe(200)
+  const instance = store.findInstance('proxmox-axi', 'rotation')!
+  const newEndpoint = 'https://localhost:1/'
+  db.prepare('INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('synthetic-other-endpoint', instance.id, newEndpoint, new X509Certificate(pem('ca')).fingerprint256, new X509Certificate(pem('leaf')).fingerprint256, pem('ca'), pem('leaf'), 'ca', Date.now(), 'synthetic-development-user')
+  const tool = (await app.inject({ method: 'GET', url: '/v1/admin/tools/proxmox-axi', headers })).json()
+  const value = store.readCredential(instance) as Record<string, unknown>
+  const saved = await app.inject({ method: 'PATCH', url: base + '/credential', headers, payload: { expectedId: instance.id, expectedRevision: instance.revision, expectedToolRevision: tool.revision, value: { ...value, origin: 'https://localhost:1' } } })
+  expect(saved.statusCode, saved.body).toBe(200)
+  const listed = (await app.inject({ method: 'GET', url: base + '/certificates', headers })).json()
+  expect(listed.certificates.find((item: { endpoint: string }) => item.endpoint === endpoint + '/').leafFingerprint).toBe(initial.chain[0].fingerprint)
+  expect(listed.certificates.find((item: { endpoint: string }) => item.endpoint === newEndpoint)).toMatchObject({ leaf: null, leafFingerprint: null })
+})
+
 test('upgrading a confirmed CA renewal preserves the displayed leaf', async () => {
   store.createInstance('unifi-axi', { name: 'rotation', description: '' }, { origin: endpoint, apiKey: 'CANARY-key' }, 'synthetic-development-user', Date.now())
   const base = '/v1/admin/tools/unifi-axi/instances/rotation/certificates'
@@ -519,4 +542,5 @@ test.each(['edit', 'remove'] as const)('clearing a confirmed leaf through %s doe
   const after = await inspect()
   expect(after.previousFingerprints).toEqual([])
   expect(after.warnings).not.toContain('This endpoint was previously trusted with a different fingerprint. This may be rotation or interception.')
+  expect((await app.inject({ method: 'GET', url: base + '/certificates', headers })).json().certificates[0]).toMatchObject({ leaf: null, leafFingerprint: null })
 })

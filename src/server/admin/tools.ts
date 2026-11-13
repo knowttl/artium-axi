@@ -594,7 +594,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
         const previousEndpoint = certificateEndpoint(toolEndpoints(tool, stored)[0]!).href
         const fingerprint = savedCertificateTrust(tool, credential).fingerprint
         const previous = endpoint === previousEndpoint ? savedCertificateTrust(tool, stored).fingerprint : undefined
-        if (fingerprint?.replaceAll(':', '').toLowerCase() !== previous?.replaceAll(':', '').toLowerCase()) {
+        if (endpoint !== previousEndpoint || fingerprint?.replaceAll(':', '').toLowerCase() !== previous?.replaceAll(':', '').toLowerCase()) {
           syncConfirmedLeaves(db, replacement.id, fingerprint, [endpoint])
         }
       }
