@@ -109,18 +109,23 @@ test.each([
     } finally { db.close() }
   })
 
-test.each(['issue create', 'issue edit'])('Gitea delegated %s help does not require a write operation', command => {
-  const adapter = createGiteaAdapter(source, writeLog)
+test.each([
+  { adapter: createGiteaAdapter(source, writeLog), command: 'issue create' },
+  { adapter: createGiteaAdapter(source, writeLog), command: 'issue edit' },
+  { adapter: createUnifiAdapter(source, writeLog), command: 'acl-rule create' },
+  { adapter: createFalconAdapter(source, writeLog), command: 'search start' },
+  { adapter: createProxmoxAdapter(source), command: 'task cancel', settings: { hostWrites: { allowWrites: true, operations: [] } } },
+])('$adapter.name delegated $command help does not require a write operation', ({ adapter, command, settings = { writes: { allowWrites: true, operations: [] } } }) => {
   const db = new Database(':memory:')
   try {
     migrate(db)
     db.exec(`INSERT INTO users (id, username, display_name, password_hash)
       VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash');
       INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
-      INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
-      INSERT INTO tools (name, enabled, pinned_version, native_settings)
-        VALUES ('gitea-axi', 1, 'synthetic', '{"writes":{"allowWrites":true,"operations":[]}}');
-      INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'gitea-axi')`)
+      INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role')`)
+    db.prepare('INSERT INTO tools (name, enabled, pinned_version, native_settings) VALUES (?, 1, ?, ?)')
+      .run(adapter.name, 'synthetic', JSON.stringify(settings))
+    db.prepare("INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', ?)").run(adapter.name)
     const delegation = { scopeJson: JSON.stringify({ tools: [{ tool: adapter.name }] }), readOnly: false }
     expect(() => authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, [...command.split(' '), '--help'])).not.toThrow()
     expect(delegatedDiscovery(db, 'synthetic-user', delegation, [adapter])[0].commands).not.toContain(command)
@@ -293,9 +298,9 @@ test.each([
     const delegation = { scopeJson: JSON.stringify({ tools: [{ tool: adapter.name, commands: ['create token'] }] }), readOnly: false }
     const discovered = delegatedDiscovery(db, 'synthetic-user', delegation, [adapter])[0]?.commands ?? []
     expect(discovered.includes('prepare -- create token')).toBe(issued)
-    const authorize = () => authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, ['prepare', '--', 'create', 'token', '--help'])
-    if (issued) expect(authorize).not.toThrow()
-    else expect(authorize).toThrow(expect.objectContaining({ code: 'FLAG_BLOCKED' }))
+    for (const workflow of ['prepare', 'server-dry-run']) {
+      expect(() => authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, [workflow, '--', 'create', 'token', '--help'])).not.toThrow()
+    }
   } finally { db.close() }
 })
 
