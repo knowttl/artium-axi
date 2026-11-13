@@ -17,7 +17,7 @@ import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 async function withReadService(check: (context: {
   app: ReturnType<typeof createApp>, db: ReturnType<typeof openStore>, headers: { authorization: string },
   send: (path: string, method?: string) => Promise<string>,
-  run: (args: string[]) => Promise<Awaited<ReturnType<ReturnType<typeof createApp>['inject']>>>, lines: string[], directory: string,
+  run: (args: string[], files?: { name: string, contentBase64: string }[]) => Promise<Awaited<ReturnType<ReturnType<typeof createApp>['inject']>>>, lines: string[], directory: string,
 }) => Promise<void>) {
   await withFakeService(async ({ directory, port, send }) => {
     const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
@@ -42,7 +42,7 @@ async function withReadService(check: (context: {
     const app = createApp({ db, runner, audit: new Audit(db, Date.now, line => lines.push(line)), adapters: [adapter],
       resolver: new SharedIdentityResolver(store, db), credentialStore: store, environment: {} })
     const headers = { authorization: `Bearer ${issueTestAccessToken(db, 'synthetic-development-user')}` }
-    const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args } })
+    const run = (args: string[], files?: { name: string, contentBase64: string }[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args, files } })
     try { await check({ app, db, headers, send, run, lines, directory }) }
     finally { await app.close(); db.close() }
   })
@@ -51,9 +51,9 @@ async function withReadService(check: (context: {
 const securityCommands = [
   'organization create', 'organization edit', 'organization delete',
   'organization admin-add', 'organization admin-remove', 'organization user-add', 'organization user-remove',
-  'organization team-add', 'organization team-remove', 'organization galaxy-credential-add', 'organization galaxy-credential-remove',
+  'organization team-add', 'organization team-remove',
   'user create', 'user edit', 'user delete', 'user token-create', 'user token-revoke',
-  'team create', 'team edit', 'team delete', 'team user-add', 'team user-remove', 'team credential-create',
+  'team create', 'team edit', 'team delete', 'team user-add', 'team user-remove',
   'role grant', 'role revoke',
 ]
 
@@ -69,7 +69,8 @@ test('AWX security administration defaults off even with writes and deletes enab
     }
     db.exec(`UPDATE tools SET raw_api_mode = 'read-writes', raw_api_routes = '{"get":[],"write":["PATCH **"]}' WHERE name = 'awx-axi';
       UPDATE role_tools SET raw_api = 1 WHERE tool = 'awx-axi'`)
-    for (const path of ['users/42/', 'teams/42/', 'roles/7/users/', 'tokens/8/', 'organizations/42/']) {
+    for (const path of ['users/42/', 'teams/42/', 'roles/7/users/', 'tokens/8/', 'organizations/42/',
+      'organizations/42/users/', 'organizations/42/admins/', 'organizations/42/teams/', 'teams/42/users/']) {
       const response = await run(['api', 'patch', path, '--confirm'])
       expect(response.json(), path).toMatchObject({ error: { code: 'FLAG_BLOCKED',
         next: expect.stringContaining('Allow security administration') } })
@@ -88,6 +89,37 @@ test('AWX ordinary configuration still previews and executes with only Allow wri
     const created = await run([...args, '--confirm'])
     expect(created.json(), created.body).toMatchObject({ exitCode: 0 })
     expect(JSON.parse(await send('/__evidence')).mutations).toBe(1)
+  })
+}, 60_000)
+
+test('AWX ordinary associations and team credentials need only Allow writes', async () => {
+  await withReadService(async ({ db, run, send }) => {
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}', raw_api_mode = 'read-writes',
+      raw_api_routes = '{"get":[],"write":["POST **"]}' WHERE name = 'awx-axi';
+      UPDATE role_tools SET raw_api = 1 WHERE tool = 'awx-axi'`)
+    const files = [{ name: 'body.json', contentBase64: Buffer.from('{"id":7}').toString('base64') }]
+    const cases = [
+      ...['add', 'remove'].flatMap(action => [
+        ['organization', `galaxy-credential-${action}`, '42', '--credential', '7'],
+        ['organization', `instance-group-${action}`, '42', '--instance-group', '7'],
+        ['organization', `execution-environment-${action}`, '42', '--execution-environment', '7'],
+        ['organization', `notification-template-${action}`, '42', '--notification-template', '7'],
+        ['organization', `notification-${action}`, '42', '--event', 'success', '--notification-template', '7'],
+      ]),
+      ['team', 'credential-create', '7', '--name', 'Synthetic credential', '--credential-type', '7'],
+      ...['galaxy_credentials', 'instance_groups', 'execution_environments', 'notification_templates', 'notification_templates_success']
+        .map(path => ['api', 'post', `organizations/42/${path}/`, '--body-file', 'body.json']),
+      ['api', 'post', 'teams/7/credentials/', '--body-file', 'body.json'],
+    ]
+    for (const args of cases) {
+      const before = JSON.parse(await send('/__evidence')).mutations
+      const inputFiles = args[0] === 'api' ? files : undefined
+      const preview = await run([...args, '--dry-run'], inputFiles)
+      expect(preview.json(), preview.body).toMatchObject({ exitCode: 0 })
+      const confirmed = await run([...args, '--confirm'], inputFiles)
+      expect(confirmed.json(), confirmed.body).toMatchObject({ exitCode: 0 })
+      expect(JSON.parse(await send('/__evidence')).mutations).toBe(before + 1)
+    }
   })
 }, 60_000)
 

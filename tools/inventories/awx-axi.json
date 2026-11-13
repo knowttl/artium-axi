@@ -361,7 +361,7 @@
       "--limit",
       "1"
     ],
-    "help": "awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. Administrator allowWrites defaults off and gates previews and execution. Allow destructive deletes (allowDeletes) separately defaults off and additionally gates deletes, api delete and bulk host operations. Allow security administration (allowSecurityAdministration) separately defaults off and additionally gates organization create/edit/delete, membership and administrator changes, galaxy credential associations, all user/team/role mutations and token creation/revocation, including raw API writes to these resources. Existing installs with writes enabled lose security-administration access until an administrator enables allowSecurityAdministration. Preview with --dry-run, then repeat with --confirm. Existing installs with writes enabled lose delete and bulk access until an administrator enables allowDeletes. Reads and help remain available. AWX permissions still apply. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. Use protected local files for sensitive URLs. Credential inputs-file and password-file accept stdin (-). Server file paths and unsafe overrides remain blocked. Waits (job watch and --wait) last at most 50 seconds, the default; larger --timeout values are refused. Resume with job watch. job stdout --download <name> returns a protected result reference to the bounded redacted log, consumed once like a token. Token creation returns a protected result reference, never token bytes. Save its path using an authenticated GET within five minutes; it is consumed once and requires the same caller, current access and managed credential revision. Managed logout uses user token-revoke <numeric-token-id> with preview and confirmation; account removal does not revoke a PAT.\n"
+    "help": "awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. Administrator allowWrites defaults off and gates previews and execution. Allow destructive deletes (allowDeletes) separately defaults off and additionally gates deletes, api delete and bulk host operations. Allow security administration (allowSecurityAdministration) separately defaults off and additionally gates organization create/edit/delete, membership and administrator changes, user/team/role administration and token creation/revocation, including raw API writes to these resources. Existing installs with writes enabled lose security-administration access until an administrator enables allowSecurityAdministration. Preview with --dry-run, then repeat with --confirm. Existing installs with writes enabled lose delete and bulk access until an administrator enables allowDeletes. Reads and help remain available. AWX permissions still apply. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. Use protected local files for sensitive URLs. Credential inputs-file and password-file accept stdin (-). Server file paths and unsafe overrides remain blocked. Waits (job watch and --wait) last at most 50 seconds, the default; larger --timeout values are refused. Resume with job watch. job stdout --download <name> returns a protected result reference to the bounded redacted log, consumed once like a token. Token creation returns a protected result reference, never token bytes. Save its path using an authenticated GET within five minutes; it is consumed once and requires the same caller, current access and managed credential revision. Managed logout uses user token-revoke <numeric-token-id> with preview and confirmation; account removal does not revoke a PAT.\n"
   },
   "suggestionFields": [
     "help"
@@ -1591,7 +1591,6 @@
     {
       "command": "organization galaxy-credential-add",
       "effect": "configuration-write",
-      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "credential": "value",
@@ -1608,7 +1607,6 @@
     {
       "command": "organization galaxy-credential-remove",
       "effect": "configuration-write",
-      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "credential": "value",
@@ -3530,7 +3528,6 @@
     {
       "command": "team credential-create",
       "effect": "configuration-write",
-      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "name": "value",

@@ -165,7 +165,7 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
       if (reference.tool !== 'awx-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const destructive = !normalized.invocation.help && /(?:^|[ -])delete$|^inventory host-bulk-create$/.test(normalized.invocation.command)
       const security = normalized.mutation && (inventory.commands.find(route => route.command === normalized.invocation.command)?.securityAdministration === true
-        || normalized.invocation.command.startsWith('api ') && /\/(?:organizations|users|teams|roles|tokens|personal_tokens)(?:\/|$)/.test(
+        || normalized.invocation.command.startsWith('api ') && /^\/api\/v2\/(?:(?:roles|tokens|personal_tokens)(?:\/|$)|(?:organizations|users|teams)(?:\/?$|\/[^/]+\/?$|\/[^/]+\/(?:users|admins|teams|roles|object_roles|access_list|tokens|personal_tokens)(?:\/|$)))/.test(
           decodeURIComponent(new URL(normalized.args[2], 'https://controller.example/api/v2/').pathname)))
       const authorizeMutations = (settings: Record<string, unknown>) => {
         if (destructive && settings.allowDeletes !== true) throw new ArtiumError('FLAG_BLOCKED',
