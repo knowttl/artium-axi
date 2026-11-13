@@ -219,9 +219,11 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       const value = store!.readCredential(reference) as Record<string, unknown>
       let endpoint: string | undefined
       try { endpoint = certificateEndpoint(toolEndpoints(reference.tool, value)[0]!).href }
-      catch (error) { if (!(error instanceof TypeError)) throw error }
-      const fingerprint = endpoint === pin.endpoint ? savedCertificateTrust(reference.tool, value).fingerprint : undefined
-      syncConfirmedLeaves(db, reference.id, fingerprint, [pin.endpoint])
+      catch { request.log.warn('Skipped certificate display synchronization because the credential endpoint is invalid.') }
+      if (endpoint !== undefined) {
+        const fingerprint = endpoint === pin.endpoint ? savedCertificateTrust(reference.tool, value).fingerprint : undefined
+        syncConfirmedLeaves(db, reference.id, fingerprint, [pin.endpoint])
+      }
       db.prepare('DELETE FROM tool_health WHERE credential_id = ?').run(reference.id)
     })
     await health?.refresh(reference.tool, true, reference.id)

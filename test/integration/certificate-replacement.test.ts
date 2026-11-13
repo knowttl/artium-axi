@@ -473,6 +473,16 @@ test('removing trust succeeds with an invalid saved endpoint', async () => {
   expect((await app.inject({ method: 'GET', url: base, headers })).json().certificates).toEqual([])
 })
 
+test('removing trust succeeds with an invalid saved region', async () => {
+  const instance = store.createInstance('checkpoint-axi', { name: 'rotation', description: '' }, { region: 'invalid-region', apiKey: 'CANARY-key' }, 'synthetic-development-user', Date.now())
+  const base = '/v1/admin/tools/checkpoint-axi/instances/rotation/certificates'
+  db.prepare('INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('synthetic-ca', instance.id, endpoint, new X509Certificate(pem('ca')).fingerprint256, new X509Certificate(pem('leaf')).fingerprint256, pem('ca'), pem('leaf'), 'ca', Date.now(), 'synthetic-development-user')
+  const removed = await app.inject({ method: 'DELETE', url: base, headers, payload: { id: 'synthetic-ca' } })
+  expect(removed.statusCode, removed.body).toBe(200)
+  expect((await app.inject({ method: 'GET', url: base, headers })).json().certificates).toEqual([])
+})
+
 test.each([
   ['unifi-axi', { origin: 'invalid-origin', apiKey: 'CANARY-key' }],
   ['proxmox-axi', { origin: 'invalid-origin', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }],
