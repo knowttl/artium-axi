@@ -42,13 +42,14 @@ Targets for aliases and file/output flags are managed equivalents as described b
 ## Status and authorization rules
 
 The generated [target authorization policy](../awx-parity-matrix.md#target-authorization-policy), owned by `scripts/awx-parity.mjs`, governs the authorization columns below.
+Destructive operations, including deletes and bulk host create/delete, require administrator `allowWrites` and the separate `allowDeletes` setting; preview with `--dry-run`, then repeat with `--confirm`.
 Implementation slices ship without an Artium release per slice; publish one release after the final slice.
 
 Blocked means the current adapter refuses the route or flag, even when an administrator enables writes.
 Managed equivalent replaces upstream client state, filesystem access or input delivery with an Artium-owned workflow.
 Not applicable always has an explicit managed-deployment reason.
 Every flag row has its own current and target decision; accepted commands do not imply all flags work.
-Flags inherit the command's read/write authorization and upstream validation.
+Flags inherit the command's authorization and upstream validation.
 `<value>` denotes a value-taking flag, while other flags are boolean.
 Positionals retain upstream names and required counts in the command table.
 
@@ -96,7 +97,7 @@ Raw overrides are blocked today; target managed equivalents keep selection and t
 | `template notification-remove` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `template create` `<name>` (0 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. |
 | `template edit` `<id\|name>` (1 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. |
-| `template delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
+| `template delete` `<id\|name>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. |
 | `template copy` `<id\|name>` (1 required) | supported | supported | write | Retain managed access and upstream resource permissions. |
 | `template list` | supported | supported | read | Partial flag coverage; see individual flag decisions. |
 | `template show` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
@@ -105,7 +106,7 @@ Raw overrides are blocked today; target managed equivalents keep selection and t
 | `workflow object-roles` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `workflow node-create` `<id\|name>` (1 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. |
 | `workflow node-edit` `<id>` (1 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. |
-| `workflow node-delete` `<id>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
+| `workflow node-delete` `<id>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. |
 | `workflow node-link` `<node-id>` (1 required) | supported | supported | write | Retain managed access and upstream resource permissions. |
 | `workflow node-unlink` `<node-id>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `workflow node-credential-add` `<node-id>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
@@ -122,7 +123,7 @@ Raw overrides are blocked today; target managed equivalents keep selection and t
 | `workflow copy` `<id\|name>` (1 required) | supported | supported | write | Retain managed access and upstream resource permissions. |
 | `workflow create` `<name>` (0 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. |
 | `workflow edit` `<id\|name>` (1 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. |
-| `workflow delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
+| `workflow delete` `<id\|name>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. |
 | `workflow list` | supported | supported | read | Partial flag coverage; see individual flag decisions. |
 | `workflow show` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `workflow survey` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
@@ -132,7 +133,7 @@ Raw overrides are blocked today; target managed equivalents keep selection and t
 | `workflow template-node` `<id>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `organization create` `<name>` (0 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `organization edit` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
-| `organization delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
+| `organization delete` `<id\|name>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. |
 | `organization notification-add` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `organization notification-remove` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `organization user-add` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
@@ -163,7 +164,7 @@ Raw overrides are blocked today; target managed equivalents keep selection and t
 | `credential copy` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `credential create` `<name>` (0 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `credential edit` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
-| `credential delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. Target deletion uses the writes switch plus the separate Allow destructive deletes setting, including security resources; upstream delete tags still need trusted runner gate configuration |
+| `credential delete` `<id\|name>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. Target deletion uses the writes switch plus the separate Allow destructive deletes setting, including security resources; upstream delete tags still need trusted runner gate configuration |
 | `credential list` | supported | supported | read | Partial flag coverage; see individual flag decisions. |
 | `credential show` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `approval list` | supported | supported | read | Retain managed access and upstream resource permissions. |
@@ -180,36 +181,36 @@ Raw overrides are blocked today; target managed equivalents keep selection and t
 | `project notification-remove` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `project create` `<name>` (0 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. Target --credential uses the same writes switch; upstream tags this request config. |
 | `project edit` `<id\|name>` (1 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. Target --credential uses the same writes switch; upstream tags this request config. |
-| `project delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
+| `project delete` `<id\|name>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. |
 | `project list` | supported | supported | read | Partial flag coverage; see individual flag decisions. |
 | `project show` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `project playbooks` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `project updates` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `project roles` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `project sync` `<id\|name>` (1 required) | supported | supported | write | Retain managed access and upstream resource permissions. |
-| `inventory host-bulk-create` | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
-| `inventory host-bulk-delete` | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
+| `inventory host-bulk-create` | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. |
+| `inventory host-bulk-delete` | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. |
 | `inventory group-create` `<name>` (0 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. |
 | `inventory group-edit` `<id\|name>` (1 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. |
-| `inventory group-delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
+| `inventory group-delete` `<id\|name>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. |
 | `inventory group-add-host` `<id\|name>` (1 required) | supported | supported | write | Retain managed access and upstream resource permissions. |
 | `inventory group-remove-host` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `inventory group-add-child` `<id\|name>` (1 required) | supported | supported | write | Retain managed access and upstream resource permissions. |
 | `inventory group-remove-child` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `inventory source-create` `<name>` (0 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. Credential or notification configuration/messages input uses the same writes switch and controlled secret handling. |
 | `inventory source-edit` `<id\|name>` (1 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. Credential or notification configuration/messages input uses the same writes switch and controlled secret handling. |
-| `inventory source-delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
+| `inventory source-delete` `<id\|name>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. |
 | `inventory source-credential-add` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `inventory source-credential-remove` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `inventory source-notification-add` `<id\|name>` (1 required) | supported | supported | write | Retain managed access and upstream resource permissions. |
 | `inventory source-notification-remove` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `inventory create` `<name>` (0 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. |
 | `inventory edit` `<id\|name>` (1 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. |
-| `inventory delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
+| `inventory delete` `<id\|name>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. |
 | `inventory sync` `<id\|name>` (1 required) | supported | supported | write | Retain managed access and upstream resource permissions. |
 | `inventory host-create` `<name>` (0 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. |
 | `inventory host-edit` `<id\|name>` (1 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. |
-| `inventory host-delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
+| `inventory host-delete` `<id\|name>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. |
 | `inventory list` | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `inventory show` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `inventory groups` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
@@ -233,12 +234,12 @@ Raw overrides are blocked today; target managed equivalents keep selection and t
 | `schedule instance-group-remove` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `schedule create` `<name>` (0 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. |
 | `schedule edit` `<id\|name>` (1 required) | supported | supported | write | Partial flag coverage; see individual flag decisions. |
-| `schedule delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
+| `schedule delete` `<id\|name>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. |
 | `schedule list` | supported | supported | read | Partial flag coverage; see individual flag decisions. |
 | `schedule show` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `execution-environment create` `<name>` (0 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. Credential or notification configuration/messages input uses the same writes switch and controlled secret handling. |
 | `execution-environment edit` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. Credential or notification configuration/messages input uses the same writes switch and controlled secret handling. |
-| `execution-environment delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
+| `execution-environment delete` `<id\|name>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. |
 | `execution-environment copy` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `execution-environment list` | supported | supported | read | Partial flag coverage; see individual flag decisions. |
 | `execution-environment show` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
@@ -246,14 +247,14 @@ Raw overrides are blocked today; target managed equivalents keep selection and t
 | `user token-revoke` `<id>` (1 required) | blocked | supported | write | Upstream DELETE is tagged security; target revocation uses the single writes switch, with upstream gates set by trusted managed configuration Route rejected before administrator settings, including help and preview. |
 | `user create` `<username>` (0 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `user edit` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
-| `user delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. Target deletion uses the writes switch plus the separate Allow destructive deletes setting, including security resources; upstream delete tags still need trusted runner gate configuration |
+| `user delete` `<id\|name>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. Target deletion uses the writes switch plus the separate Allow destructive deletes setting, including security resources; upstream delete tags still need trusted runner gate configuration |
 | `user list` | supported | supported | read | Partial flag coverage; see individual flag decisions. |
 | `user show` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `notification list` | supported | supported | read | Partial flag coverage; see individual flag decisions. |
 | `notification show` `<id>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `notification-template create` `<name>` (0 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. Credential or notification configuration/messages input uses the same writes switch and controlled secret handling. |
 | `notification-template edit` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. Credential or notification configuration/messages input uses the same writes switch and controlled secret handling. |
-| `notification-template delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
+| `notification-template delete` `<id\|name>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. |
 | `notification-template test` `<id\|name>` (1 required) | supported | supported | write | Retain managed access and upstream resource permissions. |
 | `notification-template copy` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `notification-template list` | supported | supported | read | Partial flag coverage; see individual flag decisions. |
@@ -265,7 +266,7 @@ Raw overrides are blocked today; target managed equivalents keep selection and t
 | `team credential-create` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `team create` `<name>` (0 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `team edit` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
-| `team delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. Target deletion uses the writes switch plus the separate Allow destructive deletes setting, including security resources; upstream delete tags still need trusted runner gate configuration |
+| `team delete` `<id\|name>` (1 required) | blocked | supported | destructive | Route rejected before administrator settings, including help and preview. Target deletion uses the writes switch plus the separate Allow destructive deletes setting, including security resources; upstream delete tags still need trusted runner gate configuration |
 | `team list` | supported | supported | read | Partial flag coverage; see individual flag decisions. |
 | `team show` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `team users` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
@@ -555,9 +556,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | dry run without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | dry run without mutating |
 
 
 ### template copy
@@ -668,9 +669,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | preview without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | preview without mutating |
 
 
 ### workflow node-link
@@ -849,9 +850,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | dry run without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | dry run without mutating |
 
 
 ### workflow list
@@ -951,9 +952,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | preview without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | preview without mutating |
 
 
 ### organization notification-add
@@ -1271,9 +1272,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | dry run without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | dry run without mutating |
 
 
 ### credential list
@@ -1460,9 +1461,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | dry run without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | dry run without mutating |
 
 
 ### project list
@@ -1526,21 +1527,21 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--inventory <value>` | blocked | supported | write | inventory id or name |
-| `--hosts-file <value>` | blocked | managed equivalent | write | JSON host array file AWX adapter rejects file inputs before execution Controlled caller byte channel; no server paths. |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | preview without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--inventory <value>` | blocked | supported | destructive | inventory id or name |
+| `--hosts-file <value>` | blocked | managed equivalent | destructive | JSON host array file AWX adapter rejects file inputs before execution Controlled caller byte channel; no server paths. |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | preview without mutating |
 
 
 ### inventory host-bulk-delete
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--hosts-file <value>` | blocked | managed equivalent | write | JSON host id array file AWX adapter rejects file inputs before execution Controlled caller byte channel; no server paths. |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | preview without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--hosts-file <value>` | blocked | managed equivalent | destructive | JSON host id array file AWX adapter rejects file inputs before execution Controlled caller byte channel; no server paths. |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | preview without mutating |
 
 
 ### inventory group-create
@@ -1572,9 +1573,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | preview without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | preview without mutating |
 
 
 ### inventory group-add-host
@@ -1653,9 +1654,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | preview without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | preview without mutating |
 
 
 ### inventory source-credential-add
@@ -1733,9 +1734,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | dry run without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | dry run without mutating |
 
 
 ### inventory sync
@@ -1783,9 +1784,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | dry run without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | dry run without mutating |
 
 
 ### inventory list
@@ -2042,9 +2043,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | dry run without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | dry run without mutating |
 
 
 ### schedule list
@@ -2103,9 +2104,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | preview without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | preview without mutating |
 
 
 ### execution-environment copy
@@ -2196,9 +2197,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | dry run without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | dry run without mutating |
 
 
 ### user list
@@ -2283,9 +2284,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | preview without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | preview without mutating |
 
 
 ### notification-template test
@@ -2418,9 +2419,9 @@ Raw `update`, including `--check`, is not applicable: deployments review and pin
 
 | Upstream flag | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- |
-| `--help` | blocked | supported | write | Command help |
-| `--confirm` | blocked | supported | write | confirm live execution |
-| `--dry-run` | blocked | supported | write | dry run without mutating |
+| `--help` | blocked | supported | destructive | Command help |
+| `--confirm` | blocked | supported | destructive | confirm live execution |
+| `--dry-run` | blocked | supported | destructive | dry run without mutating |
 
 
 ### team list
@@ -2663,11 +2664,11 @@ Use the canonical route, including for affected aliases listed below.
 
 | Upstream alias | Canonical managed equivalent | Artium status today | Target status | Authorization tier | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `inventory host bulk-create` | `inventory host-bulk-create` | blocked | managed equivalent | write | Canonical spelling has the complete flag contract above. |
-| `inventory host bulk-delete` | `inventory host-bulk-delete` | blocked | managed equivalent | write | Canonical spelling has the complete flag contract above. |
+| `inventory host bulk-create` | `inventory host-bulk-create` | blocked | managed equivalent | destructive | Canonical spelling has the complete flag contract above. |
+| `inventory host bulk-delete` | `inventory host-bulk-delete` | blocked | managed equivalent | destructive | Canonical spelling has the complete flag contract above. |
 | `inventory group create` | `inventory group-create` | blocked | managed equivalent | write | Canonical spelling has the complete flag contract above. |
 | `inventory group edit` | `inventory group-edit` | blocked | managed equivalent | write | Canonical spelling has the complete flag contract above. |
-| `inventory group delete` | `inventory group-delete` | blocked | managed equivalent | write | Canonical spelling has the complete flag contract above. |
+| `inventory group delete` | `inventory group-delete` | blocked | managed equivalent | destructive | Canonical spelling has the complete flag contract above. |
 | `inventory group add-host` | `inventory group-add-host` | blocked | managed equivalent | write | Upstream non-CRUD group/source routing limitation; use canonical spelling. |
 | `inventory group add host` | `inventory group-add-host` | blocked | managed equivalent | write | Upstream non-CRUD group/source routing limitation; use canonical spelling. |
 | `inventory group remove-host` | `inventory group-remove-host` | blocked | managed equivalent | write | Upstream non-CRUD group/source routing limitation; use canonical spelling. |
@@ -2678,7 +2679,7 @@ Use the canonical route, including for affected aliases listed below.
 | `inventory group remove child` | `inventory group-remove-child` | blocked | managed equivalent | write | Upstream non-CRUD group/source routing limitation; use canonical spelling. |
 | `inventory source create` | `inventory source-create` | blocked | managed equivalent | write | Canonical spelling has the complete flag contract above. |
 | `inventory source edit` | `inventory source-edit` | blocked | managed equivalent | write | Canonical spelling has the complete flag contract above. |
-| `inventory source delete` | `inventory source-delete` | blocked | managed equivalent | write | Canonical spelling has the complete flag contract above. |
+| `inventory source delete` | `inventory source-delete` | blocked | managed equivalent | destructive | Canonical spelling has the complete flag contract above. |
 | `inventory source credential-add` | `inventory source-credential-add` | blocked | managed equivalent | write | Upstream non-CRUD group/source routing limitation; use canonical spelling. |
 | `inventory source credential add` | `inventory source-credential-add` | blocked | managed equivalent | write | Upstream non-CRUD group/source routing limitation; use canonical spelling. |
 | `inventory source credential-remove` | `inventory source-credential-remove` | blocked | managed equivalent | write | Upstream non-CRUD group/source routing limitation; use canonical spelling. |
@@ -2689,4 +2690,4 @@ Use the canonical route, including for affected aliases listed below.
 | `inventory source notification remove` | `inventory source-notification-remove` | blocked | managed equivalent | write | Upstream non-CRUD group/source routing limitation; use canonical spelling. |
 | `inventory host create` | `inventory host-create` | blocked | managed equivalent | write | Canonical spelling has the complete flag contract above. |
 | `inventory host edit` | `inventory host-edit` | blocked | managed equivalent | write | Canonical spelling has the complete flag contract above. |
-| `inventory host delete` | `inventory host-delete` | blocked | managed equivalent | write | Canonical spelling has the complete flag contract above. |
+| `inventory host delete` | `inventory host-delete` | blocked | managed equivalent | destructive | Canonical spelling has the complete flag contract above. |
