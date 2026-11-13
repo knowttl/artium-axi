@@ -3,7 +3,8 @@ import type Database from 'better-sqlite3'
 import { healthSchema, toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError, errors } from '../../shared/errors.js'
 import type { Diagnostic } from '../../shared/errors.js'
-import { diagnosticError, retestFields, safeDiagnostic, toolFailure } from './diagnostic.js'
+import type { StructuredDiagnostic } from '../../shared/diagnostic.js'
+import { diagnosticError, safeDiagnostic, toolFailure } from './diagnostic.js'
 import { preflight } from './preflight.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import type { Adapter } from '../adapters/types.js'
@@ -31,7 +32,7 @@ export class ToolHealth {
   private readonly queued = new Set<ToolName>()
   private readonly required = new Map<ToolName, CredentialReference>()
   private readonly generations = new Map<ToolName, number>()
-  private readonly diagnostics = new Map<string, Diagnostic>()
+  private readonly diagnostics = new Map<string, StructuredDiagnostic>()
   private readonly rotation = new Map<ToolName, number>()
   private readonly due = new Map<string, number>()
   private readonly failures = new Map<string, number>()
@@ -41,7 +42,7 @@ export class ToolHealth {
     return this.active.has(tool) || this.replaced.has(tool) || this.queued.has(tool)
   }
 
-  diagnostic(tool: ToolName, revision: number | null, checkedAt: number | null, credentialId = this.store?.findCredential(tool)?.id): Diagnostic | undefined {
+  diagnostic(tool: ToolName, revision: number | null, checkedAt: number | null, credentialId = this.store?.findCredential(tool)?.id): StructuredDiagnostic | undefined {
     const detail = credentialId === undefined ? undefined : this.diagnostics.get(credentialId)
     return detail?.credentialRevision === revision && detail?.checkedAt === checkedAt ? detail : undefined
   }
@@ -169,8 +170,8 @@ export class ToolHealth {
         this.db.prepare(`INSERT INTO tool_health (credential_id, tool, credential_revision, checked_at, status, error_code) VALUES (?, ?, ?, ?, 'error', ?)
           ON CONFLICT(credential_id) DO UPDATE SET credential_revision = excluded.credential_revision, checked_at = excluded.checked_at,
           status = excluded.status, error_code = excluded.error_code`).run(reference.id, tool, reference.revision, checkedAt, code)
-        this.diagnostics.set(reference.id, { stage: 'configuration', message: 'Credential check pending: runner busy.',
-          checkedAt, credentialRevision: reference.revision })
+        this.diagnostics.set(reference.id, safeDiagnostic({ stage: 'configuration', message: '',
+          checkedAt, credentialRevision: reference.revision }, [])!)
         if (this.active.has(tool)) this.replaced.set(tool, reference.id)
       }
       throw error
@@ -278,11 +279,7 @@ export class ToolHealth {
         detail.host = (detail.stage === 'token acquisition' ? endpoints[0] : endpoints[
           ['az-axi', 'mg-axi'].includes(tool) || tool === 'ado-axi' && credential.auth === 'client-secret' ? 1 : 0])?.hostname
       }
-      const diagnostic = retest && detail && failure ? safeDiagnostic({
-        stage: detail.stage, message: errors[failure.code].message,
-        ...retestFields(detail),
-        ...(detail.trust ? { trust: detail.trust } : {}), checkedAt, credentialRevision: reference.revision,
-      }, secrets) : safeDiagnostic(detail, secrets)
+      const diagnostic = safeDiagnostic(detail, secrets)
       if (failure) failure.diagnostic = diagnostic
       const settings = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(tool) as { native_settings: string }
       const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt, diagnostic,

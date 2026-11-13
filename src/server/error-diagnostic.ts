@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { resolve, relative, isAbsolute, basename, dirname } from 'node:path'
 import { MasterKeyMismatch } from './store/key-provider.js'
+import { diagnosticCode } from '../shared/diagnostic.js'
 
 const moduleRoot = resolve(fileURLToPath(new URL('../../', import.meta.url)))
 const applicationRoot = basename(moduleRoot) === 'dist' ? dirname(moduleRoot) : moduleRoot
@@ -9,7 +10,7 @@ const applicationRoot = basename(moduleRoot) === 'dist' ? dirname(moduleRoot) : 
 export function errorDiagnostic(error: unknown): { errorCode?: string, frames?: string[], requiredKeyId?: string } {
   if (!(error instanceof Error)) return {}
   const code = (error as NodeJS.ErrnoException).code
-  const errorCode = typeof code === 'string' && /^(?:E[A-Z0-9_]+|ERR_[A-Z0-9_]+)$/.test(code) && code.length <= 100 ? code : undefined
+  const errorCode = diagnosticCode(code) ?? undefined
   const frames = (error.stack ?? '').split('\n').slice(1).flatMap(line => {
     const match = /^\s+at (?:[^()\n]+ \()?((?:file:\/\/\/|\/)[^()\s]+):(\d+):\d+\)?$/.exec(line)
     if (!match) return []

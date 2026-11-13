@@ -1055,7 +1055,7 @@ test.each([
         status: string, error_code: string, checked_at: number }
       expect(row).toMatchObject({ status: 'error', error_code: 'UPSTREAM_TLS_FAILED' })
       expect(background.diagnostic(scenario.tool, reference.revision!, row.checked_at)).toMatchObject({ stage: 'TLS',
-        toolCode: 'CERTIFICATE_PIN_MISMATCH', message: expect.stringContaining('re-inspect') })
+        toolCode: 'CERTIFICATE_PIN_MISMATCH', message: 'Details unavailable.' })
     } finally { await background.stop() }
     expect(invalidUpgrades).toBe(0)
     expect(bytes).toBe(0)

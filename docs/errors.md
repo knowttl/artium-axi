@@ -4,7 +4,7 @@ Generated from `src/shared/errors.ts` by `pnpm errors:generate`.
 Do not edit manually.
 Artium errors use TOON on CLI stdout and JSON over HTTP.
 See the [README output contract](../README.md#toon-output-and-errors) for upstream output handling.
-Graph sign-in failures include the category, token-acquisition stage, check time, credential revision and redacted tool message in administrator credential diagnostics.
+Graph sign-in failures include the category, token-acquisition stage, check time and credential revision in administrator credential diagnostics.
 They do not carry the provider (AADSTS) code because mg-axi does not expose it yet.
 Azure token-acquisition diagnostics retain supported provider codes.
 
@@ -73,12 +73,12 @@ Azure token-acquisition diagnostics retain supported provider codes.
 | CREDENTIAL_EXPIRED | artium-axi | 503 | 1 | The GitHub credential expired or was revoked. | Ask an administrator to reconnect at /admin/tools/gh-axi. Tokens are never refreshed automatically. |
 | FLAG_BLOCKED | artium-axi | 400 | 2 | The arguments override the managed tool boundary. | Remove destination, tenant, credential or local configuration overrides. |
 | CREDENTIAL_NOT_CONFIGURED | artium-axi | 503 | 1 | No credential is configured for the tool. | Ask an administrator to save a credential and run Test connection. |
-| UPSTREAM_AUTH_FAILED | artium-axi | 503 | 1 | The upstream service rejected the credential. | Ask an administrator to check the provider code, identity, secret expiry and permissions, then test again. |
-| UPSTREAM_NETWORK_FAILED | artium-axi | 503 | 1 | The upstream service could not be reached. | Ask an administrator to check DNS, routing, firewall rules and the diagnostic host and stage. |
+| UPSTREAM_AUTH_FAILED | artium-axi | 503 | 1 | The upstream service rejected the credential. | Ask an administrator to check the identity, secret expiry and permissions, then test again. |
+| UPSTREAM_NETWORK_FAILED | artium-axi | 503 | 1 | The upstream service could not be reached. | Ask an administrator to check DNS, routing, firewall rules and the diagnostic stage. |
 | UPSTREAM_TLS_FAILED | artium-axi | 503 | 1 | The upstream certificate could not be verified. | Ask an administrator to check the host, certificate chain and trusted CA configuration. |
-| UPSTREAM_RESPONSE_INVALID | artium-axi | 503 | 1 | The upstream service returned a response the tool could not accept. | Ask an administrator to inspect the diagnostic message and hint, check the service endpoint and API compatibility, then test again. |
+| UPSTREAM_RESPONSE_INVALID | artium-axi | 503 | 1 | The upstream service returned a response the tool could not accept. | Ask an administrator to check the diagnostic stage and reviewed code, service endpoint and API compatibility, then test again. |
 | TOOL_REJECTED_INPUT | artium-axi | 503 | 1 | The tool rejected its configuration or arguments. | Ask an administrator to correct the field or combination named by the tool and test again. |
-| TOOL_FAILED | artium-axi | 503 | 1 | The tool exited unsuccessfully. | Ask an administrator to inspect the diagnostic message and hint from Test connection. |
+| TOOL_FAILED | artium-axi | 503 | 1 | The tool exited unsuccessfully. | Ask an administrator to inspect the diagnostic stage and reviewed code from Test connection. |
 | INVALID_INPUT | artium-axi | 400 | 2 | The request input is invalid. | Check the request fields and content type. |
 | UNSUPPORTED_INPUT | artium-axi | 400 | 2 | The input file is not a matching upload. | Upload the file using a reviewed input-file flag. |
 | SECRET_IN_OUTPUT | artium-axi | 500 | 1 | A known secret was detected in tool output. | Check upstream output redaction before retrying. |

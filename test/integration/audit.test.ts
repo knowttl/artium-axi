@@ -145,7 +145,7 @@ test('failure diagnostics become unreadable at 14 days and daily retention remov
   audit.record({ ...context, event: 'run-terminal', outcome: 'completed', exitCode: 1, durationMs: 1,
     outputBytes: { stdout: 0, stderr: 1 }, failure: { diagnostic: { stage: 'tool run', message: 'Synthetic failure' }, secrets: [] } })
   now += 14 * day - 1
-  expect(audit.runDiagnostic(context.requestId)).toEqual({ stage: 'tool run', message: 'Synthetic failure' })
+  expect(audit.runDiagnostic(context.requestId)).toEqual({ stage: 'tool run', message: 'Details unavailable.' })
   now++
   expect(audit.runDiagnostic(context.requestId)).toBeUndefined()
   audit.maintain()
@@ -158,7 +158,7 @@ test.each(['x', '界', '😀'])('persisted diagnostics bound serialized %s text 
     outputBytes: { stdout: 0, stderr: 10000 }, failure: { diagnostic: { stage: 'tool run', message: character.repeat(10000), hint: 'Synthetic hint' }, secrets: [] } })
   const row = db.prepare('SELECT diagnostic FROM run_diagnostics').get() as { diagnostic: string }
   expect(Buffer.byteLength(row.diagnostic)).toBeLessThanOrEqual(4096)
-  expect(JSON.parse(row.diagnostic)).toMatchObject({ stage: 'tool run', hint: 'Synthetic hint' })
+  expect(JSON.parse(row.diagnostic)).toEqual({ stage: 'tool run', message: 'Details unavailable.' })
 })
 
 test.each([
@@ -171,7 +171,7 @@ test.each([
       [field]: 'a'.repeat(prefixLength) + '😀' + 'b'.repeat(26) }, secrets: [] } })
   const row = db.prepare('SELECT diagnostic FROM run_diagnostics').get() as { diagnostic: string }
   expect(Buffer.byteLength(row.diagnostic)).toBeLessThanOrEqual(4096)
-  expect(audit.runDiagnostic(context.requestId)).toMatchObject({ stage: 'tool run', [field]: 'a'.repeat(prefixLength) })
+  expect(audit.runDiagnostic(context.requestId)).toEqual({ stage: 'tool run', message: 'Details unavailable.' })
   expect(db.prepare('SELECT * FROM audit WHERE id = ?').get(record.id)).toEqual(record)
 })
 
@@ -183,6 +183,15 @@ test('diagnostic persistence failure rolls back the terminal event and emits not
   expect(db.prepare('SELECT * FROM audit').all()).toEqual([])
   expect(lines).toEqual([])
 })
+
+test.each(['message', 'hint', 'issuer', 'host', 'providerCode', 'toolCode'])(
+  'security #419: legacy %s text is unreadable without modifying the stored row', field => {
+    const legacy = JSON.stringify({ stage: 'TLS', message: 'UnlabelledLegacyCredential419',
+      [field]: 'UnlabelledLegacyCredential419', trust: 'untrusted' })
+    db.prepare('INSERT INTO run_diagnostics VALUES (?, ?, ?)').run(context.requestId, now, legacy)
+    expect(audit.runDiagnostic(context.requestId)).toEqual({ stage: 'TLS', message: 'Details unavailable.', trust: 'untrusted' })
+    expect(db.prepare('SELECT diagnostic FROM run_diagnostics').get()).toEqual({ diagnostic: legacy })
+  })
 
 test.each([
   [501, [500, 1]],

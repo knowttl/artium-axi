@@ -1,8 +1,42 @@
 import { expect, test } from 'vitest'
 import { diagnosticSchema } from '../../shared/api.js'
-import { safeDiagnostic, toolFailure, toolFailureCode } from './diagnostic.js'
+import { diagnosticCode } from '../../shared/diagnostic.js'
+import { retestFields, safeDiagnostic, toolFailure, toolFailureCode } from './diagnostic.js'
 
 const secret = 'CANARY-diagnostic-secret'
+
+test.each(['ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION', 'SERVICE_UNAVAILABLE'])(
+  'preserves reviewed diagnostic code %s across projections', code => {
+    const detail = safeDiagnostic({ stage: 'TLS', message: 'CANARY-untrusted', toolCode: code }, [])
+    expect(detail).toEqual({ stage: 'TLS', message: 'Details unavailable.', toolCode: code })
+    expect(diagnosticSchema.parse(detail)).toEqual(detail)
+    expect(retestFields({ toolCode: code }).toolCode).toBe(code)
+    expect(diagnosticCode(code)).toBe(code)
+  })
+
+test.each([
+  ['az-axi', 'code: AUTH_FAILED\nmessage: AADSTS7000222: CANARY-response', { providerCode: 'AADSTS7000222' }],
+  ['vectra-axi', 'code: TRANSPORT_FAILED\nmessage: CANARY-response\nhint: EHOSTUNREACH', { transportCode: 'EHOSTUNREACH' }],
+  ['hybrid-axi', '{"error":{"code":"PERMISSION_DENIED","status":503,"message":"CANARY-response"}}', { upstreamStatus: 503 }],
+] as const)('preserves validated %s failure details without response text', (tool, output, fields) => {
+  const detail = safeDiagnostic(toolFailure('', output, 1, tool, true).diagnostic, [])
+  expect(detail).toMatchObject(fields)
+  expect(diagnosticSchema.parse(detail)).toEqual(detail)
+  expect(JSON.stringify(detail)).not.toContain('CANARY-response')
+})
+
+test.each(['ENETUNREACH', 'EHOSTUNREACH', 'ECONNABORTED', 'EHOSTDOWN', 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION'])(
+  'preserves runtime network code %s at the retest boundary', code => {
+    expect(retestFields({ toolCode: code, transportCode: code })).toEqual({ toolCode: code, transportCode: code })
+    const detail = safeDiagnostic({ stage: 'TCP', message: 'CANARY-response', toolCode: code, transportCode: code }, [])
+    expect(detail).toEqual({ stage: 'TCP', message: 'Details unavailable.', toolCode: code, transportCode: code })
+    expect(diagnosticSchema.parse(detail)).toEqual(detail)
+  })
+
+test('drops invalid structured fields', () => {
+  expect(safeDiagnostic({ stage: 'response', message: 'CANARY-response', providerCode: 'AADSTS12345CANARY',
+    transportCode: 'CANARY', upstreamStatus: 600 }, [])).toEqual({ stage: 'response', message: 'Details unavailable.' })
+})
 
 test.each([
   { value: 100, expected: 100 },
@@ -53,11 +87,10 @@ test.each(['message', 'hint', 'issuer'])('scans %s beyond the retained diagnosti
   expect(safe.message.length).toBeLessThanOrEqual(4096)
 })
 
-test('shares the text budget while preserving destination and trust', () => {
+test('discards untrusted text while preserving structured trust', () => {
   const bounded = safeDiagnostic({ stage: 'TLS', message: 'm'.repeat(5000), hint: 'h'.repeat(5000),
     issuer: 'i'.repeat(5000), host: 'appliance.test', trust: 'self-signed' }, [])!
-  expect(bounded).toMatchObject({ stage: 'TLS', host: 'appliance.test', trust: 'self-signed',
-    message: expect.stringMatching(/^m+$/), hint: expect.stringMatching(/^h+$/), issuer: expect.stringMatching(/^i+$/) })
+  expect(bounded).toEqual({ stage: 'TLS', trust: 'self-signed', message: 'Details unavailable.' })
   expect(diagnosticSchema.safeParse(bounded).success).toBe(true)
   expect(Object.values(bounded).join('').length).toBeLessThanOrEqual(4096)
 })
@@ -115,8 +148,8 @@ test.each(['message', 'issuer'] as const)('retains structured context when %s ex
     toolCode: 'TLS_UNTRUSTED', providerCode: 'AADSTS700027', trust: 'untrusted' as const,
     checkedAt: 123, credentialRevision: 2 }
   const bounded = safeDiagnostic(detail, [])!
-  expect(bounded).toMatchObject({ stage: 'TLS', host: 'appliance.test', toolCode: 'TLS_UNTRUSTED',
-    providerCode: 'AADSTS700027', trust: 'untrusted', hint: 'Check the trusted CA', checkedAt: 123, credentialRevision: 2 })
+  expect(bounded).toEqual({ stage: 'TLS', toolCode: 'TLS_UNTRUSTED', message: 'Details unavailable.',
+    providerCode: 'AADSTS700027', trust: 'untrusted', checkedAt: 123, credentialRevision: 2 })
   expect(diagnosticSchema.safeParse(bounded).success).toBe(true)
   expect(Object.values(bounded).filter(value => typeof value === 'string').join('').length).toBeLessThanOrEqual(4096)
   expect(safeDiagnostic(Object.fromEntries(Object.entries(detail).reverse()) as typeof detail, [])).toEqual(bounded)
@@ -172,7 +205,7 @@ test('preserves redacted response diagnostics without changing secret suppressio
   const text = 'code: API_RESPONSE_INVALID\nmessage: Unexpected response: [REDACTED]\nhint: Check the service endpoint.'
   const failure = toolFailure(text, '', 1)
   expect(safeDiagnostic(failure.diagnostic, [secret])).toEqual({ stage: 'response',
-    toolCode: 'API_RESPONSE_INVALID', message: text, hint: 'Check the service endpoint.' })
+    toolCode: 'API_RESPONSE_INVALID', message: 'Details unavailable.' })
   expect(safeDiagnostic(toolFailure(`${text}\n${secret}`, '', 1).diagnostic, [secret])).toBeUndefined()
 })
 

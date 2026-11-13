@@ -345,6 +345,9 @@ test('security: failure diagnostics appear only in administrator row details, ne
   audit.record({ ...terminal, requestId: 'secret-failure', failure: {
     diagnostic: { stage: 'tool run', message: password }, secrets: [password] } })
   expect(JSON.stringify(db.prepare('SELECT * FROM run_diagnostics').all())).not.toContain(password)
+  db.prepare('UPDATE run_diagnostics SET diagnostic = ? WHERE request_id = ?')
+    .run(JSON.stringify({ stage: 'tool run', message: '<script>Synthetic private failure</script>' }), 'safe-failure')
+  db.prepare('UPDATE audit SET error_code = ? WHERE request_id = ?').run('UnlabelledLegacyCredential419', 'safe-failure')
   const { id } = db.prepare("SELECT id FROM audit WHERE request_id = 'safe-failure'").get() as { id: number }
   const detail = '/admin/audit?record=' + id
   const anonymous = await request('GET', detail)
@@ -354,7 +357,9 @@ test('security: failure diagnostics appear only in administrator row details, ne
   const page = await request('GET', detail)
   expect(page.statusCode).toBe(200)
   expect(page.body).toContain('Failure diagnostic')
-  expect(page.body).toContain('&lt;script&gt;Synthetic private failure&lt;/script&gt;')
+  expect(page.body).not.toContain('Synthetic private failure')
+  expect(page.body).not.toContain('UnlabelledLegacyCredential419')
+  expect(page.body).toContain('Details unavailable.')
   expect(page.body).not.toContain(password)
   for (const path of ['/v1/admin/audit', '/v1/admin/audit/export?format=jsonl', '/v1/admin/audit/export?format=csv']) {
     const response = await request('GET', path)

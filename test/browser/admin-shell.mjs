@@ -859,7 +859,7 @@ test('trust automatically tests credentials and displays the exact failure', () 
 for (const [failure, expected] of [
   ['network', 'Connection test: Could not reach the artium admin server.'],
   ['parse', 'Connection test: response was not valid JSON. HTTP 200.'],
-  ['structured', 'Connection test: HTTP 503. The tool exited unsuccessfully. (TOOL_FAILED). Failed step: token acquisition. Code: EHOSTUNREACH. Provider: AADSTS7000222. Upstream HTTP 503.'],
+  ['structured', 'Connection test: HTTP 503. The tool exited unsuccessfully. (TOOL_FAILED). Failed step: token acquisition. Code: EHOSTUNREACH. Transport: EHOSTUNREACH. Provider: AADSTS7000222. Upstream HTTP 503.'],
 ]) test('automatic retest reports a safe ' + failure + ' detail', () => {
   browser(`
     await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-valid' });
@@ -873,7 +873,7 @@ for (const [failure, expected] of [
       window.fetch = async (...args) => {
         if (String(args[0]).endsWith('/test')) {
           ${failure === 'network' ? "throw new TypeError('Échec réseau CANARY-private-value', { cause: { code: 'ECONNREFUSED' } });" : failure === 'structured'
-            ? "return Response.json({ error: { code: 'TOOL_FAILED', message: 'CANARY-private-value', diagnostic: { stage: 'token acquisition', toolCode: 'EHOSTUNREACH', providerCode: 'AADSTS7000222', upstreamStatus: 503, message: 'CANARY-private-value' } } }, { status: 503 });"
+            ? "return Response.json({ error: { code: 'TOOL_FAILED', message: 'CANARY-private-value', diagnostic: { stage: 'token acquisition', toolCode: 'EHOSTUNREACH', transportCode: 'EHOSTUNREACH', providerCode: 'AADSTS7000222', upstreamStatus: 503, message: 'CANARY-private-value' } } }, { status: 503 });"
             : "return new Response('CANARY-private-value', { status: 200 });"}
         }
         return original(...args);
@@ -958,7 +958,7 @@ for (const action of ['save', 'test']) {
         await page.click('form[data-test-tool] button');
       }
       await page.wait('[data-check-diagnostic]:not(:empty)');
-      check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent === 'configuration\\nThis credential check was not admitted.'), 'Current test diagnostic was replaced');
+      check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent === 'configuration'), 'Current test diagnostic was replaced');
       check(await page.eval(() => document.querySelector('[data-check-error]').textContent === 'TOO_MANY_CALLS'), 'Current test category was replaced');
       check(await page.eval(() => document.querySelector('[data-check-time]').title === '2023-11-14T22:13:20.000Z'), 'Current test time was replaced');
       check(await page.eval(() => document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '), 'Failed test marked the checklist complete');
@@ -1110,7 +1110,7 @@ test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalizatio
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('origin: canonicalized format.')), 'Origin normalization notice missing');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('token: removed surrounding whitespace.')), 'Secret normalization notice missing');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.startsWith(${JSON.stringify(saveAndTest ? 'Saved. Test failed.' : 'Saved.')})), 'Save result missing');
-    if (${saveAndTest}) check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('Synthetic DNS failure.')), 'Current diagnostic missing');
+    if (${saveAndTest}) check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent === 'DNS'), 'Current diagnostic missing');
     check(await page.eval(() => !document.querySelector('main').innerText.includes('CANARY-normalized-token')), 'Secret appeared in notice');
   `)
 })

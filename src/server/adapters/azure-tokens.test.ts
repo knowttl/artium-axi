@@ -93,17 +93,17 @@ describe('Azure token authentication', () => {
   })
 
   it.each([
-    ['AADSTS7000215', 'secret is invalid'],
-    ['AADSTS7000222', 'secret expired'],
-    ['AADSTS700016', 'application was not found'],
-    ['AADSTS90002', 'tenant was not found'],
-  ])('keeps %s and actionable advice without forwarding the provider body', async (code, advice) => {
+    ['AADSTS7000215'],
+    ['AADSTS7000222'],
+    ['AADSTS700016'],
+    ['AADSTS90002'],
+  ])('keeps reviewed code %s without forwarding the provider body', async code => {
     const network = new FakeTokenTransport()
     network.status = 400
     network.response = { error: 'invalid_client', error_description: `${code}: ${secretCredential.clientSecret} CANARY-RAW-RESPONSE` }
     const error = await mintAzureToken(secretCredential, 'arm', network).catch(error => error as ArtiumError)
     expect(error).toMatchObject({ code: 'UPSTREAM_AUTH_FAILED', diagnostic: { toolCode: code,
-      hint: expect.stringContaining(advice) } })
+      message: 'Details unavailable.' } })
     expect(JSON.stringify(error)).not.toContain(secretCredential.clientSecret)
     expect(JSON.stringify(error)).not.toContain('CANARY-RAW-RESPONSE')
     expect(errorResponse(error as ArtiumError, 'synthetic')).not.toHaveProperty('error.diagnostic')
@@ -123,18 +123,17 @@ describe('Azure token authentication', () => {
     network.response = { error: code, error_description: `${secretCredential.clientSecret} CANARY-RAW-SERVICE-RESPONSE` }
     const error = await mintAzureToken(secretCredential, 'arm', network).catch(error => error as ArtiumError)
     expect(error).toMatchObject({ code: 'TOOL_FAILED', diagnostic: {
-      stage: 'token acquisition', host: 'login.microsoftonline.com', upstreamStatus: status,
-      hint: expect.stringContaining('service availability'),
+      stage: 'token acquisition', message: 'Details unavailable.',
     } })
     expect(JSON.stringify(error)).not.toContain(secretCredential.clientSecret)
     expect(JSON.stringify(error)).not.toContain('CANARY-RAW-SERVICE-RESPONSE')
   })
 
-  it('retains the runtime cause of a token transport failure', async () => {
+  it.each(['EHOSTUNREACH', 'EHOSTDOWN'])('retains runtime cause %s of a token transport failure', async code => {
     const network = new FakeTokenTransport()
-    network.sendPostRequestAsync = async () => { throw new Error('fetch failed', { cause: { code: 'EHOSTUNREACH' } }) }
+    network.sendPostRequestAsync = async () => { throw new Error('fetch failed', { cause: { code } }) }
     await expect(mintAzureToken(secretCredential, 'arm', network)).rejects.toMatchObject({
-      code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { toolCode: 'EHOSTUNREACH' },
+      code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { toolCode: code },
     })
   })
 
@@ -173,7 +172,7 @@ describe('Azure token authentication', () => {
     try {
       const error = await mintAzureToken(secretCredential, 'arm', undefined, new AbortController().signal).catch(error => error as ArtiumError)
       expect(fetch).toHaveBeenCalledWith(expect.stringContaining(endpoint), expect.objectContaining({ method }))
-      expect(error).toMatchObject({ code, diagnostic: { stage: 'token acquisition', host: 'login.microsoftonline.com' } })
+      expect(error).toMatchObject({ code, diagnostic: { stage: 'token acquisition', message: 'Details unavailable.' } })
       expect(JSON.stringify(error)).not.toContain('CANARY-RAW-RESPONSE')
       expect(JSON.stringify(error)).not.toContain(secretCredential.clientSecret)
     } finally { fetch.mockRestore() }
@@ -190,7 +189,7 @@ describe('Azure token authentication', () => {
     })
     try {
       await expect(mintAzureToken(secretCredential, 'arm', undefined, new AbortController().signal)).rejects.toMatchObject({
-        code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'token acquisition', host: 'login.microsoftonline.com' },
+        code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'token acquisition', message: 'Details unavailable.' },
       })
       expect(fetch).toHaveBeenCalledWith(expect.stringContaining(endpoint), expect.objectContaining({ method: 'POST' }))
     } finally { fetch.mockRestore() }
@@ -205,7 +204,7 @@ describe('Azure token authentication', () => {
     })
     try {
       await expect(mintAzureToken(secretCredential, 'arm', undefined, new AbortController().signal)).rejects.toMatchObject({
-        code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'token acquisition', host: 'login.microsoftonline.com' },
+        code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'token acquisition', message: 'Details unavailable.' },
       })
     } finally { fetch.mockRestore() }
   })
@@ -274,7 +273,7 @@ describe('Azure token authentication', () => {
     }
     const error = await mintAzureToken(secretCredential, 'arm', network).catch(error => error as ArtiumError)
     expect(error).toMatchObject({ code: 'UPSTREAM_TLS_FAILED', diagnostic: {
-      stage: 'TLS', host: 'login.microsoftonline.com', toolCode: code,
+      stage: 'TLS', message: 'Details unavailable.', toolCode: code,
     } })
     expect(JSON.stringify(error)).not.toContain(secretCredential.clientSecret)
   })
@@ -286,7 +285,7 @@ describe('Azure token authentication', () => {
     }
     const error = await mintAzureToken(secretCredential, 'arm', network).catch(error => error as ArtiumError)
     expect(error).toMatchObject({ diagnostic: {
-      message: expect.stringMatching(/stored certificate fingerprint differs from the presented one.*re-inspect/),
+      stage: 'TLS', toolCode: 'CERTIFICATE_PIN_MISMATCH', message: 'Details unavailable.',
     } })
     expect(JSON.stringify(error)).not.toContain('CANARY-certificate')
     expect(JSON.stringify(error)).not.toContain('BEGIN CERTIFICATE')

@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { spawn } from 'node:child_process'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
@@ -42,6 +43,11 @@ import { createSshAdapter } from '../../src/server/adapters/ssh.js'
 import { SshHosts } from '../../src/server/store/ssh-hosts.js'
 import { encryptCredential } from '../../src/server/store/crypto.js'
 import { preflight } from '../../src/server/health/preflight.js'
+
+vi.mock('node:child_process', async importOriginal => {
+  const original = await importOriginal<typeof import('node:child_process')>()
+  return { ...original, spawn: vi.fn(original.spawn) }
+})
 
 let directory: string
 let db: Database.Database
@@ -162,18 +168,19 @@ test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'] as const)
     if (tool === 'ldap-axi') adapters.push(createLdapAdapter(new EmbeddedSecretSource(store)))
     await replace(tool)
     const adapter = adapters.find(adapter => adapter.name === tool)!
-    const prepare = adapter.prepare.bind(adapter)
-    const mocked = vi.spyOn(adapter, 'prepare')
+    if (vi.isMockFunction(adapter.prepare)) vi.mocked(adapter.prepare).mockRestore()
+    const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
     for (const { code, stage, text } of diagnosticCases) {
-      mocked.mockImplementationOnce(async (args, reference) => ({ ...await prepare(args, reference),
-        executable: fakeTool.executable, args: [...fakeTool.args, 'failure', text] }))
+      vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) =>
+        original.spawn(fakeTool.executable, [...fakeTool.args, 'failure', text], options))
       const tested = await request('POST', `/${tool}/test`, {})
       expect(tested.status).toBe(503)
-      expect(errorResponseSchema.parse(await tested.json())).toMatchObject({ error: { code, diagnostic: { stage, message: text,
+      expect(errorResponseSchema.parse(await tested.json())).toMatchObject({ error: { code, diagnostic: { stage, message: 'Details unavailable.',
         checkedAt: expect.any(Number), credentialRevision: 1 } } })
       const listed = await request('GET', '')
       const cached = (await listed.json()).tools.find((entry: { name: string }) => entry.name === tool)
-      expect(cached.health).toMatchObject({ errorCode: code, diagnostic: { stage, message: text } })
+      expect(cached.health).toMatchObject({ errorCode: code, diagnostic: { stage, message: 'Details unavailable.' } })
+      expect(JSON.stringify(cached)).not.toContain(text)
       expect(db.prepare("SELECT outcome, error_code FROM audit WHERE event = 'credential-test' AND tool = ? ORDER BY rowid DESC LIMIT 1").get(tool))
         .toEqual({ outcome: code, error_code: code })
       const ordinary = await request('POST', `/${tool}/test`, {}, await adminHeaders('synthetic-ordinary'))
@@ -184,6 +191,35 @@ test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'] as const)
     expect(auditText).not.toContain('Synthetic upstream failure')
     expect(auditText).not.toContain('Check the credential.')
   })
+
+test.each([
+  { path: '/falcon-axi/test', retest: false },
+  { path: '/falcon-axi/instances/default/test', retest: false },
+  { path: '/falcon-axi/test', retest: true },
+  { path: '/falcon-axi/instances/default/test', retest: true },
+])('security #419: $path retest=$retest exposes only structured health diagnostics', async ({ path, retest }) => {
+  await replace('falcon-axi')
+  const canary = 'UnlabelledRouteCredential419'
+  vi.mocked(adapters[0].prepare).mockRestore()
+  const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+  vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) =>
+    original.spawn(fakeTool.executable, [...fakeTool.args, 'failure', `code: ${canary}\nmessage: ${canary}\nhint: ${canary}`], options))
+  const response = await request('POST', path, {}, { ...headers, ...(retest ? { 'x-artium-retest': '1' } : {}) })
+  expect(response.status).toBe(503)
+  const body = await response.text()
+  expect(body).not.toContain(canary)
+  expect(JSON.parse(body)).toMatchObject({ error: { code: 'TOOL_FAILED', diagnostic: { stage: 'tool run', message: 'Details unavailable.' } } })
+  for (const read of ['', '/falcon-axi/instances']) {
+    const listed = await request('GET', read)
+    expect(listed.status).toBe(200)
+    expect(await listed.text()).not.toContain(canary)
+  }
+  const panel = await fetch(`${url}/admin/tools/falcon-axi/instances/default`, { headers: { cookie: await browserCookie() } })
+  expect(panel.status).toBe(200)
+  const html = await panel.text()
+  expect(html).toContain('Last test failed')
+  expect(html).not.toContain(canary)
+})
 
 test('preflight failure is redacted in the response and cached administrator health', async () => {
   await replace('falcon-axi')
@@ -197,18 +233,18 @@ test('preflight failure is redacted in the response and cached administrator hea
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY-secret')
 })
 
-test('Graph sign-in failure retains the native message and token-acquisition stage', async () => {
+test('Graph sign-in failure retains the token-acquisition stage without native text', async () => {
   const adapter = createMgAdapter(new EmbeddedSecretSource(store), join(directory, 'mg-writes.log'))
   adapters.push(adapter)
   await replace('mg-axi')
   const text = 'code: AUTH_REQUIRED\nmessage: Application authentication failed for the configured identity; no user or device-code fallback was attempted'
-  const prepare = adapter.prepare.bind(adapter)
-  vi.spyOn(adapter, 'prepare').mockImplementationOnce(async (args, reference) => ({ ...await prepare(args, reference),
-    executable: fakeTool.executable, args: [...fakeTool.args, 'failure', text] }))
+  const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+  vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) =>
+    original.spawn(fakeTool.executable, [...fakeTool.args, 'failure', text], options))
   const response = await request('POST', '/mg-axi/test', {})
   const body = errorResponseSchema.parse(await response.json())
   expect(body).toMatchObject({ error: { code: 'UPSTREAM_AUTH_FAILED', diagnostic: { toolCode: 'AUTH_REQUIRED',
-    stage: 'token acquisition', message: text, checkedAt: expect.any(Number), credentialRevision: 1 } } })
+    stage: 'token acquisition', message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 } } })
   const cached = (await (await request('GET', '')).json()).tools.find((tool: { name: string }) => tool.name === 'mg-axi')
   expect(cached.health.diagnostic).toEqual(body.error.diagnostic)
   expect(JSON.stringify(body)).not.toContain(values['mg-axi'].clientSecret)
@@ -227,7 +263,7 @@ test.each([
   const response = await request('POST', `/${tool}/test`, {})
   expect(response.status).toBe(errors.CREDENTIAL_INVALID.status)
   expect(await response.json()).toMatchObject({ error: { code: 'CREDENTIAL_INVALID', diagnostic: {
-    stage: 'configuration', message: `Invalid credential field: ${field}.`, credentialRevision: 1,
+    stage: 'configuration', message: 'Details unavailable.', credentialRevision: 1,
   } } })
 })
 
@@ -273,7 +309,7 @@ test.each([
     await vi.advanceTimersByTimeAsync(elapsed)
     const tested = await pending
     expect(tested.statusCode).toBe(503)
-    const diagnostic = { stage: 'token acquisition', host: 'login.microsoftonline.com',
+    const diagnostic = { stage: 'token acquisition', message: 'Details unavailable.',
       checkedAt: Date.now(), credentialRevision: 1 }
     expect(tested.json()).toMatchObject({ error: { code, diagnostic } })
     const listing = await app.inject({ method: 'GET', url: '/v1/admin/tools', headers })
@@ -1537,7 +1573,7 @@ test('disabled GitHub device connection checks its revision once runner capacity
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ status: 'connected', credential: { revision: 1 } })
     expect(await (await request('GET', '/gh-axi')).json()).toMatchObject({ enabled: false, health: {
-      credentialRevision: 1, errorCode: 'TOO_MANY_CALLS', diagnostic: { message: 'Credential check pending: runner busy.' },
+      credentialRevision: 1, errorCode: 'TOO_MANY_CALLS', diagnostic: { message: 'Details unavailable.' },
     } })
     expect(db.prepare('SELECT credential_revision, error_code FROM tool_health WHERE tool = ?').get('gh-axi'))
       .toEqual({ credential_revision: 1, error_code: 'TOO_MANY_CALLS' })

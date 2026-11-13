@@ -5,6 +5,7 @@ import type { adminAuditQuerySchema, adminAuditRecordSchema, transferOutcomeSche
 import { ArtiumError } from '../../shared/errors.js'
 import type { Diagnostic, ErrorCode } from '../../shared/errors.js'
 import { safeDiagnostic } from '../health/diagnostic.js'
+import { diagnosticCode, type StructuredDiagnostic } from '../../shared/diagnostic.js'
 import type { ToolName } from '../store/credential-store.js'
 import type { RunAction } from '../adapters/run-journal.js'
 import type { RawApiCall } from '../policy/raw-api.js'
@@ -111,10 +112,13 @@ export class Audit {
     return this.change(event, () => undefined).record
   }
 
-  runDiagnostic(requestId: string): Diagnostic | undefined {
+  runDiagnostic(requestId: string): ReturnType<typeof safeDiagnostic> {
     const row = this.db.prepare('SELECT diagnostic FROM run_diagnostics WHERE request_id = ? AND occurred_at > ?')
       .get(requestId, this.clock() - diagnosticRetentionMs) as { diagnostic: string } | undefined
-    return row ? JSON.parse(row.diagnostic) as Diagnostic : undefined
+    if (!row) return
+    let detail: Diagnostic | undefined
+    try { detail = JSON.parse(row.diagnostic) } catch {}
+    return safeDiagnostic(detail, []) ?? { stage: 'tool run', message: 'Details unavailable.' }
   }
 
   query(input: z.infer<typeof adminAuditQuerySchema>): { records: AuditRecord[], nextCursor: string | null } {
@@ -142,7 +146,7 @@ export class Audit {
     }
     const rows = this.db.prepare(`SELECT * FROM audit WHERE ${clauses.join(' AND ')}
       ORDER BY occurred_at DESC, id DESC LIMIT @limit`).all(values) as AuditRecord[]
-    const records = rows.slice(0, input.limit)
+    const records = rows.slice(0, input.limit).map(row => ({ ...row, error_code: diagnosticCode(row.error_code) }))
     const last = records.at(-1)
     return { records, nextCursor: rows.length > input.limit ? `${ceiling}:${last!.occurred_at}:${last!.id}` : null }
   }
@@ -270,7 +274,7 @@ export class Audit {
       target_id: 'targetId' in event ? event.targetId ?? null : null,
       cutoff: maintenance?.cutoff ?? null, deleted_count: maintenance?.deletedCount ?? null,
       checked_at: test?.checkedAt ?? null, credential_revision: event.event === 'transfer' ? event.credentialRevision : test?.credentialRevision ?? null,
-      error_code: test?.errorCode ?? null,
+      error_code: diagnosticCode(test?.errorCode),
       authentication_method: 'authenticationMethod' in event ? event.authenticationMethod ?? null : null,
       provider_id: 'providerId' in event ? event.providerId ?? null : null,
       subject: 'subject' in event ? event.subject ?? null : null,
@@ -287,21 +291,10 @@ export class Audit {
     const inserted = this.db.prepare(`INSERT INTO audit (${Object.keys(row).join(', ')})
       VALUES (${Object.keys(row).map(key => `@${key}`).join(', ')})`).run(row)
     if (terminal?.failure && (terminal.exitCode !== 0 || terminal.outcome !== 'completed')) {
-      const detail = safeDiagnostic(terminal.failure.diagnostic, terminal.failure.secrets)
+      const detail: StructuredDiagnostic | undefined = safeDiagnostic(terminal.failure.diagnostic, terminal.failure.secrets)
       if (detail) {
-        // The shared diagnostic limit counts characters; persisted JSON also has a strict byte ceiling.
-        let serialized = JSON.stringify(detail)
-        for (const key of ['message', 'hint', 'issuer', 'host', 'toolCode', 'providerCode'] as const) {
-          const excess = Buffer.byteLength(serialized) - 4096
-          if (excess <= 0) break
-          if (detail[key] !== undefined) {
-            const points = Array.from(detail[key]!)
-            detail[key] = points.slice(0, Math.max(0, points.length - excess)).join('')
-            serialized = JSON.stringify(detail)
-          }
-        }
         this.db.prepare('INSERT INTO run_diagnostics (request_id, occurred_at, diagnostic) VALUES (?, ?, ?)')
-          .run(event.requestId, row.occurred_at, serialized)
+          .run(event.requestId, row.occurred_at, JSON.stringify(detail))
       }
     }
     return { id: Number(inserted.lastInsertRowid), ...row }

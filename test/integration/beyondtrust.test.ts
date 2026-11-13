@@ -241,9 +241,9 @@ test('malformed fake responses retain redacted shape diagnostics in client and h
 
     const tested = await post('/v1/admin/tools/beyondtrust-axi/test')
     const failure = await tested.json()
-    expect(failure).toMatchObject({ error: { diagnostic: { toolCode: 'API_RESPONSE_INVALID', message: result.stdout.trim() } } })
+    expect(failure).toMatchObject({ error: { diagnostic: { toolCode: 'API_RESPONSE_INVALID', message: 'Details unavailable.' } } })
     const settings = await (await get('/v1/admin/tools/beyondtrust-axi')).json()
-    expect(settings.health.diagnostic.message).toBe(result.stdout.trim())
+    expect(settings.health.diagnostic.message).toBe('Details unavailable.')
     expect(JSON.stringify(failure) + JSON.stringify(settings)).not.toContain('CANARY-')
 
     const audit = await (await get('/v1/admin/audit?tool=beyondtrust-axi')).json()

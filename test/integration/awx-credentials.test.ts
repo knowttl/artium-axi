@@ -72,7 +72,7 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       expect(page.body).not.toContain('CANARY-awx-token')
       const checked = () => app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/test', headers, payload: {} })
       const untrusted = await checked()
-      expect(untrusted.json()).toMatchObject({ error: { code: 'UPSTREAM_TLS_FAILED', diagnostic: { stage: 'TLS', host: 'localhost' } } })
+      expect(untrusted.json()).toMatchObject({ error: { code: 'UPSTREAM_TLS_FAILED', diagnostic: { stage: 'TLS', message: 'Details unavailable.' } } })
       const inspected = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/inspect', headers, payload: { endpointIndex: 0 } })
       expect(inspected.statusCode, inspected.body).toBe(200)
       const trusted = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
