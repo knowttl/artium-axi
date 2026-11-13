@@ -22,6 +22,7 @@
     "test/fake-tool/technitium-publication-fault.ts",
     "test/fixtures/credential-worker.ts",
     "test/fixtures/fake-gh.ts",
-    "test/browser/sso-protocol.ts"
+    "test/browser/sso-protocol.ts",
+    "test/browser/admin-shell.ts"
   ]
 }

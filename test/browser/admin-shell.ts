@@ -1,33 +1,40 @@
 import assert from 'node:assert/strict'
 import { X509Certificate } from 'node:crypto'
-import { spawn, spawnSync } from 'node:child_process'
+import { spawn, spawnSync, type ChildProcessByStdio } from 'node:child_process'
 import { once } from 'node:events'
 import { createInterface } from 'node:readline'
-import { createServer } from 'node:net'
+import { createServer, type AddressInfo } from 'node:net'
+import type { Readable } from 'node:stream'
 import { after, afterEach, before, beforeEach, test } from 'node:test'
 
-const environment = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: `artium-shell-${process.pid}`,
+type Fixture = {
+  url: string
+  clock: string
+  certificatePem: string
+}
+
+const environment: NodeJS.ProcessEnv = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: `artium-shell-${process.pid}`,
   CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors' }
-let server
-let fixture
+let server: ChildProcessByStdio<null, Readable, null>
+let fixture: Fixture
 
 before(async () => {
   // Session-name hashes can collide with other browser workers on this host.
   const reservation = createServer()
   reservation.listen(0, '127.0.0.1')
   await once(reservation, 'listening')
-  environment.CHROME_DEVTOOLS_AXI_PORT = String(reservation.address().port)
-  await new Promise((resolve, reject) => reservation.close(error => error ? reject(error) : resolve()))
+  environment.CHROME_DEVTOOLS_AXI_PORT = String((reservation.address() as AddressInfo).port)
+  await new Promise<void>((resolve, reject) => reservation.close(error => error ? reject(error) : resolve()))
 })
 
-function chrome(args, input) {
+function chrome(args: string[], input?: string) {
   const result = spawnSync('chrome-devtools-axi', args, { env: environment, input, encoding: 'utf8', timeout: 90_000 })
   assert.equal(result.error, undefined)
   assert.equal(result.status, 0, result.stdout + result.stderr)
   return result.stdout
 }
 
-function browser(script) {
+function browser(script: string) {
   return chrome(['run'], `const base = ${JSON.stringify(fixture.url)};
     const check = (value, message) => { if (!value) throw new Error(message); };
     const openInstance = (tool, name = 'default') => page.open(base + '/admin/tools/' + tool + '/instances/' + name);
@@ -774,7 +781,12 @@ test('navigation exposes contextual help and one sign-out on every admin screen 
   }
 })
 
-const toolCredentials = [
+const toolCredentials: {
+  tool: string
+  fields: Record<string, string>
+  secret: string
+  settings: Record<string, unknown>
+}[] = [
   { tool: 'falcon-axi', fields: { clientId: 'synthetic-client', clientSecret: 'CANARY-falcon-secret', region: 'us-1' }, secret: 'clientSecret', settings: {} },
   { tool: 'vectra-axi', fields: { kind: 'qux', apiVersion: '2.5', origin: 'https://appliance.example', auth: 'token', token: 'CANARY-vectra-token' }, secret: 'token', settings: { writes: { allowWrites: true, operations: ['notes.set'] } } },
   { tool: 'az-axi', fields: { tenantId: '11111111-1111-4111-8111-111111111111', clientId: '22222222-2222-4222-8222-222222222222', auth: 'secret', clientSecret: 'CANARY-azure-secret' }, secret: 'clientSecret', settings: { description: 'Synthetic settings' } },
@@ -1078,7 +1090,7 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
     await page.wait('form:has([name=nativeSettings]) [name=expectedRevision][value="3"]');
   `)
   const response = await fetch(fixture.clock.replace('/test/clock', '/test/tools/' + entry.tool))
-  const { stored } = await response.json()
+  const { stored } = await response.json() as { stored: Record<string, unknown> }
   assert.equal(stored[entry.secret], entry.fields[entry.secret])
   browser(`check(await page.eval(() => JSON.stringify(JSON.parse(document.querySelector('[name=nativeSettings]').value))) === ${JSON.stringify(JSON.stringify(entry.settings))}, 'Credential save changed native settings');`)
 })
@@ -1130,7 +1142,10 @@ test('LDAP saved CA PEM survives browser edits and multi-line secrets reach deli
     check(await page.eval(() => document.querySelector('fieldset pre').textContent === ${JSON.stringify(pem)} &&
       !document.querySelector('fieldset pre').isContentEditable && document.querySelector('textarea[data-profile-field=caFile]').value === ''), 'Saved PEM or separate replacement input was incorrect');
   `)
-  const { stored, delivered } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/ldap-axi'))).json()
+  const { stored, delivered } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/ldap-axi'))).json() as {
+    stored: Record<string, unknown>
+    delivered: Record<string, unknown>
+  }
   assert.equal(stored.caFile, pem)
   assert.equal(stored.bindPassword, password)
   assert.equal(delivered.caFile, pem)
@@ -1138,7 +1153,7 @@ test('LDAP saved CA PEM survives browser edits and multi-line secrets reach deli
 })
 
 for (const tool of ['technitium-axi', 'unifi-axi', 'kubernetes-axi']) for (const edited of [false, true]) test(tool + ' endpoint changes ' + (edited ? 'keep explicitly edited' : 'omit untouched') + ' certificate overrides', async () => {
-  const certificate = fixture.certificatePem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/)[0]
+  const certificate = fixture.certificatePem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/)![0]
   const tls = { trustedCertificatePem: certificate, peerFingerprintSha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', ''), connectAddress: '127.0.0.1' }
   const value = tool === 'unifi-axi'
     ? { origin: 'https://controller.example', apiKey: 'CANARY-key', tls }
@@ -1166,13 +1181,15 @@ for (const tool of ['technitium-axi', 'unifi-axi', 'kubernetes-axi']) for (const
     await page.wait('form[data-save-tool] [name=expectedRevision][value="3"]');
     check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(edited ? (tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example') : '')}), 'Endpoint override was incorrect');
   `)
-  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/' + tool))).json()
+  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/' + tool))).json() as {
+    stored: { origin: string; tls?: { connectAddress?: string }; tlsServerName?: string }
+  }
   assert.equal(stored.origin, 'https://replacement.example')
   assert.equal(tool === 'unifi-axi' ? stored.tls?.connectAddress : stored.tlsServerName, edited ? (tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example') : undefined)
 })
 
 for (const field of ['certificate', 'fingerprint']) test('UniFi ' + field + ' replacement requires both trust values', async () => {
-  const certificate = fixture.certificatePem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/)[0]
+  const certificate = fixture.certificatePem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/)![0]
   const fingerprint = new X509Certificate(certificate).fingerprint256.replaceAll(':', '')
   const tls = { trustedCertificatePem: certificate, peerFingerprintSha256: fingerprint }
   browser(`
@@ -1189,7 +1206,7 @@ for (const field of ['certificate', 'fingerprint']) test('UniFi ' + field + ' re
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
   `)
-  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/unifi-axi'))).json()
+  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/unifi-axi'))).json() as { stored: { tls: unknown } }
   assert.deepEqual(stored.tls, tls)
 })
 
@@ -1210,10 +1227,12 @@ for (const tool of ['az-axi', 'mg-axi']) test(tool + ' certificate PEM calculate
     await openInstance('${tool}');
     check(await page.eval(() => document.querySelector('[data-profile-field=privateKey]').value === ''), 'Private key exposed');
   `)
-  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/' + tool))).json()
+  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/' + tool))).json() as {
+    stored: { thumbprintSha256: string; privateKey: string }
+  }
   const certificate = new X509Certificate(fixture.certificatePem)
   assert.equal(stored.thumbprintSha256, certificate.fingerprint256.replaceAll(':', '').toLowerCase())
-  assert.equal(stored.privateKey, fixture.certificatePem.match(/-----BEGIN (?:RSA |EC )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC )?PRIVATE KEY-----/)[0] + '\n')
+  assert.equal(stored.privateKey, fixture.certificatePem.match(/-----BEGIN (?:RSA |EC )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC )?PRIVATE KEY-----/)![0] + '\n')
 })
 
 test('malformed certificate PEM keeps the draft and leaves the credential unconfigured', async () => {
@@ -1230,7 +1249,7 @@ test('malformed certificate PEM keeps the draft and leaves the credential unconf
     check(await page.eval(() => document.querySelector('[data-sheet-message]').textContent.includes('INVALID_INPUT')), 'Missing PEM error');
     check(await page.eval(() => document.querySelector('[data-certificate-pem]').value === 'CANARY-invalid-pem'), 'PEM draft lost');
   `)
-  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/az-axi'))).json()
+  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/az-axi'))).json() as { stored: unknown }
   assert.equal(stored, null)
 })
 
@@ -1524,7 +1543,9 @@ test('changing Vectra authentication requires new secrets and saves only the sel
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
   `)
-  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/vectra-axi'))).json()
+  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/vectra-axi'))).json() as {
+    stored: { auth: string; clientSecret: string }
+  }
   assert.equal(stored.auth, 'oauth')
   assert.equal(stored.clientSecret, 'CANARY-new-oauth-secret')
   assert.equal(Object.hasOwn(stored, 'token'), false)
@@ -1959,7 +1980,7 @@ async function cliSession(username = 'synthetic-ordinary', password = 'CANARY-lo
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username, password }),
   })
   assert.equal(response.status, 200)
-  return response.json()
+  return response.json() as Promise<{ accessToken: string; refreshToken: string }>
 }
 
 test('user detail revokes the selected CLI session while another session stays usable', async () => {
