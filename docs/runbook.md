@@ -273,8 +273,8 @@ This uses the existing certificate-inspection timeouts and follows no redirects.
 Inspection connects only to an endpoint from the saved credential and tool inventory, performs a TLS handshake, and sends no credentials or application requests.
 For LDAP StartTLS, it sends only the anonymous protocol upgrade before reading the TLS chain.
 Administration capability and recent identity confirmation are required.
-If the endpoint verifies with the server's existing trust, including its server-wide CA bundle, inspection reports that no trust is needed and offers no trust confirmation.
-The API also refuses to save CA trust or a strict pin for that inspection, and no trust change is recorded.
+If the endpoint verifies with the server's existing trust, including its server-wide CA bundle, and no saved certificate needs replacement, inspection reports that no trust is needed and offers no trust confirmation.
+The API also refuses initial trust for that inspection, and no trust change is recorded.
 
 Review the hostname, subject, issuer, names, validity dates, key, signature algorithm and full SHA-256 fingerprint.
 When a certificate has no nonblank subject, its displayed subject falls back to the first subject alternative name, or `(no subject)` if none is available.
@@ -298,10 +298,15 @@ The UI automatically tests the connection and shows **Connected** or a failure c
 Failures can include the server and upstream HTTP statuses, catalogued error, failed step, recognized tool, transport or Azure provider code, or certificate trust classification.
 Network and unreadable-response failures show a category; invalid JSON and unexpected response formats have separate guidance.
 The automatic retest does not display raw exception messages, response text or tool diagnostic text.
-When filling shared fields, initial setup refuses to replace an existing certificate or fingerprint; replace those fields manually.
+When saved trust differs from the presented certificate, inspection offers **Replace trusted certificate**.
+Compare and confirm the new fingerprint before replacement; recent identity confirmation is still required.
+Replacement updates supported shared fields and removes previous pin records for every equivalent spelling of the inspected endpoint.
+It replaces strict leaf pins or renews paired fingerprints under saved CA trust, and automatically tests the connection.
+Existing CA records remain unchanged; an issuing-CA change requires manual action.
+Strict pins reject the old leaf and other leaves from the same CA; CA trust continues to allow leaves signed by the confirmed CA.
 Removing an endpoint trust record retains the separately saved Certificate verification fields; clear those fields too when revoking that trust.
 CA trust is selected when an issuing CA is available; self-signed endpoints select strict leaf pinning.
-UniFi also saves and verifies the leaf fingerprint with CA trust, so replace the certificate and fingerprint manually after leaf renewal.
+UniFi also saves and verifies the leaf fingerprint with CA trust, so confirm its replacement after leaf renewal.
 Proxmox also verifies any separately saved fingerprint, which can reject a renewed leaf under the trusted CA.
 GitHub supports strict leaf pins through a private per-call HTTP socket relay that verifies the upstream TLS connection before sending application data.
 Kubernetes remains an exception: its editor accepts only an issuing CA, and strict leaf pinning is refused.

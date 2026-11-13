@@ -24,11 +24,24 @@ export const tlsFieldDefinitions = {
   fingerprint: { label: 'SHA-256 fingerprint', help: 'Enter the 64 hexadecimal characters shown by the appliance. Compare through an independent trusted route.' },
 }
 
-export function initialCertificateTrust(tool: ToolName, value: Record<string, unknown>, pem: string, fingerprint: string, mode: 'ca' | 'pin') {
+export function savedCertificateTrust(tool: ToolName, value: Record<string, unknown>) {
+  const settings = credentialTlsSettings[tool]
+  const read = (path?: string) => path?.split('.').reduce<any>((parent, key) => parent?.[key], value)
+  const pem = read(settings.certificate) as string | undefined
+  const fingerprint = read(settings.fingerprint) as string | undefined
+  let certificate: X509Certificate | undefined
+  if (pem) {
+    try { certificate = new X509Certificate(pem) } catch { certificate = undefined }
+  }
+  const mode: 'pin' | 'ca' | null = fingerprint ? 'pin' : certificate ? certificate.ca ? 'ca' : 'pin' : null
+  return { pem, fingerprint, certificate, mode }
+}
+
+export function certificateTrustFields(tool: ToolName, value: Record<string, unknown>, pem: string, fingerprint: string, mode: 'ca' | 'pin', replace = false) {
   const settings = credentialTlsSettings[tool]
   if (!settings.certificate) throw new ArtiumError('INVALID_INPUT', 'This tool does not support a shared trusted certificate field. Use endpoint trust instead.')
   const read = (path: string) => path.split('.').reduce<any>((parent, key) => parent?.[key], value)
-  if (read(settings.certificate) || (settings.fingerprint && read(settings.fingerprint))) {
+  if (!replace && (read(settings.certificate) || (settings.fingerprint && read(settings.fingerprint)))) {
     throw new ArtiumError('INVALID_INPUT', 'An existing certificate or fingerprint must be replaced manually in Certificate verification.')
   }
   const normalized = fingerprint.replaceAll(':', '').toLowerCase()
@@ -40,9 +53,11 @@ export function initialCertificateTrust(tool: ToolName, value: Record<string, un
   }
   write(settings.certificate, pem)
   if (settings.fingerprint && !settings.pin) write(settings.fingerprint, normalized)
-  if (settings.pin && mode === 'pin') {
+  if (settings.pin && (mode === 'pin' || value[settings.pin])) {
     write(settings.fingerprint!, normalized)
-    next[settings.pin] = { ...(next[settings.pin] as object), origin: value.origin, replaceHostname: false }
+    next[settings.pin] = value[settings.pin]
+      ? { ...(next[settings.pin] as object), sha256: normalized }
+      : { ...(next[settings.pin] as object), origin: value.origin, replaceHostname: false }
   }
   return next
 }

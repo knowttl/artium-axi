@@ -782,7 +782,7 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .tbl.stack-sm tr { display: block; padding: 10px 14px; border-bottom: 1px solid var(--border); }
   .tbl.stack-sm tbody tr:last-child { border-bottom: 0; }
   .tbl.stack-sm td { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; border: 0; text-align: left; }
-  .tbl.stack-sm td[data-label]::before { content: attr(data-label); color: var(--text-faint); font-size: var(--fs-xs); }
+  .tbl.stack-sm td[data-label]::before { content: attr(data-label); color: var(--text-faint); font-size: var(--fs-xs); white-space: nowrap; }
   .tbl.stack-sm td:first-child { padding-bottom: 6px; }
   .tbl.stack-sm td > * { min-width: 0; overflow-wrap: anywhere; }
   .tbl.stack-sm .faint, .tbl.stack-sm .muted { white-space: normal; }

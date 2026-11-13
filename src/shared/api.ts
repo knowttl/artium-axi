@@ -466,6 +466,7 @@ export const certificateInspectionSchema = z.strictObject({
   chain: z.array(certificateDetailsSchema), anchor: certificateDetailsSchema, warnings: z.array(z.string()),
   reason: z.string(), verificationError: z.string().nullable(),
   previousFingerprints: z.array(z.string()),
+  trustMode: z.enum(['ca', 'pin']).nullable(), rotation: z.boolean(),
   nameChange: z.strictObject({ certificateName: z.string().nullable(), connectAddress: z.string(), refusalReason: z.string().nullable() }).nullable(),
 })
 export const trustedCredentialCertificateSchema = z.strictObject({
@@ -474,14 +475,13 @@ export const trustedCredentialCertificateSchema = z.strictObject({
 })
 // Inspection accepts only an inventory endpoint index, never a host or URL.
 // Trust accepts an actor-bound, five-minute inspection handle, never PEM or keys.
-// Trust rejects inspections whose verificationError is null with INVALID_INPUT.
 export const adminCertificateRoutes = {
   list: { method: 'GET', path: '/v1/admin/tools/:tool/certificates', input: z.strictObject({}),
     response: z.strictObject({ certificates: z.array(trustedCredentialCertificateSchema) }) },
   inspect: { method: 'POST', path: '/v1/admin/tools/:tool/certificates/inspect',
     input: z.strictObject({ endpointIndex: z.number().int().nonnegative().default(0) }), response: certificateInspectionSchema },
   trust: { method: 'POST', path: '/v1/admin/tools/:tool/certificates/trust',
-    input: z.strictObject({ inspectionId: z.string(), mode: z.enum(['ca', 'pin']).default('ca'), confirmedFingerprint: z.string(), fillFields: z.boolean().default(false) }), response: z.strictObject({ trusted: z.literal(true) }) },
+    input: z.strictObject({ inspectionId: z.string(), mode: z.enum(['ca', 'pin']).default('ca'), confirmedFingerprint: z.string(), fillFields: z.boolean().default(false), replace: z.boolean().default(false) }), response: z.strictObject({ trusted: z.literal(true) }) },
   useName: { method: 'POST', path: '/v1/admin/tools/:tool/certificates/use-name',
     input: z.strictObject({ inspectionId: z.string() }), response: z.strictObject({ updated: z.literal(true) }) },
   remove: { method: 'DELETE', path: '/v1/admin/tools/:tool/certificates',
