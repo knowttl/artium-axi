@@ -21,11 +21,19 @@ const help = async argv => {
 const topHelp = await help(['--help'])
 const updateHelp = await help(['update', '--help'])
 const globalNames = [...topHelp.match(/^globals: (.*)$/m)[1].matchAll(/--([a-z-]+)/g)].map(match => match[1])
-const targetPolicy = {
+const baseControls = {
   read: 'Managed account access; reads always allowed by write policy',
-  write: 'One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it, and security administration also requires Allow security administration, default OFF; preview, explicit confirmation, coordination, audit and unknown-outcome recovery',
-  destructive: 'Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; security-administration deletes additionally require Allow security administration; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery',
+  write: 'Administrator-controlled per-tenant writes switch, default OFF; preview, explicit confirmation, coordination, audit and unknown-outcome recovery',
+  destructive: 'Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery',
 }
+const targetPolicy = {
+  read: baseControls.read,
+  write: `${baseControls.write}; security administration also requires Allow security administration, default OFF`,
+  destructive: `${baseControls.destructive}; security-administration deletes additionally require Allow security administration, default OFF`,
+}
+const requiredControl = (command, authorization) => baseControls[authorization]
+  + (routes.get(command === 'auth logout' ? 'user token-revoke' : command)?.securityAdministration ? '; Allow security administration, default OFF, also required'
+    : command.startsWith('api ') && authorization !== 'read' ? '; Allow security administration, default OFF, also required for /api/v2/ roles, tokens and personal_tokens paths, and organizations, users and teams collections, individual resources and their users, admins, teams, roles, object_roles, access_list, tokens and personal_tokens subresources' : '')
 const authorizationFor = (command, effect) => ['read', 'client-local'].includes(effect) ? 'read'
   : effect === 'destructive' || command === 'inventory host-bulk-create' ? 'destructive' : 'write'
 const configurationControl = 'Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission'
@@ -76,7 +84,7 @@ const flagsFor = (command, specs, effect, slice, status) => specs.map(flag => {
   const blockedInput = flag.name.endsWith('-file') && !inventory.adapterBoundary.inputFileFlags.includes(flag.name)
   return { ...flag, effect: flagEffect, status: flag.name === 'allow-http' ? 'not applicable' : status === 'supported' && allowed && !blockedInput ? 'supported' : ['managed equivalent', 'not applicable'].includes(status) ? status : 'blocked',
     targetSlice: input.file || input.secret ? 'c' : securityInput ? 'e' : !allowed && status === 'supported' && effect !== 'configuration write' ? 'f' : slice,
-    authorization, requiredAdminControl: targetPolicy[authorization], ...input,
+    authorization, requiredAdminControl: requiredControl(command, authorization), ...input,
     ...(flagEffect === 'configuration write' && status === 'supported' && allowed && !blockedInput ? { currentAdminControl: authorization === 'destructive' ? destructiveControl : configurationControl } : {}),
     ...(flag.name === 'allow-http' ? { reason: 'Managed AWX accounts require HTTPS; no HTTP opt-in equivalent' } : {}),
     ...(status === 'supported' && !allowed ? { reason: 'Omitted from the reviewed Artium flag schema' } : {}),
@@ -94,10 +102,10 @@ const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
     : effect === 'security administration' ? domain.name === 'credential' || route.name === 'credential-create' ? 'c' : 'e' : 'b'
   const status = ['blocked', 'secure-input'].includes(current.effect) ? 'blocked' : 'supported'
   const authorization = authorizationFor(command, effect)
-  return { command, effect, status, targetSlice, authorization, requiredAdminControl: targetPolicy[authorization], positionals: route.positionals, help: route.help,
+  return { command, effect, status, targetSlice, authorization, requiredAdminControl: requiredControl(command, authorization), positionals: route.positionals, help: route.help,
     ...(current.effect === 'secure-input' ? { reason: 'Not yet supported: requires secure input' } : {}),
     ...(effect === 'configuration write' && status === 'supported' ? { currentAdminControl: authorization === 'destructive' ? destructiveControl : configurationControl } : {}),
-    ...(conditionalSecurity.has(command) ? { conditionalEffect: 'security administration when credential or notification configuration/messages input is supplied',
+    ...(conditionalSecurity.has(command) ? { conditionalEffect: 'Upstream security administration effect when credential or notification configuration/messages input is supplied; this input alone does not require Allow security administration',
       dependentSlices: ['c', 'e'] } : {}),
     ...(effect === 'destructive' && security(domain.name, route.name) ? { note: 'Upstream delete tag checks only the native delete gate; Artium supplies that gate only under the separate Allow destructive deletes setting' } : {}),
     ...(command === 'user token-revoke' ? { note: 'Upstream DELETE tagged security, so the native security gate applies rather than the delete gate; target authorization is write', dependentSlices: ['d'] } : {}),
@@ -129,7 +137,7 @@ for (const command of ['home', ...localCommands]) {
   if (command === 'auth login') specs.push(...[...AUTH_HELP.matchAll(/--(allow-http)\b/g)].slice(0, 1).map(match => ({ name: match[1], takesValue: false, description: 'Opt into unencrypted HTTP; unavailable in Artium HTTPS accounts' })))
   if (command === 'update') specs.push(...[...updateHelp.matchAll(/^  "--([a-z-]+)": (.*)$/gm)].map(match => ({ name: match[1], takesValue: false, description: match[2] })))
   const authorization = ['auth login', 'auth logout'].includes(command) ? 'write' : 'read'
-  commands.push({ command, effect, status, reason, targetSlice: command === 'auth logout' ? 'e' : 'f', authorization, requiredAdminControl: targetPolicy[authorization],
+  commands.push({ command, effect, status, reason, targetSlice: command === 'auth logout' ? 'e' : 'f', authorization, requiredAdminControl: requiredControl(command, authorization),
     flags: flagsFor(command, specs, effect, 'f', status),
     ...(command.startsWith('auth ') && command !== 'auth status' ? { remoteEffect: 'security administration', note: 'Client-local lifecycle also mints or revokes an upstream PAT; upstream logout uses the native security-tagged DELETE gate' } : {}) })
 }
