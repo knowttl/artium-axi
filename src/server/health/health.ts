@@ -278,8 +278,7 @@ export class ToolHealth {
         detail.host = (detail.stage === 'token acquisition' ? endpoints[0] : endpoints[
           ['az-axi', 'mg-axi'].includes(tool) || tool === 'ado-axi' && credential.auth === 'client-secret' ? 1 : 0])?.hostname
       }
-      const retestCode = retest && detail ? retestCodes.includes(detail.toolCode ?? '') ? detail.toolCode
-        : detail.message.match(new RegExp(`\\b(?:${retestCodes.join('|')})\\b`))?.[0] : undefined
+      const retestCode = retest && detail && retestCodes.includes(detail.toolCode ?? '') ? detail.toolCode : undefined
       const diagnostic = retest && detail && failure ? {
         stage: detail.stage, message: errors[failure.code].message,
         ...(retestCode ? { toolCode: retestCode } : {}),
