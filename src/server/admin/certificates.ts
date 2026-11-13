@@ -216,7 +216,10 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       authorize(request)
       current(reference)
       db.prepare('DELETE FROM trusted_certificates WHERE id = ? AND credential_id = ?').run(id, reference.id)
-      syncConfirmedLeaves(db, reference.id, readConfirmedLeaf(db, reference.id, pin.endpoint)?.fingerprint, [pin.endpoint])
+      const value = store!.readCredential(reference) as Record<string, unknown>
+      const endpoint = certificateEndpoint(toolEndpoints(reference.tool, value)[0]!).href
+      const fingerprint = endpoint === pin.endpoint ? savedCertificateTrust(reference.tool, value).fingerprint : undefined
+      syncConfirmedLeaves(db, reference.id, fingerprint, [pin.endpoint])
       db.prepare('DELETE FROM tool_health WHERE credential_id = ?').run(reference.id)
     })
     await health?.refresh(reference.tool, true, reference.id)

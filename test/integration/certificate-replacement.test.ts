@@ -435,7 +435,7 @@ test('removing one CA record keeps the confirmed leaf for the remaining record',
   expect((await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: renewal.inspectionId, confirmedFingerprint: renewal.chain[0].fingerprint, mode: 'ca', fillFields: true, replace: true } })).statusCode).toBe(200)
   const reference = store.findInstance('unifi-axi', 'rotation')!
   db.prepare('INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run('synthetic-second-ca', reference.id, endpoint, new X509Certificate(pem('ca')).fingerprint256, new X509Certificate(pem('leaf')).fingerprint256, pem('ca'), pem('leaf'), 'ca', Date.now(), 'synthetic-development-user')
+    .run('synthetic-second-ca', reference.id, endpoint, new X509Certificate(pem('ca')).fingerprint256, new X509Certificate(pem('rotated')).fingerprint256, pem('ca'), pem('rotated'), 'ca', Date.now(), 'synthetic-development-user')
   expect((await app.inject({ method: 'DELETE', url: base, headers, payload: { id: 'synthetic-second-ca' } })).statusCode, 'remove').toBe(200)
   const after = await inspect()
   expect(after).toMatchObject({ rotation: false, verificationError: null, previousFingerprints: [] })
@@ -533,9 +533,11 @@ test.each(['edit', 'remove'] as const)('clearing a confirmed leaf through %s doe
     const edited = await app.inject({ method: 'PATCH', url: base + '/credential', headers, payload: { expectedId: instance.id, expectedRevision: instance.revision, expectedToolRevision: tool.revision, value: { ...value, certificatePin: null } } })
     expect(edited.statusCode, edited.body).toBe(200)
   } else {
-    db.prepare('UPDATE certificate_endpoint_state SET confirmed_leaf_pem = NULL, confirmed_leaf_fingerprint = NULL WHERE credential_id = ?').run(instance.id)
+    const value = store.readCredential(instance) as Record<string, unknown>
+    const { certificatePin: _certificatePin, ...withoutPin } = value
+    store.replaceInstance('proxmox-axi', 'rotation', withoutPin, instance.id, instance.revision, 'synthetic-development-user', Date.now())
     db.prepare('INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run('synthetic-second-ca', instance.id, endpoint, new X509Certificate(pem('ca')).fingerprint256, new X509Certificate(pem('leaf')).fingerprint256, pem('ca'), pem('leaf'), 'ca', Date.now(), 'synthetic-development-user')
+      .run('synthetic-second-ca', instance.id, endpoint, new X509Certificate(pem('ca')).fingerprint256, new X509Certificate(pem('rotated')).fingerprint256, pem('ca'), pem('rotated'), 'ca', Date.now(), 'synthetic-development-user')
     expect((await app.inject({ method: 'DELETE', url: base + '/certificates', headers, payload: { id: 'synthetic-second-ca' } })).statusCode).toBe(200)
   }
   expect((await app.inject({ method: 'GET', url: base + '/certificates', headers })).json().certificates[0]).toMatchObject({ leaf: null, leafFingerprint: null })
@@ -543,4 +545,24 @@ test.each(['edit', 'remove'] as const)('clearing a confirmed leaf through %s doe
   expect(after.previousFingerprints).toEqual([])
   expect(after.warnings).not.toContain('This endpoint was previously trusted with a different fingerprint. This may be rotation or interception.')
   expect((await app.inject({ method: 'GET', url: base + '/certificates', headers })).json().certificates[0]).toMatchObject({ leaf: null, leafFingerprint: null })
+})
+
+test.each(['leaf', 'empty-subject'] as const)('removing a CA uses saved fingerprint %s instead of the old display', async savedLeaf => {
+  store.createInstance('unifi-axi', { name: 'rotation', description: '' }, { origin: endpoint, apiKey: 'CANARY-key' }, 'synthetic-development-user', Date.now())
+  const base = '/v1/admin/tools/unifi-axi/instances/rotation/certificates'
+  const inspect = async () => (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
+  const initial = await inspect()
+  expect((await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: initial.inspectionId, confirmedFingerprint: initial.chain[0].fingerprint, mode: 'ca', fillFields: true } })).statusCode).toBe(200)
+  serve('rotated')
+  const renewal = await inspect()
+  expect((await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: renewal.inspectionId, confirmedFingerprint: renewal.chain[0].fingerprint, mode: 'ca', replace: true } })).statusCode).toBe(200)
+  const instance = store.findInstance('unifi-axi', 'rotation')!
+  const value = store.readCredential(instance) as { tls: Record<string, unknown> }
+  store.replaceInstance('unifi-axi', 'rotation', { ...value, tls: { ...value.tls, peerFingerprintSha256: fingerprint(savedLeaf) } }, instance.id, instance.revision, 'synthetic-development-user', Date.now())
+  db.prepare('INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('synthetic-second-ca', instance.id, endpoint, new X509Certificate(pem('ca')).fingerprint256, new X509Certificate(pem('rotated')).fingerprint256, pem('ca'), pem('rotated'), 'ca', Date.now(), 'synthetic-development-user')
+  expect((await app.inject({ method: 'DELETE', url: base, headers, payload: { id: 'synthetic-second-ca' } })).statusCode).toBe(200)
+  const listed = (await app.inject({ method: 'GET', url: base, headers })).json()
+  expect(listed.certificates[0]).toMatchObject({ leafFingerprint: new X509Certificate(pem(savedLeaf)).fingerprint256,
+    leaf: savedLeaf === 'leaf' ? { fingerprint: new X509Certificate(pem('leaf')).fingerprint256 } : null })
 })
