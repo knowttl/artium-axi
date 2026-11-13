@@ -8,7 +8,7 @@ import { createHash, createHmac } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import type { Readable, Writable } from 'node:stream'
 import type Database from 'better-sqlite3'
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { Runner } from '../../src/server/runner/runner.js'
@@ -46,6 +46,7 @@ let credentials: ReturnType<typeof createCredentialStore>
 const password = 'CANARY-local-password'
 
 beforeEach(async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
   directory = mkdtempSync(join(tmpdir(), 'artium-delegated-cli-'))
   bundle = copyClientInput('bundle', join(directory, 'client.mjs'))
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') })
@@ -60,7 +61,7 @@ beforeEach(async () => {
     resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   url = await app.listen({ host: '127.0.0.1', port: 0 })
 })
-afterEach(async () => { await app.close(); db.close(); rmSync(directory, { recursive: true, force: true }) })
+afterEach(async () => { await app.close(); db.close(); rmSync(directory, { recursive: true, force: true }); vi.useRealTimers() })
 
 async function cli(args: string[], input = '', config = 'owner', privateOutput = false, environment: NodeJS.ProcessEnv = {}, managedSession?: { accessToken: string }) {
   const child = spawn(process.execPath, [bundle, ...args], { env: { PATH: process.env.PATH, XDG_CONFIG_HOME: join(directory, config),

@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { X509Certificate } from 'node:crypto'
 import { once } from 'node:events'
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
-import { request } from 'node:http'
+import { request, type IncomingMessage } from 'node:http'
 import { createServer } from 'node:https'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -25,10 +25,28 @@ const ghSkip = ghSupported ? '' : ` (no pinned gh for ${process.platform}/${proc
 const pem = (name: string) => readFileSync(join(directory, name + '.crt'), 'utf8')
 let endpoint: string
 let applicationRequests: string[] = []
+let kubernetes = false
+let methods: string[] = []
 const server = createServer((incoming, response) => {
   applicationRequests.push(incoming.headers.authorization ?? '')
-  if (incoming.url?.endsWith('/held')) return
+  methods.push(incoming.method!)
+  if (incoming.url?.split('?')[0].endsWith('/held')) return
   response.setHeader('content-type', 'application/json')
+  if (kubernetes) {
+    const path = incoming.url!.split('?')[0]
+    if (path === '/version') return response.end('{"major":"1","minor":"32","gitVersion":"v1.32.2"}')
+    if (path === '/api') return response.end('{"kind":"APIVersions","apiVersion":"v1","versions":["v1"]}')
+    if (path === '/apis') return response.end('{"kind":"APIGroupList","apiVersion":"v1","groups":[]}')
+    if (path === '/api/v1') return response.end(JSON.stringify({ kind: 'APIResourceList', apiVersion: 'v1', groupVersion: 'v1', resources: [
+      { name: 'configmaps', singularName: '', namespaced: true, kind: 'ConfigMap', verbs: ['get', 'list', 'create'] },
+    ] }))
+    if (incoming.method === 'POST' && path === '/api/v1/namespaces/default/configmaps') {
+      incoming.resume()
+      return response.end('{"kind":"ConfigMap","apiVersion":"v1","metadata":{"name":"synthetic-new","namespace":"default","uid":"synthetic-uid","resourceVersion":"1"},"data":{"mode":"prepared"}}')
+    }
+    response.writeHead(404)
+    return response.end('{"kind":"Status","apiVersion":"v1","status":"Failure","reason":"NotFound","code":404}')
+  }
   response.end('{"remaining":4999}')
 })
 const trust = (): CredentialTrust[] => [{ endpoint, pem: pem('intermediate'), fingerprint: new X509Certificate(pem('intermediate')).fingerprint256,
@@ -38,13 +56,13 @@ function serve(name: string) {
 }
 beforeAll(async () => {
   if (ghSupported) await promisify(execFile)(process.execPath, ['scripts/install-gh.mjs', 'tools/gh-source.json', gh])
-  else console.warn(`Skipping native gh transport tests: no pinned gh for ${process.platform}/${process.arch}`)
+  else console.warn(`Skipping native gh and kubectl transport tests: no verified pins for ${process.platform}/${process.arch}`)
   createInspectionCertificates(directory, 'http://localhost:1/unused-issuer')
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
   endpoint = `https://localhost:${(server.address() as { port: number }).port}`
 }, 120_000)
-beforeEach(() => { applicationRequests = []; serve('leaf') })
+beforeEach(() => { applicationRequests = []; methods = []; kubernetes = false; serve('leaf') })
 afterAll(async () => {
   server.closeAllConnections()
   await new Promise<void>(resolve => server.close(() => resolve()))
@@ -170,9 +188,9 @@ ghTest.each(['token', 'device'] as const)(`bundled gh-axi enforces the pin for t
   } finally { await runner.shutdown() }
 })
 
-test('kubectl remains refused before spawn until its data transport supports pins', async () => {
+test('kubectl client-certificate pins remain refused before spawn', async () => {
   const call = await (await createKubernetesAdapter({ getCredential: async () => ({ origin: endpoint,
-    auth: 'token', token: 'CANARY-kubernetes-token', certificateAuthority: pem('ca') }) },
+    auth: 'certificate', clientCertificate: pem('leaf'), privateKey: 'CANARY-private-key', certificateAuthority: pem('ca') }) },
   join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'))).prepare(
     ['get', 'pods'], { id: 'synthetic-credential', tool: 'kubernetes-axi', revision: 1 })
   const runner = await Runner.create(join(directory, 'calls'))
@@ -181,6 +199,126 @@ test('kubectl remains refused before spawn until its data transport supports pin
       { ...call.limits, credentialTrust: trust() })).rejects.toMatchObject({ code: 'INVALID_INPUT', processStarted: false })
   } finally { await runner.shutdown() }
 })
+
+const kubectlTest = process.platform === 'linux' && process.arch === 'x64' ? test : test.skip
+const kubernetesBinary = join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js')
+async function kubernetesCall(runner: Runner, args: string[], saved = trust(), token = 'CANARY-kubernetes-token', signal?: AbortSignal) {
+  const adapter = await createKubernetesAdapter({ getCredential: async () => ({ origin: endpoint,
+    auth: 'token', token, certificateAuthority: pem('ca') }), getSettings: () => ({ allowWrites: true }) },
+  kubernetesBinary, join(directory, 'workflow'))
+  const call = await adapter.prepare(args, { id: 'synthetic-credential', tool: 'kubernetes-axi', revision: 1 })
+  return runner.run('synthetic-user', call.executable, [call.args[0], '--json', ...call.args.slice(1)], call.environment, call.secrets,
+    { ...call.limits, signal, credentialTrust: saved, kubernetesRequests: { root: join(directory, 'workflow'), scope: 'a'.repeat(64) } }, {}, call.files)
+}
+
+kubectlTest.each([
+  { args: ['version'], requests: 1 },
+  { args: ['native', '--', 'get', '--raw=/version'], requests: 2 },
+])('pinned kubectl carries the managed token through the relay: $args', async ({ args, requests }) => {
+  kubernetes = true
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    const result = await kubernetesCall(runner, args)
+    expect(result.exitCode, result.stdout + result.stderr).toBe(0)
+    expect(JSON.parse(result.stdout)).toMatchObject({ gitVersion: 'v1.32.2' })
+    expect(applicationRequests).toEqual(Array(requests).fill('Bearer CANARY-kubernetes-token'))
+    expect(readdirSync(join(directory, 'calls'))).toEqual([])
+  } finally { await runner.shutdown() }
+})
+
+kubectlTest.each(['rotated', 'other-ca-leaf', 'mismatch', 'expired'])('kubectl rejects %s before application data (#276)', async certificate => {
+  kubernetes = true
+  serve(certificate)
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    expect((await kubernetesCall(runner, ['version'])).exitCode).not.toBe(0)
+    expect(applicationRequests).toEqual([])
+    serve('leaf')
+    expect((await kubernetesCall(runner, ['version'])).exitCode).toBe(0)
+    expect(applicationRequests).toEqual(['Bearer CANARY-kubernetes-token'])
+  } finally { await runner.shutdown() }
+})
+
+kubectlTest('an unrelated Kubernetes pin does not restrict the original trusted endpoint', async () => {
+  kubernetes = true
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    const result = await kubernetesCall(runner, ['version'], [{ ...trust()[0], endpoint: 'https://unrelated.invalid' }])
+    expect(result.exitCode, result.stdout + result.stderr).toBe(0)
+    expect(applicationRequests).toEqual(['Bearer CANARY-kubernetes-token'])
+  } finally { await runner.shutdown() }
+})
+
+kubectlTest('pinned Kubernetes workflow preparation preserves identity binding across relay instances', async () => {
+  kubernetes = true
+  const runner = await Runner.create(join(directory, 'calls'))
+  const prepare = ['prepare', '--', 'create', 'configmap', 'synthetic-new', '--from-literal=mode=prepared']
+  try {
+    serve('rotated')
+    expect((await kubernetesCall(runner, prepare)).exitCode).not.toBe(0)
+    expect(applicationRequests).toEqual([])
+    serve('leaf')
+    const prepared = await kubernetesCall(runner, prepare)
+    expect(prepared.exitCode, prepared.stdout + prepared.stderr).toBe(0)
+    const { request } = JSON.parse(prepared.stdout)
+    const preview = await kubernetesCall(runner, ['preview', request])
+    expect(preview.exitCode, preview.stdout + preview.stderr).toBe(0)
+    const { digest } = JSON.parse(preview.stdout)
+    expect(methods.every(method => method === 'GET')).toBe(true)
+    const changed = await kubernetesCall(runner, ['confirm', request, '--digest', digest], trust(), 'CANARY-other-token')
+    expect(JSON.parse(changed.stdout).error.code).toBe('PREVIEW_MISMATCH')
+    const confirmed = await kubernetesCall(runner, ['confirm', request, '--digest', digest])
+    expect(confirmed.exitCode, confirmed.stdout + confirmed.stderr).toBe(0)
+    expect(JSON.parse(confirmed.stdout)).toMatchObject({ state: 'complete', results: [{ outcome: 'committed' }] })
+    expect(methods).toContain('POST')
+  } finally { await runner.shutdown() }
+})
+
+test('hosted Kubernetes byte sessions keep refusing saved pins', async () => {
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    expect(() => runner.caBundleFor(endpoint, trust())).toThrow('hosted byte sessions require issuing CA trust')
+    expect(applicationRequests).toEqual([])
+  } finally { await runner.shutdown() }
+})
+
+kubectlTest('cancellation closes the pinned kubectl connection and removes the relay', async () => {
+  kubernetes = true
+  const runner = await Runner.create(join(directory, 'calls'))
+  const controller = new AbortController()
+  let reached!: (incoming: IncomingMessage) => void
+  const held = new Promise<IncomingMessage>(resolve => { reached = resolve })
+  const listener = (incoming: IncomingMessage) => { if (incoming.url?.split('?')[0].endsWith('/held')) reached(incoming) }
+  server.on('request', listener)
+  const running = kubernetesCall(runner, ['native', '--', 'get', '--raw=/api/v1/namespaces/default/configmaps/held'], trust(), 'CANARY-kubernetes-token', controller.signal)
+  const cancelled = expect(running).rejects.toMatchObject({ code: 'CANCELLED' })
+  try {
+    const incoming = await Promise.race([held, running.then(result => { throw new Error(result.stdout + result.stderr) })])
+    const closed = once(incoming.socket, 'close')
+    controller.abort()
+    await cancelled
+    await closed
+    expect(readdirSync(join(directory, 'calls'))).toEqual([])
+  } finally { controller.abort(); server.off('request', listener); await runner.shutdown() }
+})
+
+test.each([
+  { operation: 'exec', args: ['synthetic-pod', '--', 'true'], code: 'FLAG_BLOCKED' },
+  { operation: 'attach', args: ['synthetic-pod'], code: 'FLAG_BLOCKED' },
+  { operation: 'port-forward', args: ['synthetic-pod', '8080:80'], code: 'INVALID_INPUT' },
+])('Kubernetes refuses direct $operation upgrades without contacting the cluster', async ({ operation, args, code }) => {
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    await expect(kubernetesCall(runner, ['prepare', '--', operation, ...args])).rejects.toMatchObject({ code })
+    expect(applicationRequests).toEqual([])
+  } finally { await runner.shutdown() }
+})
+
+test.each([['--native-config', '/synthetic/helper-config'], ['--trust-exec'], ['--tls-server-name', 'synthetic.invalid']])(
+  'Kubernetes keeps identity overrides refused: %j', async (...args) => {
+    const adapter = await createKubernetesAdapter({ getCredential: async () => ({}) }, kubernetesBinary)
+    expect(() => adapter.validateArgs([...args, 'version'])).toThrow(expect.objectContaining({ code: 'FLAG_BLOCKED' }))
+  })
 
 ghTest(`runner cancellation closes the pinned gh connection and removes the private relay${ghSkip}`, async () => {
   const call = await createGhAdapter({ getCredential: async () => ({ origin: endpoint, auth: 'token', token: 'CANARY-managed-token' }) })

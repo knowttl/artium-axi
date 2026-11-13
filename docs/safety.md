@@ -352,7 +352,7 @@ Compact lists retain at most 100 rows and report completeness, resource version 
 Compact Secret reads expose metadata only; native Secret contents, last-applied Secret configuration and ordinary credential routes are refused.
 Ordinary log reads are bounded snapshots; rollout status requires `--watch=false`.
 `events` and `wait` are not admitted, with or without `native --`.
-The pinned `@knowttl/kubernetes-axi` 0.1.3 grammar refuses both with `CAPABILITY_UNAVAILABLE`, so admitting them would add commands that always fail.
+The pinned `@knowttl/kubernetes-axi` grammar refuses both with `CAPABILITY_UNAVAILABLE`, so admitting them would add commands that always fail.
 `get events` is the supported path for bounded event reads.
 Admit `events` and `wait` when a pinned tool release implements them.
 Self-subject access and identity reviews are passive authorization checks, even though Kubernetes uses POST for them.

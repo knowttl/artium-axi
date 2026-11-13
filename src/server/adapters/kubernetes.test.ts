@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { decode, encode } from '@toon-format/toon'
 import { expect, test } from 'vitest'
 import { createKubernetesAdapter, kubernetesProfile } from './kubernetes.js'
@@ -73,7 +74,8 @@ test('Kubernetes uses a private SecretRef and owned CA projection', async () => 
   expect(profile.token).toEqual({ env: 'ARTIUM_SECRET_0' })
   expect(call.environment.ARTIUM_SECRET_0).toBe(credential.token)
   expect(call.files[0].appendTrustedCaAt).toEqual(['profiles', 'artium', 'certificateAuthority'])
-  expect(call.limits.systemCaBundle).toEqual({ endpoint: credential.origin, transport: 'kubectl' })
+  expect(call.limits.systemCaBundle).toEqual({ endpoint: credential.origin, transport: 'kubectl',
+    hostModule: new URL('../dist/cli.js', pathToFileURL(native)).href })
   expect(toolAllowsWrites('kubernetes-axi', { allowWrites: true })).toBe(true)
 })
 

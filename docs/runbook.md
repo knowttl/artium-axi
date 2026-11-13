@@ -311,8 +311,9 @@ CA trust is selected when an issuing CA is available; self-signed endpoints sele
 UniFi also saves and verifies the leaf fingerprint with CA trust, so confirm its replacement after leaf renewal.
 Proxmox also verifies any separately saved fingerprint, which can reject a renewed leaf under the trusted CA.
 GitHub supports strict leaf pins through a private per-call HTTP socket relay that verifies the upstream TLS connection before sending application data.
-Kubernetes remains an exception: its editor accepts only an issuing CA, and strict leaf pinning is refused.
-For self-signed Kubernetes endpoints or a missing issuing CA, configure the server-wide bundle above.
+Kubernetes static token identities support strict leaf pins through the same relay for kubectl reads and native mutation workflows, preserving the original cluster and identity binding.
+Client-certificate identities, credential helpers, TLS server-name overrides, hosted byte sessions and upgrade connections remain refused with strict pins; use issuing CA trust for supported operations without pins.
+For self-signed Kubernetes endpoints or a missing issuing CA, static token identities can use strict pins; client-certificate identities require the server-wide bundle above.
 Without strict pins, the GitHub CLI child receives system roots, the server bundle and credential CAs through a private `SSL_CERT_FILE`; those CAs are additive across the child's connections.
 With strict pins, both gh-axi and direct native GitHub calls use the relay, which restricts saved anchors and fingerprints to the inspected hostname and port and uses normal server trust for unrelated endpoints.
 For Kubernetes, system roots, the server bundle and confirmed CAs for the saved cluster origin are appended to the profile's `certificateAuthority` in a private per-call profile for bundled kubectl.
