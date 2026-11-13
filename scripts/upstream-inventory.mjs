@@ -16,7 +16,10 @@ import './falcon-inventory.ts'
 import './kubernetes-inventory.ts'
 import './ssh-inventory.ts'
 
-if (process.argv.includes('--write')) await import('./awx-inventory.mjs')
+if (process.argv.includes('--write')) {
+  await import('./awx-parity.mjs?decisions-only')
+  await import('./awx-inventory.mjs')
+}
 await import('./awx-parity.mjs')
 await import('./awx-inventory.mjs')
 

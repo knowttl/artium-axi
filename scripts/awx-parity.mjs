@@ -43,15 +43,16 @@ for (const route of offered.filter(route => localCommands.includes(route.command
     .filter(match => !globalNames.includes(match[1]) && match[1] !== 'help')
     .map(match => ({ name: match[1] }))
 }
-const complete = decision => decision && typeof decision.name === 'string' && decision.name.trim()
-  && typeof decision.status === 'string' && decision.status.trim()
-  && (typeof decision.authorization === 'string' && decision.authorization.trim() || typeof decision.reason === 'string' && decision.reason.trim())
+const complete = (decision, commandFlag = false) => decision
+  && ['name', 'status', 'effect', 'targetSlice', 'authorization'].every(key => typeof decision[key] === 'string' && decision[key].trim())
+  && (!commandFlag || typeof decision.takesValue === 'boolean')
 const undecided = offered.flatMap(route => {
   const decision = decisions.get(route.command)
-  return !decision ? [route.command] : route.flags.filter(flag => !complete(decision.flags.find(reviewed => reviewed.name === flag.name))).map(flag => `${route.command} --${flag.name}`)
+  return !decision ? [route.command] : route.flags.filter(flag => !complete(decision.flags.find(reviewed => reviewed.name === flag.name), true)).map(flag => `${route.command} --${flag.name}`)
 })
 undecided.push(...globalNames.filter(name => !complete(recorded.globals.find(flag => flag.name === name))).map(name => `global --${name}`))
 if (undecided.length) throw new Error(`Missing AWX support decision: ${undecided.join(', ')}; review support in scripts/awx-inventory.mjs and scripts/awx-parity.mjs, then record each decision in tools/inventories/awx-axi-parity.json before regeneration`)
+if (!import.meta.url.endsWith('?decisions-only')) {
 const baseControls = {
   read: 'Managed account access; reads always allowed by write policy',
   write: 'Administrator-controlled per-tenant writes switch, default OFF; preview, explicit confirmation, coordination, audit and unknown-outcome recovery',
@@ -234,3 +235,4 @@ for (const [path, contents] of [['tools/inventories/awx-axi-parity.json', JSON.s
   else if (readFileSync(destination, 'utf8') !== contents) throw new Error(`AWX parity matrix stale: ${path}; run node scripts/awx-parity.mjs --write and review classifications`)
 }
 console.log(`parity: awx-axi ${pkg.version}, ${commands.length} commands, ${aliases.length} aliases, ${commands.reduce((count, route) => count + route.flags.length, 0)} command flags, ${globals.length} selection globals, ${versionFlags.length} version flags`)
+}
