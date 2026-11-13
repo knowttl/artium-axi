@@ -13,8 +13,8 @@ function renderRetestDiagnostic(detail) {
   if (detail.kind === 'json') return 'Connection test: response was not valid JSON.' + status + ' Check the server or proxy response format. Run Test connection again.';
   if (detail.kind === 'schema') return 'Connection test: response did not match the connection-test format.' + status + ' Check server and client version compatibility. Run Test connection again.';
   return 'Connection test:' + status + (detail.errorCode ? ' ' + retestErrors[detail.errorCode] + ' (' + detail.errorCode + ').' : ' Server error code unavailable.') +
-    (detail.stage ? ' Failed step: ' + detail.stage + '.' : '') + (detail.transportCode ? ' Transport: ' + detail.transportCode + '.' : '') +
-    (detail.transportCause ? ' Cause: ' + detail.transportCause + '.' : '') +
+    (detail.stage ? ' Failed step: ' + detail.stage + '.' : '') + (detail.toolCode ? ' Code: ' + detail.toolCode + '.' : '') +
+    (detail.transportCode ? ' Transport: ' + detail.transportCode + '.' : '') +
     (detail.providerCode ? ' Provider: ' + detail.providerCode + '.' : '') + (detail.upstreamStatus === undefined ? '' : ' Upstream HTTP ' + detail.upstreamStatus + '.') +
     (detail.trust ? ' Certificate trust: ' + detail.trust + '.' : '') + ' Run Test connection again.';
 }
@@ -36,9 +36,9 @@ async function retestConnection(url, csrf) {
     const error = result?.error;
     const errorCode = typeof error?.code === 'string' && Object.hasOwn(retestErrors, error.code) ? error.code : undefined;
     const stage = ['configuration', 'token acquisition', 'DNS', 'TCP', 'TLS', 'authentication', 'response', 'tool run'].includes(error?.diagnostic?.stage) ? error.diagnostic.stage : undefined;
-    const { toolCode: transportCode, transportCode: transportCause, providerCode, upstreamStatus } = retestFields(error?.diagnostic);
+    const { toolCode, transportCode, providerCode, upstreamStatus } = retestFields(error?.diagnostic);
     const trust = ['self-signed', 'untrusted'].includes(error?.diagnostic?.trust) ? error.diagnostic.trust : undefined;
-    return { diagnostic: { kind: 'http', status, errorCode, stage, transportCode, transportCause, providerCode, upstreamStatus, trust } };
+    return { diagnostic: { kind: 'http', status, errorCode, stage, toolCode, transportCode, providerCode, upstreamStatus, trust } };
   }
   if (result?.status !== 'ok' || !Number.isSafeInteger(result.checkedAt) ||
       !Number.isSafeInteger(result.credentialRevision) || result.errorCode !== null) {

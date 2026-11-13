@@ -13,7 +13,7 @@ const cases: { name: string, failure?: unknown, response?: unknown, kind: string
   ].map(diagnostic => ({ name: JSON.stringify(diagnostic), kind: 'http',
     response: Response.json({ error: { code: 'TOOL_FAILED', diagnostic } }, { status: 503 }),
     expected: 'Connection test: HTTP 503. The tool exited unsuccessfully. (TOOL_FAILED). Failed step: ' + diagnostic.stage + '.' +
-      (diagnostic.toolCode ? ' Transport: ' + diagnostic.toolCode + '.' : '') +
+      (diagnostic.toolCode ? ' Code: ' + diagnostic.toolCode + '.' : '') +
       (diagnostic.providerCode ? ' Provider: ' + diagnostic.providerCode + '.' : '') +
       (diagnostic.upstreamStatus ? ' Upstream HTTP ' + diagnostic.upstreamStatus + '.' : '') + ' Run Test connection again.' })),
   ...['long free text '.repeat(100), 'eyJhbGciOiJIUzI1NiJ9.payload.signature', 'CANARY-token-with-hyphens'].map(value => ({
@@ -26,7 +26,7 @@ const cases: { name: string, failure?: unknown, response?: unknown, kind: string
     expected: 'Connection test: HTTP 503. Server error code unavailable. Run Test connection again.' },
   { name: 'transport cause', kind: 'http',
     response: Response.json({ error: { diagnostic: { stage: 'TCP', toolCode: 'TRANSPORT_FAILED', transportCode: 'EHOSTUNREACH' } } }, { status: 503 }),
-    expected: 'Connection test: HTTP 503. Server error code unavailable. Failed step: TCP. Transport: TRANSPORT_FAILED. Cause: EHOSTUNREACH. Run Test connection again.' },
+    expected: 'Connection test: HTTP 503. Server error code unavailable. Failed step: TCP. Code: TRANSPORT_FAILED. Transport: EHOSTUNREACH. Run Test connection again.' },
   ...[99, 600, 503.5, '503'].map(upstreamStatus => ({ name: 'invalid upstream status ' + upstreamStatus, kind: 'http',
     response: Response.json({ error: { diagnostic: { upstreamStatus } } }, { status: 503 }),
     expected: 'Connection test: HTTP 503. Server error code unavailable. Run Test connection again.',
@@ -50,13 +50,13 @@ const cases: { name: string, failure?: unknown, response?: unknown, kind: string
     expected: 'Connection test: HTTP 403. Server error code unavailable. Run Test connection again.' },
   { name: 'TLS failure with structured fields', response: Response.json({ error: { code: 'UPSTREAM_TLS_FAILED', message: secret,
     diagnostic: { stage: 'TLS', toolCode: 'CERT_HAS_EXPIRED', trust: 'untrusted', message: quotedSecret, host: secret } } }, { status: 503 }), kind: 'http',
-    expected: 'Connection test: HTTP 503. The upstream certificate could not be verified. (UPSTREAM_TLS_FAILED). Failed step: TLS. Transport: CERT_HAS_EXPIRED. Certificate trust: untrusted. Run Test connection again.' },
+    expected: 'Connection test: HTTP 503. The upstream certificate could not be verified. (UPSTREAM_TLS_FAILED). Failed step: TLS. Code: CERT_HAS_EXPIRED. Certificate trust: untrusted. Run Test connection again.' },
   { name: 'TCP refusal with structured fields', response: Response.json({ error: { code: 'UPSTREAM_NETWORK_FAILED',
     diagnostic: { stage: 'TCP', toolCode: 'ECONNREFUSED' } } }, { status: 503 }), kind: 'http',
-    expected: 'Connection test: HTTP 503. The upstream service could not be reached. (UPSTREAM_NETWORK_FAILED). Failed step: TCP. Transport: ECONNREFUSED. Run Test connection again.' },
+    expected: 'Connection test: HTTP 503. The upstream service could not be reached. (UPSTREAM_NETWORK_FAILED). Failed step: TCP. Code: ECONNREFUSED. Run Test connection again.' },
   { name: 'hostname mismatch with structured fields', response: Response.json({ error: { code: 'UPSTREAM_TLS_FAILED',
     diagnostic: { stage: 'TLS', toolCode: 'HOSTNAME_MISMATCH' } } }, { status: 503 }), kind: 'http',
-    expected: 'Connection test: HTTP 503. The upstream certificate could not be verified. (UPSTREAM_TLS_FAILED). Failed step: TLS. Transport: HOSTNAME_MISMATCH. Run Test connection again.' },
+    expected: 'Connection test: HTTP 503. The upstream certificate could not be verified. (UPSTREAM_TLS_FAILED). Failed step: TLS. Code: HOSTNAME_MISMATCH. Run Test connection again.' },
 ]
 
 test.each(cases)('retest shows only structured detail for $name', async ({ failure, response, expected, kind }) => {

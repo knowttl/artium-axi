@@ -19,7 +19,7 @@ test.each([
 
 test.each(['long free text '.repeat(100), 'eyJhbGciOiJIUzI1NiJ9.payload.signature', 'CANARY-token-with-hyphens'])(
   'drops unsafe structured provider code %s', providerCode => {
-    const failure = toolFailure('', JSON.stringify({ error: { code: 'AUTH_REQUIRED', providerCode } }), 1)
+    const failure = toolFailure('', JSON.stringify({ error: { code: 'AUTH_REQUIRED', providerCode } }), 1, 'mg-axi', true)
     expect(failure.diagnostic?.providerCode).toBeUndefined()
   })
 test('filters untrusted provider codes and retains Azure codes', () => {
@@ -32,6 +32,14 @@ test('filters untrusted provider codes and retains Azure codes', () => {
 test('retains the Vectra transport cause for retests', () => {
   const failure = toolFailure('', 'code: TRANSPORT_FAILED\nmessage: Request failed\nhint: EHOSTUNREACH', 1, 'vectra-axi', true)
   expect(failure.diagnostic).toMatchObject({ toolCode: 'TRANSPORT_FAILED', transportCode: 'EHOSTUNREACH' })
+})
+test.each([
+  ['error:\n  code: PERMISSION_DENIED\n  status: 403\n  message: Restricted key', 403],
+  ['{"error":{"code":"PERMISSION_DENIED","status":429}}', 429],
+  ['{"error":{"code":"PERMISSION_DENIED","details":{"status":503}}}', 503],
+  ['error:\n  code: PERMISSION_DENIED\n  status: 999\n', undefined],
+])('retains a valid Hybrid upstream status', (output, upstreamStatus) => {
+  expect(toolFailure('', output, 1, 'hybrid-axi', true).diagnostic?.upstreamStatus).toBe(upstreamStatus)
 })
 test.each(['message', 'hint', 'host', 'issuer', 'toolCode', 'providerCode'])(
   'drops the whole diagnostic when %s contains a known secret', field => {

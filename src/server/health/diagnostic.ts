@@ -94,10 +94,14 @@ export function toolFailure(stdout: string, stderr: string, exitCode: number, to
     try {
       const error = JSON.parse(stream)?.error
       const fields = retestFields({ providerCode: ['az-axi', 'mg-axi', 'ado-axi'].includes(tool ?? '') ? error?.providerCode : undefined,
-        upstreamStatus: error?.httpStatus ?? error?.details?.httpStatus ?? error?.upstreamStatus })
+        upstreamStatus: error?.httpStatus ?? error?.details?.httpStatus ?? error?.upstreamStatus ?? (tool === 'hybrid-axi' ? error?.status ?? error?.details?.status : undefined) })
       upstreamStatus ??= fields.upstreamStatus
       providerCode ??= fields.providerCode
     } catch {}
+  }
+  if (tool === 'hybrid-axi' && upstreamStatus === undefined) {
+    const status = /^\s*status:\s*(\d{3})\s*$/mi.exec(text)?.[1]
+    upstreamStatus = retestFields({ upstreamStatus: status === undefined ? undefined : Number(status) }).upstreamStatus
   }
   const toolCode = toolFailureCode(stdout, stderr)
   if (!tool || ['az-axi', 'mg-axi', 'ado-axi'].includes(tool)) providerCode ??= /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
