@@ -2,10 +2,10 @@ import { ArtiumError, type Diagnostic, type ErrorCode } from '../../shared/error
 import { SecretScanner } from '../runner/scan.js'
 import type { ToolName } from '../store/credential-store.js'
 import { constants } from 'node:os'
-import { structuredDiagnostic, retestCodes, type StructuredDiagnostic } from '../../shared/diagnostic.js'
+import { structuredDiagnostic, retestCodes, transportCodes, type StructuredDiagnostic } from '../../shared/diagnostic.js'
 export { retestCodes } from '../../shared/diagnostic.js'
 
-export function retestFields(detail: { toolCode?: unknown, transportCode?: unknown, providerCode?: unknown, upstreamStatus?: unknown } | undefined, codes: readonly string[] = retestCodes) {
+export function retestFields(detail: { toolCode?: unknown, transportCode?: unknown, providerCode?: unknown, upstreamStatus?: unknown } | undefined, codes: readonly string[] = [...retestCodes, ...transportCodes]) {
   const code = (value: unknown): value is string => typeof value === 'string' && codes.includes(value)
   const status = detail?.upstreamStatus
   return {

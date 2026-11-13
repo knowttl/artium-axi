@@ -444,7 +444,7 @@ function renderTestHealth(health) {
   const inspect = document.querySelector('[data-inspect-certificate]');
   if (inspect && errorCode === 'UPSTREAM_TLS_FAILED') inspect.hidden = false;
   document.querySelector('[data-check-diagnostic]').textContent = detail
-    ? [detail.stage, detail.toolCode, detail.trust].filter(Boolean).join('\\n') : 'Details unavailable.';
+    ? [detail.stage, detail.toolCode, detail.transportCode, detail.providerCode, detail.upstreamStatus, detail.trust].filter(value => value !== undefined).join('\\n') : 'Details unavailable.';
 }
 
 let pendingAction = false;

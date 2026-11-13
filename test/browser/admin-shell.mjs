@@ -859,7 +859,7 @@ test('trust automatically tests credentials and displays the exact failure', () 
 for (const [failure, expected] of [
   ['network', 'Connection test: Could not reach the artium admin server.'],
   ['parse', 'Connection test: response was not valid JSON. HTTP 200.'],
-  ['structured', 'Connection test: HTTP 503. The tool exited unsuccessfully. (TOOL_FAILED). Failed step: token acquisition. Code: EHOSTUNREACH. Provider: AADSTS7000222. Upstream HTTP 503.'],
+  ['structured', 'Connection test: HTTP 503. The tool exited unsuccessfully. (TOOL_FAILED). Failed step: token acquisition. Code: EHOSTUNREACH. Transport: EHOSTUNREACH. Provider: AADSTS7000222. Upstream HTTP 503.'],
 ]) test('automatic retest reports a safe ' + failure + ' detail', () => {
   browser(`
     await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-valid' });
@@ -873,7 +873,7 @@ for (const [failure, expected] of [
       window.fetch = async (...args) => {
         if (String(args[0]).endsWith('/test')) {
           ${failure === 'network' ? "throw new TypeError('Échec réseau CANARY-private-value', { cause: { code: 'ECONNREFUSED' } });" : failure === 'structured'
-            ? "return Response.json({ error: { code: 'TOOL_FAILED', message: 'CANARY-private-value', diagnostic: { stage: 'token acquisition', toolCode: 'EHOSTUNREACH', providerCode: 'AADSTS7000222', upstreamStatus: 503, message: 'CANARY-private-value' } } }, { status: 503 });"
+            ? "return Response.json({ error: { code: 'TOOL_FAILED', message: 'CANARY-private-value', diagnostic: { stage: 'token acquisition', toolCode: 'EHOSTUNREACH', transportCode: 'EHOSTUNREACH', providerCode: 'AADSTS7000222', upstreamStatus: 503, message: 'CANARY-private-value' } } }, { status: 503 });"
             : "return new Response('CANARY-private-value', { status: 200 });"}
         }
         return original(...args);

@@ -1,7 +1,9 @@
 import { errors, type Diagnostic } from './errors.js'
+import { constants } from 'node:os'
 
 export const diagnosticStages = ['configuration', 'token acquisition', 'DNS', 'TCP', 'TLS', 'authentication', 'response', 'tool run'] as const
-export const retestCodes = ['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT',
+export const transportCodes = Object.keys(constants.errno)
+export const retestCodes = ['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT', 'ECONNABORTED', 'ENETUNREACH', 'EHOSTUNREACH',
   'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION', 'SERVICE_UNAVAILABLE',
   'CONNECTION_FAILED', 'ERR_TLS_CERT_ALTNAME_INVALID', 'CERT_NOT_YET_VALID', 'CERT_HAS_EXPIRED', 'CERT_REVOKED',
   'CERT_CHAIN_TOO_LONG', 'CERT_UNTRUSTED', 'CERT_REJECTED', 'CERT_SIGNATURE_FAILURE', 'CERTIFICATE_VERIFY_FAILED',
@@ -20,7 +22,7 @@ export const diagnosticCodes = [...retestCodes, 'API_RESPONSE_INVALID', 'AUTH_RE
   'STRONGER_AUTH_REQUIRED', 'GSSAPI_CREDENTIAL_UNAVAILABLE', 'GSSAPI_NEGOTIATION_FAILED', 'INVALID_CONFIG',
   'API_ERROR', 'UPSTREAM_ERROR', 'RATE_LIMITED', 'FORBIDDEN', 'VALIDATION_ERROR', 'DELETE_CONFIRM_REQUIRED',
   'ENOENT', 'EACCES', 'EPERM', 'EIO', 'ENOSPC', 'EMFILE', 'ENFILE', 'EPIPE', 'EADDRINUSE', 'EADDRNOTAVAIL',
-  'ECONNABORTED', 'ENETUNREACH', 'EHOSTUNREACH', 'EISDIR', 'ENOTDIR', 'ENOTEMPTY', 'EROFS', 'ENOSYS', 'EINVAL', 'ENOMEM', 'ENOBUFS',
+  'EISDIR', 'ENOTDIR', 'ENOTEMPTY', 'EROFS', 'ENOSYS', 'EINVAL', 'ENOMEM', 'ENOBUFS',
   'OUTCOME_UNKNOWN', 'PARTIAL_OUTCOME', 'WRITE_UNCERTAIN', 'DELIVERY_UNCERTAIN',
   'AADSTS7000215', 'AADSTS7000222', 'AADSTS700016', 'AADSTS90002', 'AADSTS700027'] as const
 
@@ -28,6 +30,9 @@ export interface StructuredDiagnostic {
   stage: Diagnostic['stage']
   message: 'Details unavailable.'
   toolCode?: typeof diagnosticCodes[number]
+  providerCode?: `AADSTS${number}`
+  transportCode?: `E${string}`
+  upstreamStatus?: number
   trust?: 'self-signed' | 'untrusted'
   checkedAt?: number
   credentialRevision?: number | null
@@ -45,6 +50,12 @@ export function structuredDiagnostic(input: unknown): StructuredDiagnostic | und
     stage: detail.stage as Diagnostic['stage'], message: 'Details unavailable.',
     ...(typeof detail.toolCode === 'string' && (diagnosticCodes as readonly string[]).includes(detail.toolCode)
       ? { toolCode: detail.toolCode as typeof diagnosticCodes[number] } : {}),
+    ...(typeof detail.providerCode === 'string' && /^AADSTS\d{4,8}$/.test(detail.providerCode)
+      ? { providerCode: detail.providerCode as `AADSTS${number}` } : {}),
+    ...(typeof detail.transportCode === 'string' && transportCodes.includes(detail.transportCode)
+      ? { transportCode: detail.transportCode as `E${string}` } : {}),
+    ...(typeof detail.upstreamStatus === 'number' && Number.isInteger(detail.upstreamStatus) && detail.upstreamStatus >= 100 && detail.upstreamStatus <= 599
+      ? { upstreamStatus: detail.upstreamStatus } : {}),
     ...(detail.trust === 'self-signed' || detail.trust === 'untrusted' ? { trust: detail.trust } : {}),
     ...(Number.isSafeInteger(detail.checkedAt) ? { checkedAt: detail.checkedAt as number } : {}),
     ...(detail.credentialRevision === null || Number.isSafeInteger(detail.credentialRevision)

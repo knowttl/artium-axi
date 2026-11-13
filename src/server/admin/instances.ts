@@ -71,7 +71,7 @@ export async function readInstanceRows(app: FastifyInstance, request: FastifyReq
 
 function diagnosticText(detail?: Diagnostic): string {
   const safe = structuredDiagnostic(detail)
-  return safe ? [safe.stage, safe.toolCode, safe.trust].filter(Boolean).join('\n') : 'Details unavailable.'
+  return safe ? [safe.stage, safe.toolCode, safe.transportCode, safe.providerCode, safe.upstreamStatus, safe.trust].filter(value => value !== undefined).join('\n') : 'Details unavailable.'
 }
 
 const versions = (instance: Instance) => `<input type="hidden" name="expectedId" value="${escape(instance.id)}">${revision(instance.revision)}`

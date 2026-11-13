@@ -4,7 +4,7 @@ import type { Diagnostic } from './errors.js'
 import type { StructuredDiagnostic } from './diagnostic.js'
 
 type Reject<T extends false> = T
-type Text = 'message' | 'hint' | 'host' | 'issuer' | 'providerCode' | 'toolCode'
+type Text = 'message' | 'hint' | 'host' | 'issuer' | 'providerCode' | 'transportCode' | 'toolCode'
 type HasFreeText<T> = { [K in keyof T]-?: K extends Text ? string extends T[K] ? true : false : false }[keyof T]
 
 export type CacheRejectsRawDiagnostics = Reject<Diagnostic extends StructuredDiagnostic ? true : false>

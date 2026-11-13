@@ -564,7 +564,11 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
       }
       expect(cached.error_code).toBe('UPSTREAM_NETWORK_FAILED')
       expect(health.diagnostic('vectra-axi', 1, cached.checked_at)).toMatchObject({ stage: 'TCP', message: 'Details unavailable.' })
-      expect(JSON.stringify(health.diagnostic('vectra-axi', 1, cached.checked_at))).not.toContain(cause)
+      if (cause === 'response terminated before completion') {
+        expect(JSON.stringify(health.diagnostic('vectra-axi', 1, cached.checked_at))).not.toContain(cause)
+      } else {
+        expect(health.diagnostic('vectra-axi', 1, cached.checked_at)).toMatchObject({ transportCode: cause })
+      }
       expect(JSON.stringify(health.diagnostic('vectra-axi', 1, cached.checked_at))).not.toContain('CANARY-VECTRA-TOKEN')
       const audit = JSON.stringify(db.prepare('SELECT * FROM audit').all())
       expect(audit).not.toContain(cause)

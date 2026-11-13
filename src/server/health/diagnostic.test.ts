@@ -15,6 +15,27 @@ test.each(['ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION', 'SERVICE_UNAVAILABLE'])(
   })
 
 test.each([
+  ['az-axi', 'code: AUTH_FAILED\nmessage: AADSTS7000222: CANARY-response', { providerCode: 'AADSTS7000222' }],
+  ['vectra-axi', 'code: TRANSPORT_FAILED\nmessage: CANARY-response\nhint: EHOSTUNREACH', { transportCode: 'EHOSTUNREACH' }],
+  ['hybrid-axi', '{"error":{"code":"PERMISSION_DENIED","status":503,"message":"CANARY-response"}}', { upstreamStatus: 503 }],
+] as const)('preserves validated %s failure details without response text', (tool, output, fields) => {
+  const detail = safeDiagnostic(toolFailure('', output, 1, tool, true).diagnostic, [])
+  expect(detail).toMatchObject(fields)
+  expect(diagnosticSchema.parse(detail)).toEqual(detail)
+  expect(JSON.stringify(detail)).not.toContain('CANARY-response')
+})
+
+test.each(['ENETUNREACH', 'EHOSTUNREACH', 'ECONNABORTED'])(
+  'preserves runtime network code %s at the retest boundary', code => {
+    expect(retestFields({ toolCode: code, transportCode: code })).toEqual({ toolCode: code, transportCode: code })
+  })
+
+test('drops invalid structured fields', () => {
+  expect(safeDiagnostic({ stage: 'response', message: 'CANARY-response', providerCode: 'AADSTS12345CANARY',
+    transportCode: 'CANARY', upstreamStatus: 600 }, [])).toEqual({ stage: 'response', message: 'Details unavailable.' })
+})
+
+test.each([
   { value: 100, expected: 100 },
   { value: 503, expected: 503 },
   { value: 599, expected: 599 },
@@ -125,7 +146,7 @@ test.each(['message', 'issuer'] as const)('retains structured context when %s ex
     checkedAt: 123, credentialRevision: 2 }
   const bounded = safeDiagnostic(detail, [])!
   expect(bounded).toEqual({ stage: 'TLS', toolCode: 'TLS_UNTRUSTED', message: 'Details unavailable.',
-    trust: 'untrusted', checkedAt: 123, credentialRevision: 2 })
+    providerCode: 'AADSTS700027', trust: 'untrusted', checkedAt: 123, credentialRevision: 2 })
   expect(diagnosticSchema.safeParse(bounded).success).toBe(true)
   expect(Object.values(bounded).filter(value => typeof value === 'string').join('').length).toBeLessThanOrEqual(4096)
   expect(safeDiagnostic(Object.fromEntries(Object.entries(detail).reverse()) as typeof detail, [])).toEqual(bounded)

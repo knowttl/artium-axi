@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { diagnosticCodes, diagnosticStages } from './diagnostic.js'
+import { diagnosticCodes, diagnosticStages, transportCodes } from './diagnostic.js'
 import { shodanExportPolicy, shodanQueryPolicy, shodanScanPolicy, shodanStreamPolicy, shodanWritePolicy } from './shodan-stream.js'
 import { kubernetesSessionPolicy } from './kubernetes.js'
 import { userGrantPolicyNameSchema } from './user-grants.js'
@@ -416,6 +416,9 @@ export function toolAllowsWrites(tool: z.infer<typeof toolSchema>, settings: Rec
 export const diagnosticSchema = z.strictObject({
   stage: z.enum(diagnosticStages),
   message: z.literal('Details unavailable.'), toolCode: z.enum(diagnosticCodes).optional(),
+  providerCode: z.custom<`AADSTS${number}`>(value => typeof value === 'string' && /^AADSTS\d{4,8}$/.test(value)).optional(),
+  transportCode: z.custom<`E${string}`>(value => typeof value === 'string' && transportCodes.includes(value)).optional(),
+  upstreamStatus: z.number().int().min(100).max(599).optional(),
   trust: z.enum(['self-signed', 'untrusted']).optional(), checkedAt: z.number().int().optional(),
   credentialRevision: z.number().int().nullable().optional(),
 })
