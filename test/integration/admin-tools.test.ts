@@ -203,10 +203,12 @@ test.each([
   vi.mocked(adapters[0].prepare).mockRestore()
   const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
   vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) =>
-    original.spawn(fakeTool.executable, [...fakeTool.args, 'failure', `code: ${canary}\nmessage: ${canary}`], options))
+    original.spawn(fakeTool.executable, [...fakeTool.args, 'failure', `code: ${canary}\nmessage: ${canary}\nhint: ${canary}`], options))
   const response = await request('POST', path, {}, { ...headers, ...(retest ? { 'x-artium-retest': '1' } : {}) })
   expect(response.status).toBe(503)
-  expect(await response.json()).toMatchObject({ error: { code: 'TOOL_FAILED', diagnostic: { stage: 'tool run', message: 'Details unavailable.' } } })
+  const body = await response.text()
+  expect(body).not.toContain(canary)
+  expect(JSON.parse(body)).toMatchObject({ error: { code: 'TOOL_FAILED', diagnostic: { stage: 'tool run', message: 'Details unavailable.' } } })
   for (const read of ['', '/falcon-axi/instances']) {
     const listed = await request('GET', read)
     expect(listed.status).toBe(200)
