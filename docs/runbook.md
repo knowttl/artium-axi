@@ -273,8 +273,8 @@ This uses the existing certificate-inspection timeouts and follows no redirects.
 Inspection connects only to an endpoint from the saved credential and tool inventory, performs a TLS handshake, and sends no credentials or application requests.
 For LDAP StartTLS, it sends only the anonymous protocol upgrade before reading the TLS chain.
 Administration capability and recent identity confirmation are required.
-If the endpoint verifies with the server's existing trust, including its server-wide CA bundle, inspection reports that no trust is needed and offers no trust confirmation.
-The API also refuses to save CA trust or a strict pin for that inspection, and no trust change is recorded.
+If the endpoint verifies with the server's existing trust, including its server-wide CA bundle, and no saved certificate needs replacement, inspection reports that no trust is needed and offers no trust confirmation.
+The API also refuses initial trust for that inspection, and no trust change is recorded.
 
 Review the hostname, subject, issuer, names, validity dates, key, signature algorithm and full SHA-256 fingerprint.
 When a certificate has no nonblank subject, its displayed subject falls back to the first subject alternative name, or `(no subject)` if none is available.
@@ -298,10 +298,17 @@ The UI automatically tests the connection and shows **Connected** or a failure c
 Failures can include the server and upstream HTTP statuses, catalogued error, failed step, recognized tool, transport or Azure provider code, or certificate trust classification.
 Network and unreadable-response failures show a category; invalid JSON and unexpected response formats have separate guidance.
 The automatic retest does not display raw exception messages, response text or tool diagnostic text.
-When filling shared fields, initial setup refuses to replace an existing certificate or fingerprint; replace those fields manually.
+When a saved strict pin differs from the presented certificate, inspection offers **Replace trusted certificate**.
+For CA trust with a paired fingerprint, replacement is offered when the fingerprint differs and the presented certificate verifies against the saved CA trust.
+Compare and confirm the new fingerprint before replacement; recent identity confirmation is still required.
+Strict pin replacement updates supported shared fields and removes previous pin records for every equivalent spelling of the inspected endpoint.
+CA-mode replacement updates the paired leaf fingerprint and leaves existing CA records unchanged.
+If CA verification fails, check the certificate's hostname, validity and chain; update the CA manually if the issuing CA changed.
+Replacement preserves strict leaf pinning or CA trust, and automatically tests the connection.
+Strict pins reject the old leaf and other leaves from the same CA; CA trust continues to allow leaves signed by the confirmed CA, subject to any separately saved fingerprint.
 Removing an endpoint trust record retains the separately saved Certificate verification fields; clear those fields too when revoking that trust.
 CA trust is selected when an issuing CA is available; self-signed endpoints select strict leaf pinning.
-UniFi also saves and verifies the leaf fingerprint with CA trust, so replace the certificate and fingerprint manually after leaf renewal.
+UniFi also saves and verifies the leaf fingerprint with CA trust, so confirm its replacement after leaf renewal.
 Proxmox also verifies any separately saved fingerprint, which can reject a renewed leaf under the trusted CA.
 GitHub supports strict leaf pins through a private per-call HTTP socket relay that verifies the upstream TLS connection before sending application data.
 Kubernetes remains an exception: its editor accepts only an issuing CA, and strict leaf pinning is refused.
@@ -331,8 +338,8 @@ Each converted or retained entry is recorded in the audit log, and cached tool h
 If migration leaves both modes at one endpoint, connections accept leaves issued by its saved CA anchors or the retained pinned leaves themselves; a retained pin does not extend CA trust to its issuer.
 Previously saved automatic intermediate repairs are removed on upgrade, clearing affected tools' cached health; they do not become confirmed CA anchors.
 The shared runner adds the certificate to its existing Node, Python, LDAP and Vectra trust injection, and server-side token acquisition uses the same credential trust.
-Trust does not disable hostname or date verification.
-Confirming an expired or hostname-mismatched certificate saves trust but does not fix the connection: renew the certificate or use its matching hostname.
+Trust does not disable date verification; hostname verification remains enabled except for the existing [Proxmox fingerprint option](tool-credentials.md#proxmox).
+Confirming initial trust for an expired or hostname-mismatched certificate saves trust but does not fix the connection: renew the certificate or use its matching hostname.
 
 If the server omitted an intermediate, inspection can retrieve the leaf certificate’s AIA issuer automatically.
 Retrieval accepts only HTTP or HTTPS, follows no redirects, has a three-second total deadline, and reads at most 128 KiB.
@@ -342,12 +349,8 @@ Automatic intermediate repair is not included because treating a repaired interm
 If an endpoint omits an intermediate below a confirmed root, confirm that intermediate as the CA anchor or configure the endpoint to present its complete chain.
 
 The instance page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
-This flow also fills supported credential-level fields during initial trust; use the [credential editor](admin-guide.md#browser-administration) to replace or remove a credential-level CA or pin when it rotates.
-For CA rotation or a leaf rotation in strict pinning mode, re-inspect the saved endpoint.
-If inspection reports that no trust is needed, use **Remove endpoint trust** to retire the old entries and clear any separately saved credential trust to let the endpoint use the server's existing trust.
-For tools with shared certificate fields, manage existing endpoint trust and replace those fields manually.
-For tools without shared certificate fields, confirm the replacement, then use **Remove endpoint trust** to retire the old entry.
-For these tools, confirmation in the same mode keeps previously confirmed entries trusted during rolling rotation; switching between CA trust and strict pinning replaces the endpoint's entries in the other mode.
+Use the [credential editor](admin-guide.md#browser-administration) to replace a changed CA or remove credential-level trust.
+Use **Remove endpoint trust** to retire endpoint entries, and clear separately saved credential trust when it should no longer apply.
 These changes take effect on subsequent calls and survive server restarts.
 Use the server-wide bundle above for organization-wide inspection CAs instead of confirming the same CA separately for every tool.
 

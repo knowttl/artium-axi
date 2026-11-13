@@ -24,10 +24,13 @@ export function credentialCertificates(db: Database.Database, credentialId: stri
   const rows = db.prepare('SELECT id, endpoint, pem, leaf_pem, mode, created_at FROM trusted_certificates WHERE credential_id = ? ORDER BY created_at, id')
     .all(credentialId) as { id: string, endpoint: string, pem: string, leaf_pem: string,
       mode: CredentialTrust['mode'], created_at: number }[]
+  const confirmed = db.prepare('SELECT endpoint, confirmed_leaf_pem FROM certificate_endpoint_state WHERE credential_id = ? AND confirmed_leaf_pem IS NOT NULL')
+    .all(credentialId) as { endpoint: string, confirmed_leaf_pem: string }[]
+  const leaves = new Map(confirmed.map(item => [item.endpoint, item.confirmed_leaf_pem]))
   return rows.map(row => {
     const { hostname, href } = certificateEndpoint(row.endpoint)
     return { id: row.id, endpoint: href, mode: row.mode, createdAt: row.created_at,
       certificate: certificateDetails(new X509Certificate(row.pem), hostname),
-      leaf: certificateDetails(new X509Certificate(row.leaf_pem), hostname) }
+      leaf: certificateDetails(new X509Certificate(row.mode === 'ca' ? leaves.get(href) ?? row.leaf_pem : row.leaf_pem), hostname) }
   })
 }

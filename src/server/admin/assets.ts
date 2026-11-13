@@ -498,19 +498,31 @@ function showCertificateInspection(result) {
     line(details, 'Issuing CA to trust: ' + result.anchor.subject + '; SHA-256: ' + result.anchor.fingerprint);
   }
   const form = dialog.querySelector('[data-trust-certificate]');
-  form.hidden = !result.verificationError;
+  form.hidden = result.trustMode ? !result.rotation : !result.verificationError;
+  let replacement = form.elements.replace;
+  if (!replacement) {
+    replacement = document.createElement('input');
+    replacement.type = 'hidden';
+    replacement.name = 'replace';
+    replacement.dataset.type = 'boolean';
+    form.append(replacement);
+  }
+  replacement.value = String(result.rotation);
+  form.querySelector('button').textContent = result.rotation ? 'Replace trusted certificate' : 'Trust this certificate';
+  if (result.rotation) line(details, 'Confirm the new fingerprint to replace saved trust. The existing trust mode is preserved.', true);
   form.elements.inspectionId.value = result.inspectionId;
   form.elements.confirmedFingerprint.checked = false;
   form.elements.confirmedFingerprint.value = result.chain[0].fingerprint;
-  const hasCA = result.anchor.ca && result.anchor.fingerprint !== result.chain[0].fingerprint;
+  const hasCA = result.rotation && result.trustMode === 'ca' || result.anchor.ca && result.anchor.fingerprint !== result.chain[0].fingerprint;
   const supportsPin = Boolean(form.elements.mode.querySelector('option[value="pin"]'));
   if (!supportsPin && !hasCA) {
     form.hidden = true;
     line(details, 'This tool requires an issuing CA. Configure the server trusted CA bundle for a self-signed endpoint.', true);
   }
   form.elements.mode.required = true;
-  form.elements.mode.value = hasCA ? 'ca' : result.chain[0].selfSigned ? 'pin' : '';
-  form.elements.mode.querySelector('option[value="ca"]').disabled = !hasCA;
+  form.elements.mode.value = result.rotation ? result.trustMode : hasCA ? 'ca' : result.chain[0].selfSigned ? 'pin' : '';
+  for (const option of form.elements.mode.options) option.disabled = result.rotation && option.value !== result.trustMode;
+  form.elements.mode.querySelector('option[value="ca"]').disabled = !hasCA || result.rotation && result.trustMode !== 'ca';
   if (supportsPin && result.verificationError && !hasCA && !result.chain[0].selfSigned) {
     line(details, 'CA trust is unavailable because no issuing CA was obtained. Choose strict leaf pinning explicitly.', true);
   }
