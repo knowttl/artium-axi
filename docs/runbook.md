@@ -351,7 +351,9 @@ When no issuing CA can be obtained for a non-self-signed leaf, CA trust is unava
 Automatic intermediate repair is not included because treating a repaired intermediate as trusted could bypass the confirmed anchor's expiry.
 If an endpoint omits an intermediate below a confirmed root, confirm that intermediate as the CA anchor or configure the endpoint to present its complete chain.
 
-The instance page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
+The instance page lists trusted certificates and available expiry dates, with warnings within 30 days of expiry.
+For remaining CA trust at a resolvable saved endpoint, changing the saved fingerprint or removing a CA record refreshes the displayed leaf from the saved fingerprint, or clears it if no fingerprint applies.
+When only the fingerprint is known, matching inspection fills in the leaf details; when no leaf is confirmed, use Trust or Renew to confirm one.
 Use the [credential editor](admin-guide.md#browser-administration) to replace a changed CA or remove credential-level trust.
 Use **Remove endpoint trust** to retire endpoint entries, and clear separately saved credential trust when it should no longer apply.
 These changes take effect on subsequent calls and survive server restarts.
