@@ -466,11 +466,15 @@ test('removing trust succeeds with an invalid saved endpoint', async () => {
   expect((await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: inspection.inspectionId, confirmedFingerprint: inspection.chain[0].fingerprint, mode: 'ca', fillFields: true } })).statusCode).toBe(200)
   const listed = (await app.inject({ method: 'GET', url: base, headers })).json()
   const instance = store.findInstance('unifi-axi', 'rotation')!
+  db.prepare('INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('synthetic-second-ca', instance.id, endpoint, new X509Certificate(pem('ca')).fingerprint256, new X509Certificate(pem('rotated')).fingerprint256, pem('ca'), pem('rotated'), 'ca', Date.now(), 'synthetic-development-user')
   const value = store.readCredential(instance) as Record<string, unknown>
   store.replaceInstance('unifi-axi', 'rotation', { ...value, origin: 'invalid-origin' }, instance.id, instance.revision, 'synthetic-development-user', Date.now())
   const removed = await app.inject({ method: 'DELETE', url: base, headers, payload: { id: listed.certificates[0].id } })
   expect(removed.statusCode, removed.body).toBe(200)
-  expect((await app.inject({ method: 'GET', url: base, headers })).json().certificates).toEqual([])
+  const remaining = (await app.inject({ method: 'GET', url: base, headers })).json().certificates
+  expect(remaining).toHaveLength(1)
+  expect(remaining[0]).toMatchObject({ leaf: null, leafFingerprint: null })
 })
 
 test('removing trust succeeds with an invalid saved region', async () => {
@@ -478,9 +482,15 @@ test('removing trust succeeds with an invalid saved region', async () => {
   const base = '/v1/admin/tools/checkpoint-axi/instances/rotation/certificates'
   db.prepare('INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
     .run('synthetic-ca', instance.id, endpoint, new X509Certificate(pem('ca')).fingerprint256, new X509Certificate(pem('leaf')).fingerprint256, pem('ca'), pem('leaf'), 'ca', Date.now(), 'synthetic-development-user')
+  db.prepare('INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('synthetic-second-ca', instance.id, endpoint, new X509Certificate(pem('ca')).fingerprint256, new X509Certificate(pem('rotated')).fingerprint256, pem('ca'), pem('rotated'), 'ca', Date.now(), 'synthetic-development-user')
+  db.prepare('INSERT INTO certificate_endpoint_state (credential_id, endpoint, revision, confirmed_leaf_pem, confirmed_leaf_fingerprint) VALUES (?, ?, ?, ?, ?)')
+    .run(instance.id, endpoint, 1, pem('leaf'), new X509Certificate(pem('leaf')).fingerprint256)
   const removed = await app.inject({ method: 'DELETE', url: base, headers, payload: { id: 'synthetic-ca' } })
   expect(removed.statusCode, removed.body).toBe(200)
-  expect((await app.inject({ method: 'GET', url: base, headers })).json().certificates).toEqual([])
+  const remaining = (await app.inject({ method: 'GET', url: base, headers })).json().certificates
+  expect(remaining).toHaveLength(1)
+  expect(remaining[0]).toMatchObject({ leaf: null, leafFingerprint: null })
 })
 
 test.each([
