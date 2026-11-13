@@ -225,8 +225,9 @@ Enter secret values themselves, not SecretRefs; leave unused fields blank and en
 TLS trust uses structured fields instead of JSON.
 **Connect via IP address** is available for UniFi, and **Certificate name to verify** is available for Technitium; other tools explain that these overrides are unsupported.
 Saved certificates and SHA-256 fingerprints are read-only, and editing other fields retains trust for the same endpoint.
-Kubernetes accepts a required CA PEM at creation, and UniFi accepts certificate PEM and fingerprint together; paste or upload PEM in the certificate entry disclosure to enter or replace them.
-For other tools, use the instance's **Trusted certificates** flow to change trust.
+Paste or upload PEM in the certificate entry disclosure to enter or replace credential trust; UniFi also requires its fingerprint.
+Remove optional credential trust with its removal control and save; Kubernetes requires a CA and permits replacement only.
+The instance's **Trusted certificates** flow manages separate instance trust.
 Certificate verification and identity confirmation remain required.
 Profile-backed credential saves normalize safe differences only when the schema rejects the original value; already valid values, including secrets, remain byte for byte unchanged.
 Rejected strings can have surrounding whitespace removed, including nested object and list values; secret interior whitespace is preserved.

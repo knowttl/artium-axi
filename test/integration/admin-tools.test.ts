@@ -1202,6 +1202,42 @@ test.each([
   expect(store.readCredential(store.findCredential(tool)!)).toEqual({ ...value, ...trust })
 })
 
+test.each([
+  ['ldap-axi', 'caFile'], ['vectra-axi', 'caBundle'], ['proxmox-axi', 'caBundle'], ['technitium-axi', 'caFile'],
+] as const)('%s replaces and removes credential CA trust', async (tool, field) => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run(tool)
+  createTestCertificates(directory, ['localhost'])
+  const original = readFileSync(join(directory, 'ca.crt'), 'utf8')
+  const replacement = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const { writes: _writes, ...value } = values[tool] as Record<string, unknown>
+  await replace(tool, { ...value, [field]: original })
+  expect((await save(tool, { ...value, [field]: replacement }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual({ ...value, [field]: replacement })
+  expect((await save(tool, { ...value, [field]: null }, 2)).status).toBe(200)
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual(value)
+})
+
+test('Proxmox replaces and removes its origin-bound fingerprint pin', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('proxmox-axi')
+  const value = values['proxmox-axi']
+  const pin = { origin: value.origin, sha256: 'a'.repeat(64), replaceHostname: false }
+  await replace('proxmox-axi', { ...value, certificatePin: pin })
+  expect((await save('proxmox-axi', { ...value, certificatePin: { sha256: 'b'.repeat(64) } }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('proxmox-axi')!)).toEqual({ ...value, certificatePin: { ...pin, sha256: 'b'.repeat(64) } })
+  expect((await save('proxmox-axi', { ...value, certificatePin: null }, 2)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('proxmox-axi')!)).toEqual(value)
+})
+
+test('UniFi removes its certificate pair and connection override together', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('unifi-axi')
+  createTestCertificates(directory, ['localhost'])
+  const certificate = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const tls = { trustedCertificatePem: certificate, peerFingerprintSha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', ''), connectAddress: '127.0.0.1' }
+  await replace('unifi-axi', { ...values['unifi-axi'], tls })
+  expect((await save('unifi-axi', { ...values['unifi-axi'], tls: null }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('unifi-axi')!)).toEqual(values['unifi-axi'])
+})
+
 test('UniFi structured address changes retain certificate and fingerprint and allow clearing the override', async () => {
   db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('unifi-axi')
   createTestCertificates(directory, ['localhost'])

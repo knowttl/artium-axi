@@ -26,10 +26,10 @@ test.each(toolSchema.options)('%s explains supported certificate identity settin
 })
 
 test.each([
-  ['ldap-axi', { caFile: 'CANARY-LDAP-CA' }, 'CANARY-LDAP-CA', undefined, undefined, 'caFile'],
-  ['vectra-axi', { caBundle: 'CANARY-VECTRA-CA' }, 'CANARY-VECTRA-CA', undefined, undefined, 'caBundle'],
-  ['technitium-axi', { caFile: 'CANARY-DNS-CA' }, 'CANARY-DNS-CA', undefined, undefined, 'caFile'],
-  ['proxmox-axi', { caBundle: 'CANARY-PROXMOX-CA', certificatePin: { sha256: 'CANARY-PIN' } }, 'CANARY-PROXMOX-CA', 'CANARY-PIN', undefined, 'certificatePin'],
+  ['ldap-axi', { caFile: 'CANARY-LDAP-CA' }, 'CANARY-LDAP-CA', undefined, 'caFile', undefined],
+  ['vectra-axi', { caBundle: 'CANARY-VECTRA-CA' }, 'CANARY-VECTRA-CA', undefined, 'caBundle', undefined],
+  ['technitium-axi', { caFile: 'CANARY-DNS-CA' }, 'CANARY-DNS-CA', undefined, 'caFile', undefined],
+  ['proxmox-axi', { caBundle: 'CANARY-PROXMOX-CA', certificatePin: { sha256: 'CANARY-PIN' } }, 'CANARY-PROXMOX-CA', 'CANARY-PIN', 'caBundle', 'certificatePin'],
   ['kubernetes-axi', { certificateAuthority: 'CANARY-CLUSTER-CA' }, 'CANARY-CLUSTER-CA', undefined, 'certificateAuthority', undefined],
   ['unifi-axi', { tls: { trustedCertificatePem: 'CANARY-UNIFI-CA', peerFingerprintSha256: 'CANARY-UNIFI-PIN' } }, 'CANARY-UNIFI-CA', 'CANARY-UNIFI-PIN', 'tls.trustedCertificatePem', 'tls'],
 ] as const)('%s displays saved trust and offers supported replacement', (tool, metadata, certificate, fingerprint, entry, hidden) => {

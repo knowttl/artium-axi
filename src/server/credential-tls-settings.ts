@@ -1,14 +1,14 @@
 import type { ToolName } from './store/credential-store.js'
 
-type TlsSettings = { certificate?: string, fingerprint?: string, pin?: string, connectAddress?: string, serverName?: string, certificateEntry?: boolean }
+type TlsSettings = { certificate?: string, fingerprint?: string, pin?: string, connectAddress?: string, serverName?: string }
 
 export const credentialTlsSettings: Record<ToolName, TlsSettings> = {
-  'unifi-axi': { certificate: 'tls.trustedCertificatePem', fingerprint: 'tls.peerFingerprintSha256', connectAddress: 'tls.connectAddress', certificateEntry: true },
+  'unifi-axi': { certificate: 'tls.trustedCertificatePem', fingerprint: 'tls.peerFingerprintSha256', connectAddress: 'tls.connectAddress' },
   'proxmox-axi': { certificate: 'caBundle', fingerprint: 'certificatePin.sha256', pin: 'certificatePin' },
   'technitium-axi': { certificate: 'caFile', serverName: 'tlsServerName' },
   'ldap-axi': { certificate: 'caFile' },
   'vectra-axi': { certificate: 'caBundle' },
-  'kubernetes-axi': { certificate: 'certificateAuthority', certificateEntry: true },
+  'kubernetes-axi': { certificate: 'certificateAuthority' },
   'gh-axi': {}, 'ado-axi': {}, 'az-axi': {}, 'mg-axi': {}, 'awx-axi': {}, 'beyondtrust-axi': {},
   'checkpoint-axi': {}, 'falcon-axi': {}, 'gitea-axi': {}, 'hybrid-axi': {}, 'shodan-axi': {}, 'tenable-axi': {}, 'ssh-axi': {},
 }
@@ -33,6 +33,14 @@ export function retainCredentialTls(tool: ToolName, stored: Record<string, unkno
     }
   }
   const settings = credentialTlsSettings[tool]
+  if (settings.pin && value[settings.pin] && typeof value[settings.pin] === 'object' && !Array.isArray(value[settings.pin])) {
+    const pin = value[settings.pin] as Record<string, unknown>
+    if (Object.keys(pin).length === 1 && Object.hasOwn(pin, 'sha256')) {
+      const previous = stored.origin === value.origin ? stored[settings.pin] : undefined
+      next[settings.pin] = { ...(previous && typeof previous === 'object' ? previous : {}), origin: value.origin, ...pin }
+    }
+  }
+  for (const root of tlsCredentialRoots(tool)) if (next[root] === null) delete next[root]
   if (settings.serverName && next[settings.serverName] === null) delete next[settings.serverName]
   if (settings.connectAddress && next.tls && typeof next.tls === 'object' && !Array.isArray(next.tls)) {
     const tls = { ...next.tls } as Record<string, unknown>

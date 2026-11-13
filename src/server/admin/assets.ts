@@ -601,6 +601,7 @@ document.addEventListener('submit', async event => {
         }
         catch { message.textContent = 'Enter valid JSON in ' + input.dataset.profileField + '.'; message.focus(); return; }
       }
+      for (const input of form.querySelectorAll('[data-tls-remove]:checked')) body.value[input.dataset.tlsRemove] = null;
       const certificate = form.querySelector('[data-certificate]:not([hidden]) [data-certificate-pem]');
       if (certificate?.value) body.value.certificatePem = certificate.value;
     }

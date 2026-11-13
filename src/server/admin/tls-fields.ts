@@ -27,7 +27,11 @@ export function tlsFields(tool: ToolName, metadata: Record<string, unknown>): st
   })
   const fingerprint = read(settings.fingerprint)
   const saved = `<details><summary>${tlsFieldDefinitions.certificate.label} (saved, read-only)</summary><pre>${escape(pem || 'No certificate stored in this credential. See Trusted certificates below for instance trust.')}</pre></details><p>${tlsFieldDefinitions.fingerprint.label}</p><pre>${escape(fingerprint || fingerprints.join('\n') || 'No fingerprint stored in this credential.')}</pre>`
-  const entry = settings.certificateEntry
-    ? `<details${!pem && tool === 'kubernetes-axi' ? ' open' : ''}><summary>${pem ? 'Replace' : 'Enter'} trusted certificate</summary>${settings.fingerprint ? '<p>Supply the certificate and fingerprint together when entering or replacing trust. UniFi requires both for a connection IP override.</p>' : ''}${input('certificate', settings.certificate!, '', tool === 'kubernetes-axi' && !pem)}${settings.fingerprint ? input('fingerprint', settings.fingerprint) : ''}</details>` : ''
-  return `<fieldset><legend>Certificate verification</legend><p>Certificate identity, chain or pin, validity and fingerprint verification remain required. Manage endpoint trust in Trusted certificates after saving.</p>${connection}${saved}${entry}</fieldset>`
+  const remove = (path: string, label: string) => `<label><input type="checkbox" data-tls-remove="${path}"> Remove ${label} on save</label>`
+  const entry = settings.certificate
+    ? `<details${!pem && tool === 'kubernetes-axi' ? ' open' : ''}><summary>${pem ? 'Replace' : 'Enter'} trusted certificate</summary>${tool === 'unifi-axi' ? '<p>Supply the certificate and fingerprint together when entering or replacing trust. UniFi requires both for a connection IP override.</p>' : ''}${input('certificate', settings.certificate!, '', tool === 'kubernetes-axi' && !pem)}${tool === 'unifi-axi' ? input('fingerprint', settings.fingerprint!) : ''}</details>` : ''
+  const pinEntry = settings.pin ? `<details><summary>${fingerprint ? 'Replace' : 'Enter'} fingerprint pin</summary>${input('fingerprint', settings.fingerprint!)}</details>` : ''
+  const certificateRemoval = pem && tool !== 'kubernetes-axi' ? remove(tool === 'unifi-axi' ? 'tls' : settings.certificate!, tool === 'unifi-axi' ? 'certificate, fingerprint and connection IP' : 'trusted certificate') : ''
+  const pinRemoval = settings.pin && fingerprint ? remove(settings.pin, 'fingerprint pin') : ''
+  return `<fieldset><legend>Certificate verification</legend><p>Certificate identity, chain or pin, validity and fingerprint verification remain required. Manage endpoint trust in Trusted certificates after saving.</p>${connection}${saved}${entry}${certificateRemoval}${pinEntry}${pinRemoval}${tool === 'kubernetes-axi' ? '<p>A trusted certificate is required and can only be replaced.</p>' : ''}</fieldset>`
 }
