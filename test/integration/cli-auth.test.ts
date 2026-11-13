@@ -202,7 +202,7 @@ test('bundled first login stores only a restricted token and blocks tools until 
 
 test.each([false, true])('ordinary password change verifies the current password and handles expired access=%s', async expired => {
   await login()
-  if (expired) db.prepare("UPDATE tokens SET expires_at = ? WHERE type = 'access'").run(Date.now() - 1)
+  if (expired) db.prepare("UPDATE tokens SET expires_at = ? WHERE type = 'access'").run(Date.now() - 60_000)
   expect(await cli(['passwd', '--password-stdin'], newPassword, { ARTIUM_AXI_CURRENT_PASSWORD: 'CANARY-wrong-password' }))
     .toMatchObject({ code: 1, stdout: expect.stringContaining('SIGN_IN_FAILED') })
   expect(existsSync(store.file)).toBe(true)
@@ -311,7 +311,7 @@ test('concurrent bundled processes rotate an expired access token only once', as
   await login()
   const original = store.read()!
   if (original.status !== 'authenticated') throw new Error('Expected authenticated session')
-  db.prepare('UPDATE tokens SET expires_at = ? WHERE hash = ?').run(Date.now() - 1, hashToken(original.accessToken))
+  db.prepare('UPDATE tokens SET expires_at = ? WHERE hash = ?').run(Date.now() - 60_000, hashToken(original.accessToken))
   const results = await Promise.all(Array.from({ length: 6 }, () => cli(['tools'])))
   expect(results).toEqual(Array.from({ length: 6 }, () => ({ code: 0, stdout: expect.stringContaining('tools: 0 available\n'), stderr: '' })))
   expect(db.prepare("SELECT COUNT(*) AS count FROM tokens WHERE type = 'refresh' AND consumed_at IS NOT NULL").get()).toEqual({ count: 1 })
@@ -323,7 +323,7 @@ test('concurrent bundled processes rotate an expired access token only once', as
 
 test('logout revokes the family even after access expiry and deletes the local session', async () => {
   await login()
-  db.prepare("UPDATE tokens SET expires_at = ? WHERE type = 'access'").run(Date.now() - 1)
+  db.prepare("UPDATE tokens SET expires_at = ? WHERE type = 'access'").run(Date.now() - 60_000)
   expect(await cli(['logout'])).toMatchObject({ code: 0, stdout: expect.stringContaining('remoteRevocation: verified') })
   expect(existsSync(store.file)).toBe(false)
   expect(db.prepare('SELECT COUNT(*) AS count FROM session_families WHERE revoked_at IS NOT NULL').get()).toEqual({ count: 1 })
