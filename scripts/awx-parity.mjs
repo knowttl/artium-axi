@@ -21,6 +21,15 @@ const help = async argv => {
 const topHelp = await help(['--help'])
 const updateHelp = await help(['update', '--help'])
 const globalNames = [...topHelp.match(/^globals: (.*)$/m)[1].matchAll(/--([a-z-]+)/g)].map(match => match[1])
+const recorded = readJson('tools/inventories/awx-axi-parity.json')
+const decisions = new Map(recorded.commands.map(route => [route.command, route]))
+const offered = DOMAINS.flatMap(domain => domain.subcommands.map(route => ({ command: `${domain.name} ${route.name}`, flags: route.flags })))
+const undecided = offered.flatMap(route => {
+  const decision = decisions.get(route.command)
+  return !decision ? [route.command] : route.flags.filter(flag => !decision.flags.some(reviewed => reviewed.name === flag.name)).map(flag => `${route.command} --${flag.name}`)
+})
+undecided.push(...globalNames.filter(name => !recorded.globals.some(flag => flag.name === name)).map(name => `global --${name}`))
+if (undecided.length && !process.argv.includes('--write')) throw new Error(`Missing AWX support decision: ${undecided.join(', ')}; review support in scripts/awx-inventory.mjs and scripts/awx-parity.mjs, then record each decision in tools/inventories/awx-axi-parity.json with node scripts/awx-parity.mjs --write`)
 const baseControls = {
   read: 'Managed account access; reads always allowed by write policy',
   write: 'Administrator-controlled per-tenant writes switch, default OFF; preview, explicit confirmation, coordination, audit and unknown-outcome recovery',

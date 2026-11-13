@@ -1,8 +1,28 @@
 import { readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
 
 const { DOMAINS } = await import(new URL('../tools/node_modules/@knowttl/awx-axi/dist/cli.js', import.meta.url).href)
 const parity = JSON.parse(readFileSync(new URL('../tools/inventories/awx-axi-parity.json', import.meta.url), 'utf8'))
+
+test.each([
+  { kind: 'command', mutation: 'domain.subcommands.push({ ...route, name: "synthetic-parity-command" })', name: 'job synthetic-parity-command' },
+  { kind: 'flag', mutation: 'route.flags.push({ name: "synthetic-parity-flag", takesValue: false, description: "Synthetic flag" })', name: 'job list --synthetic-parity-flag' },
+  { kind: 'existing flag on a new command', mutation: 'route.flags.push({ name: "confirm", takesValue: false, description: "Synthetic flag" })', name: 'job list --confirm' },
+])('the offline local freshness gate rejects an unreviewed upstream $kind', ({ mutation, name }) => {
+  const registry = new URL('../tools/node_modules/@knowttl/awx-axi/dist/cli.js', import.meta.url).href
+  const preload = `import { DOMAINS } from ${JSON.stringify(registry)};
+const domain = DOMAINS.find(item => item.name === 'job');
+const route = domain.subcommands.find(item => item.name === 'list');
+${mutation};`
+  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/upstream-inventory.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain(name)
+  expect(result.stderr).toContain('support decision')
+  expect(result.stderr).toContain('tools/inventories/awx-axi-parity.json')
+})
 
 type Flag = { name: string; takesValue: boolean; description: string }
 type Command = { command: string; flags: Flag[]; positionals: { names: string[]; required: number } }
