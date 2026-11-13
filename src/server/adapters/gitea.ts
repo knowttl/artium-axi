@@ -19,20 +19,10 @@ export const giteaWritePolicy = writePolicy({ supportedOperations: giteaWriteOpe
   unlocks: 'Exact native operations with preview, revision-bound confirmation and durable reconciliation receipts.',
   blocked: 'Ordinary downloads, server paths, local workflows and credential overrides remain unavailable. Use managed transfers for one exact attachment.' })
 
-const discoveryOperations: Record<string, string> = {
-  'issue upload': 'issueCreateIssueAttachment', 'pr upload': 'issueCreateIssueAttachment', 'release upload': 'repoCreateReleaseAttachment',
-  'repo edit': 'repoEdit', 'repo fork': 'createFork',
-  'release create': 'repoCreateRelease', 'release delete': 'repoDeleteRelease',
-  'pr create': 'repoCreatePullRequest', 'pr close': 'repoEditPullRequest', 'pr reopen': 'repoEditPullRequest',
-  'pr comment': 'issueCreateComment', 'pr update-branch': 'repoUpdatePullRequest', 'pr merge': 'repoMergePullRequest',
-  'issue create': 'issueCreateIssue', 'issue close': 'issueEditIssue', 'issue reopen': 'issueEditIssue',
-  'issue comment': 'issueCreateComment', 'issue delete': 'issueDelete', 'issue pin': 'pinIssue', 'issue unpin': 'unpinIssue',
-  'label create': 'issueCreateLabel', 'label edit': 'issueEditLabel', 'label delete': 'issueDeleteLabel',
-}
-
-function authorizeOperation(command: string, settings: Record<string, unknown>, args?: readonly string[], input?: RunnerInput) {
-  const call = args && giteaArguments(args, input)
-  const operations = args ? call && 'operations' in call && call.operations || [] : [discoveryOperations[command]].filter(Boolean)
+function authorizeOperation(_command: string, settings: Record<string, unknown>, args?: readonly string[], input?: RunnerInput) {
+  if (!args) throw new ArtiumError('FLAG_BLOCKED')
+  const call = giteaArguments(args, input)
+  const operations = 'operations' in call && call.operations || []
   if (!operations.length) throw new ArtiumError('FLAG_BLOCKED')
   for (const operation of operations) giteaWritePolicy.authorize(settings, allowed => allowed === operation)
 }
