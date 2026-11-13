@@ -17,7 +17,7 @@ function verificationCode(error: unknown): string {
   return typeof code === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(code) ? code : 'CONNECTION_FAILED'
 }
 
-type NativeTls = { connectAddress?: string, serverName?: string, peerFingerprintSha256?: string,
+type NativeTls = { connectAddress?: string, serverName?: string, peerFingerprintSha256?: string, enforcePin?: boolean,
   certificatePin?: { sha256: string, origin: string, replaceHostname?: boolean } }
 
 // The handshake sends no application data or credentials. Each stage has a deadline.
@@ -61,7 +61,7 @@ Promise<{ chain: X509Certificate[], verificationError?: string }> {
   // Node verifies chain and hostname even with rejectUnauthorized=false. Retain the
   // peer certificate for the diagnostic, then require authorized before success.
   // No application bytes or credentials are sent on this socket.
-  const secure = connectTls({ ...credentialTlsOptions(trust, ca), socket, host,
+  const secure = connectTls({ ...credentialTlsOptions(trust, ca, native.enforcePin), socket, host,
     servername: native.serverName ?? (isIP(host) ? undefined : host), rejectUnauthorized: false, ...(maxVersion ? { maxVersion } : {}) })
   try {
     await new Promise<void>((resolve, reject) => {
@@ -128,7 +128,8 @@ export async function preflight(tool: ToolName, credential: Record<string, unkno
   }
   const tls = tool === 'unifi-axi' ? credential.tls as NativeTls & { trustedCertificatePem?: string } | undefined : undefined
   const native: NativeTls = tool === 'proxmox-axi' ? { certificatePin: credential.certificatePin as NativeTls['certificatePin'] }
-    : ['technitium-axi', 'kubernetes-axi'].includes(tool) ? { serverName: credential.tlsServerName as string | undefined } : tls ?? {}
+    : ['technitium-axi', 'kubernetes-axi'].includes(tool) ? { serverName: credential.tlsServerName as string | undefined,
+      enforcePin: tool === 'kubernetes-axi' && Boolean(credential.tlsServerName) } : tls ?? {}
   const ca = credential.caBundle ?? credential.caFile ?? credential.certificateAuthority
     ?? tls?.trustedCertificatePem
   for (const endpoint of toolEndpoints(tool, credential)) {

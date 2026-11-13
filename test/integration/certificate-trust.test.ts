@@ -262,6 +262,17 @@ test('Kubernetes can pin an endpoint while retaining its issuing CA (#276)', asy
   await expect(preflight('kubernetes-axi', value, readCredentialTrust(db, reference))).resolves.toBeUndefined()
   serve('rotated', true)
   await expect(preflight('kubernetes-axi', value, readCredentialTrust(db, reference))).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  const rotated = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  const replacement = await app.inject({ method: 'POST', url: url + '/trust', headers, payload: {
+    inspectionId: rotated.json().inspectionId, confirmedFingerprint: rotated.json().chain[0].fingerprint, mode: 'pin', replace: true,
+  } })
+  expect(replacement.statusCode, replacement.body).toBe(200)
+  expect(store.readCredential(store.findInstance('kubernetes-axi', 'synthetic')!)).toEqual(value)
+  await expect(preflight('kubernetes-axi', value, readCredentialTrust(db, reference))).resolves.toBeUndefined()
+  const pin = (await app.inject({ method: 'GET', url, headers })).json().certificates[0]
+  expect((await app.inject({ method: 'DELETE', url, headers, payload: { id: pin.id } })).statusCode).toBe(200)
+  const { tlsServerName: _name, ...withoutName } = value
+  await expect(preflight('kubernetes-axi', { ...withoutName, origin: endpoint }, [])).resolves.toBeUndefined()
 })
 
 test('Technitium keeps a DNS connection address when saving the certificate name', async () => {

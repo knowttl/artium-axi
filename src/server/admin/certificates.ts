@@ -58,7 +58,8 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       if (!replace && !pinRequired && (existing.length || saved.pem || saved.fingerprint)) throw new ArtiumError('INVALID_INPUT', 'Existing trust must be replaced explicitly.')
       if (replace && existingMode !== mode) throw new ArtiumError('INVALID_INPUT', 'Certificate trust must retain the existing trust mode.')
       if (replace && mode === 'ca' && (!caVerified || !saved.fingerprint)) throw new ArtiumError('INVALID_INPUT', 'The issuing CA changed; update the CA manually.')
-      if (!pinRequired && (!replace && fillFields || replace && (mode === 'ca' ? saved.fingerprint : saved.pem || saved.fingerprint))) {
+      if (!(reference.tool === 'kubernetes-axi' && mode === 'pin' && saved.isCa)
+        && (!replace && fillFields || replace && (mode === 'ca' ? saved.fingerprint : saved.pem || saved.fingerprint))) {
         const next = certificateTrustFields(reference.tool, value, mode === 'pin' ? inspection.leafPem : inspection.pem,
           inspection.chain[0].fingerprint, mode, replace)
         const credentialValue = Object.fromEntries(Object.entries(next).filter(([key]) => !Object.hasOwn(nativeSettingsSchemas[reference.tool].shape, key)))

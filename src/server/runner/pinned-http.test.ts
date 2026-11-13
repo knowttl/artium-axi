@@ -318,6 +318,8 @@ async function kubernetesCall(runner: Runner, args: string[], saved = trust(), t
 }
 
 kubectlTest.each([
+  { scenario: 'managed mixed trust and correct pin', certificate: 'leaf', pin: 'leaf', client: 'client', success: true, tlsServerName: 'localhost', mixed: true },
+  { scenario: 'managed mixed trust and wrong pin', certificate: 'rotated', pin: 'leaf', client: 'client', success: false, tlsServerName: 'localhost', mixed: true },
   { scenario: 'managed name and correct pin', certificate: 'mismatch', pin: 'mismatch', client: 'client', success: true, tlsServerName: 'other.synthetic.test' },
   { scenario: 'managed wrong name', certificate: 'leaf', pin: 'leaf', client: 'client', success: false, tlsServerName: 'wrong.synthetic.test' },
   { scenario: 'managed name and wrong pin', certificate: 'mismatch', pin: 'leaf', client: 'client', success: false, tlsServerName: 'other.synthetic.test' },
@@ -332,7 +334,7 @@ kubectlTest.each([
   { ...scenario, args: ['version'], requests: 1, auth: 'token' },
   { ...scenario, args: ['native', '--', 'get', '--raw=/version'], requests: 2, auth: 'token' },
 ].filter(row => row.auth === 'certificate' || row.scenario !== 'wrong client certificate')
-))('managed $auth $args with $scenario enforces exact pins (#276)', async ({ certificate, pin, client, success, args, requests, auth, tlsServerName }) => {
+))('managed $auth $args with $scenario enforces exact pins (#276)', async ({ certificate, pin, client, success, args, requests, auth, tlsServerName, ...scenario }) => {
   const received: string[] = []
   const mutual = createServer({ requestCert: auth === 'certificate', rejectUnauthorized: true, ca: pem('ca'),
     key: readFileSync(join(directory, 'server.key')), cert: pem(certificate) + pem('intermediate') }, (incoming, response) => {
@@ -345,8 +347,14 @@ kubectlTest.each([
   await once(mutual, 'listening')
   const origin = `https://localhost:${(mutual.address() as { port: number }).port}`
   const saved = [{ ...trust()[0], endpoint: origin, pem: pem('ca'), leafFingerprint: new X509Certificate(pem(pin)).fingerprint256 }]
+  if ('mixed' in scenario && scenario.mixed) saved.push({ ...saved[0]!, mode: 'ca' })
   const runner = await Runner.create(join(directory, 'calls'))
   try {
+    if ('mixed' in scenario && scenario.mixed && auth === 'token') {
+      const check = preflight('kubernetes-axi', { origin, tlsServerName, certificateAuthority: pem('ca') }, saved)
+      if (success) await expect(check).resolves.toBeUndefined()
+      else await expect(check).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+    }
     const result = await kubernetesCall(runner, args, saved, undefined, undefined, {
       origin, ...(tlsServerName ? { tlsServerName } : {}), ...(auth === 'certificate'
         ? { auth, clientCertificate: client === 'client' ? storedIdentity.certificate : pem(client),
