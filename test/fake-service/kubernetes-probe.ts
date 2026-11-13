@@ -69,7 +69,7 @@ await withFakeService(async ({ directory, port, send }) => {
     const document = decode(rewriteSuggestions(help.json().stdout, 'kubernetes-axi', false, { command: 'native --', help: true })) as { flags: Record<string, unknown>, help: string[] }
     assert.ok(Object.hasOwn(document.flags, 'selector'))
     assert.equal(Object.hasOwn(document.flags, 'server'), false)
-    assert.ok(document.help.some(line => line.includes('saved strict leaf pins are unavailable')))
+    assert.ok(document.help.some(line => line.includes('Static token reads and mutation workflows also support saved strict leaf pins; client certificates and hosted byte sessions require issuing CA trust.')))
     const evidence = async () => JSON.parse(await send('/__evidence')) as { requests: Array<{ path: string, method: string, canaryReceived: boolean }> }
     const before = (await evidence()).requests.length
     for (const args of [['native', '--', 'delete', 'pod', 'synthetic-pod'], ['get', 'pods', '--token=CANARY-forbidden'], ['get', 'pods', '--watch']]) {
@@ -79,7 +79,9 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.equal((await evidence()).requests.length, before)
     db.prepare("UPDATE trusted_certificates SET mode = 'pin'").run()
     const pinned = await invoke(['get', 'pods'])
-    assert.ok(pinned.statusCode >= 400, pinned.body)
+    assert.equal(pinned.statusCode, 200, pinned.body)
+    assert.equal(pinned.json().exitCode, 1, pinned.body)
+    assert.match(pinned.json().stderr, /CERTIFICATE_PIN_MISMATCH/)
     assert.equal((await evidence()).requests.length, before)
     db.prepare("UPDATE trusted_certificates SET mode = 'ca'").run()
     db.prepare("UPDATE trusted_certificates SET endpoint = 'https://other.example/'").run()

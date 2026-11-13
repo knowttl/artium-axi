@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { decode, encode } from '@toon-format/toon'
@@ -118,6 +119,17 @@ test.each([
     environment: { KUBERNETES_AXI_READ_ONLY: readOnly } })
   expect(JSON.parse(String(prepared.files[0].content)).profiles.artium).toEqual({
     ...credential, token: { env: 'ARTIUM_SECRET_0' } })
+})
+
+test('Kubernetes managed native help describes supported strict leaf pins', async () => {
+  const call = await adapter.prepare(['native', '--', 'get', '--help'], reference)
+  const stdout = execFileSync(process.execPath, call.args, { encoding: 'utf8' })
+  const result = hostedStatus('kubernetes-axi', call.invocation, { stdout, stderr: '', exitCode: 0,
+    durationMs: 1, outputBytes: { stdout: Buffer.byteLength(stdout), stderr: 0 }, timedOut: false,
+    truncated: { stdout: false, stderr: false } })
+  const document = decode(rewriteSuggestions(result.stdout, 'kubernetes-axi', false,
+    { command: 'native --', help: true })) as { help: string[] }
+  expect(document.help.join('\n')).toContain('Static token reads and mutation workflows also support saved strict leaf pins; client certificates and hosted byte sessions require issuing CA trust.')
 })
 
 test('Kubernetes native resource data with help-shaped fields is preserved byte for byte', () => {
