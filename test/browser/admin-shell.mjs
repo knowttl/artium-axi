@@ -1121,6 +1121,28 @@ for (const tool of ['technitium-axi', 'unifi-axi']) for (const edited of [false,
   assert.equal(tool === 'unifi-axi' ? stored.tls?.connectAddress : stored.tlsServerName, edited ? (tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example') : undefined)
 })
 
+for (const field of ['certificate', 'fingerprint']) test('UniFi ' + field + ' replacement requires both trust values', async () => {
+  const certificate = fixture.certificatePem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/)[0]
+  const fingerprint = new X509Certificate(certificate).fingerprint256.replaceAll(':', '')
+  const tls = { trustedCertificatePem: certificate, peerFingerprintSha256: fingerprint }
+  browser(`
+    await createInstance('unifi-axi', ${JSON.stringify({ origin: 'https://controller.example', apiKey: 'CANARY-key', tls })});
+    await page.click('[data-save-and-test]');
+    await page.click('details:has([data-profile-field="tls.trustedCertificatePem"]) summary');
+    await page.fill('[data-profile-field="${field === 'certificate' ? 'tls.trustedCertificatePem' : 'tls.peerFingerprintSha256'}"]', ${JSON.stringify(field === 'certificate' ? certificate : fingerprint)});
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#message:not(:empty)');
+    check(await page.eval(() => document.querySelector('#message').textContent.includes('Enter the trusted certificate and SHA-256 fingerprint together.')), 'Missing paired trust error');
+    await page.fill('[data-profile-field="${field === 'certificate' ? 'tls.peerFingerprintSha256' : 'tls.trustedCertificatePem'}"]', ${JSON.stringify(field === 'certificate' ? fingerprint : certificate)});
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
+  `)
+  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/unifi-axi'))).json()
+  assert.deepEqual(stored.tls, tls)
+})
+
 for (const tool of ['az-axi', 'mg-axi']) test(tool + ' certificate PEM calculates the fingerprint and saves the matching key', async () => {
   browser(`
     await addInstance('${tool}');

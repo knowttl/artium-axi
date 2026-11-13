@@ -1250,6 +1250,24 @@ test('UniFi structured address changes retain certificate and fingerprint and al
   expect(store.readCredential(store.findCredential('unifi-axi')!)).toEqual({ ...values['unifi-axi'], tls })
 })
 
+test.each(['certificate', 'fingerprint', 'both'] as const)('UniFi %s replacement requires the complete trust pair', async supplied => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('unifi-axi')
+  createTestCertificates(directory, ['localhost'])
+  const original = readFileSync(join(directory, 'ca.crt'), 'utf8')
+  const certificate = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const tls = { trustedCertificatePem: original, peerFingerprintSha256: new X509Certificate(original).fingerprint256.replaceAll(':', ''), connectAddress: '127.0.0.1' }
+  const replacement = { ...(supplied !== 'fingerprint' ? { trustedCertificatePem: certificate } : {}),
+    ...(supplied !== 'certificate' ? { peerFingerprintSha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', '') } : {}) }
+  await replace('unifi-axi', { ...values['unifi-axi'], tls })
+  const response = await save('unifi-axi', { ...values['unifi-axi'], tls: replacement }, 1)
+  if (supplied === 'both') expect(response.status).toBe(200)
+  else {
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ error: { code: 'INVALID_INPUT', message: 'Enter the trusted certificate and SHA-256 fingerprint together.' } })
+  }
+  expect(store.readCredential(store.findCredential('unifi-axi')!)).toEqual({ ...values['unifi-axi'], tls: supplied === 'both' ? { ...tls, ...replacement } : tls })
+})
+
 test.each(['kubernetes-axi', 'unifi-axi'] as const)('%s saves replacement certificate trust', async tool => {
   db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run(tool)
   createTestCertificates(directory, ['localhost'])

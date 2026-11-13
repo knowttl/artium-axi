@@ -1,4 +1,5 @@
 import type { ToolName } from './store/credential-store.js'
+import { ArtiumError } from '../shared/errors.js'
 
 type TlsSettings = { certificate?: string, fingerprint?: string, pin?: string, connectAddress?: string, serverName?: string }
 
@@ -26,6 +27,11 @@ export function tlsCredentialRoots(tool: ToolName): string[] {
 
 export function retainCredentialTls(tool: ToolName, stored: Record<string, unknown>, value: Record<string, unknown>): Record<string, unknown> {
   const next = { ...value }
+  if (tool === 'unifi-axi' && value.tls && typeof value.tls === 'object' && !Array.isArray(value.tls)) {
+    if (Object.hasOwn(value.tls, 'trustedCertificatePem') !== Object.hasOwn(value.tls, 'peerFingerprintSha256')) {
+      throw new ArtiumError('INVALID_INPUT', 'Enter the trusted certificate and SHA-256 fingerprint together.')
+    }
+  }
   if (stored.origin === value.origin && stored.url === value.url) {
     for (const root of tlsCredentialRoots(tool)) if (!Object.hasOwn(next, root) && Object.hasOwn(stored, root)) next[root] = stored[root]
     if (tool === 'unifi-axi' && value.tls && typeof value.tls === 'object' && !Array.isArray(value.tls)) {
