@@ -106,6 +106,7 @@ for (const editor of document.querySelectorAll('[data-credential-editor]')) {
       !inputs.some(input => ['thumbprint', 'thumbprintSha256'].includes(input.dataset.profileField));
     const combined = !certificate.hidden && editor.querySelector('[data-certificate-pem]').value !== '';
     for (const input of inputs) {
+      if (input.hasAttribute('data-tls-input')) continue;
       const key = input.dataset.profileField;
       const wrapper = input.closest('[data-credential-field]');
       wrapper.hidden = forbidden.has(key);
@@ -118,6 +119,11 @@ for (const editor of document.querySelectorAll('[data-credential-editor]')) {
   }
   editor.addEventListener('input', update);
   editor.addEventListener('change', update);
+  for (const upload of editor.querySelectorAll('[data-tls-file]')) upload.addEventListener('change', async () => {
+    if (!upload.files[0]) return;
+    editor.querySelector('[data-profile-field="' + upload.dataset.tlsFile + '"]').value = await upload.files[0].text();
+    update();
+  });
   editor.querySelector('[data-certificate-file]').addEventListener('change', async event => {
     const file = event.target.files[0];
     if (!file) return;
@@ -586,8 +592,13 @@ document.addEventListener('submit', async event => {
       body.value = Object.create(null);
       for (const input of profileFields) {
         delete body[input.name];
-        if (input.disabled || input.value === '') continue;
-        try { body.value[input.dataset.profileField] = input.dataset.profileType === 'list' ? input.value.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean) : input.dataset.profileType === 'json' ? JSON.parse(input.value) : input.value; }
+        if (input.disabled || input.value === '' && !input.hasAttribute('data-profile-clearable')) continue;
+        try {
+          const path = input.hasAttribute('data-tls-input') ? input.dataset.profileField.split('.') : [input.dataset.profileField];
+          const key = path.pop();
+          const parent = path.reduce((value, name) => value[name] ??= Object.create(null), body.value);
+          parent[key] = input.value === '' ? null : input.dataset.profileType === 'list' ? input.value.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean) : input.dataset.profileType === 'json' ? JSON.parse(input.value) : input.value;
+        }
         catch { message.textContent = 'Enter valid JSON in ' + input.dataset.profileField + '.'; message.focus(); return; }
       }
       const certificate = form.querySelector('[data-certificate]:not([hidden]) [data-certificate-pem]');

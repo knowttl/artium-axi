@@ -15,7 +15,7 @@ import { createAdoAdapter } from '../../src/server/adapters/ado.js'
 import { createGhAdapter } from '../../src/server/adapters/gh.js'
 import { GithubAppTokenCache } from '../../src/server/adapters/github-app-tokens.js'
 import * as credentialTls from '../../src/server/credential-tls.js'
-import { generateKeyPairSync } from 'node:crypto'
+import { generateKeyPairSync, X509Certificate } from 'node:crypto'
 import { connect as connectTls } from 'node:tls'
 import { failedTlsSocket } from '../fixtures/failed-tls-socket.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
@@ -1185,6 +1185,58 @@ test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi'] as const)('%s save re
   expect(store.readCredential(store.findCredential(tool)!)).toEqual(current)
   expect(db.prepare("SELECT action, user_id FROM audit WHERE event = 'admin-change' ORDER BY id DESC LIMIT 1").get())
     .toEqual({ action: 'replace-credential', user_id: actor })
+})
+
+test.each([
+  ['ldap-axi', 'caFile'], ['vectra-axi', 'caBundle'], ['proxmox-axi', 'caBundle'],
+  ['technitium-axi', 'caFile'], ['kubernetes-axi', 'certificateAuthority'],
+] as const)('%s save keeps omitted certificate trust when editing other fields', async (tool, field) => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run(tool)
+  createTestCertificates(directory, ['localhost'])
+  const trust = { [field]: readFileSync(join(directory, 'ca.crt'), 'utf8') }
+  const configured: Record<string, unknown> = { ...values[tool], ...trust }
+  const { [field]: _certificate, ...value } = configured
+  const { writes: _writes, ...editable } = value
+  await replace(tool, { ...value, ...trust })
+  expect((await save(tool, editable, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual({ ...value, ...trust })
+})
+
+test('UniFi structured address changes retain certificate and fingerprint and allow clearing the override', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('unifi-axi')
+  createTestCertificates(directory, ['localhost'])
+  const certificate = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const tls = { trustedCertificatePem: certificate, peerFingerprintSha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', '') }
+  await replace('unifi-axi', { ...values['unifi-axi'], tls })
+  expect((await save('unifi-axi', { ...values['unifi-axi'], tls: { connectAddress: '127.0.0.1' } }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('unifi-axi')!)).toEqual({ ...values['unifi-axi'], tls: { ...tls, connectAddress: '127.0.0.1' } })
+  expect((await save('unifi-axi', { ...values['unifi-axi'], tls: { connectAddress: null } }, 2)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('unifi-axi')!)).toEqual({ ...values['unifi-axi'], tls })
+})
+
+test('save does not carry certificate trust to a different endpoint', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('technitium-axi')
+  await replace('technitium-axi', { ...values['technitium-axi'], caFile: 'CANARY-ca', tlsServerName: 'localhost' })
+  const changed = { ...values['technitium-axi'], origin: 'https://other.example' }
+  expect((await save('technitium-axi', changed, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('technitium-axi')!)).toEqual(changed)
+})
+
+test('Proxmox save preserves an omitted legacy certificate pin', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('proxmox-axi')
+  createTestCertificates(directory, ['localhost'])
+  const certificatePin = { origin: values['proxmox-axi'].origin,
+    sha256: new X509Certificate(readFileSync(join(directory, 'server.crt'))).fingerprint256.replaceAll(':', '') }
+  await replace('proxmox-axi', { ...values['proxmox-axi'], certificatePin })
+  expect((await save('proxmox-axi', { ...values['proxmox-axi'] }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('proxmox-axi')!)).toEqual({ ...values['proxmox-axi'], certificatePin })
+})
+
+test('Technitium certificate name can be cleared without removing its saved CA', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('technitium-axi')
+  await replace('technitium-axi', { ...values['technitium-axi'], caFile: 'CANARY-ca', tlsServerName: 'localhost' })
+  expect((await save('technitium-axi', { ...values['technitium-axi'], tlsServerName: null }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential('technitium-axi')!)).toEqual({ ...values['technitium-axi'], caFile: 'CANARY-ca' })
 })
 
 test('save can configure credentials without repeating separately saved settings', async () => {

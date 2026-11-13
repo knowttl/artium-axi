@@ -1069,22 +1069,18 @@ test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalizatio
 })
 }
 
-test('LDAP CA PEM and multi-line secret keep exact newlines from browser to stored credential and delivered files', async () => {
+test('LDAP saved CA PEM survives browser edits and multi-line secrets reach delivered files unchanged', async () => {
   const pem = '-----BEGIN CERTIFICATE-----\nCANARY-first-line\nCANARY-second-line\n-----END CERTIFICATE-----\n'
   const password = 'CANARY-first-line\nCANARY-second-line\n'
   browser(`
-    await addInstance('ldap-axi');
-    await page.fill('[data-profile-field=url]', 'ldaps://directory.example');
-    await page.eval(() => { const auth = document.querySelector('[data-profile-field=auth]'); auth.value = '"simple"'; auth.dispatchEvent(new Event('change', { bubbles: true })); });
-    await page.fill('[data-profile-field=bindDn]', 'cn=reader,dc=example');
+    await createInstance('ldap-axi', { url: 'ldaps://directory.example', auth: 'simple', bindDn: 'cn=reader,dc=example', bindPassword: 'CANARY-original', caFile: ${JSON.stringify(pem)} });
     await page.fill('textarea[data-profile-field=bindPassword]', ${JSON.stringify(password)});
-    await page.fill('textarea[data-profile-field=caFile]', ${JSON.stringify(pem)});
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'LDAP test failed: ' + await page.eval(() => document.querySelector('[data-test-result]').textContent));
     await openInstance('ldap-axi');
-    check(await page.eval(() => document.querySelector('[data-profile-field=caFile]').value) === ${JSON.stringify(pem)}, 'PEM was not pre-filled exactly');
+    check(await page.eval(() => !document.querySelector('[data-profile-field=caFile]') && document.querySelector('fieldset pre').textContent === ${JSON.stringify(pem)}), 'Saved PEM was not displayed read-only exactly');
   `)
   const { stored, delivered } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/ldap-axi'))).json()
   assert.equal(stored.caFile, pem)
