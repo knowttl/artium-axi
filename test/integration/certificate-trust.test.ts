@@ -254,13 +254,15 @@ test('renaming an endpoint preserves its certificate pin', async () => {
   const origin = endpoint.replace('localhost', '127.0.0.1')
   const value = { origin, apiKey: 'CANARY-never-sent', tls: { trustedCertificatePem: pem('ca'),
     peerFingerprintSha256: new X509Certificate(pem('leaf')).fingerprint256.replaceAll(':', '') } }
-  store.createInstance('unifi-axi', { name: 'synthetic', description: '' }, value, 'synthetic-development-user', Date.now())
+  store.createInstance('unifi-axi', { name: 'synthetic', description: '' }, { origin, apiKey: value.apiKey }, 'synthetic-development-user', Date.now())
   const url = '/v1/admin/tools/unifi-axi/instances/synthetic/certificates'
   const inspection = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
   expect(inspection.statusCode, inspection.body).toBe(200)
   const trusted = await app.inject({ method: 'POST', url: url + '/trust', headers,
     payload: { inspectionId: inspection.json().inspectionId, confirmedFingerprint: inspection.json().chain[0].fingerprint, mode: 'pin' } })
   expect(trusted.statusCode, trusted.body).toBe(200)
+  const initial = store.findInstance('unifi-axi', 'synthetic')!
+  store.replaceInstance('unifi-axi', 'synthetic', value, initial.id, initial.revision!, 'synthetic-development-user', Date.now())
   const renamedInspection = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
   const saved = await app.inject({ method: 'POST', url: url + '/use-name', headers,
     payload: { inspectionId: renamedInspection.json().inspectionId } })
@@ -280,10 +282,13 @@ test('renaming refuses conflicting endpoint trust without changing either endpoi
   const origin = endpoint.replace('localhost', '127.0.0.1')
   const value = { origin, apiKey: 'CANARY-never-sent', tls: { trustedCertificatePem: pem('self-signed'),
     peerFingerprintSha256: new X509Certificate(pem('self-signed')).fingerprint256.replaceAll(':', '') } }
-  store.createInstance('unifi-axi', { name: 'synthetic', description: '' }, value, 'synthetic-development-user', Date.now())
+  store.createInstance('unifi-axi', { name: 'synthetic', description: '' }, { origin, apiKey: value.apiKey }, 'synthetic-development-user', Date.now())
   const url = '/v1/admin/tools/unifi-axi/instances/synthetic/certificates'
   const inspection = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
-  await app.inject({ method: 'POST', url: url + '/trust', headers, payload: { inspectionId: inspection.json().inspectionId, confirmedFingerprint: inspection.json().chain[0].fingerprint, mode: 'pin' } })
+  const trusted = await app.inject({ method: 'POST', url: url + '/trust', headers, payload: { inspectionId: inspection.json().inspectionId, confirmedFingerprint: inspection.json().chain[0].fingerprint, mode: 'pin' } })
+  expect(trusted.statusCode, trusted.body).toBe(200)
+  const initial = store.findInstance('unifi-axi', 'synthetic')!
+  store.replaceInstance('unifi-axi', 'synthetic', value, initial.id, initial.revision!, 'synthetic-development-user', Date.now())
   db.prepare(`INSERT INTO trusted_certificates SELECT 'destination', credential_id, ?, fingerprint, leaf_fingerprint,
     pem, leaf_pem, mode, created_at, created_by FROM trusted_certificates WHERE credential_id = ?`)
     .run(endpoint + '/', store.findInstance('unifi-axi', 'synthetic')!.id)
@@ -500,14 +505,14 @@ test.each([
     inspectionId: inspection.inspectionId, confirmedFingerprint: inspection.chain[0].fingerprint, mode: tool === 'kubernetes-axi' ? 'ca' : 'pin', fillFields: true,
   } })
   expect(saved.statusCode).toBe(400)
-  expect(saved.json().error.message).toContain('must be replaced manually')
+  expect(saved.json().error.code).toBe('INVALID_INPUT')
   expect(store.readCredential(reference)).toEqual(value)
   expect(readCredentialTrust(db, reference)).toEqual([])
 })
 
 test('Kubernetes certificate administration refuses leaf pins and accepts an issuing CA without sending credentials', async () => {
   serve('leaf', true)
-  store.replaceCredential('kubernetes-axi', { origin: endpoint, auth: 'token', certificateAuthority: 'no native trust',
+  store.replaceCredential('kubernetes-axi', { origin: endpoint, auth: 'token',
     token: 'CANARY-never-sent' }, 0, 'synthetic-development-user', Date.now())
   const url = '/v1/admin/tools/kubernetes-axi/certificates'
   const inspect = () => app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
@@ -645,7 +650,7 @@ test('a non-self-signed leaf without an obtainable issuer requires explicit pinn
   expect((await runtimeCall('node')).exitCode).toBe(0)
 })
 
-test.each(['node', 'python'] as const)('%s requires confirmation of a missing intermediate below a confirmed root', async runtime => {
+test.each(['node', 'python'] as const)('%s refuses an unconfirmed intermediate below a confirmed root', async runtime => {
   serve('server', true)
   const original = await inspect()
   expect((await request('POST', '/trust', { inspectionId: original.inspectionId, confirmedFingerprint: original.chain[0].fingerprint })).statusCode).toBe(200)
@@ -657,9 +662,8 @@ test.each(['node', 'python'] as const)('%s requires confirmation of a missing in
   expect((await request('GET')).json().certificates).toEqual(saved)
   expect((await runtimeCall(runtime)).exitCode).not.toBe(0)
   expect(bytes).toBe(0)
-  expect((await request('POST', '/trust', { inspectionId: result.inspectionId, confirmedFingerprint: result.chain[0].fingerprint })).statusCode).toBe(200)
-  const passed = await runtimeCall(runtime)
-  expect(passed.exitCode, passed.stdout + passed.stderr).toBe(0)
+  expect((await request('POST', '/trust', { inspectionId: result.inspectionId, confirmedFingerprint: result.chain[0].fingerprint })).statusCode).toBe(400)
+  expect((await request('GET')).json().certificates).toEqual(saved)
 })
 
 test.each([
@@ -692,16 +696,16 @@ test.each([
 test.each([
   { mode: 'pin', certificate: 'rotated', chain: 'intermediate' },
   { mode: 'ca', certificate: 'other-ca-leaf', chain: 'other-ca' },
-] as const)('a second $mode confirmation keeps the first certificate trusted', async ({ mode, certificate, chain }) => {
+] as const)('initial trust refuses a second $mode certificate', async ({ mode, certificate, chain }) => {
   serve('leaf', true)
   const first = await inspect()
   expect((await request('POST', '/trust', { inspectionId: first.inspectionId, confirmedFingerprint: first.chain[0].fingerprint, mode })).statusCode).toBe(200)
   tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem(certificate) + pem(chain) })
   const second = await inspect()
-  expect((await request('POST', '/trust', { inspectionId: second.inspectionId, confirmedFingerprint: second.chain[0].fingerprint, mode })).statusCode).toBe(200)
+  expect((await request('POST', '/trust', { inspectionId: second.inspectionId, confirmedFingerprint: second.chain[0].fingerprint, mode })).statusCode).toBe(400)
   expect((await request('GET')).json().certificates.map((item: { leaf: { fingerprint: string } }) => item.leaf.fingerprint).sort())
-    .toEqual([first.chain[0].fingerprint, second.chain[0].fingerprint].sort())
-  expect((await runtimeCall('node')).exitCode).toBe(0)
+    .toEqual([first.chain[0].fingerprint])
+  expect((await runtimeCall('node')).exitCode).not.toBe(0)
   serve('leaf', true)
   expect((await runtimeCall('node')).exitCode).toBe(0)
   expect((await runtimeCall('python')).exitCode).toBe(0)
@@ -709,17 +713,16 @@ test.each([
 
 test.each([
   { first: 'pin', second: 'ca' }, { first: 'ca', second: 'pin' },
-] as const)('switching from $first to $second replaces the other mode', async ({ first, second }) => {
+] as const)('switching from $first to $second is refused', async ({ first, second }) => {
   serve('leaf', true)
   const original = await inspect()
   await request('POST', '/trust', { inspectionId: original.inspectionId, confirmedFingerprint: original.chain[0].fingerprint, mode: first })
   serve('rotated', true)
   const rotated = await inspect()
-  expect((await request('POST', '/trust', { inspectionId: rotated.inspectionId, confirmedFingerprint: rotated.chain[0].fingerprint, mode: second })).statusCode).toBe(200)
+  expect((await request('POST', '/trust', { inspectionId: rotated.inspectionId, confirmedFingerprint: rotated.chain[0].fingerprint, mode: second })).statusCode).toBe(400)
   const listed = (await request('GET')).json().certificates
   expect(listed).toHaveLength(1)
-  expect(listed[0]).toMatchObject({ mode: second, leaf: { fingerprint: rotated.chain[0].fingerprint } })
-  expect((await runtimeCall('node')).exitCode).toBe(0)
+  expect(listed[0]).toMatchObject({ mode: first, leaf: { fingerprint: original.chain[0].fingerprint } })
 })
 
 test.each(['node', 'python'] as const)('%s accepts a renewed leaf under the default trusted CA', async runtime => {
@@ -780,7 +783,9 @@ test('legacy pins migrate once with accurate audit reasons for every retained pi
   await request('POST', '/trust', { inspectionId: selfSigned.inspectionId, confirmedFingerprint: selfSigned.chain[0].fingerprint })
   serve('leaf', true)
   const ca = await inspect()
-  await request('POST', '/trust', { inspectionId: ca.inspectionId, confirmedFingerprint: ca.chain[0].fingerprint, mode: 'pin' })
+  db.prepare(`INSERT INTO trusted_certificates
+    SELECT 'synthetic-legacy-ca-pin', credential_id, endpoint, ?, ?, ?, ?, 'pin', created_at, created_by FROM trusted_certificates LIMIT 1`)
+    .run(ca.anchor.fingerprint, ca.chain[0].fingerprint, pem('intermediate'), pem('leaf'))
   db.prepare(`INSERT INTO trusted_certificates
     SELECT 'synthetic-no-issuer-pin', credential_id, endpoint, ?, ?, ?, ?, 'pin', created_at, created_by FROM trusted_certificates LIMIT 1`)
     .run(new X509Certificate(pem('root-issued')).fingerprint256, new X509Certificate(pem('root-issued')).fingerprint256,
