@@ -24,7 +24,7 @@ export const tlsFieldDefinitions = {
   fingerprint: { label: 'SHA-256 fingerprint', help: 'Enter the 64 hexadecimal characters shown by the appliance. Compare through an independent trusted route.' },
 }
 
-export function savedCertificateTrust(tool: ToolName, value: Record<string, unknown>) {
+export function savedCertificateTrust(tool: ToolName, value: Record<string, unknown>, leafPem?: string) {
   const settings = credentialTlsSettings[tool]
   const read = (path?: string) => path?.split('.').reduce<any>((parent, key) => parent?.[key], value)
   const pem = read(settings.certificate) as string | undefined
@@ -33,7 +33,9 @@ export function savedCertificateTrust(tool: ToolName, value: Record<string, unkn
   if (pem) {
     try { certificate = new X509Certificate(pem) } catch { certificate = undefined }
   }
-  const mode: 'pin' | 'ca' | null = fingerprint ? 'pin' : certificate ? certificate.ca ? 'ca' : 'pin' : null
+  const leaf = leafPem ? new X509Certificate(leafPem) : undefined
+  const issuer = certificate && leaf && leaf.fingerprint256 !== certificate.fingerprint256 && leaf.checkIssued(certificate) && leaf.verify(certificate.publicKey)
+  const mode: 'pin' | 'ca' | null = certificate ? certificate.ca || issuer ? 'ca' : 'pin' : null
   return { pem, fingerprint, certificate, mode }
 }
 

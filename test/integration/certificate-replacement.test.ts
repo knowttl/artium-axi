@@ -71,7 +71,7 @@ afterAll(async () => {
 test.each([
   ['unifi-axi', () => ({ origin: endpoint, apiKey: 'CANARY-key', tls: { trustedCertificatePem: pem('leaf'), peerFingerprintSha256: fingerprint('leaf') } })],
   ['proxmox-axi', () => ({ origin: endpoint, auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token',
-    caBundle: pem('ca'), certificatePin: { origin: endpoint, sha256: fingerprint('leaf'), replaceHostname: true } })],
+    caBundle: pem('leaf'), certificatePin: { origin: endpoint, sha256: fingerprint('leaf'), replaceHostname: true } })],
   ['technitium-axi', () => ({ origin: endpoint, auth: 'token', tokenKind: 'api', token: 'CANARY-token', caFile: pem('leaf') })],
   ['ldap-axi', () => ({ url: endpoint.replace('https:', 'ldaps:'), auth: 'simple', bindDn: 'cn=reader,dc=synthetic,dc=test', password: 'CANARY-password', caFile: pem('leaf') })],
   ['vectra-axi', () => ({ kind: 'qux', apiVersion: '2.5', origin: endpoint, auth: 'token', token: 'CANARY-token', caBundle: pem('leaf') })],
@@ -134,6 +134,38 @@ test('Kubernetes replaces its shared CA while retaining CA trust', async () => {
   expect(store.readCredential(reference)).toMatchObject({ certificateAuthority: pem('intermediate') })
   serve('rotated')
   await expect(preflight('kubernetes-axi', store.readCredential(reference) as Record<string, unknown>, readCredentialTrust(db, reference))).resolves.toBeUndefined()
+})
+
+test.each([
+  ['unifi-axi', () => ({ origin: endpoint, apiKey: 'CANARY-key', tls: { trustedCertificatePem: pem('ca'), peerFingerprintSha256: fingerprint('leaf') } })],
+  ['proxmox-axi', () => ({ origin: endpoint, auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token', caBundle: pem('ca'), certificatePin: { origin: endpoint, sha256: fingerprint('leaf'), replaceHostname: true } })],
+] as const)('%s retains manually configured CA with a paired fingerprint on renewal', async (tool, value) => {
+  store.createInstance(tool, { name: 'rotation', description: '' }, value(), 'synthetic-development-user', Date.now())
+  const base = `/v1/admin/tools/${tool}/instances/rotation/certificates`
+  serve('rotated')
+  const inspection = (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
+  expect(inspection).toMatchObject({ rotation: true, trustMode: 'ca', verificationError: 'CERTIFICATE_PIN_MISMATCH' })
+  const response = await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: inspection.inspectionId, confirmedFingerprint: inspection.chain[0].fingerprint, mode: 'ca', replace: true } })
+  expect(response.statusCode, response.body).toBe(200)
+  const reference = store.findInstance(tool, 'rotation')!
+  const next = store.readCredential(reference) as Record<string, unknown>
+  if (tool === 'unifi-axi') expect(next.tls).toEqual({ trustedCertificatePem: pem('ca'), peerFingerprintSha256: fingerprint('rotated') })
+  else expect(next).toMatchObject({ caBundle: pem('ca'), certificatePin: { origin: endpoint, sha256: fingerprint('rotated'), replaceHostname: true } })
+  const trust = readCredentialTrust(db, reference)
+  expect(trust.map(item => item.mode)).toEqual(['ca'])
+  await expect(preflight(tool, next, trust)).resolves.toBeUndefined()
+  serve('leaf')
+  await expect(preflight(tool, next, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+})
+
+test('same CA renewal does not offer replacement without a leaf fingerprint', async () => {
+  store.createInstance('vectra-axi', { name: 'rotation', description: '' }, { kind: 'qux', apiVersion: '2.5', origin: endpoint, auth: 'token', token: 'CANARY-token' }, 'synthetic-development-user', Date.now())
+  const base = '/v1/admin/tools/vectra-axi/instances/rotation/certificates'
+  const inspect = async () => (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
+  const first = await inspect()
+  expect((await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: first.inspectionId, confirmedFingerprint: first.chain[0].fingerprint, mode: 'ca' } })).statusCode).toBe(200)
+  serve('rotated')
+  expect(await inspect()).toMatchObject({ rotation: false, trustMode: 'ca', verificationError: null })
 })
 
 test('UniFi replaces CA setup without losing its required leaf fingerprint', async () => {

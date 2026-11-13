@@ -5,6 +5,7 @@ import { isIP } from 'node:net'
 import { inspectEndpoint } from './health/preflight.js'
 import { certificateEndpoint } from './certificate-endpoint.js'
 import { certificateSubject } from './certificate-subject.js'
+import type { CredentialTrust } from './store/trusted-certificates.js'
 
 const issuerTimeoutMs = 3000
 const issuerMaxBytes = 128 * 1024
@@ -75,9 +76,9 @@ async function fetchIssuer(leaf: X509Certificate): Promise<X509Certificate | und
   } catch { /* An unavailable or invalid AIA issuer leaves the original trust failure visible. */ }
 }
 
-export async function inspectCertificate(endpoint: URL, ca?: string, maxVersion?: 'TLSv1.2', connectAddress?: string, serverName?: string) {
+export async function inspectCertificate(endpoint: URL, ca?: string, maxVersion?: 'TLSv1.2', connectAddress?: string, serverName?: string, trust: readonly CredentialTrust[] = []) {
   const { hostname: host, href } = certificateEndpoint(endpoint)
-  const presented = await inspectEndpoint(endpoint, ca, undefined, maxVersion, [], { connectAddress, serverName })
+  const presented = await inspectEndpoint(endpoint, ca, undefined, maxVersion, trust, { connectAddress, serverName })
   if (!presented.chain.length) throw new Error('The endpoint presented no certificate')
   const leaf = presented.chain[0]
   let intermediate: X509Certificate | undefined
