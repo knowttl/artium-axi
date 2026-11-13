@@ -7,32 +7,29 @@ import { parseArgs } from 'node:util'
 import { encode } from '@toon-format/toon'
 import ts from 'typescript'
 
-const help = 'node scripts/test-gate.mjs [--base <commit>] [--plan] [--full]\n' +
+const help = 'node scripts/test-gate.ts [--base <commit>] [--plan] [--full]\n' +
   'Select local checks against the unique merge base with origin/main.\n' +
   '--base <commit>  Use an explicit ancestor instead.\n' +
   '--plan           Print selection and input identity without running checks.\n' +
   '--full           Require the full suite (releases and weekly local validation).\n' +
   'Examples: pnpm test:gate; pnpm test:gate --plan; pnpm test:gate --full'
 
-function git(root, args) {
+function git(root: string, args: string[]) {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' })
   return result.status === 0 ? result.stdout.trimEnd() : null
 }
 
-// The graph covers imports, including re-exports and literal dynamic imports.
-// Runtime files and compiled entry points are owned explicitly below.
-function affectedFiles(root, files, changed) {
-  const dependents = new Map()
+function affectedFiles(root: string, files: string[], changed: string[]) {
+  const dependents = new Map<string, Set<string>>()
   const options = { moduleResolution: ts.ModuleResolutionKind.NodeNext, resolveJsonModule: true, allowJs: true }
   for (const file of files.filter(file => /\.(?:ts|mjs)$/.test(file) && existsSync(resolve(root, file)))) {
     const path = resolve(root, file)
     for (const imported of ts.preProcessFile(readFileSync(path, 'utf8'), true, true).importedFiles) {
       if (!imported.fileName.startsWith('.')) continue
       const resolved = ts.resolveModuleName(imported.fileName, path, options, ts.sys).resolvedModule
-      // Text-loader assets have no TypeScript module resolution.
       const dependency = relative(root, resolved?.resolvedFileName ?? resolve(dirname(path), imported.fileName))
       if (!dependents.has(dependency)) dependents.set(dependency, new Set())
-      dependents.get(dependency).add(file)
+      dependents.get(dependency)!.add(file)
     }
   }
   const affected = new Set(changed)
@@ -40,7 +37,7 @@ function affectedFiles(root, files, changed) {
   return affected
 }
 
-function selectGate(root, { base, full = false } = {}) {
+function selectGate(root: string, { base, full = false }: { base?: string; full?: boolean } = {}) {
   const tracked = git(root, ['ls-files', '-z'])
   const untracked = git(root, ['ls-files', '--others', '--exclude-standard', '-z'])
   if (tracked === null || untracked === null) throw new Error('Cannot enumerate repository inputs')
@@ -60,15 +57,14 @@ function selectGate(root, { base, full = false } = {}) {
     if (bytes) hash.update(bytes)
   }
   const tests = files.filter(file => /^(src|test)\/.*\.test\.ts$/.test(file))
-  // SQL migrations are loaded by the store at runtime, so they have no import edge of their own.
   const graphSeeds = changed.flatMap(file => file.startsWith('src/server/store/migrations/') ? [file, 'src/server/store/db.ts'] : [file])
   const affected = affectedFiles(root, files, graphSeeds)
   const selected = new Set(tests.filter(file => affected.has(file)))
-  const executableOwners = [
+  const executableOwners: [RegExp, RegExp][] = [
     [/^src\/server\/maintenance\.ts$/, /^(?:test\/integration\/bootstrap|src\/server\/store\/(?:backup|rotate-key))\.test\.ts$/],
     [/^src\/server\/main\.ts$/, /^(?:test\/integration\/(?:api|bootstrap)|src\/server\/store\/rotate-key)\.test\.ts$/],
   ]
-  const runtimeOwners = [
+  const runtimeOwners: [RegExp, RegExp][] = [
     [/^src\/server\/adapters\/ado/, /^test\/integration\/ado/],
     [/^src\/server\/adapters\/awx/, /^test\/integration\/awx-/],
     [/^src\/server\/adapters\/az(?:ure-.+)?\.ts$/, /^test\/integration\/azure-/],
@@ -88,13 +84,13 @@ function selectGate(root, { base, full = false } = {}) {
     [/^src\/server\/transfer/, /^test\/integration\/(?:mg-mail-)?transfers\.test\.ts$/],
   ]
   const generatedReferences = new Map([
-    ['docs/errors.md', 'scripts/errors-reference.mjs'],
+    ['docs/errors.md', 'scripts/errors-reference.ts'],
     ['docs/awx-parity-matrix.md', 'scripts/awx-parity.mjs'],
   ])
-  const referenceChecks = new Set(['scripts/errors-reference.mjs'])
-  const reasons = []
+  const referenceChecks = new Set(['scripts/errors-reference.ts'])
+  const reasons: string[] = []
   let runtime = false
-  const add = predicate => tests.filter(predicate).forEach(file => selected.add(file))
+  const add = (predicate: (file: string) => boolean) => tests.filter(predicate).forEach(file => selected.add(file))
   for (const [source, owned] of executableOwners) if ([...affected].some(file => source.test(file))) add(test => owned.test(test))
   const packages = () => add(file => /^test\/(?:npm-package|client-package)\.test\.ts$/.test(file))
   const cli = () => {
@@ -110,7 +106,7 @@ function selectGate(root, { base, full = false } = {}) {
   if (full) reasons.push('explicit full suite')
   if (selectedBase === null || diff === null) reasons.push('missing or ambiguous ancestor base')
   for (const file of changed) {
-    if (generatedReferences.has(file)) { referenceChecks.add(generatedReferences.get(file)); continue }
+    if (generatedReferences.has(file)) { referenceChecks.add(generatedReferences.get(file)!); continue }
     if (file.startsWith('docs/') && file.endsWith('.md') || file === 'CONTRIBUTING.md' || file === 'AGENTS.md') continue
     if (file === 'README.md' || file === 'LICENSE') { packages(); continue }
     runtime = true
@@ -126,15 +122,13 @@ function selectGate(root, { base, full = false } = {}) {
       serverJourneys()
       continue
     }
-    // Inventories, schemas, dynamic fixtures, scripts, other shared code,
-    // toolchain and packaging configuration deliberately fail closed.
     reasons.push(`full-suite owner or unknown path: ${file}`)
   }
   if (!reasons.length && (changed.length === 0 || runtime && selected.size === 0)) reasons.push('empty affected selection')
   const mode = reasons.length ? 'full' : selected.size ? 'affected' : 'docs'
-  const checks = [...referenceChecks].map(script => ['node', script])
+  const checks = [...referenceChecks].map((script): [string, ...string[]] => ['node', script])
   if (mode === 'full' || runtime) checks.push(['node', 'scripts/upstream-inventory.mjs'],
-    ['node', 'scripts/mg-headless-schema.mjs'], ['pnpm', 'lint'])
+    ['node', 'scripts/mg-headless-schema.ts'], ['pnpm', 'lint'])
   const selectedTests = mode === 'full' ? tests : [...selected].sort()
   if (selectedTests.length) checks.push(['pnpm', 'exec', 'vitest', 'run', ...(mode === 'full' ? [] : selectedTests)])
   return { mode, reasons: reasons.length ? reasons : [mode === 'docs' ? 'documentation and generated references' : 'import dependents and explicit runtime owners'],
@@ -147,7 +141,7 @@ function main() {
     ;({ values } = parseArgs({ options: { base: { type: 'string' }, plan: { type: 'boolean' },
       full: { type: 'boolean' }, help: { type: 'boolean' } }, strict: true, allowPositionals: false }))
   } catch (error) {
-    console.log(encode({ error: error.message, help: [help] }))
+    console.log(encode({ error: (error as Error).message, help: [help] }))
     return 2
   }
   if (values.help) { console.log(help); return 0 }
@@ -167,7 +161,7 @@ function main() {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try { process.exitCode = main() }
   catch (error) {
-    console.log(encode({ error: error.message, help: ['Run pnpm test for the full suite; repair the selector before delivery.'] }))
+    console.log(encode({ error: (error as Error).message, help: ['Run pnpm test for the full suite; repair the selector before delivery.'] }))
     process.exitCode = 1
   }
 }
