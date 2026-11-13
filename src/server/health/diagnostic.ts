@@ -1,18 +1,29 @@
 import { ArtiumError, type Diagnostic, type ErrorCode } from '../../shared/errors.js'
 import { SecretScanner } from '../runner/scan.js'
 import type { ToolName } from '../store/credential-store.js'
+import { constants } from 'node:os'
 
 export const diagnosticLimit = 4096
-export const retestCodes = ['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT',
-  'CONNECTION_FAILED', 'ERR_TLS_CERT_ALTNAME_INVALID', 'CERT_NOT_YET_VALID', 'CERT_HAS_EXPIRED', 'CERT_REVOKED',
-  'CERT_CHAIN_TOO_LONG', 'CERT_UNTRUSTED', 'CERT_REJECTED', 'CERT_SIGNATURE_FAILURE', 'CERTIFICATE_VERIFY_FAILED',
-  'CERTIFICATE_PIN_MISMATCH', 'CRL_NOT_YET_VALID', 'CRL_HAS_EXPIRED', 'CRL_SIGNATURE_FAILURE',
-  'UNABLE_TO_GET_ISSUER_CERT', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'UNABLE_TO_GET_CRL',
-  'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'UNABLE_TO_DECRYPT_CERT_SIGNATURE', 'UNABLE_TO_DECRYPT_CRL_SIGNATURE',
-  'UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN',
-  'INVALID_CA', 'PATH_LENGTH_EXCEEDED', 'HOSTNAME_MISMATCH', 'INVALID_PURPOSE',
-  'ERROR_IN_CERT_NOT_BEFORE_FIELD', 'ERROR_IN_CERT_NOT_AFTER_FIELD', 'ERROR_IN_CRL_LAST_UPDATE_FIELD',
-  'ERROR_IN_CRL_NEXT_UPDATE_FIELD']
+export const retestCodes = [...Object.keys(constants.errno), 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
+  'CERTIFICATE_PIN_MISMATCH', 'HOSTNAME_MISMATCH', 'CONNECTION_FAILED',
+  'CERT_NOT_YET_VALID', 'CERT_HAS_EXPIRED', 'CERT_REVOKED', 'CERT_CHAIN_TOO_LONG', 'CERT_UNTRUSTED', 'CERT_REJECTED',
+  'CERT_SIGNATURE_FAILURE', 'CERTIFICATE_VERIFY_FAILED', 'CRL_NOT_YET_VALID', 'CRL_HAS_EXPIRED', 'CRL_SIGNATURE_FAILURE',
+  'UNABLE_TO_GET_ISSUER_CERT', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'UNABLE_TO_GET_CRL', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  'UNABLE_TO_DECRYPT_CERT_SIGNATURE', 'UNABLE_TO_DECRYPT_CRL_SIGNATURE', 'UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY',
+  'DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN', 'ERR_TLS_CERT_ALTNAME_INVALID', 'INVALID_CA',
+  'PATH_LENGTH_EXCEEDED', 'INVALID_PURPOSE', 'ERROR_IN_CERT_NOT_BEFORE_FIELD', 'ERROR_IN_CERT_NOT_AFTER_FIELD',
+  'ERROR_IN_CRL_LAST_UPDATE_FIELD', 'ERROR_IN_CRL_NEXT_UPDATE_FIELD', 'TRANSPORT_FAILED', 'AUTH_REQUIRED',
+  'AUTH_FAILED', 'SERVICE_UNAVAILABLE']
+export function retestFields(detail: { toolCode?: unknown, transportCode?: unknown, providerCode?: unknown, upstreamStatus?: unknown } | undefined, codes: readonly string[] = retestCodes) {
+  const code = (value: unknown): value is string => typeof value === 'string' && codes.includes(value)
+  const status = detail?.upstreamStatus
+  return {
+    ...(code(detail?.toolCode) ? { toolCode: detail.toolCode } : {}),
+    ...(code(detail?.transportCode) ? { transportCode: detail.transportCode } : {}),
+    ...(typeof detail?.providerCode === 'string' && /^AADSTS\d{4,8}$/.test(detail.providerCode) ? { providerCode: detail.providerCode } : {}),
+    ...(typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599 ? { upstreamStatus: status } : {}),
+  }
+}
 export const certificateErrorCodePattern = new RegExp(`\\b(?:${[
   'CERT_NOT_YET_VALID', 'CERT_HAS_EXPIRED', 'CERT_REVOKED', 'CERT_CHAIN_TOO_LONG',
   'CERT_UNTRUSTED', 'CERT_REJECTED', 'CERT_SIGNATURE_FAILURE', 'CERTIFICATE_VERIFY_FAILED',
@@ -40,8 +51,9 @@ export function safeDiagnostic(detail: Diagnostic | undefined, secrets: readonly
   const bounded = { ...detail }
   if (bounded.host !== undefined) bounded.host = bounded.host.slice(0, 1024)
   if (bounded.toolCode !== undefined) bounded.toolCode = bounded.toolCode.slice(0, 80)
+  if (bounded.transportCode !== undefined) bounded.transportCode = bounded.transportCode.slice(0, 80)
   if (bounded.providerCode !== undefined) bounded.providerCode = bounded.providerCode.slice(0, 80)
-  let remaining = diagnosticLimit - [bounded.stage, bounded.trust, bounded.host, bounded.toolCode, bounded.providerCode]
+  let remaining = diagnosticLimit - [bounded.stage, bounded.trust, bounded.host, bounded.toolCode, bounded.transportCode, bounded.providerCode]
     .reduce<number>((total, value) => total + (value?.length ?? 0), 0)
   const textFields = (['message', 'hint', 'issuer'] as const).filter(key => bounded[key] !== undefined)
     .sort((a, b) => bounded[a]!.length - bounded[b]!.length)
@@ -65,7 +77,8 @@ export function toolFailureCode(stdout: string, stderr: string): string | undefi
     try {
       const error: unknown = JSON.parse(stream)?.error
       const code: unknown = typeof error === 'string' ? error : (error as { code?: unknown } | null)?.code
-      if (typeof code === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(code)) return code
+      const validated = typeof code === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(code) ? code : undefined
+      if (validated) return validated
     } catch {}
   }
   const text = [stderr, stdout].filter(Boolean).join('\n')
@@ -73,10 +86,25 @@ export function toolFailureCode(stdout: string, stderr: string): string | undefi
     ?? /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
 }
 
-export function toolFailure(stdout: string, stderr: string, exitCode: number, tool?: ToolName): ArtiumError {
+export function toolFailure(stdout: string, stderr: string, exitCode: number, tool?: ToolName, retest = false): ArtiumError {
   const text = [stderr, stdout].filter(Boolean).join('\n')
+  let upstreamStatus: number | undefined
+  let providerCode: string | undefined
+  for (const stream of [stderr, stdout]) {
+    try {
+      const error = JSON.parse(stream)?.error
+      const fields = retestFields({ providerCode: ['az-axi', 'mg-axi', 'ado-axi'].includes(tool ?? '') ? error?.providerCode : undefined,
+        upstreamStatus: error?.httpStatus ?? error?.details?.httpStatus ?? error?.upstreamStatus ?? (tool === 'hybrid-axi' ? error?.status ?? error?.details?.status : undefined) })
+      upstreamStatus ??= fields.upstreamStatus
+      providerCode ??= fields.providerCode
+    } catch {}
+  }
+  if (tool === 'hybrid-axi' && upstreamStatus === undefined) {
+    const status = /^\s*status:\s*(\d{3})\s*$/mi.exec(text)?.[1]
+    upstreamStatus = retestFields({ upstreamStatus: status === undefined ? undefined : Number(status) }).upstreamStatus
+  }
   const toolCode = toolFailureCode(stdout, stderr)
-  const providerCode = /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
+  if (!tool || ['az-axi', 'mg-axi', 'ado-axi'].includes(tool)) providerCode ??= /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
   const hint = /^\s*(?:hint|next):\s*(.+)$/mi.exec(text)?.[1] ?? (providerCode ? azureAdvice[providerCode] : undefined)
   const message = text.trim() || `Tool exited with status ${exitCode}.`
   let code: ErrorCode = 'TOOL_FAILED'
@@ -100,5 +128,11 @@ export function toolFailure(stdout: string, stderr: string, exitCode: number, to
   } else if (exitCode === 2 || /INVALID_(?:INPUT|CONFIG|ARGUMENT)|CONFIG.*INVALID|cannot be combined|unknown (?:flag|option)|required field/i.test(text)) {
     code = 'TOOL_REJECTED_INPUT'; stage = 'configuration'
   }
-  return diagnosticError(code, { stage, message, ...(toolCode ? { toolCode } : {}), ...(providerCode ? { providerCode } : {}), ...(hint ? { hint } : {}) })
+  const transportCode = tool === 'vectra-axi' && toolCode === 'TRANSPORT_FAILED' && hint && Object.hasOwn(constants.errno, hint) ? hint : undefined
+  const retestToolCodes: Partial<Record<ToolName, readonly string[]>> = {
+    'vectra-axi': ['TRANSPORT_FAILED'], 'falcon-axi': ['AUTH_REQUIRED', 'SERVICE_UNAVAILABLE'],
+    'mg-axi': ['AUTH_REQUIRED', 'AUTH_FAILED'], 'az-axi': ['AUTH_REQUIRED', 'AUTH_FAILED'], 'ado-axi': ['AUTH_REQUIRED', 'AUTH_FAILED'],
+  }
+  const retainedCode = retest && !retestToolCodes[tool!]?.includes(toolCode ?? '') ? undefined : toolCode
+  return diagnosticError(code, { stage, message, ...(retainedCode ? { toolCode: retainedCode } : {}), ...retestFields({ providerCode, upstreamStatus, transportCode }), ...(hint ? { hint } : {}) })
 }

@@ -2,7 +2,7 @@ import { ClientAssertion, ConfidentialClientApplication, CryptoProvider } from '
 import type { INetworkModule, NodeAuthOptions } from '@azure/msal-node'
 import { z } from 'zod'
 import { ArtiumError } from '../../shared/errors.js'
-import { azureAdvice, certificateErrorCodePattern, diagnosticError, safeDiagnostic } from '../health/diagnostic.js'
+import { azureAdvice, certificateErrorCodePattern, diagnosticError, retestFields, safeDiagnostic } from '../health/diagnostic.js'
 import type { CredentialTrust } from '../store/trusted-certificates.js'
 import { certificatePinMismatchMessage, credentialFetch } from '../credential-tls.js'
 
@@ -38,6 +38,7 @@ export interface AzureToken {
 export async function mintAzureToken(value: unknown, resource: AzureResource, networkClient?: INetworkModule, signal?: AbortSignal,
   trust: readonly CredentialTrust[] = []): Promise<AzureToken> {
   let transportFailure: unknown
+  let upstreamStatus: number | undefined
   const secrets: string[] = []
   try {
     const parsed = azureCredentialSchema.safeParse(value)
@@ -58,7 +59,7 @@ export async function mintAzureToken(value: unknown, resource: AzureResource, ne
         return jwt
       }
     }
-    if (!networkClient && (signal || trust.length)) {
+    if (!networkClient) {
       const request = async <T>(url: string, method: string, options?: import('@azure/msal-node').NetworkRequestOptions) => {
         const init = { method, headers: options?.headers, body: options?.body, signal }
         const response = trust.length ? await credentialFetch(url, init, trust) : await fetch(url, init)
@@ -83,7 +84,12 @@ export async function mintAzureToken(value: unknown, resource: AzureResource, ne
     if (networkClient) {
       const transport = networkClient
       const guarded = async <T>(request: () => Promise<T>): Promise<T> => {
-        try { return await request() } catch (error) { transportFailure = error; throw error }
+        try {
+          const response = await request()
+          const status = (response as { status?: number }).status
+          if (typeof status === 'number' && status >= 400) upstreamStatus = status
+          return response
+        } catch (error) { transportFailure = error; throw error }
       }
       networkClient = {
         sendGetRequestAsync: (url, options) => guarded(() => transport.sendGetRequestAsync(url, options)),
@@ -101,35 +107,37 @@ export async function mintAzureToken(value: unknown, resource: AzureResource, ne
     return { accessToken: result.accessToken, expiresAt: result.expiresOn.getTime(), secrets: [...secrets, result.accessToken] }
   } catch (error) {
     if (error instanceof ArtiumError) throw error
-    const failure = azureTokenFailure(transportFailure ?? error, transportFailure !== undefined)
+    const failure = azureTokenFailure(transportFailure ?? error, transportFailure !== undefined, upstreamStatus)
     failure.diagnostic = safeDiagnostic(failure.diagnostic, secrets)
     throw failure
   }
 }
 
-function azureTokenFailure(error: unknown, transport: boolean): ArtiumError {
+function azureTokenFailure(error: unknown, transport: boolean, status?: number): ArtiumError {
   const fields = error as { errorCode?: string, errorMessage?: string, message?: string, code?: string, status?: number, cause?: { code?: string } }
   // Inspect only to select an allowlisted explanation. Never forward the response body.
   const text = [fields?.errorCode, fields?.errorMessage, fields?.message, fields?.code, fields?.cause?.code].join(' ')
   const providerCode = /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
   const host = 'login.microsoftonline.com'
-  const toolCode = providerCode ?? (/^[a-z][a-z0-9_]{0,79}$/.test(fields?.errorCode ?? '') ? fields.errorCode : undefined)
-  if (fields?.status !== undefined && ![400, 401, 403].includes(fields.status)
+  const toolCode = providerCode ?? (['invalid_client', 'temporarily_unavailable', 'server_error', 'slow_down'].includes(fields?.errorCode ?? '') ? fields.errorCode : undefined)
+  const structured = retestFields({ providerCode, upstreamStatus: fields?.status ?? status })
+  if ((fields?.status ?? status) !== undefined && ![400, 401, 403].includes((fields?.status ?? status)!)
     || ['temporarily_unavailable', 'server_error'].includes(fields?.errorCode ?? '')) return diagnosticError('TOOL_FAILED', {
     stage: 'token acquisition', host, message: 'The identity provider service could not complete token acquisition.',
-    ...(toolCode ? { toolCode } : {}), hint: 'Try again later and check identity provider service availability.' })
+    ...(toolCode ? { toolCode } : {}), ...structured, hint: 'Try again later and check identity provider service availability.' })
   const verificationCode = certificateErrorCodePattern.exec(text)?.[0]
   if (verificationCode === 'CERTIFICATE_PIN_MISMATCH') return diagnosticError('UPSTREAM_TLS_FAILED', {
-    stage: 'TLS', host, message: certificatePinMismatchMessage, toolCode: verificationCode })
+    stage: 'TLS', host, message: certificatePinMismatchMessage, toolCode: verificationCode, ...structured })
   if (verificationCode || /certificate verification|ERR_TLS/i.test(text)) return diagnosticError('UPSTREAM_TLS_FAILED', {
     stage: 'TLS', host, message: `TLS certificate verification failed contacting ${host}.`,
-    ...(verificationCode ? { toolCode: verificationCode } : {}), hint: 'Check the certificate chain and upstream trusted-CA configuration.' })
+    ...(verificationCode ? { toolCode: verificationCode } : {}), ...structured, hint: 'Check the certificate chain and upstream trusted-CA configuration.' })
   if (transport && fields?.status === undefined || /network|ENOTFOUND|ECONN|ETIMEDOUT|EAI_AGAIN|timeout|aborted/i.test(text)) return diagnosticError('UPSTREAM_NETWORK_FAILED', {
     stage: /ENOTFOUND|EAI_AGAIN|DNS/i.test(text) ? 'DNS' : 'token acquisition', host,
-    message: `Token acquisition could not reach ${host}.`, hint: 'Check DNS, routing, firewall rules and timeouts.' })
+    message: `Token acquisition could not reach ${host}.`, ...structured,
+    ...(transport ? retestFields({ toolCode: fields?.cause?.code ?? fields?.code }) : {}), hint: 'Check DNS, routing, firewall rules and timeouts.' })
   if (/key|PEM|DECODER|crypto/i.test(text) && !providerCode) return diagnosticError('CREDENTIAL_INVALID', {
     stage: 'configuration', message: 'Invalid credential field: privateKey.' })
   return diagnosticError('UPSTREAM_AUTH_FAILED', { stage: 'token acquisition', host,
-    message: 'The identity provider rejected token acquisition.', ...(toolCode ? { toolCode } : {}),
+    message: 'The identity provider rejected token acquisition.', ...(toolCode ? { toolCode } : {}), ...structured,
     hint: providerCode && azureAdvice[providerCode] || 'Check the tenant, application credential and permissions.' })
 }

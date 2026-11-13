@@ -13,7 +13,7 @@ import { certificateErrorCodePattern, diagnosticError } from './diagnostic.js'
 
 function verificationCode(error: unknown): string {
   const code = (error as NodeJS.ErrnoException)?.code
-  return typeof code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(code) ? code : 'CONNECTION_FAILED'
+  return typeof code === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(code) ? code : 'CONNECTION_FAILED'
 }
 
 type NativeTls = { connectAddress?: string, serverName?: string, peerFingerprintSha256?: string,

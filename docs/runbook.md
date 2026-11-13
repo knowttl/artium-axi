@@ -295,8 +295,8 @@ Expiry warnings do not block confirmation or change hostname and date verificati
 Confirm that you compared the displayed fingerprint, then choose **Trust this certificate**.
 Initial setup fills the supported shared certificate fields and saves endpoint trust; tools without shared fields show that limitation and retain confirmed endpoint trust.
 The UI automatically tests the connection and shows **Connected** or a failure category with available safe details.
-Failures can include the HTTP status, catalogued error, failed step, recognized transport code or certificate trust classification.
-Network and unreadable-response failures show a category and any recognized error code or name; invalid JSON and unexpected response formats have separate guidance.
+Failures can include the server and upstream HTTP statuses, catalogued error, failed step, recognized tool, transport or Azure provider code, or certificate trust classification.
+Network and unreadable-response failures show a category; invalid JSON and unexpected response formats have separate guidance.
 The automatic retest does not display raw exception messages, response text or tool diagnostic text.
 When filling shared fields, initial setup refuses to replace an existing certificate or fingerprint; replace those fields manually.
 Removing an endpoint trust record retains the separately saved Certificate verification fields; clear those fields too when revoking that trust.

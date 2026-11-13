@@ -134,6 +134,6 @@ test.each([['--help'], ['quota', '--help'], ['submit', 'file', '--help'], ['hunt
 
 test('restricted-key 403 retains upstream denial and vetted-download advice in diagnostics', () => {
   const error = toolFailure('error:\n  code: PERMISSION_DENIED\n  status: 403\n  message: Restricted key cannot download\nhelp[1]: Request vetted download access\n', '', 1, 'hybrid-axi')
-  expect(error).toMatchObject({ code: 'UPSTREAM_AUTH_FAILED', diagnostic: { toolCode: 'PERMISSION_DENIED' } })
+  expect(error).toMatchObject({ code: 'UPSTREAM_AUTH_FAILED', diagnostic: { toolCode: 'PERMISSION_DENIED', upstreamStatus: 403 } })
   expect(error.diagnostic?.message).toContain('Request vetted download access')
 })
