@@ -9,10 +9,16 @@ Do not edit this generated file.
 This is the target policy, not the [current implemented write boundary](safety.md#write-gates-by-tool).
 
 - read: Managed account access; reads always allowed by write policy.
-- write: One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery.
-- destructive: Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery.
+- write: Administrator-controlled per-tenant writes switch, default OFF; preview, explicit confirmation, coordination, audit and unknown-outcome recovery; security administration also requires Allow security administration, default OFF; for security administration: each --confirm requires a successful matching --dry-run for the same caller, sign-in family, delegation, tool instance, settings and request; each preview is single-use and lost on server restart.
+- destructive: Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery; security-administration deletes additionally require Allow security administration, default OFF; for deletes: each --confirm requires a successful matching --dry-run for the same caller, sign-in family, delegation, tool instance, settings and request; each preview is single-use and lost on server restart.
 
-Deletes and bulk host create/delete need the separate Allow destructive deletes setting in addition to the writes switch; there is no separate security authorization tier.
+Deletes and bulk host create/delete need the separate Allow destructive deletes setting in addition to the writes switch.
+Security administration needs the separate Allow security administration setting in addition to the writes switch, default OFF, with preview by --dry-run and explicit --confirm. It covers the commands tagged securityAdministration in tools/inventories/awx-axi.json: organization create, organization edit, organization delete, organization user-add, organization user-remove, organization admin-add, organization admin-remove, organization team-add, organization team-remove, user token-create, user token-revoke, user create, user edit, user delete, team user-add, team user-remove, team create, team edit, team delete, role grant, role revoke.
+Security-administration deletes (organization delete, user delete, team delete) need both Allow security administration and Allow destructive deletes.
+Raw api writes to security-administration paths also need Allow security administration; see [Raw API access](safety.md#raw-api-access).
+For security administration and deletes, each --confirm requires a successful matching --dry-run for the same caller, sign-in family, delegation, tool instance, settings and request; each preview is single-use and lost on server restart.
+Ordinary configuration associations, such as template credential-add and organization notification-add, need the writes switch alone.
+The Effect column reports upstream effect labels and does not select this gate; among named commands, only those listed above require Allow security administration; raw API writes are subject to the path-based rule above.
 Upstream config/delete/security tags and native gates remain implementation constraints, not administrator permission tiers.
 Artium must supply the appropriate native gates under the writes switch and, for destructive operations, the Allow destructive deletes setting.
 All operations retain tenant/account access, managed HTTPS origin, verified TLS, credential isolation and AWX resource authorization.
@@ -2860,7 +2866,7 @@ Uses the selected managed AWX account; upstream identity/read diagnostics retain
 
 ### auth logout
 
-Managed accounts do not retain a verified current PAT id. Use user token-revoke <numeric-token-id> under the single administrator-controlled per-tenant writes switch, default OFF, with preview, explicit confirmation and audit. The managed account is preserved; account removal does not revoke its upstream PAT.
+Managed accounts do not retain a verified current PAT id. Use user token-revoke <numeric-token-id> under the administrator-controlled per-tenant writes switch and Allow security administration, both default OFF, with preview, explicit confirmation and audit. The managed account is preserved; account removal does not revoke its upstream PAT.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |

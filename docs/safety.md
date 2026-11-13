@@ -44,7 +44,8 @@ See [instance administration](admin-guide.md#browser-administration) for managin
 Host-owned confirmations (GitHub, Gitea and transfers) bind the credential identity and revision.
 For Proxmox writes, Tenable writes and Falcon `raw write`, Artium passes the credential ID and revision to the native tool, which binds them to the confirmation and refuses a different instance or revision with `CREDENTIAL_CHANGED` (Proxmox uses `CONFIRMATION_MISMATCH`).
 After a credential or write-setting change, preview again on the current instance and confirm with the new value.
-Azure, Azure DevOps, AWX and Falcon `rtr run` use a boolean confirmation or a value the caller types, such as a resource name, `--confirm-delete`, `--confirm` or `<device>:<command>`, rather than a confirmation bound to a preview.
+Azure, Azure DevOps and Falcon `rtr run` use a boolean confirmation or a value the caller types, such as a resource name, `--confirm-delete` or `<device>:<command>`, rather than a confirmation bound to a preview.
+AWX uses `--confirm`, with a matching preview required for security administration and deletes as described under [Raw API access](#raw-api-access).
 Each execution is authorized afresh against the selected instance's grant, read-only state and write policy.
 External secret sources and per-user credentials for shared-credential tools are unsupported.
 

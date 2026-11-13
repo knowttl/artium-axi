@@ -11,6 +11,8 @@ const pkg = readJson('tools/node_modules/@knowttl/awx-axi/package.json')
 if (pkg.version !== readJson('tools/package.json').dependencies['@knowttl/awx-axi']) throw new Error('AWX parity pin mismatch')
 const inventory = readJson('tools/inventories/awx-axi.json')
 const routes = new Map(inventory.commands.map(route => [route.command, route]))
+const securityAdministrationCommands = inventory.commands.filter(route => route.securityAdministration).map(route => route.command)
+const securityAdministrationDeletes = securityAdministrationCommands.filter(command => /(?:^|[ -])delete$/.test(command))
 const help = async argv => {
   let output = ''
   await main({ argv, env: {}, stdout: { write: chunk => { output += chunk } } })
@@ -19,11 +21,26 @@ const help = async argv => {
 const topHelp = await help(['--help'])
 const updateHelp = await help(['update', '--help'])
 const globalNames = [...topHelp.match(/^globals: (.*)$/m)[1].matchAll(/--([a-z-]+)/g)].map(match => match[1])
-const targetPolicy = {
+const baseControls = {
   read: 'Managed account access; reads always allowed by write policy',
-  write: 'One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery',
-  destructive: 'Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery',
+  write: 'Administrator-controlled per-tenant writes switch, default OFF; preview, explicit confirmation, coordination, audit and unknown-outcome recovery',
+  destructive: 'Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery',
 }
+const previewRequirement = 'each --confirm requires a successful matching --dry-run for the same caller, sign-in family, delegation, tool instance, settings and request; each preview is single-use and lost on server restart'
+const targetPolicy = {
+  read: baseControls.read,
+  write: `${baseControls.write}; security administration also requires Allow security administration, default OFF; for security administration: ${previewRequirement}`,
+  destructive: `${baseControls.destructive}; security-administration deletes additionally require Allow security administration, default OFF; for deletes: ${previewRequirement}`,
+}
+const controlSuffix = (command, authorization) => {
+  const security = routes.get(command === 'auth logout' ? 'user token-revoke' : command)?.securityAdministration
+  const rawWrite = command.startsWith('api ') && authorization !== 'read'
+  const deletion = /(?:^|[ -])delete$/.test(command)
+  return (security ? '; Allow security administration, default OFF, also required'
+      : rawWrite ? '; Allow security administration, default OFF, also required for /api/v2/ roles, tokens and personal_tokens paths, and organizations, users and teams collections, individual resources and their users, admins, teams, roles, object_roles, access_list, tokens and personal_tokens subresources' : '')
+    + (security || deletion ? `; ${previewRequirement}` : rawWrite ? `; for security-administration paths: ${previewRequirement}` : '')
+}
+const requiredControl = (command, authorization) => baseControls[authorization] + controlSuffix(command, authorization)
 const authorizationFor = (command, effect) => ['read', 'client-local'].includes(effect) ? 'read'
   : effect === 'destructive' || command === 'inventory host-bulk-create' ? 'destructive' : 'write'
 const configurationControl = 'Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission'
@@ -74,8 +91,8 @@ const flagsFor = (command, specs, effect, slice, status) => specs.map(flag => {
   const blockedInput = flag.name.endsWith('-file') && !inventory.adapterBoundary.inputFileFlags.includes(flag.name)
   return { ...flag, effect: flagEffect, status: flag.name === 'allow-http' ? 'not applicable' : status === 'supported' && allowed && !blockedInput ? 'supported' : ['managed equivalent', 'not applicable'].includes(status) ? status : 'blocked',
     targetSlice: input.file || input.secret ? 'c' : securityInput ? 'e' : !allowed && status === 'supported' && effect !== 'configuration write' ? 'f' : slice,
-    authorization, requiredAdminControl: targetPolicy[authorization], ...input,
-    ...(flagEffect === 'configuration write' && status === 'supported' && allowed && !blockedInput ? { currentAdminControl: authorization === 'destructive' ? destructiveControl : configurationControl } : {}),
+    authorization, requiredAdminControl: requiredControl(command, authorization), ...input,
+    ...(flagEffect === 'configuration write' && status === 'supported' && allowed && !blockedInput ? { currentAdminControl: (authorization === 'destructive' ? destructiveControl : configurationControl) + controlSuffix(command, authorization) } : {}),
     ...(flag.name === 'allow-http' ? { reason: 'Managed AWX accounts require HTTPS; no HTTP opt-in equivalent' } : {}),
     ...(status === 'supported' && !allowed ? { reason: 'Omitted from the reviewed Artium flag schema' } : {}),
     ...(blockedInput ? { reason: 'Not yet supported: requires secure input' } : {}) }
@@ -92,10 +109,10 @@ const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
     : effect === 'security administration' ? domain.name === 'credential' || route.name === 'credential-create' ? 'c' : 'e' : 'b'
   const status = ['blocked', 'secure-input'].includes(current.effect) ? 'blocked' : 'supported'
   const authorization = authorizationFor(command, effect)
-  return { command, effect, status, targetSlice, authorization, requiredAdminControl: targetPolicy[authorization], positionals: route.positionals, help: route.help,
+  return { command, effect, status, targetSlice, authorization, requiredAdminControl: requiredControl(command, authorization), positionals: route.positionals, help: route.help,
     ...(current.effect === 'secure-input' ? { reason: 'Not yet supported: requires secure input' } : {}),
-    ...(effect === 'configuration write' && status === 'supported' ? { currentAdminControl: authorization === 'destructive' ? destructiveControl : configurationControl } : {}),
-    ...(conditionalSecurity.has(command) ? { conditionalEffect: 'security administration when credential or notification configuration/messages input is supplied',
+    ...(effect === 'configuration write' && status === 'supported' ? { currentAdminControl: (authorization === 'destructive' ? destructiveControl : configurationControl) + controlSuffix(command, authorization) } : {}),
+    ...(conditionalSecurity.has(command) ? { conditionalEffect: 'Upstream security administration effect when credential or notification configuration/messages input is supplied; this input alone does not require Allow security administration',
       dependentSlices: ['c', 'e'] } : {}),
     ...(effect === 'destructive' && security(domain.name, route.name) ? { note: 'Upstream delete tag checks only the native delete gate; Artium supplies that gate only under the separate Allow destructive deletes setting' } : {}),
     ...(command === 'user token-revoke' ? { note: 'Upstream DELETE tagged security, so the native security gate applies rather than the delete gate; target authorization is write', dependentSlices: ['d'] } : {}),
@@ -107,7 +124,7 @@ const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
 
 const localReasons = {
   'auth login': ['managed equivalent', 'Artium AWX account form accepts a PAT or exchanges username/password for a PAT; raw upstream login is blocked. Passwords and tokens use the managed credential store, never argv.'],
-  'auth logout': ['managed equivalent', 'Managed accounts do not retain a verified current PAT id. Use user token-revoke <numeric-token-id> under the single administrator-controlled per-tenant writes switch, default OFF, with preview, explicit confirmation and audit. The managed account is preserved; account removal does not revoke its upstream PAT.'],
+  'auth logout': ['managed equivalent', 'Managed accounts do not retain a verified current PAT id. Use user token-revoke <numeric-token-id> under the administrator-controlled per-tenant writes switch and Allow security administration, both default OFF, with preview, explicit confirmation and audit. The managed account is preserved; account removal does not revoke its upstream PAT.'],
   'config path': ['not applicable', 'Artium materializes private runner configuration. There is no client-owned upstream config path to expose.'],
   'profile list': ['managed equivalent', 'Use Artium account discovery and selection; upstream filesystem profiles are not caller-owned.'],
   'setup hooks': ['managed equivalent', 'Use artium-axi setup --host <claude|codex|opencode> --hook on Linux for authenticated ambient tool context and granted tool skills. Claude Code and Codex use SessionStart; OpenCode 1.19.x uses its local system-context plugin API. Codex host trust and feature controls still apply. Pi and non-Linux hosts retain skill-only setup. Never install hooks in the server runner.'],
@@ -127,7 +144,7 @@ for (const command of ['home', ...localCommands]) {
   if (command === 'auth login') specs.push(...[...AUTH_HELP.matchAll(/--(allow-http)\b/g)].slice(0, 1).map(match => ({ name: match[1], takesValue: false, description: 'Opt into unencrypted HTTP; unavailable in Artium HTTPS accounts' })))
   if (command === 'update') specs.push(...[...updateHelp.matchAll(/^  "--([a-z-]+)": (.*)$/gm)].map(match => ({ name: match[1], takesValue: false, description: match[2] })))
   const authorization = ['auth login', 'auth logout'].includes(command) ? 'write' : 'read'
-  commands.push({ command, effect, status, reason, targetSlice: command === 'auth logout' ? 'e' : 'f', authorization, requiredAdminControl: targetPolicy[authorization],
+  commands.push({ command, effect, status, reason, targetSlice: command === 'auth logout' ? 'e' : 'f', authorization, requiredAdminControl: requiredControl(command, authorization),
     flags: flagsFor(command, specs, effect, 'f', status),
     ...(command.startsWith('auth ') && command !== 'auth status' ? { remoteEffect: 'security administration', note: 'Client-local lifecycle also mints or revokes an upstream PAT; upstream logout uses the native security-tagged DELETE gate' } : {}) })
 }
@@ -169,7 +186,7 @@ const data = { generatedBy: 'scripts/awx-parity.mjs', tool: pkg.name, version: p
   targetPolicy, globals, versionFlags, commands, aliases }
 const rows = entries => entries.map(entry => `| ${entry.command ?? `--${entry.name}`} | ${entry.effect} | ${entry.status} | ${entry.targetSlice} | ${entry.authorization} |`).join('\n')
 const table = entries => '| Command or flag | Upstream effect | Artium status | Slice | Target authorization |\n| --- | --- | --- | --- | --- |\n' + rows(entries)
-const matrix = `# Generated AWX parity matrix\n\nGenerated by scripts/awx-parity.mjs from installed awx-axi ${pkg.version}.\nSee [scope, controls and delivery plan](awx-parity.md) and [machine-readable matrix](../tools/inventories/awx-axi-parity.json).\nDo not edit this generated file.\n\n## Target authorization policy\n\nThis is the target policy, not the [current implemented write boundary](safety.md#write-gates-by-tool).\n\n- read: ${targetPolicy.read}.\n- write: ${targetPolicy.write}.\n- destructive: ${targetPolicy.destructive}.\n\nDeletes and bulk host create/delete need the separate Allow destructive deletes setting in addition to the writes switch; there is no separate security authorization tier.\nUpstream config/delete/security tags and native gates remain implementation constraints, not administrator permission tiers.\nArtium must supply the appropriate native gates under the writes switch and, for destructive operations, the Allow destructive deletes setting.\nAll operations retain tenant/account access, managed HTTPS origin, verified TLS, credential isolation and AWX resource authorization.\nClient-local managed equivalents never permit caller-controlled runner configuration.\nHelp itself is read-only; a mutation row's authorization governs preview/execution, not help.\n\n## Global flags\n\n${table(globals)}\n\n${table(versionFlags.map(flag => ({ ...flag, command: flag.name })))}\n\n## Commands\n\n${table(commands)}\n\n## Upstream nested aliases\n\n${table(aliases)}\n\n## Flags by command\n\nEvery row inherits its command's reasons and restrictions from the JSON; conditional upstream effects do not add target permission tiers.\nGlobal selection flags above apply to every command; per-command --help is included below.\nSecret/file inputs use the TD-066 private file channel. Structured flags accept inline values or @local-file; credential inputs-file and password-file also accept stdin (-).\n\n${commands.map(command => `### ${command.command}\n\n${command.reason ?? command.note ?? 'See command controls above.'}\n\n| Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |\n| --- | --- | --- | --- | --- | --- |\n${command.flags.map(flag => `| --${flag.name} | ${flag.takesValue ? 'value' : 'boolean'} | ${flag.status} | ${flag.targetSlice} | ${flag.authorization} | ${[flag.secret && 'potential secret', flag.file && 'file', flag.stdin && 'stdin', flag.outputFile && 'output file'].filter(Boolean).join(', ') || 'none'} |`).join('\n')}\n`).join('\n')}\n`
+const matrix = `# Generated AWX parity matrix\n\nGenerated by scripts/awx-parity.mjs from installed awx-axi ${pkg.version}.\nSee [scope, controls and delivery plan](awx-parity.md) and [machine-readable matrix](../tools/inventories/awx-axi-parity.json).\nDo not edit this generated file.\n\n## Target authorization policy\n\nThis is the target policy, not the [current implemented write boundary](safety.md#write-gates-by-tool).\n\n- read: ${targetPolicy.read}.\n- write: ${targetPolicy.write}.\n- destructive: ${targetPolicy.destructive}.\n\nDeletes and bulk host create/delete need the separate Allow destructive deletes setting in addition to the writes switch.\nSecurity administration needs the separate Allow security administration setting in addition to the writes switch, default OFF, with preview by --dry-run and explicit --confirm. It covers the commands tagged securityAdministration in tools/inventories/awx-axi.json: ${securityAdministrationCommands.join(', ')}.\nSecurity-administration deletes (${securityAdministrationDeletes.join(', ')}) need both Allow security administration and Allow destructive deletes.\nRaw api writes to security-administration paths also need Allow security administration; see [Raw API access](safety.md#raw-api-access).\nFor security administration and deletes, ${previewRequirement}.\nOrdinary configuration associations, such as template credential-add and organization notification-add, need the writes switch alone.\nThe Effect column reports upstream effect labels and does not select this gate; among named commands, only those listed above require Allow security administration; raw API writes are subject to the path-based rule above.\nUpstream config/delete/security tags and native gates remain implementation constraints, not administrator permission tiers.\nArtium must supply the appropriate native gates under the writes switch and, for destructive operations, the Allow destructive deletes setting.\nAll operations retain tenant/account access, managed HTTPS origin, verified TLS, credential isolation and AWX resource authorization.\nClient-local managed equivalents never permit caller-controlled runner configuration.\nHelp itself is read-only; a mutation row's authorization governs preview/execution, not help.\n\n## Global flags\n\n${table(globals)}\n\n${table(versionFlags.map(flag => ({ ...flag, command: flag.name })))}\n\n## Commands\n\n${table(commands)}\n\n## Upstream nested aliases\n\n${table(aliases)}\n\n## Flags by command\n\nEvery row inherits its command's reasons and restrictions from the JSON; conditional upstream effects do not add target permission tiers.\nGlobal selection flags above apply to every command; per-command --help is included below.\nSecret/file inputs use the TD-066 private file channel. Structured flags accept inline values or @local-file; credential inputs-file and password-file also accept stdin (-).\n\n${commands.map(command => `### ${command.command}\n\n${command.reason ?? command.note ?? 'See command controls above.'}\n\n| Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |\n| --- | --- | --- | --- | --- | --- |\n${command.flags.map(flag => `| --${flag.name} | ${flag.takesValue ? 'value' : 'boolean'} | ${flag.status} | ${flag.targetSlice} | ${flag.authorization} | ${[flag.secret && 'potential secret', flag.file && 'file', flag.stdin && 'stdin', flag.outputFile && 'output file'].filter(Boolean).join(', ') || 'none'} |`).join('\n')}\n`).join('\n')}\n`
 for (const [path, contents] of [['tools/inventories/awx-axi-parity.json', JSON.stringify(data, null, 2) + '\n'], ['docs/awx-parity-matrix.md', matrix]]) {
   const destination = new URL(path, root)
   if (process.argv.includes('--write')) writeFileSync(destination, contents)
