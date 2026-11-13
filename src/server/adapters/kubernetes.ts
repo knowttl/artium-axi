@@ -118,7 +118,6 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
           KUBERNETES_AXI_COLLECTION_DELETE: String(Boolean(writable && settings.collectionDelete === true)) },
         limits: { timeoutMs: inventory.requirements.timeoutMs, systemCaBundle: {
           endpoint: credential.origin, transport: 'kubectl',
-          ...(workflow ? { mutationWorkflow: true } : {}),
           hostModule: new URL('../dist/cli.js', pathToFileURL(executable)).href,
           ...(credential.auth === 'certificate' ? { clientIdentity: {
             certificate: credential.clientCertificate, privateKey: credential.privateKey,

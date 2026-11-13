@@ -28,7 +28,7 @@ import { pinnedHttp, type PinnedHttpUpstream } from './pinned-http.js'
 import type { CompletedMutation, MutationReceipt } from '../../shared/mutation-outcome.js'
 
 export type GoTransportTrust = { transport: 'github' } | {
-  endpoint: string, transport: 'kubectl', hostModule?: string, clientIdentity?: PinnedHttpUpstream['clientIdentity'], mutationWorkflow?: boolean
+  endpoint: string, transport: 'kubectl', hostModule?: string, clientIdentity?: PinnedHttpUpstream['clientIdentity']
 }
 const goPinEnforcement: Record<GoTransportTrust['transport'], 'http-unix' | 'host-socket' | 'refuse'> = { github: 'http-unix', kubectl: 'host-socket' }
 
@@ -205,10 +205,6 @@ function signalGroup(pid: number | undefined, signal: NodeJS.Signals | 0): boole
 function runtimeTrust(limits: Pick<RunnerLimits, 'systemCaBundle' | 'credentialTrust'>, trustedCa?: TrustedCaBundle) {
   const caEndpoint = limits.systemCaBundle?.transport === 'kubectl' ? certificateEndpoint(limits.systemCaBundle.endpoint).href : undefined
   const credentialTrust = (limits.credentialTrust ?? []).filter(certificate => !caEndpoint || certificateEndpoint(certificate.endpoint).href === caEndpoint)
-  if (limits.systemCaBundle?.transport === 'kubectl' && limits.systemCaBundle.clientIdentity && limits.systemCaBundle.mutationWorkflow
-    && credentialTrust.some(certificate => certificate.mode === 'pin')) {
-    throw new RunnerError('INVALID_INPUT', 'certificate-pinned changes need kubernetes-axi binding fix')
-  }
   if (limits.systemCaBundle && (goPinEnforcement[limits.systemCaBundle.transport] === 'refuse'
     || limits.systemCaBundle.transport === 'kubectl' && !limits.systemCaBundle.hostModule)
     && credentialTrust.some(certificate => certificate.mode !== 'ca')) {

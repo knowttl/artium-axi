@@ -74,7 +74,8 @@ await withFakeService(async ({ directory, port, send }) => {
     const document = decode(rewriteSuggestions(help.json().stdout, 'kubernetes-axi', false, { command: 'native --', help: true })) as { flags: Record<string, unknown>, help: string[] }
     assert.ok(Object.hasOwn(document.flags, 'selector'))
     assert.equal(Object.hasOwn(document.flags, 'server'), false)
-    assert.ok(document.help.some(line => line.includes('Static token reads and mutation workflows also support saved strict leaf pins; client certificates and hosted byte sessions require issuing CA trust.')))
+    assert.ok(document.help.some(line => line.includes('Managed token and client-certificate reads and mutation workflows also support saved strict leaf pins.')))
+    assert.ok(document.help.some(line => line.includes('Native kubeconfig certificates, credential helpers, TLS server-name overrides and hosted byte sessions remain refused with pins.')))
     const evidence = async () => JSON.parse(await send('/__evidence')) as { requests: Array<{ path: string, method: string, canaryReceived: boolean }> }
     const before = (await evidence()).requests.length
     for (const args of [['native', '--', 'delete', 'pod', 'synthetic-pod'], ['get', 'pods', '--token=CANARY-forbidden'], ['get', 'pods', '--watch']]) {
