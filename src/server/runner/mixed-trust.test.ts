@@ -9,7 +9,7 @@ test('runner enforces mixed certificate trust across tool families', async () =>
   const directory = await mkdtemp(join(process.cwd(), '.mixed-trust-'))
   try {
     const entry = join(directory, 'check.mjs')
-    await build({ entryPoints: ['src/server/runner/mixed-trust-check.ts'], outfile: entry,
+    await build({ entryPoints: ['test/fixtures/mixed-trust-check.ts'], outfile: entry,
       bundle: true, platform: 'node', format: 'esm', packages: 'external' })
     await promisify(execFile)(process.execPath, [entry], { timeout: 120_000 })
   } finally {
