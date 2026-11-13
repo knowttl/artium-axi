@@ -1214,6 +1214,18 @@ test('UniFi structured address changes retain certificate and fingerprint and al
   expect(store.readCredential(store.findCredential('unifi-axi')!)).toEqual({ ...values['unifi-axi'], tls })
 })
 
+test.each(['kubernetes-axi', 'unifi-axi'] as const)('%s saves replacement certificate trust', async tool => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run(tool)
+  createTestCertificates(directory, ['localhost'])
+  const certificate = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const trust = tool === 'kubernetes-axi' ? { certificateAuthority: certificate } : {
+    tls: { trustedCertificatePem: certificate, peerFingerprintSha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', '') },
+  }
+  await replace(tool)
+  expect((await save(tool, { ...values[tool], ...trust }, 1)).status).toBe(200)
+  expect(store.readCredential(store.findCredential(tool)!)).toEqual({ ...values[tool], ...trust })
+})
+
 test('save does not carry certificate trust to a different endpoint', async () => {
   db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('technitium-axi')
   await replace('technitium-axi', { ...values['technitium-axi'], caFile: 'CANARY-ca', tlsServerName: 'localhost' })

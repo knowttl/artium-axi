@@ -2,7 +2,6 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { expect, test } from 'vitest'
 import { CredentialProfile } from '../src/server/adapters/credential-profile.js'
 import { credentialFields, editorProfile } from '../src/server/admin/credential-form.js'
-import { tlsCredentialRoots } from '../src/server/credential-tls-settings.js'
 import { toolSchema } from '../src/shared/api.js'
 import type { ToolName } from '../src/server/store/credential-store.js'
 
@@ -12,11 +11,9 @@ const profiles = readdirSync(inventories).filter(name => name.endsWith('.json'))
   return inventory.credentialSchema ? [[name.slice(0, -5) as ToolName, inventory.credentialSchema] as const] : []
 })
 
-test.each(toolSchema.options)('%s uses the shared TLS editor for every credential trust setting', tool => {
+test.each(toolSchema.options)('%s explains supported certificate identity settings', tool => {
   const published = profiles.find(([name]) => name === tool)
   const profile = editorProfile(tool, published ? new CredentialProfile(published[1], tool) : undefined)
-  const roots = profile.fields().map(field => field.name).filter(name => name !== 'tlsMaxVersion' && /^(tls|caFile|caBundle|certificate|connectAddress|serverName)/.test(name))
-  expect(roots.sort()).toEqual(tlsCredentialRoots(tool).sort())
   const html = credentialFields(tool, profile, {}, false)
   if (tool === 'ssh-axi') { expect(html).not.toContain('Certificate verification'); return }
   const settings = { connectAddress: tool === 'unifi-axi' ? 'tls.connectAddress' : undefined,
@@ -26,12 +23,24 @@ test.each(toolSchema.options)('%s uses the shared TLS editor for every credentia
     if (settings[kind]) expect(html).toContain(`data-profile-field="${settings[kind]}"`)
     else expect(html).toContain(kind === 'connectAddress' ? 'does not support a separate connection IP' : 'does not support a separate certificate name')
   }
-  for (const root of roots.filter(name => ['tls', 'certificatePin'].includes(name))) {
-    const properties = profile.fields().find(field => field.name === root)!.schema.properties
-    const expected = root === 'tls' ? ['connectAddress', 'peerFingerprintSha256', 'trustedCertificatePem'] : ['origin', 'replaceHostname', 'sha256']
-    expect(Object.keys(properties).sort()).toEqual(expected)
-    expect(html).not.toContain(`data-profile-field="${root}"`)
-  }
+})
+
+test.each([
+  ['ldap-axi', { caFile: 'CANARY-LDAP-CA' }, 'CANARY-LDAP-CA', undefined, undefined, 'caFile'],
+  ['vectra-axi', { caBundle: 'CANARY-VECTRA-CA' }, 'CANARY-VECTRA-CA', undefined, undefined, 'caBundle'],
+  ['technitium-axi', { caFile: 'CANARY-DNS-CA' }, 'CANARY-DNS-CA', undefined, undefined, 'caFile'],
+  ['proxmox-axi', { caBundle: 'CANARY-PROXMOX-CA', certificatePin: { sha256: 'CANARY-PIN' } }, 'CANARY-PROXMOX-CA', 'CANARY-PIN', undefined, 'certificatePin'],
+  ['kubernetes-axi', { certificateAuthority: 'CANARY-CLUSTER-CA' }, 'CANARY-CLUSTER-CA', undefined, 'certificateAuthority', undefined],
+  ['unifi-axi', { tls: { trustedCertificatePem: 'CANARY-UNIFI-CA', peerFingerprintSha256: 'CANARY-UNIFI-PIN' } }, 'CANARY-UNIFI-CA', 'CANARY-UNIFI-PIN', 'tls.trustedCertificatePem', 'tls'],
+] as const)('%s displays saved trust and offers supported replacement', (tool, metadata, certificate, fingerprint, entry, hidden) => {
+  const published = profiles.find(([name]) => name === tool)
+  const profile = editorProfile(tool, published ? new CredentialProfile(published[1], tool) : undefined)
+  const html = credentialFields(tool, profile, metadata, true)
+  expect(html).toContain(`<pre>${certificate}</pre>`)
+  if (fingerprint) expect(html).toContain(`<pre>${fingerprint}</pre>`)
+  if (entry) expect(html).toContain(`data-profile-field="${entry}"`)
+  if (tool === 'unifi-axi') expect(html).toContain('data-profile-field="tls.peerFingerprintSha256"')
+  if (hidden) expect(html).not.toContain(`data-profile-field="${hidden}"`)
 })
 
 test.each(profiles)('%s explains every visible non-secret credential field', (tool, schema) => {
