@@ -1,5 +1,5 @@
 {
-  "generatedBy": "scripts/hybrid-inventory.mjs",
+  "generatedBy": "scripts/hybrid-inventory.ts",
   "tool": "hybrid-axi",
   "version": "0.1.5",
   "integrity": "sha512-iwCPxkAlwni9NRsirBv5F7lBZPHZLzvxY4nhA+VRPDAiPkEr0g2W8/bE2/3ab+5GtiXpY9PI7wJgUPkh/fYf2Q==",

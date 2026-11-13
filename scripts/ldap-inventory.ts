@@ -4,11 +4,9 @@ import * as schemas from '../tools/node_modules/@knowttl/ldap-axi/dist/src/schem
 
 const root = new URL('../tools/', import.meta.url)
 const packageRoot = new URL('node_modules/@knowttl/ldap-axi/', root)
-const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8'))
-const pin = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8'))[pkg.name]
+const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8')) as { name: string, version: string }
+const pin = (JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8')) as Record<string, { version: string, integrity: string }>)[pkg.name]
 if (pkg.version !== pin.version) throw new Error('Pin mismatch for ldap-axi')
-// The release exports command schemas, but keeps its global flags and entry routes private.
-// These reviewed flags mirror dist/src/cli.js; its digest binds the review to the pin.
 const globals = { help: 'boolean', config: 'value', url: 'value', base: 'value', 'start-tls': 'boolean',
   'ca-file': 'value', 'ca-only': 'boolean', 'tls-no-verify': 'boolean', 'tls-max-version': 'value',
   'insecure-plaintext': 'boolean', anonymous: 'boolean', profile: 'value', auth: 'value',
@@ -32,7 +30,7 @@ const commands = [
     positionalInput: / (show|groups|members)$/.test(command) }
   }),
 ]
-const data = { generatedBy: 'scripts/ldap-inventory.mjs', tool: 'ldap-axi', ...pin,
+const data = { generatedBy: 'scripts/ldap-inventory.ts', tool: 'ldap-axi', ...pin,
   parserEvidence: 'Installed pinned command schemas and reviewed CLI globals and entry routes',
   skillSha256: createHash('sha256').update(readFileSync(new URL('skills/ldap-axi/SKILL.md', packageRoot))).digest('hex'),
   sources: ['package.json', 'README.md', 'axi-credential.schema.json', 'dist/src/cli.js', 'dist/src/schema.js',

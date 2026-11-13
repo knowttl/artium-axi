@@ -4,14 +4,12 @@ import { pathToFileURL } from 'node:url'
 
 const root = new URL('../tools/', import.meta.url)
 const packageRoot = new URL('node_modules/@knowttl/ado-axi/', root)
-const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8'))
-const pin = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8'))[pkg.name]
+const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8')) as { name: string, version: string }
+const pin = (JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8')) as Record<string, { version: string, integrity: string }>)[pkg.name]
 if (pkg.version !== pin.version) throw new Error('Pin mismatch for ado-axi')
-// Reviewed against 0.5.0 dispatch switches and *_FLAGS constants. Query POSTs
-// (WIQL and workitemsbatch) are reads. Re-pinning requires reviewing effects too.
 const globals = { profile: 'value', org: 'value', project: 'value', config: 'value', help: 'boolean', full: 'boolean', fields: 'value' }
-const commands = []
-function route(command, effect, values = '', booleans = '', positionals = 0, aliases = []) {
+const commands: { command: string, effect: 'read' | 'write' | 'blocked', flags: Record<string, string>, positionals: number, aliases: string[] }[] = []
+function route(command: string, effect: 'read' | 'write' | 'blocked', values = '', booleans = '', positionals = 0, aliases: string[] = []) {
   commands.push({ command, effect, flags: { ...globals,
     ...Object.fromEntries(values.split(' ').filter(Boolean).map(name => [name, 'value'])),
     ...Object.fromEntries(booleans.split(' ').filter(Boolean).map(name => [name, 'boolean'])) }, positionals, aliases })
@@ -116,9 +114,9 @@ for (const sub of ['list', 'show', 'path', 'init', 'add']) route(`config ${sub}`
 route('update', 'blocked')
 const sourcePaths = ['dist/bin/ado-axi.js', ...['auth', 'client', 'args', 'argv', 'config', 'adoUrl', 'stdin', 'context', 'writes', 'audit'].map(name => `dist/lib/${name}.js`),
   ...readdirSync(new URL('dist/commands/', packageRoot)).filter(name => name.endsWith('.js')).sort().map(name => `dist/commands/${name}`)]
-const digest = path => createHash('sha256').update(readFileSync(path)).digest('hex')
+const digest = (path: URL) => createHash('sha256').update(readFileSync(path)).digest('hex')
 const sdk = new URL('../../axi-sdk-js/dist/cli.js', pathToFileURL(realpathSync(packageRoot) + '/'))
-const data = { generatedBy: 'scripts/ado-inventory.mjs', tool: 'ado-axi', ...pin,
+const data = { generatedBy: 'scripts/ado-inventory.ts', tool: 'ado-axi', ...pin,
   skillSha256: digest(new URL('SKILL.md', packageRoot)),
   parserEvidence: 'Reviewed published dispatch switches, aliases and command flag constants',
   sources: [...sourcePaths.map(path => ({ path, sha256: digest(new URL(path, packageRoot)) })),

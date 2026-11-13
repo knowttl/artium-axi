@@ -143,6 +143,7 @@ Published help and domain metadata identify named capabilities, while a SHA-256 
 Missing decisions fail with the command or flag name and the decision file, including a previously known flag newly offered on another command.
 Review support in `scripts/awx-inventory.mjs` and `scripts/awx-parity.mjs`, record each new decision in `tools/inventories/awx-axi-parity.json`, and update the executable digest and reviewed surface in `scripts/awx-parity.mjs` when required.
 Then regenerate with `node scripts/upstream-inventory.mjs --write` and review the resulting decisions.
+For focused regeneration, run `node scripts/ado-inventory.ts --write`, `node scripts/ldap-inventory.ts --write` or `node scripts/hybrid-inventory.ts --write`.
 Regeneration rejects a recorded classification that differs from the generator; reconcile both before writing the updated matrix.
 The check and its synthetic command/flag regressions run offline against the installed pin; they do not fetch a newer upstream version.
 For top-level, auth, setup and global capabilities, the pinned upstream exposes help rather than a complete executable registry, so the check cannot detect capabilities omitted from that help.

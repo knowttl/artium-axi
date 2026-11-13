@@ -5,6 +5,10 @@
     "erasableSyntaxOnly": true
   },
   "include": [
+    "scripts/ado-inventory.ts",
+    "scripts/hybrid-inventory.ts",
+    "scripts/ldap-inventory.ts",
+    "scripts/ldap-schema.d.ts",
     "scripts/beyondtrust-inventory.ts",
     "scripts/checkpoint-inventory.ts",
     "scripts/tenable-inventory.ts",
