@@ -42,6 +42,29 @@ registerHooks({ load(url, context, nextLoad) {
   expect(result.stderr).toContain('support decision')
 })
 
+test.each([
+  { kind: 'command', mutation: "data.commands.find(item => item.command === 'job list').status = 'blocked'", name: 'job list' },
+  { kind: 'command flag', mutation: "data.commands.find(item => item.command === 'job list').flags.find(flag => flag.name === 'limit').status = 'blocked'", name: 'job list --limit' },
+  { kind: 'global flag', mutation: "data.globals.find(flag => flag.name === 'config').status = 'blocked'", name: 'config' },
+])('regeneration rejects a conflicting recorded $kind decision', ({ mutation, name }) => {
+  const preload = `import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const read = fs.readFileSync;
+fs.readFileSync = function(path, ...args) {
+  const contents = read.call(this, path, ...args);
+  if (!String(path).endsWith('/tools/inventories/awx-axi-parity.json')) return contents;
+  const data = JSON.parse(contents);
+  ${mutation};
+  return JSON.stringify(data);
+};
+syncBuiltinESMExports();`
+  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url)), '--write'], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain('support decisions differ')
+  expect(result.stderr).toContain(name)
+})
+
 type Flag = { name: string; takesValue: boolean; description: string }
 type Command = { command: string; flags: Flag[]; positionals: { names: string[]; required: number } }
 type Domain = { name: string; subcommands: (Omit<Command, 'command'> & { name: string })[] }

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { isDeepStrictEqual } from 'node:util'
 import { DOMAINS, main } from '../tools/node_modules/@knowttl/awx-axi/dist/cli.js'
 import { AUTH_HELP } from '../tools/node_modules/@knowttl/awx-axi/dist/commands/auth.js'
 import { SETUP_HELP } from '../tools/node_modules/@knowttl/awx-axi/dist/commands/setup.js'
@@ -201,6 +202,21 @@ const globals = globalNames.map(name => !['config', 'profile', 'origin', 'verify
     : 'Managed certificate trust and HTTPS policy; raw TLS verification override blocked',
   file: name === 'config', secret: false, ...(name === 'config' ? { delivery: 'Managed runner config, not a TD-066 user input; arbitrary server paths forbidden' } : {}) }))
 const versionFlags = ['--version', '-v', '-V'].map(name => ({ name, effect: 'client-local', status: 'supported', targetSlice: 'f', authorization: 'read', requiredAdminControl: targetPolicy.read, scope: 'Bare invocation only' }))
+const classification = ({ flags, help, positionals, description, takesValue, ...decision }) => decision
+const conflicts = []
+for (const [entries, previous, key] of [[commands, recorded.commands, 'command'], [aliases, recorded.aliases, 'command'],
+  [globals, recorded.globals, 'name'], [versionFlags, recorded.versionFlags, 'name']]) {
+  for (const entry of entries) {
+    const prior = previous.find(item => item[key] === entry[key])
+    if (!prior) continue
+    if (!isDeepStrictEqual(classification(entry), classification(prior))) conflicts.push(entry[key])
+    for (const flag of entry.flags ?? []) {
+      const priorFlag = prior.flags.find(item => item.name === flag.name)
+      if (priorFlag && !isDeepStrictEqual(classification(flag), classification(priorFlag))) conflicts.push(`${entry[key]} --${flag.name}`)
+    }
+  }
+}
+if (conflicts.length) throw new Error(`AWX support decisions differ from generated classifications: ${conflicts.join(', ')}; reconcile the recorded decisions and generator before regeneration`)
 const data = { generatedBy: 'scripts/awx-parity.mjs', tool: pkg.name, version: pkg.version,
   extraction: 'Offline DOMAINS subcommands/flags/positionals/help; main --help and update --help; AUTH_HELP and SETUP_HELP; reviewed inventory router aliases and transport tags',
   sources, globalFlagScope: 'Four selection overrides accepted upstream before/after commands; inherited by every leaf. --help is universal. Version flags are bare only.',

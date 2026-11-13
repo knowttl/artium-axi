@@ -141,6 +141,7 @@ Re-pinning also runs the offered-versus-admitted review in `test/offered-command
 For awx-axi, the local freshness gate compares the pinned commands and their flags, plus selection globals, against recorded support decisions in `tools/inventories/awx-axi-parity.json` before inventory freshness checks.
 Missing decisions fail with the command or flag name and the decision file, including a previously known flag newly offered on another command.
 Review support in `scripts/awx-inventory.mjs` and `scripts/awx-parity.mjs`, record each new decision in `tools/inventories/awx-axi-parity.json`, update the reviewed surface when required, then regenerate with `node scripts/upstream-inventory.mjs --write` and review the resulting decisions.
+Regeneration rejects a recorded classification that differs from the generator; reconcile both before writing the updated matrix.
 The check and its synthetic command/flag regressions run offline against the installed pin; they do not fetch a newer upstream version.
 For gh-axi, ado-axi, ldap-axi, proxmox-axi, gitea-axi, shodan-axi and mg-axi it reads the commands the installed upstream package offers.
 Every offered command must be admitted by the tool inventory, blocked by its `blockedCommands`, or recorded as reviewed but unadmitted in `tools/offered-review.json`.
