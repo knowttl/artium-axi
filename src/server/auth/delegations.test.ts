@@ -19,6 +19,9 @@ import { createBeyondtrustAdapter } from '../adapters/beyondtrust.js'
 import { createProxmoxAdapter } from '../adapters/proxmox.js'
 import { createKubernetesAdapter } from '../adapters/kubernetes.js'
 import { createGhAdapter } from '../adapters/gh.js'
+import { createGiteaAdapter } from '../adapters/gitea.js'
+import { createUnifiAdapter } from '../adapters/unifi.js'
+import giteaInventory from '../../../tools/inventories/gitea-axi.json' with { type: 'json' }
 
 const source = { getCredential: async () => { throw new Error('Unexpected credential access') } }
 const writeLog = join(process.cwd(), 'synthetic-writes.log')
@@ -40,6 +43,46 @@ test.each([
     candidates: ['issue list', 'issue create', 'issue edit'], allowed: [], enabled: false, granted: true },
   { adapter: createGhAdapter(source), settings: { writes: { allowWrites: true, operations: ['issue create'] } }, readOnly: false,
     candidates: ['issue list', 'issue create', 'issue edit'], allowed: [], enabled: true, granted: false },
+  { adapter: createUnifiAdapter(source, writeLog), settings: { writes: { allowWrites: true, operations: ['createAclRule'] } }, readOnly: false,
+    candidates: ['doctor', 'acl-rule create', 'acl-rule delete'], allowed: ['doctor', 'acl-rule create'], enabled: true, granted: true },
+  { adapter: createUnifiAdapter(source, writeLog), settings: { writes: { allowWrites: true, operations: [] } }, readOnly: false,
+    candidates: ['doctor', 'acl-rule create', 'acl-rule delete'], allowed: ['doctor'], enabled: true, granted: true },
+  { adapter: createFalconAdapter(source), settings: { writes: { allowWrites: true, operations: ['search start'] } }, readOnly: false,
+    candidates: ['host list', 'search start', 'search stop'], allowed: ['host list', 'search start'], enabled: true, granted: true },
+  { adapter: createFalconAdapter(source), settings: { writes: { allowWrites: false, operations: ['search start'] } }, readOnly: false,
+    candidates: ['host list', 'search start', 'search stop'], allowed: ['host list'], enabled: true, granted: true },
+  { adapter: createGiteaAdapter(source, writeLog), settings: { writes: { allowWrites: true, operations: ['issueCreateIssue'] } }, readOnly: false,
+    candidates: ['repo view', ...giteaInventory.commands.filter(route => route.effect === 'write').map(route => route.command)],
+    allowed: ['repo view'], enabled: true, granted: true },
+  { adapter: createGiteaAdapter(source, writeLog), settings: { writes: { allowWrites: true, operations: ['issueEditIssue'] } }, readOnly: false,
+    candidates: ['repo view', 'issue create', 'issue edit', 'issue close'], allowed: ['repo view'], enabled: true, granted: true },
+  { adapter: createGiteaAdapter(source, writeLog), settings: { writes: { allowWrites: true, operations: [] } }, readOnly: false,
+    candidates: ['repo view', 'issue create', 'issue edit'], allowed: ['repo view'], enabled: true, granted: true },
+  { adapter: createTechnitiumAdapter(source), readOnly: false, enabled: true, granted: true,
+    settings: { hostWrites: { allowWrites: true, operations: ['OP-119'] }, writes: { allowWrites: true, operations: ['OP-119', 'OP-120'] } },
+    candidates: ['status', 'admin cluster init', 'admin cluster primary delete'], allowed: ['status', 'admin cluster init'] },
+  { adapter: createTechnitiumAdapter(source), readOnly: false, enabled: true, granted: true,
+    settings: { hostWrites: { allowWrites: true, operations: ['OP-119', 'OP-120'] }, writes: { allowWrites: true, operations: ['OP-120'] } },
+    candidates: ['status', 'admin cluster init', 'admin cluster primary delete'], allowed: ['status', 'admin cluster primary delete'] },
+  { adapter: createTechnitiumAdapter(source), readOnly: false, enabled: true, granted: true,
+    settings: { hostWrites: { allowWrites: true, operations: ['OP-119'] } },
+    candidates: ['status', 'admin cluster init'], allowed: ['status'] },
+  { adapter: createTechnitiumAdapter(source), readOnly: false, enabled: true, granted: true,
+    settings: { hostWrites: { allowWrites: true, operations: ['OP-119'] }, writes: { allowWrites: true, operations: ['OP-119'] } },
+    candidates: ['status', 'dns-client resolve'], allowed: ['status', 'dns-client resolve'] },
+  { adapter: createTechnitiumAdapter(source), readOnly: false, enabled: true, granted: true,
+    settings: { hostWrites: { allowWrites: true, operations: ['OP-077.import'] }, writes: { allowWrites: true, operations: ['OP-077.import'] } },
+    candidates: ['status', 'dns-client resolve'], allowed: ['status', 'dns-client resolve'] },
+  { adapter: createProxmoxAdapter(source), settings: { hostWrites: { allowWrites: true, operations: ['OP-DELETE-d6b1eb65f2'] } }, readOnly: false,
+    candidates: ['task status', 'task cancel', 'delete /nodes/{node}/lxc/{vmid}'], allowed: ['task status', 'task cancel'], enabled: true, granted: true },
+  { adapter: createProxmoxAdapter(source), settings: { hostWrites: { allowWrites: false, operations: ['OP-DELETE-d6b1eb65f2'] } }, readOnly: false,
+    candidates: ['task status', 'task cancel'], allowed: ['task status'], enabled: true, granted: true },
+  { adapter: createProxmoxAdapter(source), settings: { hostWrites: { allowWrites: true, operations: ['OP-POST-c4fdd6f30b'] } }, readOnly: false,
+    candidates: ['create /nodes/{node}/execute'], allowed: [], enabled: true, granted: true },
+  { adapter: createProxmoxAdapter(source), settings: { hostWrites: { allowWrites: true, operations: ['OP-POST-c4fdd6f30b', 'OP-DELETE-db1a319dfa'] } }, readOnly: false,
+    candidates: ['create /nodes/{node}/execute'], allowed: ['create /nodes/{node}/execute'], enabled: true, granted: true },
+  { adapter: createProxmoxAdapter(source), settings: { hostWrites: { allowWrites: true, operations: ['OP-DELETE-db1a319dfa'] } }, readOnly: false,
+    candidates: ['create /nodes/{node}/execute'], allowed: [], enabled: true, granted: true },
 ])('$adapter.name discovery matches execution authorization under $settings, readOnly=$readOnly, enabled=$enabled, granted=$granted (R17)',
   ({ adapter, settings, readOnly, candidates, allowed, enabled, granted }) => {
     const db = new Database(':memory:')
@@ -65,6 +108,57 @@ test.each([
       expect(discovered.filter(command => candidates.includes(command))).toEqual([...allowed].sort())
     } finally { db.close() }
   })
+
+test.each([
+  { adapter: createGiteaAdapter(source, writeLog), command: 'issue create' },
+  { adapter: createGiteaAdapter(source, writeLog), command: 'issue edit' },
+  { adapter: createUnifiAdapter(source, writeLog), command: 'acl-rule create', options: ['--site', 'synthetic'] },
+  { adapter: createFalconAdapter(source, writeLog), command: 'search start' },
+  { adapter: createProxmoxAdapter(source), command: 'task cancel', settings: { hostWrites: { allowWrites: true, operations: [] } } },
+])('$adapter.name delegated $command help does not require a write operation', ({ adapter, command, options = [], settings = { writes: { allowWrites: true, operations: [] } } }) => {
+  const db = new Database(':memory:')
+  try {
+    migrate(db)
+    db.exec(`INSERT INTO users (id, username, display_name, password_hash)
+      VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash');
+      INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
+      INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role')`)
+    db.prepare('INSERT INTO tools (name, enabled, pinned_version, native_settings) VALUES (?, 1, ?, ?)')
+      .run(adapter.name, 'synthetic', JSON.stringify(settings))
+    db.prepare("INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', ?)").run(adapter.name)
+    const delegation = { scopeJson: JSON.stringify({ tools: [{ tool: adapter.name }] }), readOnly: false }
+    expect(() => authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, [...command.split(' '), '--help', ...options])).not.toThrow()
+    expect(delegatedDiscovery(db, 'synthetic-user', delegation, [adapter])[0].commands).not.toContain(command)
+  } finally { db.close() }
+})
+
+test.each([
+  { host: [], native: [], importAllowed: false },
+  { host: ['OP-077.import'], native: [], importAllowed: false },
+  { host: [], native: ['OP-077.import'], importAllowed: false },
+  { host: ['OP-077.import'], native: ['OP-077.import'], importAllowed: true },
+])('Technitium delegated DNS resolution checks import grants: $host $native', ({ host, native, importAllowed }) => {
+  const adapter = createTechnitiumAdapter(source, writeLog)
+  const db = new Database(':memory:')
+  try {
+    migrate(db)
+    db.exec(`INSERT INTO users (id, username, display_name, password_hash)
+      VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash');
+      INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
+      INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role')`)
+    db.prepare('INSERT INTO tools (name, enabled, pinned_version, native_settings) VALUES (?, 1, ?, ?)')
+      .run(adapter.name, 'synthetic', JSON.stringify({ hostWrites: { allowWrites: true, operations: host }, writes: { allowWrites: true, operations: native } }))
+    db.prepare("INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'technitium-axi')").run()
+    const delegation = { scopeJson: JSON.stringify({ tools: [{ tool: adapter.name }] }), readOnly: false }
+    const args = ['dns-client', 'resolve', '--input-file', 'input.json']
+    const input = (value: boolean) => ({ files: [{ name: 'input.json', contentBase64: Buffer.from(JSON.stringify({ parameters: { domain: 'synthetic.test', ...(value ? { import: true } : {}) } })).toString('base64') }] })
+    expect(delegatedDiscovery(db, 'synthetic-user', delegation, [adapter])[0].commands).toContain('dns-client resolve')
+    expect(() => authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, args, input(false))).not.toThrow()
+    const authorizeImport = () => authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, args, input(true))
+    if (importAllowed) expect(authorizeImport).not.toThrow()
+    else expect(authorizeImport).toThrow(expect.objectContaining({ code: 'FLAG_BLOCKED' }))
+  } finally { db.close() }
+})
 
 test.each([
   { adapter: createAzAdapter(source, writeLog), command: 'group list' },
@@ -184,6 +278,30 @@ test.each(['apply', 'create token'])('Kubernetes %s discovery advertises admitte
   expect(delegatedCommands(scope, true, adapter)).not.toContain(`server-dry-run -- ${command}`)
   expect(delegatedCommands(scope, true, adapter)).not.toContain('preview')
   expect(delegatedCommands(scope, true, adapter)).not.toContain('confirm')
+})
+
+test.each([
+  { settings: { allowWrites: true }, issued: false },
+  { settings: { allowWrites: true, acquireCredential: false }, issued: false },
+  { settings: { allowWrites: true, acquireCredential: true }, issued: true },
+])('Kubernetes create token discovery follows execution under $settings', async ({ settings, issued }) => {
+  const adapter = await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'))
+  const db = new Database(':memory:')
+  try {
+    migrate(db)
+    db.exec(`INSERT INTO users (id, username, display_name, password_hash)
+      VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash');
+      INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
+      INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role')`)
+    db.prepare("INSERT INTO tools (name, enabled, pinned_version, native_settings) VALUES ('kubernetes-axi', 1, 'synthetic', ?)").run(JSON.stringify(settings))
+    db.prepare("INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'kubernetes-axi')").run()
+    const delegation = { scopeJson: JSON.stringify({ tools: [{ tool: adapter.name, commands: ['create token'] }] }), readOnly: false }
+    const discovered = delegatedDiscovery(db, 'synthetic-user', delegation, [adapter])[0]?.commands ?? []
+    expect(discovered.includes('prepare -- create token')).toBe(issued)
+    for (const workflow of ['prepare', 'server-dry-run']) {
+      expect(() => authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, [workflow, '--', 'create', 'token', '--help'])).not.toThrow()
+    }
+  } finally { db.close() }
 })
 
 test.each([

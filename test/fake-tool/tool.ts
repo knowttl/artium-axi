@@ -22,7 +22,7 @@ export function createRunnerTestAdapter(source: SecretSource, runFake: boolean |
       throw new ArtiumError('FLAG_BLOCKED')
     }
   }
-  return { ...adapter, validateArgs,
+  return { ...adapter, validateArgs, executesWrite: () => false,
     sensitiveArguments: () => ({ flags: ['--client-id', '--client-secret'], positions: [] }),
     async prepare(args: readonly string[], reference: Parameters<typeof adapter.prepare>[1], input?: RunnerInput) {
     validateArgs(args, input)

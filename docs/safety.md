@@ -110,9 +110,13 @@ When the command or operation is known during instance selection, delegated call
 Kubernetes session lists include only sessions on instances permitted by the `session list` selection.
 Tool lists, generated help and skills include only commands permitted by the token, the creator's current usable instances and grants, tool enablement, delegated read-only restriction and administrator Allow writes switch.
 Tools with no permitted commands are omitted, and tool lists report the effective read-only state.
-Discovery for GitHub, Microsoft Graph, Vectra, Tenable One, Check Point, BeyondTrust and Hybrid Analysis, and Proxmox stream discovery, also reflect their administrator operation allow-lists.
-For ordinary tool commands, other adapter-internal operation allow-lists, including UniFi, Falcon, Gitea, Technitium, ordinary Proxmox JSON operations and Kubernetes credential acquisition, remain execution safeguards; reflecting them in discovery is a follow-up.
-Permitted native leaf commands retain their native argument help; locally generated Kubernetes hosted help filters command and session-kind listings to the same permitted set as discovery.
+Discovery for GitHub, Microsoft Graph, Vectra, Tenable One, Check Point, BeyondTrust, Hybrid Analysis, UniFi, Falcon, Gitea, Technitium and Proxmox also reflects their administrator operation allow-lists, through the same adapter hook that refuses execution before any credential is read.
+Kubernetes credential acquisition discovery also reflects the administrator `acquireCredential` setting.
+Gitea names its operations per call with `--allow-write`, and no exact per-command operation table exists.
+Delegated discovery therefore advertises no Gitea mutating commands, even when administrator operations are allowed; each call is still checked against the exact operations it names.
+Technitium `dns-client resolve` remains discoverable for reads without an import grant; an import still requires the grant described in the [command reference](commands.md).
+Proxmox batch discovery requires a grant for the batch operation and at least one eligible child operation; each actual child is checked at execution.
+Scoped native write leaf help remains available with administrator Allow writes enabled even when an operation allow-list omits the command; locally generated Kubernetes hosted help filters command and session-kind listings to the same permitted set as discovery.
 Download help, including help for a selected transfer leaf, shows the hosted download interface with only permitted operations and their selector, type and destination requirements.
 Leaf help outside the token's scope is refused.
 Native output and error messages may mention other commands.

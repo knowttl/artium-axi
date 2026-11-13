@@ -408,6 +408,7 @@ test.each([
   { upload: false, inline: true }, { upload: true, inline: true },
 ])('UniFi interrupted execution retains request reconciliation with upload=$upload inline=$inline (R2)', async ({ upload, inline }) => {
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'unifi-axi'; INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'unifi-axi')")
+  grantWrites('unifi-axi', ['createNetwork'])
   const unifi = createUnifiAdapter({
     getCredential: async () => ({ origin: 'https://synthetic.invalid', apiKey: 'CANARY-unifi-key' }),
     getSettings: () => ({ writes: { allowWrites: true, operations: ['createNetwork'] } }),
@@ -445,6 +446,7 @@ test('Technitium executes empty operation secrets without disabling nonempty sec
   const store = createCredentialStore(db, provider)
   store.replaceCredential('technitium-axi', credential, 0, 'synthetic-user', Date.now())
   const grants = { allowWrites: true, operations: ['OP-080'] }
+  db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify({ writes: grants, hostWrites: grants }), 'technitium-axi')
   const technitium = createTechnitiumAdapter({ getCredential: async () => credential,
     getSettings: () => ({ writes: grants, hostWrites: grants }) }, join(directory, 'technitium-writes'))
   const execution = { ...technitium, async prepare(...input: Parameters<typeof technitium.prepare>) {
@@ -515,6 +517,7 @@ test.each([
     const store = createCredentialStore(db, provider)
     const reference = store.replaceCredential('technitium-axi', credential, 0, 'synthetic-user', Date.now())
     const grants = { allowWrites: true, operations: ['OP-132'] }
+    db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify({ writes: grants, hostWrites: grants }), 'technitium-axi')
     const technitium = createTechnitiumAdapter({ getCredential: async () => credential,
       getSettings: () => ({ writes: grants, hostWrites: grants }) }, join(directory, 'technitium-writes'))
     const mutation = join(directory, 'synthetic-mutation')
