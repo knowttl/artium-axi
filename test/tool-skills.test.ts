@@ -23,7 +23,8 @@ test.each(toolSchema.options)('%s overlay preserves tool guidance with managed c
   }
   if (tool === 'kubernetes-axi') {
     expect(skill).toContain('native -- get deployments -o json')
-    expect(skill).toContain('saved strict leaf pins are unavailable')
+    expect(skill).toContain('saved strict leaf pins work only for static token identities')
+    expect(skill).toContain('client certificates, credential helpers, custom TLS server-name overrides')
     expect(skill).toContain('Secret reads expose metadata only')
     return
   }
