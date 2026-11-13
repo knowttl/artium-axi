@@ -299,7 +299,9 @@ Failures can include the server and upstream HTTP statuses, catalogued error, fa
 Network and unreadable-response failures show a category; invalid JSON and unexpected response formats have separate guidance.
 The automatic retest does not display raw exception messages, response text or tool diagnostic text.
 When a saved strict pin differs from the presented certificate, inspection offers **Replace trusted certificate**.
+Without an endpoint trust record, a manually saved self-signed certificate with its matching fingerprint is treated as a strict pin even if the certificate is CA-capable; an explicit CA trust record remains CA trust.
 For CA trust with a paired fingerprint, replacement is offered when the fingerprint differs and the presented certificate verifies against the saved CA trust.
+When the saved certificate and endpoint CA differ, the presented leaf must verify against both.
 Compare and confirm the new fingerprint before replacement; recent identity confirmation is still required.
 Strict pin replacement updates supported shared fields and removes previous pin records for every equivalent spelling of the inspected endpoint.
 CA-mode replacement updates the paired leaf fingerprint and leaves existing CA records unchanged.

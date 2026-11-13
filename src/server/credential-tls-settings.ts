@@ -24,7 +24,7 @@ export const tlsFieldDefinitions = {
   fingerprint: { label: 'SHA-256 fingerprint', help: 'Enter the 64 hexadecimal characters shown by the appliance. Compare through an independent trusted route.' },
 }
 
-export function savedCertificateTrust(tool: ToolName, value: Record<string, unknown>, leafPem?: string, records: readonly { mode: 'ca' | 'pin' }[] = []) {
+export function savedCertificateTrust(tool: ToolName, value: Record<string, unknown>, records: readonly { mode: 'ca' | 'pin' }[] = []) {
   const settings = credentialTlsSettings[tool]
   const read = (path?: string) => path?.split('.').reduce<any>((parent, key) => parent?.[key], value)
   const pem = read(settings.certificate) as string | undefined
@@ -33,10 +33,11 @@ export function savedCertificateTrust(tool: ToolName, value: Record<string, unkn
   if (pem) {
     try { certificate = new X509Certificate(pem) } catch { certificate = undefined }
   }
-  const leaf = leafPem ? new X509Certificate(leafPem) : undefined
-  const issuer = certificate && leaf && leaf.fingerprint256 !== certificate.fingerprint256 && leaf.checkIssued(certificate) && leaf.verify(certificate.publicKey)
-  const isCa = Boolean(certificate?.ca || issuer)
-  const mode: 'pin' | 'ca' | null = records.some(record => record.mode === 'ca') ? 'ca'
+  const selfSignedPin = certificate && certificate.issuer === certificate.subject && certificate.verify(certificate.publicKey)
+    && fingerprint?.replaceAll(':', '').toLowerCase() === certificate.fingerprint256.replaceAll(':', '').toLowerCase()
+  const explicitCa = records.some(record => record.mode === 'ca')
+  const isCa = Boolean(certificate?.ca && (explicitCa || !selfSignedPin))
+  const mode: 'pin' | 'ca' | null = explicitCa ? 'ca'
     : records.length ? 'pin' : certificate ? isCa ? 'ca' : 'pin' : fingerprint ? 'pin' : null
   return { pem, fingerprint, certificate, isCa, mode }
 }
