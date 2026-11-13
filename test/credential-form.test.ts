@@ -19,17 +19,17 @@ const schemaRegistry = Object.fromEntries(Object.entries(toolCredentialSchemaPat
   const tool = name as ToolName
   const published = path ? loadCredentialProfile(tool, path.replace('/opt/tools/', fileURLToPath(new URL('../tools/', import.meta.url)))) : undefined
   if (path && !published) throw new Error(`Missing credential schema: ${tool}`)
-  return [tool, editorProfile(tool, published)]
-})) as Record<ToolName, CredentialProfile>
+  return [tool, { configured: published, editor: editorProfile(tool, published) }]
+})) as Record<ToolName, { configured: CredentialProfile | undefined, editor: CredentialProfile }>
 
 function assertTlsFieldsRegistered(registry: typeof schemaRegistry) {
   const leaves = (schema: Record<string, any>, path: string): string[] => schema.properties
     ? Object.entries(schema.properties).flatMap(([name, child]) => leaves(child as Record<string, any>, `${path}.${name}`)) : [path]
-  const unregistered = Object.entries(registry).flatMap(([name, profile]) => {
+  const unregistered = Object.entries(registry).flatMap(([name, profiles]) => {
     const settings = credentialTlsSettings[name as ToolName]
     const registered = new Set(Object.values(settings))
     if (settings.pin) for (const field of ['origin', 'replaceHostname']) registered.add(`${settings.pin}.${field}`)
-    return profile.fields().filter(field => !['startTls', 'tlsMaxVersion'].includes(field.name)
+    return [profiles.configured, profiles.editor].flatMap(profile => profile?.fields() ?? []).filter(field => !['startTls', 'tlsMaxVersion'].includes(field.name)
       && /^(tls|caFile|caBundle|certificateAuthority|certificatePin|connectAddress|serverName|trustedCertificate|peerFingerprint)/i.test(field.name))
       .flatMap(field => leaves(field.schema, field.name)).filter(path => !registered.has(path)).map(path => `${name}.${path}`)
   })
@@ -41,10 +41,17 @@ test('every credential schema registers its TLS trust fields in the shared layer
 })
 
 test('the schema guard rejects a seeded unregistered TLS field in the real registry', () => {
-  const schema = structuredClone(schemaRegistry['gh-axi'].schema)
-  schema.properties.caFile = structuredClone(schemaRegistry['ldap-axi'].inputSchema.properties.caFile)
-  const seeded = { ...schemaRegistry, 'gh-axi': new CredentialProfile(schema, 'gh-axi') }
+  const schema = structuredClone(schemaRegistry['gh-axi'].editor.schema)
+  schema.properties.caFile = structuredClone(schemaRegistry['ldap-axi'].editor.inputSchema.properties.caFile)
+  const seeded = { ...schemaRegistry, 'gh-axi': { ...schemaRegistry['gh-axi'], editor: new CredentialProfile(schema, 'gh-axi') } }
   expect(() => assertTlsFieldsRegistered(seeded)).toThrow('gh-axi.caFile')
+})
+
+test('the schema guard rejects a seeded unregistered TLS field in a configured profile', () => {
+  const schema = structuredClone(schemaRegistry['unifi-axi'].configured!.schema)
+  schema.properties.caFile = structuredClone(schemaRegistry['ldap-axi'].editor.inputSchema.properties.caFile)
+  const seeded = { ...schemaRegistry, 'unifi-axi': { ...schemaRegistry['unifi-axi'], configured: new CredentialProfile(schema, 'unifi-axi') } }
+  expect(() => assertTlsFieldsRegistered(seeded)).toThrow('unifi-axi.caFile')
 })
 
 test.each(toolSchema.options)('%s explains supported certificate identity settings', tool => {
