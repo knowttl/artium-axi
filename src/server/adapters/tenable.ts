@@ -114,7 +114,8 @@ export function createTenableAdapter(source: SecretSource, writeLog: string): Ad
         await rename(temporary, config)
       } finally { await rm(temporary, { force: true }) }
       return { executable: toolPaths['tenable-axi'], ...normalized,
-        ...profile, files: [], environment: { ...profile.environment, TENABLE_AXI_CONFIG: config },
+        ...profile, files: [], environment: { ...profile.environment, TENABLE_AXI_CONFIG: config,
+          TENABLE_AXI_CREDENTIAL_REVISION: `${reference.id}:${reference.revision}` },
         limits: { timeoutMs: runnerLimits.timeoutMs } }
     },
   }

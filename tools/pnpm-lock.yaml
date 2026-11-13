@@ -24,8 +24,8 @@ importers:
         specifier: 0.1.6
         version: 0.1.6
       '@knowttl/falcon-axi':
-        specifier: 1.0.1
-        version: 1.0.1
+        specifier: 1.1.0
+        version: 1.1.0
       '@knowttl/gitea-axi':
         specifier: 0.1.4
         version: 0.1.4
@@ -54,8 +54,8 @@ importers:
         specifier: 0.1.1
         version: 0.1.1
       '@knowttl/tenable-axi':
-        specifier: 0.1.7
-        version: 0.1.7
+        specifier: 0.1.8
+        version: 0.1.8
       '@knowttl/unifi-axi':
         specifier: 0.1.3
         version: 0.1.3
@@ -124,8 +124,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/falcon-axi@1.0.1':
-    resolution: {integrity: sha512-XG1EI5FLS5w2CwaZ+MgJwNFV9TIRwAuuK+vzlQOSRpgAD6N3hxjYhIdXa+tEe6/tVp26aaNwEabaVMHdAJ6aNQ==}
+  '@knowttl/falcon-axi@1.1.0':
+    resolution: {integrity: sha512-iOnTT7V6cwf7dcBrfnOaSbT2FZ+BfWlB5huN9cWw52/Fm2H+7D5wURzzOsyxZ2SUd8Fre1ndtXtiaHkmxGjBWA==}
     engines: {node: '>=22.18.0'}
     hasBin: true
 
@@ -174,8 +174,8 @@ packages:
     engines: {node: '>=24.14.0 <25', npm: '>=11.9.0 <12'}
     hasBin: true
 
-  '@knowttl/tenable-axi@0.1.7':
-    resolution: {integrity: sha512-q2b/Ubc9LlPCoTUTYMPwqBeVABpj148cnv/F2sFQcmYw8Ho1ROtJ1FlxME7sCIMJ9FUO032CR1Hh8eWvOPV6Ww==}
+  '@knowttl/tenable-axi@0.1.8':
+    resolution: {integrity: sha512-vrr91+Sb6tbDea6DrG+8lRuNqWkTLJlJs5XqpCIg30q1JwhiIFoC8WfLjzEOqQdMKyqhm2/b3U56EXU/FVe5jQ==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -1257,7 +1257,7 @@ snapshots:
       axi-sdk-js: 0.1.13
       zod: 4.3.6
 
-  '@knowttl/falcon-axi@1.0.1':
+  '@knowttl/falcon-axi@1.1.0':
     dependencies:
       '@toon-format/toon': 4.1.1
       ajv: 8.20.0
@@ -1327,7 +1327,7 @@ snapshots:
       ajv: 8.17.1
       tr46: 6.0.0
 
-  '@knowttl/tenable-axi@0.1.7':
+  '@knowttl/tenable-axi@0.1.8':
     dependencies:
       '@toon-format/toon': 2.3.1
       axi-sdk-js: 0.1.13

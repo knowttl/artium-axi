@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/tenable-inventory.mjs",
   "tool": "tenable-axi",
-  "version": "0.1.7",
-  "integrity": "sha512-q2b/Ubc9LlPCoTUTYMPwqBeVABpj148cnv/F2sFQcmYw8Ho1ROtJ1FlxME7sCIMJ9FUO032CR1Hh8eWvOPV6Ww==",
+  "version": "0.1.8",
+  "integrity": "sha512-vrr91+Sb6tbDea6DrG+8lRuNqWkTLJlJs5XqpCIg30q1JwhiIFoC8WfLjzEOqQdMKyqhm2/b3U56EXU/FVe5jQ==",
   "parserEvidence": "Published command catalogue, mutation registry and reviewed native parsers and transport gates",
   "sources": [
     {
@@ -87,7 +87,7 @@
     },
     {
       "path": "dist/src/profiles.js",
-      "sha256": "b52aa17032f025a81682f0459dcdbed45cf0ed84e10e5aefe31677c31f26414a"
+      "sha256": "5f2648b68036568c75f5c81f97a6162f3884c7590b6b9205da9c8a05ddf8674d"
     },
     {
       "path": "dist/src/raw.js",
@@ -123,7 +123,7 @@
     },
     {
       "path": "dist/src/writes-core.js",
-      "sha256": "c29e3380521392f1385920800ae147f2d89e408afa9fcad950e239207111738d"
+      "sha256": "af9e04af033cee1e408b8988773c0ca372f9b305d3e10c2d7a263113339ec3c0"
     },
     {
       "path": "dist/src/writes.js",
