@@ -76,7 +76,7 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       const inspected = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/inspect', headers, payload: { endpointIndex: 0 } })
       expect(inspected.statusCode, inspected.body).toBe(200)
       const trusted = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
-        payload: { inspectionId: inspected.json().inspectionId, mode: 'pin' } })
+        payload: { inspectionId: inspected.json().inspectionId, confirmedFingerprint: inspected.json().chain[0].fingerprint, mode: 'pin' } })
       expect(trusted.statusCode, trusted.body).toBe(200)
       const health = await checked()
       expect(health.statusCode, health.body).toBe(200)
@@ -269,8 +269,12 @@ test.each(['PATCH', 'PUT'] as const)('AWX password sign-in via %s bootstraps sco
       expect(inspected.statusCode, inspected.body).toBe(200)
       expect(inspected.json()).toMatchObject({ endpoint: `${origin}/`, hostname: 'localhost' })
       expect(JSON.parse(await send('/__evidence')).requests).toEqual([])
-      const trusted = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
+      const unconfirmed = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
         payload: { inspectionId: inspected.json().inspectionId, mode: 'pin' } })
+      expect(unconfirmed.statusCode).toBe(400)
+      expect((await app.inject({ url: '/v1/admin/tools/awx-axi/certificates', headers })).json().certificates).toEqual([])
+      const trusted = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
+        payload: { inspectionId: inspected.json().inspectionId, confirmedFingerprint: inspected.json().chain[0].fingerprint, mode: 'pin' } })
       expect(trusted.statusCode, trusted.body).toBe(200)
       await send('/__ado/reset', 'POST')
       const unsavedDestination = await save(initialMethod, { origin: `https://127.0.0.1:${port}`, signIn: 'password', username, password })
@@ -343,7 +347,7 @@ test.each(['PATCH', 'PUT'] as const)('AWX password sign-in via %s bootstraps sco
         const pins = await app.inject({ url: '/v1/admin/tools/awx-axi/certificates', headers })
         expect(pins.json()).toEqual({ certificates: [] })
         const staleTrust = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
-          payload: { inspectionId: staleInspection.json().inspectionId } })
+          payload: { inspectionId: staleInspection.json().inspectionId, confirmedFingerprint: staleInspection.json().chain[0].fingerprint } })
         expect(staleTrust.json()).toMatchObject({ error: { code: 'REVISION_CONFLICT' } })
         const untrustedDestination = await save(initialMethod, { origin: changedOrigin, signIn: 'password', username, password })
         expect(untrustedDestination.json()).toMatchObject({ error: { code: 'UPSTREAM_TLS_FAILED' } })
@@ -351,7 +355,7 @@ test.each(['PATCH', 'PUT'] as const)('AWX password sign-in via %s bootstraps sco
         expect(inspection.json()).toMatchObject({ endpoint: `${changedOrigin}/` })
         expect(JSON.parse(await destination.send('/__evidence')).requests).toEqual([])
         const approval = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
-          payload: { inspectionId: inspection.json().inspectionId, mode: 'pin' } })
+          payload: { inspectionId: inspection.json().inspectionId, confirmedFingerprint: inspection.json().chain[0].fingerprint, mode: 'pin' } })
         expect(approval.statusCode, approval.body).toBe(200)
         const signedIn = await save(initialMethod, { origin: changedOrigin, signIn: 'password', username, password })
         expect(signedIn.statusCode, signedIn.body).toBe(200)

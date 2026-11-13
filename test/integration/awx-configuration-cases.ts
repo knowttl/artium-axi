@@ -160,7 +160,7 @@ export function configurationTests(domains: string[]) {
       expect(saved.statusCode, saved.body).toBe(200)
       const inspected = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/inspect', headers, payload: { endpointIndex: 0 } })
       const trusted = await app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/certificates/trust', headers,
-        payload: { inspectionId: inspected.json().inspectionId, mode: 'pin' } })
+        payload: { inspectionId: inspected.json().inspectionId, confirmedFingerprint: inspected.json().chain[0].fingerprint, mode: 'pin' } })
       expect(trusted.statusCode, trusted.body).toBe(200)
       const settings = async (nativeSettings: Record<string, boolean>) => {
         const revision = (db.prepare("SELECT revision FROM tools WHERE name = 'awx-axi'").get() as { revision: number }).revision

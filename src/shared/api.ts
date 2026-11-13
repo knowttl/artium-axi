@@ -480,7 +480,7 @@ export const adminCertificateRoutes = {
   inspect: { method: 'POST', path: '/v1/admin/tools/:tool/certificates/inspect',
     input: z.strictObject({ endpointIndex: z.number().int().nonnegative().default(0) }), response: certificateInspectionSchema },
   trust: { method: 'POST', path: '/v1/admin/tools/:tool/certificates/trust',
-    input: z.strictObject({ inspectionId: z.string(), mode: z.enum(['ca', 'pin']).default('ca') }), response: z.strictObject({ trusted: z.literal(true) }) },
+    input: z.strictObject({ inspectionId: z.string(), mode: z.enum(['ca', 'pin']).default('ca'), confirmedFingerprint: z.string(), fillFields: z.boolean().default(false) }), response: z.strictObject({ trusted: z.literal(true) }) },
   useName: { method: 'POST', path: '/v1/admin/tools/:tool/certificates/use-name',
     input: z.strictObject({ inspectionId: z.string() }), response: z.strictObject({ updated: z.literal(true) }) },
   remove: { method: 'DELETE', path: '/v1/admin/tools/:tool/certificates',

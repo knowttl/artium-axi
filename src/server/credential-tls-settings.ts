@@ -24,6 +24,29 @@ export const tlsFieldDefinitions = {
   fingerprint: { label: 'SHA-256 fingerprint', help: 'Enter the 64 hexadecimal characters shown by the appliance. Compare through an independent trusted route.' },
 }
 
+export function initialCertificateTrust(tool: ToolName, value: Record<string, unknown>, pem: string, fingerprint: string, mode: 'ca' | 'pin') {
+  const settings = credentialTlsSettings[tool]
+  if (!settings.certificate) throw new ArtiumError('INVALID_INPUT', 'This tool does not support a shared trusted certificate field. Use endpoint trust instead.')
+  const savedFingerprint = settings.fingerprint?.split('.').reduce<any>((parent, key) => parent?.[key], value)
+  const normalized = fingerprint.replaceAll(':', '').toLowerCase()
+  if (savedFingerprint && String(savedFingerprint).replaceAll(':', '').toLowerCase() !== normalized) {
+    throw new ArtiumError('INVALID_INPUT', 'The saved fingerprint differs. Replace the certificate and fingerprint manually in Certificate verification.')
+  }
+  const next = { ...value }
+  const write = (path: string, content: string) => {
+    const [root, key] = path.split('.') as [string, string?]
+    if (key) next[root] = { ...(next[root] as object), [key]: content }
+    else next[root] = content
+  }
+  write(settings.certificate, pem)
+  if (settings.fingerprint && !settings.pin) write(settings.fingerprint, normalized)
+  if (settings.pin && mode === 'pin' && !savedFingerprint) {
+    write(settings.fingerprint!, normalized)
+    next[settings.pin] = { ...(next[settings.pin] as object), origin: value.origin, replaceHostname: false }
+  }
+  return next
+}
+
 export function certificateNameChange(tool: ToolName, value: Record<string, unknown>, endpoint: URL, leafPem: string) {
   const settings = credentialTlsSettings[tool]
   const certificate = new X509Certificate(leafPem)

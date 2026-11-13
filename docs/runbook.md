@@ -286,13 +286,19 @@ The window highlights weak keys, validity and hostname problems, and fingerprint
 When the certificate does not match the name being verified, inspection offers a name change for supported settings if the certificate has a usable DNS name.
 The action keeps the connection address and saves the certificate name for verification; it does not grant trust or automatically test the connection.
 Technitium retains its IP or DNS connection address and updates **Certificate name to verify**.
-UniFi changes the origin to the certificate name and retains the connection IP; first save its trusted certificate and SHA-256 fingerprint in **Certificate verification**.
+UniFi changes the origin to the certificate name and retains the connection IP; for initial setup, choose **Trust this certificate** to fill its trusted certificate and fingerprint, then inspect again to use the name.
 UniFi cannot preserve a DNS connection address with this action, and unsupported tools show a refusal reason.
 If the endpoint changes, existing instance trust moves to the new endpoint; if both endpoints already have trust records, remove the conflicting records before retrying.
 The confirmation window and inspection API report the leaf and trust anchor expiry, with informational warnings when either expires within seven days.
 For a short-lived intermediate anchor, the window warns that it will rotate and recommends trusting the long-lived root through the server-wide bundle to avoid repeated confirmation.
 Expiry warnings do not block confirmation or change hostname and date verification.
-**Trust certificate for this tool** defaults to **Trust the CA**; choose **Strict leaf pinning** explicitly to require confirmation after each leaf rotation.
+Confirm that you compared the displayed fingerprint, then choose **Trust this certificate**.
+Initial setup fills the supported shared certificate fields and saves endpoint trust; tools without shared fields show that limitation and retain confirmed endpoint trust.
+The UI automatically tests the connection and shows **Connected** or the server-reported failure message.
+Client-side failures show a safe network or unreadable-response category and error name, without raw exception messages or response text.
+Certificate rotation and replacement remain manual; a mismatched saved fingerprint is not replaced by initial setup.
+Removing an endpoint trust record retains the separately saved Certificate verification fields; clear those fields too when revoking that trust.
+CA trust is selected when an issuing CA is available; self-signed endpoints select strict leaf pinning.
 GitHub supports strict leaf pins through a private per-call HTTP socket relay that verifies the upstream TLS connection before sending application data.
 Kubernetes remains an exception: its editor accepts only an issuing CA, and strict leaf pinning is refused.
 For self-signed Kubernetes endpoints or a missing issuing CA, configure the server-wide bundle above.
