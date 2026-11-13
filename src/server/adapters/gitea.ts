@@ -22,6 +22,7 @@ export const giteaWritePolicy = writePolicy({ supportedOperations: giteaWriteOpe
 function authorizeOperation(_command: string, settings: Record<string, unknown>, args?: readonly string[], input?: RunnerInput) {
   if (!args) throw new ArtiumError('FLAG_BLOCKED')
   const call = giteaArguments(args, input)
+  if (call.invocation.help) return
   const operations = 'operations' in call && call.operations || []
   if (!operations.length) throw new ArtiumError('FLAG_BLOCKED')
   for (const operation of operations) giteaWritePolicy.authorize(settings, allowed => allowed === operation)

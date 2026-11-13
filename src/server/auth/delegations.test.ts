@@ -109,6 +109,24 @@ test.each([
     } finally { db.close() }
   })
 
+test.each(['issue create', 'issue edit'])('Gitea delegated %s help does not require a write operation', command => {
+  const adapter = createGiteaAdapter(source, writeLog)
+  const db = new Database(':memory:')
+  try {
+    migrate(db)
+    db.exec(`INSERT INTO users (id, username, display_name, password_hash)
+      VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'CANARY-hash');
+      INSERT INTO roles (id, name) VALUES ('synthetic-role', 'Synthetic Role');
+      INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-user', 'synthetic-role');
+      INSERT INTO tools (name, enabled, pinned_version, native_settings)
+        VALUES ('gitea-axi', 1, 'synthetic', '{"writes":{"allowWrites":true,"operations":[]}}');
+      INSERT INTO role_tools (role_id, tool) VALUES ('synthetic-role', 'gitea-axi')`)
+    const delegation = { scopeJson: JSON.stringify({ tools: [{ tool: adapter.name }] }), readOnly: false }
+    expect(() => authorizeDelegatedCall(db, 'synthetic-user', delegation, adapter, [...command.split(' '), '--help'])).not.toThrow()
+    expect(delegatedDiscovery(db, 'synthetic-user', delegation, [adapter])[0].commands).not.toContain(command)
+  } finally { db.close() }
+})
+
 test.each([
   { host: [], native: [], importAllowed: false },
   { host: ['OP-077.import'], native: [], importAllowed: false },
