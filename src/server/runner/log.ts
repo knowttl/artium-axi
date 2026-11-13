@@ -1,5 +1,6 @@
 import { ArtiumError } from '../../shared/errors.js'
 import { toolFailureCode } from '../health/diagnostic.js'
+import { diagnosticCode } from '../../shared/diagnostic.js'
 import { log } from '../log.js'
 import { RunnerError, type RunnerResult } from './runner.js'
 
@@ -36,7 +37,7 @@ export async function logRun(context: { requestId: string, tool: string, suppres
     throw error
   } finally {
     log(outcome === 'completed' && result?.exitCode === 0 ? 'info' : 'warn', 'run', {
-      requestId: context.requestId, tool: context.tool, outcome, errorCode, ...observed,
+      requestId: context.requestId, tool: context.tool, outcome, errorCode: diagnosticCode(errorCode), ...observed,
     })
   }
 }

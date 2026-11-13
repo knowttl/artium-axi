@@ -958,7 +958,7 @@ for (const action of ['save', 'test']) {
         await page.click('form[data-test-tool] button');
       }
       await page.wait('[data-check-diagnostic]:not(:empty)');
-      check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent === 'configuration\\nThis credential check was not admitted.'), 'Current test diagnostic was replaced');
+      check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent === 'configuration'), 'Current test diagnostic was replaced');
       check(await page.eval(() => document.querySelector('[data-check-error]').textContent === 'TOO_MANY_CALLS'), 'Current test category was replaced');
       check(await page.eval(() => document.querySelector('[data-check-time]').title === '2023-11-14T22:13:20.000Z'), 'Current test time was replaced');
       check(await page.eval(() => document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '), 'Failed test marked the checklist complete');
@@ -1110,7 +1110,7 @@ test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalizatio
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('origin: canonicalized format.')), 'Origin normalization notice missing');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('token: removed surrounding whitespace.')), 'Secret normalization notice missing');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.startsWith(${JSON.stringify(saveAndTest ? 'Saved. Test failed.' : 'Saved.')})), 'Save result missing');
-    if (${saveAndTest}) check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('Synthetic DNS failure.')), 'Current diagnostic missing');
+    if (${saveAndTest}) check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent === 'DNS'), 'Current diagnostic missing');
     check(await page.eval(() => !document.querySelector('main').innerText.includes('CANARY-normalized-token')), 'Secret appeared in notice');
   `)
 })

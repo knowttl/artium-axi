@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { adminCredentialSchema, adminInstanceRoutes, adminInstanceSchema, adminToolParamsSchema, adminToolRoutes, adminToolSchema,
   healthSchema, instanceNameSchema, nativeSettingsSchemas, toolSchema, githubDeviceRoutes } from '../../shared/api.js'
 import { ArtiumError, errorResponse, errors } from '../../shared/errors.js'
+import { safeDiagnostic } from '../health/diagnostic.js'
 import { falconCredentialSchema, falconWritePolicy } from '../adapters/falcon.js'
 import { vectraCredentialSchema, vectraWritePolicy } from '../adapters/vectra.js'
 import { azCredentialSchema, azWritePolicy } from '../adapters/az.js'
@@ -608,8 +609,9 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       authorize(request)
       if (!(error instanceof ArtiumError)) throw error
       const response = errorResponse(error, request.id)
+      const diagnostic = safeDiagnostic(error.diagnostic, [])
       return reply.code(errors[error.code].status).send({ error: { ...response.error,
-        ...(error.diagnostic ? { diagnostic: error.diagnostic } : {}) } })
+        ...(diagnostic ? { diagnostic } : {}) } })
     }
   } })
   app.route({ method: adminInstanceRoutes.list.method, url: adminInstanceRoutes.list.path, handler: async request => {

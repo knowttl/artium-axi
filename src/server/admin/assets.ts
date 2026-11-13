@@ -144,7 +144,7 @@ if (savedTest) {
   const result = document.querySelector('[data-test-result]');
   if (result) {
     const saved = JSON.parse(savedTest);
-    result.textContent = saved.message;
+    result.textContent = saved.diagnosticVersion === 1 ? saved.message : 'Details unavailable. Run Test connection again.';
     if (saved.health && document.querySelector('[data-test-checklist]')) renderTestHealth(saved.health);
   }
 }
@@ -407,17 +407,20 @@ function reauthenticate(csrf) {
 async function readTestResponse(response) {
   const result = await response.json();
   if (!response.ok) {
-    const error = result.error;
-    return { error, health: { status: 'error', checkedAt: error.diagnostic?.checkedAt ?? null,
-      errorCode: error.code, diagnostic: error.diagnostic } };
+    const code = Object.hasOwn(retestErrors, result?.error?.code) ? result.error.code : 'INTERNAL_ERROR';
+    const diagnostic = structuredDiagnostic(result?.error?.diagnostic);
+    const error = { code, message: retestErrors[code], next: retestNext[code] };
+    return { error, health: { status: 'error', checkedAt: diagnostic?.checkedAt ?? null,
+      errorCode: code, diagnostic } };
   }
   const health = result;
   if (health.status !== 'ok' || !Number.isInteger(health.checkedAt) ||
       !Number.isInteger(health.credentialRevision) || health.errorCode !== null) throw new Error();
-  return { health };
+  return { health: { status: 'ok', checkedAt: health.checkedAt, credentialRevision: health.credentialRevision, errorCode: null } };
 }
 
 function renderTestHealth(health) {
+  const errorCode = Object.hasOwn(retestErrors, health.errorCode) ? health.errorCode : null;
   const passed = health.status === 'ok';
   // The server renders both state badges from the status vocabulary; this only swaps them.
   document.querySelector('[data-tool-state]').replaceChildren(document.querySelector('template[data-state=' + (passed ? 'ok' : 'error') + ']').content.cloneNode(true));
@@ -425,7 +428,7 @@ function renderTestHealth(health) {
   step.classList.remove('todo', 'done', 'fail');
   step.classList.add(passed ? 'done' : 'fail');
   step.querySelector('[data-step-state]').textContent = (passed ? 'Done' : 'Failed') + ': ';
-  step.querySelector('b + span').textContent = passed ? 'Passed' : 'Failing: ' + (health.errorCode || 'error');
+  step.querySelector('b + span').textContent = passed ? 'Passed' : 'Failing: ' + (errorCode || 'error');
   const mark = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   mark.setAttribute('class', 'i');
   mark.append(document.createElementNS('http://www.w3.org/2000/svg', 'use'));
@@ -434,14 +437,14 @@ function renderTestHealth(health) {
   const checked = document.querySelector('[data-check-time]');
   checked.textContent = health.checkedAt === null ? 'never' : new Date(health.checkedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   checked.title = health.checkedAt === null ? '' : new Date(health.checkedAt).toISOString();
-  const detail = health.diagnostic;
-  document.querySelector('[data-check-failure]').hidden = !health.errorCode;
-  document.querySelector('[data-check-summary]').textContent = detail ? [detail.message, detail.hint].filter(Boolean).join(' ') : '';
-  document.querySelector('[data-check-error]').textContent = health.errorCode || '';
+  const detail = structuredDiagnostic(health.diagnostic);
+  document.querySelector('[data-check-failure]').hidden = !errorCode;
+  document.querySelector('[data-check-summary]').textContent = retestErrors[errorCode] || '';
+  document.querySelector('[data-check-error]').textContent = errorCode || '';
   const inspect = document.querySelector('[data-inspect-certificate]');
-  if (inspect && health.errorCode === 'UPSTREAM_TLS_FAILED') inspect.hidden = false;
+  if (inspect && errorCode === 'UPSTREAM_TLS_FAILED') inspect.hidden = false;
   document.querySelector('[data-check-diagnostic]').textContent = detail
-    ? [detail.stage, detail.host, detail.toolCode, detail.providerCode, detail.message, detail.hint, detail.issuer, detail.trust].filter(Boolean).join('\\n') : '';
+    ? [detail.stage, detail.toolCode, detail.trust].filter(Boolean).join('\\n') : 'Details unavailable.';
 }
 
 let pendingAction = false;
@@ -678,7 +681,7 @@ document.addEventListener('submit', async event => {
       const current = await retestConnection(form.dataset.trustTestUrl, body._csrf);
       if (current.redirect) { location.assign(current.redirect); return; }
       const result = current.diagnostic ? renderRetestDiagnostic(current.diagnostic) : 'Connected';
-      sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ message: result, health: current.health }));
+      sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ diagnosticVersion: 1, message: result, health: current.health }));
       location.reload();
       return;
     }
@@ -698,7 +701,7 @@ document.addEventListener('submit', async event => {
       const saved = await response.json();
       const normalized = (saved.normalizations || []).map(change => change.field + ': ' + change.reason + '.').join(' ');
       if (!form.querySelector('[data-save-and-test]').checked) {
-        sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ message: 'Saved.' + (normalized ? ' ' + normalized : '') }));
+        sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ diagnosticVersion: 1, message: 'Saved.' + (normalized ? ' ' + normalized : '') }));
         location.reload(); return;
       }
       let result = 'Saved. Test could not complete. Run Test connection again.';
@@ -712,7 +715,7 @@ document.addEventListener('submit', async event => {
         result = tested.ok ? 'Saved. Test passed.' : 'Saved. Test failed.';
         if (current.error) { const error = current.error; result += ' ' + error.message + ' ' + error.next + ' (' + error.code + ')'; }
       } catch { /* The credential is saved even when its test cannot complete. */ }
-      sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ message: result + (normalized ? ' ' + normalized : ''), health }));
+      sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ diagnosticVersion: 1, message: result + (normalized ? ' ' + normalized : ''), health }));
       location.reload();
       return;
     }

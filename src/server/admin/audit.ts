@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
 import { adminAuditExportRoute, adminAuditRoute, toolSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
+import { diagnosticCode } from '../../shared/diagnostic.js'
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { auditOutcome, badge } from './design/status.js'
@@ -87,6 +88,7 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
       <button class="btn btn-secondary btn-sm"${custom ? '' : ' data-filters-apply'}>Apply</button>${filtered ? '<a class="btn btn-ghost btn-sm" href="/admin/audit">Clear filters</a>' : ''}</form>`
 
     const selected = selectedId === undefined ? undefined : db.prepare('SELECT * FROM audit WHERE id = ?').get(selectedId) as AuditRecord | undefined
+    if (selected) selected.error_code = diagnosticCode(selected.error_code)
     const rows = page.records.map(record => {
       const outcome = auditOutcome(record)
       const open = record.id === selected?.id

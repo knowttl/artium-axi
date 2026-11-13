@@ -171,7 +171,7 @@ test('a failed run retains its safe diagnostic separately from audit and logs', 
   const result = await runTool(db, audit, runner, token, { args: ['tool-failure', 'PERMISSION_DENIED'] }, adapter, resolver, context)
   const row = db.prepare('SELECT * FROM run_diagnostics').get() as { request_id: string, diagnostic: string }
   expect(row.request_id).toBe(context.requestId)
-  expect(JSON.parse(row.diagnostic)).toMatchObject({ stage: 'authentication', message: result.stderr.trim(), toolCode: 'PERMISSION_DENIED' })
+  expect(JSON.parse(row.diagnostic)).toEqual({ stage: 'authentication', message: 'Details unavailable.', toolCode: 'PERMISSION_DENIED' })
   expect(lines.join('')).not.toContain('CANARY-failure-message')
   expect(JSON.stringify(stderr.mock.calls)).not.toContain('CANARY-failure-message')
 })

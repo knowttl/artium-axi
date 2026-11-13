@@ -124,7 +124,7 @@ test.each([
   const cleanup = await arrange()
   try {
     await expect(health.check('falcon-axi', 'synthetic-development-user', 'admission-test', null)).rejects.toMatchObject({
-      code, diagnostic: { stage: 'configuration', message: errors[code].message,
+      code, diagnostic: { stage: 'configuration', message: 'Details unavailable.',
         checkedAt: expect.any(Number), credentialRevision: revision },
     })
     const audit = db.prepare("SELECT checked_at, credential_revision, error_code FROM audit WHERE request_id = 'admission-test'").get()
@@ -175,7 +175,7 @@ test.each([
   const stderr = 'code: AUTH_FAILED\nmessage: Synthetic retained health failure'
   vi.spyOn(runner, 'run').mockResolvedValueOnce({ ...result, stdout: '', stderr, exitCode: 1 })
   await expect(health.check('falcon-axi', actor, 'retained-check', null)).rejects.toMatchObject({ code: 'UPSTREAM_AUTH_FAILED' })
-  const diagnostic = { stage: 'authentication', message: stderr, toolCode: 'AUTH_FAILED',
+  const diagnostic = { stage: 'authentication', message: 'Details unavailable.', toolCode: 'AUTH_FAILED',
     checkedAt: expect.any(Number), credentialRevision: 1 }
   expect(audit.runDiagnostic('retained-check')).toEqual(diagnostic)
   expect(lines).toHaveLength(3)
@@ -199,13 +199,38 @@ test.each([
   const { id } = db.prepare("SELECT id FROM audit WHERE request_id = 'retained-check' AND event = 'run-terminal'").get() as { id: number }
   const page = await app.inject({ url: '/admin/audit?requestId=retained-check&record=' + id, headers })
   expect(page.statusCode).toBe(200)
-  expect(page.body).toContain('Synthetic retained health failure')
+  expect(page.body).not.toContain('Synthetic retained health failure')
+  expect(page.body).toContain('authentication')
   const exported = await app.inject({ url: '/v1/admin/audit/export?format=jsonl&requestId=retained-check', headers })
   expect(exported.statusCode).toBe(200)
   expect(exported.body.trim().split('\n').map(line => JSON.parse(line).event)).toEqual([
     event, 'run-terminal', 'run-start',
   ])
   expect(exported.body).not.toContain('Synthetic retained health failure')
+})
+
+test.each([
+  { route: 'manual test', actor: 'synthetic-development-user', retest: false, replacement: false },
+  { route: 'certificate retest', actor: 'synthetic-development-user', retest: true, replacement: false },
+  { route: 'background health', actor: healthDefaults.actor, retest: false, replacement: false },
+  { route: 'credential replacement', actor: 'synthetic-development-user', retest: false, replacement: true },
+])('security #419: $route drops unlabelled upstream credentials from every diagnostic sink', async ({ actor, retest, replacement }) => {
+  const untrusted = 'UnlabelledCanaryCredential419'
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
+  vi.spyOn(runner, 'run').mockResolvedValueOnce({ ...result, stdout: '',
+    stderr: `code: ${untrusted}\nmessage: ${untrusted}\nhint: ${untrusted}`, exitCode: 1 })
+  const check = replacement
+    ? health.checkReplacement('falcon-axi', actor, 'route-check', null, () => {})
+    : health.check('falcon-axi', actor, 'route-check', null, undefined, undefined, retest)
+  await expect(check).rejects.toMatchObject({ code: 'TOOL_FAILED', diagnostic: {
+    stage: 'tool run', message: 'Details unavailable.', credentialRevision: 1 } })
+  const cached = db.prepare('SELECT checked_at FROM tool_health').get() as { checked_at: number }
+  expect(health.diagnostic('falcon-axi', 1, cached.checked_at)).toEqual({
+    stage: 'tool run', message: 'Details unavailable.', checkedAt: cached.checked_at, credentialRevision: 1 })
+  const stored = JSON.stringify(db.prepare('SELECT * FROM run_diagnostics').all())
+  expect(stored).not.toContain(untrusted)
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(untrusted)
+  expect(JSON.stringify(stderr.mock.calls)).not.toContain(untrusted)
 })
 
 test.each([
@@ -507,7 +532,7 @@ test.each([
   }
   expect(cached).toMatchObject({ status: 'error', error_code: code })
   expect(health.diagnostic('falcon-axi', 1, cached.checked_at)).toMatchObject({
-    stage: 'token acquisition', toolCode: 'AUTH_EXCHANGE_FAILED', message: text, credentialRevision: 1,
+    stage: 'token acquisition', toolCode: 'AUTH_EXCHANGE_FAILED', message: 'Details unavailable.', credentialRevision: 1,
   })
   expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(message)
 })
@@ -525,14 +550,15 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
         executable: fakeTool.executable, args: [...fakeTool.args, 'failure', text] }))
       health = new ToolHealth(db, new Audit(db), runner, [vectra], store)
       await expect(health.check('vectra-axi', actor, 'native-transport', null)).rejects.toMatchObject({
-        code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'TCP', host: 'appliance.test', toolCode: 'TRANSPORT_FAILED',
-          message: text, hint: cause, checkedAt: expect.any(Number), credentialRevision: 1 },
+        code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'TCP', toolCode: 'TRANSPORT_FAILED',
+          message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
       })
       const cached = db.prepare("SELECT checked_at, error_code FROM tool_health WHERE tool = 'vectra-axi'").get() as {
         checked_at: number, error_code: string,
       }
       expect(cached.error_code).toBe('UPSTREAM_NETWORK_FAILED')
-      expect(health.diagnostic('vectra-axi', 1, cached.checked_at)).toMatchObject({ stage: 'TCP', host: 'appliance.test', message: text })
+      expect(health.diagnostic('vectra-axi', 1, cached.checked_at)).toMatchObject({ stage: 'TCP', message: 'Details unavailable.' })
+      expect(JSON.stringify(health.diagnostic('vectra-axi', 1, cached.checked_at))).not.toContain(cause)
       expect(JSON.stringify(health.diagnostic('vectra-axi', 1, cached.checked_at))).not.toContain('CANARY-VECTRA-TOKEN')
       const audit = JSON.stringify(db.prepare('SELECT * FROM audit').all())
       expect(audit).not.toContain(cause)
@@ -553,16 +579,16 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
     create: () => createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log')),
     toolCode: 'TLS_TRUST_ERROR', message: 'certificate verification failed',
     code: 'UPSTREAM_TLS_FAILED', stage: 'TLS', host: 'appliance.test' },
-  ] as const)('$tool $toolCode retains the configured host', async ({ tool, credential, create, toolCode, message, code, stage, host }) => {
+  ] as const)('$tool $toolCode omits the configured host', async ({ tool, credential, create, toolCode, message, code, stage, host }) => {
     store.replaceCredential(tool, credential, 0, 'synthetic-development-user', Date.now())
     health = new ToolHealth(db, new Audit(db), runner, [create()], store)
     const text = `code: ${toolCode}\nmessage: ${message}`
     vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '', stderr: text, exitCode: 1 })
     await expect(health.check(tool, actor, 'destination-test', null)).rejects.toMatchObject({
-      code, diagnostic: { stage, host, toolCode, message: text, checkedAt: expect.any(Number), credentialRevision: 1 },
+      code, diagnostic: { stage, message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
     })
     const cached = db.prepare('SELECT checked_at FROM tool_health WHERE tool = ?').get(tool) as { checked_at: number }
-    expect(health.diagnostic(tool, 1, cached.checked_at)).toMatchObject({ host })
+    expect(JSON.stringify(health.diagnostic(tool, 1, cached.checked_at))).not.toContain(host)
     const audit = JSON.stringify(db.prepare('SELECT * FROM audit').all())
     expect(audit).not.toContain(host)
     expect(audit).not.toContain('CANARY-')
@@ -570,7 +596,7 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
   })
 })
 
-test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('preserves the specific preflight host for %s', async code => {
+test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('omits the preflight host for %s', async code => {
   store.replaceCredential('az-axi', { auth: 'secret', tenantId: '11111111-1111-4111-8111-111111111111',
     clientId: '22222222-2222-4222-8222-222222222222', clientSecret: 'CANARY-AZURE-SECRET' },
   0, 'synthetic-development-user', Date.now())
@@ -578,14 +604,14 @@ test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('preserve
     [createAzAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))], store)
   vi.mocked(connectTls).mockImplementationOnce(() => failedTlsSocket(code === 'UPSTREAM_TLS_FAILED' ? 'CERT_HAS_EXPIRED' : 'ECONNRESET'))
   await expect(health.check('az-axi', 'synthetic-development-user', 'specific-host', null)).rejects.toMatchObject({
-    code, diagnostic: { host: 'login.microsoftonline.com', checkedAt: expect.any(Number), credentialRevision: 1 },
+    code, diagnostic: { stage: 'TLS', message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
   })
 })
 
 test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('completes hostless preparation diagnostics for %s', async code => {
   vi.spyOn(adapter, 'prepare').mockRejectedValueOnce(diagnosticError(code, { stage: 'TLS', message: 'Synthetic connection failure.' }))
   await expect(health.check('falcon-axi', 'synthetic-development-user', 'prepare-host', null)).rejects.toMatchObject({
-    code, diagnostic: { host: 'api.us-2.crowdstrike.com', checkedAt: expect.any(Number), credentialRevision: 1 },
+    code, diagnostic: { stage: 'TLS', message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
   })
 })
 

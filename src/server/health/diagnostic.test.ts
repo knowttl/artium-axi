@@ -53,11 +53,10 @@ test.each(['message', 'hint', 'issuer'])('scans %s beyond the retained diagnosti
   expect(safe.message.length).toBeLessThanOrEqual(4096)
 })
 
-test('shares the text budget while preserving destination and trust', () => {
+test('discards untrusted text while preserving structured trust', () => {
   const bounded = safeDiagnostic({ stage: 'TLS', message: 'm'.repeat(5000), hint: 'h'.repeat(5000),
     issuer: 'i'.repeat(5000), host: 'appliance.test', trust: 'self-signed' }, [])!
-  expect(bounded).toMatchObject({ stage: 'TLS', host: 'appliance.test', trust: 'self-signed',
-    message: expect.stringMatching(/^m+$/), hint: expect.stringMatching(/^h+$/), issuer: expect.stringMatching(/^i+$/) })
+  expect(bounded).toEqual({ stage: 'TLS', trust: 'self-signed', message: 'Details unavailable.' })
   expect(diagnosticSchema.safeParse(bounded).success).toBe(true)
   expect(Object.values(bounded).join('').length).toBeLessThanOrEqual(4096)
 })
@@ -115,8 +114,8 @@ test.each(['message', 'issuer'] as const)('retains structured context when %s ex
     toolCode: 'TLS_UNTRUSTED', providerCode: 'AADSTS700027', trust: 'untrusted' as const,
     checkedAt: 123, credentialRevision: 2 }
   const bounded = safeDiagnostic(detail, [])!
-  expect(bounded).toMatchObject({ stage: 'TLS', host: 'appliance.test', toolCode: 'TLS_UNTRUSTED',
-    providerCode: 'AADSTS700027', trust: 'untrusted', hint: 'Check the trusted CA', checkedAt: 123, credentialRevision: 2 })
+  expect(bounded).toEqual({ stage: 'TLS', toolCode: 'TLS_UNTRUSTED', message: 'Details unavailable.',
+    trust: 'untrusted', checkedAt: 123, credentialRevision: 2 })
   expect(diagnosticSchema.safeParse(bounded).success).toBe(true)
   expect(Object.values(bounded).filter(value => typeof value === 'string').join('').length).toBeLessThanOrEqual(4096)
   expect(safeDiagnostic(Object.fromEntries(Object.entries(detail).reverse()) as typeof detail, [])).toEqual(bounded)
@@ -172,7 +171,7 @@ test('preserves redacted response diagnostics without changing secret suppressio
   const text = 'code: API_RESPONSE_INVALID\nmessage: Unexpected response: [REDACTED]\nhint: Check the service endpoint.'
   const failure = toolFailure(text, '', 1)
   expect(safeDiagnostic(failure.diagnostic, [secret])).toEqual({ stage: 'response',
-    toolCode: 'API_RESPONSE_INVALID', message: text, hint: 'Check the service endpoint.' })
+    toolCode: 'API_RESPONSE_INVALID', message: 'Details unavailable.' })
   expect(safeDiagnostic(toolFailure(`${text}\n${secret}`, '', 1).diagnostic, [secret])).toBeUndefined()
 })
 

@@ -4,6 +4,7 @@ import type { z } from 'zod'
 import { adminInstanceParamsSchema, adminInstanceRoutes, adminInstanceSchema, adminToolRoutes, adminToolSchema, githubDeviceRoutes } from '../../shared/api.js'
 import { ArtiumError, errors } from '../../shared/errors.js'
 import type { Diagnostic } from '../../shared/errors.js'
+import { structuredDiagnostic } from '../../shared/diagnostic.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
@@ -69,7 +70,8 @@ export async function readInstanceRows(app: FastifyInstance, request: FastifyReq
 }
 
 function diagnosticText(detail?: Diagnostic): string {
-  return detail ? [detail.stage, detail.host, detail.toolCode, detail.providerCode, detail.message, detail.hint, detail.issuer, detail.trust].filter(Boolean).join('\n') : ''
+  const safe = structuredDiagnostic(detail)
+  return safe ? [safe.stage, safe.toolCode, safe.trust].filter(Boolean).join('\n') : 'Details unavailable.'
 }
 
 const versions = (instance: Instance) => `<input type="hidden" name="expectedId" value="${escape(instance.id)}">${revision(instance.revision)}`
@@ -185,7 +187,7 @@ export function registerInstancePages(app: FastifyInstance, db: Database.Databas
     const meta = `<span class="mono">${escape(tool.name)}</span><span data-tool-state>${setupBadge(state)}</span>${writes({ capable: tool.writeAccess.capable, enabled: !tool.readOnly && !instance.readOnly, operations: null }, 'badge')}<span>Checked <span data-check-time>${timestamp(instance.health.checkedAt, 'never')}</span></span>`
     const stateTemplates = `<template data-state="ok">${setupBadge('healthy')}</template><template data-state="error">${setupBadge('failing')}</template>`
     const definition = instance.health.errorCode && instance.health.errorCode in errors ? errors[instance.health.errorCode as keyof typeof errors] : undefined
-    const failure = callout('err', 'Last test failed', `<span data-check-summary>${escape(instance.health.diagnostic?.message ?? definition?.message ?? '')} ${escape(instance.health.diagnostic?.hint ?? definition?.next ?? '')}</span>`, '',
+    const failure = callout('err', 'Last test failed', `<span data-check-summary>${escape(definition?.message ?? '')} ${escape(definition?.next ?? '')}</span>`, '',
       { attributes: `data-check-failure${failing ? '' : ' hidden'}`, more: `<p>Agents calling this instance get <code data-check-error>${escape(instance.health.errorCode ?? '')}</code>.${instance.health.errorCode === 'UPSTREAM_TLS_FAILED' ? ' Review the endpoint under Certificates below.' : ''}</p><details><summary>Show diagnostic</summary><pre data-check-diagnostic>${escape(diagnosticText(instance.health.diagnostic))}</pre></details>` })
     const setup = steps([
       { title: 'Credential saved', detail: instance.configured ? timestamp(instance.updatedAt) : 'Not saved yet', state: instance.configured ? 'done' : 'todo' },

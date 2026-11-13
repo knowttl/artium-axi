@@ -1,10 +1,11 @@
 import { errors } from '../../shared/errors.js'
-import { retestCodes, retestFields } from '../health/diagnostic.js'
+import { diagnosticCodes, diagnosticStages, structuredDiagnostic } from '../../shared/diagnostic.js'
 
 export const retestScript = `
+const diagnosticCodes = ${JSON.stringify(diagnosticCodes)};
+const diagnosticStages = ${JSON.stringify(diagnosticStages)};
+${structuredDiagnostic.toString()}
 const retestErrors = ${JSON.stringify(Object.fromEntries(Object.entries(errors).map(([code, error]) => [code, error.message])))};
-const retestCodes = ${JSON.stringify(retestCodes)};
-const retestFields = ${retestFields.toString()};
 function renderRetestDiagnostic(detail) {
   const status = detail.status === undefined ? '' : ' HTTP ' + detail.status + '.';
   if (detail.kind === 'network') return 'Connection test: Could not reach the artium admin server. Run Test connection again.';
@@ -14,8 +15,6 @@ function renderRetestDiagnostic(detail) {
   if (detail.kind === 'schema') return 'Connection test: response did not match the connection-test format.' + status + ' Check server and client version compatibility. Run Test connection again.';
   return 'Connection test:' + status + (detail.errorCode ? ' ' + retestErrors[detail.errorCode] + ' (' + detail.errorCode + ').' : ' Server error code unavailable.') +
     (detail.stage ? ' Failed step: ' + detail.stage + '.' : '') + (detail.toolCode ? ' Code: ' + detail.toolCode + '.' : '') +
-    (detail.transportCode ? ' Transport: ' + detail.transportCode + '.' : '') +
-    (detail.providerCode ? ' Provider: ' + detail.providerCode + '.' : '') + (detail.upstreamStatus === undefined ? '' : ' Upstream HTTP ' + detail.upstreamStatus + '.') +
     (detail.trust ? ' Certificate trust: ' + detail.trust + '.' : '') + ' Run Test connection again.';
 }
 async function retestConnection(url, csrf) {
@@ -35,10 +34,8 @@ async function retestConnection(url, csrf) {
   if (!response.ok) {
     const error = result?.error;
     const errorCode = typeof error?.code === 'string' && Object.hasOwn(retestErrors, error.code) ? error.code : undefined;
-    const stage = ['configuration', 'token acquisition', 'DNS', 'TCP', 'TLS', 'authentication', 'response', 'tool run'].includes(error?.diagnostic?.stage) ? error.diagnostic.stage : undefined;
-    const { toolCode, transportCode, providerCode, upstreamStatus } = retestFields(error?.diagnostic);
-    const trust = ['self-signed', 'untrusted'].includes(error?.diagnostic?.trust) ? error.diagnostic.trust : undefined;
-    return { diagnostic: { kind: 'http', status, errorCode, stage, toolCode, transportCode, providerCode, upstreamStatus, trust } };
+    const detail = structuredDiagnostic(error?.diagnostic);
+    return { diagnostic: { kind: 'http', status, errorCode, stage: detail?.stage, toolCode: detail?.toolCode, trust: detail?.trust } };
   }
   if (result?.status !== 'ok' || !Number.isSafeInteger(result.checkedAt) ||
       !Number.isSafeInteger(result.credentialRevision) || result.errorCode !== null) {

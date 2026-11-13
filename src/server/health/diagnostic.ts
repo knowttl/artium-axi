@@ -2,18 +2,9 @@ import { ArtiumError, type Diagnostic, type ErrorCode } from '../../shared/error
 import { SecretScanner } from '../runner/scan.js'
 import type { ToolName } from '../store/credential-store.js'
 import { constants } from 'node:os'
+import { structuredDiagnostic, retestCodes, type StructuredDiagnostic } from '../../shared/diagnostic.js'
+export { retestCodes } from '../../shared/diagnostic.js'
 
-export const diagnosticLimit = 4096
-export const retestCodes = [...Object.keys(constants.errno), 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION',
-  'CERTIFICATE_PIN_MISMATCH', 'HOSTNAME_MISMATCH', 'CONNECTION_FAILED',
-  'CERT_NOT_YET_VALID', 'CERT_HAS_EXPIRED', 'CERT_REVOKED', 'CERT_CHAIN_TOO_LONG', 'CERT_UNTRUSTED', 'CERT_REJECTED',
-  'CERT_SIGNATURE_FAILURE', 'CERTIFICATE_VERIFY_FAILED', 'CRL_NOT_YET_VALID', 'CRL_HAS_EXPIRED', 'CRL_SIGNATURE_FAILURE',
-  'UNABLE_TO_GET_ISSUER_CERT', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'UNABLE_TO_GET_CRL', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
-  'UNABLE_TO_DECRYPT_CERT_SIGNATURE', 'UNABLE_TO_DECRYPT_CRL_SIGNATURE', 'UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY',
-  'DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN', 'ERR_TLS_CERT_ALTNAME_INVALID', 'INVALID_CA',
-  'PATH_LENGTH_EXCEEDED', 'INVALID_PURPOSE', 'ERROR_IN_CERT_NOT_BEFORE_FIELD', 'ERROR_IN_CERT_NOT_AFTER_FIELD',
-  'ERROR_IN_CRL_LAST_UPDATE_FIELD', 'ERROR_IN_CRL_NEXT_UPDATE_FIELD', 'TRANSPORT_FAILED', 'AUTH_REQUIRED',
-  'AUTH_FAILED', 'SERVICE_UNAVAILABLE']
 export function retestFields(detail: { toolCode?: unknown, transportCode?: unknown, providerCode?: unknown, upstreamStatus?: unknown } | undefined, codes: readonly string[] = retestCodes) {
   const code = (value: unknown): value is string => typeof value === 'string' && codes.includes(value)
   const status = detail?.upstreamStatus
@@ -45,23 +36,9 @@ export const azureAdvice: Record<string, string> = {
   AADSTS700027: 'The client certificate signature was rejected. Check the registered certificate and matching private key.',
 }
 
-// Scan the complete detail before bounding it, including fields other than message.
-export function safeDiagnostic(detail: Diagnostic | undefined, secrets: readonly string[]): Diagnostic | undefined {
+export function safeDiagnostic(detail: Diagnostic | undefined, secrets: readonly string[]): StructuredDiagnostic | undefined {
   if (!detail || new SecretScanner(secrets.filter(Boolean)).scan('stderr', Buffer.from(JSON.stringify(detail)))) return
-  const bounded = { ...detail }
-  if (bounded.host !== undefined) bounded.host = bounded.host.slice(0, 1024)
-  if (bounded.toolCode !== undefined) bounded.toolCode = bounded.toolCode.slice(0, 80)
-  if (bounded.transportCode !== undefined) bounded.transportCode = bounded.transportCode.slice(0, 80)
-  if (bounded.providerCode !== undefined) bounded.providerCode = bounded.providerCode.slice(0, 80)
-  let remaining = diagnosticLimit - [bounded.stage, bounded.trust, bounded.host, bounded.toolCode, bounded.transportCode, bounded.providerCode]
-    .reduce<number>((total, value) => total + (value?.length ?? 0), 0)
-  const textFields = (['message', 'hint', 'issuer'] as const).filter(key => bounded[key] !== undefined)
-    .sort((a, b) => bounded[a]!.length - bounded[b]!.length)
-  for (const [index, key] of textFields.entries()) {
-    bounded[key] = bounded[key]!.slice(0, Math.floor(remaining / (textFields.length - index)))
-    remaining -= bounded[key]!.length
-  }
-  return bounded
+  return structuredDiagnostic(detail)
 }
 
 export function diagnosticError(code: ErrorCode, detail: Diagnostic): ArtiumError {

@@ -405,36 +405,37 @@ This includes Azure destinations derived from saved `tlsDestinations`; see [cred
 A preflight failure at any inventory endpoint stops the test, even if the health read would use another endpoint.
 LDAP URLs negotiate StartTLS before the handshake; LDAPS starts TLS directly.
 Preflight sends no credentials.
-The manual administrator test response and instance page show the current failure's stage and the tool's error text and hint when available.
-The automatic retest after certificate trust instead saves a restricted diagnostic with a catalogued message and available recognized details, including in cached health and retained failure diagnostics.
-Network and TLS diagnostics name the destination host for manual tests and background checks; background checks run the tool without preflight.
+All administrator tests, certificate retests, background checks and retained run diagnostics share a structured validator.
+Only fixed stages, reviewed tool codes, certificate trust states, check time and credential revision survive; messages, hints, hosts, issuers, provider text and response excerpts are discarded.
+Failure summaries use the error catalogue; background checks run the tool without preflight.
 Checks admitted to run also update revision-bound cached health on `/admin/tools`, except for transient admission or authorization failures.
 Failures before admission, including missing credentials, overlapping checks and unavailable adapters, return configuration-stage diagnostics without replacing cached health; an absent credential revision is `null`.
-Manual preflight certificate-verification diagnostics identify the chain as self-signed or untrusted and include the presented issuer when available, except for [pin mismatches](#trusting-one-tool-from-the-administration-ui), which omit certificate details.
+Manual preflight certificate-verification diagnostics identify the chain as self-signed or untrusted when available.
 For TLS failures, follow [TLS inspection and private upstream CAs](#tls-inspection-and-private-upstream-cas).
-Follow the diagnostic hint to repair token-acquisition failures; see the [error reference](errors.md) for categories, next steps and the Graph provider-code limitation.
+Use the failure category and stage to repair token-acquisition failures; see the [error reference](errors.md) for categories and next steps.
 Azure identity-provider HTTP service failures, including throttling and server errors, return `TOOL_FAILED` at the token-acquisition stage with service-availability advice; credential rejection returns `UPSTREAM_AUTH_FAILED`.
 These Azure diagnostics never include raw response bodies.
-Tool codes `API_RESPONSE_INVALID`, `AUTH_RESPONSE_INVALID`, `RESPONSE_INVALID`, `MALFORMED_RESPONSE`, `INVALID_RESPONSE` and `PROTOCOL_ERROR` return `UPSTREAM_RESPONSE_INVALID` at the response stage; manual tests preserve the tool's redacted diagnostic text.
-Generic `UPSTREAM_ERROR` failures use the ordinary authentication, network or tool-failure classification; manual tests retain the tool's redacted diagnostic text.
+Tool codes `API_RESPONSE_INVALID`, `AUTH_RESPONSE_INVALID`, `RESPONSE_INVALID`, `MALFORMED_RESPONSE`, `INVALID_RESPONSE` and `PROTOCOL_ERROR` return `UPSTREAM_RESPONSE_INVALID` at the response stage.
+Generic `UPSTREAM_ERROR` failures use the ordinary authentication, network or tool-failure classification.
 For Check Point schema-validation failures, `RESPONSE_INVALID` includes HTTP `status`, normalized `contentType`, a bounded redacted `shape`, and `issues` with failing JSON paths and received types, without response values or validator messages.
 Unavailable status or content type is `null`; unsafe keys become `<key>` and array paths use `[*]`.
 See the pinned [Check Point transport guidance](https://github.com/knowttl/checkpoint-axi/blob/v0.1.6/docs/reads.md#doctor-and-transport) for diagnostic limits and recovery.
 For BeyondTrust schema-validation failures, `API_RESPONSE_INVALID` includes HTTP `status`, normalized `contentType`, a bounded `shape` report containing JSON paths and value types, bounded validator `issuePaths`, and matching `issues` annotations, never response values or validation-library error text.
 Each issue annotation includes `path`, `received` and `expected` types (`unknown` when the expected type is unavailable or outside the safe type vocabulary), plus the Zod `code` when recognized.
 The reports echo only identifier-like, non-GUID object keys through the tool's redactor; every other object key appears as `<key>`, and array positions appear as `[*]`.
-`shapeTruncated` and `issuePathsTruncated` indicate that the respective report reached a native reporting limit; administrator diagnostic text remains subject to the host limits below.
-These details appear in managed command output and manual credential-test diagnostics; audit records retain the error code without the shape report.
-Inspect the message and hint, then check the service endpoint and API compatibility.
-`AUTH_ENDPOINT_NOT_FOUND` returns `TOOL_REJECTED_INPUT` at the configuration stage; check the configured service host and the tool's hint for the token endpoint.
-Diagnostics include check time and credential revision, are bounded to 4096 characters, and are discarded entirely if the exact-value secret scanner finds a credential value or one of its canonical encodings.
+`shapeTruncated` and `issuePathsTruncated` indicate that the respective report reached a native reporting limit.
+These native details appear only in managed command output; administrator health and audit diagnostics omit the shape report.
+Check the service endpoint and API compatibility.
+`AUTH_ENDPOINT_NOT_FOUND` returns `TOOL_REJECTED_INPUT` at the configuration stage; check the configured service host and token endpoint.
+Diagnostics are discarded entirely if the exact-value secret scanner finds a credential value or one of its canonical encodings.
 The current credential-test and health-check diagnostic cache is held only in server memory; after a restart, rerun Test connection for current detail or inspect retained failure diagnostics in Audit as described below.
 The browser temporarily holds the save-and-test result in session storage to display it after reloading the current page.
 After upgrading, cached categories removed from the error catalogue are ignored; rerun Test connection for a current result.
 Audit records retain categories, timing, revision, exit status and byte counts, never diagnostic text or output streams.
-Failed tool runs, including credential-test and background health-check runs, separately retain the available exact-secret-scanned diagnostic in an administrator-only SQLite table keyed by request ID for 14 days.
+Failed tool runs, including credential-test and background health-check runs, separately retain validated structured diagnostics in an administrator-only SQLite table keyed by request ID for 14 days.
 The stored diagnostic is bounded to 4 KiB of serialized JSON and appears in the terminal record's [audit detail panel](admin-guide.md#audit-screen-and-api); it is excluded from the audit API, CSV/JSONL exports, audit stream and operational logs.
-Diagnostics containing a known secret are discarded in full; exact-value scanning cannot identify unknown upstream-minted tokens or all sensitive data.
+Legacy rows are validated on read and show only recognized structured fields or a fixed details-unavailable note; upgrading does not migrate or delete stored rows.
+Operational and audit error-code fields also accept only reviewed constants, never arbitrary upstream tokens.
 Expired diagnostics are hidden immediately and removed by startup and daily retention; protect database backups separately because retention does not rewrite existing backups.
 Ordinary users receive catalogue categories without this administrator detail.
 For local accounts, start with `POST /v1/auth/login`, with JSON `{ "username": "synthetic-admin", "password": "<password>" }` supplied from protected stdin or a protected file, never command arguments.
