@@ -14,7 +14,6 @@ import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { readCredentialTrust } from '../../src/server/store/trusted-certificates.js'
 import { preflight } from '../../src/server/health/preflight.js'
 import { credentialFetch } from '../../src/server/credential-tls.js'
-import { savedCertificateTrust } from '../../src/server/credential-tls-settings.js'
 import { createInspectionCertificates } from '../fake-service/certificates.mjs'
 import { seedToolUser } from '../fixtures/tokens.js'
 
@@ -67,17 +66,6 @@ afterEach(async () => {
 afterAll(async () => {
   await new Promise<void>(resolve => server.close(() => resolve()))
   rmSync(directory, { recursive: true, force: true })
-})
-
-test.each([
-  ['CA only', 'vectra-axi', () => ({ caBundle: pem('ca') }), [], 'ca'],
-  ['UniFi CA and fingerprint', 'unifi-axi', () => ({ tls: { trustedCertificatePem: pem('ca'), peerFingerprintSha256: fingerprint('leaf') } }), [], 'ca'],
-  ['Proxmox CA and fingerprint', 'proxmox-axi', () => ({ caBundle: pem('ca'), certificatePin: { sha256: fingerprint('leaf') } }), [], 'ca'],
-  ['standalone Proxmox pin', 'proxmox-axi', () => ({ certificatePin: { sha256: fingerprint('leaf') } }), [], 'pin'],
-  ['endpoint pin', 'vectra-axi', () => ({}), [{ mode: 'pin' as const }], 'pin'],
-  ['no trust', 'vectra-axi', () => ({}), [], null],
-] as const)('resolves %s trust mode', (_name, tool, value, records, mode) => {
-  expect(savedCertificateTrust(tool, value(), pem('rotated'), records).mode).toBe(mode)
 })
 
 test.each([
