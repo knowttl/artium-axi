@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process'
 import { X509Certificate } from 'node:crypto'
 import { once } from 'node:events'
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
@@ -5,6 +6,7 @@ import { request } from 'node:http'
 import { createServer } from 'node:https'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { promisify } from 'node:util'
 import { decode } from '@toon-format/toon'
 import { afterAll, beforeAll, beforeEach, expect, test } from 'vitest'
 import { createInspectionCertificates } from '../../../test/fake-service/certificates.mjs'
@@ -16,7 +18,10 @@ import { Runner } from './runner.js'
 import { loadTrustedCa } from '../trusted-ca.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-go-pin-'))
-const gh = join(process.cwd(), 'tools/node_modules/.bin/gh')
+const gh = join(directory, 'gh')
+const ghSupported = process.platform === 'linux' && process.arch === 'x64'
+const ghTest = ghSupported ? test : test.skip
+const ghSkip = ghSupported ? '' : ` (no pinned gh for ${process.platform}/${process.arch})`
 const pem = (name: string) => readFileSync(join(directory, name + '.crt'), 'utf8')
 let endpoint: string
 let applicationRequests: string[] = []
@@ -32,11 +37,13 @@ function serve(name: string) {
   server.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem(name) + pem('intermediate') })
 }
 beforeAll(async () => {
+  if (ghSupported) await promisify(execFile)(process.execPath, ['scripts/install-gh.mjs', 'tools/gh-source.json', gh])
+  else console.warn(`Skipping native gh transport tests: no pinned gh for ${process.platform}/${process.arch}`)
   createInspectionCertificates(directory, 'http://localhost:1/unused-issuer')
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
   endpoint = `https://localhost:${(server.address() as { port: number }).port}`
-})
+}, 120_000)
 beforeEach(() => { applicationRequests = []; serve('leaf') })
 afterAll(async () => {
   server.closeAllConnections()
@@ -122,7 +129,7 @@ test.each([
   } finally { await runner.shutdown() }
 })
 
-test.each(['token', 'device'] as const)('native gh carries the managed %s identity through the enforced runner connection', async auth => {
+ghTest.each(['token', 'device'] as const)(`native gh carries the managed %s identity through the enforced runner connection${ghSkip}`, async auth => {
   const call = await createGhAdapter({ getCredential: async () => ({ origin: endpoint, auth,
     ...(auth === 'token' ? { token: 'CANARY-managed-token' } : { accessToken: 'CANARY-managed-token', login: 'synthetic-user' }) }),
   }).prepare(['api', '/rate_limit'], { id: 'synthetic-credential', tool: 'gh-axi', revision: 1 })
@@ -142,7 +149,7 @@ test.each(['token', 'device'] as const)('native gh carries the managed %s identi
   } finally { await runner.shutdown() }
 })
 
-test.each(['token', 'device'] as const)('bundled gh-axi enforces the pin for the managed %s identity', async auth => {
+ghTest.each(['token', 'device'] as const)(`bundled gh-axi enforces the pin for the managed %s identity${ghSkip}`, async auth => {
   const call = await createGhAdapter({ getCredential: async () => ({ origin: endpoint, auth,
     ...(auth === 'token' ? { token: 'CANARY-managed-token' } : { accessToken: 'CANARY-managed-token', login: 'synthetic-user' }) }),
   }).prepare(['api', '/rate_limit'], { id: 'synthetic-credential', tool: 'gh-axi', revision: 1 })
@@ -175,7 +182,7 @@ test('kubectl remains refused before spawn until its data transport supports pin
   } finally { await runner.shutdown() }
 })
 
-test('runner cancellation closes the pinned gh connection and removes the private relay', async () => {
+ghTest(`runner cancellation closes the pinned gh connection and removes the private relay${ghSkip}`, async () => {
   const call = await createGhAdapter({ getCredential: async () => ({ origin: endpoint, auth: 'token', token: 'CANARY-managed-token' }) })
     .prepare(['api', '/held'], { id: 'synthetic-credential', tool: 'gh-axi', revision: 1 })
   const runner = await Runner.create(join(directory, 'calls'))
