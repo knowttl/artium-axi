@@ -210,6 +210,32 @@ test.each([false, true])('initial trust with fillFields=%s cannot add a second p
   expect(readCredentialTrust(db, reference)).toEqual(before)
 })
 
+test.each(['tool', 'instance'] as const)('%s rejects an inspection older than a confirmed endpoint pin', async scope => {
+  const value = { kind: 'qux' as const, apiVersion: '2.5' as const, origin: endpoint, auth: 'token' as const, token: 'CANARY-token' }
+  const reference = scope === 'tool'
+    ? store.replaceCredential('vectra-axi', value, 0, 'synthetic-development-user', Date.now())
+    : store.createInstance('vectra-axi', { name: 'rotation', description: '' }, value, 'synthetic-development-user', Date.now())
+  const base = scope === 'tool' ? '/v1/admin/tools/vectra-axi/certificates' : '/v1/admin/tools/vectra-axi/instances/rotation/certificates'
+  const inspect = async () => (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
+  const confirm = (inspection: any, replace: boolean) => app.inject({ method: 'POST', url: base + '/trust', headers,
+    payload: { inspectionId: inspection.inspectionId, confirmedFingerprint: inspection.chain[0].fingerprint, mode: 'pin', replace } })
+  const initial = await inspect()
+  expect((await confirm(initial, false)).statusCode).toBe(200)
+  serve('rotated')
+  const older = await inspect()
+  serve('empty-subject')
+  const newer = await inspect()
+  expect((await confirm(newer, true)).statusCode).toBe(200)
+  const rejected = await confirm(older, true)
+  expect(rejected.statusCode).toBe(409)
+  expect(rejected.json().error.message).toContain('Inspect the certificate again')
+  const trust = readCredentialTrust(db, reference)
+  expect(trust.map(item => item.leafFingerprint)).toEqual([newer.chain[0].fingerprint])
+  await expect(credentialFetch(endpoint, {}, trust)).resolves.toMatchObject({ status: 200 })
+  serve('rotated')
+  await expect(credentialFetch(endpoint, {}, trust)).rejects.toThrow()
+})
+
 test('CA fingerprint replacement leaves a different endpoint CA record untouched', async () => {
   store.createInstance('unifi-axi', { name: 'rotation', description: '' }, { origin: endpoint, apiKey: 'CANARY-key', tls: { trustedCertificatePem: pem('ca'), peerFingerprintSha256: fingerprint('leaf') } }, 'synthetic-development-user', Date.now())
   const reference = store.findInstance('unifi-axi', 'rotation')!
@@ -262,12 +288,27 @@ test('UniFi replaces CA setup without losing its required leaf fingerprint', asy
   const inspect = async () => (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
   const initial = await inspect()
   expect((await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: initial.inspectionId, confirmedFingerprint: initial.chain[0].fingerprint, mode: 'ca', fillFields: true } })).statusCode).toBe(200)
+  const caRecord = db.prepare('SELECT * FROM trusted_certificates').all()
   expect(await inspect()).toMatchObject({ rotation: false, trustMode: 'ca' })
   serve('rotated')
   const renewal = await inspect()
   expect(renewal).toMatchObject({ rotation: true, trustMode: 'ca', verificationError: 'CERTIFICATE_PIN_MISMATCH' })
   const saved = await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: renewal.inspectionId, confirmedFingerprint: renewal.chain[0].fingerprint, mode: 'ca', fillFields: true, replace: true } })
   expect(saved.statusCode, saved.body).toBe(200)
+  expect(db.prepare('SELECT * FROM trusted_certificates').all()).toEqual(caRecord)
+  const after = await inspect()
+  expect(after).toMatchObject({ rotation: false, trustMode: 'ca', verificationError: null, previousFingerprints: [] })
+  expect(after.warnings).not.toContain('This endpoint was previously trusted with a different fingerprint. This may be rotation or interception.')
+  const listed = (await app.inject({ method: 'GET', url: base, headers })).json()
+  expect(listed.certificates[0].leaf.fingerprint).toBe(renewal.chain[0].fingerprint)
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
+  payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
+  const page = await app.inject({ method: 'GET', url: '/admin/tools/unifi-axi/instances/rotation', headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain(renewal.chain[0].fingerprint)
   const reference = store.findInstance('unifi-axi', 'rotation')!
   const next = store.readCredential(reference) as Record<string, unknown>
   expect(next.tls).toEqual({ trustedCertificatePem: pem('intermediate'), peerFingerprintSha256: fingerprint('rotated') })
