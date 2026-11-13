@@ -9,6 +9,8 @@ import { dirname, join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import type { AddressInfo } from 'node:net'
+import type { InjectOptions } from 'fastify'
 import { decode } from '@toon-format/toon'
 import { createTestCertificates } from '../test/fake-service/certificates.mjs'
 
@@ -19,25 +21,28 @@ if (process.platform !== 'linux') {
   process.exit(1)
 }
 execFileSync(process.execPath, ['scripts/build.mjs'], { stdio: 'inherit' })
-const { createApp } = await import('../dist/src/server/app.js')
-const { openStore, createCredentialStore } = await import('../dist/src/server/store/db.js')
-const { EnvironmentKeyProvider } = await import('../dist/src/server/store/key-provider.js')
-const { Audit } = await import('../dist/src/server/audit/audit.js')
-const { Runner } = await import('../dist/src/server/runner/runner.js')
-const { createRunnerTestAdapter } = await import('../dist/test/fake-tool/tool.js')
-const { SharedIdentityResolver } = await import('../dist/src/server/policy/identity-resolver.js')
-const { seedToolUser } = await import('../dist/test/fixtures/tokens.js')
-const { cliVersion } = await import('../dist/src/shared/version.js')
-const { toolSkillPaths } = await import('../dist/src/server/config.js')
-toolSkillPaths['falcon-axi'] = join(root, 'tools/node_modules/@knowttl/falcon-axi/skills/falcon-axi/SKILL.md')
+const { createApp }: typeof import('../src/server/app.js') = await import(new URL('../dist/src/server/app.js', import.meta.url).href)
+const { openStore, createCredentialStore }: typeof import('../src/server/store/db.js') = await import(new URL('../dist/src/server/store/db.js', import.meta.url).href)
+const { EnvironmentKeyProvider }: typeof import('../src/server/store/key-provider.js') = await import(new URL('../dist/src/server/store/key-provider.js', import.meta.url).href)
+const { Audit }: typeof import('../src/server/audit/audit.js') = await import(new URL('../dist/src/server/audit/audit.js', import.meta.url).href)
+const { Runner }: typeof import('../src/server/runner/runner.js') = await import(new URL('../dist/src/server/runner/runner.js', import.meta.url).href)
+const { createRunnerTestAdapter }: typeof import('../test/fake-tool/tool.js') = await import(new URL('../dist/test/fake-tool/tool.js', import.meta.url).href)
+const { SharedIdentityResolver }: typeof import('../src/server/policy/identity-resolver.js') = await import(new URL('../dist/src/server/policy/identity-resolver.js', import.meta.url).href)
+const { seedToolUser }: typeof import('../test/fixtures/tokens.js') = await import(new URL('../dist/test/fixtures/tokens.js', import.meta.url).href)
+const { cliVersion }: typeof import('../src/shared/version.js') = await import(new URL('../dist/src/shared/version.js', import.meta.url).href)
+const { toolSkillPaths }: typeof import('../src/server/config.js') = await import(new URL('../dist/src/server/config.js', import.meta.url).href)
+;(toolSkillPaths as Record<string, string>)['falcon-axi'] = join(root, 'tools/node_modules/@knowttl/falcon-axi/skills/falcon-axi/SKILL.md')
 const execute = promisify(execFile)
 const directory = mkdtempSync(join(tmpdir(), 'artium-axi-check-'))
 const started = performance.now()
-let app
-let server
-let db
-let runner
-const pass = (number, principle) => console.log(`pass: ${number} ${principle} (script-visible checks)`)
+let app: ReturnType<typeof createApp> | undefined
+let server: ReturnType<typeof createServer> | undefined
+let db: ReturnType<typeof openStore> | undefined
+let runner: Awaited<ReturnType<typeof Runner.create>> | undefined
+type CliResult = { code: number | string | null | undefined; signal?: NodeJS.Signals | null; stdout: string; stderr: string }
+type ErrorOutput = { error: { code: string; message: string; next: string; source: string } }
+type HelpOutput = { purpose: string; usage: string; flags: string[]; example: string }
+const pass = (number: number, principle: string) => console.log(`pass: ${number} ${principle} (script-visible checks)`)
 try {
   const home = join(directory, 'home')
   const install = join(home, 'bin')
@@ -53,7 +58,7 @@ try {
   runner = await Runner.create(join(directory, 'calls'))
   const adapter = createRunnerTestAdapter({ getCredential: async ref => store.readCredential(ref) })
   const prepare = adapter.prepare.bind(adapter)
-  const forwarded = []
+  const forwarded: string[][] = []
   const upstream = 'detections[1]{id,status}:\n  synthetic-detection,open\nhelp[1]:\n  - Run `falcon-axi detection list --full`\n'
   adapter.prepare = async (args, ref) => {
     forwarded.push([...args])
@@ -62,16 +67,15 @@ try {
       ? ['print', args.includes('--full') ? 'detail: Synthetic full detail\n' : upstream] : [...args]
     return { ...prepared, executable: process.execPath, args: [join(root, 'test/fake-tool/fake-axi.mjs'), ...fakeArgs], limits: { timeoutMs: 5000 } }
   }
-  // Health is seeded above; omit its credential source so background probes stay offline.
   app = createApp({ db, audit: new Audit(db), runner, adapters: [adapter],
     resolver: new SharedIdentityResolver(store, db), environment: {} })
   await app.ready()
   createTestCertificates(directory, ['localhost'])
   server = createServer({ key: readFileSync(join(directory, 'server.key')), cert: readFileSync(join(directory, 'server.crt')) }, async (request, reply) => {
     try {
-      const chunks = []
+      const chunks: Buffer[] = []
       for await (const chunk of request) chunks.push(chunk)
-      const result = await app.inject({ method: request.method, url: request.url, headers: request.headers, payload: Buffer.concat(chunks) })
+      const result = await app!.inject({ method: request.method as InjectOptions['method'], url: request.url!, headers: request.headers, payload: Buffer.concat(chunks) })
       reply.writeHead(result.statusCode, result.headers)
       reply.end(result.rawPayload)
     } catch {
@@ -81,7 +85,7 @@ try {
   })
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
-  const url = `https://localhost:${server.address().port}`
+  const url = `https://localhost:${(server.address() as AddressInfo).port}`
   const ca = join(directory, 'ca.crt')
   const env = { PATH: `${install}:${dirname(process.execPath)}:/usr/bin:/bin`, HOME: home,
     ARTIUM_AXI_URL: url, ARTIUM_AXI_CA_FILE: ca }
@@ -102,7 +106,7 @@ try {
   assert.equal(metadata.statusCode, 200)
   assert.equal(metadata.headers['x-artium-cli-version'], cliVersion)
   assert.equal(metadata.headers['x-artium-cli-sha256'], digest)
-  assert.match(metadata.headers['content-type'], /^text\/javascript/)
+  assert.match(metadata.headers['content-type'] as string, /^text\/javascript/)
   assert.equal(metadata.headers['content-disposition'], 'attachment; filename="artium-axi.mjs"')
   assert.deepEqual(metadata.rawPayload, bytes)
   const binary = join(install, 'artium-axi')
@@ -110,19 +114,19 @@ try {
   chmodSync(binary, 0o755)
   rmSync(checksumFile)
   assert.deepEqual(readdirSync(install), ['artium-axi'])
-  const cli = async (args, input) => {
+  const cli = async (args: string[], input?: string) => {
     const child = execFile('artium-axi', args, options)
-    const result = new Promise(resolve => {
-      child.on('error', error => resolve({ code: error.code, stdout: '', stderr: error.message }))
+    const result = new Promise<CliResult>(resolve => {
+      child.on('error', (error: NodeJS.ErrnoException) => resolve({ code: error.code, stdout: '', stderr: error.message }))
       let stdout = '', stderr = ''
-      child.stdout.on('data', chunk => { stdout += chunk })
-      child.stderr.on('data', chunk => { stderr += chunk })
+      child.stdout!.on('data', chunk => { stdout += chunk })
+      child.stderr!.on('data', chunk => { stderr += chunk })
       child.on('close', (code, signal) => resolve({ code, signal, stdout, stderr }))
     })
-    child.stdin.end(input)
+    child.stdin!.end(input)
     return result
   }
-  const success = async (args, input) => {
+  const success = async (args: string[], input?: string) => {
     const result = await cli(args, input)
     assert.equal(result.code, 0, `${args.join(' ')}: ${result.stdout} ${result.stderr}`)
     assert.equal(result.stderr, '')
@@ -131,18 +135,18 @@ try {
   for (const host of ['pi']) {
     const unsupported = await cli(['setup', '--host', host, '--hook'])
     assert.equal(unsupported.code, 2)
-    assert.match(decode(unsupported.stdout).error.message, /unsupported.*no verified.*No files were written/)
+    assert.match((decode(unsupported.stdout) as ErrorOutput).error.message, /unsupported.*no verified.*No files were written/)
   }
   const unknown = await cli(['setup', '--host', 'synthetic-unsupported'])
   assert.equal(unknown.code, 2)
-  assert.match(decode(unknown.stdout).error.next, /claude\|codex\|opencode/)
+  assert.match((decode(unknown.stdout) as ErrorOutput).error.next, /claude\|codex\|opencode/)
   const login = await cli(['login', '--username', 'synthetic-user', '--password-stdin'], 'CANARY-local-password\n')
   assert.equal(login.code, 1)
-  assert.equal(decode(login.stdout).error.code, 'PASSWORD_CHANGE_REQUIRED')
+  assert.equal((decode(login.stdout) as ErrorOutput).error.code, 'PASSWORD_CHANGE_REQUIRED')
   await success(['passwd', '--password-stdin'], 'CANARY-check-new-password\n')
   await success(['login', '--username', 'synthetic-user', '--password-stdin'], 'CANARY-check-new-password\n')
   for (const [host, location] of [['claude', '.claude'], ['codex', '.agents'], ['opencode', '.config/opencode'], ['pi', '.pi/agent']]) {
-    const output = decode(await success(['setup', '--host', host, ...(host === 'claude' ? ['--hook'] : [])]))
+    const output = decode(await success(['setup', '--host', host, ...(host === 'claude' ? ['--hook'] : [])])) as { skills: { name: string; status: string }[] }
     assert.deepEqual(output.skills, [{ name: 'artium-axi', status: 'installed' }, { name: 'falcon-axi', status: 'installed' }])
     assert.match(readFileSync(join(home, location, 'skills/artium-axi/SKILL.md'), 'utf8'), /## Investigation quick guide/)
     assert.match(readFileSync(join(home, location, 'skills/falcon-axi/SKILL.md'), 'utf8'), /artium-axi falcon-axi detection list/)
@@ -151,12 +155,12 @@ try {
   assert.equal(first, upstream.replace('`falcon-axi detection', '`artium-axi falcon-axi detection'))
   console.log(`distribution: Linux download, SHA-256 rejection of corruption, standalone launcher, setup, login, password change and first call passed; sha256=${digest}`)
   const toolsText = await success(['tools'])
-  const tools = decode(toolsText)
+  const tools = decode(toolsText) as { tools: { name: string; status: string; version: string; readOnly: boolean; instances: number }[]; next: string[] }
   assert.deepEqual(tools.tools, [{ name: 'falcon-axi', status: 'ok', version: '1.1.0', readOnly: true, instances: 1 }])
   decode(first)
   pass(1, 'Token-efficient output: TOON and upstream stream preservation')
   assert.deepEqual(Object.keys(tools.tools[0]), ['name', 'status', 'version', 'readOnly', 'instances'])
-  const detail = decode(await success(['tools', 'show', 'falcon-axi']))
+  const detail = decode(await success(['tools', 'show', 'falcon-axi'])) as { tool: string; commands: string[]; upstreamHelp: string; example: string }
   assert.equal(detail.tool, 'falcon-axi')
   assert.ok(detail.commands.length > 0 && detail.upstreamHelp && detail.example)
   pass(2, 'Minimal default schemas: four fields with separate detail')
@@ -170,13 +174,13 @@ try {
   }
   pass(3, 'Content truncation: --full forwarded, both 4 MiB stream caps disclosed')
   const homeText = await success([])
-  const homeView = decode(homeText)
+  const homeView = decode(homeText) as { tools: unknown[]; user: string; roles: string[]; bin: string; description: string; usage?: string }
   assert.equal(homeView.tools.length, 1)
   const doctor = await success(['doctor'])
   assert.match(doctor, /^pass: server address \(ARTIUM_AXI_URL\)\npass: certificate\npass: token \(session expires [^\n]+\npass: CLI version\npass: falcon-axi \(ok\)\n$/)
   pass(4, 'Pre-computed aggregates: counted views and doctor checks')
   db.exec('DELETE FROM user_roles')
-  const empty = decode(await success(['tools']))
+  const empty = decode(await success(['tools'])) as { tools: string; reason: string; contact: string }
   assert.equal(empty.tools, '0 available')
   assert.ok(empty.reason && empty.contact)
   db.exec("INSERT INTO user_roles (user_id, role_id) VALUES ('synthetic-development-user', 'synthetic-role')")
@@ -184,7 +188,7 @@ try {
   const invalid = await cli(['tools', '--unknown'])
   assert.equal(invalid.code, 2)
   assert.equal(invalid.stderr, '')
-  const error = decode(invalid.stdout).error
+  const error = (decode(invalid.stdout) as ErrorOutput).error
   assert.equal(error.code, 'INVALID_INPUT')
   assert.equal(error.source, 'artium-axi')
   assert.ok(error.next)
@@ -193,11 +197,11 @@ try {
   assert.deepEqual([stderr.code, stderr.stdout, stderr.stderr], [0, '', 'xxx'])
   const denied = await cli(['falcon-axi', '--region', 'synthetic.invalid'])
   assert.equal(denied.code, 2)
-  assert.equal(decode(denied.stdout).error.code, 'FLAG_BLOCKED')
+  assert.equal((decode(denied.stdout) as ErrorOutput).error.code, 'FLAG_BLOCKED')
   db.exec("UPDATE tools SET enabled = 0 WHERE name = 'falcon-axi'")
   const disabled = await cli(['falcon-axi', 'detection', 'list'])
   assert.equal(disabled.code, 1)
-  assert.equal(decode(disabled.stdout).error.code, 'TOOL_DISABLED')
+  assert.equal((decode(disabled.stdout) as ErrorOutput).error.code, 'TOOL_DISABLED')
   db.exec("UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
   pass(6, 'Structured errors and exit codes: usage, failure and upstream streams')
   const hook = JSON.parse(readFileSync(join(home, '.claude/settings.json'), 'utf8')).hooks.SessionStart[0].hooks[0]
@@ -218,19 +222,19 @@ try {
   }
   pass(9, 'Contextual disclosure: suggested detail and first-call commands execute')
   for (const args of [[], ['tools'], ['tools', 'show', 'falcon-axi'], ['whoami'], ['login'], ['passwd'], ['logout'], ['doctor'], ['setup']]) {
-    const help = decode(await success([...args, '--help']))
+    const help = decode(await success([...args, '--help'])) as HelpOutput
     assert.equal(Object.keys(help)[0], 'purpose')
     assert.ok(help.usage.startsWith('artium-axi') && help.purpose && help.flags.length && help.example)
   }
   for (const tool of ['falcon-axi', 'vectra-axi']) {
-    const help = decode(await success(['--help', tool]))
+    const help = decode(await success(['--help', tool])) as HelpOutput
     assert.ok(help.usage && help.purpose && help.flags && help.example)
   }
   pass(10, 'Consistent help: all local command layouts and upstream detail')
   console.log('humanReview[7]:\n  - "1: Judge token efficiency on representative real upstream output."\n  - "2: Judge whether the minimal fields support real decisions."\n  - "3: Judge whether retained and full content is useful."\n  - "7: Verify actual host skill loading, hook trust and session usefulness."\n  - "8: Judge whether the home view contains the most relevant live content."\n  - "9: Judge relevance and validity of suggestions across real upstream commands."\n  - "10: Judge clarity and brevity of help for new users."')
   console.log('unverified: Actual Windows/macOS execution and unsupported host integrations require separate documentation and host verification; no paths are guessed.')
 } finally {
-  if (server?.listening) await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+  if (server?.listening) await new Promise<void>((resolve, reject) => server!.close(error => error ? reject(error) : resolve()))
   if (app) await app.close()
   else await runner?.shutdown()
   if (db?.open) db.close()

@@ -6,13 +6,13 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 const root = process.cwd()
 let matches = 0
 let files = 0
-let terms = []
+let terms: RegExp[] = []
 
-function safe(value) {
+function safe(value: string) {
   return JSON.stringify(terms.some(term => value.search(term) !== -1) ? '[redacted]' : value)
 }
 
-function scan(label, content) {
+function scan(label: string, content: string) {
   const lines = content.split('\n')
   for (const [index, term] of terms.entries()) {
     for (const [line, text] of lines.entries()) {
@@ -24,14 +24,13 @@ function scan(label, content) {
   }
 }
 
-function walk(path) {
+function walk(path: string) {
   const label = relative(root, path) || '.'
   const stat = lstatSync(path)
   if (stat.isSymbolicLink()) throw new Error(`symlink requires a regular-file candidate: ${safe(label)}`)
   scan(`path ${label}`, label)
   if (stat.isDirectory()) {
     for (const name of readdirSync(path).sort()) {
-      // Repository metadata and installed dependencies are not candidate assets.
       if (name === '.git' || name === 'node_modules') continue
       walk(join(path, name))
     }
@@ -62,10 +61,9 @@ try {
       throw new Error('deny list must stay outside the candidate tree')
     }
     const list = readFileSync(listPath)
-    // Unicode simple case folding is context-independent and preserves original match offsets.
     for (const term of list.toString('utf8').split(/\r?\n/).map(term => term.trim()).filter(Boolean)) {
       if (!terms.some(existing => new RegExp(`^(?:${existing.source})$`, 'iu').test(term))) {
-        terms.push(new RegExp(RegExp.escape(term), 'giu'))
+        terms.push(new RegExp((RegExp as RegExpConstructor & { escape(value: string): string }).escape(term), 'giu'))
       }
     }
     if (!terms.length) throw new Error('deny list must contain at least one nonempty term')
@@ -89,8 +87,8 @@ try {
     process.exitCode = matches ? 1 : 0
   }
 } catch (error) {
-  // Filesystem errors can contain private paths, so never relay their raw messages.
-  const message = error.code ? 'cannot read candidate, asset or deny list; check paths and permissions' : error.message
+  const failure = error as NodeJS.ErrnoException
+  const message = failure.code ? 'cannot read candidate, asset or deny list; check paths and permissions' : failure.message
   console.log(`error: ${message}`)
   process.exitCode = 1
 }

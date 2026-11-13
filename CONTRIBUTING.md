@@ -34,7 +34,7 @@ pnpm lint
 pnpm test:gate
 ```
 
-`pnpm check` verifies generated references, types, inventory and schema freshness, the test suite, compilation and the AXI/distribution checklist.
+`pnpm check` verifies generated references, types, inventory and schema freshness, the test suite, compilation and the AXI/distribution checklist (`pnpm test:axi`, or `node scripts/axi-check.ts`).
 It does not run container acceptance or the private hygiene check.
 Before publication, follow the [private hygiene requirements](#private-hygiene-check).
 
@@ -165,6 +165,10 @@ Before publishing a candidate, commit and build it, then set `ARTIUM_AXI_HYGIENE
 ```sh
 pnpm hygiene:check
 ```
+
+The command runs `node scripts/hygiene-check.ts`; Node 24 executes both checkers directly.
+`pnpm lint` strict-checks hygiene through `tsconfig.scripts.json` and AXI through `tsconfig.axi-check.json`.
+The AXI config permits its compiled product dependencies' source types to use non-erasable syntax; Node's syntax check separately enforces erasable syntax in the script itself.
 
 The UTF-8 list contains one literal term per line, matched after trimming whitespace using context-independent Unicode simple case folding; blanks and case-equivalent duplicates are ignored.
 Unset, unreadable, empty or in-tree lists fail.

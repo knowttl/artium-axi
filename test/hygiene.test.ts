@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
-const script = join(root, 'scripts', 'hygiene-check.mjs')
+const script = join(root, 'scripts', 'hygiene-check.ts')
 
 function fixture(run: (directory: string, list: string, candidate: string) => void) {
   const directory = mkdtempSync(join(root, '.tmp-hygiene-'))

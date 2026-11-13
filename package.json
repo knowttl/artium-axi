@@ -18,7 +18,7 @@
     "build:npm": "node scripts/build-npm.mjs",
     "test:containers": "node scripts/container-checks.mjs",
     "test:browser": "pnpm build && node --test test/browser/*.mjs",
-    "test:axi": "node scripts/axi-check.mjs",
+    "test:axi": "node scripts/axi-check.ts",
     "test:walking-skeleton": "pnpm build && node scripts/walking-skeleton.mjs",
     "test": "node scripts/upstream-inventory.mjs && node scripts/mg-headless-schema.ts && vitest run",
     "test:gate": "node scripts/test-gate.ts",
@@ -27,12 +27,12 @@
     "test:build-image": "node scripts/build-fake-service-image.mjs",
     "test:runner-container": "pnpm build && node scripts/runner-container-check.mjs",
     "test:security": "vitest run --testNamePattern security --passWithNoTests",
-    "lint": "tsc --noEmit && tsc -p tsconfig.scripts.json",
+    "lint": "tsc --noEmit && tsc -p tsconfig.scripts.json && tsc -p tsconfig.axi-check.json && node --check scripts/axi-check.ts",
     "errors:generate": "node scripts/errors-reference.ts --write",
     "offered:generate": "node scripts/offered-commands.mjs",
     "pin:freshness": "node scripts/pin-freshness.mjs",
     "check": "node scripts/errors-reference.ts && pnpm lint && pnpm test && pnpm build && pnpm test:axi",
-    "hygiene:check": "node scripts/hygiene-check.mjs"
+    "hygiene:check": "node scripts/hygiene-check.ts"
   },
   "devDependencies": {
     "@actions/expressions": "0.3.61",
