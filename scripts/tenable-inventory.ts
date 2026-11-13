@@ -4,8 +4,8 @@ import { catalogue, mutationOperations } from '../tools/node_modules/@knowttl/te
 
 const root = new URL('../tools/', import.meta.url)
 const packageRoot = new URL('node_modules/@knowttl/tenable-axi/', root)
-const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8'))
-const pin = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8'))[pkg.name]
+const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8')) as { name: string, version: string }
+const pin = (JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8')) as Record<string, { version: string, integrity: string }>)[pkg.name]
 if (pkg.version !== pin.version) throw new Error('Pin mismatch for tenable-axi')
 const unsafeOverrides = ['config', 'profile', 'origin', 'output', 'out']
 const inputFileFlags = ['filter-file', 'body-file', 'ids-file', 'asset-ids-file', 'tag-ids-file']
@@ -15,9 +15,9 @@ const commands = Object.entries(catalogue).sort(([a], [b]) => a.localeCompare(b)
   flags: entry.flags,
 }))
 const skill = readFileSync(new URL('skills/tenable-axi/SKILL.md', packageRoot), 'utf8')
-const sources = readdirSync(new URL('dist/src/', packageRoot), { recursive: true }).filter(path => path.endsWith('.js')).sort()
+const sources = readdirSync(new URL('dist/src/', packageRoot), { recursive: true, encoding: 'utf8' }).filter(path => path.endsWith('.js')).sort()
   .map(path => ({ path: `dist/src/${path}`, sha256: createHash('sha256').update(readFileSync(new URL(`dist/src/${path}`, packageRoot))).digest('hex') }))
-const data = { generatedBy: 'scripts/tenable-inventory.mjs', tool: 'tenable-axi', ...pin,
+const data = { generatedBy: 'scripts/tenable-inventory.ts', tool: 'tenable-axi', ...pin,
   parserEvidence: 'Published command catalogue, mutation registry and reviewed native parsers and transport gates', sources,
   credentialSchema: JSON.parse(readFileSync(new URL('axi-credential.schema.json', packageRoot), 'utf8')),
   skillSha256: createHash('sha256').update(skill).digest('hex'),

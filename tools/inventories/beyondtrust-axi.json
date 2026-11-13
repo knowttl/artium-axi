@@ -1,5 +1,5 @@
 {
-  "generatedBy": "scripts/beyondtrust-inventory.mjs",
+  "generatedBy": "scripts/beyondtrust-inventory.ts",
   "tool": "beyondtrust-axi",
   "version": "0.1.8",
   "integrity": "sha512-B1dbqQmcvTGP3mMZnZdip8144COubalCiFD56wvUmPt4hPC4/MwEz6cLekFFsSMi4pGYrVMy++WSgu3Vvymeew==",

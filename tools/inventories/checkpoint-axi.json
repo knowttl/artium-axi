@@ -1,5 +1,5 @@
 {
-  "generatedBy": "scripts/checkpoint-inventory.mjs",
+  "generatedBy": "scripts/checkpoint-inventory.ts",
   "tool": "checkpoint-axi",
   "version": "0.1.6",
   "integrity": "sha512-G1r8SnyLl0e34GBDfsG1rpR0W06A9+cYprnHgEHMQlv45NaI9kUNwdIvPF+vAcpWlwiThIFy0Ss1V9HvrXXiEg==",
