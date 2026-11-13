@@ -314,6 +314,9 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
       expect(invalidBatch.json(), invalidBatch.body).toMatchObject({ exitCode: 2, stdout: expect.stringContaining('VALIDATION_ERROR') })
       expect((await hostIds('--limit', '100')).ids).toEqual([42, 43, 44])
 
+      const deletePreview = await run([...remove, '--dry-run'], [upload('ids.json', '[42,43,44]')])
+      expect(deletePreview.json(), deletePreview.body).toMatchObject({ exitCode: 0 })
+      expect(decode(deletePreview.json().stdout)).toMatchObject({ dry_run: { action: 'delete', type: 'hosts', would_send: 'POST bulk/host_delete/' } })
       const deleted = await run([...remove, '--confirm'], [upload('ids.json', '[42,43,44]')])
       expect(deleted.json(), deleted.body).toMatchObject({ exitCode: 0 })
       expect((await hostIds('--limit', '100')).ids).toEqual([])
