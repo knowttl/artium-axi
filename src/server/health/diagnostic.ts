@@ -3,16 +3,15 @@ import { SecretScanner } from '../runner/scan.js'
 import type { ToolName } from '../store/credential-store.js'
 
 export const diagnosticLimit = 4096
-export const retestCodes = ['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT',
-  'CONNECTION_FAILED', 'ERR_TLS_CERT_ALTNAME_INVALID', 'CERT_NOT_YET_VALID', 'CERT_HAS_EXPIRED', 'CERT_REVOKED',
-  'CERT_CHAIN_TOO_LONG', 'CERT_UNTRUSTED', 'CERT_REJECTED', 'CERT_SIGNATURE_FAILURE', 'CERTIFICATE_VERIFY_FAILED',
-  'CERTIFICATE_PIN_MISMATCH', 'CRL_NOT_YET_VALID', 'CRL_HAS_EXPIRED', 'CRL_SIGNATURE_FAILURE',
-  'UNABLE_TO_GET_ISSUER_CERT', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'UNABLE_TO_GET_CRL',
-  'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'UNABLE_TO_DECRYPT_CERT_SIGNATURE', 'UNABLE_TO_DECRYPT_CRL_SIGNATURE',
-  'UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN',
-  'INVALID_CA', 'PATH_LENGTH_EXCEEDED', 'HOSTNAME_MISMATCH', 'INVALID_PURPOSE',
-  'ERROR_IN_CERT_NOT_BEFORE_FIELD', 'ERROR_IN_CERT_NOT_AFTER_FIELD', 'ERROR_IN_CRL_LAST_UPDATE_FIELD',
-  'ERROR_IN_CRL_NEXT_UPDATE_FIELD']
+export function retestFields(detail: { toolCode?: unknown, providerCode?: unknown, upstreamStatus?: unknown } | undefined) {
+  const code = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(value)
+  const status = detail?.upstreamStatus
+  return {
+    ...(code(detail?.toolCode) ? { toolCode: detail.toolCode } : {}),
+    ...(code(detail?.providerCode) ? { providerCode: detail.providerCode } : {}),
+    ...(typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599 ? { upstreamStatus: status } : {}),
+  }
+}
 export const certificateErrorCodePattern = new RegExp(`\\b(?:${[
   'CERT_NOT_YET_VALID', 'CERT_HAS_EXPIRED', 'CERT_REVOKED', 'CERT_CHAIN_TOO_LONG',
   'CERT_UNTRUSTED', 'CERT_REJECTED', 'CERT_SIGNATURE_FAILURE', 'CERTIFICATE_VERIFY_FAILED',
@@ -65,7 +64,8 @@ export function toolFailureCode(stdout: string, stderr: string): string | undefi
     try {
       const error: unknown = JSON.parse(stream)?.error
       const code: unknown = typeof error === 'string' ? error : (error as { code?: unknown } | null)?.code
-      if (typeof code === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(code)) return code
+      const validated = retestFields({ toolCode: code }).toolCode
+      if (validated) return validated
     } catch {}
   }
   const text = [stderr, stdout].filter(Boolean).join('\n')
@@ -75,8 +75,19 @@ export function toolFailureCode(stdout: string, stderr: string): string | undefi
 
 export function toolFailure(stdout: string, stderr: string, exitCode: number, tool?: ToolName): ArtiumError {
   const text = [stderr, stdout].filter(Boolean).join('\n')
+  let upstreamStatus: number | undefined
+  let providerCode: string | undefined
+  for (const stream of [stderr, stdout]) {
+    try {
+      const error = JSON.parse(stream)?.error
+      const fields = retestFields({ providerCode: error?.providerCode,
+        upstreamStatus: error?.httpStatus ?? error?.details?.httpStatus ?? error?.upstreamStatus })
+      upstreamStatus ??= fields.upstreamStatus
+      providerCode ??= fields.providerCode
+    } catch {}
+  }
   const toolCode = toolFailureCode(stdout, stderr)
-  const providerCode = /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
+  providerCode ??= /\bAADSTS\d{4,8}\b/.exec(text)?.[0]
   const hint = /^\s*(?:hint|next):\s*(.+)$/mi.exec(text)?.[1] ?? (providerCode ? azureAdvice[providerCode] : undefined)
   const message = text.trim() || `Tool exited with status ${exitCode}.`
   let code: ErrorCode = 'TOOL_FAILED'
@@ -100,5 +111,5 @@ export function toolFailure(stdout: string, stderr: string, exitCode: number, to
   } else if (exitCode === 2 || /INVALID_(?:INPUT|CONFIG|ARGUMENT)|CONFIG.*INVALID|cannot be combined|unknown (?:flag|option)|required field/i.test(text)) {
     code = 'TOOL_REJECTED_INPUT'; stage = 'configuration'
   }
-  return diagnosticError(code, { stage, message, ...(toolCode ? { toolCode } : {}), ...(providerCode ? { providerCode } : {}), ...(hint ? { hint } : {}) })
+  return diagnosticError(code, { stage, message, ...retestFields({ toolCode, providerCode, upstreamStatus }), ...(hint ? { hint } : {}) })
 }

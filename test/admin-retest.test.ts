@@ -4,7 +4,27 @@ import { retestScript } from '../src/server/admin/retest.js'
 
 const secret = 'CANARY-unlabelled-credential'
 const quotedSecret = '"CANARY several secret words"'
-const cases = [
+const cases: { name: string, failure?: unknown, response?: unknown, kind: string, expected: string }[] = [
+  ...[
+    { stage: 'TCP', toolCode: 'EHOSTUNREACH' },
+    { stage: 'TLS', toolCode: 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION' },
+    { stage: 'token acquisition', providerCode: 'AADSTS7000222' },
+    { stage: 'response', upstreamStatus: 503 },
+  ].map(diagnostic => ({ name: JSON.stringify(diagnostic), kind: 'http',
+    response: Response.json({ error: { code: 'TOOL_FAILED', diagnostic } }, { status: 503 }),
+    expected: 'Connection test: HTTP 503. The tool exited unsuccessfully. (TOOL_FAILED). Failed step: ' + diagnostic.stage + '.' +
+      (diagnostic.toolCode ? ' Transport: ' + diagnostic.toolCode + '.' : '') +
+      (diagnostic.providerCode ? ' Provider: ' + diagnostic.providerCode + '.' : '') +
+      (diagnostic.upstreamStatus ? ' Upstream HTTP ' + diagnostic.upstreamStatus + '.' : '') + ' Run Test connection again.' })),
+  ...['long free text '.repeat(100), 'eyJhbGciOiJIUzI1NiJ9.payload.signature', 'CANARY-token-with-hyphens'].map(value => ({
+    name: 'unsafe structured value ' + value.slice(0, 20), kind: 'http',
+    response: Response.json({ error: { diagnostic: { toolCode: value, providerCode: value, upstreamStatus: value } } }, { status: 503 }),
+    expected: 'Connection test: HTTP 503. Server error code unavailable. Run Test connection again.',
+  })),
+  ...[99, 600, 503.5, '503'].map(upstreamStatus => ({ name: 'invalid upstream status ' + upstreamStatus, kind: 'http',
+    response: Response.json({ error: { diagnostic: { upstreamStatus } } }, { status: 503 }),
+    expected: 'Connection test: HTTP 503. Server error code unavailable. Run Test connection again.',
+  })),
   { name: 'localised network rejection', failure: new TypeError('Échec réseau ' + secret), kind: 'network',
     expected: 'Connection test: Could not reach the artium admin server (TypeError). Run Test connection again.' },
   { name: 'known network code', failure: Object.assign(new Error(quotedSecret), { cause: { code: 'ECONNREFUSED' } }), kind: 'network',

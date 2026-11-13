@@ -115,6 +115,7 @@ export interface Diagnostic {
   message: string
   toolCode?: string
   providerCode?: string
+  upstreamStatus?: number
   hint?: string
   host?: string
   issuer?: string

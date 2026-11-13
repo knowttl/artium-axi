@@ -3,6 +3,25 @@ import { diagnosticSchema } from '../../shared/api.js'
 import { safeDiagnostic, toolFailure, toolFailureCode } from './diagnostic.js'
 
 const secret = 'CANARY-diagnostic-secret'
+
+test.each([
+  { value: 100, expected: 100 },
+  { value: 503, expected: 503 },
+  { value: 599, expected: 599 },
+  { value: 99, expected: undefined },
+  { value: 600, expected: undefined },
+  { value: 503.5, expected: undefined },
+  { value: '503', expected: undefined },
+])('captures only valid structured upstream HTTP status $value', ({ value, expected }) => {
+  expect(toolFailure('', JSON.stringify({ error: { code: 'SERVICE_UNAVAILABLE', httpStatus: value } }), 1).diagnostic?.upstreamStatus)
+    .toBe(expected)
+})
+
+test.each(['long free text '.repeat(100), 'eyJhbGciOiJIUzI1NiJ9.payload.signature', 'CANARY-token-with-hyphens'])(
+  'drops unsafe structured provider code %s', providerCode => {
+    const failure = toolFailure('', JSON.stringify({ error: { code: 'AUTH_REQUIRED', providerCode } }), 1)
+    expect(failure.diagnostic?.providerCode).toBeUndefined()
+  })
 test.each(['message', 'hint', 'host', 'issuer', 'toolCode', 'providerCode'])(
   'drops the whole diagnostic when %s contains a known secret', field => {
     expect(safeDiagnostic({ stage: 'TLS', message: 'Synthetic failure', [field]: secret }, [secret])).toBeUndefined()

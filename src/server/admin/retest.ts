@@ -1,11 +1,11 @@
 import { errors } from '../../shared/errors.js'
-import { retestCodes } from '../health/diagnostic.js'
+import { retestFields } from '../health/diagnostic.js'
 
 export const retestScript = `
 const retestErrors = ${JSON.stringify(Object.fromEntries(Object.entries(errors).map(([code, error]) => [code, error.message])))};
+const retestFields = ${retestFields.toString()};
 function retestTransport(error) {
-  const codes = ${JSON.stringify(retestCodes)};
-  const code = [error?.code, error?.cause?.code].find(value => codes.includes(value));
+  const code = retestFields({ toolCode: error?.code }).toolCode ?? retestFields({ toolCode: error?.cause?.code }).toolCode;
   const name = ['TypeError', 'SyntaxError', 'AbortError', 'NetworkError', 'TimeoutError'].includes(error?.name) ? error.name : undefined;
   return { ...(code ? { code } : {}), ...(name ? { name } : {}) };
 }
@@ -20,6 +20,7 @@ function renderRetestDiagnostic(detail) {
   if (detail.kind === 'schema') return 'Connection test: response did not match the connection-test format.' + status + ' Check server and client version compatibility. Run Test connection again.';
   return 'Connection test:' + status + (detail.errorCode ? ' ' + retestErrors[detail.errorCode] + ' (' + detail.errorCode + ').' : ' Server error code unavailable.') +
     (detail.stage ? ' Failed step: ' + detail.stage + '.' : '') + (detail.transportCode ? ' Transport: ' + detail.transportCode + '.' : '') +
+    (detail.providerCode ? ' Provider: ' + detail.providerCode + '.' : '') + (detail.upstreamStatus === undefined ? '' : ' Upstream HTTP ' + detail.upstreamStatus + '.') +
     (detail.trust ? ' Certificate trust: ' + detail.trust + '.' : '') + ' Run Test connection again.';
 }
 async function retestConnection(url, csrf) {
@@ -40,9 +41,9 @@ async function retestConnection(url, csrf) {
     const error = result?.error;
     const errorCode = typeof error?.code === 'string' && Object.hasOwn(retestErrors, error.code) ? error.code : undefined;
     const stage = ['configuration', 'token acquisition', 'DNS', 'TCP', 'TLS', 'authentication', 'response', 'tool run'].includes(error?.diagnostic?.stage) ? error.diagnostic.stage : undefined;
-    const transportCode = retestTransport({ code: error?.diagnostic?.toolCode }).code;
+    const { toolCode: transportCode, providerCode, upstreamStatus } = retestFields(error?.diagnostic);
     const trust = ['self-signed', 'untrusted'].includes(error?.diagnostic?.trust) ? error.diagnostic.trust : undefined;
-    return { diagnostic: { kind: 'http', status, errorCode, stage, transportCode, trust } };
+    return { diagnostic: { kind: 'http', status, errorCode, stage, transportCode, providerCode, upstreamStatus, trust } };
   }
   if (result?.status !== 'ok' || !Number.isSafeInteger(result.checkedAt) ||
       !Number.isSafeInteger(result.credentialRevision) || result.errorCode !== null) {

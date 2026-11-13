@@ -9,11 +9,11 @@ import { certificateEndpoint } from '../certificate-endpoint.js'
 import { startLdapTls } from '../ldap-starttls.js'
 import type { ToolName } from '../store/credential-store.js'
 import { toolEndpoints } from '../tool-endpoints.js'
-import { certificateErrorCodePattern, diagnosticError } from './diagnostic.js'
+import { certificateErrorCodePattern, diagnosticError, retestFields } from './diagnostic.js'
 
 function verificationCode(error: unknown): string {
   const code = (error as NodeJS.ErrnoException)?.code
-  return typeof code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(code) ? code : 'CONNECTION_FAILED'
+  return retestFields({ toolCode: code }).toolCode ?? 'CONNECTION_FAILED'
 }
 
 type NativeTls = { connectAddress?: string, serverName?: string, peerFingerprintSha256?: string,

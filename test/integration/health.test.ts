@@ -34,7 +34,7 @@ vi.mock('node:child_process', async importOriginal => {
   return { ...original, spawn: vi.fn(original.spawn) }
 })
 
-async function controlledHealthProcess() {
+async function controlledHealthProcess(output = { stdout: 'synthetic', stderr: '', exitCode: 0 }) {
   const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
   let started!: (finish: () => void) => void
   const ready = new Promise<() => void>(resolve => { started = resolve })
@@ -42,7 +42,7 @@ async function controlledHealthProcess() {
     const child = original.spawn(fakeTool.executable, [...fakeTool.args, 'controlled-health'], {
       ...options, stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
     })
-    void once(child, 'message').then(() => started(() => { child.send({ stdout: 'synthetic', stderr: '', exitCode: 0 }) }))
+    void once(child, 'message').then(() => started(() => { child.send(output) }))
     return child
   })
   return ready
@@ -81,6 +81,25 @@ afterEach(async () => {
   vi.useRealTimers()
   vi.restoreAllMocks()
   rmSync(directory, { recursive: true, force: true })
+})
+
+test.each([
+  { toolCode: 'EHOSTUNREACH' },
+  { toolCode: 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION' },
+  { toolCode: 'AUTH_REQUIRED', providerCode: 'AADSTS7000222' },
+  { toolCode: 'SERVICE_UNAVAILABLE', upstreamStatus: 503 },
+])('automatic retest retains safe structured fields $toolCode', async fields => {
+  const stderr = JSON.stringify({ error: { code: fields.toolCode, httpStatus: fields.upstreamStatus,
+    message: 'Untrusted response with ' + (fields.providerCode ?? 'CANARY-response-text') } })
+  const ready = controlledHealthProcess({ stdout: '', stderr, exitCode: 1 })
+  const pending = health.check('falcon-axi', 'synthetic-development-user', 'structured-retest', null, undefined, undefined, true)
+  const finish = await ready
+  finish()
+  await expect(pending).rejects.toMatchObject({ diagnostic: fields })
+  const diagnostic = new Audit(db).runDiagnostic('structured-retest')
+  expect(diagnostic).toMatchObject(fields)
+  expect(JSON.stringify(diagnostic)).not.toContain('Untrusted response')
+  expect(JSON.stringify(diagnostic)).not.toContain('CANARY-response-text')
 })
 
 test.each([

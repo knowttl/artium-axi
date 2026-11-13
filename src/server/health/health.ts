@@ -3,7 +3,7 @@ import type Database from 'better-sqlite3'
 import { healthSchema, toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError, errors } from '../../shared/errors.js'
 import type { Diagnostic } from '../../shared/errors.js'
-import { diagnosticError, retestCodes, safeDiagnostic, toolFailure } from './diagnostic.js'
+import { diagnosticError, retestFields, safeDiagnostic, toolFailure } from './diagnostic.js'
 import { preflight } from './preflight.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import type { Adapter } from '../adapters/types.js'
@@ -278,12 +278,11 @@ export class ToolHealth {
         detail.host = (detail.stage === 'token acquisition' ? endpoints[0] : endpoints[
           ['az-axi', 'mg-axi'].includes(tool) || tool === 'ado-axi' && credential.auth === 'client-secret' ? 1 : 0])?.hostname
       }
-      const retestCode = retest && detail && retestCodes.includes(detail.toolCode ?? '') ? detail.toolCode : undefined
-      const diagnostic = retest && detail && failure ? {
+      const diagnostic = retest && detail && failure ? safeDiagnostic({
         stage: detail.stage, message: errors[failure.code].message,
-        ...(retestCode ? { toolCode: retestCode } : {}),
+        ...retestFields(detail),
         ...(detail.trust ? { trust: detail.trust } : {}), checkedAt, credentialRevision: reference.revision,
-      } : safeDiagnostic(detail, secrets)
+      }, secrets) : safeDiagnostic(detail, secrets)
       if (failure) failure.diagnostic = diagnostic
       const settings = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(tool) as { native_settings: string }
       const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt, diagnostic,
