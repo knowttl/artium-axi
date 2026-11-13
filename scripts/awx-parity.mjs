@@ -21,7 +21,7 @@ const help = async argv => {
 }
 const topHelp = await help(['--help'])
 const updateHelp = await help(['update', '--help'])
-const globalNames = [...topHelp.match(/^globals: (.*)$/m)[1].matchAll(/--([a-z0-9-]+)/g)].map(match => match[1])
+const globalNames = [...new Set([...topHelp.match(/^globals: (.*)$/m)[1].matchAll(/--([a-z0-9-]+)/g)].map(match => match[1]))]
 const recorded = readJson('tools/inventories/awx-axi-parity.json')
 const decisions = new Map(recorded.commands.map(route => [route.command, route]))
 const localCommands = [...new Set([
@@ -39,9 +39,8 @@ for (const route of offered.filter(route => localCommands.includes(route.command
   const output = ['auth', 'setup'].includes(group)
     ? (group === 'auth' ? AUTH_HELP : SETUP_HELP).split(new RegExp(`\\n  ${name}[ \\t]{2,}`))[1]?.split(/\n(?:  [a-z0-9-]+[ \t]{2,}|\s*\n|[^ \t])/)[0] ?? ''
     : await help([...route.command.split(' '), '--help'])
-  route.flags = [...output.matchAll(/--([a-z][a-z0-9-]*)/g)]
-    .filter(match => !globalNames.includes(match[1]) && match[1] !== 'help')
-    .map(match => ({ name: match[1] }))
+  route.flags = [...new Set([...output.matchAll(/--([a-z][a-z0-9-]*)/g)]
+    .map(match => match[1]).filter(name => !globalNames.includes(name) && name !== 'help'))].map(name => ({ name }))
 }
 const complete = (decision, commandFlag = false) => decision
   && ['name', 'status', 'effect', 'targetSlice', 'authorization'].every(key => typeof decision[key] === 'string' && decision[key].trim())
@@ -171,7 +170,7 @@ for (const command of ['home', ...localCommands]) {
   const effect = remoteRead ? 'read' : 'client-local'
   const specs = [{ name: 'help', takesValue: false, description: 'Command help' }]
   if (command === 'auth login') specs.push(...[...AUTH_HELP.matchAll(/--(allow-http)\b/g)].slice(0, 1).map(match => ({ name: match[1], takesValue: false, description: 'Opt into unencrypted HTTP; unavailable in Artium HTTPS accounts' })))
-  if (command === 'update') specs.push(...[...updateHelp.matchAll(/^  "--([a-z0-9-]+)": (.*)$/gm)].map(match => ({ name: match[1], takesValue: false, description: match[2] })))
+  if (command === 'update') specs.push(...[...new Map([...updateHelp.matchAll(/^  "--([a-z0-9-]+)": (.*)$/gm)].map(match => [match[1], { name: match[1], takesValue: false, description: match[2] }])).values()])
   const authorization = ['auth login', 'auth logout'].includes(command) ? 'write' : 'read'
   commands.push({ command, effect, status, reason, targetSlice: command === 'auth logout' ? 'e' : 'f', authorization, requiredAdminControl: requiredControl(command, authorization),
     flags: [...flagsFor(command, specs, effect, 'f', status), ...offered.find(route => route.command === command)?.flags

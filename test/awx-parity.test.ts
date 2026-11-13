@@ -130,6 +130,41 @@ registerHooks({ load(url, context, nextLoad) {
   expect(result.stderr).toContain('Auth example fixture applied')
 })
 
+test.each([
+  { kind: 'auth', file: '/dist/commands/auth.js', from: '--allow-http opts this profile', to: '--synthetic-flag and --synthetic-flag, --allow-http opts this profile', name: 'auth login --synthetic-flag' },
+  { kind: 'setup', file: '/dist/commands/setup.js', from: 'hooks    install session-start hooks', to: 'hooks    install --synthetic-flag and --synthetic-flag session-start hooks', name: 'setup hooks --synthetic-flag' },
+])('repeated $kind flag mentions request one decision', ({ file, from, to, name }) => {
+  const preload = `import { registerHooks } from 'node:module';
+registerHooks({ load(url, context, nextLoad) {
+  const result = nextLoad(url, context);
+  if (url.endsWith(${JSON.stringify(file)})) result.source = result.source.toString().replace(${JSON.stringify(from)}, ${JSON.stringify(to)});
+  return result;
+} });`
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr.split(name)).toHaveLength(2)
+  expect(result.stderr).toContain('support decision')
+})
+
+test('repeated global flag mentions generate one row', () => {
+  const preload = `import { registerHooks } from 'node:module';
+registerHooks({ load(url, context, nextLoad) {
+  const result = nextLoad(url, context);
+  if (url.endsWith('/node_modules/@knowttl/awx-axi/dist/cli.js')) {
+    const source = result.source.toString();
+    if (!source.includes('globals: "--config <path>')) throw new Error('Global help fixture not found');
+    result.source = source.replace('globals: "--config <path>', 'globals: "--config <path>, --config <path>');
+  }
+  return result;
+} });`
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.stderr).toBe('')
+  expect(result.status).toBe(0)
+  expect(result.stdout).toContain('4 selection globals')
+})
+
 test('setup flags belong only to their documented subcommand', () => {
   const preload = `import fs from 'node:fs';
 import { registerHooks, syncBuiltinESMExports } from 'node:module';
