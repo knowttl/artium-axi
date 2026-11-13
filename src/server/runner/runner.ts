@@ -24,10 +24,12 @@ import { classifyCertificateFailure, observeCertificate } from '../credential-tl
 import { nodeTrustBootstrap, pythonTrustBootstrap } from './runtime-trust.js'
 import { acquireFalconRtrLock } from './falcon-rtr-lock.js'
 import { kubernetesRequestProfile } from './kubernetes-requests.js'
-import { pinnedHttp } from './pinned-http.js'
+import { pinnedHttp, type PinnedHttpUpstream } from './pinned-http.js'
 import type { CompletedMutation, MutationReceipt } from '../../shared/mutation-outcome.js'
 
-export type GoTransportTrust = { transport: 'github' } | { endpoint: string, transport: 'kubectl', hostModule?: string }
+export type GoTransportTrust = { transport: 'github' } | {
+  endpoint: string, transport: 'kubectl', hostModule?: string, clientIdentity?: PinnedHttpUpstream['clientIdentity'], mutationWorkflow?: boolean
+}
 const goPinEnforcement: Record<GoTransportTrust['transport'], 'http-unix' | 'host-socket' | 'refuse'> = { github: 'http-unix', kubectl: 'host-socket' }
 
 export interface RunnerLimits {
@@ -203,10 +205,14 @@ function signalGroup(pid: number | undefined, signal: NodeJS.Signals | 0): boole
 function runtimeTrust(limits: Pick<RunnerLimits, 'systemCaBundle' | 'credentialTrust'>, trustedCa?: TrustedCaBundle) {
   const caEndpoint = limits.systemCaBundle?.transport === 'kubectl' ? certificateEndpoint(limits.systemCaBundle.endpoint).href : undefined
   const credentialTrust = (limits.credentialTrust ?? []).filter(certificate => !caEndpoint || certificateEndpoint(certificate.endpoint).href === caEndpoint)
+  if (limits.systemCaBundle?.transport === 'kubectl' && limits.systemCaBundle.clientIdentity && limits.systemCaBundle.mutationWorkflow
+    && credentialTrust.some(certificate => certificate.mode === 'pin')) {
+    throw new RunnerError('INVALID_INPUT', 'certificate-pinned changes need kubernetes-axi binding fix')
+  }
   if (limits.systemCaBundle && (goPinEnforcement[limits.systemCaBundle.transport] === 'refuse'
     || limits.systemCaBundle.transport === 'kubectl' && !limits.systemCaBundle.hostModule)
     && credentialTrust.some(certificate => certificate.mode !== 'ca')) {
-    throw new RunnerError('INVALID_INPUT', 'Kubernetes pins require a static token identity; client certificates and hosted byte sessions require issuing CA trust.')
+    throw new RunnerError('INVALID_INPUT', 'Kubernetes hosted byte sessions require issuing CA trust; pins require the managed host transport.')
   }
   const trustPem = trustedCa || credentialTrust.length || limits.systemCaBundle
     ? [...getCACertificates('default'), ...(trustedCa ? [trustedCa.pem] : []),
@@ -266,12 +272,18 @@ async function execute(
         if (limits.systemCaBundle && goPinEnforcement[limits.systemCaBundle.transport] !== 'refuse'
           && credentialTrust.some(certificate => certificate.mode === 'pin')) {
           const socketPath = join(directory, 'http.sock')
-          relay = await pinnedHttp(socketPath, credentialTrust, trustedCa?.pem)
+          relay = await pinnedHttp(socketPath, credentialTrust, trustedCa?.pem,
+            limits.systemCaBundle.transport === 'kubectl' ? limits.systemCaBundle : undefined)
           if (limits.systemCaBundle.transport === 'github') {
             files = [...files, { name: 'gh/config.yml', content: `http_unix_socket: ${JSON.stringify(socketPath)}\n` }]
           } else {
+            if (limits.systemCaBundle.clientIdentity) {
+              files = [...files, { name: 'kubernetes-axi/client.key', content: limits.systemCaBundle.clientIdentity.privateKey }]
+            }
+            const transport = { socketPath, endpoint: limits.systemCaBundle.endpoint,
+              ...(limits.systemCaBundle.clientIdentity ? { capabilities: { clientCertificate: true } } : {}) }
             files = [...files, { name: 'kubernetes-transport.mjs', content:
-              `import { main } from ${JSON.stringify(limits.systemCaBundle.hostModule)};\nawait main(process.argv.slice(2), { transport: { socketPath: ${JSON.stringify(socketPath)} } });\n` }]
+              `import { main } from ${JSON.stringify(limits.systemCaBundle.hostModule)};\nawait main(process.argv.slice(2), { transport: ${JSON.stringify(transport)} });\n` }]
             args = [join(directories.XDG_CONFIG_HOME, 'kubernetes-transport.mjs'), ...args.slice(1)]
           }
         }
@@ -298,6 +310,14 @@ async function execute(
           const handle = await open(temporary, 'wx', 0o600)
           try {
             let content = file.content
+            if (relay && limits.systemCaBundle?.transport === 'kubectl' && limits.systemCaBundle.clientIdentity && file.name === 'kubernetes-axi/config.json') {
+              const profile = JSON.parse(Buffer.from(content).toString('utf8'))
+              const childEnvironment = { ...environment }
+              delete childEnvironment[profile.profiles.artium.privateKey.env]
+              environment = childEnvironment
+              profile.profiles.artium.privateKey = { file: join(directories.XDG_CONFIG_HOME, 'kubernetes-axi/client.key') }
+              content = JSON.stringify(profile)
+            }
             if (limits.unifiScope && file.name === 'unifi-axi/config.json') {
               if (!/^[a-f0-9]{64}$/.test(limits.unifiScope)) throw new Error('Invalid UniFi identity scope')
               const profile = JSON.parse(Buffer.from(content).toString('utf8'))

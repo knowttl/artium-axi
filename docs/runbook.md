@@ -313,9 +313,13 @@ CA trust is selected when an issuing CA is available; self-signed endpoints sele
 UniFi also saves and verifies the leaf fingerprint with CA trust, so confirm its replacement after leaf renewal.
 Proxmox also verifies any separately saved fingerprint, which can reject a renewed leaf under the trusted CA.
 GitHub supports strict leaf pins through a private per-call HTTP socket relay that verifies the upstream TLS connection before sending application data.
-Kubernetes static token identities support strict leaf pins through the same relay for kubectl reads and native mutation workflows, preserving the original cluster and identity binding.
-Client-certificate identities, credential helpers, TLS server-name overrides, hosted byte sessions and upgrade connections remain refused with strict pins; use issuing CA trust for supported operations without pins.
-For self-signed Kubernetes endpoints or a missing issuing CA, static token identities can use strict pins; client-certificate identities require the server-wide bundle above.
+Kubernetes managed static token identities support strict leaf pins through the same relay for kubectl reads and native mutation workflows, preserving the original cluster and identity binding.
+Managed client-certificate identities support strict pins for compact and native reads.
+For these pinned reads, the relay receives the managed client certificate and private key only for the saved endpoint; the private key stays in credential handling and private files, never child process arguments, environment variables or logs.
+Pinned client-certificate mutation workflows, including prepare, preview, confirm and server-dry-run, refuse before spawn with `certificate-pinned changes need kubernetes-axi binding fix`.
+The native workflow binding includes the per-call private-key file location, so unchanged credentials cannot yet confirm a preview across calls; use issuing CA trust for certificate workflows until that binding is corrected.
+Native kubeconfig certificates, ExecCredential helpers, TLS server-name overrides, hosted byte sessions and upgrade connections remain refused with strict pins; use issuing CA trust for supported operations without pins.
+For self-signed Kubernetes endpoints or a missing issuing CA, managed token and client-certificate identities can use strict pins.
 Without strict pins, the GitHub CLI child receives system roots, the server bundle and credential CAs through a private `SSL_CERT_FILE`; those CAs are additive across the child's connections.
 With strict pins, both gh-axi and direct native GitHub calls use the relay, which restricts saved anchors and fingerprints to the inspected hostname and port and uses normal server trust for unrelated endpoints.
 For Kubernetes, system roots, the server bundle and confirmed CAs for the saved cluster origin are appended to the profile's `certificateAuthority` in a private per-call profile for bundled kubectl.

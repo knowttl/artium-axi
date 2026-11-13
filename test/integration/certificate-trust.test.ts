@@ -510,7 +510,7 @@ test.each([
   expect(readCredentialTrust(db, reference)).toEqual([])
 })
 
-test.each(['token', 'certificate'])('Kubernetes certificate administration limits leaf pins to tokens (%s)', async auth => {
+test.each(['token', 'certificate'])('Kubernetes certificate administration accepts managed identity leaf pins (%s)', async auth => {
   serve('leaf', true)
   store.replaceCredential('kubernetes-axi', { origin: endpoint, auth,
     ...(auth === 'token' ? { token: 'CANARY-never-sent' } : { clientCertificate: 'CANARY-client-certificate', privateKey: 'CANARY-private-key' }) }, 0, 'synthetic-development-user', Date.now())
@@ -520,16 +520,9 @@ test.each(['token', 'certificate'])('Kubernetes certificate administration limit
   expect(first.statusCode, first.body).toBe(200)
   const pinned = await app.inject({ method: 'POST', url: url + '/trust', headers,
     payload: { inspectionId: first.json().inspectionId, confirmedFingerprint: first.json().chain[0].fingerprint, mode: 'pin' } })
-  expect(pinned.statusCode, pinned.body).toBe(auth === 'token' ? 200 : 400)
-  if (auth === 'certificate') expect(pinned.json().error.message).toContain('requires a static token identity')
-  if (auth === 'certificate') {
-    const second = await inspect()
-    const accepted = await app.inject({ method: 'POST', url: url + '/trust', headers,
-      payload: { inspectionId: second.json().inspectionId, confirmedFingerprint: second.json().chain[0].fingerprint, mode: 'ca' } })
-    expect(accepted.statusCode, accepted.body).toBe(200)
-  }
+  expect(pinned.statusCode, pinned.body).toBe(200)
   expect(readCredentialTrust(db, store.findCredential('kubernetes-axi')!)).toEqual([
-    expect.objectContaining({ mode: auth === 'token' ? 'pin' : 'ca', endpoint: endpoint + '/', pem: pem('intermediate') }),
+    expect.objectContaining({ mode: 'pin', endpoint: endpoint + '/', pem: pem('intermediate') }),
   ])
   expect(bytes).toBe(0)
 })
