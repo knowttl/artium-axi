@@ -91,6 +91,24 @@ catch (error) { console.log(error.message); }`
 })
 
 test.each([
+  { kind: 'setup', file: '/dist/commands/setup.js', from: 'const SUBCOMMANDS = ["hooks"]', to: 'const SUBCOMMANDS = ["hooks", "synthetic"]', probe: `import { setupCommand } from './tools/node_modules/@knowttl/awx-axi/dist/commands/setup.js'; try { await setupCommand(['synthetic', '--unknown']); } catch (error) { console.log(error.message); }`, accepted: 'unknown flag --unknown', name: 'setup synthetic' },
+  { kind: 'top-level', file: '/dist/cli.js', from: 'auth: (args) => authCommand(args, context)', to: 'synthetic: async () => ({ synthetic: "executed" }), auth: (args) => authCommand(args, context)', probe: `import { main } from './tools/node_modules/@knowttl/awx-axi/dist/cli.js'; await main({ argv: ['synthetic'], env: {} });`, accepted: 'synthetic: executed', name: 'synthetic' },
+])('parity rejects an undocumented executable $kind command', ({ file, from, to, probe, accepted, name }) => {
+  const preload = `import { registerHooks } from 'node:module';
+registerHooks({ load(url, context, nextLoad) {
+  const result = nextLoad(url, context);
+  if (url.endsWith(${JSON.stringify(file)})) result.source = result.source.toString().replace(${JSON.stringify(from)}, ${JSON.stringify(to)});
+  return result;
+} });`
+  const hook = `data:text/javascript,${encodeURIComponent(preload)}`
+  const execution = spawnSync(process.execPath, ['--import', hook, '--input-type=module', '-e', probe], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(execution.stdout).toContain(accepted)
+  const result = spawnSync(process.execPath, ['--import', hook, fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain(`Missing AWX support decision: ${name}`)
+})
+
+test.each([
   { kind: 'top-level command', file: '/dist/cli.js', from: 'auth, profile list, config path, doctor, setup', to: 'auth, profile list, config path, doctor, setup, synthetic-parity-command', name: 'synthetic-parity-command', args: [] },
   { kind: 'auth flag', file: '/dist/commands/auth.js', from: '--allow-http opts this profile', to: '--synthetic-parity-flag and --allow-http opts this profile', name: 'auth login --synthetic-parity-flag', args: [] },
   { kind: 'auth flag during regeneration', file: '/dist/commands/auth.js', from: '--allow-http opts this profile', to: '--synthetic-parity-flag and --allow-http opts this profile', name: 'auth login --synthetic-parity-flag', args: ['--write'] },
@@ -139,6 +157,7 @@ registerHooks({ load(url, context, nextLoad) {
   const result = nextLoad(url, context);
   if (url.endsWith('/dist/commands/setup.js')) result.source = result.source.toString()
     .replace('usage: awx-axi setup hooks', 'usage: awx-axi setup hooks|synthetic')
+    .replace('const SUBCOMMANDS = ["hooks"]', 'const SUBCOMMANDS = ["hooks", "synthetic"]')
     .replace('hooks    install session-start hooks for Claude Code, Codex, and OpenCode', 'hooks    install --hooks-only\\n  synthetic    another command');
   return result;
 } });`
