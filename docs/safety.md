@@ -345,7 +345,6 @@ Use the signed-in CLI's `doctor <host>` for a granted host, rather than the gene
 The [reviewed Kubernetes inventory](../tools/inventories/kubernetes-axi.json) owns admitted compact/native reads, resource mutation commands, the exact package pin and bundled kubectl digests.
 Artium supplies the saved HTTPS origin, cluster CA, namespace and token or client-certificate SecretRef identity.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for Kubernetes trust requirements and projection; native chain, hostname and validity checks remain enabled.
-Exact leaf-pin support for Go transports is tracked in [the follow-up issue](https://github.com/knowttl/artium-axi/issues/276).
 Use `artium-axi kubernetes-axi get pods` for compact metadata or `artium-axi kubernetes-axi native -- get deployments -o json` for reviewed upstream formats.
 Native `--` reads require [Raw API access](#raw-api-access); compact reads and prepare, preview and confirm mutations do not.
 Compact lists retain at most 100 rows and report completeness, resource version and opaque continuation; repeat the same selectors with `--continue` to resume.
