@@ -41,7 +41,7 @@ export function retainCredentialTls(tool: ToolName, stored: Record<string, unkno
   const settings = credentialTlsSettings[tool]
   if (settings.pin && value[settings.pin] && typeof value[settings.pin] === 'object' && !Array.isArray(value[settings.pin])) {
     const pin = value[settings.pin] as Record<string, unknown>
-    if (Object.keys(pin).length === 1 && Object.hasOwn(pin, 'sha256')) {
+    if (Object.keys(pin).length > 0 && Object.keys(pin).every(key => key === 'sha256' || key === 'replaceHostname')) {
       const previous = stored.origin === value.origin ? stored[settings.pin] : undefined
       next[settings.pin] = { ...(previous && typeof previous === 'object' ? previous : {}), origin: value.origin, ...pin }
     }

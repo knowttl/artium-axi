@@ -16,7 +16,7 @@ import { createGhAdapter } from '../../src/server/adapters/gh.js'
 import { GithubAppTokenCache } from '../../src/server/adapters/github-app-tokens.js'
 import * as credentialTls from '../../src/server/credential-tls.js'
 import { generateKeyPairSync, X509Certificate } from 'node:crypto'
-import { connect as connectTls } from 'node:tls'
+import { connect as connectTls, createServer as createTlsServer } from 'node:tls'
 import { failedTlsSocket } from '../fixtures/failed-tls-socket.js'
 import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import type { Adapter } from '../../src/server/adapters/types.js'
@@ -41,6 +41,7 @@ import profileSchema from '../fixtures/axi-credential.schema.json' with { type: 
 import { createSshAdapter } from '../../src/server/adapters/ssh.js'
 import { SshHosts } from '../../src/server/store/ssh-hosts.js'
 import { encryptCredential } from '../../src/server/store/crypto.js'
+import { preflight } from '../../src/server/health/preflight.js'
 
 let directory: string
 let db: Database.Database
@@ -1226,6 +1227,24 @@ test('Proxmox replaces and removes its origin-bound fingerprint pin', async () =
   expect(store.readCredential(store.findCredential('proxmox-axi')!)).toEqual({ ...value, certificatePin: { ...pin, sha256: 'b'.repeat(64) } })
   expect((await save('proxmox-axi', { ...value, certificatePin: null }, 2)).status).toBe(200)
   expect(store.readCredential(store.findCredential('proxmox-axi')!)).toEqual(value)
+})
+
+test('Proxmox creates a pin that replaces hostname verification', async () => {
+  db.prepare('UPDATE tools SET enabled = 0 WHERE name = ?').run('proxmox-axi')
+  createTestCertificates(directory, ['localhost'])
+  const certificate = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const server = createTlsServer({ key: readFileSync(join(directory, 'server.key')), cert: certificate })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const origin = `https://127.0.0.1:${(server.address() as { port: number }).port}`
+    const value = { ...values['proxmox-axi'], origin }
+    await replace('proxmox-axi', value)
+    const pin = { sha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', ''), replaceHostname: true }
+    expect((await save('proxmox-axi', { ...value, certificatePin: pin }, 1)).status).toBe(200)
+    const credential = store.readCredential(store.findCredential('proxmox-axi')!) as Record<string, unknown>
+    expect(credential.certificatePin).toEqual({ ...pin, origin })
+    await expect(preflight('proxmox-axi', credential)).resolves.toBeUndefined()
+  } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
 })
 
 test('UniFi removes its certificate pair and connection override together', async () => {
