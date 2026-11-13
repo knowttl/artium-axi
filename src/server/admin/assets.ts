@@ -119,6 +119,10 @@ for (const editor of document.querySelectorAll('[data-credential-editor]')) {
   }
   editor.addEventListener('input', update);
   editor.addEventListener('change', update);
+  for (const input of editor.querySelectorAll('[data-tls-input][data-profile-clearable]')) {
+    input.addEventListener('input', () => { input.dataset.tlsEdited = 'true'; });
+    input.addEventListener('change', () => { input.dataset.tlsEdited = 'true'; });
+  }
   for (const upload of editor.querySelectorAll('[data-tls-file]')) upload.addEventListener('change', async () => {
     if (!upload.files[0]) return;
     editor.querySelector('[data-profile-field="' + upload.dataset.tlsFile + '"]').value = await upload.files[0].text();
@@ -593,6 +597,8 @@ document.addEventListener('submit', async event => {
       for (const input of profileFields) {
         delete body[input.name];
         if (input.disabled || input.value === '' && !input.hasAttribute('data-profile-clearable')) continue;
+        if (input.hasAttribute('data-tls-input') && input.hasAttribute('data-profile-clearable') && !input.dataset.tlsEdited &&
+          [...form.querySelectorAll('[data-profile-field="origin"], [data-profile-field="url"]')].some(endpoint => endpoint.value !== endpoint.defaultValue)) continue;
         try {
           const path = input.hasAttribute('data-tls-input') ? input.dataset.profileField.split('.') : [input.dataset.profileField];
           const key = path.pop();

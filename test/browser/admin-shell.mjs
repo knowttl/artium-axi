@@ -1080,13 +1080,45 @@ test('LDAP saved CA PEM survives browser edits and multi-line secrets reach deli
     await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'LDAP test failed: ' + await page.eval(() => document.querySelector('[data-test-result]').textContent));
     await openInstance('ldap-axi');
-    check(await page.eval(() => !document.querySelector('[data-profile-field=caFile]') && document.querySelector('fieldset pre').textContent === ${JSON.stringify(pem)}), 'Saved PEM was not displayed read-only exactly');
+    check(await page.eval(() => document.querySelector('fieldset pre').textContent === ${JSON.stringify(pem)} &&
+      !document.querySelector('fieldset pre').isContentEditable && document.querySelector('textarea[data-profile-field=caFile]').value === ''), 'Saved PEM or separate replacement input was incorrect');
   `)
   const { stored, delivered } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/ldap-axi'))).json()
   assert.equal(stored.caFile, pem)
   assert.equal(stored.bindPassword, password)
   assert.equal(delivered.caFile, pem)
   assert.equal(delivered.bindPassword, password)
+})
+
+for (const tool of ['technitium-axi', 'unifi-axi']) for (const edited of [false, true]) test(tool + ' endpoint changes ' + (edited ? 'keep explicitly edited' : 'omit untouched') + ' certificate overrides', async () => {
+  const certificate = fixture.certificatePem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/)[0]
+  const tls = { trustedCertificatePem: certificate, peerFingerprintSha256: new X509Certificate(certificate).fingerprint256.replaceAll(':', ''), connectAddress: '127.0.0.1' }
+  const value = tool === 'unifi-axi'
+    ? { origin: 'https://controller.example', apiKey: 'CANARY-key', tls }
+    : { origin: 'https://dns.example', auth: 'token', tokenKind: 'api', token: 'CANARY-token', tlsServerName: 'dns.example' }
+  const field = tool === 'unifi-axi' ? 'tls.connectAddress' : 'tlsServerName'
+  browser(`
+    await createInstance('${tool}', ${JSON.stringify(value)});
+    await page.click('[data-save-and-test]');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
+    check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(tool === 'unifi-axi' ? tls.connectAddress : value.tlsServerName)}), 'Unchanged override was lost');
+    await page.fill('[data-profile-field=origin]', 'https://replacement.example');
+    await page.fill('[data-profile-field=${tool === 'unifi-axi' ? 'apiKey' : 'token'}]', 'CANARY-new-secret');
+    if (${edited}) {
+      await page.fill('[data-profile-field="${field}"]', ${JSON.stringify(tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example')});
+      ${tool === 'unifi-axi' ? `await page.click('details:has([data-profile-field="tls.trustedCertificatePem"]) summary'); await page.fill('[data-profile-field="tls.trustedCertificatePem"]', ${JSON.stringify(certificate)}); await page.fill('[data-profile-field="tls.peerFingerprintSha256"]', ${JSON.stringify(tls.peerFingerprintSha256)});` : ''}
+    }
+    await page.click('[data-save-and-test]');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="3"]');
+    check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(edited ? (tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example') : '')}), 'Endpoint override was incorrect');
+  `)
+  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/' + tool))).json()
+  assert.equal(stored.origin, 'https://replacement.example')
+  assert.equal(tool === 'unifi-axi' ? stored.tls?.connectAddress : stored.tlsServerName, edited ? (tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example') : undefined)
 })
 
 for (const tool of ['az-axi', 'mg-axi']) test(tool + ' certificate PEM calculates the fingerprint and saves the matching key', async () => {
