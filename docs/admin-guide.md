@@ -228,6 +228,7 @@ Saved certificates and SHA-256 fingerprints are read-only, and editing other fie
 Paste PEM contents, not a server file path, or upload a PEM file in the certificate entry disclosure to enter or replace credential trust; UniFi requires the certificate and fingerprint together.
 Remove optional credential trust with its removal control and save; Kubernetes requires a CA and permits replacement only.
 The instance's **Trusted certificates** flow manages separate instance trust.
+For inspection and certificate name changes, see the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui).
 Certificate verification and identity confirmation remain required.
 Profile-backed credential saves normalize safe differences only when the schema rejects the original value; already valid values, including secrets, remain byte for byte unchanged.
 Rejected strings can have surrounding whitespace removed, including nested object and list values; secret interior whitespace is preserved.

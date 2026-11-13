@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { z } from 'zod'
-import { adminCertificateRoutes, adminInstanceRoutes, adminToolParamsSchema, certificateInspectionSchema, instanceNameSchema } from '../../shared/api.js'
+import { adminCertificateRoutes, adminInstanceRoutes, adminToolParamsSchema, certificateInspectionSchema, instanceNameSchema, nativeSettingsSchemas } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import { inspectCertificate } from '../certificate-inspection.js'
@@ -11,6 +11,7 @@ import { toolEndpoints } from '../tool-endpoints.js'
 import type { CredentialReference, MutableCredentialStore } from '../store/credential-store.js'
 import type { ToolHealth } from '../health/health.js'
 import { credentialCertificates } from '../store/trusted-certificates.js'
+import { certificateNameChange, useCertificateName } from '../credential-tls-settings.js'
 
 export function registerCertificateAdmin(app: FastifyInstance, db: Database.Database, audit: Audit,
   authorize: (request: FastifyRequest) => string, store?: MutableCredentialStore, health?: ToolHealth): void {
@@ -83,7 +84,42 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     const inspectionId = randomUUID()
     pending.set(inspectionId, { actor, reference, inspection, expiresAt: Date.now() + 5 * 60 * 1000 })
     const { pem: _pem, leafPem: _leafPem, ...details } = inspection
-    return certificateInspectionSchema.parse({ ...details, inspectionId, credentialRevision: reference.revision, previousFingerprints })
+    return certificateInspectionSchema.parse({ ...details, inspectionId, credentialRevision: reference.revision, previousFingerprints,
+      nameChange: certificateNameChange(reference.tool, value, endpoint, inspection.leafPem) })
+  },
+  useName: async request => {
+    const actor = authorize(request)
+    const { inspectionId } = parse(adminCertificateRoutes.useName.input, request.body)
+    const reference = credential(request)
+    const item = pending.get(inspectionId)
+    if (!item || item.actor !== actor || item.reference.id !== reference.id || item.expiresAt <= Date.now()) throw new ArtiumError('INVALID_INPUT')
+    current(item.reference)
+    const value = store!.readCredential(item.reference) as Record<string, unknown> | undefined
+    if (!value) throw new ArtiumError('REVISION_CONFLICT')
+    const next = useCertificateName(reference.tool, value, new URL(item.inspection.endpoint), item.inspection.leafPem)
+    const credentialValue = Object.fromEntries(Object.entries(next).filter(([key]) => !Object.hasOwn(nativeSettingsSchemas[reference.tool].shape, key)))
+    audit.change({ event: 'admin-change', action: 'use-certificate-name', userId: actor, tool: reference.tool,
+      credentialId: reference.id, targetId: reference.id, outcome: 'success', requestId: request.id, clientAddress: request.ip }, () => {
+      authorize(request)
+      current(item.reference)
+      const oldEndpoint = certificateEndpoint(item.inspection.endpoint).href
+      const newEndpoint = certificateEndpoint(toolEndpoints(reference.tool, next)[0]!).href
+      if (oldEndpoint !== newEndpoint) {
+        const certificates = credentialCertificates(db, reference.id)
+        const existing = certificates.filter(certificate => certificate.endpoint === oldEndpoint)
+        if (existing.length && certificates.some(certificate => certificate.endpoint === newEndpoint)) {
+          throw new ArtiumError('INVALID_INPUT', 'Cannot move certificate trust because the new endpoint already has trust records. Remove the conflicting records first.')
+        }
+        for (const certificate of existing) {
+          db.prepare('UPDATE trusted_certificates SET endpoint = ? WHERE id = ?').run(newEndpoint, certificate.id)
+        }
+      }
+      const instance = observed(item.reference)!
+      store!.replaceInstance(reference.tool, instance.name, credentialValue, reference.id, instance.revision, actor, Date.now())
+      db.prepare('DELETE FROM tool_health WHERE credential_id = ?').run(reference.id)
+    })
+    pending.delete(inspectionId)
+    return { updated: true as const }
   },
   trust: async request => {
     const actor = authorize(request)

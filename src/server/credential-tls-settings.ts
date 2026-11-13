@@ -1,5 +1,8 @@
 import type { ToolName } from './store/credential-store.js'
 import { ArtiumError } from '../shared/errors.js'
+import { X509Certificate } from 'node:crypto'
+import { isIP } from 'node:net'
+import { domainToASCII } from 'node:url'
 
 type TlsSettings = { certificate?: string, fingerprint?: string, pin?: string, connectAddress?: string, serverName?: string }
 
@@ -19,6 +22,40 @@ export const tlsFieldDefinitions = {
   serverName: { label: 'Certificate name to verify', help: 'Verify this DNS name in the certificate. Chain, validity and fingerprint checks still apply. Leave blank to verify the saved URL.', unsupported: 'This tool does not support a separate certificate name. The certificate must match its saved endpoint.' },
   certificate: { label: 'Trusted certificate', help: 'Paste PEM certificate contents or upload a PEM file. Leave blank to keep saved trust for the same endpoint.' },
   fingerprint: { label: 'SHA-256 fingerprint', help: 'Enter the 64 hexadecimal characters shown by the appliance. Compare through an independent trusted route.' },
+}
+
+export function certificateNameChange(tool: ToolName, value: Record<string, unknown>, endpoint: URL, leafPem: string) {
+  const settings = credentialTlsSettings[tool]
+  const certificate = new X509Certificate(leafPem)
+  const host = endpoint.hostname.replace(/^\[|\]$/g, '')
+  const identity = settings.serverName ? String(value[settings.serverName] || host) : host
+  if (isIP(identity) ? certificate.checkIP(identity) : certificate.checkHost(identity)) return null
+  const names = [...(certificate.subjectAltName ?? '').matchAll(/DNS:("(?:[^"\\]|\\.)*"|[^,]+)/g)]
+    .map(match => match[1]!.startsWith('"') ? JSON.parse(match[1]!) as string : match[1]!.trim())
+  if (!names.length) names.push(...[certificate.toLegacyObject().subject.CN ?? ''].flat())
+  const certificateName = names.map(name => domainToASCII(name).toLowerCase())
+    .find(name => /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(name) && !isIP(name) && certificate.checkHost(name))
+  const read = (path: string) => path.split('.').reduce<unknown>((parent, key) =>
+    parent && typeof parent === 'object' ? (parent as Record<string, unknown>)[key] : undefined, value)
+  const connectAddress = settings.connectAddress ? String(read(settings.connectAddress) || host) : host
+  const refusalReason = !certificateName ? 'The certificate has no concrete DNS name to use. Configure a matching certificate name manually.'
+    : !settings.connectAddress && !settings.serverName
+      ? tool === 'proxmox-axi' ? 'This tool cannot keep connecting to the IP with separate hostname verification. Its fingerprint replacement option bypasses hostname verification.'
+        : tlsFieldDefinitions.connectAddress.unsupported
+      : settings.connectAddress && !isIP(connectAddress) ? 'This tool requires an IP connection address and cannot preserve a DNS connection address.'
+        : settings.connectAddress && settings.certificate && settings.fingerprint && (!read(settings.certificate) || !read(settings.fingerprint))
+          ? 'Save the trusted certificate and SHA-256 fingerprint in Certificate verification first, then inspect again to use this name.' : null
+  return { certificateName: certificateName ?? null, connectAddress, refusalReason }
+}
+
+export function useCertificateName(tool: ToolName, value: Record<string, unknown>, endpoint: URL, leafPem: string) {
+  const change = certificateNameChange(tool, value, endpoint, leafPem)
+  if (!change || change.refusalReason || !change.certificateName) throw new ArtiumError('INVALID_INPUT', change?.refusalReason ?? undefined)
+  const settings = credentialTlsSettings[tool]
+  if (settings.serverName) return { ...value, [settings.serverName]: change.certificateName }
+  const origin = new URL(String(value.origin))
+  origin.hostname = change.certificateName
+  return { ...value, origin: origin.origin, tls: { ...(value.tls as object), connectAddress: change.connectAddress } }
 }
 
 export function tlsCredentialRoots(tool: ToolName): string[] {

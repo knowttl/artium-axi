@@ -283,6 +283,12 @@ An empty subject does not prevent inspection or trust, and two empty subject and
 Compare the fingerprint with the appliance’s own display through a trusted channel.
 Trust is only as safe as the network path during inspection: an intercepted certificate would be trusted too.
 The window highlights weak keys, validity and hostname problems, and fingerprints that differ from previously trusted certificates at the endpoint.
+When the certificate does not match the name being verified, inspection offers a name change for supported settings if the certificate has a usable DNS name.
+The action keeps the connection address and saves the certificate name for verification; it does not grant trust or automatically test the connection.
+Technitium retains its IP or DNS connection address and updates **Certificate name to verify**.
+UniFi changes the origin to the certificate name and retains the connection IP; first save its trusted certificate and SHA-256 fingerprint in **Certificate verification**.
+UniFi cannot preserve a DNS connection address with this action, and unsupported tools show a refusal reason.
+If the endpoint changes, existing instance trust moves to the new endpoint; if both endpoints already have trust records, remove the conflicting records before retrying.
 The confirmation window and inspection API report the leaf and trust anchor expiry, with informational warnings when either expires within seven days.
 For a short-lived intermediate anchor, the window warns that it will rotate and recommends trusting the long-lived root through the server-wide bundle to avoid repeated confirmation.
 Expiry warnings do not block confirmation or change hostname and date verification.

@@ -465,6 +465,7 @@ export const certificateInspectionSchema = z.strictObject({
   chain: z.array(certificateDetailsSchema), anchor: certificateDetailsSchema, warnings: z.array(z.string()),
   reason: z.string(), verificationError: z.string().nullable(),
   previousFingerprints: z.array(z.string()),
+  nameChange: z.strictObject({ certificateName: z.string().nullable(), connectAddress: z.string(), refusalReason: z.string().nullable() }).nullable(),
 })
 export const trustedCredentialCertificateSchema = z.strictObject({
   id: z.string(), endpoint: z.string(), certificate: certificateDetailsSchema, leaf: certificateDetailsSchema,
@@ -480,6 +481,8 @@ export const adminCertificateRoutes = {
     input: z.strictObject({ endpointIndex: z.number().int().nonnegative().default(0) }), response: certificateInspectionSchema },
   trust: { method: 'POST', path: '/v1/admin/tools/:tool/certificates/trust',
     input: z.strictObject({ inspectionId: z.string(), mode: z.enum(['ca', 'pin']).default('ca') }), response: z.strictObject({ trusted: z.literal(true) }) },
+  useName: { method: 'POST', path: '/v1/admin/tools/:tool/certificates/use-name',
+    input: z.strictObject({ inspectionId: z.string() }), response: z.strictObject({ updated: z.literal(true) }) },
   remove: { method: 'DELETE', path: '/v1/admin/tools/:tool/certificates',
     input: z.strictObject({ id: z.string() }), response: z.strictObject({ removed: z.literal(true) }) },
 } as const

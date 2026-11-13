@@ -25,6 +25,7 @@ import { createCredentialStore, migrate, openStore, validateSchema } from '../..
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { adminCertificateRoutes, certificateInspectionSchema, nativeSettingsSchemas } from '../../src/shared/api.js'
 import { certificateDetails } from '../../src/server/certificate-inspection.js'
+import { certificateNameChange } from '../../src/server/credential-tls-settings.js'
 import { toolEndpoints } from '../../src/server/tool-endpoints.js'
 import { readCredentialTrust } from '../../src/server/store/trusted-certificates.js'
 import { preflight } from '../../src/server/health/preflight.js'
@@ -159,6 +160,162 @@ afterAll(async () => {
 })
 
 test.each([
+  ['unifi-axi', true], ['technitium-axi', true], ['proxmox-axi', false], ['ldap-axi', false],
+  ['vectra-axi', false], ['kubernetes-axi', false], ['gh-axi', false], ['ado-axi', false],
+  ['az-axi', false], ['mg-axi', false], ['awx-axi', false], ['beyondtrust-axi', false],
+  ['checkpoint-axi', false], ['falcon-axi', false], ['gitea-axi', false], ['hybrid-axi', false],
+  ['shodan-axi', false], ['tenable-axi', false], ['ssh-axi', false],
+] as const)('%s offers a name change only when it can preserve hostname verification: %s', (tool, supported) => {
+  const origin = 'https://127.0.0.1:8443'
+  const value = { origin, tls: { trustedCertificatePem: pem('self-signed'),
+    peerFingerprintSha256: new X509Certificate(pem('self-signed')).fingerprint256.replaceAll(':', '') } }
+  const change = certificateNameChange(tool, value, new URL(origin), pem('self-signed'))!
+  expect(change).toMatchObject({ certificateName: 'localhost', connectAddress: '127.0.0.1',
+    refusalReason: supported ? null : expect.stringContaining('This tool') })
+  expect(certificateNameChange(tool, { origin }, new URL(origin), pem('self-signed'))?.refusalReason)
+    .toEqual(tool === 'unifi-axi' ? expect.stringContaining('Save the trusted certificate and SHA-256 fingerprint') : change.refusalReason)
+})
+
+test.each(['unifi-axi', 'technitium-axi'] as const)('%s saves the inspected name, keeps the IP and preserves TLS verification', async tool => {
+  const origin = endpoint.replace('localhost', '127.0.0.1')
+  const fingerprint = new X509Certificate(pem('self-signed')).fingerprint256.replaceAll(':', '')
+  const value = tool === 'unifi-axi' ? { origin, apiKey: 'CANARY-never-sent', tls: {
+    trustedCertificatePem: pem('self-signed'), peerFingerprintSha256: fingerprint,
+  } } : { origin, token: 'CANARY-never-sent', caFile: pem('self-signed') }
+  store.createInstance(tool, { name: 'synthetic', description: '' }, value, 'synthetic-development-user', Date.now())
+  const url = `/v1/admin/tools/${tool}/instances/synthetic/certificates`
+  const inspected = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  expect(inspected.statusCode, inspected.body).toBe(200)
+  const result = certificateInspectionSchema.parse(inspected.json())
+  expect(result.nameChange).toEqual({ certificateName: 'localhost', connectAddress: '127.0.0.1', refusalReason: null })
+  const saved = await app.inject({ method: 'POST', url: url + '/use-name', headers, payload: { inspectionId: result.inspectionId } })
+  expect(saved.statusCode, saved.body).toBe(200)
+  const next = store.readCredential(store.findInstance(tool, 'synthetic')!) as Record<string, unknown>
+  expect(next).toEqual(tool === 'unifi-axi'
+    ? { ...value, origin: endpoint, tls: { ...value.tls, connectAddress: '127.0.0.1' } }
+    : { ...value, tlsServerName: 'localhost' })
+  const repeated = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  expect(repeated.json()).toMatchObject({ nameChange: null, chain: [expect.objectContaining({ matchesHostname: true })] })
+  expect(await preflight(tool, next)).toBeUndefined()
+  expect((await app.inject({ method: 'POST', url: url + '/use-name', headers, payload: { inspectionId: result.inspectionId } })).statusCode).toBe(400)
+  expect((await app.inject({ method: 'GET', url, headers })).json().certificates).toEqual([])
+  expect(bytes).toBe(0)
+  serve('mismatch')
+  const mismatch = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  expect(mismatch.json().chain[0].matchesHostname).toBe(false)
+  expect(mismatch.json().verificationError).not.toBeNull()
+  await expect(preflight(tool, next)).rejects.toThrow()
+})
+
+test.each([
+  ['technitium-axi', null],
+  ['unifi-axi', 'This tool requires an IP connection address and cannot preserve a DNS connection address.'],
+] as const)('%s handles a hostname-backed certificate mismatch', (tool, refusalReason) => {
+  const origin = 'https://controller.synthetic.test:8443'
+  const value = { origin, tls: { trustedCertificatePem: pem('self-signed'),
+    peerFingerprintSha256: new X509Certificate(pem('self-signed')).fingerprint256.replaceAll(':', '') } }
+  expect(certificateNameChange(tool, value, new URL(origin), pem('self-signed'))).toEqual({
+    certificateName: 'localhost', connectAddress: 'controller.synthetic.test', refusalReason,
+  })
+})
+
+test('Technitium keeps a DNS connection address when saving the certificate name', async () => {
+  const origin = endpoint.replace('localhost', 'controller.synthetic.test')
+  const value = { origin, token: 'CANARY-never-sent', caFile: pem('self-signed') }
+  store.createInstance('technitium-axi', { name: 'synthetic', description: '' }, value, 'synthetic-development-user', Date.now())
+  const url = '/v1/admin/tools/technitium-axi/instances/synthetic/certificates'
+  const originalLookup = vi.mocked(dns.lookup).getMockImplementation()!
+  const lookup = vi.mocked(dns.lookup).mockResolvedValue([{ address: '127.0.0.1', family: 4 }] as never)
+  try {
+    const inspected = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+    expect(inspected.statusCode, inspected.body).toBe(200)
+    expect(inspected.json().nameChange).toEqual({ certificateName: 'localhost', connectAddress: 'controller.synthetic.test', refusalReason: null })
+    const saved = await app.inject({ method: 'POST', url: url + '/use-name', headers, payload: { inspectionId: inspected.json().inspectionId } })
+    expect(saved.statusCode, saved.body).toBe(200)
+    const next = store.readCredential(store.findInstance('technitium-axi', 'synthetic')!) as Record<string, unknown>
+    expect(next).toEqual({ ...value, tlsServerName: 'localhost' })
+    await expect(preflight('technitium-axi', next)).resolves.toBeUndefined()
+    serve('mismatch')
+    await expect(preflight('technitium-axi', next)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  } finally { lookup.mockImplementation(originalLookup) }
+})
+
+test('name changes refuse unsupported tools and stale inspected revisions', async () => {
+  serve('mismatch')
+  const result = await inspect()
+  expect(result.nameChange?.refusalReason).toContain('This tool does not support')
+  expect((await request('POST', '/use-name', { inspectionId: result.inspectionId })).statusCode).toBe(400)
+  store.replaceCredential('vectra-axi', { origin: endpoint, token: 'CANARY-replaced' }, 1, 'synthetic-development-user', Date.now())
+  expect((await request('POST', '/use-name', { inspectionId: result.inspectionId })).statusCode).toBe(409)
+})
+
+test('renaming an endpoint preserves its certificate pin', async () => {
+  serve('leaf', true)
+  const origin = endpoint.replace('localhost', '127.0.0.1')
+  const value = { origin, apiKey: 'CANARY-never-sent', tls: { trustedCertificatePem: pem('ca'),
+    peerFingerprintSha256: new X509Certificate(pem('leaf')).fingerprint256.replaceAll(':', '') } }
+  store.createInstance('unifi-axi', { name: 'synthetic', description: '' }, value, 'synthetic-development-user', Date.now())
+  const url = '/v1/admin/tools/unifi-axi/instances/synthetic/certificates'
+  const inspection = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  expect(inspection.statusCode, inspection.body).toBe(200)
+  const trusted = await app.inject({ method: 'POST', url: url + '/trust', headers,
+    payload: { inspectionId: inspection.json().inspectionId, mode: 'pin' } })
+  expect(trusted.statusCode, trusted.body).toBe(200)
+  const renamedInspection = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  const saved = await app.inject({ method: 'POST', url: url + '/use-name', headers,
+    payload: { inspectionId: renamedInspection.json().inspectionId } })
+  expect(saved.statusCode, saved.body).toBe(200)
+  const reference = store.findInstance('unifi-axi', 'synthetic')!
+  const next = store.readCredential(reference) as Record<string, unknown>
+  const trust = readCredentialTrust(db, reference)
+  expect((await app.inject({ method: 'GET', url, headers })).json().certificates)
+    .toEqual([expect.objectContaining({ endpoint: endpoint + '/', mode: 'pin' })])
+  const withoutCredentialFingerprint = { ...next, tls: { trustedCertificatePem: pem('ca'), connectAddress: '127.0.0.1' } }
+  await expect(preflight('unifi-axi', withoutCredentialFingerprint, trust)).resolves.toBeUndefined()
+  serve('rotated', true)
+  await expect(preflight('unifi-axi', withoutCredentialFingerprint, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+})
+
+test('renaming refuses conflicting endpoint trust without changing either endpoint', async () => {
+  const origin = endpoint.replace('localhost', '127.0.0.1')
+  const value = { origin, apiKey: 'CANARY-never-sent', tls: { trustedCertificatePem: pem('self-signed'),
+    peerFingerprintSha256: new X509Certificate(pem('self-signed')).fingerprint256.replaceAll(':', '') } }
+  store.createInstance('unifi-axi', { name: 'synthetic', description: '' }, value, 'synthetic-development-user', Date.now())
+  const url = '/v1/admin/tools/unifi-axi/instances/synthetic/certificates'
+  const inspection = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  await app.inject({ method: 'POST', url: url + '/trust', headers, payload: { inspectionId: inspection.json().inspectionId, mode: 'pin' } })
+  db.prepare(`INSERT INTO trusted_certificates SELECT 'destination', credential_id, ?, fingerprint, leaf_fingerprint,
+    pem, leaf_pem, mode, created_at, created_by FROM trusted_certificates WHERE credential_id = ?`)
+    .run(endpoint + '/', store.findInstance('unifi-axi', 'synthetic')!.id)
+  const repeated = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  const saved = await app.inject({ method: 'POST', url: url + '/use-name', headers, payload: { inspectionId: repeated.json().inspectionId } })
+  expect(saved.statusCode).toBe(400)
+  expect(saved.body).toContain('new endpoint already has trust records')
+  expect(store.readCredential(store.findInstance('unifi-axi', 'synthetic')!)).toEqual(value)
+  expect((await app.inject({ method: 'GET', url, headers })).json().certificates.map((certificate: { endpoint: string }) => certificate.endpoint).sort())
+    .toEqual([origin + '/', endpoint + '/'].sort())
+})
+
+test('using a certificate name does not retain a removed tool-wide write policy in the credential', async () => {
+  const value = { origin: endpoint.replace('localhost', '127.0.0.1'), apiKey: 'CANARY-never-sent', tls: {
+    trustedCertificatePem: pem('self-signed'),
+    peerFingerprintSha256: new X509Certificate(pem('self-signed')).fingerprint256.replaceAll(':', ''),
+  } }
+  store.replaceCredential('unifi-axi', value, 0, 'synthetic-development-user', Date.now())
+  const settings = nativeSettingsSchemas['unifi-axi'].parse({ writes: { allowWrites: true, operations: ['adoptDevice'] } })
+  db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify(settings), 'unifi-axi')
+  const url = '/v1/admin/tools/unifi-axi/certificates'
+  const inspected = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  expect(inspected.statusCode, inspected.body).toBe(200)
+  const response = await app.inject({ method: 'POST', url: url + '/use-name', headers,
+    payload: { inspectionId: inspected.json().inspectionId } })
+  expect(response.statusCode, response.body).toBe(200)
+  db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run('{}', 'unifi-axi')
+  expect(store.readCredential(store.findCredential('unifi-axi')!)).toEqual({ ...value, origin: endpoint,
+    tls: { ...value.tls, connectAddress: '127.0.0.1' } })
+})
+
+test.each([
   { host: 'localhost', matchesHostname: true },
   { host: 'unreachable.synthetic.invalid', matchesHostname: false },
   { host: '127.0.0.2', matchesHostname: false },
@@ -175,6 +332,7 @@ test.each([
   expect(result.hostname).toBe(host.replace(/^\[|\]$/g, ''))
   expect(result.endpoint).toBe(`${origin}/`)
   expect(result.chain[0]).toMatchObject({ matchesHostname, fingerprint: new X509Certificate(pem('self-signed')).fingerprint256 })
+  expect(result.nameChange).toEqual(matchesHostname ? null : { certificateName: 'localhost', connectAddress: '127.0.0.1', refusalReason: null })
   expect(bytes).toBe(0)
 })
 
@@ -624,6 +782,7 @@ test.each([
   { method: 'GET', path: '', payload: undefined },
   { method: 'POST', path: '/inspect', payload: {} },
   { method: 'POST', path: '/trust', payload: { inspectionId: 'synthetic' } },
+  { method: 'POST', path: '/use-name', payload: { inspectionId: 'synthetic' } },
   { method: 'DELETE', path: '', payload: { id: 'synthetic' } },
 ] as const)('$method $path requires administrator capability and recent reauthentication', async route => {
   const { 'x-artium-reauth-ticket': _ticket, ...missing } = headers
