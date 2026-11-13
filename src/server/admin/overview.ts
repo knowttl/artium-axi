@@ -53,7 +53,7 @@ export function registerOverviewPage(app: FastifyInstance, db: Database.Database
     const healthy = enabled.filter(tool => tool.health.status === 'ok')
     const writesOn = tools.filter(tool => !tool.readOnly)
     const expiring = credentials.flatMap(credential => credentialCertificates(db, credential.id)
-      .filter(pin => Math.min(Date.parse(pin.leaf.expiresAt), Date.parse(pin.certificate.expiresAt)) <= now + 30 * 86_400_000)
+      .filter(pin => Math.min(pin.leaf ? Date.parse(pin.leaf.expiresAt) : Infinity, Date.parse(pin.certificate.expiresAt)) <= now + 30 * 86_400_000)
       .map(pin => ({ tool: credential.tool as keyof typeof toolProducts, pin })))
     const unclaimable = pending.filter(invitation => !invitation.enabled)
 

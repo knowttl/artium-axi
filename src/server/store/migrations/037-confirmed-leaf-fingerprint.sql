@@ -1,0 +1,1 @@
+ALTER TABLE certificate_endpoint_state ADD COLUMN confirmed_leaf_fingerprint TEXT;
