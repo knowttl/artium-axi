@@ -33,6 +33,12 @@ test.each(inventory.writeContracts)('requires both host and native grants before
   }
 })
 
+test('read-only DNS resolution does not require import grants', () => {
+  const adapter = createTechnitiumAdapter(source(), '/private/writes.log')
+  expect(() => adapter.authorizeOperation!('dns-client resolve', {}, ['dns-client', 'resolve', '--input-file', 'input.json'],
+    input({ domain: 'synthetic.test' }))).not.toThrow()
+})
+
 test('host Write updates preserve the separate native grants', () => {
   const settings = { writes: { allowWrites: false, operations: ['OP-057'] } }
   expect(technitiumWritePolicy.update(settings, { enabled: true, operations: ['OP-057'], expectedRevision: 0 })).toEqual({ ...settings,

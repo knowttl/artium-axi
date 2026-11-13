@@ -113,7 +113,8 @@ function argumentsForCall(args: readonly string[], input: RunnerInput = {}) {
 function authorizeOperation(command: string, settings: Record<string, unknown>, args?: readonly string[], input?: RunnerInput) {
   const call = args && argumentsForCall(args, input)
   const route = inventory.commands.find(route => route.command === command)
-  if (call ? call.write : !route || route.effect === 'write') technitiumWritePolicy.authorize(settings, call ? call.operation : route?.operation)
+  if (call ? call.write : !route || route.effect === 'write' || route.effect === 'conditional')
+    technitiumWritePolicy.authorize(settings, call ? call.operation : route?.operation === 'OP-077' ? 'OP-077.import' : route?.operation)
 }
 
 async function journalReceipt(call: ReturnType<typeof argumentsForCall>, writeLog: string, tokenKind: unknown, capture: (receipt: MutationReceipt) => void) {
