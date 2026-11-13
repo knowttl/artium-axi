@@ -129,11 +129,11 @@ describe('Azure token authentication', () => {
     expect(JSON.stringify(error)).not.toContain('CANARY-RAW-SERVICE-RESPONSE')
   })
 
-  it('retains the runtime cause of a token transport failure', async () => {
+  it.each(['EHOSTUNREACH', 'EHOSTDOWN'])('retains runtime cause %s of a token transport failure', async code => {
     const network = new FakeTokenTransport()
-    network.sendPostRequestAsync = async () => { throw new Error('fetch failed', { cause: { code: 'EHOSTUNREACH' } }) }
+    network.sendPostRequestAsync = async () => { throw new Error('fetch failed', { cause: { code } }) }
     await expect(mintAzureToken(secretCredential, 'arm', network)).rejects.toMatchObject({
-      code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { toolCode: 'EHOSTUNREACH' },
+      code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { toolCode: code },
     })
   })
 

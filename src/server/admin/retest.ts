@@ -1,10 +1,11 @@
 import { errors } from '../../shared/errors.js'
-import { diagnosticCodes, diagnosticStages, transportCodes, structuredDiagnostic } from '../../shared/diagnostic.js'
+import { diagnosticCodes, diagnosticStages, transportCodes, validDiagnosticCode, structuredDiagnostic } from '../../shared/diagnostic.js'
 
 export const retestScript = `
 const diagnosticCodes = ${JSON.stringify(diagnosticCodes)};
 const diagnosticStages = ${JSON.stringify(diagnosticStages)};
 const transportCodes = ${JSON.stringify(transportCodes)};
+${validDiagnosticCode.toString()}
 ${structuredDiagnostic.toString()}
 const retestErrors = ${JSON.stringify(Object.fromEntries(Object.entries(errors).map(([code, error]) => [code, error.message])))};
 const retestNext = ${JSON.stringify(Object.fromEntries(Object.entries(errors).map(([code, error]) => [code, error.next])))};

@@ -26,12 +26,18 @@ export const diagnosticCodes = [...retestCodes, 'API_RESPONSE_INVALID', 'AUTH_RE
   'OUTCOME_UNKNOWN', 'PARTIAL_OUTCOME', 'WRITE_UNCERTAIN', 'DELIVERY_UNCERTAIN',
   'AADSTS7000215', 'AADSTS7000222', 'AADSTS700016', 'AADSTS90002', 'AADSTS700027'] as const
 
+export type ValidatedDiagnosticCode = typeof diagnosticCodes[number] | `E${string}`
+
+export function validDiagnosticCode(value: unknown): value is ValidatedDiagnosticCode {
+  return typeof value === 'string' && ((diagnosticCodes as readonly string[]).includes(value) || transportCodes.includes(value))
+}
+
 export interface StructuredDiagnostic {
   stage: Diagnostic['stage']
   message: 'Details unavailable.'
-  toolCode?: typeof diagnosticCodes[number]
+  toolCode?: ValidatedDiagnosticCode
   providerCode?: `AADSTS${number}`
-  transportCode?: `E${string}`
+  transportCode?: ValidatedDiagnosticCode
   upstreamStatus?: number
   trust?: 'self-signed' | 'untrusted'
   checkedAt?: number
@@ -39,7 +45,7 @@ export interface StructuredDiagnostic {
 }
 
 export function diagnosticCode(value: unknown): string | null {
-  return typeof value === 'string' && ((diagnosticCodes as readonly string[]).includes(value) || Object.hasOwn(errors, value)) ? value : null
+  return validDiagnosticCode(value) || typeof value === 'string' && Object.hasOwn(errors, value) ? value : null
 }
 
 export function structuredDiagnostic(input: unknown): StructuredDiagnostic | undefined {
@@ -48,12 +54,10 @@ export function structuredDiagnostic(input: unknown): StructuredDiagnostic | und
   if (!diagnosticStages.includes(detail.stage as Diagnostic['stage'])) return
   return {
     stage: detail.stage as Diagnostic['stage'], message: 'Details unavailable.',
-    ...(typeof detail.toolCode === 'string' && (diagnosticCodes as readonly string[]).includes(detail.toolCode)
-      ? { toolCode: detail.toolCode as typeof diagnosticCodes[number] } : {}),
+    ...(validDiagnosticCode(detail.toolCode) ? { toolCode: detail.toolCode } : {}),
     ...(typeof detail.providerCode === 'string' && /^AADSTS\d{4,8}$/.test(detail.providerCode)
       ? { providerCode: detail.providerCode as `AADSTS${number}` } : {}),
-    ...(typeof detail.transportCode === 'string' && transportCodes.includes(detail.transportCode)
-      ? { transportCode: detail.transportCode as `E${string}` } : {}),
+    ...(validDiagnosticCode(detail.transportCode) ? { transportCode: detail.transportCode } : {}),
     ...(typeof detail.upstreamStatus === 'number' && Number.isInteger(detail.upstreamStatus) && detail.upstreamStatus >= 100 && detail.upstreamStatus <= 599
       ? { upstreamStatus: detail.upstreamStatus } : {}),
     ...(detail.trust === 'self-signed' || detail.trust === 'untrusted' ? { trust: detail.trust } : {}),

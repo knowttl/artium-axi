@@ -25,9 +25,12 @@ test.each([
   expect(JSON.stringify(detail)).not.toContain('CANARY-response')
 })
 
-test.each(['ENETUNREACH', 'EHOSTUNREACH', 'ECONNABORTED'])(
+test.each(['ENETUNREACH', 'EHOSTUNREACH', 'ECONNABORTED', 'EHOSTDOWN', 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION'])(
   'preserves runtime network code %s at the retest boundary', code => {
     expect(retestFields({ toolCode: code, transportCode: code })).toEqual({ toolCode: code, transportCode: code })
+    const detail = safeDiagnostic({ stage: 'TCP', message: 'CANARY-response', toolCode: code, transportCode: code }, [])
+    expect(detail).toEqual({ stage: 'TCP', message: 'Details unavailable.', toolCode: code, transportCode: code })
+    expect(diagnosticSchema.parse(detail)).toEqual(detail)
   })
 
 test('drops invalid structured fields', () => {

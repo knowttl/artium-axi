@@ -2,15 +2,14 @@ import { ArtiumError, type Diagnostic, type ErrorCode } from '../../shared/error
 import { SecretScanner } from '../runner/scan.js'
 import type { ToolName } from '../store/credential-store.js'
 import { constants } from 'node:os'
-import { structuredDiagnostic, retestCodes, transportCodes, type StructuredDiagnostic } from '../../shared/diagnostic.js'
+import { structuredDiagnostic, validDiagnosticCode, type StructuredDiagnostic } from '../../shared/diagnostic.js'
 export { retestCodes } from '../../shared/diagnostic.js'
 
-export function retestFields(detail: { toolCode?: unknown, transportCode?: unknown, providerCode?: unknown, upstreamStatus?: unknown } | undefined, codes: readonly string[] = [...retestCodes, ...transportCodes]) {
-  const code = (value: unknown): value is string => typeof value === 'string' && codes.includes(value)
+export function retestFields(detail: { toolCode?: unknown, transportCode?: unknown, providerCode?: unknown, upstreamStatus?: unknown } | undefined) {
   const status = detail?.upstreamStatus
   return {
-    ...(code(detail?.toolCode) ? { toolCode: detail.toolCode } : {}),
-    ...(code(detail?.transportCode) ? { transportCode: detail.transportCode } : {}),
+    ...(validDiagnosticCode(detail?.toolCode) ? { toolCode: detail.toolCode } : {}),
+    ...(validDiagnosticCode(detail?.transportCode) ? { transportCode: detail.transportCode } : {}),
     ...(typeof detail?.providerCode === 'string' && /^AADSTS\d{4,8}$/.test(detail.providerCode) ? { providerCode: detail.providerCode } : {}),
     ...(typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599 ? { upstreamStatus: status } : {}),
   }
