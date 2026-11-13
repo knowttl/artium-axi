@@ -246,6 +246,24 @@ test('Kubernetes saves the inspected name and requires an endpoint pin before te
   expect(bytes).toBe(0)
 })
 
+test('Kubernetes can pin an endpoint while retaining its issuing CA (#276)', async () => {
+  serve('leaf', true)
+  const value = { origin: endpoint.replace('localhost', '127.0.0.1'), auth: 'token', token: 'CANARY-never-sent', certificateAuthority: pem('ca'), tlsServerName: 'localhost' }
+  store.createInstance('kubernetes-axi', { name: 'synthetic', description: '' }, value, 'synthetic-development-user', Date.now())
+  const url = '/v1/admin/tools/kubernetes-axi/instances/synthetic/certificates'
+  const inspected = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  expect(inspected.statusCode, inspected.body).toBe(200)
+  const trusted = await app.inject({ method: 'POST', url: url + '/trust', headers, payload: {
+    inspectionId: inspected.json().inspectionId, confirmedFingerprint: inspected.json().chain[0].fingerprint, mode: 'pin',
+  } })
+  expect(trusted.statusCode, trusted.body).toBe(200)
+  const reference = store.findInstance('kubernetes-axi', 'synthetic')!
+  expect(store.readCredential(reference)).toEqual(value)
+  await expect(preflight('kubernetes-axi', value, readCredentialTrust(db, reference))).resolves.toBeUndefined()
+  serve('rotated', true)
+  await expect(preflight('kubernetes-axi', value, readCredentialTrust(db, reference))).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+})
+
 test('Technitium keeps a DNS connection address when saving the certificate name', async () => {
   const origin = endpoint.replace('localhost', 'controller.synthetic.test')
   const value = { origin, token: 'CANARY-never-sent', caFile: pem('self-signed') }
