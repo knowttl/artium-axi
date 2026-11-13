@@ -1,8 +1,247 @@
 import { readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
 
 const { DOMAINS } = await import(new URL('../tools/node_modules/@knowttl/awx-axi/dist/cli.js', import.meta.url).href)
 const parity = JSON.parse(readFileSync(new URL('../tools/inventories/awx-axi-parity.json', import.meta.url), 'utf8'))
+const noWrites = `data:text/javascript,${encodeURIComponent(`import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+fs.writeFileSync = () => {};
+fs.mkdirSync = () => {};
+syncBuiltinESMExports();`)}`
+
+test.each([
+  { kind: 'command', mutation: 'domain.subcommands.push({ ...route, name: "synthetic-parity-command" })', name: 'job synthetic-parity-command' },
+  { kind: 'flag', mutation: 'route.flags.push({ name: "synthetic-parity-flag", takesValue: false, description: "Synthetic flag" })', name: 'job list --synthetic-parity-flag' },
+  { kind: 'existing flag on a new command', mutation: 'route.flags.push({ name: "confirm", takesValue: false, description: "Synthetic flag" })', name: 'job list --confirm' },
+])('the offline local freshness gate rejects an unreviewed upstream $kind', ({ mutation, name }) => {
+  const registry = new URL('../tools/node_modules/@knowttl/awx-axi/dist/cli.js', import.meta.url).href
+  const preload = `import { DOMAINS } from ${JSON.stringify(registry)};
+const domain = DOMAINS.find(item => item.name === 'job');
+const route = domain.subcommands.find(item => item.name === 'list');
+${mutation};`
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/upstream-inventory.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain(name)
+  expect(result.stderr).toContain('support decision')
+  expect(result.stderr).toContain('tools/inventories/awx-axi-parity.json')
+})
+
+test('inventory regeneration checks decisions before writing AWX artifacts', () => {
+  const registry = new URL('../tools/node_modules/@knowttl/awx-axi/dist/cli.js', import.meta.url).href
+  const preload = `import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+import { DOMAINS } from ${JSON.stringify(registry)};
+DOMAINS.find(item => item.name === 'job').subcommands.find(item => item.name === 'list').flags.push({ name: 'synthetic-parity-flag', takesValue: false, description: 'Synthetic' });
+const write = fs.writeFileSync;
+fs.writeFileSync = function(path, ...args) {
+  if (/\\/(inventories\\/awx-axi\\.json|skills\\/awx-axi\\/SKILL\\.md)$/.test(String(path))) throw new Error('AWX artifact written before decision');
+  return write.call(this, path, ...args);
+};
+syncBuiltinESMExports();`
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/upstream-inventory.mjs', import.meta.url)), '--write'], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain('job list --synthetic-parity-flag')
+  expect(result.stderr).toContain('support decision')
+})
+
+test('inventory regeneration checks the reviewed surface before writing AWX artifacts', () => {
+  const registry = new URL('../tools/node_modules/@knowttl/awx-axi/dist/cli.js', import.meta.url).href
+  const preload = `import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+import { DOMAINS } from ${JSON.stringify(registry)};
+DOMAINS.find(item => item.name === 'job').subcommands.find(item => item.name === 'list').flags.push({ name: 'confirm', takesValue: false, description: 'Synthetic' });
+const read = fs.readFileSync;
+fs.readFileSync = function(path, ...args) {
+  const contents = read.call(this, path, ...args);
+  if (!String(path).endsWith('/tools/inventories/awx-axi-parity.json')) return contents;
+  const data = JSON.parse(contents);
+  data.commands.find(item => item.command === 'job list').flags.push(data.commands.find(item => item.command === 'job cancel').flags.find(flag => flag.name === 'confirm'));
+  return JSON.stringify(data);
+};
+const write = fs.writeFileSync;
+fs.writeFileSync = function(path, ...args) {
+  if (/\\/(inventories\\/awx-axi(?:-parity)?\\.json|skills\\/awx-axi\\/SKILL\\.md|docs\\/awx-parity-matrix\\.md)$/.test(String(path))) throw new Error('AWX artifact written before parity check');
+  return write.call(this, path, ...args);
+};
+syncBuiltinESMExports();`
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/upstream-inventory.mjs', import.meta.url)), '--write'], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain('Unreviewed AWX surface change')
+})
+
+test.each([{ args: [] }, { args: ['--write'] }])('parity requires review when executable bytes change in mode $args', ({ args }) => {
+  const preload = `import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const read = fs.readFileSync;
+fs.readFileSync = function(path, ...args) {
+  const contents = read.call(this, path, ...args);
+  if (String(path).endsWith('/dist/commands/auth.js')) return Buffer.concat([contents, Buffer.from('\\n')]);
+  return contents;
+};
+syncBuiltinESMExports();`
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url)), ...args], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain('upstream executable surface changed; re-review support decisions')
+})
+
+test.each([
+  { kind: 'top-level command', file: '/dist/cli.js', from: 'auth, profile list, config path, doctor, setup', to: 'auth, profile list, config path, doctor, setup, synthetic-parity-command', name: 'synthetic-parity-command', args: [] },
+  { kind: 'auth flag', file: '/dist/commands/auth.js', from: '--allow-http opts this profile', to: '--synthetic-parity-flag and --allow-http opts this profile', name: 'auth login --synthetic-parity-flag', args: [] },
+  { kind: 'auth flag during regeneration', file: '/dist/commands/auth.js', from: '--allow-http opts this profile', to: '--synthetic-parity-flag and --allow-http opts this profile', name: 'auth login --synthetic-parity-flag', args: ['--write'] },
+  { kind: 'setup subcommand', file: '/dist/commands/setup.js', from: 'usage: awx-axi setup hooks', to: 'usage: awx-axi setup hooks|synthetic', name: 'setup synthetic', args: [] },
+  { kind: 'global flag with a digit', file: '/dist/cli.js', from: 'globals: "--config <path>', to: 'globals: "--config2 <path>, --config <path>', name: 'global --config2', args: [] },
+  { kind: 'auth subcommand with digits and hyphens', file: '/dist/commands/auth.js', from: 'auth login|status|logout', to: 'auth login|status|logout|login-2', name: 'auth login-2', args: [] },
+])('parity rejects an unreviewed upstream $kind', ({ file, from, to, name, args }) => {
+  const preload = `import { registerHooks } from 'node:module';
+registerHooks({ load(url, context, nextLoad) {
+  const result = nextLoad(url, context);
+  if (url.endsWith(${JSON.stringify(file)})) result.source = result.source.toString().replace(${JSON.stringify(from)}, ${JSON.stringify(to)});
+  return result;
+} });`
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url)), ...args], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain(name)
+  expect(result.stderr).toContain('support decision')
+})
+
+test('auth examples do not assign flags to logout', () => {
+  const preload = `import { registerHooks } from 'node:module';
+registerHooks({ load(url, context, nextLoad) {
+  const result = nextLoad(url, context);
+  if (url.endsWith('/dist/commands/auth.js')) {
+    const source = result.source.toString();
+    const example = 'awx-axi auth login --profile production';
+    if (!source.includes(example)) throw new Error('Auth example fixture not found');
+    result.source = source.replace(example, 'awx-axi auth login --example-only');
+    process.stderr.write('Auth example fixture applied\\n');
+  }
+  return result;
+} });`
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(0)
+  expect(result.stderr).toContain('Auth example fixture applied')
+})
+
+test.each([
+  { kind: 'auth', file: '/dist/commands/auth.js', from: '--allow-http opts this profile', to: '--synthetic-flag and --synthetic-flag, --allow-http opts this profile', name: 'auth login --synthetic-flag' },
+  { kind: 'setup', file: '/dist/commands/setup.js', from: 'hooks    install session-start hooks', to: 'hooks    install --synthetic-flag and --synthetic-flag session-start hooks', name: 'setup hooks --synthetic-flag' },
+])('repeated $kind flag mentions request one decision', ({ file, from, to, name }) => {
+  const preload = `import { registerHooks } from 'node:module';
+registerHooks({ load(url, context, nextLoad) {
+  const result = nextLoad(url, context);
+  if (url.endsWith(${JSON.stringify(file)})) result.source = result.source.toString().replace(${JSON.stringify(from)}, ${JSON.stringify(to)});
+  return result;
+} });`
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr.split(name)).toHaveLength(2)
+  expect(result.stderr).toContain('support decision')
+})
+
+test('repeated global flag mentions generate one row', () => {
+  const preload = `import { registerHooks } from 'node:module';
+registerHooks({ load(url, context, nextLoad) {
+  const result = nextLoad(url, context);
+  if (url.endsWith('/node_modules/@knowttl/awx-axi/dist/cli.js')) {
+    const source = result.source.toString();
+    if (!source.includes('globals: "--config <path>')) throw new Error('Global help fixture not found');
+    result.source = source.replace('globals: "--config <path>', 'globals: "--config <path>, --config <path>');
+  }
+  return result;
+} });`
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.stderr).toBe('')
+  expect(result.status).toBe(0)
+  expect(result.stdout).toContain('4 selection globals')
+})
+
+test('setup flags belong only to their documented subcommand', () => {
+  const preload = `import fs from 'node:fs';
+import { registerHooks, syncBuiltinESMExports } from 'node:module';
+const read = fs.readFileSync;
+fs.readFileSync = function(path, ...args) {
+  const contents = read.call(this, path, ...args);
+  if (!String(path).endsWith('/tools/inventories/awx-axi-parity.json')) return contents;
+  const data = JSON.parse(contents);
+  data.commands.push({ ...data.commands.find(item => item.command === 'setup hooks'), command: 'setup synthetic' });
+  return JSON.stringify(data);
+};
+syncBuiltinESMExports();
+registerHooks({ load(url, context, nextLoad) {
+  const result = nextLoad(url, context);
+  if (url.endsWith('/dist/commands/setup.js')) result.source = result.source.toString()
+    .replace('usage: awx-axi setup hooks', 'usage: awx-axi setup hooks|synthetic')
+    .replace('const SUBCOMMANDS = ["hooks"]', 'const SUBCOMMANDS = ["hooks", "synthetic"]')
+    .replace('hooks    install session-start hooks for Claude Code, Codex, and OpenCode', 'hooks    install --hooks-only\\n  synthetic    another command');
+  return result;
+} });`
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url))], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain('setup hooks --hooks-only')
+  expect(result.stderr).not.toContain('setup synthetic --hooks-only')
+})
+
+test.each([
+  { kind: 'domain flag', mutation: "data.commands.find(item => item.command === 'job list').flags.find(flag => flag.name === 'limit').status = ''", name: 'job list --limit' },
+  { kind: 'local flag', mutation: "data.commands.find(item => item.command === 'auth login').flags = [{ name: 'allow-http' }]", name: 'auth login --allow-http' },
+  { kind: 'global flag', mutation: "data.globals = data.globals.map(flag => flag.name === 'config' ? { name: flag.name } : flag)", name: 'global --config' },
+  { kind: 'domain flag without explanation', mutation: "const flag = data.commands.find(item => item.command === 'job list').flags.find(item => item.name === 'limit'); delete flag.reason; delete flag.requiredAdminControl", name: 'job list --limit' },
+  { kind: 'local flag without explanation', mutation: "const flag = data.commands.find(item => item.command === 'auth login').flags.find(item => item.name === 'allow-http'); delete flag.reason; delete flag.requiredAdminControl", name: 'auth login --allow-http' },
+  { kind: 'global flag without explanation', mutation: "const flag = data.globals.find(item => item.name === 'config'); delete flag.reason; delete flag.requiredAdminControl", name: 'global --config' },
+  ...['effect', 'targetSlice', 'authorization', 'takesValue'].map(field => ({ kind: `local flag without ${field}`, mutation: `delete data.commands.find(item => item.command === 'auth login').flags.find(flag => flag.name === 'allow-http').${field}`, name: 'auth login --allow-http' })),
+  ...['effect', 'targetSlice', 'authorization'].map(field => ({ kind: `global flag without ${field}`, mutation: `delete data.globals.find(flag => flag.name === 'config').${field}`, name: 'global --config' })),
+].flatMap(item => [[], ['--write']].map(args => ({ ...item, args }))))('parity rejects an incomplete $kind decision', ({ mutation, name, args }) => {
+  const preload = `import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const read = fs.readFileSync;
+fs.readFileSync = function(path, ...args) {
+  const contents = read.call(this, path, ...args);
+  if (!String(path).endsWith('/tools/inventories/awx-axi-parity.json')) return contents;
+  const data = JSON.parse(contents);
+  ${mutation};
+  return JSON.stringify(data);
+};
+syncBuiltinESMExports();`
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url)), ...args], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain('support decision')
+  expect(result.stderr).toContain(name)
+})
+
+test.each([
+  { kind: 'command', mutation: "data.commands.find(item => item.command === 'job list').status = 'blocked'", name: 'job list' },
+  { kind: 'command flag', mutation: "data.commands.find(item => item.command === 'job list').flags.find(flag => flag.name === 'limit').status = 'blocked'", name: 'job list --limit' },
+  { kind: 'global flag', mutation: "data.globals.find(flag => flag.name === 'config').status = 'blocked'", name: 'config' },
+])('regeneration rejects a conflicting recorded $kind decision', ({ mutation, name }) => {
+  const preload = `import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const read = fs.readFileSync;
+fs.readFileSync = function(path, ...args) {
+  const contents = read.call(this, path, ...args);
+  if (!String(path).endsWith('/tools/inventories/awx-axi-parity.json')) return contents;
+  const data = JSON.parse(contents);
+  ${mutation};
+  return JSON.stringify(data);
+};
+syncBuiltinESMExports();`
+  const result = spawnSync(process.execPath, ['--import', noWrites, '--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url)), '--write'], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain('support decisions differ')
+  expect(result.stderr).toContain(name)
+})
 
 type Flag = { name: string; takesValue: boolean; description: string }
 type Command = { command: string; flags: Flag[]; positionals: { names: string[]; required: number } }

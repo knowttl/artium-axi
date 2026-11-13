@@ -4,8 +4,6 @@ import { fileURLToPath } from 'node:url'
 import './ldap-inventory.mjs'
 import './ado-inventory.mjs'
 import './gh-inventory.mjs'
-import './awx-inventory.mjs'
-import './awx-parity.mjs'
 import './tenable-inventory.ts'
 import './checkpoint-inventory.ts'
 import './beyondtrust-inventory.ts'
@@ -17,6 +15,10 @@ import './gitea-inventory.ts'
 import './falcon-inventory.ts'
 import './kubernetes-inventory.ts'
 import './ssh-inventory.ts'
+
+await import('./awx-parity.mjs')
+const { updateInventory } = await import('./awx-inventory.mjs')
+updateInventory()
 
 const root = new URL('../tools/', import.meta.url)
 const load = (tool, path) => import(new URL(`node_modules/@knowttl/${tool}/dist/${path}`, root))

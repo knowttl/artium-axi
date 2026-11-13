@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { isDeepStrictEqual } from 'node:util'
 import { DOMAINS, main } from '../tools/node_modules/@knowttl/awx-axi/dist/cli.js'
 import { AUTH_HELP } from '../tools/node_modules/@knowttl/awx-axi/dist/commands/auth.js'
 import { SETUP_HELP } from '../tools/node_modules/@knowttl/awx-axi/dist/commands/setup.js'
@@ -9,10 +10,10 @@ const upstream = new URL('tools/node_modules/@knowttl/awx-axi/', root)
 const readJson = path => JSON.parse(readFileSync(new URL(path, root), 'utf8'))
 const pkg = readJson('tools/node_modules/@knowttl/awx-axi/package.json')
 if (pkg.version !== readJson('tools/package.json').dependencies['@knowttl/awx-axi']) throw new Error('AWX parity pin mismatch')
-const inventory = readJson('tools/inventories/awx-axi.json')
-const routes = new Map(inventory.commands.map(route => [route.command, route]))
-const securityAdministrationCommands = inventory.commands.filter(route => route.securityAdministration).map(route => route.command)
-const securityAdministrationDeletes = securityAdministrationCommands.filter(command => /(?:^|[ -])delete$/.test(command))
+const sourceFiles = readdirSync(new URL('dist/', upstream), { recursive: true }).filter(path => path.endsWith('.js')).sort()
+const executableDigest = createHash('sha256')
+for (const path of sourceFiles) executableDigest.update(path).update('\0').update(readFileSync(new URL(`dist/${path}`, upstream))).update('\0')
+if (executableDigest.digest('hex') !== '010fb8e0c744c9782513d93b77c3d829a14eb560c1f1bc3f708809756c799d89') throw new Error('upstream executable surface changed; re-review support decisions')
 const help = async argv => {
   let output = ''
   await main({ argv, env: {}, stdout: { write: chunk => { output += chunk } } })
@@ -20,7 +21,41 @@ const help = async argv => {
 }
 const topHelp = await help(['--help'])
 const updateHelp = await help(['update', '--help'])
-const globalNames = [...topHelp.match(/^globals: (.*)$/m)[1].matchAll(/--([a-z-]+)/g)].map(match => match[1])
+const globalNames = [...new Set([...topHelp.match(/^globals: (.*)$/m)[1].matchAll(/--([a-z0-9-]+)/g)].map(match => match[1]))]
+const recorded = readJson('tools/inventories/awx-axi-parity.json')
+const decisions = new Map(recorded.commands.map(route => [route.command, route]))
+const localCommands = [...new Set([
+  ...AUTH_HELP.match(/usage: awx-axi auth ([a-z0-9|-]+)/)[1].split('|').map(name => `auth ${name}`),
+  ...SETUP_HELP.match(/usage: awx-axi setup ([a-z0-9|-]+)/)[1].split('|').map(name => `setup ${name}`),
+  ...topHelp.match(/^commands: "(.*)"$/m)[1].split(', ').filter(command => !['auth', 'setup'].includes(command)),
+  updateHelp.match(/^command: ([a-z0-9-]+)$/m)[1],
+])]
+const offered = [...DOMAINS.flatMap(domain => domain.subcommands.map(route => ({ command: `${domain.name} ${route.name}`, flags: route.flags }))),
+  ...[...new Set(localCommands)].map(command => ({ command, flags: [] }))]
+const missingCommands = offered.filter(route => !decisions.has(route.command)).map(route => route.command)
+if (missingCommands.length) throw new Error(`Missing AWX support decision: ${missingCommands.join(', ')}; record each decision in tools/inventories/awx-axi-parity.json`)
+for (const route of offered.filter(route => localCommands.includes(route.command))) {
+  const [group, name] = route.command.split(' ')
+  const output = ['auth', 'setup'].includes(group)
+    ? (group === 'auth' ? AUTH_HELP : SETUP_HELP).split(new RegExp(`\\n  ${name}[ \\t]{2,}`))[1]?.split(/\n(?:  [a-z0-9-]+[ \t]{2,}|\s*\n|[^ \t])/)[0] ?? ''
+    : await help([...route.command.split(' '), '--help'])
+  route.flags = [...new Set([...output.matchAll(/--([a-z][a-z0-9-]*)/g)]
+    .map(match => match[1]).filter(name => !globalNames.includes(name) && name !== 'help'))].map(name => ({ name }))
+}
+const complete = (decision, commandFlag = false) => decision
+  && ['name', 'status', 'effect', 'targetSlice', 'authorization'].every(key => typeof decision[key] === 'string' && decision[key].trim())
+  && ['reason', 'requiredAdminControl'].some(key => typeof decision[key] === 'string' && decision[key].trim())
+  && (!commandFlag || typeof decision.takesValue === 'boolean')
+const undecided = offered.flatMap(route => {
+  const decision = decisions.get(route.command)
+  return !decision ? [route.command] : route.flags.filter(flag => !complete(decision.flags.find(reviewed => reviewed.name === flag.name), true)).map(flag => `${route.command} --${flag.name}`)
+})
+undecided.push(...globalNames.filter(name => !complete(recorded.globals.find(flag => flag.name === name))).map(name => `global --${name}`))
+if (undecided.length) throw new Error(`Missing AWX support decision: ${undecided.join(', ')}; review support in scripts/awx-inventory.mjs and scripts/awx-parity.mjs, then record each decision in tools/inventories/awx-axi-parity.json before regeneration`)
+const { data: inventory } = await import('./awx-inventory.mjs')
+const routes = new Map(inventory.commands.map(route => [route.command, route]))
+const securityAdministrationCommands = inventory.commands.filter(route => route.securityAdministration).map(route => route.command)
+const securityAdministrationDeletes = securityAdministrationCommands.filter(command => /(?:^|[ -])delete$/.test(command))
 const baseControls = {
   read: 'Managed account access; reads always allowed by write policy',
   write: 'Administrator-controlled per-tenant writes switch, default OFF; preview, explicit confirmation, coordination, audit and unknown-outcome recovery',
@@ -45,7 +80,6 @@ const authorizationFor = (command, effect) => ['read', 'client-local'].includes(
   : effect === 'destructive' || command === 'inventory host-bulk-create' ? 'destructive' : 'write'
 const configurationControl = 'Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission'
 const destructiveControl = 'Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission'
-const sourceFiles = readdirSync(new URL('dist/', upstream), { recursive: true }).filter(path => path.endsWith('.js')).sort()
 const sources = sourceFiles.map(path => ({ path: `dist/${path}`, sha256: createHash('sha256').update(readFileSync(new URL(`dist/${path}`, upstream))).digest('hex') }))
 const security = (domain, name) => ['user', 'team', 'role', 'credential'].includes(domain)
   || /credential|^(?:user|admin|team)-(?:add|remove)$/.test(name)
@@ -130,22 +164,17 @@ const localReasons = {
   'setup hooks': ['managed equivalent', 'Use artium-axi setup --host <claude|codex|opencode> --hook on Linux for authenticated ambient tool context and granted tool skills. Claude Code and Codex use SessionStart; OpenCode 1.19.x uses its local system-context plugin API. Codex host trust and feature controls still apply. Pi and non-Linux hosts retain skill-only setup. Never install hooks in the server runner.'],
   update: ['not applicable', 'The deployment pins awx-axi through tools/package.json and integrity.json. Upgrade through a reviewed Artium dependency change; per-run self-update is blocked.'],
 }
-const localCommands = [
-  ...AUTH_HELP.match(/usage: awx-axi auth ([a-z|]+)/)[1].split('|').map(name => `auth ${name}`),
-  SETUP_HELP.match(/usage: awx-axi (setup \w+)/)[1],
-  ...topHelp.match(/^commands: "(.*)"$/m)[1].split(', ').filter(name => name.includes(' ') || name === 'doctor'),
-  updateHelp.match(/^command: (\w+)$/m)[1],
-]
 for (const command of ['home', ...localCommands]) {
   const remoteRead = ['home', 'doctor', 'auth status'].includes(command)
   const [status, reason] = remoteRead ? ['supported', 'Uses the selected managed AWX account; upstream identity/read diagnostics retained'] : localReasons[command]
   const effect = remoteRead ? 'read' : 'client-local'
   const specs = [{ name: 'help', takesValue: false, description: 'Command help' }]
   if (command === 'auth login') specs.push(...[...AUTH_HELP.matchAll(/--(allow-http)\b/g)].slice(0, 1).map(match => ({ name: match[1], takesValue: false, description: 'Opt into unencrypted HTTP; unavailable in Artium HTTPS accounts' })))
-  if (command === 'update') specs.push(...[...updateHelp.matchAll(/^  "--([a-z-]+)": (.*)$/gm)].map(match => ({ name: match[1], takesValue: false, description: match[2] })))
+  if (command === 'update') specs.push(...[...new Map([...updateHelp.matchAll(/^  "--([a-z0-9-]+)": (.*)$/gm)].map(match => [match[1], { name: match[1], takesValue: false, description: match[2] }])).values()])
   const authorization = ['auth login', 'auth logout'].includes(command) ? 'write' : 'read'
   commands.push({ command, effect, status, reason, targetSlice: command === 'auth logout' ? 'e' : 'f', authorization, requiredAdminControl: requiredControl(command, authorization),
-    flags: flagsFor(command, specs, effect, 'f', status),
+    flags: [...flagsFor(command, specs, effect, 'f', status), ...offered.find(route => route.command === command)?.flags
+      .filter(flag => !specs.some(spec => spec.name === flag.name)).map(flag => decisions.get(command).flags.find(reviewed => reviewed.name === flag.name)) ?? []],
     ...(command.startsWith('auth ') && command !== 'auth status' ? { remoteEffect: 'security administration', note: 'Client-local lifecycle also mints or revokes an upstream PAT; upstream logout uses the native security-tagged DELETE gate' } : {}) })
 }
 
@@ -173,13 +202,28 @@ const reviewedOperationalCredentialUse = new Set(['job launch', 'template launch
 const unreviewedConditional = commands.filter(route => route.effect !== 'read' && route.effect !== 'client-local' && route.flags.some(flag => credentialInputs.has(flag.name))
   && route.effect !== 'security administration' && !route.conditionalEffect && !reviewedOperationalCredentialUse.has(route.command)).map(route => route.command)
 if (unreviewedConditional.length) throw new Error(`Unreviewed conditional security effect: ${unreviewedConditional.join(', ')}`)
-const globals = globalNames.map(name => ({ name, takesValue: true, effect: 'client-local', status: 'managed equivalent', targetSlice: 'f',
+const globals = globalNames.map(name => !['config', 'profile', 'origin', 'verify-ssl'].includes(name) ? recorded.globals.find(flag => flag.name === name) : ({ name, takesValue: true, effect: 'client-local', status: 'managed equivalent', targetSlice: 'f',
   authorization: 'read', requiredAdminControl: targetPolicy.read, reason: name === 'config' ? 'Server materializes private config; upstream file path override blocked'
     : name === 'profile' ? 'Select an Artium managed account; upstream profile override blocked'
     : name === 'origin' ? 'Administrator configures HTTPS origin on the managed account; runner override blocked'
     : 'Managed certificate trust and HTTPS policy; raw TLS verification override blocked',
   file: name === 'config', secret: false, ...(name === 'config' ? { delivery: 'Managed runner config, not a TD-066 user input; arbitrary server paths forbidden' } : {}) }))
 const versionFlags = ['--version', '-v', '-V'].map(name => ({ name, effect: 'client-local', status: 'supported', targetSlice: 'f', authorization: 'read', requiredAdminControl: targetPolicy.read, scope: 'Bare invocation only' }))
+const classification = ({ flags, help, positionals, description, takesValue, ...decision }) => decision
+const conflicts = []
+for (const [entries, previous, key] of [[commands, recorded.commands, 'command'], [aliases, recorded.aliases, 'command'],
+  [globals, recorded.globals, 'name'], [versionFlags, recorded.versionFlags, 'name']]) {
+  for (const entry of entries) {
+    const prior = previous.find(item => item[key] === entry[key])
+    if (!prior) continue
+    if (!isDeepStrictEqual(classification(entry), classification(prior))) conflicts.push(entry[key])
+    for (const flag of entry.flags ?? []) {
+      const priorFlag = prior.flags.find(item => item.name === flag.name)
+      if (priorFlag && !isDeepStrictEqual(classification(flag), classification(priorFlag))) conflicts.push(`${entry[key]} --${flag.name}`)
+    }
+  }
+}
+if (conflicts.length) throw new Error(`AWX support decisions differ from generated classifications: ${conflicts.join(', ')}; reconcile the recorded decisions and generator before regeneration`)
 const data = { generatedBy: 'scripts/awx-parity.mjs', tool: pkg.name, version: pkg.version,
   extraction: 'Offline DOMAINS subcommands/flags/positionals/help; main --help and update --help; AUTH_HELP and SETUP_HELP; reviewed inventory router aliases and transport tags',
   sources, globalFlagScope: 'Four selection overrides accepted upstream before/after commands; inherited by every leaf. --help is universal. Version flags are bare only.',

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
 import { DOMAINS } from '../tools/node_modules/@knowttl/awx-axi/dist/cli.js'
 import { createSkillMarkdown } from '../tools/node_modules/@knowttl/awx-axi/dist/skill.js'
 
@@ -44,7 +45,7 @@ for (const command of ['auth login', 'auth logout', 'setup', 'config path', 'pro
 const sources = readdirSync(new URL('dist/', packageRoot), { recursive: true }).filter(path => path.endsWith('.js')).sort()
   .map(path => ({ path: `dist/${path}`, sha256: createHash('sha256').update(readFileSync(new URL(`dist/${path}`, packageRoot))).digest('hex') }))
 const skill = createSkillMarkdown()
-const data = { generatedBy: 'scripts/awx-inventory.mjs', tool: 'awx-axi', ...pin,
+export const data = { generatedBy: 'scripts/awx-inventory.mjs', tool: 'awx-axi', ...pin,
   parserEvidence: 'Published domain registry, reviewed plan effects and transport safety gates', sources,
   credentialSchema: JSON.parse(readFileSync(new URL('axi-credential.schema.json', packageRoot), 'utf8')),
   skillSha256: createHash('sha256').update(skill).digest('hex'),
@@ -57,9 +58,12 @@ const data = { generatedBy: 'scripts/awx-inventory.mjs', tool: 'awx-axi', ...pin
     help: 'awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. Administrator allowWrites defaults off and gates previews and execution. Allow destructive deletes (allowDeletes) separately defaults off and additionally gates deletes, api delete and bulk host operations. Allow security administration (allowSecurityAdministration) separately defaults off and additionally gates organization create/edit/delete, membership and administrator changes, user/team/role administration and token creation/revocation, including raw API writes to these resources. Existing installs with writes enabled lose security-administration access until an administrator enables allowSecurityAdministration. Preview with --dry-run, then repeat with --confirm. Existing installs with writes enabled lose delete and bulk access until an administrator enables allowDeletes. Reads and help remain available. AWX permissions still apply. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. Use protected local files for sensitive URLs. Credential inputs-file and password-file accept stdin (-). Server file paths and unsafe overrides remain blocked. Waits (job watch and --wait) last at most 50 seconds, the default; larger --timeout values are refused. Resume with job watch. job stdout --download <name> returns a protected result reference to the bounded redacted log, consumed once like a token. Token creation returns a protected result reference, never token bytes. Save its path using an authenticated GET within five minutes; it is consumed once and requires the same caller, current access and managed credential revision. Managed logout uses user token-revoke <numeric-token-id> with preview and confirmation; account removal does not revoke a PAT.\n' },
   suggestionFields: ['help'], format: 'TOON', commands }
 const outputs = [['inventories/awx-axi.json', JSON.stringify(data, null, 2) + '\n'], ['skills/awx-axi/SKILL.md', skill]]
-for (const [path, contents] of outputs) {
-  const destination = new URL(path, root)
-  if (process.argv.includes('--write')) { mkdirSync(new URL('./', destination), { recursive: true }); writeFileSync(destination, contents) }
-  else if (readFileSync(destination, 'utf8') !== contents) throw new Error('Inventory out of date: awx-axi; review pinned commands and effects')
+export function updateInventory() {
+  for (const [path, contents] of outputs) {
+    const destination = new URL(path, root)
+    if (process.argv.includes('--write')) { mkdirSync(new URL('./', destination), { recursive: true }); writeFileSync(destination, contents) }
+    else if (readFileSync(destination, 'utf8') !== contents) throw new Error('Inventory out of date: awx-axi; review pinned commands and effects')
+  }
+  console.log(`inventory: awx-axi ${pkg.version}, ${commands.length} commands`)
 }
-console.log(`inventory: awx-axi ${pkg.version}, ${commands.length} commands`)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) updateInventory()
