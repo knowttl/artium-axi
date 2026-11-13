@@ -305,7 +305,7 @@ Strict pin replacement updates supported shared fields and removes previous pin 
 CA-mode replacement updates the paired leaf fingerprint and leaves existing CA records unchanged.
 If CA verification fails, check the certificate's hostname, validity and chain; update the CA manually if the issuing CA changed.
 Replacement preserves strict leaf pinning or CA trust, and automatically tests the connection.
-Strict pins reject the old leaf and other leaves from the same CA; CA trust continues to allow leaves signed by the confirmed CA.
+Strict pins reject the old leaf and other leaves from the same CA; CA trust continues to allow leaves signed by the confirmed CA, subject to any separately saved fingerprint.
 Removing an endpoint trust record retains the separately saved Certificate verification fields; clear those fields too when revoking that trust.
 CA trust is selected when an issuing CA is available; self-signed endpoints select strict leaf pinning.
 UniFi also saves and verifies the leaf fingerprint with CA trust, so confirm its replacement after leaf renewal.
@@ -338,8 +338,8 @@ Each converted or retained entry is recorded in the audit log, and cached tool h
 If migration leaves both modes at one endpoint, connections accept leaves issued by its saved CA anchors or the retained pinned leaves themselves; a retained pin does not extend CA trust to its issuer.
 Previously saved automatic intermediate repairs are removed on upgrade, clearing affected tools' cached health; they do not become confirmed CA anchors.
 The shared runner adds the certificate to its existing Node, Python, LDAP and Vectra trust injection, and server-side token acquisition uses the same credential trust.
-Trust does not disable hostname or date verification.
-Confirming an expired or hostname-mismatched certificate saves trust but does not fix the connection: renew the certificate or use its matching hostname.
+Trust does not disable date verification; hostname verification remains enabled except for the existing [Proxmox fingerprint option](tool-credentials.md#proxmox).
+Confirming initial trust for an expired or hostname-mismatched certificate saves trust but does not fix the connection: renew the certificate or use its matching hostname.
 
 If the server omitted an intermediate, inspection can retrieve the leaf certificate’s AIA issuer automatically.
 Retrieval accepts only HTTP or HTTPS, follows no redirects, has a three-second total deadline, and reads at most 128 KiB.
