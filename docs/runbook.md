@@ -352,6 +352,11 @@ For a Kubernetes managed certificate name, the leaf must also match a retained p
 Previously saved automatic intermediate repairs are removed on upgrade, clearing affected tools' cached health; they do not become confirmed CA anchors.
 The shared runner adds the certificate to its existing Node, Python, LDAP and Vectra trust injection, and server-side token acquisition uses the same credential trust.
 Trust does not disable date verification; hostname verification remains enabled except for the existing [Proxmox fingerprint option](tool-credentials.md#proxmox).
+Proxmox `certificatePin.replaceHostname` is an intentional Proxmox-only exception: it skips only hostname comparison, while the exact leaf pin remains required on every connection.
+Across every tool, a saved exact pin remains mandatory even when the endpoint also has CA trust; a CA supplies chain trust and never overrides a pin.
+See the [TLS route and fixture inventory](tls-policy.md) for transport scope and the read-only compatibility assessment.
+Existing setups that relied on a CA to override a stale pin will fail until the pin is updated.
+Inspect the endpoint, compare the new fingerprint through an independent trusted route, then use **Renew trust** or replace the saved fingerprint in **Certificate verification** before testing again.
 Confirming initial trust for an expired or hostname-mismatched certificate saves trust but does not fix the connection: renew the certificate or use its matching hostname.
 
 If the server omitted an intermediate, inspection can retrieve the leaf certificate’s AIA issuer automatically.

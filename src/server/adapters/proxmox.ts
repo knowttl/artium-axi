@@ -229,7 +229,9 @@ export function createProxmoxAdapter(source: SecretSource, writeLog?: string): P
         ...(call.executing && call.privateResult && !stream?.spice ? { protectedResult: { source: 'proxmox' as const, operation: call.route.operationId! } } : {}),
         ...(call.executing ? { write: { operation: call.route.operationId!, target: call.route.path!, checkArgs: ['journal', 'reconcile', call.id!] } } : {}),
         environment: { ...prepared.environment, PROXMOX_AXI_CONFIG: '/proc/self/cwd/proxmox-axi/config.json',
-          PROXMOX_AXI_HOST_OPERATIONS: JSON.stringify(state.allowedOperations) }, limits: { timeoutMs: runnerLimits.timeoutMs } }
+          PROXMOX_AXI_HOST_OPERATIONS: JSON.stringify(state.allowedOperations) }, limits: { timeoutMs: runnerLimits.timeoutMs,
+          ...((value as { certificatePin?: { replaceHostname?: boolean } }).certificatePin?.replaceHostname
+            ? { proxmoxReplaceHostname: String((value as Record<string, unknown>).origin) } : {}) } }
   }
   return { name: 'proxmox-axi', executable: toolPaths['proxmox-axi'], credentialProfile: proxmoxProfile,
     credentialSchema: proxmoxProfile.credentialSchema, timeoutMs: runnerLimits.timeoutMs,

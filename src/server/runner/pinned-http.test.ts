@@ -284,6 +284,26 @@ ghTest.each(['token', 'device'] as const)(`native gh carries the managed %s iden
   } finally { await runner.shutdown() }
 })
 
+ghTest.each([
+  { mode: 'mixed', certificate: 'rotated', accepted: false },
+  { mode: 'mixed', certificate: 'leaf', accepted: true },
+  { mode: 'ca', certificate: 'rotated', accepted: true },
+  { mode: 'pin', certificate: 'leaf', accepted: true },
+] as const)(`native gh with $mode trust and $certificate enforces the saved pin (#436)${ghSkip}`, async ({ mode, certificate, accepted }) => {
+  serve(certificate)
+  const saved: CredentialTrust[] = mode === 'mixed' ? [...trust(), { ...trust()[0], mode: 'ca' }]
+    : [{ ...trust()[0], mode }]
+  const call = await createGhAdapter({ getCredential: async () => ({ origin: endpoint, auth: 'token', token: 'CANARY-managed-token' }) })
+    .prepare(['api', '/rate_limit'], { id: 'synthetic-credential', tool: 'gh-axi', revision: 1 })
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    const result = await runner.run('synthetic-user', gh, call.args, call.environment, call.secrets,
+      { ...call.limits, credentialTrust: saved })
+    expect(result.exitCode === 0, result.stderr).toBe(accepted)
+    expect(applicationRequests).toEqual(accepted ? ['token CANARY-managed-token'] : [])
+  } finally { await runner.shutdown() }
+})
+
 ghTest.each(['token', 'device'] as const)(`bundled gh-axi enforces the pin for the managed %s identity${ghSkip}`, async auth => {
   const call = await createGhAdapter({ getCredential: async () => ({ origin: endpoint, auth,
     ...(auth === 'token' ? { token: 'CANARY-managed-token' } : { accessToken: 'CANARY-managed-token', login: 'synthetic-user' }) }),
@@ -318,6 +338,8 @@ async function kubernetesCall(runner: Runner, args: string[], saved = trust(), t
 }
 
 kubectlTest.each([
+  { scenario: 'mixed trust and correct pin', certificate: 'leaf', pin: 'leaf', client: 'client', success: true, mixed: true },
+  { scenario: 'mixed trust and wrong pin', certificate: 'rotated', pin: 'leaf', client: 'client', success: false, mixed: true },
   { scenario: 'managed mixed trust and correct pin', certificate: 'leaf', pin: 'leaf', client: 'client', success: true, tlsServerName: 'localhost', mixed: true },
   { scenario: 'managed mixed trust and wrong pin', certificate: 'rotated', pin: 'leaf', client: 'client', success: false, tlsServerName: 'localhost', mixed: true },
   { scenario: 'managed name and correct pin', certificate: 'mismatch', pin: 'mismatch', client: 'client', success: true, tlsServerName: 'other.synthetic.test' },
