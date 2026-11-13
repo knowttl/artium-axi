@@ -108,7 +108,8 @@ export function registerKubernetesSessions(app: FastifyInstance, db: Database.Da
         if (credential.id !== binding.credential.id || credential.revision !== binding.credential.revision) throw new ArtiumError('REVISION_CONFLICT')
         const prepared = await adapter.prepare(['version'], credential)
         if (prepared.limits.systemCaBundle?.transport !== 'kubectl') throw new ArtiumError('CREDENTIAL_INVALID')
-        const trustPem = runner.caBundleFor(prepared.limits.systemCaBundle.endpoint, readCredentialTrust(db, credential))
+        if (prepared.limits.systemCaBundle.serverName) session.code = 'MANAGED_SERVER_NAME_UNSUPPORTED'
+        const trustPem = runner.caBundleFor(prepared.limits.systemCaBundle, readCredentialTrust(db, credential))
         let scanner: SecretScanner | undefined = new SecretScanner(prepared.secrets)
         let metadataScanner: SecretScanner | undefined = new SecretScanner(prepared.secrets)
         if (metadataScanner.scan('stdout', Buffer.from(JSON.stringify(input)))) throw new ArtiumError('INVALID_INPUT')

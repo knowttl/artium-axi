@@ -558,7 +558,7 @@ kubectlTest.each([
 test('hosted Kubernetes byte sessions keep refusing saved pins', async () => {
   const runner = await Runner.create(join(directory, 'calls'))
   try {
-    expect(() => runner.caBundleFor(endpoint, trust())).toThrow('hosted byte sessions require issuing CA trust')
+    expect(() => runner.caBundleFor({ endpoint, transport: 'kubectl' }, trust())).toThrow('hosted byte sessions require issuing CA trust')
     expect(applicationRequests).toEqual([])
   } finally { await runner.shutdown() }
 })

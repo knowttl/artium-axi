@@ -126,6 +126,19 @@ test('workspace and session bind the instance granted to the caller', async () =
   expect((await app.inject({ url: `/v1/tools/kubernetes-axi/sessions/${session.json().id}`, headers })).statusCode).toBe(200)
 })
 
+test.each([
+  { kind: 'logs', argv: ['logs', 'synthetic-pod', '--follow'] },
+  { kind: 'port-forward', argv: ['prepare', '--', 'port-forward', 'synthetic-pod', '0:80'] },
+])('managed certificate names refuse $kind sessions before launch', async ({ kind, argv }) => {
+  const reference = credentials.findCredential('kubernetes-axi')!
+  credentials.replaceCredential('kubernetes-axi', { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic',
+    certificateAuthority: 'CANARY-CA-PEM', token: secret, tlsServerName: 'cluster.example.test' }, reference.revision!, user, Date.now())
+  db.prepare("UPDATE tools SET native_settings=? WHERE name='kubernetes-axi'")
+    .run(JSON.stringify({ allowWrites: true, sessions: { grants: { [user]: [kind] } } }))
+  const response = await app.inject({ method: 'POST', url: '/v1/tools/kubernetes-axi/sessions', headers, payload: { kind, argv } })
+  expect(response.json()).toMatchObject({ state: 'failed', code: 'MANAGED_SERVER_NAME_UNSUPPORTED' })
+})
+
 test('creation selects a named instance when multiple instances are granted', async () => {
   const lab = credentials.createInstance('kubernetes-axi', { name: 'lab', description: '' },
     { origin: 'https://127.0.0.1:1', auth: 'token', namespace: 'synthetic', certificateAuthority: 'CANARY-CA-PEM', token: secret }, user, Date.now())

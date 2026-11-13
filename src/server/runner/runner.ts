@@ -108,8 +108,9 @@ export class Runner {
   get trustedCertificates(): readonly TrustedCertificate[] { return this.trustedCa?.certificates ?? [] }
   get configuredCaPem(): string | undefined { return this.trustedCa?.pem }
 
-  caBundleFor(endpoint: string, credentialTrust: readonly CredentialTrust[]): string {
-    return runtimeTrust({ systemCaBundle: { endpoint, transport: 'kubectl' }, credentialTrust }, this.trustedCa).trustPem
+  caBundleFor(transport: Extract<GoTransportTrust, { transport: 'kubectl' }>, credentialTrust: readonly CredentialTrust[]): string {
+    if (transport.serverName) throw new RunnerError('INVALID_INPUT', 'Kubernetes hosted sessions do not support a managed certificate name.')
+    return runtimeTrust({ systemCaBundle: { endpoint: transport.endpoint, transport: 'kubectl' }, credentialTrust }, this.trustedCa).trustPem
   }
 
   static async create(root = join(tmpdir(), 'artium-calls'), trustedCa?: TrustedCaBundle): Promise<Runner> {
