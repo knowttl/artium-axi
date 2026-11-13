@@ -207,10 +207,43 @@ test.each(['unifi-axi', 'technitium-axi'] as const)('%s saves the inspected name
   await expect(preflight(tool, next)).rejects.toThrow()
 })
 
+test.each([
+  ['technitium-axi', null],
+  ['unifi-axi', 'This tool requires an IP connection address and cannot preserve a DNS connection address.'],
+] as const)('%s handles a hostname-backed certificate mismatch', (tool, refusalReason) => {
+  const origin = 'https://controller.synthetic.test:8443'
+  const value = { origin, tls: { trustedCertificatePem: pem('self-signed'),
+    peerFingerprintSha256: new X509Certificate(pem('self-signed')).fingerprint256.replaceAll(':', '') } }
+  expect(certificateNameChange(tool, value, new URL(origin), pem('self-signed'))).toEqual({
+    certificateName: 'localhost', connectAddress: 'controller.synthetic.test', refusalReason,
+  })
+})
+
+test('Technitium keeps a DNS connection address when saving the certificate name', async () => {
+  const origin = endpoint.replace('localhost', 'controller.synthetic.test')
+  const value = { origin, token: 'CANARY-never-sent', caFile: pem('self-signed') }
+  store.createInstance('technitium-axi', { name: 'synthetic', description: '' }, value, 'synthetic-development-user', Date.now())
+  const url = '/v1/admin/tools/technitium-axi/instances/synthetic/certificates'
+  const originalLookup = vi.mocked(dns.lookup).getMockImplementation()!
+  const lookup = vi.mocked(dns.lookup).mockResolvedValue([{ address: '127.0.0.1', family: 4 }] as never)
+  try {
+    const inspected = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+    expect(inspected.statusCode, inspected.body).toBe(200)
+    expect(inspected.json().nameChange).toEqual({ certificateName: 'localhost', connectAddress: 'controller.synthetic.test', refusalReason: null })
+    const saved = await app.inject({ method: 'POST', url: url + '/use-name', headers, payload: { inspectionId: inspected.json().inspectionId } })
+    expect(saved.statusCode, saved.body).toBe(200)
+    const next = store.readCredential(store.findInstance('technitium-axi', 'synthetic')!) as Record<string, unknown>
+    expect(next).toEqual({ ...value, tlsServerName: 'localhost' })
+    await expect(preflight('technitium-axi', next)).resolves.toBeUndefined()
+    serve('mismatch')
+    await expect(preflight('technitium-axi', next)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  } finally { lookup.mockImplementation(originalLookup) }
+})
+
 test('name changes refuse unsupported tools and stale inspected revisions', async () => {
   serve('mismatch')
   const result = await inspect()
-  expect(result.nameChange?.refusalReason).toContain('This action requires a saved IP')
+  expect(result.nameChange?.refusalReason).toContain('This tool does not support')
   expect((await request('POST', '/use-name', { inspectionId: result.inspectionId })).statusCode).toBe(400)
   store.replaceCredential('vectra-axi', { origin: endpoint, token: 'CANARY-replaced' }, 1, 'synthetic-development-user', Date.now())
   expect((await request('POST', '/use-name', { inspectionId: result.inspectionId })).statusCode).toBe(409)

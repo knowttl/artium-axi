@@ -39,10 +39,10 @@ export function certificateNameChange(tool: ToolName, value: Record<string, unkn
     parent && typeof parent === 'object' ? (parent as Record<string, unknown>)[key] : undefined, value)
   const connectAddress = settings.connectAddress ? String(read(settings.connectAddress) || host) : host
   const refusalReason = !certificateName ? 'The certificate has no concrete DNS name to use. Configure a matching certificate name manually.'
-    : !isIP(connectAddress) ? 'This action requires a saved IP connection address. Configure the connection address manually.'
-      : !settings.connectAddress && !settings.serverName
-        ? tool === 'proxmox-axi' ? 'This tool cannot keep connecting to the IP with separate hostname verification. Its fingerprint replacement option bypasses hostname verification.'
-          : tlsFieldDefinitions.connectAddress.unsupported
+    : !settings.connectAddress && !settings.serverName
+      ? tool === 'proxmox-axi' ? 'This tool cannot keep connecting to the IP with separate hostname verification. Its fingerprint replacement option bypasses hostname verification.'
+        : tlsFieldDefinitions.connectAddress.unsupported
+      : settings.connectAddress && !isIP(connectAddress) ? 'This tool requires an IP connection address and cannot preserve a DNS connection address.'
         : settings.connectAddress && settings.certificate && settings.fingerprint && (!read(settings.certificate) || !read(settings.fingerprint))
           ? 'Save the trusted certificate and SHA-256 fingerprint in Certificate verification first, then inspect again to use this name.' : null
   return { certificateName: certificateName ?? null, connectAddress, refusalReason }
