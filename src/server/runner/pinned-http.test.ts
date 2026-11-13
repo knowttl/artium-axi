@@ -6,6 +6,7 @@ import { request } from 'node:http'
 import { createServer } from 'node:https'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { decode } from '@toon-format/toon'
 import { afterAll, beforeAll, beforeEach, expect, test } from 'vitest'
 import { createInspectionCertificates } from '../../../test/fake-service/certificates.mjs'
 import { createGhAdapter } from '../adapters/gh.js'
@@ -133,6 +134,28 @@ test.each(['token', 'device'] as const)('native gh carries the managed %s identi
     const matching = await run()
     expect(matching.exitCode, matching.stderr).toBe(0)
     expect(JSON.parse(matching.stdout)).toEqual({ remaining: 4999 })
+    expect(applicationRequests).toEqual(['token CANARY-managed-token'])
+    applicationRequests = []
+    serve('rotated')
+    expect((await run()).exitCode).not.toBe(0)
+    expect(applicationRequests).toEqual([])
+    expect(readdirSync(join(directory, 'calls'))).toEqual([])
+  } finally { await runner.shutdown() }
+})
+
+test.each(['token', 'device'] as const)('bundled gh-axi enforces the pin for the managed %s identity', async auth => {
+  const call = await createGhAdapter({ getCredential: async () => ({ origin: endpoint, auth,
+    ...(auth === 'token' ? { token: 'CANARY-managed-token' } : { accessToken: 'CANARY-managed-token', login: 'synthetic-user' }) }),
+  }).prepare(['api', '/rate_limit'], { id: 'synthetic-credential', tool: 'gh-axi', revision: 1 })
+  const runner = await Runner.create(join(directory, 'calls'))
+  const gh = realpathSync(execFileSync('which', ['gh'], { encoding: 'utf8' }).trim())
+  try {
+    const run = () => runner.run('synthetic-user', process.execPath,
+      [join(process.cwd(), 'tools/node_modules/gh-axi/dist/bin/gh-axi.js'), ...call.args],
+      { ...call.environment, GH_BIN: gh }, call.secrets, { ...call.limits, credentialTrust: trust() })
+    const matching = await run()
+    expect(matching.exitCode, matching.stderr).toBe(0)
+    expect(decode(matching.stdout)).toMatchObject({ remaining: 4999 })
     expect(applicationRequests).toEqual(['token CANARY-managed-token'])
     applicationRequests = []
     serve('rotated')
