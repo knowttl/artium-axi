@@ -260,6 +260,15 @@ test.each([
   expect(rewriteSuggestions(result.stdout, 'awx-axi')).toContain('This command additionally requires administrator Allow security administration (allowSecurityAdministration).')
 })
 
+test.each(['post', 'put', 'patch', 'delete'])('api %s managed help names conditional permissions', async operation => {
+  const call = await adapter().prepare(['api', operation, '--help'], reference)
+  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
+  expect(result.status).toBe(0)
+  const help = rewriteSuggestions(result.stdout, 'awx-axi')
+  expect(help).toContain('Requests to security-administration paths also require Allow security administration (allowSecurityAdministration)')
+  expect(help).toContain('api delete also requires Allow destructive deletes (allowDeletes)')
+})
+
 test.each([
   { command: 'workflow node-link', requirement: '--on <success|failure|always> --to <node-id>' },
   { command: 'template notification-add', requirement: 'started, success, or error' },

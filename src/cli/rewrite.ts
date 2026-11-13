@@ -391,6 +391,8 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
       if (route.securityAdministration) help = help.trimEnd()
         + '\nThis command additionally requires administrator Allow security administration (allowSecurityAdministration). A successful matching --dry-run is required before each --confirm.\n'
     }
+    if (['api post', 'api put', 'api patch', 'api delete'].includes(command ?? '')) help = help.trimEnd()
+      + '\nRequests to security-administration paths also require Allow security administration (allowSecurityAdministration); api delete also requires Allow destructive deletes (allowDeletes).\n'
     if (['project create', 'project edit', 'job stdout', 'ad-hoc stdout'].includes(command ?? '')) {
       help = help.trimEnd() + '\nSCM URLs must have no userinfo, credential query parameters or fragments. Use --credential with SCM secrets supplied through credential create/edit --inputs-file. Already-retained AWX logs from URLs set outside Artium are AWX-held data, outside Artium SCM input protection.\n'
     }
