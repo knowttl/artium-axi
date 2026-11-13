@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { decode, encode } from '@toon-format/toon'
@@ -253,8 +253,8 @@ test.each(['stdout', 'stderr'] as const)('hosts every native suggestion block on
 async function executeHostedGh(args: string[], expectedExitCode = 0) {
   const directory = mkdtempSync(join(tmpdir(), 'artium-gh-read-'))
   try {
-    const fake = join(directory, 'gh.mjs')
-    copyFileSync('test/fixtures/fake-gh.mjs', fake)
+    const fake = join(directory, 'gh.ts')
+    writeFileSync(fake, readFileSync('test/fixtures/fake-gh.ts', 'utf8').replace('#!/usr/bin/env node', `#!${process.execPath}`))
     chmodSync(fake, 0o755)
     const call = await adapter.prepare(args, reference)
     const child = spawnSync(process.execPath, [resolve('tools/node_modules/gh-axi/dist/bin/gh-axi.js'), ...call.args], {
@@ -337,8 +337,8 @@ test('the Go trust boundary refuses strict pins before starting a child', async 
 
 test.each(['https://github.com', 'https://github.example'])('runs pinned gh-axi through the real runner and fake gh for %s', async origin => {
   const directory = mkdtempSync(join(tmpdir(), 'artium-gh-'))
-  const fake = join(directory, 'gh.mjs')
-  copyFileSync('test/fixtures/fake-gh.mjs', fake)
+  const fake = join(directory, 'gh.ts')
+  writeFileSync(fake, readFileSync('test/fixtures/fake-gh.ts', 'utf8').replace('#!/usr/bin/env node', `#!${process.execPath}`))
   chmodSync(fake, 0o755)
   const runner = await Runner.create(join(directory, 'calls'))
   try {

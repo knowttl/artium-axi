@@ -8,7 +8,7 @@ import { CredentialProfile } from './credential-profile.js'
 import { Runner } from '../runner/runner.js'
 
 // Proposed contract custody checks only. No tool is admitted for this lifetime.
-const worker = fileURLToPath(new URL('../../../test/fixtures/credential-worker.mjs', import.meta.url))
+const worker = fileURLToPath(new URL('../../../test/fixtures/credential-worker.ts', import.meta.url))
 const credential = { mode: 'application', auth: 'client-secret',
   tenantId: '11111111-1111-4111-8111-111111111111', clientId: '22222222-2222-4222-8222-222222222222',
   clientSecret: 'CANARY-selected secret"/+' }

@@ -32,7 +32,7 @@ beforeEach(async () => {
   adapter.prepare = async (...input) => {
     const call = await prepare(...input)
     return { ...call, executable: process.execPath,
-      args: [join(process.cwd(), 'test/fake-tool/ado-gate-child.mjs'), ...call.args],
+      args: [join(process.cwd(), 'test/fake-tool/ado-gate-child.ts'), ...call.args],
       environment: { ...call.environment, ARTIUM_TEST_ADO_RECORD: join(directory, 'children.jsonl') } }
   }
   app = createApp({ db, audit: new Audit(db, Date.now, () => {}),

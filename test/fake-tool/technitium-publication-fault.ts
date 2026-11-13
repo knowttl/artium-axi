@@ -9,19 +9,19 @@ const result = index < 0 ? undefined : args[index + 1]
 const original = { ...fs.promises }
 const fail = () => { throw Object.assign(new Error('synthetic result storage failure'), { code: 'ENOSPC' }) }
 let destinations = 0
-fs.promises.mkdir = async (path, ...options) => {
+fs.promises.mkdir = (async (path: Parameters<typeof fs.promises.mkdir>[0], ...options: [options?: Parameters<typeof fs.promises.mkdir>[1]]) => {
   if (result && path === dirname(result)) {
     destinations++
     if (failure === 'destination' && destinations === 2) fail()
   }
   return original.mkdir(path, ...options)
-}
+}) as typeof fs.promises.mkdir
 fs.promises.open = async (path, flags, ...options) => {
   const payload = result && String(path).startsWith(result + '.')
   const parent = result && path === dirname(result) && typeof flags === 'number' && (flags & fs.constants.O_DIRECTORY) !== 0
   if (payload && failure === 'open' || parent && failure === 'parent-open') fail()
   const handle = await original.open(path, flags, ...options)
-  for (const method of ['writeFile', 'sync', 'close']) {
+  for (const method of ['writeFile', 'sync', 'close'] as const) {
     if (payload && failure === method || parent && failure === 'parent-' + method) {
       const close = handle.close.bind(handle)
       handle[method] = async () => {

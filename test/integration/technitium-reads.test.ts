@@ -67,7 +67,7 @@ async function withTechnitium(check: (fixture: {
       const prepare = adapter.prepare.bind(adapter)
       adapter.prepare = async (...input) => {
         const call = await prepare(...input)
-        return { ...call, args: [join(process.cwd(), 'test/fake-tool/technitium-publication-fault.mjs'),
+        return { ...call, args: [join(process.cwd(), 'test/fake-tool/technitium-publication-fault.ts'),
           nativeResultFailure === 'journal-close' ? 'rename' : nativeResultFailure, ...call.args],
           fileArguments: call.fileArguments?.map(index => index + 2) }
       }

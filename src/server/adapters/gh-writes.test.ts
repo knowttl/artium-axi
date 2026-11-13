@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { chmodSync, copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test, vi } from 'vitest'
@@ -77,8 +77,8 @@ test.each(samples)('%s requires its exact admin operation and host confirmation'
 function executeWrite(call: PreparedCall, input?: { stdin?: string }, environment: Record<string, string> = {}) {
   const directory = mkdtempSync(join(tmpdir(), 'artium-gh-write-'))
   try {
-    const fake = join(directory, 'gh.mjs')
-    copyFileSync('test/fixtures/fake-gh.mjs', fake)
+    const fake = join(directory, 'gh.ts')
+    writeFileSync(fake, readFileSync('test/fixtures/fake-gh.ts', 'utf8').replace('#!/usr/bin/env node', `#!${process.execPath}`))
     chmodSync(fake, 0o755)
     const log = join(directory, 'calls.jsonl')
     const child = spawnSync(process.execPath, [call.invocation?.nativeGh ? fake : resolve('tools/node_modules/gh-axi/dist/bin/gh-axi.js'), ...call.args], {
