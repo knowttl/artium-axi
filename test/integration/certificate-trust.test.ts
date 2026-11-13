@@ -862,7 +862,7 @@ test('legacy pins migrate once with accurate audit reasons for every retained pi
   const reference = store.findCredential('vectra-axi')!
   const trust = readCredentialTrust(db, reference)
   const credential = store.readCredential(reference) as Record<string, unknown>
-  for (const certificate of ['leaf', 'rotated', 'self-signed']) {
+  for (const certificate of ['root-issued', 'self-signed']) {
     serve(certificate, certificate !== 'self-signed')
     await expect(preflight('vectra-axi', credential, trust)).resolves.toBeUndefined()
     expect(await (await credentialFetch(endpoint, { method: 'GET' }, trust)).text()).toBe('ok')
@@ -872,6 +872,11 @@ test('legacy pins migrate once with accurate audit reasons for every retained pi
       expect(passed.stdout.trim()).toBe('ok')
     }
   }
+  serve('rotated', true)
+  bytes = 0
+  await expect(preflight('vectra-axi', credential, trust)).rejects.toMatchObject({ diagnostic: { toolCode: 'CERTIFICATE_PIN_MISMATCH' } })
+  await expect(credentialFetch(endpoint, { method: 'GET' }, trust)).rejects.toMatchObject({ code: 'CERTIFICATE_PIN_MISMATCH' })
+  expect(bytes).toBe(0)
   tlsServer.setSecureContext({ key: readFileSync(join(directory, 'server.key')), cert: pem('other-ca-leaf') + pem('other-ca') })
   bytes = 0
   await expect(preflight('vectra-axi', credential, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })

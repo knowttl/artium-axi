@@ -145,6 +145,7 @@ The token-forbidden password and TFA management operations require the stored us
 The connection editor displays saved `caBundle` PEM and `certificatePin` fingerprints read-only and retains them when editing other fields for the same endpoint.
 Use the certificate and fingerprint controls to replace or remove credential trust; pins remain bound to their exact origin and cannot be combined with a CA bundle.
 For a fingerprint pin, **Use fingerprint instead of hostname verification** permits a certificate that cannot match the endpoint hostname; enable it only when needed.
+This intentional Proxmox-only exception skips only hostname comparison; the exact leaf fingerprint remains mandatory on every connection, including when endpoint CA trust is also saved.
 See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for inspection and administrator-confirmed trust.
 After saving, testing, enabling and granting the tool, use `artium-axi proxmox-axi get /version` for the first managed read.
 JSON writes require exact operation IDs in native `writes.operations` and the independent host grant list controlled by **Write permissions**.

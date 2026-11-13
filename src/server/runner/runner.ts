@@ -50,6 +50,7 @@ export interface RunnerLimits {
   nodeHeapMiB?: number
   signal?: AbortSignal
   credentialTrust?: readonly CredentialTrust[]
+  proxmoxReplaceHostname?: string
   protectedResult?: { name: string, flag: string, receive: (bytes: Buffer) => void }
   protectedPipe?: ({ flag: string, argumentIndex: number } | { environment: string }) & {
     receive: (bytes: Buffer) => readonly string[] | void
@@ -238,7 +239,9 @@ async function execute(
   const pins = credentialTrust.map(certificate => {
     const endpoint = certificateEndpoint(certificate.endpoint)
     return { hostname: endpoint.hostname, port: endpoint.port, protocol: new URL(certificate.endpoint).protocol,
-      leafFingerprint: certificate.leafFingerprint, pem: certificate.pem, mode: certificate.mode }
+      leafFingerprint: certificate.leafFingerprint, pem: certificate.pem, mode: certificate.mode,
+      replaceHostname: limits.proxmoxReplaceHostname !== undefined
+        && certificateEndpoint(limits.proxmoxReplaceHostname).href === certificateEndpoint(certificate.endpoint).href }
   })
   const cap = limits.outputBytesPerStream ?? runnerLimits.outputBytesPerStream
   const timeoutMs = limits.timeoutMs ?? runnerLimits.timeoutMs

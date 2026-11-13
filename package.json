@@ -27,7 +27,7 @@
     "test:build-image": "node scripts/build-fake-service-image.mjs",
     "test:runner-container": "pnpm build && node scripts/runner-container-check.mjs",
     "test:security": "vitest run --testNamePattern security --passWithNoTests",
-    "lint": "tsc --noEmit && tsc -p tsconfig.scripts.json && tsc -p tsconfig.axi-check.json && node --check scripts/axi-check.ts",
+    "lint": "tsc --noEmit && tsc -p tsconfig.scripts.json && tsc -p tsconfig.axi-check.json && node --check scripts/axi-check.ts && node scripts/tls-policy.ts",
     "errors:generate": "node scripts/errors-reference.ts --write",
     "offered:generate": "node scripts/offered-commands.mjs",
     "pin:freshness": "node scripts/pin-freshness.mjs",

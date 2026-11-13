@@ -6,6 +6,7 @@
   },
   "include": [
     "scripts/hygiene-check.ts",
+    "scripts/tls-policy.ts",
     "scripts/errors-reference.ts",
     "scripts/mg-headless-schema.ts",
     "scripts/test-gate.ts",

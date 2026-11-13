@@ -347,11 +347,14 @@ When a failed handshake does not expose its leaf, diagnostics can open a separat
 This diagnostic connection sends no credentials or application requests, establishes no trust and leaves the real connection rejected; mismatch errors omit certificate contents and fingerprint values.
 On upgrade, saved pins with separate CA anchors are converted once to CA trust; self-signed leaf pins and leaf pins with no issuing CA stored remain pins.
 Each converted or retained entry is recorded in the audit log, and cached tool health is cleared.
-If migration leaves both modes at one endpoint, connections accept leaves issued by its saved CA anchors or the retained pinned leaves themselves; a retained pin does not extend CA trust to its issuer.
-For a Kubernetes managed certificate name, the leaf must also match a retained pin even when CA trust exists.
+If migration leaves both modes at one endpoint, a retained pin does not extend CA trust to its issuer.
 Previously saved automatic intermediate repairs are removed on upgrade, clearing affected tools' cached health; they do not become confirmed CA anchors.
 The shared runner adds the certificate to its existing Node, Python, LDAP and Vectra trust injection, and server-side token acquisition uses the same credential trust.
 Trust does not disable date verification; hostname verification remains enabled except for the existing [Proxmox fingerprint option](tool-credentials.md#proxmox).
+Across every tool, a saved exact pin remains mandatory even when the endpoint also has CA trust; a CA supplies chain trust and never overrides a pin.
+See the [TLS route and fixture inventory](tls-policy.md) for transport scope and the read-only compatibility assessment.
+Existing setups that relied on a CA to override a stale pin will fail until the pin is updated.
+Inspect the endpoint, compare the new fingerprint through an independent trusted route, then use **Renew trust** or replace the saved fingerprint in **Certificate verification** before testing again.
 Confirming initial trust for an expired or hostname-mismatched certificate saves trust but does not fix the connection: renew the certificate or use its matching hostname.
 
 If the server omitted an intermediate, inspection can retrieve the leaf certificate’s AIA issuer automatically.

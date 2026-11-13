@@ -24,7 +24,7 @@ tls.connect = function (...args) {
   const host = (options.host || 'localhost').replace(/^\[|\]$/g, '').toLowerCase();
   const port = Number(options.port || options.socket?.remotePort || 443);
   const expected = pins.filter(pin => pin.hostname === host && pin.port === port);
-  const scoped = buildOptions(tls, expected, options.ca);
+  const scoped = buildOptions(tls, expected, options.ca, !expected.some(pin => pin.replaceHostname));
   const check = options.checkServerIdentity;
   const socket = original.call(this, { ...options, ...scoped,
     session: undefined,
@@ -32,7 +32,7 @@ tls.connect = function (...args) {
       return scoped.checkServerIdentity(hostname, peer) || check?.(hostname, peer);
     }
   }, args.find(value => typeof value === 'function'));
-  if (!expected.some(pin => pin.mode === 'pin') || expected.some(pin => pin.mode === 'ca')) return socket;
+  if (!expected.some(pin => pin.mode === 'pin')) return socket;
   const emit = socket.emit;
   let failure;
   socket.emit = function (event, ...values) {
@@ -84,7 +84,7 @@ def _ldap_start_tls(raw):
 
 def _certificate_failure(expected, peer, host, failure=None, certificate=None):
     fingerprints = [pin['leafFingerprint'].replace(':', '').upper() for pin in expected if pin['mode'] == 'pin']
-    if any(pin['mode'] == 'ca' for pin in expected) or not fingerprints:
+    if not fingerprints:
         return failure
     if certificate is None and failure is not None:
         try:
