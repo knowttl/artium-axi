@@ -39,7 +39,7 @@ export interface PreparedCall {
     | { source: 'pipe', flag: string, argumentIndex: number } | { source: 'proxmox' })
   write?: { operation: string, target: string, checkArgs: string[], afterCheck?: string }
   preview?: { operation: string, target: string, confirm: string }
-  limits: { timeoutMs: number, directoryScope?: string, terminationGraceMs?: number, runtime?: 'python', nodeHeapMiB?: number, systemCaBundle?: boolean | { endpoint: string }, privateOutput?: PrivateOutput,
+  limits: { timeoutMs: number, directoryScope?: string, terminationGraceMs?: number, runtime?: 'python', nodeHeapMiB?: number, systemCaBundle?: import('../runner/runner.js').GoTransportTrust, privateOutput?: PrivateOutput,
     validateOutput?: (stdout: string) => void }
 }
 

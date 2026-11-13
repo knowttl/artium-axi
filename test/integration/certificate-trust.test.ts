@@ -283,6 +283,21 @@ test('Kubernetes certificate administration refuses leaf pins and accepts an iss
   expect(bytes).toBe(0)
 })
 
+test('GitHub certificate administration accepts strict pins without sending credentials', async () => {
+  serve('leaf', true)
+  const reference = store.replaceCredential('gh-axi', { origin: endpoint, auth: 'token', token: 'CANARY-never-sent' },
+    0, 'synthetic-development-user', Date.now())
+  const url = '/v1/admin/tools/gh-axi/certificates'
+  const inspected = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  expect(inspected.statusCode, inspected.body).toBe(200)
+  const accepted = await app.inject({ method: 'POST', url: url + '/trust', headers,
+    payload: { inspectionId: inspected.json().inspectionId, mode: 'pin' } })
+  expect(accepted.statusCode, accepted.body).toBe(200)
+  expect(readCredentialTrust(db, reference)).toEqual([expect.objectContaining({ mode: 'pin', endpoint: endpoint + '/',
+    leafFingerprint: new X509Certificate(pem('leaf')).fingerprint256 })])
+  expect(bytes).toBe(0)
+})
+
 test.each([
   { chain: false, mode: 'pin' }, { chain: true, mode: 'ca' },
 ] as const)('an empty-subject leaf can be inspected, trusted and listed with its SAN (chain: $chain)', async ({ chain, mode }) => {

@@ -271,6 +271,7 @@ export function createGhAdapter(source: SecretSource, tokens = new GithubAppToke
         GH_NO_EXTENSION_UPDATE_NOTIFIER: '1', GH_SPINNER_DISABLED: '1', GH_TELEMETRY: '0', NO_COLOR: '1',
         GH_PAGER: 'cat', GOMEMLIMIT: '256MiB',
       }, files: [], secrets: [token, ...(parsed.data.auth === 'github-app' ? [parsed.data.privateKey as string] : [])],
-      effect: write ? 'write' : 'read', ...(write ? { write } : {}), limits: { timeoutMs: runnerLimits.timeoutMs, systemCaBundle: true } }
+      effect: write ? 'write' : 'read', ...(write ? { write } : {}), limits: { timeoutMs: runnerLimits.timeoutMs,
+        systemCaBundle: { transport: 'github' } } }
     } }
 }
