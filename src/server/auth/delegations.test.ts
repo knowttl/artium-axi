@@ -75,6 +75,12 @@ test.each([
     candidates: ['task status', 'task cancel', 'delete /nodes/{node}/lxc/{vmid}'], allowed: ['task status', 'task cancel'], enabled: true, granted: true },
   { adapter: createProxmoxAdapter(source), settings: { hostWrites: { allowWrites: false, operations: ['OP-DELETE-d6b1eb65f2'] } }, readOnly: false,
     candidates: ['task status', 'task cancel'], allowed: ['task status'], enabled: true, granted: true },
+  { adapter: createProxmoxAdapter(source), settings: { hostWrites: { allowWrites: true, operations: ['OP-POST-c4fdd6f30b'] } }, readOnly: false,
+    candidates: ['create /nodes/{node}/execute'], allowed: [], enabled: true, granted: true },
+  { adapter: createProxmoxAdapter(source), settings: { hostWrites: { allowWrites: true, operations: ['OP-POST-c4fdd6f30b', 'OP-DELETE-db1a319dfa'] } }, readOnly: false,
+    candidates: ['create /nodes/{node}/execute'], allowed: ['create /nodes/{node}/execute'], enabled: true, granted: true },
+  { adapter: createProxmoxAdapter(source), settings: { hostWrites: { allowWrites: true, operations: ['OP-DELETE-db1a319dfa'] } }, readOnly: false,
+    candidates: ['create /nodes/{node}/execute'], allowed: [], enabled: true, granted: true },
 ])('$adapter.name discovery matches execution authorization under $settings, readOnly=$readOnly, enabled=$enabled, granted=$granted (R17)',
   ({ adapter, settings, readOnly, candidates, allowed, enabled, granted }) => {
     const db = new Database(':memory:')

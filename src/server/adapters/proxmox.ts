@@ -50,7 +50,12 @@ function protectedInput(text: string): { api: Record<string, unknown>, secrets: 
 function authorizeOperation(command: string, settings: Record<string, unknown>) {
   const routes: Command[] = [...commands, ...inventory.streamCommands]
   const route = routes.find(route => route.command === command)
-  if (route?.effect === 'write') proxmoxWritePolicy.authorize(settings, allowed => allowed === route.operationId)
+  if (route?.effect === 'write') {
+    proxmoxWritePolicy.authorize(settings, allowed => allowed === route.operationId)
+    if (route.path === '/nodes/{node}/execute') proxmoxWritePolicy.authorize(settings, allowed => commands.some(child =>
+      child.operationId === allowed && child.operationId !== route.operationId && child.path?.startsWith('/nodes/{node}/')
+      && child.command === `${child.method === 'POST' ? 'create' : child.method === 'PUT' ? 'set' : child.method?.toLowerCase()} ${child.path}`))
+  }
 }
 
 function requireOperations(route: Command, values: Record<string, unknown>, allowed: readonly string[],
