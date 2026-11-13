@@ -9,10 +9,15 @@ Do not edit this generated file.
 This is the target policy, not the [current implemented write boundary](safety.md#write-gates-by-tool).
 
 - read: Managed account access; reads always allowed by write policy.
-- write: One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery.
-- destructive: Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery.
+- write: One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it, and security administration also requires Allow security administration, default OFF; preview, explicit confirmation, coordination, audit and unknown-outcome recovery.
+- destructive: Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; security-administration deletes additionally require Allow security administration; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery.
 
-Deletes and bulk host create/delete need the separate Allow destructive deletes setting in addition to the writes switch; there is no separate security authorization tier.
+Deletes and bulk host create/delete need the separate Allow destructive deletes setting in addition to the writes switch.
+Security administration needs the separate Allow security administration setting in addition to the writes switch, default OFF, with preview by --dry-run and explicit --confirm. It covers the commands tagged securityAdministration in tools/inventories/awx-axi.json: organization create, organization edit, organization delete, organization user-add, organization user-remove, organization admin-add, organization admin-remove, organization team-add, organization team-remove, user token-create, user token-revoke, user create, user edit, user delete, team user-add, team user-remove, team create, team edit, team delete, role grant, role revoke.
+Security-administration deletes (organization delete, user delete, team delete) need both Allow security administration and Allow destructive deletes.
+Raw api writes to security-administration paths also need Allow security administration; see [Raw API access](safety.md#raw-api-access).
+Ordinary configuration associations, such as template credential-add and organization notification-add, need the writes switch alone.
+The Effect column reports upstream effect labels and does not select this gate; only the commands listed above require Allow security administration.
 Upstream config/delete/security tags and native gates remain implementation constraints, not administrator permission tiers.
 Artium must supply the appropriate native gates under the writes switch and, for destructive operations, the Allow destructive deletes setting.
 All operations retain tenant/account access, managed HTTPS origin, verified TLS, credential isolation and AWX resource authorization.
