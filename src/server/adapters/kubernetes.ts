@@ -12,6 +12,10 @@ import { CredentialProfile } from './credential-profile.js'
 import { writePolicy } from './write-policy.js'
 
 export const kubernetesProfile = new CredentialProfile(inventory.credentialSchema, 'kubernetes-axi')
+function authorizeOperation(command: string, settings: Record<string, unknown>) {
+  if (command === 'create token' && settings.acquireCredential !== true) throw new ArtiumError('FLAG_BLOCKED')
+}
+
 export const kubernetesWritePolicy = writePolicy({
   unlocks: 'Prepare resource mutations, inspect saved previews, confirm exact digests and explicitly request server dry run. Bounded byte operations additionally require explicit per-caller session-kind grants in advanced native settings.',
   blocked: 'Bulk deletion additionally requires collectionDelete=true; service-account token issuance requires acquireCredential=true and private-pipe delivery. Use owned workspaces for file input and explicitly granted sessions for bounded execution, copy and authenticated port forwarding. Direct mutations, local configuration and interactive execution remain unavailable.' })
@@ -70,6 +74,7 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
     sensitiveArguments: args => ({ flags: [...new Set(inventory.commands.flatMap(route => Object.keys(route.flags)))].map(name => `--${name}`),
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { argumentsForCall(args, input) },
+    authorizeOperation,
     rawApi: { commands: ['native'], writes: false, help: (args, input) => argumentsForCall(args, input).invocation.help },
     executesWrite(args, input) {
       const call = argumentsForCall(args, input)
@@ -96,7 +101,7 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
       const settings = source.getSettings?.(reference) ?? {}
       const writable = workflow && workflow !== 'preview'
       if (writable && !kubernetesWritePolicy.read(settings).enabled) throw new ArtiumError('FLAG_BLOCKED')
-      if (acquisition && settings.acquireCredential !== true) throw new ArtiumError('FLAG_BLOCKED')
+      if (acquisition) authorizeOperation('create token', settings)
       if (workflow && !workflowRoot) throw new ArtiumError('TEMP_UNAVAILABLE')
       const value = await source.getCredential(reference)
       const profile = kubernetesProfile.prepare('kubernetes-axi', value, undefined, !writable)

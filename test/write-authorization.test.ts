@@ -1,3 +1,4 @@
+import { join } from 'node:path'
 import { expect, test } from 'vitest'
 import beyondtrustInventory from '../tools/inventories/beyondtrust-axi.json' with { type: 'json' }
 import checkpointInventory from '../tools/inventories/checkpoint-axi.json' with { type: 'json' }
@@ -7,7 +8,13 @@ import tenableInventory from '../tools/inventories/tenable-axi.json' with { type
 import vectraInventory from '../tools/inventories/vectra-axi.json' with { type: 'json' }
 import { beyondtrustWritePolicy, createBeyondtrustAdapter } from '../src/server/adapters/beyondtrust.js'
 import { checkpointWritePolicy, createCheckpointAdapter } from '../src/server/adapters/checkpoint.js'
+import { createFalconAdapter } from '../src/server/adapters/falcon.js'
+import { createGiteaAdapter } from '../src/server/adapters/gitea.js'
 import { createHybridAdapter, hybridWritePolicy } from '../src/server/adapters/hybrid.js'
+import { createKubernetesAdapter } from '../src/server/adapters/kubernetes.js'
+import { createProxmoxAdapter } from '../src/server/adapters/proxmox.js'
+import { createTechnitiumAdapter } from '../src/server/adapters/technitium.js'
+import { createUnifiAdapter } from '../src/server/adapters/unifi.js'
 import { createMgAdapter, mgManifest, mgWritePolicy } from '../src/server/adapters/mg.js'
 import { mgReadCommands, vectraReadCommands } from '../src/server/adapters/reviewed-reads.js'
 import { createTenableAdapter, tenableWritePolicy } from '../src/server/adapters/tenable.js'
@@ -76,4 +83,25 @@ test.each([
 ] as const)('%s %s accepts %s and refuses %s', (tool, command, accepted, refused) => {
   expect(accepts(tool, command, accepted)).toBe(true)
   expect(accepts(tool, command, refused)).toBe(false)
+})
+
+const kubernetes = await createKubernetesAdapter(source, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'))
+const selected = (operations: string[]) => ({ writes: { allowWrites: true, operations } })
+const hosted = (operations: string[]) => ({ hostWrites: { allowWrites: true, operations }, writes: { allowWrites: true, operations } })
+
+test.each([
+  { adapter: createUnifiAdapter(source, writeLog), command: 'acl-rule create', accepted: selected(['createAclRule']), refused: selected(['deleteAclRule']) },
+  { adapter: createFalconAdapter(source, writeLog), command: 'search start', accepted: selected(['search start']), refused: selected(['search stop']) },
+  { adapter: createGiteaAdapter(source, writeLog), command: 'issue create', accepted: selected(['issueCreateIssue']), refused: selected([]) },
+  { adapter: createGiteaAdapter(source, writeLog), command: 'issue create', accepted: selected(['issueCreateIssue', 'issueDeleteComment']), refused: selected(['issueCreateIssue']),
+    args: ['issue', 'create', '--repo', 'owner/repository', '--title', 'Synthetic', '--allow-write', 'issueCreateIssue,issueDeleteComment', '--preview'] },
+  { adapter: createTechnitiumAdapter(source, writeLog), command: 'admin cluster init', accepted: hosted(['OP-119']),
+    refused: { hostWrites: { allowWrites: true, operations: ['OP-119'] }, writes: { allowWrites: true, operations: ['OP-120'] } } },
+  { adapter: createProxmoxAdapter(source, writeLog), command: 'task cancel', accepted: { hostWrites: { allowWrites: true, operations: ['OP-DELETE-d6b1eb65f2'] } },
+    refused: { hostWrites: { allowWrites: true, operations: ['OP-DELETE-db1a319dfa'] } } },
+  { adapter: kubernetes, command: 'create token', accepted: { allowWrites: true, acquireCredential: true }, refused: { allowWrites: true } },
+])('$adapter.name $command is authorized only by the administrator allow-list selection', ({ adapter, command, accepted, refused, args }) => {
+  const authorize = (settings: Record<string, unknown>) => () => adapter.authorizeOperation!(command, settings, args)
+  expect(authorize(refused)).toThrow(expect.objectContaining({ code: 'FLAG_BLOCKED' }))
+  expect(authorize(accepted)).not.toThrow()
 })

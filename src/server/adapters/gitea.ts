@@ -19,6 +19,13 @@ export const giteaWritePolicy = writePolicy({ supportedOperations: giteaWriteOpe
   unlocks: 'Exact native operations with preview, revision-bound confirmation and durable reconciliation receipts.',
   blocked: 'Ordinary downloads, server paths, local workflows and credential overrides remain unavailable. Use managed transfers for one exact attachment.' })
 
+function authorizeOperation(_command: string, settings: Record<string, unknown>, args?: readonly string[], input?: RunnerInput) {
+  const call = args && giteaArguments(args, input)
+  const operations = call && 'operations' in call && call.operations || []
+  if (!operations.length) giteaWritePolicy.authorize(settings, () => true)
+  for (const operation of operations) giteaWritePolicy.authorize(settings, allowed => allowed === operation)
+}
+
 function giteaArguments(args: readonly string[], input: RunnerInput = {}) {
   if (args.some(arg => arg.startsWith('--') && inventory.adapterBoundary.unsafeOverrides.includes(arg.slice(2).split('=')[0]))) {
     throw new ArtiumError('FLAG_BLOCKED')
@@ -150,6 +157,7 @@ export function createGiteaAdapter(source: SecretSource, writeLog?: string): Ada
     },
     validateArgs: (args, input) => { giteaArguments(args, input) },
     executesWrite: (args, input) => { const call = giteaArguments(args, input); return 'effect' in call && call.effect === 'write' },
+    authorizeOperation,
     rawApi: { commands: ['api'], writes: true, help: (args, input) => giteaArguments(args, input).invocation.help },
     classify(args, input) {
       let apiMutation = false
@@ -173,7 +181,7 @@ export function createGiteaAdapter(source: SecretSource, writeLog?: string): Ada
       if (reference.tool !== 'gitea-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const settings = source.getSettings?.(reference) ?? {}
       const state = giteaWritePolicy.read(settings)
-      if ('mutation' in call && call.mutation && (!state.enabled || call.operations.some(operation => !state.allowedOperations.includes(operation)))) throw new ArtiumError('FLAG_BLOCKED')
+      if ('mutation' in call && call.mutation) authorizeOperation(call.invocation.command, settings, args, input)
       if (state.enabled && (!writeLog || !isAbsolute(writeLog))) throw new TypeError('Gitea writes require an absolute server-owned journal path')
       const profile = giteaProfile.prepare('gitea-axi', await source.getCredential(reference), writeLog, !state.enabled)
       const protectedInputs = 'secretInput' in call && call.secretInput

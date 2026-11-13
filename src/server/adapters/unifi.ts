@@ -15,6 +15,10 @@ export const unifiWritePolicy = writePolicy({ supportedOperations: inventory.wri
   unlocks: 'Exact native operation and variant grants. Preview first, then execute with the matching confirmation and a stable request ID.',
   blocked: 'Local configuration, credential overrides, secret export and byte transports remain unavailable in hosted execution.' })
 
+function authorizeOperation(command: string, settings: Record<string, unknown>) {
+  unifiWritePolicy.authorize(settings, allowed => allowed === inventory.commands.find(route => route.command === command)?.operation)
+}
+
 function argumentsForCall(args: readonly string[], input: RunnerInput = {}) {
   if (input.stdin !== undefined) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (args.some(arg => arg.startsWith('--') && inventory.adapterBoundary.unsafeOverrides.includes(arg.slice(2).split('=')[0]))) throw new ArtiumError('FLAG_BLOCKED')
@@ -87,12 +91,14 @@ export function createUnifiAdapter(source: SecretSource, writeLog?: string): Ada
     sensitiveInput: (_args, input) => Boolean(input?.files?.length),
     validateArgs: (args, input) => { argumentsForCall(args, input) },
     executesWrite: (args, input) => argumentsForCall(args, input).effect === 'write',
+    authorizeOperation,
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => argumentsForCall(a, i).invocation, args, input),
     async prepare(args, reference, input) {
       const call = argumentsForCall(args, input)
       if (reference.tool !== 'unifi-axi') throw new ArtiumError('CREDENTIAL_INVALID')
-      const state = unifiWritePolicy.read(source.getSettings?.(reference) ?? {})
-      if (call.executing && (!state.enabled || !state.allowedOperations.includes(call.operation))) throw new ArtiumError('FLAG_BLOCKED')
+      const settings = source.getSettings?.(reference) ?? {}
+      const state = unifiWritePolicy.read(settings)
+      if (call.executing) authorizeOperation(call.invocation.command, settings)
       if ((call.executing || call.invocation.command.startsWith('write ')) && (!writeLog || !isAbsolute(writeLog))) throw new ArtiumError('TEMP_UNAVAILABLE')
       const value = await source.getCredential(reference)
       const prepared = unifiProfile.prepare('unifi-axi', value, writeLog, !state.enabled)

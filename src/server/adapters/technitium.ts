@@ -26,6 +26,11 @@ const nativePolicy = writePolicy({ supportedOperations: inventory.writeOperation
   blocked: 'Login acquisition, explicit create-token acquisition, alternate reconciliation profiles and caller state overrides are unavailable.' })
 export const technitiumWritePolicy = {
   read: (settings: Record<string, unknown>) => nativePolicy.read({ ...settings, writes: settings.hostWrites }),
+  authorize(settings: Record<string, unknown>, operation: string | undefined) {
+    nativePolicy.authorize({ ...settings, writes: settings.hostWrites }, allowed => allowed === operation)
+    const native = settings.writes as { allowWrites?: boolean, operations?: string[] } | undefined
+    if (native?.allowWrites !== true || !native.operations?.includes(operation!)) throw new ArtiumError('FLAG_BLOCKED')
+  },
   update(settings: Record<string, unknown>, input: Parameters<typeof nativePolicy.update>[1]) {
     const { writes: profileWrites, ...rest } = settings
     const { writes, ...updated } = nativePolicy.update({ ...rest, writes: settings.hostWrites }, input)
@@ -105,6 +110,12 @@ function argumentsForCall(args: readonly string[], input: RunnerInput = {}) {
     effect: write && seen.has('execute') ? 'write' as const : 'read' as const }
 }
 
+function authorizeOperation(command: string, settings: Record<string, unknown>, args?: readonly string[], input?: RunnerInput) {
+  const call = args && argumentsForCall(args, input)
+  const route = inventory.commands.find(route => route.command === command)
+  if (call ? call.write : !route || route.effect === 'write') technitiumWritePolicy.authorize(settings, call ? call.operation : route?.operation)
+}
+
 async function journalReceipt(call: ReturnType<typeof argumentsForCall>, writeLog: string, tokenKind: unknown, capture: (receipt: MutationReceipt) => void) {
   const handle = await open(join(`${writeLog}.d`, `${call.confirm}.json`), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
   let bytes: Buffer | undefined
@@ -140,15 +151,14 @@ export function createTechnitiumAdapter(source: SecretSource, writeLog?: string)
     sensitiveInput: () => true,
     validateArgs: (args, input) => { argumentsForCall(args, input) },
     executesWrite: (args, input) => argumentsForCall(args, input).effect === 'write',
+    authorizeOperation,
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => argumentsForCall(a, i).invocation, args, input),
     async prepare(args, reference, input) {
       const call = argumentsForCall(args, input)
       if (reference.tool !== 'technitium-axi') throw new ArtiumError('CREDENTIAL_INVALID')
       const settings = source.getSettings?.(reference) ?? {}
       const state = technitiumWritePolicy.read(settings)
-      const native = settings.writes as { allowWrites?: boolean, operations?: string[] } | undefined
-      if (call.write && (!state.enabled || !state.allowedOperations.includes(call.operation!)
-        || native?.allowWrites !== true || !native.operations?.includes(call.operation!))) throw new ArtiumError('FLAG_BLOCKED')
+      authorizeOperation(call.invocation.command, settings, args, input)
       if (call.body && (!writeLog || !isAbsolute(writeLog))) throw new ArtiumError('TEMP_UNAVAILABLE')
       const credential = await source.getCredential(reference)
       const prepared = technitiumProfile.prepare('technitium-axi', credential, writeLog, !state.enabled)

@@ -24,6 +24,7 @@ const nativePolicy = writePolicy({ supportedOperations: inventory.writeOperation
   blocked: 'Caller credentials, separate PVE sign-in, server file selection and session overrides remain unavailable. Byte routes require stream --.' })
 export const proxmoxWritePolicy = {
   read: (settings: Record<string, unknown>) => nativePolicy.read({ ...settings, writes: settings.hostWrites }),
+  authorize: (settings: Record<string, unknown>, accepts: (operation: string) => boolean) => nativePolicy.authorize({ ...settings, writes: settings.hostWrites }, accepts),
   update(settings: Record<string, unknown>, input: Parameters<typeof nativePolicy.update>[1]) {
     const { writes: profileWrites, ...rest } = settings
     const { writes, ...updated } = nativePolicy.update({ ...rest, writes: settings.hostWrites }, input)
@@ -44,6 +45,12 @@ function protectedInput(text: string): { api: Record<string, unknown>, secrets: 
     throw new ArtiumError('INVALID_INPUT')
   }
   return body
+}
+
+function authorizeOperation(command: string, settings: Record<string, unknown>) {
+  const routes: Command[] = [...commands, ...inventory.streamCommands]
+  const route = routes.find(route => route.command === command)
+  if (route?.effect === 'write') proxmoxWritePolicy.authorize(settings, allowed => allowed === route.operationId)
 }
 
 function requireOperations(route: Command, values: Record<string, unknown>, allowed: readonly string[],
@@ -184,9 +191,10 @@ export function createProxmoxAdapter(source: SecretSource, writeLog?: string): P
       const call = argumentsForCall(args, input, streaming)
       if (streaming && call.invocation.help) throw new ArtiumError('INVALID_INPUT')
       if (reference.tool !== 'proxmox-axi') throw new ArtiumError('CREDENTIAL_INVALID')
-      const state = proxmoxWritePolicy.read(source.getSettings?.(reference) ?? {})
+      const settings = source.getSettings?.(reference) ?? {}
+      const state = proxmoxWritePolicy.read(settings)
       if (call.write) {
-        if (!state.enabled) throw new ArtiumError('FLAG_BLOCKED')
+        authorizeOperation(call.route.command, settings)
         requireOperations(call.route, call.values, state.allowedOperations, call.body?.secrets ?? {})
       }
       if ((call.write || !call.invocation.help && (call.invocation.command.startsWith('journal ') || call.args.includes('--journal')))
@@ -223,10 +231,7 @@ export function createProxmoxAdapter(source: SecretSource, writeLog?: string): P
     blockedFlags: inventory.adapterBoundary.unsafeOverrides.map(name => '--' + name), allowedFlagValues: {},
     sensitiveArguments: args => ({ flags: args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0]), positions: args.map((_, index) => index) }),
     sensitiveInput: () => true,
-    authorizeOperation(command, settings) {
-      const route = inventory.streamCommands.find(route => route.command === command)
-      if (route?.effect === 'write' && route.operationId && !proxmoxWritePolicy.read(settings).allowedOperations.includes(route.operationId)) throw new ArtiumError('FLAG_BLOCKED')
-    },
+    authorizeOperation,
     validateArgs: (args, input) => { argumentsForCall(args, input) },
     executesWrite: (args, input) => argumentsForCall(args, input).effect === 'write',
     nestedOperations(args, input) {

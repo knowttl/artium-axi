@@ -587,7 +587,8 @@ test('revocation aborts an in-flight delegated read', async () => {
 test.each(['get /version', 'create /access/users/{userid}/token/{tokenid}'])('minting preserves the exact Proxmox route %s (R1)', async command => {
   await app.close()
   addDiscoveryInstance('proxmox-axi')
-  db.exec(`UPDATE tools SET enabled = 1, native_settings = '{"hostWrites":{"allowWrites":true,"operations":[]}}' WHERE name = 'proxmox-axi'`)
+  db.prepare('UPDATE tools SET enabled = 1, native_settings = ? WHERE name = ?').run(JSON.stringify({
+    hostWrites: { allowWrites: true, operations: proxmoxInventory.writeOperations } }), 'proxmox-axi')
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-proxmox')), audit: new Audit(db),
     adapters: [createProxmoxAdapter(new EmbeddedSecretSource(credentials))], environment: {},
     resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
@@ -663,8 +664,9 @@ test.each([
 ] as const)('$tool normalizes $selection from mint through execution and discovery (R15)', async ({ tool, selection, canonical, execution, discovered }) => {
   await app.close()
   db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
-  db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'kubernetes-axi';
-    UPDATE tools SET native_settings = '{"hostWrites":{"allowWrites":true,"operations":[]}}' WHERE name = 'proxmox-axi'`)
+  db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"acquireCredential":true}' WHERE name = 'kubernetes-axi'`)
+  db.prepare('UPDATE tools SET native_settings = ? WHERE name = ?').run(JSON.stringify({
+    hostWrites: { allowWrites: true, operations: proxmoxInventory.writeOperations } }), 'proxmox-axi')
   const source = new EmbeddedSecretSource(credentials)
   const adapters = [createAdoAdapter(source), createGhAdapter(source), createAzAdapter(source, join(directory, 'writes.log')),
     createProxmoxAdapter(source), await createKubernetesAdapter(source,
@@ -693,7 +695,7 @@ test.each([
 
 test('Kubernetes token preparation requires an exact writable pick before resolving credentials', async () => {
   await app.close()
-  db.exec(`UPDATE tools SET enabled = 1, native_settings = '{"allowWrites":true}' WHERE name = 'kubernetes-axi'`)
+  db.exec(`UPDATE tools SET enabled = 1, native_settings = '{"allowWrites":true,"acquireCredential":true}' WHERE name = 'kubernetes-axi'`)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-kubernetes')), audit: new Audit(db),
     adapters: [await createKubernetesAdapter(new EmbeddedSecretSource(credentials),
       join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), join(directory, 'requests'))],
@@ -729,9 +731,9 @@ test.each([
   const root = join(directory, 'requests')
   const reference = credentials.replaceCredential('kubernetes-axi', { origin: 'https://cluster.synthetic.test', auth: 'token',
     namespace: 'synthetic', certificateAuthority: 'CANARY-CA', token: 'CANARY-kubernetes-token' }, 0, 'synthetic-development-user', Date.now())
-  db.prepare('UPDATE tools SET enabled = 1, native_settings = ? WHERE name = ?').run('{"allowWrites":true}', 'kubernetes-axi')
+  db.prepare('UPDATE tools SET enabled = 1, native_settings = ? WHERE name = ?').run('{"allowWrites":true,"acquireCredential":true}', 'kubernetes-axi')
   const adapter = await createKubernetesAdapter({ getCredential: async () => { throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED') },
-    getSettings: () => ({ allowWrites: true }) }, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), root)
+    getSettings: () => ({ allowWrites: true, acquireCredential: true }) }, join(process.cwd(), 'tools/node_modules/@knowttl/kubernetes-axi/bin/kubernetes-axi.js'), root)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls-continuations')), audit: new Audit(db),
     adapters: [adapter], environment: {}, resolver: new SharedIdentityResolver(credentials, db), credentialStore: credentials })
   const minted = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',

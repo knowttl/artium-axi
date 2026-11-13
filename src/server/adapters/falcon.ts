@@ -30,10 +30,14 @@ function capabilitySettings(settings: Record<string, unknown>) {
 }
 export const falconWritePolicy = {
   read: (settings: Record<string, unknown>) => capabilityPolicy.read(capabilitySettings(settings)),
+  authorize: (settings: Record<string, unknown>, accepts: (operation: string) => boolean) => capabilityPolicy.authorize(capabilitySettings(settings), accepts),
   update(settings: Record<string, unknown>, input: Parameters<typeof capabilityPolicy.update>[1]) {
     const { allowWrites: _, writes: __, ...rest } = settings
     return { ...rest, ...capabilityPolicy.update(capabilitySettings(settings), input) }
   },
+}
+function authorizeOperation(command: string, settings: Record<string, unknown>) {
+  falconWritePolicy.authorize(settings, allowed => allowed === command)
 }
 export const falconCredentialFiles = z.object({
   clientIdFile: z.string().min(1), clientSecretFile: z.string().min(1),
@@ -59,14 +63,14 @@ export function createFalconAdapter(source: SecretSource, writeLog = defaultWrit
       positions: args.map((_, index) => index) }),
     validateArgs: (args, input) => { validateFalconArgs(args, input) },
     executesWrite: (args, input) => parseFalconArgs(args, input).executing,
+    authorizeOperation,
     rawApi: { commands: ['raw get', 'raw write'], writes: true, help: (args, input) => validateFalconArgs(args, input).help },
     classify: (args: readonly string[], input?: RunnerInput) => classifyCommand(inventory.commands, (a, i) => validateFalconArgs(a, i), args, input),
     async prepare(args, reference, input) {
       const call = parseFalconArgs(args, input)
       if (reference.tool !== 'falcon-axi') throw new ArtiumError('CREDENTIAL_INVALID')
-      const access = falconWritePolicy.read(source.getSettings?.(reference) ?? {})
       const rawWrite = call.operation === 'raw write'
-      if ((call.executing || rawWrite) && (!access.enabled || !access.allowedOperations.includes(call.operation!))) throw new ArtiumError('FLAG_BLOCKED')
+      if (call.executing || rawWrite) authorizeOperation(call.operation!, source.getSettings?.(reference) ?? {})
       const prepared = profile.prepare('falcon-axi', await source.getCredential(reference), writeLog, !call.executing)
       if (rawWrite) {
         const configuration = JSON.parse(String(prepared.files[0].content))
