@@ -169,7 +169,7 @@ export function configurationTests(domains: string[]) {
         expect(response.statusCode, response.body).toBe(200)
       }
       const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args, ...input } })
-      await settings(behavior.startsWith('disabled') ? {} : { allowWrites: true })
+      await settings(behavior.startsWith('disabled') ? {} : { allowWrites: true, allowDeletes: true })
       await send('/__ado/reset', 'POST')
       if (behavior === 'disabled confirmation' || behavior === 'disabled preview') {
         const result = await run([...args, behavior === 'disabled confirmation' ? '--confirm' : '--dry-run'])

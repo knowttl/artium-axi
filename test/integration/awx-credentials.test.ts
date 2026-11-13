@@ -95,7 +95,7 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
         expect((await run([...args, '--dry-run'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
       }
       expect((await app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi', headers,
-        payload: { nativeSettings: { allowWrites: true }, expectedRevision: 3 } })).statusCode).toBe(200)
+        payload: { nativeSettings: { allowWrites: true, allowDeletes: true }, expectedRevision: 3 } })).statusCode).toBe(200)
       const written = await run(['job', 'cancel', '42', '--type', 'job', '--confirm'])
       expect(written.json(), written.body).toMatchObject({ exitCode: 0 })
       for (const args of [['template', 'delete', '42'], ['role', 'grant', '42', '--user', '7']]) {

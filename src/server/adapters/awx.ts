@@ -12,7 +12,7 @@ import { validateFileInput } from '../../shared/file-input.js'
 import { awxInputBridge, awxPrivateOutput } from './awx-input.js'
 
 export const awxManifest = { ...inventory, ...inventory.adapterBoundary }
-export const awxWritePolicy = writePolicy({ unlocks: 'All AWX writes for this tenant, including configuration, deletion, removals and security administration, support preview and require explicit confirmation and AWX resource permission.',
+export const awxWritePolicy = writePolicy({ allowDeletes: true, unlocks: 'AWX writes for this tenant support preview and require explicit confirmation and AWX resource permission. Deletes and bulk host operations additionally require Allow destructive deletes, off by default.',
   blocked: 'Unsafe overrides remain blocked. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. SCM URLs must have no userinfo, credential query parameters or fragments; use --credential and credential create/edit --inputs-file for SCM secrets. Already-retained AWX logs from URLs set outside Artium are AWX-held data, outside Artium SCM input protection. Credential inputs-file and password-file accept stdin (-). Server file paths are refused.' })
 export const awxProfile = new CredentialProfile(inventory.credentialSchema, 'awx-axi')
 export const awxCredentialSchema = awxProfile.credentialSchema
@@ -163,17 +163,27 @@ export function createAwxAdapter(source: SecretSource): Adapter<unknown> {
     async prepare(args, reference, input) {
       const normalized = awxArguments(args, input)
       if (reference.tool !== 'awx-axi') throw new ArtiumError('CREDENTIAL_INVALID')
+      const destructive = !normalized.invocation.help && /(?:^|[ -])delete$|^inventory host-bulk-create$/.test(normalized.invocation.command)
+      const authorizeDeletes = (settings: Record<string, unknown>) => {
+        if (destructive && settings.allowDeletes !== true) throw new ArtiumError('FLAG_BLOCKED',
+          'Destructive deletes and bulk host operations are disabled for this tool.',
+          'Ask an administrator to enable Allow destructive deletes, then preview with --dry-run and repeat with --confirm.')
+      }
       const allowed = (settings: Record<string, unknown>) => settings.allowWrites === true
       const requiresWriteAccess = normalized.mutation && !normalized.invocation.help
-      if (requiresWriteAccess && source.getSettings && !allowed(source.getSettings(reference))) throw new ArtiumError('FLAG_BLOCKED')
+      const settings = source.getSettings?.(reference)
+      if (settings) authorizeDeletes(settings)
+      if (requiresWriteAccess && settings && !allowed(settings)) throw new ArtiumError('FLAG_BLOCKED')
       const value = await source.getCredential(reference)
       const parsed = awxCredentialSchema.safeParse(value)
       if (!parsed.success) throw new ArtiumError('CREDENTIAL_INVALID')
+      authorizeDeletes(parsed.data)
       const readOnly = !allowed(parsed.data)
       if (requiresWriteAccess && readOnly) throw new ArtiumError('FLAG_BLOCKED')
       const profile = awxProfile.prepare('awx-axi', parsed.data, undefined, readOnly)
       if (normalized.mutation && !readOnly) Object.assign(profile.environment, {
-        AWX_AXI_ALLOW_CONFIG_WRITES: '1', AWX_AXI_ALLOW_DELETES: '1', AWX_AXI_ALLOW_SECURITY_WRITES: '1',
+        AWX_AXI_ALLOW_CONFIG_WRITES: '1', AWX_AXI_ALLOW_SECURITY_WRITES: '1',
+        ...(parsed.data.allowDeletes === true && (!settings || settings.allowDeletes === true) ? { AWX_AXI_ALLOW_DELETES: '1' } : {}),
         AWX_AXI_ALLOW_CREDENTIAL_PASSWORDS: '1',
       })
       const { structured, ...call } = normalized

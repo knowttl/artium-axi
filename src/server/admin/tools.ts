@@ -242,13 +242,14 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     before: Record<string, unknown>, after: Record<string, unknown>): AuditEvent[] {
     const previous = writePolicies[tool].read(before)
     const next = writePolicies[tool].read(after)
-    const deletes = (settings: Record<string, unknown>) => (settings.writes as { allowDeletes?: boolean } | undefined)?.allowDeletes === true
+    const deletes = (settings: Record<string, unknown>) => (tool === 'awx-axi' ? settings.allowDeletes
+      : (settings.writes as { allowDeletes?: boolean } | undefined)?.allowDeletes) === true
     if (deletes(before) === deletes(after) && previous.enabled === next.enabled &&
       JSON.stringify([...previous.allowedOperations].sort()) === JSON.stringify([...next.allowedOperations].sort())) return []
     // The advanced JSON editor accepts arbitrary names. Only catalogue identities belong in audit.
     const operations = next.allowedOperations.filter(operation => next.supportedOperations?.includes(operation))
     return [{ event: 'tool-write-access', userId: actor, tool, outcome: 'success', enabled: next.enabled,
-      operations, ...(tool === 'beyondtrust-axi' ? { allowDeletes: deletes(after) } : {}),
+      operations, ...(['beyondtrust-axi', 'awx-axi'].includes(tool) ? { allowDeletes: deletes(after) } : {}),
       unsupportedOperationCount: next.allowedOperations.length - operations.length,
       requestId: request.id, clientAddress: request.ip }]
   }

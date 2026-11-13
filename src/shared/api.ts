@@ -372,7 +372,7 @@ export const nativeSettingsSchemas = {
     operations: z.array(z.string()) }).optional() }),
   'tenable-axi': z.strictObject({ writes: z.strictObject({ allowWrites: z.boolean(),
     operations: z.array(z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/)).min(1).max(64) }).optional() }),
-  'awx-axi': z.strictObject({ allowWrites: z.boolean().optional(), allowConfigurationWrites: z.boolean().optional() }),
+  'awx-axi': z.strictObject({ allowWrites: z.boolean().optional(), allowDeletes: z.boolean().optional(), allowConfigurationWrites: z.boolean().optional() }),
   'ldap-axi': z.strictObject({}),
   'technitium-axi': z.strictObject({
     writes: z.strictObject({ allowWrites: z.boolean(), operations: z.array(z.enum(technitiumWriteOperations)).max(technitiumWriteOperations.length) }).optional(),

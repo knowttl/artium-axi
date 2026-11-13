@@ -28,7 +28,8 @@ export function writePolicy(options: {
     if (options.reason) throw new ArtiumError('INVALID_INPUT', options.reason)
     if (!supportedOperations) {
       if (input.operations !== undefined) throw new ArtiumError('INVALID_INPUT', 'This tool does not use an operations allow-list.')
-      return { ...settings, allowWrites: input.enabled }
+      return { ...settings, allowWrites: input.enabled,
+        ...(options.allowDeletes && input.allowDeletes !== undefined ? { allowDeletes: input.allowDeletes } : {}) }
     }
     const operations = input.operations ?? read(settings).allowedOperations
     if ((input.enabled || input.operations !== undefined) && operations.some(operation => !supportedOperations.includes(operation))) {

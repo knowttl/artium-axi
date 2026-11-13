@@ -29,7 +29,7 @@ test.each([
     let allowWrites = true
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
     const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
-      token: 'CANARY-awx-token', allowWrites }) })
+      token: 'CANARY-awx-token', allowWrites, allowDeletes: true }) })
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
@@ -116,7 +116,7 @@ test.each([
       let allowWrites = true
       const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
       const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
-        token: 'CANARY-awx-token', allowWrites }) })
+        token: 'CANARY-awx-token', allowWrites, allowDeletes: true }) })
       const prepare = adapter.prepare.bind(adapter)
       adapter.prepare = async (...input) => {
         const call = await prepare(...input)
@@ -158,7 +158,7 @@ test('AWX inventory variables remain private on later reads with writes disabled
     let allowWrites = true
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
     const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
-      token: 'CANARY-awx-token', allowWrites }) })
+      token: 'CANARY-awx-token', allowWrites, allowDeletes: true }) })
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
@@ -223,9 +223,10 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
     await seedToolUser(db)
     db.exec("UPDATE tools SET enabled = 1 WHERE name = 'awx-axi'")
     let allowWrites = false
+    let allowDeletes = false
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
     const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
-      token: 'CANARY-awx-token', allowWrites }) })
+      token: 'CANARY-awx-token', allowWrites, allowDeletes }) })
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
@@ -261,6 +262,14 @@ test('AWX bulk host create and delete report mixed and uncertain outcomes withou
       expect((await evidence()).mutations).toBe(0)
 
       allowWrites = true
+      for (const [args, files] of [[create, [names]], [remove, [upload('ids.json', '[42]')]]] as const) {
+        for (const flag of ['--dry-run', '--confirm']) {
+          expect((await run([...args, flag], [...files])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED',
+            next: expect.stringContaining('Allow destructive deletes') } })
+        }
+      }
+      expect((await evidence()).mutations).toBe(0)
+      allowDeletes = true
       const preview = await run([...create, '--dry-run'], [names])
       expect(preview.json(), preview.body).toMatchObject({ exitCode: 0 })
       expect(decode(preview.json().stdout)).toMatchObject({ dry_run: { action: 'create', type: 'hosts', would_send: 'POST bulk/host_create/' } })
