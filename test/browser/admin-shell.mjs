@@ -808,6 +808,9 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     check(await page.eval(() => document.querySelector('[data-trust-certificate] option[value=pin]').textContent.includes('Strict leaf pinning')), 'Strict pinning is unavailable');
     check(await page.eval(() => document.querySelector('#certificate-inspection').scrollWidth <= document.querySelector('#certificate-inspection').clientWidth), 'Certificate dialog overflows the narrow screen');
     await page.click('[data-trust-certificate] button');
+    check(await page.eval(() => document.querySelector('#certificate-inspection').open), 'Trust saved without fingerprint confirmation');
+    await page.click('[name=confirmedFingerprint]');
+    await page.click('[data-trust-certificate] button');
     await page.wait('form[data-method=DELETE][action$="/certificates"]');
     await page.eval(async () => {
       // The reloaded form can appear before the stylesheet finishes loading.
@@ -820,9 +823,7 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
       const audit = await (await fetch('/v1/admin/audit?event=admin-change')).json();
       return result.certificates.length === 1 && result.certificates[0].mode === 'ca' && audit.records.some(row => row.action === 'trust-certificate' && row.target_id === result.certificates[0].certificate.fingerprint);
     }), 'Trust or fingerprint audit missing');
-    await page.click('form[data-test-tool] button');
-    await page.wait('[data-test-result]:not(:empty)');
-    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test passed.'), 'Credential test did not pass after trust');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Connected'), 'Automatic credential test did not connect after trust');
     await page.eval(async () => {
       const response = await fetch('/test/trust-ca', { method: 'POST' });
       if (!response.ok) throw new Error('Could not install the fixture CA');
@@ -837,6 +838,46 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-inspect-certificate][hidden]');
     check(await page.eval(() => document.querySelector('main').innerText.includes('No certificates trusted')), 'Removed trust remains displayed');
+  `)
+})
+
+test('trust automatically tests credentials and displays the exact failure', () => {
+  browser(`
+    await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-invalid' });
+    await page.click('form[data-test-tool] button');
+    await page.wait('[data-inspect-certificate]:not([hidden])');
+    await page.click('[data-inspect-certificate] button');
+    await page.wait('#certificate-inspection[open]');
+    await page.click('[name=confirmedFingerprint]');
+    await page.click('[data-trust-certificate] button');
+    await page.wait('form[data-method=DELETE][action$="/certificates"]');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('The tool exited unsuccessfully.')), 'Exact test failure missing');
+    check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('Tool exited with status 1.')), 'Exact tool failure missing');
+  `)
+})
+
+for (const [failure, expected] of [['network', 'Network error: TypeError'], ['parse', 'Response could not be read: SyntaxError']]) test('automatic retest reports a safe ' + failure + ' category', () => {
+  browser(`
+    await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-valid' });
+    await page.click('form[data-test-tool] button');
+    await page.wait('[data-inspect-certificate]:not([hidden])');
+    await page.click('[data-inspect-certificate] button');
+    await page.wait('#certificate-inspection[open]');
+    await page.click('[name=confirmedFingerprint]');
+    await page.eval(() => {
+      const original = window.fetch.bind(window);
+      window.fetch = async (...args) => {
+        if (String(args[0]).endsWith('/test')) {
+          ${failure === 'network' ? "throw new TypeError('Échec réseau CANARY-private-value');" : "return new Response('CANARY-private-value', { status: 200 });"}
+        }
+        return original(...args);
+      };
+    });
+    await page.click('[data-trust-certificate] button');
+    await page.wait('form[data-method=DELETE][action$="/certificates"]');
+    const message = await page.eval(() => document.querySelector('[data-test-result]').textContent);
+    check(message.startsWith('${expected}'), 'Missing safe failure category: ' + message);
+    check(!message.includes('CANARY-private-value'), 'Client failure exposed response or exception text');
   `)
 })
 

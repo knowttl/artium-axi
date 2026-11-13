@@ -495,6 +495,8 @@ function showCertificateInspection(result) {
   const form = dialog.querySelector('[data-trust-certificate]');
   form.hidden = !result.verificationError;
   form.elements.inspectionId.value = result.inspectionId;
+  form.elements.confirmedFingerprint.checked = false;
+  form.elements.confirmedFingerprint.value = result.chain[0].fingerprint;
   const hasCA = result.anchor.ca && result.anchor.fingerprint !== result.chain[0].fingerprint;
   const supportsPin = Boolean(form.elements.mode.querySelector('option[value="pin"]'));
   if (!supportsPin && !hasCA) {
@@ -667,6 +669,27 @@ document.addEventListener('submit', async event => {
     }
     if (response.ok && form.hasAttribute('data-inspect-certificate')) {
       showCertificateInspection(await response.json());
+      return;
+    }
+    if (response.ok && form.hasAttribute('data-trust-certificate')) {
+      message.textContent = 'Certificate trusted. Testing connection…';
+      let result;
+      let health;
+      let category = 'Network error';
+      try {
+        const tested = await fetch(form.dataset.trustTestUrl, { method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ _csrf: body._csrf }) });
+        if (tested.redirected) { location.assign(tested.url); return; }
+        category = 'Response could not be read';
+        const current = await readTestResponse(tested);
+        health = current.health;
+        result = tested.ok ? 'Connected' : current.error.message;
+      } catch (error) {
+        const name = ['TypeError', 'SyntaxError', 'AbortError', 'NetworkError', 'Error'].includes(error?.name) ? error.name : 'Error';
+        result = category + ': ' + name + '. Run Test connection again.';
+      }
+      sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ message: result, health }));
+      location.reload();
       return;
     }
     if (response.ok && form.hasAttribute('data-invitation-link')) {

@@ -11,7 +11,7 @@ import { toolEndpoints } from '../tool-endpoints.js'
 import type { CredentialReference, MutableCredentialStore } from '../store/credential-store.js'
 import type { ToolHealth } from '../health/health.js'
 import { credentialCertificates } from '../store/trusted-certificates.js'
-import { certificateNameChange, useCertificateName } from '../credential-tls-settings.js'
+import { certificateNameChange, initialCertificateTrust, useCertificateName } from '../credential-tls-settings.js'
 
 export function registerCertificateAdmin(app: FastifyInstance, db: Database.Database, audit: Audit,
   authorize: (request: FastifyRequest) => string, store?: MutableCredentialStore, health?: ToolHealth): void {
@@ -35,13 +35,26 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     if (observed(reference)?.revision !== reference.revision) throw new ArtiumError('REVISION_CONFLICT')
   }
   function save(request: FastifyRequest, actor: string, reference: CredentialReference,
-    inspection: Awaited<ReturnType<typeof inspectCertificate>>, mode: 'ca' | 'pin') {
+    inspection: Awaited<ReturnType<typeof inspectCertificate>>, mode: 'ca' | 'pin', fillFields: boolean) {
     audit.change({ event: 'admin-change', action: 'trust-certificate',
       targetId: inspection.anchor.fingerprint, subject: inspection.anchor.subject,
       userId: actor, tool: reference.tool, credentialId: reference.id, instance: observed(reference)?.name, outcome: 'success',
       requestId: request.id, clientAddress: request.ip }, () => {
       authorize(request)
       current(reference)
+      if (fillFields) {
+        const existing = credentialCertificates(db, reference.id).filter(item => item.endpoint === inspection.endpoint)
+        if (existing.some(item => item.leaf.fingerprint !== inspection.chain[0].fingerprint)) {
+          throw new ArtiumError('INVALID_INPUT', 'Endpoint trust already exists. Manage certificate replacement manually in Certificate verification and Trusted certificates.')
+        }
+        if (existing.some(item => item.mode !== mode)) throw new ArtiumError('INVALID_INPUT', 'Keep the existing endpoint trust mode when filling certificate fields.')
+        const value = store!.readCredential(reference) as Record<string, unknown>
+        const next = initialCertificateTrust(reference.tool, value, mode === 'pin' ? inspection.leafPem : inspection.pem,
+          inspection.chain[0].fingerprint, mode)
+        const credentialValue = Object.fromEntries(Object.entries(next).filter(([key]) => !Object.hasOwn(nativeSettingsSchemas[reference.tool].shape, key)))
+        const instance = observed(reference)!
+        store!.replaceInstance(reference.tool, instance.name, credentialValue, reference.id, instance.revision, actor, Date.now())
+      }
       for (const certificate of credentialCertificates(db, reference.id).filter(item => item.endpoint === inspection.endpoint
         && item.mode !== mode)) {
         db.prepare('DELETE FROM trusted_certificates WHERE id = ?').run(certificate.id)
@@ -123,11 +136,13 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
   },
   trust: async request => {
     const actor = authorize(request)
-    const { inspectionId, mode } = parse(adminCertificateRoutes.trust.input, request.body)
+    const { inspectionId, mode, confirmedFingerprint, fillFields } = parse(adminCertificateRoutes.trust.input, request.body)
     const reference = credential(request)
     const item = pending.get(inspectionId)
     if (!item || item.actor !== actor || item.reference.id !== reference.id || item.expiresAt <= Date.now()) throw new ArtiumError('INVALID_INPUT')
     current(item.reference)
+    if (confirmedFingerprint !== item.inspection.chain[0].fingerprint) throw new ArtiumError('INVALID_INPUT',
+      'Confirm the displayed SHA-256 fingerprint before trusting this certificate.')
     if (!item.inspection.verificationError) throw new ArtiumError('INVALID_INPUT', item.inspection.reason)
     const { anchor, chain } = item.inspection
     const hasCA = anchor.ca && anchor.fingerprint !== chain[0].fingerprint
@@ -136,9 +151,8 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     if (mode === 'ca' && !hasCA && !chain[0].selfSigned) throw new ArtiumError('INVALID_INPUT',
       'CA trust is unavailable because no issuing CA was obtained. Choose strict leaf pinning explicitly.')
     save(request, actor, item.reference, item.inspection,
-      mode === 'ca' && chain[0].selfSigned ? 'pin' : mode)
+      mode === 'ca' && chain[0].selfSigned ? 'pin' : mode, fillFields)
     pending.delete(inspectionId)
-    await health?.refresh(item.reference.tool, true, item.reference.id)
     return { trusted: true as const }
   },
   remove: async request => {

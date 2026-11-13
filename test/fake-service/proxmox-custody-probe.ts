@@ -267,7 +267,7 @@ await withFakeService(async ({ directory, port, send }) => {
       headers: certificateProof, payload: { endpointIndex: 0 } })
     assert.equal(inspected.statusCode, 200, inspected.body)
     const trusted = await app.inject({ method: 'POST', url: '/v1/admin/tools/proxmox-axi/certificates/trust',
-      headers: await recent(), payload: { inspectionId: inspected.json().inspectionId, mode: 'ca' } })
+      headers: await recent(), payload: { inspectionId: inspected.json().inspectionId, confirmedFingerprint: inspected.json().chain[0].fingerprint, mode: 'ca' } })
     assert.equal(trusted.statusCode, 200, trusted.body)
     await success(['get', '/nodes'])
     await writes(true)

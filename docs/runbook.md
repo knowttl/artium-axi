@@ -286,13 +286,21 @@ The window highlights weak keys, validity and hostname problems, and fingerprint
 When the certificate does not match the name being verified, inspection offers a name change for supported settings if the certificate has a usable DNS name.
 The action keeps the connection address and saves the certificate name for verification; it does not grant trust or automatically test the connection.
 Technitium retains its IP or DNS connection address and updates **Certificate name to verify**.
-UniFi changes the origin to the certificate name and retains the connection IP; first save its trusted certificate and SHA-256 fingerprint in **Certificate verification**.
+UniFi changes the origin to the certificate name and retains the connection IP; for initial setup, choose **Trust this certificate** to fill its trusted certificate and fingerprint, then inspect again to use the name.
 UniFi cannot preserve a DNS connection address with this action, and unsupported tools show a refusal reason.
 If the endpoint changes, existing instance trust moves to the new endpoint; if both endpoints already have trust records, remove the conflicting records before retrying.
 The confirmation window and inspection API report the leaf and trust anchor expiry, with informational warnings when either expires within seven days.
 For a short-lived intermediate anchor, the window warns that it will rotate and recommends trusting the long-lived root through the server-wide bundle to avoid repeated confirmation.
 Expiry warnings do not block confirmation or change hostname and date verification.
-**Trust certificate for this tool** defaults to **Trust the CA**; choose **Strict leaf pinning** explicitly to require confirmation after each leaf rotation.
+Confirm that you compared the displayed fingerprint, then choose **Trust this certificate**.
+Initial setup fills the supported shared certificate fields and saves endpoint trust; tools without shared fields show that limitation and retain confirmed endpoint trust.
+The UI automatically tests the connection and shows **Connected** or the server-reported failure message.
+Client-side failures show a safe network or unreadable-response category and error name, without raw exception messages or response text.
+When filling shared fields, initial setup refuses to replace an existing certificate or fingerprint; replace those fields manually.
+Removing an endpoint trust record retains the separately saved Certificate verification fields; clear those fields too when revoking that trust.
+CA trust is selected when an issuing CA is available; self-signed endpoints select strict leaf pinning.
+UniFi also saves and verifies the leaf fingerprint with CA trust, so replace the certificate and fingerprint manually after leaf renewal.
+Proxmox also verifies any separately saved fingerprint, which can reject a renewed leaf under the trusted CA.
 GitHub supports strict leaf pins through a private per-call HTTP socket relay that verifies the upstream TLS connection before sending application data.
 Kubernetes remains an exception: its editor accepts only an issuing CA, and strict leaf pinning is refused.
 For self-signed Kubernetes endpoints or a missing issuing CA, configure the server-wide bundle above.
@@ -307,8 +315,8 @@ Azure inspection includes login, ARM, Graph and Log Analytics.
 For Storage, Key Vault and ACR, save service names in the Azure native setting `tlsDestinations`, for example `{"storageAccounts":["synthetic"],"keyVaults":["synthetic-vault"],"registries":["syntheticregistry"]}`.
 These saved names produce endpoints under `blob.core.windows.net`, `vault.azure.net` and `azurecr.io` respectively; URLs and caller-supplied inspection hosts are refused.
 A complete private chain trusts the issuing CA, while a self-signed endpoint trusts its own certificate for tools supporting leaf pins.
-CA trust accepts renewed leaves under the stored issuing CA, including when that CA is an intermediate.
-The server may present the leaf and issuing intermediate without the root; confirmation anchors trust on the presented intermediate and accepts renewed leaves it issues.
+CA trust accepts renewed leaves under the stored issuing CA, including when that CA is an intermediate, provided no separately saved leaf fingerprint rejects them.
+The server may present the leaf and issuing intermediate without the root; confirmation anchors trust on the presented intermediate and accepts renewed leaves it issues, subject to any separately saved fingerprint.
 Except for the GitHub CLI child without strict pins, connections to an endpoint with confirmed CA trust or strict pins must validate against its saved anchors; a different CA is rejected even if the server otherwise trusts it.
 Strict leaf pinning also checks the observed leaf fingerprint before application data is sent, so another certificate under the same issuer requires another inspection and confirmation.
 On a pin mismatch, the error explains that the stored fingerprint differs from the presented one; re-inspect the certificate on the affected instance page.
@@ -332,12 +340,12 @@ Automatic intermediate repair is not included because treating a repaired interm
 If an endpoint omits an intermediate below a confirmed root, confirm that intermediate as the CA anchor or configure the endpoint to present its complete chain.
 
 The instance page lists trusted certificates and their expiry dates, with warnings within 30 days of expiry.
-This flow manages instance trust separately from credential-level trust; use the [credential editor](admin-guide.md#browser-administration) to replace or remove a credential-level CA or pin when it rotates.
+This flow also fills supported credential-level fields during initial trust; use the [credential editor](admin-guide.md#browser-administration) to replace or remove a credential-level CA or pin when it rotates.
 For CA rotation or a leaf rotation in strict pinning mode, re-inspect the saved endpoint.
-If inspection reports that no trust is needed, use **Remove trust** to retire the old entries and let the endpoint use the server's existing trust.
-Otherwise, confirm the replacement, then use **Remove trust** to retire the old entry.
-Confirmation in the same mode keeps previously confirmed entries trusted during rolling rotation.
-Switching between CA trust and strict pinning replaces the endpoint's entries in the other mode.
+If inspection reports that no trust is needed, use **Remove endpoint trust** to retire the old entries and clear any separately saved credential trust to let the endpoint use the server's existing trust.
+For tools with shared certificate fields, manage existing endpoint trust and replace those fields manually.
+For tools without shared certificate fields, confirm the replacement, then use **Remove endpoint trust** to retire the old entry.
+For these tools, confirmation in the same mode keeps previously confirmed entries trusted during rolling rotation; switching between CA trust and strict pinning replaces the endpoint's entries in the other mode.
 These changes take effect on subsequent calls and survive server restarts.
 Use the server-wide bundle above for organization-wide inspection CAs instead of confirming the same CA separately for every tool.
 

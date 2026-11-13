@@ -1000,6 +1000,27 @@ test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s w
     }
   }
 })
+test.each([
+  ['kubernetes-axi', true], ['technitium-axi', true], ['unifi-axi', true], ['proxmox-axi', true], ['ldap-axi', true], ['vectra-axi', true],
+  ['shodan-axi', false], ['gitea-axi', false], ['gh-axi', false], ['hybrid-axi', false], ['beyondtrust-axi', false],
+  ['checkpoint-axi', false], ['tenable-axi', false], ['awx-axi', false], ['ado-axi', false], ['mg-axi', false], ['falcon-axi', false], ['az-axi', false],
+] as const)('%s displays its shared certificate field support', async (tool, supported) => {
+  store.createInstance(tool, { name: 'certificate-support', description: '' }, values[tool], actor, Date.now())
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const csrf = /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; '), 'content-type': 'application/x-www-form-urlencoded' },
+  payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
+  const page = await app.inject({ method: 'GET', url: `/admin/tools/${tool}/instances/certificate-support`,
+    headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
+  expect(page.statusCode, page.body).toBe(200)
+  if (supported) expect(page.body).toContain('Initial trust fills Certificate verification.')
+  else {
+    expect(page.body).toContain('This tool does not support a shared trusted certificate field.')
+    expect(page.body).toContain('Trust this certificate')
+  }
+})
+
 test('the tools list and Instances tab report every instance, with SSH hosts shown as instances', async () => {
   for (const name of ['lab', 'production']) {
     store.createInstance('falcon-axi', { name, description: `Synthetic ${name} tenant.` }, values['falcon-axi'], actor, Date.now())
