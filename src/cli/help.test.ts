@@ -2,6 +2,12 @@ import { expect, test } from 'vitest'
 import { commandHelp, delegatedDownloadHelp } from './help.js'
 import type { TransferScope } from '../shared/api.js'
 
+test('AWX prefix help distinguishes security administration from ordinary credentials', () => {
+  const help = commandHelp('awx-axi')
+  expect(help).toContain('Allow security administration (allowSecurityAdministration)')
+  expect(help).not.toContain('galaxy credential associations')
+})
+
 test.each<{ operation: TransferScope['selection']['operation'], selection: string }>([
   { operation: 'api-definition.download', selection: '--selector api --type yaml' },
   { operation: 'email.download', selection: '--selector <entity-id> --type <email|original>' },

@@ -33,7 +33,7 @@ test.each([
     let allowWrites = true
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
     const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
-      token: 'CANARY-awx-token', allowWrites }) })
+      token: 'CANARY-awx-token', allowWrites, allowSecurityAdministration: true }) })
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
@@ -50,11 +50,14 @@ test.each([
       return decode(response.json().stdout)
     }
     try {
+      await run([...create, '--dry-run'])
       await run([...create, '--confirm'])
+      await run([...add, '--dry-run'])
       await run([...add, '--confirm'])
       allowWrites = false
       expect(await run(read)).toMatchObject(present)
       allowWrites = true
+      await run([...remove, '--dry-run'])
       await run([...remove, '--confirm'])
       allowWrites = false
       expect(await run(read)).toMatchObject(absent)
@@ -71,7 +74,7 @@ test('AWX user privilege removal and interrupted username changes persist with w
     let allowWrites = true
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
     const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`,
-      token: 'CANARY-awx-token', allowWrites }) })
+      token: 'CANARY-awx-token', allowWrites, allowSecurityAdministration: true }) })
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
@@ -89,11 +92,14 @@ test('AWX user privilege removal and interrupted username changes persist with w
       return decode(response.json().stdout)
     }
     try {
+      await run(['user', 'create', 'synthetic-person', '--is-superuser', '--is-system-auditor', '--dry-run'])
       await run(['user', 'create', 'synthetic-person', '--is-superuser', '--is-system-auditor', '--confirm'])
       expect(await run(['user', 'show', 'synthetic-person'])).toMatchObject({ user: {
         id: 42, username: 'synthetic-person', is_superuser: true, is_system_auditor: true,
       } })
+      await run(['user', 'edit', 'synthetic-person', '--no-superuser', '--no-system-auditor', '--dry-run'])
       await run(['user', 'edit', 'synthetic-person', '--no-superuser', '--no-system-auditor', '--confirm'])
+      await run(['user', 'edit', '42', '--username', 'synthetic-renamed', '--dry-run'])
       await send('/__awx/write-outcome?drop=true', 'POST')
       const interrupted = await request(['user', 'edit', '42', '--username', 'synthetic-renamed', '--confirm'])
       expect(interrupted.json(), interrupted.body).toMatchObject({ error: { code: 'UNKNOWN_OUTCOME',
@@ -118,7 +124,7 @@ test('AWX token revocation requires the tenant switch and confirmation and inval
     let allowWrites = false
     let token = 'CANARY-awx-minted-token'
     const reference = { id: 'synthetic-credential', tool: 'awx-axi' as const }
-    const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`, token, allowWrites }) })
+    const adapter = createAwxAdapter({ getCredential: async () => ({ origin: `https://localhost:${port}`, token, allowWrites, allowSecurityAdministration: true }) })
     const prepare = adapter.prepare.bind(adapter)
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
@@ -151,6 +157,7 @@ test('AWX token revocation requires the tenant switch and confirmation and inval
       expect(denied.json(), denied.body).toMatchObject({ exitCode: 1, stdout: expect.stringContaining('FORBIDDEN') })
       expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
       await send('/__awx/configuration-permission?enabled=true', 'POST')
+      await request([...args, '--dry-run'])
       const revoked = await request([...args, '--confirm'])
       expect(decode(revoked.json().stdout)).toMatchObject({ token: { id: 7, status: 'revoked' } })
       token = 'CANARY-awx-minted-token'

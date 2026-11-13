@@ -169,7 +169,7 @@ export function configurationTests(domains: string[]) {
         expect(response.statusCode, response.body).toBe(200)
       }
       const run = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers, payload: { args, ...input } })
-      await settings(behavior.startsWith('disabled') ? {} : { allowWrites: true, allowDeletes: true })
+      await settings(behavior.startsWith('disabled') ? {} : { allowWrites: true, allowDeletes: true, allowSecurityAdministration: true })
       await send('/__ado/reset', 'POST')
       if (behavior === 'disabled confirmation' || behavior === 'disabled preview') {
         const result = await run([...args, behavior === 'disabled confirmation' ? '--confirm' : '--dry-run'])
@@ -186,11 +186,13 @@ export function configurationTests(domains: string[]) {
         expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
       } else if (behavior === 'permission denial') {
         await send('/__awx/configuration-permission?enabled=false', 'POST')
+        await run([...args, '--dry-run'])
         const denied = await run([...args, '--confirm'])
         expect(denied.json(), denied.body).toMatchObject({ exitCode: 1, stdout: expect.stringContaining('FORBIDDEN') })
         expect(denied.body).not.toContain(privateValue)
         expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
       } else {
+        await run([...args, '--dry-run'])
         const written = await run([...args, '--confirm'])
         expect(written.json(), written.body).toMatchObject({ exitCode: 0 })
         if (behavior === 'mutation') {

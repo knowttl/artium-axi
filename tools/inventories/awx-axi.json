@@ -361,7 +361,7 @@
       "--limit",
       "1"
     ],
-    "help": "awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. Administrator allowWrites defaults off and gates previews and execution. Allow destructive deletes (allowDeletes) separately defaults off and additionally gates deletes, api delete and bulk host operations. Preview with --dry-run, then repeat with --confirm. Existing installs with writes enabled lose delete and bulk access until an administrator enables allowDeletes. Reads and help remain available. AWX permissions still apply. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. Use protected local files for sensitive URLs. Credential inputs-file and password-file accept stdin (-). Server file paths and unsafe overrides remain blocked. Waits (job watch and --wait) last at most 50 seconds, the default; larger --timeout values are refused. Resume with job watch. job stdout --download <name> returns a protected result reference to the bounded redacted log, consumed once like a token. Token creation returns a protected result reference, never token bytes. Save its path using an authenticated GET within five minutes; it is consumed once and requires the same caller, current access and managed credential revision. Managed logout uses user token-revoke <numeric-token-id> with preview and confirmation; account removal does not revoke a PAT.\n"
+    "help": "awx-axi job list [--status <s>] [--type <t>] [--failed] [--since <time>] [--limit <n>]\nArtium manages the controller origin, verified TLS and token. Every write, including configuration, deletes, removals and security administration, requires administrator allowWrites and --confirm. Administrator allowWrites defaults off and gates previews and execution. Allow destructive deletes (allowDeletes) separately defaults off and additionally gates deletes, api delete and bulk host operations. Allow security administration (allowSecurityAdministration) separately defaults off and additionally gates organization create/edit/delete, membership and administrator changes, user/team/role administration and token creation/revocation, including raw API writes to these resources. Existing installs with writes enabled lose security-administration access until an administrator enables allowSecurityAdministration. Preview with --dry-run, then repeat with --confirm. Existing installs with writes enabled lose delete and bulk access until an administrator enables allowDeletes. Reads and help remain available. AWX permissions still apply. File flags upload local bytes privately; structured flags and SCM URLs accept inline text or @local-file. Use protected local files for sensitive URLs. Credential inputs-file and password-file accept stdin (-). Server file paths and unsafe overrides remain blocked. Waits (job watch and --wait) last at most 50 seconds, the default; larger --timeout values are refused. Resume with job watch. job stdout --download <name> returns a protected result reference to the bounded redacted log, consumed once like a token. Token creation returns a protected result reference, never token bytes. Save its path using an authenticated GET within five minutes; it is consumed once and requires the same caller, current access and managed credential revision. Managed logout uses user token-revoke <numeric-token-id> with preview and confirmation; account removal does not revoke a PAT.\n"
   },
   "suggestionFields": [
     "help"
@@ -1303,6 +1303,7 @@
     {
       "command": "organization create",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -1322,6 +1323,7 @@
     {
       "command": "organization edit",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -1341,6 +1343,7 @@
     {
       "command": "organization delete",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -1390,6 +1393,7 @@
     {
       "command": "organization user-add",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "user": "value",
@@ -1406,6 +1410,7 @@
     {
       "command": "organization user-remove",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "user": "value",
@@ -1422,6 +1427,7 @@
     {
       "command": "organization admin-add",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "user": "value",
@@ -1438,6 +1444,7 @@
     {
       "command": "organization admin-remove",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "user": "value",
@@ -1454,6 +1461,7 @@
     {
       "command": "organization team-add",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "team": "value",
@@ -1470,6 +1478,7 @@
     {
       "command": "organization team-remove",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "team": "value",
@@ -3161,6 +3170,7 @@
     {
       "command": "user token-create",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "scope": "value",
@@ -3177,6 +3187,7 @@
     {
       "command": "user token-revoke",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -3192,6 +3203,7 @@
     {
       "command": "user create",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "username": "value",
@@ -3214,6 +3226,7 @@
     {
       "command": "user edit",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "username": "value",
@@ -3238,6 +3251,7 @@
     {
       "command": "user delete",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -3480,6 +3494,7 @@
     {
       "command": "team user-add",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "user": "value",
@@ -3496,6 +3511,7 @@
     {
       "command": "team user-remove",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "user": "value",
@@ -3530,6 +3546,7 @@
     {
       "command": "team create",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -3548,6 +3565,7 @@
     {
       "command": "team edit",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "name": "value",
@@ -3566,6 +3584,7 @@
     {
       "command": "team delete",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "confirm": "boolean",
@@ -3707,6 +3726,7 @@
     {
       "command": "role grant",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "user": "value",
@@ -3724,6 +3744,7 @@
     {
       "command": "role revoke",
       "effect": "configuration-write",
+      "securityAdministration": true,
       "flags": {
         "help": "boolean",
         "user": "value",

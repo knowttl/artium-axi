@@ -176,6 +176,8 @@ export class CredentialProfile {
       this.inputSchema.properties.allowWrites = { type: 'boolean', title: 'Allow AWX writes' }
       this.inputSchema.properties.allowDeletes = { type: 'boolean', title: 'Allow destructive deletes',
         description: 'Off by default. Deletes and bulk host operations also require Allow writes, --dry-run preview and --confirm.' }
+      this.inputSchema.properties.allowSecurityAdministration = { type: 'boolean', title: 'Allow security administration',
+        description: 'Off by default. Security administration also requires Allow writes, --dry-run preview and --confirm. Resource deletes additionally require Allow destructive deletes.' }
       this.inputSchema.properties.allowConfigurationWrites = { type: 'boolean', deprecated: true,
         description: 'Legacy setting, ignored. Only administrator allowWrites grants mutation access.' }
       this.inputSchema.allOf = [...this.inputSchema.allOf ?? [], {
@@ -327,6 +329,7 @@ export class CredentialProfile {
     if (tool === 'kubernetes-axi') delete parsed.value.acquireCredential
     if (tool === 'awx-axi') delete parsed.value.allowConfigurationWrites
     if (tool === 'awx-axi') delete parsed.value.allowDeletes
+    if (tool === 'awx-axi') delete parsed.value.allowSecurityAdministration
     if (tool === 'falcon-axi') delete parsed.value.writes
     if (tool === 'proxmox-axi' || tool === 'technitium-axi') delete parsed.value.hostWrites
     Object.assign(parsed.value, hostFields)

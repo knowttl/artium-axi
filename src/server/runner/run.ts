@@ -217,16 +217,16 @@ export async function runTool<Credential>(
       if (resolutionFailure) throw resolutionFailure.error
       const prepared = adapter.prepareForCaller ? await adapter.prepareForCaller(args, userId, input)
         : await adapter.prepare(args, reference!, input, { rawReadWrites })
-      const awxDelete = adapter.name === 'awx-axi' && !prepared.invocation?.help
-        && /(?:^|[ -])delete$/.test(prepared.invocation?.command ?? '')
-      const awxPreviewKey = awxDelete && reference ? createHash('sha256').update(JSON.stringify({
+      const awxRequiresPreview = adapter.name === 'awx-axi' && !prepared.invocation?.help
+        && (prepared.requiresPreview || /(?:^|[ -])delete$/.test(prepared.invocation?.command ?? ''))
+      const awxPreviewKey = awxRequiresPreview && reference ? createHash('sha256').update(JSON.stringify({
         userId, delegationId, family: family(), reference, args: args.filter(arg => arg !== '--dry-run' && arg !== '--confirm'), input,
         settings: db.prepare('SELECT revision, native_settings FROM tools WHERE name = ?').get(adapter.name),
       })).digest('hex') : undefined
       let previews = awxPreviews.get(db)
       if (!previews) { previews = new Set(); awxPreviews.set(db, previews) }
       if (awxPreviewKey && args.includes('--confirm') && !args.includes('--dry-run') && !previews.delete(awxPreviewKey)) {
-        throw new ArtiumError('FLAG_BLOCKED', 'A matching successful dry-run is required before deletion.', 'Repeat the same request with --dry-run, then --confirm.')
+        throw new ArtiumError('FLAG_BLOCKED', 'A matching successful dry-run is required before deletion or security administration.', 'Repeat the same request with --dry-run, then --confirm.')
       }
       const preview = prepared.preview || prepared.effect === 'read' && !prepared.protectedResult
       const writes = () => !prepared.invocation?.help && (prepared.effect === 'write' || !!prepared.write || !preview && writeRequested())

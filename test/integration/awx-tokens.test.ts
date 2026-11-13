@@ -58,7 +58,7 @@ async function withTokenService(check: (context: {
 
 test('delegated AWX credential creation requires an exact writable pick', async () => {
   await withTokenService(async ({ app, db, headers, directory }) => {
-    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowSecurityAdministration":true}' WHERE name = 'awx-axi'`)
     const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
     const proof = { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }
     const url = await app.listen({ host: '127.0.0.1', port: 0 })
@@ -201,7 +201,7 @@ test.each([
   { commands: undefined },
 ])('delegated AWX discovery follows current write and tool policy (R11, R13): $commands', async ({ commands }) => {
   await withTokenService(async ({ app, db, headers }) => {
-    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowSecurityAdministration":true}' WHERE name = 'awx-axi'`)
     const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
     const minted = await app.inject({ method: 'POST', url: '/v1/account/tokens',
       headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { label: 'Synthetic',
@@ -243,12 +243,14 @@ test('read-only instances refuse token creation while writable instances allow i
   await withTokenService(async ({ app, db, store, headers, send }) => {
     const writable = store.findCredential('awx-axi')!
     const readonly = store.createInstance('awx-axi', { name: 'readonly', description: '' }, store.readCredential(writable), 'synthetic-development-user', Date.now())
-    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowSecurityAdministration":true}' WHERE name = 'awx-axi'`)
     const runInstance = (instance: string) => app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
       payload: { instance, args: ['user', 'token-create', '42', '--scope', 'read', '--confirm'] } })
     const refused = await runInstance(readonly.name)
     expect(refused.json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
     expect(JSON.parse(await send('/__evidence')).mutations).toBe(0)
+    await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+      payload: { instance: 'default', args: ['user', 'token-create', '42', '--scope', 'read', '--dry-run'] } })
     const allowed = await runInstance('default')
     expect(allowed.json(), allowed.body).toMatchObject({ instance: 'default', exitCode: 0 })
     expect((decode(allowed.json().stdout) as { result: { operation: string } }).result.operation).toBe('token-create')
@@ -260,7 +262,7 @@ test('read-only instances allow a dry run without a mutation', async () => {
   await withTokenService(async ({ app, db, store, headers, send }) => {
     const reference = store.findCredential('awx-axi')!
     store.createInstance('awx-axi', { name: 'readonly', description: '' }, store.readCredential(reference), 'synthetic-development-user', Date.now())
-    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowSecurityAdministration":true}' WHERE name = 'awx-axi'`)
     const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
       payload: { instance: 'readonly', args: ['user', 'token-create', '42', '--scope', 'read', '--dry-run'] } })
     expect(response.json(), response.body).toMatchObject({ instance: 'readonly', exitCode: 0 })
@@ -276,7 +278,9 @@ test('selected instance publishes a protected result with multiple instances', a
     store.setInstanceFlags('awx-axi', selected.name, { readOnly: false }, selected.id, selected.revision, 'synthetic-development-user', Date.now())
     db.prepare("UPDATE role_tools SET all_instances = 0 WHERE role_id = 'synthetic-role' AND tool = 'awx-axi'").run()
     db.prepare("INSERT INTO role_tool_instances VALUES ('synthetic-role', 'awx-axi', ?)").run(selected.id)
-    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowSecurityAdministration":true}' WHERE name = 'awx-axi'`)
+    await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+      payload: { instance: 'second', args: ['user', 'token-create', '42', '--dry-run'] } })
     const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
       payload: { instance: 'second', args: ['user', 'token-create', '42', '--confirm'] } })
     expect(response.json(), response.body).toMatchObject({ instance: 'second', exitCode: 0 })
@@ -296,7 +300,9 @@ test('changing the selected revision during execution prevents result publicatio
     const first = store.findCredential('awx-axi')!
     const selected = store.createInstance('awx-axi', { name: 'second', description: '' }, store.readCredential(first), 'synthetic-development-user', Date.now())
     const writable = store.setInstanceFlags('awx-axi', selected.name, { readOnly: false }, selected.id, selected.revision, 'synthetic-development-user', Date.now())
-    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowSecurityAdministration":true}' WHERE name = 'awx-axi'`)
+    await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
+      payload: { instance: 'second', args: ['user', 'token-create', '42', '--dry-run'] } })
     await send('/__awx/hold-token?enabled=true', 'POST')
     const pending = app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
       payload: { instance: 'second', args: ['user', 'token-create', '42', '--confirm'] } })
@@ -339,7 +345,7 @@ test.each([
   await withTokenService(async ({ app, db, store, headers, send }) => {
     const reference = store.findCredential('awx-axi')!
     const instance = store.createInstance('awx-axi', { name: 'readonly', description: '' }, store.readCredential(reference), 'synthetic-development-user', Date.now())
-    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowSecurityAdministration":true}' WHERE name = 'awx-axi'`)
     const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
       payload: { instance: instance.name, args: [...command, '--help'] } })
     expect(response.json(), response.body).toMatchObject({ instance: 'readonly', exitCode: 0 })
@@ -352,7 +358,7 @@ test('read-only instances refuse a confirmed write with a denial before any cred
   await withTokenService(async ({ app, db, store, headers, send }) => {
     const reference = store.findCredential('awx-axi')!
     const instance = store.createInstance('awx-axi', { name: 'readonly', description: '' }, store.readCredential(reference), 'synthetic-development-user', Date.now())
-    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowSecurityAdministration":true}' WHERE name = 'awx-axi'`)
     const response = await app.inject({ method: 'POST', url: '/v1/tools/awx-axi/run', headers,
       payload: { instance: instance.name, args: ['user', 'token-create', '42', '--confirm'] } })
     expect(response.json(), response.body).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
@@ -367,7 +373,8 @@ test('read-only instances refuse a confirmed write with a denial before any cred
 
 test('an audit failure leaves a protected result available for retry', async () => {
   await withTokenService(async ({ app, db, headers, run }) => {
-    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowSecurityAdministration":true}' WHERE name = 'awx-axi'`)
+    await run(['user', 'token-create', '42', '--dry-run'])
     const response = await run(['user', 'token-create', '42', '--confirm'])
     const result = decode(response.json().stdout) as { result: { path: string } }
     db.exec(`CREATE TRIGGER refuse_take BEFORE INSERT ON audit WHEN NEW.event = 'protected-result-take' AND NEW.outcome = 'success' BEGIN SELECT RAISE(FAIL, 'audit failure'); END`)
@@ -386,7 +393,7 @@ test.each(['read', 'write'])('AWX %s PAT creation delivers bytes once to the aut
     const args = ['user', 'token-create', '42', '--scope', scope]
     expect((await run([...args, '--confirm'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
     expect((await run([...args, '--dry-run'])).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
-    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowSecurityAdministration":true}' WHERE name = 'awx-axi'`)
     expect((await run(args)).json()).toMatchObject({ error: { code: 'FLAG_BLOCKED' } })
     const preview = await run([...args, '--dry-run'])
     expect(decode(preview.json().stdout)).toMatchObject({ dry_run: { would_send: 'POST users/42/personal_tokens/', payload: { scope } } })
@@ -411,7 +418,7 @@ test.each(['read', 'write'])('AWX %s PAT creation delivers bytes once to the aut
     expect((await app.inject({ method: 'GET', url: result.result.path, headers })).statusCode).toBe(404)
     const logout = await run(['auth', 'logout'])
     expect(logout.json()).toMatchObject({ error: { code: 'INVALID_INPUT', next: expect.stringContaining('user token-revoke') } })
-    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowSecurityAdministration":true}' WHERE name = 'awx-axi'`)
     const revokePreview = await run(['user', 'token-revoke', '8', '--dry-run'])
     expect(decode(revokePreview.json().stdout)).toMatchObject({ dry_run: { would_send: 'DELETE tokens/***/' } })
     const revoked = await run(['user', 'token-revoke', '8', '--confirm'])
@@ -443,8 +450,9 @@ test.each([
   { mode: 'uncertain', setup: '/__awx/write-outcome?drop=true', expected: { error: { code: 'UNKNOWN_OUTCOME' } }, mutations: 1 },
 ])('AWX $mode token creation returns no secret reference (S10)', async ({ setup, expected, mutations }) => {
   await withTokenService(async ({ db, send, run, lines, directory }) => {
-    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowSecurityAdministration":true}' WHERE name = 'awx-axi'`)
     await send(setup, 'POST')
+    await run(['user', 'token-create', '42', '--dry-run'])
     const response = await run(['user', 'token-create', '42', '--confirm'])
     expect(response.json(), response.body).toMatchObject(expected)
     expect(response.body).not.toContain('CANARY-')
@@ -460,12 +468,14 @@ test.each([
 
 test('AWX token references expire and cannot follow a replaced credential revision (S10)', async () => {
   await withTokenService(async ({ app, db, store, run, headers }) => {
-    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true}' WHERE name = 'awx-axi'`)
+    db.exec(`UPDATE tools SET native_settings = '{"allowWrites":true,"allowSecurityAdministration":true}' WHERE name = 'awx-axi'`)
+    await run(['user', 'token-create', '42', '--dry-run'])
     const first = await run(['user', 'token-create', '42', '--confirm'])
     const firstResult = decode(first.json().stdout) as { result: { path: string } }
     const reference = store.findCredential('awx-axi')!
     store.replaceCredential('awx-axi', store.readCredential(reference), reference.revision!, 'synthetic-development-user', Date.now())
     expect((await app.inject({ method: 'GET', url: firstResult.result.path, headers })).statusCode).toBe(404)
+    await run(['user', 'token-create', '42', '--dry-run'])
     const second = await run(['user', 'token-create', '42', '--confirm'])
     const secondResult = decode(second.json().stdout) as { result: { path: string } }
     vi.useFakeTimers({ toFake: ['Date'] })

@@ -537,7 +537,7 @@ Save, run **Test connection**, enable the tool and grant it to a role, then run 
 For private certificates and rotation, follow the [credential trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui).
 HTTP and TLS-verification bypasses are refused.
 
-See the [AWX write boundary](safety.md#write-gates-by-tool) for write and destructive delete controls, required permissions and supported operations.
+See the [AWX write boundary](safety.md#write-gates-by-tool) for write, destructive delete and security administration controls, required permissions and supported operations.
 Use [browser administration](admin-guide.md#browser-administration) to change the controls and the [command reference](commands.md) for preview and confirmation behavior.
 Artium manages origin, TLS and credential selectors, and refuses standalone auth login/logout, setup, config, profile and update commands.
 See [client input handling](client-reference.md#command-surface-and-subcommands) for AWX structured values, protected local files and supported stdin forms.

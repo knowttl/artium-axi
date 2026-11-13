@@ -36,7 +36,7 @@ test('AWX enabling writes in one tenant does not grant another tenant write acce
     const headers = { authorization: `Bearer ${login.json().accessToken}` }
     const reauth = await first.app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
     const grant = await first.app.inject({ method: 'PATCH', url: '/v1/admin/tools/awx-axi/write-access',
-      headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { enabled: true, expectedRevision: 1 } })
+      headers: { ...headers, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: { enabled: true, allowSecurityAdministration: true, expectedRevision: 1 } })
     expect(grant.json(), grant.body).toMatchObject({ writeAccess: { enabled: true } })
     first.reference = first.store.findCredential('awx-axi')!
     for (const args of [['job', 'cancel', '42', '--confirm'], ['inventory', 'edit', '42', '--name', 'Synthetic', '--confirm'],

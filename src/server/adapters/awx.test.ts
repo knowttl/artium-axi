@@ -20,7 +20,7 @@ const { AwxAxiError, formatError } = await import(errorsModule)
 
 const credential = { origin: 'https://controller.example', token: 'CANARY-awx-token' }
 const reference = { id: 'synthetic-awx', tool: 'awx-axi' as const, revision: 1 }
-const adapter = (allowWrites = false, allowConfigurationWrites = false, allowDeletes = false) => createAwxAdapter({ getCredential: async () => ({ ...credential, allowWrites, allowConfigurationWrites, allowDeletes }) })
+const adapter = (allowWrites = false, allowConfigurationWrites = false, allowDeletes = false, allowSecurityAdministration = allowWrites) => createAwxAdapter({ getCredential: async () => ({ ...credential, allowWrites, allowConfigurationWrites, allowDeletes, allowSecurityAdministration }) })
 test.each(['--dry-run', '--confirm'])('raw mutation %s requires the tenant write setting', async flag => {
   await expect(adapter().prepare(['api', 'post', 'jobs/42/cancel/', flag], reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
   const call = await adapter(true, false, true).prepare(['api', 'post', 'jobs/42/cancel/', flag], reference)
@@ -28,14 +28,23 @@ test.each(['--dry-run', '--confirm'])('raw mutation %s requires the tenant write
 })
 
 test('ordinary AWX writes never receive the delete switch without the separate grant', async () => {
-  const call = await adapter(true).prepare(['organization', 'create', 'Synthetic organization', '--confirm'], reference)
+  const call = await adapter(true).prepare(['inventory', 'create', 'Synthetic inventory', '--confirm'], reference)
   expect(call.environment).toMatchObject({ AWX_AXI_READ_ONLY: 'false', AWX_AXI_ALLOW_CONFIG_WRITES: '1' })
   expect(call.environment).not.toHaveProperty('AWX_AXI_ALLOW_DELETES')
 })
 
 test.each([
-  { settings: { allowWrites: true }, credential: { allowWrites: true, allowDeletes: true } },
-  { settings: { allowWrites: true, allowDeletes: true }, credential: { allowWrites: true } },
+  { settings: { allowWrites: true }, grants: { allowWrites: true, allowSecurityAdministration: true } },
+  { settings: { allowWrites: true, allowSecurityAdministration: true }, grants: { allowWrites: true } },
+])('AWX security administration requires current and resolved grants: $settings', async ({ settings, grants }) => {
+  const managed = createAwxAdapter({ getSettings: () => settings, getCredential: async () => ({ ...credential, ...grants }) })
+  await expect(managed.prepare(['user', 'edit', '42', '--is-superuser', '--confirm'], reference)).rejects.toMatchObject({
+    code: 'FLAG_BLOCKED', next: expect.stringContaining('Allow security administration') })
+})
+
+test.each([
+  { settings: { allowWrites: true, allowSecurityAdministration: true }, credential: { allowWrites: true, allowDeletes: true, allowSecurityAdministration: true } },
+  { settings: { allowWrites: true, allowDeletes: true, allowSecurityAdministration: true }, credential: { allowWrites: true, allowSecurityAdministration: true } },
 ])('AWX deletes require agreement between current and resolved settings: $settings', async ({ settings, credential: grants }) => {
   const managed = createAwxAdapter({ getSettings: () => settings, getCredential: async () => ({ ...credential, ...grants }) })
   await expect(managed.prepare(['organization', 'delete', '42', '--confirm'], reference)).rejects.toMatchObject({ code: 'FLAG_BLOCKED',
@@ -235,6 +244,29 @@ test.each(inventory.commands.filter(route => route.effect === 'configuration-wri
   expect(help).toContain('--dry-run')
   expect(help).toContain('allowWrites and --confirm')
   expect(help).toContain(`AWX must authorize ${command}`)
+})
+
+test.each([
+  'organization create', 'organization edit', 'organization delete',
+  'organization admin-add', 'organization admin-remove', 'organization user-add', 'organization user-remove',
+  'organization team-add', 'organization team-remove',
+  'user create', 'user edit', 'user delete', 'user token-create', 'user token-revoke',
+  'team create', 'team edit', 'team delete', 'team user-add', 'team user-remove',
+  'role grant', 'role revoke',
+])('%s managed help names the security administration permission', async command => {
+  const call = await adapter().prepare([...command.split(' '), '--help'], reference)
+  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
+  expect(result.status).toBe(0)
+  expect(rewriteSuggestions(result.stdout, 'awx-axi')).toContain('This command additionally requires administrator Allow security administration (allowSecurityAdministration).')
+})
+
+test.each(['post', 'put', 'patch', 'delete'])('api %s managed help names conditional permissions', async operation => {
+  const call = await adapter().prepare(['api', operation, '--help'], reference)
+  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
+  expect(result.status).toBe(0)
+  const help = rewriteSuggestions(result.stdout, 'awx-axi')
+  expect(help).toContain('Requests to security-administration paths also require Allow security administration (allowSecurityAdministration)')
+  expect(help).toContain('api delete also requires Allow destructive deletes (allowDeletes)')
 })
 
 test.each([

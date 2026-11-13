@@ -664,7 +664,7 @@ describe('AWX native write failure recovery (R1)', () => {
     db.exec(`UPDATE tools SET enabled = 1, raw_api_mode = 'read-writes', raw_api_routes = '{"get":[],"write":["POST **","PUT **","PATCH **","DELETE **"]}' WHERE name = 'awx-axi';
       INSERT INTO role_tools (role_id, tool, raw_api) VALUES ('synthetic-role', 'awx-axi', 1)`)
     const awx = createAwxAdapter({ getCredential: async () => ({ origin: 'https://controller.example',
-      token: 'CANARY-awx-token', allowWrites: true, allowDeletes: true, allowConfigurationWrites: true }) })
+      token: 'CANARY-awx-token', allowWrites: true, allowDeletes: true, allowSecurityAdministration: true, allowConfigurationWrites: true }) })
     const prepare = awx.prepare.bind(awx)
     awx.prepare = async (...input) => ({ ...await prepare(...input), executable: fakeTool.executable,
       args: [...fakeTool.args, ...(input[0].includes('--dry-run') ? ['print', 'synthetic preview'] : ['tool-failure', code])] })

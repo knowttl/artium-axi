@@ -16,6 +16,7 @@ export interface TemporaryFile {
 }
 
 export interface PreparedCall {
+  requiresPreview?: boolean
   proxmox?: { origin: string, identity: string, password: boolean, authenticate: boolean,
     stream?: { duplex: boolean, spice: boolean, upload: boolean, preview: boolean, operation: string } }
   // Native-generated protocol metadata stays intact; every selected provider value is still scanned.
