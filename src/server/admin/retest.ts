@@ -6,6 +6,7 @@ const diagnosticCodes = ${JSON.stringify(diagnosticCodes)};
 const diagnosticStages = ${JSON.stringify(diagnosticStages)};
 ${structuredDiagnostic.toString()}
 const retestErrors = ${JSON.stringify(Object.fromEntries(Object.entries(errors).map(([code, error]) => [code, error.message])))};
+const retestNext = ${JSON.stringify(Object.fromEntries(Object.entries(errors).map(([code, error]) => [code, error.next])))};
 function renderRetestDiagnostic(detail) {
   const status = detail.status === undefined ? '' : ' HTTP ' + detail.status + '.';
   if (detail.kind === 'network') return 'Connection test: Could not reach the artium admin server. Run Test connection again.';

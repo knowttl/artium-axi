@@ -93,11 +93,11 @@ describe('Azure token authentication', () => {
   })
 
   it.each([
-    ['AADSTS7000215', 'secret is invalid'],
-    ['AADSTS7000222', 'secret expired'],
-    ['AADSTS700016', 'application was not found'],
-    ['AADSTS90002', 'tenant was not found'],
-  ])('keeps %s and actionable advice without forwarding the provider body', async (code, advice) => {
+    ['AADSTS7000215'],
+    ['AADSTS7000222'],
+    ['AADSTS700016'],
+    ['AADSTS90002'],
+  ])('keeps reviewed code %s without forwarding the provider body', async code => {
     const network = new FakeTokenTransport()
     network.status = 400
     network.response = { error: 'invalid_client', error_description: `${code}: ${secretCredential.clientSecret} CANARY-RAW-RESPONSE` }
