@@ -1,33 +1,54 @@
 import assert from 'node:assert/strict'
-import { spawn, spawnSync } from 'node:child_process'
+import { spawn, spawnSync, type ChildProcessByStdio } from 'node:child_process'
 import { once } from 'node:events'
 import { createInterface } from 'node:readline'
-import { createServer } from 'node:net'
+import { createServer, type AddressInfo } from 'node:net'
+import type { Readable } from 'node:stream'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, afterEach, before, beforeEach, test } from 'node:test'
 
-const environment = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: `artium-sso-${process.pid}`,
+type Fixture = {
+  url: string
+  clock: string
+  clientHome: string
+  caFile: string
+  ssoControl: string
+  ssoEvidence: string
+}
+
+type SsoEvidence = {
+  callbackCookies: { session: boolean; preauth: boolean; csrf: boolean } | null
+  authorizations: { prompt: string | null }[]
+  sessions: { user_id: string; reauthenticated_at: number | null }[]
+  invitations: { user_id: string; claimed_at: number | null }[]
+  users: { id: string; password_hash: string | null }[]
+  grants: { user_id: string; role_id: string; origin: string }[]
+  events: { event: string; action: string | null; authentication_method: string | null }[]
+  audit: { outcome: string; provider_id: string | null; subject: string | null }[]
+}
+
+const environment: NodeJS.ProcessEnv = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: `artium-sso-${process.pid}`,
   CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors' }
-let server
-let fixture
+let server: ChildProcessByStdio<null, Readable, null>
+let fixture: Fixture
 
 before(async () => {
   const reservation = createServer()
   reservation.listen(0, '127.0.0.1')
   await once(reservation, 'listening')
-  environment.CHROME_DEVTOOLS_AXI_PORT = String(reservation.address().port)
-  await new Promise((resolve, reject) => reservation.close(error => error ? reject(error) : resolve()))
+  environment.CHROME_DEVTOOLS_AXI_PORT = String((reservation.address() as AddressInfo).port)
+  await new Promise<void>((resolve, reject) => reservation.close(error => error ? reject(error) : resolve()))
 })
 
-function chrome(args, input) {
+function chrome(args: string[], input?: string) {
   const result = spawnSync('chrome-devtools-axi', args, { env: environment, input, encoding: 'utf8', timeout: 90_000 })
   assert.equal(result.error, undefined)
   assert.equal(result.status, 0, result.stdout + result.stderr)
   return result.stdout
 }
 
-function browser(script) {
+function browser(script: string) {
   return chrome(['run'], `const base = ${JSON.stringify(fixture.url)};
     const check = (value, message) => { if (!value) throw new Error(message); };
     const wait = page.wait.bind(page);
@@ -62,7 +83,14 @@ afterEach(async () => {
 
 after(() => chrome(['stop']))
 
-async function configure(value) {
+async function configure(value: {
+  providerId?: 'synthetic-generic'
+  enabled?: boolean
+  localBreakGlass?: boolean
+  administrator?: boolean
+  tamperSignature?: boolean
+  claims?: Record<string, string | string[] | number>
+}) {
   const response = await fetch(fixture.ssoControl, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(value) })
   assert.equal(response.status, 200)
 }
@@ -74,7 +102,7 @@ const signIn = `await page.open(base + '/login');
   await page.wait('[data-oidc-approve]');
   await page.click('[data-oidc-approve]');`
 
-function selectPage(urlPart) {
+function selectPage(urlPart: string) {
   const pages = chrome(['pages'])
   const row = pages.split('\n').find(line => line.includes(urlPart))
   assert.ok(row, pages)
@@ -102,7 +130,7 @@ function openReauthPopup() {
     await page.wait('[data-oidc-approve]');`)
 }
 
-function cli(args) {
+function cli(args: string[]) {
   const child = spawn(process.execPath, ['dist/cli/artium-axi.mjs', ...args], {
     env: { PATH: process.env.PATH, XDG_CONFIG_HOME: fixture.clientHome, ARTIUM_AXI_URL: fixture.url, ARTIUM_AXI_CA_FILE: fixture.caFile },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -111,11 +139,11 @@ function cli(args) {
   let stderr = ''
   child.stdout.on('data', chunk => { stdout += chunk })
   child.stderr.on('data', chunk => { stderr += chunk })
-  const result = once(child, 'close', { signal: AbortSignal.timeout(30_000) }).then(([code]) => ({ code, stdout, stderr }))
+  const result = once(child, 'close', { signal: AbortSignal.timeout(30_000) }).then(([code]) => ({ code: code as number | null, stdout, stderr }))
   return { child, result }
 }
 
-async function cliDeviceCode(child) {
+async function cliDeviceCode(child: ChildProcessByStdio<null, Readable, Readable>) {
   const lines = createInterface({ input: child.stdout })
   try {
     for await (const line of lines) {
@@ -179,10 +207,10 @@ test('generic provider and Entra are both offered and generic sign-in reaches it
     await page.click('a[href="/account"]');
     await page.wait('section h2');
     check(await page.eval(() => document.body.innerText.includes('SSO sign-in')), 'Generic account session missing');`)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions[0].user_id, 'synthetic-generic-user')
-  assert.equal(evidence.audit.at(-1).provider_id, 'synthetic-generic')
-  assert.equal(evidence.audit.at(-1).subject, 'synthetic-subject')
+  assert.equal(evidence.audit.at(-1)!.provider_id, 'synthetic-generic')
+  assert.equal(evidence.audit.at(-1)!.subject, 'synthetic-subject')
 })
 
 test('generic callback routed to Entra is refused in the real browser', async () => {
@@ -192,7 +220,7 @@ test('generic callback routed to Entra is refused in the real browser', async ()
     await page.open(callback.replace('/synthetic-generic/callback', '/synthetic-entra/callback'));
     await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.body.textContent.includes('SSO_STATE_INVALID')), 'Cross-provider callback accepted');`)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
 })
 
@@ -250,7 +278,7 @@ test('generic named rules can be added edited previewed and removed through real
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('section.card:not(:has([data-rule])) a[href$="rule=new"]');
     check(await page.eval(() => !document.querySelector('a[href*="/matches/"]')), 'Removed rule still present');`)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.deepEqual(evidence.events.filter(event => event.action?.endsWith('role-rule')).map(event => event.action),
     ['create-role-rule', 'update-role-rule', 'delete-role-rule'])
 })
@@ -262,7 +290,7 @@ test('generic ID token with another issuer is refused in the real browser', asyn
     await page.click('[data-oidc-approve]');
     await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.body.textContent.includes('SSO_TOKEN_INVALID')), 'Issuer mix-up accepted');`)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
 })
 
@@ -318,7 +346,7 @@ for (const decision of ['approve', 'deny', 'expire']) test(`bundled CLI device s
     if (decision === 'approve') {
       assert.equal(result.code, 0, result.stdout + result.stderr)
       assert.match(result.stdout, /status: authenticated/)
-      const session = JSON.parse(readFileSync(sessionFile, 'utf8'))
+      const session: { accessToken: string; refreshToken: string } = JSON.parse(readFileSync(sessionFile, 'utf8'))
       assert.ok(!result.stdout.includes(session.accessToken) && !result.stdout.includes(session.refreshToken))
       const me = await cli(['whoami']).result
       assert.equal(me.code, 0, me.stdout + me.stderr)
@@ -363,9 +391,9 @@ test('SSO identity confirmation resumes the pending form through the real popup 
   browser(`await page.wait('form[action$="/tools"]');
     check(await page.eval(() => document.querySelector('h1').innerText === 'Synthetic resumed role'), 'Pending role was not saved');
     check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes unlocked')), 'Recent-auth window was not updated');`)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.deepEqual(evidence.callbackCookies, { session: false, preauth: true, csrf: false })
-  assert.equal(evidence.authorizations.at(-1).prompt, 'login')
+  assert.equal(evidence.authorizations.at(-1)!.prompt, 'login')
   assert.equal(evidence.sessions.length, 1)
   assert.ok(evidence.sessions[0].reauthenticated_at)
   assert.equal(evidence.events.filter(event => event.event === 'reauth').length, 1)
@@ -392,9 +420,9 @@ test('stale provider authentication is refused and leaves the pending draft inta
     await page.wait('#reauth-dialog:not([open])');
     check(await page.eval(() => document.querySelector('form[action="/v1/admin/roles"] [name=name]').value === 'Synthetic resumed role'), 'Failed confirmation lost the draft');
     check(await page.eval(async () => !(await (await fetch('/v1/admin/roles')).json()).roles.some(role => role.name === 'Synthetic resumed role')), 'Failed confirmation created a role');`)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions[0].reauthenticated_at, null)
-  assert.equal(evidence.audit.at(-1).outcome, 'SSO_TOKEN_INVALID')
+  assert.equal(evidence.audit.at(-1)!.outcome, 'SSO_TOKEN_INVALID')
 })
 
 test('optional Microsoft sign-out revokes artium before visiting the fake provider logout page', async () => {
@@ -417,9 +445,9 @@ test('optional Microsoft sign-out revokes artium before visiting the fake provid
     await page.wait('[name=username]');
     await page.open(base + '/account');
     await page.wait('[name=username]');`)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
-  assert.equal(evidence.events.at(-1).event, 'sign-out')
+  assert.equal(evidence.events.at(-1)!.event, 'sign-out')
 })
 
 test('CSP-compatible link and Strict-cookie callback hop establish an SSO account session', async () => {
@@ -437,7 +465,7 @@ test('CSP-compatible link and Strict-cookie callback hop establish an SSO accoun
     await page.click('a[href="/account"]');
     await page.wait('section h2');
   `)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.deepEqual(evidence.callbackCookies, { session: false, preauth: true, csrf: false })
   assert.equal(evidence.sessions.length, 2)
   assert.equal(evidence.audit.length, 2)
@@ -450,9 +478,9 @@ test('uninvited identity is refused without creating a session', async () => {
     await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_NOT_INVITED')), 'Uninvited identity was not refused');
   `)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
-  assert.equal(evidence.audit.at(-1).outcome, 'SSO_NOT_INVITED')
+  assert.equal(evidence.audit.at(-1)!.outcome, 'SSO_NOT_INVITED')
 })
 
 test('SSO-enabled login page refuses an undesignated local administrator', async () => {
@@ -464,7 +492,7 @@ test('SSO-enabled login page refuses an undesignated local administrator', async
     await page.click('form[action="/login"] button');
     await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SIGN_IN_FAILED')), 'Undesignated administrator was admitted');`)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
 })
 
@@ -485,7 +513,7 @@ test('break-glass browser sign-in and password confirmation are highlighted in A
     await page.open(base + '/admin/audit');
     await page.wait('.audit-table');
     check(await page.eval(() => Array.from(document.querySelectorAll('.audit-table .badge.warn')).filter(node => node.textContent === 'Break-glass').length === 2), 'Sign-in and confirmation were not highlighted');`)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.deepEqual(evidence.events.filter(event => ['sign-in', 'reauth'].includes(event.event))
     .map(event => ({ event: event.event, method: event.authentication_method })), [
     { event: 'sign-in', method: 'break-glass' }, { event: 'reauth', method: 'break-glass' },
@@ -498,9 +526,9 @@ test('tampered ID token is refused in the real callback page', async () => {
     await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_TOKEN_INVALID')), 'Tampered signature was accepted');
   `)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
-  assert.equal(evidence.audit.at(-1).outcome, 'SSO_TOKEN_INVALID')
+  assert.equal(evidence.audit.at(-1)!.outcome, 'SSO_TOKEN_INVALID')
 })
 
 test('wrong ID token issuer is refused in the real callback page', async () => {
@@ -509,9 +537,9 @@ test('wrong ID token issuer is refused in the real callback page', async () => {
     await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_TOKEN_INVALID')), 'Wrong issuer was accepted');
   `)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
-  assert.equal(evidence.audit.at(-1).outcome, 'SSO_TOKEN_INVALID')
+  assert.equal(evidence.audit.at(-1)!.outcome, 'SSO_TOKEN_INVALID')
 })
 
 test('replaying a completed callback cannot issue another session', async () => {
@@ -524,12 +552,12 @@ test('replaying a completed callback cannot issue another session', async () => 
     await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_STATE_INVALID')), 'Callback replay was accepted');
   `)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 1)
   assert.deepEqual(evidence.audit.map(event => event.outcome), ['success', 'SSO_STATE_INVALID'])
 })
 
-async function invite(options = {}) {
+async function invite(options: { userId?: string } = {}): Promise<{ claimPath: string }> {
   const response = await fetch(fixture.ssoControl.replace('sso-protocol', 'sso-invitation'), {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(options),
   })
@@ -537,7 +565,7 @@ async function invite(options = {}) {
   return response.json()
 }
 
-const claim = path => `await page.open(base + ${JSON.stringify(path)});
+const claim = (path: string) => `await page.open(base + ${JSON.stringify(path)});
   await page.wait('[data-oidc-approve]');
   await page.click('[data-oidc-approve]');`
 
@@ -576,7 +604,7 @@ test('administrator activates configured SSO through the guide and can disable i
     await page.click('form[action="/logout"] button');
     await page.wait('form[action="/login"]');
     check(await page.eval(() => !document.querySelector('a[href="/auth/sso/synthetic-entra/start"]')), 'Deactivated provider offered sign-in');`)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.events.filter(event => event.action === 'update-local-policy').length, 2)
 })
 
@@ -625,7 +653,7 @@ test('invitation claim grants direct and rule roles and a reused link is refused
     await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Reused link accepted');
   `)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   const userId = evidence.invitations[0].user_id
   assert.ok(evidence.invitations[0].claimed_at)
   assert.deepEqual(evidence.grants.filter(grant => grant.user_id === userId).map(({ role_id, origin }) => ({ role_id, origin })), [
@@ -642,7 +670,7 @@ test('wrong-username claim refuses the identity and leaves the invitation unused
     await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Wrong username accepted');
   `)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.invitations[0].claimed_at, null)
   assert.equal(evidence.sessions.length, 0)
 })
@@ -655,7 +683,7 @@ test('expired invitation link is refused before provider sign-in', async () => {
     await page.wait('main .kv dd.mono');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Expired link accepted');
   `)
-  const evidence = await (await fetch(fixture.ssoEvidence)).json()
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
   assert.equal(evidence.invitations[0].claimed_at, null)
 })
@@ -673,9 +701,9 @@ test('local account linking keeps the account and role sync removes only rule ac
     await page.wait('section h2');
     check(await page.eval(() => document.querySelector('main').innerText.includes('From Entra ID rule synthetic-reader-rule') && document.querySelector('main').innerText.includes('Direct, SSO rule') && document.querySelector('.kv dd').textContent === 'SSO'), 'Linked account or grant labels missing');
   `)
-  let evidence = await (await fetch(fixture.ssoEvidence)).json()
+  let evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.invitations[0].user_id, 'synthetic-development-user')
-  assert.equal(evidence.users.find(user => user.id === 'synthetic-development-user').password_hash, null)
+  assert.equal(evidence.users.find(user => user.id === 'synthetic-development-user')!.password_hash, null)
   assert.ok(evidence.events.some(event => event.event === 'identity-link'))
   assert.equal(evidence.grants.filter(grant => grant.user_id === 'synthetic-development-user').length, 3)
   await configure({ claims: { oid: '44444444-4444-4444-8444-444444444444', preferred_username: 'synthetic-invited', roles: [] } })

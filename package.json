@@ -17,7 +17,7 @@
     "build": "node scripts/build.mjs",
     "build:npm": "node scripts/build-npm.mjs",
     "test:containers": "node scripts/container-checks.mjs",
-    "test:browser": "pnpm build && node --test test/browser/*.mjs",
+    "test:browser": "pnpm build && node --test test/browser/*.mjs test/browser/*.ts",
     "test:axi": "node scripts/axi-check.ts",
     "test:walking-skeleton": "pnpm build && node scripts/walking-skeleton.mjs",
     "test": "node scripts/upstream-inventory.mjs && node scripts/mg-headless-schema.ts && vitest run",
