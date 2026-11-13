@@ -31,7 +31,7 @@ Promise<{ chain: X509Certificate[], verificationError?: string }> {
       timer = setTimeout(() => reject(Object.assign(new Error(), { code: 'ETIMEDOUT' })), timeoutMs)
     })])
   } catch (error) {
-    throw diagnosticError('UPSTREAM_NETWORK_FAILED', { stage: 'DNS', host, message: `DNS lookup failed for ${host}: ${verificationCode(error)}.` })
+    throw diagnosticError('UPSTREAM_NETWORK_FAILED', { stage: 'DNS', host, toolCode: verificationCode(error), message: `DNS lookup failed for ${host}: ${verificationCode(error)}.` })
   } finally { clearTimeout(timer) }
   const socket = connect({ host: native.connectAddress ?? host, port, autoSelectFamily: true,
     lookup: (_hostname, _options, callback) => callback(null, addresses) })
@@ -44,7 +44,7 @@ Promise<{ chain: X509Certificate[], verificationError?: string }> {
     })
   } catch (error) {
     socket.destroy()
-    throw diagnosticError('UPSTREAM_NETWORK_FAILED', { stage: 'TCP', host, message: `TCP connection failed for ${host}:${port}: ${verificationCode(error)}.` })
+    throw diagnosticError('UPSTREAM_NETWORK_FAILED', { stage: 'TCP', host, toolCode: verificationCode(error), message: `TCP connection failed for ${host}:${port}: ${verificationCode(error)}.` })
   }
   if (endpoint.protocol === 'ldap:') {
     try {
@@ -53,7 +53,7 @@ Promise<{ chain: X509Certificate[], verificationError?: string }> {
       socket.destroy()
       const code = verificationCode(error)
       if (code !== 'CONNECTION_FAILED') throw diagnosticError('UPSTREAM_NETWORK_FAILED', {
-        stage: 'TLS', host, message: `LDAP StartTLS connection failed for ${host}: ${code}.` })
+        stage: 'TLS', host, toolCode: code, message: `LDAP StartTLS connection failed for ${host}: ${code}.` })
       throw diagnosticError('UPSTREAM_TLS_FAILED', { stage: 'TLS', host, message: `LDAP StartTLS negotiation failed for ${host}.`, hint: 'Check that the directory supports StartTLS on this port.' })
     }
   }
@@ -96,7 +96,7 @@ Promise<{ chain: X509Certificate[], verificationError?: string }> {
     const certificate = secure.getPeerCertificate()
     const code = verificationCode(await classifyCertificateFailure(error as Error, trust, certificate?.fingerprint256))
     if (!secure.authorizationError && !certificateErrorCodePattern.test(code)) {
-      throw diagnosticError('UPSTREAM_NETWORK_FAILED', { stage: 'TLS', host, message: `TLS connection failed for ${host}: ${code}.` })
+      throw diagnosticError('UPSTREAM_NETWORK_FAILED', { stage: 'TLS', host, toolCode: code, message: `TLS connection failed for ${host}: ${code}.` })
     }
     const issuer = certificate?.issuer ? Object.entries(certificate.issuer).map(([key, value]) => `${key}=${value}`).join(', ') : undefined
     throw diagnosticError('UPSTREAM_TLS_FAILED', { stage: 'TLS', host,

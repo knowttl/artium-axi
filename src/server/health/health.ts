@@ -3,7 +3,7 @@ import type Database from 'better-sqlite3'
 import { healthSchema, toolAllowsWrites } from '../../shared/api.js'
 import { ArtiumError, errors } from '../../shared/errors.js'
 import type { Diagnostic } from '../../shared/errors.js'
-import { diagnosticError, safeDiagnostic, toolFailure } from './diagnostic.js'
+import { diagnosticError, retestCodes, safeDiagnostic, toolFailure } from './diagnostic.js'
 import { preflight } from './preflight.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import type { Adapter } from '../adapters/types.js'
@@ -178,7 +178,7 @@ export class ToolHealth {
   }
 
   async check(tool: ToolName, actor: string, requestId: string, clientAddress: string | null,
-    authorize?: () => void, credentialId?: string) {
+    authorize?: () => void, credentialId?: string, retest = false) {
     const { db, audit, runner, adapters, store } = this
     const background = actor === healthDefaults.actor
     const adapter = adapters.find(adapter => adapter.name === tool)
@@ -253,7 +253,7 @@ export class ToolHealth {
         const invoke = (limits: Partial<RunnerLimits> = {}) => runner.run(background ? `${actor}:${tool}` : actor,
           prepared.executable, prepared.args, preparedJournal.environment, prepared.secrets,
           { ...prepared.limits, publicContent: prepared.publicContent, credentialTrust, ...limits }, {}, prepared.files, beforeSpawn, prepared.pathPrefix)
-        let result = await logRun({ requestId, tool }, () => prepared.proxmox && this.proxmox
+        let result = await logRun({ requestId, tool, suppressToolCode: retest }, () => prepared.proxmox && this.proxmox
           ? this.proxmox.health(actor, reference, requestId, prepared, beforeSpawn, invoke) : invoke())
         if (prepared.proxmox) secrets.push(...prepared.secrets)
         if (tool === 'gh-axi') result = hostedGhOutput(prepared.invocation, result)
@@ -278,7 +278,13 @@ export class ToolHealth {
         detail.host = (detail.stage === 'token acquisition' ? endpoints[0] : endpoints[
           ['az-axi', 'mg-axi'].includes(tool) || tool === 'ado-axi' && credential.auth === 'client-secret' ? 1 : 0])?.hostname
       }
-      const diagnostic = safeDiagnostic(detail, secrets)
+      const retestCode = retest && detail ? retestCodes.includes(detail.toolCode ?? '') ? detail.toolCode
+        : detail.message.match(new RegExp(`\\b(?:${retestCodes.join('|')})\\b`))?.[0] : undefined
+      const diagnostic = retest && detail && failure ? {
+        stage: detail.stage, message: errors[failure.code].message,
+        ...(retestCode ? { toolCode: retestCode } : {}),
+        ...(detail.trust ? { trust: detail.trust } : {}), checkedAt, credentialRevision: reference.revision,
+      } : safeDiagnostic(detail, secrets)
       if (failure) failure.diagnostic = diagnostic
       const settings = db.prepare('SELECT native_settings FROM tools WHERE name = ?').get(tool) as { native_settings: string }
       const health = healthSchema.parse({ status: failure ? 'error' : 'ok', checkedAt, diagnostic,

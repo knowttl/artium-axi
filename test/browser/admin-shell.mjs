@@ -852,11 +852,11 @@ test('trust automatically tests credentials and displays the exact failure', () 
     await page.click('[data-trust-certificate] button');
     await page.wait('form[data-method=DELETE][action$="/certificates"]');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('The tool exited unsuccessfully.')), 'Exact test failure missing');
-    check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('Tool exited with status 1.')), 'Exact tool failure missing');
+    check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('tool run') && !document.querySelector('[data-check-diagnostic]').textContent.includes('Tool exited with status 1.')), 'Structured tool failure missing');
   `)
 })
 
-for (const [failure, expected] of [['network', 'Connection test: request failed before an HTTP response was received (TypeError)'], ['parse', 'Connection test: response was not valid JSON. HTTP 200.']]) test('automatic retest reports a safe ' + failure + ' detail', () => {
+for (const [failure, expected] of [['network', 'Connection test: Could not reach the artium admin server.'], ['parse', 'Connection test: response was not valid JSON. HTTP 200.']]) test('automatic retest reports a safe ' + failure + ' detail', () => {
   browser(`
     await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-valid' });
     await page.click('form[data-test-tool] button');
