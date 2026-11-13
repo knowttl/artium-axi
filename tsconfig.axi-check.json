@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.scripts.json",
+  "compilerOptions": {
+    "erasableSyntaxOnly": false
+  },
+  "include": ["scripts/axi-check.ts"]
+}
