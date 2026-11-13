@@ -192,7 +192,8 @@
   "globalFlagScope": "Four selection overrides accepted upstream before/after commands; inherited by every leaf. --help is universal. Version flags are bare only.",
   "targetPolicy": {
     "read": "Managed account access; reads always allowed by write policy",
-    "write": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery"
+    "write": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+    "destructive": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery"
   },
   "globals": [
     {
@@ -2300,8 +2301,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id|name>"
@@ -2317,8 +2318,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -2330,8 +2331,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -2343,8 +2344,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -3254,8 +3255,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id>"
@@ -3271,8 +3272,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -3284,8 +3285,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -3297,8 +3298,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -4654,8 +4655,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id|name>"
@@ -4671,8 +4672,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -4684,8 +4685,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -4697,8 +4698,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -5386,8 +5387,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id|name>"
@@ -5403,8 +5404,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -5416,8 +5417,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -5429,8 +5430,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -7694,8 +7695,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id|name>"
@@ -7703,7 +7704,7 @@
         "required": 1
       },
       "help": "awx-axi credential delete <id|name> [--confirm] [--dry-run]",
-      "note": "Upstream delete tag checks only the native delete gate; this is not a separate target permission",
+      "note": "Upstream delete tag checks only the native delete gate; Artium supplies that gate only under the separate Allow destructive deletes setting",
       "flags": [
         {
           "name": "help",
@@ -7712,8 +7713,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -7725,8 +7726,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -7738,8 +7739,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -9157,8 +9158,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id|name>"
@@ -9174,8 +9175,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -9187,8 +9188,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -9200,8 +9201,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -9587,14 +9588,14 @@
       "effect": "configuration write",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [],
         "required": 0
       },
       "help": "awx-axi inventory host-bulk-create --inventory <i|name> --hosts-file <path> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -9603,12 +9604,12 @@
           "effect": "configuration write",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -9617,12 +9618,12 @@
           "effect": "configuration write",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "hosts-file",
@@ -9631,13 +9632,13 @@
           "effect": "configuration write",
           "status": "supported",
           "targetSlice": "c",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -9646,12 +9647,12 @@
           "effect": "configuration write",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -9660,12 +9661,12 @@
           "effect": "configuration write",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         }
       ]
     },
@@ -9674,8 +9675,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [],
         "required": 0
@@ -9690,8 +9691,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -9703,8 +9704,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "c",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": true,
           "stdin": false,
@@ -9717,8 +9718,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -9730,8 +9731,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -9963,8 +9964,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id|name>"
@@ -9980,8 +9981,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -9993,8 +9994,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -10006,8 +10007,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -10641,8 +10642,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id|name>"
@@ -10658,8 +10659,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -10671,8 +10672,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -10684,8 +10685,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -11287,8 +11288,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id|name>"
@@ -11304,8 +11305,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -11317,8 +11318,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -11330,8 +11331,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -11716,8 +11717,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id|name>"
@@ -11733,8 +11734,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -11746,8 +11747,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -11759,8 +11760,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -13661,8 +13662,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id|name>"
@@ -13678,8 +13679,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -13691,8 +13692,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -13704,8 +13705,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -14175,8 +14176,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id|name>"
@@ -14192,8 +14193,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -14205,8 +14206,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -14218,8 +14219,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -14901,8 +14902,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id|name>"
@@ -14910,7 +14911,7 @@
         "required": 1
       },
       "help": "awx-axi user delete <id|name> [--confirm] [--dry-run]",
-      "note": "Upstream delete tag checks only the native delete gate; this is not a separate target permission",
+      "note": "Upstream delete tag checks only the native delete gate; Artium supplies that gate only under the separate Allow destructive deletes setting",
       "flags": [
         {
           "name": "help",
@@ -14919,8 +14920,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -14932,8 +14933,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -14945,8 +14946,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -15634,8 +15635,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id|name>"
@@ -15651,8 +15652,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -15664,8 +15665,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -15677,8 +15678,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -16654,8 +16655,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<id|name>"
@@ -16663,7 +16664,7 @@
         "required": 1
       },
       "help": "awx-axi team delete <id|name> [--confirm] [--dry-run]",
-      "note": "Upstream delete tag checks only the native delete gate; this is not a separate target permission",
+      "note": "Upstream delete tag checks only the native delete gate; Artium supplies that gate only under the separate Allow destructive deletes setting",
       "flags": [
         {
           "name": "help",
@@ -16672,8 +16673,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -16685,8 +16686,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -16698,8 +16699,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -18105,8 +18106,8 @@
       "effect": "destructive",
       "status": "supported",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "positionals": {
         "names": [
           "<path>"
@@ -18122,8 +18123,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -18135,8 +18136,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -18148,8 +18149,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -18411,8 +18412,8 @@
       "effect": "configuration write",
       "status": "managed equivalent",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "reason": "Artium rejects the upstream nested spelling with the canonical command list; inventory host-bulk-create is the managed equivalent with identical flags, effect and authorization",
       "flags": [
         {
@@ -18422,12 +18423,12 @@
           "effect": "configuration write",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -18436,12 +18437,12 @@
           "effect": "configuration write",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "hosts-file",
@@ -18450,13 +18451,13 @@
           "effect": "configuration write",
           "status": "supported",
           "targetSlice": "c",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -18465,12 +18466,12 @@
           "effect": "configuration write",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -18479,12 +18480,12 @@
           "effect": "configuration write",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         }
       ]
     },
@@ -18494,8 +18495,8 @@
       "effect": "destructive",
       "status": "managed equivalent",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "reason": "Artium rejects the upstream nested spelling with the canonical command list; inventory host-bulk-delete is the managed equivalent with identical flags, effect and authorization",
       "flags": [
         {
@@ -18505,8 +18506,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -18518,8 +18519,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "c",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": true,
           "stdin": false,
@@ -18532,8 +18533,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -18545,8 +18546,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -18767,8 +18768,8 @@
       "effect": "destructive",
       "status": "managed equivalent",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "reason": "Artium rejects the upstream nested spelling with the canonical command list; inventory group-delete is the managed equivalent with identical flags, effect and authorization",
       "flags": [
         {
@@ -18778,8 +18779,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -18791,8 +18792,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -18804,8 +18805,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -19674,8 +19675,8 @@
       "effect": "destructive",
       "status": "managed equivalent",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "reason": "Artium rejects the upstream nested spelling with the canonical command list; inventory source-delete is the managed equivalent with identical flags, effect and authorization",
       "flags": [
         {
@@ -19685,8 +19686,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -19698,8 +19699,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -19711,8 +19712,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -20595,8 +20596,8 @@
       "effect": "destructive",
       "status": "managed equivalent",
       "targetSlice": "d",
-      "authorization": "write",
-      "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+      "authorization": "destructive",
+      "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
       "reason": "Artium rejects the upstream nested spelling with the canonical command list; inventory host-delete is the managed equivalent with identical flags, effect and authorization",
       "flags": [
         {
@@ -20606,8 +20607,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -20619,8 +20620,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false
@@ -20632,8 +20633,8 @@
           "effect": "destructive",
           "status": "supported",
           "targetSlice": "d",
-          "authorization": "write",
-          "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",
+          "authorization": "destructive",
+          "requiredAdminControl": "Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery",
           "secret": false,
           "file": false,
           "stdin": false

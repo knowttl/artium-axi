@@ -26,7 +26,7 @@ A new upstream release must change those reviewed values in the same diff as its
 
 ## Reading the matrix
 
-Each command and flag has an upstream effect, current Artium status, target slice and read/write target authorization.
+Each command and flag has an upstream effect, current Artium status, target slice and target authorization.
 Use the [S0 decisions](parity/awx-axi.md) for target support and alias equivalents.
 Upstream effect tags describe operation effects, not target administrator permissions.
 The JSON carries upstream descriptions and help, input delivery requirements, reasons, conditional effects and alias relationships.
