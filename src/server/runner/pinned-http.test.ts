@@ -31,6 +31,7 @@ let applicationRequests: string[] = []
 let kubernetes = false
 let methods: string[] = []
 let storedIdentity: { certificate: string, privateKey: string }
+let otherStoredIdentity: { certificate: string, privateKey: string }
 const server = createServer((incoming, response) => {
   applicationRequests.push(incoming.headers.authorization ?? '')
   methods.push(incoming.method!)
@@ -72,6 +73,10 @@ beforeAll(async () => {
       clientCertificate: pem('client'), privateKey: readFileSync(join(directory, 'client.key'), 'utf8') }, 0, 'synthetic-user', Date.now())
     const credential = await new EmbeddedSecretSource(store).getCredential(reference) as { clientCertificate: string, privateKey: string }
     storedIdentity = { certificate: credential.clientCertificate, privateKey: credential.privateKey }
+    const otherReference = store.replaceCredential('kubernetes-axi', { origin: 'https://localhost', auth: 'certificate',
+      clientCertificate: pem('client-only'), privateKey: readFileSync(join(directory, 'server.key'), 'utf8') }, 1, 'synthetic-user', Date.now())
+    const otherCredential = await new EmbeddedSecretSource(store).getCredential(otherReference) as { clientCertificate: string, privateKey: string }
+    otherStoredIdentity = { certificate: otherCredential.clientCertificate, privateKey: otherCredential.privateKey }
   } finally { db.close() }
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
@@ -449,7 +454,9 @@ kubectlTest.each([
     expect(preview.exitCode, preview.stdout + preview.stderr).toBe(0)
     const { digest } = JSON.parse(preview.stdout)
     expect(methods.every(method => method === 'GET')).toBe(true)
-    const changed = await kubernetesCall(runner, ['confirm', request, '--digest', digest], trust(), 'CANARY-other-token')
+    const changedIdentity = auth === 'certificate'
+      ? { auth, clientCertificate: otherStoredIdentity.certificate, privateKey: otherStoredIdentity.privateKey } : undefined
+    const changed = await kubernetesCall(runner, ['confirm', request, '--digest', digest], saved, 'CANARY-other-token', undefined, changedIdentity)
     expect(JSON.parse(changed.stdout).error.code).toBe('PREVIEW_MISMATCH')
     const confirmed = await run(['confirm', request, '--digest', digest])
     expect(confirmed.exitCode, confirmed.stdout + confirmed.stderr).toBe(0)
