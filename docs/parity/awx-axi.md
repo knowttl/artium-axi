@@ -163,7 +163,7 @@ Raw overrides are blocked today; target managed equivalents keep selection and t
 | `credential copy` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `credential create` `<name>` (0 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `credential edit` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
-| `credential delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. Target deletion uses the single writes switch, including security resources; upstream delete tags still need trusted runner gate configuration |
+| `credential delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. Target deletion uses the writes switch plus the separate Allow destructive deletes setting, including security resources; upstream delete tags still need trusted runner gate configuration |
 | `credential list` | supported | supported | read | Partial flag coverage; see individual flag decisions. |
 | `credential show` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `approval list` | supported | supported | read | Retain managed access and upstream resource permissions. |
@@ -246,7 +246,7 @@ Raw overrides are blocked today; target managed equivalents keep selection and t
 | `user token-revoke` `<id>` (1 required) | blocked | supported | write | Upstream DELETE is tagged security; target revocation uses the single writes switch, with upstream gates set by trusted managed configuration Route rejected before administrator settings, including help and preview. |
 | `user create` `<username>` (0 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `user edit` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
-| `user delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. Target deletion uses the single writes switch, including security resources; upstream delete tags still need trusted runner gate configuration |
+| `user delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. Target deletion uses the writes switch plus the separate Allow destructive deletes setting, including security resources; upstream delete tags still need trusted runner gate configuration |
 | `user list` | supported | supported | read | Partial flag coverage; see individual flag decisions. |
 | `user show` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `notification list` | supported | supported | read | Partial flag coverage; see individual flag decisions. |
@@ -265,7 +265,7 @@ Raw overrides are blocked today; target managed equivalents keep selection and t
 | `team credential-create` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `team create` `<name>` (0 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
 | `team edit` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. |
-| `team delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. Target deletion uses the single writes switch, including security resources; upstream delete tags still need trusted runner gate configuration |
+| `team delete` `<id\|name>` (1 required) | blocked | supported | write | Route rejected before administrator settings, including help and preview. Target deletion uses the writes switch plus the separate Allow destructive deletes setting, including security resources; upstream delete tags still need trusted runner gate configuration |
 | `team list` | supported | supported | read | Partial flag coverage; see individual flag decisions. |
 | `team show` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |
 | `team users` `<id\|name>` (1 required) | supported | supported | read | Retain managed access and upstream resource permissions. |

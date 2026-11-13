@@ -10,10 +10,11 @@ This is the target policy, not the [current implemented write boundary](safety.m
 
 - read: Managed account access; reads always allowed by write policy.
 - write: One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it; preview, explicit confirmation, coordination, audit and unknown-outcome recovery.
+- destructive: Administrator writes switch plus the separate administrator Allow destructive deletes setting, both default OFF; deletes, api delete and bulk host create/delete require both; preview with --dry-run, then explicit --confirm, coordination, audit and unknown-outcome recovery.
 
-There are no separate destructive or security authorization tiers.
+Deletes and bulk host create/delete need the separate Allow destructive deletes setting in addition to the writes switch; there is no separate security authorization tier.
 Upstream config/delete/security tags and native gates remain implementation constraints, not administrator permission tiers.
-Artium must supply the appropriate native gates under the single writes switch.
+Artium must supply the appropriate native gates under the writes switch and, for destructive operations, the Allow destructive deletes setting.
 All operations retain tenant/account access, managed HTTPS origin, verified TLS, credential isolation and AWX resource authorization.
 Client-local managed equivalents never permit caller-controlled runner configuration.
 Help itself is read-only; a mutation row's authorization governs preview/execution, not help.
@@ -57,7 +58,7 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | template notification-remove | configuration write | supported | b | write |
 | template create | configuration write | supported | b | write |
 | template edit | configuration write | supported | b | write |
-| template delete | destructive | supported | d | write |
+| template delete | destructive | supported | d | destructive |
 | template copy | configuration write | supported | b | write |
 | template list | read | supported | f | read |
 | template show | read | supported | f | read |
@@ -66,7 +67,7 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | workflow object-roles | read | supported | f | read |
 | workflow node-create | configuration write | supported | b | write |
 | workflow node-edit | configuration write | supported | b | write |
-| workflow node-delete | destructive | supported | d | write |
+| workflow node-delete | destructive | supported | d | destructive |
 | workflow node-link | configuration write | supported | b | write |
 | workflow node-unlink | configuration write | supported | b | write |
 | workflow node-credential-add | security administration | supported | e | write |
@@ -83,7 +84,7 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | workflow copy | configuration write | supported | b | write |
 | workflow create | configuration write | supported | b | write |
 | workflow edit | configuration write | supported | b | write |
-| workflow delete | destructive | supported | d | write |
+| workflow delete | destructive | supported | d | destructive |
 | workflow list | read | supported | f | read |
 | workflow show | read | supported | f | read |
 | workflow survey | read | supported | f | read |
@@ -93,7 +94,7 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | workflow template-node | read | supported | f | read |
 | organization create | configuration write | supported | b | write |
 | organization edit | configuration write | supported | b | write |
-| organization delete | destructive | supported | d | write |
+| organization delete | destructive | supported | d | destructive |
 | organization notification-add | configuration write | supported | b | write |
 | organization notification-remove | configuration write | supported | b | write |
 | organization user-add | security administration | supported | e | write |
@@ -124,7 +125,7 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | credential copy | security administration | supported | c | write |
 | credential create | security administration | supported | c | write |
 | credential edit | security administration | supported | c | write |
-| credential delete | destructive | supported | d | write |
+| credential delete | destructive | supported | d | destructive |
 | credential list | read | supported | f | read |
 | credential show | read | supported | f | read |
 | approval list | read | supported | f | read |
@@ -141,36 +142,36 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | project notification-remove | configuration write | supported | b | write |
 | project create | configuration write | supported | b | write |
 | project edit | configuration write | supported | b | write |
-| project delete | destructive | supported | d | write |
+| project delete | destructive | supported | d | destructive |
 | project list | read | supported | f | read |
 | project show | read | supported | f | read |
 | project playbooks | read | supported | f | read |
 | project updates | read | supported | f | read |
 | project roles | read | supported | f | read |
 | project sync | operational write | supported | f | write |
-| inventory host-bulk-create | configuration write | supported | d | write |
-| inventory host-bulk-delete | destructive | supported | d | write |
+| inventory host-bulk-create | configuration write | supported | d | destructive |
+| inventory host-bulk-delete | destructive | supported | d | destructive |
 | inventory group-create | configuration write | supported | b | write |
 | inventory group-edit | configuration write | supported | b | write |
-| inventory group-delete | destructive | supported | d | write |
+| inventory group-delete | destructive | supported | d | destructive |
 | inventory group-add-host | configuration write | supported | b | write |
 | inventory group-remove-host | configuration write | supported | b | write |
 | inventory group-add-child | configuration write | supported | b | write |
 | inventory group-remove-child | configuration write | supported | b | write |
 | inventory source-create | configuration write | supported | b | write |
 | inventory source-edit | configuration write | supported | b | write |
-| inventory source-delete | destructive | supported | d | write |
+| inventory source-delete | destructive | supported | d | destructive |
 | inventory source-credential-add | security administration | supported | e | write |
 | inventory source-credential-remove | security administration | supported | e | write |
 | inventory source-notification-add | configuration write | supported | b | write |
 | inventory source-notification-remove | configuration write | supported | b | write |
 | inventory create | configuration write | supported | b | write |
 | inventory edit | configuration write | supported | b | write |
-| inventory delete | destructive | supported | d | write |
+| inventory delete | destructive | supported | d | destructive |
 | inventory sync | operational write | supported | f | write |
 | inventory host-create | configuration write | supported | b | write |
 | inventory host-edit | configuration write | supported | b | write |
-| inventory host-delete | destructive | supported | d | write |
+| inventory host-delete | destructive | supported | d | destructive |
 | inventory list | read | supported | f | read |
 | inventory show | read | supported | f | read |
 | inventory groups | read | supported | f | read |
@@ -194,12 +195,12 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | schedule instance-group-remove | configuration write | supported | b | write |
 | schedule create | configuration write | supported | b | write |
 | schedule edit | configuration write | supported | b | write |
-| schedule delete | destructive | supported | d | write |
+| schedule delete | destructive | supported | d | destructive |
 | schedule list | read | supported | f | read |
 | schedule show | read | supported | f | read |
 | execution-environment create | configuration write | supported | b | write |
 | execution-environment edit | configuration write | supported | b | write |
-| execution-environment delete | destructive | supported | d | write |
+| execution-environment delete | destructive | supported | d | destructive |
 | execution-environment copy | security administration | supported | e | write |
 | execution-environment list | read | supported | f | read |
 | execution-environment show | read | supported | f | read |
@@ -207,14 +208,14 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | user token-revoke | security administration | supported | e | write |
 | user create | security administration | supported | e | write |
 | user edit | security administration | supported | e | write |
-| user delete | destructive | supported | d | write |
+| user delete | destructive | supported | d | destructive |
 | user list | read | supported | f | read |
 | user show | read | supported | f | read |
 | notification list | read | supported | f | read |
 | notification show | read | supported | f | read |
 | notification-template create | configuration write | supported | b | write |
 | notification-template edit | configuration write | supported | b | write |
-| notification-template delete | destructive | supported | d | write |
+| notification-template delete | destructive | supported | d | destructive |
 | notification-template test | operational write | supported | f | write |
 | notification-template copy | security administration | supported | e | write |
 | notification-template list | read | supported | f | read |
@@ -226,7 +227,7 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | team credential-create | security administration | supported | c | write |
 | team create | security administration | supported | e | write |
 | team edit | security administration | supported | e | write |
-| team delete | destructive | supported | d | write |
+| team delete | destructive | supported | d | destructive |
 | team list | read | supported | f | read |
 | team show | read | supported | f | read |
 | team users | read | supported | f | read |
@@ -247,7 +248,7 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | api post | configuration write | supported | b | write |
 | api put | configuration write | supported | b | write |
 | api patch | configuration write | supported | b | write |
-| api delete | destructive | supported | d | write |
+| api delete | destructive | supported | d | destructive |
 | home | read | supported | f | read |
 | auth login | client-local | managed equivalent | f | write |
 | auth status | read | supported | f | read |
@@ -262,11 +263,11 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 
 | Command or flag | Upstream effect | Artium status | Slice | Target authorization |
 | --- | --- | --- | --- | --- |
-| inventory host bulk-create | configuration write | managed equivalent | d | write |
-| inventory host bulk-delete | destructive | managed equivalent | d | write |
+| inventory host bulk-create | configuration write | managed equivalent | d | destructive |
+| inventory host bulk-delete | destructive | managed equivalent | d | destructive |
 | inventory group create | configuration write | managed equivalent | b | write |
 | inventory group edit | configuration write | managed equivalent | b | write |
-| inventory group delete | destructive | managed equivalent | d | write |
+| inventory group delete | destructive | managed equivalent | d | destructive |
 | inventory group add-host | configuration write | managed equivalent | b | write |
 | inventory group add host | configuration write | managed equivalent | b | write |
 | inventory group remove-host | configuration write | managed equivalent | b | write |
@@ -277,7 +278,7 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | inventory group remove child | configuration write | managed equivalent | b | write |
 | inventory source create | configuration write | managed equivalent | b | write |
 | inventory source edit | configuration write | managed equivalent | b | write |
-| inventory source delete | destructive | managed equivalent | d | write |
+| inventory source delete | destructive | managed equivalent | d | destructive |
 | inventory source credential-add | security administration | managed equivalent | e | write |
 | inventory source credential add | security administration | managed equivalent | e | write |
 | inventory source credential-remove | security administration | managed equivalent | e | write |
@@ -288,7 +289,7 @@ Help itself is read-only; a mutation row's authorization governs preview/executi
 | inventory source notification remove | configuration write | managed equivalent | b | write |
 | inventory host create | configuration write | managed equivalent | b | write |
 | inventory host edit | configuration write | managed equivalent | b | write |
-| inventory host delete | destructive | managed equivalent | d | write |
+| inventory host delete | destructive | managed equivalent | d | destructive |
 
 ## Flags by command
 
@@ -566,9 +567,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### template copy
 
@@ -688,9 +689,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### workflow node-link
 
@@ -886,9 +887,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### workflow list
 
@@ -998,9 +999,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### organization notification-add
 
@@ -1345,13 +1346,13 @@ See command controls above.
 
 ### credential delete
 
-Upstream delete tag checks only the native delete gate; this is not a separate target permission
+Upstream delete tag checks only the native delete gate; Artium supplies that gate only under the separate Allow destructive deletes setting
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### credential list
 
@@ -1555,9 +1556,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### project list
 
@@ -1628,11 +1629,11 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --inventory | value | supported | d | write | none |
-| --hosts-file | value | supported | c | write | file |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --inventory | value | supported | d | destructive | none |
+| --hosts-file | value | supported | c | destructive | file |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### inventory host-bulk-delete
 
@@ -1640,10 +1641,10 @@ The pinned CLI reports any 2xx as deleted; Artium returns PARTIAL_OUTCOME with u
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --hosts-file | value | supported | c | write | file |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --hosts-file | value | supported | c | destructive | file |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### inventory group-create
 
@@ -1678,9 +1679,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### inventory group-add-host
 
@@ -1766,9 +1767,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### inventory source-credential-add
 
@@ -1853,9 +1854,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### inventory sync
 
@@ -1907,9 +1908,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### inventory list
 
@@ -2190,9 +2191,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### schedule list
 
@@ -2256,9 +2257,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### execution-environment copy
 
@@ -2353,13 +2354,13 @@ See command controls above.
 
 ### user delete
 
-Upstream delete tag checks only the native delete gate; this is not a separate target permission
+Upstream delete tag checks only the native delete gate; Artium supplies that gate only under the separate Allow destructive deletes setting
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### user list
 
@@ -2451,9 +2452,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### notification-template test
 
@@ -2594,13 +2595,13 @@ See command controls above.
 
 ### team delete
 
-Upstream delete tag checks only the native delete gate; this is not a separate target permission
+Upstream delete tag checks only the native delete gate; Artium supplies that gate only under the separate Allow destructive deletes setting
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### team list
 
@@ -2828,9 +2829,9 @@ See command controls above.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
-| --help | boolean | supported | d | write | none |
-| --confirm | boolean | supported | d | write | none |
-| --dry-run | boolean | supported | d | write | none |
+| --help | boolean | supported | d | destructive | none |
+| --confirm | boolean | supported | d | destructive | none |
+| --dry-run | boolean | supported | d | destructive | none |
 
 ### home
 
