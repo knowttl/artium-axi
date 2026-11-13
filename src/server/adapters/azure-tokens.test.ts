@@ -123,11 +123,19 @@ describe('Azure token authentication', () => {
     network.response = { error: code, error_description: `${secretCredential.clientSecret} CANARY-RAW-SERVICE-RESPONSE` }
     const error = await mintAzureToken(secretCredential, 'arm', network).catch(error => error as ArtiumError)
     expect(error).toMatchObject({ code: 'TOOL_FAILED', diagnostic: {
-      stage: 'token acquisition', host: 'login.microsoftonline.com', toolCode: code,
+      stage: 'token acquisition', host: 'login.microsoftonline.com', upstreamStatus: status,
       hint: expect.stringContaining('service availability'),
     } })
     expect(JSON.stringify(error)).not.toContain(secretCredential.clientSecret)
     expect(JSON.stringify(error)).not.toContain('CANARY-RAW-SERVICE-RESPONSE')
+  })
+
+  it('retains the runtime cause of a token transport failure', async () => {
+    const network = new FakeTokenTransport()
+    network.sendPostRequestAsync = async () => { throw new Error('fetch failed', { cause: { code: 'EHOSTUNREACH' } }) }
+    await expect(mintAzureToken(secretCredential, 'arm', network)).rejects.toMatchObject({
+      code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { toolCode: 'EHOSTUNREACH' },
+    })
   })
 
   it('drops service diagnostics when a retained code matches the credential secret', async () => {

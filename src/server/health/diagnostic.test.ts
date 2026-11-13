@@ -22,6 +22,17 @@ test.each(['long free text '.repeat(100), 'eyJhbGciOiJIUzI1NiJ9.payload.signatur
     const failure = toolFailure('', JSON.stringify({ error: { code: 'AUTH_REQUIRED', providerCode } }), 1)
     expect(failure.diagnostic?.providerCode).toBeUndefined()
   })
+test('filters untrusted provider codes and retains Azure codes', () => {
+  for (const [providerCode, expected] of [['PrivateCustomerData', undefined], ['AADSTS700016', 'AADSTS700016']]) {
+    const failure = toolFailure('', JSON.stringify({ error: { code: 'AUTH_REQUIRED', providerCode } }), 1, 'mg-axi', true)
+    expect(failure.diagnostic?.providerCode).toBe(expected)
+  }
+})
+
+test('retains the Vectra transport cause for retests', () => {
+  const failure = toolFailure('', 'code: TRANSPORT_FAILED\nmessage: Request failed\nhint: EHOSTUNREACH', 1, 'vectra-axi', true)
+  expect(failure.diagnostic).toMatchObject({ toolCode: 'TRANSPORT_FAILED', transportCode: 'EHOSTUNREACH' })
+})
 test.each(['message', 'hint', 'host', 'issuer', 'toolCode', 'providerCode'])(
   'drops the whole diagnostic when %s contains a known secret', field => {
     expect(safeDiagnostic({ stage: 'TLS', message: 'Synthetic failure', [field]: secret }, [secret])).toBeUndefined()

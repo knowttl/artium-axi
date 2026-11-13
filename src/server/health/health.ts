@@ -260,7 +260,7 @@ export class ToolHealth {
         exitCode = result.exitCode
         durationMs = result.durationMs
         outputBytes = result.outputBytes
-        if (exitCode !== 0) failure = toolFailure(result.stdout, result.stderr, exitCode, tool)
+        if (exitCode !== 0) failure = toolFailure(result.stdout, result.stderr, exitCode, tool, retest)
       } catch (error) {
         failure = error instanceof ArtiumError ? error : new ArtiumError('INTERNAL_ERROR')
         const runnerError = error instanceof RunnerError ? error : undefined

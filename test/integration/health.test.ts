@@ -84,13 +84,11 @@ afterEach(async () => {
 })
 
 test.each([
-  { toolCode: 'EHOSTUNREACH' },
-  { toolCode: 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION' },
-  { toolCode: 'AUTH_REQUIRED', providerCode: 'AADSTS7000222' },
+  { toolCode: 'AUTH_REQUIRED' },
   { toolCode: 'SERVICE_UNAVAILABLE', upstreamStatus: 503 },
 ])('automatic retest retains safe structured fields $toolCode', async fields => {
   const stderr = JSON.stringify({ error: { code: fields.toolCode, httpStatus: fields.upstreamStatus,
-    message: 'Untrusted response with ' + (fields.providerCode ?? 'CANARY-response-text') } })
+    message: 'Untrusted response with CANARY-response-text' } })
   const ready = controlledHealthProcess({ stdout: '', stderr, exitCode: 1 })
   const pending = health.check('falcon-axi', 'synthetic-development-user', 'structured-retest', null, undefined, undefined, true)
   const finish = await ready
