@@ -168,11 +168,11 @@ test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'] as const)
     if (tool === 'ldap-axi') adapters.push(createLdapAdapter(new EmbeddedSecretSource(store)))
     await replace(tool)
     const adapter = adapters.find(adapter => adapter.name === tool)!
-    const prepare = adapter.prepare.bind(adapter)
-    const mocked = vi.spyOn(adapter, 'prepare')
+    if (vi.isMockFunction(adapter.prepare)) adapter.prepare.mockRestore()
+    const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
     for (const { code, stage, text } of diagnosticCases) {
-      mocked.mockImplementationOnce(async (args, reference) => ({ ...await prepare(args, reference),
-        executable: fakeTool.executable, args: [...fakeTool.args, 'failure', text] }))
+      vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) =>
+        original.spawn(fakeTool.executable, [...fakeTool.args, 'failure', text], options))
       const tested = await request('POST', `/${tool}/test`, {})
       expect(tested.status).toBe(503)
       expect(errorResponseSchema.parse(await tested.json())).toMatchObject({ error: { code, diagnostic: { stage, message: 'Details unavailable.',
@@ -238,9 +238,9 @@ test('Graph sign-in failure retains the token-acquisition stage without native t
   adapters.push(adapter)
   await replace('mg-axi')
   const text = 'code: AUTH_REQUIRED\nmessage: Application authentication failed for the configured identity; no user or device-code fallback was attempted'
-  const prepare = adapter.prepare.bind(adapter)
-  vi.spyOn(adapter, 'prepare').mockImplementationOnce(async (args, reference) => ({ ...await prepare(args, reference),
-    executable: fakeTool.executable, args: [...fakeTool.args, 'failure', text] }))
+  const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+  vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) =>
+    original.spawn(fakeTool.executable, [...fakeTool.args, 'failure', text], options))
   const response = await request('POST', '/mg-axi/test', {})
   const body = errorResponseSchema.parse(await response.json())
   expect(body).toMatchObject({ error: { code: 'UPSTREAM_AUTH_FAILED', diagnostic: { toolCode: 'AUTH_REQUIRED',

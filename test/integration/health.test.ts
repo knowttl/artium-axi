@@ -11,12 +11,12 @@ import { createAzAdapter } from '../../src/server/adapters/az.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { createLdapAdapter } from '../../src/server/adapters/ldap.js'
 import { createVectraAdapter } from '../../src/server/adapters/vectra.js'
+import { AzureTokenCache } from '../../src/server/adapters/azure-token-cache.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { browserCookie } from '../../src/server/auth/browser.js'
 import { createBrowserSession } from '../../src/server/auth/sessions.js'
 import { healthDefaults } from '../../src/server/config.js'
 import { ToolHealth } from '../../src/server/health/health.js'
-import { diagnosticError } from '../../src/server/health/diagnostic.js'
 import { cliOutdatedDownloadNext, cliOutdatedUpdateNext, errors } from '../../src/shared/errors.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner, RunnerError } from '../../src/server/runner/runner.js'
@@ -28,6 +28,7 @@ import { cliVersion, firstVersionWithUpdate, hasCliUpdateCommand } from '../../s
 import { issueTestAccessToken, seedToolUser } from '../fixtures/tokens.js'
 import { fakeTool } from '../fake-tool/tool.js'
 import { failedTlsSocket } from '../fixtures/failed-tls-socket.js'
+import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-transport.js'
 
 vi.mock('node:child_process', async importOriginal => {
   const original = await importOriginal<typeof import('node:child_process')>()
@@ -46,6 +47,12 @@ async function controlledHealthProcess(output = { stdout: 'synthetic', stderr: '
     return child
   })
   return ready
+}
+
+async function failHealthProcess(text: string) {
+  const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+  vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) =>
+    original.spawn(fakeTool.executable, [...fakeTool.args, 'failure', text], options))
 }
 
 let directory: string
@@ -173,7 +180,7 @@ test.each([
   const audit = new Audit(db, Date.now, line => { lines.push(line) })
   health = new ToolHealth(db, audit, runner, [adapter], store)
   const stderr = 'code: AUTH_FAILED\nmessage: Synthetic retained health failure'
-  vi.spyOn(runner, 'run').mockResolvedValueOnce({ ...result, stdout: '', stderr, exitCode: 1 })
+  await failHealthProcess(stderr)
   await expect(health.check('falcon-axi', actor, 'retained-check', null)).rejects.toMatchObject({ code: 'UPSTREAM_AUTH_FAILED' })
   const diagnostic = { stage: 'authentication', message: 'Details unavailable.', toolCode: 'AUTH_FAILED',
     checkedAt: expect.any(Number), credentialRevision: 1 }
@@ -526,7 +533,7 @@ test.each([
   ['OAuth credential exchange failed', 'TOOL_FAILED'],
 ])('background health retains the token-exchange category for %s', async (message, code) => {
   const text = `code: AUTH_EXCHANGE_FAILED\nmessage: ${message}`
-  vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '', stderr: text, exitCode: 1 })
+  await failHealthProcess(text)
   await health.refresh('falcon-axi')
   const cached = db.prepare('SELECT status, error_code, checked_at FROM tool_health').get() as {
     status: string, error_code: string, checked_at: number,
@@ -545,10 +552,8 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
         auth: 'token', token: 'CANARY-VECTRA-TOKEN' }, 0, 'synthetic-development-user', Date.now())
       db.exec("UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi'")
       const vectra = createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
-      const prepare = vectra.prepare.bind(vectra)
       const text = `code: TRANSPORT_FAILED\nmessage: Request to https://appliance.test could not complete\nhint: ${cause}`
-      vi.spyOn(vectra, 'prepare').mockImplementation(async (args, reference) => ({ ...await prepare(args, reference),
-        executable: fakeTool.executable, args: [...fakeTool.args, 'failure', text] }))
+      await failHealthProcess(text)
       health = new ToolHealth(db, new Audit(db), runner, [vectra], store)
       await expect(health.check('vectra-axi', actor, 'native-transport', null)).rejects.toMatchObject({
         code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'TCP', toolCode: 'TRANSPORT_FAILED',
@@ -582,9 +587,10 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
     code: 'UPSTREAM_TLS_FAILED', stage: 'TLS', host: 'appliance.test' },
   ] as const)('$tool $toolCode omits the configured host', async ({ tool, credential, create, toolCode, message, code, stage, host }) => {
     store.replaceCredential(tool, credential, 0, 'synthetic-development-user', Date.now())
+    db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
     health = new ToolHealth(db, new Audit(db), runner, [create()], store)
     const text = `code: ${toolCode}\nmessage: ${message}`
-    vi.spyOn(runner, 'run').mockResolvedValue({ ...result, stdout: '', stderr: text, exitCode: 1 })
+    await failHealthProcess(text)
     await expect(health.check(tool, actor, 'destination-test', null)).rejects.toMatchObject({
       code, diagnostic: { stage, message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
     })
@@ -609,10 +615,20 @@ test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('omits th
   })
 })
 
-test.each(['UPSTREAM_NETWORK_FAILED', 'UPSTREAM_TLS_FAILED'] as const)('completes hostless preparation diagnostics for %s', async code => {
-  vi.spyOn(adapter, 'prepare').mockRejectedValueOnce(diagnosticError(code, { stage: 'TLS', message: 'Synthetic connection failure.' }))
-  await expect(health.check('falcon-axi', 'synthetic-development-user', 'prepare-host', null)).rejects.toMatchObject({
-    code, diagnostic: { stage: 'TLS', message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
+test.each([
+  { code: 'UPSTREAM_NETWORK_FAILED', failure: 'ECONNRESET', stage: 'token acquisition' },
+  { code: 'UPSTREAM_TLS_FAILED', failure: 'CERT_HAS_EXPIRED', stage: 'TLS' },
+] as const)('completes hostless preparation diagnostics for $code', async ({ code, failure, stage }) => {
+  store.replaceCredential('az-axi', { auth: 'secret', tenantId: azureTestTenant,
+    clientId: '22222222-2222-4222-8222-222222222222', clientSecret: 'CANARY-AZURE-SECRET' },
+  0, 'synthetic-development-user', Date.now())
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'az-axi'")
+  const network = new FakeTokenTransport()
+  network.failure = failure
+  health = new ToolHealth(db, new Audit(db), runner,
+    [createAzAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'), new AzureTokenCache(network))], store)
+  await expect(health.check('az-axi', healthDefaults.actor, 'prepare-host', null)).rejects.toMatchObject({
+    code, diagnostic: { stage, message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
   })
 })
 
