@@ -1,8 +1,9 @@
 import { errors, type Diagnostic } from './errors.js'
 import { constants } from 'node:os'
+import { getSystemErrorMap } from 'node:util'
 
 export const diagnosticStages = ['configuration', 'token acquisition', 'DNS', 'TCP', 'TLS', 'authentication', 'response', 'tool run'] as const
-export const transportCodes = Object.keys(constants.errno)
+export const transportCodes = [...new Set([...Object.keys(constants.errno), ...[...getSystemErrorMap().values()].map(([code]) => code)])]
 export const retestCodes = ['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT', 'ECONNABORTED', 'ENETUNREACH', 'EHOSTUNREACH',
   'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION', 'SERVICE_UNAVAILABLE',
   'CONNECTION_FAILED', 'ERR_TLS_CERT_ALTNAME_INVALID', 'CERT_NOT_YET_VALID', 'CERT_HAS_EXPIRED', 'CERT_REVOKED',
