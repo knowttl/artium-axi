@@ -290,6 +290,24 @@ test('CA fingerprint replacement leaves a different endpoint CA record untouched
   await expect(preflight('unifi-axi', next, before)).resolves.toBeUndefined()
 })
 
+test.each([
+  ['ca', true],
+  ['other-ca', false],
+] as const)('CA renewal verifies the saved %s certificate as well as endpoint trust', async (savedCa, verified) => {
+  const value = { origin: endpoint, apiKey: 'CANARY-key', tls: { trustedCertificatePem: pem(savedCa), peerFingerprintSha256: fingerprint(savedCa) } }
+  const reference = store.createInstance('unifi-axi', { name: 'rotation', description: '' }, value, 'synthetic-development-user', Date.now())
+  db.prepare('INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run('synthetic-ca', reference.id, endpoint, new X509Certificate(pem('intermediate')).fingerprint256, new X509Certificate(pem('leaf')).fingerprint256, pem('intermediate'), pem('leaf'), 'ca', Date.now(), 'synthetic-development-user')
+  serve('rotated')
+  const base = '/v1/admin/tools/unifi-axi/instances/rotation/certificates'
+  const inspection = (await app.inject({ method: 'POST', url: base + '/inspect', headers, payload: {} })).json()
+  expect(inspection).toMatchObject({ trustMode: 'ca', rotation: verified })
+  const response = await app.inject({ method: 'POST', url: base + '/trust', headers, payload: { inspectionId: inspection.inspectionId, confirmedFingerprint: inspection.chain[0].fingerprint, mode: 'ca', replace: true } })
+  expect(response.statusCode, response.body).toBe(verified ? 200 : 400)
+  const next = store.readCredential(store.findInstance('unifi-axi', 'rotation')!) as Record<string, unknown>
+  expect(next.tls).toEqual({ trustedCertificatePem: pem(savedCa), peerFingerprintSha256: fingerprint(verified ? 'rotated' : savedCa) })
+})
+
 test('standalone Proxmox pin can be replaced', async () => {
   const pin = { origin: endpoint, sha256: fingerprint('leaf'), replaceHostname: false }
   store.createInstance('proxmox-axi', { name: 'rotation', description: '' }, { origin: endpoint, auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token', certificatePin: pin }, 'synthetic-development-user', Date.now())

@@ -35,8 +35,9 @@ export function savedCertificateTrust(tool: ToolName, value: Record<string, unkn
   }
   const selfSignedPin = certificate && certificate.issuer === certificate.subject && certificate.verify(certificate.publicKey)
     && fingerprint?.replaceAll(':', '').toLowerCase() === certificate.fingerprint256.replaceAll(':', '').toLowerCase()
-  const isCa = Boolean(certificate?.ca && !selfSignedPin)
-  const mode: 'pin' | 'ca' | null = records.some(record => record.mode === 'ca') ? 'ca'
+  const explicitCa = records.some(record => record.mode === 'ca')
+  const isCa = Boolean(certificate?.ca && (explicitCa || !selfSignedPin))
+  const mode: 'pin' | 'ca' | null = explicitCa ? 'ca'
     : records.length ? 'pin' : certificate ? isCa ? 'ca' : 'pin' : fingerprint ? 'pin' : null
   return { pem, fingerprint, certificate, isCa, mode }
 }

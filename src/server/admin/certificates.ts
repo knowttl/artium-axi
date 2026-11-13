@@ -101,8 +101,8 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     const endpoint = toolEndpoints(reference.tool, value)[endpointIndex]
     if (!endpoint) throw new ArtiumError('INVALID_INPUT')
     const trustRevision = trustState(reference, endpoint.href)?.revision ?? 0
-    const { pem: savedCa, isCa } = savedCertificateTrust(reference.tool, value)
     const endpointTrustRecords = readCredentialTrust(db, reference).filter(item => item.mode === 'ca' && certificateEndpoint(item.endpoint).href === certificateEndpoint(endpoint).href)
+    const { pem: savedCa, isCa } = savedCertificateTrust(reference.tool, value, endpointTrustRecords)
     const endpointCa = endpointTrustRecords[0]?.pem
     const maxVersion = reference.tool === 'ldap-axi' && value.tlsMaxVersion === '1.2' ? 'TLSv1.2' : undefined
     const connectAddress = reference.tool === 'unifi-axi' ? (value.tls as { connectAddress?: string } | undefined)?.connectAddress : undefined
