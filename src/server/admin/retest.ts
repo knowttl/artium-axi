@@ -1,0 +1,55 @@
+import { errors } from '../../shared/errors.js'
+
+export const retestScript = `
+const retestErrors = ${JSON.stringify(Object.fromEntries(Object.entries(errors).map(([code, error]) => [code, error.message])))};
+function retestTransport(error) {
+  const codes = ['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT',
+    'ERR_NETWORK', 'ERR_CONNECTION_REFUSED', 'ERR_CONNECTION_RESET', 'ERR_NAME_NOT_RESOLVED',
+    'ERR_CERT_AUTHORITY_INVALID', 'CERT_HAS_EXPIRED', 'DEPTH_ZERO_SELF_SIGNED_CERT',
+    'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'ERR_TLS_CERT_ALTNAME_INVALID'];
+  const code = [error?.code, error?.cause?.code].find(value => codes.includes(value));
+  const name = ['TypeError', 'SyntaxError', 'AbortError', 'NetworkError', 'TimeoutError'].includes(error?.name) ? error.name : undefined;
+  return { ...(code ? { code } : {}), ...(name ? { name } : {}) };
+}
+function renderRetestDiagnostic(detail) {
+  const status = detail.status === undefined ? '' : ' HTTP ' + detail.status + '.';
+  const transport = [detail.code, detail.name].filter(Boolean).join(', ');
+  if (detail.kind === 'network') return 'Connection test: request failed before an HTTP response was received' +
+    (transport ? ' (' + transport + ')' : '') + '. Check browser network access and server certificate trust. Run Test connection again.';
+  if (detail.kind === 'body') return 'Connection test: response body could not be read' +
+    (transport ? ' (' + transport + ')' : '') + '.' + status + ' Check the connection for an interrupted response. Run Test connection again.';
+  if (detail.kind === 'json') return 'Connection test: response was not valid JSON.' + status + ' Check the server or proxy response format. Run Test connection again.';
+  if (detail.kind === 'schema') return 'Connection test: response did not match the connection-test format.' + status + ' Check server and client version compatibility. Run Test connection again.';
+  return 'Connection test:' + status + (detail.errorCode ? ' ' + retestErrors[detail.errorCode] + ' (' + detail.errorCode + ').' : ' The server rejected the test request.') +
+    (detail.stage ? ' Failed step: ' + detail.stage + '.' : '') + (detail.transportCode ? ' Transport: ' + detail.transportCode + '.' : '') +
+    (detail.trust ? ' Certificate trust: ' + detail.trust + '.' : '') + ' Run Test connection again.';
+}
+async function retestConnection(url, csrf) {
+  let response;
+  try {
+    response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ _csrf: csrf }) });
+  } catch (error) {
+    return { diagnostic: { kind: 'network', ...retestTransport(error) } };
+  }
+  if (response.redirected) return { redirect: response.url };
+  const status = response.status;
+  let result;
+  try { result = await response.json(); }
+  catch (error) {
+    return { diagnostic: { kind: error?.name === 'SyntaxError' ? 'json' : 'body', status, ...retestTransport(error) } };
+  }
+  if (!response.ok) {
+    const error = result?.error;
+    const errorCode = typeof error?.code === 'string' && Object.hasOwn(retestErrors, error.code) ? error.code : undefined;
+    const stage = ['configuration', 'token acquisition', 'DNS', 'TCP', 'TLS', 'authentication', 'response', 'tool run'].includes(error?.diagnostic?.stage) ? error.diagnostic.stage : undefined;
+    const transportCode = retestTransport({ code: error?.diagnostic?.toolCode }).code;
+    const trust = ['self-signed', 'untrusted'].includes(error?.diagnostic?.trust) ? error.diagnostic.trust : undefined;
+    return { diagnostic: { kind: 'http', status, errorCode, stage, transportCode, trust } };
+  }
+  if (result?.status !== 'ok' || !Number.isSafeInteger(result.checkedAt) ||
+      !Number.isSafeInteger(result.credentialRevision) || result.errorCode !== null) {
+    return { diagnostic: { kind: 'schema', status } };
+  }
+  return { health: { status: 'ok', checkedAt: result.checkedAt, credentialRevision: result.credentialRevision, errorCode: null } };
+}
+`;

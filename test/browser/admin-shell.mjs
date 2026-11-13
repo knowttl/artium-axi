@@ -856,7 +856,7 @@ test('trust automatically tests credentials and displays the exact failure', () 
   `)
 })
 
-for (const [failure, expected] of [['network', 'Network error: TypeError'], ['parse', 'Response could not be read: SyntaxError']]) test('automatic retest reports a safe ' + failure + ' category', () => {
+for (const [failure, expected] of [['network', 'Connection test: request failed before an HTTP response was received (TypeError)'], ['parse', 'Connection test: response was not valid JSON. HTTP 200.']]) test('automatic retest reports a safe ' + failure + ' detail', () => {
   browser(`
     await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-valid' });
     await page.click('form[data-test-tool] button');
