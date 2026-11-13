@@ -168,7 +168,7 @@ test.each(['falcon-axi', 'vectra-axi', 'az-axi', 'mg-axi', 'ldap-axi'] as const)
     if (tool === 'ldap-axi') adapters.push(createLdapAdapter(new EmbeddedSecretSource(store)))
     await replace(tool)
     const adapter = adapters.find(adapter => adapter.name === tool)!
-    if (vi.isMockFunction(adapter.prepare)) adapter.prepare.mockRestore()
+    if (vi.isMockFunction(adapter.prepare)) vi.mocked(adapter.prepare).mockRestore()
     const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
     for (const { code, stage, text } of diagnosticCases) {
       vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) =>
