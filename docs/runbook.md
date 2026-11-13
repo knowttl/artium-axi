@@ -273,8 +273,8 @@ This uses the existing certificate-inspection timeouts and follows no redirects.
 Inspection connects only to an endpoint from the saved credential and tool inventory, performs a TLS handshake, and sends no credentials or application requests.
 For LDAP StartTLS, it sends only the anonymous protocol upgrade before reading the TLS chain.
 Administration capability and recent identity confirmation are required.
-If the endpoint verifies with the server's existing trust, including its server-wide CA bundle, and no saved certificate needs replacement, inspection reports that no trust is needed and offers no trust confirmation.
-The API also refuses initial trust for that inspection, and no trust change is recorded.
+If the endpoint verifies with the server's existing trust, including its server-wide CA bundle, and no saved certificate needs replacement, inspection reports that no trust is needed and offers no trust confirmation, except when a Kubernetes managed name requires an initial endpoint pin.
+The API also refuses initial trust for that inspection outside the Kubernetes exception, and no trust change is recorded.
 
 Review the hostname, subject, issuer, names, validity dates, key, signature algorithm and full SHA-256 fingerprint.
 When a certificate has no nonblank subject, its displayed subject falls back to the first subject alternative name, or `(no subject)` if none is available.
@@ -304,13 +304,14 @@ Without an endpoint trust record, a manually saved self-signed certificate with 
 For CA trust with a paired fingerprint, replacement is offered when the fingerprint differs and the presented certificate verifies against the saved CA trust.
 When the saved certificate and endpoint CA differ, the presented leaf must verify against both.
 Compare and confirm the new fingerprint before replacement; recent identity confirmation is still required.
-Strict pin replacement updates supported shared fields and removes previous pin records for every equivalent spelling of the inspected endpoint.
+Strict pin replacement updates supported shared fields and removes previous pin records for every equivalent spelling of the inspected endpoint; Kubernetes preserves its issuing CA when replacing a pin.
 CA-mode replacement updates the paired leaf fingerprint and leaves existing CA records unchanged.
 If CA verification fails, check the certificate's hostname, validity and chain; update the CA manually if the issuing CA changed.
 Replacement preserves strict leaf pinning or CA trust, and automatically tests the connection.
 Strict pins reject the old leaf and other leaves from the same CA; CA trust continues to allow leaves signed by the confirmed CA, subject to any separately saved fingerprint.
 Removing an endpoint trust record retains the separately saved Certificate verification fields; clear those fields too when revoking that trust.
 CA trust is selected when an issuing CA is available; self-signed endpoints select strict leaf pinning.
+For a Kubernetes managed name with an issuing CA and no endpoint trust record, inspection instead offers an exact pin and preserves the profile's issuing CA.
 UniFi also saves and verifies the leaf fingerprint with CA trust, so confirm its replacement after leaf renewal.
 Proxmox also verifies any separately saved fingerprint, which can reject a renewed leaf under the trusted CA.
 GitHub supports strict leaf pins through a private per-call HTTP socket relay that verifies the upstream TLS connection before sending application data.
@@ -322,6 +323,7 @@ Managed Kubernetes profiles can set **Certificate name to verify** (`tlsServerNa
 With an exact pin for that endpoint, Artium preconfigures the relay name and declares its server-name capability only for that endpoint; every call still verifies the name, validity, chain or exact pin, and leaf fingerprint.
 A managed name without a saved exact pin is refused, including CA-only trust; clear the name to use issuing CA trust with the saved endpoint name.
 Native kubeconfig certificates, ExecCredential helpers, caller TLS server-name overrides, hosted byte sessions and upgrade connections remain refused with strict pins; use issuing CA trust for supported operations without pins.
+Hosted byte sessions also refuse a managed certificate name; clear it and use issuing CA trust for those sessions.
 For self-signed Kubernetes endpoints or a missing issuing CA, managed token and client-certificate identities can use strict pins.
 Without strict pins, the GitHub CLI child receives system roots, the server bundle and credential CAs through a private `SSL_CERT_FILE`; those CAs are additive across the child's connections.
 With strict pins, both gh-axi and direct native GitHub calls use the relay, which restricts saved anchors and fingerprints to the inspected hostname and port and uses normal server trust for unrelated endpoints.
@@ -346,6 +348,7 @@ This diagnostic connection sends no credentials or application requests, establi
 On upgrade, saved pins with separate CA anchors are converted once to CA trust; self-signed leaf pins and leaf pins with no issuing CA stored remain pins.
 Each converted or retained entry is recorded in the audit log, and cached tool health is cleared.
 If migration leaves both modes at one endpoint, connections accept leaves issued by its saved CA anchors or the retained pinned leaves themselves; a retained pin does not extend CA trust to its issuer.
+For a Kubernetes managed certificate name, the leaf must also match a retained pin even when CA trust exists.
 Previously saved automatic intermediate repairs are removed on upgrade, clearing affected tools' cached health; they do not become confirmed CA anchors.
 The shared runner adds the certificate to its existing Node, Python, LDAP and Vectra trust injection, and server-side token acquisition uses the same credential trust.
 Trust does not disable date verification; hostname verification remains enabled except for the existing [Proxmox fingerprint option](tool-credentials.md#proxmox).
