@@ -1075,7 +1075,7 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
     await page.fill('[name=nativeSettings]', ${JSON.stringify(JSON.stringify(entry.settings))});
     await page.click('form:has([name=nativeSettings]) button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form:has([name=nativeSettings]) [name=expectedRevision][value="5"]');
+    await page.wait('form:has([name=nativeSettings]) [name=expectedRevision][value="3"]');
   `)
   const response = await fetch(fixture.clock.replace('/test/clock', '/test/tools/' + entry.tool))
   const { stored } = await response.json()
