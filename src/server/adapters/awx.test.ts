@@ -244,9 +244,20 @@ test.each(inventory.commands.filter(route => route.effect === 'configuration-wri
   expect(help).toContain('--dry-run')
   expect(help).toContain('allowWrites and --confirm')
   expect(help).toContain(`AWX must authorize ${command}`)
-  if (inventory.commands.find(route => route.command === command)?.securityAdministration) {
-    expect(help).toContain('This command additionally requires administrator Allow security administration (allowSecurityAdministration).')
-  }
+})
+
+test.each([
+  'organization create', 'organization edit', 'organization delete',
+  'organization admin-add', 'organization admin-remove', 'organization user-add', 'organization user-remove',
+  'organization team-add', 'organization team-remove',
+  'user create', 'user edit', 'user delete', 'user token-create', 'user token-revoke',
+  'team create', 'team edit', 'team delete', 'team user-add', 'team user-remove',
+  'role grant', 'role revoke',
+])('%s managed help names the security administration permission', async command => {
+  const call = await adapter().prepare([...command.split(' '), '--help'], reference)
+  const result = spawnSync(process.execPath, ['tools/node_modules/@knowttl/awx-axi/dist/bin/awx-axi.js', ...call.args], { encoding: 'utf8' })
+  expect(result.status).toBe(0)
+  expect(rewriteSuggestions(result.stdout, 'awx-axi')).toContain('This command additionally requires administrator Allow security administration (allowSecurityAdministration).')
 })
 
 test.each([
