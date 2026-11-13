@@ -161,7 +161,7 @@ afterAll(async () => {
 
 test.each([
   ['unifi-axi', true], ['technitium-axi', true], ['proxmox-axi', false], ['ldap-axi', false],
-  ['vectra-axi', false], ['kubernetes-axi', false], ['gh-axi', false], ['ado-axi', false],
+  ['vectra-axi', false], ['kubernetes-axi', true], ['gh-axi', false], ['ado-axi', false],
   ['az-axi', false], ['mg-axi', false], ['awx-axi', false], ['beyondtrust-axi', false],
   ['checkpoint-axi', false], ['falcon-axi', false], ['gitea-axi', false], ['hybrid-axi', false],
   ['shodan-axi', false], ['tenable-axi', false], ['ssh-axi', false],
@@ -209,6 +209,7 @@ test.each(['unifi-axi', 'technitium-axi'] as const)('%s saves the inspected name
 
 test.each([
   ['technitium-axi', null],
+  ['kubernetes-axi', null],
   ['unifi-axi', 'This tool requires an IP connection address and cannot preserve a DNS connection address.'],
 ] as const)('%s handles a hostname-backed certificate mismatch', (tool, refusalReason) => {
   const origin = 'https://controller.synthetic.test:8443'
@@ -217,6 +218,61 @@ test.each([
   expect(certificateNameChange(tool, value, new URL(origin), pem('self-signed'))).toEqual({
     certificateName: 'localhost', connectAddress: 'controller.synthetic.test', refusalReason,
   })
+})
+
+test('Kubernetes saves the inspected name and requires an endpoint pin before testing it (#276)', async () => {
+  const origin = endpoint.replace('localhost', '127.0.0.1')
+  const value = { origin, auth: 'token', token: 'CANARY-never-sent', certificateAuthority: pem('leaf') }
+  store.createInstance('kubernetes-axi', { name: 'synthetic', description: '' }, value, 'synthetic-development-user', Date.now())
+  const url = '/v1/admin/tools/kubernetes-axi/instances/synthetic/certificates'
+  const inspected = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  expect(inspected.statusCode, inspected.body).toBe(200)
+  expect((await app.inject({ method: 'POST', url: url + '/use-name', headers,
+    payload: { inspectionId: inspected.json().inspectionId } })).statusCode).toBe(200)
+  const reference = store.findInstance('kubernetes-axi', 'synthetic')!
+  const next = store.readCredential(reference) as Record<string, unknown>
+  expect(next).toEqual({ ...value, tlsServerName: 'localhost' })
+  await expect(preflight('kubernetes-axi', next)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+  const repeated = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  expect(repeated.json()).toMatchObject({ nameChange: null, chain: [expect.objectContaining({ matchesHostname: true })] })
+  const trusted = await app.inject({ method: 'POST', url: url + '/trust', headers, payload: {
+    inspectionId: repeated.json().inspectionId, confirmedFingerprint: repeated.json().chain[0].fingerprint, mode: 'pin', replace: true,
+  } })
+  expect(trusted.statusCode, trusted.body).toBe(200)
+  const pinned = store.readCredential(store.findInstance('kubernetes-axi', 'synthetic')!) as Record<string, unknown>
+  await expect(preflight('kubernetes-axi', pinned, readCredentialTrust(db, reference))).resolves.toBeUndefined()
+  serve('mismatch')
+  await expect(preflight('kubernetes-axi', pinned, readCredentialTrust(db, reference))).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  expect(bytes).toBe(0)
+})
+
+test('Kubernetes can pin an endpoint while retaining its issuing CA (#276)', async () => {
+  serve('leaf', true)
+  const value = { origin: endpoint.replace('localhost', '127.0.0.1'), auth: 'token', token: 'CANARY-never-sent', certificateAuthority: pem('ca'), tlsServerName: 'localhost' }
+  store.createInstance('kubernetes-axi', { name: 'synthetic', description: '' }, value, 'synthetic-development-user', Date.now())
+  const url = '/v1/admin/tools/kubernetes-axi/instances/synthetic/certificates'
+  const inspected = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  expect(inspected.statusCode, inspected.body).toBe(200)
+  const trusted = await app.inject({ method: 'POST', url: url + '/trust', headers, payload: {
+    inspectionId: inspected.json().inspectionId, confirmedFingerprint: inspected.json().chain[0].fingerprint, mode: 'pin',
+  } })
+  expect(trusted.statusCode, trusted.body).toBe(200)
+  const reference = store.findInstance('kubernetes-axi', 'synthetic')!
+  expect(store.readCredential(reference)).toEqual(value)
+  await expect(preflight('kubernetes-axi', value, readCredentialTrust(db, reference))).resolves.toBeUndefined()
+  serve('rotated', true)
+  await expect(preflight('kubernetes-axi', value, readCredentialTrust(db, reference))).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+  const rotated = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  const replacement = await app.inject({ method: 'POST', url: url + '/trust', headers, payload: {
+    inspectionId: rotated.json().inspectionId, confirmedFingerprint: rotated.json().chain[0].fingerprint, mode: 'pin', replace: true,
+  } })
+  expect(replacement.statusCode, replacement.body).toBe(200)
+  expect(store.readCredential(store.findInstance('kubernetes-axi', 'synthetic')!)).toEqual(value)
+  await expect(preflight('kubernetes-axi', value, readCredentialTrust(db, reference))).resolves.toBeUndefined()
+  const pin = (await app.inject({ method: 'GET', url, headers })).json().certificates[0]
+  expect((await app.inject({ method: 'DELETE', url, headers, payload: { id: pin.id } })).statusCode).toBe(200)
+  const { tlsServerName: _name, ...withoutName } = value
+  await expect(preflight('kubernetes-axi', { ...withoutName, origin: endpoint }, [])).resolves.toBeUndefined()
 })
 
 test('Technitium keeps a DNS connection address when saving the certificate name', async () => {

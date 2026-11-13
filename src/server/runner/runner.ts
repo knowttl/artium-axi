@@ -28,7 +28,7 @@ import { pinnedHttp, type PinnedHttpUpstream } from './pinned-http.js'
 import type { CompletedMutation, MutationReceipt } from '../../shared/mutation-outcome.js'
 
 export type GoTransportTrust = { transport: 'github' } | {
-  endpoint: string, transport: 'kubectl', hostModule?: string, clientIdentity?: PinnedHttpUpstream['clientIdentity']
+  endpoint: string, transport: 'kubectl', hostModule?: string, clientIdentity?: PinnedHttpUpstream['clientIdentity'], serverName?: string
 }
 const goPinEnforcement: Record<GoTransportTrust['transport'], 'http-unix' | 'host-socket' | 'refuse'> = { github: 'http-unix', kubectl: 'host-socket' }
 
@@ -108,8 +108,9 @@ export class Runner {
   get trustedCertificates(): readonly TrustedCertificate[] { return this.trustedCa?.certificates ?? [] }
   get configuredCaPem(): string | undefined { return this.trustedCa?.pem }
 
-  caBundleFor(endpoint: string, credentialTrust: readonly CredentialTrust[]): string {
-    return runtimeTrust({ systemCaBundle: { endpoint, transport: 'kubectl' }, credentialTrust }, this.trustedCa).trustPem
+  caBundleFor(transport: Extract<GoTransportTrust, { transport: 'kubectl' }>, credentialTrust: readonly CredentialTrust[]): string {
+    if (transport.serverName) throw new RunnerError('INVALID_INPUT', 'Kubernetes hosted sessions do not support a managed certificate name.')
+    return runtimeTrust({ systemCaBundle: { endpoint: transport.endpoint, transport: 'kubectl' }, credentialTrust }, this.trustedCa).trustPem
   }
 
   static async create(root = join(tmpdir(), 'artium-calls'), trustedCa?: TrustedCaBundle): Promise<Runner> {
@@ -205,6 +206,10 @@ function signalGroup(pid: number | undefined, signal: NodeJS.Signals | 0): boole
 function runtimeTrust(limits: Pick<RunnerLimits, 'systemCaBundle' | 'credentialTrust'>, trustedCa?: TrustedCaBundle) {
   const caEndpoint = limits.systemCaBundle?.transport === 'kubectl' ? certificateEndpoint(limits.systemCaBundle.endpoint).href : undefined
   const credentialTrust = (limits.credentialTrust ?? []).filter(certificate => !caEndpoint || certificateEndpoint(certificate.endpoint).href === caEndpoint)
+  if (limits.systemCaBundle?.transport === 'kubectl' && limits.systemCaBundle.serverName
+    && !credentialTrust.some(certificate => certificate.mode === 'pin')) {
+    throw new RunnerError('INVALID_INPUT', 'A managed Kubernetes certificate name requires an exact certificate pin for the saved endpoint.')
+  }
   if (limits.systemCaBundle && (goPinEnforcement[limits.systemCaBundle.transport] === 'refuse'
     || limits.systemCaBundle.transport === 'kubectl' && !limits.systemCaBundle.hostModule)
     && credentialTrust.some(certificate => certificate.mode !== 'ca')) {
@@ -277,7 +282,11 @@ async function execute(
               files = [...files, { name: 'kubernetes-axi/client.key', content: limits.systemCaBundle.clientIdentity.privateKey }]
             }
             const transport = { socketPath, endpoint: limits.systemCaBundle.endpoint,
-              ...(limits.systemCaBundle.clientIdentity ? { capabilities: { clientCertificate: true } } : {}) }
+              ...(limits.systemCaBundle.serverName ? { serverName: limits.systemCaBundle.serverName } : {}),
+              capabilities: {
+                ...(limits.systemCaBundle.clientIdentity ? { clientCertificate: true } : {}),
+                ...(limits.systemCaBundle.serverName ? { serverName: true } : {}),
+              } }
             files = [...files, { name: 'kubernetes-transport.mjs', content:
               `import { main } from ${JSON.stringify(limits.systemCaBundle.hostModule)};\nawait main(process.argv.slice(2), { transport: ${JSON.stringify(transport)} });\n` }]
             args = [join(directories.XDG_CONFIG_HOME, 'kubernetes-transport.mjs'), ...args.slice(1)]

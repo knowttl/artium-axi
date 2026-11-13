@@ -61,7 +61,7 @@ const writePolicies = { 'ssh-axi': sshWritePolicy, 'kubernetes-axi': kubernetesW
   'mg-axi': mgWritePolicy, 'ldap-axi': ldapWritePolicy, 'ado-axi': adoWritePolicy, 'awx-axi': awxWritePolicy, 'tenable-axi': tenableWritePolicy, 'hybrid-axi': hybridWritePolicy, 'technitium-axi': technitiumWritePolicy, 'shodan-axi': shodanWritePolicy }
 const publicFields = {
   'ssh-axi': [],
-  'kubernetes-axi': ['origin', 'auth', 'namespace', 'certificateAuthority', 'clientCertificate'],
+  'kubernetes-axi': ['origin', 'auth', 'namespace', 'certificateAuthority', 'clientCertificate', 'tlsServerName'],
   'technitium-axi': ['origin', 'auth', 'tokenKind', 'username', 'tlsServerName'],
   'shodan-axi': ['origin', 'auth'],
   'gitea-axi': ['origin', 'tokenOrigin'],

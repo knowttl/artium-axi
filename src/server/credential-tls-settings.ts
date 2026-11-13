@@ -12,7 +12,7 @@ export const credentialTlsSettings: Record<ToolName, TlsSettings> = {
   'technitium-axi': { certificate: 'caFile', serverName: 'tlsServerName' },
   'ldap-axi': { certificate: 'caFile' },
   'vectra-axi': { certificate: 'caBundle' },
-  'kubernetes-axi': { certificate: 'certificateAuthority' },
+  'kubernetes-axi': { certificate: 'certificateAuthority', serverName: 'tlsServerName' },
   'gh-axi': {}, 'ado-axi': {}, 'az-axi': {}, 'mg-axi': {}, 'awx-axi': {}, 'beyondtrust-axi': {},
   'checkpoint-axi': {}, 'falcon-axi': {}, 'gitea-axi': {}, 'hybrid-axi': {}, 'shodan-axi': {}, 'tenable-axi': {}, 'ssh-axi': {},
 }

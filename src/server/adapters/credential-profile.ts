@@ -67,6 +67,8 @@ export class CredentialProfile {
       this.inputSchema.properties.collectionDelete = { type: 'boolean', title: 'Allow Kubernetes bulk deletion',
         description: 'Requires Allow writes and native frozen-target confirmation. Off by default.' }
       this.inputSchema.properties.origin.format = 'canonical-https-origin'
+      this.inputSchema.properties.tlsServerName = { type: 'string', format: 'hostname',
+        description: 'Certificate DNS name verified by the managed relay. Requires a saved exact certificate pin for this endpoint.' }
       this.inputSchema.properties.certificateAuthority.description = 'Paste the cluster issuing CA PEM. Managed tokens and client certificates also support strict leaf pins for reads and mutation workflows. Hosted byte sessions require issuing CA trust.'
       this.inputSchema.properties.clientCertificate.description = 'Paste the client certificate PEM for certificate authentication. Changing it requires a new private key.'
     }
@@ -320,6 +322,7 @@ export class CredentialProfile {
     // These administrator switches are host policy, not upstream profile fields.
     if (tool === 'falcon-axi' || tool === 'awx-axi' || tool === 'kubernetes-axi') delete parsed.value.allowWrites
     if (tool === 'kubernetes-axi') delete parsed.value.collectionDelete
+    if (tool === 'kubernetes-axi') delete parsed.value.tlsServerName
     if (tool === 'shodan-axi') delete parsed.value.sessions
     if (tool === 'shodan-axi') delete parsed.value.scans
     if (tool === 'shodan-axi') delete parsed.value.writes

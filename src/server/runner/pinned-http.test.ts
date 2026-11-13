@@ -19,6 +19,7 @@ import { loadTrustedCa } from '../trusted-ca.js'
 import { createCredentialStore, openStore } from '../store/db.js'
 import { EnvironmentKeyProvider } from '../store/key-provider.js'
 import { EmbeddedSecretSource } from '../store/secret-source.js'
+import { preflight } from '../health/preflight.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-go-pin-'))
 const gh = join(directory, 'gh')
@@ -317,19 +318,28 @@ async function kubernetesCall(runner: Runner, args: string[], saved = trust(), t
 }
 
 kubectlTest.each([
+  { scenario: 'managed mixed trust and correct pin', certificate: 'leaf', pin: 'leaf', client: 'client', success: true, tlsServerName: 'localhost', mixed: true },
+  { scenario: 'managed mixed trust and wrong pin', certificate: 'rotated', pin: 'leaf', client: 'client', success: false, tlsServerName: 'localhost', mixed: true },
+  { scenario: 'managed name and correct pin', certificate: 'mismatch', pin: 'mismatch', client: 'client', success: true, tlsServerName: 'other.synthetic.test' },
+  { scenario: 'managed wrong name', certificate: 'leaf', pin: 'leaf', client: 'client', success: false, tlsServerName: 'wrong.synthetic.test' },
+  { scenario: 'managed name and wrong pin', certificate: 'mismatch', pin: 'leaf', client: 'client', success: false, tlsServerName: 'other.synthetic.test' },
   { scenario: 'correct pin and client', certificate: 'leaf', pin: 'leaf', client: 'client', success: true },
   { scenario: 'wrong pin', certificate: 'rotated', pin: 'leaf', client: 'client', success: false },
   { scenario: 'wrong server name', certificate: 'mismatch', pin: 'mismatch', client: 'client', success: false },
   { scenario: 'wrong client certificate', certificate: 'leaf', pin: 'leaf', client: 'other-ca-leaf', success: false },
   { scenario: 'expired server certificate', certificate: 'expired', pin: 'expired', client: 'client', success: false },
 ].flatMap(scenario => [
-  { ...scenario, args: ['version'], requests: 1 },
-  { ...scenario, args: ['native', '--', 'get', '--raw=/version'], requests: 2 },
-]))('managed certificate $args with $scenario enforces exact pins (#276)', async ({ certificate, pin, client, success, args, requests }) => {
+  { ...scenario, args: ['version'], requests: 1, auth: 'certificate' },
+  { ...scenario, args: ['native', '--', 'get', '--raw=/version'], requests: 2, auth: 'certificate' },
+  { ...scenario, args: ['version'], requests: 1, auth: 'token' },
+  { ...scenario, args: ['native', '--', 'get', '--raw=/version'], requests: 2, auth: 'token' },
+].filter(row => row.auth === 'certificate' || row.scenario !== 'wrong client certificate')
+))('managed $auth $args with $scenario enforces exact pins (#276)', async ({ certificate, pin, client, success, args, requests, auth, tlsServerName, ...scenario }) => {
   const received: string[] = []
-  const mutual = createServer({ requestCert: true, rejectUnauthorized: true, ca: pem('ca'),
+  const mutual = createServer({ requestCert: auth === 'certificate', rejectUnauthorized: true, ca: pem('ca'),
     key: readFileSync(join(directory, 'server.key')), cert: pem(certificate) + pem('intermediate') }, (incoming, response) => {
-    received.push((incoming.socket as import('node:tls').TLSSocket).getPeerCertificate().subject.CN as string)
+    received.push(auth === 'certificate' ? (incoming.socket as import('node:tls').TLSSocket).getPeerCertificate().subject.CN as string
+      : incoming.headers.authorization ?? '')
     response.setHeader('content-type', 'application/json')
     response.end('{"major":"1","minor":"32","gitVersion":"v1.32.2"}')
   })
@@ -337,14 +347,22 @@ kubectlTest.each([
   await once(mutual, 'listening')
   const origin = `https://localhost:${(mutual.address() as { port: number }).port}`
   const saved = [{ ...trust()[0], endpoint: origin, pem: pem('ca'), leafFingerprint: new X509Certificate(pem(pin)).fingerprint256 }]
+  if ('mixed' in scenario && scenario.mixed) saved.push({ ...saved[0]!, mode: 'ca' })
   const runner = await Runner.create(join(directory, 'calls'))
   try {
+    if ('mixed' in scenario && scenario.mixed && auth === 'token') {
+      const check = preflight('kubernetes-axi', { origin, tlsServerName, certificateAuthority: pem('ca') }, saved)
+      if (success) await expect(check).resolves.toBeUndefined()
+      else await expect(check).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+    }
     const result = await kubernetesCall(runner, args, saved, undefined, undefined, {
-      origin, auth: 'certificate', clientCertificate: client === 'client' ? storedIdentity.certificate : pem(client),
-      privateKey: client === 'client' ? storedIdentity.privateKey : readFileSync(join(directory, 'server.key'), 'utf8'),
+      origin, ...(tlsServerName ? { tlsServerName } : {}), ...(auth === 'certificate'
+        ? { auth, clientCertificate: client === 'client' ? storedIdentity.certificate : pem(client),
+          privateKey: client === 'client' ? storedIdentity.privateKey : readFileSync(join(directory, 'server.key'), 'utf8') }
+        : { auth, token: 'CANARY-kubernetes-token' }),
     })
     expect(result.exitCode === 0, result.stdout + result.stderr).toBe(success)
-    expect(received).toEqual(success ? Array(requests).fill('synthetic-kubernetes-client') : [])
+    expect(received).toEqual(success ? Array(requests).fill(auth === 'certificate' ? 'synthetic-kubernetes-client' : 'Bearer CANARY-kubernetes-token') : [])
     expect(result.stdout + result.stderr).not.toContain(storedIdentity.privateKey)
     expect(readdirSync(join(directory, 'calls'))).toEqual([])
   } finally {
@@ -354,9 +372,11 @@ kubectlTest.each([
   }
 })
 
-kubectlTest('managed certificate capability is refused for another cluster endpoint', async () => {
+kubectlTest.each(['token', 'certificate'])('managed %s name capability is refused for another cluster endpoint', async auth => {
   const adapter = await createKubernetesAdapter({ getCredential: async () => ({ origin: endpoint,
-    auth: 'certificate', clientCertificate: storedIdentity.certificate, privateKey: storedIdentity.privateKey,
+    tlsServerName: 'localhost', ...(auth === 'certificate'
+      ? { auth, clientCertificate: storedIdentity.certificate, privateKey: storedIdentity.privateKey }
+      : { auth, token: 'CANARY-kubernetes-token' }),
     certificateAuthority: pem('ca') }) }, kubernetesBinary)
   const call = await adapter.prepare(['version'], { id: 'synthetic-credential', tool: 'kubernetes-axi', revision: 1 })
   const config = call.files.find(file => file.name === 'kubernetes-axi/config.json')!
@@ -373,8 +393,23 @@ kubectlTest('managed certificate capability is refused for another cluster endpo
   } finally { await runner.shutdown() }
 })
 
-test('pinned certificate child receives a private file and only the endpoint certificate capability', async () => {
+test.each(['missing', 'ca', 'another endpoint'] as const)('managed name with %s pin refuses execution and preflight before application data (#276)', async scenario => {
+  const credential = { origin: endpoint, auth: 'token', token: 'CANARY-kubernetes-token', certificateAuthority: pem('ca'), tlsServerName: 'localhost' }
+  const saved = { missing: [], ca: [{ ...trust()[0], mode: 'ca' as const }],
+    'another endpoint': [{ ...trust()[0], endpoint: endpoint.replace('localhost', '127.0.0.1') }] }[scenario]
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    await expect(kubernetesCall(runner, ['version'], saved, undefined, undefined, credential))
+      .rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('requires an exact certificate pin') })
+    await expect(preflight('kubernetes-axi', credential, saved)).rejects.toMatchObject({ code: 'INVALID_INPUT' })
+    expect(applicationRequests).toEqual([])
+    expect(readdirSync(join(directory, 'calls'))).toEqual([])
+  } finally { await runner.shutdown() }
+})
+
+test.each([undefined, 'localhost'])('pinned certificate child receives a private key file and scoped capabilities with name %s', async tlsServerName => {
   const adapter = await createKubernetesAdapter({ getCredential: async () => ({ origin: endpoint,
+    ...(tlsServerName ? { tlsServerName } : {}),
     auth: 'certificate', clientCertificate: storedIdentity.certificate, privateKey: storedIdentity.privateKey,
     certificateAuthority: pem('ca') }) }, kubernetesBinary)
   const call = await adapter.prepare(['version'], { id: 'synthetic-credential', tool: 'kubernetes-axi', revision: 1 })
@@ -382,7 +417,8 @@ test('pinned certificate child receives a private file and only the endpoint cer
     const fs = await import('node:fs');
     const key = JSON.parse(fs.readFileSync('kubernetes-axi/config.json', 'utf8')).profiles.artium.privateKey;
     process.stdout.write(JSON.stringify({ secrets: Object.keys(process.env).filter(name => name.startsWith('ARTIUM_SECRET_')),
-      mode: fs.statSync(key.file).mode & 511, endpoint: host.transport.endpoint, capabilities: host.transport.capabilities }));
+      mode: fs.statSync(key.file).mode & 511, endpoint: host.transport.endpoint, capabilities: host.transport.capabilities,
+      serverName: host.transport.serverName }));
   }`
   const runner = await Runner.create(join(directory, 'calls'))
   try {
@@ -390,7 +426,9 @@ test('pinned certificate child receives a private file and only the endpoint cer
       { ...call.limits, systemCaBundle: { ...call.limits.systemCaBundle as import('./runner.js').GoTransportTrust & { transport: 'kubectl' },
         hostModule: 'data:text/javascript,' + encodeURIComponent(probe) }, credentialTrust: trust() }, {}, call.files)
     expect(result.exitCode, result.stderr).toBe(0)
-    expect(JSON.parse(result.stdout)).toEqual({ secrets: [], mode: 0o600, endpoint, capabilities: { clientCertificate: true } })
+    expect(JSON.parse(result.stdout)).toEqual({ secrets: [], mode: 0o600, endpoint,
+      ...(tlsServerName ? { serverName: tlsServerName } : {}),
+      capabilities: { clientCertificate: true, ...(tlsServerName ? { serverName: true } : {}) } })
     expect(readdirSync(join(directory, 'calls'))).toEqual([])
   } finally { await runner.shutdown() }
 })
@@ -520,7 +558,7 @@ kubectlTest.each([
 test('hosted Kubernetes byte sessions keep refusing saved pins', async () => {
   const runner = await Runner.create(join(directory, 'calls'))
   try {
-    expect(() => runner.caBundleFor(endpoint, trust())).toThrow('hosted byte sessions require issuing CA trust')
+    expect(() => runner.caBundleFor({ endpoint, transport: 'kubectl' }, trust())).toThrow('hosted byte sessions require issuing CA trust')
     expect(applicationRequests).toEqual([])
   } finally { await runner.shutdown() }
 })

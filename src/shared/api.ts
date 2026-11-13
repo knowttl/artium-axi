@@ -468,7 +468,7 @@ export const certificateInspectionSchema = z.strictObject({
   chain: z.array(certificateDetailsSchema), anchor: certificateDetailsSchema, warnings: z.array(z.string()),
   reason: z.string(), verificationError: z.string().nullable(),
   previousFingerprints: z.array(z.string()),
-  trustMode: z.enum(['ca', 'pin']).nullable(), rotation: z.boolean(),
+  trustMode: z.enum(['ca', 'pin']).nullable(), rotation: z.boolean(), pinRequired: z.boolean(),
   nameChange: z.strictObject({ certificateName: z.string().nullable(), connectAddress: z.string(), refusalReason: z.string().nullable() }).nullable(),
 })
 export const trustedCredentialCertificateSchema = z.strictObject({

@@ -8,9 +8,9 @@ import { startLdapTls } from './ldap-starttls.js'
 
 export const certificatePinMismatchMessage = 'The stored certificate fingerprint differs from the presented one. Ask an administrator to re-inspect the certificate on the tool page.'
 
-export function certificatePinError(trust: readonly Pick<CredentialTrust, 'mode' | 'leafFingerprint'>[], fingerprint?: string): Error | undefined {
+export function certificatePinError(trust: readonly Pick<CredentialTrust, 'mode' | 'leafFingerprint'>[], fingerprint?: string, enforcePin = false): Error | undefined {
   const pins = trust.filter(certificate => certificate.mode === 'pin')
-  if (fingerprint && !trust.some(certificate => certificate.mode === 'ca') && pins.length
+  if (fingerprint && (enforcePin || !trust.some(certificate => certificate.mode === 'ca')) && pins.length
     && !pins.some(pin => pin.leafFingerprint === fingerprint)) {
     return Object.assign(new Error(certificatePinMismatchMessage), { code: 'CERTIFICATE_PIN_MISMATCH' })
   }
@@ -53,14 +53,14 @@ export function observeCertificate(connectTls: typeof connect, options: Connecti
   })
 }
 
-export function credentialTlsOptions(trust: readonly CredentialTrust[], ca?: string): ConnectionOptions {
+export function credentialTlsOptions(trust: readonly CredentialTrust[], ca?: string, enforcePin = false): ConnectionOptions {
   return buildCredentialTlsOptions({ checkServerIdentity, getCACertificates }, trust,
-    ca ? [...getCACertificates('default'), ca] : undefined)
+    ca ? [...getCACertificates('default'), ca] : undefined, enforcePin)
 }
 
 // Serialized with its mismatch message so runner Node injection uses the server's TLS policy.
 export function buildCredentialTlsOptions(tls: Pick<typeof import('node:tls'), 'checkServerIdentity' | 'getCACertificates'>,
-  trust: readonly Pick<CredentialTrust, 'mode' | 'pem' | 'leafFingerprint'>[], ca?: ConnectionOptions['ca']): ConnectionOptions {
+  trust: readonly Pick<CredentialTrust, 'mode' | 'pem' | 'leafFingerprint'>[], ca?: ConnectionOptions['ca'], enforcePin = false): ConnectionOptions {
   const anchored = trust.length > 0
   const roots = anchored ? [] : ca === undefined ? tls.getCACertificates('default') : [ca].flat()
   return { rejectUnauthorized: true,
@@ -69,7 +69,7 @@ export function buildCredentialTlsOptions(tls: Pick<typeof import('node:tls'), '
     checkServerIdentity: (hostname, certificate) => {
       const error = tls.checkServerIdentity(hostname, certificate)
       if (error) return error
-      return certificatePinError(trust, certificate.fingerprint256)
+      return certificatePinError(trust, certificate.fingerprint256, enforcePin)
     } }
 }
 

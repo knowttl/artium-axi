@@ -10,13 +10,14 @@ import { startLdapTls } from '../ldap-starttls.js'
 import type { ToolName } from '../store/credential-store.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import { certificateErrorCodePattern, diagnosticError } from './diagnostic.js'
+import { ArtiumError } from '../../shared/errors.js'
 
 function verificationCode(error: unknown): string {
   const code = (error as NodeJS.ErrnoException)?.code
   return typeof code === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,79}$/.test(code) ? code : 'CONNECTION_FAILED'
 }
 
-type NativeTls = { connectAddress?: string, serverName?: string, peerFingerprintSha256?: string,
+type NativeTls = { connectAddress?: string, serverName?: string, peerFingerprintSha256?: string, enforcePin?: boolean,
   certificatePin?: { sha256: string, origin: string, replaceHostname?: boolean } }
 
 // The handshake sends no application data or credentials. Each stage has a deadline.
@@ -60,7 +61,7 @@ Promise<{ chain: X509Certificate[], verificationError?: string }> {
   // Node verifies chain and hostname even with rejectUnauthorized=false. Retain the
   // peer certificate for the diagnostic, then require authorized before success.
   // No application bytes or credentials are sent on this socket.
-  const secure = connectTls({ ...credentialTlsOptions(trust, ca), socket, host,
+  const secure = connectTls({ ...credentialTlsOptions(trust, ca, native.enforcePin), socket, host,
     servername: native.serverName ?? (isIP(host) ? undefined : host), rejectUnauthorized: false, ...(maxVersion ? { maxVersion } : {}) })
   try {
     await new Promise<void>((resolve, reject) => {
@@ -120,9 +121,15 @@ export async function preflightEndpoint(endpoint: URL, ca?: string, timeoutMs = 
 }
 
 export async function preflight(tool: ToolName, credential: Record<string, unknown>, trust: readonly CredentialTrust[] = []): Promise<void> {
+  if (tool === 'kubernetes-axi' && credential.tlsServerName
+    && !trust.some(certificate => certificate.mode === 'pin'
+      && certificateEndpoint(certificate.endpoint).href === certificateEndpoint(String(credential.origin)).href)) {
+    throw new ArtiumError('INVALID_INPUT', 'A managed Kubernetes certificate name requires an exact certificate pin for the saved endpoint.')
+  }
   const tls = tool === 'unifi-axi' ? credential.tls as NativeTls & { trustedCertificatePem?: string } | undefined : undefined
   const native: NativeTls = tool === 'proxmox-axi' ? { certificatePin: credential.certificatePin as NativeTls['certificatePin'] }
-    : tool === 'technitium-axi' ? { serverName: credential.tlsServerName as string | undefined } : tls ?? {}
+    : ['technitium-axi', 'kubernetes-axi'].includes(tool) ? { serverName: credential.tlsServerName as string | undefined,
+      enforcePin: tool === 'kubernetes-axi' && Boolean(credential.tlsServerName) } : tls ?? {}
   const ca = credential.caBundle ?? credential.caFile ?? credential.certificateAuthority
     ?? tls?.trustedCertificatePem
   for (const endpoint of toolEndpoints(tool, credential)) {

@@ -38,7 +38,7 @@ export async function pinnedHttp(socketPath: string, trust: readonly CredentialT
           cert: upstreamOptions.clientIdentity.certificate, key: upstreamOptions.clientIdentity.privateKey,
         } : {}),
         ...(upstreamOptions?.serverName ? { servername: upstreamOptions.serverName } : {}),
-        ...credentialTlsOptions(scoped, ca), agent: false }, result => {
+        ...credentialTlsOptions(scoped, ca, Boolean(upstreamOptions?.serverName)), agent: false }, result => {
         response.writeHead(result.statusCode!, result.headers)
         result.pipe(response)
         result.once('error', () => response.destroy())

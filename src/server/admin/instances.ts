@@ -218,7 +218,7 @@ export function registerInstancePages(app: FastifyInstance, db: Database.Databas
     const pinTable = pins.length
       ? `<table class="tbl stack-sm"><caption class="sr-only">Trusted certificates</caption><thead><tr><th scope="col">Endpoint</th><th scope="col">Trust</th><th scope="col">Fingerprint (SHA-256)</th><th scope="col">Expires</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${pinRows}</tbody></table>`
       : '<p class="empty">No certificates trusted for this instance. Hostname and expiry checks always apply.</p>'
-    const offered = awx || instance.health.errorCode === 'UPSTREAM_TLS_FAILED' || pins.length > 0
+    const offered = awx || tool.name === 'kubernetes-axi' && Boolean(instance.metadata.tlsServerName) || instance.health.errorCode === 'UPSTREAM_TLS_FAILED' || pins.length > 0
     const inspect = endpoints.length ? form(`${path}/certificates/inspect`, 'POST',
       `${endpoints.length > 1 ? `<label class="sr-only" for="endpoint-index">Saved TLS endpoint</label><select id="endpoint-index" name="endpointIndex" data-type="number">${endpoints.map((endpoint, index) => `<option value="${index}">${escape(endpoint.host)}</option>`).join('')}</select>` : `<input type="hidden" name="endpointIndex" data-type="number" value="0"><span class="mono">${escape(endpoints[0]!.host)}</span>`}<button class="btn btn-secondary btn-sm">${icon('cert')}Inspect certificate</button>`,
       undefined, `class="row" data-inspect-certificate${offered ? '' : ' hidden'}`) : ''

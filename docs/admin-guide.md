@@ -223,7 +223,8 @@ Field labels use schema titles when available, then plain labels for known field
 Vectra and Graph use schema-generated fields and validation from their published [AXI credential standard](credential-standard.md) profile schemas.
 Enter secret values themselves, not SecretRefs; leave unused fields blank and enter object fields as advanced JSON and string lists one value per line.
 TLS trust uses structured fields instead of JSON.
-**Connect via IP address** is available for UniFi, and **Certificate name to verify** is available for Technitium; other tools explain that these overrides are unsupported.
+**Connect via IP address** is available for UniFi, and **Certificate name to verify** is available for Technitium and Kubernetes; other tools explain that these overrides are unsupported.
+See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for Kubernetes managed name requirements.
 Saved certificates and SHA-256 fingerprints are read-only, and editing other fields retains trust for the same endpoint.
 Paste PEM contents, not a server file path, or upload a PEM file in the certificate entry disclosure to enter or replace credential trust; UniFi requires the certificate and fingerprint together.
 Remove optional credential trust with its removal control and save; Kubernetes requires a CA and permits replacement only.
