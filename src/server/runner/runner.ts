@@ -27,8 +27,8 @@ import { kubernetesRequestProfile } from './kubernetes-requests.js'
 import { pinnedHttp } from './pinned-http.js'
 import type { CompletedMutation, MutationReceipt } from '../../shared/mutation-outcome.js'
 
-export type GoTransportTrust = { transport: 'github' } | { endpoint: string, transport: 'kubectl' }
-const goPinEnforcement = { github: 'http-unix', kubectl: 'refuse' } satisfies Record<GoTransportTrust['transport'], 'http-unix' | 'refuse'>
+export type GoTransportTrust = { transport: 'github' } | { endpoint: string, transport: 'kubectl', hostModule?: string }
+const goPinEnforcement: Record<GoTransportTrust['transport'], 'http-unix' | 'host-socket' | 'refuse'> = { github: 'http-unix', kubectl: 'host-socket' }
 
 export interface RunnerLimits {
   delegated?: boolean
@@ -203,9 +203,10 @@ function signalGroup(pid: number | undefined, signal: NodeJS.Signals | 0): boole
 function runtimeTrust(limits: Pick<RunnerLimits, 'systemCaBundle' | 'credentialTrust'>, trustedCa?: TrustedCaBundle) {
   const caEndpoint = limits.systemCaBundle?.transport === 'kubectl' ? certificateEndpoint(limits.systemCaBundle.endpoint).href : undefined
   const credentialTrust = (limits.credentialTrust ?? []).filter(certificate => !caEndpoint || certificateEndpoint(certificate.endpoint).href === caEndpoint)
-  if (limits.systemCaBundle && goPinEnforcement[limits.systemCaBundle.transport] !== 'http-unix'
+  if (limits.systemCaBundle && (goPinEnforcement[limits.systemCaBundle.transport] === 'refuse'
+    || limits.systemCaBundle.transport === 'kubectl' && !limits.systemCaBundle.hostModule)
     && credentialTrust.some(certificate => certificate.mode !== 'ca')) {
-    throw new RunnerError('INVALID_INPUT', 'This tool requires an issuing CA; certificate pinning is unavailable.')
+    throw new RunnerError('INVALID_INPUT', 'Kubernetes pins require a static token identity; client certificates and hosted byte sessions require issuing CA trust.')
   }
   const trustPem = trustedCa || credentialTrust.length || limits.systemCaBundle
     ? [...getCACertificates('default'), ...(trustedCa ? [trustedCa.pem] : []),
@@ -262,11 +263,17 @@ async function execute(
       if (limits.signal?.aborted) throw new RunnerError('CANCELLED')
       try {
         await Promise.all(Object.values(directories).map(path => mkdir(path, { mode: 0o700 })))
-        if (limits.systemCaBundle && goPinEnforcement[limits.systemCaBundle.transport] === 'http-unix'
+        if (limits.systemCaBundle && goPinEnforcement[limits.systemCaBundle.transport] !== 'refuse'
           && credentialTrust.some(certificate => certificate.mode === 'pin')) {
           const socketPath = join(directory, 'http.sock')
           relay = await pinnedHttp(socketPath, credentialTrust, trustedCa?.pem)
-          files = [...files, { name: 'gh/config.yml', content: `http_unix_socket: ${JSON.stringify(socketPath)}\n` }]
+          if (limits.systemCaBundle.transport === 'github') {
+            files = [...files, { name: 'gh/config.yml', content: `http_unix_socket: ${JSON.stringify(socketPath)}\n` }]
+          } else {
+            files = [...files, { name: 'kubernetes-transport.mjs', content:
+              `import { main } from ${JSON.stringify(limits.systemCaBundle.hostModule)};\nawait main(process.argv.slice(2), { transport: { socketPath: ${JSON.stringify(socketPath)} } });\n` }]
+            args = [join(directories.XDG_CONFIG_HOME, 'kubernetes-transport.mjs'), ...args.slice(1)]
+          }
         }
         if (limits.kubernetesRequests) kubernetesProfile = await kubernetesRequestProfile(
           limits.kubernetesRequests.root, limits.kubernetesRequests.scope, basename(directory))

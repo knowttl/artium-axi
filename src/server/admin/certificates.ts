@@ -196,8 +196,9 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
     const existingMode = endpointTrust(reference, item.inspection.endpoint, item.inspection.leafPem).mode
     if (existingMode && existingMode !== mode) throw new ArtiumError('INVALID_INPUT', 'Certificate trust must retain the existing trust mode.')
     const hasCA = anchor.ca && anchor.fingerprint !== chain[0].fingerprint
-    if (reference.tool === 'kubernetes-axi' && (mode !== 'ca' || !hasCA && !item.caVerified)) throw new ArtiumError('INVALID_INPUT',
-      'This tool requires the issuing CA. Strict leaf pinning is unavailable; configure the trusted CA bundle instead.')
+    if (reference.tool === 'kubernetes-axi' && (mode !== 'ca' || !hasCA && !item.caVerified)
+      && (store!.readCredential(reference) as { auth: string }).auth !== 'token') throw new ArtiumError('INVALID_INPUT',
+      'Kubernetes strict leaf pinning requires a static token identity. Client certificates require issuing CA trust.')
     if (mode === 'ca' && !hasCA && !(replace && item.caVerified) && !chain[0].selfSigned) throw new ArtiumError('INVALID_INPUT',
       'CA trust is unavailable because no issuing CA was obtained. Choose strict leaf pinning explicitly.')
     save(request, actor, item.reference, item.inspection,

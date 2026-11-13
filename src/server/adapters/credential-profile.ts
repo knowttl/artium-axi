@@ -67,7 +67,7 @@ export class CredentialProfile {
       this.inputSchema.properties.collectionDelete = { type: 'boolean', title: 'Allow Kubernetes bulk deletion',
         description: 'Requires Allow writes and native frozen-target confirmation. Off by default.' }
       this.inputSchema.properties.origin.format = 'canonical-https-origin'
-      this.inputSchema.properties.certificateAuthority.description = 'Paste the cluster issuing CA PEM. Artium supports issuing CA trust; saved strict leaf pins are unavailable.'
+      this.inputSchema.properties.certificateAuthority.description = 'Paste the cluster issuing CA PEM. Static token identities also support saved strict leaf pins; client certificates and hosted byte sessions require issuing CA trust.'
       this.inputSchema.properties.clientCertificate.description = 'Paste the client certificate PEM for certificate authentication. Changing it requires a new private key.'
     }
     if (tool === 'technitium-axi') {

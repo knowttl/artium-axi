@@ -2,12 +2,12 @@
   "generatedBy": "scripts/kubernetes-inventory.ts",
   "tool": "kubernetes-axi",
   "package": "@knowttl/kubernetes-axi",
-  "version": "0.1.3",
-  "integrity": "sha512-HdIwNTtKC0edpIMN0zqfEGhR+D+QnQGTNWe9i20cKOiNc63CpP3/j0XKOH14jVTE3drcu2jTIfRcpqh7VChR8Q==",
+  "version": "0.1.4",
+  "integrity": "sha512-/1Gbo64mFCbx6Vjst4ziV4kwdUtFNBZetnKHBqSiwvnbpRcm9tZSVsiYl9CRj/mYgzlz6dgoDbn5DOAjSzb50Q==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "3b5982385e06199a6f4ecdbb1a280888ea8a55a49313a64f7cc306f9f799151a"
+      "sha256": "87b34a166f4a1b94f243442aa34ccf1209df17e90efddd8dba4feff8ff1cb069"
     },
     {
       "path": "axi-credential.schema.json",
@@ -35,11 +35,11 @@
     },
     {
       "path": "dist/cli.d.ts",
-      "sha256": "b3cbaebf073b1d417ee57b9dfd7ae72d8c89ef6341b4e287bdb01b882d0bf5ae"
+      "sha256": "a6ad70572ebd85152bca4ec47a6fcb50fd368a5c54c78b58e091e4493c76b950"
     },
     {
       "path": "dist/cli.js",
-      "sha256": "8dd9dd99250fb4fb9ebeb32cc9a63e26801f38690f38c689d347ff8e9e78025d"
+      "sha256": "a75c0458f5586cb5c09622d5b80af1e7bac75fef734a75fe58b6b4175fa9b472"
     },
     {
       "path": "dist/credentials.d.ts",
@@ -79,7 +79,7 @@
     },
     {
       "path": "dist/hosted-session.js",
-      "sha256": "f39ea7fbae7d63a88573c2cf715f2af8caa0a0de4fbca57c9ef8b57252ff7992"
+      "sha256": "efa1f43c9e9e2ed88168ee6063f4c503b2c7a00328e148d73e312061a893de92"
     },
     {
       "path": "dist/metadata-pin.d.ts",
@@ -91,11 +91,11 @@
     },
     {
       "path": "dist/mutations.d.ts",
-      "sha256": "e8e7033f281adf426431c0fe14f5dffb4221e3c340d95bcb504e5a6750d404ac"
+      "sha256": "7cbe863a223a31a823ec4a45d00dbe1dc29a3a4a2cb947d0e707d9b9d09a7caf"
     },
     {
       "path": "dist/mutations.js",
-      "sha256": "dd4481fc68b7fca6e8e384664741eda9b396262f50623af68757f4bd01d7d8c5"
+      "sha256": "2d88f6040dac9707ae6cfebd6ee59a88ae562cc86288006ce74cca296b5f7a38"
     },
     {
       "path": "dist/native.d.ts",
@@ -139,11 +139,11 @@
     },
     {
       "path": "dist/remote-session.d.ts",
-      "sha256": "325ee3dcffb760f384025a31659ad3d3136e971c74822d443e10aa97230a934d"
+      "sha256": "8368345535b3eaf2dc481742e656b3a18435b7db54e0e03a49414a628560dca8"
     },
     {
       "path": "dist/remote-session.js",
-      "sha256": "75766546c63760b0d14af565793fce0b33f291810ef1f980a6476e351db6cd38"
+      "sha256": "a68cce884205e9259ed07bd06612b730d0f1e66ec5c4ade49def170b628a84d8"
     },
     {
       "path": "dist/route-policy.d.ts",
@@ -155,11 +155,19 @@
     },
     {
       "path": "dist/runner.d.ts",
-      "sha256": "b41ec1f954a26d6de6a89bacd32efedbbaf9e9b99aae9ffbc61a5ce8e2817d3c"
+      "sha256": "d7f5bd0554855048625a488f728871587205ad471e5e161ae93aecdf36c92c84"
     },
     {
       "path": "dist/runner.js",
-      "sha256": "197c41a2140c1688e4c43395dd067fea89b95462ffb1bc298301a9c03dcd422a"
+      "sha256": "192bd7b89a263ad0064fa192bad2fb7047e17be1215d39289274c4930bf9ec6b"
+    },
+    {
+      "path": "dist/transport.d.ts",
+      "sha256": "f7ae453bee960897d46467977c65616d7f0c9e522034971298a8da71fbbaca68"
+    },
+    {
+      "path": "dist/transport.js",
+      "sha256": "2e5b1d70669190147a97612a12b8e721d54ac40bfc5844841c361ac38d1b1d81"
     },
     {
       "path": "dist/workspace-tar.d.ts",
@@ -2623,6 +2631,6 @@
       "get",
       "pods"
     ],
-    "help": "Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported; saved strict leaf pins are unavailable.\nAdministrator-enabled mutations require prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>; server-dry-run -- <mutation> is separately explicit.\nUse workspace create to stage regular files and session start for one bounded operation. Every session kind needs an explicit caller grant in administrator native settings; mutation kinds also require Allow writes.\nUse session show/output/confirm/cancel and session artifact for owned recovery and verified bytes. Workspace references use workspace:<path>; copy downloads use artifact:<path>.\nLogs and watch sessions start immediately as reads; other session kinds require native preview and exact-digest confirmation.\nUse an explicitly granted port-forward session with tunnel <session-id> --port <remote-port> for authenticated forwarding to local 127.0.0.1 listeners.\nService-account token issuance requires Allow writes and acquireCredential=true; use native prepare/preview/confirm, then credential <result-id> --credential-fd <fd> for one-shot delivery to a private writable pipe or socket numbered 5 or higher.\nLocal configuration, impersonation and interactive execution remain unavailable.\n"
+    "help": "Read Kubernetes with the managed HTTPS origin, identity and cluster CA.\nUse compact get for bounded metadata, including Secret metadata without credential bytes.\nUse native -- for reviewed upstream reads and formats; rollout status requires --watch=false.\nIssuing CA trust is supported. Static token reads and mutation workflows also support saved strict leaf pins; client certificates and hosted byte sessions require issuing CA trust.\nAdministrator-enabled mutations require prepare -- <mutation>, preview <request-key>, then confirm <request-key> --digest <exact-digest>; server-dry-run -- <mutation> is separately explicit.\nUse workspace create to stage regular files and session start for one bounded operation. Every session kind needs an explicit caller grant in administrator native settings; mutation kinds also require Allow writes.\nUse session show/output/confirm/cancel and session artifact for owned recovery and verified bytes. Workspace references use workspace:<path>; copy downloads use artifact:<path>.\nLogs and watch sessions start immediately as reads; other session kinds require native preview and exact-digest confirmation.\nUse an explicitly granted port-forward session with tunnel <session-id> --port <remote-port> for authenticated forwarding to local 127.0.0.1 listeners.\nService-account token issuance requires Allow writes and acquireCredential=true; use native prepare/preview/confirm, then credential <result-id> --credential-fd <fd> for one-shot delivery to a private writable pipe or socket numbered 5 or higher.\nLocal configuration, impersonation and interactive execution remain unavailable.\n"
   }
 }

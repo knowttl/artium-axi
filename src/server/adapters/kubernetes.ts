@@ -115,6 +115,9 @@ export async function createKubernetesAdapter(source: SecretSource, executable: 
         ...profile, environment: { ...profile.environment,
           KUBERNETES_AXI_ACQUIRE_CREDENTIAL: String(Boolean(writable && settings.acquireCredential === true)),
           KUBERNETES_AXI_COLLECTION_DELETE: String(Boolean(writable && settings.collectionDelete === true)) },
-        limits: { timeoutMs: inventory.requirements.timeoutMs, systemCaBundle: { endpoint: (value as { origin: string }).origin, transport: 'kubectl' } } }
+        limits: { timeoutMs: inventory.requirements.timeoutMs, systemCaBundle: {
+          endpoint: (value as { origin: string }).origin, transport: 'kubectl',
+          ...((value as { auth: string }).auth === 'token' ? { hostModule: new URL('../dist/cli.js', pathToFileURL(executable)).href } : {}),
+        } } }
     } }
 }
