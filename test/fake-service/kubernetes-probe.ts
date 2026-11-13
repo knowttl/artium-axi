@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
+import { X509Certificate } from 'node:crypto'
 import { readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
@@ -24,6 +26,9 @@ const nativeCodec = await import(pathToFileURL(createRequire(realpathSync(toolPa
 await withFakeService(async ({ directory, port, send }) => {
   const origin = `https://localhost:${port}`
   const pem = readFileSync(join(directory, 'ca.crt'), 'utf8')
+  const leaf = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const fingerprint = new X509Certificate(pem).fingerprint256
+  const leafFingerprint = new X509Certificate(leaf).fingerprint256
   const runner = await Runner.create(join(directory, 'calls'))
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
   const db = openStore(join(directory, 'kubernetes.db'), provider)
@@ -36,7 +41,7 @@ await withFakeService(async ({ directory, port, send }) => {
     token: 'CANARY-kubernetes-token' }, 0, 'synthetic-development-user', Date.now())
   const reference = store.findCredential('kubernetes-axi')!
   db.prepare(`INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by)
-    VALUES ('synthetic-ca', ?, ?, 'synthetic', 'synthetic', ?, ?, 'ca', ?, 'synthetic-development-user')`).run(reference.id, origin + '/', pem, pem, Date.now())
+    VALUES ('synthetic-ca', ?, ?, ?, ?, ?, ?, 'ca', ?, 'synthetic-development-user')`).run(reference.id, origin + '/', fingerprint, leafFingerprint, pem, leaf, Date.now())
   const adapter = await createKubernetesAdapter(new EmbeddedSecretSource(store))
   const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [adapter], credentialStore: store,
     resolver: new SharedIdentityResolver(store, db), environment: {} })
@@ -69,7 +74,7 @@ await withFakeService(async ({ directory, port, send }) => {
     const document = decode(rewriteSuggestions(help.json().stdout, 'kubernetes-axi', false, { command: 'native --', help: true })) as { flags: Record<string, unknown>, help: string[] }
     assert.ok(Object.hasOwn(document.flags, 'selector'))
     assert.equal(Object.hasOwn(document.flags, 'server'), false)
-    assert.ok(document.help.some(line => line.includes('saved strict leaf pins are unavailable')))
+    assert.ok(document.help.some(line => line.includes('Static token reads and mutation workflows also support saved strict leaf pins; client certificates and hosted byte sessions require issuing CA trust.')))
     const evidence = async () => JSON.parse(await send('/__evidence')) as { requests: Array<{ path: string, method: string, canaryReceived: boolean }> }
     const before = (await evidence()).requests.length
     for (const args of [['native', '--', 'delete', 'pod', 'synthetic-pod'], ['get', 'pods', '--token=CANARY-forbidden'], ['get', 'pods', '--watch']]) {
@@ -77,11 +82,19 @@ await withFakeService(async ({ directory, port, send }) => {
       assert.ok(response.statusCode >= 400, response.body)
     }
     assert.equal((await evidence()).requests.length, before)
-    db.prepare("UPDATE trusted_certificates SET mode = 'pin'").run()
+    execFileSync('openssl', ['x509', '-req', '-in', 'server.csr', '-CA', 'ca.crt', '-CAkey', 'ca.key',
+      '-set_serial', '100', '-days', '3650', '-extfile', 'authority.cnf', '-extensions', 'server',
+      '-out', 'other-server.crt'], { cwd: directory, stdio: 'pipe', timeout: 10_000 })
+    const otherLeaf = readFileSync(join(directory, 'other-server.crt'), 'utf8')
+    db.prepare("UPDATE trusted_certificates SET mode = 'pin', leaf_fingerprint = ?, leaf_pem = ?")
+      .run(new X509Certificate(otherLeaf).fingerprint256, otherLeaf)
     const pinned = await invoke(['get', 'pods'])
-    assert.ok(pinned.statusCode >= 400, pinned.body)
+    assert.equal(pinned.statusCode, 200, pinned.body)
+    assert.equal(pinned.json().exitCode, 1, pinned.body)
+    assert.match(pinned.json().stderr, /CERTIFICATE_PIN_MISMATCH/)
     assert.equal((await evidence()).requests.length, before)
-    db.prepare("UPDATE trusted_certificates SET mode = 'ca'").run()
+    db.prepare("UPDATE trusted_certificates SET mode = 'ca', leaf_fingerprint = ?, leaf_pem = ?")
+      .run(leafFingerprint, leaf)
     db.prepare("UPDATE trusted_certificates SET endpoint = 'https://other.example/'").run()
     const unrelated = await invoke(['get', 'pods'])
     assert.equal(unrelated.statusCode, 200, unrelated.body)
