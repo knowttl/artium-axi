@@ -2,6 +2,7 @@ import { errors, type Diagnostic } from './errors.js'
 
 export const diagnosticStages = ['configuration', 'token acquisition', 'DNS', 'TCP', 'TLS', 'authentication', 'response', 'tool run'] as const
 export const retestCodes = ['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT',
+  'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION', 'SERVICE_UNAVAILABLE',
   'CONNECTION_FAILED', 'ERR_TLS_CERT_ALTNAME_INVALID', 'CERT_NOT_YET_VALID', 'CERT_HAS_EXPIRED', 'CERT_REVOKED',
   'CERT_CHAIN_TOO_LONG', 'CERT_UNTRUSTED', 'CERT_REJECTED', 'CERT_SIGNATURE_FAILURE', 'CERTIFICATE_VERIFY_FAILED',
   'CERTIFICATE_PIN_MISMATCH', 'CRL_NOT_YET_VALID', 'CRL_HAS_EXPIRED', 'CRL_SIGNATURE_FAILURE',

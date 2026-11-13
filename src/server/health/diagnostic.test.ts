@@ -1,8 +1,18 @@
 import { expect, test } from 'vitest'
 import { diagnosticSchema } from '../../shared/api.js'
-import { safeDiagnostic, toolFailure, toolFailureCode } from './diagnostic.js'
+import { diagnosticCode } from '../../shared/diagnostic.js'
+import { retestFields, safeDiagnostic, toolFailure, toolFailureCode } from './diagnostic.js'
 
 const secret = 'CANARY-diagnostic-secret'
+
+test.each(['ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION', 'SERVICE_UNAVAILABLE'])(
+  'preserves reviewed diagnostic code %s across projections', code => {
+    const detail = safeDiagnostic({ stage: 'TLS', message: 'CANARY-untrusted', toolCode: code }, [])
+    expect(detail).toEqual({ stage: 'TLS', message: 'Details unavailable.', toolCode: code })
+    expect(diagnosticSchema.parse(detail)).toEqual(detail)
+    expect(retestFields({ toolCode: code }).toolCode).toBe(code)
+    expect(diagnosticCode(code)).toBe(code)
+  })
 
 test.each([
   { value: 100, expected: 100 },
