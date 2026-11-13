@@ -3,7 +3,7 @@ import { toolFailureCode } from '../health/diagnostic.js'
 import { log } from '../log.js'
 import { RunnerError, type RunnerResult } from './runner.js'
 
-export async function logRun(context: { requestId: string, tool: string },
+export async function logRun(context: { requestId: string, tool: string, suppressToolCode?: boolean },
   execute: (observe: (call: () => Promise<RunnerResult>) => Promise<RunnerResult>) => Promise<RunnerResult>): Promise<RunnerResult> {
   const started = Date.now()
   let result: RunnerResult | undefined
@@ -27,7 +27,7 @@ export async function logRun(context: { requestId: string, tool: string },
   let errorCode: string | null = null
   try {
     result = await observe(() => execute(observe))
-    errorCode = result.exitCode === 0 ? null : toolFailureCode(result.stdout, result.stderr) ?? null
+    errorCode = result.exitCode === 0 || context.suppressToolCode ? null : toolFailureCode(result.stdout, result.stderr) ?? null
     outcome = errorCode === 'OUTCOME_UNKNOWN' ? 'UNKNOWN_OUTCOME' : 'completed'
     return result
   } catch (error) {
@@ -36,7 +36,7 @@ export async function logRun(context: { requestId: string, tool: string },
     throw error
   } finally {
     log(outcome === 'completed' && result?.exitCode === 0 ? 'info' : 'warn', 'run', {
-      ...context, outcome, errorCode, ...observed,
+      requestId: context.requestId, tool: context.tool, outcome, errorCode, ...observed,
     })
   }
 }

@@ -294,8 +294,10 @@ For a short-lived intermediate anchor, the window warns that it will rotate and 
 Expiry warnings do not block confirmation or change hostname and date verification.
 Confirm that you compared the displayed fingerprint, then choose **Trust this certificate**.
 Initial setup fills the supported shared certificate fields and saves endpoint trust; tools without shared fields show that limitation and retain confirmed endpoint trust.
-The UI automatically tests the connection and shows **Connected** or the server-reported failure message.
-Client-side failures show a safe network or unreadable-response category and error name, without raw exception messages or response text.
+The UI automatically tests the connection and shows **Connected** or a failure category with available safe details.
+Failures can include the HTTP status, catalogued error, failed step, recognized transport code or certificate trust classification.
+Network and unreadable-response failures show a category and any recognized error code or name; invalid JSON and unexpected response formats have separate guidance.
+The automatic retest does not display raw exception messages, response text or tool diagnostic text.
 When filling shared fields, initial setup refuses to replace an existing certificate or fingerprint; replace those fields manually.
 Removing an endpoint trust record retains the separately saved Certificate verification fields; clear those fields too when revoking that trust.
 CA trust is selected when an issuing CA is available; self-signed endpoints select strict leaf pinning.
@@ -403,17 +405,18 @@ This includes Azure destinations derived from saved `tlsDestinations`; see [cred
 A preflight failure at any inventory endpoint stops the test, even if the health read would use another endpoint.
 LDAP URLs negotiate StartTLS before the handshake; LDAPS starts TLS directly.
 Preflight sends no credentials.
-The administrator test response and instance page show the current failure's stage and the tool's error text and hint when available.
-Network and TLS diagnostics name the destination host for both manual tests and background checks; background checks run the tool without preflight.
+The manual administrator test response and instance page show the current failure's stage and the tool's error text and hint when available.
+The automatic retest after certificate trust instead saves a restricted diagnostic with a catalogued message and available recognized details, including in cached health and retained failure diagnostics.
+Network and TLS diagnostics name the destination host for manual tests and background checks; background checks run the tool without preflight.
 Checks admitted to run also update revision-bound cached health on `/admin/tools`, except for transient admission or authorization failures.
 Failures before admission, including missing credentials, overlapping checks and unavailable adapters, return configuration-stage diagnostics without replacing cached health; an absent credential revision is `null`.
-Preflight certificate-verification diagnostics identify the chain as self-signed or untrusted and include the presented issuer when available, except for [pin mismatches](#trusting-one-tool-from-the-administration-ui), which omit certificate details.
+Manual preflight certificate-verification diagnostics identify the chain as self-signed or untrusted and include the presented issuer when available, except for [pin mismatches](#trusting-one-tool-from-the-administration-ui), which omit certificate details.
 For TLS failures, follow [TLS inspection and private upstream CAs](#tls-inspection-and-private-upstream-cas).
 Follow the diagnostic hint to repair token-acquisition failures; see the [error reference](errors.md) for categories, next steps and the Graph provider-code limitation.
 Azure identity-provider HTTP service failures, including throttling and server errors, return `TOOL_FAILED` at the token-acquisition stage with service-availability advice; credential rejection returns `UPSTREAM_AUTH_FAILED`.
 These Azure diagnostics never include raw response bodies.
-Tool codes `API_RESPONSE_INVALID`, `AUTH_RESPONSE_INVALID`, `RESPONSE_INVALID`, `MALFORMED_RESPONSE`, `INVALID_RESPONSE` and `PROTOCOL_ERROR` return `UPSTREAM_RESPONSE_INVALID` at the response stage, preserving the tool's redacted diagnostic text.
-Generic `UPSTREAM_ERROR` failures retain the tool's redacted diagnostic text and use the ordinary authentication, network or tool-failure classification.
+Tool codes `API_RESPONSE_INVALID`, `AUTH_RESPONSE_INVALID`, `RESPONSE_INVALID`, `MALFORMED_RESPONSE`, `INVALID_RESPONSE` and `PROTOCOL_ERROR` return `UPSTREAM_RESPONSE_INVALID` at the response stage; manual tests preserve the tool's redacted diagnostic text.
+Generic `UPSTREAM_ERROR` failures use the ordinary authentication, network or tool-failure classification; manual tests retain the tool's redacted diagnostic text.
 For Check Point schema-validation failures, `RESPONSE_INVALID` includes HTTP `status`, normalized `contentType`, a bounded redacted `shape`, and `issues` with failing JSON paths and received types, without response values or validator messages.
 Unavailable status or content type is `null`; unsafe keys become `<key>` and array paths use `[*]`.
 See the pinned [Check Point transport guidance](https://github.com/knowttl/checkpoint-axi/blob/v0.1.6/docs/reads.md#doctor-and-transport) for diagnostic limits and recovery.
@@ -421,7 +424,7 @@ For BeyondTrust schema-validation failures, `API_RESPONSE_INVALID` includes HTTP
 Each issue annotation includes `path`, `received` and `expected` types (`unknown` when the expected type is unavailable or outside the safe type vocabulary), plus the Zod `code` when recognized.
 The reports echo only identifier-like, non-GUID object keys through the tool's redactor; every other object key appears as `<key>`, and array positions appear as `[*]`.
 `shapeTruncated` and `issuePathsTruncated` indicate that the respective report reached a native reporting limit; administrator diagnostic text remains subject to the host limits below.
-These details appear in managed command output and credential-test diagnostics; audit records retain the error code without the shape report.
+These details appear in managed command output and manual credential-test diagnostics; audit records retain the error code without the shape report.
 Inspect the message and hint, then check the service endpoint and API compatibility.
 `AUTH_ENDPOINT_NOT_FOUND` returns `TOOL_REJECTED_INPUT` at the configuration stage; check the configured service host and the tool's hint for the token endpoint.
 Diagnostics include check time and credential revision, are bounded to 4096 characters, and are discarded entirely if the exact-value secret scanner finds a credential value or one of its canonical encodings.

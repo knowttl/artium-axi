@@ -852,11 +852,11 @@ test('trust automatically tests credentials and displays the exact failure', () 
     await page.click('[data-trust-certificate] button');
     await page.wait('form[data-method=DELETE][action$="/certificates"]');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('The tool exited unsuccessfully.')), 'Exact test failure missing');
-    check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('Tool exited with status 1.')), 'Exact tool failure missing');
+    check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('tool run') && !document.querySelector('[data-check-diagnostic]').textContent.includes('Tool exited with status 1.')), 'Structured tool failure missing');
   `)
 })
 
-for (const [failure, expected] of [['network', 'Network error: TypeError'], ['parse', 'Response could not be read: SyntaxError']]) test('automatic retest reports a safe ' + failure + ' category', () => {
+for (const [failure, expected] of [['network', 'Connection test: Could not reach the artium admin server (ECONNREFUSED, TypeError).'], ['parse', 'Connection test: response was not valid JSON. HTTP 200.']]) test('automatic retest reports a safe ' + failure + ' detail', () => {
   browser(`
     await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-valid' });
     await page.click('form[data-test-tool] button');
@@ -868,7 +868,7 @@ for (const [failure, expected] of [['network', 'Network error: TypeError'], ['pa
       const original = window.fetch.bind(window);
       window.fetch = async (...args) => {
         if (String(args[0]).endsWith('/test')) {
-          ${failure === 'network' ? "throw new TypeError('Échec réseau CANARY-private-value');" : "return new Response('CANARY-private-value', { status: 200 });"}
+          ${failure === 'network' ? "throw new TypeError('Échec réseau CANARY-private-value', { cause: { code: 'ECONNREFUSED' } });" : "return new Response('CANARY-private-value', { status: 200 });"}
         }
         return original(...args);
       };

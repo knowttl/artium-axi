@@ -1,9 +1,11 @@
 import { components } from './design/components.js'
 import { tokens } from './design/tokens.js'
+import { retestScript } from './retest.js'
 
 export const adminStyle = tokens + components
 
 export const adminScript = `
+${retestScript}
 for (const button of document.querySelectorAll('[data-copy]')) {
   button.addEventListener('click', async () => {
     const scope = button.closest('[data-copy-scope], .copy-group') || button.parentElement;
@@ -673,22 +675,10 @@ document.addEventListener('submit', async event => {
     }
     if (response.ok && form.hasAttribute('data-trust-certificate')) {
       message.textContent = 'Certificate trusted. Testing connection…';
-      let result;
-      let health;
-      let category = 'Network error';
-      try {
-        const tested = await fetch(form.dataset.trustTestUrl, { method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ _csrf: body._csrf }) });
-        if (tested.redirected) { location.assign(tested.url); return; }
-        category = 'Response could not be read';
-        const current = await readTestResponse(tested);
-        health = current.health;
-        result = tested.ok ? 'Connected' : current.error.message;
-      } catch (error) {
-        const name = ['TypeError', 'SyntaxError', 'AbortError', 'NetworkError', 'Error'].includes(error?.name) ? error.name : 'Error';
-        result = category + ': ' + name + '. Run Test connection again.';
-      }
-      sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ message: result, health }));
+      const current = await retestConnection(form.dataset.trustTestUrl, body._csrf);
+      if (current.redirect) { location.assign(current.redirect); return; }
+      const result = current.diagnostic ? renderRetestDiagnostic(current.diagnostic) : 'Connected';
+      sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ message: result, health: current.health }));
       location.reload();
       return;
     }

@@ -603,7 +603,7 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
     const name = instanceName(request)
     const credentialId = name === undefined ? undefined : requireInstance(tool, name).id
     parse(route.input, request.body ?? {})
-    try { return await health.check(tool, actor, request.id, request.ip, () => { authorize(request) }, credentialId) }
+    try { return await health.check(tool, actor, request.id, request.ip, () => { authorize(request) }, credentialId, request.headers['x-artium-retest'] === '1') }
     catch (error) {
       authorize(request)
       if (!(error instanceof ArtiumError)) throw error
