@@ -18249,7 +18249,7 @@
       "command": "auth logout",
       "effect": "client-local",
       "status": "managed equivalent",
-      "reason": "Managed accounts do not retain a verified current PAT id. Use user token-revoke <numeric-token-id> under the single administrator-controlled per-tenant writes switch, default OFF, with preview, explicit confirmation and audit. The managed account is preserved; account removal does not revoke its upstream PAT.",
+      "reason": "Managed accounts do not retain a verified current PAT id. Use user token-revoke <numeric-token-id> under the administrator-controlled per-tenant writes switch and Allow security administration, both default OFF, with preview, explicit confirmation and audit. The managed account is preserved; account removal does not revoke its upstream PAT.",
       "targetSlice": "e",
       "authorization": "write",
       "requiredAdminControl": "One administrator-controlled per-tenant writes switch, default OFF; all writes including destructive and security administration require it, and security administration also requires Allow security administration, default OFF; preview, explicit confirmation, coordination, audit and unknown-outcome recovery",

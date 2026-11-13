@@ -17,7 +17,7 @@ Security administration needs the separate Allow security administration setting
 Security-administration deletes (organization delete, user delete, team delete) need both Allow security administration and Allow destructive deletes.
 Raw api writes to security-administration paths also need Allow security administration; see [Raw API access](safety.md#raw-api-access).
 Ordinary configuration associations, such as template credential-add and organization notification-add, need the writes switch alone.
-The Effect column reports upstream effect labels and does not select this gate; only the commands listed above require Allow security administration.
+The Effect column reports upstream effect labels and does not select this gate; among named commands, only those listed above require Allow security administration; raw API writes are subject to the path-based rule above.
 Upstream config/delete/security tags and native gates remain implementation constraints, not administrator permission tiers.
 Artium must supply the appropriate native gates under the writes switch and, for destructive operations, the Allow destructive deletes setting.
 All operations retain tenant/account access, managed HTTPS origin, verified TLS, credential isolation and AWX resource authorization.
@@ -2865,7 +2865,7 @@ Uses the selected managed AWX account; upstream identity/read diagnostics retain
 
 ### auth logout
 
-Managed accounts do not retain a verified current PAT id. Use user token-revoke <numeric-token-id> under the single administrator-controlled per-tenant writes switch, default OFF, with preview, explicit confirmation and audit. The managed account is preserved; account removal does not revoke its upstream PAT.
+Managed accounts do not retain a verified current PAT id. Use user token-revoke <numeric-token-id> under the administrator-controlled per-tenant writes switch and Allow security administration, both default OFF, with preview, explicit confirmation and audit. The managed account is preserved; account removal does not revoke its upstream PAT.
 
 | Flag | Value | Status | Slice | Target authorization | Secret / file / stdin |
 | --- | --- | --- | --- | --- | --- |
