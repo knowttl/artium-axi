@@ -9,13 +9,16 @@ import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { decode } from '@toon-format/toon'
 import { afterAll, beforeAll, beforeEach, expect, test } from 'vitest'
-import { createInspectionCertificates } from '../../../test/fake-service/certificates.mjs'
+import { createInspectionCertificates, createTestClientCertificate } from '../../../test/fake-service/certificates.mjs'
 import { createGhAdapter } from '../adapters/gh.js'
 import { createKubernetesAdapter } from '../adapters/kubernetes.js'
 import type { CredentialTrust } from '../store/trusted-certificates.js'
-import { pinnedHttp } from './pinned-http.js'
+import { pinnedHttp, type PinnedHttpUpstream } from './pinned-http.js'
 import { Runner } from './runner.js'
 import { loadTrustedCa } from '../trusted-ca.js'
+import { createCredentialStore, openStore } from '../store/db.js'
+import { EnvironmentKeyProvider } from '../store/key-provider.js'
+import { EmbeddedSecretSource } from '../store/secret-source.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-go-pin-'))
 const gh = join(directory, 'gh')
@@ -27,6 +30,7 @@ let endpoint: string
 let applicationRequests: string[] = []
 let kubernetes = false
 let methods: string[] = []
+let storedIdentity: { certificate: string, privateKey: string }
 const server = createServer((incoming, response) => {
   applicationRequests.push(incoming.headers.authorization ?? '')
   methods.push(incoming.method!)
@@ -58,6 +62,17 @@ beforeAll(async () => {
   if (ghSupported) await promisify(execFile)(process.execPath, ['scripts/install-gh.mjs', 'tools/gh-source.json', gh])
   else console.warn(`Skipping native gh and kubectl transport tests: no verified pins for ${process.platform}/${process.arch}`)
   createInspectionCertificates(directory, 'http://localhost:1/unused-issuer')
+  createTestClientCertificate(directory)
+  const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 7).toString('base64') })
+  const db = openStore(join(directory, 'credentials.db'), provider)
+  try {
+    db.exec("INSERT INTO users (id, username, display_name, password_hash) VALUES ('synthetic-user', 'synthetic-user', 'Synthetic User', 'unusable')")
+    const store = createCredentialStore(db, provider)
+    const reference = store.replaceCredential('kubernetes-axi', { origin: 'https://localhost', auth: 'certificate',
+      clientCertificate: pem('client'), privateKey: readFileSync(join(directory, 'client.key'), 'utf8') }, 0, 'synthetic-user', Date.now())
+    const credential = await new EmbeddedSecretSource(store).getCredential(reference) as { clientCertificate: string, privateKey: string }
+    storedIdentity = { certificate: credential.clientCertificate, privateKey: credential.privateKey }
+  } finally { db.close() }
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
   endpoint = `https://localhost:${(server.address() as { port: number }).port}`
@@ -69,10 +84,10 @@ afterAll(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
-function requestRelay(socketPath: string) {
+function requestRelay(socketPath: string, target = endpoint, headers: Record<string, string> = {}) {
   return new Promise<{ status: number, body: string }>((resolve, reject) => {
     const outgoing = request({ socketPath, agent: false, path: '/api/v3/rate_limit', headers: {
-      host: new URL(endpoint).host, authorization: 'token CANARY-managed-token',
+      ...headers, host: new URL(target).host, authorization: 'token CANARY-managed-token',
     } }, incoming => {
       let body = ''
       incoming.on('data', chunk => { body += chunk })
@@ -83,9 +98,9 @@ function requestRelay(socketPath: string) {
   })
 }
 
-async function relayRequest(saved: readonly CredentialTrust[], ca?: string) {
+async function relayRequest(saved: readonly CredentialTrust[], ca?: string, options?: PinnedHttpUpstream) {
   const socketPath = join(directory, 'relay.sock')
-  const relay = await pinnedHttp(socketPath, saved, ca)
+  const relay = await pinnedHttp(socketPath, saved, ca, options)
   try {
     return await requestRelay(socketPath)
   } finally { await relay.close() }
@@ -103,11 +118,14 @@ test.each([
   { certificate: 'expired', leaf: 'leaf', anchor: 'ca' },
   { certificate: 'mismatch', leaf: 'mismatch', anchor: 'ca' },
   { certificate: 'expired', leaf: 'expired', anchor: 'ca' },
-])('rejects $certificate with pin $leaf, sends no application data and remains usable (#276)', async ({ certificate, leaf, anchor }) => {
+  { certificate: 'rotated', leaf: 'leaf', anchor: 'intermediate', serverName: 'localhost' },
+  { certificate: 'other-ca-leaf', leaf: 'other-ca-leaf', anchor: 'intermediate', serverName: 'localhost' },
+  { certificate: 'expired', leaf: 'expired', anchor: 'ca', serverName: 'localhost' },
+])('rejects $certificate with pin $leaf and name $serverName, sends no application data and remains usable (#276)', async ({ certificate, leaf, anchor, serverName }) => {
   serve(certificate)
   const saved = [{ ...trust()[0], pem: pem(anchor), leafFingerprint: new X509Certificate(pem(leaf)).fingerprint256 }, ...trust()]
   const socketPath = join(directory, 'recovery.sock')
-  const relay = await pinnedHttp(socketPath, saved)
+  const relay = await pinnedHttp(socketPath, saved, undefined, serverName ? { endpoint, serverName } : undefined)
   try {
     expect((await requestRelay(socketPath)).status).toBe(502)
     expect(applicationRequests).toEqual([])
@@ -115,6 +133,83 @@ test.each([
     expect(await requestRelay(socketPath)).toEqual({ status: 200, body: '{"remaining":4999}' })
     expect(applicationRequests).toEqual(['token CANARY-managed-token'])
   } finally { await relay.close() }
+})
+
+test('the host server name controls SNI and hostname verification on the pinned data connection', async () => {
+  serve('mismatch')
+  const saved = [{ ...trust()[0], pem: pem('ca'), leafFingerprint: new X509Certificate(pem('mismatch')).fingerprint256 }]
+  let serverName: string | undefined
+  const observe = (socket: import('node:tls').TLSSocket) => { serverName = socket.servername || undefined }
+  server.on('secureConnection', observe)
+  try {
+    expect(await relayRequest(saved, undefined, { endpoint, serverName: 'other.synthetic.test' }))
+      .toEqual({ status: 200, body: '{"remaining":4999}' })
+    expect(serverName).toBe('other.synthetic.test')
+    expect(applicationRequests).toEqual(['token CANARY-managed-token'])
+  } finally { server.off('secureConnection', observe) }
+})
+
+test.each([
+  { scenario: 'correct client and leaf', client: 'client', certificate: 'leaf', pin: 'leaf', serverName: 'localhost',
+    status: 200, body: 'authenticated', peers: ['synthetic-kubernetes-client'] },
+  { scenario: 'wrong client certificate', client: 'other-ca-leaf', certificate: 'leaf', pin: 'leaf', serverName: 'localhost',
+    status: 502, body: '{"message":"Upstream TLS connection failed"}', peers: [] },
+  { scenario: 'wrong leaf pin', client: 'client', certificate: 'rotated', pin: 'leaf', serverName: 'localhost',
+    status: 502, body: '{"message":"CERTIFICATE_PIN_MISMATCH"}', peers: [] },
+  { scenario: 'wrong server name', client: 'client', certificate: 'leaf', pin: 'leaf', serverName: 'other.synthetic.test',
+    status: 502, body: '{"message":"Upstream TLS connection failed"}', peers: [] },
+  { scenario: 'expired pinned server', client: 'client', certificate: 'expired', pin: 'expired', serverName: 'localhost',
+    status: 502, body: '{"message":"Upstream TLS connection failed"}', peers: [] },
+])('mutual TLS with $scenario returns $status (#276)', async ({ client, certificate, pin, serverName, status, body, peers }) => {
+  const received: string[] = []
+  const mutual = createServer({ requestCert: true, rejectUnauthorized: true, ca: pem('ca'),
+    key: readFileSync(join(directory, 'server.key')), cert: pem(certificate) + pem('intermediate') }, (incoming, response) => {
+    received.push((incoming.socket as import('node:tls').TLSSocket).getPeerCertificate().subject.CN as string)
+    response.end('authenticated')
+  })
+  mutual.listen(0, '127.0.0.1')
+  await once(mutual, 'listening')
+  const target = `https://127.0.0.1:${(mutual.address() as { port: number }).port}`
+  const saved = [{ ...trust()[0], endpoint: target, pem: pem('ca'), leafFingerprint: new X509Certificate(pem(pin)).fingerprint256 }]
+  const socketPath = join(directory, 'mutual.sock')
+  const relay = await pinnedHttp(socketPath, saved, undefined, { endpoint: target, serverName,
+    clientIdentity: client === 'client' ? storedIdentity
+      : { certificate: pem(client), privateKey: readFileSync(join(directory, 'server.key'), 'utf8') } })
+  try {
+    expect(await requestRelay(socketPath, target)).toEqual({ status, body })
+    expect(received).toEqual(peers)
+  } finally {
+    await relay.close()
+    mutual.closeAllConnections()
+    await new Promise<void>(resolve => mutual.close(() => resolve()))
+  }
+})
+
+test('host TLS options never follow incoming endpoint or TLS headers to another endpoint', async () => {
+  const received: string[] = []
+  const other = createServer({ requestCert: true, rejectUnauthorized: false, ca: pem('ca'),
+    key: readFileSync(join(directory, 'server.key')), cert: pem('leaf') + pem('intermediate') }, (incoming, response) => {
+    received.push((incoming.socket as import('node:tls').TLSSocket).getPeerCertificate().subject?.CN as string ?? 'anonymous')
+    response.end('other endpoint')
+  })
+  other.listen(0, '127.0.0.1')
+  await once(other, 'listening')
+  const target = `https://localhost:${(other.address() as { port: number }).port}`
+  const socketPath = join(directory, 'isolated.sock')
+  const relay = await pinnedHttp(socketPath, [...trust(), { ...trust()[0], endpoint: target }], undefined, {
+    endpoint, serverName: 'other.synthetic.test',
+    clientIdentity: storedIdentity,
+  })
+  try {
+    expect(await requestRelay(socketPath, target, { servername: 'other.synthetic.test',
+      'x-tls-server-name': 'other.synthetic.test', 'x-client-certificate': pem('client').replaceAll('\n', '') }))
+      .toEqual({ status: 200, body: 'other endpoint' })
+    expect(received).toEqual(['anonymous'])
+  } finally {
+    await relay.close()
+    other.closeAllConnections()
+    await new Promise<void>(resolve => other.close(() => resolve()))
+  }
 })
 
 test('a pin cannot make an unrelated endpoint trusted', async () => {

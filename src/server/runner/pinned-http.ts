@@ -6,7 +6,14 @@ import { certificateEndpoint } from '../certificate-endpoint.js'
 import { credentialTlsOptions } from '../credential-tls.js'
 import type { CredentialTrust } from '../store/trusted-certificates.js'
 
-export async function pinnedHttp(socketPath: string, trust: readonly CredentialTrust[], ca?: string) {
+export interface PinnedHttpUpstream {
+  endpoint: string
+  clientIdentity?: { certificate: string, privateKey: string }
+  serverName?: string
+}
+
+export async function pinnedHttp(socketPath: string, trust: readonly CredentialTrust[], ca?: string, options?: PinnedHttpUpstream) {
+  const endpoint = options && certificateEndpoint(options.endpoint).href
   const outgoing = new Set<ClientRequest>()
   const sockets = new Set<Socket>()
   const server = createServer((incoming, response) => {
@@ -16,7 +23,12 @@ export async function pinnedHttp(socketPath: string, trust: readonly CredentialT
     }
     const target = new URL(incoming.url, `https://${incoming.headers.host}`)
     const scoped = trust.filter(item => certificateEndpoint(item.endpoint).href === certificateEndpoint(target).href)
+    const upstreamOptions = endpoint === certificateEndpoint(target).href ? options : undefined
     const upstream = request(target, { method: incoming.method, headers: incoming.headers,
+      ...(upstreamOptions?.clientIdentity ? {
+        cert: upstreamOptions.clientIdentity.certificate, key: upstreamOptions.clientIdentity.privateKey,
+      } : {}),
+      ...(upstreamOptions?.serverName ? { servername: upstreamOptions.serverName } : {}),
       ...credentialTlsOptions(scoped, ca), agent: false }, result => {
       response.writeHead(result.statusCode!, result.headers)
       result.pipe(response)
