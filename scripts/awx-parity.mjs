@@ -23,13 +23,30 @@ const updateHelp = await help(['update', '--help'])
 const globalNames = [...topHelp.match(/^globals: (.*)$/m)[1].matchAll(/--([a-z-]+)/g)].map(match => match[1])
 const recorded = readJson('tools/inventories/awx-axi-parity.json')
 const decisions = new Map(recorded.commands.map(route => [route.command, route]))
-const offered = DOMAINS.flatMap(domain => domain.subcommands.map(route => ({ command: `${domain.name} ${route.name}`, flags: route.flags })))
+const localCommands = [
+  ...AUTH_HELP.match(/usage: awx-axi auth ([a-z|]+)/)[1].split('|').map(name => `auth ${name}`),
+  SETUP_HELP.match(/usage: awx-axi (setup \w+)/)[1],
+  ...topHelp.match(/^commands: "(.*)"$/m)[1].split(', ').filter(command => !['auth', 'setup'].includes(command)),
+  updateHelp.match(/^command: (\w+)$/m)[1],
+]
+const offered = [...DOMAINS.flatMap(domain => domain.subcommands.map(route => ({ command: `${domain.name} ${route.name}`, flags: route.flags }))),
+  ...localCommands.map(command => ({ command, flags: [] }))]
+const missingCommands = offered.filter(route => !decisions.has(route.command)).map(route => route.command)
+if (missingCommands.length) throw new Error(`Missing AWX support decision: ${missingCommands.join(', ')}; record each decision in tools/inventories/awx-axi-parity.json`)
+for (const route of offered.filter(route => localCommands.includes(route.command))) {
+  const output = route.command.startsWith('auth ')
+    ? AUTH_HELP.split(new RegExp(`\\n  ${route.command.slice(5)}\\s+`))[1]?.split(/\n  [a-z]+\s{2,}/)[0] ?? ''
+    : route.command.startsWith('setup ') ? SETUP_HELP : await help([...route.command.split(' '), '--help'])
+  route.flags = [...output.matchAll(/--([a-z][a-z0-9-]*)/g)]
+    .filter(match => !globalNames.includes(match[1]) && match[1] !== 'help')
+    .map(match => ({ name: match[1] }))
+}
 const undecided = offered.flatMap(route => {
   const decision = decisions.get(route.command)
   return !decision ? [route.command] : route.flags.filter(flag => !decision.flags.some(reviewed => reviewed.name === flag.name)).map(flag => `${route.command} --${flag.name}`)
 })
 undecided.push(...globalNames.filter(name => !recorded.globals.some(flag => flag.name === name)).map(name => `global --${name}`))
-if (undecided.length && !process.argv.includes('--write')) throw new Error(`Missing AWX support decision: ${undecided.join(', ')}; review support in scripts/awx-inventory.mjs and scripts/awx-parity.mjs, then record each decision in tools/inventories/awx-axi-parity.json with node scripts/awx-parity.mjs --write`)
+if (undecided.length) throw new Error(`Missing AWX support decision: ${undecided.join(', ')}; review support in scripts/awx-inventory.mjs and scripts/awx-parity.mjs, then record each decision in tools/inventories/awx-axi-parity.json before regeneration`)
 const baseControls = {
   read: 'Managed account access; reads always allowed by write policy',
   write: 'Administrator-controlled per-tenant writes switch, default OFF; preview, explicit confirmation, coordination, audit and unknown-outcome recovery',
@@ -139,12 +156,6 @@ const localReasons = {
   'setup hooks': ['managed equivalent', 'Use artium-axi setup --host <claude|codex|opencode> --hook on Linux for authenticated ambient tool context and granted tool skills. Claude Code and Codex use SessionStart; OpenCode 1.19.x uses its local system-context plugin API. Codex host trust and feature controls still apply. Pi and non-Linux hosts retain skill-only setup. Never install hooks in the server runner.'],
   update: ['not applicable', 'The deployment pins awx-axi through tools/package.json and integrity.json. Upgrade through a reviewed Artium dependency change; per-run self-update is blocked.'],
 }
-const localCommands = [
-  ...AUTH_HELP.match(/usage: awx-axi auth ([a-z|]+)/)[1].split('|').map(name => `auth ${name}`),
-  SETUP_HELP.match(/usage: awx-axi (setup \w+)/)[1],
-  ...topHelp.match(/^commands: "(.*)"$/m)[1].split(', ').filter(name => name.includes(' ') || name === 'doctor'),
-  updateHelp.match(/^command: (\w+)$/m)[1],
-]
 for (const command of ['home', ...localCommands]) {
   const remoteRead = ['home', 'doctor', 'auth status'].includes(command)
   const [status, reason] = remoteRead ? ['supported', 'Uses the selected managed AWX account; upstream identity/read diagnostics retained'] : localReasons[command]
@@ -154,7 +165,8 @@ for (const command of ['home', ...localCommands]) {
   if (command === 'update') specs.push(...[...updateHelp.matchAll(/^  "--([a-z-]+)": (.*)$/gm)].map(match => ({ name: match[1], takesValue: false, description: match[2] })))
   const authorization = ['auth login', 'auth logout'].includes(command) ? 'write' : 'read'
   commands.push({ command, effect, status, reason, targetSlice: command === 'auth logout' ? 'e' : 'f', authorization, requiredAdminControl: requiredControl(command, authorization),
-    flags: flagsFor(command, specs, effect, 'f', status),
+    flags: [...flagsFor(command, specs, effect, 'f', status), ...offered.find(route => route.command === command)?.flags
+      .filter(flag => !specs.some(spec => spec.name === flag.name)).map(flag => decisions.get(command).flags.find(reviewed => reviewed.name === flag.name)) ?? []],
     ...(command.startsWith('auth ') && command !== 'auth status' ? { remoteEffect: 'security administration', note: 'Client-local lifecycle also mints or revokes an upstream PAT; upstream logout uses the native security-tagged DELETE gate' } : {}) })
 }
 
@@ -182,7 +194,7 @@ const reviewedOperationalCredentialUse = new Set(['job launch', 'template launch
 const unreviewedConditional = commands.filter(route => route.effect !== 'read' && route.effect !== 'client-local' && route.flags.some(flag => credentialInputs.has(flag.name))
   && route.effect !== 'security administration' && !route.conditionalEffect && !reviewedOperationalCredentialUse.has(route.command)).map(route => route.command)
 if (unreviewedConditional.length) throw new Error(`Unreviewed conditional security effect: ${unreviewedConditional.join(', ')}`)
-const globals = globalNames.map(name => ({ name, takesValue: true, effect: 'client-local', status: 'managed equivalent', targetSlice: 'f',
+const globals = globalNames.map(name => !['config', 'profile', 'origin', 'verify-ssl'].includes(name) ? recorded.globals.find(flag => flag.name === name) : ({ name, takesValue: true, effect: 'client-local', status: 'managed equivalent', targetSlice: 'f',
   authorization: 'read', requiredAdminControl: targetPolicy.read, reason: name === 'config' ? 'Server materializes private config; upstream file path override blocked'
     : name === 'profile' ? 'Select an Artium managed account; upstream profile override blocked'
     : name === 'origin' ? 'Administrator configures HTTPS origin on the managed account; runner override blocked'

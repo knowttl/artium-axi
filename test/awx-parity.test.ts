@@ -24,6 +24,24 @@ ${mutation};`
   expect(result.stderr).toContain('tools/inventories/awx-axi-parity.json')
 })
 
+test.each([
+  { kind: 'top-level command', file: '/dist/cli.js', from: 'auth, profile list, config path, doctor, setup', to: 'auth, profile list, config path, doctor, setup, synthetic-parity-command', name: 'synthetic-parity-command', args: [] },
+  { kind: 'auth flag', file: '/dist/commands/auth.js', from: '--allow-http opts this profile', to: '--synthetic-parity-flag and --allow-http opts this profile', name: 'auth login --synthetic-parity-flag', args: [] },
+  { kind: 'auth flag during regeneration', file: '/dist/commands/auth.js', from: '--allow-http opts this profile', to: '--synthetic-parity-flag and --allow-http opts this profile', name: 'auth login --synthetic-parity-flag', args: ['--write'] },
+])('parity rejects an unreviewed upstream $kind', ({ file, from, to, name, args }) => {
+  const preload = `import { registerHooks } from 'node:module';
+registerHooks({ load(url, context, nextLoad) {
+  const result = nextLoad(url, context);
+  if (url.endsWith(${JSON.stringify(file)})) result.source = result.source.toString().replace(${JSON.stringify(from)}, ${JSON.stringify(to)});
+  return result;
+} });`
+  const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`,
+    fileURLToPath(new URL('../scripts/awx-parity.mjs', import.meta.url)), ...args], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+  expect(result.status).toBe(1)
+  expect(result.stderr).toContain(name)
+  expect(result.stderr).toContain('support decision')
+})
+
 type Flag = { name: string; takesValue: boolean; description: string }
 type Command = { command: string; flags: Flag[]; positionals: { names: string[]; required: number } }
 type Domain = { name: string; subcommands: (Omit<Command, 'command'> & { name: string })[] }
