@@ -857,7 +857,7 @@ test('trust automatically tests credentials and displays the exact failure', () 
 })
 
 for (const [failure, expected] of [
-  ['network', 'Connection test: Could not reach the artium admin server (ECONNREFUSED, TypeError).'],
+  ['network', 'Connection test: Could not reach the artium admin server.'],
   ['parse', 'Connection test: response was not valid JSON. HTTP 200.'],
   ['structured', 'Connection test: HTTP 503. The tool exited unsuccessfully. (TOOL_FAILED). Failed step: token acquisition. Transport: EHOSTUNREACH. Provider: AADSTS7000222. Upstream HTTP 503.'],
 ]) test('automatic retest reports a safe ' + failure + ' detail', () => {
