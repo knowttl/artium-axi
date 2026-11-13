@@ -26,7 +26,7 @@ const recorded = readJson('tools/inventories/awx-axi-parity.json')
 const decisions = new Map(recorded.commands.map(route => [route.command, route]))
 const localCommands = [
   ...AUTH_HELP.match(/usage: awx-axi auth ([a-z|]+)/)[1].split('|').map(name => `auth ${name}`),
-  SETUP_HELP.match(/usage: awx-axi (setup \w+)/)[1],
+  ...SETUP_HELP.match(/usage: awx-axi setup ([\w|-]+)/)[1].split('|').map(name => `setup ${name}`),
   ...topHelp.match(/^commands: "(.*)"$/m)[1].split(', ').filter(command => !['auth', 'setup'].includes(command)),
   updateHelp.match(/^command: (\w+)$/m)[1],
 ]
@@ -42,11 +42,14 @@ for (const route of offered.filter(route => localCommands.includes(route.command
     .filter(match => !globalNames.includes(match[1]) && match[1] !== 'help')
     .map(match => ({ name: match[1] }))
 }
+const complete = decision => decision && typeof decision.name === 'string' && decision.name.trim()
+  && typeof decision.status === 'string' && decision.status.trim()
+  && (typeof decision.authorization === 'string' && decision.authorization.trim() || typeof decision.reason === 'string' && decision.reason.trim())
 const undecided = offered.flatMap(route => {
   const decision = decisions.get(route.command)
-  return !decision ? [route.command] : route.flags.filter(flag => !decision.flags.some(reviewed => reviewed.name === flag.name)).map(flag => `${route.command} --${flag.name}`)
+  return !decision ? [route.command] : route.flags.filter(flag => !complete(decision.flags.find(reviewed => reviewed.name === flag.name))).map(flag => `${route.command} --${flag.name}`)
 })
-undecided.push(...globalNames.filter(name => !recorded.globals.some(flag => flag.name === name)).map(name => `global --${name}`))
+undecided.push(...globalNames.filter(name => !complete(recorded.globals.find(flag => flag.name === name))).map(name => `global --${name}`))
 if (undecided.length) throw new Error(`Missing AWX support decision: ${undecided.join(', ')}; review support in scripts/awx-inventory.mjs and scripts/awx-parity.mjs, then record each decision in tools/inventories/awx-axi-parity.json before regeneration`)
 const baseControls = {
   read: 'Managed account access; reads always allowed by write policy',

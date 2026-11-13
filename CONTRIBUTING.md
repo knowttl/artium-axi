@@ -143,6 +143,7 @@ Missing decisions fail with the command or flag name and the decision file, incl
 Review support in `scripts/awx-inventory.mjs` and `scripts/awx-parity.mjs`, record each new decision in `tools/inventories/awx-axi-parity.json`, update the reviewed surface when required, then regenerate with `node scripts/upstream-inventory.mjs --write` and review the resulting decisions.
 Regeneration rejects a recorded classification that differs from the generator; reconcile both before writing the updated matrix.
 The check and its synthetic command/flag regressions run offline against the installed pin; they do not fetch a newer upstream version.
+For top-level, auth, setup and global capabilities, the pinned upstream exposes help rather than a complete executable registry, so the check cannot detect capabilities omitted from that help.
 For gh-axi, ado-axi, ldap-axi, proxmox-axi, gitea-axi, shodan-axi and mg-axi it reads the commands the installed upstream package offers.
 Every offered command must be admitted by the tool inventory, blocked by its `blockedCommands`, or recorded as reviewed but unadmitted in `tools/offered-review.json`.
 A new gh-axi top-level group missing from the inventory group list and from `blockedCommands` fails with its own message.
