@@ -6,8 +6,8 @@ import { downloads } from '../tools/node_modules/@knowttl/beyondtrust-axi/dist/s
 
 const root = new URL('../tools/', import.meta.url)
 const packageRoot = new URL('node_modules/@knowttl/beyondtrust-axi/', root)
-const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8'))
-const pin = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8'))[pkg.name]
+const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8')) as { name: string, version: string }
+const pin = (JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8')) as Record<string, { version: string, integrity: string }>)[pkg.name]
 if (pkg.version !== pin.version) throw new Error('Pin mismatch for beyondtrust-axi')
 const unsafeOverrides = ['config', 'profile', 'out']
 const inputFileFlags = ['file']
@@ -20,9 +20,9 @@ const commands = Object.entries(catalogue).sort(([a], [b]) => a.localeCompare(b)
 const supportedOperations = [...commands.filter(route => route.effect === 'write').map(route => identityWrites[route.command]?.operation ?? route.command.replaceAll(' ', '.')),
   'policy.delete.force', ...downloadCommands.map(command => command.replaceAll(' ', '.'))].sort()
 const skill = readFileSync(new URL('skills/beyondtrust-axi/SKILL.md', packageRoot), 'utf8')
-const sources = readdirSync(new URL('dist/src/', packageRoot), { recursive: true }).filter(path => path.endsWith('.js')).sort()
+const sources = readdirSync(new URL('dist/src/', packageRoot), { recursive: true, encoding: 'utf8' }).filter(path => path.endsWith('.js')).sort()
   .map(path => ({ path: `dist/src/${path}`, sha256: createHash('sha256').update(readFileSync(new URL(`dist/src/${path}`, packageRoot))).digest('hex') }))
-const data = { generatedBy: 'scripts/beyondtrust-inventory.mjs', tool: 'beyondtrust-axi', ...pin,
+const data = { generatedBy: 'scripts/beyondtrust-inventory.ts', tool: 'beyondtrust-axi', ...pin,
   parserEvidence: 'Published catalogue and reviewed native parsers, write coordinator, delete gates and download contracts', sources,
   credentialSchema: JSON.parse(readFileSync(new URL('axi-credential.schema.json', packageRoot), 'utf8')),
   skillSha256: createHash('sha256').update(skill).digest('hex'),

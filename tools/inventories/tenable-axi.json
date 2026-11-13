@@ -1,5 +1,5 @@
 {
-  "generatedBy": "scripts/tenable-inventory.mjs",
+  "generatedBy": "scripts/tenable-inventory.ts",
   "tool": "tenable-axi",
   "version": "0.1.8",
   "integrity": "sha512-vrr91+Sb6tbDea6DrG+8lRuNqWkTLJlJs5XqpCIg30q1JwhiIFoC8WfLjzEOqQdMKyqhm2/b3U56EXU/FVe5jQ==",

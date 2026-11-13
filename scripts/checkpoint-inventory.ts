@@ -5,8 +5,8 @@ import { REGIONS } from '../tools/node_modules/@knowttl/checkpoint-axi/dist/src/
 
 const root = new URL('../tools/', import.meta.url)
 const packageRoot = new URL('node_modules/@knowttl/checkpoint-axi/', root)
-const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8'))
-const pin = JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8'))[pkg.name]
+const pkg = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8')) as { name: string, version: string }
+const pin = (JSON.parse(readFileSync(new URL('integrity.json', root), 'utf8')) as Record<string, { version: string, integrity: string }>)[pkg.name]
 if (pkg.version !== pin.version) throw new Error('Pin mismatch for checkpoint-axi')
 const unsafeOverrides = ['config', 'profile', 'origin', 'out']
 const inputFileFlags = ['input']
@@ -23,9 +23,9 @@ const commands = Object.entries(catalogue).sort(([a], [b]) => a.localeCompare(b)
   flags: entry.flags,
 }))
 const skill = readFileSync(new URL('skills/checkpoint-axi/SKILL.md', packageRoot), 'utf8')
-const sources = readdirSync(new URL('dist/src/', packageRoot), { recursive: true }).filter(path => path.endsWith('.js')).sort()
+const sources = readdirSync(new URL('dist/src/', packageRoot), { recursive: true, encoding: 'utf8' }).filter(path => path.endsWith('.js')).sort()
   .map(path => ({ path: `dist/src/${path}`, sha256: createHash('sha256').update(readFileSync(new URL(`dist/src/${path}`, packageRoot))).digest('hex') }))
-const data = { generatedBy: 'scripts/checkpoint-inventory.mjs', tool: 'checkpoint-axi', ...pin,
+const data = { generatedBy: 'scripts/checkpoint-inventory.ts', tool: 'checkpoint-axi', ...pin,
   parserEvidence: 'Published catalogue, fixed regional map and reviewed native parsers, write coordinator and download contracts', sources,
   credentialSchema: JSON.parse(readFileSync(new URL('axi-credential.schema.json', packageRoot), 'utf8')),
   regions: REGIONS, skillSha256: createHash('sha256').update(skill).digest('hex'),
