@@ -591,7 +591,9 @@ export function registerToolAdmin(app: FastifyInstance, db: Database.Database, a
       replacement = writeCredential(tool, name, credential, input.expectedId, expectedRevision, actor, now, input.description)
       if (reference && credentialTlsSettings[tool].fingerprint) {
         const endpoint = certificateEndpoint(toolEndpoints(tool, credential)[0]!).href
-        const previousEndpoint = certificateEndpoint(toolEndpoints(tool, stored)[0]!).href
+        let previousEndpoint: string | undefined
+        try { previousEndpoint = certificateEndpoint(toolEndpoints(tool, stored)[0]!).href }
+        catch (error) { if (!(error instanceof TypeError)) throw error }
         const fingerprint = savedCertificateTrust(tool, credential).fingerprint
         const previous = endpoint === previousEndpoint ? savedCertificateTrust(tool, stored).fingerprint : undefined
         if (endpoint !== previousEndpoint || fingerprint?.replaceAll(':', '').toLowerCase() !== previous?.replaceAll(':', '').toLowerCase()) {

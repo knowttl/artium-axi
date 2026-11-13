@@ -459,6 +459,18 @@ test('saving unrelated credentials preserves a CA leaf without a fingerprint', a
   expect(listed.certificates[0].leaf.expiresAt).toBe(initial.chain[0].expiresAt)
 })
 
+test.each([
+  ['unifi-axi', { origin: 'invalid-origin', apiKey: 'CANARY-key' }],
+  ['proxmox-axi', { origin: 'invalid-origin', auth: 'api-token', tokenId: 'reader@pve!test', token: 'CANARY-token' }],
+] as const)('%s repairs an invalid saved endpoint', async (toolName, value) => {
+  const instance = store.createInstance(toolName, { name: 'rotation', description: '' }, value, 'synthetic-development-user', Date.now())
+  const tool = (await app.inject({ method: 'GET', url: `/v1/admin/tools/${toolName}`, headers })).json()
+  const saved = await app.inject({ method: 'PATCH', url: `/v1/admin/tools/${toolName}/instances/rotation/credential`, headers,
+    payload: { expectedId: instance.id, expectedRevision: instance.revision, expectedToolRevision: tool.revision, value: { ...value, origin: endpoint } } })
+  expect(saved.statusCode, saved.body).toBe(200)
+  expect(store.readCredential(store.findInstance(toolName, 'rotation')!)).toMatchObject({ origin: endpoint })
+})
+
 test('editing an endpoint and fingerprint only updates the new endpoint', async () => {
   store.createInstance('unifi-axi', { name: 'rotation', description: '' }, { origin: endpoint, apiKey: 'CANARY-key' }, 'synthetic-development-user', Date.now())
   const base = '/v1/admin/tools/unifi-axi/instances/rotation'
