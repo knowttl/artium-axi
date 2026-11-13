@@ -856,7 +856,7 @@ test('trust automatically tests credentials and displays the exact failure', () 
   `)
 })
 
-for (const [failure, expected] of [['network', 'Connection test: Could not reach the artium admin server.'], ['parse', 'Connection test: response was not valid JSON. HTTP 200.']]) test('automatic retest reports a safe ' + failure + ' detail', () => {
+for (const [failure, expected] of [['network', 'Connection test: Could not reach the artium admin server (ECONNREFUSED, TypeError).'], ['parse', 'Connection test: response was not valid JSON. HTTP 200.']]) test('automatic retest reports a safe ' + failure + ' detail', () => {
   browser(`
     await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-valid' });
     await page.click('form[data-test-tool] button');
@@ -868,7 +868,7 @@ for (const [failure, expected] of [['network', 'Connection test: Could not reach
       const original = window.fetch.bind(window);
       window.fetch = async (...args) => {
         if (String(args[0]).endsWith('/test')) {
-          ${failure === 'network' ? "throw new TypeError('Échec réseau CANARY-private-value');" : "return new Response('CANARY-private-value', { status: 200 });"}
+          ${failure === 'network' ? "throw new TypeError('Échec réseau CANARY-private-value', { cause: { code: 'ECONNREFUSED' } });" : "return new Response('CANARY-private-value', { status: 200 });"}
         }
         return original(...args);
       };

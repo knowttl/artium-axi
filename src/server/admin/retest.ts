@@ -12,7 +12,8 @@ function retestTransport(error) {
 function renderRetestDiagnostic(detail) {
   const status = detail.status === undefined ? '' : ' HTTP ' + detail.status + '.';
   const transport = [detail.code, detail.name].filter(Boolean).join(', ');
-  if (detail.kind === 'network') return 'Connection test: Could not reach the artium admin server. Run Test connection again.';
+  if (detail.kind === 'network') return 'Connection test: Could not reach the artium admin server' +
+    (transport ? ' (' + transport + ')' : '') + '. Run Test connection again.';
   if (detail.kind === 'body') return 'Connection test: response body could not be read' +
     (transport ? ' (' + transport + ')' : '') + '.' + status + ' Check the connection for an interrupted response. Run Test connection again.';
   if (detail.kind === 'json') return 'Connection test: response was not valid JSON.' + status + ' Check the server or proxy response format. Run Test connection again.';
