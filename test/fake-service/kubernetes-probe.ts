@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync, realpathSync } from 'node:fs'
+import { X509Certificate } from 'node:crypto'
+import { mkdirSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { join } from 'node:path'
 import { decode } from '@toon-format/toon'
 import { withFakeService } from './fixture.js'
-import { createTestClientCertificate } from './certificates.mjs'
+import { createTestCertificates, createTestClientCertificate } from './certificates.mjs'
 import { createKubernetesAdapter } from '../../src/server/adapters/kubernetes.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { createApp } from '../../src/server/app.js'
@@ -24,6 +25,9 @@ const nativeCodec = await import(pathToFileURL(createRequire(realpathSync(toolPa
 await withFakeService(async ({ directory, port, send }) => {
   const origin = `https://localhost:${port}`
   const pem = readFileSync(join(directory, 'ca.crt'), 'utf8')
+  const leaf = readFileSync(join(directory, 'server.crt'), 'utf8')
+  const fingerprint = new X509Certificate(pem).fingerprint256
+  const leafFingerprint = new X509Certificate(leaf).fingerprint256
   const runner = await Runner.create(join(directory, 'calls'))
   const provider = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
   const db = openStore(join(directory, 'kubernetes.db'), provider)
@@ -36,7 +40,7 @@ await withFakeService(async ({ directory, port, send }) => {
     token: 'CANARY-kubernetes-token' }, 0, 'synthetic-development-user', Date.now())
   const reference = store.findCredential('kubernetes-axi')!
   db.prepare(`INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by)
-    VALUES ('synthetic-ca', ?, ?, 'synthetic', 'synthetic', ?, ?, 'ca', ?, 'synthetic-development-user')`).run(reference.id, origin + '/', pem, pem, Date.now())
+    VALUES ('synthetic-ca', ?, ?, ?, ?, ?, ?, 'ca', ?, 'synthetic-development-user')`).run(reference.id, origin + '/', fingerprint, leafFingerprint, pem, leaf, Date.now())
   const adapter = await createKubernetesAdapter(new EmbeddedSecretSource(store))
   const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [adapter], credentialStore: store,
     resolver: new SharedIdentityResolver(store, db), environment: {} })
@@ -77,13 +81,20 @@ await withFakeService(async ({ directory, port, send }) => {
       assert.ok(response.statusCode >= 400, response.body)
     }
     assert.equal((await evidence()).requests.length, before)
-    db.prepare("UPDATE trusted_certificates SET mode = 'pin'").run()
+    const otherDirectory = join(directory, 'other')
+    mkdirSync(otherDirectory)
+    createTestCertificates(otherDirectory, ['localhost'])
+    const otherPem = readFileSync(join(otherDirectory, 'ca.crt'), 'utf8')
+    const otherLeaf = readFileSync(join(otherDirectory, 'server.crt'), 'utf8')
+    db.prepare("UPDATE trusted_certificates SET mode = 'pin', fingerprint = ?, leaf_fingerprint = ?, pem = ?, leaf_pem = ?")
+      .run(new X509Certificate(otherPem).fingerprint256, new X509Certificate(otherLeaf).fingerprint256, otherPem, otherLeaf)
     const pinned = await invoke(['get', 'pods'])
     assert.equal(pinned.statusCode, 200, pinned.body)
     assert.equal(pinned.json().exitCode, 1, pinned.body)
     assert.match(pinned.json().stderr, /CERTIFICATE_PIN_MISMATCH/)
     assert.equal((await evidence()).requests.length, before)
-    db.prepare("UPDATE trusted_certificates SET mode = 'ca'").run()
+    db.prepare("UPDATE trusted_certificates SET mode = 'ca', fingerprint = ?, leaf_fingerprint = ?, pem = ?, leaf_pem = ?")
+      .run(fingerprint, leafFingerprint, pem, leaf)
     db.prepare("UPDATE trusted_certificates SET endpoint = 'https://other.example/'").run()
     const unrelated = await invoke(['get', 'pods'])
     assert.equal(unrelated.statusCode, 200, unrelated.body)
