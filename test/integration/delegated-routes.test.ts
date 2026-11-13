@@ -50,6 +50,7 @@ classify('POST', `/password /reauth /v1/account/sessions/:sessionId/revoke /v1/a
   /v1/account/tokens /v1/account/tokens/:id/revoke /v1/admin/tokens/:id/revoke /v1/admin/tokens/revoke-all
   /v1/tools/kubernetes-axi/sessions /v1/tools/kubernetes-axi/sessions/:id/confirm
   /v1/admin/tools/:tool/certificates/inspect /v1/admin/tools/:tool/certificates/trust
+  /v1/admin/tools/:tool/certificates/use-name
   /v1/admin/tools/gh-axi/device /v1/admin/tools/gh-axi/device/cancel /v1/admin/tools/gh-axi/device/poll
   /v1/admin/tools/:tool/test /v1/admin/ssh/hosts /v1/admin/ssh/binding /v1/admin/ssh/grant
   /v1/admin/ssh/credential /v1/admin/ssh/host-delete /v1/admin/ssh/credential-delete
@@ -72,6 +73,7 @@ classify('GET', `/v1/admin/tools/:tool/instances /v1/admin/tools/:tool/instances
   /v1/admin/tools/:tool/instances/:name/certificates`, 'denied')
 classify('POST', `/v1/admin/tools/:tool/instances /v1/admin/tools/:tool/instances/:name/test
   /v1/admin/tools/:tool/instances/:name/certificates/inspect /v1/admin/tools/:tool/instances/:name/certificates/trust`, 'denied')
+classify('POST', '/v1/admin/tools/:tool/instances/:name/certificates/use-name', 'denied')
 classify('PATCH', `/v1/admin/tools/:tool/instances/:name /v1/admin/tools/:tool/instances/:name/credential`, 'denied')
 classify('PUT', '/v1/admin/tools/:tool/instances/:name/credential', 'denied')
 classify('DELETE', '/v1/admin/tools/:tool/instances/:name /v1/admin/tools/:tool/instances/:name/certificates', 'denied')

@@ -456,6 +456,13 @@ function showCertificateInspection(result) {
   };
   line(details, 'Hostname: ' + result.hostname);
   line(details, result.reason);
+  const nameForm = dialog.querySelector('[data-certificate-name-form]');
+  nameForm.hidden = !result.nameChange || Boolean(result.nameChange.refusalReason);
+  if (result.nameChange?.refusalReason) line(details, result.nameChange.refusalReason, true);
+  if (!nameForm.hidden) {
+    nameForm.elements.inspectionId.value = result.inspectionId;
+    nameForm.querySelector('button').textContent = 'Use ' + result.nameChange.certificateName + ' as the name and keep connecting to ' + result.nameChange.connectAddress;
+  }
   line(details, 'Leaf expires: ' + result.chain[0].expiresAt);
   line(details, 'Trust anchor expires: ' + result.anchor.expiresAt);
   for (const warning of result.warnings) line(details, warning, true);
@@ -581,7 +588,7 @@ document.addEventListener('submit', async event => {
   if (pendingAction || button.disabled) return;
   pendingAction = true;
   button.disabled = true;
-  const message = form.querySelector('[data-form-error]') || (form.hasAttribute('data-trust-certificate')
+  const message = form.querySelector('[data-form-error]') || (form.hasAttribute('data-trust-certificate') || form.hasAttribute('data-certificate-name-form')
     ? form.closest('dialog').querySelector('[data-certificate-error]')
     : form.closest('dialog')?.querySelector('[data-form-error], [data-sheet-message]') || document.getElementById('message'));
   message.textContent = '';
