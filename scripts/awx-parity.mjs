@@ -27,6 +27,7 @@ const targetPolicy = {
 const authorizationFor = (command, effect) => ['read', 'client-local'].includes(effect) ? 'read'
   : effect === 'destructive' || command === 'inventory host-bulk-create' ? 'destructive' : 'write'
 const configurationControl = 'Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission'
+const destructiveControl = 'Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission'
 const sourceFiles = readdirSync(new URL('dist/', upstream), { recursive: true }).filter(path => path.endsWith('.js')).sort()
 const sources = sourceFiles.map(path => ({ path: `dist/${path}`, sha256: createHash('sha256').update(readFileSync(new URL(`dist/${path}`, upstream))).digest('hex') }))
 const security = (domain, name) => ['user', 'team', 'role', 'credential'].includes(domain)
@@ -74,7 +75,7 @@ const flagsFor = (command, specs, effect, slice, status) => specs.map(flag => {
   return { ...flag, effect: flagEffect, status: flag.name === 'allow-http' ? 'not applicable' : status === 'supported' && allowed && !blockedInput ? 'supported' : ['managed equivalent', 'not applicable'].includes(status) ? status : 'blocked',
     targetSlice: input.file || input.secret ? 'c' : securityInput ? 'e' : !allowed && status === 'supported' && effect !== 'configuration write' ? 'f' : slice,
     authorization, requiredAdminControl: targetPolicy[authorization], ...input,
-    ...(flagEffect === 'configuration write' && status === 'supported' && allowed && !blockedInput ? { currentAdminControl: configurationControl } : {}),
+    ...(flagEffect === 'configuration write' && status === 'supported' && allowed && !blockedInput ? { currentAdminControl: authorization === 'destructive' ? destructiveControl : configurationControl } : {}),
     ...(flag.name === 'allow-http' ? { reason: 'Managed AWX accounts require HTTPS; no HTTP opt-in equivalent' } : {}),
     ...(status === 'supported' && !allowed ? { reason: 'Omitted from the reviewed Artium flag schema' } : {}),
     ...(blockedInput ? { reason: 'Not yet supported: requires secure input' } : {}) }
@@ -93,7 +94,7 @@ const commands = DOMAINS.flatMap(domain => domain.subcommands.map(route => {
   const authorization = authorizationFor(command, effect)
   return { command, effect, status, targetSlice, authorization, requiredAdminControl: targetPolicy[authorization], positionals: route.positionals, help: route.help,
     ...(current.effect === 'secure-input' ? { reason: 'Not yet supported: requires secure input' } : {}),
-    ...(effect === 'configuration write' && status === 'supported' ? { currentAdminControl: configurationControl } : {}),
+    ...(effect === 'configuration write' && status === 'supported' ? { currentAdminControl: authorization === 'destructive' ? destructiveControl : configurationControl } : {}),
     ...(conditionalSecurity.has(command) ? { conditionalEffect: 'security administration when credential or notification configuration/messages input is supplied',
       dependentSlices: ['c', 'e'] } : {}),
     ...(effect === 'destructive' && security(domain.name, route.name) ? { note: 'Upstream delete tag checks only the native delete gate; Artium supplies that gate only under the separate Allow destructive deletes setting' } : {}),

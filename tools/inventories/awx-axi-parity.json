@@ -9595,7 +9595,7 @@
         "required": 0
       },
       "help": "awx-axi inventory host-bulk-create --inventory <i|name> --hosts-file <path> [--confirm] [--dry-run]",
-      "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission",
+      "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission",
       "flags": [
         {
           "name": "help",
@@ -9609,7 +9609,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -9623,7 +9623,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "hosts-file",
@@ -9638,7 +9638,7 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -9652,7 +9652,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -9666,7 +9666,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         }
       ]
     },
@@ -18428,7 +18428,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "inventory",
@@ -18442,7 +18442,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "hosts-file",
@@ -18457,7 +18457,7 @@
           "file": true,
           "stdin": false,
           "delivery": "TD-066 file channel: uploaded bytes, bounded private runner leaf, cleanup and redaction; never arbitrary server paths",
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "confirm",
@@ -18471,7 +18471,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         },
         {
           "name": "dry-run",
@@ -18485,7 +18485,7 @@
           "secret": false,
           "file": false,
           "stdin": false,
-          "currentAdminControl": "Administrator allowWrites; AWX_AXI_ALLOW_CONFIG_WRITES derived from that switch; --confirm without --dry-run; AWX resource permission"
+          "currentAdminControl": "Administrator allowWrites and allowDeletes; AWX_AXI_ALLOW_CONFIG_WRITES and AWX_AXI_ALLOW_DELETES derived from those settings; preview with --dry-run, then --confirm; AWX resource permission"
         }
       ]
     },
