@@ -106,14 +106,11 @@ See [SSH command usage](commands.md#ssh), the [capability boundary](safety.md#ss
 #### Kubernetes
 
 At `/admin/tools/kubernetes-axi`, enter the HTTPS cluster `origin`, `certificateAuthority` issuing CA PEM and optional default `namespace`.
-When the connection address differs from the certificate DNS name, use **Certificate name to verify** (`tlsServerName`) in the shared Certificate verification fields and save an exact pin for that endpoint.
-The managed name requires that pin for calls and credential tests; CA-only trust is refused with a name set.
-Clear the name to verify the saved endpoint using issuing CA trust.
-This setting applies only to managed token operations and managed client-certificate reads through the relay; pinned client-certificate mutation workflows and hosted sessions remain refused.
+When the connection address differs from the certificate DNS name, use **Certificate name to verify** (`tlsServerName`) in the shared Certificate verification fields.
+See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for the required pin, supported operations and managed trust projection.
 Choose token authentication and enter the token itself, or certificate authentication with `clientCertificate` PEM and its matching private key.
 Artium stores secret values encrypted and supplies private SecretRefs to the pinned tool; callers cannot supply credentials or local kubeconfig files.
 Changing the cluster origin, authentication type or client certificate requires replacement secrets.
-See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for Kubernetes trust requirements and managed trust projection.
 Test, enable and grant the tool, then run `artium-axi kubernetes-axi get pods`.
 The connection test performs that authenticated pod read; `doctor` and `auth status` only describe local profile resolution.
 The [reviewed inventory](../tools/inventories/kubernetes-axi.json) owns the supported kubectl/server version matrix and command boundary.
