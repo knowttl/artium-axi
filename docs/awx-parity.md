@@ -10,7 +10,7 @@ The exhaustive [command and flag matrix](awx-parity-matrix.md) and [JSON invento
 See [upstream pin freshness](../CONTRIBUTING.md#upstream-pin-freshness) for the offline review and regeneration workflow.
 
 The extractor imports upstream `DOMAINS` to enumerate every leaf, flag, positional contract and help string before the Artium inventory filters flags.
-It calls upstream `main` only with `--help` and `update --help`, with an empty environment, to discover selection globals and SDK update flags without contacting a controller or registry.
+It calls upstream `main` with `--help` and discovered local commands' `--help`, with an empty environment, to discover selection globals and local flags without contacting a controller or registry.
 Core commands come from top-level help, `AUTH_HELP` and `SETUP_HELP`.
 Nested inventory aliases follow the pinned router in `dist/domains/inventory/index.js`.
 The JSON records SHA-256 hashes of every upstream JavaScript source; effect classifications are reviewed against the plan write tags and `core/transport.js` gates.
