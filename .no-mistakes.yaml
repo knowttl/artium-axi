@@ -1,4 +1,4 @@
-agent: claude
+agent: codex
 no_ci: true
 
 commands:
