@@ -216,6 +216,53 @@ test('name changes refuse unsupported tools and stale inspected revisions', asyn
   expect((await request('POST', '/use-name', { inspectionId: result.inspectionId })).statusCode).toBe(409)
 })
 
+test('renaming an endpoint preserves its certificate pin', async () => {
+  serve('leaf', true)
+  const origin = endpoint.replace('localhost', '127.0.0.1')
+  const value = { origin, apiKey: 'CANARY-never-sent', tls: { trustedCertificatePem: pem('ca'),
+    peerFingerprintSha256: new X509Certificate(pem('leaf')).fingerprint256.replaceAll(':', '') } }
+  store.createInstance('unifi-axi', { name: 'synthetic', description: '' }, value, 'synthetic-development-user', Date.now())
+  const url = '/v1/admin/tools/unifi-axi/instances/synthetic/certificates'
+  const inspection = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  expect(inspection.statusCode, inspection.body).toBe(200)
+  const trusted = await app.inject({ method: 'POST', url: url + '/trust', headers,
+    payload: { inspectionId: inspection.json().inspectionId, mode: 'pin' } })
+  expect(trusted.statusCode, trusted.body).toBe(200)
+  const renamedInspection = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  const saved = await app.inject({ method: 'POST', url: url + '/use-name', headers,
+    payload: { inspectionId: renamedInspection.json().inspectionId } })
+  expect(saved.statusCode, saved.body).toBe(200)
+  const reference = store.findInstance('unifi-axi', 'synthetic')!
+  const next = store.readCredential(reference) as Record<string, unknown>
+  const trust = readCredentialTrust(db, reference)
+  expect((await app.inject({ method: 'GET', url, headers })).json().certificates)
+    .toEqual([expect.objectContaining({ endpoint: endpoint + '/', mode: 'pin' })])
+  const withoutCredentialFingerprint = { ...next, tls: { trustedCertificatePem: pem('ca'), connectAddress: '127.0.0.1' } }
+  await expect(preflight('unifi-axi', withoutCredentialFingerprint, trust)).resolves.toBeUndefined()
+  serve('rotated', true)
+  await expect(preflight('unifi-axi', withoutCredentialFingerprint, trust)).rejects.toMatchObject({ code: 'UPSTREAM_TLS_FAILED' })
+})
+
+test('renaming refuses conflicting endpoint trust without changing either endpoint', async () => {
+  const origin = endpoint.replace('localhost', '127.0.0.1')
+  const value = { origin, apiKey: 'CANARY-never-sent', tls: { trustedCertificatePem: pem('self-signed'),
+    peerFingerprintSha256: new X509Certificate(pem('self-signed')).fingerprint256.replaceAll(':', '') } }
+  store.createInstance('unifi-axi', { name: 'synthetic', description: '' }, value, 'synthetic-development-user', Date.now())
+  const url = '/v1/admin/tools/unifi-axi/instances/synthetic/certificates'
+  const inspection = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  await app.inject({ method: 'POST', url: url + '/trust', headers, payload: { inspectionId: inspection.json().inspectionId, mode: 'pin' } })
+  db.prepare(`INSERT INTO trusted_certificates SELECT 'destination', credential_id, ?, fingerprint, leaf_fingerprint,
+    pem, leaf_pem, mode, created_at, created_by FROM trusted_certificates WHERE credential_id = ?`)
+    .run(endpoint + '/', store.findInstance('unifi-axi', 'synthetic')!.id)
+  const repeated = await app.inject({ method: 'POST', url: url + '/inspect', headers, payload: {} })
+  const saved = await app.inject({ method: 'POST', url: url + '/use-name', headers, payload: { inspectionId: repeated.json().inspectionId } })
+  expect(saved.statusCode).toBe(400)
+  expect(saved.body).toContain('new endpoint already has trust records')
+  expect(store.readCredential(store.findInstance('unifi-axi', 'synthetic')!)).toEqual(value)
+  expect((await app.inject({ method: 'GET', url, headers })).json().certificates.map((certificate: { endpoint: string }) => certificate.endpoint).sort())
+    .toEqual([origin + '/', endpoint + '/'].sort())
+})
+
 test('using a certificate name does not retain a removed tool-wide write policy in the credential', async () => {
   const value = { origin: endpoint.replace('localhost', '127.0.0.1'), apiKey: 'CANARY-never-sent', tls: {
     trustedCertificatePem: pem('self-signed'),

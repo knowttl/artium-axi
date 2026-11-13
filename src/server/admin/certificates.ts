@@ -102,6 +102,18 @@ export function registerCertificateAdmin(app: FastifyInstance, db: Database.Data
       credentialId: reference.id, targetId: reference.id, outcome: 'success', requestId: request.id, clientAddress: request.ip }, () => {
       authorize(request)
       current(item.reference)
+      const oldEndpoint = certificateEndpoint(item.inspection.endpoint).href
+      const newEndpoint = certificateEndpoint(toolEndpoints(reference.tool, next)[0]!).href
+      if (oldEndpoint !== newEndpoint) {
+        const certificates = credentialCertificates(db, reference.id)
+        const existing = certificates.filter(certificate => certificate.endpoint === oldEndpoint)
+        if (existing.length && certificates.some(certificate => certificate.endpoint === newEndpoint)) {
+          throw new ArtiumError('INVALID_INPUT', 'Cannot move certificate trust because the new endpoint already has trust records. Remove the conflicting records first.')
+        }
+        for (const certificate of existing) {
+          db.prepare('UPDATE trusted_certificates SET endpoint = ? WHERE id = ?').run(newEndpoint, certificate.id)
+        }
+      }
       const instance = observed(item.reference)!
       store!.replaceInstance(reference.tool, instance.name, credentialValue, reference.id, instance.revision, actor, Date.now())
       db.prepare('DELETE FROM tool_health WHERE credential_id = ?').run(reference.id)
