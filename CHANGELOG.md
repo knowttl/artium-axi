@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.0.45](https://github.com/knowttl/artium-axi/compare/v0.0.44...v0.0.45) (2026-11-14)
+
+
+### Features
+
+* add administrator control for AWX security operations ([#408](https://github.com/knowttl/artium-axi/issues/408)) ([ed1358a](https://github.com/knowttl/artium-axi/commit/ed1358ad868060a360b8a7d96703bdead1bba7b9))
+* enforce exact certificate pins for GitHub CLI ([#407](https://github.com/knowttl/artium-axi/issues/407)) ([f4a87e7](https://github.com/knowttl/artium-axi/commit/f4a87e708c7be3e94e6bf0ce320a3b81d4fae288))
+* enforce exact Kubernetes certificate pins for static tokens ([#426](https://github.com/knowttl/artium-axi/issues/426)) ([4ba3022](https://github.com/knowttl/artium-axi/commit/4ba302258ac0c6dd8cbf161a42f478de5638a83f))
+* gate AWX deletes with admin permission and matching previews ([#402](https://github.com/knowttl/artium-axi/issues/402)) ([9230a58](https://github.com/knowttl/artium-axi/commit/9230a58a2e8ebe7ec1b0caaee519f07d6b8276e9))
+* **kubernetes:** verify managed certificate names with exact pins ([#439](https://github.com/knowttl/artium-axi/issues/439)) ([06092df](https://github.com/knowttl/artium-axi/commit/06092df570adc06a8507a29ce3756c3bd0dbc9bf))
+* replace saved TLS trust from certificate inspection ([#424](https://github.com/knowttl/artium-axi/issues/424)) ([f234357](https://github.com/knowttl/artium-axi/commit/f23435793c5c055ed59a503a4a7a0a5cc142260a))
+* **server:** improve credential TLS trust management ([#401](https://github.com/knowttl/artium-axi/issues/401)) ([53abb70](https://github.com/knowttl/artium-axi/commit/53abb70b1cb35b05dc5c75e3157947ea1f4e1c4c))
+* simplify initial certificate trust setup ([#415](https://github.com/knowttl/artium-axi/issues/415)) ([f569d60](https://github.com/knowttl/artium-axi/commit/f569d60ea92a6f346fb77b5131533c5e0c3a7eb8))
+* support client certificates and TLS names in the pinned relay ([#430](https://github.com/knowttl/artium-axi/issues/430)) ([5c288ea](https://github.com/knowttl/artium-axi/commit/5c288ead26884db0adaedb5042272cad3d28d833))
+* use inspected certificate names with saved connection addresses ([#410](https://github.com/knowttl/artium-axi/issues/410)) ([a096544](https://github.com/knowttl/artium-axi/commit/a096544f66683af17b6c901680374aa45ae55968))
+
+
+### Bug Fixes
+
+* **admin:** retain safe retest codes and upstream status ([#421](https://github.com/knowttl/artium-axi/issues/421)) ([48a0cf1](https://github.com/knowttl/artium-axi/commit/48a0cf1cb5ad78bbf4b155501250b2b3870f3109))
+* **admin:** show safe structured certificate retest diagnostics ([#417](https://github.com/knowttl/artium-axi/issues/417)) ([ac72382](https://github.com/knowttl/artium-axi/commit/ac72382d5e2305655b5523456c0843506c9c3d3f))
+* allow pinned Kubernetes certificate workflows ([#438](https://github.com/knowttl/artium-axi/issues/438)) ([bf6aa18](https://github.com/knowttl/artium-axi/commit/bf6aa18561f4a3ad2dc1ea5fc7ab717e9775f334))
+* bind Falcon and Tenable confirmations to credentials ([#403](https://github.com/knowttl/artium-axi/issues/403)) ([c1afddf](https://github.com/knowttl/artium-axi/commit/c1afddf409e6f91d8ff59bf6c02e203dc2fad6de))
+* enforce saved certificate pins alongside CA trust ([#441](https://github.com/knowttl/artium-axi/issues/441)) ([25e281b](https://github.com/knowttl/artium-axi/commit/25e281bfd299f907adf46ba3b0ed752f9f9478f4))
+* **kubernetes:** support exact pins for managed certificate reads ([#434](https://github.com/knowttl/artium-axi/issues/434)) ([cbce921](https://github.com/knowttl/artium-axi/commit/cbce921fa1e8f01abb26c20479a411c4538441b1))
+* preserve strict pins during self-signed certificate renewal ([#427](https://github.com/knowttl/artium-axi/issues/427)) ([c8ac4c5](https://github.com/knowttl/artium-axi/commit/c8ac4c588745de09889ab8ced064056675e27e54))
+* **server:** align delegated discovery with adapter policies ([#398](https://github.com/knowttl/artium-axi/issues/398)) ([82ac51c](https://github.com/knowttl/artium-axi/commit/82ac51c3d77a69fb0519fe1404e17afa6f43d619))
+* **server:** sync displayed TLS leaf after trust edits ([#431](https://github.com/knowttl/artium-axi/issues/431)) ([8188cf9](https://github.com/knowttl/artium-axi/commit/8188cf9aa8d7441728e8d8405edd81e48c5d116b))
+
 ## [0.0.44](https://github.com/knowttl/artium-axi/compare/v0.0.43...v0.0.44) (2026-11-11)
 
 
