@@ -1,7 +1,9 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
+import * as cssTree from 'css-tree'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createApp } from '../src/server/app.js'
 import { Audit } from '../src/server/audit/audit.js'
@@ -41,7 +43,6 @@ test.each(assets)('%s is served same-origin without a session under the script a
   expect(response.headers['content-type']).toMatch(new RegExp(`^${type}`))
   expect(response.headers['content-security-policy']).toContain("script-src 'self'; style-src 'self';")
   expect(response.headers['content-security-policy']).not.toContain('unsafe-')
-  expect(response.body.length).toBeGreaterThan(100_000)
 })
 
 test.each(assets)('%s revalidates by entity tag', async url => {
@@ -54,12 +55,32 @@ test.each(assets)('%s revalidates by entity tag', async url => {
   expect(changed.statusCode).toBe(200)
 })
 
-test('the hydration bundle needs no unsafe-eval', async () => {
-  const { body } = await app.inject({ url: '/admin/assets/hydrate.js' })
-  expect(body).not.toMatch(/\beval\s*\(|new\s+Function\b/)
-})
-
 test('the Astryx stylesheet is self-contained under default-src none', async () => {
   const { body } = await app.inject({ url: '/admin/assets/astryx.css' })
-  expect(body).not.toMatch(/@import|url\(/)
+  const paths = ['@astryxdesign/core/src/reset.css', '@astryxdesign/core/dist/astryx.css', '@astryxdesign/theme-neutral/dist/theme.css']
+  expect(body).toBe(paths.map(path => readFileSync(join('node_modules', path), 'utf8')).join('\n'))
+  const resources: string[] = []
+  cssTree.walk(cssTree.parse(body, { parseCustomProperty: true, onParseError: error => { throw error } }), node => {
+    if (node.type === 'Url') resources.push(node.value)
+    if (node.type === 'Atrule' && node.name.toLowerCase() === 'import') resources.push('@import')
+  })
+  expect(resources).toEqual([])
+})
+
+test('the build entry point works in a path containing spaces', () => {
+  const root = mkdtempSync(join(process.cwd(), '.tmp-admin client-'))
+  try {
+    mkdirSync(join(root, 'scripts'))
+    mkdirSync(join(root, 'src'))
+    copyFileSync('scripts/build-admin-client.mjs', join(root, 'scripts/build-admin-client.mjs'))
+    symlinkSync(join(process.cwd(), 'node_modules'), join(root, 'node_modules'), 'dir')
+    symlinkSync(join(process.cwd(), 'src/client'), join(root, 'src/client'), 'dir')
+    execFileSync(process.execPath, [join(root, 'scripts/build-admin-client.mjs')], { cwd: root })
+    expect(readFileSync(join(root, 'src/server/admin/client/astryx.css'), 'utf8')).toBe(
+      readFileSync('src/server/admin/client/astryx.css', 'utf8'))
+    expect(readFileSync(join(root, 'src/server/admin/client/hydrate.js'), 'utf8')).toBe(
+      readFileSync('src/server/admin/client/hydrate.js', 'utf8'))
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
 })

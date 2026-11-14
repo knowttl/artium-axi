@@ -1,6 +1,7 @@
 import { build } from 'esbuild'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 export const adminClientDirectory = 'src/server/admin/client'
 
@@ -13,4 +14,4 @@ export async function buildAdminClient(directory = adminClientDirectory) {
   writeFileSync(join(directory, 'astryx.css'), stylesheets.map(path => readFileSync(join('node_modules', path), 'utf8')).join('\n'))
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) await buildAdminClient()
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await buildAdminClient()
