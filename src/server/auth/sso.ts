@@ -206,7 +206,7 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
           db.prepare('UPDATE users SET last_sso_sign_in_at = ? WHERE id = ?').run(Date.now(), session.user_id)
         })
         return browserPage(reply, 'Identity confirmed', '<a class="btn btn-primary" href="/reauth?complete=1">Continue to Artium</a>', undefined,
-          'Your identity has been confirmed.', { mark: { icon: 'check', tone: 'ok' } })
+          'Your identity has been confirmed.', { mark: { icon: 'check', tone: 'ok' }, themeNext: '/reauth?complete=1' })
       }
       const csrfSecret = randomBytes(32).toString('base64url')
       const events: AuditEvent[] = []
@@ -271,8 +271,9 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
       reply.setCookie(browserCookie, session.id, cookieOptions).setCookie('_csrf', csrfSecret, cookieOptions)
       if (transaction.device) devices!.signedIn(transaction.device.code, session.id)
       // A document and user navigation establish a same-site hop before Strict cookies are needed.
-      return browserPage(reply, 'Sign-in complete', `<a class="btn btn-primary" href="${escape(transaction.device ? '/device?code=' + encodeURIComponent(transaction.device.code) : session.administrator ? '/admin' : '/account')}">Continue to Artium</a>`,
-        undefined, 'Your identity has been verified.', { mark: { icon: 'check', tone: 'ok' } })
+      const destination = transaction.device ? '/device?code=' + encodeURIComponent(transaction.device.code) : session.administrator ? '/admin' : '/account'
+      return browserPage(reply, 'Sign-in complete', `<a class="btn btn-primary" href="${escape(destination)}">Continue to Artium</a>`,
+        undefined, 'Your identity has been verified.', { mark: { icon: 'check', tone: 'ok' }, themeNext: destination })
     } catch (error) {
       const failure = error instanceof ArtiumError ? error : new ArtiumError('SSO_PROVIDER_ERROR')
       audit.record({ ...event, userId, subject, outcome: failure.code })

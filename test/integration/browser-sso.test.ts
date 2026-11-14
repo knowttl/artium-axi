@@ -178,6 +178,24 @@ async function finish(transaction: Awaited<ReturnType<typeof start>>) {
   return app.inject({ url: transaction.url, headers: { ...headers, cookie: transaction.cookie } })
 }
 
+test.each(['sign-in', 'reauth', 'device'])('changing theme after SSO %s continues the completed flow', async flow => {
+  const session = flow === 'reauth' ? await signedIn() : undefined
+  const device = flow === 'device' ? await deviceRequest() : undefined
+  const suffix = session ? '?reauth=1' : device ? '?device=' + device.userCode : ''
+  const response = await finish(await start(ssoStart + suffix, session))
+  const next = /name="next" value="([^"]+)"/.exec(response.body)![1]!
+  const cookies = response.cookies.filter(cookie => cookie.value).map(cookie => `${cookie.name}=${cookie.value}`)
+  if (session) cookies.push(`${browserCookie}=${session}`)
+  const cookie = cookies.join('; ')
+  const changed = await app.inject({ method: 'POST', url: '/theme', headers: { ...headers, origin: 'https://localhost', cookie },
+    payload: { theme: 'dark', next } })
+  const destination = device ? '/device?code=' + device.userCode : session ? '/reauth?complete=1' : '/account'
+  expect(changed.headers.location).toBe(destination)
+  const page = await app.inject({ url: destination, headers: { ...headers, cookie: `${cookie}; artium-theme=dark` } })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain(device ? 'Approve' : session ? 'Confirmation complete' : 'Your account')
+})
+
 test('certificate-authenticated SSO issues an artium session without persisting provider tokens or recent-auth privilege', async () => {
   const response = await finish(await start())
   expect(response.statusCode).toBe(200)

@@ -19,8 +19,8 @@ export function readThemeMode(request: FastifyRequest): ThemeMode {
   return themeModeSchema.catch('system').parse(request.cookies?.[themeCookie])
 }
 
-export function themeSwitch(reply: FastifyReply, mode: ThemeMode): string {
-  const next = reply.request.method === 'GET' ? reply.request.url : '/'
+export function themeSwitch(reply: FastifyReply, mode: ThemeMode, destination?: string): string {
+  const next = destination ?? (reply.request.method === 'GET' ? reply.request.url : '/')
   return renderToString(
     <Theme theme={neutralTheme} mode={mode}>
       <form method="post" action="/theme">

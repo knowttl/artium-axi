@@ -114,6 +114,68 @@ test('the overview hydrates under the admin content security policy and keeps it
   `)
 })
 
+test('theme choices control visible colours across navigation', () => {
+  for (const preference of ['light', 'dark']) {
+    chrome(['emulate', '--color-scheme', preference])
+    for (const choice of ['light', 'dark', 'system']) {
+      const effective = choice === 'system' ? preference : choice
+      browser(`
+        await page.open(base + '/admin');
+        await page.click('form[action="/theme"] button[value="${choice}"]');
+        await page.wait('form[action="/theme"] button[value="${choice}"][aria-pressed="true"]');
+        const colours = () => {
+          const style = getComputedStyle(document.body);
+          return [style.backgroundColor, style.color];
+        };
+        const expected = ${JSON.stringify(effective === 'dark' ? ['rgb(9, 9, 11)', 'rgb(250, 250, 250)'] : ['rgb(255, 255, 255)', 'rgb(9, 9, 11)'])};
+        check(JSON.stringify(await page.eval(colours)) === JSON.stringify(expected), 'Wrong theme colours after selection');
+        await page.open(base + '/account');
+        check(JSON.stringify(await page.eval(colours)) === JSON.stringify(expected), 'Wrong theme colours after navigation');
+      `)
+    }
+  }
+  chrome(['emulate', '--color-scheme', 'auto'])
+})
+
+test('theme colours are correct before hydration on sign-in and overview', async () => {
+  const reservation = createServer()
+  reservation.listen(0, '127.0.0.1')
+  await once(reservation, 'listening')
+  const port = String((reservation.address() as AddressInfo).port)
+  await new Promise<void>((resolve, reject) => reservation.close(error => error ? reject(error) : resolve()))
+  const env = { ...environment, CHROME_DEVTOOLS_AXI_SESSION: `artium-theme-${process.pid}`, CHROME_DEVTOOLS_AXI_PORT: port,
+    CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors --blink-settings=scriptEnabled=false' }
+  const run = (args: string[], input?: string) => {
+    const result = spawnSync('chrome-devtools-axi', args, { env, input, encoding: 'utf8', timeout: 90_000 })
+    assert.equal(result.error, undefined)
+    assert.equal(result.status, 0, result.stdout + result.stderr)
+  }
+  try {
+    run(['open', fixture.url + '/login'])
+    for (const preference of ['light', 'dark']) {
+      run(['emulate', '--color-scheme', preference])
+      for (const choice of ['light', 'dark', 'system']) {
+        const effective = choice === 'system' ? preference : choice
+        const expected = effective === 'dark' ? ['rgb(9, 9, 11)', 'rgb(250, 250, 250)'] : ['rgb(255, 255, 255)', 'rgb(9, 9, 11)']
+        run(['run'], `
+          await page.click('form[action="/theme"] button[value="${choice}"]');
+          await page.wait('form[action="/theme"] button[value="${choice}"][aria-pressed="true"]');
+          const actual = await page.eval(() => [getComputedStyle(document.body).backgroundColor, getComputedStyle(document.body).color]);
+          if (JSON.stringify(actual) !== JSON.stringify(${JSON.stringify(expected)})) throw new Error('Wrong first-paint colours: ' + actual);
+        `)
+      }
+    }
+    run(['run'], `
+      await page.fill('[name=username]', 'synthetic-user');
+      await page.fill('[name=password]', 'CANARY-browser-password');
+      await page.click('form[action="/login"] button');
+      await page.wait('[data-astryx-root]');
+      const state = await page.eval(() => [document.documentElement.hasAttribute('data-astryx-theme'), getComputedStyle(document.body).backgroundColor]);
+      if (state[0] || state[1] !== 'rgb(9, 9, 11)') throw new Error('Incorrect pre-hydration overview: ' + state);
+    `)
+  } finally { run(['stop']) }
+})
+
 test('Figtree loads from the same origin under the admin content security policy', () => {
   browser(`
     check(await page.eval(async () => {
