@@ -191,10 +191,11 @@ export interface Page extends PageHeader {
   help: string
   path: string
   viewer?: Viewer
+  themeSwitch: string
 }
 
 // What a page route chooses beyond its title, description and content.
-export type PageOptions = Omit<Page, 'title' | 'description' | 'content' | 'help' | 'path' | 'viewer'>
+export type PageOptions = Omit<Page, 'title' | 'description' | 'content' | 'help' | 'path' | 'viewer' | 'themeSwitch'>
 
 const navigation: { group?: string, href: string, label: string, icon: IconName }[] = [
   { href: '/admin', label: 'Overview', icon: 'home' },
@@ -219,11 +220,11 @@ export function avatar(name: string, large = false): string {
   return `<span class="avatar${large ? ' lg' : ''}" aria-hidden="true">${escape(initials(name))}</span>`
 }
 
-function accountMenu(viewer: Viewer, path: string, placement: 'up' | 'down'): string {
+function accountMenu(viewer: Viewer, path: string, placement: 'up' | 'down', themeSwitch: string): string {
   const role = viewer.administrator && !viewer.mustChange ? ' · Admin' : ''
   const links = viewer.mustChange ? '' : `<a href="/account"${path === '/account' ? ' aria-current="page"' : ''}>${icon('user')}Your account</a>${viewer.local ? `<a href="/password"${path === '/password' ? ' aria-current="page"' : ''}>${icon('key')}Change password</a>` : ''}<hr>`
   return `<details class="account-menu ${placement}"><summary>${avatar(viewer.name)}<span class="who"><span class="sr-only">Signed in as </span><strong>${escape(viewer.name)}</strong><span>${escape(viewer.method + role)}</span></span>${icon('chevd')}</summary>
-    <div class="popover">${links}<form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(viewer.csrf)}">${viewer.sso ? '<label class="check"><input type="checkbox" name="providerLogout" value="true"> Also sign out of your identity provider</label>' : ''}<button class="btn btn-ghost btn-sm">${icon('logout')}Sign out</button></form></div></details>`
+    <div class="popover">${links}<p class="popover-note">Colour theme</p><div class="theme-row">${themeSwitch}</div><hr><form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(viewer.csrf)}">${viewer.sso ? '<label class="check"><input type="checkbox" name="providerLogout" value="true"> Also sign out of your identity provider</label>' : ''}<button class="btn btn-ghost btn-sm">${icon('logout')}Sign out</button></form></div></details>`
 }
 
 function learn(title: string, help: string): string {
@@ -261,7 +262,7 @@ function authCard(page: Page): string {
     ? `<div class="auth-head"><span class="ico-circle ${page.mark.tone === 'neutral' ? '' : page.mark.tone}">${icon(page.mark.icon)}</span><h1>${escape(page.title)}</h1></div>${page.description ? `<p>${escape(page.description)}</p>` : ''}`
     : brand(home) + pageHeader(page.title, { description: page.description })
   const signedIn = viewer ? `<form class="auth-foot" method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(viewer.csrf)}">Signed in as ${escape(viewer.name)} · <button class="link">Sign out</button>${viewer.sso ? '<label class="check"><input type="checkbox" name="providerLogout" value="true"> Also sign out of your identity provider</label>' : ''}</form>` : ''
-  return `<a class="skip" href="#main">Skip to content</a><main id="main" class="auth"><div class="auth-wrap"><div class="auth-card">${head}${page.content}</div>${page.footnote ? `<p class="auth-foot">${escape(page.footnote)}</p>` : ''}${signedIn}
+  return `<a class="skip" href="#main">Skip to content</a><main id="main" class="auth"><div class="auth-wrap"><div class="auth-card">${head}${page.content}</div>${page.footnote ? `<p class="auth-foot">${escape(page.footnote)}</p>` : ''}${signedIn}<div class="theme-row">${page.themeSwitch}</div>
       <details class="page-help auth-help"><summary>Need help?</summary>${page.help}</details></div></main>${toasts}${sprite}`
 }
 
@@ -271,7 +272,7 @@ export function appShell(page: Page): string {
   const head = pageHeader(page.heading ?? page.title, page)
   const message = toasts
   if (!viewer.administrator || viewer.mustChange) {
-    return `<a class="skip" href="#main">Skip to content</a><div class="app plain"><header class="topbar">${brand(viewer.mustChange ? '/password' : '/account')}<div class="right">${viewer.mustChange ? '' : reauthPill(viewer)}${learn(page.title, page.help)}${accountMenu(viewer, page.path, 'down')}</div></header>
+    return `<a class="skip" href="#main">Skip to content</a><div class="app plain"><header class="topbar">${brand(viewer.mustChange ? '/password' : '/account')}<div class="right">${viewer.mustChange ? '' : reauthPill(viewer)}${learn(page.title, page.help)}${accountMenu(viewer, page.path, 'down', page.themeSwitch)}</div></header>
       <main id="main" class="content narrow" tabindex="-1">${head}${message}${page.content}</main></div>${dialogs(viewer)}${sprite}`
   }
   const active = navigation.find(item => item.href === '/admin' ? page.path === '/admin' : page.path === item.href || page.path.startsWith(item.href + '/'))
@@ -285,7 +286,7 @@ export function appShell(page: Page): string {
   const crumbs = `<p class="crumbs">${parent ? `${parent}<span class="sep" aria-hidden="true">/</span>` : ''}<strong>${escape(page.heading ?? page.title)}</strong></p>`
   return `<a class="skip" href="#main">Skip to content</a><div class="app">
     <div class="side" id="nav"><div class="side-head">${brand('/admin')}<a class="btn btn-ghost btn-icon btn-sm side-close" href="#main" aria-label="Close navigation">${icon('x')}</a></div>
-      <nav aria-label="Administration">${items}</nav><div class="side-foot">${accountMenu(viewer, page.path, 'up')}</div></div>
+      <nav aria-label="Administration">${items}</nav><div class="side-foot">${accountMenu(viewer, page.path, 'up', page.themeSwitch)}</div></div>
     <div class="main"><header class="topbar"><a class="btn btn-ghost btn-icon btn-sm menu-open" href="#nav" aria-label="Open navigation">${icon('list')}</a>${crumbs}<div class="right">${reauthPill(viewer)}${learn(page.title, page.help)}</div></header>
       <main id="main" class="content" tabindex="-1">${head}${message}${page.content}</main></div></div>${dialogs(viewer)}${sprite}`
 }

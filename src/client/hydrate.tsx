@@ -1,3 +1,4 @@
+import type { ThemeMode } from '@astryxdesign/core/theme'
 import { hydrateRoot } from 'react-dom/client'
 import { Root, type ViewName, type ViewProps } from '../views/root.js'
 
@@ -14,5 +15,5 @@ if (root && props) {
       element.removeAttribute('data-inline-style')
     }
   }
-  hydrateRoot(root, <Root name={root.dataset.view as ViewName} props={JSON.parse(props.textContent!) as ViewProps[ViewName]} />)
+  hydrateRoot(root, <Root name={root.dataset.view as ViewName} props={JSON.parse(props.textContent!) as ViewProps[ViewName]} mode={root.dataset.mode as ThemeMode} />)
 }

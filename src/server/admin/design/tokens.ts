@@ -1,5 +1,5 @@
 // Colour values and shared design tokens. See docs/design-system.md for UI rules.
-export const tokens = `
+const light = `
 :root {
   color-scheme: light;
   --transparent: transparent;
@@ -40,8 +40,9 @@ export const tokens = `
 @media (max-width: 760px) {
   :root { --gutter: 16px; }
 }
-@media (prefers-color-scheme: dark) {
-  :root {
+`
+
+const dark = `
     color-scheme: dark;
     --bg: #09090b;
     --bg-subtle: #0f0f11;
@@ -68,6 +69,11 @@ export const tokens = `
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
     --overlay: rgb(0 0 0 / 60%);
     --code-bg: #0f0f11;
-  }
+`
+
+export const tokens = `${light}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {${dark}  }
 }
+:root[data-theme="dark"] {${dark}}
 `

@@ -28,7 +28,7 @@ classify('GET', `/ /login /auth/sso/:provider/start /auth/sso/:provider/callback
   /health/live /health/ready /cli/artium-axi.mjs /cli/artium-axi.mjs.sha256
   /admin/assets/confirm.js /admin/assets/style.css /admin/assets/hydrate.js /admin/assets/astryx.css
   ${[400, 500, 600, 700].map(weight => `/admin/assets/fonts/figtree-${weight}.woff2`).join(' ')} /admin/assets/fonts/figtree-OFL.txt`, 'public')
-classify('POST', `/login /logout /device /v1/auth/device /v1/auth/device/poll /v1/auth/login /v1/auth/delegated /v1/auth/refresh /v1/auth/logout /v1/tools/:tool/run`, 'public')
+classify('POST', `/login /logout /theme /device /v1/auth/device /v1/auth/device/poll /v1/auth/login /v1/auth/delegated /v1/auth/refresh /v1/auth/logout /v1/tools/:tool/run`, 'public')
 classify('POST', `/v1/ssh/prepare /v1/ssh/submit /v1/ssh/show /v1/ssh/list /v1/ssh/cancel
   /v1/ssh/connection/open /v1/ssh/connection/list /v1/ssh/connection/show /v1/ssh/connection/set /v1/ssh/connection/close`, 'public')
 classify('GET', `/v1/tools /v1/skills /v1/me /v1/results/technitium-axi/:operation/:id /v1/results/awx-axi/:operation/:id

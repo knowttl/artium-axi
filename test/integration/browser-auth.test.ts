@@ -932,3 +932,64 @@ test('current administrator capability and enabled state govern every browser re
   db.prepare('UPDATE users SET disabled = 1 WHERE id = ?').run(userId)
   expect((await request('GET', '/password')).headers.location).toBe('/login')
 })
+
+test.each([
+  ['light', ' data-theme="light"'], ['dark', ' data-theme="dark"'],
+  ['system', ''], ['neon', ''], ['DARK', ''], ['', ''],
+])('the sign-in page renders the %j theme cookie as the root theme attribute', async (value, attribute) => {
+  cookies['artium-theme'] = value
+  expect((await request('GET', '/login')).body).toContain(`<html lang="en"${attribute}>`)
+})
+
+test('the theme switch remembers the choice for a year and reloads the page it was used on', async () => {
+  const response = await request('POST', '/theme', { theme: 'dark', next: '/login?notice=1' })
+  expect(response.statusCode).toBe(303)
+  expect(response.headers.location).toBe('/login?notice=1')
+  expect(response.cookies).toEqual([expect.objectContaining({ name: 'artium-theme', value: 'dark', path: '/', sameSite: 'Lax', maxAge: 365 * 24 * 60 * 60 })])
+  const page = (await request('GET', '/login')).body
+  expect(page).toContain('<html lang="en" data-theme="dark">')
+  const pressed = (node: DefaultTreeAdapterMap['node']): string[] => [
+    ...('tagName' in node && node.tagName === 'button' && node.attrs.some(attr => attr.name === 'aria-pressed' && attr.value === 'true')
+      ? [node.attrs.find(attr => attr.name === 'value')!.value] : []),
+    ...('childNodes' in node ? node.childNodes.flatMap(pressed) : []),
+  ]
+  expect(pressed(parse(page))).toEqual(['dark'])
+})
+
+test.each([
+  ['an unknown theme', { theme: 'neon', next: '/login' }, 400],
+  ['a missing theme', { next: '/login' }, 400],
+])('the theme switch rejects %s without setting the cookie', async (_name, input, status) => {
+  const response = await request('POST', '/theme', input)
+  expect(response.statusCode).toBe(status)
+  expect(response.cookies.map(cookie => cookie.name)).not.toContain('artium-theme')
+})
+
+test.each(['//other.example/a', '/\\other.example/a', 'https://other.example/a', 'admin', '/a\r\nset-cookie: x=y', ''])(
+  'the theme switch only returns to a path on this server: %j', async next => {
+    const response = await request('POST', '/theme', { theme: 'light', next })
+    expect(response.statusCode).toBe(303)
+    expect(response.headers.location).toBe('/')
+  },
+)
+
+test.each([
+  ['a cross-origin post', { origin: 'http://other.example' }],
+  ['a post from a cross-site page without an Origin header', { 'sec-fetch-site': 'cross-site' }],
+  ['a post without an Origin header', {}],
+])('the theme switch refuses %s', async (_name, headers) => {
+  const response = await app.inject({ method: 'POST', url: '/theme', payload: new URLSearchParams({ theme: 'dark', next: '/login' }).toString(),
+    headers: { host: 'localhost', 'content-type': 'application/x-www-form-urlencoded', ...headers } })
+  expect(response.statusCode).toBe(403)
+  expect(response.cookies).toEqual([])
+})
+
+test('the theme switch needs no form token and never touches the session or CSRF cookies', async () => {
+  await signIn()
+  const before = { ...cookies }
+  const response = await request('POST', '/theme', { theme: 'light', next: '/admin' })
+  expect(response.statusCode).toBe(303)
+  expect(response.cookies.map(cookie => cookie.name)).toEqual(['artium-theme'])
+  expect(cookies['artium-session']).toBe(before['artium-session'])
+  expect(cookies._csrf).toBe(before._csrf)
+})
