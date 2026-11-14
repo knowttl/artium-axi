@@ -26,7 +26,7 @@ function classify(methods: string, paths: string, policy: 'public' | 'denied') {
 }
 classify('GET', `/ /login /auth/sso/:provider/start /auth/sso/:provider/callback /device
   /health/live /health/ready /cli/artium-axi.mjs /cli/artium-axi.mjs.sha256
-  /admin/assets/confirm.js /admin/assets/style.css`, 'public')
+  /admin/assets/confirm.js /admin/assets/style.css /admin/assets/hydrate.js /admin/assets/astryx.css`, 'public')
 classify('POST', `/login /logout /device /v1/auth/device /v1/auth/device/poll /v1/auth/login /v1/auth/delegated /v1/auth/refresh /v1/auth/logout /v1/tools/:tool/run`, 'public')
 classify('POST', `/v1/ssh/prepare /v1/ssh/submit /v1/ssh/show /v1/ssh/list /v1/ssh/cancel
   /v1/ssh/connection/open /v1/ssh/connection/list /v1/ssh/connection/show /v1/ssh/connection/set /v1/ssh/connection/close`, 'public')

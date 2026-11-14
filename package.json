@@ -27,7 +27,7 @@
     "test:build-image": "node scripts/build-fake-service-image.mjs",
     "test:runner-container": "pnpm build && node scripts/runner-container-check.mjs",
     "test:security": "vitest run --testNamePattern security --passWithNoTests",
-    "lint": "tsc --noEmit && tsc -p tsconfig.scripts.json && tsc -p tsconfig.axi-check.json && node --check scripts/axi-check.ts && node scripts/tls-policy.ts",
+    "lint": "tsc --noEmit && tsc -p tsconfig.scripts.json && tsc -p tsconfig.axi-check.json && tsc -p tsconfig.client.json && node --check scripts/axi-check.ts && node scripts/tls-policy.ts",
     "errors:generate": "node scripts/errors-reference.ts --write",
     "offered:generate": "node scripts/offered-commands.mjs",
     "pin:freshness": "node scripts/pin-freshness.mjs",
@@ -39,6 +39,8 @@
     "@types/better-sqlite3": "9.6.0",
     "@types/css-tree": "3.2.0",
     "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "@types/ssh2": "1.15.6",
     "css-tree": "3.2.1",
     "esbuild": "0.28.2",
@@ -56,10 +58,13 @@
     ]
   },
   "dependencies": {
+    "@astryxdesign/core": "0.7.16",
+    "@astryxdesign/theme-neutral": "0.7.16",
     "@azure/msal-node": "7.0.1",
     "@fastify/cookie": "^11.1.3",
     "@fastify/csrf-protection": "^7.1.0",
     "@fastify/formbody": "^8.0.2",
+    "@stylexjs/stylex": "0.19.2",
     "@toon-format/toon": "2.3.1",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
@@ -67,6 +72,8 @@
     "better-sqlite3": "13.0.3",
     "fastify": "^5.12.5",
     "openid-client": "6.8.8",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "zod": "4.6.5"
   }
 }

@@ -20,6 +20,7 @@ tools/node_modules
 !scripts/native-smoke.mjs
 !scripts/falcon-smoke.mjs
 !scripts/build-cli.mjs
+!scripts/build-admin-client.mjs
 !test/
 !test/fake-service/
 !test/fake-service/certificates.mjs
