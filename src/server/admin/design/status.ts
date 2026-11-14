@@ -18,7 +18,7 @@ const vocabulary = {
 type Vocabulary = typeof vocabulary
 type StatusDomain = keyof Vocabulary
 
-function describe<D extends StatusDomain>(domain: D, state: keyof Vocabulary[D]): { word: string, tone: Tone } {
+export function describe<D extends StatusDomain>(domain: D, state: keyof Vocabulary[D]): { word: string, tone: Tone } {
   const [word, tone] = vocabulary[domain][state] as readonly [string, Tone]
   return { word, tone }
 }
@@ -48,10 +48,12 @@ export function stateStatus<D extends StatusDomain>(domain: D, state: keyof Voca
 }
 
 // Writes: Read-only, Always read-only, or how many operations are on.
-export function writesStatus(tool: { readOnly: boolean, writeAccess: { capable: boolean, enabled: boolean, allowedOperations: string[] } }): string {
+type WritesTool = { readOnly: boolean, writeAccess: { capable: boolean, enabled: boolean, allowedOperations: string[] } }
+
+export function toolWrites(tool: WritesTool): { word: string, tone: Tone } {
   const count = tool.writeAccess.enabled ? tool.writeAccess.allowedOperations.length : 0
-  const { word, tone, mark } = describeWrites(tool.readOnly, tool.writeAccess.capable, count || null)
-  return `<span class="status">${tone === 'warn' ? '<span class="dot warn" aria-hidden="true"></span>' : mark === 'lock' ? icon('lock') : ''}${word}</span>`
+  const { word, tone } = describeWrites(tool.readOnly, tool.writeAccess.capable, count || null)
+  return { word, tone }
 }
 
 type ToolName = z.infer<typeof toolSchema>
@@ -93,11 +95,6 @@ export function toolState(tool: Pick<z.infer<typeof adminToolSchema>, 'enabled' 
   if (tool.health.status === 'error') return describe('health', 'failing')
   if (tool.health.status === 'unconfigured') return describe('health', 'needs-credential')
   return describe('health', 'unchecked')
-}
-
-export function toolStatus(tool: Pick<z.infer<typeof adminToolSchema>, 'enabled' | 'health'>): string {
-  const { word, tone } = toolState(tool)
-  return status(word, tone)
 }
 
 export function personStatus(user: { enabled: boolean, archivedAt: number | null }): string {

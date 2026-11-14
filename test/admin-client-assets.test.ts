@@ -89,6 +89,7 @@ test('the build entry point works in a path containing spaces', () => {
     copyFileSync('scripts/build-admin-client.mjs', join(root, 'scripts/build-admin-client.mjs'))
     symlinkSync(join(process.cwd(), 'node_modules'), join(root, 'node_modules'), 'dir')
     symlinkSync(join(process.cwd(), 'src/client'), join(root, 'src/client'), 'dir')
+    symlinkSync(join(process.cwd(), 'src/views'), join(root, 'src/views'), 'dir')
     execFileSync(process.execPath, [join(root, 'scripts/build-admin-client.mjs')], { cwd: root })
     expect(readFileSync(join(root, 'src/server/admin/client/astryx.css'), 'utf8')).toBe(
       readFileSync('src/server/admin/client/astryx.css', 'utf8'))

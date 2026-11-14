@@ -1,6 +1,16 @@
-import { Theme } from '@astryxdesign/core/theme'
-import { neutralTheme } from '@astryxdesign/theme-neutral/built'
-import { createRoot } from 'react-dom/client'
+import { hydrateRoot } from 'react-dom/client'
+import { Root, type ViewName, type ViewProps } from '../views/root.js'
 
-const root = document.querySelector('[data-astryx-root]')
-if (root) createRoot(root).render(<Theme theme={neutralTheme}>{null}</Theme>)
+const root = document.querySelector<HTMLElement>('[data-astryx-root]')
+const props = document.querySelector('[data-astryx-props]')
+if (root && props) {
+  const hoisted = [...document.styleSheets].flatMap(sheet => [...sheet.cssRules])
+    .filter((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule && rule.selectorText.startsWith('[data-inline-style='))
+  for (const rule of hoisted) {
+    for (const element of root.querySelectorAll<HTMLElement>(rule.selectorText)) {
+      element.style.cssText = rule.style.cssText
+      element.removeAttribute('data-inline-style')
+    }
+  }
+  hydrateRoot(root, <Root name={root.dataset.view as ViewName} props={JSON.parse(props.textContent!) as ViewProps[ViewName]} />)
+}

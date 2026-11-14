@@ -8,8 +8,9 @@
     "verbatimModuleSyntax": true,
     "forceConsistentCasingInFileNames": true,
     "types": ["node"],
+    "jsx": "react-jsx",
     "rootDir": ".",
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "scripts/network-read-inventory.ts", "scripts/technitium-inventory.ts", "scripts/gitea-inventory.ts", "scripts/falcon-inventory.ts", "scripts/kubernetes-inventory.ts", "scripts/ssh-inventory.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "src/views/**/*.tsx", "src/server/**/*.tsx", "test/**/*.ts", "scripts/network-read-inventory.ts", "scripts/technitium-inventory.ts", "scripts/gitea-inventory.ts", "scripts/falcon-inventory.ts", "scripts/kubernetes-inventory.ts", "scripts/ssh-inventory.ts", "vitest.config.ts"]
 }

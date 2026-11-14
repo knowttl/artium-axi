@@ -15,7 +15,17 @@ This document describes the current screens and their design rules.
 
 `adminStyle` in `src/server/admin/assets.ts` concatenates tokens and components and is served from `/admin/assets/style.css`.
 The build also produces a React and Astryx browser bundle and the Astryx neutral stylesheet, served at `/admin/assets/hydrate.js` and `/admin/assets/astryx.css`.
-These assets prepare for the UI rehaul; current pages do not load them or render Astryx components.
+Pages on the render seam load them; every other page still renders through the layers above.
+
+## Render seam
+
+A page on the seam is a React view in `src/views`, registered in `src/views/root.tsx` with the JSON-serializable props type its route builds.
+`renderPage()` in `src/server/admin/render-page.tsx` server-renders the view inside the existing shell with `renderToString`, moves every `style` attribute it emits into the response's one nonce'd `<style>` element through `hoistInlineStyles()`, and adds `astryx.css`, the props as an `application/json` data block and `hydrate.js`.
+`src/client/hydrate.tsx` first writes each hoisted declaration back onto its element through `element.style`, which the policy allows because it is not markup, then reads the root's view name and the props block and hydrates the same tree.
+React therefore finds the markup it rendered and owns later style changes.
+Overview is the first page on the seam.
+Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Grid`, `Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
+The legacy base element rules in `components.ts` skip content inside `[data-astryx-root]`, so Astryx markup keeps its own element styles.
 
 ## Constraints
 
@@ -24,7 +34,7 @@ These assets prepare for the UI rehaul; current pages do not load them or render
   Each browser response gets a fresh unpredictable nonce, available to handlers as `reply.styleNonce`.
   The policy never includes `unsafe-inline` or a `style-src-attr` allowance.
 - `hoistInlineStyles()` in `src/server/admin/inline-styles.ts` can move supported `style` attributes into a nonce'd element and throws on declarations it cannot prove safe.
-  The current page rendering path does not call it, and it returns no style element when there are no declarations.
+  `renderPage()` calls it on every rendered view, and it returns no style element when there are no declarations.
 - Figtree (SIL Open Font License) is self-hosted: the build copies four weights from `@fontsource/figtree` to `/admin/assets/fonts/` and adds the `@font-face` rules to `astryx.css`, which the Astryx neutral `Figtree` font-family tokens already name.
 - Reading and navigating work without JavaScript; disclosures use native `<details>`, and the narrow-screen menu uses a `#nav` fragment.
 - Every mutation keeps its API, CSRF token, `expectedRevision` and recent-auth flow.
@@ -37,7 +47,7 @@ These assets prepare for the UI rehaul; current pages do not load them or render
 - `currentColor` and token references inherit colours; `none` means no paint.
 - No `style` attribute in any rendered page; at most one `<style>` element is allowed, and it must carry the response's nonce and contain no colour literal.
 - Every stylesheet and page resource is same-origin: no `@import`, no remote or `data:` `url()`, no remote `link`, `script` or `img`, and the policy has no `unsafe-` source, `style-src-attr` or remote `font-src`.
-- Hand-written client source under `src/client` has no colour literal; colours come from the Astryx theme.
+- Hand-written client and view source under `src/client` and `src/views` has no colour literal; colours come from the Astryx theme.
 - Every icon is a `<use>` of a symbol in the shared sprite; pages contain no ad hoc SVG shapes.
 - One `h1` per page.
 
@@ -76,11 +86,10 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Badge and status | `badge()`, `status()` from `status.ts`: `.badge` with `.ok`, `.warn`, `.err`, `.info`, `.solid`; `.status` with `.dot` | words from the status vocabulary only | The word is always present; the dot is `aria-hidden` |
 | Chip | `.chip`, `.chips` | plain, link | Role chips name the grant origin (Direct, SSO rule) where it matters |
 | Card | `card()`: `.card`, `.card-head`, `.card-body`, `.card-foot`, `.card-note`; `.card.danger`, `.card.empty` | plain, with header actions, with footer actions, danger zone, empty state | `h2` per card |
-| Stats | `.stats`, `.stat` | value, label, note with tone | Summary cards carry a visually hidden `h2` |
 | Table | `.tbl` in `.table-wrap`; `.cell-main`, `.row-link`, `.num`, `.actions-cell`, `.stacked`; `.row-links`, `.stack`, `tr.sel`; `pager()` footer | row links, selected row, dimmed row, numeric column, stacked rows below 760px | Real `<table>`; the row link is the first-cell anchor, stretched over the row, not a JavaScript click |
 | Field | `field()`: `.field`, `.hint`; `.input`, `.select`, `.input.mono`, `.input.narrow`; `checkOption()`: `.check`; `.options` fieldset | default, focus, invalid, disabled | `label for`; hints linked by `aria-describedby` |
 | Callout | `callout()`: `.callout` with `.info`, `.ok`, `.warn`, `.err` | with optional actions and additional detail | `role="status"` by default; blocking errors use `role="alert"` |
-| Steps and meter | `.vsteps`, `.vstep` (`.done`, `.current`); native `<progress class="meter">` | done, current, to do | Ordered list; done steps carry hidden "Done:" text |
+| Steps | `.vsteps`, `.vstep` (`.done`, `.current`) | done, current, to do | Ordered list; done steps carry hidden "Done:" text |
 | Key-value list | `.kv` | | `<dl>` |
 | List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
 | Avatar and tool icon | `avatar()`: `.avatar`, `.avatar.lg`; `toolIcon()`: `.tool-ico`, `.tool-ico.lg`, using a mark from `toolProducts` | sm, lg | Initials and marks are `aria-hidden`; the name is adjacent text |
