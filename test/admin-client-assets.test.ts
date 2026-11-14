@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
 import * as cssTree from 'css-tree'
+import postcss from 'postcss'
 import { afterAll, beforeAll, expect, test } from 'vitest'
 import { createApp } from '../src/server/app.js'
 import { Audit } from '../src/server/audit/audit.js'
@@ -48,9 +49,12 @@ test.each(assets)('%s is served same-origin without a session under the script a
 test('the Astryx stylesheet is self-contained under default-src none', async () => {
   const { body } = await app.inject({ url: '/admin/assets/astryx.css' })
   const resources: string[] = []
-  cssTree.walk(cssTree.parse(body, { parseCustomProperty: true, onParseError: error => { throw error } }), node => {
-    if (node.type === 'Url') resources.push(node.value)
-    if (node.type === 'Atrule' && node.name.toLowerCase() === 'import') resources.push('@import')
+  const stylesheet = postcss.parse(body)
+  stylesheet.walkAtRules('import', () => { resources.push('@import') })
+  stylesheet.walkDecls(declaration => {
+    cssTree.walk(cssTree.parse(declaration.value, { context: 'value', onParseError: error => { throw error } }), node => {
+      if (node.type === 'Url') resources.push(node.value)
+    })
   })
   expect(resources).toEqual([])
 })
@@ -58,9 +62,7 @@ test('the Astryx stylesheet is self-contained under default-src none', async () 
 test('the served Astryx stylesheet declares the documented theme tokens', async () => {
   const { body } = await app.inject({ url: '/admin/assets/astryx.css' })
   const properties = new Set<string>()
-  cssTree.walk(cssTree.parse(body, { parseCustomProperty: true, onParseError: error => { throw error } }), node => {
-    if (node.type === 'Declaration') properties.add(node.property)
-  })
+  postcss.parse(body).walkDecls(declaration => { properties.add(declaration.prop) })
   for (const token of ['--color-text-primary', '--color-background-surface', '--color-accent', '--radius-container']) {
     expect(properties.has(token), token).toBe(true)
   }
