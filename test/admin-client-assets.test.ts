@@ -55,6 +55,17 @@ test('the Astryx stylesheet is self-contained under default-src none', async () 
   expect(resources).toEqual([])
 })
 
+test('the served Astryx stylesheet declares the documented theme tokens', async () => {
+  const { body } = await app.inject({ url: '/admin/assets/astryx.css' })
+  const properties = new Set<string>()
+  cssTree.walk(cssTree.parse(body, { parseCustomProperty: true, onParseError: error => { throw error } }), node => {
+    if (node.type === 'Declaration') properties.add(node.property)
+  })
+  for (const token of ['--color-text-primary', '--color-background-surface', '--color-accent', '--radius-container']) {
+    expect(properties.has(token), token).toBe(true)
+  }
+})
+
 test('the build entry point works in a path containing spaces', () => {
   const root = mkdtempSync(join(process.cwd(), '.tmp-admin client-'))
   try {
