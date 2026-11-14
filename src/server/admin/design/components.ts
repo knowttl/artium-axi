@@ -35,7 +35,7 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .frame-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .frame-nav nav { display: flex; flex-direction: column; gap: 2px; }
 [data-frame-slot="header-end"] { display: flex; align-items: center; gap: 8px; }
-.frame-topbar { height: auto; min-height: var(--topbar-h); flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px; }
+.topbar.frame-topbar { height: auto; min-height: var(--topbar-h); flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px; }
 .frame-topbar [data-frame-slot="header-end"] { margin-left: auto; flex-wrap: wrap; }
 .frame-topbar .crumbs { padding: 0; list-style: none; }
 .frame-topbar .crumbs li + li::before { content: '/'; margin-right: 6px; }

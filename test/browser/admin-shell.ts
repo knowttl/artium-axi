@@ -243,12 +243,13 @@ test('the confirmation pill keeps following the confirmation state when the narr
 
 test('the overview keeps landmarks and the header theme switch at both widths', () => {
   try {
-    for (const width of [1280, 390]) {
+    for (const width of [1280, 390, 320]) {
+      const choice = width === 390 ? 'light' : 'dark'
       chrome(['resize', String(width), '900'])
       browser(`
         await page.open(base + '/admin');
         await page.wait('html[data-astryx-theme]');
-        ${width === 390 ? "await page.wait('[data-testid=mobile-nav-toggle]'); await page.click('[data-testid=mobile-nav-toggle]'); await page.wait('dialog[open] nav[aria-label=Administration]');" : ''}
+        ${width < 768 ? "await page.wait('[data-testid=mobile-nav-toggle]'); await page.click('[data-testid=mobile-nav-toggle]'); await page.wait('dialog[open] nav[aria-label=Administration]');" : ''}
         check(await page.eval(() => {
           const visible = element => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden';
           const banners = [...document.querySelectorAll('[role=banner], body > header')].filter(visible);
@@ -257,13 +258,25 @@ test('the overview keeps landmarks and the header theme switch at both widths', 
           return banners.length === 1 && mains.length === 1 && navs.length === 1 && navs[0].getAttribute('aria-label') === 'Administration'
             && Boolean(navs[0].querySelector('a[href="/admin/users"]'));
         }), 'Overview landmarks or administration links changed');
-        ${width === 390 ? "await page.click('dialog[open] button[aria-label=\"Close navigation\"]'); await page.wait('dialog:not([open])');" : ''}
+        ${width < 768 ? "await page.click('dialog[open] button[aria-label=\"Close navigation\"]'); await page.wait('dialog:not([open])');" : ''}
         check(await page.eval(() => {
           const forms = [...document.querySelectorAll('form[action="/theme"]')];
           return forms.length === 1 && Boolean(forms[0].closest('[role=banner]')) && forms[0].elements.next.value === '/admin';
         }), 'Theme switch is not in the header');
-        await page.click('[role=banner] form[action="/theme"] button[value=dark]');
-        await page.wait('[role=banner] form[action="/theme"] button[value=dark][aria-pressed=true]');
+        check(await page.eval(() => {
+          const header = document.querySelector('.frame-topbar').getBoundingClientRect();
+          const main = document.querySelector('[role=main]').getBoundingClientRect();
+          const controls = [...document.querySelectorAll('.frame-topbar [data-reauth-until], .frame-topbar .learn > summary, .frame-topbar form[action="/theme"], .frame-topbar [data-testid=mobile-nav-toggle]')];
+          return header.bottom <= main.top && controls.every(control => {
+            const bounds = control.getBoundingClientRect();
+            return bounds.top >= header.top && bounds.bottom <= header.bottom && bounds.left >= header.left && bounds.right <= header.right;
+          });
+        }), 'Header controls overflow the frame or overlap the content');
+        check(await page.eval(() => document.querySelector('[role=banner] form[action="/theme"] button[value=${choice}]').getAttribute('aria-pressed') === 'false'), 'Theme choice must change');
+        await page.click('[role=banner] form[action="/theme"] button[value=${choice}]');
+        await page.wait('[role=banner] form[action="/theme"] button[value=${choice}][aria-pressed=true]');
+        await page.open(base + '/admin');
+        check(await page.eval(() => document.documentElement.dataset.theme === '${choice}' && document.querySelector('[role=banner] form[action="/theme"] button[value=${choice}]').getAttribute('aria-pressed') === 'true'), 'Theme choice did not survive navigation');
       `)
     }
   } finally { chrome(['resize', '1280', '900']) }
