@@ -17,8 +17,14 @@ export const sshBindingInput = confirmed.extend({ host: id, sudo: z.boolean(),
   username: z.string().min(1).max(128).regex(/^[A-Za-z0-9_.-]+$/), credential: id }).strict()
 export const sshGrantInput = confirmed.extend({ host: id, user: z.string().min(1).max(256),
   shell: z.boolean(), sudo: z.boolean() }).strict().refine(value => !value.sudo || value.shell)
-export const sshCredentialInput = confirmed.extend({ id, privateKey: z.string().min(1).max(65536).regex(/\S/),
-  passphrase: z.string().max(4096).refine(value => !value || /\S/.test(value)).optional().transform(value => value === '' ? undefined : value) }).strict()
+const sshKeyCredential = z.object({ privateKey: z.string().min(1).max(65536).regex(/\S/),
+  passphrase: z.string().max(4096).refine(value => !value || /\S/.test(value)).transform(value => value === '' ? undefined : value).optional() }).strict()
+const sshPasswordCredential = z.object({ password: z.string().min(1).max(65536).regex(/\S/) }).strict()
+export const sshCredentialValue = z.union([sshKeyCredential, sshPasswordCredential])
+export type SshCredentialValue = z.infer<typeof sshCredentialValue>
+export const sshCredentialInput = z.union([
+  sshKeyCredential.extend({ ...confirmed.shape, id }), sshPasswordCredential.extend({ ...confirmed.shape, id }),
+])
 export const sshDeleteInput = confirmed.extend({ id }).strict()
 
 export interface SshAdminHost {

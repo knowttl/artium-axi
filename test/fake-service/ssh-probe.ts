@@ -32,6 +32,7 @@ import { exchangeDelegation } from '../../src/server/auth/tokens.js'
 assert.ok(!readFileSync('/proc/net/route', 'utf8').split('\n').slice(1).some(line => line.split(/\s+/)[1] === '00000000'))
 const ssh = createRequire(realpathSync(toolPaths['ssh-axi']))('ssh2') as typeof import('ssh2')
 const passphrase = 'CANARY-synthetic-ssh-passphrase'
+const password = 'CANARY-synthetic-ssh-password'
 const makeKey = (encrypted = false) => generateKeyPairSync('rsa', { modulusLength: 2048,
   privateKeyEncoding: { format: 'pem', type: 'pkcs1', ...(encrypted ? { cipher: 'aes-256-cbc', passphrase } : {}) },
   publicKeyEncoding: { format: 'pem', type: 'pkcs1' } }).privateKey
@@ -60,9 +61,10 @@ const peer = new ssh.Server({ hostKeys: [serverKey] }, connection => {
   connection.on('authentication', context => {
     counts.usernames.push(context.username)
     const selected = context.username === 'ordinary' ? ordinary : context.username === 'sudo-account' ? sudo : undefined
-    if (context.method === 'publickey' && selected && context.key.data.equals(selected.getPublicSSH())
+    if (context.method === 'password' && context.username === 'ordinary' && context.password === password) context.accept()
+    else if (context.method === 'publickey' && selected && context.key.data.equals(selected.getPublicSSH())
       && (!context.signature || selected.verify(context.blob!, context.signature, context.hashAlgo) === true)) context.accept()
-    else context.reject(['publickey'])
+    else context.reject(['publickey', 'password'])
   })
   connection.on('session', (accept, reject) => {
     counts.channels++
@@ -75,6 +77,7 @@ const peer = new ssh.Server({ hostKeys: [serverKey] }, connection => {
       if (info.command === 'synthetic-output') stream.write('x'.repeat(12000))
       else if (info.command === 'synthetic-flood') stream.write(Buffer.alloc(17 * 1024 * 1024, 120))
       else if (info.command === 'synthetic-secret-output') stream.write(passphrase)
+      else if (info.command === 'synthetic-password-output') stream.write(password)
       else if (info.command.includes('synthetic-sudo-denied')) {
         stream.stderr.write('sudo: a password is required\n'); stream.exit(1); stream.end(); return
       }
@@ -274,6 +277,47 @@ try {
     assert.equal(response.statusCode, 200, response.body)
     assert.equal(response.json().state, 'closed')
   }
+  await admin('credential', { id: 'ordinary-key', password, expectedRevision: revisions.get('ordinary-key') })
+  const passwordDoctor = await invoke(['doctor', 'granted', '--json'])
+  assert.equal(passwordDoctor.json().exitCode, 0, passwordDoctor.body)
+  assert.equal(JSON.parse(passwordDoctor.json().stdout).authenticated, true)
+  const passwordConnection = await openConnection()
+  const workerDirectories = readdirSync(join(directory, 'connections'))
+  assert.equal(workerDirectories.length, 1)
+  const workerDirectory = join(directory, 'connections', workerDirectories[0])
+  const configPath = join(workerDirectory, 'config', 'ssh-axi', 'config.json')
+  const config = readFileSync(configPath, 'utf8')
+  assert.equal(lstatSync(configPath).mode & 0o777, 0o600)
+  assert.deepEqual(JSON.parse(config).profiles.artium.password, { env: 'ARTIUM_SECRET_0' })
+  assert.ok(!config.includes(password))
+  const workerPids = readdirSync('/proc').filter(name => /^\d+$/.test(name)).filter(pid => {
+    try { return realpathSync(`/proc/${pid}/cwd`) === join(workerDirectory, 'home') }
+    catch { return false }
+  })
+  assert.equal(workerPids.length, 1)
+  const workerPid = workerPids[0]
+  assert.ok(readFileSync(`/proc/${workerPid}/environ`, 'utf8').split('\0').includes(`ARTIUM_SECRET_0=${password}`))
+  assert.ok(!readFileSync(`/proc/${workerPid}/cmdline`, 'utf8').includes(password))
+  assert.ok(!Object.values(process.env).includes(password))
+  const passwordResult = await finish(await submit(await prepare('id', { connection: passwordConnection.id })))
+  assert.equal(passwordResult.outcome, 'completed')
+  assert.equal(passwordResult.stdout.text, 'synthetic-result\n')
+  const leakedOutput = await finish(await submit(await prepare('synthetic-password-output', { connection: passwordConnection.id })))
+  assert.equal(leakedOutput.stdout.withheld, true)
+  assert.ok(!JSON.stringify(leakedOutput).includes(password))
+  const journalBefore = db.prepare('SELECT * FROM ssh_executions').all()
+  const protectedCommand = await execution('prepare', { ...input, command: `printf ${password}` })
+  assert.equal(protectedCommand.json().error.code, 'INVALID_INPUT')
+  assert.ok(!protectedCommand.body.includes(password))
+  assert.deepEqual(db.prepare('SELECT * FROM ssh_executions').all(), journalBefore)
+  assert.ok(!JSON.stringify(journalBefore).includes(password))
+  assert.ok(!JSON.stringify(db.prepare('SELECT * FROM audit').all()).includes(password))
+  await admin('credential', { id: 'ordinary-key', password: 'CANARY-wrong-ssh-password', expectedRevision: revisions.get('ordinary-key') })
+  assert.equal((await execution('connection/show', { id: passwordConnection.id })).json().state, 'closed')
+  const passwordFailure = await invoke(['doctor', 'granted', '--json'])
+  assert.equal(JSON.parse(passwordFailure.json().stdout).error.code, 'AUTH_FAILED')
+  assert.doesNotMatch(passwordFailure.body, /CANARY/)
+  await saveKey('ordinary-key', replacement)
   // R4: retain closed metadata, but release the real worker and its secret scanner at close.
   const retainedResources = () => ({ workers: queryObjects(ChildProcess, { format: 'count' }) as number,
     scanners: queryObjects(SecretScanner, { format: 'count' }) as number })

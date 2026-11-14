@@ -575,8 +575,8 @@ Use “Test connection” on the instance page for a current check and inspect c
 
 ### SSH rotation
 
-Use [SSH setup](tool-credentials.md#ssh) to manage dedicated keys and host trust.
-To replace a key at `/admin/ssh/credentials`, supply the private key and any required passphrase again; omitted passphrases are not retained.
+Use [SSH setup](tool-credentials.md#ssh) to manage dedicated credentials and host trust.
+For replacement, supply the complete new credential; omitted secrets are not retained.
 Replacement advances the encrypted credential revision and never returns stored secrets.
 For server-key rotation, independently verify the replacement, save it alongside the old key on `/admin/ssh`, check authentication with `artium-axi ssh-axi doctor <host>` as a granted caller, then remove the retired key after acceptance.
 At most two approved server keys may overlap, and all resolved addresses must remain approved.

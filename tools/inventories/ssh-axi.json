@@ -2,16 +2,16 @@
   "generatedBy": "scripts/ssh-inventory.ts",
   "tool": "ssh-axi",
   "package": "@knowttl/ssh-axi",
-  "version": "0.1.2",
-  "integrity": "sha512-uY/8DRC7yG8s5tEtRYcVVXK0fY/q2NfmqzBTuiuhVkm24qY+4mbVMYfan7Fyk0FdxB+1O2k6GHwOMiS73TCM3g==",
+  "version": "0.1.3",
+  "integrity": "sha512-1KU2Papl5moD+IMpclW5QqUhFaxFkAAZKNBwSKvKksbA8NMiGmMQMYsOFtvlfk2/+vRDzI/0bHK4tV23rvWThw==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "1b9b0eb9f568979eb8d235bbf252ce1d2d39de5d571482ab2efa842c44e8a9b1"
+      "sha256": "8e4f1f11aec8f8f431c02052c455b4592986d625e80d591ef31a6a70d505cbbe"
     },
     {
       "path": "axi-credential.schema.json",
-      "sha256": "6a09c8f21fc6db3de2bddf13b97a99a939e6c431f833c0fc1eb01e8a1a94809f"
+      "sha256": "7c6e366145a39034a06234d984c3b6fd57dc25fa0fc5315c8b2cfd0bafda59e5"
     },
     {
       "path": "artium-invocations.json",
@@ -19,7 +19,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "57a3a5bba40433984bb2c4fdf20ae20be2e83ac356d768ca76332eab68df32ab"
+      "sha256": "6f0fcadd08f8ea4a67bbc9a3b8f223faee3652483dc09456683e834ea6693807"
     },
     {
       "path": "dist/arguments.d.ts",
@@ -31,11 +31,11 @@
     },
     {
       "path": "dist/authenticate.d.ts",
-      "sha256": "e205dcf2d3bed6183892c10fe5d32517d2c3912bb54622bac113111eff94c694"
+      "sha256": "a9a2eed0e1e2ee14a8717ad575e760091d9d91dd70d5ff3161c8d276e60e798e"
     },
     {
       "path": "dist/authenticate.js",
-      "sha256": "a48d5e33aa1091f6143aa9f4ea2eb2eb97986fd9affc28a905158b71e1787e02"
+      "sha256": "f7e5870c1ca0f7f3d13135fb3092d4a11b40cafd4e134b47ad2db9b25e78caa4"
     },
     {
       "path": "dist/cli.d.ts",
@@ -43,7 +43,7 @@
     },
     {
       "path": "dist/cli.js",
-      "sha256": "81b4def5f3fe5fead8b1145fadf18d9c8879f79ca5d839e3bf814c77595fb040"
+      "sha256": "1422cb4ee8e58428909cddc153d05a72585ece852d5474902b7359668b975248"
     },
     {
       "path": "dist/connection-worker.d.ts",
@@ -55,11 +55,11 @@
     },
     {
       "path": "dist/doctor.d.ts",
-      "sha256": "40e632ca318987a698bd4e9e0d2c9e6f7430ba15f21aadb4cce2d638491d59f2"
+      "sha256": "484cd22b905c09d4d3f3c7993aabd34d33cf7b6aae8943adfd6a9945a49751ed"
     },
     {
       "path": "dist/doctor.js",
-      "sha256": "b2c2dd250faa47ea9d6ea5d7290e5da40dd34b07fc2ff89c3e5c70c02605ac9a"
+      "sha256": "feb399f026cf2981600aad6648c4d8f8f8a7a8f044b34f1d4b41d27058da6443"
     },
     {
       "path": "dist/errors.d.ts",
@@ -91,23 +91,23 @@
     },
     {
       "path": "dist/native-execution.js",
-      "sha256": "17c6a49e87a894915f058e90cd18aa1de2ba112609bea697af4e53972f862c3c"
+      "sha256": "1c7d7c065df304a36f87d34dfe19485acb0c0a4b73e3049e7d5d110f425ba889"
     },
     {
       "path": "dist/output.d.ts",
-      "sha256": "360f7b095bcf0447716edacbec94eb73be8bb0a24598b849c86863e5823411ea"
+      "sha256": "341a8285f55d3080fef9faff7b85f410882cfb32c794e1ebbe4580497e724b74"
     },
     {
       "path": "dist/output.js",
-      "sha256": "d3c0c957aaf80fcdf6923cf2948437d2e6ca517a1ccfdabb9b349ecfa1188d0b"
+      "sha256": "727cc59e0bba3682557c9fd781043acdfa1abb5082d6a522d727fb10cbb204a3"
     },
     {
       "path": "dist/profile.d.ts",
-      "sha256": "bcdd40f1b330e65a9bb941640e238157f3c53f5d5f11086be8d8665bc3133e48"
+      "sha256": "b5ee34b25f6068dea7fad805c75db64974e68160ca77d3ccca7de480654628ae"
     },
     {
       "path": "dist/profile.js",
-      "sha256": "0e0c97f142986d17e8eb3e30ee20bb7bf2dc161a9cd653d72dabc150d84a10a7"
+      "sha256": "1b87cf36e09a1ec543d9a1913486ed66a98c2a0eb8be952133c30a4ee4c3d3ee"
     },
     {
       "path": "dist/version.d.ts",
@@ -233,6 +233,37 @@
       "approvedHostKeys",
       "allowedAddresses"
     ],
+    "oneOf": [
+      {
+        "required": [
+          "privateKey"
+        ],
+        "not": {
+          "required": [
+            "password"
+          ]
+        }
+      },
+      {
+        "required": [
+          "password"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "privateKey"
+              ]
+            },
+            {
+              "required": [
+                "passphrase"
+              ]
+            }
+          ]
+        }
+      }
+    ],
     "properties": {
       "address": {
         "type": "string",
@@ -280,6 +311,10 @@
         "x-secret": true
       },
       "passphrase": {
+        "$ref": "#/definitions/secretRef",
+        "x-secret": true
+      },
+      "password": {
         "$ref": "#/definitions/secretRef",
         "x-secret": true
       }

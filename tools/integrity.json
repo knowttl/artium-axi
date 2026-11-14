@@ -1,7 +1,7 @@
 {
   "@knowttl/ssh-axi": {
-    "version": "0.1.2",
-    "integrity": "sha512-uY/8DRC7yG8s5tEtRYcVVXK0fY/q2NfmqzBTuiuhVkm24qY+4mbVMYfan7Fyk0FdxB+1O2k6GHwOMiS73TCM3g=="
+    "version": "0.1.3",
+    "integrity": "sha512-1KU2Papl5moD+IMpclW5QqUhFaxFkAAZKNBwSKvKksbA8NMiGmMQMYsOFtvlfk2/+vRDzI/0bHK4tV23rvWThw=="
   },
   "@knowttl/kubernetes-axi": {
     "version": "0.1.6",
