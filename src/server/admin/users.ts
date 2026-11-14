@@ -6,6 +6,7 @@ import { ArtiumError } from '../../shared/errors.js'
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { adminScript, adminStyle } from './assets.js'
+import { registerAdminClientAssets } from './client-assets.js'
 import { escape } from './escape.js'
 import { actionForm, adminRead, changed, revision, timestamp, type Confirmation } from './forms.js'
 import { sessionTable } from './session-table.js'
@@ -36,6 +37,7 @@ export function temporaryPasswordField(id: string): string {
 export function registerUsersPage(app: FastifyInstance, db: Database.Database): void {
   app.get('/admin/assets/confirm.js', async (_request, reply) => reply.type('application/javascript').send(adminScript))
   app.get('/admin/assets/style.css', async (_request, reply) => reply.type('text/css').send(adminStyle))
+  registerAdminClientAssets(app)
 
   async function allRoles(request: FastifyRequest) {
     const roles: ReturnType<typeof adminRoleRoutes.list.response.parse>['roles'] = []

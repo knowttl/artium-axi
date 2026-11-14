@@ -842,6 +842,7 @@ test('the real server remains available after startup encounters a damaged nativ
   }
   symlinkSync(join(process.cwd(), 'node_modules'), join(directory, 'node_modules'), 'dir')
   cpSync('src/server/store/migrations', join(directory, 'migrations'), { recursive: true })
+  cpSync('src/server/admin/client', join(directory, 'client'), { recursive: true })
   await build({ stdin: { contents: `
     import { Server } from 'node:net';
     import { serverDefaults } from './src/server/config.ts';

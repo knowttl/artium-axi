@@ -27,11 +27,12 @@ COPY --chmod=0755 libexec/ado-axi/az ./libexec/ado-axi/az
 COPY tools/inventories ./tools/inventories
 RUN ln -s /opt/tools/node_modules tools/node_modules
 COPY scripts/build-cli.mjs ./scripts/build-cli.mjs
+COPY scripts/build-admin-client.mjs ./scripts/build-admin-client.mjs
 COPY scripts/native-smoke.mjs ./scripts/native-smoke.mjs
 COPY scripts/falcon-smoke.mjs ./scripts/falcon-smoke.mjs
 COPY test/fake-service/certificates.ts ./test/fake-service/certificates.ts
 RUN --network=none node scripts/native-smoke.mjs
-RUN pnpm exec tsc src/server/main.ts src/server/maintenance.ts src/server/artifacts.ts src/server/runner/artifact.ts --rootDir . --outDir dist --module NodeNext --target ES2022 --strict --resolveJsonModule --esModuleInterop --skipLibCheck && cp -R src/server/store/migrations dist/src/server/store/ && node scripts/build-cli.mjs && chmod +x bin/artium-axi-server
+RUN pnpm exec tsc src/server/main.ts src/server/maintenance.ts src/server/artifacts.ts src/server/runner/artifact.ts --rootDir . --outDir dist --module NodeNext --target ES2022 --strict --resolveJsonModule --esModuleInterop --skipLibCheck && cp -R src/server/store/migrations dist/src/server/store/ && node scripts/build-admin-client.mjs && cp -R src/server/admin/client dist/src/server/admin/ && node scripts/build-cli.mjs && chmod +x bin/artium-axi-server
 
 FROM node:24.21.0-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv ca-certificates && rm -rf /var/lib/apt/lists/* && useradd --create-home --uid 10001 artium && mkdir /data && chown artium:artium /data

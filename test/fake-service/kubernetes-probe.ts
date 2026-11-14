@@ -126,6 +126,7 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.ok(recorded.every(request => request.method === 'GET' || /\/selfsubject(?:access)?reviews$/.test(request.path)))
     const writes = db.prepare("SELECT count(*) AS count FROM audit WHERE tool = 'kubernetes-axi' AND action = 'write'").get() as { count: number }
     assert.equal(writes.count, 0)
+    await app.close()
     assert.deepEqual(readdirSync(join(directory, 'calls')), [])
     console.log(JSON.stringify({ kubernetes: '0.1.3', transport: 'isolated loopback', savedCa: 'projected into kubectl profile',
       leafPins: 'managed token reads verified', identity: 'token and client certificate', nativeReads: 'verified', authorizationReviews: 'verified', deny: 'verified' }))

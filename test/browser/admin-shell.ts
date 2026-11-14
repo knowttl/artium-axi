@@ -103,6 +103,24 @@ async function expireConfirmation() {
   assert.equal(response.status, 200)
 }
 
+test('the hydration bundle executes under the admin content security policy', () => {
+  browser(`
+    await page.eval(async () => {
+      const root = document.createElement('div');
+      root.dataset.astryxRoot = '';
+      root.textContent = 'pending hydration';
+      document.body.append(root);
+      const rendered = new Promise(resolve => new MutationObserver((_, observer) => {
+        if (root.textContent !== 'pending hydration') { observer.disconnect(); resolve(true); }
+      }).observe(root, { childList: true, subtree: true, characterData: true }));
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js';
+      document.body.append(script);
+      await rendered;
+    });
+  `)
+})
+
 test('administrators can disable and re-enable token creation', () => {
   browser(`
     await page.open(base + '/admin/tokens');
