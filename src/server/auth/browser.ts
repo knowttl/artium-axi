@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import cookie from '@fastify/cookie'
 import csrf from '@fastify/csrf-protection'
 import formbody from '@fastify/formbody'
@@ -18,6 +19,10 @@ import { listUserSessions, revokeUserSession } from './user-sessions.js'
 import { revokeUserSessions } from './tokens.js'
 import { accountContent, accountRoles } from '../admin/account.js'
 import type { Adapter } from '../adapters/types.js'
+
+declare module 'fastify' {
+  interface FastifyReply { styleNonce: string }
+}
 
 export const browserCookie = 'artium-session'
 export const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite: 'strict' } as const
@@ -42,6 +47,7 @@ export function browserPage(reply: FastifyReply, title: string, content: string,
 
 export function registerBrowser(app: FastifyInstance, db: Database.Database, audit: Audit, attempts: AuthAttempts,
   providerSignOut: (session: BrowserSession, origin: string) => Promise<string | undefined>, adapters: readonly Adapter<unknown>[]) {
+  app.decorateReply('styleNonce', '')
   app.register(cookie)
   app.register(formbody)
   app.register(csrf, { cookieOpts: cookieOptions })
@@ -54,8 +60,9 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
 
   app.addHook('onRequest', async (request, reply) => {
     if (isBrowser(request)) {
+      reply.styleNonce = randomBytes(16).toString('base64')
       reply.header('cache-control', 'no-store')
-      reply.header('content-security-policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+      reply.header('content-security-policy', `default-src 'none'; script-src 'self'; style-src 'self' 'nonce-${reply.styleNonce}'; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`)
     }
   })
   app.addHook('preValidation', (request, reply, done) => {

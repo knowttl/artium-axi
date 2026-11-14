@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@actions/expressions": "0.3.61",
+    "@fontsource/figtree": "5.3.0",
     "@types/better-sqlite3": "9.6.0",
     "@types/css-tree": "3.2.0",
     "@types/node": "22.20.5",

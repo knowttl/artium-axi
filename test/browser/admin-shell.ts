@@ -121,6 +121,19 @@ test('the hydration bundle executes under the admin content security policy', ()
   `)
 })
 
+test('Figtree loads from the same origin under the admin content security policy', () => {
+  browser(`
+    check(await page.eval(async () => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = '/admin/assets/astryx.css';
+      await new Promise((resolve, reject) => { link.onload = resolve; link.onerror = reject; document.head.append(link); });
+      const faces = await Promise.all([400, 500, 600, 700].map(weight => document.fonts.load(weight + ' 16px Figtree')));
+      return faces.every(face => face.length === 1 && face[0].status === 'loaded');
+    }), 'Figtree did not load under the content security policy');
+  `)
+})
+
 test('administrators can disable and re-enable token creation', () => {
   browser(`
     await page.open(base + '/admin/tokens');
