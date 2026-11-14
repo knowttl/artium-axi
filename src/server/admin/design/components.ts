@@ -35,7 +35,7 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .frame-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .frame-nav nav { display: flex; flex-direction: column; gap: 2px; }
 .frame-mobile-nav { display: none; }
-.frame-mobile-menu { position: absolute; top: 100%; left: 0; width: min(var(--side-w), 100vw); max-height: calc(100dvh - var(--topbar-h)); overflow-y: auto; padding: 12px 10px; background: var(--bg); border: 1px solid var(--border); }
+.frame-mobile-menu { position: absolute; top: 100%; left: 0; width: min(var(--side-w), 100vw); max-height: calc(100dvh - 100%); overflow-y: auto; padding: 12px 10px; background: var(--bg); border: 1px solid var(--border); }
 @media (max-width: 767px) {
   .frame-mobile-nav { display: block; }
   [data-astryx-root] .astryx-app-shell-sidenav { display: none; }

@@ -305,6 +305,27 @@ test('the overview keeps landmarks and the header theme switch at both widths', 
   } finally { chrome(['resize', '1280', '900']) }
 })
 
+test('mobile navigation keeps account controls reachable on short screens', () => {
+  try {
+    for (const [width, height] of [[320, 400], [390, 400], [320, 600]]) {
+      chrome(['resize', String(width), String(height)])
+      browser(`
+        await page.open(base + '/admin');
+        await page.click('[data-testid=mobile-nav-toggle]');
+        await page.eval(() => { const menu = document.querySelector('.frame-mobile-menu'); menu.scrollTop = menu.scrollHeight; });
+        check(await page.eval(() => {
+          const menu = document.querySelector('.frame-mobile-menu').getBoundingClientRect();
+          const account = document.querySelector('.frame-mobile-nav .account-menu summary').getBoundingClientRect();
+          return menu.bottom <= innerHeight && account.top >= menu.top && account.bottom <= menu.bottom;
+        }), 'Navigation or account control extends below the viewport');
+        await page.click('.frame-mobile-nav .account-menu summary');
+        await page.click('.frame-mobile-nav .account-menu a[href="/account"]');
+        check(await page.eval(() => location.pathname === '/account'), 'Account link is unreachable');
+      `)
+    }
+  } finally { chrome(['resize', '1280', '900']) }
+})
+
 test('confirmation expiry survives resizing across the mobile breakpoint', () => {
   try {
     chrome(['resize', '1280', '900'])
