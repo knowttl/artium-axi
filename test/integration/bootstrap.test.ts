@@ -328,4 +328,4 @@ test('real entry point bootstraps local authentication and repeat starts ignore 
     ])
     expect(db.prepare('SELECT COUNT(*) AS count FROM bootstrap_metadata').get()).toEqual({ count: 1 })
   } finally { db.close() }
-}, 15_000)
+})
