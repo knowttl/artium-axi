@@ -216,12 +216,10 @@ test('hydrating the overview frame keeps the elements the confirmation script al
     await page.open(base + '/admin');
     await page.wait('html[data-astryx-theme]');
     await page.wait('[data-astryx-root] time');
-    check(await page.eval(() => {
-      const pill = document.querySelector('[data-reauth-until]');
-      pill.dataset.reauthUntil = '0';
-      updateReauthState();
-      return pill.querySelector('[data-reauth-text]').textContent === 'Changes locked';
-    }), 'The confirmation pill stopped following the confirmation state after hydration');
+    check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
+    await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
+    await page.wait('.unlock.off', 35000);
+    check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'The confirmation pill stopped following the confirmation state after hydration');
     check(await page.eval(() => !/T\\d\\d:\\d\\d:\\d\\d/.test(document.querySelector('[data-astryx-root] time').textContent)), 'Hydration restored the unformatted time');
   `)
 })
@@ -233,12 +231,10 @@ test('the confirmation pill keeps following the confirmation state when the narr
       await page.open(base + '/admin');
       await page.wait('html[data-astryx-theme]');
       await page.wait('[aria-controls]');
-      check(await page.eval(() => {
-        const pill = document.querySelector('[data-reauth-until]');
-        pill.dataset.reauthUntil = '0';
-        updateReauthState();
-        return pill.querySelector('[data-reauth-text]').textContent === 'Changes locked';
-      }), 'The confirmation pill stopped following the confirmation state on a narrow screen');
+      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
+      await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
+      await page.wait('.unlock.off', 35000);
+      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'The confirmation pill stopped following the confirmation state on a narrow screen');
     `)
   } finally {
     chrome(['stop'])
