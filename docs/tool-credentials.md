@@ -91,13 +91,17 @@ SSH uses a dedicated encrypted credential store and per-host ordinary account bi
 The generic tenant credential editor cannot configure SSH.
 Open **Manage hosts, account bindings and grants** on the SSH tool page, or `/admin/ssh`.
 Save a dedicated encrypted key at `/admin/ssh/credentials`; passphrases are optional.
+For password authentication, use the administrator API: send `POST /v1/admin/ssh/credential` with `id`, `expectedRevision`, `confirm: true` and `password` in the JSON body.
+Use revision `0` for a new credential and the current revision for replacement; the API accepts a password or a private key with an optional passphrase, not both.
+Supply secrets through protected input, never command arguments, and follow the [administrator API authentication requirements](runbook.md#scripted-administrator-sessions).
+The browser credential form currently supports keys only.
 Register a disabled, read-only host with independently verified exact server public keys, approved literal addresses and a verification reference.
 At most two server keys may overlap during rotation; every resolved address must remain in the approved address set.
 Choose an ordinary account and credential, enable the host, then grant each intended caller host access as well as the existing tool role.
 Sudo bindings require a different account and credential and never substitute for an ordinary binding.
 All changes require administrator identity, recent confirmation and the displayed current revision; reload after each save before another edit.
-Host and credential changes are audited without key or passphrase content.
-See [SSH rotation](runbook.md#ssh-rotation) for key replacement, server-key overlap and deletion.
+Host and credential changes are audited without secret content.
+See [SSH rotation](runbook.md#ssh-rotation) for credential replacement, server-key overlap and deletion.
 After an approved binding is available, use `artium-axi ssh-axi host list`, `host show <host>` and `doctor <host>`.
 To authorize arbitrary commands, enable **Allow writes** on the tool and clear **Keep this host read only** on the selected host.
 Retain explicit caller shell grants; sudo also requires its separate caller grant, account and credential.
