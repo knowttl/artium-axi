@@ -337,6 +337,10 @@ for (const decision of ['approve', 'deny', 'expire']) test(`bundled CLI device s
       await page.click('a[href^="/device?code="]');
       await page.wait('button[value=approve]');
       check(await page.eval(() => document.querySelector('main dl').textContent.includes('127.0.0.1') && document.querySelector('main dl time[datetime]') && document.body.textContent.includes('Never approve a code someone sent you')), 'approval omitted request details or warning');
+      check(await page.eval(() => {
+        const time = document.querySelector('[data-astryx-root] time');
+        return time.textContent === new Date(time.dateTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+      }), 'Request time was not localized after hydration');
       check(await page.eval(() => document.querySelector('button[value=deny]').textContent === "This wasn't me"), 'denial action missing');
       check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'device page overflows');
       await page.click('button[value=${decision}]');
