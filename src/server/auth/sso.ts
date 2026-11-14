@@ -271,7 +271,8 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
       reply.setCookie(browserCookie, session.id, cookieOptions).setCookie('_csrf', csrfSecret, cookieOptions)
       if (transaction.device) devices!.signedIn(transaction.device.code, session.id)
       // A document and user navigation establish a same-site hop before Strict cookies are needed.
-      return browserPage(reply, 'Sign-in complete', `<a class="btn btn-primary" href="${escape(transaction.device ? '/device?code=' + encodeURIComponent(transaction.device.code) : session.administrator ? '/admin' : '/account')}">Continue to Artium</a>`,
+      const destination = transaction.device ? '/device?code=' + encodeURIComponent(transaction.device.code) : session.administrator ? '/admin' : '/account'
+      return browserPage(reply, 'Sign-in complete', `<a class="btn btn-primary" href="${escape(destination)}">Continue to Artium</a>`,
         undefined, 'Your identity has been verified.', { mark: { icon: 'check', tone: 'ok' } })
     } catch (error) {
       const failure = error instanceof ArtiumError ? error : new ArtiumError('SSO_PROVIDER_ERROR')

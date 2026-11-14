@@ -221,6 +221,17 @@ test.each([
     expect(symbols).toContain(reference!.slice(1))
   }
   expect(page.filter(element => element.tagName === 'h1')).toHaveLength(1)
+  expect(page.filter(element => element.tagName === 'form' && element.attrs.some(attribute => attribute.name === 'action' && attribute.value === '/theme'))).toHaveLength(1)
+})
+
+test.each([
+  ['light', '<html lang="en" data-theme="light">'], ['dark', '<html lang="en" data-theme="dark">'],
+  ['system', '<html lang="en">'], [undefined, '<html lang="en">'],
+])('the overview follows the %s theme choice on the root element and in the hydration root', async (choice, root) => {
+  const cookie = `${browserCookie}=${admin}${choice ? `; artium-theme=${choice}` : ''}`
+  const body = (await app.inject({ url: '/admin', headers: { cookie } })).body
+  expect(body).toContain(root)
+  expect(body).toContain(`data-mode="${choice ?? 'system'}"`)
 })
 
 const policyPrefix = "default-src 'none'; script-src 'self'; "

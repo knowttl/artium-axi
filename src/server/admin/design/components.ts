@@ -551,6 +551,8 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 .inline-edit input { max-width: none; margin: 0; }
 .inline-edit .actions { display: flex; justify-content: flex-end; margin-top: 6px; }
 .menu .popover { right: 0; top: calc(100% + 6px); min-width: 260px; }
+.theme-row { display: flex; justify-content: center; padding: 0 8px 4px; }
+.auth-wrap > .theme-row { margin-top: 14px; }
 .popover-note { margin: 0; padding: 6px 8px 8px; color: var(--text-muted); font-size: var(--fs-xs); }
 
 /* Filter row: GET form controls */

@@ -150,6 +150,7 @@ test('optional provider sign-out revokes the local session before offering the d
   const sessionToken = await signedIn()
   const response = await signOut(sessionToken, true)
   expect(response.statusCode).toBe(200)
+  expect(response.body).not.toContain('action="/theme"')
   const destination = new URL(/data-provider-signout href="([^"]+)"/.exec(response.body)![1]!.replaceAll('&amp;', '&'))
   expect(destination.pathname).toBe(`/${syntheticTenant}/v2.0/logout`)
   expect(destination.searchParams.get('post_logout_redirect_uri')).toBe('https://localhost/login')
@@ -170,6 +171,7 @@ test('provider failure leaves artium signed out and explains the remaining provi
   db.exec('UPDATE sso_providers SET enabled = 0')
   const response = await signOut(sessionToken, true)
   expect(response.statusCode).toBe(200)
+  expect(response.body).not.toContain('action="/theme"')
   expect(response.body).toContain('provider session may still be active')
   expect(() => readBrowserSession(db, sessionToken)).toThrow()
 })
@@ -177,6 +179,22 @@ test('provider failure leaves artium signed out and explains the remaining provi
 async function finish(transaction: Awaited<ReturnType<typeof start>>) {
   return app.inject({ url: transaction.url, headers: { ...headers, cookie: transaction.cookie } })
 }
+
+test.each(['sign-in', 'reauth', 'device'])('SSO %s completion retains its continuation without a theme switch', async flow => {
+  const session = flow === 'reauth' ? await signedIn() : undefined
+  const device = flow === 'device' ? await deviceRequest() : undefined
+  const suffix = session ? '?reauth=1' : device ? '?device=' + device.userCode : ''
+  const response = await finish(await start(ssoStart + suffix, session))
+  expect(response.body).not.toContain('action="/theme"')
+  const cookies = response.cookies.filter(cookie => cookie.value).map(cookie => `${cookie.name}=${cookie.value}`)
+  if (session) cookies.push(`${browserCookie}=${session}`)
+  const cookie = cookies.join('; ')
+  const destination = device ? '/device?code=' + device.userCode : session ? '/reauth?complete=1' : '/account'
+  expect(response.body).toContain(`href="${destination}"`)
+  const page = await app.inject({ url: destination, headers: { ...headers, cookie } })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain(device ? 'Approve' : session ? 'Confirmation complete' : 'Your account')
+})
 
 test('certificate-authenticated SSO issues an artium session without persisting provider tokens or recent-auth privilege', async () => {
   const response = await finish(await start())
@@ -218,6 +236,7 @@ test.each([
   const response = await finish(await start())
   expect(response.statusCode).toBe(401)
   expect(response.body).toContain('SSO_TOKEN_INVALID')
+  expect(response.body).not.toContain('action="/theme"')
   expect(db.prepare('SELECT count(*) AS count FROM sessions').get()).toEqual({ count: 0 })
   expect(db.prepare('SELECT outcome FROM audit').get()).toEqual({ outcome: 'SSO_TOKEN_INVALID' })
 })
@@ -228,6 +247,7 @@ test('an expired transaction cannot exchange its authorization code', async () =
   const response = await finish(transaction)
   expect(response.statusCode).toBe(400)
   expect(response.body).toContain('SSO_STATE_INVALID')
+  expect(response.body).not.toContain('action="/theme"')
 })
 
 test('callback requires the initiating browser cookie', async () => {
@@ -398,6 +418,15 @@ async function deviceBrowser(code: string) {
   const csrf = /name="_csrf" value="([^"]+)"/.exec(page.body)![1]
   return { page, headers: { ...headers, origin: 'https://localhost', cookie: cookies }, csrf }
 }
+
+test.each(['approve', 'deny'])('CLI %s result has no theme switch', async decision => {
+  const device = await deviceRequest()
+  const browser = await deviceBrowser(device.userCode)
+  const result = await app.inject({ method: 'POST', url: '/device', headers: browser.headers,
+    payload: { _csrf: browser.csrf, code: device.userCode, decision } })
+  expect(result.body).toContain(`Request ${decision === 'approve' ? 'approved' : 'denied'}`)
+  expect(result.body).not.toContain('action="/theme"')
+})
 
 test('bearer SSO reauthentication issues a single ticket bound to the initiating family after approval', async () => {
   const token = issueTestAccessToken(db, 'synthetic-browser-sso')

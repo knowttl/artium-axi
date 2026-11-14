@@ -13,6 +13,7 @@ import { LocalAuthProvider, localAuthenticationMethod } from './local.js'
 import { browserIdentity, createBrowserSession, readBrowserSession, recentBrowserAuth, type BrowserSession } from './sessions.js'
 import { escape } from '../admin/escape.js'
 import { pageHelp } from '../admin/forms.js'
+import { readThemeMode, registerThemeRoute, themeSwitch } from '../admin/theme-mode.js'
 import { appShell, callout, icon, type PageOptions } from '../admin/design/ui.js'
 import { authDefaults } from '../config.js'
 import { listUserSessions, revokeUserSession } from './user-sessions.js'
@@ -26,7 +27,7 @@ declare module 'fastify' {
 
 export const browserCookie = 'artium-session'
 export const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite: 'strict' } as const
-const pages = ['/login', '/logout', '/password', '/reauth', '/device', '/admin', '/account']
+const pages = ['/login', '/logout', '/password', '/reauth', '/device', '/admin', '/account', '/theme']
 
 export function browserPage(reply: FastifyReply, title: string, content: string, current?: BrowserSession, description?: string,
   options: PageOptions & { helpTopic?: string, head?: string } = {}) {
@@ -41,8 +42,10 @@ export function browserPage(reply: FastifyReply, title: string, content: string,
     reauthUntil: current.reauthenticated_at === null ? 0 : current.reauthenticated_at + authDefaults.recentAuthMs,
   }
   const { helpTopic, head = '', ...page } = options
-  const body = appShell({ ...page, title, description, content, help: pageHelp(helpTopic ?? title, current?.source), path: reply.request.url.split('?')[0]!, viewer })
-  return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><script defer src="/admin/assets/confirm.js"></script>${head}</head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${body}</body></html>`)
+  const mode = readThemeMode(reply.request)
+  const switchHtml = reply.request.method === 'GET' && !reply.request.url.startsWith('/auth/sso/') ? themeSwitch(reply, mode) : ''
+  const body = appShell({ ...page, title, description, content, help: pageHelp(helpTopic ?? title, current?.source), path: reply.request.url.split('?')[0]!, viewer, themeSwitch: switchHtml })
+  return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"${mode === 'system' ? '' : ` data-theme="${mode}"`}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><link rel="stylesheet" href="/admin/assets/astryx.css"><script defer src="/admin/assets/confirm.js"></script>${head}</head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${body}</body></html>`)
 }
 
 export function registerBrowser(app: FastifyInstance, db: Database.Database, audit: Audit, attempts: AuthAttempts,
@@ -68,6 +71,7 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
   app.addHook('preValidation', (request, reply, done) => {
     if (!isBrowser(request) || ['GET', 'HEAD'].includes(request.method)) return done()
     if (request.headers.origin !== `${request.protocol}://${request.host}`) return done(new ArtiumError('CSRF_INVALID'))
+    if (request.url.split('?')[0] === '/theme') return done()
     if (request.cookies[browserCookie]) {
       try {
         if (session(request).csrf_token !== request.cookies._csrf) return done(new ArtiumError('CSRF_INVALID'))
@@ -99,6 +103,7 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
   const signedOut: PageOptions = { mark: { icon: 'check', tone: 'ok' } }
   const home = (current: BrowserSession) => current.must_change ? '/password' : current.administrator ? '/admin' : '/account'
 
+  registerThemeRoute(app)
   app.get('/', async (_request, reply) => reply.redirect('/admin'))
   app.get('/login', async (request, reply) => {
     if (request.cookies[browserCookie]) {
