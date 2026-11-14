@@ -1,14 +1,14 @@
 # Design system
 
-The current web UI is built in four layers: tokens, then components, then patterns, then pages.
-Pages compose components and never style themselves.
+The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
+Overview uses the Astryx render seam inside the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
 
 | File | Owns |
 | --- | --- |
-| [tokens.ts](../src/server/admin/design/tokens.ts) | All colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
+| [tokens.ts](../src/server/admin/design/tokens.ts) | Legacy colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
 | `src/server/admin/design/components.ts` | Component classes and geometry using the shared tokens, plus base element styles for content that has no component yet. |
 | `src/server/admin/design/ui.ts` | Render helpers that own component markup, escaping and ARIA, including the app shell and the icon sprite. |
 | `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per state, the badge and status-dot helpers, and the product display name and mark of each tool. |
@@ -25,7 +25,7 @@ A page on the seam is a React view in `src/views`, registered in `src/views/root
 React therefore finds the markup it rendered and owns later style changes.
 Overview is the first page on the seam.
 Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Grid`, `Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
-The legacy base element rules in `components.ts` skip content inside `[data-astryx-root]`, so Astryx markup keeps its own element styles.
+The legacy base rules for headings, paragraphs, links and table elements skip content inside `[data-astryx-root]`.
 
 ## Constraints
 
@@ -54,7 +54,7 @@ The legacy base element rules in `components.ts` skip content inside `[data-astr
 ## Tokens
 
 Colours are neutral, and colour is reserved for status, so red, amber and green always mean something.
-Both palettes are defined in `tokens.ts`; dark values apply under `prefers-color-scheme: dark`, and there is no theme toggle.
+The legacy palettes are defined in `tokens.ts`; dark values apply under `prefers-color-scheme: dark`, and there is no theme toggle.
 Text pairs meet WCAG 2.2 AA (4.5:1), and control outlines, focus rings and status colours meet 3:1, in both themes.
 
 - Surfaces: `--bg`, `--bg-subtle`, `--bg-muted`, `--bg-hover`, `--bg-active`.
@@ -70,7 +70,7 @@ Use a 4px spacing grid for new components.
 Colour, background, switch-thumb and disclosure-icon transitions last 120ms, with no transitions under `prefers-reduced-motion`.
 Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16px.
 
-## Components
+## Legacy components
 
 | Component | Markup | States | Accessibility |
 | --- | --- | --- | --- |
@@ -168,6 +168,6 @@ At 760px and narrower the sidebar collapses behind a menu button in the top bar 
 
 ## Changing the UI
 
-- Build new UI from existing components.
-- Add a genuinely new component to `ui.ts` and `components.ts` first, with all its states, document it here, and review it in light and dark.
+- Build render-seam views from Astryx components, subject to the constraints above.
+- For legacy pages, build from existing components; add a genuinely new legacy component to `ui.ts` and `components.ts` first, with all its states, document it here, and review it in light and dark.
 - Express new colours or sizes as new tokens, never literals.
