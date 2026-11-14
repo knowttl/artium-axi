@@ -577,7 +577,11 @@ Use “Test connection” on the instance page for a current check and inspect c
 
 Use [SSH setup](tool-credentials.md#ssh) to manage dedicated credentials and host trust.
 For replacement, supply the complete new credential; omitted secrets are not retained.
+At `/admin/ssh/credentials`, choose **Use a private key** and enter the replacement key and optional passphrase, or choose **Use a password** and enter the replacement password.
+Either method can replace the other; the username remains on the host account binding.
 Replacement advances the encrypted credential revision and never returns stored secrets.
+Any credential revision change fences its bindings, closes their live connections and interrupts active commands; inspect remote state before preparing another uncertain command.
+There is no minimum password length: a short password will also be withheld from command output and refuse commands whose text contains it (`SECRET_IN_COMMAND`), so a longer password avoids unexpected refusals.
 For server-key rotation, independently verify the replacement, save it alongside the old key on `/admin/ssh`, check authentication with `artium-axi ssh-axi doctor <host>` as a granted caller, then remove the retired key after acceptance.
 At most two approved server keys may overlap, and all resolved addresses must remain approved.
 Reload after each save to obtain the current revision; a stale edit must be reviewed against the latest state before resubmission.
