@@ -91,7 +91,7 @@ function Block({ block }: { block: AuthBlock }) {
                 <Button type="button" variant="ghost" size="sm" label={`Copy ${copyLabel}`} data-copy=""><Icon name="copy" /></Button>
                 <span role="status" data-copy-status="" />
               </span>
-            ) : mono ? <Text type="code">{value}</Text> : time ? <time dateTime={value} title={value}>{value}</time> : value}
+            ) : mono ? <Text type="code">{value}</Text> : time ? <time dateTime={value} title={value} suppressHydrationWarning>{value}</time> : value}
           </MetadataListItem>
         ))}
       </MetadataList>

@@ -129,6 +129,41 @@ test('the overview hydrates under the admin content security policy and keeps it
   `)
 })
 
+test('sign-in input borders meet 3:1 contrast in both themes', () => {
+  for (const theme of ['light', 'dark']) {
+    browser(`
+      await page.open(base + '/login');
+      await page.click('form[action="/theme"] button[value="${theme}"]');
+      await page.wait('form[action="/theme"] button[value="${theme}"][aria-pressed="true"]');
+      const ratios = await page.eval(() => [...document.querySelectorAll('form[action="/login"] input:not([type=hidden])')].map(input => {
+        const style = getComputedStyle(input);
+        let surface = input;
+        while (surface && getComputedStyle(surface).backgroundColor === 'rgba(0, 0, 0, 0)') surface = surface.parentElement;
+        const luminance = colour => {
+          const channels = colour.match(/\\d+/g).slice(0, 3).map(value => Number(value) / 255)
+            .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+          return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+        };
+        const values = [luminance(style.borderTopColor), luminance(getComputedStyle(surface).backgroundColor)].sort((a, b) => b - a);
+        return style.borderTopWidth === '0px' ? 0 : (values[0] + 0.05) / (values[1] + 0.05);
+      }));
+      check(ratios.length === 2 && ratios.every(ratio => ratio >= 3), 'Input contrast below 3:1: ' + ratios);
+    `)
+  }
+})
+
+test('CLI approval keeps its localized request time after hydration', () => {
+  browser(`
+    const code = await page.eval(async () => (await (await fetch('/v1/auth/device', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).json()).userCode);
+    await page.open(base + '/device?code=' + code);
+    await page.wait('html[data-astryx-theme]');
+    check(await page.eval(() => {
+      const time = document.querySelector('[data-astryx-root] time');
+      return time.textContent === new Date(time.dateTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    }), 'Request time was not localized');
+  `)
+})
+
 test('theme choices control visible colours across navigation', () => {
   for (const preference of ['light', 'dark']) {
     chrome(['emulate', '--color-scheme', preference])
