@@ -103,21 +103,14 @@ async function expireConfirmation() {
   assert.equal(response.status, 200)
 }
 
-test('the hydration bundle executes under the admin content security policy', () => {
+test('the overview hydrates under the admin content security policy and keeps its server-rendered styles', () => {
   browser(`
-    await page.eval(async () => {
-      const root = document.createElement('div');
-      root.dataset.astryxRoot = '';
-      root.textContent = 'pending hydration';
-      document.body.append(root);
-      const rendered = new Promise(resolve => new MutationObserver((_, observer) => {
-        if (root.textContent !== 'pending hydration') { observer.disconnect(); resolve(true); }
-      }).observe(root, { childList: true, subtree: true, characterData: true }));
-      const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate.js';
-      document.body.append(script);
-      await rendered;
-    });
+    await page.open(base + '/admin');
+    await page.wait('html[data-astryx-theme]');
+    check(await page.eval(() => document.querySelectorAll('[data-inline-style]').length === 0), 'Hoisted styles were not handed to the elements');
+    check(await page.eval(() => getComputedStyle(document.querySelector('[data-astryx-root] ol li > div:last-child > div')).paddingInlineStart !== '0px'),
+      'Hoisted styles did not apply');
+    check(await page.eval(() => getComputedStyle(document.querySelector('.learn-panel h2')).marginBottom === '8px'), 'Hydration changed the shell styles');
   `)
 })
 
@@ -238,15 +231,21 @@ test('People role links and stretched person and tool rows keep independent poin
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=enabled][value=false]');
     await page.open(base + '/admin');
-    const toolPath = await page.eval(() => document.querySelector('tr.link .row-link').getAttribute('href'));
     check(await page.eval(() => {
-      const row = document.querySelector('tr.link');
-      const box = row.lastElementChild.getBoundingClientRect();
-      return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2).closest('a') === row.querySelector('.row-link');
-    }), 'Tool row is not linked');
-    await page.click('tr.link:first-child .row-link');
+      const link = document.querySelector('main tbody a[href="/admin/tools/falcon-axi"]');
+      const cells = [...link.closest('tr').cells];
+      return cells.every(cell => {
+        const box = cell.getBoundingClientRect();
+        return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)?.closest('a') === link;
+      });
+    }), 'Tool row is not linked across its cells');
+    await page.eval(() => {
+      const cell = document.querySelector('main tbody a[href="/admin/tools/falcon-axi"]').closest('tr').lastElementChild;
+      const box = cell.getBoundingClientRect();
+      document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2).click();
+    });
     await page.wait('form[data-save-tool]');
-    check(await page.eval(() => location.pathname) === toolPath, 'Row did not open tool');
+    check(await page.eval(() => location.pathname) === '/admin/tools/falcon-axi', 'Row did not open Falcon');
   `)
 })
 

@@ -757,6 +757,8 @@ test('users-list bookmarks from before Overview still open the users list with t
   expect((await request('GET', '/admin')).body).toContain('<h1>Overview</h1>')
 })
 
+const withoutProps = (body: string) => body.replace(/<script type="application\/json" data-astryx-props>.*?<\/script>/s, '')
+
 test('overview names each broken access link with the action that fixes it', async () => {
   await app.close()
   const store = createCredentialStore(db, new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') }))
@@ -768,10 +770,30 @@ test('overview names each broken access link with the action that fixes it', asy
     INSERT INTO invitations (id, token_hash, provider_id, expected_username, display_name, created_at, created_by, expires_at)
       VALUES ('synthetic-invitation', 'synthetic-hash', 'synthetic-provider', 'synthetic@identity.example', 'Synthetic Invitee', ${now}, '${userId}', ${now + 86_400_000})`)
   await signIn()
-  const body = (await request('GET', '/admin')).body
-  expect(body).toMatch(/Vectra is enabled without a credential<\/strong>.*?href="\/admin\/tools\/vectra-axi">Add credential</s)
-  expect(body).toMatch(/Synthetic Invitee can’t claim their invitation yet<\/strong>.*?href="\/admin\/invitations">Review</s)
+  const body = withoutProps((await request('GET', '/admin')).body)
+  expect(body).toMatch(/Vectra is enabled without a credential.*?href="\/admin\/tools\/vectra-axi".*?Add credential/s)
+  expect(body).toMatch(/Synthetic Invitee can’t claim their invitation yet.*?href="\/admin\/invitations".*?Review/s)
   expect(body).toContain('2 things need you.')
+})
+
+test('the overview hands its data to hydration without letting a name end the data block', async () => {
+  const hostile = '</script><b id="injected">x</b>'
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'oidc', 'https://identity.example');
+    INSERT INTO invitations (id, token_hash, provider_id, expected_username, display_name, created_at, created_by, expires_at)
+      VALUES ('synthetic-invitation', 'synthetic-hash', 'synthetic-provider', 'synthetic@identity.example', '${hostile}', ${now}, '${userId}', ${now + 86_400_000})`)
+  await signIn()
+  const body = (await request('GET', '/admin')).body
+  const nodes = (node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['element'][] => [
+    ...('tagName' in node ? [node] : []), ...('childNodes' in node ? node.childNodes.flatMap(nodes) : []),
+  ]
+  const document = nodes(parse(body))
+  const data = document.filter(element => element.tagName === 'script' && element.attrs.some(attribute => attribute.name === 'data-astryx-props'))
+  expect(data).toHaveLength(1)
+  const props = JSON.parse((data[0]!.childNodes[0] as DefaultTreeAdapterMap['textNode']).value) as { attention: { title: string }[] }
+  expect(props.attention.map(item => item.title)).toEqual([`${hostile} can’t claim their invitation yet`])
+  expect(document.filter(element => element.attrs.some(attribute => attribute.name === 'id' && attribute.value === 'injected'))).toEqual([])
+  expect(document.filter(element => element.tagName === 'script').map(element => element.attrs.find(attribute => attribute.name === 'src')?.value))
+    .toEqual(['/admin/assets/confirm.js', '/admin/assets/hydrate.js', undefined])
 })
 
 test.each([
@@ -792,12 +814,12 @@ test.each([
   await signIn()
   const response = await request('GET', '/admin')
   expect(response.statusCode).toBe(200)
-  const body = response.body
-  expect(body).toMatch(new RegExp(`href="/admin/tools/awx-axi".*?<td>.*?${state}`, 's'))
+  const body = withoutProps(response.body)
+  expect(body).toMatch(new RegExp(`<td[^>]*>.*?href="/admin/tools/awx-axi".*?<td[^>]*>.*?${state}`, 's'))
   expect(body.includes('AWX is enabled without a credential')).toBe(originOnly)
   expect(body.includes('Every enabled tool has a credential and its last check passed.')).toBe(passed)
   expect(body.includes('1 enabled tool has passed its last check.')).toBe(passed)
-  expect(body).toMatch(new RegExp(`<li class="vstep ${passed ? 'done' : 'current'}">.*?<strong>Connect a tool</strong>`, 's'))
+  expect(body).toMatch(new RegExp(`<li [^>]*data-progress="${passed ? 'completed' : 'in-progress'}"[^>]*>.*?Connect a tool`, 's'))
 })
 
 test.each([

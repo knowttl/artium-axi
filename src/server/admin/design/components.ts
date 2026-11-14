@@ -245,19 +245,13 @@ a.chip:hover { background: var(--bg-active); }
 .card-meta { margin: 0 4px; color: var(--text-faint); font-size: var(--fs-xs); }
 
 /* Stats */
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.stat { display: flex; flex-direction: column; gap: 2px; padding: 16px 18px; }
-.stat + .stat { border-left: 1px solid var(--border); }
-.stat .label { color: var(--text-muted); font-size: var(--fs-sm); }
-.stat .value { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.stat .value small { color: var(--text-faint); font-size: var(--fs-md); font-weight: 400; }
-.stat .note { color: var(--text-faint); font-size: var(--fs-xs); }
-.stat .note.ok { color: var(--ok); }
-.stat .note.err { color: var(--err); }
-.stat .note.warn { color: var(--warn); }
 
 /* Table */
 .table-wrap { overflow-x: auto; }
+.overview-tools tbody tr { position: relative; }
+.overview-tools tbody a::after { content: ""; position: absolute; inset: 0; }
+.overview-tools tbody a:focus-visible { outline: 0; }
+.overview-tools tbody a:focus-visible::after { outline: 2px solid var(--focus); outline-offset: -2px; }
 .tbl tbody tr.link { position: relative; }
 .tbl tbody tr.link:hover { background: var(--bg-subtle); }
 .tbl .row-link { color: var(--text); text-decoration: none; }
@@ -312,11 +306,7 @@ a.chip:hover { background: var(--bg-active); }
 .callout.err { background: var(--err-soft); border-color: var(--err-border); }
 .callout.err > svg { color: var(--err); }
 
-/* Vertical steps and meter */
-.meter { display: block; width: 100%; height: 6px; margin: 0 0 18px; border: 0; border-radius: var(--r-full); background: var(--bg-muted); overflow: hidden; appearance: none; }
-.meter::-webkit-progress-bar { background: var(--bg-muted); }
-.meter::-webkit-progress-value { background: var(--ok); border-radius: var(--r-full); }
-.meter::-moz-progress-bar { background: var(--ok); border-radius: var(--r-full); }
+/* Vertical steps */
 .vsteps { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
 .vstep { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; padding-bottom: 18px; }
 .vstep:last-child { padding-bottom: 0; }
@@ -424,13 +414,13 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 .auth-help p { text-align: left; }
 
 /* Base elements, so pages without their own components yet stay readable inside the shell */
-:where(.content, .auth-card, dialog) :where(h2) { margin: 0 0 8px; font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em; }
+:where(.content, .auth-card, dialog) :where(h2):where(:not([data-astryx-root] *)) { margin: 0 0 8px; font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em; }
 :where(.content, dialog) :where(h3) { margin: 16px 0 6px; font-size: var(--fs-base); font-weight: 600; }
-:where(.content) :where(p) { margin: 0 0 10px; }
+:where(.content) :where(p):where(:not([data-astryx-root] *)) { margin: 0 0 10px; }
 :where(.content) > :where(p) { margin: 0; }
 :where(.content) > :where(section:not(.card)), :where(.content) :where(section section) { padding: 18px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); }
 :where(.content) :where(section section) { margin: 16px 0; }
-:where(.content, .auth-card, dialog) :where(a) { color: var(--text); }
+:where(.content, .auth-card, dialog) :where(a):where(:not([data-astryx-root] *)) { color: var(--text); }
 :where(.content, dialog) :where(form) { margin: 12px 0; }
 :where(.content, .auth-card, dialog) :where(label) { display: block; margin: 10px 0; font-size: var(--fs-sm); font-weight: 500; }
 :where(.content, .auth-card, dialog) :where(input:not([type=checkbox], [type=radio], [type=hidden], [type=file]), select, textarea) { display: block; width: 100%; max-width: 420px; height: var(--ctl-h); margin-top: 6px; padding: 0 10px; color: var(--text); background: var(--bg); border: 1px solid var(--control); border-radius: var(--r-sm); font: inherit; font-size: var(--fs-sm); font-weight: 400; }
@@ -452,12 +442,12 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 :where(.content, dialog) :where(pre) { overflow-x: auto; padding: 12px 14px; background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--r-md); font-size: var(--fs-xs); line-height: 1.7; }
 :where(.content, dialog) :where([role=alert]) { color: var(--err); }
 .table-scroll { max-width: 100%; margin: 12px 0; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-md); }
-:where(.content, dialog) :where(table) { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); text-align: left; }
+:where(.content, dialog) :where(table):where(:not([data-astryx-root] *)) { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); text-align: left; }
 :where(.content, dialog) :where(caption) { padding: 10px 14px; text-align: left; font-weight: 600; border-bottom: 1px solid var(--border); }
-:where(.content, dialog) :where(th, td) { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: break-word; }
-:where(.content, dialog) :where(thead th) { background: var(--bg-subtle); color: var(--text-faint); font-size: var(--fs-xs); font-weight: 500; white-space: nowrap; }
+:where(.content, dialog) :where(th, td):where(:not([data-astryx-root] *)) { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: break-word; }
+:where(.content, dialog) :where(thead th):where(:not([data-astryx-root] *)) { background: var(--bg-subtle); color: var(--text-faint); font-size: var(--fs-xs); font-weight: 500; white-space: nowrap; }
 :where(.content, dialog) :where(tbody th) { font-weight: 500; }
-:where(.content, dialog) :where(tbody tr:last-child) > * { border-bottom: 0; }
+:where(.content, dialog) :where(tbody tr:last-child) > *:where(:not([data-astryx-root] *)) { border-bottom: 0; }
 .session-table time, .session-table button { white-space: nowrap; }
 
 /* Page header actions and record metadata */
@@ -727,9 +717,6 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Narrow screens: the sidebar moves behind a menu button and works without JavaScript */
 @media (max-width: 760px) {
-  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .stat:nth-child(3) { border-left: 0; }
-  .stat:nth-child(n+3) { border-top: 1px solid var(--border); }
   .tbl.stacked thead { display: none; }
   .tbl.stacked tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); }
   .tbl.stacked tbody tr:last-child { border-bottom: 0; }
