@@ -84,10 +84,10 @@ export function registerSshAdmin(app: FastifyInstance, db: Database.Database, au
   })
   app.post('/v1/admin/ssh/credential', async request => {
     authorize(request)
-    const { id, expectedRevision, privateKey, passphrase } = parse(sshCredentialInput, request.body)
+    const { id, expectedRevision, confirm: _confirm, ...credential } = parse(sshCredentialInput, request.body)
     return change(request, 'ssh-credential-save', id, actor => {
       if (!credentials) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
-      const revision = credentials.replaceCredential(id, { privateKey, ...(passphrase === undefined ? {} : { passphrase }) }, expectedRevision, actor)
+      const revision = credentials.replaceCredential(id, credential, expectedRevision, actor)
       return { id, revision }
     })
   })

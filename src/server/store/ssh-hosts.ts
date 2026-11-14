@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3'
 import type { KeyProvider } from './key-provider.js'
 import { decryptCredential, encryptCredential, type EncryptedCredential } from './crypto.js'
 import { ArtiumError } from '../../shared/errors.js'
+import { sshCredentialValue, type SshCredentialValue } from '../../shared/ssh-admin.js'
 
 export interface SshHost { id: string, address: string, port: number, username: string }
 interface Binding extends SshHost { approved_host_keys: string, allowed_addresses: string, credential_id: string,
@@ -28,7 +29,7 @@ export class SshHosts {
   constructor(private readonly db: Database.Database, private readonly provider: KeyProvider) {}
 
   // The caller commits this replacement and its audit event in one transaction.
-  replaceCredential(id: string, value: { privateKey: string, passphrase?: string }, expectedRevision: number, actor: string): number {
+  replaceCredential(id: string, value: SshCredentialValue, expectedRevision: number, actor: string): number {
     const revision = nextSshRevision(this.db, 'ssh_credentials', id, expectedRevision, true)
     const plaintext = Buffer.from(JSON.stringify(value))
     try {
@@ -74,10 +75,10 @@ export class SshHosts {
     if (!row) throw new ArtiumError('CREDENTIAL_NOT_CONFIGURED')
     const plaintext = decryptCredential(row, this.provider.getKey())
     try {
-      const secret = JSON.parse(plaintext.toString('utf8')) as Record<string, unknown>
-      if (!secret || typeof secret.privateKey !== 'string' || Object.keys(secret).some(key => !['privateKey', 'passphrase'].includes(key))) throw new ArtiumError('CREDENTIAL_INVALID')
+      const secret = sshCredentialValue.safeParse(JSON.parse(plaintext.toString('utf8')))
+      if (!secret.success) throw new ArtiumError('CREDENTIAL_INVALID')
       return { address: binding.address, port: binding.port, username: binding.username,
-        approvedHostKeys: JSON.parse(binding.approved_host_keys), allowedAddresses: JSON.parse(binding.allowed_addresses), ...secret }
+        approvedHostKeys: JSON.parse(binding.approved_host_keys), allowedAddresses: JSON.parse(binding.allowed_addresses), ...secret.data }
     } finally { plaintext.fill(0) }
   }
 }

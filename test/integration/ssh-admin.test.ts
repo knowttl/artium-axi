@@ -85,6 +85,44 @@ test('provisioning uses encrypted ordinary credentials and exposes only administ
   ])
 })
 
+test('password credentials rotate through the write-only API without exposing their values', async () => {
+  await provision()
+  const password = 'CANARY-ssh-password'
+  expect(await save('credential', { id: 'ordinary', expectedRevision: 1, confirm: true, password })).toEqual({ id: 'ordinary', revision: 2 })
+  expect(hosts.profile(actor, host.id)).toEqual({ address: host.address, port: 22, username: 'ordinary',
+    approvedHostKeys: host.approvedHostKeys, allowedAddresses: host.allowedAddresses, password })
+  const encrypted = db.prepare('SELECT * FROM ssh_credentials WHERE id=?').get('ordinary') as EncryptedCredential
+  expect(encrypted.ciphertext.includes(Buffer.from(password))).toBe(false)
+  const listed = await app.inject({ url: '/v1/admin/ssh/credentials', headers })
+  expect(listed.body).not.toContain(password)
+  const stale = await post('credential', { id: 'ordinary', expectedRevision: 1, confirm: true, password })
+  expect(stale.json().error.code).toBe('REVISION_CONFLICT')
+  expect(stale.body).not.toContain(password)
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(password)
+  await save('credential', { id: 'ordinary', expectedRevision: 2, confirm: true, privateKey: 'CANARY-replacement-key' })
+  expect(hosts.profile(actor, host.id)).not.toHaveProperty('password')
+})
+
+test.each([
+  {}, { password: '' }, { password: '   ' }, { password: 'CANARY-password', privateKey: 'CANARY-key' },
+  { password: 'CANARY-password', passphrase: 'CANARY-passphrase' }, { passphrase: 'CANARY-passphrase' },
+  { password: 'CANARY-password', username: 'injected' },
+])('credential API refuses invalid or mixed authentication methods: %j', async credential => {
+  const response = await post('credential', { id: 'ordinary', expectedRevision: 0, confirm: true, ...credential })
+  expect(response.json().error.code).toBe('INVALID_INPUT')
+  expect(response.body).not.toContain('CANARY')
+  expect(db.prepare('SELECT * FROM ssh_credentials').all()).toEqual([])
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain('CANARY')
+})
+
+test('a one-character SSH password is accepted without a minimum-length policy', async () => {
+  await save('credential', { id: 'ordinary', expectedRevision: 0, confirm: true, password: 'x' })
+  const encrypted = db.prepare('SELECT * FROM ssh_credentials WHERE id=?').get('ordinary') as EncryptedCredential
+  const plaintext = decryptCredential(encrypted, provider.getKey())
+  try { expect(JSON.parse(plaintext.toString())).toEqual({ password: 'x' }) }
+  finally { plaintext.fill(0) }
+})
+
 test.each([
   ['ordinary', 'elevated'], ['elevated-account', 'ordinary'],
 ])('sudo binding refuses reused account %s or credential %s', async (username, credential) => {
