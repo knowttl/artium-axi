@@ -3,6 +3,7 @@ import { renderToString } from 'react-dom/server'
 import { expect, test } from 'vitest'
 import { Theme } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
+import { parseFragment, type DefaultTreeAdapterMap } from 'parse5'
 import { Frame } from '../src/views/frame.js'
 
 function render(options: { description?: string, actions?: ReactNode } = {}) {
@@ -17,10 +18,16 @@ test('the page header places actions after the title and description', () => {
 })
 
 test('the frame places the server-built brand, navigation and header end markup in its regions', () => {
-  const html = render()
-  expect(html).toContain('<a class="brand" href="/synthetic-home">Synthetic brand</a>')
-  expect(html).toContain('<nav aria-label="Synthetic links"></nav>')
-  expect(html).toContain('<span>Synthetic header end</span>')
+  const nodes = (node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['element'][] => [
+    ...('tagName' in node ? [node] : []), ...('childNodes' in node ? node.childNodes.flatMap(nodes) : []),
+  ]
+  const elements = nodes(parseFragment(render()))
+  const attribute = (element: DefaultTreeAdapterMap['element'], name: string) => element.attrs.find(item => item.name === name)?.value
+  const sidebar = elements.find(element => attribute(element, 'class')?.split(' ').includes('astryx-app-shell-sidenav'))!
+  const banner = elements.find(element => attribute(element, 'role') === 'banner')!
+  expect(nodes(sidebar).some(element => element.tagName === 'a' && attribute(element, 'href') === '/synthetic-home')).toBe(true)
+  expect(nodes(sidebar).some(element => element.tagName === 'nav' && attribute(element, 'aria-label') === 'Synthetic links')).toBe(true)
+  expect(nodes(banner).some(element => 'childNodes' in element && element.childNodes.some(child => 'value' in child && child.value === 'Synthetic header end'))).toBe(true)
 })
 
 test('the breadcrumb links the parent and marks the current page', () => {

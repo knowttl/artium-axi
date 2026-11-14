@@ -1,6 +1,5 @@
 import { AppShell } from '@astryxdesign/core/AppShell'
 import { HStack } from '@astryxdesign/core/HStack'
-import { MobileNav, MobileNavToggle } from '@astryxdesign/core/MobileNav'
 import { Heading, Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
 import type { ReactNode } from 'react'
@@ -18,9 +17,14 @@ export interface FrameProps {
 export function Frame({ title, description, crumbs, brand, navigation, mobileNavigation, topbarEnd, actions, children }: FrameProps & { actions?: ReactNode, children: ReactNode }) {
   return (
     <AppShell variant="section" contentPadding={4}
-      mobileNav={{ hasToggle: false, content: <MobileNav label="Administration" header={<div dangerouslySetInnerHTML={{ __html: brand }} />}><div className="frame-nav" dangerouslySetInnerHTML={{ __html: mobileNavigation }} /></MobileNav> }}
+      mobileNav={{ breakpoint: 'none' }}
       topNav={<header className="topbar frame-topbar" role="presentation">
-        <MobileNavToggle />
+        <nav className="frame-mobile-nav" aria-label="Administration">
+          <details>
+            <summary className="btn btn-ghost btn-sm" data-testid="mobile-nav-toggle">Navigation</summary>
+            <div className="frame-mobile-menu frame-nav" dangerouslySetInnerHTML={{ __html: mobileNavigation }} />
+          </details>
+        </nav>
         <ol className="crumbs">{crumbs.map((crumb, index) => <li key={index}>{index === crumbs.length - 1
           ? <strong aria-current="page">{crumb.label}</strong>
           : crumb.href ? <a href={crumb.href}>{crumb.label}</a> : <span>{crumb.label}</span>}</li>)}</ol>

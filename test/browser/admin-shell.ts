@@ -192,6 +192,15 @@ test('theme colours are correct before hydration on sign-in and overview', async
         `)
       }
     }
+    run(['resize', '320', '900'])
+    run(['run'], `
+      const width = await page.eval(() => document.querySelector('[role=main]').getBoundingClientRect().width);
+      if (width < 240) throw new Error('Overview is too narrow without JavaScript: ' + width);
+      await page.click('[data-testid=mobile-nav-toggle]');
+      await page.wait('.frame-mobile-nav details[open]');
+      await page.click('.frame-mobile-nav a[href="/admin/users"]');
+      if (await page.eval(() => location.pathname) !== '/admin/users') throw new Error('Navigation did not work without JavaScript');
+    `)
   } finally { run(['stop']) }
 })
 
@@ -230,7 +239,7 @@ test('the confirmation pill keeps following the confirmation state when the narr
     browser(`
       await page.open(base + '/admin');
       await page.wait('html[data-astryx-theme]');
-      await page.wait('[aria-controls]');
+      await page.wait('[data-testid=mobile-nav-toggle]');
       check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
       await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
       await page.wait('.unlock.off', 35000);
@@ -249,20 +258,23 @@ test('the overview keeps landmarks and the header theme switch at both widths', 
       browser(`
         await page.open(base + '/admin');
         await page.wait('html[data-astryx-theme]');
-        ${width < 768 ? "await page.wait('[data-testid=mobile-nav-toggle]'); await page.click('[data-testid=mobile-nav-toggle]'); await page.wait('dialog[open] nav[aria-label=Administration]');" : ''}
-        check(await page.eval(() => {
+        const landmarks = () => {
           const visible = element => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden';
           const banners = [...document.querySelectorAll('[role=banner], body > header')].filter(visible);
           const mains = [...document.querySelectorAll('main, [role=main]')].filter(visible);
           const navs = [...document.querySelectorAll('nav, [role=navigation]')].filter(visible);
-          return banners.length === 1 && mains.length === 1 && navs.length === 1 && navs[0].getAttribute('aria-label') === 'Administration'
-            && Boolean(navs[0].querySelector('a[href="/admin/users"]'));
-        }), 'Overview landmarks or administration links changed');
-        ${width < 768 ? "await page.click('dialog[open] button[aria-label=\"Close navigation\"]'); await page.wait('dialog:not([open])');" : ''}
-        check(await page.eval(() => {
+          return banners.length === 1 && mains.length === 1 && navs.length === 1 && navs[0].getAttribute('aria-label') === 'Administration';
+        };
+        check(await page.eval(landmarks), 'Overview landmarks changed with navigation closed');
+        ${width < 768 ? "await page.click('[data-testid=mobile-nav-toggle]'); await page.wait('.frame-mobile-nav details[open]');" : ''}
+        check(await page.eval(landmarks), 'Overview landmarks changed with navigation open');
+        check(await page.eval(() => [...document.querySelectorAll('nav[aria-label=Administration] a[href="/admin/users"]')].some(link => link.getClientRects().length > 0)), 'Administration links are not reachable');
+        ${width < 768 ? "await page.click('[data-testid=mobile-nav-toggle]'); await page.wait('.frame-mobile-nav details:not([open])');" : ''}
+        const themeLocation = await page.eval(() => {
           const forms = [...document.querySelectorAll('form[action="/theme"]')];
-          return forms.length === 1 && Boolean(forms[0].closest('[role=banner]')) && forms[0].elements.next.value === '/admin';
-        }), 'Theme switch is not in the header');
+          return forms.map(form => [Boolean(form.closest('[role=banner]')), form.elements.next.value]);
+        });
+        check(themeLocation.length === 1 && themeLocation[0][0] && themeLocation[0][1] === '/admin', 'Theme switch is not in the header: ' + JSON.stringify(themeLocation));
         check(await page.eval(() => {
           const header = document.querySelector('.frame-topbar').getBoundingClientRect();
           const main = document.querySelector('[role=main]').getBoundingClientRect();
@@ -299,7 +311,7 @@ test('confirmation expiry survives resizing across the mobile breakpoint', () =>
     `)
     chrome(['resize', '1280', '900'])
     browser(`
-      await page.wait('[data-astryx-root]:not(:has([data-testid=mobile-nav-toggle]))');
+      await page.wait('.astryx-app-shell-sidenav');
       check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'Desktop header restored an expired confirmation');
     `)
   } finally { chrome(['resize', '1280', '900']) }

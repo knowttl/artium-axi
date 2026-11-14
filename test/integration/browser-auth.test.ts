@@ -769,7 +769,7 @@ test('the overview frame keeps the administration links, landmarks, title and co
   expect(links.filter(link => attribute(link, 'aria-current') === 'page').map(link => attribute(link, 'href'))).toEqual(['/admin'])
   expect(document.filter(element => element.tagName === 'h1').map(text)).toEqual(['Overview'])
   expect(document.filter(element => element.tagName === 'nav' || attribute(element, 'role') === 'navigation').map(element => attribute(element, 'aria-label')))
-    .toEqual(['Administration'])
+    .toEqual(['Administration', 'Administration'])
   expect(document.filter(element => attribute(element, 'role') === 'banner')).toHaveLength(1)
   expect(document.filter(element => attribute(element, 'role') === 'main')).toHaveLength(1)
   const root = document.find(element => element.attrs.some(item => item.name === 'data-astryx-root'))!
@@ -779,7 +779,8 @@ test('the overview frame keeps the administration links, landmarks, title and co
   expect(nodesOf(header)).toContain(switches[0])
   expect(nodesOf(switches[0]!).find(element => attribute(element, 'name') === 'next')?.attrs.find(item => item.name === 'value')?.value).toBe('/admin')
   expect(nodesOf(root).filter(element => attribute(element, 'data-reauth-until') !== undefined)).toHaveLength(1)
-  expect(nodesOf(root).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/logout')).toHaveLength(1)
+  const sidebar = document.find(element => attribute(element, 'class')?.split(' ').includes('astryx-app-shell-sidenav'))!
+  expect(nodesOf(sidebar).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/logout')).toHaveLength(1)
   const outside = document.filter(element => !nodesOf(root).includes(element))
   expect(outside.filter(element => ['confirmation', 'reauth-dialog', 'toast', 'message'].includes(attribute(element, 'id') ?? '')).map(element => attribute(element, 'id')))
     .toEqual(['toast', 'message', 'confirmation', 'reauth-dialog'])
