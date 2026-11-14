@@ -58,7 +58,8 @@ The legacy palettes are defined in `tokens.ts`.
 The System, Light and Dark switch appears on GET pages, including sign-in and error pages, except under `/auth/sso/`.
 It is absent from POST responses, including completion and error pages.
 The choice is remembered in the `artium-theme` cookie (`system`, `light` or `dark`; anything else means system).
-The server writes the choice as `data-theme` on the root element: dark values apply under `data-theme="dark"`, or under `prefers-color-scheme: dark` when no explicit choice is set, and light values apply under `data-theme="light"` whatever the system prefers.
+The server writes explicit Light or Dark choices as `data-theme` on the root element and omits the attribute for System.
+Dark values apply under `data-theme="dark"`, or under `prefers-color-scheme: dark` when no explicit choice is set, and light values apply under `data-theme="light"` whatever the system prefers.
 Astryx views follow the same attribute through their `light-dark()` tokens.
 Text pairs meet WCAG 2.2 AA (4.5:1), and control outlines, focus rings and status colours meet 3:1, in both themes.
 
