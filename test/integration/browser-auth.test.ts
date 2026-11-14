@@ -773,12 +773,16 @@ test('the overview frame keeps the administration links, landmarks, title and co
   expect(document.filter(element => attribute(element, 'role') === 'banner')).toHaveLength(1)
   expect(document.filter(element => attribute(element, 'role') === 'main')).toHaveLength(1)
   const root = document.find(element => element.attrs.some(item => item.name === 'data-astryx-root'))!
-  const header = document.find(element => attribute(element, 'role') === 'banner')!
-  const switches = nodesOf(root).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/theme')
-  expect(switches).toHaveLength(1)
-  expect(nodesOf(header)).toContain(switches[0])
-  expect(nodesOf(switches[0]!).find(element => attribute(element, 'name') === 'next')?.attrs.find(item => item.name === 'value')?.value).toBe('/admin')
-  expect(nodesOf(root).filter(element => attribute(element, 'data-reauth-until') !== undefined)).toHaveLength(1)
+  for (const placement of ['frame-controls-header', 'frame-controls-drawer']) {
+    const controls = nodesOf(root).filter(element => attribute(element, 'class')?.split(' ').includes(placement))
+    expect(controls).toHaveLength(1)
+    const switches = nodesOf(controls[0]!).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/theme')
+    expect(switches).toHaveLength(1)
+    expect(nodesOf(switches[0]!).find(element => attribute(element, 'name') === 'next')?.attrs.find(item => item.name === 'value')?.value).toBe('/admin')
+    expect(nodesOf(controls[0]!).filter(element => attribute(element, 'data-reauth-until') !== undefined)).toHaveLength(1)
+  }
+  expect(nodesOf(root).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/theme')).toHaveLength(2)
+  expect(nodesOf(root).filter(element => attribute(element, 'data-reauth-until') !== undefined)).toHaveLength(2)
   const sidebar = document.find(element => attribute(element, 'class')?.split(' ').includes('astryx-app-shell-sidenav'))!
   expect(nodesOf(sidebar).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/logout')).toHaveLength(1)
   const outside = document.filter(element => !nodesOf(root).includes(element))

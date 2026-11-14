@@ -1,4 +1,9 @@
+import { createElement } from 'react'
+import { renderToString } from 'react-dom/server'
 import { expect, test } from 'vitest'
+import { Grid } from '@astryxdesign/core/Grid'
+import { Theme } from '@astryxdesign/core/theme'
+import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import { hoistInlineStyles } from '../src/server/admin/inline-styles.js'
 
 const nonce = 'AAAAAAAAAAAAAAAAAAAAAA=='
@@ -47,5 +52,40 @@ test.each([
   ['a property that is not a CSS name', '<div style="a b:1px"></div>'],
   ['a declaration without a colon', '<div style="--x-a"></div>'],
 ])('rejects %s instead of emitting it', (_name, input) => {
+  expect(() => hoistInlineStyles(input, nonce)).toThrow('cannot be moved')
+})
+
+test.each([
+  ['a fixed column count', 'repeat(3, 1fr)'],
+  ['responsive columns that fill', 'repeat(auto-fill, minmax(200px, 1fr))'],
+  ['responsive columns that fit', 'repeat(auto-fit, minmax(200px, 1fr))'],
+  ['capped responsive columns with a gap', 'repeat(auto-fill, minmax(min(100%, max(200px, calc((100% - 3 * var(--spacing-0-5)) / 4))), 1fr))'],
+  ['capped responsive columns without a gap', 'repeat(auto-fit, minmax(min(100%, max(200px, calc(100% / 4))), 1fr))'],
+])('accepts the grid column template for %s', (_name, template) => {
+  expect(hoistInlineStyles(`<div style="--x-gridTemplateColumns:${template}"></div>`, nonce).style)
+    .toBe(`<style nonce="${nonce}">[data-inline-style="1"]{--x-gridTemplateColumns:${template}}</style>`)
+})
+
+test.each([
+  ['Grid with a fixed column count', { columns: 4, gap: 3 }],
+  ['Grid with responsive columns', { columns: { minWidth: 220 }, gap: 3 }],
+  ['Grid with fitted responsive columns', { columns: { minWidth: 220, repeat: 'fit' }, gap: 3 }],
+  ['Grid with capped columns and a gap', { columns: { minWidth: 220, max: 4 }, gap: 0.5 }],
+  ['Grid with capped columns and no gap', { columns: { minWidth: 220, max: 4, repeat: 'fit' } }],
+] as const)('hoists the styles of an Astryx %s', (_name, props) => {
+  const html = renderToString(createElement(Theme, { theme: neutralTheme, children: createElement(Grid, { ...props, children: 'Synthetic cell' }) }))
+  const hoisted = hoistInlineStyles(html, nonce)
+  expect(hoisted.html).not.toMatch(/\sstyle=/)
+  expect(hoisted.style).toContain('--x-gridTemplateColumns:repeat(')
+})
+
+test.each([
+  ['a template on another property', '<div style="--x-width:repeat(3, 1fr)"></div>'],
+  ['a repeat count that is not a number', '<div style="--x-gridTemplateColumns:repeat(var(--x-a), 1fr)"></div>'],
+  ['a track list that carries more than the grid form', '<div style="--x-gridTemplateColumns:repeat(3, 1fr) 2px"></div>'],
+  ['a repeat that wraps a disallowed function', '<div style="--x-gridTemplateColumns:repeat(auto-fill, minmax(url(a), 1fr))"></div>'],
+  ['a minmax outside repeat', '<div style="--x-gridTemplateColumns:minmax(200px, 1fr)"></div>'],
+  ['a spacing variable that is not a spacing token', '<div style="--x-gridTemplateColumns:repeat(auto-fill, minmax(min(100%, max(200px, calc((100% - 3 * var(--other)) / 4))), 1fr))"></div>'],
+])('still rejects %s', (_name, input) => {
   expect(() => hoistInlineStyles(input, nonce)).toThrow('cannot be moved')
 })

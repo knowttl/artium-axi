@@ -269,7 +269,7 @@ function authCard(page: Page): string {
       <details class="page-help auth-help"><summary>Need help?</summary>${page.help}</details></div></main>${toasts}${sprite}`
 }
 
-export interface AdminChrome extends Pick<FrameProps, 'crumbs' | 'brand' | 'navigation' | 'account' | 'topbarEnd'> {
+export interface AdminChrome extends Pick<FrameProps, 'crumbs' | 'brand' | 'navigation' | 'account' | 'controls' | 'topbarEnd'> {
   legacyNavigation: string
   overlays: string
 }
@@ -298,7 +298,8 @@ export function adminChrome(page: Page & { viewer: Viewer }): AdminChrome {
     navigation: sections,
     account,
     legacyNavigation: `<nav aria-label="Administration">${items}</nav><div class="side-foot">${account}</div>`,
-    topbarEnd: reauthPill(viewer) + learn(page.title, page.help),
+    controls: reauthPill(viewer),
+    topbarEnd: learn(page.title, page.help),
     overlays: toasts + dialogs(viewer) + sprite,
   }
 }
@@ -318,6 +319,6 @@ export function appShell(page: Page): string {
   return `<a class="skip" href="#main">Skip to content</a><div class="app">
     <div class="side" id="nav"><div class="side-head">${brand(product.href)}<a class="btn btn-ghost btn-icon btn-sm side-close" href="#main" aria-label="Close navigation">${icon('x')}</a></div>
       ${chrome.legacyNavigation}</div>
-    <div class="main"><header class="topbar"><a class="btn btn-ghost btn-icon btn-sm menu-open" href="#nav" aria-label="Open navigation">${icon('list')}</a>${crumbs}<div class="right">${chrome.topbarEnd}</div></header>
+    <div class="main"><header class="topbar"><a class="btn btn-ghost btn-icon btn-sm menu-open" href="#nav" aria-label="Open navigation">${icon('list')}</a>${crumbs}<div class="right">${chrome.controls}${chrome.topbarEnd}</div></header>
       <main id="main" class="content" tabindex="-1">${head}${message}${page.content}</main></div></div>${dialogs(viewer)}${sprite}`
 }

@@ -122,6 +122,10 @@ test('the overview hydrates under the admin content security policy and keeps it
     check(await page.eval(() => getComputedStyle(document.querySelector('[data-astryx-root] ol li > div:last-child > div')).paddingInlineStart !== '0px'),
       'Hoisted styles did not apply');
     check(await page.eval(() => getComputedStyle(document.querySelector('.learn-panel h2')).marginBottom === '8px'), 'Hydration changed the shell styles');
+    check(await page.eval(() => {
+      const widths = [...document.querySelectorAll('section[aria-labelledby=overview-summary] > div > div')].map(card => Math.round(card.getBoundingClientRect().width));
+      return widths.length === 4 && new Set(widths).size === 1 && widths[0] > 100;
+    }), 'The summary cards are not equal width');
   `)
 })
 
@@ -132,8 +136,8 @@ test('theme choices control visible colours across navigation', () => {
       const effective = choice === 'system' ? preference : choice
       browser(`
         await page.open(base + '/admin');
-        await page.click('form[action="/theme"] button[value="${choice}"]');
-        await page.wait('form[action="/theme"] button[value="${choice}"][aria-pressed="true"]');
+        await page.click('.frame-controls-header form[action="/theme"] button[value="${choice}"]');
+        await page.wait('.frame-controls-header form[action="/theme"] button[value="${choice}"][aria-pressed="true"]');
         const colours = () => {
           const style = getComputedStyle(document.body);
           return [style.backgroundColor, style.color];
@@ -194,8 +198,8 @@ test('theme colours are correct before hydration on sign-in and overview', async
       for (const choice of ['light', 'dark', 'system']) {
         const effective = choice === 'system' ? preference : choice
         run(['run'], `
-          await page.click('form[action="/theme"] button[value="${choice}"]');
-          await page.wait('form[action="/theme"] button[value="${choice}"][aria-pressed="true"]');
+          await page.click('.frame-controls-header form[action="/theme"] button[value="${choice}"]');
+          await page.wait('.frame-controls-header form[action="/theme"] button[value="${choice}"][aria-pressed="true"]');
           const state = await page.eval(() => [document.documentElement.hasAttribute('data-astryx-theme'),
             getComputedStyle(document.querySelector('[data-astryx-root] h2:not(#overview-summary)')).color]);
           const darkText = state[1].match(/\\d+/g).slice(0, 3).reduce((sum, value) => sum + Number(value), 0) < 384;
@@ -261,10 +265,11 @@ test('the confirmation pill keeps following the confirmation state when the narr
   }
 })
 
-test('the overview keeps landmarks and the header theme switch at both widths', () => {
+test('the overview keeps landmarks and a reachable theme switch at both widths', () => {
   try {
     for (const width of [1280, 390, 320]) {
       const choice = width === 390 ? 'light' : 'dark'
+      const region = width < 768 ? '.frame-controls-drawer' : '.frame-controls-header'
       chrome(['resize', String(width), '900'])
       browser(`
         await page.open(base + '/admin');
@@ -281,25 +286,34 @@ test('the overview keeps landmarks and the header theme switch at both widths', 
         check(await page.eval(landmarks), 'Overview landmarks changed with navigation open');
         check(await page.eval(() => [...document.querySelectorAll('nav[aria-label=Administration] a[href="/admin/users"]')].some(link => link.getClientRects().length > 0)), 'Administration links are not reachable');
         ${width < 768 ? "await page.click('[data-testid=mobile-nav-toggle]'); await page.wait('.frame-mobile-nav details:not([open])');" : ''}
-        const themeLocation = await page.eval(() => {
-          const forms = [...document.querySelectorAll('form[action="/theme"]')];
-          return forms.map(form => [Boolean(form.closest('[role=banner]')), form.elements.next.value]);
-        });
-        check(themeLocation.length === 1 && themeLocation[0][0] && themeLocation[0][1] === '/admin', 'Theme switch is not in the header: ' + JSON.stringify(themeLocation));
         check(await page.eval(() => {
           const header = document.querySelector('.frame-topbar').getBoundingClientRect();
           const main = document.querySelector('[role=main]').getBoundingClientRect();
-          const controls = [...document.querySelectorAll('.frame-topbar [data-reauth-until], .frame-topbar .learn > summary, .frame-topbar form[action="/theme"], .frame-topbar [data-testid=mobile-nav-toggle]')];
+          const controls = [...document.querySelectorAll('.frame-topbar [data-reauth-until], .frame-topbar .learn > summary, .frame-topbar form[action="/theme"], .frame-topbar [data-testid=mobile-nav-toggle]')]
+            .filter(control => control.checkVisibility());
           return header.bottom <= main.top && controls.every(control => {
             const bounds = control.getBoundingClientRect();
             return bounds.top >= header.top && bounds.bottom <= header.bottom && bounds.left >= header.left && bounds.right <= header.right;
           });
         }), 'Header controls overflow the frame or overlap the content');
-        check(await page.eval(() => document.querySelector('[role=banner] form[action="/theme"] button[value=${choice}]').getAttribute('aria-pressed') === 'false'), 'Theme choice must change');
-        await page.click('[role=banner] form[action="/theme"] button[value=${choice}]');
-        await page.wait('[role=banner] form[action="/theme"] button[value=${choice}][aria-pressed=true]');
+        ${width < 768 ? `check(await page.eval(() => {
+          const toggle = document.querySelector('[data-testid=mobile-nav-toggle]').getBoundingClientRect();
+          const centre = element => { const bounds = element.getBoundingClientRect(); return (bounds.top + bounds.bottom) / 2; };
+          const row = [...document.querySelectorAll('.frame-topbar .crumbs, .frame-topbar .learn > summary')].map(centre);
+          const hidden = [...document.querySelectorAll('.frame-topbar [data-reauth-until], .frame-topbar form[action="/theme"]')].filter(control => control.checkVisibility());
+          return row.length === 2 && row.every(value => Math.abs(value - (toggle.top + toggle.bottom) / 2) < 4) && hidden.length === 0;
+        }), 'The narrow header is not one row without the pill and theme switch');
+        await page.click('[data-testid=mobile-nav-toggle]'); await page.wait('.frame-mobile-nav details[open]');` : ''}
+        const placement = await page.eval(() => {
+          const visible = selector => [...document.querySelectorAll(selector)].filter(element => element.checkVisibility());
+          return [visible('form[action="/theme"]').map(form => [Boolean(form.closest('${region}')), form.elements.next.value]), visible('[data-reauth-until]').map(pill => Boolean(pill.closest('${region}')))];
+        });
+        check(placement[0].length === 1 && placement[0][0][0] && placement[0][0][1] === '/admin' && placement[1].length === 1 && placement[1][0], 'Theme switch and confirmation pill are not in ${region}: ' + JSON.stringify(placement));
+        check(await page.eval(() => { const button = document.querySelector('${region} form[action="/theme"] button[value=${choice}]'); button.focus(); return document.activeElement === button && button.getAttribute('aria-pressed') === 'false'; }), 'Theme choice must be keyboard focusable and change');
+        await page.click('${region} form[action="/theme"] button[value=${choice}]');
+        await page.wait('${region} form[action="/theme"] button[value=${choice}][aria-pressed=true]');
         await page.open(base + '/admin');
-        check(await page.eval(() => document.documentElement.dataset.theme === '${choice}' && document.querySelector('[role=banner] form[action="/theme"] button[value=${choice}]').getAttribute('aria-pressed') === 'true'), 'Theme choice did not survive navigation');
+        check(await page.eval(() => document.documentElement.dataset.theme === '${choice}' && document.querySelector('${region} form[action="/theme"] button[value=${choice}]').getAttribute('aria-pressed') === 'true'), 'Theme choice did not survive navigation');
       `)
     }
   } finally { chrome(['resize', '1280', '900']) }

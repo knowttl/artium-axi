@@ -36,9 +36,14 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .frame-side .account-menu .popover { min-width: 0; }
 .frame-mobile-nav { display: none; }
 .frame-mobile-menu { position: absolute; top: 100%; left: 0; width: min(var(--side-w), 100vw); max-height: calc(100dvh - 100%); overflow-y: auto; padding: 12px 10px; background: var(--bg); border: 1px solid var(--border); }
+.frame-controls { display: flex; align-items: center; gap: 8px; }
+.frame-controls-drawer { flex-direction: column; align-items: flex-start; padding: 10px 8px; }
 @media (max-width: 767px) {
   .frame-mobile-nav { display: block; }
   [data-astryx-root] .astryx-app-shell-sidenav { display: none; }
+  .topbar.frame-topbar { flex-wrap: nowrap; }
+  .frame-topbar .crumbs { flex: 1 1 0; }
+  .frame-controls-header { display: none; }
 }
 [data-frame-slot="header-end"] { display: flex; align-items: center; gap: 8px; }
 .topbar.frame-topbar { height: auto; min-height: var(--topbar-h); flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px; }

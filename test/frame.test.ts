@@ -8,7 +8,7 @@ import { Frame } from '../src/views/frame.js'
 
 function render(options: { description?: string, actions?: ReactNode } = {}) {
   const frame = createElement(Frame, { title: 'Synthetic title', ...options, crumbs: [{ label: 'Access', href: '/admin/users' }, { label: 'Synthetic title' }],
-    brand: { name: 'Synthetic brand', href: '/synthetic-home' }, account: '<button>Synthetic account</button>', topbarEnd: '<span>Synthetic header end</span>', children: 'Synthetic content',
+    brand: { name: 'Synthetic brand', href: '/synthetic-home' }, account: '<button>Synthetic account</button>', controls: '<span>Synthetic controls</span>', topbarEnd: '<span>Synthetic header end</span>', children: 'Synthetic content',
     navigation: [{ links: [{ href: '/synthetic-top', label: 'Synthetic top', icon: 'home', current: false }] },
       { title: 'Synthetic section', links: [{ href: '/synthetic-one', label: 'Synthetic one', icon: 'users', current: false }, { href: '/synthetic-two', label: 'Synthetic two', icon: 'list', current: true }] }] })
   return renderToString(createElement(Theme, { theme: neutralTheme, children: frame }))
@@ -32,6 +32,13 @@ test('the frame places the brand, header end markup and account menu in its regi
   expect(nodes(sidebar).some(element => element.tagName === 'a' && attribute(element, 'href') === '/synthetic-home' && text(element).includes('Synthetic brand'))).toBe(true)
   expect(nodes(sidebar).some(element => element.tagName === 'button' && text(element) === 'Synthetic account')).toBe(true)
   expect(nodes(banner).some(element => 'childNodes' in element && element.childNodes.some(child => 'value' in child && child.value === 'Synthetic header end'))).toBe(true)
+})
+
+test.each([['header end', 'frame-controls-header', 'banner'], ['narrow-screen menu', 'frame-controls-drawer', 'frame-mobile-menu']])('the %s holds the controls', (_name, controlsClass, ancestorMarker) => {
+  const elements = nodes(parseFragment(render()))
+  const ancestor = elements.find(element => attribute(element, 'role') === ancestorMarker || attribute(element, 'class')?.split(' ').includes(ancestorMarker))!
+  const controls = nodes(ancestor).filter(element => attribute(element, 'class')?.split(' ').includes(controlsClass))
+  expect(controls.map(text)).toEqual(['Synthetic controls'])
 })
 
 const regions = { 'side navigation': 'astryx-app-shell-sidenav', 'narrow-screen menu': 'frame-mobile-menu' }

@@ -48,13 +48,13 @@ for (const time of document.querySelectorAll('time[datetime]')) {
 const findReauthState = () => document.querySelector('[data-reauth-until]');
 let reauthUntil = Number(findReauthState()?.dataset.reauthUntil || 0);
 function updateReauthState() {
-  const reauthState = findReauthState();
-  if (!reauthState) return;
-  reauthState.dataset.reauthUntil = reauthUntil;
   const minutes = Math.max(0, Math.ceil((reauthUntil - Date.now()) / 60000));
-  reauthState.querySelector('[data-reauth-text]').textContent = minutes ? 'Changes unlocked · ' + minutes + ' min' : 'Changes locked';
-  reauthState.className = 'unlock ' + (minutes ? 'on' : 'off');
-  reauthState.querySelector('use').setAttribute('href', minutes ? '#i-unlock' : '#i-lock');
+  for (const reauthState of document.querySelectorAll('[data-reauth-until]')) {
+    reauthState.dataset.reauthUntil = reauthUntil;
+    reauthState.querySelector('[data-reauth-text]').textContent = minutes ? 'Changes unlocked · ' + minutes + ' min' : 'Changes locked';
+    reauthState.className = 'unlock ' + (minutes ? 'on' : 'off');
+    reauthState.querySelector('use').setAttribute('href', minutes ? '#i-unlock' : '#i-lock');
+  }
 }
 updateReauthState();
 if (findReauthState()) {
