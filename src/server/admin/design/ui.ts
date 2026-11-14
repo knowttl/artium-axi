@@ -270,6 +270,7 @@ export interface AdminChrome {
   crumbs: { label: string, href?: string }[]
   brand: string
   navigation: string
+  mobileNavigation: string
   topbarEnd: string
   overlays: string
 }
@@ -288,6 +289,7 @@ export function adminChrome(page: Page & { viewer: Viewer }): AdminChrome {
     crumbs: [...parent ? [parent] : [], { label: page.heading ?? page.title }],
     brand: brand('/admin'),
     navigation: `<nav aria-label="Administration">${items}</nav><div class="side-foot">${accountMenu(viewer, page.path, 'up', page.themeSwitch)}</div>`,
+    mobileNavigation: `${items}<div class="side-foot">${accountMenu(viewer, page.path, 'up', page.themeSwitch)}</div>`,
     topbarEnd: reauthPill(viewer) + learn(page.title, page.help),
     overlays: toasts + dialogs(viewer) + sprite,
   }

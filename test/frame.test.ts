@@ -7,7 +7,7 @@ import { Frame } from '../src/views/frame.js'
 
 function render(options: { description?: string, actions?: ReactNode } = {}) {
   const frame = createElement(Frame, { title: 'Synthetic title', ...options, crumbs: [{ label: 'Access', href: '/admin/users' }, { label: 'Synthetic title' }],
-    brand: '<a class="brand" href="/synthetic-home">Synthetic brand</a>', navigation: '<nav aria-label="Synthetic links"></nav>', topbarEnd: '<span>Synthetic header end</span>', children: 'Synthetic content' })
+    brand: '<a class="brand" href="/synthetic-home">Synthetic brand</a>', navigation: '<nav aria-label="Synthetic links"></nav>', mobileNavigation: '', topbarEnd: '<span>Synthetic header end</span>', children: 'Synthetic content' })
   return renderToString(createElement(Theme, { theme: neutralTheme, children: frame }))
 }
 

@@ -241,6 +241,57 @@ test('the confirmation pill keeps following the confirmation state when the narr
   }
 })
 
+test('the overview keeps landmarks and the header theme switch at both widths', () => {
+  try {
+    for (const width of [1280, 390]) {
+      chrome(['resize', String(width), '900'])
+      browser(`
+        await page.open(base + '/admin');
+        await page.wait('html[data-astryx-theme]');
+        ${width === 390 ? "await page.wait('[data-testid=mobile-nav-toggle]'); await page.click('[data-testid=mobile-nav-toggle]'); await page.wait('dialog[open] nav[aria-label=Administration]');" : ''}
+        check(await page.eval(() => {
+          const visible = element => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden';
+          const banners = [...document.querySelectorAll('[role=banner], body > header')].filter(visible);
+          const mains = [...document.querySelectorAll('main, [role=main]')].filter(visible);
+          const navs = [...document.querySelectorAll('nav, [role=navigation]')].filter(visible);
+          return banners.length === 1 && mains.length === 1 && navs.length === 1 && navs[0].getAttribute('aria-label') === 'Administration'
+            && Boolean(navs[0].querySelector('a[href="/admin/users"]'));
+        }), 'Overview landmarks or administration links changed');
+        ${width === 390 ? "await page.click('dialog[open] button[aria-label=\"Close navigation\"]'); await page.wait('dialog:not([open])');" : ''}
+        check(await page.eval(() => {
+          const forms = [...document.querySelectorAll('form[action="/theme"]')];
+          return forms.length === 1 && Boolean(forms[0].closest('[role=banner]')) && forms[0].elements.next.value === '/admin';
+        }), 'Theme switch is not in the header');
+        await page.click('[role=banner] form[action="/theme"] button[value=dark]');
+        await page.wait('[role=banner] form[action="/theme"] button[value=dark][aria-pressed=true]');
+      `)
+    }
+  } finally { chrome(['resize', '1280', '900']) }
+})
+
+test('confirmation expiry survives resizing across the mobile breakpoint', () => {
+  try {
+    chrome(['resize', '1280', '900'])
+    browser(`
+      await page.open(base + '/admin');
+      await page.wait('html[data-astryx-theme]');
+      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
+      await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
+      await page.wait('.unlock.off', 35000);
+    `)
+    chrome(['resize', '390', '900'])
+    browser(`
+      await page.wait('[data-testid=mobile-nav-toggle]');
+      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'Mobile header restored an expired confirmation');
+    `)
+    chrome(['resize', '1280', '900'])
+    browser(`
+      await page.wait('[data-astryx-root]:not(:has([data-testid=mobile-nav-toggle]))');
+      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'Desktop header restored an expired confirmation');
+    `)
+  } finally { chrome(['resize', '1280', '900']) }
+})
+
 test('Figtree loads from the same origin under the admin content security policy', () => {
   browser(`
     check(await page.eval(async () => {

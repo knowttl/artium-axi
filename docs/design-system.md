@@ -25,11 +25,11 @@ A page on the seam is a React view in `src/views`, registered in `src/views/root
 React therefore finds the markup it rendered and owns later style changes.
 Overview is the first page on the seam.
 
-The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`, `TopNav` and `Breadcrumbs`: a header with the breadcrumb, a content area with the page title, description and an actions slot, and the side navigation slot.
+The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and an actions slot, and the side navigation slot.
 `adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu, confirmation pill and help panel once for both the frame and the legacy shell, so the links, landmarks and titles stay identical.
 Until the side navigation moves to Astryx, the frame renders the legacy markup for the brand, links, account menu, confirmation pill and help panel through `dangerouslySetInnerHTML`, so React neither re-renders nor compares what `confirm.js` updates there.
-Below the Astryx mobile breakpoint `AppShell` replaces the header and side navigation after hydration, so `confirm.js` looks the confirmation pill up each time it updates it instead of keeping the first element.
-Astryx `TopNav` and `Breadcrumbs` add two navigation landmarks, "Page header" and "Breadcrumb", beside "Administration".
+Below the Astryx mobile breakpoint `AppShell` replaces the header and side navigation after hydration, so `confirm.js` refreshes the confirmation pill when it is inserted.
+The frame retains one banner, one main and one navigation landmark labelled "Administration".
 The toast regions, confirmation dialogs and icon sprite that `confirm.js` drives stay outside the React root.
 A view that shows a time wraps it in `<time suppressHydrationWarning>`, because `confirm.js` formats every `time[datetime]` before hydration.
 Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Grid`, `Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).

@@ -1,8 +1,7 @@
 import { AppShell } from '@astryxdesign/core/AppShell'
-import { BreadcrumbItem, Breadcrumbs } from '@astryxdesign/core/Breadcrumbs'
 import { HStack } from '@astryxdesign/core/HStack'
+import { MobileNav, MobileNavToggle } from '@astryxdesign/core/MobileNav'
 import { Heading, Text } from '@astryxdesign/core/Text'
-import { TopNav } from '@astryxdesign/core/TopNav'
 import { VStack } from '@astryxdesign/core/VStack'
 import type { ReactNode } from 'react'
 
@@ -12,21 +11,21 @@ export interface FrameProps {
   crumbs: { label: string, href?: string }[]
   brand: string
   navigation: string
+  mobileNavigation: string
   topbarEnd: string
 }
 
-export function Frame({ title, description, crumbs, brand, navigation, topbarEnd, actions, children }: FrameProps & { actions?: ReactNode, children: ReactNode }) {
+export function Frame({ title, description, crumbs, brand, navigation, mobileNavigation, topbarEnd, actions, children }: FrameProps & { actions?: ReactNode, children: ReactNode }) {
   return (
     <AppShell variant="section" contentPadding={4}
-      topNav={
-        <TopNav label="Page header"
-          startContent={
-            <Breadcrumbs label="Breadcrumb">
-              {crumbs.map((crumb, index) => <BreadcrumbItem key={index} href={crumb.href} isCurrent={index === crumbs.length - 1}>{crumb.label}</BreadcrumbItem>)}
-            </Breadcrumbs>
-          }
-          endContent={<div data-frame-slot="header-end" dangerouslySetInnerHTML={{ __html: topbarEnd }} />} />
-      }
+      mobileNav={{ hasToggle: false, content: <MobileNav label="Administration" header={<div dangerouslySetInnerHTML={{ __html: brand }} />}><div className="frame-nav" dangerouslySetInnerHTML={{ __html: mobileNavigation }} /></MobileNav> }}
+      topNav={<header className="topbar frame-topbar" role="presentation">
+        <MobileNavToggle />
+        <ol className="crumbs">{crumbs.map((crumb, index) => <li key={index}>{index === crumbs.length - 1
+          ? <strong aria-current="page">{crumb.label}</strong>
+          : crumb.href ? <a href={crumb.href}>{crumb.label}</a> : <span>{crumb.label}</span>}</li>)}</ol>
+        <div data-frame-slot="header-end" dangerouslySetInnerHTML={{ __html: topbarEnd }} />
+      </header>}
       sideNav={
         <div className="frame-side">
           <div className="side-head" dangerouslySetInnerHTML={{ __html: brand }} />
