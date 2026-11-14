@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview uses the Astryx render seam inside the legacy shell.
+Overview uses the Astryx render seam and page frame; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -37,14 +37,14 @@ The legacy base rules for headings, paragraphs, links and table elements skip co
 
 ## Constraints
 
-- Pages are server-rendered HTML through `browserPage`.
+- Pages are server-rendered HTML through `browserPage` or, for render-seam views, `renderPage()`.
 - The content security policy allows only same-origin scripts, styles and fonts, plus the response's own nonce for one `<style>` element, so there are no CDNs, inline scripts or `style` attributes.
   Each browser response gets a fresh unpredictable nonce, available to handlers as `reply.styleNonce`.
   The policy never includes `unsafe-inline` or a `style-src-attr` allowance.
 - `hoistInlineStyles()` in `src/server/admin/inline-styles.ts` can move supported `style` attributes into a nonce'd element and throws on declarations it cannot prove safe.
   `renderPage()` calls it on every rendered view, and it returns no style element when there are no declarations.
 - Figtree (SIL Open Font License) is self-hosted: the build copies four weights from `@fontsource/figtree` to `/admin/assets/fonts/` and adds the `@font-face` rules to `astryx.css`, which the Astryx neutral `Figtree` font-family tokens already name.
-- Reading and navigating work without JavaScript; disclosures use native `<details>`, and the narrow-screen menu uses a `#nav` fragment.
+- Reading and navigating work without JavaScript; disclosures use native `<details>`.
 - Every mutation keeps its API, CSRF token, `expectedRevision` and recent-auth flow.
 
 ## Rules
@@ -178,7 +178,8 @@ Form errors appear inside the open dialog so they remain visible and can receive
 
 The sidebar groups administration into Overview, Access (People, Roles, Invitations), Tools (Tools) and Security (Sign-in & SSO, Audit log).
 The current section is derived from the request path.
-At 760px and narrower the sidebar collapses behind a menu button in the top bar and opens full screen.
+On legacy pages, at 760px and narrower the sidebar opens full screen through a `#nav` fragment link in the top bar.
+On the render seam, at 767px and narrower the sidebar is replaced by a navigation disclosure in the header.
 
 ## Changing the UI
 
