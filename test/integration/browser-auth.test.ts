@@ -763,7 +763,7 @@ test('the overview frame keeps the administration links, landmarks, title and co
   const attribute = (element: DefaultTreeAdapterMap['element'], name: string) => element.attrs.find(item => item.name === name)?.value
   const text = (element: DefaultTreeAdapterMap['element']): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? text(child) : '').join('')
   const navigation = document.find(element => element.tagName === 'nav' && attribute(element, 'aria-label') === 'Administration')!
-  const links = nodesOf(navigation).filter(element => element.tagName === 'a' && attribute(element, 'class') === 'nav-item')
+  const links = nodesOf(navigation).filter(element => element.tagName === 'a' && attribute(element, 'href')?.startsWith('/admin') && !text(element).includes('Artium'))
   expect(links.map(link => attribute(link, 'href'))).toEqual(['/admin', '/admin/users', '/admin/roles', '/admin/invitations', '/admin/tools',
     '/admin/settings/sign-in', '/admin/tokens', '/admin/audit'])
   expect(links.filter(link => attribute(link, 'aria-current') === 'page').map(link => attribute(link, 'href'))).toEqual(['/admin'])
