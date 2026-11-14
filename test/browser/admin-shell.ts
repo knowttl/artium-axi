@@ -37,6 +37,17 @@ function chrome(args: string[], input?: string) {
 function browser(script: string) {
   return chrome(['run'], `const base = ${JSON.stringify(fixture.url)};
     const check = (value, message) => { if (!value) throw new Error(message); };
+    const openAccountMenu = async () => {
+      const layout = await page.eval(() => {
+        if (document.querySelector('.frame-mobile-nav')) return matchMedia('(max-width: 767px)').matches ? 'mobile' : 'desktop';
+        return document.querySelector('.menu-open')?.getClientRects().length ? 'legacy-mobile' : 'legacy';
+      });
+      if (layout === 'mobile') await page.click('[data-testid=mobile-nav-toggle]');
+      if (layout === 'legacy-mobile') await page.click('.menu-open');
+      const menu = layout === 'mobile' ? '.frame-mobile-nav .account-menu' : layout === 'desktop' ? '.frame-side .account-menu' : '.account-menu';
+      await page.click(menu + ' summary');
+      return menu;
+    };
     const openInstance = (tool, name = 'default') => page.open(base + '/admin/tools/' + tool + '/instances/' + name);
     const addInstance = async (tool, name = 'default') => {
       await page.open(base + '/admin/tools/' + tool + '?sheet=add-instance');
@@ -358,9 +369,9 @@ test('ordinary users can create temporary tokens after recent authentication exp
     await page.click('form:has([name=enabled]) button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=enabled][value=false]');
-    await page.open(base + '/admin#nav');
-    await page.click('.account-menu summary');
-    await page.click('.account-menu form[action="/logout"] button');
+    await page.open(base + '/admin');
+    const menu = await openAccountMenu();
+    await page.click(menu + ' form[action="/logout"] button');
     await page.wait('[name=username]');
     await page.fill('[name=username]', 'synthetic-ordinary');
     await page.fill('[name=password]', 'CANARY-local-password');
@@ -1000,14 +1011,15 @@ test('navigation exposes contextual help and one sign-out on every admin screen 
       await page.open(base + path);
       await page.click('.page-help summary');
       check(await page.eval(() => document.querySelector('.page-help').open), 'Help did not open on ' + path);
-      check(await page.eval(() => document.querySelectorAll('form[action="/logout"]').length === 1), 'Sign-out is missing or duplicated on ' + path);
+      if (await page.eval(() => Boolean(document.querySelector('.account-menu')))) await openAccountMenu();
+      check(await page.eval(() => [...document.querySelectorAll('form[action="/logout"]')].filter(form => form.getClientRects().length > 0).length === 1), 'Sign-out is missing or duplicated on ' + path);
       check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Horizontal overflow on ' + path);
       // Interstitials use the auth card, which names the signed-in person beside its sign-out link.
-      check(await page.eval(() => document.querySelector('.account-menu summary')?.textContent.includes('Password') || document.querySelector('form.auth-foot[action="/logout"]')?.textContent.includes('Synthetic User')), 'Missing signed-in identity on ' + path);
+      check(await page.eval(() => [...document.querySelectorAll('.account-menu summary, form.auth-foot[action="/logout"]')].some(element => element.getClientRects().length > 0 && (element.textContent.includes('Password') || element.textContent.includes('Synthetic User')))), 'Missing signed-in identity on ' + path);
     }
-    await page.open(base + '/admin#nav');
-    await page.click('.account-menu summary');
-    await page.click('.account-menu a[href="/account"]');
+    await page.open(base + '/admin');
+    const menu = await openAccountMenu();
+    await page.click(menu + ' a[href="/account"]');
     await page.wait('a[href="/password"]');
     check(await page.eval(() => location.pathname === '/account'), 'Account navigation failed');
     `)
@@ -1873,9 +1885,9 @@ test('role rename saves without a dialog and stale drafts offer a reload recover
 
 test('account menu sign-out ends the browser session', () => {
   browser(`
-    await page.open(base + '/admin#nav');
-    await page.click('.account-menu summary');
-    await page.click('.account-menu form[action="/logout"] button');
+    await page.open(base + '/admin');
+    const menu = await openAccountMenu();
+    await page.click(menu + ' form[action="/logout"] button');
     await page.wait('[name=username]');
     await page.open(base + '/admin');
     await page.wait('[name=username]');
@@ -1885,9 +1897,9 @@ test('account menu sign-out ends the browser session', () => {
 
 test('ordinary accounts have account help and no administration navigation', () => {
   browser(`
-    await page.open(base + '/admin#nav');
-    await page.click('.account-menu summary');
-    await page.click('.account-menu form[action="/logout"] button');
+    await page.open(base + '/admin');
+    const menu = await openAccountMenu();
+    await page.click(menu + ' form[action="/logout"] button');
     await page.wait('[name=username]');
     await page.fill('[name=username]', 'synthetic-ordinary');
     await page.fill('[name=password]', 'CANARY-local-password');
@@ -2111,9 +2123,9 @@ test('user detail resets a password and the person must change it at sign-in', (
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=expectedRevision][value="2"]');
     check(await page.eval(() => document.querySelector('main').innerText.includes('Password change required')), 'Reset did not require password change');
-    await page.open(base + '/admin#nav');
-    await page.click('.account-menu summary');
-    await page.click('.account-menu form[action="/logout"] button');
+    await page.open(base + '/admin');
+    const menu = await openAccountMenu();
+    await page.click(menu + ' form[action="/logout"] button');
     await page.wait('[name=username]');
     await page.fill('[name=username]', 'synthetic-ordinary');
     await page.fill('[name=password]', 'CANARY-reset-password');
@@ -2281,9 +2293,9 @@ test('archiving from detail hides the user and shows retained history when reope
 test('ordinary account shows role tools and usable CLI guidance and can revoke its current browser', () => {
   chrome(['resize', '420', '900'])
   browser(`
-    await page.open(base + '/admin#nav');
-    await page.click('.account-menu summary');
-    await page.click('.account-menu form[action="/logout"] button');
+    await page.open(base + '/admin');
+    const menu = await openAccountMenu();
+    await page.click(menu + ' form[action="/logout"] button');
     await page.wait('[name=username]');
     await page.fill('[name=username]', 'synthetic-ordinary');
     await page.fill('[name=password]', 'CANARY-local-password');
