@@ -129,8 +129,13 @@ test('theme choices control visible colours across navigation', () => {
         };
         const expected = ${JSON.stringify(effective === 'dark' ? ['rgb(9, 9, 11)', 'rgb(250, 250, 250)'] : ['rgb(255, 255, 255)', 'rgb(9, 9, 11)'])};
         check(JSON.stringify(await page.eval(colours)) === JSON.stringify(expected), 'Wrong theme colours after selection');
+        const astryxColour = () => getComputedStyle(document.querySelector('[data-astryx-root] h2:not(#overview-summary)')).color;
+        const isDarkText = colour => colour.match(/\\d+/g).slice(0, 3).reduce((sum, value) => sum + Number(value), 0) < 384;
+        check(isDarkText(await page.eval(astryxColour)) === ${effective === 'light'}, 'Wrong Astryx colour after selection');
         await page.open(base + '/account');
         check(JSON.stringify(await page.eval(colours)) === JSON.stringify(expected), 'Wrong theme colours after navigation');
+        await page.open(base + '/admin');
+        check(isDarkText(await page.eval(astryxColour)) === ${effective === 'light'}, 'Wrong Astryx colour after navigation');
       `)
     }
   }
@@ -173,7 +178,37 @@ test('theme colours are correct before hydration on sign-in and overview', async
       const state = await page.eval(() => [document.documentElement.hasAttribute('data-astryx-theme'), getComputedStyle(document.body).backgroundColor]);
       if (state[0] || state[1] !== 'rgb(9, 9, 11)') throw new Error('Incorrect pre-hydration overview: ' + state);
     `)
+    for (const preference of ['light', 'dark']) {
+      run(['emulate', '--color-scheme', preference])
+      for (const choice of ['light', 'dark', 'system']) {
+        const effective = choice === 'system' ? preference : choice
+        run(['run'], `
+          await page.click('form[action="/theme"] button[value="${choice}"]');
+          await page.wait('form[action="/theme"] button[value="${choice}"][aria-pressed="true"]');
+          const state = await page.eval(() => [document.documentElement.hasAttribute('data-astryx-theme'),
+            getComputedStyle(document.querySelector('[data-astryx-root] h2:not(#overview-summary)')).color]);
+          const darkText = state[1].match(/\\d+/g).slice(0, 3).reduce((sum, value) => sum + Number(value), 0) < 384;
+          if (state[0] || darkText !== ${effective === 'light'}) throw new Error('Incorrect pre-hydration Astryx colour: ' + state);
+        `)
+      }
+    }
   } finally { run(['stop']) }
+})
+
+test('changing theme keeps a POST result visible', () => {
+  browser(`
+    await page.open(base + '/reauth');
+    await page.fill('[name=password]', 'CANARY-wrong-password');
+    await page.click('form[action="/reauth"] button[type="submit"]');
+    await page.wait('form[data-theme-stay]');
+    const title = await page.eval(() => document.querySelector('h1').textContent);
+    await page.click('form[action="/theme"] button[value="dark"]');
+    await page.wait('form[action="/theme"] button[value="dark"][aria-pressed="true"]');
+    check(await page.eval(() => document.querySelector('h1').textContent) === title, 'POST result disappeared');
+    check(await page.eval(() => getComputedStyle(document.body).backgroundColor) === 'rgb(9, 9, 11)', 'Theme did not change');
+    await page.open(base + '/account');
+    check(await page.eval(() => getComputedStyle(document.body).backgroundColor) === 'rgb(9, 9, 11)', 'Theme was not remembered');
+  `)
 })
 
 test('Figtree loads from the same origin under the admin content security policy', () => {

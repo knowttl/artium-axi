@@ -150,6 +150,7 @@ test('optional provider sign-out revokes the local session before offering the d
   const sessionToken = await signedIn()
   const response = await signOut(sessionToken, true)
   expect(response.statusCode).toBe(200)
+  expect(response.body).toContain('data-theme-stay="true"')
   const destination = new URL(/data-provider-signout href="([^"]+)"/.exec(response.body)![1]!.replaceAll('&amp;', '&'))
   expect(destination.pathname).toBe(`/${syntheticTenant}/v2.0/logout`)
   expect(destination.searchParams.get('post_logout_redirect_uri')).toBe('https://localhost/login')
@@ -170,6 +171,7 @@ test('provider failure leaves artium signed out and explains the remaining provi
   db.exec('UPDATE sso_providers SET enabled = 0')
   const response = await signOut(sessionToken, true)
   expect(response.statusCode).toBe(200)
+  expect(response.body).toContain('data-theme-stay="true"')
   expect(response.body).toContain('provider session may still be active')
   expect(() => readBrowserSession(db, sessionToken)).toThrow()
 })
@@ -416,6 +418,18 @@ async function deviceBrowser(code: string) {
   const csrf = /name="_csrf" value="([^"]+)"/.exec(page.body)![1]
   return { page, headers: { ...headers, origin: 'https://localhost', cookie: cookies }, csrf }
 }
+
+test.each(['approve', 'deny'])('theme selection preserves the CLI %s result', async decision => {
+  const device = await deviceRequest()
+  const browser = await deviceBrowser(device.userCode)
+  const result = await app.inject({ method: 'POST', url: '/device', headers: browser.headers,
+    payload: { _csrf: browser.csrf, code: device.userCode, decision } })
+  expect(result.body).toContain(`Request ${decision === 'approve' ? 'approved' : 'denied'}`)
+  expect(result.body).toContain('data-theme-stay="true"')
+  const changed = await app.inject({ method: 'POST', url: '/theme', headers: browser.headers, payload: { theme: 'dark', next: '/', stay: '1' } })
+  expect(changed.statusCode).toBe(204)
+  expect(changed.cookies.find(cookie => cookie.name === 'artium-theme')?.value).toBe('dark')
+})
 
 test('bearer SSO reauthentication issues a single ticket bound to the initiating family after approval', async () => {
   const token = issueTestAccessToken(db, 'synthetic-browser-sso')

@@ -6,6 +6,26 @@ export const adminStyle = tokens + components
 
 export const adminScript = `
 ${retestScript}
+for (const form of document.querySelectorAll('form[data-theme-stay]')) {
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = event.submitter;
+    const body = new URLSearchParams(new FormData(form));
+    body.set('theme', button.value);
+    const response = await fetch(form.action, { method: 'POST', body });
+    if (!response.ok) return;
+    const selected = form.querySelector('[aria-pressed="true"]');
+    if (selected !== button) {
+      const classes = selected.className;
+      selected.className = button.className;
+      button.className = classes;
+      selected.setAttribute('aria-pressed', 'false');
+      button.setAttribute('aria-pressed', 'true');
+    }
+    if (button.value === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', button.value);
+  });
+}
 for (const button of document.querySelectorAll('[data-copy]')) {
   button.addEventListener('click', async () => {
     const scope = button.closest('[data-copy-scope], .copy-group') || button.parentElement;
