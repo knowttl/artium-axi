@@ -10,8 +10,9 @@ import { registerAdminClientAssets } from './client-assets.js'
 import { escape } from './escape.js'
 import { actionForm, adminRead, changed, revision, timestamp, type Confirmation } from './forms.js'
 import { sessionTable } from './session-table.js'
-import { stateBadge, stateStatus, statusWord, toolIcon, toolProducts } from './design/status.js'
-import { avatar, callout, card, checkOption, field, icon, sheet, sheetLink } from './design/ui.js'
+import { describe, stateBadge, stateStatus, statusWord, toolIcon, toolProducts } from './design/status.js'
+import { avatar, callout, card, checkOption, field, icon, initials, sheet, sheetLink } from './design/ui.js'
+import { renderPage } from './render-page.js'
 
 type Role = { id: string, name: string, tools: z.infer<typeof toolSchema>[] }
 
@@ -23,11 +24,17 @@ export function roleOptions(roles: Role[], selected: string[], legend: string, e
 }
 
 // A role chip naming where the person's grant comes from: Direct, SSO rule, or both.
-function roleChip(user: { roleGrants: { roleId: string, origin: string }[] }, id: string, name: string, alwaysOrigin: boolean): string {
+function roleLabel(user: { roleGrants: { roleId: string, origin: string }[] }, id: string, name: string, alwaysOrigin: boolean): string {
   const origins = new Set(user.roleGrants.filter(grant => grant.roleId === id).map(grant => grant.origin === 'direct' ? statusWord('grant', 'direct') : statusWord('grant', 'rule')))
   const show = alwaysOrigin || origins.has(statusWord('grant', 'rule'))
-  return `<a class="chip" href="/admin/roles/${escape(encodeURIComponent(id))}">${escape(name)}${show ? ` · ${[...origins].sort().join(', ')}` : ''}</a>`
+  return `${name}${show ? ` · ${[...origins].sort().join(', ')}` : ''}`
 }
+
+function roleChip(user: { roleGrants: { roleId: string, origin: string }[] }, id: string, name: string, alwaysOrigin: boolean): string {
+  return `<a class="chip" href="/admin/roles/${escape(encodeURIComponent(id))}">${escape(roleLabel(user, id, name, alwaysOrigin))}</a>`
+}
+
+const signInState = (user: { source: string, breakGlass: boolean }) => user.source === 'sso' ? 'sso' : user.breakGlass ? 'break-glass' : 'password'
 
 export function temporaryPasswordField(id: string): string {
   return field(id, 'Temporary password', attributes => `<input class="input" ${attributes} type="password" name="temporaryPassword" autocomplete="new-password" required>`,
@@ -52,7 +59,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
   }
   const administratorOption = (selected: boolean, description: string) =>
     checkOption(`<input type="checkbox" name="administrator" data-type="boolean"${selected ? ' checked' : ''}>`, 'Administrator', description)
-  const signIn = (user: { source: string, breakGlass: boolean }) => stateBadge('signIn', user.source === 'sso' ? 'sso' : user.breakGlass ? 'break-glass' : 'password')
+  const signIn = (user: { source: string, breakGlass: boolean }) => stateBadge('signIn', signInState(user))
   const locked = (user: { lockedUntil: number | null }) => user.lockedUntil !== null && user.lockedUntil > Date.now()
 
   app.get('/admin/users', async (request, reply) => {
@@ -67,8 +74,6 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const roles = await allRoles(request)
     const csrf = reply.generateCsrf()
     const roleName = (id: string) => roles.find(role => role.id === id)?.name ?? id
-    const chip = (name: 'source' | 'status' | 'role', label: string, options: [string, string][]) => `<label class="filter${query.data[name] ? ' set' : ''}">${query.data[name] ? '' : icon('plus')}<span>${label}</span><select name="${name}"><option value="">Any</option>${options.map(([value, text]) =>
-      `<option value="${escape(value)}"${query.data[name] === value ? ' selected' : ''}>${escape(text)}</option>`).join('')}</select></label>`
     const link = (cursor?: string) => {
       const next = new URLSearchParams(params)
       next.delete('cursor')
@@ -76,22 +81,9 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
       return '/admin/users?' + next.toString()
     }
     const filtered = Boolean(query.data.q || query.data.source || query.data.status || query.data.role)
-    const filterRow = `<form class="filters" method="get" action="/admin/users" data-filters>
-      <label class="input-wrap">${icon('search')}<span class="sr-only">Search</span><input name="q" type="search" value="${escape(query.data.q ?? '')}" maxlength="256" placeholder="Search name or username"></label>
-      ${chip('source', 'Sign-in', [['local', 'Password'], ['sso', 'SSO']])}${chip('status', 'Status', [['enabled', 'Enabled'], ['disabled', 'Disabled']])}${chip('role', 'Role', roles.map(role => [role.id, role.name]))}
-      <input type="hidden" name="limit" value="${query.data.limit}"><button class="btn btn-secondary btn-sm" data-filters-apply>Apply</button>${filtered ? '<a class="btn btn-ghost btn-sm" href="/admin/users">Clear</a>' : ''}
-      <span class="count-note">${users.totalCount} ${users.totalCount === 1 ? 'person' : 'people'}</span></form>`
-    const rows = users.users.map(user => {
-      const chips = user.roleIds.map(id => roleChip(user, id, roleName(id), false)).join('')
-      return `<tr class="link${user.enabled ? '' : ' dim'}"><td><div class="cell-main">${avatar(user.displayName)}<div><a class="row-link" href="/admin/users/${escape(encodeURIComponent(user.id))}"><strong>${escape(user.displayName)}</strong></a><span>${escape(user.username)}${user.id === current.user_id ? ' · you' : ''}</span></div></div></td>
-        <td><div class="row">${signIn(user)}${user.administrator ? stateBadge('signIn', 'admin') : ''}</div></td>
-        <td>${chips ? `<div class="chips">${chips}</div>` : '<span class="none">No roles</span>'}</td>
-        <td>${stateStatus('person', user.enabled ? locked(user) ? 'locked' : 'enabled' : 'disabled')}</td><td class="num faint">${icon('chev')}</td></tr>`
-    }).join('')
-    const pager = `<span>Showing ${users.users.length} of ${users.totalCount}</span><div class="actions"><a class="btn btn-secondary btn-sm" href="${escape(link())}"${query.data.cursor ? '' : ' aria-disabled="true"'}>First page</a><a class="btn btn-secondary btn-sm" href="${escape(link(users.nextCursor ?? undefined))}"${users.nextCursor ? '' : ' aria-disabled="true"'}>Next</a></div>`
-    const table = users.users.length
-      ? `<section class="card"><h2 class="sr-only">People</h2><div class="table-wrap"><table class="tbl stacked"><thead><tr><th scope="col">Name</th><th scope="col">Sign-in</th><th scope="col">Roles</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Open</span></th></tr></thead><tbody>${rows}</tbody></table></div><div class="card-foot">${pager}</div></section>`
-      : card('No matching people', '', `<div class="card-body"><p class="note">${filtered ? 'Nobody matches these filters. Clear the filters or add a user.' : 'Add a local user, or invite someone to sign in with SSO.'}</p></div>`)
+    const filterSelects: [name: 'source' | 'status' | 'role', label: string, options: [string, string][]][] = [
+      ['source', 'Sign-in', [['local', 'Password'], ['sso', 'SSO']]], ['status', 'Status', [['enabled', 'Enabled'], ['disabled', 'Disabled']]],
+      ['role', 'Role', roles.map(role => [role.id, role.name])]]
     const addUser = sheet({ name: 'add-user', open: open === 'add-user', closeHref: link(query.data.cursor), title: 'Add a local user', description: 'For people without SSO, or a break-glass admin.',
       body: field('add-display-name', 'Display name', attributes => `<input class="input" ${attributes} name="displayName" required>`) +
         field('add-username', 'Username', attributes => `<input class="input mono" ${attributes} name="username" autocomplete="off" spellcheck="false" required>`, 'No spaces. It can’t be renamed later.') +
@@ -100,9 +92,17 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
         administratorOption(false, 'Can manage people, roles, tools and sign-in. Tool access still comes from roles.'),
       submit: '<button class="btn btn-primary">Add user</button>',
       wrap: inner => actionForm(csrf, '/v1/admin/users', 'POST', inner, { consequence: 'Create this local account? They can sign in with the temporary password and must replace it first. Tool access comes from the selected roles.', title: 'Add user', action: 'Add user' }) })
-    const content = `${filterRow}${table}${addUser}`
-    return browserPage(reply, 'People', content, current, 'Everyone who can sign in. Tool access comes from their roles.',
-      { actions: `<div class="actions"><a class="btn btn-secondary" href="/admin/invitations?sheet=new-invitation">${icon('mail')}Invite with SSO</a>${sheetLink('add-user', link(query.data.cursor).replace('?', '?sheet=add-user&'), 'Add user', 'btn btn-primary', 'plus')}</div>` })
+    return renderPage(reply, 'People', 'people', {
+      filters: { q: query.data.q ?? '', limit: query.data.limit, clear: filtered, count: `${users.totalCount} ${users.totalCount === 1 ? 'person' : 'people'}`,
+        selects: filterSelects.map(([name, label, options]) => ({ name, label, options, value: query.data[name] ?? '' })) },
+      people: users.users.map(user => ({ href: '/admin/users/' + encodeURIComponent(user.id), name: user.displayName, initials: initials(user.displayName), username: user.username, you: user.id === current.user_id,
+        signIn: describe('signIn', signInState(user)), administrator: user.administrator, status: describe('person', user.enabled ? locked(user) ? 'locked' : 'enabled' : 'disabled'),
+        enabled: user.enabled, roles: user.roleIds.map(id => ({ href: '/admin/roles/' + encodeURIComponent(id), label: roleLabel(user, id, roleName(id), false) })) })),
+      empty: filtered ? 'Nobody matches these filters. Clear the filters or add a user.' : 'Add a local user, or invite someone to sign in with SSO.',
+      pager: { summary: `Showing ${users.users.length} of ${users.totalCount}`, first: query.data.cursor ? link() : null, next: users.nextCursor ? link(users.nextCursor) : null },
+      sheet: addUser }, current, 'Everyone who can sign in. Tool access comes from their roles.',
+    [{ label: 'Invite with SSO', href: '/admin/invitations?sheet=new-invitation', variant: 'secondary', icon: 'mail' },
+      { label: 'Add user', href: link(query.data.cursor).replace('?', '?sheet=add-user&'), variant: 'primary', icon: 'plus', sheet: 'sheet-add-user' }])
   })
 
   app.get('/admin/users/:id', async (request, reply) => {

@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview uses the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
+Overview and People use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -24,15 +24,17 @@ A page on the seam is a React view in `src/views`, registered in `src/views/root
 Both use `renderToString` and `hoistInlineStyles()` to move emitted `style` attributes into the response's one nonce'd `<style>` element, then provide the view props and optional frame props as an `application/json` data block and load `hydrate.js`.
 `src/client/hydrate.tsx` first writes each hoisted declaration back onto its element through `element.style`, which the policy allows because it is not markup, then reads the root's view name and the data block and hydrates the same tree.
 React therefore finds the markup it rendered and owns later style changes.
-Overview is the first page on the seam.
+Overview is the first page on the seam, and People (`src/views/people.tsx`) is the second.
 
-The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and an actions slot, and the side navigation slot.
+The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet that `confirm.js` opens), and the side navigation slot.
 `adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu, confirmation pill and help panel once for both the frame and the legacy shell, so the links, landmarks and titles stay identical.
 The side navigation is an Astryx `SideNav` with a `SideNavSection` per group and a `SideNavItem` per link, whose current page is derived from the request path.
 The frame renders the legacy markup for the account menu, confirmation pill and help panel through `dangerouslySetInnerHTML`, so React neither re-renders nor compares what `confirm.js` updates there.
 Below the Astryx mobile breakpoint a native navigation disclosure remains usable without JavaScript, listing the same `SideNavItem` links without a second `SideNav`, and CSS hides the desktop sidebar.
 The frame retains one banner, one main and one navigation landmark labelled "Administration".
 The toast regions, confirmation dialogs and icon sprite that `confirm.js` drives stay outside the React root.
+A view that embeds a sheet or a confirmation form keeps its legacy markup in a `dangerouslySetInnerHTML` island, as People does for its add-user sheet, until the sheets and confirmation dialogs move to Astryx.
+The People filter chips stay native `select` elements, so filtering works without JavaScript and the form fields are unchanged.
 A view that shows a time wraps it in `<time suppressHydrationWarning>`, because `confirm.js` formats every `time[datetime]` before hydration.
 Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
 The legacy base rules for headings, paragraphs, links and table elements skip content inside `[data-astryx-root]`.

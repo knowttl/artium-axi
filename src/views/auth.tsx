@@ -10,6 +10,7 @@ import { TextInput } from '@astryxdesign/core/TextInput'
 import { Heading, Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
+import { Icon } from './icon.js'
 
 export interface AuthButton {
   label: string
@@ -57,10 +58,6 @@ function Field({ field }: { field: AuthField }) {
   const [value, setValue] = useState('')
   return <TextInput label={field.label} id={field.id} htmlName={field.name} type={field.type} value={value} onChange={setValue}
     autoComplete={field.autoComplete} description={field.hint} controlClassName={field.mono ? 'mono' : undefined} {...{ required: true, maxLength: field.maxLength }} />
-}
-
-function Icon({ name }: { name: string }) {
-  return <svg className="i" aria-hidden="true"><use href={`#i-${name}`} /></svg>
 }
 
 function Buttons({ buttons, row }: { buttons: AuthButton[], row?: true }) {

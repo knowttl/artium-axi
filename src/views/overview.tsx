@@ -10,9 +10,7 @@ import { Heading, Text } from '@astryxdesign/core/Text'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import type { ReactNode } from 'react'
-
-type Tone = 'ok' | 'warn' | 'err' | 'info' | 'off' | 'neutral' | 'solid'
-interface Status { word: string, tone: Tone }
+import { badgeVariants, type Status, type Tone } from './status.js'
 
 export interface OverviewProps {
   stats: { label: string, value: string, note: string, tone?: Tone }[]
@@ -23,8 +21,6 @@ export interface OverviewProps {
   steps: { title: string, done: boolean, detail: string, href: string, action: string }[]
   changes: { mark: string, title: string, actor: string, at: string }[]
 }
-
-const badgeVariants = { ok: 'success', warn: 'warning', err: 'error', info: 'info', off: 'neutral', neutral: 'neutral', solid: 'neutral' } as const
 
 function Panel({ title, description, link, children }: { title: string, description?: string, link?: { href: string, label: string }, children: ReactNode }) {
   return (
@@ -82,7 +78,7 @@ export function Overview({ stats, attention, attentionEmpty, tools, setupSummary
       </Panel>
       <Panel title="Tools" description="Enabled tools and their last check." link={{ href: '/admin/tools', label: 'All tools' }}>
         {tools.length ? (
-          <Table aria-label="Enabled tools" scrollWrapper={({ children }) => <div className="table-wrap overview-tools">{children}</div>}>
+          <Table aria-label="Enabled tools" scrollWrapper={({ children }) => <div className="table-wrap link-rows">{children}</div>}>
             <TableHeader>
               <TableRow isHeaderRow>
                 {['Tool', 'State', 'Writes', 'Roles', 'Last checked'].map(heading => <TableHeaderCell key={heading} scope="col">{heading}</TableHeaderCell>)}

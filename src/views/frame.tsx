@@ -1,18 +1,29 @@
 import { AppShell } from '@astryxdesign/core/AppShell'
+import { Button } from '@astryxdesign/core/Button'
 import { HStack } from '@astryxdesign/core/HStack'
 import { SideNav, SideNavHeading, SideNavItem, SideNavSection } from '@astryxdesign/core/SideNav'
 import { Heading, Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
 import type { ReactNode } from 'react'
+import { Icon } from './icon.js'
 
 export interface NavigationSection {
   title?: string
   links: { href: string, label: string, icon: string, current: boolean }[]
 }
 
+export interface FrameAction {
+  label: string
+  href: string
+  variant: 'primary' | 'secondary'
+  icon: string
+  sheet?: string
+}
+
 export interface FrameProps {
   title: string
   description?: string
+  actions?: FrameAction[]
   crumbs: { label: string, href?: string }[]
   brand: { name: string, href: string }
   navigation: NavigationSection[]
@@ -24,12 +35,12 @@ export interface FrameProps {
 function NavigationLinks({ sections }: { sections: NavigationSection[] }) {
   return sections.map(({ title, links }, index) => {
     const items = links.map(link => <SideNavItem key={link.href} href={link.href} label={link.label} isSelected={link.current}
-      icon={<svg className="i" aria-hidden="true"><use href={`#i-${link.icon}`} /></svg>} />)
+      icon={<Icon name={link.icon} />} />)
     return title ? <SideNavSection key={index} title={title}>{items}</SideNavSection> : <div key={index}>{items}</div>
   })
 }
 
-export function Frame({ title, description, crumbs, brand, navigation, account, controls, topbarEnd, actions, children }: FrameProps & { actions?: ReactNode, children: ReactNode }) {
+export function Frame({ title, description, actions, crumbs, brand, navigation, account, controls, topbarEnd, children }: FrameProps & { children: ReactNode }) {
   return (
     <AppShell variant="section" contentPadding={4}
       mobileNav={{ breakpoint: 'none' }}
@@ -65,7 +76,10 @@ export function Frame({ title, description, crumbs, brand, navigation, account, 
             <Heading level={1}>{title}</Heading>
             {description && <Text as="p" type="supporting">{description}</Text>}
           </VStack>
-          {actions}
+          {actions && <HStack gap={2} wrap="wrap">
+            {actions.map(action => <Button key={action.href} href={action.href} label={action.label} variant={action.variant} icon={<Icon name={action.icon} />}
+              {...action.sheet ? { 'data-sheet': action.sheet } : {}} />)}
+          </HStack>}
         </HStack>
         {children}
       </VStack>
