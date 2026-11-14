@@ -19,14 +19,11 @@ export function readThemeMode(request: FastifyRequest): ThemeMode {
   return themeModeSchema.catch('system').parse(request.cookies?.[themeCookie])
 }
 
-export function themeSwitch(reply: FastifyReply, mode: ThemeMode, destination?: string): string {
-  const next = destination ?? (reply.request.method === 'GET' ? reply.request.url : '/')
-  const stay = !destination && reply.request.method !== 'GET'
+export function themeSwitch(reply: FastifyReply, mode: ThemeMode): string {
   return renderToString(
     <Theme theme={neutralTheme} mode={mode}>
-      <form method="post" action="/theme" data-theme-stay={stay || undefined}>
-        <input type="hidden" name="next" value={next} />
-        {stay && <input type="hidden" name="stay" value="1" />}
+      <form method="post" action="/theme">
+        <input type="hidden" name="next" value={reply.request.url} />
         <ButtonGroup label="Colour theme" size="sm">
           {themeModeSchema.options.map(option => (
             <Button key={option} type="submit" name="theme" value={option} label={labels[option]} size="sm"
@@ -40,9 +37,8 @@ export function themeSwitch(reply: FastifyReply, mode: ThemeMode, destination?: 
 
 export function registerThemeRoute(app: FastifyInstance): void {
   app.post('/theme', async (request, reply) => {
-    const input = z.object({ theme: themeModeSchema, next: z.string().regex(sameOriginPath).catch('/'), stay: z.literal('1').optional() }).safeParse(request.body)
+    const input = z.object({ theme: themeModeSchema, next: z.string().regex(sameOriginPath).catch('/') }).safeParse(request.body)
     if (!input.success) throw new ArtiumError('INVALID_INPUT')
-    reply.setCookie(themeCookie, input.data.theme, themeCookieOptions)
-    return input.data.stay ? reply.code(204).send() : reply.redirect(input.data.next, 303)
+    return reply.setCookie(themeCookie, input.data.theme, themeCookieOptions).redirect(input.data.next, 303)
   })
 }

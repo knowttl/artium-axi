@@ -195,19 +195,16 @@ test('theme colours are correct before hydration on sign-in and overview', async
   } finally { run(['stop']) }
 })
 
-test('changing theme keeps a POST result visible', () => {
+test('POST errors do not offer a theme switch', () => {
   browser(`
     await page.open(base + '/reauth');
     await page.fill('[name=password]', 'CANARY-wrong-password');
     await page.click('form[action="/reauth"] button[type="submit"]');
-    await page.wait('form[data-theme-stay]');
-    const title = await page.eval(() => document.querySelector('h1').textContent);
-    await page.click('form[action="/theme"] button[value="dark"]');
-    await page.wait('form[action="/theme"] button[value="dark"][aria-pressed="true"]');
-    check(await page.eval(() => document.querySelector('h1').textContent) === title, 'POST result disappeared');
-    check(await page.eval(() => getComputedStyle(document.body).backgroundColor) === 'rgb(9, 9, 11)', 'Theme did not change');
-    await page.open(base + '/account');
-    check(await page.eval(() => getComputedStyle(document.body).backgroundColor) === 'rgb(9, 9, 11)', 'Theme was not remembered');
+    await page.wait('h1');
+    check(await page.eval(() => document.querySelector('h1').textContent) === 'Request failed', 'Expected POST error');
+    check(await page.eval(() => !document.querySelector('form[action="/theme"]')), 'POST error offered a theme switch');
+    await page.open(base + '/admin/missing');
+    check(await page.eval(() => Boolean(document.querySelector('form[action="/theme"]'))), 'GET error lacks a theme switch');
   `)
 })
 

@@ -224,7 +224,7 @@ function accountMenu(viewer: Viewer, path: string, placement: 'up' | 'down', the
   const role = viewer.administrator && !viewer.mustChange ? ' · Admin' : ''
   const links = viewer.mustChange ? '' : `<a href="/account"${path === '/account' ? ' aria-current="page"' : ''}>${icon('user')}Your account</a>${viewer.local ? `<a href="/password"${path === '/password' ? ' aria-current="page"' : ''}>${icon('key')}Change password</a>` : ''}<hr>`
   return `<details class="account-menu ${placement}"><summary>${avatar(viewer.name)}<span class="who"><span class="sr-only">Signed in as </span><strong>${escape(viewer.name)}</strong><span>${escape(viewer.method + role)}</span></span>${icon('chevd')}</summary>
-    <div class="popover">${links}<p class="popover-note">Colour theme</p><div class="theme-row">${themeSwitch}</div><hr><form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(viewer.csrf)}">${viewer.sso ? '<label class="check"><input type="checkbox" name="providerLogout" value="true"> Also sign out of your identity provider</label>' : ''}<button class="btn btn-ghost btn-sm">${icon('logout')}Sign out</button></form></div></details>`
+    <div class="popover">${links}${themeSwitch ? `<p class="popover-note">Colour theme</p><div class="theme-row">${themeSwitch}</div><hr>` : ''}<form method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(viewer.csrf)}">${viewer.sso ? '<label class="check"><input type="checkbox" name="providerLogout" value="true"> Also sign out of your identity provider</label>' : ''}<button class="btn btn-ghost btn-sm">${icon('logout')}Sign out</button></form></div></details>`
 }
 
 function learn(title: string, help: string): string {
@@ -262,7 +262,7 @@ function authCard(page: Page): string {
     ? `<div class="auth-head"><span class="ico-circle ${page.mark.tone === 'neutral' ? '' : page.mark.tone}">${icon(page.mark.icon)}</span><h1>${escape(page.title)}</h1></div>${page.description ? `<p>${escape(page.description)}</p>` : ''}`
     : brand(home) + pageHeader(page.title, { description: page.description })
   const signedIn = viewer ? `<form class="auth-foot" method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(viewer.csrf)}">Signed in as ${escape(viewer.name)} · <button class="link">Sign out</button>${viewer.sso ? '<label class="check"><input type="checkbox" name="providerLogout" value="true"> Also sign out of your identity provider</label>' : ''}</form>` : ''
-  return `<a class="skip" href="#main">Skip to content</a><main id="main" class="auth"><div class="auth-wrap"><div class="auth-card">${head}${page.content}</div>${page.footnote ? `<p class="auth-foot">${escape(page.footnote)}</p>` : ''}${signedIn}<div class="theme-row">${page.themeSwitch}</div>
+  return `<a class="skip" href="#main">Skip to content</a><main id="main" class="auth"><div class="auth-wrap"><div class="auth-card">${head}${page.content}</div>${page.footnote ? `<p class="auth-foot">${escape(page.footnote)}</p>` : ''}${signedIn}${page.themeSwitch ? `<div class="theme-row">${page.themeSwitch}</div>` : ''}
       <details class="page-help auth-help"><summary>Need help?</summary>${page.help}</details></div></main>${toasts}${sprite}`
 }
 

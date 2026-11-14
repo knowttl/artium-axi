@@ -30,7 +30,7 @@ export const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite
 const pages = ['/login', '/logout', '/password', '/reauth', '/device', '/admin', '/account', '/theme']
 
 export function browserPage(reply: FastifyReply, title: string, content: string, current?: BrowserSession, description?: string,
-  options: PageOptions & { helpTopic?: string, head?: string, themeNext?: string } = {}) {
+  options: PageOptions & { helpTopic?: string, head?: string } = {}) {
   const viewer = current && {
     name: current.display_name,
     method: current.source === 'sso' ? 'SSO' : current.break_glass ? 'Break-glass' : 'Password',
@@ -41,9 +41,10 @@ export function browserPage(reply: FastifyReply, title: string, content: string,
     csrf: reply.generateCsrf(),
     reauthUntil: current.reauthenticated_at === null ? 0 : current.reauthenticated_at + authDefaults.recentAuthMs,
   }
-  const { helpTopic, head = '', themeNext, ...page } = options
+  const { helpTopic, head = '', ...page } = options
   const mode = readThemeMode(reply.request)
-  const body = appShell({ ...page, title, description, content, help: pageHelp(helpTopic ?? title, current?.source), path: reply.request.url.split('?')[0]!, viewer, themeSwitch: themeSwitch(reply, mode, themeNext) })
+  const switchHtml = reply.request.method === 'GET' && !reply.request.url.startsWith('/auth/sso/') ? themeSwitch(reply, mode) : ''
+  const body = appShell({ ...page, title, description, content, help: pageHelp(helpTopic ?? title, current?.source), path: reply.request.url.split('?')[0]!, viewer, themeSwitch: switchHtml })
   return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"${mode === 'system' ? '' : ` data-theme="${mode}"`}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><link rel="stylesheet" href="/admin/assets/astryx.css"><script defer src="/admin/assets/confirm.js"></script>${head}</head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${body}</body></html>`)
 }
 
