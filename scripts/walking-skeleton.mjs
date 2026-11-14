@@ -4,7 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { chmodSync, copyFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createTestCertificates } from '../test/fake-service/certificates.mjs'
+import { createTestCertificates } from '../test/fake-service/certificates.ts'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const name = `artium-test-s20-21-${randomUUID()}`

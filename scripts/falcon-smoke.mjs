@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { createServer } from 'node:https'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createTestCertificates } from '../test/fake-service/certificates.mjs'
+import { createTestCertificates } from '../test/fake-service/certificates.ts'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-falcon-'))
 let requests = 0

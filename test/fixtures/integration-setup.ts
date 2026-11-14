@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer } from 'node:tls'
 import { beforeAll, afterAll, vi } from 'vitest'
-import { createTestCertificates } from '../fake-service/certificates.mjs'
+import { createTestCertificates } from '../fake-service/certificates.js'
 
 const transport = vi.hoisted(() => ({ port: 0, ca: '', sockets: new WeakSet<object>(),
   local: (host: string) => ['localhost', '127.0.0.1', '::1', '[::1]'].includes(host) }))

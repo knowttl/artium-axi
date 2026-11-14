@@ -5,7 +5,7 @@ import { request } from 'node:https'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { createTestCertificates } from './certificates.mjs'
+import { createTestCertificates } from './certificates.js'
 
 export async function withFakeService(check: (fixture: {
   directory: string

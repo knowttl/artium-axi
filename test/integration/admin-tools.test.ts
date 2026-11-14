@@ -37,7 +37,7 @@ import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-tra
 import { seedToolUser } from '../fixtures/tokens.js'
 import { fakeTool } from '../fake-tool/tool.js'
 import { CredentialProfile, loadCredentialProfile } from '../../src/server/adapters/credential-profile.js'
-import { createTestCertificates } from '../fake-service/certificates.mjs'
+import { createTestCertificates } from '../fake-service/certificates.js'
 import profileSchema from '../fixtures/axi-credential.schema.json' with { type: 'json' }
 import { createSshAdapter } from '../../src/server/adapters/ssh.js'
 import { SshHosts } from '../../src/server/store/ssh-hosts.js'
