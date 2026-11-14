@@ -33,7 +33,7 @@ Below the Astryx mobile breakpoint a native navigation disclosure remains usable
 The frame retains one banner, one main and one navigation landmark labelled "Administration".
 The toast regions, confirmation dialogs and icon sprite that `confirm.js` drives stay outside the React root.
 A view that shows a time wraps it in `<time suppressHydrationWarning>`, because `confirm.js` formats every `time[datetime]` before hydration.
-Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Grid`, `Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
+Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
 The legacy base rules for headings, paragraphs, links and table elements skip content inside `[data-astryx-root]`.
 
 ## Constraints
@@ -43,6 +43,7 @@ The legacy base rules for headings, paragraphs, links and table elements skip co
   Each browser response gets a fresh unpredictable nonce, available to handlers as `reply.styleNonce`.
   The policy never includes `unsafe-inline` or a `style-src-attr` allowance.
 - `hoistInlineStyles()` in `src/server/admin/inline-styles.ts` can move supported `style` attributes into a nonce'd element and throws on declarations it cannot prove safe.
+- The one function-bearing value it accepts beyond the layout functions is `repeat(auto-fit, minmax(220px, 1fr))` on `--x-gridTemplateColumns`, the template emitted by the Overview's Astryx `Grid`.
   `renderPage()` calls it on every rendered view, and it returns no style element when there are no declarations.
 - Figtree (SIL Open Font License) is self-hosted: the build copies four weights from `@fontsource/figtree` to `/admin/assets/fonts/` and adds the `@font-face` rules to `astryx.css`, which the Astryx neutral `Figtree` font-family tokens already name.
 - Reading and navigating work without JavaScript; disclosures use native `<details>`.
@@ -181,6 +182,7 @@ The sidebar groups administration into Overview, Access (People, Roles, Invitati
 The current section is derived from the request path.
 On legacy pages, at 760px and narrower the sidebar opens full screen through a `#nav` fragment link in the top bar.
 On the render seam the sidebar is an Astryx `SideNav`; at 767px and narrower it is replaced by a navigation disclosure in the header.
+The header stays one row there, and the recent-auth pill and the colour theme switch move into that disclosure.
 
 ## Changing the UI
 

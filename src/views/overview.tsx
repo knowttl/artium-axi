@@ -1,6 +1,7 @@
 import { Badge } from '@astryxdesign/core/Badge'
 import { Button } from '@astryxdesign/core/Button'
 import { Card } from '@astryxdesign/core/Card'
+import { Grid } from '@astryxdesign/core/Grid'
 import { HStack } from '@astryxdesign/core/HStack'
 import { List, ListItem } from '@astryxdesign/core/List'
 import { Step, Stepper } from '@astryxdesign/core/Stepper'
@@ -56,7 +57,7 @@ export function Overview({ stats, attention, attentionEmpty, tools, setupSummary
     <VStack gap={4}>
       <section aria-labelledby="overview-summary">
         <VisuallyHidden as="h2" id="overview-summary">Summary</VisuallyHidden>
-        <HStack gap={3} wrap="wrap">
+        <Grid columns={{ minWidth: 220, repeat: 'fit' }} gap={3}>
           {stats.map(stat => (
             <Card key={stat.label}>
               <VStack gap={1}>
@@ -66,7 +67,7 @@ export function Overview({ stats, attention, attentionEmpty, tools, setupSummary
               </VStack>
             </Card>
           ))}
-        </HStack>
+        </Grid>
       </section>
       <Panel title="Needs attention" description={attention.length ? 'Each item names the broken link and the fix.' : 'No problems reported.'}>
         {attention.length ? (

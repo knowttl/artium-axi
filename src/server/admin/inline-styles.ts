@@ -20,8 +20,9 @@ function declarations(text: string) {
     const property = part.slice(0, separator).trim()
     const value = part.slice(separator + 1).trim()
     const functions = [...value.matchAll(/([\w-]+)\s*\(/g)].map(match => match[1]!.toLowerCase())
+    const gridColumns = property === '--x-gridTemplateColumns' && value === 'repeat(auto-fit, minmax(220px, 1fr))'
     if (separator < 1 || !propertyPattern.test(property) || !valuePattern.test(value) || !balanced(value) || /\/\*|\*\//.test(value) ||
-      functions.some(name => !allowedFunctions.has(name))) throw unsafe()
+      !gridColumns && functions.some(name => !allowedFunctions.has(name))) throw unsafe()
     return `${property}:${value}`
   }).join(';')
 }

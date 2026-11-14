@@ -1,4 +1,9 @@
+import { createElement } from 'react'
+import { renderToString } from 'react-dom/server'
 import { expect, test } from 'vitest'
+import { Grid } from '@astryxdesign/core/Grid'
+import { Theme } from '@astryxdesign/core/theme'
+import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import { hoistInlineStyles } from '../src/server/admin/inline-styles.js'
 
 const nonce = 'AAAAAAAAAAAAAAAAAAAAAA=='
@@ -47,5 +52,28 @@ test.each([
   ['a property that is not a CSS name', '<div style="a b:1px"></div>'],
   ['a declaration without a colon', '<div style="--x-a"></div>'],
 ])('rejects %s instead of emitting it', (_name, input) => {
+  expect(() => hoistInlineStyles(input, nonce)).toThrow('cannot be moved')
+})
+
+test('hoists the styles of the Overview Astryx Grid', () => {
+  const html = renderToString(createElement(Theme, { theme: neutralTheme, children: createElement(Grid, { columns: { minWidth: 220, repeat: 'fit' }, gap: 3, children: 'Synthetic cell' }) }))
+  const hoisted = hoistInlineStyles(html, nonce)
+  expect(hoisted.html).not.toMatch(/\sstyle=/)
+  expect(hoisted.style).toContain('--x-gridTemplateColumns:repeat(auto-fit, minmax(220px, 1fr))')
+})
+
+test.each([
+  ['a template on another property', '<div style="--x-width:repeat(auto-fit, minmax(220px, 1fr))"></div>'],
+  ['a fixed column count', '<div style="--x-gridTemplateColumns:repeat(3, 1fr)"></div>'],
+  ['auto-fill columns', '<div style="--x-gridTemplateColumns:repeat(auto-fill, minmax(220px, 1fr))"></div>'],
+  ['a different minimum', '<div style="--x-gridTemplateColumns:repeat(auto-fit, minmax(200px, 1fr))"></div>'],
+  ['capped columns with a gap', '<div style="--x-gridTemplateColumns:repeat(auto-fill, minmax(min(100%, max(200px, calc((100% - 3 * var(--spacing-0-5)) / 4))), 1fr))"></div>'],
+  ['capped columns without a gap', '<div style="--x-gridTemplateColumns:repeat(auto-fit, minmax(min(100%, max(200px, calc(100% / 4))), 1fr))"></div>'],
+  ['a repeat count that is not a number', '<div style="--x-gridTemplateColumns:repeat(var(--x-a), 1fr)"></div>'],
+  ['a track list that carries more than the grid form', '<div style="--x-gridTemplateColumns:repeat(3, 1fr) 2px"></div>'],
+  ['a repeat that wraps a disallowed function', '<div style="--x-gridTemplateColumns:repeat(auto-fill, minmax(url(a), 1fr))"></div>'],
+  ['a minmax outside repeat', '<div style="--x-gridTemplateColumns:minmax(200px, 1fr)"></div>'],
+  ['a spacing variable that is not a spacing token', '<div style="--x-gridTemplateColumns:repeat(auto-fill, minmax(min(100%, max(200px, calc((100% - 3 * var(--other)) / 4))), 1fr))"></div>'],
+])('still rejects %s', (_name, input) => {
   expect(() => hoistInlineStyles(input, nonce)).toThrow('cannot be moved')
 })

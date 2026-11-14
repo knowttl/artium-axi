@@ -17,6 +17,7 @@ export interface FrameProps {
   brand: { name: string, href: string }
   navigation: NavigationSection[]
   account: string
+  controls: string
   topbarEnd: string
 }
 
@@ -28,7 +29,7 @@ function NavigationLinks({ sections }: { sections: NavigationSection[] }) {
   })
 }
 
-export function Frame({ title, description, crumbs, brand, navigation, account, topbarEnd, actions, children }: FrameProps & { actions?: ReactNode, children: ReactNode }) {
+export function Frame({ title, description, crumbs, brand, navigation, account, controls, topbarEnd, actions, children }: FrameProps & { actions?: ReactNode, children: ReactNode }) {
   return (
     <AppShell variant="section" contentPadding={4}
       mobileNav={{ breakpoint: 'none' }}
@@ -38,6 +39,7 @@ export function Frame({ title, description, crumbs, brand, navigation, account, 
             <summary className="btn btn-ghost btn-sm" data-testid="mobile-nav-toggle">Navigation</summary>
             <div className="frame-mobile-menu">
               <NavigationLinks sections={navigation} />
+              <div className="frame-controls frame-controls-drawer" dangerouslySetInnerHTML={{ __html: controls }} />
               <div className="side-foot" dangerouslySetInnerHTML={{ __html: account }} />
             </div>
           </details>
@@ -45,7 +47,10 @@ export function Frame({ title, description, crumbs, brand, navigation, account, 
         <ol className="crumbs">{crumbs.map((crumb, index) => <li key={index}>{index === crumbs.length - 1
           ? <strong aria-current="page">{crumb.label}</strong>
           : crumb.href ? <a href={crumb.href}>{crumb.label}</a> : <span>{crumb.label}</span>}</li>)}</ol>
-        <div data-frame-slot="header-end" dangerouslySetInnerHTML={{ __html: topbarEnd }} />
+        <div data-frame-slot="header-end">
+          <div className="frame-controls frame-controls-header" dangerouslySetInnerHTML={{ __html: controls }} />
+          <div dangerouslySetInnerHTML={{ __html: topbarEnd }} />
+        </div>
       </header>}
       sideNav={
         <SideNav className="frame-side" aria-label="Administration"
