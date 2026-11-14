@@ -181,6 +181,7 @@ export class SshConnections {
         else {
           const code = message.error?.code
           pending.reject(new ArtiumError(code === 'CONNECTION_BUSY' ? 'CONNECTION_BUSY'
+            : code === 'SUDO_DENIED' ? 'SUDO_DENIED'
             : code === 'AUTH_FAILED' ? 'UPSTREAM_AUTH_FAILED' : code === 'AUTH_TIMEOUT' ? 'TIMEOUT'
               : ['TRUST_FAILED', 'ADDRESS_DENIED'].includes(code ?? '') ? 'CREDENTIAL_INVALID' : 'CONNECTION_CLOSED'))
         }
@@ -232,7 +233,7 @@ export class SshConnections {
     return this.view(connection)
   }
   async execute(owner: SshOwner, host: string, id: string, sudo: boolean,
-    settings: { command: string, timeout: number, outputLimit: number }, signal: AbortSignal, runner: Runner, beforeDispatch: () => void) {
+    settings: { command: string, timeout: number, outputLimit: number, sudoPassword?: boolean }, signal: AbortSignal, runner: Runner, beforeDispatch: () => void) {
     this.assertAvailable(owner, host, id, sudo)
     const connection = this.owned(owner, id)
     connection.state = 'active'; this.schedule(connection)
