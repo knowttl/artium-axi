@@ -31,6 +31,20 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .nav-item:hover { background: var(--bg-hover); color: var(--text); }
 .nav-item[aria-current="page"] { background: var(--bg-active); color: var(--text); }
 .side-foot { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); }
+.frame-side { display: flex; flex-direction: column; box-sizing: border-box; min-height: 100%; width: 100%; min-width: var(--side-w); padding: 12px 10px; }
+.frame-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.frame-nav nav { display: flex; flex-direction: column; gap: 2px; }
+.frame-mobile-nav { display: none; }
+.frame-mobile-menu { position: absolute; top: 100%; left: 0; width: min(var(--side-w), 100vw); max-height: calc(100dvh - 100%); overflow-y: auto; padding: 12px 10px; background: var(--bg); border: 1px solid var(--border); }
+@media (max-width: 767px) {
+  .frame-mobile-nav { display: block; }
+  [data-astryx-root] .astryx-app-shell-sidenav { display: none; }
+}
+[data-frame-slot="header-end"] { display: flex; align-items: center; gap: 8px; }
+.topbar.frame-topbar { height: auto; min-height: var(--topbar-h); flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px; }
+.frame-topbar [data-frame-slot="header-end"] { margin-left: auto; flex-wrap: wrap; }
+.frame-topbar .crumbs { padding: 0; list-style: none; }
+.frame-topbar .crumbs li + li::before { content: '/'; margin-right: 6px; }
 .main { display: flex; flex-direction: column; min-width: 0; }
 .topbar { position: sticky; top: 0; z-index: 10; height: var(--topbar-h); display: flex; align-items: center; gap: 12px; padding: 0 24px; background: var(--bg); border-bottom: 1px solid var(--border); }
 .topbar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }

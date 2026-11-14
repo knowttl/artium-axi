@@ -266,6 +266,35 @@ function authCard(page: Page): string {
       <details class="page-help auth-help"><summary>Need help?</summary>${page.help}</details></div></main>${toasts}${sprite}`
 }
 
+export interface AdminChrome {
+  crumbs: { label: string, href?: string }[]
+  brand: string
+  navigation: string
+  mobileNavigation: string
+  topbarEnd: string
+  overlays: string
+}
+
+export function adminChrome(page: Page & { viewer: Viewer }): AdminChrome {
+  const { viewer } = page
+  const active = navigation.find(item => item.href === '/admin' ? page.path === '/admin' : page.path === item.href || page.path.startsWith(item.href + '/'))
+  let group: string | undefined
+  const items = navigation.map(item => {
+    const label = item.group !== group ? `<p class="nav-label">${escape(item.group!)}</p>` : ''
+    group = item.group
+    return `${label}<a class="nav-item" href="${item.href}"${item === active ? ' aria-current="page"' : ''}>${icon(item.icon)}${escape(item.label)}</a>`
+  }).join('')
+  const parent = page.parent ?? (page.heading && active ? { href: active.href, label: active.label } : active?.group && active.group !== page.title ? { label: active.group } : undefined)
+  return {
+    crumbs: [...parent ? [parent] : [], { label: page.heading ?? page.title }],
+    brand: brand('/admin'),
+    navigation: `<nav aria-label="Administration">${items}</nav><div class="side-foot">${accountMenu(viewer, page.path, 'up', page.themeSwitch)}</div>`,
+    mobileNavigation: `${items}<div class="side-foot">${accountMenu(viewer, page.path, 'up', page.themeSwitch)}</div>`,
+    topbarEnd: reauthPill(viewer) + learn(page.title, page.help),
+    overlays: toasts + dialogs(viewer) + sprite,
+  }
+}
+
 export function appShell(page: Page): string {
   const { viewer } = page
   if (!viewer || page.layout === 'auth') return authCard(page)
@@ -275,18 +304,12 @@ export function appShell(page: Page): string {
     return `<a class="skip" href="#main">Skip to content</a><div class="app plain"><header class="topbar">${brand(viewer.mustChange ? '/password' : '/account')}<div class="right">${viewer.mustChange ? '' : reauthPill(viewer)}${learn(page.title, page.help)}${accountMenu(viewer, page.path, 'down', page.themeSwitch)}</div></header>
       <main id="main" class="content narrow" tabindex="-1">${head}${message}${page.content}</main></div>${dialogs(viewer)}${sprite}`
   }
-  const active = navigation.find(item => item.href === '/admin' ? page.path === '/admin' : page.path === item.href || page.path.startsWith(item.href + '/'))
-  let group: string | undefined
-  const items = navigation.map(item => {
-    const label = item.group !== group ? `<p class="nav-label">${escape(item.group!)}</p>` : ''
-    group = item.group
-    return `${label}<a class="nav-item" href="${item.href}"${item === active ? ' aria-current="page"' : ''}>${icon(item.icon)}${escape(item.label)}</a>`
-  }).join('')
-  const parent = page.parent ? `<a href="${escape(page.parent.href)}">${escape(page.parent.label)}</a>` : page.heading && active ? `<a href="${active.href}">${escape(active.label)}</a>` : active?.group && active.group !== page.title ? `<span>${escape(active.group)}</span>` : ''
-  const crumbs = `<p class="crumbs">${parent ? `${parent}<span class="sep" aria-hidden="true">/</span>` : ''}<strong>${escape(page.heading ?? page.title)}</strong></p>`
+  const chrome = adminChrome({ ...page, viewer })
+  const parent = chrome.crumbs.length > 1 ? chrome.crumbs[0]! : undefined
+  const crumbs = `<p class="crumbs">${parent ? `${parent.href ? `<a href="${escape(parent.href)}">${escape(parent.label)}</a>` : `<span>${escape(parent.label)}</span>`}<span class="sep" aria-hidden="true">/</span>` : ''}<strong>${escape(chrome.crumbs.at(-1)!.label)}</strong></p>`
   return `<a class="skip" href="#main">Skip to content</a><div class="app">
-    <div class="side" id="nav"><div class="side-head">${brand('/admin')}<a class="btn btn-ghost btn-icon btn-sm side-close" href="#main" aria-label="Close navigation">${icon('x')}</a></div>
-      <nav aria-label="Administration">${items}</nav><div class="side-foot">${accountMenu(viewer, page.path, 'up', page.themeSwitch)}</div></div>
-    <div class="main"><header class="topbar"><a class="btn btn-ghost btn-icon btn-sm menu-open" href="#nav" aria-label="Open navigation">${icon('list')}</a>${crumbs}<div class="right">${reauthPill(viewer)}${learn(page.title, page.help)}</div></header>
+    <div class="side" id="nav"><div class="side-head">${chrome.brand}<a class="btn btn-ghost btn-icon btn-sm side-close" href="#main" aria-label="Close navigation">${icon('x')}</a></div>
+      ${chrome.navigation}</div>
+    <div class="main"><header class="topbar"><a class="btn btn-ghost btn-icon btn-sm menu-open" href="#nav" aria-label="Open navigation">${icon('list')}</a>${crumbs}<div class="right">${chrome.topbarEnd}</div></header>
       <main id="main" class="content" tabindex="-1">${head}${message}${page.content}</main></div></div>${dialogs(viewer)}${sprite}`
 }

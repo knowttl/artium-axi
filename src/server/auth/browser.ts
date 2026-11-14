@@ -14,7 +14,7 @@ import { browserIdentity, createBrowserSession, readBrowserSession, recentBrowse
 import { escape } from '../admin/escape.js'
 import { pageHelp } from '../admin/forms.js'
 import { readThemeMode, registerThemeRoute, themeSwitch } from '../admin/theme-mode.js'
-import { appShell, callout, icon, type PageOptions } from '../admin/design/ui.js'
+import { appShell, callout, icon, type PageOptions, type Viewer } from '../admin/design/ui.js'
 import { authDefaults } from '../config.js'
 import { listUserSessions, revokeUserSession } from './user-sessions.js'
 import { revokeUserSessions } from './tokens.js'
@@ -29,9 +29,8 @@ export const browserCookie = 'artium-session'
 export const cookieOptions = { path: '/', secure: true, httpOnly: true, sameSite: 'strict' } as const
 const pages = ['/login', '/logout', '/password', '/reauth', '/device', '/admin', '/account', '/theme']
 
-export function browserPage(reply: FastifyReply, title: string, content: string, current?: BrowserSession, description?: string,
-  options: PageOptions & { helpTopic?: string, head?: string } = {}) {
-  const viewer = current && {
+export function browserViewer(reply: FastifyReply, current: BrowserSession): Viewer {
+  return {
     name: current.display_name,
     method: current.source === 'sso' ? 'SSO' : current.break_glass ? 'Break-glass' : 'Password',
     administrator: Boolean(current.administrator),
@@ -41,11 +40,19 @@ export function browserPage(reply: FastifyReply, title: string, content: string,
     csrf: reply.generateCsrf(),
     reauthUntil: current.reauthenticated_at === null ? 0 : current.reauthenticated_at + authDefaults.recentAuthMs,
   }
-  const { helpTopic, head = '', ...page } = options
+}
+
+export function browserDocument(reply: FastifyReply, title: string, body: string, current?: BrowserSession, head = '') {
   const mode = readThemeMode(reply.request)
-  const switchHtml = reply.request.method === 'GET' && !reply.request.url.startsWith('/auth/sso/') ? themeSwitch(reply, mode) : ''
-  const body = appShell({ ...page, title, description, content, help: pageHelp(helpTopic ?? title, current?.source), path: reply.request.url.split('?')[0]!, viewer, themeSwitch: switchHtml })
   return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"${mode === 'system' ? '' : ` data-theme="${mode}"`}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><link rel="stylesheet" href="/admin/assets/astryx.css"><script defer src="/admin/assets/confirm.js"></script>${head}</head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${body}</body></html>`)
+}
+
+export function browserPage(reply: FastifyReply, title: string, content: string, current?: BrowserSession, description?: string,
+  options: PageOptions & { helpTopic?: string } = {}) {
+  const { helpTopic, ...page } = options
+  const switchHtml = reply.request.method === 'GET' && !reply.request.url.startsWith('/auth/sso/') ? themeSwitch(reply, readThemeMode(reply.request)) : ''
+  const body = appShell({ ...page, title, description, content, help: pageHelp(helpTopic ?? title, current?.source), path: reply.request.url.split('?')[0]!, viewer: current && browserViewer(reply, current), themeSwitch: switchHtml })
+  return browserDocument(reply, title, body, current)
 }
 
 export function registerBrowser(app: FastifyInstance, db: Database.Database, audit: Audit, attempts: AuthAttempts,

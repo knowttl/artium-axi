@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview uses the Astryx render seam inside the legacy shell.
+Overview uses the Astryx render seam and page frame; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -20,23 +20,31 @@ Pages on the render seam load them; every other page still renders through the l
 ## Render seam
 
 A page on the seam is a React view in `src/views`, registered in `src/views/root.tsx` with the JSON-serializable props type its route builds.
-`renderPage()` in `src/server/admin/render-page.tsx` server-renders the view inside the existing shell with `renderToString`, moves every `style` attribute it emits into the response's one nonce'd `<style>` element through `hoistInlineStyles()`, and adds `astryx.css`, the props as an `application/json` data block and `hydrate.js`.
-`src/client/hydrate.tsx` first writes each hoisted declaration back onto its element through `element.style`, which the policy allows because it is not markup, then reads the root's view name and the props block and hydrates the same tree.
+`renderPage()` in `src/server/admin/render-page.tsx` server-renders the view inside the page frame with `renderToString`, moves every `style` attribute it emits into the response's one nonce'd `<style>` element through `hoistInlineStyles()`, and adds `astryx.css`, the frame and view props as an `application/json` data block and `hydrate.js`.
+`src/client/hydrate.tsx` first writes each hoisted declaration back onto its element through `element.style`, which the policy allows because it is not markup, then reads the root's view name and the data block and hydrates the same tree.
 React therefore finds the markup it rendered and owns later style changes.
 Overview is the first page on the seam.
+
+The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and an actions slot, and the side navigation slot.
+`adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu, confirmation pill and help panel once for both the frame and the legacy shell, so the links, landmarks and titles stay identical.
+Until the side navigation moves to Astryx, the frame renders the legacy markup for the brand, links, account menu, confirmation pill and help panel through `dangerouslySetInnerHTML`, so React neither re-renders nor compares what `confirm.js` updates there.
+Below the Astryx mobile breakpoint a native navigation disclosure remains usable without JavaScript, and CSS hides the desktop sidebar.
+The frame retains one banner, one main and one navigation landmark labelled "Administration".
+The toast regions, confirmation dialogs and icon sprite that `confirm.js` drives stay outside the React root.
+A view that shows a time wraps it in `<time suppressHydrationWarning>`, because `confirm.js` formats every `time[datetime]` before hydration.
 Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Grid`, `Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
 The legacy base rules for headings, paragraphs, links and table elements skip content inside `[data-astryx-root]`.
 
 ## Constraints
 
-- Pages are server-rendered HTML through `browserPage`.
+- Pages are server-rendered HTML through `browserPage` or, for render-seam views, `renderPage()`.
 - The content security policy allows only same-origin scripts, styles and fonts, plus the response's own nonce for one `<style>` element, so there are no CDNs, inline scripts or `style` attributes.
   Each browser response gets a fresh unpredictable nonce, available to handlers as `reply.styleNonce`.
   The policy never includes `unsafe-inline` or a `style-src-attr` allowance.
 - `hoistInlineStyles()` in `src/server/admin/inline-styles.ts` can move supported `style` attributes into a nonce'd element and throws on declarations it cannot prove safe.
   `renderPage()` calls it on every rendered view, and it returns no style element when there are no declarations.
 - Figtree (SIL Open Font License) is self-hosted: the build copies four weights from `@fontsource/figtree` to `/admin/assets/fonts/` and adds the `@font-face` rules to `astryx.css`, which the Astryx neutral `Figtree` font-family tokens already name.
-- Reading and navigating work without JavaScript; disclosures use native `<details>`, and the narrow-screen menu uses a `#nav` fragment.
+- Reading and navigating work without JavaScript; disclosures use native `<details>`.
 - Every mutation keeps its API, CSRF token, `expectedRevision` and recent-auth flow.
 
 ## Rules
@@ -170,7 +178,8 @@ Form errors appear inside the open dialog so they remain visible and can receive
 
 The sidebar groups administration into Overview, Access (People, Roles, Invitations), Tools (Tools) and Security (Sign-in & SSO, Audit log).
 The current section is derived from the request path.
-At 760px and narrower the sidebar collapses behind a menu button in the top bar and opens full screen.
+On legacy pages, at 760px and narrower the sidebar opens full screen through a `#nav` fragment link in the top bar.
+On the render seam, at 767px and narrower the sidebar is replaced by a navigation disclosure in the header.
 
 ## Changing the UI
 

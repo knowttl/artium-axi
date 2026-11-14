@@ -37,6 +37,17 @@ function chrome(args: string[], input?: string) {
 function browser(script: string) {
   return chrome(['run'], `const base = ${JSON.stringify(fixture.url)};
     const check = (value, message) => { if (!value) throw new Error(message); };
+    const openAccountMenu = async () => {
+      const layout = await page.eval(() => {
+        if (document.querySelector('.frame-mobile-nav')) return matchMedia('(max-width: 767px)').matches ? 'mobile' : 'desktop';
+        return document.querySelector('.menu-open')?.getClientRects().length ? 'legacy-mobile' : 'legacy';
+      });
+      if (layout === 'mobile') await page.click('[data-testid=mobile-nav-toggle]');
+      if (layout === 'legacy-mobile') await page.click('.menu-open');
+      const menu = layout === 'mobile' ? '.frame-mobile-nav .account-menu' : layout === 'desktop' ? '.frame-side .account-menu' : '.account-menu';
+      await page.click(menu + ' summary');
+      return menu;
+    };
     const openInstance = (tool, name = 'default') => page.open(base + '/admin/tools/' + tool + '/instances/' + name);
     const addInstance = async (tool, name = 'default') => {
       await page.open(base + '/admin/tools/' + tool + '?sheet=add-instance');
@@ -192,6 +203,15 @@ test('theme colours are correct before hydration on sign-in and overview', async
         `)
       }
     }
+    run(['resize', '320', '900'])
+    run(['run'], `
+      const width = await page.eval(() => document.querySelector('[role=main]').getBoundingClientRect().width);
+      if (width < 240) throw new Error('Overview is too narrow without JavaScript: ' + width);
+      await page.click('[data-testid=mobile-nav-toggle]');
+      await page.wait('.frame-mobile-nav details[open]');
+      await page.click('.frame-mobile-nav a[href="/admin/users"]');
+      if (await page.eval(() => location.pathname) !== '/admin/users') throw new Error('Navigation did not work without JavaScript');
+    `)
   } finally { run(['stop']) }
 })
 
@@ -206,6 +226,127 @@ test('POST errors do not offer a theme switch', () => {
     await page.open(base + '/admin/missing');
     check(await page.eval(() => Boolean(document.querySelector('form[action="/theme"]'))), 'GET error lacks a theme switch');
   `)
+})
+
+test('hydrating the overview frame keeps the elements the confirmation script already owns', () => {
+  browser(`
+    await page.open(base + '/admin/roles');
+    const status = await page.eval('(async () => { const response = await fetch("/v1/admin/roles", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ name: "Synthetic hydration role", _csrf: document.querySelector("[name=_csrf]").value }) }); return response.status; })()');
+    check(status === 200 || status === 201, 'Could not create a role to list under recent changes: ' + status);
+    await page.open(base + '/admin');
+    await page.wait('html[data-astryx-theme]');
+    await page.wait('[data-astryx-root] time');
+    check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
+    await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
+    await page.wait('.unlock.off', 35000);
+    check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'The confirmation pill stopped following the confirmation state after hydration');
+    check(await page.eval(() => !/T\\d\\d:\\d\\d:\\d\\d/.test(document.querySelector('[data-astryx-root] time').textContent)), 'Hydration restored the unformatted time');
+  `)
+})
+
+test('the confirmation pill keeps following the confirmation state when the narrow-screen frame replaces it', () => {
+  chrome(['emulate', '--viewport', '390x844x1,mobile,touch'])
+  try {
+    browser(`
+      await page.open(base + '/admin');
+      await page.wait('html[data-astryx-theme]');
+      await page.wait('[data-testid=mobile-nav-toggle]');
+      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
+      await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
+      await page.wait('.unlock.off', 35000);
+      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'The confirmation pill stopped following the confirmation state on a narrow screen');
+    `)
+  } finally {
+    chrome(['stop'])
+  }
+})
+
+test('the overview keeps landmarks and the header theme switch at both widths', () => {
+  try {
+    for (const width of [1280, 390, 320]) {
+      const choice = width === 390 ? 'light' : 'dark'
+      chrome(['resize', String(width), '900'])
+      browser(`
+        await page.open(base + '/admin');
+        await page.wait('html[data-astryx-theme]');
+        const landmarks = () => {
+          const visible = element => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden';
+          const banners = [...document.querySelectorAll('[role=banner], body > header')].filter(visible);
+          const mains = [...document.querySelectorAll('main, [role=main]')].filter(visible);
+          const navs = [...document.querySelectorAll('nav, [role=navigation]')].filter(visible);
+          return banners.length === 1 && mains.length === 1 && navs.length === 1 && navs[0].getAttribute('aria-label') === 'Administration';
+        };
+        check(await page.eval(landmarks), 'Overview landmarks changed with navigation closed');
+        ${width < 768 ? "await page.click('[data-testid=mobile-nav-toggle]'); await page.wait('.frame-mobile-nav details[open]');" : ''}
+        check(await page.eval(landmarks), 'Overview landmarks changed with navigation open');
+        check(await page.eval(() => [...document.querySelectorAll('nav[aria-label=Administration] a[href="/admin/users"]')].some(link => link.getClientRects().length > 0)), 'Administration links are not reachable');
+        ${width < 768 ? "await page.click('[data-testid=mobile-nav-toggle]'); await page.wait('.frame-mobile-nav details:not([open])');" : ''}
+        const themeLocation = await page.eval(() => {
+          const forms = [...document.querySelectorAll('form[action="/theme"]')];
+          return forms.map(form => [Boolean(form.closest('[role=banner]')), form.elements.next.value]);
+        });
+        check(themeLocation.length === 1 && themeLocation[0][0] && themeLocation[0][1] === '/admin', 'Theme switch is not in the header: ' + JSON.stringify(themeLocation));
+        check(await page.eval(() => {
+          const header = document.querySelector('.frame-topbar').getBoundingClientRect();
+          const main = document.querySelector('[role=main]').getBoundingClientRect();
+          const controls = [...document.querySelectorAll('.frame-topbar [data-reauth-until], .frame-topbar .learn > summary, .frame-topbar form[action="/theme"], .frame-topbar [data-testid=mobile-nav-toggle]')];
+          return header.bottom <= main.top && controls.every(control => {
+            const bounds = control.getBoundingClientRect();
+            return bounds.top >= header.top && bounds.bottom <= header.bottom && bounds.left >= header.left && bounds.right <= header.right;
+          });
+        }), 'Header controls overflow the frame or overlap the content');
+        check(await page.eval(() => document.querySelector('[role=banner] form[action="/theme"] button[value=${choice}]').getAttribute('aria-pressed') === 'false'), 'Theme choice must change');
+        await page.click('[role=banner] form[action="/theme"] button[value=${choice}]');
+        await page.wait('[role=banner] form[action="/theme"] button[value=${choice}][aria-pressed=true]');
+        await page.open(base + '/admin');
+        check(await page.eval(() => document.documentElement.dataset.theme === '${choice}' && document.querySelector('[role=banner] form[action="/theme"] button[value=${choice}]').getAttribute('aria-pressed') === 'true'), 'Theme choice did not survive navigation');
+      `)
+    }
+  } finally { chrome(['resize', '1280', '900']) }
+})
+
+test('mobile navigation keeps account controls reachable on short screens', () => {
+  try {
+    for (const [width, height] of [[320, 400], [390, 400], [320, 600]]) {
+      chrome(['resize', String(width), String(height)])
+      browser(`
+        await page.open(base + '/admin');
+        await page.click('[data-testid=mobile-nav-toggle]');
+        await page.eval(() => { const menu = document.querySelector('.frame-mobile-menu'); menu.scrollTop = menu.scrollHeight; });
+        check(await page.eval(() => {
+          const menu = document.querySelector('.frame-mobile-menu').getBoundingClientRect();
+          const account = document.querySelector('.frame-mobile-nav .account-menu summary').getBoundingClientRect();
+          return menu.bottom <= innerHeight && account.top >= menu.top && account.bottom <= menu.bottom;
+        }), 'Navigation or account control extends below the viewport');
+        await page.click('.frame-mobile-nav .account-menu summary');
+        await page.click('.frame-mobile-nav .account-menu a[href="/account"]');
+        check(await page.eval(() => location.pathname === '/account'), 'Account link is unreachable');
+      `)
+    }
+  } finally { chrome(['resize', '1280', '900']) }
+})
+
+test('confirmation expiry survives resizing across the mobile breakpoint', () => {
+  try {
+    chrome(['resize', '1280', '900'])
+    browser(`
+      await page.open(base + '/admin');
+      await page.wait('html[data-astryx-theme]');
+      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
+      await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
+      await page.wait('.unlock.off', 35000);
+    `)
+    chrome(['resize', '390', '900'])
+    browser(`
+      await page.wait('[data-testid=mobile-nav-toggle]');
+      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'Mobile header restored an expired confirmation');
+    `)
+    chrome(['resize', '1280', '900'])
+    browser(`
+      await page.wait('.astryx-app-shell-sidenav');
+      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'Desktop header restored an expired confirmation');
+    `)
+  } finally { chrome(['resize', '1280', '900']) }
 })
 
 test('Figtree loads from the same origin under the admin content security policy', () => {
@@ -249,9 +390,9 @@ test('ordinary users can create temporary tokens after recent authentication exp
     await page.click('form:has([name=enabled]) button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=enabled][value=false]');
-    await page.open(base + '/admin#nav');
-    await page.click('.account-menu summary');
-    await page.click('.account-menu form[action="/logout"] button');
+    await page.open(base + '/admin');
+    const menu = await openAccountMenu();
+    await page.click(menu + ' form[action="/logout"] button');
     await page.wait('[name=username]');
     await page.fill('[name=username]', 'synthetic-ordinary');
     await page.fill('[name=password]', 'CANARY-local-password');
@@ -891,14 +1032,15 @@ test('navigation exposes contextual help and one sign-out on every admin screen 
       await page.open(base + path);
       await page.click('.page-help summary');
       check(await page.eval(() => document.querySelector('.page-help').open), 'Help did not open on ' + path);
-      check(await page.eval(() => document.querySelectorAll('form[action="/logout"]').length === 1), 'Sign-out is missing or duplicated on ' + path);
+      if (await page.eval(() => Boolean(document.querySelector('.account-menu')))) await openAccountMenu();
+      check(await page.eval(() => [...document.querySelectorAll('form[action="/logout"]')].filter(form => form.getClientRects().length > 0).length === 1), 'Sign-out is missing or duplicated on ' + path);
       check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Horizontal overflow on ' + path);
       // Interstitials use the auth card, which names the signed-in person beside its sign-out link.
-      check(await page.eval(() => document.querySelector('.account-menu summary')?.textContent.includes('Password') || document.querySelector('form.auth-foot[action="/logout"]')?.textContent.includes('Synthetic User')), 'Missing signed-in identity on ' + path);
+      check(await page.eval(() => [...document.querySelectorAll('.account-menu summary, form.auth-foot[action="/logout"]')].some(element => element.getClientRects().length > 0 && (element.textContent.includes('Password') || element.textContent.includes('Synthetic User')))), 'Missing signed-in identity on ' + path);
     }
-    await page.open(base + '/admin#nav');
-    await page.click('.account-menu summary');
-    await page.click('.account-menu a[href="/account"]');
+    await page.open(base + '/admin');
+    const menu = await openAccountMenu();
+    await page.click(menu + ' a[href="/account"]');
     await page.wait('a[href="/password"]');
     check(await page.eval(() => location.pathname === '/account'), 'Account navigation failed');
     `)
@@ -1764,9 +1906,9 @@ test('role rename saves without a dialog and stale drafts offer a reload recover
 
 test('account menu sign-out ends the browser session', () => {
   browser(`
-    await page.open(base + '/admin#nav');
-    await page.click('.account-menu summary');
-    await page.click('.account-menu form[action="/logout"] button');
+    await page.open(base + '/admin');
+    const menu = await openAccountMenu();
+    await page.click(menu + ' form[action="/logout"] button');
     await page.wait('[name=username]');
     await page.open(base + '/admin');
     await page.wait('[name=username]');
@@ -1776,9 +1918,9 @@ test('account menu sign-out ends the browser session', () => {
 
 test('ordinary accounts have account help and no administration navigation', () => {
   browser(`
-    await page.open(base + '/admin#nav');
-    await page.click('.account-menu summary');
-    await page.click('.account-menu form[action="/logout"] button');
+    await page.open(base + '/admin');
+    const menu = await openAccountMenu();
+    await page.click(menu + ' form[action="/logout"] button');
     await page.wait('[name=username]');
     await page.fill('[name=username]', 'synthetic-ordinary');
     await page.fill('[name=password]', 'CANARY-local-password');
@@ -2002,9 +2144,9 @@ test('user detail resets a password and the person must change it at sign-in', (
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=expectedRevision][value="2"]');
     check(await page.eval(() => document.querySelector('main').innerText.includes('Password change required')), 'Reset did not require password change');
-    await page.open(base + '/admin#nav');
-    await page.click('.account-menu summary');
-    await page.click('.account-menu form[action="/logout"] button');
+    await page.open(base + '/admin');
+    const menu = await openAccountMenu();
+    await page.click(menu + ' form[action="/logout"] button');
     await page.wait('[name=username]');
     await page.fill('[name=username]', 'synthetic-ordinary');
     await page.fill('[name=password]', 'CANARY-reset-password');
@@ -2172,9 +2314,9 @@ test('archiving from detail hides the user and shows retained history when reope
 test('ordinary account shows role tools and usable CLI guidance and can revoke its current browser', () => {
   chrome(['resize', '420', '900'])
   browser(`
-    await page.open(base + '/admin#nav');
-    await page.click('.account-menu summary');
-    await page.click('.account-menu form[action="/logout"] button');
+    await page.open(base + '/admin');
+    const menu = await openAccountMenu();
+    await page.click(menu + ' form[action="/logout"] button');
     await page.wait('[name=username]');
     await page.fill('[name=username]', 'synthetic-ordinary');
     await page.fill('[name=password]', 'CANARY-local-password');

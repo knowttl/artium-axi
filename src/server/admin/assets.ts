@@ -45,16 +45,24 @@ if (toastMessage) {
 for (const time of document.querySelectorAll('time[datetime]')) {
   time.textContent = new Date(time.dateTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
-const reauthState = document.querySelector('[data-reauth-until]');
+const findReauthState = () => document.querySelector('[data-reauth-until]');
+let reauthUntil = Number(findReauthState()?.dataset.reauthUntil || 0);
 function updateReauthState() {
+  const reauthState = findReauthState();
   if (!reauthState) return;
-  const minutes = Math.max(0, Math.ceil((Number(reauthState.dataset.reauthUntil) - Date.now()) / 60000));
+  reauthState.dataset.reauthUntil = reauthUntil;
+  const minutes = Math.max(0, Math.ceil((reauthUntil - Date.now()) / 60000));
   reauthState.querySelector('[data-reauth-text]').textContent = minutes ? 'Changes unlocked · ' + minutes + ' min' : 'Changes locked';
   reauthState.className = 'unlock ' + (minutes ? 'on' : 'off');
   reauthState.querySelector('use').setAttribute('href', minutes ? '#i-unlock' : '#i-lock');
 }
 updateReauthState();
-if (reauthState) setInterval(updateReauthState, 30000);
+if (findReauthState()) {
+  setInterval(updateReauthState, 30000);
+  new MutationObserver(records => {
+    if (records.some(record => [...record.addedNodes].some(node => node.nodeType === 1 && (node.matches('[data-reauth-until]') || node.querySelector('[data-reauth-until]'))))) updateReauthState();
+  }).observe(document.body, { childList: true, subtree: true });
+}
 if (document.querySelector('[data-sso-reauth-complete]') && window.opener) {
   window.opener.postMessage('artium-reauth-complete', location.origin);
 }
@@ -339,7 +347,7 @@ function reauthenticate(csrf) {
         const status = await response.json();
         if (status.sessionId !== document.body.dataset.sessionId || status.until <= Date.now()) throw new Error();
         if (closed) return;
-        reauthState.dataset.reauthUntil = status.until;
+        reauthUntil = status.until;
         updateReauthState();
         dialog.close('confirmed');
       } catch { if (!closed) error.textContent = 'Identity confirmation did not complete for this session. Try again or cancel to keep your draft.'; }
@@ -350,7 +358,7 @@ function reauthenticate(csrf) {
       if (button.disabled) return;
       button.disabled = true;
       error.textContent = '';
-      if (reauthState.dataset.reauthMethod === 'sso') {
+      if (findReauthState().dataset.reauthMethod === 'sso') {
         popup = window.open('/reauth', 'artium-reauth', 'popup,width=600,height=760');
         if (!popup) {
           error.textContent = 'Allow a popup for artium, then try again. Your draft stays here.';
@@ -379,7 +387,7 @@ function reauthenticate(csrf) {
           form.elements.password.focus();
           return;
         }
-        reauthState.dataset.reauthUntil = response.headers.get('x-artium-reauth-until');
+        reauthUntil = Number(response.headers.get('x-artium-reauth-until'));
         updateReauthState();
         dialog.close('confirmed');
       } catch { if (!closed) error.textContent = 'Password confirmation could not complete. Try again or cancel to keep your draft.'; }

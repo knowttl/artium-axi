@@ -1,5 +1,6 @@
 import type { ThemeMode } from '@astryxdesign/core/theme'
 import { hydrateRoot } from 'react-dom/client'
+import type { FrameProps } from '../views/frame.js'
 import { Root, type ViewName, type ViewProps } from '../views/root.js'
 
 const root = document.querySelector<HTMLElement>('[data-astryx-root]')
@@ -15,5 +16,6 @@ if (root && props) {
       element.removeAttribute('data-inline-style')
     }
   }
-  hydrateRoot(root, <Root name={root.dataset.view as ViewName} props={JSON.parse(props.textContent!) as ViewProps[ViewName]} mode={root.dataset.mode as ThemeMode} />)
+  const { frame, props: viewProps } = JSON.parse(props.textContent!) as { frame: FrameProps, props: ViewProps[ViewName] }
+  hydrateRoot(root, <Root name={root.dataset.view as ViewName} props={viewProps} frame={frame} mode={root.dataset.mode as ThemeMode} />)
 }

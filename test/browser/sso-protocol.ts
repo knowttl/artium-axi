@@ -503,7 +503,7 @@ test('break-glass browser sign-in and password confirmation are highlighted in A
     await page.fill('[name=password]', 'CANARY-local-password');
     await page.click('form[action="/login"] button');
     await page.wait('nav[aria-label=Administration]');
-    check(await page.eval(() => document.querySelector('.account-menu summary').innerText.includes('Break-glass')), 'Break-glass identity flag missing');`)
+    check(await page.eval(() => [...document.querySelectorAll('.account-menu summary')].some(summary => summary.getClientRects().length > 0 && summary.innerText.includes('Break-glass'))), 'Break-glass identity flag missing');`)
   assert.equal((await fetch(fixture.clock, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ advanceMs: 900_000 }) })).status, 200)
   browser(`await page.open(base + '/reauth');
