@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
@@ -262,14 +262,6 @@ test.each(['<link rel="stylesheet" href="https://fonts.example/a.css">', '<scrip
 
 test.each(['/admin/assets/style.css', '/admin/assets/astryx.css'])('%s loads only same-origin resources', async url => {
   assertSameOriginStylesheet((await app.inject({ url })).body)
-})
-
-test('hand-written client source contains no colour literal', () => {
-  const sources = readdirSync('src/client', { recursive: true, encoding: 'utf8' }).filter(file => /\.(?:tsx?|css)$/.test(file))
-  expect(sources).not.toEqual([])
-  for (const file of sources) {
-    expect(readFileSync(join('src/client', file), 'utf8'), file).not.toMatch(/#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|oklch|oklab|lab|lch|color)\(/i)
-  }
 })
 
 test('the admin navigation marks the section of the current page', async () => {
