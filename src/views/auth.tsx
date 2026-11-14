@@ -79,7 +79,7 @@ function Block({ block }: { block: AuthBlock }) {
       </Text>
     )
     case 'divider': return <Divider label={block.label} />
-    case 'banner': return <Banner status={block.status} title={block.text} />
+    case 'banner': return <Banner status={block.status} title={block.text} icon={<Icon name={block.status === 'success' ? 'check' : 'alert'} />} />
     case 'code': return <Card variant="muted"><div role="group" aria-label="Code"><Text as="p" type="code" size="3xl" weight="bold" justify="center">{block.value}</Text></div></Card>
     case 'details': return (
       <MetadataList columns="single">

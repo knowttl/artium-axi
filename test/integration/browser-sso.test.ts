@@ -429,6 +429,17 @@ test.each(['approve', 'deny'])('CLI %s result has no theme switch', async decisi
   expect(result.body).not.toContain('action="/theme"')
 })
 
+test('an approved CLI request remains visible until collected', async () => {
+  const device = await deviceRequest()
+  const browser = await deviceBrowser(device.userCode)
+  const approval = await app.inject({ method: 'POST', url: '/device', headers: browser.headers,
+    payload: { _csrf: browser.csrf, code: device.userCode, decision: 'approve' } })
+  expect(approval.statusCode).toBe(200)
+  const page = await app.inject({ url: '/device?code=' + device.userCode, headers: browser.headers })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toContain('This request is already approved. Return to your terminal.')
+})
+
 test('bearer SSO reauthentication issues a single ticket bound to the initiating family after approval', async () => {
   const token = issueTestAccessToken(db, 'synthetic-browser-sso')
   const authorization = { authorization: `Bearer ${token}` }
