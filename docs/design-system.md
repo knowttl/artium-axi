@@ -1,8 +1,8 @@
 # Design system
 
-The web UI is built in four layers: tokens, then components, then patterns, then pages.
+The current web UI is built in four layers: tokens, then components, then patterns, then pages.
 Pages compose components and never style themselves.
-This document is the reference for every current and future screen.
+This document describes the current screens and their design rules.
 
 ## Files
 
@@ -14,6 +14,8 @@ This document is the reference for every current and future screen.
 | `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per state, the badge and status-dot helpers, and the product display name and mark of each tool. |
 
 `adminStyle` in `src/server/admin/assets.ts` concatenates tokens and components and is served from `/admin/assets/style.css`.
+The build also produces a React and Astryx browser bundle and the Astryx neutral stylesheet, served at `/admin/assets/hydrate.js` and `/admin/assets/astryx.css`.
+These assets prepare for the UI rehaul; current pages do not load them or render Astryx components.
 
 ## Constraints
 
