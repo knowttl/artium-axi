@@ -208,6 +208,43 @@ test('POST errors do not offer a theme switch', () => {
   `)
 })
 
+test('hydrating the overview frame keeps the elements the confirmation script already owns', () => {
+  browser(`
+    await page.open(base + '/admin/roles');
+    const status = await page.eval('(async () => { const response = await fetch("/v1/admin/roles", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ name: "Synthetic hydration role", _csrf: document.querySelector("[name=_csrf]").value }) }); return response.status; })()');
+    check(status === 200 || status === 201, 'Could not create a role to list under recent changes: ' + status);
+    await page.open(base + '/admin');
+    await page.wait('html[data-astryx-theme]');
+    await page.wait('[data-astryx-root] time');
+    check(await page.eval(() => {
+      const pill = document.querySelector('[data-reauth-until]');
+      pill.dataset.reauthUntil = '0';
+      updateReauthState();
+      return pill.querySelector('[data-reauth-text]').textContent === 'Changes locked';
+    }), 'The confirmation pill stopped following the confirmation state after hydration');
+    check(await page.eval(() => !/T\\d\\d:\\d\\d:\\d\\d/.test(document.querySelector('[data-astryx-root] time').textContent)), 'Hydration restored the unformatted time');
+  `)
+})
+
+test('the confirmation pill keeps following the confirmation state when the narrow-screen frame replaces it', () => {
+  chrome(['emulate', '--viewport', '390x844x1,mobile,touch'])
+  try {
+    browser(`
+      await page.open(base + '/admin');
+      await page.wait('html[data-astryx-theme]');
+      await page.wait('[aria-controls]');
+      check(await page.eval(() => {
+        const pill = document.querySelector('[data-reauth-until]');
+        pill.dataset.reauthUntil = '0';
+        updateReauthState();
+        return pill.querySelector('[data-reauth-text]').textContent === 'Changes locked';
+      }), 'The confirmation pill stopped following the confirmation state on a narrow screen');
+    `)
+  } finally {
+    chrome(['stop'])
+  }
+})
+
 test('Figtree loads from the same origin under the admin content security policy', () => {
   browser(`
     check(await page.eval(async () => {

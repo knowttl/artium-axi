@@ -47,7 +47,7 @@ function Mark({ text }: { text: string }) {
 }
 
 function Time({ iso }: { iso: string | null }) {
-  return iso === null ? <>Not checked</> : <time dateTime={iso} title={iso}>{iso}</time>
+  return iso === null ? <>Not checked</> : <time dateTime={iso} title={iso} suppressHydrationWarning>{iso}</time>
 }
 
 export function Overview({ stats, attention, attentionEmpty, tools, setupSummary, steps, changes }: OverviewProps) {

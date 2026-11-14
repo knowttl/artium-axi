@@ -754,8 +754,35 @@ test('users-list bookmarks from before Overview still open the users list with t
   const response = await request('GET', '/admin?source=local&limit=1')
   expect(response.statusCode).toBe(301)
   expect(response.headers.location).toBe('/admin/users?source=local&limit=1')
-  expect((await request('GET', '/admin')).body).toContain('<h1>Overview</h1>')
+  expect((await request('GET', '/admin')).body).toMatch(/<h1[^>]*>Overview<\/h1>/)
 })
+
+test('the overview frame keeps the administration links, landmarks, title and confirmation controls', async () => {
+  await signIn()
+  const document = nodesOf(parse((await request('GET', '/admin')).body))
+  const attribute = (element: DefaultTreeAdapterMap['element'], name: string) => element.attrs.find(item => item.name === name)?.value
+  const text = (element: DefaultTreeAdapterMap['element']): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? text(child) : '').join('')
+  const navigation = document.find(element => element.tagName === 'nav' && attribute(element, 'aria-label') === 'Administration')!
+  const links = nodesOf(navigation).filter(element => element.tagName === 'a' && attribute(element, 'class') === 'nav-item')
+  expect(links.map(link => attribute(link, 'href'))).toEqual(['/admin', '/admin/users', '/admin/roles', '/admin/invitations', '/admin/tools',
+    '/admin/settings/sign-in', '/admin/tokens', '/admin/audit'])
+  expect(links.filter(link => attribute(link, 'aria-current') === 'page').map(link => attribute(link, 'href'))).toEqual(['/admin'])
+  expect(document.filter(element => element.tagName === 'h1').map(text)).toEqual(['Overview'])
+  expect(document.filter(element => element.tagName === 'nav' || attribute(element, 'role') === 'navigation').map(element => attribute(element, 'aria-label')))
+    .toEqual(['Page header', 'Breadcrumb', 'Administration'])
+  expect(document.filter(element => attribute(element, 'role') === 'banner')).toHaveLength(1)
+  expect(document.filter(element => attribute(element, 'role') === 'main')).toHaveLength(1)
+  const root = document.find(element => element.attrs.some(item => item.name === 'data-astryx-root'))!
+  expect(nodesOf(root).filter(element => attribute(element, 'data-reauth-until') !== undefined)).toHaveLength(1)
+  expect(nodesOf(root).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/logout')).toHaveLength(1)
+  const outside = document.filter(element => !nodesOf(root).includes(element))
+  expect(outside.filter(element => ['confirmation', 'reauth-dialog', 'toast', 'message'].includes(attribute(element, 'id') ?? '')).map(element => attribute(element, 'id')))
+    .toEqual(['toast', 'message', 'confirmation', 'reauth-dialog'])
+})
+
+const nodesOf = (node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['element'][] => [
+  ...('tagName' in node ? [node] : []), ...('childNodes' in node ? node.childNodes.flatMap(nodesOf) : []),
+]
 
 const withoutProps = (body: string) => body.replace(/<script type="application\/json" data-astryx-props>.*?<\/script>/s, '')
 
@@ -783,13 +810,10 @@ test('the overview hands its data to hydration without letting a name end the da
       VALUES ('synthetic-invitation', 'synthetic-hash', 'synthetic-provider', 'synthetic@identity.example', '${hostile}', ${now}, '${userId}', ${now + 86_400_000})`)
   await signIn()
   const body = (await request('GET', '/admin')).body
-  const nodes = (node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['element'][] => [
-    ...('tagName' in node ? [node] : []), ...('childNodes' in node ? node.childNodes.flatMap(nodes) : []),
-  ]
-  const document = nodes(parse(body))
+  const document = nodesOf(parse(body))
   const data = document.filter(element => element.tagName === 'script' && element.attrs.some(attribute => attribute.name === 'data-astryx-props'))
   expect(data).toHaveLength(1)
-  const props = JSON.parse((data[0]!.childNodes[0] as DefaultTreeAdapterMap['textNode']).value) as { attention: { title: string }[] }
+  const { props } = JSON.parse((data[0]!.childNodes[0] as DefaultTreeAdapterMap['textNode']).value) as { props: { attention: { title: string }[] } }
   expect(props.attention.map(item => item.title)).toEqual([`${hostile} can’t claim their invitation yet`])
   expect(document.filter(element => element.attrs.some(attribute => attribute.name === 'id' && attribute.value === 'injected'))).toEqual([])
   expect(document.filter(element => element.tagName === 'script').map(element => element.attrs.find(attribute => attribute.name === 'src')?.value))
