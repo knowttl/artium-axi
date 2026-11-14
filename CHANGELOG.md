@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.46](https://github.com/knowttl/artium-axi/compare/v0.0.45...v0.0.46) (2026-11-14)
+
+
+### Features
+
+* add persistent light and dark theme selection ([#450](https://github.com/knowttl/artium-axi/issues/450)) ([4708797](https://github.com/knowttl/artium-axi/commit/4708797c147bc8c90d036a93eb3c3bb4835d1153))
+* **admin:** add CSP style nonces and self-hosted Figtree ([#448](https://github.com/knowttl/artium-axi/issues/448)) ([41aec68](https://github.com/knowttl/artium-axi/commit/41aec68d880a7e875a2c3878fae876b3fd9b3f0b))
+* **admin:** render Overview with Astryx components ([#449](https://github.com/knowttl/artium-axi/issues/449)) ([cccb1ef](https://github.com/knowttl/artium-axi/commit/cccb1efe7c3ac3b5c18135676e865f324904db7d))
+* build and serve React and Astryx admin assets ([#445](https://github.com/knowttl/artium-axi/issues/445)) ([233aeb4](https://github.com/knowttl/artium-axi/commit/233aeb4e29f5f782821ab31a276c7e3b07935db9))
+* rebuild admin navigation with Astryx SideNav ([#452](https://github.com/knowttl/artium-axi/issues/452)) ([f4cbc3b](https://github.com/knowttl/artium-axi/commit/f4cbc3ba167acdef1779047379af2dfb4bd799ee))
+* rebuild the Overview page frame with Astryx ([#451](https://github.com/knowttl/artium-axi/issues/451)) ([4367164](https://github.com/knowttl/artium-axi/commit/43671647daa70f2aef92312f0b5a0c45ed3a7842))
+
 ## [0.0.45](https://github.com/knowttl/artium-axi/compare/v0.0.44...v0.0.45) (2026-11-14)
 
 
