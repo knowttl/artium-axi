@@ -42,11 +42,18 @@ test.each(assets)('%s is served same-origin without a session under the script a
   const response = await app.inject({ url })
   expect(response.statusCode).toBe(200)
   expect(response.headers['content-type']).toMatch(new RegExp(`^${type}`))
-  expect(response.headers['content-security-policy']).toContain("script-src 'self'; style-src 'self';")
+  expect(response.headers['content-security-policy']).toMatch(/script-src 'self'; style-src 'self' 'nonce-[A-Za-z0-9+/]{22}=='; font-src 'self';/)
   expect(response.headers['content-security-policy']).not.toContain('unsafe-')
 })
 
-test('the Astryx stylesheet is self-contained under default-src none', async () => {
+test('every response carries its own style nonce and no style attribute allowance', async () => {
+  const policies = await Promise.all([1, 2, 3].map(async () => (await app.inject({ url: '/admin/assets/astryx.css' })).headers['content-security-policy'] as string))
+  const nonces = policies.map(policy => /'nonce-([^']+)'/.exec(policy)![1])
+  expect(new Set(nonces).size).toBe(3)
+  for (const policy of policies) expect(policy).not.toContain('style-src-attr')
+})
+
+test('the Astryx stylesheet loads only the same-origin Figtree files under default-src none', async () => {
   const { body } = await app.inject({ url: '/admin/assets/astryx.css' })
   const resources: string[] = []
   const stylesheet = postcss.parse(body)
@@ -56,7 +63,13 @@ test('the Astryx stylesheet is self-contained under default-src none', async () 
       if (node.type === 'Url') resources.push(node.value)
     })
   })
-  expect(resources).toEqual([])
+  expect(resources).toEqual([400, 500, 600, 700].map(weight => `fonts/figtree-${weight}.woff2`))
+  for (const resource of resources) {
+    const font = await app.inject({ url: `/admin/assets/${resource}` })
+    expect(font.statusCode).toBe(200)
+    expect(font.headers['content-type']).toBe('font/woff2')
+    expect(font.rawPayload.subarray(0, 4).toString()).toBe('wOF2')
+  }
 })
 
 test('the served Astryx stylesheet declares the documented theme tokens', async () => {

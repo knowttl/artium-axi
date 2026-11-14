@@ -20,7 +20,12 @@ These assets prepare for the UI rehaul; current pages do not load them or render
 ## Constraints
 
 - Pages are server-rendered HTML through `browserPage`.
-- The content security policy allows only same-origin scripts and styles, so there are no web fonts, CDNs, inline scripts or inline styles.
+- The content security policy allows only same-origin scripts, styles and fonts, plus the response's own nonce for one `<style>` element, so there are no CDNs, inline scripts or `style` attributes.
+  Each browser response gets a fresh unpredictable nonce, available to handlers as `reply.styleNonce`.
+  The policy never includes `unsafe-inline` or a `style-src-attr` allowance.
+- `hoistInlineStyles()` in `src/server/admin/inline-styles.ts` can move supported `style` attributes into a nonce'd element and throws on declarations it cannot prove safe.
+  The current page rendering path does not call it, and it returns no style element when there are no declarations.
+- Figtree (SIL Open Font License) is self-hosted: the build copies four weights from `@fontsource/figtree` to `/admin/assets/fonts/` and adds the `@font-face` rules to `astryx.css`, which the Astryx neutral `Figtree` font-family tokens already name.
 - Reading and navigating work without JavaScript; disclosures use native `<details>`, and the narrow-screen menu uses a `#nav` fragment.
 - Every mutation keeps its API, CSRF token, `expectedRevision` and recent-auth flow.
 
@@ -30,7 +35,9 @@ These assets prepare for the UI rehaul; current pages do not load them or render
 
 - No colour literal of any form outside `tokens.ts`, including named colours, transparent, hex, rgb/rgba, hsl/hsla, hwb, oklch, oklab, lab, lch and color(), in stylesheets or rendered colour presentation attributes.
 - `currentColor` and token references inherit colours; `none` means no paint.
-- No `style` attribute in any rendered page.
+- No `style` attribute in any rendered page; at most one `<style>` element is allowed, and it must carry the response's nonce and contain no colour literal.
+- Every stylesheet and page resource is same-origin: no `@import`, no remote or `data:` `url()`, no remote `link`, `script` or `img`, and the policy has no `unsafe-` source, `style-src-attr` or remote `font-src`.
+- Hand-written client source under `src/client` has no colour literal; colours come from the Astryx theme.
 - Every icon is a `<use>` of a symbol in the shared sprite; pages contain no ad hoc SVG shapes.
 - One `h1` per page.
 

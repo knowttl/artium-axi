@@ -70,6 +70,43 @@ function elements(node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['e
   ]
 }
 
+const remoteReference = /^[\s\u0000-\u001f]*(?:[a-z][a-z0-9+.-]*:|\/\/)/i
+
+function assertSameOriginStylesheet(css: string) {
+  const references: string[] = []
+  postcss.parse(css).walkAtRules(/^import$/i, () => { references.push('import:') })
+  postcss.parse(css).walkDecls(declaration => {
+    cssTree.walk(cssTree.parse(declaration.value, { context: 'value', parseCustomProperty: true, onParseError: error => { throw error } }), node => {
+      if (node.type === 'Url' || node.type === 'String') references.push(node.value)
+    })
+  })
+  expect(references.filter(reference => remoteReference.test(reference))).toEqual([])
+}
+
+function assertSameOriginResources(page: DefaultTreeAdapterMap['element'][]) {
+  for (const element of page) {
+    if (!['link', 'script', 'img', 'source', 'iframe', 'embed', 'object', 'audio', 'video', 'track'].includes(element.tagName)) continue
+    for (const attribute of element.attrs) {
+      if (['href', 'src', 'srcset', 'data', 'poster'].includes(attribute.name)) {        expect(attribute.value, `${element.tagName}[${attribute.name}]`).not.toMatch(remoteReference)
+      }
+    }
+  }
+}
+
+function assertNonceStyles(page: DefaultTreeAdapterMap['element'][], policy: string) {
+  const nonce = /^default-src 'none'; script-src 'self'; style-src 'self' 'nonce-([A-Za-z0-9+/]{22}==)'; font-src 'self'; /.exec(policy)?.[1]
+  expect(nonce, policy).toBeDefined()
+  expect(policy).not.toMatch(/unsafe-|style-src-attr|style-src-elem/)
+  const styles = page.filter(element => element.tagName === 'style')
+  expect(styles.length).toBeLessThanOrEqual(1)
+  for (const style of styles) {
+    expect(style.attrs.find(attribute => attribute.name === 'nonce')?.value).toBe(nonce)
+    const css = style.childNodes.map(child => 'value' in child ? child.value : '').join('')
+    expect(colourDeclarations(css)).toEqual([])
+    assertSameOriginStylesheet(css)
+  }
+}
+
 let directory: string
 let db: Database.Database
 let app: ReturnType<typeof createApp>
@@ -167,6 +204,8 @@ test.each([
   expect(response.statusCode).toBe(status)
   const page = elements(parse(response.body))
   assertPresentationColours(page)
+  assertSameOriginResources(page)
+  assertNonceStyles(page, response.headers['content-security-policy'] as string)
   const sprites = page.filter(element => element.tagName === 'svg' && element.attrs.some(attribute => attribute.name === 'class' && attribute.value === 'sprite'))
   expect(sprites.length).toBeLessThanOrEqual(1)
   const sprite = sprites[0]
@@ -182,6 +221,47 @@ test.each([
     expect(symbols).toContain(reference!.slice(1))
   }
   expect(page.filter(element => element.tagName === 'h1')).toHaveLength(1)
+})
+
+const policyPrefix = "default-src 'none'; script-src 'self'; "
+const nonce = 'AAAAAAAAAAAAAAAAAAAAAA=='
+const style = (attributes: string, css = '') => `<style ${attributes}>${css}</style>`
+
+test.each([
+  ['a style element without the nonce', style('', '.a{margin:0}'), `${policyPrefix}style-src 'self' 'nonce-${nonce}'; font-src 'self'; `],
+  ['a style element with another response nonce', style('nonce="BBBBBBBBBBBBBBBBBBBBBB=="', '.a{margin:0}'), `${policyPrefix}style-src 'self' 'nonce-${nonce}'; font-src 'self'; `],
+  ['two style elements', style(`nonce="${nonce}"`) + style(`nonce="${nonce}"`), `${policyPrefix}style-src 'self' 'nonce-${nonce}'; font-src 'self'; `],
+  ['a colour literal in the style element', style(`nonce="${nonce}"`, '.a{color:red}'), `${policyPrefix}style-src 'self' 'nonce-${nonce}'; font-src 'self'; `],
+  ['a remote url in the style element', style(`nonce="${nonce}"`, '.a{background:url(https://other.example/a)}'), `${policyPrefix}style-src 'self' 'nonce-${nonce}'; font-src 'self'; `],
+  ['unsafe-inline in the policy', '', `${policyPrefix}style-src 'self' 'nonce-${nonce}' 'unsafe-inline'; font-src 'self'; `],
+  ['a style attribute allowance in the policy', '', `${policyPrefix}style-src 'self' 'nonce-${nonce}'; style-src-attr 'unsafe-inline'; font-src 'self'; `],
+  ['a style policy without a nonce', '', `${policyPrefix}style-src 'self'; font-src 'self'; `],
+  ['a remote font source', '', `${policyPrefix}style-src 'self' 'nonce-${nonce}'; font-src 'self' https://fonts.example; `],
+  ['no font source', '', `${policyPrefix}style-src 'self' 'nonce-${nonce}'; connect-src 'self'; `],
+])('the response guard rejects %s', (_name, markup, policy) => {
+  expect(() => assertNonceStyles(elements(parse(markup)), policy)).toThrow()
+})
+
+test('the response guard accepts one nonce style element with token references', () => {
+  expect(() => assertNonceStyles(elements(parse(style(`nonce="${nonce}"`, '[data-inline-style="1"]{--x-width:var(--w)}'))),
+    `${policyPrefix}style-src 'self' 'nonce-${nonce}'; font-src 'self'; `)).not.toThrow()
+})
+
+test.each([
+  '@import url(https://fonts.example/css)', '@import "fonts.css"', '@font-face{src:url(https://fonts.example/f.woff2)}',
+  '@font-face{src:url(//fonts.example/f.woff2)}', '@font-face{src:url(data:font/woff2;base64,AAAA)}', '.a{background:url(HTTP://other.example/a.png)}',
+  '@IMPORT "https://fonts.example/a.css"', '.a{background:image-set("https://other.example/a.png" 1x)}', '.a{background:url(" //other.example/a.png")}',
+])('the same-origin guard rejects a stylesheet reference: %s', css => {
+  expect(() => assertSameOriginStylesheet(css)).toThrow()
+})
+
+test.each(['<link rel="stylesheet" href="https://fonts.example/a.css">', '<script src="//cdn.example/a.js"></script>', '<img src="data:image/png;base64,AAAA">', '<link rel="stylesheet" href=" //cdn.example/a.css">'])(
+  'the same-origin guard rejects a page resource: %s', markup => {
+    expect(() => assertSameOriginResources(elements(parse(markup)))).toThrow()
+  })
+
+test.each(['/admin/assets/style.css', '/admin/assets/astryx.css'])('%s loads only same-origin resources', async url => {
+  assertSameOriginStylesheet((await app.inject({ url })).body)
 })
 
 test('the admin navigation marks the section of the current page', async () => {
