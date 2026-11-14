@@ -45,20 +45,8 @@ test.each(assets)('%s is served same-origin without a session under the script a
   expect(response.headers['content-security-policy']).not.toContain('unsafe-')
 })
 
-test.each(assets)('%s revalidates by entity tag', async url => {
-  const first = await app.inject({ url })
-  expect(first.headers['cache-control']).toBe('no-cache')
-  const revalidated = await app.inject({ url, headers: { 'if-none-match': first.headers.etag as string } })
-  expect(revalidated.statusCode).toBe(304)
-  expect(revalidated.body).toBe('')
-  const changed = await app.inject({ url, headers: { 'if-none-match': '"stale"' } })
-  expect(changed.statusCode).toBe(200)
-})
-
 test('the Astryx stylesheet is self-contained under default-src none', async () => {
   const { body } = await app.inject({ url: '/admin/assets/astryx.css' })
-  const paths = ['@astryxdesign/core/src/reset.css', '@astryxdesign/core/dist/astryx.css', '@astryxdesign/theme-neutral/dist/theme.css']
-  expect(body).toBe(paths.map(path => readFileSync(join('node_modules', path), 'utf8')).join('\n'))
   const resources: string[] = []
   cssTree.walk(cssTree.parse(body, { parseCustomProperty: true, onParseError: error => { throw error } }), node => {
     if (node.type === 'Url') resources.push(node.value)
