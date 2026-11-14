@@ -2,7 +2,6 @@ import { Badge } from '@astryxdesign/core/Badge'
 import { Button } from '@astryxdesign/core/Button'
 import { Card } from '@astryxdesign/core/Card'
 import { HStack } from '@astryxdesign/core/HStack'
-import { Link } from '@astryxdesign/core/Link'
 import { List, ListItem } from '@astryxdesign/core/List'
 import { Step, Stepper } from '@astryxdesign/core/Stepper'
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from '@astryxdesign/core/Table'
@@ -82,7 +81,7 @@ export function Overview({ stats, attention, attentionEmpty, tools, setupSummary
       </Panel>
       <Panel title="Tools" description="Enabled tools and their last check." link={{ href: '/admin/tools', label: 'All tools' }}>
         {tools.length ? (
-          <Table aria-label="Enabled tools" scrollWrapper={({ children }) => <div className="table-wrap">{children}</div>}>
+          <Table aria-label="Enabled tools" scrollWrapper={({ children }) => <div className="table-wrap overview-tools">{children}</div>}>
             <TableHeader>
               <TableRow isHeaderRow>
                 {['Tool', 'State', 'Writes', 'Roles', 'Last checked'].map(heading => <TableHeaderCell key={heading} scope="col">{heading}</TableHeaderCell>)}
@@ -91,7 +90,7 @@ export function Overview({ stats, attention, attentionEmpty, tools, setupSummary
             <TableBody>
               {tools.map(tool => (
                 <TableRow key={tool.name}>
-                  <TableCell><VStack gap={0}><Link href={`/admin/tools/${tool.name}`}>{tool.product}</Link><Text type="supporting">{tool.name}</Text></VStack></TableCell>
+                  <TableCell><VStack gap={0}><a href={`/admin/tools/${tool.name}`}>{tool.product}</a><Text type="supporting">{tool.name}</Text></VStack></TableCell>
                   <TableCell><Badge label={tool.state.word} variant={badgeVariants[tool.state.tone]} /></TableCell>
                   <TableCell>{tool.writes.tone === 'warn' ? <Badge label={tool.writes.word} variant="warning" /> : tool.writes.word}</TableCell>
                   <TableCell>{tool.roles}</TableCell>

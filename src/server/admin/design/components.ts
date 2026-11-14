@@ -248,6 +248,10 @@ a.chip:hover { background: var(--bg-active); }
 
 /* Table */
 .table-wrap { overflow-x: auto; }
+.overview-tools tbody tr { position: relative; }
+.overview-tools tbody a::after { content: ""; position: absolute; inset: 0; }
+.overview-tools tbody a:focus-visible { outline: 0; }
+.overview-tools tbody a:focus-visible::after { outline: 2px solid var(--focus); outline-offset: -2px; }
 .tbl tbody tr.link { position: relative; }
 .tbl tbody tr.link:hover { background: var(--bg-subtle); }
 .tbl .row-link { color: var(--text); text-decoration: none; }

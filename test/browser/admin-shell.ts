@@ -231,7 +231,19 @@ test('People role links and stretched person and tool rows keep independent poin
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=enabled][value=false]');
     await page.open(base + '/admin');
-    await page.click('main tbody a[href="/admin/tools/falcon-axi"]');
+    check(await page.eval(() => {
+      const link = document.querySelector('main tbody a[href="/admin/tools/falcon-axi"]');
+      const cells = [...link.closest('tr').cells];
+      return cells.every(cell => {
+        const box = cell.getBoundingClientRect();
+        return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)?.closest('a') === link;
+      });
+    }), 'Tool row is not linked across its cells');
+    await page.eval(() => {
+      const cell = document.querySelector('main tbody a[href="/admin/tools/falcon-axi"]').closest('tr').lastElementChild;
+      const box = cell.getBoundingClientRect();
+      document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2).click();
+    });
     await page.wait('form[data-save-tool]');
     check(await page.eval(() => location.pathname) === '/admin/tools/falcon-axi', 'Row did not open Falcon');
   `)
