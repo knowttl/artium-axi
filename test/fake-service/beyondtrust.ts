@@ -1,7 +1,11 @@
+import type { IncomingMessage, ServerResponse } from 'node:http'
+
+type RecordedRequest = { method: string | undefined; path: string; canaryReceived: boolean; scope?: string | null; body?: string }
+
 // Synthetic fixtures cite the published v3 OpenAPI routes.
 export const resourceId = '11111111-1111-4111-8111-111111111111'
-export function beyondtrustResponse(req, res, url, requests, mutate) {
-  const record = { method: req.method, path: url.pathname, canaryReceived: req.headers.authorization === 'Bearer CANARY-beyondtrust-token' }
+export function beyondtrustResponse(req: IncomingMessage, res: ServerResponse, url: URL, requests: RecordedRequest[], mutate: () => void) {
+  const record: RecordedRequest = { method: req.method, path: url.pathname, canaryReceived: req.headers.authorization === 'Bearer CANARY-beyondtrust-token' }
   requests.push(record)
   if (url.pathname === '/oauth/connect/token') {
     let body = ''

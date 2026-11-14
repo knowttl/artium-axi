@@ -33,7 +33,7 @@ import { loadTrustedCa } from '../../src/server/trusted-ca.js'
 import { credentialFetch } from '../../src/server/credential-tls.js'
 import { exchangeAwxPassword } from '../../src/server/adapters/awx-login.js'
 import { ldapStartTlsRequest, startLdapTls } from '../../src/server/ldap-starttls.js'
-import { createInspectionCertificates } from '../fake-service/certificates.mjs'
+import { createInspectionCertificates } from '../fake-service/certificates.js'
 import { createLdapService } from '../fake-service/ldap.mjs'
 import { seedToolUser } from '../fixtures/tokens.js'
 

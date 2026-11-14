@@ -25,5 +25,5 @@ globalThis.fetch = async (input, options) => {
     remaining -= count
   } }), { status: 200, headers: { 'content-type': 'application/octet-stream' } })
 }
-process.once('exit', () => writeFileSync(process.env.ARTIUM_TEST_RSS_FILE,
+process.once('exit', () => writeFileSync(process.env.ARTIUM_TEST_RSS_FILE!,
   JSON.stringify({ maxRssBytes: process.resourceUsage().maxRSS * 1024, bytes: size, requests })))

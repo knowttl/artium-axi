@@ -3,9 +3,9 @@ import { verify, X509Certificate } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse } from 'yaml'
-import { hybridResponse } from './hybrid.mjs'
-import { beyondtrustResponse } from './beyondtrust.mjs'
-import { checkpointResponse } from './checkpoint.mjs'
+const { hybridResponse } = await import(existsSync(new URL('./hybrid.js', import.meta.url)) ? './hybrid.js' : './hybrid.ts')
+const { beyondtrustResponse } = await import(existsSync(new URL('./beyondtrust.js', import.meta.url)) ? './beyondtrust.js' : './beyondtrust.ts')
+const { checkpointResponse } = await import(existsSync(new URL('./checkpoint.js', import.meta.url)) ? './checkpoint.js' : './checkpoint.ts')
 import { shodanWrites } from './shodan-writes.mjs'
 const { kubernetesBytes } = await import(existsSync(new URL('./kubernetes-bytes.js', import.meta.url))
   ? './kubernetes-bytes.js' : './kubernetes-bytes.ts')

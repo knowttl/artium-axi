@@ -2,10 +2,17 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true
   },
   "include": [
     "scripts/hygiene-check.ts",
+    "test/fake-service/certificates.ts",
+    "test/fake-service/beyondtrust.ts",
+    "test/fake-service/checkpoint.ts",
+    "test/fake-service/hybrid.ts",
+    "test/fake-service/hybrid-transport.ts",
+    "test/fake-service/hybrid-artifact-transport.ts",
     "scripts/tls-policy.ts",
     "scripts/errors-reference.ts",
     "scripts/mg-headless-schema.ts",

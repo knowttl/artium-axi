@@ -1,9 +1,12 @@
 import { createHash } from 'node:crypto'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 
-export function checkpointResponse(req, res, url, requests, mutate) {
-  const envelope = responseData => JSON.stringify({ responseEnvelope: { responseCode: 0 }, responseData })
+type RecordedRequest = { method: string | undefined; path: string; query: Record<string, string>; canaryReceived: boolean; scope?: string | string[] | null }
+
+export function checkpointResponse(req: IncomingMessage, res: ServerResponse, url: URL, requests: RecordedRequest[], mutate: () => void) {
+  const envelope = (responseData: unknown) => JSON.stringify({ responseEnvelope: { responseCode: 0 }, responseData })
   const canaryReceived = req.headers.authorization === 'Bearer CANARY-checkpoint-token'
-  const record = { method: req.method, path: url.pathname, query: Object.fromEntries(url.searchParams), canaryReceived }
+  const record: RecordedRequest = { method: req.method, path: url.pathname, query: Object.fromEntries(url.searchParams), canaryReceived }
   requests.push(record)
   if (url.pathname === '/auth/external') {
     let body = ''

@@ -16,7 +16,7 @@ import { readCredentialTrust } from '../../src/server/store/trusted-certificates
 import { preflight } from '../../src/server/health/preflight.js'
 import { credentialFetch } from '../../src/server/credential-tls.js'
 import { savedCertificateTrust } from '../../src/server/credential-tls-settings.js'
-import { createInspectionCertificates } from '../fake-service/certificates.mjs'
+import { createInspectionCertificates } from '../fake-service/certificates.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 
 vi.unmock('../../src/server/health/preflight.js')

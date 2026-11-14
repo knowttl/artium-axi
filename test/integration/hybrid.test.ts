@@ -34,7 +34,7 @@ test('managed Hybrid Analysis reads and native guarded writes use the published 
     adapter.prepare = async (...input) => {
       const call = await prepare(...input)
       return { ...call, executable: process.execPath,
-        args: ['--import', join(process.cwd(), 'test/fake-service/hybrid-transport.mjs'),
+        args: ['--import', join(process.cwd(), 'test/fake-service/hybrid-transport.ts'),
           join(process.cwd(), 'tools/node_modules/@knowttl/hybrid-axi/bin/hybrid-axi.js'), ...call.args],
         fileArguments: call.fileArguments?.map(index => index + 3),
         environment: { ...call.environment, ARTIUM_TEST_HYBRID_ORIGIN: `https://localhost:${port}` } }
@@ -44,7 +44,7 @@ test('managed Hybrid Analysis reads and native guarded writes use the published 
     adapter.prepareArtifact = async (...input) => {
       const call = await prepareArtifact(...input)
       return { ...call, executable: process.execPath,
-        args: ['--import', join(process.cwd(), 'test/fake-service/hybrid-transport.mjs'),
+        args: ['--import', join(process.cwd(), 'test/fake-service/hybrid-transport.ts'),
           join(process.cwd(), 'tools/node_modules/@knowttl/hybrid-axi/bin/hybrid-axi.js'), ...call.args],
         environment: { ...call.environment, ARTIUM_TEST_HYBRID_ORIGIN: `https://localhost:${port}` } }
     }

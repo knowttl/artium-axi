@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-export function createTestCertificates(directory, hosts, validityDays) {
-  const openssl = args => execFileSync('openssl', args, { cwd: directory, stdio: 'pipe', timeout: 10_000 })
+export function createTestCertificates(directory: string, hosts: string[], validityDays?: number) {
+  const openssl = (args: string[]) => execFileSync('openssl', args, { cwd: directory, stdio: 'pipe', timeout: 10_000 })
   writeFileSync(join(directory, 'index'), '')
   writeFileSync(join(directory, 'authority.cnf'), `[ca]
 default_ca = synthetic
@@ -38,9 +38,9 @@ extendedKeyUsage = serverAuth
     '-extensions', 'server', '-in', 'server.csr', '-out', 'server.crt', ...validity])
 }
 
-export function createInspectionCertificates(directory, issuerUrl) {
+export function createInspectionCertificates(directory: string, issuerUrl: string) {
   createTestCertificates(directory, ['localhost', 'login.synthetic.test', 'graph.synthetic.test', 'graph.microsoft.com', 'login.microsoftonline.com'])
-  const openssl = args => execFileSync('openssl', args, { cwd: directory, stdio: 'pipe', timeout: 10_000 })
+  const openssl = (args: string[]) => execFileSync('openssl', args, { cwd: directory, stdio: 'pipe', timeout: 10_000 })
   openssl(['x509', '-req', '-in', 'ca.csr', '-signkey', 'ca.key', '-days', '-1',
     '-extfile', 'authority.cnf', '-extensions', 'root', '-out', 'expired-ca.crt'])
   writeFileSync(join(directory, 'inspection.cnf'), readFileSync(join(directory, 'authority.cnf'), 'utf8') + `
@@ -106,8 +106,8 @@ basicConstraints = CA:FALSE
     '-days', '3650', '-extfile', 'inspection.cnf', '-extensions', 'server', '-out', 'other-ca-leaf.crt'])
 }
 
-export function createTestClientCertificate(directory) {
-  const openssl = args => execFileSync('openssl', args, { cwd: directory, stdio: 'pipe', timeout: 10_000 })
+export function createTestClientCertificate(directory: string) {
+  const openssl = (args: string[]) => execFileSync('openssl', args, { cwd: directory, stdio: 'pipe', timeout: 10_000 })
   openssl(['req', '-newkey', 'rsa:2048', '-nodes', '-subj', '/CN=synthetic-kubernetes-client', '-keyout', 'client.key', '-out', 'client.csr'])
   openssl(['x509', '-req', '-in', 'client.csr', '-CA', 'ca.crt', '-CAkey', 'ca.key', '-set_serial', '99', '-days', '3650', '-out', 'client.crt'])
 }

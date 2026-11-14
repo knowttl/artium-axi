@@ -30,7 +30,7 @@ import { createGhAdapter } from '../../dist/src/server/adapters/gh.js'
 import { loadCredentialProfile } from '../../dist/src/server/adapters/credential-profile.js'
 import { AzureTokenCache } from '../../dist/src/server/adapters/azure-token-cache.js'
 import { FakeTokenTransport } from '../../dist/test/fixtures/azure-token-transport.js'
-import { createTestCertificates } from './certificates.mjs'
+import { createTestCertificates } from './certificates.ts'
 import { seedBrowserSso, seedSsoInvitation, seedSsoRules } from '../../dist/test/fixtures/sso.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-browser-'))

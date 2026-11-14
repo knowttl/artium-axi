@@ -12,7 +12,7 @@ import { promisify } from 'node:util'
 import type { AddressInfo } from 'node:net'
 import type { InjectOptions } from 'fastify'
 import { decode } from '@toon-format/toon'
-import { createTestCertificates } from '../test/fake-service/certificates.mjs'
+import { createTestCertificates } from '../test/fake-service/certificates.ts'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 process.chdir(root)

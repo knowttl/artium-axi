@@ -11,7 +11,7 @@ import { toolPaths } from '../config.js'
 import { Runner } from '../runner/runner.js'
 import { preflight } from '../health/preflight.js'
 import { inspectCertificate } from '../certificate-inspection.js'
-import { createInspectionCertificates } from '../../../test/fake-service/certificates.mjs'
+import { createInspectionCertificates } from '../../../test/fake-service/certificates.js'
 
 const source = { getCredential: async () => ({ origin: 'https://synthetic.invalid', apiKey: 'CANARY-unifi-key' }) }
 

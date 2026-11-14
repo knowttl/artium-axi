@@ -13,7 +13,7 @@ import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { ProviderCredentials } from '../../src/server/store/provider-credentials.js'
 import { seedToolUser } from '../fixtures/tokens.js'
-import { createTestCertificates } from '../fake-service/certificates.mjs'
+import { createTestCertificates } from '../fake-service/certificates.js'
 
 let directory: string
 let db: Database.Database

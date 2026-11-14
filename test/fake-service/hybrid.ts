@@ -1,7 +1,11 @@
-export function hybridResponse(req, res, url, requests, resources, mutated) {
-  const canaryReceived = ['CANARY-hybrid-key', 'CANARY-hybrid-restricted'].includes(req.headers['api-key'])
+import type { IncomingMessage, ServerResponse } from 'node:http'
+
+type RecordedRequest = { method: string | undefined; path: string; canaryReceived: boolean; uploadedBytes?: number }
+
+export function hybridResponse(req: IncomingMessage, res: ServerResponse, url: URL, requests: RecordedRequest[], resources: Map<string, Record<string, unknown>>, mutated: () => void) {
+  const canaryReceived = ['CANARY-hybrid-key', 'CANARY-hybrid-restricted'].includes(req.headers['api-key'] as string)
   requests.push({ method: req.method, path: url.pathname, canaryReceived })
-  const json = value => res.end(JSON.stringify(value))
+  const json = (value: unknown) => res.end(JSON.stringify(value))
   if (!canaryReceived) { res.writeHead(401); json({ message: 'Invalid API key' }); return }
   if (url.pathname === '/api/v2/key/current') { json({ auth_level_name: req.headers['api-key'] === 'CANARY-hybrid-restricted' ? 'restricted' : 'default' }); return }
   if (url.pathname === '/api/v2/key/submission-quota') {
@@ -41,7 +45,7 @@ export function hybridResponse(req, res, url, requests, resources, mutated) {
     let bytes = 0
     req.on('data', chunk => { bytes += chunk.length })
     req.on('end', () => {
-      requests.at(-1).uploadedBytes = bytes
+      requests.at(-1)!.uploadedBytes = bytes
       if (url.pathname === '/api/v2/quick-scan/file' || url.pathname === '/api/v2/quick-scan/url') {
         json({ id: 'synthetic-scan', finished: true, sha256: 'a'.repeat(64) })
       } else {

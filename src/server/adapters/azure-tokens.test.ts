@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { createTestCertificates } from '../../../test/fake-service/certificates.mjs'
+import { createTestCertificates } from '../../../test/fake-service/certificates.js'
 import { FakeTokenTransport, azureTestEndpoint as endpoint, azureTestTenant as tenantId,
   azureTestToken as accessToken } from '../../../test/fixtures/azure-token-transport.js'
 import { ArtiumError, errorResponse } from '../../shared/errors.js'

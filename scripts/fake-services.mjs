@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createTestCertificates } from '../test/fake-service/certificates.mjs'
+import { createTestCertificates } from '../test/fake-service/certificates.ts'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const falcon = process.argv.includes('--falcon')
