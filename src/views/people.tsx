@@ -11,14 +11,46 @@ import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
 import { Icon } from './icon.js'
+import { Sheet } from './sheet.js'
 import { badgeVariants, type Status } from './status.js'
+
+export const temporaryPasswordHint = 'At most 512 UTF-8 bytes. Share it securely; they must replace it at first sign-in.'
 
 export interface PeopleProps {
   filters: { q: string, limit: number, selects: { name: string, label: string, value: string, options: [string, string][] }[], clear: boolean, count: string }
   people: { href: string, name: string, initials: string, username: string, you: boolean, signIn: Status, administrator: boolean, roles: { href: string, label: string }[], status: Status, enabled: boolean }[]
   empty: string
   pager: { summary: string, first: string | null, next: string | null }
-  sheet: string
+  addUser: { open: boolean, closeHref: string, csrf: string, roles: { id: string, name: string, detail: string }[] }
+}
+
+function AddUserSheet({ open, closeHref, csrf, roles }: PeopleProps['addUser']) {
+  const [fields, setFields] = useState({ displayName: '', username: '', temporaryPassword: '' })
+  return (
+    <Sheet name="add-user" open={open} closeHref={closeHref} title="Add a local user" description="For people without SSO, or a break-glass admin." submit="Add user"
+      action="/v1/admin/users" csrf={csrf}
+      consequence="Create this local account? They can sign in with the temporary password and must replace it first. Tool access comes from the selected roles.">
+      <TextInput label="Display name" htmlName="displayName" value={fields.displayName} onChange={displayName => setFields({ ...fields, displayName })} {...{ required: true }} />
+      <TextInput label="Username" htmlName="username" value={fields.username} onChange={username => setFields({ ...fields, username })} description="No spaces. It can’t be renamed later."
+        autoComplete="off" hasSpellCheck={false} controlClassName="mono" {...{ required: true }} />
+      <TextInput label="Temporary password" htmlName="temporaryPassword" type="password" value={fields.temporaryPassword}
+        onChange={temporaryPassword => setFields({ ...fields, temporaryPassword })} description={temporaryPasswordHint} autoComplete="new-password" {...{ required: true }} />
+      <fieldset className="options">
+        <legend>Roles</legend>
+        <input type="hidden" name="roleIds" disabled />
+        {roles.length ? roles.map(role => (
+          <label key={role.id} className="check">
+            <input type="checkbox" name="roleIds" value={role.id} />
+            <span><strong>{role.name}</strong><span>{role.detail}</span></span>
+          </label>
+        )) : <p className="hint">No roles yet. Create a role on Roles to grant tool access.</p>}
+      </fieldset>
+      <label className="check">
+        <input type="checkbox" name="administrator" data-type="boolean" />
+        <span><strong>Administrator</strong><span>Can manage people, roles, tools and sign-in. Tool access still comes from roles.</span></span>
+      </label>
+    </Sheet>
+  )
 }
 
 function Filters({ q, limit, selects, clear, count }: PeopleProps['filters']) {
@@ -45,7 +77,7 @@ function Filters({ q, limit, selects, clear, count }: PeopleProps['filters']) {
   )
 }
 
-export function People({ filters, people, empty, pager, sheet }: PeopleProps) {
+export function People({ filters, people, empty, pager, addUser }: PeopleProps) {
   return (
     <VStack gap={4}>
       <Filters {...filters} />
@@ -97,7 +129,7 @@ export function People({ filters, people, empty, pager, sheet }: PeopleProps) {
           </HStack>
         </Card>
       ) : <Card><EmptyState title="No matching people" description={empty} headingLevel={2} /></Card>}
-      <div dangerouslySetInnerHTML={{ __html: sheet }} />
+      <AddUserSheet {...addUser} />
     </VStack>
   )
 }

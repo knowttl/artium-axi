@@ -33,11 +33,15 @@ The frame renders the legacy markup for the account menu, confirmation pill and 
 Below the Astryx mobile breakpoint a native navigation disclosure remains usable without JavaScript, listing the same `SideNavItem` links without a second `SideNav`, and CSS hides the desktop sidebar.
 The frame retains one banner, one main and one navigation landmark labelled "Administration".
 The toast regions, confirmation dialogs and icon sprite that `confirm.js` drives stay outside the React root.
-A view that embeds a sheet or a confirmation form keeps its legacy markup in a `dangerouslySetInnerHTML` island, as People does for its add-user sheet, until the sheets and confirmation dialogs move to Astryx.
+The People add-user sheet is the first sheet on the seam: `Sheet` in `src/views/sheet.tsx` keeps the native `dialog.sheet`, its `?sheet=` open state and the `data-api` form that `confirm.js` submits, and builds the header, text fields and buttons from Astryx `Heading`, `Text`, `IconButton`, `TextInput` and `Button`.
+Astryx `Drawer` and `Dialog` render closed until hydration, so they cannot serve the no-JavaScript view.
+Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
+`confirm.js` hides the server-rendered scrim of an open sheet with the `hidden` attribute rather than removing it, so hydration still finds it.
+Any other view that embeds a sheet or a confirmation form keeps its legacy markup in a `dangerouslySetInnerHTML` island until its sheets and confirmation dialogs move to Astryx.
 The People filter chips stay native `select` elements, so filtering works without JavaScript and the form fields are unchanged.
 A view that shows a time wraps it in `<time suppressHydrationWarning>`, because `confirm.js` formats every `time[datetime]` before hydration.
 Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
-The legacy base rules for headings, paragraphs, links and table elements skip content inside `[data-astryx-root]`.
+The legacy base rules for headings, paragraphs, links, table elements, labels, inputs, textareas and buttons skip content inside `[data-astryx-root]`.
 
 ## Constraints
 
