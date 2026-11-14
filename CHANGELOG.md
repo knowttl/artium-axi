@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.47](https://github.com/knowttl/artium-axi/compare/v0.0.46...v0.0.47) (2026-11-14)
+
+
+### Bug Fixes
+
+* **container:** compile server tsx modules with the repo JSX setting ([#455](https://github.com/knowttl/artium-axi/issues/455)) ([a3d31c8](https://github.com/knowttl/artium-axi/commit/a3d31c87816543b8bf7d8d24400c64ca6624e363))
+* improve overview cards and mobile header ([#453](https://github.com/knowttl/artium-axi/issues/453)) ([3dd856d](https://github.com/knowttl/artium-axi/commit/3dd856d0b45b0a2d9f4f34a8512235c33f4cc5eb))
+
 ## [0.0.46](https://github.com/knowttl/artium-axi/compare/v0.0.45...v0.0.46) (2026-11-14)
 
 
