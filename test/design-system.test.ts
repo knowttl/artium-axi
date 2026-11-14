@@ -279,3 +279,16 @@ test('the admin navigation marks the section of the current page', async () => {
   const response = await app.inject({ url: '/admin/users/synthetic-ordinary', headers: { cookie: `${browserCookie}=${admin}` } })
   expect(response.body.match(/<a class="nav-item" href="([^"]+)" aria-current="page">/g)).toEqual(['<a class="nav-item" href="/admin/users" aria-current="page">'])
 })
+
+const luminance = (hex: string) => {
+  const [red, green, blue] = [1, 3, 5].map(start => parseInt(hex.slice(start, start + 2), 16) / 255)
+    .map(channel => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+  return 0.2126 * red! + 0.7152 * green! + 0.0722 * blue!
+}
+
+test.each([['light', '#ffffff', 0], ['dark', '#262626', 1]] as const)(
+  'the %s input border on the Astryx surface %s meets the 3:1 control contrast', (_theme, surface, index) => {
+    const border = [...tokens.matchAll(/--field-border: (#[0-9a-f]{6});/g)][index]![1]!
+    const [lighter, darker] = [luminance(border), luminance(surface)].sort((a, b) => b - a)
+    expect((lighter! + 0.05) / (darker! + 0.05)).toBeGreaterThanOrEqual(3)
+  })

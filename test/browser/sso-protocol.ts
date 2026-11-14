@@ -218,7 +218,7 @@ test('generic callback routed to Entra is refused in the real browser', async ()
     await page.wait('[data-oidc-approve]');
     const callback = await page.eval(() => document.querySelector('[data-oidc-approve]').href);
     await page.open(callback.replace('/synthetic-generic/callback', '/synthetic-entra/callback'));
-    await page.wait('main .kv dd.mono');
+    await page.wait('main dl dd');
     check(await page.eval(() => document.body.textContent.includes('SSO_STATE_INVALID')), 'Cross-provider callback accepted');`)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
@@ -288,7 +288,7 @@ test('generic ID token with another issuer is refused in the real browser', asyn
   browser(`await page.open(base + '/auth/sso/synthetic-generic/start');
     await page.wait('[data-oidc-approve]');
     await page.click('[data-oidc-approve]');
-    await page.wait('main .kv dd.mono');
+    await page.wait('main dl dd');
     check(await page.eval(() => document.body.textContent.includes('SSO_TOKEN_INVALID')), 'Issuer mix-up accepted');`)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
@@ -336,7 +336,7 @@ for (const decision of ['approve', 'deny', 'expire']) test(`bundled CLI device s
       await page.wait('a[href^="/device?code="]');
       await page.click('a[href^="/device?code="]');
       await page.wait('button[value=approve]');
-      check(await page.eval(() => document.querySelector('.kv').textContent.includes('127.0.0.1') && document.querySelector('.kv time[datetime]') && document.body.textContent.includes('Never approve a code someone sent you')), 'approval omitted request details or warning');
+      check(await page.eval(() => document.querySelector('main dl').textContent.includes('127.0.0.1') && document.querySelector('main dl time[datetime]') && document.body.textContent.includes('Never approve a code someone sent you')), 'approval omitted request details or warning');
       check(await page.eval(() => document.querySelector('button[value=deny]').textContent === "This wasn't me"), 'denial action missing');
       check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'device page overflows');
       await page.click('button[value=${decision}]');
@@ -413,7 +413,7 @@ test('stale provider authentication is refused and leaves the pending draft inta
   browser(prepareChange)
   openReauthPopup()
   browser(`await page.click('[data-oidc-approve]');
-    await page.wait('main .kv dd.mono');
+    await page.wait('main dl dd');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_TOKEN_INVALID')), 'Stale authentication was accepted');`)
   selectPage('/admin/roles')
   browser(`await page.click('[data-reauth-cancel]');
@@ -475,7 +475,7 @@ test('CSP-compatible link and Strict-cookie callback hop establish an SSO accoun
 test('uninvited identity is refused without creating a session', async () => {
   await configure({ claims: { oid: '44444444-4444-4444-8444-444444444444', preferred_username: 'synthetic-browser-sso' } })
   browser(`${signIn}
-    await page.wait('main .kv dd.mono');
+    await page.wait('main dl dd');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_NOT_INVITED')), 'Uninvited identity was not refused');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
@@ -490,7 +490,7 @@ test('SSO-enabled login page refuses an undesignated local administrator', async
     await page.fill('[name=username]', 'synthetic-user');
     await page.fill('[name=password]', 'CANARY-local-password');
     await page.click('form[action="/login"] button');
-    await page.wait('main .kv dd.mono');
+    await page.wait('main dl dd');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SIGN_IN_FAILED')), 'Undesignated administrator was admitted');`)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
@@ -523,7 +523,7 @@ test('break-glass browser sign-in and password confirmation are highlighted in A
 test('tampered ID token is refused in the real callback page', async () => {
   await configure({ tamperSignature: true })
   browser(`${signIn}
-    await page.wait('main .kv dd.mono');
+    await page.wait('main dl dd');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_TOKEN_INVALID')), 'Tampered signature was accepted');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
@@ -534,7 +534,7 @@ test('tampered ID token is refused in the real callback page', async () => {
 test('wrong ID token issuer is refused in the real callback page', async () => {
   await configure({ claims: { iss: 'https://other.example' } })
   browser(`${signIn}
-    await page.wait('main .kv dd.mono');
+    await page.wait('main dl dd');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_TOKEN_INVALID')), 'Wrong issuer was accepted');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
@@ -549,7 +549,7 @@ test('replaying a completed callback cannot issue another session', async () => 
     await page.click('a[href="/account"]');
     await page.wait('section h2');
     await page.open(callback);
-    await page.wait('main .kv dd.mono');
+    await page.wait('main dl dd');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_STATE_INVALID')), 'Callback replay was accepted');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
@@ -650,7 +650,7 @@ test('invitation claim grants direct and rule roles and a reused link is refused
     await page.wait('section h2');
     check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic invited user')), 'Claimed account missing');
     await page.open(base + ${JSON.stringify(invitation.claimPath)});
-    await page.wait('main .kv dd.mono');
+    await page.wait('main dl dd');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Reused link accepted');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
@@ -667,7 +667,7 @@ test('wrong-username claim refuses the identity and leaves the invitation unused
   const invitation = await invite()
   await configure({ claims: { oid: '44444444-4444-4444-8444-444444444444', preferred_username: 'Synthetic-Invited' } })
   browser(`${claim(invitation.claimPath)}
-    await page.wait('main .kv dd.mono');
+    await page.wait('main dl dd');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Wrong username accepted');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
@@ -680,7 +680,7 @@ test('expired invitation link is refused before provider sign-in', async () => {
   assert.equal((await fetch(fixture.clock, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ advanceMs: 86_400_000 }) })).status, 200)
   browser(`await page.open(base + ${JSON.stringify(invitation.claimPath)});
-    await page.wait('main .kv dd.mono');
+    await page.wait('main dl dd');
     check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Expired link accepted');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()

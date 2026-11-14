@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview uses the Astryx render seam and page frame; other pages use the legacy shell.
+Overview uses the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -38,7 +38,7 @@ The legacy base rules for headings, paragraphs, links and table elements skip co
 
 ## Constraints
 
-- Pages are server-rendered HTML through `browserPage` or, for render-seam views, `renderPage()`.
+- Pages are server-rendered HTML through `browserPage` or, for render-seam views, `renderPage()` or `renderAuthPage()`.
 - The content security policy allows only same-origin scripts, styles and fonts, plus the response's own nonce for one `<style>` element, so there are no CDNs, inline scripts or `style` attributes.
   Each browser response gets a fresh unpredictable nonce, available to handlers as `reply.styleNonce`.
   The policy never includes `unsafe-inline` or a `style-src-attr` allowance.
@@ -90,7 +90,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 
 | Component | Markup | States | Accessibility |
 | --- | --- | --- | --- |
-| App shell | `appShell()`: `.app`, `.side`, `.main`, `.topbar`, `.content` | Administrator (sidebar), ordinary user (top bar only), signed out or `layout: 'auth'` (auth card) | Skip link to `main#main`; sidebar `nav` labelled "Administration" |
+| App shell | `appShell()`: `.app`, `.side`, `.main`, `.topbar`, `.content` | Administrator (sidebar), ordinary user (top bar only) | Skip link to `main#main`; sidebar `nav` labelled "Administration" |
 | Nav item | `.nav-item`, `.nav-label` | default, hover, current | `aria-current="page"` on the current section |
 | Recent-auth pill | `.unlock.on`, `.unlock.off` | unlocked with minutes left, locked | Text carries the state; refreshed every 30 seconds |
 | Account menu | `.account-menu` with `.popover` | closed, open | Native disclosure; "Signed in as" is announced |
@@ -120,7 +120,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Disclosure card | `details.card.disclosure` | closed, open | Native disclosure |
 | Dialog | native `<dialog class="modal">` with `.modal-body`, `.modal-foot`, `.ico-circle` | confirmation tier 2 or 3, identity confirmation; rendered open by a query parameter without JavaScript | `showModal`, Esc closes, title names the action |
 | View dialog | `viewDialog()`: a server-rendered open `<dialog>` with `data-close-href` | open | The no-JavaScript fallback for a `?add=` or `?rule=` view; scripts make it modal and closing returns to `data-close-href` |
-| Auth card | `.auth`, `.auth-card`, `.auth-head`, `.auth-actions`, `.divider`, `.bigcode`, `.auth-foot` | sign in, password, confirmation, CLI approval, result, error | One `h1`; primary action follows cancel or deny within `.auth-actions` |
+| Auth view | `Auth` in `src/views/auth.tsx` on an Astryx `Card`, inside `.auth` and `.auth-wrap`, with `.auth-foot` | sign in, password, confirmation, CLI approval, result, error | One `h1`; primary action follows cancel or deny in a row of buttons |
 | Toasts | `.toasts` with `#toast.toast.ok` and `#message.toast.err` | empty (hidden), success, error, conflict with **Reload latest** | `#toast` is a polite `status` region that shows a tier-1 or tier-2 result after the page reloads; `#message` is an `alert` |
 | Steps | `steps()`: `ol.steps`, `.step` | done, fail, to do, current | Ordered list; the state is in visually hidden text |
 | Segmented control and search | `.seg` (links or visually hidden radios), `.search`, `.filters` | current or checked | GET forms; JavaScript may apply them live |
@@ -167,7 +167,8 @@ Recent-auth confirmation and CSRF apply to every tier; revision-checked mutation
 Confirmation does not change the request, CSRF token, revision check or recent-auth flow.
 
 **Interstitials.**
-Sign-in, password, identity confirmation, CLI approval, results and error pages use the auth card, including for signed-in people, who also get a sign-out link under the card.
+Sign-in, password, identity confirmation, CLI approval, results and error pages use the auth view through `renderAuthPage()`, which builds the view's props from a list of typed blocks (text, form, buttons, details, banner, code, divider) so a route never writes markup.
+Signed-in people also get a sign-out link under the card.
 For the optional provider sign-out choice, see [browser administration](admin-guide.md#browser-administration).
 Error pages say what happened and what to do, show the code and a copyable request ID, and offer the viewer's home page.
 

@@ -7,10 +7,10 @@ import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import { deviceDefaults } from '../config.js'
 import { escape } from '../admin/escape.js'
-import { callout } from '../admin/design/ui.js'
-import { timestamp } from '../admin/forms.js'
+import { renderAuthPage } from '../admin/render-page.js'
+import type { AuthBlock } from '../../views/auth.js'
 import { AuthRateLimits } from './attempts.js'
-import { browserCookie, browserPage } from './browser.js'
+import { browserCookie } from './browser.js'
 import { browserIdentity, readBrowserSession } from './sessions.js'
 import { hashToken, issueLoginTokens, issueRecentAuthTicket } from './tokens.js'
 
@@ -95,8 +95,10 @@ export function registerDevice(app: FastifyInstance, db: Database.Database, audi
   app.get('/device', async (request, reply) => {
     const input = z.strictObject({ code: deviceUserCodeSchema.optional() }).safeParse(request.query)
     if (!input.success) throw new ArtiumError('INVALID_INPUT')
-    if (!input.data.code) return browserPage(reply, 'CLI approval', `<form method="get" action="/device"><div class="field"><label for="code">Device code</label><input id="code" class="mono" name="code" autocomplete="off" maxlength="9" required></div><button class="btn btn-primary">Continue</button></form>`,
-      undefined, 'Enter the code shown by your CLI sign-in or identity confirmation request on your own terminal.')
+    if (!input.data.code) return renderAuthPage(reply, { title: 'CLI approval', helpTopic: 'CLI approval',
+      description: 'Enter the code shown by your CLI sign-in or identity confirmation request on your own terminal.',
+      blocks: [{ kind: 'form', action: '/device', fields: [{ id: 'code', name: 'code', label: 'Device code', type: 'text', autoComplete: 'off', maxLength: 9, mono: true }],
+        blocks: [{ kind: 'buttons', buttons: [{ label: 'Continue', tone: 'primary' }] }] }] })
     entryLimits.admitAddress(request.ip)
     const code = input.data.code
     const row = byUserCode(code)
@@ -105,23 +107,26 @@ export function registerDevice(app: FastifyInstance, db: Database.Database, audi
       try { current = readBrowserSession(db, request.cookies[browserCookie]!) }
       catch (error) { if (!(error instanceof ArtiumError)) throw error }
     }
-    const details = `<p>Approve only if you just ${row.reauth ? 'requested identity confirmation' : 'ran <code>artium-axi login --sso</code>'} on a device you control and the code matches your terminal.</p>
-      <div class="bigcode" role="group" aria-label="Code">${escape(code)}</div>
-      <dl class="kv"><dt>Requested from</dt><dd class="mono">${escape(row.address)}</dd><dt>When</dt><dd>${timestamp(row.createdAt)}</dd><dt>Grants</dt><dd>${row.reauth ? 'Identity confirmation for privileged CLI operations' : 'Your tools, for up to 8 hours'}</dd></dl>
-      <p class="hint">Never approve a code someone sent you.</p>`
+    const details: AuthBlock[] = [
+      { kind: 'text', parts: ['Approve only if you just ', ...row.reauth ? ['requested identity confirmation'] : ['ran ', { code: 'artium-axi login --sso' }], ' on a device you control and the code matches your terminal.'] },
+      { kind: 'code', value: code },
+      { kind: 'details', rows: [{ label: 'Requested from', value: row.address, mono: true }, { label: 'When', value: new Date(row.createdAt).toISOString(), time: true },
+        { label: 'Grants', value: row.reauth ? 'Identity confirmation for privileged CLI operations' : 'Your tools, for up to 8 hours' }] },
+      { kind: 'text', hint: true, parts: ['Never approve a code someone sent you.'] },
+    ]
     const proved = current && row.proof === hashToken(request.cookies[browserCookie]!)
     const csrf = reply.generateCsrf()
-    let actions = callout('ok', '', 'This request is already approved. Return to your terminal.')
+    let actions: AuthBlock[] = [{ kind: 'banner', status: 'success', text: 'This request is already approved. Return to your terminal.' }]
     if (!row.approved && proved) {
-      actions = `<form method="post" action="/device">
-        <input type="hidden" name="_csrf" value="${escape(csrf)}"><input type="hidden" name="code" value="${escape(code)}">
-        <p class="hint">Approving as ${escape(current!.username)}.</p>
-        <div class="auth-actions"><button class="btn btn-danger-outline" name="decision" value="deny">This wasn't me</button><button class="btn btn-primary" name="decision" value="approve">Approve</button></div></form>`
+      actions = [{ kind: 'form', action: '/device', fields: [], post: { csrf, hidden: { code } }, blocks: [
+        { kind: 'text', hint: true, parts: [`Approving as ${current!.username}.`] },
+        { kind: 'buttons', row: true, buttons: [{ label: 'This wasn\'t me', tone: 'destructive', name: 'decision', value: 'deny' }, { label: 'Approve', tone: 'primary', name: 'decision', value: 'approve' }] }] }]
     } else if (!row.approved) {
-      actions = '<p>Confirm your identity with a fresh provider sign-in before approving.</p>' + providers().map((provider, index) =>
-        `<a class="btn ${index ? 'btn-secondary' : 'btn-primary'}" data-device-sso href="/auth/sso/${escape(encodeURIComponent(provider.id))}/start?device=${encodeURIComponent(code)}">Sign in with ${escape(provider.name)}</a>`).join('')
+      actions = [{ kind: 'text', parts: ['Confirm your identity with a fresh provider sign-in before approving.'] },
+        { kind: 'buttons', buttons: providers().map((provider, index) => ({ label: `Sign in with ${provider.name}`, tone: index ? 'secondary' : 'primary',
+          marker: 'data-device-sso', href: `/auth/sso/${encodeURIComponent(provider.id)}/start?device=${encodeURIComponent(code)}` })) }]
     }
-    return browserPage(reply, row.reauth ? 'Approve CLI identity confirmation?' : 'Approve CLI sign-in?', details + actions, current, undefined, { layout: 'auth', helpTopic: 'CLI approval' })
+    return renderAuthPage(reply, { title: row.reauth ? 'Approve CLI identity confirmation?' : 'Approve CLI sign-in?', helpTopic: 'CLI approval', blocks: [...details, ...actions] }, current)
   })
   app.post('/device', async (request, reply) => {
     entryLimits.admitAddress(request.ip)
@@ -136,8 +141,9 @@ export function registerDevice(app: FastifyInstance, db: Database.Database, audi
       outcome: 'success', requestId: request.id, clientAddress: request.ip, requestingAddress: row.address })
     if (denied) row.denied = true
     else row.approved = token
-    return browserPage(reply, denied ? 'Request denied' : 'Request approved', '<a class="btn btn-secondary" href="/account">Your account</a>', current,
-      denied ? 'No CLI access was granted.' : 'Return to your terminal.', { layout: 'auth', helpTopic: 'CLI approval', mark: denied ? { icon: 'x', tone: 'neutral' } : { icon: 'check', tone: 'ok' } })
+    return renderAuthPage(reply, { title: denied ? 'Request denied' : 'Request approved', helpTopic: 'CLI approval',
+      description: denied ? 'No CLI access was granted.' : 'Return to your terminal.', mark: denied ? { icon: 'x', tone: 'neutral' } : { icon: 'check', tone: 'ok' },
+      blocks: [{ kind: 'buttons', buttons: [{ label: 'Your account', tone: 'secondary', href: '/account' }] }] }, current)
   })
   app.addHook('onClose', async () => { requests.clear() })
   return {

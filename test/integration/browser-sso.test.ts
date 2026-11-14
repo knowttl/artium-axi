@@ -151,7 +151,8 @@ test('optional provider sign-out revokes the local session before offering the d
   const response = await signOut(sessionToken, true)
   expect(response.statusCode).toBe(200)
   expect(response.body).not.toContain('action="/theme"')
-  const destination = new URL(/data-provider-signout href="([^"]+)"/.exec(response.body)![1]!.replaceAll('&amp;', '&'))
+  const link = /<a [^>]*data-provider-signout[^>]*>/.exec(response.body)![0]
+  const destination = new URL(/ href="([^"]+)"/.exec(link)![1]!.replaceAll('&amp;', '&'))
   expect(destination.pathname).toBe(`/${syntheticTenant}/v2.0/logout`)
   expect(destination.searchParams.get('post_logout_redirect_uri')).toBe('https://localhost/login')
   expect(destination.searchParams.get('client_id')).toBe('33333333-3333-4333-8333-333333333333')
@@ -509,8 +510,8 @@ test('device approval requires a fresh SSO sign-in, displays the request and iss
   const device = await deviceRequest()
   const browser = await deviceBrowser(device.userCode)
   expect(fake.authorizations.at(-1)).toMatchObject({ prompt: 'login' })
-  expect(browser.page.body).toContain('<dt>Requested from</dt><dd class="mono">127.0.0.1</dd>')
-  expect(browser.page.body).toContain('<dt>When</dt><dd><time datetime=')
+  expect(browser.page.body).toMatch(/<dt[^>]*>Requested from<\/dt><dd[^>]*><span[^>]*>127\.0\.0\.1<\/span><\/dd>/)
+  expect(browser.page.body).toMatch(/<dt[^>]*>When<\/dt><dd[^>]*><time datetime="[^"]+"/i)
   expect(browser.page.body).toContain('Never approve a code someone sent you')
   expect(browser.page.headers['content-security-policy']).toContain("script-src 'self'")
   expect((await app.inject({ method: 'POST', url: '/device', headers: browser.headers,

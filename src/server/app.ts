@@ -21,7 +21,7 @@ import { registerProxmoxStreams } from './proxmox-streams.js'
 import type { ProxmoxAdapter } from './adapters/proxmox.js'
 import { loginSchema, reauthSchema, refreshSchema } from '../shared/api.js'
 import { AuthAttempts, AuthRateLimits } from './auth/attempts.js'
-import { browserCookie, browserPage, registerBrowser } from './auth/browser.js'
+import { browserCookie, registerBrowser } from './auth/browser.js'
 import { readBrowserSession, recentBrowserAuth, type BrowserSession } from './auth/sessions.js'
 import { registerAdmin } from './admin/api.js'
 import { registerOverviewPage } from './admin/overview.js'
@@ -30,8 +30,7 @@ import { registerRolesPages } from './admin/roles.js'
 import { registerAdminPages } from './admin/pages.js'
 import { registerAuditPage } from './admin/audit.js'
 import { registerTokenPage } from './admin/delegated-tokens.js'
-import { escape } from './admin/escape.js'
-import { copyValue } from './admin/design/ui.js'
+import { renderAuthPage } from './admin/render-page.js'
 import type { IdentityResolver } from './policy/identity-resolver.js'
 import { checkToolPolicy } from './policy/policy.js'
 import { runTool } from './runner/run.js'
@@ -178,10 +177,10 @@ export function createApp(options: {
         catch (error) { if (!(error instanceof ArtiumError)) throw error }
       }
       const [href, label] = !current ? ['/login', 'Sign in'] : current.must_change ? ['/password', 'Change password'] : current.administrator ? ['/admin', 'Overview'] : ['/account', 'Your account']
-      return browserPage(reply, 'Request failed', `<p>${escape(errors[failure.code].message)} ${escape(errors[failure.code].next)}</p>
-        <dl class="kv"><dt>Code</dt><dd class="mono">${escape(failure.code)}</dd><dt>Request ID</dt><dd class="mono">${copyValue('request ID', request.id)}</dd></dl>
-        <div class="auth-actions"><button type="button" class="btn btn-secondary" data-history-back hidden>Go back</button><a class="btn btn-primary" href="${href}">${label}</a></div>`,
-      current, undefined, { layout: 'auth', mark: { icon: 'alert', tone: 'warn' } })
+      return renderAuthPage(reply, { title: 'Request failed', mark: { icon: 'alert', tone: 'warn' }, blocks: [
+        { kind: 'text', parts: [`${errors[failure.code].message} ${errors[failure.code].next}`] },
+        { kind: 'details', rows: [{ label: 'Code', value: failure.code, mono: true }, { label: 'Request ID', value: request.id, mono: true, copyLabel: 'request ID' }] },
+        { kind: 'buttons', row: true, buttons: [{ label: 'Go back', tone: 'secondary', back: true }, { label, tone: 'primary', href }] }] }, current)
     }
     reply.code(errors[failure.code].status).send(errorResponse(failure, request.id))
   })
