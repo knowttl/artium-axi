@@ -27,8 +27,9 @@ Overview is the first page on the seam.
 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and an actions slot, and the side navigation slot.
 `adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu, confirmation pill and help panel once for both the frame and the legacy shell, so the links, landmarks and titles stay identical.
-Until the side navigation moves to Astryx, the frame renders the legacy markup for the brand, links, account menu, confirmation pill and help panel through `dangerouslySetInnerHTML`, so React neither re-renders nor compares what `confirm.js` updates there.
-Below the Astryx mobile breakpoint a native navigation disclosure remains usable without JavaScript, and CSS hides the desktop sidebar.
+The side navigation is an Astryx `SideNav` with a `SideNavSection` per group and a `SideNavItem` per link, whose current page is derived from the request path.
+The frame renders the legacy markup for the account menu, confirmation pill and help panel through `dangerouslySetInnerHTML`, so React neither re-renders nor compares what `confirm.js` updates there.
+Below the Astryx mobile breakpoint a native navigation disclosure remains usable without JavaScript, listing the same `SideNavItem` links without a second `SideNav`, and CSS hides the desktop sidebar.
 The frame retains one banner, one main and one navigation landmark labelled "Administration".
 The toast regions, confirmation dialogs and icon sprite that `confirm.js` drives stay outside the React root.
 A view that shows a time wraps it in `<time suppressHydrationWarning>`, because `confirm.js` formats every `time[datetime]` before hydration.
@@ -179,7 +180,7 @@ Form errors appear inside the open dialog so they remain visible and can receive
 The sidebar groups administration into Overview, Access (People, Roles, Invitations), Tools (Tools) and Security (Sign-in & SSO, Audit log).
 The current section is derived from the request path.
 On legacy pages, at 760px and narrower the sidebar opens full screen through a `#nav` fragment link in the top bar.
-On the render seam, at 767px and narrower the sidebar is replaced by a navigation disclosure in the header.
+On the render seam the sidebar is an Astryx `SideNav`; at 767px and narrower it is replaced by a navigation disclosure in the header.
 
 ## Changing the UI
 

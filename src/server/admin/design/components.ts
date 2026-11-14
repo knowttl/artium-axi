@@ -31,9 +31,9 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .nav-item:hover { background: var(--bg-hover); color: var(--text); }
 .nav-item[aria-current="page"] { background: var(--bg-active); color: var(--text); }
 .side-foot { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); }
-.frame-side { display: flex; flex-direction: column; box-sizing: border-box; min-height: 100%; width: 100%; min-width: var(--side-w); padding: 12px 10px; }
-.frame-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-.frame-nav nav { display: flex; flex-direction: column; gap: 2px; }
+.frame-side .side-foot { margin: 0 10px 10px; border-top-color: var(--border-strong); }
+.frame-side .avatar { background: var(--border-strong); }
+.frame-side .account-menu .popover { min-width: 0; }
 .frame-mobile-nav { display: none; }
 .frame-mobile-menu { position: absolute; top: 100%; left: 0; width: min(var(--side-w), 100vw); max-height: calc(100dvh - 100%); overflow-y: auto; padding: 12px 10px; background: var(--bg); border: 1px solid var(--border); }
 @media (max-width: 767px) {
