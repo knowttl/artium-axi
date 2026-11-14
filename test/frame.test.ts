@@ -1,12 +1,12 @@
-import { createElement, type ReactNode } from 'react'
+import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
 import { expect, test } from 'vitest'
 import { Theme } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import { parseFragment, type DefaultTreeAdapterMap } from 'parse5'
-import { Frame } from '../src/views/frame.js'
+import { Frame, type FrameAction } from '../src/views/frame.js'
 
-function render(options: { description?: string, actions?: ReactNode } = {}) {
+function render(options: { description?: string, actions?: FrameAction[] } = {}) {
   const frame = createElement(Frame, { title: 'Synthetic title', ...options, crumbs: [{ label: 'Access', href: '/admin/users' }, { label: 'Synthetic title' }],
     brand: { name: 'Synthetic brand', href: '/synthetic-home' }, account: '<button>Synthetic account</button>', controls: '<span>Synthetic controls</span>', topbarEnd: '<span>Synthetic header end</span>', children: 'Synthetic content',
     navigation: [{ links: [{ href: '/synthetic-top', label: 'Synthetic top', icon: 'home', current: false }] },
@@ -15,8 +15,15 @@ function render(options: { description?: string, actions?: ReactNode } = {}) {
 }
 
 test('the page header places actions after the title and description', () => {
-  const html = render({ description: 'Synthetic description.', actions: createElement('a', { href: '/synthetic-action' }, 'Synthetic action') })
-  expect(html).toMatch(/<h1[^>]*>Synthetic title<\/h1>.*Synthetic description\..*<a href="\/synthetic-action">Synthetic action<\/a>.*Synthetic content/s)
+  const html = render({ description: 'Synthetic description.', actions: [{ label: 'Synthetic action', href: '/synthetic-action', variant: 'primary', icon: 'plus' }] })
+  expect(html).toMatch(/<h1[^>]*>Synthetic title<\/h1>.*Synthetic description\..*<a [^>]*href="\/synthetic-action"[^>]*>.*Synthetic action.*Synthetic content/s)
+})
+
+test('an action that opens a sheet names the sheet and stays a link without JavaScript', () => {
+  const html = render({ actions: [{ label: 'Open sheet', href: '/synthetic-page?sheet=synthetic', variant: 'primary', icon: 'plus', sheet: 'sheet-synthetic' },
+    { label: 'Plain link', href: '/synthetic-plain', variant: 'secondary', icon: 'mail' }] })
+  const links = nodes(parseFragment(html)).filter(element => element.tagName === 'a' && attribute(element, 'href')?.startsWith('/synthetic-p'))
+  expect(links.map(link => [attribute(link, 'href'), attribute(link, 'data-sheet')])).toEqual([['/synthetic-page?sheet=synthetic', 'sheet-synthetic'], ['/synthetic-plain', undefined]])
 })
 
 const nodes = (node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['element'][] => [

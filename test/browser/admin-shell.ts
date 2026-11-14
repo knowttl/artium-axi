@@ -490,19 +490,31 @@ test('token creation applies tool instances to all selections', () => {
 test('People role links and stretched person and tool rows keep independent pointer targets', () => {
   browser(`
     check(await page.eval(() => {
-      const chip = document.querySelector('tr.link:first-child a.chip');
+      const role = document.querySelector('tbody a.row-chip');
+      role.focus();
+      const style = getComputedStyle(role);
+      return style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0;
+    }), 'Focused role link has no visible outline');
+    check(await page.eval(() => {
+      const person = document.querySelector('tbody a.row-link');
+      person.focus();
+      const style = getComputedStyle(person, '::after');
+      return style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0;
+    }), 'Focused person row has no visible outline');
+    check(await page.eval(() => {
+      const chip = document.querySelector('tbody tr:first-child a.row-chip');
       const box = chip.getBoundingClientRect();
       return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2).closest('a') === chip;
     }), 'Person overlay covers role link');
-    await page.click('tr.link:first-child a.chip[href="/admin/roles/synthetic-role"]');
+    await page.click('tbody tr:first-child a.row-chip[href="/admin/roles/synthetic-role"]');
     await page.wait('form[action="/v1/admin/roles/synthetic-role"]');
     await page.open(base + '/admin/users');
     check(await page.eval(() => {
-      const row = document.querySelector('tr.link');
+      const row = document.querySelector('tbody tr');
       const box = row.querySelector('td.num').getBoundingClientRect();
       return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2).closest('a') === row.querySelector('.row-link');
     }), 'Person row is not linked');
-    await page.click('tr.link:first-child .row-link');
+    await page.click('tbody tr:first-child .row-link');
     await page.wait('form[action^="/v1/admin/users/"]');
     check(await page.eval(() => location.pathname.startsWith('/admin/users/')), 'Row did not open person');
     await page.open(base + '/admin/tools/falcon-axi');
@@ -511,7 +523,13 @@ test('People role links and stretched person and tool rows keep independent poin
     await page.wait('[name=enabled][value=false]');
     await page.open(base + '/admin');
     check(await page.eval(() => {
-      const link = document.querySelector('main tbody a[href="/admin/tools/falcon-axi"]');
+      const tool = document.querySelector('[role=main] tbody a[href="/admin/tools/falcon-axi"]');
+      tool.focus();
+      const style = getComputedStyle(tool, '::after');
+      return style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0;
+    }), 'Focused tool row has no visible outline');
+    check(await page.eval(() => {
+      const link = document.querySelector('[role=main] tbody a[href="/admin/tools/falcon-axi"]');
       const cells = [...link.closest('tr').cells];
       return cells.every(cell => {
         const box = cell.getBoundingClientRect();
@@ -519,7 +537,7 @@ test('People role links and stretched person and tool rows keep independent poin
       });
     }), 'Tool row is not linked across its cells');
     await page.eval(() => {
-      const cell = document.querySelector('main tbody a[href="/admin/tools/falcon-axi"]').closest('tr').lastElementChild;
+      const cell = document.querySelector('[role=main] tbody a[href="/admin/tools/falcon-axi"]').closest('tr').lastElementChild;
       const box = cell.getBoundingClientRect();
       document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2).click();
     });
@@ -536,10 +554,22 @@ test('disabled People rows preserve person and role pointer targets', () => {
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=enabled][value=true]');
   `)
-  for (const width of [1280, 420]) {
-    chrome(['resize', String(width), '900'])
+  for (const theme of ['light', 'dark']) {
+    chrome(['resize', '1280', '900'])
     browser(`
       await page.open(base + '/admin/users');
+      await page.click('.frame-controls-header form[action="/theme"] button[value="${theme}"]');
+      await page.wait('.frame-controls-header form[action="/theme"] button[value="${theme}"][aria-pressed="true"]');
+    `)
+    for (const width of [1280, 420]) {
+      chrome(['resize', String(width), '900'])
+      browser(`
+      await page.open(base + '/admin/users');
+      check(await page.eval(() => {
+        const disabled = document.querySelector('a[href="/admin/users/synthetic-ordinary"]').closest('tr');
+        const enabled = [...document.querySelectorAll('tbody tr')].find(row => row !== disabled);
+        return Number(getComputedStyle(disabled).opacity) < 1 && Number(getComputedStyle(enabled).opacity) === 1;
+      }), 'Disabled person is not visibly dimmer than an enabled person');
       check(await page.eval(() => {
         const row = document.querySelector('tr.dim');
         const link = row.querySelector('.row-link');
@@ -549,13 +579,14 @@ test('disabled People rows preserve person and role pointer targets', () => {
         });
       }), 'Disabled person cells cover the person link');
       check(await page.eval(() => {
-        const chip = document.querySelector('tr.dim a.chip');
+        const chip = document.querySelector('tr.dim a.row-chip');
         const box = chip.getBoundingClientRect();
         return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)?.closest('a') === chip;
       }), 'Disabled person overlay covers the role link');
-      await page.click('tr.dim a.chip');
+      await page.click('tr.dim a.row-chip');
       await page.wait('form[action="/v1/admin/roles/synthetic-role"]');
-    `)
+      `)
+    }
   }
 })
 
@@ -1072,7 +1103,7 @@ test('navigation exposes contextual help and one sign-out on every admin screen 
   for (const width of [1280, 420]) {
     chrome(['resize', String(width), '900'])
     browser(`
-    for (const path of ['/admin', '/admin/users/synthetic-ordinary', '/admin/roles', '/admin/roles/synthetic-role', '/admin/tools', '/admin/credentials', '/admin/tools/falcon-axi', '/admin/tools/vectra-axi', '/admin/tools/az-axi', '/admin/tools/mg-axi', '/admin/tools/ldap-axi', '/admin/audit', '/account', '/password', '/reauth']) {
+    for (const path of ['/admin', '/admin/users', '/admin/users/synthetic-ordinary', '/admin/roles', '/admin/roles/synthetic-role', '/admin/tools', '/admin/credentials', '/admin/tools/falcon-axi', '/admin/tools/vectra-axi', '/admin/tools/az-axi', '/admin/tools/mg-axi', '/admin/tools/ldap-axi', '/admin/audit', '/account', '/password', '/reauth']) {
       await page.open(base + path);
       await page.click('.page-help summary');
       check(await page.eval(() => document.querySelector('.page-help').open), 'Help did not open on ' + path);
@@ -1990,14 +2021,14 @@ test('user search combines filters, retains them through pagination and explains
       form.requestSubmit();
     });
     await page.wait('[name=q][value="synthetic"]');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Showing 1 of 2')), 'Missing filtered count');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Showing 1 of 2')), 'Missing filtered count');
     await page.click('a[href*="cursor="]');
     await page.wait('a[href="/admin/users/synthetic-ordinary"]');
     check(await page.eval(() => ['q', 'source', 'status', 'role'].every(name => new URLSearchParams(location.search).has(name))), 'Pagination lost filters');
     await page.fill('[name=q]', 'no-matching-person');
     await page.eval(() => document.querySelector('form[data-filters]').requestSubmit());
     await page.wait('[name=q][value="no-matching-person"]');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Nobody matches these filters')), 'Missing empty-state guidance');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Nobody matches these filters')), 'Missing empty-state guidance');
     check(await page.eval(() => !new URLSearchParams(location.search).has('cursor')), 'Search retained old cursor');
   `)
 })

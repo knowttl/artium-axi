@@ -265,10 +265,15 @@ a.chip:hover { background: var(--bg-active); }
 
 /* Table */
 .table-wrap { overflow-x: auto; }
-.overview-tools tbody tr { position: relative; }
-.overview-tools tbody a::after { content: ""; position: absolute; inset: 0; }
-.overview-tools tbody a:focus-visible { outline: 0; }
-.overview-tools tbody a:focus-visible::after { outline: 2px solid var(--focus); outline-offset: -2px; }
+.link-rows tbody tr { position: relative; }
+.link-rows tbody a:not(.row-chip)::after { content: ""; position: absolute; inset: 0; }
+.link-rows tbody a:not(.row-chip):focus-visible { outline: 0; }
+.link-rows tbody a:not(.row-chip):focus-visible::after { outline: 2px solid var(--focus); outline-offset: -2px; }
+.link-rows tbody tr:hover { background: var(--bg-subtle); }
+.link-rows .row-link { color: var(--text); text-decoration: none; }
+.link-rows tbody td.num { width: 48px; min-width: 48px; color: var(--text-faint); text-align: right; }
+.link-rows tbody tr.dim { opacity: 0.6; }
+.link-rows tbody td a.row-chip { position: relative; z-index: 1; }
 .tbl tbody tr.link { position: relative; }
 .tbl tbody tr.link:hover { background: var(--bg-subtle); }
 .tbl .row-link { color: var(--text); text-decoration: none; }
@@ -724,6 +729,11 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .tbl.stacked td { display: block; padding: 3px 14px; border: 0; }
   .tbl.stacked td.num, .tbl.stacked td.actions-cell { text-align: left; }
   .tbl.stacked td[data-label]::before { content: attr(data-label) ": "; color: var(--text-faint); }
+  .people-list thead { display: none; }
+  .people-list tbody tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .people-list tbody tr:last-child { border-bottom: 0; }
+  .people-list tbody td { display: block; width: auto; max-width: none; padding: 3px 14px; border: 0; }
+  .people-list tbody td.num { position: absolute; top: 10px; right: 0; width: auto; min-width: 0; pointer-events: none; }
   .filters .input-wrap { width: 100%; }
   .page-head > .actions { flex-basis: 100%; margin-left: 0; }
   .callout { flex-wrap: wrap; }

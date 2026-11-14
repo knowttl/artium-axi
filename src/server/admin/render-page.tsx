@@ -1,7 +1,7 @@
 import type { FastifyReply } from 'fastify'
 import { renderToString } from 'react-dom/server'
 import type { AuthBlock } from '../../views/auth.js'
-import type { FrameProps } from '../../views/frame.js'
+import type { FrameAction, FrameProps } from '../../views/frame.js'
 import { Root, type ViewName, type ViewProps } from '../../views/root.js'
 import { browserDocument, browserViewer } from '../auth/browser.js'
 import type { BrowserSession } from '../auth/sessions.js'
@@ -21,11 +21,11 @@ function respond<Name extends ViewName>(reply: FastifyReply, title: string, name
 }
 
 export function renderPage<Name extends ViewName>(reply: FastifyReply, title: string, name: Name, props: ViewProps[Name],
-  current: BrowserSession, description?: string) {
+  current: BrowserSession, description?: string, actions?: FrameAction[]) {
   const mode = readThemeMode(reply.request)
   const { crumbs, brand, navigation, account, controls, topbarEnd, overlays } = adminChrome({ title, description, content: '', help: pageHelp(title, current.source),
     path: reply.request.url.split('?')[0]!, viewer: browserViewer(reply, current), themeSwitch: '' })
-  const frame = { title, description, crumbs, brand, navigation, account, controls: controls + themeSwitch(reply, mode), topbarEnd }
+  const frame = { title, description, actions, crumbs, brand, navigation, account, controls: controls + themeSwitch(reply, mode), topbarEnd }
   return respond(reply, title, name, props, frame, overlays, current)
 }
 

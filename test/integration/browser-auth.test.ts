@@ -744,8 +744,11 @@ test('Users screen paginates accounts and retains role choices from later API pa
   await signIn()
   const response = await request('GET', '/admin/users?limit=1')
   expect(response.body).toContain('Role 100')
-  const next = /href="(\/admin\/users\?[^"]*cursor=[^"]+)">Next</.exec(response.body)![1]!.replaceAll('&amp;', '&')
-  expect((await request('GET', next)).body).not.toMatch(/cursor=[^"]+">Next</)
+  const text = (element: DefaultTreeAdapterMap['element']): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? text(child) : '').join('')
+  const nextHref = (html: string) => nodesOf(parse(withoutProps(html))).find(element => element.tagName === 'a' && text(element) === 'Next')?.attrs.find(item => item.name === 'href')?.value
+  const next = nextHref(response.body)!
+  expect(next).toMatch(/^\/admin\/users\?.*cursor=/)
+  expect(nextHref((await request('GET', next)).body)).toBeUndefined()
   expect((await request('GET', '/admin/users?limit=101')).statusCode).toBe(400)
 })
 
