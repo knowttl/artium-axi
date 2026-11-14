@@ -11,6 +11,7 @@ const light = `
   --border: #e4e4e7;
   --border-strong: #d4d4d8;
   --control: #8e8e97;
+  --field-border: #8e8e97;
   --text: #09090b;
   --text-muted: #52525b;
   --text-faint: #6b6b74;
@@ -52,6 +53,7 @@ const dark = `
     --border: #27272a;
     --border-strong: #3f3f46;
     --control: #66666f;
+    --field-border: #77777f;
     --text: #fafafa;
     --text-muted: #a1a1aa;
     --text-faint: #8b8b94;

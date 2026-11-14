@@ -4,7 +4,7 @@ export const components = `
 html, body { background: var(--bg); }
 body { margin: 0; color: var(--text); font: var(--fs-base)/1.5 var(--font); -webkit-font-smoothing: antialiased; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-a { color: var(--text); text-underline-offset: 2px; }
+a:where(:not([data-astryx-root] *)) { color: var(--text); text-underline-offset: 2px; }
 code, pre, kbd { font-family: var(--mono); font-size: 0.92em; }
 small { overflow-wrap: anywhere; }
 [hidden] { display: none !important; }
@@ -175,8 +175,6 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .field { display: flex; flex-direction: column; gap: 6px; margin: 0 0 14px; }
 :where(.content, .auth-card, dialog) .field label { margin: 0; }
 :where(.content, .auth-card, dialog) .field :where(input, select, textarea) { margin-top: 0; }
-.auth-card .field { margin: 0; }
-.auth-card .field input { max-width: none; }
 
 /* Tool grid: granted tools with availability */
 .tool-grid { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 16px; }
@@ -408,26 +406,8 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 /* Auth card: signed-out screens */
 .auth { min-height: 100vh; display: grid; place-items: center; padding: 40px 16px; background: var(--bg-subtle); }
 .auth-wrap { width: 100%; max-width: 380px; }
-.auth-card { display: flex; flex-direction: column; gap: 16px; padding: 28px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); }
-.auth-card .brand { padding: 0; }
-.auth-card .page-head h1 { font-size: var(--fs-lg); }
-.auth-card > p { margin: 0; color: var(--text-muted); font-size: var(--fs-sm); }
-.auth-card form { display: flex; flex-direction: column; gap: 14px; margin: 0; }
-.auth-card form > p { margin: 0; }
-.auth-card .btn { width: 100%; }
-.auth-card .copyvalue .btn { width: var(--ctl-h-sm); flex: none; }
-.auth-card code { font-size: 0.88em; white-space: nowrap; }
-.auth-card .kv { grid-template-columns: 110px minmax(0, 1fr); }
-.auth-head { display: flex; align-items: center; gap: 10px; }
-.auth-head h1 { margin: 0; font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em; }
-.auth-actions { display: flex; gap: 8px; }
-.auth-actions > * { flex: 1; }
-.auth-actions form { flex: 1; }
-.divider { display: flex; align-items: center; gap: 10px; color: var(--text-faint); font-size: var(--fs-xs); }
-.divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
-.bigcode { padding: 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-subtle); font-family: var(--mono); font-size: 28px; font-weight: 600; letter-spacing: 0.18em; text-align: center; }
+.astryx-text-input { --color-border-emphasized: var(--field-border); }
 .auth-foot { margin: 14px 0 0; color: var(--text-faint); font-size: var(--fs-xs); text-align: center; }
-.auth-foot .link { min-height: var(--ctl-h-sm); }
 .auth-foot .check { justify-content: center; align-items: center; min-height: var(--ctl-h-sm); }
 .auth-help { margin-top: 14px; color: var(--text-faint); font-size: var(--fs-xs); text-align: center; border: 0; padding: 0; }
 .auth-help p { text-align: left; }

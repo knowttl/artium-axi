@@ -7,11 +7,11 @@ import { ArtiumError } from '../../shared/errors.js'
 import type { Audit, AuditEvent } from '../audit/audit.js'
 import { ssoDefaults } from '../config.js'
 import type { ProviderCredentials } from '../store/provider-credentials.js'
-import { escape } from '../admin/escape.js'
+import { renderAuthPage } from '../admin/render-page.js'
 import { AuthRateLimits } from './attempts.js'
 import { entraCredential } from './entra-credential.js'
 import { oidcCredential } from './oidc-credential.js'
-import { browserCookie, browserPage, cookieOptions } from './browser.js'
+import { browserCookie, cookieOptions } from './browser.js'
 import { browserIdentity, createBrowserSession, readBrowserSession, type BrowserSession } from './sessions.js'
 import { hashToken, revokeUserSessions } from './tokens.js'
 import { deviceUserCodeSchema } from '../../shared/api.js'
@@ -205,8 +205,8 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
           db.prepare('UPDATE sessions SET reauthenticated_at = ? WHERE id = ?').run(authTime.data * 1000, session.id)
           db.prepare('UPDATE users SET last_sso_sign_in_at = ? WHERE id = ?').run(Date.now(), session.user_id)
         })
-        return browserPage(reply, 'Identity confirmed', '<a class="btn btn-primary" href="/reauth?complete=1">Continue to Artium</a>', undefined,
-          'Your identity has been confirmed.', { mark: { icon: 'check', tone: 'ok' } })
+        return renderAuthPage(reply, { title: 'Identity confirmed', description: 'Your identity has been confirmed.', mark: { icon: 'check', tone: 'ok' },
+          blocks: [{ kind: 'buttons', buttons: [{ label: 'Continue to Artium', tone: 'primary', href: '/reauth?complete=1' }] }] })
       }
       const csrfSecret = randomBytes(32).toString('base64url')
       const events: AuditEvent[] = []
@@ -272,8 +272,8 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
       if (transaction.device) devices!.signedIn(transaction.device.code, session.id)
       // A document and user navigation establish a same-site hop before Strict cookies are needed.
       const destination = transaction.device ? '/device?code=' + encodeURIComponent(transaction.device.code) : session.administrator ? '/admin' : '/account'
-      return browserPage(reply, 'Sign-in complete', `<a class="btn btn-primary" href="${escape(destination)}">Continue to Artium</a>`,
-        undefined, 'Your identity has been verified.', { mark: { icon: 'check', tone: 'ok' } })
+      return renderAuthPage(reply, { title: 'Sign-in complete', description: 'Your identity has been verified.', mark: { icon: 'check', tone: 'ok' },
+        blocks: [{ kind: 'buttons', buttons: [{ label: 'Continue to Artium', tone: 'primary', href: destination }] }] })
     } catch (error) {
       const failure = error instanceof ArtiumError ? error : new ArtiumError('SSO_PROVIDER_ERROR')
       audit.record({ ...event, userId, subject, outcome: failure.code })

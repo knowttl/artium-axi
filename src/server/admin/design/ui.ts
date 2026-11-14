@@ -179,19 +179,13 @@ export interface Viewer {
 }
 
 export interface Page extends PageHeader {
-  // Interstitial screens (sign-in, password, confirmation, CLI approval, results, errors) use the auth card.
-  layout?: 'auth'
-  // An auth card result shows a status mark beside its title instead of the brand row.
-  mark?: { icon: IconName, tone: Tone | 'neutral' }
   // Detail pages show their parent page in the breadcrumb.
   parent?: { href: string, label: string }
-  // One escaped line under the auth card.
-  footnote?: string
   title: string
   content: string
   help: string
   path: string
-  viewer?: Viewer
+  viewer: Viewer
   themeSwitch: string
 }
 
@@ -209,7 +203,7 @@ const navigation: { group?: string, href: string, label: string, icon: IconName 
   { group: 'Security', href: '/admin/audit', label: 'Audit log', icon: 'list' },
 ]
 
-const product = { name: 'Artium', href: '/admin' }
+export const product = { name: 'Artium', href: '/admin' }
 
 const brand = (href: string) => `<a class="brand" href="${href}"><span class="logo" aria-hidden="true">A</span>${product.name}</a>`
 
@@ -257,24 +251,14 @@ function dialogs(viewer: Viewer): string {
 
 // Results of an action: #toast announces success politely, #message carries errors.
 const toasts = '<div class="toasts"><p id="toast" class="toast ok" role="status"></p><p id="message" class="toast err" role="alert" tabindex="-1"></p></div>'
-
-function authCard(page: Page): string {
-  const { viewer } = page
-  const home = !viewer ? '/login' : viewer.mustChange ? '/password' : viewer.administrator ? '/admin' : '/account'
-  const head = page.mark
-    ? `<div class="auth-head"><span class="ico-circle ${page.mark.tone === 'neutral' ? '' : page.mark.tone}">${icon(page.mark.icon)}</span><h1>${escape(page.title)}</h1></div>${page.description ? `<p>${escape(page.description)}</p>` : ''}`
-    : brand(home) + pageHeader(page.title, { description: page.description })
-  const signedIn = viewer ? `<form class="auth-foot" method="post" action="/logout"><input type="hidden" name="_csrf" value="${escape(viewer.csrf)}">Signed in as ${escape(viewer.name)} · <button class="link">Sign out</button>${viewer.sso ? '<label class="check"><input type="checkbox" name="providerLogout" value="true"> Also sign out of your identity provider</label>' : ''}</form>` : ''
-  return `<a class="skip" href="#main">Skip to content</a><main id="main" class="auth"><div class="auth-wrap"><div class="auth-card">${head}${page.content}</div>${page.footnote ? `<p class="auth-foot">${escape(page.footnote)}</p>` : ''}${signedIn}${page.themeSwitch ? `<div class="theme-row">${page.themeSwitch}</div>` : ''}
-      <details class="page-help auth-help"><summary>Need help?</summary>${page.help}</details></div></main>${toasts}${sprite}`
-}
+export const authOverlays = toasts + sprite
 
 export interface AdminChrome extends Pick<FrameProps, 'crumbs' | 'brand' | 'navigation' | 'account' | 'controls' | 'topbarEnd'> {
   legacyNavigation: string
   overlays: string
 }
 
-export function adminChrome(page: Page & { viewer: Viewer }): AdminChrome {
+export function adminChrome(page: Page): AdminChrome {
   const { viewer } = page
   const active = navigation.find(item => item.href === '/admin' ? page.path === '/admin' : page.path === item.href || page.path.startsWith(item.href + '/'))
   let group: string | undefined
@@ -306,7 +290,6 @@ export function adminChrome(page: Page & { viewer: Viewer }): AdminChrome {
 
 export function appShell(page: Page): string {
   const { viewer } = page
-  if (!viewer || page.layout === 'auth') return authCard(page)
   const head = pageHeader(page.heading ?? page.title, page)
   const message = toasts
   if (!viewer.administrator || viewer.mustChange) {

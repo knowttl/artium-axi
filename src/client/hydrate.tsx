@@ -16,6 +16,6 @@ if (root && props) {
       element.removeAttribute('data-inline-style')
     }
   }
-  const { frame, props: viewProps } = JSON.parse(props.textContent!) as { frame: FrameProps, props: ViewProps[ViewName] }
+  const { frame, props: viewProps } = JSON.parse(props.textContent!) as { frame?: FrameProps, props: ViewProps[ViewName] }
   hydrateRoot(root, <Root name={root.dataset.view as ViewName} props={viewProps} frame={frame} mode={root.dataset.mode as ThemeMode} />)
 }

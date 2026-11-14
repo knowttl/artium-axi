@@ -14,7 +14,9 @@ import { browserIdentity, createBrowserSession, readBrowserSession, recentBrowse
 import { escape } from '../admin/escape.js'
 import { pageHelp } from '../admin/forms.js'
 import { readThemeMode, registerThemeRoute, themeSwitch } from '../admin/theme-mode.js'
-import { appShell, callout, icon, type PageOptions, type Viewer } from '../admin/design/ui.js'
+import { renderAuthPage } from '../admin/render-page.js'
+import { appShell, icon, type PageOptions, type Viewer } from '../admin/design/ui.js'
+import type { AuthBlock, AuthButton, AuthField } from '../../views/auth.js'
 import { authDefaults } from '../config.js'
 import { listUserSessions, revokeUserSession } from './user-sessions.js'
 import { revokeUserSessions } from './tokens.js'
@@ -47,11 +49,11 @@ export function browserDocument(reply: FastifyReply, title: string, body: string
   return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"${mode === 'system' ? '' : ` data-theme="${mode}"`}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><link rel="stylesheet" href="/admin/assets/astryx.css"><script defer src="/admin/assets/confirm.js"></script>${head}</head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${body}</body></html>`)
 }
 
-export function browserPage(reply: FastifyReply, title: string, content: string, current?: BrowserSession, description?: string,
+export function browserPage(reply: FastifyReply, title: string, content: string, current: BrowserSession, description?: string,
   options: PageOptions & { helpTopic?: string } = {}) {
   const { helpTopic, ...page } = options
   const switchHtml = reply.request.method === 'GET' && !reply.request.url.startsWith('/auth/sso/') ? themeSwitch(reply, readThemeMode(reply.request)) : ''
-  const body = appShell({ ...page, title, description, content, help: pageHelp(helpTopic ?? title, current?.source), path: reply.request.url.split('?')[0]!, viewer: current && browserViewer(reply, current), themeSwitch: switchHtml })
+  const body = appShell({ ...page, title, description, content, help: pageHelp(helpTopic ?? title, current.source), path: reply.request.url.split('?')[0]!, viewer: browserViewer(reply, current), themeSwitch: switchHtml })
   return browserDocument(reply, title, body, current)
 }
 
@@ -102,13 +104,13 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
     }
   })
 
-  function form(reply: FastifyReply, action: string, label: string, fields = '', tone = 'btn-primary', after = '') {
-    return `<form method="post" action="${action}"><input type="hidden" name="_csrf" value="${escape(reply.generateCsrf())}">${fields}${after ? `<div class="auth-actions">${after}<button class="btn ${tone}" type="submit">${label}</button></div>` : `<button class="btn ${tone}" type="submit">${label}</button>`}</form>`
-  }
-  const passwordField = (name: string, label: string, autocomplete: string, hint = '') =>
-    `<div class="field"><label for="${name}">${label}</label><input id="${name}" type="password" name="${name}" autocomplete="${autocomplete}"${hint ? ` aria-describedby="${name}-hint"` : ''} required>${hint ? `<p class="hint" id="${name}-hint">${hint}</p>` : ''}</div>`
-  const signedOut: PageOptions = { mark: { icon: 'check', tone: 'ok' } }
+  const passwordForm = (reply: FastifyReply, action: string, fields: AuthField[], buttons: AuthButton[]): AuthBlock =>
+    ({ kind: 'form', action, fields, post: { csrf: reply.generateCsrf() }, blocks: [{ kind: 'buttons', buttons, row: buttons.length > 1 || undefined }] })
+  const passwordField = (id: string, label: string, autoComplete: string, hint?: string): AuthField => ({ id, name: id, label, type: 'password', autoComplete, hint })
+  const signedOut = { icon: 'check', tone: 'ok' } as const
+  const signInAgain: AuthButton = { label: 'Sign in again', tone: 'primary', href: '/login' }
   const home = (current: BrowserSession) => current.must_change ? '/password' : current.administrator ? '/admin' : '/account'
+  const cancel = (current: BrowserSession): AuthButton => ({ label: 'Cancel', tone: 'ghost', href: home(current) })
 
   registerThemeRoute(app)
   app.get('/', async (_request, reply) => reply.redirect('/admin'))
@@ -123,15 +125,16 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
       }
     }
     const providers = db.prepare('SELECT id, name, kind FROM sso_providers WHERE enabled = 1 ORDER BY name, id').all() as { id: string, name: string, kind: string }[]
-    const password = form(reply, '/login', providers.length ? 'Sign in with password' : 'Sign in',
-      '<div class="field"><label for="username">Username</label><input id="username" name="username" autocomplete="username" required></div>' + passwordField('password', 'Password', 'current-password'),
-      providers.length ? 'btn-secondary' : 'btn-primary')
-    const content = providers.length
-      ? providers.map((provider, index) => `<a class="btn ${index ? 'btn-secondary' : 'btn-primary'}" href="/auth/sso/${escape(encodeURIComponent(provider.id))}/start">Continue with ${provider.kind === 'entra' ? `Microsoft (${escape(provider.name)})` : escape(provider.name)}</a>`).join('') +
-        `<p class="divider">Break-glass admins only</p>${password}<p class="hint">Local password sign-in is limited to designated break-glass administrators. Every break-glass sign-in and password confirmation is flagged in the audit log.</p>`
-      : password
-    return browserPage(reply, 'Sign in', content, undefined, providers.length ? 'Use your organisation account.' : 'Use the username and password from your administrator.',
-      { footnote: 'Locked out? Wait 15 minutes or ask an administrator to unlock your account.' })
+    const password = passwordForm(reply, '/login', [{ id: 'username', name: 'username', label: 'Username', type: 'text', autoComplete: 'username' },
+      passwordField('password', 'Password', 'current-password')], [{ label: providers.length ? 'Sign in with password' : 'Sign in', tone: providers.length ? 'secondary' : 'primary' }])
+    const blocks: AuthBlock[] = providers.length ? [
+      { kind: 'buttons', buttons: providers.map((provider, index) => ({ label: `Continue with ${provider.kind === 'entra' ? `Microsoft (${provider.name})` : provider.name}`,
+        tone: index ? 'secondary' : 'primary', href: `/auth/sso/${encodeURIComponent(provider.id)}/start` })) },
+      { kind: 'divider', label: 'Break-glass admins only' }, password,
+      { kind: 'text', hint: true, parts: ['Local password sign-in is limited to designated break-glass administrators. Every break-glass sign-in and password confirmation is flagged in the audit log.'] },
+    ] : [password]
+    return renderAuthPage(reply, { title: 'Sign in', description: providers.length ? 'Use your organisation account.' : 'Use the username and password from your administrator.',
+      blocks, footnote: 'Locked out? Wait 15 minutes or ask an administrator to unlock your account.' })
   })
   app.post('/login', async (request, reply) => {
     const input = loginSchema.safeParse(request.body)
@@ -165,11 +168,13 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
     if (input.data.providerLogout && current.source === 'sso') {
       try {
         const destination = await providerSignOut(current, `${request.protocol}://${request.host}`)
-        if (destination) return browserPage(reply, 'You’re signed out', `<a class="btn btn-secondary" data-provider-signout href="${escape(destination)}">Continue to provider sign-out</a><a class="btn btn-primary" href="/login">Sign in again</a>`,
-          undefined, 'Your Artium session has ended. Your identity provider session may still be active until you sign out there too.', signedOut)
+        if (destination) return renderAuthPage(reply, { title: 'You’re signed out', mark: signedOut,
+          description: 'Your Artium session has ended. Your identity provider session may still be active until you sign out there too.',
+          blocks: [{ kind: 'buttons', buttons: [{ label: 'Continue to provider sign-out', tone: 'secondary', href: destination, marker: 'data-provider-signout' }, signInAgain] }] })
       } catch { /* Local revocation succeeds even when discovery is unavailable. */ }
-      return browserPage(reply, 'You’re signed out', callout('warn', '', 'Provider sign-out could not be started; your provider session may still be active.') + '<a class="btn btn-primary" href="/login">Sign in again</a>',
-        undefined, 'Your Artium session has ended.', signedOut)
+      return renderAuthPage(reply, { title: 'You’re signed out', mark: signedOut, description: 'Your Artium session has ended.', blocks: [
+        { kind: 'banner', status: 'warning', text: 'Provider sign-out could not be started; your provider session may still be active.' },
+        { kind: 'buttons', buttons: [signInAgain] }] })
     }
     return reply.redirect('/login', 303)
   })
@@ -206,10 +211,11 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
   app.get('/password', async (request, reply) => {
     const current = session(request)
     const hint = 'Up to 512 bytes. Changing it signs out all your browser and CLI sessions; then sign in again with the new password.'
-    const fields = (current.must_change ? '' : passwordField('currentPassword', 'Current password', 'current-password')) + passwordField('newPassword', 'New password', 'new-password', hint)
-    return browserPage(reply, current.must_change ? 'Choose a new password' : 'Change password',
-      form(reply, '/password', current.must_change ? 'Set password and sign in again' : 'Change password', fields, 'btn-primary', current.must_change ? '' : `<a class="btn btn-ghost" href="${home(current)}">Cancel</a>`),
-      current, current.must_change ? 'Your temporary password must be replaced before you continue.' : 'Replace your local password.', { layout: 'auth', helpTopic: 'Change password' })
+    const fields = [...current.must_change ? [] : [passwordField('currentPassword', 'Current password', 'current-password')], passwordField('newPassword', 'New password', 'new-password', hint)]
+    return renderAuthPage(reply, { title: current.must_change ? 'Choose a new password' : 'Change password', helpTopic: 'Change password',
+      description: current.must_change ? 'Your temporary password must be replaced before you continue.' : 'Replace your local password.',
+      blocks: [passwordForm(reply, '/password', fields, [...current.must_change ? [] : [cancel(current)],
+        { label: current.must_change ? 'Set password and sign in again' : 'Change password', tone: 'primary' }])] }, current)
   })
   app.post('/password', async (request, reply) => {
     const current = session(request)
@@ -229,14 +235,18 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
       const identity = browserIdentity(db, current)
       if (query.data.complete) {
         if (!recentBrowserAuth(current)) throw new ArtiumError('REAUTH_REQUIRED')
-        return browserPage(reply, 'Identity confirmed', `<p data-sso-reauth-complete>Confirmation complete. You can close this window and return to your pending action.</p><a class="btn btn-secondary" href="${home(current)}">Continue to Artium</a>`,
-          current, undefined, { layout: 'auth', mark: { icon: 'check', tone: 'ok' } })
+        return renderAuthPage(reply, { title: 'Identity confirmed', mark: signedOut, blocks: [
+          { kind: 'text', marker: 'data-sso-reauth-complete', parts: ['Confirmation complete. You can close this window and return to your pending action.'] },
+          { kind: 'buttons', buttons: [{ label: 'Continue to Artium', tone: 'secondary', href: home(current) }] }] }, current)
       }
-      return browserPage(reply, 'Confirm identity', `<div class="auth-actions"><a class="btn btn-ghost" href="${home(current)}">Cancel</a><a class="btn btn-primary" data-sso-reauth-start href="/auth/sso/${escape(encodeURIComponent(identity.provider_id))}/start?reauth=1">Confirm with your provider</a></div>`,
-        current, 'Admin changes need a confirmation every 15 minutes. Confirm your identity with your provider, then submit your change again.', { layout: 'auth', mark: { icon: 'lock', tone: 'neutral' } })
+      return renderAuthPage(reply, { title: 'Confirm identity', mark: { icon: 'lock', tone: 'neutral' },
+        description: 'Admin changes need a confirmation every 15 minutes. Confirm your identity with your provider, then submit your change again.',
+        blocks: [{ kind: 'buttons', row: true, buttons: [cancel(current), { label: 'Confirm with your provider', tone: 'primary', marker: 'data-sso-reauth-start',
+          href: `/auth/sso/${encodeURIComponent(identity.provider_id)}/start?reauth=1` }] }] }, current)
     }
-    return browserPage(reply, 'Confirm password', form(reply, '/reauth', 'Confirm password', passwordField('password', 'Password', 'current-password'), 'btn-primary', `<a class="btn btn-ghost" href="${home(current)}">Cancel</a>`),
-      current, 'Admin changes need a confirmation every 15 minutes. Confirm your password, then submit your change again.', { layout: 'auth', mark: { icon: 'lock', tone: 'neutral' } })
+    return renderAuthPage(reply, { title: 'Confirm password', mark: { icon: 'lock', tone: 'neutral' },
+      description: 'Admin changes need a confirmation every 15 minutes. Confirm your password, then submit your change again.',
+      blocks: [passwordForm(reply, '/reauth', [passwordField('password', 'Password', 'current-password')], [cancel(current), { label: 'Confirm password', tone: 'primary' }])] }, current)
   })
   async function reauthenticate(request: FastifyRequest) {
     const current = session(request)

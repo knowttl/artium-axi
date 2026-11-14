@@ -279,3 +279,4 @@ test('the admin navigation marks the section of the current page', async () => {
   const response = await app.inject({ url: '/admin/users/synthetic-ordinary', headers: { cookie: `${browserCookie}=${admin}` } })
   expect(response.body.match(/<a class="nav-item" href="([^"]+)" aria-current="page">/g)).toEqual(['<a class="nav-item" href="/admin/users" aria-current="page">'])
 })
+

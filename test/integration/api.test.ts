@@ -164,7 +164,7 @@ test('spawn failure logs errno and correlation without executable, arguments or 
 test('browser error page displays its response request ID', async () => {
   const response = await app.inject('/admin/missing')
   expect(response.statusCode).toBe(404)
-  expect(response.body).toContain(`<dt>Request ID</dt><dd class="mono"><span class="copyvalue" data-copy-scope><span data-copy-text>${response.headers['x-artium-request-id']}</span>`)
+  expect(response.body).toMatch(new RegExp(`<dt[^>]*>Request ID</dt><dd[^>]*><span data-copy-scope=""><span[^>]*data-copy-text=""[^>]*>${response.headers['x-artium-request-id']}</span>`))
 })
 
 test.each([
