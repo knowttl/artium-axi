@@ -18,7 +18,7 @@ import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { allowRawApi, seedToolUser } from '../fixtures/tokens.js'
 import { rewriteSuggestions } from '../../src/cli/rewrite.js'
-import { toolPaths } from '../../src/server/config.js'
+import { healthDefaults, toolPaths } from '../../src/server/config.js'
 
 // The container caller has --network none; all authenticated traffic stays on loopback.
 assert.ok(!readFileSync('/proc/net/route', 'utf8').split('\n').slice(1).some(line => line.split(/\s+/)[1] === '00000000'))
@@ -43,6 +43,8 @@ await withFakeService(async ({ directory, port, send }) => {
   db.prepare(`INSERT INTO trusted_certificates (id, credential_id, endpoint, fingerprint, leaf_fingerprint, pem, leaf_pem, mode, created_at, created_by)
     VALUES ('synthetic-ca', ?, ?, ?, ?, ?, ?, 'ca', ?, 'synthetic-development-user')`).run(reference.id, origin + '/', fingerprint, leafFingerprint, pem, leaf, Date.now())
   const adapter = await createKubernetesAdapter(new EmbeddedSecretSource(store))
+  const previousTick = healthDefaults.tickMs
+  Object.assign(healthDefaults, { tickMs: 2_147_483_647 })
   const app = createApp({ db, audit: new Audit(db, Date.now, () => {}), runner, adapters: [adapter], credentialStore: store,
     resolver: new SharedIdentityResolver(store, db), environment: {} })
   try {
@@ -130,5 +132,5 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.deepEqual(readdirSync(join(directory, 'calls')), [])
     console.log(JSON.stringify({ kubernetes: '0.1.3', transport: 'isolated loopback', savedCa: 'projected into kubectl profile',
       leafPins: 'managed token reads verified', identity: 'token and client certificate', nativeReads: 'verified', authorizationReviews: 'verified', deny: 'verified' }))
-  } finally { await app.close(); db.close(); await runner.shutdown() }
+  } finally { await app.close(); db.close(); await runner.shutdown(); Object.assign(healthDefaults, { tickMs: previousTick }) }
 })
