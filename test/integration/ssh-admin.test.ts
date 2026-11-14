@@ -13,6 +13,8 @@ import { createSshAdapter } from '../../src/server/adapters/ssh.js'
 import { decryptCredential, type EncryptedCredential } from '../../src/server/store/crypto.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { seedToolUser } from '../fixtures/tokens.js'
+import { createBrowserSession } from '../../src/server/auth/sessions.js'
+import { browserCookie } from '../../src/server/auth/browser.js'
 
 let directory: string
 let db: Database.Database
@@ -95,6 +97,10 @@ test('password credentials rotate through the write-only API without exposing th
   expect(encrypted.ciphertext.includes(Buffer.from(password))).toBe(false)
   const listed = await app.inject({ url: '/v1/admin/ssh/credentials', headers })
   expect(listed.body).not.toContain(password)
+  const session = createBrowserSession(db, actor, 'CANARY-csrf')
+  const page = await app.inject({ url: '/admin/ssh/credentials', headers: { cookie: `${browserCookie}=${session.id}` } })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).not.toContain(password)
   const stale = await post('credential', { id: 'ordinary', expectedRevision: 1, confirm: true, password })
   expect(stale.json().error.code).toBe('REVISION_CONFLICT')
   expect(stale.body).not.toContain(password)

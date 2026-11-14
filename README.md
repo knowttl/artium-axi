@@ -97,6 +97,10 @@ Write capabilities below require administrator opt-in.
 | Shodan | Account and investigation reads, targeted scans, exports and selected changes | Managed reads, bounded stream sessions, retained exports and confirmed scans and writes | [Capabilities](docs/safety.md#shodan) |
 | Gitea | Repository, issue and pull request investigation and updates | Managed token, exact write grants and native preview/confirmation | [Capabilities](docs/safety.md#gitea-reads) |
 
+SSH passwords have no minimum length.
+A short password will also be withheld from command output and will refuse commands whose text contains it (`SECRET_IN_COMMAND`), so a longer password avoids unexpected refusals.
+See [SSH credential setup](docs/tool-credentials.md#ssh).
+
 [Reviewed inventories](tools/inventories) own the pinned command boundary.
 The [client reference](docs/client-reference.md#command-surface-and-subcommands) covers forwarding and inputs; [commands](docs/commands.md) lists client operations.
 

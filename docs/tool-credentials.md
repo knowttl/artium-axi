@@ -90,11 +90,14 @@ See [write safety and recovery](safety.md#network-appliance-reads) before enabli
 SSH uses a dedicated encrypted credential store and per-host ordinary account bindings, with caller-specific shell grants.
 The generic tenant credential editor cannot configure SSH.
 Open **Manage hosts, account bindings and grants** on the SSH tool page, or `/admin/ssh`.
-Save a dedicated encrypted key at `/admin/ssh/credentials`; passphrases are optional.
-For password authentication, use the administrator API: send `POST /v1/admin/ssh/credential` with `id`, `expectedRevision`, `confirm: true` and `password` in the JSON body.
+At `/admin/ssh/credentials`, choose **Use a private key** with an optional passphrase, or **Use a password**.
+Enter the username on the host account binding, not in the credential.
+Keys, passphrases and passwords are write-only and never displayed after saving; replacement requires the complete new credential.
+No minimum password length is enforced.
+A short password will also be withheld from command output and will refuse commands whose text contains it (`SECRET_IN_COMMAND`), so a longer password avoids unexpected refusals.
+For scripted password authentication, send `POST /v1/admin/ssh/credential` with `id`, `expectedRevision`, `confirm: true` and `password` in the JSON body.
 Use revision `0` for a new credential and the current revision for replacement; the API accepts a password or a private key with an optional passphrase, not both.
 Supply secrets through protected input, never command arguments, and follow the [administrator API authentication requirements](runbook.md#scripted-administrator-sessions).
-The browser credential form currently supports keys only.
 Register a disabled, read-only host with independently verified exact server public keys, approved literal addresses and a verification reference.
 At most two server keys may overlap during rotation; every resolved address must remain in the approved address set.
 Choose an ordinary account and credential, enable the host, then grant each intended caller host access as well as the existing tool role.

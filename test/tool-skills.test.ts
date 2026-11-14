@@ -16,6 +16,7 @@ test.each(toolSchema.options)('%s overlay preserves tool guidance with managed c
     return
   }
   if (tool === 'ssh-axi') {
+    expect(skill).toContain('Artium supplies the dedicated account and a private key or password')
     expect(skill).toContain('doctor <host>')
     expect(skill).toContain('every resolved address must belong to the approved literal address set')
     expect(skill).toContain('ordinary calls never fall back to sudo or generic credentials')

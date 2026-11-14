@@ -114,6 +114,40 @@ async function expireConfirmation() {
   assert.equal(response.status, 200)
 }
 
+test('SSH password form saves and rotates write-only credentials through confirmation', () => {
+  browser(`
+    await page.open(base + '/admin/ssh/credentials');
+    check(await page.eval(() => !!document.querySelector('[name=password][autocomplete=off]')), 'SSH password choice is missing');
+    await page.click('details:has(#new-credential-password) > summary');
+    await page.fill('form:has(#new-credential-password) [name=id]', 'synthetic-password');
+    await page.fill('#new-credential-password', 'CANARY-ssh-browser-password');
+    check(await page.eval(() => document.querySelector('#new-credential-password').type === 'password'
+      && !document.querySelector('form:has(#new-credential-password) [name=privateKey], form:has(#new-credential-password) [name=passphrase]')
+      && document.querySelector('form:has(#new-credential-password)').innerText.includes('longer password avoids unexpected refusals')), 'Password form contract is wrong');
+    await page.click('form:has(#new-credential-password) button');
+    await page.wait('#confirmation[open]');
+    check(await page.eval(() => !document.querySelector('#confirmation').textContent.includes('CANARY-ssh-browser-password')), 'Confirmation exposed the password');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#stored-credential-synthetic-password-password');
+    check(await page.eval(() => [...document.querySelectorAll('input[type=password], textarea[name=privateKey]')].every(input => input.value === '')
+      && !document.documentElement.outerHTML.includes('CANARY-ssh-browser-password')
+      && !location.href.includes('CANARY')), 'Saved secret was redisplayed');
+    await page.click('details:has(#stored-credential-synthetic-password-password) > summary');
+    await page.fill('#stored-credential-synthetic-password-password', 'x');
+    await page.click('form:has(#stored-credential-synthetic-password-password) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form:has(#stored-credential-synthetic-password-password) [name=expectedRevision][value="2"]');
+    check(await page.eval(() => document.querySelector('#stored-credential-synthetic-password-password').value === ''), 'Short password rotation did not stay write-only');
+    await page.fill('#stored-credential-synthetic-password-privateKey', 'CANARY-ssh-browser-key');
+    await page.click('form:has(#stored-credential-synthetic-password-privateKey) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form:has(#stored-credential-synthetic-password-privateKey) [name=expectedRevision][value="3"]');
+    check(await page.eval(() => document.querySelector('#stored-credential-synthetic-password-privateKey').value === ''), 'Key replacement did not stay write-only');
+  `)
+})
+
 test('the overview hydrates under the admin content security policy and keeps its server-rendered styles', () => {
   browser(`
     await page.open(base + '/admin');
