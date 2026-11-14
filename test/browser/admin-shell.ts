@@ -490,6 +490,18 @@ test('token creation applies tool instances to all selections', () => {
 test('People role links and stretched person and tool rows keep independent pointer targets', () => {
   browser(`
     check(await page.eval(() => {
+      const role = document.querySelector('tbody a.row-chip');
+      role.focus();
+      const style = getComputedStyle(role);
+      return style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0;
+    }), 'Focused role link has no visible outline');
+    check(await page.eval(() => {
+      const person = document.querySelector('tbody a.row-link');
+      person.focus();
+      const style = getComputedStyle(person, '::after');
+      return style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0;
+    }), 'Focused person row has no visible outline');
+    check(await page.eval(() => {
       const chip = document.querySelector('tbody tr:first-child a.row-chip');
       const box = chip.getBoundingClientRect();
       return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2).closest('a') === chip;
@@ -510,6 +522,12 @@ test('People role links and stretched person and tool rows keep independent poin
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=enabled][value=false]');
     await page.open(base + '/admin');
+    check(await page.eval(() => {
+      const tool = document.querySelector('[role=main] tbody a[href="/admin/tools/falcon-axi"]');
+      tool.focus();
+      const style = getComputedStyle(tool, '::after');
+      return style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0;
+    }), 'Focused tool row has no visible outline');
     check(await page.eval(() => {
       const link = document.querySelector('[role=main] tbody a[href="/admin/tools/falcon-axi"]');
       const cells = [...link.closest('tr').cells];
@@ -536,10 +554,22 @@ test('disabled People rows preserve person and role pointer targets', () => {
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=enabled][value=true]');
   `)
-  for (const width of [1280, 420]) {
-    chrome(['resize', String(width), '900'])
+  for (const theme of ['light', 'dark']) {
+    chrome(['resize', '1280', '900'])
     browser(`
       await page.open(base + '/admin/users');
+      await page.click('.frame-controls-header form[action="/theme"] button[value="${theme}"]');
+      await page.wait('.frame-controls-header form[action="/theme"] button[value="${theme}"][aria-pressed="true"]');
+    `)
+    for (const width of [1280, 420]) {
+      chrome(['resize', String(width), '900'])
+      browser(`
+      await page.open(base + '/admin/users');
+      check(await page.eval(() => {
+        const disabled = document.querySelector('a[href="/admin/users/synthetic-ordinary"]').closest('tr');
+        const enabled = [...document.querySelectorAll('tbody tr')].find(row => row !== disabled);
+        return Number(getComputedStyle(disabled).opacity) < 1 && Number(getComputedStyle(enabled).opacity) === 1;
+      }), 'Disabled person is not visibly dimmer than an enabled person');
       check(await page.eval(() => {
         const row = document.querySelector('tr.dim');
         const link = row.querySelector('.row-link');
@@ -555,7 +585,8 @@ test('disabled People rows preserve person and role pointer targets', () => {
       }), 'Disabled person overlay covers the role link');
       await page.click('tr.dim a.row-chip');
       await page.wait('form[action="/v1/admin/roles/synthetic-role"]');
-    `)
+      `)
+    }
   }
 })
 

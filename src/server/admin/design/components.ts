@@ -266,15 +266,14 @@ a.chip:hover { background: var(--bg-active); }
 /* Table */
 .table-wrap { overflow-x: auto; }
 .link-rows tbody tr { position: relative; }
-.link-rows tbody a::after { content: ""; position: absolute; inset: 0; }
-.link-rows tbody a:focus-visible { outline: 0; }
-.link-rows tbody a:focus-visible::after { outline: 2px solid var(--focus); outline-offset: -2px; }
+.link-rows tbody a:not(.row-chip)::after { content: ""; position: absolute; inset: 0; }
+.link-rows tbody a:not(.row-chip):focus-visible { outline: 0; }
+.link-rows tbody a:not(.row-chip):focus-visible::after { outline: 2px solid var(--focus); outline-offset: -2px; }
 .link-rows tbody tr:hover { background: var(--bg-subtle); }
 .link-rows .row-link { color: var(--text); text-decoration: none; }
 .link-rows tbody td.num { width: 48px; min-width: 48px; color: var(--text-faint); text-align: right; }
 .link-rows tbody tr.dim { opacity: 0.6; }
 .link-rows tbody td a.row-chip { position: relative; z-index: 1; }
-.link-rows tbody td a.row-chip::after { content: none; }
 .tbl tbody tr.link { position: relative; }
 .tbl tbody tr.link:hover { background: var(--bg-subtle); }
 .tbl .row-link { color: var(--text); text-decoration: none; }

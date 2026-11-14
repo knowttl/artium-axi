@@ -45,14 +45,6 @@ test('each person row links its name to the person and its roles to their roles'
   expect(links.map(link => [attribute(link, 'href'), text(link)])).toEqual([['/admin/users/synthetic-one', 'Synthetic One'], ['/admin/roles/synthetic-role', 'Synthetic Role · Direct']])
 })
 
-test.each([
-  { name: 'a disabled person row is dimmed', change: { enabled: false }, dimmed: true },
-  { name: 'an enabled person row is not dimmed', change: {}, dimmed: false },
-])('$name', ({ change, dimmed }) => {
-  const [row] = rows(render({ people: [{ ...person, ...change }] }))
-  expect(attribute(row!, 'class')?.split(' ').includes('dim') ?? false).toBe(dimmed)
-})
-
 test('a person with no roles says so and the signed-in person is marked', () => {
   const [row] = rows(render({ people: [{ ...person, roles: [], you: true }] }))
   expect(text(row!)).toContain('No roles')
