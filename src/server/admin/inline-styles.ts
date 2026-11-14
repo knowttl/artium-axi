@@ -3,12 +3,6 @@ const attributePattern = /[\s/]*([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|(
 const propertyPattern = /^--[\w-]+$/
 const valuePattern = /^[\w\s.,%()+*/-]*$/
 const allowedFunctions = new Set(['calc', 'var', 'min', 'max', 'clamp', 'translate', 'translatex', 'translatey', 'translate3d', 'scale', 'rotate'])
-const gridColumnForms = [
-  /^repeat\(\d+, 1fr\)$/,
-  /^repeat\(auto-(?:fill|fit), minmax\(\d+px, 1fr\)\)$/,
-  /^repeat\(auto-(?:fill|fit), minmax\(min\(100%, max\(\d+px, calc\(\(100% - \d+ \* var\(--spacing-[\d-]+\)\) \/ \d+\)\)\), 1fr\)\)$/,
-  /^repeat\(auto-(?:fill|fit), minmax\(min\(100%, max\(\d+px, calc\(100% \/ \d+\)\)\), 1fr\)\)$/,
-]
 const unsafe = () => new Error('Inline style cannot be moved into the nonce-protected style element')
 
 function balanced(value: string) {
@@ -26,7 +20,7 @@ function declarations(text: string) {
     const property = part.slice(0, separator).trim()
     const value = part.slice(separator + 1).trim()
     const functions = [...value.matchAll(/([\w-]+)\s*\(/g)].map(match => match[1]!.toLowerCase())
-    const gridColumns = property === '--x-gridTemplateColumns' && gridColumnForms.some(form => form.test(value))
+    const gridColumns = property === '--x-gridTemplateColumns' && value === 'repeat(auto-fit, minmax(220px, 1fr))'
     if (separator < 1 || !propertyPattern.test(property) || !valuePattern.test(value) || !balanced(value) || /\/\*|\*\//.test(value) ||
       !gridColumns && functions.some(name => !allowedFunctions.has(name))) throw unsafe()
     return `${property}:${value}`

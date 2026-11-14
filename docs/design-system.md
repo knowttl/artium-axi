@@ -43,7 +43,7 @@ The legacy base rules for headings, paragraphs, links and table elements skip co
   Each browser response gets a fresh unpredictable nonce, available to handlers as `reply.styleNonce`.
   The policy never includes `unsafe-inline` or a `style-src-attr` allowance.
 - `hoistInlineStyles()` in `src/server/admin/inline-styles.ts` can move supported `style` attributes into a nonce'd element and throws on declarations it cannot prove safe.
-- The one function-bearing value it accepts beyond the layout functions is the `--x-gridTemplateColumns` template that Astryx `Grid` emits, in exactly the forms `Grid` produces (a fixed count, `auto-fill` or `auto-fit` with a pixel minimum, and the capped variants); `test/inline-styles.test.ts` lists them.
+- The one function-bearing value it accepts beyond the layout functions is `repeat(auto-fit, minmax(220px, 1fr))` on `--x-gridTemplateColumns`, the template emitted by the Overview's Astryx `Grid`.
   `renderPage()` calls it on every rendered view, and it returns no style element when there are no declarations.
 - Figtree (SIL Open Font License) is self-hosted: the build copies four weights from `@fontsource/figtree` to `/admin/assets/fonts/` and adds the `@font-face` rules to `astryx.css`, which the Astryx neutral `Figtree` font-family tokens already name.
 - Reading and navigating work without JavaScript; disclosures use native `<details>`.
