@@ -8,7 +8,9 @@ if (root && props) {
     .filter((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule && rule.selectorText.startsWith('[data-inline-style='))
   for (const rule of hoisted) {
     for (const element of root.querySelectorAll<HTMLElement>(rule.selectorText)) {
-      element.style.cssText = rule.style.cssText
+      for (const property of rule.style) {
+        element.style.setProperty(property, rule.style.getPropertyValue(property), rule.style.getPropertyPriority(property))
+      }
       element.removeAttribute('data-inline-style')
     }
   }
