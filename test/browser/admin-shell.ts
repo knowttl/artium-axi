@@ -1445,7 +1445,7 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
     await page.open(base + '/admin/tools');
     await page.click('tbody a[href="/admin/tools/${entry.tool}"]');
     await page.wait('[data-credential-editor]');
-    check(await page.eval(() => ['Instances', 'Write permissions', 'Access', 'Advanced'].every(tab => [...document.querySelectorAll('nav.utabs a')].some(link => link.textContent.includes(tab)))), 'Tool tabs missing');
+    check(await page.eval(() => ['Instances', 'Write permissions', 'Access', 'Advanced'].every(tab => [...document.querySelectorAll('nav[aria-label="Tool sections"] a')].some(link => link.textContent.includes(tab)))), 'Tool tabs missing');
     await page.open(base + '/admin/tools/${entry.tool}?tab=advanced');
     await page.fill('[name=nativeSettings]', ${JSON.stringify(JSON.stringify(entry.settings))});
     await page.click('form:has([name=nativeSettings]) button');
@@ -1649,7 +1649,7 @@ test('tool detail enablement and granting roles lead to the role access editor',
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=enabled][value=true]');
     check(await page.eval(() => document.querySelector('form:has([name=enabled]) [role=switch]').getAttribute('aria-checked') === 'false'), 'Switch does not show the disabled state');
-    await page.click('nav.utabs a[href$="?tab=access"]');
+    await page.click('nav[aria-label="Tool sections"] a[href$="?tab=access"]');
     await page.click('a[href="/admin/roles/synthetic-role"]');
     await page.wait('[name=tools][value="falcon-axi"]');
     check(await page.eval(() => document.querySelector('[name=tools][value="falcon-axi"]').checked), 'Role did not grant the tool');
@@ -1883,7 +1883,7 @@ for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' card-level controls a
     });
     const none = await state();
     check(none.checked === 0 && none.header === '0', 'Unexpected initial selection');
-    await page.click('.card-body > [data-ops-actions] [data-ops-select=all]');
+    await page.click('[aria-label="Select all shown operations"]');
     const all = await state();
     check(all.checked === all.total && all.collapsedChecked > 0, 'Card-level Select all must reach every group, collapsed ones included');
     check(all.header === String(all.total) && all.headline.startsWith(all.total + ' of ' + all.total + ' selected'), 'Header count stale after Select all: ' + all.headline);
@@ -1895,7 +1895,7 @@ for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' card-level controls a
     });
     const shown = await state();
     check(shown.visible > 0 && shown.visible < shown.total, 'Filter must hide some operations');
-    await page.click('.card-body > [data-ops-actions] [data-ops-select=none]');
+    await page.click('[aria-label="Clear all shown operations"]');
     const filtered = await state();
     check(filtered.checked === all.total - shown.visible &&filtered.hiddenChecked === filtered.checked, 'Card-level Clear all must clear only shown operations');
     check(filtered.header === String(filtered.checked) && filtered.groupCounts, 'Counts stale after filtered Clear all');
