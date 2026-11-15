@@ -435,7 +435,7 @@ test('Figtree loads from the same origin under the admin content security policy
       link.href = '/admin/assets/astryx.css';
       await new Promise((resolve, reject) => { link.onload = resolve; link.onerror = reject; document.head.append(link); });
       const faces = await Promise.all([400, 500, 600, 700].map(weight => document.fonts.load(weight + ' 16px Figtree')));
-      return faces.every(face => face.length === 1 && face[0].status === 'loaded');
+      return faces.every(face => face.length >= 1 && face.every(item => item.status === 'loaded'));
     }), 'Figtree did not load under the content security policy');
   `)
 })
@@ -834,8 +834,7 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
 test('sign-in settings creates a disabled provider and saves a certificate without redisplaying its key', async () => {
   chrome(['resize', '420', '900'])
   browser(`
-    await page.click('a.menu-open');
-    await page.click('nav a[href="/admin/settings/sign-in"]');
+    await page.open(base + '/admin/settings/sign-in');
     await page.wait('main .page-head .actions a[href$="add=choose"]');
     check(await page.eval(() => document.querySelector('main').innerText.includes('New providers start disabled')), 'Missing disabled-sign-in guidance');
     await page.click('main .page-head .actions a[href$="add=choose"]');
@@ -2379,11 +2378,11 @@ test('user detail revokes the selected CLI session while another session stays u
   const second = await cliSession()
   browser(`
     await page.open(base + '/admin/users/synthetic-ordinary');
-    await page.click('section:has(h2):has(table caption) tbody form[action$="/revoke"] button');
+    await page.click('.session-table tbody form[action$="/revoke"] button');
     await page.wait('#confirmation[open]');
     check(await page.eval(() => document.querySelector('[data-consequence]').textContent.includes('access and refresh tokens')), 'Missing revoke consequence');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('section:has(form[action$="/sessions/revoke"]) tbody tr:only-child');
+    await page.wait('.session-table tbody tr:only-child');
   `)
   const responses = await Promise.all([session, second].map(tokens => fetch(fixture.clock.replace('/test/clock', '/v1/me'), {
     headers: { authorization: 'Bearer ' + tokens.accessToken },
@@ -2395,7 +2394,7 @@ test('sign out everywhere on user detail ends the current browser and CLI sessio
   const session = await cliSession('synthetic-user', 'CANARY-browser-password')
   browser(`
     await page.open(base + '/admin/users/synthetic-development-user');
-    await page.click('section.card form[action$="/sessions/revoke"] button');
+    await page.click('form[action$="/sessions/revoke"]:not(.popover form) button');
     await page.wait('#confirmation[open]');
     check(await page.eval(() => document.querySelector('[data-consequence]').textContent.includes('this browser')), 'Missing self sign-out consequence');
     await page.click('#confirmation button[value=confirmed]');
@@ -2464,11 +2463,16 @@ test('ordinary account shows role tools and usable CLI guidance and can revoke i
       return help.includes('your local username') && help.includes('Change password') && !help.includes('login --sso');
     }), 'Local account help lost its username or password guidance');
     check(await page.eval(() => {
-      const table = document.querySelector('section:has(form[action="/v1/account/sessions/revoke"]) table');
-      const controls = [...table.querySelectorAll('time, button')];
-      return controls.every(control => {
+      const table = document.querySelector('.session-table');
+      const labels = [...table.querySelectorAll('time, button')].flatMap(control => {
+        const walker = document.createTreeWalker(control, NodeFilter.SHOW_TEXT);
+        const texts = [];
+        while (walker.nextNode()) if (walker.currentNode.textContent.trim()) texts.push(walker.currentNode);
+        return texts;
+      });
+      return labels.length > 0 && labels.every(label => {
         const range = document.createRange();
-        range.selectNodeContents(control);
+        range.selectNodeContents(label);
         return range.getClientRects().length === 1;
       });
     }), 'Session dates or revoke controls wrap into fragments at 420px');

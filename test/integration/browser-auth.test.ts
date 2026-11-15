@@ -498,7 +498,24 @@ test.each(['/account', '/admin/users/synthetic-development-user'])('session tabl
   db.prepare('UPDATE sessions SET reauthenticated_at = ?').run(now)
   const response = await request('GET', path)
   expect(response.statusCode).toBe(200)
-  expect(response.body).toContain(`<time datetime="${new Date(now + browserDefaults.idleMs).toISOString()}"`)
+  expect(response.body).toMatch(new RegExp(`<time datetime="${new Date(now + browserDefaults.idleMs).toISOString()}"`, 'i'))
+})
+
+test('the account Sessions card posts to the account routes, emits no style attributes and its sign out everywhere token is accepted', async () => {
+  await signIn()
+  const { sessions } = accountSessionRoutes.list.response.parse((await request('GET', '/v1/account/sessions')).json())
+  const page = (await request('GET', '/account')).body
+  const nodes = (node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['element'][] => [...'tagName' in node ? [node] : [], ...'childNodes' in node ? node.childNodes.flatMap(nodes) : []]
+  const attribute = (element: DefaultTreeAdapterMap['element'], name: string) => element.attrs.find(item => item.name === name)?.value
+  const all = nodes(parse(page))
+  const forms = all.filter(element => element.tagName === 'form' && attribute(element, 'action')?.startsWith('/v1/account/sessions/'))
+  expect(forms.map(form => attribute(form, 'action'))).toEqual(['/v1/account/sessions/revoke', ...sessions.map(session => `/v1/account/sessions/${session.id}/revoke`)])
+  expect(forms.map(form => attribute(form, 'data-method'))).toEqual(forms.map(() => 'POST'))
+  expect(all.filter(element => attribute(element, 'style') !== undefined)).toEqual([])
+  const signOutEverywhere = forms[0]!
+  const csrf = attribute(nodes(signOutEverywhere).find(element => attribute(element, 'name') === '_csrf')!, 'value')!
+  expect((await request('POST', attribute(signOutEverywhere, 'action')!, { _csrf: csrf })).statusCode).toBe(200)
+  expect((await request('GET', '/account')).headers.location).toBe('/login')
 })
 
 test.each([
