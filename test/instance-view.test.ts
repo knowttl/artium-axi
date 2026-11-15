@@ -144,7 +144,10 @@ test('each trusted certificate offers its own removal with its endpoint details'
   expect(html).toContain('A trusted certificate expires soon')
 })
 
-test('the GitHub connection card stays legacy markup rendered once', () => {
-  const html = render({ github: { legacyHtml: '<p data-legacy="github">Synthetic GitHub card</p>' } })
-  expect(find(html, element => attribute(element, 'data-legacy') === 'github').map(text)).toEqual(['Synthetic GitHub card'])
-})
+test.each([{ github: null, cards: 0 }, { github: { action: '/v1/admin/tools/gh-axi/device', toolRevision: 7, origin: 'https://github.example',
+  instance: { id: 'synthetic-lab-id', name: 'lab', revision: 3 }, connected: null, expired: false }, cards: 1 }])(
+  'the GitHub connection card is on the instance page only for a GitHub instance (cards=$cards)', ({ github, cards }) => {
+    const html = render({ github })
+    expect(find(html, element => element.tagName === 'form' && attribute(element, 'data-connect-github') !== undefined).map(form => controls(form).slice(0, 2)))
+      .toEqual(cards ? [[['_csrf', 'hidden', 'synthetic-csrf'], ['expectedId', 'hidden', 'synthetic-lab-id']]] : [])
+  })

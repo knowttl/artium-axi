@@ -151,7 +151,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
 
     let panel: ToolProps['panel']
     if (tab === 'instances') {
-      panel = { tab, instances: instancesPanel({ tool, csrf, rows: instanceRows, profile: editorProfile(tool.name, credentialProfiles[tool.name]), sheet: query.sheet }) }
+      panel = { tab, instances: instancesPanel({ tool, rows: instanceRows, profile: editorProfile(tool.name, credentialProfiles[tool.name]), sheet: query.sheet }) }
     } else if (tab === 'writes') {
       panel = { tab, writes: writesProps() }
     } else if (tab === 'raw-api') {

@@ -11,13 +11,12 @@ import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { credentialCertificates } from '../store/trusted-certificates.js'
 import type { ToolName } from '../store/credential-store.js'
 import { toolEndpoints } from '../tool-endpoints.js'
+import type { GithubConnectionProps } from '../../views/github-connection.js'
 import type { InstancesProps } from '../../views/tool-instances.js'
 import { credentialTlsSettings } from '../credential-tls-settings.js'
 import { credentialEditor, editorProfile } from './credential-form.js'
 import { describe, describeWrites, setupStatus, toolProducts, toolSetupState, type Tone } from './design/status.js'
-import { callout, icon } from './design/ui.js'
-import { escape } from './escape.js'
-import { actionForm, adminRead, lastChange, revision, timestamp, type Confirmation } from './forms.js'
+import { adminRead, lastChange } from './forms.js'
 import { renderPage } from './render-page.js'
 
 const testGuide = {
@@ -76,34 +75,20 @@ function diagnosticText(detail?: Diagnostic): string {
   return safe ? [safe.stage, safe.toolCode, safe.transportCode, safe.providerCode, safe.upstreamStatus, safe.trust].filter(value => value !== undefined).join('\n') : 'Details unavailable.'
 }
 
-const versions = (instance: Instance) => `<input type="hidden" name="expectedId" value="${escape(instance.id)}">${revision(instance.revision)}`
-
-type FormBuilder = (action: string, method: string, body: string, confirmation?: Confirmation, attributes?: string) => string
-
-// Device-flow connection: reconnects an existing instance, or creates a new one by name.
-function githubCard(form: FormBuilder, tool: Tool, instance?: Instance): string {
-  const device = instance?.metadata.auth === 'device'
-  const revisions = instance ? `${versions(instance)}<input type="hidden" name="instance" value="${escape(instance.name)}">`
-    : `${revision(0)}<label>Instance name<input name="instance" required maxlength="32" pattern="[a-z0-9][a-z0-9\\-]*" autocomplete="off" spellcheck="false"></label>`
-  return `<section class="card" data-github-device><div class="card-head"><div><h2>${device ? 'Reconnect' : instance ? 'Connect' : 'Add an instance'} with GitHub</h2><p>A machine identity for ${instance ? 'this instance' : 'a new instance'}.</p></div></div><div class="card-body">
-    <p>Use a dedicated machine account. This reuses the GitHub CLI OAuth client ID and requests repo, read:org, gist, workflow and project. These broad scopes permit writes outside Artium even while Artium writes are off.</p>
-    <p>The non-expiring OAuth token appears as GitHub CLI in GitHub Settings, Applications, Authorized OAuth Apps. Revoke it there. Store and rotate it like every other secret. No automatic refresh is performed. Connecting ${instance ? 'replaces this instance’s credential' : 'saves the new instance'} only after approval.</p>
-    ${device ? `<p>Connected account: <strong>${escape(instance!.metadata.login)}</strong>. ${instance!.metadata.accessTokenExpiresAt ? 'Provider expiry: ' + timestamp(Number(instance!.metadata.accessTokenExpiresAt)) : 'No scheduled expiry.'}</p>` : ''}
-    ${instance?.health.errorCode === 'CREDENTIAL_EXPIRED' ? callout('err', 'The credential expired or was revoked', 'Reconnect below.', '', { role: 'alert' }) : ''}
-    ${form(githubDeviceRoutes.start.path, 'POST', `${revisions}<input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}"><label>GitHub HTTPS origin<input name="origin" type="url" required value="${escape(instance?.metadata.origin ?? 'https://github.com')}"></label><button class="btn btn-secondary">${icon('link')}${device ? 'Reconnect with GitHub' : 'Connect with GitHub'}</button>`,
-      { consequence: `Connect a GitHub account with repo, read:org, gist, workflow and project scopes to ${instance ? 'this instance? This replaces its credential' : 'a new instance? The instance is created'} after authorization.` }, 'data-connect-github')}
-    <div class="column" data-github-authorization hidden><p>Open <a data-github-link target="_blank" rel="noopener noreferrer"></a> and enter:</p><div class="bigcode" data-github-code></div><p data-github-status role="status"></p><div><button type="button" class="btn btn-ghost btn-sm" data-cancel-github>Cancel connection</button></div></div>
-    ${instance ? '<p>Alternatively, choose token or github-app below to replace the credential using another method.</p>' : ''}</div></section>`
+function githubConnection(tool: Tool, instance?: Instance): GithubConnectionProps {
+  const expiry = instance?.metadata.auth === 'device' && instance.metadata.accessTokenExpiresAt ? Number(instance.metadata.accessTokenExpiresAt) : null
+  return { action: githubDeviceRoutes.start.path, toolRevision: tool.revision, origin: String(instance?.metadata.origin ?? 'https://github.com'),
+    instance: instance ? { id: instance.id, name: instance.name, revision: instance.revision } : null,
+    connected: instance?.metadata.auth === 'device' ? { login: String(instance.metadata.login), expiresAt: expiry === null ? null : new Date(expiry).toISOString() } : null,
+    expired: instance?.health.errorCode === 'CREDENTIAL_EXPIRED' }
 }
 
-export function instancesPanel(options: { tool: Tool, csrf: string, rows: InstanceRow[], profile: CredentialProfile, sheet?: string }): InstancesProps {
-  const { tool, csrf, rows, profile } = options
+export function instancesPanel(options: { tool: Tool, rows: InstanceRow[], profile: CredentialProfile, sheet?: string }): InstancesProps {
+  const { tool, rows, profile } = options
   const product = toolProducts[tool.name].name
   const api = `/v1/admin/tools/${tool.name}`
   const page = `/admin/tools/${tool.name}`
   const ssh = tool.name === 'ssh-axi'
-  const form = (action: string, method: string, body: string, confirmation?: Confirmation, attributes?: string) =>
-    actionForm(csrf, action, method, body, confirmation, attributes)
   const awx = tool.name === 'awx-axi'
   const addInstance = ssh ? null : { tool: tool.name, product, api, toolRevision: tool.revision, open: options.sheet === 'add-instance', awx, hasInstances: rows.length > 0,
     editor: awx ? null : credentialEditor(tool.name, profile, {}, false) }
@@ -113,7 +98,7 @@ export function instancesPanel(options: { tool: Tool, csrf: string, rows: Instan
       checkedAt: row.checkedAt === null ? null : new Date(row.checkedAt).toISOString(),
       instance: row.instance ? { path: `${api}/instances/${row.instance.name}`, id: row.instance.id, revision: row.instance.revision, enabled: row.instance.enabled, readOnly: row.instance.readOnly,
         description: row.instance.description, editOpen: options.sheet === `edit-${row.instance.name}` } : null })),
-    github: tool.name === 'gh-axi' ? { legacyHtml: githubCard(form, tool) } : null, addInstance }
+    github: tool.name === 'gh-axi' ? githubConnection(tool) : null, addInstance }
 }
 
 export function registerInstancePages(app: FastifyInstance, db: Database.Database, credentialProfiles: Partial<Record<ToolName, CredentialProfile>>): void {
@@ -153,7 +138,7 @@ export function registerInstancePages(app: FastifyInstance, db: Database.Databas
       ],
       failure: { shown: failing, summary: [definition?.message, definition?.next].filter(Boolean).join(' '), code: instance.health.errorCode ?? '',
         certificateHint: instance.health.errorCode === 'UPSTREAM_TLS_FAILED', diagnostic: diagnosticText(instance.health.diagnostic) },
-      github: tool.name === 'gh-axi' ? { legacyHtml: githubCard((action, method, body, confirmation, attributes) => actionForm(csrf, action, method, body, confirmation, attributes), tool, instance) } : null,
+      github: tool.name === 'gh-axi' ? githubConnection(tool, instance) : null,
       controllerOrigin: awx ? String(instance.metadata.origin ?? '') : null,
       connection: credentialEditor(tool.name, editorProfile(tool.name, credentialProfiles[tool.name]), instance.metadata, instance.configured),
       certificates: {
