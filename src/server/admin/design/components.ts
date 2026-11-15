@@ -4,7 +4,7 @@ export const components = `
 html, body { background: var(--bg); }
 body { margin: 0; color: var(--text); font: var(--fs-base)/1.5 var(--font); -webkit-font-smoothing: antialiased; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-a:where(:not([data-astryx-root] *)) { color: var(--text); text-underline-offset: 2px; }
+a:where(:not([data-astryx-root] *:not(.legacy-island *))) { color: var(--text); text-underline-offset: 2px; }
 code, pre, kbd { font-family: var(--mono); font-size: 0.92em; }
 small { overflow-wrap: anywhere; }
 [hidden] { display: none !important; }
@@ -207,7 +207,7 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 
 /* Option card: a native radio with a title and description */
 .options { display: flex; flex-direction: column; gap: 8px; }
-:where(.content, dialog) .option { display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 12px; border: 1px solid var(--border-strong); border-radius: var(--r-md); font-weight: 400; cursor: pointer; }
+:where(.content, dialog, [data-astryx-root]) .option { display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 12px; border: 1px solid var(--border-strong); border-radius: var(--r-md); font-weight: 400; cursor: pointer; }
 .option:has(input:checked) { border-color: var(--text); background: var(--bg-subtle); }
 .option input { margin-top: 3px; }
 .option strong { display: block; font-weight: 500; }
@@ -428,23 +428,23 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 .auth-help p { text-align: left; }
 
 /* Base elements, so pages without their own components yet stay readable inside the shell */
-:where(.content, .auth-card, dialog) :where(h2):where(:not([data-astryx-root] *)) { margin: 0 0 8px; font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em; }
+:where(.content, .auth-card, dialog) :where(h2):where(:not([data-astryx-root] *:not(.legacy-island *))) { margin: 0 0 8px; font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em; }
 :where(.content, dialog) :where(h3) { margin: 16px 0 6px; font-size: var(--fs-base); font-weight: 600; }
-:where(.content) :where(p):where(:not([data-astryx-root] *)) { margin: 0 0 10px; }
+:where(.content) :where(p):where(:not([data-astryx-root] *:not(.legacy-island *))) { margin: 0 0 10px; }
 :where(.content) > :where(p) { margin: 0; }
 :where(.content) > :where(section:not(.card)), :where(.content) :where(section section) { padding: 18px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); }
 :where(.content) :where(section section) { margin: 16px 0; }
-:where(.content, .auth-card, dialog) :where(a):where(:not([data-astryx-root] *)) { color: var(--text); }
+:where(.content, .auth-card, dialog) :where(a):where(:not([data-astryx-root] *:not(.legacy-island *))) { color: var(--text); }
 :where(.content, dialog) :where(form) { margin: 12px 0; }
-:where(.content, .auth-card, dialog) :where(label):where(:not([data-astryx-root] *)) { display: block; margin: 10px 0; font-size: var(--fs-sm); font-weight: 500; }
-:where(.content, .auth-card, dialog) :where(input:not([type=checkbox], [type=radio], [type=hidden], [type=file]), select, textarea):where(:not([data-astryx-root] *)) { display: block; width: 100%; max-width: 420px; height: var(--ctl-h); margin-top: 6px; padding: 0 10px; color: var(--text); background: var(--bg); border: 1px solid var(--control); border-radius: var(--r-sm); font: inherit; font-size: var(--fs-sm); font-weight: 400; }
-:where(.content, .auth-card, dialog) :where(textarea):where(:not([data-astryx-root] *)) { max-width: none; height: auto; min-height: 96px; padding: 8px 10px; font-family: var(--mono); font-size: var(--fs-xs); line-height: 1.6; }
-:where(.content, .auth-card, dialog) :where(input:disabled, select:disabled, textarea:disabled):where(:not([data-astryx-root] *)) { background: var(--bg-muted); color: var(--text-faint); }
+:where(.content, .auth-card, dialog) :where(label):where(:not([data-astryx-root] *:not(.legacy-island *))) { display: block; margin: 10px 0; font-size: var(--fs-sm); font-weight: 500; }
+:where(.content, .auth-card, dialog) :where(input:not([type=checkbox], [type=radio], [type=hidden], [type=file]), select, textarea):where(:not([data-astryx-root] *:not(.legacy-island *))) { display: block; width: 100%; max-width: 420px; height: var(--ctl-h); margin-top: 6px; padding: 0 10px; color: var(--text); background: var(--bg); border: 1px solid var(--control); border-radius: var(--r-sm); font: inherit; font-size: var(--fs-sm); font-weight: 400; }
+:where(.content, .auth-card, dialog) :where(textarea):where(:not([data-astryx-root] *:not(.legacy-island *))) { max-width: none; height: auto; min-height: 96px; padding: 8px 10px; font-family: var(--mono); font-size: var(--fs-xs); line-height: 1.6; }
+:where(.content, .auth-card, dialog) :where(input:disabled, select:disabled, textarea:disabled):where(:not([data-astryx-root] *:not(.legacy-island *))) { background: var(--bg-muted); color: var(--text-faint); }
 :where(.content, .auth-card, dialog) :where(input[type=checkbox], input[type=radio]) { accent-color: var(--primary); width: 15px; height: 15px; vertical-align: -2px; margin: 0 6px 0 0; }
 :where(.content, .auth-card, dialog) :where(input[type=file]) { display: block; margin-top: 6px; font-size: var(--fs-sm); }
-:where(.content, .auth-card, dialog) :where(button):where(:not([data-astryx-root] *)) { display: inline-flex; align-items: center; gap: 6px; height: var(--ctl-h); padding: 0 12px; background: var(--bg); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--r-sm); font: inherit; font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
-:where(.content, .auth-card, dialog) :where(button):where(:not([data-astryx-root] *)):hover { background: var(--bg-hover); }
-:where(.content, .auth-card, dialog) :where(button:disabled):where(:not([data-astryx-root] *)) { opacity: 0.5; cursor: wait; }
+:where(.content, .auth-card, dialog) :where(button):where(:not([data-astryx-root] *:not(.legacy-island *))) { display: inline-flex; align-items: center; gap: 6px; height: var(--ctl-h); padding: 0 12px; background: var(--bg); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--r-sm); font: inherit; font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
+:where(.content, .auth-card, dialog) :where(button):where(:not([data-astryx-root] *:not(.legacy-island *))):hover { background: var(--bg-hover); }
+:where(.content, .auth-card, dialog) :where(button:disabled):where(:not([data-astryx-root] *:not(.legacy-island *))) { opacity: 0.5; cursor: wait; }
 :where(.content, dialog) :where(fieldset) { margin: 12px 0; padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--r-md); }
 :where(.content, dialog) :where(legend) { padding: 0 4px; font-size: var(--fs-sm); font-weight: 600; }
 :where(.content, dialog) :where(fieldset label) { font-weight: 400; margin: 6px 0; }
@@ -456,12 +456,12 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 :where(.content, dialog) :where(pre) { overflow-x: auto; padding: 12px 14px; background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--r-md); font-size: var(--fs-xs); line-height: 1.7; }
 :where(.content, dialog) :where([role=alert]) { color: var(--err); }
 .table-scroll { max-width: 100%; margin: 12px 0; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-md); }
-:where(.content, dialog) :where(table):where(:not([data-astryx-root] *)) { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); text-align: left; }
+:where(.content, dialog) :where(table):where(:not([data-astryx-root] *:not(.legacy-island *))) { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); text-align: left; }
 :where(.content, dialog) :where(caption) { padding: 10px 14px; text-align: left; font-weight: 600; border-bottom: 1px solid var(--border); }
-:where(.content, dialog) :where(th, td):where(:not([data-astryx-root] *)) { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: break-word; }
-:where(.content, dialog) :where(thead th):where(:not([data-astryx-root] *)) { background: var(--bg-subtle); color: var(--text-faint); font-size: var(--fs-xs); font-weight: 500; white-space: nowrap; }
+:where(.content, dialog) :where(th, td):where(:not([data-astryx-root] *:not(.legacy-island *))) { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: break-word; }
+:where(.content, dialog) :where(thead th):where(:not([data-astryx-root] *:not(.legacy-island *))) { background: var(--bg-subtle); color: var(--text-faint); font-size: var(--fs-xs); font-weight: 500; white-space: nowrap; }
 :where(.content, dialog) :where(tbody th) { font-weight: 500; }
-:where(.content, dialog) :where(tbody tr:last-child) > *:where(:not([data-astryx-root] *)) { border-bottom: 0; }
+:where(.content, dialog) :where(tbody tr:last-child) > *:where(:not([data-astryx-root] *:not(.legacy-island *))) { border-bottom: 0; }
 .session-table time, .session-table button, .session-table code { white-space: nowrap; }
 .session-table th, .session-table td { max-width: none; overflow: visible; }
 
@@ -704,17 +704,17 @@ form.card, .card-foot form, .card-head form { margin: 0; }
 .switch.on, input.switch:checked { background: var(--primary); }
 .switch.on::before, input.switch:checked::before { left: 16px; background: var(--primary-fg); }
 input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
-:where(.content) input.switch[type=checkbox] { width: 32px; height: 18px; margin: 2px 0 0; }
+:where(.content, [data-astryx-root]) input.switch[type=checkbox] { width: 32px; height: 18px; margin: 2px 0 0; }
 .switch-row { display: flex; align-items: flex-start; gap: 14px; margin: 0; font-weight: 400; }
-:where(.content) label.switch-row { margin: 0; }
+:where(.content, [data-astryx-root]) label.switch-row { margin: 0; }
 .switch-row b { display: block; font-weight: 500; }
 .switch-row span { color: var(--text-muted); font-size: var(--fs-sm); }
 .switch-row + .switch-row { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
-:where(.content) .toggle { height: auto; padding: 4px 6px; border: 0; background: var(--transparent); gap: 8px; font-size: var(--fs-sm); }
+:where(.content, [data-astryx-root]) .toggle { display: inline-flex; align-items: center; height: auto; padding: 4px 6px; border: 0; background: var(--transparent); color: var(--text); font: inherit; gap: 8px; font-size: var(--fs-sm); cursor: pointer; }
 
 /* Operation catalogue */
 .ops { display: flex; flex-direction: column; gap: 8px; }
-:where(.content) .ops-group { margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--r-md); }
+:where(.content, [data-astryx-root]) .ops-group { margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--r-md); }
 .ops-group > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 12px; list-style: none; font-size: var(--fs-sm); font-weight: 400; }
 .ops-group > summary::-webkit-details-marker { display: none; }
 .ops-group > summary > svg.i { color: var(--text-faint); transition: transform 120ms; }
@@ -724,14 +724,14 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
 .ops-group > summary .end { margin-left: auto; display: flex; gap: 6px; }
 .ops-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 20px; padding: 8px 12px 12px 36px; border-top: 1px solid var(--border); }
 .ops-actions { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-left: -11px; }
-:where(.content) label.op { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; margin: 0; font-size: var(--fs-sm); font-weight: 400; }
-:where(.content) label.op input { margin: 0; }
+:where(.content, [data-astryx-root]) label.op { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; margin: 0; font-size: var(--fs-sm); font-weight: 400; }
+:where(.content, [data-astryx-root]) label.op input { margin: 0; }
 .op span { overflow-wrap: anywhere; }
 .op code { color: var(--text-faint); font-size: 11px; overflow-wrap: anywhere; }
 .op .badge { height: 18px; padding: 0 6px; font-size: 10.5px; }
 .ops-empty { margin: 0; color: var(--text-muted); font-size: var(--fs-sm); }
-.card .note[data-valid="true"] { color: var(--ok); }
-.card .note[data-valid="false"] { color: var(--err); }
+:where(.card, [data-astryx-root]) .note[data-valid="true"] { color: var(--ok); }
+:where(.card, [data-astryx-root]) .note[data-valid="false"] { color: var(--err); }
 
 /* Narrow screens: the sidebar moves behind a menu button and works without JavaScript */
 @media (max-width: 760px) {

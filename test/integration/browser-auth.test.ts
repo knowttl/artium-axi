@@ -158,6 +158,20 @@ test('tool Access offers an instance access sheet per role, open from its query 
   expect(open).toContain('action="/v1/admin/roles/synthetic-role/tools/falcon-axi/instances"')
 })
 
+test.each([
+  ['instances', 'action="/v1/admin/tools/falcon-axi/instances/lab/test"'], ['access', 'id="sheet-instances-synthetic-role"'],
+  ['writes', 'action="/v1/admin/tools/falcon-axi/write-access"'], ['advanced', 'name="nativeSettings"'],
+])('the %s tab of a tool page carries no credential value and shows its content once, outside its hydration data', async (tab, marker) => {
+  new FakeCredentialStore([{ reference: { id: 'synthetic-lab', tool: 'falcon-axi' }, name: 'lab', value: { clientId: 'CANARY-client', clientSecret: 'CANARY-secret' } }]).seed(db)
+  await signIn()
+  const body = (await request('GET', `/admin/tools/falcon-axi?tab=${tab}`)).body
+  expect(body).not.toContain('CANARY-')
+  const data = JSON.parse(/<script type="application\/json" data-astryx-props>(.*?)<\/script>/s.exec(body)![1]!) as { props: { panel: { tab: string, legacyHtml?: string } } }
+  expect(data.props.panel.tab).toBe(tab)
+  expect(data.props.panel.legacyHtml ?? '').toBe('')
+  expect(body.split(marker)).toHaveLength(2)
+})
+
 test('tool Access can restore all instances after the last selected instance is deleted', async () => {
   new FakeCredentialStore([{ reference: { id: 'synthetic-lab', tool: 'falcon-axi' }, name: 'lab', value: {} }]).seed(db)
   db.exec("UPDATE role_tools SET all_instances = 0; INSERT INTO role_tool_instances VALUES ('synthetic-role', 'falcon-axi', 'synthetic-lab'); DELETE FROM credentials WHERE id = 'synthetic-lab'")
@@ -251,9 +265,12 @@ test('Advanced hides per-person grants and preserves policy settings', async () 
   await signIn()
   const kubernetes = (await request('GET', '/admin/tools/kubernetes-axi?tab=advanced')).body
   const shodan = (await request('GET', '/admin/tools/shodan-axi?tab=advanced')).body
+  const settings = (page: string) => {
+    const textarea = nodesOf(parse(page)).find(node => node.tagName === 'textarea' && node.attrs.some(attr => attr.name === 'name' && attr.value === 'nativeSettings'))!
+    return textarea.childNodes.map(child => 'value' in child ? child.value : '').join('')
+  }
   for (const page of [kubernetes, shodan]) {
-    const textarea = /<textarea name="nativeSettings"[^>]*>(.*?)<\/textarea>/s.exec(page)![1]!
-    expect(textarea).not.toContain('grants')
+    expect(settings(page)).not.toContain('grants')
     expect(page).toContain('Per-person grants are managed with the picker on the Access tab.')
     expect(page).toContain('Omitting a policy turns it off and removes its grants.')
   }
@@ -603,7 +620,7 @@ test('Roles page escapes names and change actors and preserves bounded paginatio
   expect((await request('GET', '/admin/roles/synthetic-role')).body).not.toMatch(/<dialog[^>]*id="sheet-rename-role"[^>]*open=""/)
 })
 
-test.each(['/admin/tools', '/admin/credentials', '/admin/roles', '/admin/roles/synthetic-role', '/admin/users/' + userId, '/admin/invitations', '/admin/audit'])('page %s requires the current administrator capability', async path => {
+test.each(['/admin/tools', '/admin/tools/falcon-axi', '/admin/tools/falcon-axi?tab=writes', '/admin/tools/falcon-axi?tab=advanced', '/admin/credentials', '/admin/roles', '/admin/roles/synthetic-role', '/admin/users/' + userId, '/admin/invitations', '/admin/audit'])('page %s requires the current administrator capability', async path => {
   expect((await request('GET', path)).headers.location).toBe('/login')
   await signIn()
   db.prepare('UPDATE users SET administrator = 0 WHERE id = ?').run(userId)
@@ -727,6 +744,9 @@ test.each([
   { method: 'PATCH', path: '/v1/admin/roles/synthetic-role' },
   { method: 'PUT', path: '/v1/admin/roles/synthetic-role/tools' },
   { method: 'PATCH', path: '/v1/admin/tools/falcon-axi' },
+  { method: 'PATCH', path: '/v1/admin/tools/falcon-axi/write-access' },
+  { method: 'PATCH', path: '/v1/admin/tools/falcon-axi/raw-api' },
+  { method: 'PUT', path: '/v1/admin/tools/falcon-axi/raw-api/routes' },
   { method: 'PUT', path: '/v1/admin/tools/falcon-axi/credential' },
 ] as const)('security $method $path requires CSRF before editing', async ({ method, path }) => {
   await signIn()

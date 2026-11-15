@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test, vi } from 'vitest'
+import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import { createApp } from '../../src/server/app.js'
 import { createAwxAdapter } from '../../src/server/adapters/awx.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -12,6 +13,8 @@ import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { loginResponseSchema } from '../../src/shared/api.js'
 import { withFakeService } from '../fake-service/fixture.js'
 import { seedToolUser } from '../fixtures/tokens.js'
+
+const elements = (node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['element'][] => [...'tagName' in node ? [node] : [], ...'childNodes' in node ? node.childNodes.flatMap(elements) : []]
 
 test('AWX credentials save, test with scoped trust, read and gate operational writes through the published CLI', async () => {
   await withFakeService(async ({ directory, port, send }) => {
@@ -66,8 +69,10 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       expect(page.body).toContain('data-profile-field="token"')
       const writes = await app.inject({ url: '/admin/tools/awx-axi?tab=writes', headers: {
         cookie: browserLogin.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
-      expect(writes.body).toContain('name="enabled" data-type="boolean"')
-      expect(writes.body).not.toContain('name="allowConfigurationWrites"')
+      const writeFields = elements(parse(writes.body)).filter(element => element.tagName === 'input')
+        .map(element => [element.attrs.find(attr => attr.name === 'name')?.value, element.attrs.find(attr => attr.name === 'data-type')?.value])
+      expect(writeFields).toContainEqual(['enabled', 'boolean'])
+      expect(writeFields.map(([name]) => name)).not.toContain('allowConfigurationWrites')
       expect(page.body).not.toContain('data-profile-field="verifySsl"')
       expect(page.body).not.toContain('CANARY-awx-token')
       const checked = () => app.inject({ method: 'POST', url: '/v1/admin/tools/awx-axi/test', headers, payload: {} })
