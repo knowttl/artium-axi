@@ -320,7 +320,10 @@ For password credentials, Artium scans and journals the original command and ena
 The transport owns the `sudo -S -k` wrapper, generates fresh unpredictable prompt and success markers, and sends the selected sudo binding's password once only after the exact stderr prompt.
 It strips both markers and redirects the privileged command's stdin from `/dev/null`, including when sudo does not request a password.
 Failed sudo authentication returns `SUDO_DENIED`; the ordinary binding's credential is never used for sudo.
-Passwords have no minimum length: short passwords can cause `SECRET_IN_COMMAND` refusals and withheld output whenever their text occurs in commands or output.
+Passwords have no minimum length: short passwords can cause command refusals and withheld output whenever their text occurs in commands, output or protocol text.
+Artium reports `INVALID_INPUT` when command admission detects protected material; `SECRET_IN_COMMAND` is the underlying ssh-axi code.
+Both execution paths retain full protocol-envelope scanning.
+A short or common-word password, such as one character or a word appearing in protocol text, can make every execution on that binding fail; use a longer password.
 The server validates commands for protected material before journaling and passes command text through private IPC rather than child process arguments.
 Preparation signs the caller, session family, exact input and binding revisions for ten minutes without dispatching a command.
 The CLI durably saves a private command-free receipt before submitting the signed request key; each accepted key claims one execution before command dispatch.

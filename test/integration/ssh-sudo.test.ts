@@ -216,3 +216,21 @@ test.each([false, true])('successful sudo preserves the privileged command failu
   expect(result).toMatchObject({ outcome: 'failed', remoteExit: 7, stderr: { text: 'sudo: a password is required\n' } })
   expect(result.code).toBeUndefined()
 })
+
+test('a protocol-matching one-character password withholds the one-shot result', async () => {
+  password = 'o'
+  hosts.replaceCredential('sudo', { password }, 1, 'synthetic-development-user')
+  const result = await execute('printf safe')
+  expect(result.outcome).toBe('unknown')
+  expect(result.stdout).toBeUndefined()
+  expect(result.stderr).toBeUndefined()
+})
+
+test('a protocol-matching one-character password refuses a reusable connection', async () => {
+  password = 'o'
+  hosts.replaceCredential('sudo', { password }, 1, 'synthetic-development-user')
+  const response = await post('connection/open', { host: 'lab', sudo: true })
+  expect(response.json().error.code).toBe('CONNECTION_CLOSED')
+  expect(commands).toEqual([])
+  expect(inputs).toEqual([])
+})

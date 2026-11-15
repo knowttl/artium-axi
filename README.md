@@ -98,7 +98,8 @@ Write capabilities below require administrator opt-in.
 | Gitea | Repository, issue and pull request investigation and updates | Managed token, exact write grants and native preview/confirmation | [Capabilities](docs/safety.md#gitea-reads) |
 
 SSH passwords have no minimum length.
-A short password will also be withheld from command output and will refuse commands whose text contains it (`SECRET_IN_COMMAND`), so a longer password avoids unexpected refusals.
+A short password will also be withheld from command output and will refuse commands whose text contains it (`INVALID_INPUT` in Artium; `SECRET_IN_COMMAND` in ssh-axi).
+Full protocol-envelope scanning means a short or common-word password, such as one character or a word appearing in protocol text, can make every execution on that binding fail; use a longer password.
 See [SSH credential setup](docs/tool-credentials.md#ssh).
 
 [Reviewed inventories](tools/inventories) own the pinned command boundary.
