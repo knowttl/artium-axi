@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import { createApp } from '../../src/server/app.js'
 import { createFalconAdapter } from '../../src/server/adapters/falcon.js'
 import { createAwxAdapter } from '../../src/server/adapters/awx.js'
@@ -1057,6 +1058,20 @@ test.each([
   }
 })
 
+function toolsTable(body: string) {
+  type Element = DefaultTreeAdapterMap['element']
+  const nodes = (node: DefaultTreeAdapterMap['node']): Element[] => [...'tagName' in node ? [node] : [], ...'childNodes' in node ? node.childNodes.flatMap(nodes) : []]
+  const text = (element: Element): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? text(child) : '').join('')
+  const attribute = (element: Element, name: string) => element.attrs.find(item => item.name === name)?.value
+  const table = nodes(parse(body)).find(element => element.tagName === 'table' && attribute(element, 'aria-label') === 'Tools')!
+  const headings = nodes(table).filter(element => element.tagName === 'th' && attribute(element, 'scope') === 'col').map(text)
+  const cells = (tool: string) => {
+    const row = nodes(table).find(element => element.tagName === 'tr' && nodes(element).some(link => link.tagName === 'a' && attribute(link, 'href') === `/admin/tools/${tool}`))!
+    return Object.fromEntries(nodes(row).filter(element => element.tagName === 'th' || element.tagName === 'td').map((cell, index) => [headings[index]!, text(cell)]))
+  }
+  return { headings, cells }
+}
+
 test('the tools list and Instances tab report every instance, with SSH hosts shown as instances', async () => {
   for (const name of ['lab', 'production']) {
     store.createInstance('falcon-axi', { name, description: `Synthetic ${name} tenant.` }, values['falcon-axi'], actor, Date.now())
@@ -1070,10 +1085,10 @@ test('the tools list and Instances tab report every instance, with SSH hosts sho
   payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
   const cookie = login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
   const list = (await app.inject({ method: 'GET', url: '/admin/tools', headers: { cookie } })).body
-  const row = (body: string, tool: string) => new RegExp(`<tr>(?:(?!</tr>)[\\s\\S])*href="/admin/tools/${tool}"[\\s\\S]*?</tr>`).exec(body)![0]
-  expect(row(list, 'falcon-axi')).toContain('2 instances')
-  expect(row(list, 'ssh-axi')).toContain('1 host<')
-  expect(row(list, 'vectra-axi')).toContain('0 instances')
+  const { cells } = toolsTable(list)
+  expect(cells('falcon-axi').Instances).toBe('2 instances')
+  expect(cells('ssh-axi').Instances).toBe('1 host')
+  expect(cells('vectra-axi').Instances).toBe('0 instances')
 
   const tab = (await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi', headers: { cookie } })).body
   expect(tab).toContain('href="/admin/tools/falcon-axi/instances/production"')
@@ -1107,13 +1122,12 @@ test('the tools list shows each Raw API mode and read-only raw tools offer only 
   payload: new URLSearchParams({ _csrf: csrf, username: 'synthetic-user', password: 'CANARY-local-password' }).toString() })
   const cookie = login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
   const list = (await app.inject({ method: 'GET', url: '/admin/tools', headers: { cookie } })).body
-  const row = (tool: string) => new RegExp(`<tr>(?:(?!</tr>)[\\s\\S])*href="/admin/tools/${tool}"[\\s\\S]*?</tr>`).exec(list)![0]
-  const headings = [...list.matchAll(/<th scope="col"[^>]*>([^<]*)<\/th>/g)].map(match => match[1])
-  expect([...row('az-axi').matchAll(/<td(?: data-label="([^"]*)")?/g)].map(match => match[1] ?? 'Tool')).toEqual(headings)
-  const rawApiCell = (tool: string) => /<td data-label="Raw API"[^>]*>([^<]*)<\/td>/.exec(row(tool))![1]
-  expect(rawApiCell('az-axi')).toBe('Read and writes')
-  expect(rawApiCell('vectra-axi')).toBe('Off')
-  expect(rawApiCell('ssh-axi')).toBe('None')
+  const { headings, cells } = toolsTable(list)
+  expect(headings).toEqual(['Tool', 'Instances', 'State', 'Enabled', 'Writes', 'Raw API', 'Roles', 'Last checked'])
+  expect(Object.keys(cells('az-axi'))).toEqual(headings)
+  expect(cells('az-axi')['Raw API']).toBe('Read and writes')
+  expect(cells('vectra-axi')['Raw API']).toBe('Off')
+  expect(cells('ssh-axi')['Raw API']).toBe('None')
 
   const writable = (await app.inject({ method: 'GET', url: '/admin/tools/az-axi?tab=raw-api', headers: { cookie } })).body
   expect(writable).toContain('<textarea name="write"')

@@ -144,8 +144,12 @@ export function toolSetupState(tool: { enabled: boolean, configured: boolean, he
   return 'readyToTest'
 }
 
+export function setupStatus(name: SetupState): { word: string, tone: Tone } {
+  return setupStates[name]
+}
+
 export function setupBadge(name: SetupState): string {
-  const state = setupStates[name]
+  const state = setupStatus(name)
   return `<span class="badge ${state.tone}"><span class="dot ${state.tone}" aria-hidden="true"></span>${state.word}</span>`
 }
 
@@ -155,7 +159,7 @@ export function writes(tool: { capable: boolean, enabled: boolean, operations: n
   return `<span class="${form} ${tone}">${icon(mark)}${word}</span>`
 }
 
-function describeWrites(readOnly: boolean, capable: boolean, operations: number | null): { word: string, tone: 'neutral' | 'warn', mark: 'eye' | 'lock' | 'zap' } {
+export function describeWrites(readOnly: boolean, capable: boolean, operations: number | null): { word: string, tone: 'neutral' | 'warn', mark: 'eye' | 'lock' | 'zap' } {
   if (readOnly) return capable ? { word: 'Read-only', tone: 'neutral', mark: 'eye' } : { word: 'Always read-only', tone: 'neutral', mark: 'lock' }
   return { word: operations === null ? 'Writes on' : `${operations} operation${operations === 1 ? '' : 's'} on`, tone: 'warn', mark: 'zap' }
 }

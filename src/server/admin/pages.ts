@@ -11,8 +11,9 @@ import { escape } from './escape.js'
 import { actionForm, adminRead, revision, timestamp } from './forms.js'
 import { editorProfile } from './credential-form.js'
 import { instancesPanel, readInstanceRows, registerInstancePages } from './instances.js'
-import { rawApiModeWords, setupBadge, toolIcon, toolProducts, toolSetupState, writes as writesState } from './design/status.js'
+import { describeWrites, rawApiModeWords, setupBadge, setupStatus, toolIcon, toolProducts, toolSetupState, writes as writesState } from './design/status.js'
 import { callout, card, checkOption, field, icon, noteCard, sheet, sheetLink, steps, tabs } from './design/ui.js'
+import { renderPage } from './render-page.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { ToolName } from '../store/credential-store.js'
 import type { TrustedCertificate } from '../trusted-ca.js'
@@ -93,20 +94,17 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const visible = rows.filter(row => (show === 'all' || (show === 'enabled' ? row.tool.enabled : attention(row)))
       && (!search || `${toolProducts[row.tool.name].name} ${row.tool.name}`.toLowerCase().includes(search.toLowerCase())))
     const link = (value: string) => '/admin/tools' + (value === 'all' ? '' : '?show=' + value) + (search ? `${value === 'all' ? '?' : '&'}q=${encodeURIComponent(search)}` : '')
-    const filters = `<form class="filters" method="get" action="/admin/tools" data-filters><div class="seg" role="group" aria-label="Show">${(['all', 'enabled', 'attention'] as const).map(value =>
-      `<a href="${escape(link(value))}"${show === value ? ' aria-current="page"' : ''}>${{ all: 'All', enabled: 'Enabled', attention: 'Needs attention' }[value]} ${counts[value]}</a>`).join('')}</div>${show === 'all' ? '' : `<input type="hidden" name="show" value="${show}">`}<label class="search narrow"><span class="sr-only">Filter tools</span>${icon('search')}<input type="search" name="q" value="${escape(search)}" placeholder="Filter tools"></label></form>`
-    const body = visible.map(({ tool, state, count, failing }) => `<tr><td><div class="cell-main">${toolIcon(tool.name)}<div><a href="/admin/tools/${tool.name}">${escape(toolProducts[tool.name].name)}</a><span>${escape(tool.name)} · ${escape(tool.version)}</span></div></div></td>
-      <td data-label="Instances" class="muted">${count} ${tool.name === 'ssh-axi' ? 'host' : 'instance'}${count === 1 ? '' : 's'}</td>
-      <td data-label="State">${setupBadge(state)}${failing && count > 1 ? `<p class="hint">${failing} of ${count} failing</p>` : ''}</td><td data-label="Enabled" class="muted"><span class="row"><span class="switch${tool.enabled ? ' on' : ''}" aria-hidden="true"></span>${tool.enabled ? 'On' : 'Off'}</span></td>
-      <td data-label="Writes">${writesState({ capable: tool.writeAccess.capable, enabled: !tool.readOnly, operations: tool.writeAccess.supportedOperations ? tool.writeAccess.allowedOperations.length : null }, 'status')}</td>
-      <td data-label="Raw API" class="muted">${tool.rawApi.modes.length ? rawApiModeWords[tool.rawApi.mode].label : 'None'}</td>
-      <td data-label="Roles" class="muted">${roles.get(tool.name) ?? 0}</td><td data-label="Last checked" class="num faint">${timestamp(tool.health.checkedAt, 'Never')}</td></tr>`).join('')
-    const table = `<section class="card"><table class="tbl stack-sm"><caption class="sr-only">Tools</caption><thead><tr><th scope="col">Tool</th><th scope="col">Instances</th><th scope="col">State</th><th scope="col">Enabled</th><th scope="col">Writes</th><th scope="col">Raw API</th><th scope="col">Roles</th><th scope="col" class="num">Last checked</th></tr></thead><tbody>${body}</tbody></table>${visible.length ? '' : '<p class="empty">No tools match these filters. <a href="/admin/tools">Show all tools</a>.</p>'}</section>`
-    const trust = trustedCertificates.length
-      ? `<table class="tbl stack-sm"><caption class="sr-only">Server-wide trusted CA bundle</caption><thead><tr><th scope="col">Subject</th><th scope="col">Issuer</th><th scope="col">Expires (UTC)</th><th scope="col">SHA-256 fingerprint</th></tr></thead><tbody>${trustedCertificates.map(certificate => `<tr><td>${escape(certificate.subject)}</td><td data-label="Issuer">${escape(certificate.issuer)}</td><td data-label="Expires">${escape(certificate.expiresAt)}</td><td data-label="SHA-256"><code>${escape(certificate.fingerprint)}</code></td></tr>`).join('')}</tbody></table>`
-      : ''
-    const footer = `<section class="card"><div class="list-row">${icon('cert')}<div class="grow"><strong>Server-wide trusted CA bundle</strong><p>${trustedCertificates.length ? `${trustedCertificates.length} certificate${trustedCertificates.length === 1 ? '' : 's'}.` : 'None configured.'} An operator sets ARTIUM_AXI_EXTRA_CA_FILE and restarts the server to change it. Per-instance trust is on each instance's page.</p></div><span class="badge">Read-only</span></div>${trust}</section>`
-    return browserPage(reply, 'Tools', filters + table + footer, current, 'Each tool starts off. Connect it, test it, enable it, then grant it to a role.')
+    return renderPage(reply, 'Tools', 'tools', {
+      filters: { show, q: search, links: (['all', 'enabled', 'attention'] as const).map(value =>
+        ({ label: { all: 'All', enabled: 'Enabled', attention: 'Needs attention' }[value], count: counts[value], href: link(value), current: show === value })) },
+      tools: visible.map(({ tool, state, count, failing }) => ({ href: `/admin/tools/${tool.name}`, name: tool.name, product: toolProducts[tool.name].name, mark: toolProducts[tool.name].mark,
+        version: tool.version, instances: `${count} ${tool.name === 'ssh-axi' ? 'host' : 'instance'}${count === 1 ? '' : 's'}`, failing: failing && count > 1 ? `${failing} of ${count} failing` : null,
+        state: setupStatus(state), enabled: tool.enabled,
+        writes: describeWrites(!tool.writeAccess.capable || tool.readOnly, tool.writeAccess.capable, tool.writeAccess.supportedOperations ? tool.writeAccess.allowedOperations.length : null),
+        rawApi: tool.rawApi.modes.length ? rawApiModeWords[tool.rawApi.mode].label : 'None', roles: roles.get(tool.name) ?? 0,
+        checkedAt: tool.health.checkedAt === null ? null : new Date(tool.health.checkedAt).toISOString() })),
+      certificates: trustedCertificates.map(({ subject, issuer, expiresAt, fingerprint }) => ({ subject, issuer, expiresAt, fingerprint })),
+    }, current, 'Each tool starts off. Connect it, test it, enable it, then grant it to a role.')
   })
   app.get('/admin/tools/:tool', async (request, reply) => {
     requireBrowserAdmin(db, request.cookies[browserCookie] ?? '', false)
