@@ -1020,9 +1020,9 @@ test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s w
       expect(page.body).toContain('Match enablement changes cause a reboot')
     }
     if (path === '/admin/tools/az-axi/instances/default') {
-      expect(page.body).toContain('data-test-tool="az-axi" action="/v1/admin/tools/az-axi/instances/default/test"')
+      expect(formsFor(page.body, '/v1/admin/tools/az-axi/instances/default/test').map(form => attribute(form, 'data-test-tool'))).toEqual(['az-axi'])
       expect(page.body).toContain('data-profile-field="tenantId"')
-      expect(page.body.match(/name="expectedToolRevision" data-type="number" value="2"/g)).toHaveLength(1)
+      expect(fields(page.body, 'expectedToolRevision').map(field => [attribute(field, 'data-type'), attribute(field, 'value')])).toEqual([['number', '2']])
       expect(page.body).toContain('Last changed by synthetic-user')
     }
     for (const tool of ['az-axi', 'mg-axi']) {
@@ -1103,7 +1103,7 @@ test('the tools list and Instances tab report every instance, with SSH hosts sho
     [['description', 'editOpen', 'enabled', 'id', 'path', 'readOnly', 'revision'], ['description', 'editOpen', 'enabled', 'id', 'path', 'readOnly', 'revision']])
 
   const detail = (await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi/instances/production', headers: { cookie } })).body
-  expect(detail).toContain('<h1>production</h1>')
+  expect(detail).toMatch(/<h1[^>]*>production<\/h1>/)
   expect(detail).toContain('Synthetic production tenant.')
   expect(detail).toContain('action="/v1/admin/tools/falcon-axi/instances/production/credential"')
   expect(detail).toContain('Danger zone')
@@ -3391,4 +3391,72 @@ test('adding an instance needs an administrator and recent authentication, and a
   const page = await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi?sheet=add-instance', headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
   expect(page.statusCode).toBeGreaterThanOrEqual(300)
   expect(page.body).not.toContain('sheet-add-instance')
+})
+
+type EditorData = { props: { connection: { controls: { name: string, secret: boolean, value: string, options?: { value: string, selected: boolean }[] }[] } } }
+const instanceEditor = (page: string) => (JSON.parse(/data-astryx-props>(.*?)<\/script>/s.exec(page)![1]!) as EditorData).props.connection.controls
+
+test.each((Object.keys(values) as ToolName[]).filter(tool => tool !== 'ssh-axi'))('%s instance page and its page data carry no saved secret and prefill only non-secret values', async tool => {
+  const saved = values[tool as keyof typeof values] as Record<string, unknown>
+  const entries = Object.entries(saved).filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+  const secrets = entries.filter(([name, value]) => value.startsWith('CANARY-') && name !== 'certificateAuthority')
+  expect(secrets.length).toBeGreaterThan(0)
+  store.createInstance(tool, { name: 'lab', description: 'Synthetic lab.' }, saved, actor, Date.now())
+  const page = (await app.inject({ method: 'GET', url: `/admin/tools/${tool}/instances/lab`, headers: { cookie: await browserCookie() } })).body
+  expect(page).toContain('data-profile-field=')
+  for (const [, secret] of secrets) expect(page).not.toContain(secret)
+  const controls = instanceEditor(page)
+  expect(controls.some(control => control.secret)).toBe(true)
+  expect(controls.filter(control => control.secret).every(control => control.value === '')).toBe(true)
+  for (const [name, value] of entries.filter(([, value]) => !value.startsWith('CANARY-'))) {
+    const control = controls.find(candidate => candidate.name === name)
+    if (control) expect([control.value, ...(control.options ?? []).filter(option => option.selected).map(option => JSON.parse(option.value))], name).toContain(value)
+  }
+})
+
+test('a typed secret is never returned, logged or audited when an instance Connection save is rejected or accepted', async () => {
+  const secret = 'CANARY-typed-secret-r17b'
+  const written: string[] = []
+  for (const stream of [process.stdout, process.stderr]) {
+    vi.spyOn(stream, 'write').mockImplementation(((chunk: unknown) => { written.push(String(chunk)); return true }) as typeof stream.write)
+  }
+  const east = await createInstance('east', eastValue)
+  const revision = await toolRevision('falcon-axi')
+  const value = { clientId: 'synthetic-client', clientSecret: secret, region: 'eu-2' }
+  const responses: string[] = []
+  for (const body of [{ value, expectedId: east.id, expectedRevision: 9, expectedToolRevision: revision },
+    { value: { clientSecret: secret }, expectedId: east.id, expectedRevision: 1, expectedToolRevision: revision }]) {
+    const rejected = await request('PATCH', '/falcon-axi/instances/east/credential', body)
+    expect(rejected.status).toBeGreaterThanOrEqual(400)
+    responses.push(JSON.stringify([...rejected.headers]), await rejected.text())
+  }
+  expect(store.readCredential(store.findInstance('falcon-axi', 'east')!)).toEqual(eastValue)
+  const cookie = await browserCookie()
+  const form = await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi/instances/east', headers: { cookie } })
+  const posted = await app.inject({ method: 'PATCH', url: '/v1/admin/tools/falcon-axi/instances/east/credential', headers: { host: 'localhost', origin: 'http://localhost', cookie,
+    'content-type': 'application/x-www-form-urlencoded' }, payload: new URLSearchParams({ _csrf: /name="_csrf" value="([^"]+)"/.exec(form.body)![1]!, 'profile.clientSecret': secret }).toString() })
+  expect(posted.statusCode).toBeGreaterThanOrEqual(400)
+  responses.push(JSON.stringify(posted.headers), posted.body)
+  const accepted = await request('PATCH', '/falcon-axi/instances/east/credential', { value, expectedId: east.id, expectedRevision: 1, expectedToolRevision: revision })
+  expect(accepted.status).toBe(200)
+  responses.push(JSON.stringify([...accepted.headers]), await accepted.text(), await (await request('GET', '/falcon-axi/instances/east')).text())
+  responses.push((await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi/instances/east', headers: { cookie } })).body)
+  for (const text of [...responses, JSON.stringify(db.prepare('SELECT * FROM audit').all()), written.join('')]) expect(text).not.toContain(secret)
+  expect(db.prepare("SELECT action, instance, outcome FROM audit WHERE action = 'replace-credential' AND outcome = 'success'").all()).toEqual([{ action: 'replace-credential', instance: 'east', outcome: 'success' }])
+})
+
+test('changing an instance credential needs an administrator and recent authentication and the page refuses an ordinary person', async () => {
+  const east = await createInstance('east', eastValue)
+  const body = { value: { clientId: 'synthetic-client', region: 'eu-2' }, expectedId: east.id, expectedRevision: 1, expectedToolRevision: await toolRevision('falcon-axi') }
+  await failure(await request('PATCH', '/falcon-axi/instances/east/credential', body, await adminHeaders('synthetic-ordinary')), 'ADMIN_REQUIRED')
+  const { 'x-artium-reauth-ticket': _ticket, ...missing } = headers
+  await failure(await request('PATCH', '/falcon-axi/instances/east/credential', body, missing), 'REAUTH_REQUIRED')
+  expect(store.readCredential(store.findInstance('falcon-axi', 'east')!)).toEqual(eastValue)
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost', 'content-type': 'application/x-www-form-urlencoded',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') },
+  payload: new URLSearchParams({ _csrf: /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!, username: 'synthetic-ordinary', password: 'CANARY-local-password' }).toString() })
+  const page = await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi/instances/east', headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
+  expect(page.statusCode).toBeGreaterThanOrEqual(300)
+  expect(page.body).not.toContain('data-profile-field=')
 })

@@ -1,8 +1,11 @@
 import { deepStrictEqual } from 'node:assert'
 import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { createElement } from 'react'
+import { renderToString } from 'react-dom/server'
 import { expect, test } from 'vitest'
 import { CredentialProfile, loadCredentialProfile } from '../src/server/adapters/credential-profile.js'
+import { CredentialEditor } from '../src/views/credential-editor.js'
 import { credentialEditor, credentialFields, editorProfile } from '../src/server/admin/credential-form.js'
 import { toolCredentialSchemaPaths } from '../src/server/config.js'
 import { credentialTlsSettings } from '../src/server/credential-tls-settings.js'
@@ -57,7 +60,7 @@ test('the schema guard rejects a seeded unregistered TLS field in a configured p
 test.each(toolSchema.options)('%s explains supported certificate identity settings', tool => {
   const published = profiles.find(([name]) => name === tool)
   const profile = editorProfile(tool, published ? new CredentialProfile(published[1], tool) : undefined)
-  const html = credentialFields(tool, profile, {}, false)
+  const html = renderToString(createElement(CredentialEditor, credentialEditor(tool, profile, {}, false)))
   if (tool === 'ssh-axi') { expect(html).not.toContain('Certificate verification'); return }
   const settings = { connectAddress: tool === 'unifi-axi' ? 'tls.connectAddress' : undefined,
     serverName: ['technitium-axi', 'kubernetes-axi'].includes(tool) ? 'tlsServerName' : undefined }
@@ -78,7 +81,7 @@ test.each([
 ] as const)('%s displays saved trust and offers supported replacement', (tool, metadata, certificate, fingerprint, entry, hidden) => {
   const published = profiles.find(([name]) => name === tool)
   const profile = editorProfile(tool, published ? new CredentialProfile(published[1], tool) : undefined)
-  const html = credentialFields(tool, profile, metadata, true)
+  const html = renderToString(createElement(CredentialEditor, credentialEditor(tool, profile, metadata, true)))
   expect(html).toContain(`<pre>${certificate}</pre>`)
   if (fingerprint) expect(html).toContain(`<pre>${fingerprint}</pre>`)
   if (entry) expect(html).toContain(`data-profile-field="${entry}"`)

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { X509Certificate } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { spawn, spawnSync, type ChildProcessByStdio } from 'node:child_process'
 import { once } from 'node:events'
 import { createInterface } from 'node:readline'
@@ -11,6 +12,7 @@ type Fixture = {
   url: string
   clock: string
   certificatePem: string
+  caFile: string
 }
 
 const environment: NodeJS.ProcessEnv = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: `artium-shell-${process.pid}`,
@@ -937,7 +939,7 @@ test('Proxmox stored password administration saves one credential without a sepa
     await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
     check(await page.eval(() => document.querySelector('[data-profile-field=password]').value === '' && !document.documentElement.outerHTML.includes('CANARY-proxmox-browser-password')), 'Password redisplayed');
     check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"password"' && document.querySelector('[data-profile-field=userId]').value === 'automation@pve'), 'Selected identity was not saved');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('signs in automatically') && !document.querySelector('form[action*="/connect"]')), 'Automatic authentication guidance missing');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('signs in automatically') && !document.querySelector('form[action*="/connect"]')), 'Automatic authentication guidance missing');
     await page.fill('[data-profile-field=userId]', 'different@pve');
     check(await page.eval(() => document.querySelector('[data-profile-field=password]').required), 'Changed username did not require a new password');
   `)
@@ -1062,6 +1064,109 @@ for (const [tool, upload, field] of [
     await page.eval(async () => { window.releaseCertificateRead('synthetic certificate'); await Promise.resolve(); });
     await page.click('[data-sheet="sheet-add-instance"]');
     check(await page.eval(() => document.querySelector('${upload}').files.length === 0 && document.querySelector('${field}').value === ''), 'A discarded certificate upload was restored');
+  `)
+})
+
+for (const [tool, value, saved, secret, typed, field, entry] of [
+  ['falcon-axi', { clientId: 'synthetic-client', clientSecret: 'CANARY-stored-secret', region: 'us-1' }, 'CANARY-stored-secret', 'clientSecret', 'clientSecret', 'CANARY-typed-browser-secret', 'a typed secret'],
+  ['kubernetes-axi', { origin: 'https://cluster.example', auth: 'token', token: 'CANARY-stored-token', certificateAuthority: 'CANARY-stored-ca' }, 'CANARY-stored-token', 'token', 'certificateAuthority',
+    'CANARY-typed-browser-certificate', 'a typed trusted certificate'],
+]) test(entry + ' on the ' + tool + ' instance page reaches only the rejected save and is cleared when the page is left', () => {
+  browser(`
+    await createInstance(${JSON.stringify(tool)}, ${JSON.stringify(value)});
+    await page.eval(() => {
+      window.leaks = [];
+      window.sent = [];
+      const note = (kind, value) => { if (String(value).includes('CANARY-typed-browser')) window.leaks.push(kind); };
+      for (const method of ['log', 'info', 'warn', 'error', 'debug']) {
+        const original = console[method];
+        console[method] = (...args) => { args.forEach(arg => note('console.' + method, typeof arg === 'string' ? arg : JSON.stringify(arg))); original.apply(console, args); };
+      }
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) { note('storage', key + value); return setItem.call(this, key, value); };
+      const send = window.fetch;
+      window.fetch = (input, init) => { window.sent.push([String(input instanceof Request ? input.url : input), String(init && init.body || '')]); return send(input, init); };
+      navigator.sendBeacon = (url, body) => { note('beacon', body); return false; };
+    });
+    check(await page.eval(() => !document.documentElement.outerHTML.includes(${JSON.stringify(saved)})
+      && document.querySelector('[data-profile-field=${secret}]').value === '' && document.querySelector('[data-profile-field=${secret}]').tagName === 'TEXTAREA'
+      && document.querySelector('[data-profile-field=${secret}]').autocomplete === 'off'), 'The stored secret reached the instance page');
+    await page.eval(() => { for (const details of document.querySelectorAll('details')) details.open = true; });
+    await page.fill('[data-profile-field=${typed}]', ${JSON.stringify(field)});
+    check(await page.eval(() => document.querySelector('[data-profile-field=${typed}]').value === ${JSON.stringify(field)} && document.querySelector('[data-profile-field=${typed}]').tagName === 'TEXTAREA'), 'The typed value is not in a native textarea');
+    await page.eval(() => { document.querySelector('form[data-save-tool] [name=expectedRevision]').value = '999'; });
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]');
+    check(await page.eval(() => !document.querySelector('#confirmation').textContent.includes('CANARY-typed-browser')), 'Confirmation exposed the typed value');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#message:not(:empty)');
+    check(await page.eval(() => {
+      const sent = window.sent.filter(([, body]) => body.includes('CANARY-typed-browser')).map(([url]) => new URL(url, location.href).pathname);
+      return JSON.stringify(sent) === JSON.stringify(['/v1/admin/tools/${tool}/instances/default/credential']) && window.leaks.length === 0
+        && !document.documentElement.outerHTML.includes('CANARY-typed-browser') && !document.getElementById('message').textContent.includes('CANARY')
+        && !location.href.includes('CANARY') && !JSON.stringify(sessionStorage).includes('CANARY') && !JSON.stringify(localStorage).includes('CANARY');
+    }), 'The rejected save leaked the typed value');
+    await page.eval(() => window.dispatchEvent(new Event('pagehide')));
+    check(await page.eval(() => document.querySelector('[data-profile-field=${typed}]').value === ''), 'Leaving the page kept the typed value');
+    await openInstance(${JSON.stringify(tool)});
+    check(await page.eval(() => document.querySelector('form[data-save-tool] [name=expectedRevision]').value === '1' && !document.documentElement.outerHTML.includes('CANARY-typed-browser')), 'The rejected save changed the instance or echoed the value');
+  `)
+})
+
+test('saving an instance connection with a blank secret sends no secret and keeps the stored one', async () => {
+  browser(`
+    await createInstance('falcon-axi', { clientId: 'synthetic-client', clientSecret: 'CANARY-stored-secret', region: 'us-1' });
+    await page.eval(() => {
+      const sent = [];
+      const send = window.fetch;
+      window.fetch = (input, init) => { sent.push([String(input instanceof Request ? input.url : input), String(init && init.body || '')]); window.name = JSON.stringify(sent); return send(input, init); };
+    });
+    await page.click('[data-save-and-test]');
+    await page.fill('[data-profile-field=region]', 'eu-2');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
+    check(await page.eval(() => {
+      const saves = JSON.parse(window.name).filter(([url]) => url.endsWith('/instances/default/credential'));
+      return saves.length === 1 && !saves[0][1].includes('clientSecret') && !saves[0][1].includes('CANARY') && JSON.parse(saves[0][1]).value.region === 'eu-2';
+    }), 'The blank secret was sent or the region was not');
+    check(await page.eval(() => document.querySelector('[data-profile-field=region]').value === 'eu-2' && document.querySelector('[data-profile-field=clientSecret]').value === ''), 'The saved values are not shown');
+  `)
+  const response = await fetch(fixture.clock.replace('/test/clock', '/test/tools/falcon-axi'))
+  const { stored } = await response.json() as { stored: Record<string, unknown> }
+  assert.equal(stored.clientSecret, 'CANARY-stored-secret')
+  assert.equal(stored.region, 'eu-2')
+})
+
+test('changing the instance URL drops a saved connection IP override that was not edited', () => {
+  const tls = { trustedCertificatePem: readFileSync(fixture.caFile, 'utf8'), peerFingerprintSha256: new X509Certificate(fixture.certificatePem).fingerprint256.replaceAll(':', '') }
+  browser(`
+    await createInstance('unifi-axi', { origin: 'https://controller.example', apiKey: 'CANARY-stored-key', tls: ${JSON.stringify(tls)} });
+    const saved = await page.eval(async () => {
+      const form = document.querySelector('form[data-save-tool]');
+      const response = await fetch(form.action, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ value: { origin: 'https://controller.example', tls: { connectAddress: '127.0.0.1' } }, expectedId: form.elements.expectedId.value,
+          expectedRevision: 1, expectedToolRevision: Number(form.elements.expectedToolRevision.value), _csrf: form.elements._csrf.value }) });
+      return response.status;
+    });
+    check(saved === 200, 'Could not save the connection IP override: ' + saved);
+    await openInstance('unifi-axi');
+    await page.eval(() => {
+      const sent = [];
+      const send = window.fetch;
+      window.fetch = (input, init) => { sent.push([String(input instanceof Request ? input.url : input), String(init && init.body || '')]); window.name = JSON.stringify(sent); return send(input, init); };
+    });
+    check(await page.eval(() => document.querySelector('[data-profile-field="tls.connectAddress"]').value === '127.0.0.1'), 'The saved connection IP is not shown');
+    await page.fill('[data-profile-field=origin]', 'https://other.example');
+    await page.fill('[data-profile-field=apiKey]', 'CANARY-replacement-key');
+    await page.click('[data-save-and-test]');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="3"]');
+    check(await page.eval(() => {
+      const saves = JSON.parse(window.name).filter(([url]) => url.endsWith('/instances/default/credential'));
+      return saves.length === 1 && JSON.parse(saves[0][1]).value.origin === 'https://other.example' && !JSON.stringify(JSON.parse(saves[0][1]).value).includes('connectAddress');
+    }), 'The unedited connection IP was sent with the new URL');
   `)
 })
 
@@ -1357,7 +1462,7 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-inspect-certificate][hidden]');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('No certificates trusted')), 'Removed trust remains displayed');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('No certificates trusted')), 'Removed trust remains displayed');
   `)
 })
 
@@ -1631,7 +1736,7 @@ test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalizatio
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('token: removed surrounding whitespace.')), 'Secret normalization notice missing');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.startsWith(${JSON.stringify(saveAndTest ? 'Saved. Test failed.' : 'Saved.')})), 'Save result missing');
     if (${saveAndTest}) check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent === 'DNS'), 'Current diagnostic missing');
-    check(await page.eval(() => !document.querySelector('main').innerText.includes('CANARY-normalized-token')), 'Secret appeared in notice');
+    check(await page.eval(() => !document.querySelector('[role=main]').innerText.includes('CANARY-normalized-token')), 'Secret appeared in notice');
   `)
 })
 }

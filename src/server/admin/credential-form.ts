@@ -17,7 +17,7 @@ import type { CredentialControl, CredentialEditorProps } from '../../views/crede
 import type { ToolName } from '../store/credential-store.js'
 import { escape } from './escape.js'
 import { tlsCredentialRoots } from '../credential-tls-settings.js'
-import { tlsFields, tlsSection } from './tls-fields.js'
+import { tlsSection } from './tls-fields.js'
 
 // Legacy adapters need a host editor even when no published profile is available.
 export function editorProfile(tool: ToolName, profile?: CredentialProfile): CredentialProfile {
@@ -229,6 +229,6 @@ export function credentialFields(tool: ToolName | undefined, profile: Credential
     return `<div data-credential-field="${escape(control.name)}"${control.secret ? ' data-secret' : ''}${control.ephemeral ? ' data-ephemeral' : ''}><label>${escape(control.label)}${input}</label><p id="${escape(control.id)}-hint">${escape(control.help)}</p>${control.stored ? '<p data-stored-secret>Stored when configured below. Leave blank to keep; enter a value to replace.</p>' : ''}</div>`
   }).join('')
   return `<div data-credential-editor data-schema="${escape(JSON.stringify(editor.schema))}" data-identity="${escape(JSON.stringify(editor.identity))}" data-configured="${configured}"><p>${editor.intro}</p>${fields}
-    ${tlsFields(editor.tls)}<div data-certificate hidden><label>Certificate and private key (one PEM file)<input type="file" data-certificate-file accept=".pem"></label><label>Or paste certificate and private key<textarea data-certificate-pem rows="8" autocomplete="off" spellcheck="false"></textarea></label><p>Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.</p></div>
+    <div data-certificate hidden><label>Certificate and private key (one PEM file)<input type="file" data-certificate-file accept=".pem"></label><label>Or paste certificate and private key<textarea data-certificate-pem rows="8" autocomplete="off" spellcheck="false"></textarea></label><p>Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.</p></div>
     <details><summary>Advanced: profile schema and requirements</summary><pre>${escape(JSON.stringify(editor.schema, null, 2))}</pre></details></div>`
 }

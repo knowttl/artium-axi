@@ -2,7 +2,6 @@ import { X509Certificate } from 'node:crypto'
 import type { TlsField, TlsRemoval, TlsSection } from '../../views/certificate-verification.js'
 import { credentialTlsSettings, tlsFieldDefinitions } from '../credential-tls-settings.js'
 import type { ToolName } from '../store/credential-store.js'
-import { escape } from './escape.js'
 
 export function tlsSection(tool: ToolName, metadata: Record<string, unknown>): TlsSection | null {
   if (tool === 'ssh-axi') return null
@@ -51,22 +50,4 @@ export function tlsSection(tool: ToolName, metadata: Record<string, unknown>): T
     pinRemoval: settings.pin && fingerprint ? removal(settings.pin, 'fingerprint pin') : null,
     note: kubernetes ? 'A trusted certificate is required and can only be replaced.' : '',
   }
-}
-
-export function tlsFields(section: TlsSection | null): string {
-  if (!section) return ''
-  const input = ({ path, id, label, help, value, required, clearable, upload }: TlsField) => {
-    const attributes = `id="${id}" name="profile.${path}" data-profile-field="${path}" data-profile-type="string" data-tls-input aria-describedby="${id}-hint" autocomplete="off"${required ? ' required' : ''}`
-    const control = upload
-      ? `<textarea ${attributes} rows="6" spellcheck="false"></textarea><label>${upload}<input id="${id}-file" type="file" data-tls-file="${path}" accept=".pem"></label>`
-      : `<input ${attributes}${clearable ? ' data-profile-clearable' : ''} type="text" value="${escape(value)}">`
-    return `<div data-credential-field="${path}"><label for="${id}">${label}</label>${control}<p id="${id}-hint">${escape(help)}</p></div>`
-  }
-  const remove = (removal: TlsRemoval | null) => removal ? `<label><input type="checkbox" data-tls-remove="${removal.path}"> ${removal.label}</label>` : ''
-  const { saved, certificate, pin } = section
-  const connection = section.connection.map(entry => 'field' in entry ? input(entry.field) : `<p><strong>${entry.label}</strong>: ${entry.unsupported}</p>`).join('')
-  const savedTrust = `<details><summary>${saved.certificateLabel}</summary><pre>${escape(saved.certificate)}</pre></details><p>${saved.fingerprintLabel}</p><pre>${escape(saved.fingerprint)}</pre>`
-  const entry = certificate ? `<details${certificate.open ? ' open' : ''}><summary>${certificate.summary}</summary>${certificate.note && `<p>${certificate.note}</p>`}${certificate.fields.map(input).join('')}</details>` : ''
-  const pinEntry = pin ? `<details><summary>${pin.summary}</summary>${input(pin.fingerprint)}<label for="${pin.hostname.id}">${pin.hostname.label}</label><select id="${pin.hostname.id}" name="profile.${pin.hostname.path}" data-profile-field="${pin.hostname.path}" data-profile-type="json" data-tls-input><option value="">${pin.hostname.emptyLabel}</option><option value="true">Yes</option><option value="false">No</option></select><p>${pin.hostname.help}</p></details>` : ''
-  return `<fieldset><legend>${section.legend}</legend><p>${section.intro}</p>${connection}${savedTrust}${entry}${remove(section.certificateRemoval)}${pinEntry}${remove(section.pinRemoval)}${section.note && `<p>${section.note}</p>`}</fieldset>`
 }

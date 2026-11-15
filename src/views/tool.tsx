@@ -64,14 +64,14 @@ function Header({ csrf, api, mark, name, version, revision, enabled, state, writ
   )
 }
 
-function Setup({ setup }: Pick<ToolProps, 'setup'>) {
+export function Setup({ setup }: { setup: (Pick<ToolProps, 'setup'>['setup'][number] & { test?: boolean })[] }) {
   const current = setup.findIndex(step => step.state !== 'done')
   return (
     <ol className="steps">
       {setup.map((step, index) => (
-        <li key={step.title} className={`step ${step.state}${index === current ? ' current' : ''}`}>
+        <li key={step.title} className={`step ${step.state}${index === current ? ' current' : ''}`} data-test-checklist={step.test ? '' : undefined}>
           <span className="mark" aria-hidden="true">{step.state === 'done' ? <Icon name="check" /> : step.state === 'fail' ? <Icon name="x" /> : index + 1}</span>
-          <div><b><span className="sr-only">{`${stepWords[step.state]}: `}</span>{step.title}</b><span>{step.detail}{step.at && <Time iso={step.at} />}</span></div>
+          <div><b><span className="sr-only" data-step-state="">{`${stepWords[step.state]}: `}</span>{step.title}</b><span>{step.detail}{step.at && <Time iso={step.at} />}</span></div>
         </li>
       ))}
     </ol>

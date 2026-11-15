@@ -1,7 +1,13 @@
 import type { ThemeMode } from '@astryxdesign/core/theme'
+import { useEffect, type ReactNode } from 'react'
 import { hydrateRoot } from 'react-dom/client'
 import type { FrameProps } from '../views/frame.js'
 import { Root, type ViewName, type ViewProps } from '../views/root.js'
+
+function Hydrated({ children }: { children: ReactNode }) {
+  useEffect(() => { document.dispatchEvent(new Event('astryx-hydrated')) }, [])
+  return children
+}
 
 const root = document.querySelector<HTMLElement>('[data-astryx-root]')
 const props = document.querySelector('[data-astryx-props]')
@@ -17,5 +23,5 @@ if (root && props) {
     }
   }
   const { frame, props: viewProps } = JSON.parse(props.textContent!) as { frame?: FrameProps, props: ViewProps[ViewName] }
-  hydrateRoot(root, <Root name={root.dataset.view as ViewName} props={viewProps} frame={frame} mode={root.dataset.mode as ThemeMode} />)
+  hydrateRoot(root, <Hydrated><Root name={root.dataset.view as ViewName} props={viewProps} frame={frame} mode={root.dataset.mode as ThemeMode} /></Hydrated>)
 }

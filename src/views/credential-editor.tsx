@@ -62,7 +62,7 @@ function Control({ control, value, onChange }: { control: CredentialControl, val
     )
   }
   if (control.kind === 'input') {
-    return <TextInput label={label} description={help} id={id} htmlName={`profile.${name}`} value={value} onChange={onChange} autoComplete="off" {...profile} {...{ required }} />
+    return <TextInput label={label} description={help} id={id} htmlName={`profile.${name}`} value={value} onChange={onChange} autoComplete="off" {...profile} {...{ required, 'data-saved': control.value }} />
   }
   return (
     <TextArea label={label} description={control.kind === 'list' ? `${help} One value per line.` : help} id={id} htmlName={`profile.${name}`} value={value} onChange={onChange}
@@ -80,7 +80,11 @@ export const CredentialEditor = memo(function CredentialEditor({ intro, schema, 
       editor.current?.dispatchEvent(new Event('change', { bubbles: true }))
     }
     dialog?.addEventListener('close', clear)
-    return () => dialog?.removeEventListener('close', clear)
+    window.addEventListener('pagehide', clear)
+    return () => {
+      dialog?.removeEventListener('close', clear)
+      window.removeEventListener('pagehide', clear)
+    }
   }, [])
   return (
     <div ref={editor} data-credential-editor="" data-schema={JSON.stringify(schema)} data-identity={JSON.stringify(identity)} data-configured={String(configured)}>
