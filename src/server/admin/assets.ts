@@ -134,14 +134,19 @@ for (const editor of document.querySelectorAll('[data-credential-editor]')) {
     input.addEventListener('change', () => { input.dataset.tlsEdited = 'true'; });
   }
   for (const upload of editor.querySelectorAll('[data-tls-file]')) upload.addEventListener('change', async () => {
-    if (!upload.files[0]) return;
-    editor.querySelector('[data-profile-field="' + upload.dataset.tlsFile + '"]').value = await upload.files[0].text();
+    const file = upload.files[0];
+    if (!file) return;
+    const content = await file.text();
+    if (upload.files[0] !== file) return;
+    editor.querySelector('[data-profile-field="' + upload.dataset.tlsFile + '"]').value = content;
     update();
   });
   editor.querySelector('[data-certificate-file]').addEventListener('change', async event => {
     const file = event.target.files[0];
     if (!file) return;
-    editor.querySelector('[data-certificate-pem]').value = await file.text();
+    const content = await file.text();
+    if (event.target.files[0] !== file) return;
+    editor.querySelector('[data-certificate-pem]').value = content;
     update();
   });
   update();

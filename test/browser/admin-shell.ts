@@ -999,6 +999,29 @@ test('closing the Add instance sheet clears the certificate file and permits sel
   `)
 })
 
+for (const [tool, upload, field] of [
+  ['az-axi', '[data-certificate-file]', '[data-certificate-pem]'],
+  ['kubernetes-axi', '[data-tls-file]', '[data-profile-field="certificateAuthority"]'],
+]) test(tool + ' discards a pending certificate upload when the sheet closes', () => {
+  browser(`
+    await page.open(base + '/admin/tools/${tool}');
+    await page.click('[data-sheet="sheet-add-instance"]');
+    await page.eval(() => {
+      window.releaseCertificateRead = null;
+      File.prototype.text = function () { return new Promise(resolve => { window.releaseCertificateRead = resolve; }); };
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(['synthetic certificate'], 'synthetic.pem'));
+      const input = document.querySelector('${upload}');
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await page.click('#sheet-add-instance .sheet-foot [data-sheet-close]');
+    await page.eval(async () => { window.releaseCertificateRead('synthetic certificate'); await Promise.resolve(); });
+    await page.click('[data-sheet="sheet-add-instance"]');
+    check(await page.eval(() => document.querySelector('${upload}').files.length === 0 && document.querySelector('${field}').value === ''), 'A discarded certificate upload was restored');
+  `)
+})
+
 test('SSH administration explains dedicated identities without offering generic credential or trust overrides', () => {
   chrome(['resize', '420', '900'])
   browser(`
