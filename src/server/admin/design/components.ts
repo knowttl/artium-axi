@@ -372,8 +372,8 @@ dialog.sheet .sheet-body { flex: 1; overflow: auto; padding: 20px; }
 .popover { position: absolute; z-index: 30; min-width: 220px; padding: 4px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-pop); font-size: var(--fs-sm); }
 .account-menu.up .popover { left: 0; right: 0; bottom: calc(100% + 6px); }
 .account-menu.down .popover { right: 0; top: calc(100% + 6px); }
-.popover a, .popover .btn { border: 0; display: flex; width: 100%; justify-content: flex-start; align-items: center; gap: 8px; height: auto; padding: 6px 8px; border-radius: var(--r-sm); color: var(--text); font-size: var(--fs-sm); text-decoration: none; }
-.popover a:hover, .popover .btn:hover { background: var(--bg-hover); }
+.popover a, .popover .btn, .popover .astryx-button { border: 0; display: flex; width: 100%; justify-content: flex-start; align-items: center; gap: 8px; height: auto; padding: 6px 8px; border-radius: var(--r-sm); color: var(--text); font-size: var(--fs-sm); text-decoration: none; }
+.popover a:hover, .popover .btn:hover, .popover .astryx-button:hover { background: var(--bg-hover); }
 .popover a[aria-current="page"] { background: var(--bg-muted); }
 .popover hr { margin: 4px 0; border: 0; border-top: 1px solid var(--border); }
 .popover form { margin: 0; }
@@ -453,7 +453,8 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 :where(.content, dialog) :where(thead th):where(:not([data-astryx-root] *)) { background: var(--bg-subtle); color: var(--text-faint); font-size: var(--fs-xs); font-weight: 500; white-space: nowrap; }
 :where(.content, dialog) :where(tbody th) { font-weight: 500; }
 :where(.content, dialog) :where(tbody tr:last-child) > *:where(:not([data-astryx-root] *)) { border-bottom: 0; }
-.session-table time, .session-table button { white-space: nowrap; }
+.session-table time, .session-table button, .session-table code { white-space: nowrap; }
+.session-table th, .session-table td { max-width: none; overflow: visible; }
 
 /* Page header actions and record metadata */
 .page-head .actions, .card-head .actions, .card-foot .actions { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -730,6 +731,11 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .tbl.stacked td { display: block; padding: 3px 14px; border: 0; }
   .tbl.stacked td.num, .tbl.stacked td.actions-cell { text-align: left; }
   .tbl.stacked td[data-label]::before { content: attr(data-label) ": "; color: var(--text-faint); }
+  .session-table thead { display: none; }
+  .session-table tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .session-table tbody tr:last-child { border-bottom: 0; }
+  .session-table td { display: block; padding: 3px 14px; border: 0; }
+  .session-table td[data-label]::before { content: attr(data-label) ": "; color: var(--text-faint); }
   .people-list thead { display: none; }
   .people-list tbody tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); }
   .people-list tbody tr:last-child { border-bottom: 0; }

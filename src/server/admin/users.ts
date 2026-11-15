@@ -8,10 +8,10 @@ import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { adminScript, adminStyle } from './assets.js'
 import { registerAdminClientAssets } from './client-assets.js'
 import { escape } from './escape.js'
-import { actionForm, adminRead, lastChange, revision, type Confirmation } from './forms.js'
-import { sessionTable } from './session-table.js'
+import { adminRead, lastChange } from './forms.js'
+import { sessionsProps } from './session-card.js'
 import { describe, statusWord, toolProducts } from './design/status.js'
-import { checkOption, icon, initials, sheetLink } from './design/ui.js'
+import { checkOption, initials } from './design/ui.js'
 import { renderPage } from './render-page.js'
 import type { PersonProps } from '../../views/person.js'
 import type { Status } from '../../views/status.js'
@@ -121,14 +121,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const sessions = await adminRead(app, request, path + '/sessions', adminUserRoutes.sessions.response)
     const { tools } = await adminRead(app, request, '/v1/admin/tools', adminToolRoutes.list.response)
     const isLocked = locked(user)
-    const form = (action: string, method: string, body: string, confirmation: Confirmation) => actionForm(csrf, action, method, body, confirmation)
-    const breakGlass = user.source === 'local' && user.administrator ? form(path, 'PATCH', revision(user.revision) + `<input type="hidden" name="breakGlass" data-type="boolean" value="${!user.breakGlass}"><button class="btn">${icon('shield')}${user.breakGlass ? 'Remove break-glass designation…' : 'Make break-glass admin…'}</button>`,
-      user.breakGlass ? { consequence: `Remove ${user.username}’s break-glass designation and revoke all their sessions?`, title: 'Remove break-glass designation', action: 'Remove designation' }
-        : { consequence: `Designate ${user.username} for emergency local password access when SSO is enabled? Reserve this for emergency access; every use is flagged in the audit log.`, title: 'Make break-glass admin', action: 'Designate' }) : ''
-    const signOut = sessions.sessions.length ? form(path + '/sessions/revoke', 'POST', `<button class="btn">${icon('logout')}Sign out everywhere…</button>`,
-      { consequence: `Sign out all ${sessions.sessions.length} active browser and CLI sessions now?${sessions.sessions.some(session => session.current) ? ' This includes this browser.' : ''}`, title: 'Sign out everywhere', action: 'Sign out everywhere' }) : ''
-    const menu = `<details class="more-menu"><summary class="btn btn-secondary btn-icon" aria-label="More actions">${icon('more')}</summary><div class="popover">
-      ${user.source === 'local' ? sheetLink('reset-password', page + '?sheet=reset-password', 'Reset password…', '', 'key') : ''}${signOut}${breakGlass}<hr><a href="/admin/audit?user=${escape(encodeURIComponent(user.id))}">${icon('list')}View in audit log</a></div></details>`
+    const menu = { auditHref: '/admin/audit?user=' + encodeURIComponent(user.id), breakGlass: user.source === 'local' && user.administrator ? { designated: user.breakGlass } : null }
     return respond({ identity: identity(describe('person', user.enabled ? isLocked ? 'locked' : 'enabled' : 'disabled')), changed, ruleGrants, archived: null,
       active: { csrf, path, revision: user.revision, displayName: user.displayName, administrator: user.administrator, enabled: user.enabled, menu,
         linkToSso: user.source === 'local' && user.enabled ? `/admin/invitations?userId=${encodeURIComponent(user.id)}&sheet=new-invitation` : null,
@@ -136,7 +129,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
         tools: user.effectiveTools.map(tool => ({ name: tool.name, product: toolProducts[tool.name].name, mark: toolProducts[tool.name].mark,
           access: describe('access', tool.enabled ? 'yes' : user.enabled ? 'tool-disabled' : 'person-disabled'),
           failing: tool.enabled && tools.find(item => item.name === tool.name)?.health.status === 'error', grantedBy: tool.roleIds.map(id => roleLink(user, id, roleName(id), true)) })),
-        sessions: sessionTable(csrf, path + '/sessions', sessions.sessions),
+        sessions: sessionsProps(csrf, path + '/sessions', sessions.sessions),
         facts: { method: user.source === 'sso' ? 'SSO' : user.breakGlass ? 'Break-glass password' : 'Local password', failedAttempts: user.failedAttempts,
           lockedUntil: isLocked ? new Date(user.lockedUntil!).toISOString() : null, password: user.source === 'local' ? user.mustChange ? 'Password change required' : 'Set by them' : null },
         reset: user.source === 'local' ? { open: open.data.sheet === 'reset-password', closeHref: page } : null } })

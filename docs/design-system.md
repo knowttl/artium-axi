@@ -39,7 +39,8 @@ Astryx `Drawer` and `Dialog` render closed until hydration, so they cannot serve
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
 `confirm.js` hides the server-rendered scrim of an open sheet with the `hidden` attribute rather than removing it, so hydration still finds it.
 `ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes that `confirm.js` reads (method, consequence, title, action, typed name and success URL), and `Sheet` builds on it, so a view writes a confirmation form without repeating them.
-The person detail page keeps two legacy islands in `dangerouslySetInnerHTML`: the "More actions" overflow menu, which is a native disclosure because Astryx dropdown components need runtime inline styles (see issue 462), and the Sessions card, which the account page also renders.
+The person detail page's "More actions" overflow menu keeps a native `details` disclosure, because Astryx dropdown components need runtime inline styles (see issue 462), and builds its items from Astryx `Button` and `ActionForm`.
+The Sessions card (`Sessions` in `src/views/sessions.tsx`) is also on the account page, which is still a legacy page: `renderSessionsCard()` in `src/server/admin/session-card.tsx` renders it there as server-rendered markup in a `data-astryx-root` element, with its inline styles hoisted into a nonce'd `<style>` element, and without hydration.
 Any other view that embeds a sheet or a confirmation form keeps its legacy markup in a `dangerouslySetInnerHTML` island until its sheets and confirmation dialogs move to Astryx.
 The People filter chips stay native `select` elements, so filtering works without JavaScript and the form fields are unchanged.
 A view that shows a time wraps it in `<time suppressHydrationWarning>`, because `confirm.js` formats every `time[datetime]` before hydration.

@@ -182,7 +182,7 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
     const current = session(request)
     if (current.must_change) return reply.redirect('/password')
     const roles = accountRoles(db, current)
-    return browserPage(reply, 'Your account', accountContent(db, current, reply.generateCsrf(), `${request.protocol}://${request.host}`, adapters), current,
+    return browserPage(reply, 'Your account', accountContent(db, current, reply, `${request.protocol}://${request.host}`, adapters), current,
       `${current.display_name} (${current.username}) · ${current.source === 'sso' ? 'SSO sign-in' : 'Local password sign-in'} · ${roles.length === 1 ? 'Role' : 'Roles'}: ${roles.join(', ') || 'None'}`,
       { helpTopic: 'Account', actions: current.source === 'local' ? `<a class="btn btn-secondary" href="/password">${icon('key')}Change password</a>` : '' })
   })

@@ -14,6 +14,7 @@ import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { temporaryPasswordHint } from './people.js'
 import { RoleOptions, type RoleOption } from './role-options.js'
+import { Sessions, SignOutEverywhere, type SessionsProps } from './sessions.js'
 import { Sheet } from './sheet.js'
 import { badgeVariants, type Status } from './status.js'
 import { Time } from './time.js'
@@ -33,11 +34,11 @@ export interface PersonProps {
     administrator: boolean
     enabled: boolean
     linkToSso: string | null
-    menu: string
+    menu: { auditHref: string, breakGlass: { designated: boolean } | null }
     roles: RoleOption[]
     directRoleIds: string[]
     tools: { name: string, product: string, mark: string, access: Status, failing: boolean, grantedBy: Link[] }[]
-    sessions: string
+    sessions: SessionsProps
     facts: { method: string, failedAttempts: number, lockedUntil: string | null, password: string | null }
     reset: { open: boolean, closeHref: string } | null
   } | null
@@ -204,6 +205,32 @@ function ResetPassword({ active, username, reset }: { active: Active, username: 
   )
 }
 
+function MoreActions({ active, username }: { active: Active, username: string }) {
+  const { menu, reset, sessions } = active
+  const designated = menu.breakGlass?.designated
+  return (
+    <details className="more-menu">
+      <summary className="btn btn-secondary btn-icon" aria-label="More actions"><Icon name="more" /></summary>
+      <div className="popover">
+        {reset && <Button href={reset.closeHref + '?sheet=reset-password'} label="Reset password…" variant="ghost" icon={<Icon name="key" />} data-sheet="sheet-reset-password" />}
+        {sessions.sessions.length > 0 && <SignOutEverywhere {...sessions} inMenu />}
+        {menu.breakGlass && (
+          <ActionForm action={active.path} method="PATCH" csrf={active.csrf} confirmation={designated
+            ? { consequence: `Remove ${username}’s break-glass designation and revoke all their sessions?`, title: 'Remove break-glass designation', action: 'Remove designation' }
+            : { consequence: `Designate ${username} for emergency local password access when SSO is enabled? Reserve this for emergency access; every use is flagged in the audit log.`,
+              title: 'Make break-glass admin', action: 'Designate' }}>
+            <Revision value={active.revision} />
+            <input type="hidden" name="breakGlass" data-type="boolean" value={String(!designated)} />
+            <Button type="submit" label={designated ? 'Remove break-glass designation…' : 'Make break-glass admin…'} variant="ghost" icon={<Icon name="shield" />} />
+          </ActionForm>
+        )}
+        <hr />
+        <Button href={menu.auditHref} label="View in audit log" variant="ghost" icon={<Icon name="list" />} />
+      </div>
+    </details>
+  )
+}
+
 export function Person({ identity, changed, ruleGrants, archived, active }: PersonProps) {
   const { username } = identity
   const meta = <Text className="card-meta" as="p" type="supporting">{`Last changed by ${changed.actor} at `}<Time iso={changed.at} />{`. Revision ${changed.revision}.`}</Text>
@@ -220,7 +247,7 @@ export function Person({ identity, changed, ruleGrants, archived, active }: Pers
         {active && (
           <HStack gap={2} vAlign="center">
             {active.linkToSso && <Button href={active.linkToSso} label="Link to SSO" variant="secondary" icon={<Icon name="link" />} />}
-            <div dangerouslySetInnerHTML={{ __html: active.menu }} />
+            <MoreActions active={active} username={username} />
           </HStack>
         )}
       </HStack>
@@ -233,7 +260,7 @@ export function Person({ identity, changed, ruleGrants, archived, active }: Pers
           <VStack gap={4}>
             <Roles active={active} ruleGrants={ruleGrants} username={username} />
             <Tools tools={active.tools} />
-            <div dangerouslySetInnerHTML={{ __html: active.sessions }} />
+            <Sessions {...active.sessions} />
             <Danger active={active} username={username} />
           </VStack>
         ) : archived && (
