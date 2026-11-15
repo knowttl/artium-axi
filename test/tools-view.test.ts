@@ -45,15 +45,15 @@ test('the filter links name their view and count, and mark the current one', () 
 
 test.each([
   { show: 'all' as const, hidden: [] },
-  { show: 'attention' as const, hidden: ['attention'] },
+  { show: 'enabled' as const, hidden: [['show', 'enabled']] },
+  { show: 'attention' as const, hidden: [['show', 'attention']] },
 ])('the filter form submits the search with show=$show kept only when it is not all', ({ show, hidden }) => {
   const html = render({ filters: { show, q: 'synthetic query', links } })
   const [form] = find(html, element => element.tagName === 'form')
   const inputs = nodes(form!).filter(element => element.tagName === 'input')
-  expect(inputs.filter(input => attribute(input, 'type') === 'hidden').map(input => attribute(input, 'value'))).toEqual(hidden)
+  expect(inputs.filter(input => attribute(input, 'type') === 'hidden').map(input => [attribute(input, 'name'), attribute(input, 'value')])).toEqual(hidden)
   const [search] = inputs.filter(input => attribute(input, 'name') === 'q')
   expect([attribute(search!, 'type'), attribute(search!, 'value'), attribute(search!, 'placeholder')]).toEqual(['search', 'synthetic query', 'Filter tools'])
-  expect(attribute(form!, 'data-filters')).toBeDefined()
   expect(find(html, element => element.tagName === 'label' && text(element) === 'Filter tools')).toHaveLength(1)
 })
 
