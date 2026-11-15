@@ -7,13 +7,12 @@ import { userGrantPolicies } from '../../shared/user-grants.js'
 import operationCatalogue from '../../../tools/inventories/write-operations.json' with { type: 'json' }
 import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
-import { escape } from './escape.js'
-import { actionForm, adminRead, revision } from './forms.js'
+import { adminRead } from './forms.js'
 import { editorProfile } from './credential-form.js'
 import { instancesPanel, readInstanceRows, registerInstancePages } from './instances.js'
 import { describeWrites, rawApiModeWords, setupStatus, toolProducts, toolSetupState } from './design/status.js'
-import { card, checkOption, field, icon, sheet, sheetLink } from './design/ui.js'
 import { renderPage } from './render-page.js'
+import type { AccessProps } from '../../views/tool-access.js'
 import type { ToolProps } from '../../views/tool.js'
 import type { WritesProps } from '../../views/tool-writes.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
@@ -161,27 +160,24 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     } else if (tab === 'access') {
       const instances = db.prepare('SELECT id, name, description FROM credentials WHERE tool = ? ORDER BY name').all(tool.name) as { id: string, name: string, description: string }[]
       const granted = db.prepare('SELECT credential_id AS id FROM role_tool_instances WHERE role_id = ? AND tool = ?')
-      const accessHref = (sheetName?: string) => `/admin/tools/${tool.name}?tab=access${sheetName ? '&sheet=' + encodeURIComponent(sheetName) : ''}`
-      const sheets: string[] = []
-      const rows = roles.map(role => {
-        const selected = new Set((granted.all(role.id, tool.name) as { id: string }[]).map(row => row.id))
-        const scope = role.allInstances ? 'All instances' : `Selected instances: ${instances.filter(instance => selected.has(instance.id)).map(instance => instance.name).join(', ') || 'None'}`
-        const name = 'instances-' + role.id
-        sheets.push(sheet({ name, open: query.sheet === name, closeHref: accessHref(), title: `Instance access for ${role.name}`,
-          description: `Choose which ${product} instances members of this role can use.`,
-          body: `<fieldset class="options"><legend class="sr-only">Instance access</legend>
-            <label class="option"><input type="radio" name="scope" value="all"${role.allInstances ? ' checked' : ''}><div><strong>All instances</strong><span>Includes instances added later.</span></div></label>
-            <label class="option"><input type="radio" name="scope" value="selected"${role.allInstances ? '' : ' checked'}><div><strong>Selected instances</strong><span>Only the instances checked below. Any other instance reports that it does not exist.</span></div></label></fieldset>
-            <fieldset class="options"><legend>Instances</legend><input type="hidden" name="instances" disabled data-type="array">${instances.map(instance =>
-            checkOption(`<input type="checkbox" name="instances" value="${escape(instance.name)}"${selected.has(instance.id) ? ' checked' : ''}>`, instance.name, instance.description)).join('')}</fieldset>${revision(role.revision)}`,
-          submit: '<button class="btn btn-primary">Save access</button>',
-          wrap: inner => actionForm(csrf, `/v1/admin/roles/${encodeURIComponent(role.id)}/tools/${tool.name}/instances`, 'PUT', inner,
-            { consequence: `Replace ${role.name}’s ${product} instance access? Changes apply to every member on the next call.`, title: 'Save instance access', action: 'Save access' }) }))
-        return `<div class="list-row">${icon('shield')}<div class="grow"><a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a><p>${role.members} ${role.members === 1 ? 'person' : 'people'} · ${escape(scope)}</p></div>${sheetLink(name, accessHref(name), 'Instances', 'btn btn-ghost btn-sm')}${icon('chev')}</div>`
-      }).join('')
-      panel = { tab, legacyHtml: card(`Roles that grant ${product}`, 'Enabling alone gives nobody access. Assign these roles to people on People.',
-        rows || '<p class="empty">No roles grant this tool. Open a role and select this tool to give its members access.</p>',
-        { actions: '<a class="btn btn-secondary btn-sm" href="/admin/roles">Manage roles</a>' }) + sheets.join('') + userGrantCards() }
+      const catalogues = userGrantPolicies[tool.name] ?? {}
+      panel = { tab, access: { page: `/admin/tools/${tool.name}?tab=access`, sheet: query.sheet ?? null,
+        people: db.prepare('SELECT id, username, display_name AS displayName FROM users WHERE archived_at IS NULL AND disabled = 0 ORDER BY username').all() as AccessProps['people'],
+        roles: roles.map(role => {
+          const selected = new Set((granted.all(role.id, tool.name) as { id: string }[]).map(row => row.id))
+          return { id: role.id, name: role.name, members: role.members, all: Boolean(role.allInstances), revision: role.revision,
+            instances: instances.map(instance => ({ name: instance.name, description: instance.description, checked: selected.has(instance.id) })) }
+        }),
+        policies: Object.entries(catalogues).map(([key, policy]) => {
+          const saved = tool.nativeSettings[key] as { grants: Record<string, string[]> } | undefined
+          const labels = new Map(policy.operations.map(operation => [operation.id, operation.label]))
+          return { key, title: policy.title, description: policy.description, operations: policy.operations.map(({ id, label }) => ({ id, label })),
+            creatable: saved !== undefined || nativeSettingsSchemas[tool.name].safeParse({ ...tool.nativeSettings, [key]: { grants: {} } }).success,
+            grants: Object.entries(saved?.grants ?? {}).sort(([left], [right]) => left.localeCompare(right)).map(([id, operations]) => ({ id,
+              summary: operations.map(operation => { const label = labels.get(operation); return label && label !== operation ? `${label} (${operation})` : operation }).join(', ') || 'None',
+              operations: [...policy.operations, ...[...new Set(operations)].filter(operation => !labels.has(operation)).map(operation => ({ id: operation, label: operation }))]
+                .map(operation => ({ id: operation.id, label: operation.label, checked: operations.includes(operation.id) })) })) }
+        }) } }
     } else {
       const policies = userGrantPolicies[tool.name] ?? {}
       const settings = { ...tool.nativeSettings }
@@ -196,47 +192,6 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     return renderPage(reply, 'Tools', 'tool', { csrf, name: tool.name, api, product, mark: toolProducts[tool.name].mark, version: tool.version, revision: tool.revision, enabled: tool.enabled,
       state: setupStatus(state), writes: describeWrites(!writes.capable || tool.readOnly, writes.capable, writes.supportedOperations ? writes.allowedOperations.length : null),
       checkedAt: tool.health.checkedAt === null ? null : new Date(tool.health.checkedAt).toISOString(), setup, tabs, panel }, current, undefined, undefined, product)
-
-    function userGrantCards(): string {
-      const people = db.prepare('SELECT id, username, display_name AS displayName FROM users WHERE archived_at IS NULL AND disabled = 0 ORDER BY username').all() as { id: string, username: string, displayName: string }[]
-      const accessHref = (sheetName?: string) => `/admin/tools/${tool.name}?tab=access${sheetName ? '&sheet=' + encodeURIComponent(sheetName) : ''}`
-      return Object.entries(userGrantPolicies[tool.name] ?? {}).map(([key, policy]) => {
-        const saved = tool.nativeSettings[key] as { grants: Record<string, string[]> } | undefined
-        const creatable = saved !== undefined || nativeSettingsSchemas[tool.name].safeParse({ ...tool.nativeSettings, [key]: { grants: {} } }).success
-        const catalogue = new Map(policy.operations.map(operation => [operation.id, operation.label]))
-        const grants = Object.entries(saved?.grants ?? {}).sort(([left], [right]) => left.localeCompare(right))
-        const granted = new Set(grants.map(([id]) => id))
-        const grantSheet = (name: string, title: string, userId: string | undefined, selected: readonly string[]) => {
-          const outside = [...new Set(selected)].filter(operation => !catalogue.has(operation))
-          const who = userId === undefined
-            ? field(`${name}-user`, 'Person', attributes => `<select ${attributes} name="userId" required>${people.filter(person => !granted.has(person.id)).map(person =>
-              `<option value="${escape(person.id)}">${escape(person.username)}${person.displayName === person.username ? '' : ` (${escape(person.displayName)})`}</option>`).join('')}</select>`)
-            : `<input type="hidden" name="userId" value="${escape(userId)}">`
-          return sheet({ name, open: query.sheet === name, closeHref: accessHref(), title, description: policy.description,
-            body: `${who}<fieldset class="options"><legend>Operations</legend><input type="hidden" name="operations" disabled data-type="array">${[...policy.operations, ...outside.map(id => ({ id, label: id }))].map(operation =>
-              checkOption(`<input type="checkbox" name="operations" value="${escape(operation.id)}"${selected.includes(operation.id) ? ' checked' : ''}>`, operation.label, operation.id)).join('')}</fieldset>
-              <input type="hidden" name="policy" value="${escape(key)}">${revision(tool.revision)}`,
-            submit: '<button class="btn btn-primary">Save grants</button>',
-            wrap: inner => actionForm(csrf, `${api}/user-grants`, 'PUT', inner,
-              { consequence: `Replace this person’s ${policy.title.toLowerCase()} grants for ${product}? Clearing every operation removes the person. The change applies on their next call and is audited.`,
-                title: 'Save grants', action: 'Save grants' }) })
-        }
-        const rows = grants.map(([id, operations]) => {
-          const person = people.find(candidate => candidate.id === id)
-          const name = `grants-${key}-${id}`
-          const labels = operations.map(operation => { const label = catalogue.get(operation); return label && label !== operation ? `${label} (${operation})` : operation }).join(', ') || 'None'
-          return { sheet: grantSheet(name, `${policy.title} for ${person?.username ?? id}`, id, operations),
-            row: `<div class="list-row">${icon('users')}<div class="grow"><strong>${escape(person?.username ?? id)}</strong>${person ? '' : ' <span class="badge warn">Not an active person</span>'}<p>${escape(labels)}</p></div>${sheetLink(name, accessHref(name), 'Edit', 'btn btn-ghost btn-sm')}</div>` }
-        })
-        const addName = `grants-${key}-add`
-        const add = creatable && people.some(person => !granted.has(person.id))
-        return card(`${policy.title} by person`, policy.description,
-          rows.map(row => row.row).join('') || '<p class="empty">No one is granted. Nobody can use this until you grant a person.</p>',
-          { actions: add ? sheetLink(addName, accessHref(addName), 'Grant a person', 'btn btn-secondary btn-sm') : undefined,
-            foot: creatable ? undefined : 'Set the ceilings for this policy in Advanced native settings before granting people here.' })
-          + rows.map(row => row.sheet).join('') + (add ? grantSheet(addName, `Grant ${policy.title.toLowerCase()}`, undefined, []) : '')
-      }).join('')
-    }
 
     function writesProps(): WritesProps {
       const deletes = (awx ? tool.nativeSettings.allowDeletes : (tool.nativeSettings.writes as { allowDeletes?: boolean } | undefined)?.allowDeletes) === true
