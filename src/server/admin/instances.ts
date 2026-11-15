@@ -11,10 +11,11 @@ import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { credentialCertificates } from '../store/trusted-certificates.js'
 import type { ToolName } from '../store/credential-store.js'
 import { toolEndpoints } from '../tool-endpoints.js'
+import type { InstancesProps } from '../../views/tool-instances.js'
 import { credentialTlsSettings } from '../credential-tls-settings.js'
 import { credentialFields, editorProfile } from './credential-form.js'
-import { setupBadge, status, toolIcon, toolProducts, toolSetupState, writes } from './design/status.js'
-import { callout, card, field, icon, noteCard, sheet, sheetLink, steps } from './design/ui.js'
+import { describe, describeWrites, setupBadge, setupStatus, toolIcon, toolProducts, toolSetupState, writes, type Tone } from './design/status.js'
+import { callout, card, field, icon, noteCard, sheet, steps } from './design/ui.js'
 import { escape } from './escape.js'
 import { actionForm, adminRead, changed, revision, timestamp, type Confirmation } from './forms.js'
 
@@ -48,7 +49,7 @@ export interface InstanceRow {
   endpoint: string
   href: string
   readOnly: boolean
-  status: string
+  status: { word: string, tone: Tone }
   checkedAt: number | null
   instance?: Instance
 }
@@ -58,14 +59,14 @@ export async function readInstanceRows(app: FastifyInstance, request: FastifyReq
     const hosts = db.prepare('SELECT id, address, port, enabled, read_only AS readOnly FROM ssh_hosts ORDER BY id').all() as
       { id: string, address: string, port: number, enabled: number, readOnly: number }[]
     return hosts.map(host => ({ name: host.id, description: '', endpoint: `${host.address}:${host.port}`, href: '/admin/ssh',
-      readOnly: Boolean(host.readOnly), status: host.enabled ? status('Check per host', 'neutral') : status('Disabled', 'off'), checkedAt: null }))
+      readOnly: Boolean(host.readOnly), status: host.enabled ? setupStatus('hostChecks') : describe('health', 'disabled'), checkedAt: null }))
   }
   const { instances } = await adminRead(app, request, `/v1/admin/tools/${tool.name}/instances`, adminInstanceRoutes.list.response)
   return instances.map(instance => {
     const identity = endpointFields.map(name => instance.metadata[name]).find(value => typeof value === 'string' && value)
     return { name: instance.name, description: instance.description, endpoint: typeof identity === 'string' ? identity.replace(/^\w+:\/\//, '').replace(/\/.*$/, '') : '',
       href: `/admin/tools/${tool.name}/instances/${instance.name}`, readOnly: tool.readOnly || instance.readOnly,
-      status: instance.enabled ? setupBadge(toolSetupState({ enabled: true, configured: instance.configured, health: instance.health })) : status('Disabled', 'off'), checkedAt: instance.health.checkedAt, instance }
+      status: instance.enabled ? setupStatus(toolSetupState({ enabled: true, configured: instance.configured, health: instance.health })) : describe('health', 'disabled'), checkedAt: instance.health.checkedAt, instance }
   })
 }
 
@@ -94,7 +95,7 @@ function githubCard(form: FormBuilder, tool: Tool, instance?: Instance): string 
     ${instance ? '<p>Alternatively, choose token or github-app below to replace the credential using another method.</p>' : ''}</div></section>`
 }
 
-export function instancesPanel(options: { tool: Tool, csrf: string, rows: InstanceRow[], profile: CredentialProfile, sheet?: string }): string {
+export function instancesPanel(options: { tool: Tool, csrf: string, rows: InstanceRow[], profile: CredentialProfile, sheet?: string }): InstancesProps {
   const { tool, csrf, rows, profile } = options
   const product = toolProducts[tool.name].name
   const api = `/v1/admin/tools/${tool.name}`
@@ -102,42 +103,11 @@ export function instancesPanel(options: { tool: Tool, csrf: string, rows: Instan
   const ssh = tool.name === 'ssh-axi'
   const form = (action: string, method: string, body: string, confirmation?: Confirmation, attributes?: string) =>
     actionForm(csrf, action, method, body, confirmation, attributes)
-  const sheets: string[] = []
-  const body = rows.map(row => {
-    const instance = row.instance
-    let actions = `<a class="btn btn-ghost btn-sm" href="${escape(row.href)}">${ssh ? 'Manage' : 'Open'}</a>`
-    if (instance) {
-      const path = `${api}/instances/${instance.name}`
-      const name = `edit-${instance.name}`
-      sheets.push(sheet({ name, open: options.sheet === name, closeHref: page, title: `Edit ${instance.name}`,
-        description: 'The name never changes. To rename an instance, add a new one and delete this one.',
-        body: versions(instance) + field(`${name}-description`, 'Description', attributes => `<textarea ${attributes} name="description" rows="3" maxlength="500">${escape(instance.description)}</textarea>`,
-          'Agents read this to choose between instances. Say what the instance is for.') +
-          `<label class="switch-row"><input type="checkbox" class="switch" role="switch" name="readOnly" data-type="boolean"${instance.readOnly ? ' checked' : ''}><div><b>Read-only</b><span>Blocks every write through this instance, even when the tool allows writes.</span></div></label>
-          <p class="note">Change the connection and certificates on <a href="${escape(row.href)}">the instance page</a>.</p>`,
-        submit: '<button class="btn btn-primary">Save instance</button>',
-        wrap: inner => form(path, 'PATCH', inner, { consequence: `Save the description and read-only setting of ${instance.name}? Agents see the new description on their next listing.`, title: 'Save instance', action: 'Save' }) }))
-      actions = form(`${path}/test`, 'POST', `<button class="btn btn-secondary btn-sm">${icon('test')}Test</button>`, undefined, 'data-success-message="Test passed."') +
-        sheetLink(name, `${page}?sheet=${name}`, 'Edit', 'btn btn-ghost btn-sm', 'pen') +
-        `<details class="more-menu"><summary class="btn btn-ghost btn-icon btn-sm" aria-label="More actions for ${escape(instance.name)}">${icon('more')}</summary><div class="popover">` +
-        form(path, 'PATCH', `${versions(instance)}<input type="hidden" name="enabled" data-type="boolean" value="${!instance.enabled}"><button class="btn">${instance.enabled ? 'Disable' : 'Enable'}</button>`,
-          instance.enabled ? { consequence: `Disable ${instance.name}? Calls to it fail with INSTANCE_DISABLED until you enable it again. Its credential and certificates are kept.`, title: 'Disable instance', action: 'Disable' }
-            : { consequence: `Enable ${instance.name}? Agents who can use it can call it again.`, title: 'Enable instance', action: 'Enable' }) +
-        `<hr>${form(path, 'DELETE', `${versions(instance)}<button class="btn danger">${icon('trash')}Delete…</button>`,
-          { consequence: `Delete ${instance.name}? Its credential, certificate trust and health are removed. Calls that name it fail with INSTANCE_NOT_FOUND. Audit history is kept.`, title: 'Delete instance', action: 'Delete', typedName: instance.name })}</div></details>`
-    }
-    return `<tr><td><div class="cell-main"><div><a href="${escape(row.href)}">${escape(row.name)}</a><span>${escape(row.description || (ssh ? 'SSH host' : 'No description'))}</span></div></div></td>
-      <td data-label="Endpoint" class="mono">${escape(row.endpoint)}</td><td data-label="Status">${row.status}</td>
-      <td data-label="Writes">${writes({ capable: tool.writeAccess.capable, enabled: !row.readOnly, operations: null }, 'status')}</td>
-      <td data-label="Last checked" class="num faint">${timestamp(row.checkedAt, 'Never')}</td><td class="actions-cell">${actions}</td></tr>`
-  }).join('')
-  const table = rows.length
-    ? `<table class="tbl stack-sm"><caption class="sr-only">${escape(product)} instances</caption><thead><tr><th scope="col">Instance</th><th scope="col">Endpoint</th><th scope="col">Status</th><th scope="col">Writes</th><th scope="col" class="num">Last checked</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${body}</tbody></table>`
-    : `<p class="empty">${ssh ? 'No hosts are registered yet.' : `No instances yet. Add one to connect ${escape(product)}.`}</p>`
-  const add = 'add-instance'
+  let addInstance: string | null = null
   if (!ssh) {
+    const add = 'add-instance'
     const awx = tool.name === 'awx-axi'
-    sheets.push(sheet({ name: add, open: options.sheet === add, closeHref: page, title: 'Add instance', description: `Connect another ${product} endpoint under its own name.`,
+    addInstance = sheet({ name: add, open: options.sheet === add, closeHref: page, title: 'Add instance', description: `Connect another ${product} endpoint under its own name.`,
       body: `<input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}">${awx ? revision(0) : ''}` +
         field('instance-name', 'Name', attributes => `<input class="input mono" ${attributes} name="${awx ? 'instance' : 'name'}" required maxlength="32" pattern="[a-z0-9][a-z0-9\\-]*" autocomplete="off" spellcheck="false">`,
           'Lowercase letters, digits and hyphens. Agents type this name, and it never changes.') +
@@ -149,14 +119,15 @@ export function instancesPanel(options: { tool: Tool, csrf: string, rows: Instan
         (awx ? '' : credentialFields(tool.name, profile, {}, false)) +
         '<p class="note">New instances start read-only. Change this on the instance after it passes its test.</p>',
       submit: `${awx ? '' : '<label class="check"><input type="checkbox" data-save-and-test checked> Test after saving</label>'}<button class="btn btn-primary">Add instance</button>`,
-      wrap: inner => form(awx ? `${api}/origin` : `${api}/instances`, awx ? 'PUT' : 'POST', inner, { consequence: `Add this ${product} instance? It starts read-only.`, title: 'Add instance', action: 'Add instance' }, awx ? '' : `data-save-tool="${tool.name}"`) }))
+      wrap: inner => form(awx ? `${api}/origin` : `${api}/instances`, awx ? 'PUT' : 'POST', inner, { consequence: `Add this ${product} instance? It starts read-only.`, title: 'Add instance', action: 'Add instance' }, awx ? '' : `data-save-tool="${tool.name}"`) })
   }
-  const sshNote = noteCard('Dedicated SSH identity', '<p>SSH requires separately managed host trust, caller grants and encrypted ordinary account bindings. Generic tenant credentials cannot configure SSH.</p><p><a href="/admin/ssh">Manage hosts, account bindings and grants</a> · <a href="/admin/ssh/credentials">Manage encrypted SSH credentials</a></p>') +
-    noteCard('Check authentication per host', '<p>As a caller with a shell grant, run <code>artium-axi ssh-axi host list</code>, then <code>artium-axi ssh-axi doctor &lt;host&gt;</code>. This checks authentication only. There is no shared connection test or cached health result.</p>')
-  const aside = ssh ? sshNote : noteCard('What the test does', `<p>Runs one harmless read per instance: <code>${escape(testGuide[tool.name])}</code>. It does not enable the tool or grant access.</p>`) +
-    noteCard('Choosing an instance', '<p>Agents name an instance with <code>artium-axi --instance &lt;name&gt; ' + escape(tool.name) + '</code>. With one usable instance the flag is optional.</p>')
-  return `<div class="split">${card('Instances', ssh ? 'SSH hosts are reported as instances. Hosts, bindings and grants stay on their own pages.' : `Each instance is a named connection to ${product} with its own credential, certificates and read-only setting.`,
-    table, { actions: ssh ? '<a class="btn btn-secondary btn-sm" href="/admin/ssh">Manage hosts</a>' : sheetLink(add, `${page}?sheet=${add}`, 'Add instance', 'btn btn-primary btn-sm', 'plus') })}${tool.name === 'gh-axi' ? githubCard(form, tool) : ''}${aside}</div>${sheets.join('')}`
+  return { page, ssh, testGuide: ssh ? null : testGuide[tool.name],
+    rows: rows.map(row => ({ name: row.name, description: row.description, endpoint: row.endpoint, href: row.href, status: row.status,
+      writes: describeWrites(!tool.writeAccess.capable || row.readOnly, tool.writeAccess.capable, null),
+      checkedAt: row.checkedAt === null ? null : new Date(row.checkedAt).toISOString(),
+      instance: row.instance ? { path: `${api}/instances/${row.instance.name}`, id: row.instance.id, revision: row.instance.revision, enabled: row.instance.enabled, readOnly: row.instance.readOnly,
+        description: row.instance.description, editOpen: options.sheet === `edit-${row.instance.name}` } : null })),
+    github: tool.name === 'gh-axi' ? { legacyHtml: githubCard(form, tool) } : null, addInstance: addInstance === null ? null : { legacyHtml: addInstance } }
 }
 
 export function registerInstancePages(app: FastifyInstance, db: Database.Database, credentialProfiles: Partial<Record<ToolName, CredentialProfile>>): void {
