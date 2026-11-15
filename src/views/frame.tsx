@@ -18,6 +18,7 @@ export interface FrameAction {
   variant: 'primary' | 'secondary'
   icon: string
   sheet?: string
+  disabled?: boolean
 }
 
 export interface FrameProps {
@@ -77,7 +78,7 @@ export function Frame({ title, description, actions, crumbs, brand, navigation, 
             {description && <Text as="p" type="supporting">{description}</Text>}
           </VStack>
           {actions && <HStack gap={2} wrap="wrap">
-            {actions.map(action => <Button key={action.href} href={action.href} label={action.label} variant={action.variant} icon={<Icon name={action.icon} />}
+            {actions.map(action => <Button key={action.href} href={action.href} isDisabled={action.disabled} label={action.label} variant={action.variant} icon={<Icon name={action.icon} />}
               {...action.sheet ? { 'data-sheet': action.sheet } : {}} />)}
           </HStack>}
         </HStack>

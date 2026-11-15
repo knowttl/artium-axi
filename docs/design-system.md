@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview, People, the person detail page, the Roles list and the role detail page use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
+Overview, People, the person detail page, the Roles list, the role detail page and Invitations use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -24,7 +24,8 @@ A page on the seam is a React view in `src/views`, registered in `src/views/root
 Both use `renderToString` and `hoistInlineStyles()` to move emitted `style` attributes into the response's one nonce'd `<style>` element, then provide the view props and optional frame props as an `application/json` data block and load `hydrate.js`.
 `src/client/hydrate.tsx` first writes each hoisted declaration back onto its element through `element.style`, which the policy allows because it is not markup, then reads the root's view name and the data block and hydrates the same tree.
 React therefore finds the markup it rendered and owns later style changes.
-Overview is the first page on the seam, People (`src/views/people.tsx`) is the second, the person detail page (`src/views/person.tsx`) is the third, the Roles list (`src/views/roles.tsx`) is the fourth, and the role detail page (`src/views/role.tsx`) is the fifth.
+Overview is the first page on the seam, People (`src/views/people.tsx`) is the second, the person detail page (`src/views/person.tsx`) is the third, the Roles list (`src/views/roles.tsx`) is the fourth, the role detail page (`src/views/role.tsx`) is the fifth, and Invitations (`src/views/invitations.tsx`) is the sixth.
+Invitations keeps the one-time link dialog (`#invitation-link`) as a native `dialog` that `confirm.js` opens after a create or resend form marked with `claimLink` in `ActionForm`, and its provider choice stays a native `select` inside an Astryx `Field`; the lifetime in days is a text input that `confirm.js` sends as a number.
 The Roles list opens its New role sheet from `?sheet=new-role`, and the earlier `?dialog=new-role` link redirects there.
 The role detail page opens its Rename role sheet from `?sheet=rename-role`.
 Its tool tiles and Raw API switches stay native checkboxes, because Astryx checkboxes emit inline SVG shapes, and its tool grants form carries `data-track-changes` through `ActionForm`, so `confirm.js` keeps Save tools disabled until the selection changes.
@@ -37,7 +38,7 @@ The frame renders the legacy markup for the account menu, confirmation pill and 
 Below the Astryx mobile breakpoint a native navigation disclosure remains usable without JavaScript, listing the same `SideNavItem` links without a second `SideNav`, and CSS hides the desktop sidebar.
 The frame retains one banner, one main and one navigation landmark labelled "Administration".
 The toast regions, confirmation dialogs and icon sprite that `confirm.js` drives stay outside the React root.
-The People add-user sheet is the first sheet on the seam, the Roles New role sheet is the second, and the role Rename sheet is the third; the New role and Rename sheets pass no confirmation text so `confirm.js` submits without a confirmation dialog: `Sheet` in `src/views/sheet.tsx` keeps the native `dialog.sheet`, its `?sheet=` open state and the `data-api` form that `confirm.js` submits, and builds the header, text fields and buttons from Astryx `Heading`, `Text`, `IconButton`, `TextInput` and `Button`.
+The People add-user sheet is the first sheet on the seam, the Roles New role sheet is the second, the role Rename sheet is the third, and the Invitations New invitation and Resend sheets are the fourth and fifth; the New role and Rename sheets pass no confirmation text so `confirm.js` submits without a confirmation dialog: `Sheet` in `src/views/sheet.tsx` keeps the native `dialog.sheet`, its `?sheet=` open state and the `data-api` form that `confirm.js` submits, and builds the header, text fields and buttons from Astryx `Heading`, `Text`, `IconButton`, `TextInput` and `Button`.
 Astryx `Drawer` and `Dialog` render closed until hydration, so they cannot serve the no-JavaScript view.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
 `confirm.js` hides the server-rendered scrim of an open sheet with the `hidden` attribute rather than removing it, so hydration still finds it.

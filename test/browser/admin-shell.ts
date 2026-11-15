@@ -700,12 +700,18 @@ test('invitations show each new link once and allow resend and revoke through th
     await page.open(base + '/admin');
     await page.click('a[href="/admin/invitations"]');
     await page.wait('form[data-invitation-link]');
-    check(await page.eval(() => document.querySelector('main .callout').innerText.includes('can’t be claimed yet')), 'Missing disabled-provider banner');
+    check(await page.eval(() => document.querySelector('[role=main] .astryx-banner-frame').innerText.includes('can’t be claimed yet')), 'Missing disabled-provider banner');
     await page.click('a[data-sheet="sheet-new-invitation"]');
     await page.wait('#sheet-new-invitation[open]');
     await page.fill('[name=displayName]', 'Synthetic invited user');
     await page.fill('[name=expectedUsername]', 'synthetic@identity.example');
     await page.click('[name=roleIds][type=checkbox]');
+    for (const value of ['0', '31', '1.5']) {
+      await page.fill('#sheet-new-invitation [name=expiresInDays]', value);
+      await page.click('#sheet-new-invitation form button[type=submit]');
+      check(await page.eval(() => !document.querySelector('#confirmation').open), 'Invalid creation lifetime opened confirmation');
+    }
+    await page.fill('#sheet-new-invitation [name=expiresInDays]', '1');
     await page.click('form[data-invitation-link] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
@@ -718,6 +724,12 @@ test('invitations show each new link once and allow resend and revoke through th
     check(await page.eval(() => document.querySelector('tr[data-invitation]').innerText.includes('Synthetic Role')), 'Direct role was not retained');
     await page.click('a[data-sheet^="sheet-resend-"]');
     await page.wait('dialog[id^="sheet-resend-"][open]');
+    for (const value of ['0', '31', '1.5']) {
+      await page.fill('form[action$="/resend"] [name=expiresInDays]', value);
+      await page.click('form[action$="/resend"] button');
+      check(await page.eval(() => !document.querySelector('#confirmation').open), 'Invalid resend lifetime opened confirmation');
+    }
+    await page.fill('form[action$="/resend"] [name=expiresInDays]', '30');
     await page.click('form[action$="/resend"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
