@@ -77,6 +77,7 @@ export const CredentialEditor = memo(function CredentialEditor({ intro, schema, 
     const dialog = editor.current?.closest('dialog')
     const clear = () => {
       for (const typed of editor.current?.querySelectorAll<HTMLTextAreaElement | HTMLInputElement>('[data-secret] textarea, [data-certificate-pem], [data-certificate-file]') ?? []) typed.value = ''
+      editor.current?.dispatchEvent(new Event('change', { bubbles: true }))
     }
     dialog?.addEventListener('close', clear)
     return () => dialog?.removeEventListener('close', clear)

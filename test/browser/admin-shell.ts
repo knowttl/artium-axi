@@ -992,6 +992,7 @@ test('closing the Add instance sheet clears the certificate file and permits sel
     await page.click('#sheet-add-instance .sheet-foot [data-sheet-close]');
     check(await page.eval(() => document.querySelector('[data-certificate-file]').files.length === 0 && document.querySelector('[data-certificate-pem]').value === ''), 'Closing the sheet retained certificate data');
     await page.click('[data-sheet="sheet-add-instance"]');
+    check(await page.eval(() => document.querySelector('[data-profile-field=privateKey]').required && document.querySelector('[data-profile-field=thumbprintSha256]').required), 'Reopening the sheet did not require certificate credentials');
     await page.eval('(() => { const transfer = new DataTransfer(); transfer.items.add(new File([' + ${JSON.stringify(JSON.stringify(fixture.certificatePem))} + '], "synthetic-identity.pem")); const input = document.querySelector("[data-certificate-file]"); input.files = transfer.files; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
     await page.wait('[data-profile-field=privateKey]:not([required])');
     check(await page.eval(() => document.querySelector('[data-certificate-pem]').value === ${JSON.stringify(fixture.certificatePem)}), 'Reselected certificate was not loaded');
