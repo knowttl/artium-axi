@@ -5,7 +5,7 @@ import { ArtiumError } from '../../shared/errors.js'
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { grantOrigin, personStatus, rawApiModeWords, status, toolProducts, toolState } from './design/status.js'
-import { avatar, card, field, icon, pager } from './design/ui.js'
+import { avatar, card, icon, pager } from './design/ui.js'
 import { escape } from './escape.js'
 import { adminRead, apiFormTag, changed, revision } from './forms.js'
 import { renderPage } from './render-page.js'
@@ -21,11 +21,12 @@ export function registerRolesPages(app: FastifyInstance, db: Database.Database):
   app.get('/admin/roles', async (request, reply) => {
     requireBrowserAdmin(db, request.cookies[browserCookie] ?? '', false)
     const current = readBrowserSession(db, request.cookies[browserCookie]!)
-    // `dialog` is the no-JavaScript view of the New role dialog, rendered open.
-    const { dialog, ...filters } = request.query as Record<string, unknown>
+    // `sheet` is the no-JavaScript view of the New role sheet, rendered open; `dialog` is the link from before the sheet and redirects to it.
+    const { dialog, sheet: open, ...filters } = request.query as Record<string, unknown>
     const query = adminRoleRoutes.list.input.safeParse(filters)
-    if (!query.success || (dialog !== undefined && dialog !== 'new-role')) throw new ArtiumError('INVALID_INPUT')
+    if (!query.success || (dialog !== undefined && dialog !== 'new-role') || (open !== undefined && open !== 'new-role')) throw new ArtiumError('INVALID_INPUT')
     const params = new URLSearchParams(Object.entries(query.data).map(([key, value]) => [key, String(value)]))
+    if (dialog) return reply.redirect('/admin/roles?' + new URLSearchParams([...params, ['sheet', 'new-role']]))
     const page = await adminRead(app, request, '/v1/admin/roles?' + params, adminRoleRoutes.list.response)
     const { tools } = await adminRead(app, request, '/v1/admin/tools', adminToolRoutes.list.response)
     const enabled = new Set(tools.filter(tool => tool.enabled).map(tool => tool.name))
@@ -33,18 +34,13 @@ export function registerRolesPages(app: FastifyInstance, db: Database.Database):
     const rules = roleCounts(db, 'role_rules', 'id')
     const { total } = db.prepare('SELECT COUNT(*) AS total FROM roles').get() as { total: number }
     const csrf = reply.generateCsrf()
-    const newRole = `<dialog id="new-role" class="modal" aria-labelledby="new-role-title"${dialog ? ' open' : ''}>
-      ${apiFormTag(csrf, '/v1/admin/roles', 'POST', '', 'data-success-url="/admin/roles/{id}" data-success-message="Role created. Choose the tools it grants."')}
-      <div class="modal-body"><h2 id="new-role-title">New role</h2><p>Name it for the people who need it, such as Read-only analysts. You choose its tools next.</p>
-      ${field('new-role-name', 'Role name', attributes => `<input class="input" ${attributes} name="name" required autocomplete="off">`)}<p data-form-error role="alert" tabindex="-1"></p></div>
-      <div class="modal-foot"><a class="btn btn-secondary" href="/admin/roles" data-close-dialog>Cancel</a><button class="btn btn-primary">Create role</button></div></form></dialog>`
     return renderPage(reply, 'Roles', 'roles', {
       roles: page.roles.map(role => ({ href: '/admin/roles/' + encodeURIComponent(role.id), name: role.name, members: members.get(role.id) ?? 0, rules: rules.get(role.id) ?? 0,
         tools: role.tools.map(tool => ({ name: toolProducts[tool].name, enabled: enabled.has(tool) })) })),
       pager: { summary: plural(total, 'role'), first: query.data.cursor ? `/admin/roles?limit=${query.data.limit}` : null,
         next: page.nextCursor ? `/admin/roles?cursor=${encodeURIComponent(page.nextCursor)}&limit=${query.data.limit}` : null },
-      newRole }, current, 'A role is a set of tools. Give roles to people, or map them from SSO groups.',
-    [{ label: 'New role', href: '/admin/roles?dialog=new-role', variant: 'primary', icon: 'plus', dialog: 'new-role' }])
+      newRole: { open: open === 'new-role', closeHref: '/admin/roles', csrf } }, current, 'A role is a set of tools. Give roles to people, or map them from SSO groups.',
+    [{ label: 'New role', href: '/admin/roles?sheet=new-role', variant: 'primary', icon: 'plus', sheet: 'sheet-new-role' }])
   })
 
   app.get('/admin/roles/:id', async (request, reply) => {

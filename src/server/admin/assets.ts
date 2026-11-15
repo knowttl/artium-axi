@@ -287,27 +287,6 @@ for (const form of document.querySelectorAll('form[data-track-changes]')) {
   form.addEventListener('reset', () => setTimeout(update));
   update();
 }
-for (const link of document.querySelectorAll('[data-open-dialog]')) {
-  link.addEventListener('click', event => {
-    event.preventDefault();
-    const dialog = document.getElementById(link.dataset.openDialog);
-    if (!dialog.open) dialog.showModal();
-  });
-}
-for (const link of document.querySelectorAll('[data-close-dialog]')) {
-  link.addEventListener('click', event => {
-    const dialog = link.closest('dialog');
-    if (!dialog.matches(':modal')) return;
-    event.preventDefault();
-    dialog.close();
-  });
-}
-// A dialog rendered open for readers without JavaScript becomes modal once the script runs.
-// Views with data-close-href are handled above, because closing them leaves the page.
-for (const dialog of document.querySelectorAll('dialog.modal[open]:not([data-close-href])')) {
-  dialog.close();
-  dialog.showModal();
-}
 for (const form of document.querySelectorAll('form[data-filters]')) {
   for (const select of form.querySelectorAll('select')) select.addEventListener('change', () => form.requestSubmit());
   const apply = form.querySelector('[data-filters-apply]');

@@ -1929,7 +1929,8 @@ test('expired confirmation resumes the populated action exactly once after a wro
   await expireConfirmation()
   browser(`
     await page.open(base + '/admin/roles?dialog=new-role');
-    await page.wait('#new-role[open]');
+    await page.wait('#sheet-new-role[open]');
+    check(await page.eval(() => !location.search.includes('sheet=')), 'Sheet query stayed in the address');
     await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic resumed role');
     await page.click('form[action="/v1/admin/roles"] button');
     await page.wait('#reauth-dialog[open]');
@@ -1955,7 +1956,7 @@ test('cancelled reauth preserves the draft and does not create a role', async ()
   await expireConfirmation()
   browser(`
     await page.open(base + '/admin/roles');
-    await page.click('a[data-open-dialog=new-role]');
+    await page.click('a[data-sheet=sheet-new-role]');
     await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic cancelled role');
     await page.click('form[action="/v1/admin/roles"] button');
     await page.wait('#reauth-dialog[open]');
@@ -2285,17 +2286,17 @@ test('R2: role creation errors stay accessible in the dialog and preserve the dr
   browser(`
     await page.open(base + '/admin/roles');
     const name = await page.eval(() => document.querySelector('tbody th a').textContent);
-    await page.click('a[data-open-dialog=new-role]');
-    await page.fill('#new-role-name', name);
-    await page.click('#new-role button');
-    await page.wait('#new-role [data-form-error]:focus');
-    check(await page.eval(() => document.querySelector('#new-role').matches(':modal') && document.activeElement.textContent.includes('INVALID_INPUT') && document.activeElement.getAttribute('role') === 'alert'), 'Duplicate-name error is inaccessible');
-    check(await page.eval(() => document.querySelector('#new-role-name').value) === name, 'Duplicate-name error lost the draft');
+    await page.click('a[data-sheet=sheet-new-role]');
+    await page.fill('#sheet-new-role [name=name]', name);
+    await page.click('#sheet-new-role button[type=submit]');
+    await page.wait('#sheet-new-role [data-sheet-message]:focus');
+    check(await page.eval(() => document.querySelector('#sheet-new-role').matches(':modal') && document.activeElement.textContent.includes('INVALID_INPUT') && document.activeElement.getAttribute('role') === 'alert'), 'Duplicate-name error is inaccessible');
+    check(await page.eval(() => document.querySelector('#sheet-new-role [name=name]').value) === name, 'Duplicate-name error lost the draft');
     await page.eval(() => { window.fetch = async () => { throw new TypeError('Synthetic network failure'); }; });
-    await page.click('#new-role button');
-    await page.wait('#new-role [data-form-error]:focus');
+    await page.click('#sheet-new-role button[type=submit]');
+    await page.wait('#sheet-new-role [data-sheet-message]:focus');
     check(await page.eval(() => document.activeElement.textContent.includes('Request could not complete.')), 'Network error is inaccessible');
-    check(await page.eval(() => document.querySelector('#new-role-name').value) === name, 'Network error lost the draft');
+    check(await page.eval(() => document.querySelector('#sheet-new-role [name=name]').value) === name, 'Network error lost the draft');
   `)
 })
 
@@ -2326,7 +2327,7 @@ test('role and member tables align columns on desktop and stack readable rows on
 test('role tool grants and membership explain effective tools and an empty role can be deleted', () => {
   browser(`
     await page.open(base + '/admin/roles');
-    await page.click('a[data-open-dialog=new-role]');
+    await page.click('a[data-sheet=sheet-new-role]');
     await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic readers');
     await page.click('form[action="/v1/admin/roles"] button');
     await page.wait('[name=tools]');

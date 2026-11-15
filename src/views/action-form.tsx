@@ -5,23 +5,24 @@ export interface Confirmation {
   title: string
   action: string
   typedName?: string
-  successUrl?: string
 }
 
 export interface ActionFormProps {
   action: string
   method: 'POST' | 'PUT' | 'PATCH'
   csrf: string
-  confirmation: Confirmation
+  confirmation?: Confirmation
+  successUrl?: string
+  successMessage?: string
   className?: string
   children: ReactNode
 }
 
-export function ActionForm({ action, method, csrf, confirmation, className, children }: ActionFormProps) {
-  const { consequence, title, action: verb, typedName, successUrl } = confirmation
+export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, className, children }: ActionFormProps) {
   return (
-    <form className={className} data-api="" data-method={method} data-confirm={consequence} data-confirm-title={title} data-confirm-action={verb}
-      data-confirm-name={typedName} data-success-url={successUrl} action={action} method="post">
+    <form className={className} data-api="" data-method={method} data-confirm={confirmation?.consequence} data-confirm-title={confirmation?.title}
+      data-confirm-action={confirmation?.action} data-confirm-name={confirmation?.typedName} data-success-url={successUrl} data-success-message={successMessage}
+      action={action} method="post">
       <input type="hidden" name="_csrf" value={csrf} />
       {children}
     </form>
