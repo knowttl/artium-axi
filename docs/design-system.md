@@ -30,7 +30,7 @@ The tool page frame holds the setup steps, the Enabled switch (a native `button`
 The Write permissions, Raw API and Advanced tabs are Astryx views; operation groups stay native `details`, and the filter inputs join the page's `ops-filter` get form through the `form` attribute.
 The Instances and Access tabs are still legacy markup: the route passes it as `legacyHtml`, `Tool` renders it in a `legacy-island` element, and `renderPage()` blanks `legacyHtml` in the hydration data so the markup is sent once, which is safe because React does not compare or patch the inner markup of an element set with `dangerouslySetInnerHTML`.
 Elements that `confirm.js` fills before hydration, such as the test result and the JSON check status, render with `suppressHydrationWarning` and matching text so hydration does not discard the page's event handlers.
-Its Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`, and its search is the same get form that `confirm.js` submits without empty values.
+The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`, and its search is the same get form that `confirm.js` submits without empty values.
 Invitations keeps the one-time link dialog (`#invitation-link`) as a native `dialog` that `confirm.js` opens after a create or resend form marked with `claimLink` in `ActionForm`, and its provider choice stays a native `select` inside an Astryx `Field`; the lifetime in days is a text input that `confirm.js` sends as a number.
 The Roles list opens its New role sheet from `?sheet=new-role`, and the earlier `?dialog=new-role` link redirects there.
 The role detail page opens its Rename role sheet from `?sheet=rename-role`.
