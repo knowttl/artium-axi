@@ -1955,7 +1955,7 @@ test('cancelled reauth preserves the draft and does not create a role', async ()
   await expireConfirmation()
   browser(`
     await page.open(base + '/admin/roles');
-    await page.click('.page-head [data-open-dialog=new-role]');
+    await page.click('a[data-open-dialog=new-role]');
     await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic cancelled role');
     await page.click('form[action="/v1/admin/roles"] button');
     await page.wait('#reauth-dialog[open]');
@@ -2123,7 +2123,7 @@ test('role tables align desktop columns and retain narrow member labels', () => 
     for (const path of ['/admin/roles', '/admin/roles/synthetic-role']) {
       await page.open(base + path);
       check(await page.eval(() => {
-        const table = document.querySelector('table.row-links');
+        const table = document.querySelector('table.row-links, .roles-list table');
         const headings = [...table.querySelectorAll('thead th')];
         const cells = [...table.querySelector('tbody tr').children];
         return getComputedStyle(table).display === 'table' && headings.every((heading, index) =>
@@ -2136,11 +2136,12 @@ test('role tables align desktop columns and retain narrow member labels', () => 
     for (const path of ['/admin/roles', '/admin/roles/synthetic-role']) {
       await page.open(base + path);
       check(await page.eval(() => {
-        const table = document.querySelector('table.row-links');
+        const table = document.querySelector('table.row-links, .roles-list table');
         const row = table.querySelector('tbody tr');
         return getComputedStyle(row).display === 'flex' &&
           [...row.querySelectorAll('[data-label]')].every(cell =>
             getComputedStyle(cell, '::before').content.includes(cell.dataset.label)) &&
+          [...row.querySelectorAll('th, td[data-label]')].every(cell => cell.getBoundingClientRect().width > 0) &&
           document.documentElement.scrollWidth <= innerWidth;
       }), 'Narrow role table layout is broken');
     }
@@ -2284,7 +2285,7 @@ test('R2: role creation errors stay accessible in the dialog and preserve the dr
   browser(`
     await page.open(base + '/admin/roles');
     const name = await page.eval(() => document.querySelector('tbody th a').textContent);
-    await page.click('.page-head [data-open-dialog=new-role]');
+    await page.click('a[data-open-dialog=new-role]');
     await page.fill('#new-role-name', name);
     await page.click('#new-role button');
     await page.wait('#new-role [data-form-error]:focus');
@@ -2325,7 +2326,7 @@ test('role and member tables align columns on desktop and stack readable rows on
 test('role tool grants and membership explain effective tools and an empty role can be deleted', () => {
   browser(`
     await page.open(base + '/admin/roles');
-    await page.click('.page-head [data-open-dialog=new-role]');
+    await page.click('a[data-open-dialog=new-role]');
     await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic readers');
     await page.click('form[action="/v1/admin/roles"] button');
     await page.wait('[name=tools]');
@@ -2361,7 +2362,7 @@ test('role tool grants and membership explain effective tools and an empty role 
     await page.fill('[data-confirm-name-input]', 'Synthetic readers');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action="/v1/admin/roles"]');
-    check(await page.eval(() => !document.querySelector('main').innerText.includes('Synthetic readers')), 'Deleted role remains in table');
+    check(await page.eval(() => !document.querySelector('[role=main]').innerText.includes('Synthetic readers')), 'Deleted role remains in table');
   `)
 })
 

@@ -221,7 +221,7 @@ test.each([
     expect(symbols).toContain(reference!.slice(1))
   }
   expect(page.filter(element => element.tagName === 'h1')).toHaveLength(1)
-  expect(page.filter(element => element.tagName === 'form' && element.attrs.some(attribute => attribute.name === 'action' && attribute.value === '/theme'))).toHaveLength(['/admin', '/admin/users', '/admin/users/synthetic-ordinary'].includes(url) ? 2 : 1)
+  expect(page.filter(element => element.tagName === 'form' && element.attrs.some(attribute => attribute.name === 'action' && attribute.value === '/theme'))).toHaveLength(['/admin', '/admin/users', '/admin/users/synthetic-ordinary', '/admin/roles'].includes(url) ? 2 : 1)
 })
 
 test.each([
