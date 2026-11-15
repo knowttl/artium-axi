@@ -8,7 +8,7 @@ import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { browserCookie } from '../../src/server/auth/browser.js'
 import { createBrowserSession } from '../../src/server/auth/sessions.js'
-import { accountSessionRoutes } from '../../src/shared/api.js'
+import { accountSessionRoutes, toolSchema } from '../../src/shared/api.js'
 import { hashToken, issueLoginTokens, verifyAccessToken } from '../../src/server/auth/tokens.js'
 import { browserDefaults, authDefaults, tokenDefaults } from '../../src/server/config.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
@@ -316,6 +316,27 @@ test('administrators can inspect the loaded trusted CA metadata on Tools', async
     expect(response.body).toContain(bundle.certificates[0].fingerprint)
     expect(response.body).not.toContain('BEGIN CERTIFICATE')
   })
+})
+
+test('the Tools list counts, filters and links tools, and enabling one moves it between views', async () => {
+  await signIn()
+  const attribute = (element: DefaultTreeAdapterMap['element'], name: string) => element.attrs.find(item => item.name === name)?.value
+  const page = async (query = '') => nodesOf(parse(withoutProps((await request('GET', '/admin/tools' + query)).body)))
+  const listed = async (query = '') => (await page(query)).filter(element => element.tagName === 'th' && attribute(element, 'scope') === 'row')
+    .flatMap(row => nodesOf(row).filter(element => element.tagName === 'a').map(link => attribute(link, 'href')))
+  const counts = async () => (await page()).filter(element => element.tagName === 'a' && /^(All|Enabled|Needs attention) \d+$/.test(text(element))).map(text)
+  const text = (element: DefaultTreeAdapterMap['element']): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? text(child) : '').join('')
+  expect(await listed()).toHaveLength(toolSchema.options.length)
+  expect(await counts()).toEqual([`All ${toolSchema.options.length}`, 'Enabled 0', 'Needs attention 0'])
+  expect(await listed('?show=enabled')).toEqual([])
+  db.exec("UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi'")
+  expect(await counts()).toEqual([`All ${toolSchema.options.length}`, 'Enabled 1', 'Needs attention 1'])
+  expect(await listed('?show=enabled')).toEqual(['/admin/tools/falcon-axi'])
+  expect(await listed('?show=attention')).toEqual(['/admin/tools/falcon-axi'])
+  expect(await listed('?q=azure')).toEqual(['/admin/tools/az-axi', '/admin/tools/ado-axi'])
+  expect(await listed('?show=enabled&q=azure')).toEqual([])
+  const empty = (await request('GET', '/admin/tools?q=no-such-tool')).body
+  expect(withoutProps(empty)).toContain('No tools match these filters')
 })
 
 test('audit record details render the settings changes of an admin change', async () => {

@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview, People, the person detail page, the Roles list, the role detail page and Invitations use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
+Overview, People, the person detail page, the Roles list, the role detail page, Invitations and the Tools list use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -24,7 +24,9 @@ A page on the seam is a React view in `src/views`, registered in `src/views/root
 Both use `renderToString` and `hoistInlineStyles()` to move emitted `style` attributes into the response's one nonce'd `<style>` element, then provide the view props and optional frame props as an `application/json` data block and load `hydrate.js`.
 `src/client/hydrate.tsx` first writes each hoisted declaration back onto its element through `element.style`, which the policy allows because it is not markup, then reads the root's view name and the data block and hydrates the same tree.
 React therefore finds the markup it rendered and owns later style changes.
-Overview is the first page on the seam, People (`src/views/people.tsx`) is the second, the person detail page (`src/views/person.tsx`) is the third, the Roles list (`src/views/roles.tsx`) is the fourth, the role detail page (`src/views/role.tsx`) is the fifth, and Invitations (`src/views/invitations.tsx`) is the sixth.
+Overview is the first page on the seam, People (`src/views/people.tsx`) is the second, the person detail page (`src/views/person.tsx`) is the third, the Roles list (`src/views/roles.tsx`) is the fourth, the role detail page (`src/views/role.tsx`) is the fifth, Invitations (`src/views/invitations.tsx`) is the sixth, and the Tools list (`src/views/tools.tsx`) is the seventh.
+The Tools list offers no action of its own: enabling and disabling a tool stays on the tool page, which is still legacy.
+Its Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`, and its search is the same get form that `confirm.js` submits without empty values.
 Invitations keeps the one-time link dialog (`#invitation-link`) as a native `dialog` that `confirm.js` opens after a create or resend form marked with `claimLink` in `ActionForm`, and its provider choice stays a native `select` inside an Astryx `Field`; the lifetime in days is a text input that `confirm.js` sends as a number.
 The Roles list opens its New role sheet from `?sheet=new-role`, and the earlier `?dialog=new-role` link redirects there.
 The role detail page opens its Rename role sheet from `?sheet=rename-role`.
