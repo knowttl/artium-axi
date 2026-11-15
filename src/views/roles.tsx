@@ -4,17 +4,20 @@ import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { HStack } from '@astryxdesign/core/HStack'
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from '@astryxdesign/core/Table'
 import { Text } from '@astryxdesign/core/Text'
+import { TextInput } from '@astryxdesign/core/TextInput'
 import { Token } from '@astryxdesign/core/Token'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
+import { useState } from 'react'
 import { Icon } from './icon.js'
+import { Sheet } from './sheet.js'
 
 const visibleTools = 4
 
 export interface RolesProps {
   roles: { href: string, name: string, tools: { name: string, enabled: boolean }[], members: number, rules: number }[]
   pager: { summary: string, first: string | null, next: string | null }
-  newRole: string
+  newRole: { open: boolean, closeHref: string, csrf: string }
 }
 
 function Tools({ tools }: { tools: RolesProps['roles'][number]['tools'] }) {
@@ -28,6 +31,16 @@ function Tools({ tools }: { tools: RolesProps['roles'][number]['tools'] }) {
         : <span key={tool.name} title="Tool disabled"><Token label={tool.name} icon={<span className="dot off" aria-hidden="true" />} /><VisuallyHidden> (disabled)</VisuallyHidden></span>)}
       {rest && <span title={rest}><Token label={`+${tools.length - shown}`} /><VisuallyHidden> more: {rest}</VisuallyHidden></span>}
     </HStack>
+  )
+}
+
+function NewRoleSheet({ open, closeHref, csrf }: RolesProps['newRole']) {
+  const [name, setName] = useState('')
+  return (
+    <Sheet name="new-role" open={open} closeHref={closeHref} title="New role" description="Name it for the people who need it, such as Read-only analysts. You choose its tools next."
+      submit="Create role" action="/v1/admin/roles" csrf={csrf} successUrl="/admin/roles/{id}" successMessage="Role created. Choose the tools it grants.">
+      <TextInput label="Role name" htmlName="name" value={name} onChange={setName} autoComplete="off" {...{ required: true }} />
+    </Sheet>
   )
 }
 
@@ -76,10 +89,10 @@ export function Roles({ roles, pager, newRole }: RolesProps) {
       ) : (
         <Card>
           <EmptyState title="No roles yet" headingLevel={2} description="A role is a set of tools. Create one, choose its tools, then give it to people."
-            actions={<Button href="/admin/roles?dialog=new-role" label="New role" variant="primary" icon={<Icon name="plus" />} data-open-dialog="new-role" />} />
+            actions={<Button href="/admin/roles?sheet=new-role" label="New role" variant="primary" icon={<Icon name="plus" />} data-sheet="sheet-new-role" />} />
         </Card>
       )}
-      <div dangerouslySetInnerHTML={{ __html: newRole }} />
+      <NewRoleSheet {...newRole} />
     </VStack>
   )
 }

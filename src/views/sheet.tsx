@@ -14,11 +14,13 @@ export interface SheetProps {
   submit: string
   action: string
   csrf: string
-  consequence: string
+  consequence?: string
+  successUrl?: string
+  successMessage?: string
   children: ReactNode
 }
 
-export function Sheet({ name, open, closeHref, title, description, submit, action, csrf, consequence, children }: SheetProps) {
+export function Sheet({ name, open, closeHref, title, description, submit, action, csrf, consequence, successUrl, successMessage, children }: SheetProps) {
   const id = `sheet-${name}`
   return (
     <>
@@ -31,7 +33,8 @@ export function Sheet({ name, open, closeHref, title, description, submit, actio
           </div>
           <IconButton href={closeHref} label="Close" icon={<Icon name="x" />} variant="ghost" size="sm" data-sheet-close="" />
         </div>
-        <ActionForm action={action} method="POST" csrf={csrf} confirmation={{ consequence, title: submit, action: submit }}>
+        <ActionForm action={action} method="POST" csrf={csrf} confirmation={consequence ? { consequence, title: submit, action: submit } : undefined}
+          successUrl={successUrl} successMessage={successMessage}>
           <div className="sheet-body">
             <p className="message" data-sheet-message="" role="alert" tabIndex={-1} />
             {children}

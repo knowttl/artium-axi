@@ -138,8 +138,9 @@ function Danger({ active, username }: { active: Active, username: string }) {
           </ActionForm>
         </Row>
         <Row title="Archive person" text="Permanent. Hides them from People, blocks sign-in and revokes all sessions. History and role membership are kept.">
-          <ActionForm action={path + '/archive'} method="POST" csrf={csrf} confirmation={{ title: 'Archive person', action: 'Archive', typedName: username, successUrl: '/admin/users',
-            consequence: `Archive ${username}? All browser and CLI sessions are revoked, sign-in is blocked, and history is retained. This cannot be undone here.` }}>
+          <ActionForm action={path + '/archive'} method="POST" csrf={csrf} successUrl="/admin/users"
+            confirmation={{ title: 'Archive person', action: 'Archive', typedName: username,
+              consequence: `Archive ${username}? All browser and CLI sessions are revoked, sign-in is blocked, and history is retained. This cannot be undone here.` }}>
             <Revision value={revision} />
             <Button type="submit" label="Archive…" variant="destructive" size="sm" />
           </ActionForm>

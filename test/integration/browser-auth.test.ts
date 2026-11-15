@@ -885,21 +885,28 @@ test('/admin/users renders the add-user sheet open from the sheet query without 
   expect(attribute(sheet((await request('GET', '/admin/users')).body), 'aria-labelledby')).toBe('sheet-add-user-title')
 })
 
-test('/admin/roles keeps the create-role form contract and opens its dialog from the dialog query without JavaScript', async () => {
+test('/admin/roles keeps the create-role form contract and opens its sheet from the sheet query without JavaScript', async () => {
   await signIn()
   const attribute = (element: DefaultTreeAdapterMap['element'], name: string) => element.attrs.find(item => item.name === name)?.value
   const page = async (query = '') => nodesOf(parse((await request('GET', '/admin/roles' + query)).body))
-  const dialog = (elements: DefaultTreeAdapterMap['element'][]) => elements.find(element => element.tagName === 'dialog' && attribute(element, 'id') === 'new-role')!
-  expect([attribute(dialog(await page('?dialog=new-role')), 'open'), attribute(dialog(await page()), 'open')]).toEqual(['', undefined])
+  const dialog = (elements: DefaultTreeAdapterMap['element'][]) => elements.find(element => element.tagName === 'dialog' && attribute(element, 'id') === 'sheet-new-role')!
+  expect([attribute(dialog(await page('?sheet=new-role')), 'open'), attribute(dialog(await page()), 'open')]).toEqual(['', undefined])
   const elements = await page()
   const form = elements.find(element => element.tagName === 'form' && attribute(element, 'action') === '/v1/admin/roles')!
   expect(['method', 'data-method', 'data-confirm', 'data-success-url', 'data-success-message'].map(name => attribute(form, name)))
-    .toEqual(['post', 'POST', '', '/admin/roles/{id}', 'Role created. Choose the tools it grants.'])
+    .toEqual(['post', 'POST', undefined, '/admin/roles/{id}', 'Role created. Choose the tools it grants.'])
   const controls = nodesOf(form).filter(element => element.tagName === 'input')
   expect(controls.map(control => [attribute(control, 'name'), attribute(control, 'required')])).toEqual([['_csrf', undefined], ['name', '']])
   expect(attribute(controls[0]!, 'value')).toMatch(/\S/)
-  expect(elements.filter(element => attribute(element, 'data-open-dialog') === 'new-role').map(link => attribute(link, 'href'))).toEqual(['/admin/roles?dialog=new-role'])
+  expect(elements.filter(element => attribute(element, 'data-sheet') === 'sheet-new-role').map(link => attribute(link, 'href'))).toEqual(['/admin/roles?sheet=new-role'])
+  expect((await request('GET', '/admin/roles?sheet=other')).statusCode).toBe(400)
   expect((await request('GET', '/admin/roles?dialog=other')).statusCode).toBe(400)
+})
+
+test('the earlier /admin/roles?dialog=new-role link redirects to the sheet and keeps the page query', async () => {
+  await signIn()
+  const response = await request('GET', '/admin/roles?dialog=new-role&limit=10')
+  expect([response.statusCode, response.headers.location]).toEqual([302, '/admin/roles?limit=10&sheet=new-role'])
 })
 
 test('the person page renders its reset-password sheet open from the sheet query without JavaScript', async () => {
