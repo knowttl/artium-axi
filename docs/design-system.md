@@ -39,7 +39,7 @@ The People add-user sheet is the first sheet on the seam, and the Roles New role
 Astryx `Drawer` and `Dialog` render closed until hydration, so they cannot serve the no-JavaScript view.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
 `confirm.js` hides the server-rendered scrim of an open sheet with the `hidden` attribute rather than removing it, so hydration still finds it.
-`ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes that `confirm.js` reads (method, consequence, title, action, typed name and success URL), and `Sheet` builds on it, so a view writes a confirmation form without repeating them.
+`ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes that `confirm.js` reads (method, consequence, title, action, typed name, success URL and success message), and `Sheet` builds on it, so a view writes an API form without repeating them.
 The person detail page's "More actions" overflow menu keeps a native `details` disclosure, because Astryx dropdown components need runtime inline styles (see issue 462), and builds its items from Astryx `Button` and `ActionForm`.
 The Sessions card (`Sessions` in `src/views/sessions.tsx`) is also on the account page, which is still a legacy page: `renderSessionsCard()` in `src/server/admin/session-card.tsx` renders it there as server-rendered markup in a `data-astryx-root` element, with its inline styles hoisted into a nonce'd `<style>` element, and without hydration.
 The People filter chips stay native `select` elements, so filtering works without JavaScript and the form fields are unchanged.
@@ -165,9 +165,9 @@ Administrator-added Check Point event actions appear by exact code under Other o
 ## Confirmations
 
 **Confirmation tiers.**
-API forms opened with `apiFormTag()` or `apiForm()` choose their tier:
+API forms choose their tier:
 
-- Tier 1 has an empty `data-confirm`: the change saves without an action confirmation dialog, and `data-success-message` (default "Change saved.") is shown in the toast after the page reloads.
+- Tier 1 has an empty or absent `data-confirm`: the change saves without an action confirmation dialog, and `data-success-message` (default "Change saved.") is shown in the toast after the page reloads.
 - Tier 2 sets `data-confirm` to the consequence and `data-confirm-action` to the verb (the button text when absent), which labels its confirm button and, by default, titles the dialog.
   `data-confirm-title` overrides the dialog title.
 - Tier 3 also sets `data-confirm-name`: the dialog shows a red status mark and confirm button, which stays disabled until that exact name is typed.
