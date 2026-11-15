@@ -142,6 +142,7 @@ afterEach(async () => {
   await app.close()
   db.close()
   vi.restoreAllMocks()
+  vi.mocked(spawn).mockReset()
   vi.useRealTimers()
   rmSync(directory, { recursive: true, force: true })
 })
