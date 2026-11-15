@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview and People use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
+Overview, People and the person detail page use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -24,7 +24,8 @@ A page on the seam is a React view in `src/views`, registered in `src/views/root
 Both use `renderToString` and `hoistInlineStyles()` to move emitted `style` attributes into the response's one nonce'd `<style>` element, then provide the view props and optional frame props as an `application/json` data block and load `hydrate.js`.
 `src/client/hydrate.tsx` first writes each hoisted declaration back onto its element through `element.style`, which the policy allows because it is not markup, then reads the root's view name and the data block and hydrates the same tree.
 React therefore finds the markup it rendered and owns later style changes.
-Overview is the first page on the seam, and People (`src/views/people.tsx`) is the second.
+Overview is the first page on the seam, People (`src/views/people.tsx`) is the second, and the person detail page (`src/views/person.tsx`) is the third.
+`renderPage()` takes an optional heading that replaces the page title in the `h1` and the breadcrumb while the document title and help topic keep the section name.
 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet that `confirm.js` opens), and the side navigation slot.
 `adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu, confirmation pill and help panel once for both the frame and the legacy shell, so the links, landmarks and titles stay identical.
@@ -37,6 +38,8 @@ The People add-user sheet is the first sheet on the seam: `Sheet` in `src/views/
 Astryx `Drawer` and `Dialog` render closed until hydration, so they cannot serve the no-JavaScript view.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
 `confirm.js` hides the server-rendered scrim of an open sheet with the `hidden` attribute rather than removing it, so hydration still finds it.
+`ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes that `confirm.js` reads (method, consequence, title, action, typed name and success URL), and `Sheet` builds on it, so a view writes a confirmation form without repeating them.
+The person detail page keeps two legacy islands in `dangerouslySetInnerHTML`: the "More actions" overflow menu, which is a native disclosure because Astryx dropdown components need runtime inline styles (see issue 462), and the Sessions card, which the account page also renders.
 Any other view that embeds a sheet or a confirmation form keeps its legacy markup in a `dangerouslySetInnerHTML` island until its sheets and confirmation dialogs move to Astryx.
 The People filter chips stay native `select` elements, so filtering works without JavaScript and the form fields are unchanged.
 A view that shows a time wraps it in `<time suppressHydrationWarning>`, because `confirm.js` formats every `time[datetime]` before hydration.

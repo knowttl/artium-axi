@@ -3,17 +3,18 @@ import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { adminRoleRoutes, adminToolRoutes, adminUserParamsSchema, adminUserRoutes, type toolSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
-import { browserCookie, browserPage } from '../auth/browser.js'
+import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { adminScript, adminStyle } from './assets.js'
 import { registerAdminClientAssets } from './client-assets.js'
 import { escape } from './escape.js'
-import { actionForm, adminRead, changed, revision, timestamp, type Confirmation } from './forms.js'
+import { actionForm, adminRead, lastChange, revision, type Confirmation } from './forms.js'
 import { sessionTable } from './session-table.js'
-import { describe, stateBadge, stateStatus, statusWord, toolIcon, toolProducts } from './design/status.js'
-import { avatar, callout, card, checkOption, field, icon, initials, sheet, sheetLink } from './design/ui.js'
+import { describe, statusWord, toolProducts } from './design/status.js'
+import { checkOption, icon, initials, sheetLink } from './design/ui.js'
 import { renderPage } from './render-page.js'
-import { temporaryPasswordHint } from '../../views/people.js'
+import type { PersonProps } from '../../views/person.js'
+import type { Status } from '../../views/status.js'
 
 type Role = { id: string, name: string, tools: z.infer<typeof toolSchema>[] }
 
@@ -33,16 +34,10 @@ function roleLabel(user: { roleGrants: { roleId: string, origin: string }[] }, i
   return `${name}${show ? ` · ${[...origins].sort().join(', ')}` : ''}`
 }
 
-function roleChip(user: { roleGrants: { roleId: string, origin: string }[] }, id: string, name: string, alwaysOrigin: boolean): string {
-  return `<a class="chip" href="/admin/roles/${escape(encodeURIComponent(id))}">${escape(roleLabel(user, id, name, alwaysOrigin))}</a>`
-}
+const roleLink = (user: { roleGrants: { roleId: string, origin: string }[] }, id: string, name: string, alwaysOrigin: boolean) =>
+  ({ href: '/admin/roles/' + encodeURIComponent(id), label: roleLabel(user, id, name, alwaysOrigin) })
 
 const signInState = (user: { source: string, breakGlass: boolean }) => user.source === 'sso' ? 'sso' : user.breakGlass ? 'break-glass' : 'password'
-
-export function temporaryPasswordField(id: string): string {
-  return field(id, 'Temporary password', attributes => `<input class="input" ${attributes} type="password" name="temporaryPassword" autocomplete="new-password" required>`,
-    temporaryPasswordHint)
-}
 
 export function registerUsersPage(app: FastifyInstance, db: Database.Database): void {
   app.get('/admin/assets/confirm.js', async (_request, reply) => reply.type('application/javascript').send(adminScript))
@@ -60,9 +55,6 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     } while (cursor)
     return roles
   }
-  const administratorOption = (selected: boolean, description: string) =>
-    checkOption(`<input type="checkbox" name="administrator" data-type="boolean"${selected ? ' checked' : ''}>`, 'Administrator', description)
-  const signIn = (user: { source: string, breakGlass: boolean }) => stateBadge('signIn', signInState(user))
   const locked = (user: { lockedUntil: number | null }) => user.lockedUntil !== null && user.lockedUntil > Date.now()
 
   app.get('/admin/users', async (request, reply) => {
@@ -115,25 +107,21 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const ruleGrants = user.roleGrants.filter(grant => grant.origin !== 'direct').map(grant => {
       const provider = db.prepare('SELECT kind FROM sso_providers JOIN role_rules ON role_rules.provider_id = sso_providers.id WHERE role_rules.id = ?')
         .get(grant.origin) as { kind: string }
-      return `<li class="list-row">${stateBadge('grant', 'rule')}<div class="grow"><strong>${escape(roleName(grant.roleId))}</strong><p>From ${provider.kind === 'entra' ? 'Entra ID' : 'OpenID Connect'} rule <code>${escape(grant.origin)}</code></p></div></li>`
-    }).join('')
-    const form = (action: string, method: string, body: string, confirmation: Confirmation, attributes = '') => actionForm(csrf, action, method, body, confirmation, attributes)
-    const header = (state: string) => ({ heading: user.displayName, lead: avatar(user.displayName, true),
-      meta: `<code>${escape(user.username)}</code>${signIn(user)}${state}${user.administrator ? stateBadge('signIn', 'admin') : ''}` })
-    const meta = `<div class="card-meta">${changed(db, user)}</div>`
+      return { role: roleName(grant.roleId), provider: provider.kind === 'entra' ? 'Entra ID' : 'OpenID Connect', rule: grant.origin }
+    })
+    const identity = (state: Status) => ({ initials: initials(user.displayName), username: user.username, signIn: describe('signIn', signInState(user)), state, administrator: user.administrator })
+    const respond = (props: PersonProps) => renderPage(reply, 'People', 'person', props, current, undefined, undefined, user.displayName)
+    const changed = lastChange(db, user)
 
     if (user.archivedAt !== null) {
-      const retained = user.roleIds.map(id => roleChip(user, id, roleName(id), true)).join('')
-      const content = callout('info', 'Archived person', `Archived at ${timestamp(user.archivedAt)}. Sign-in is blocked, all sessions are revoked, and history is retained. This page is read-only.`) +
-        `<div class="grid2"><div class="stack">${card('Roles', 'Membership is retained. This account stays archived.',
-          `<div class="card-body stack">${retained ? `<div class="chips">${retained}</div>` : '<p class="none">No retained roles remain.</p>'}${ruleGrants ? `<ul class="rows">${ruleGrants}</ul>` : ''}</div>`)}</div>
-          <div class="stack">${meta}</div></div>`
-      return browserPage(reply, 'People', content, current, undefined, header(stateBadge('person', 'archived')))
+      return respond({ identity: identity(describe('person', 'archived')), changed, ruleGrants, active: null,
+        archived: { at: new Date(user.archivedAt).toISOString(), roles: user.roleIds.map(id => roleLink(user, id, roleName(id), true)) } })
     }
 
     const sessions = await adminRead(app, request, path + '/sessions', adminUserRoutes.sessions.response)
     const { tools } = await adminRead(app, request, '/v1/admin/tools', adminToolRoutes.list.response)
     const isLocked = locked(user)
+    const form = (action: string, method: string, body: string, confirmation: Confirmation) => actionForm(csrf, action, method, body, confirmation)
     const breakGlass = user.source === 'local' && user.administrator ? form(path, 'PATCH', revision(user.revision) + `<input type="hidden" name="breakGlass" data-type="boolean" value="${!user.breakGlass}"><button class="btn">${icon('shield')}${user.breakGlass ? 'Remove break-glass designation…' : 'Make break-glass admin…'}</button>`,
       user.breakGlass ? { consequence: `Remove ${user.username}’s break-glass designation and revoke all their sessions?`, title: 'Remove break-glass designation', action: 'Remove designation' }
         : { consequence: `Designate ${user.username} for emergency local password access when SSO is enabled? Reserve this for emergency access; every use is flagged in the audit log.`, title: 'Make break-glass admin', action: 'Designate' }) : ''
@@ -141,35 +129,16 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
       { consequence: `Sign out all ${sessions.sessions.length} active browser and CLI sessions now?${sessions.sessions.some(session => session.current) ? ' This includes this browser.' : ''}`, title: 'Sign out everywhere', action: 'Sign out everywhere' }) : ''
     const menu = `<details class="more-menu"><summary class="btn btn-secondary btn-icon" aria-label="More actions">${icon('more')}</summary><div class="popover">
       ${user.source === 'local' ? sheetLink('reset-password', page + '?sheet=reset-password', 'Reset password…', '', 'key') : ''}${signOut}${breakGlass}<hr><a href="/admin/audit?user=${escape(encodeURIComponent(user.id))}">${icon('list')}View in audit log</a></div></details>`
-    const actions = `<div class="actions">${user.source === 'local' && user.enabled ? `<a class="btn btn-secondary" href="/admin/invitations?userId=${escape(encodeURIComponent(user.id))}&amp;sheet=new-invitation">${icon('link')}Link to SSO</a>` : ''}${menu}</div>`
-
-    const rolesCard = form(path + '/roles', 'PUT', card('Roles', 'Direct roles are set here. Roles from SSO rules sync at each sign-in.',
-      `<div class="card-body stack">${roleOptions(roles, user.directRoleIds, 'Direct roles', 'No roles yet. Create a role on Roles to grant tool access.', role => user.directRoleIds.includes(role.id) ? ' · Direct' : '')}${ruleGrants ? `<ul class="rows">${ruleGrants}</ul>` : ''}</div>`,
-      { foot: `<span>Saving replaces direct roles and keeps rule grants. Changes apply on their next tool call.</span><div class="actions">${revision(user.revision)}<button class="btn btn-primary btn-sm">Save roles</button></div>` }),
-      { consequence: `Replace ${user.username}’s direct roles with this selection? Tool access changes on the next call.`, title: 'Save roles', action: 'Save roles' }, 'class="card-form"')
-    const grantedBy = (tool: { roleIds: string[] }) => tool.roleIds.map(id => roleChip(user, id, roleName(id), true)).join('')
-    const usable = card('What can they use?', 'All tools from all their roles. A disabled person or tool cannot run calls.', user.effectiveTools.length
-      ? `<div class="table-wrap"><table class="tbl stacked"><thead><tr><th scope="col">Tool</th><th scope="col">Can run calls</th><th scope="col">Granted by</th></tr></thead><tbody>${user.effectiveTools.map(tool =>
-        `<tr><td><div class="cell-main">${toolIcon(tool.name)}<div><strong>${escape(toolProducts[tool.name].name)}</strong><span>${escape(tool.name)}</span></div></div></td><td>${stateStatus('access', tool.enabled ? 'yes' : user.enabled ? 'tool-disabled' : 'person-disabled')}${tool.enabled && tools.find(item => item.name === tool.name)?.health.status === 'error' ? ' <span class="none">(currently failing)</span>' : ''}</td><td><div class="chips">${grantedBy(tool)}</div></td></tr>`).join('')}</tbody></table></div>`
-      : '<div class="card-body"><p class="none">No tools granted. Assign a role that grants tools.</p></div>')
-    const danger = card('Danger zone', '', `<ul class="rows">
-      <li class="list-row"><div class="grow"><strong>${user.enabled ? 'Disable access' : 'Enable access'}</strong><p>${user.enabled ? 'Blocks sign-in and ends all their sessions now. You can enable them again later.' : 'Lets them sign in again. Revoked sessions stay signed out.'}</p></div>${form(path, 'PATCH',
-        revision(user.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${!user.enabled}"><button class="btn ${user.enabled ? 'btn-danger-outline' : 'btn-secondary'} btn-sm">${user.enabled ? 'Disable…' : 'Enable…'}</button>`,
-        user.enabled ? { consequence: `Disable ${user.username}? Sign-in is blocked and all their browser and CLI sessions are revoked immediately.`, title: 'Disable access', action: 'Disable' }
-          : { consequence: `Enable ${user.username}? They can sign in again; revoked sessions stay signed out.`, title: 'Enable access', action: 'Enable' })}</li>
-      <li class="list-row"><div class="grow"><strong>Archive person</strong><p>Permanent. Hides them from People, blocks sign-in and revokes all sessions. History and role membership are kept.</p></div>${form(path + '/archive', 'POST',
-        revision(user.revision) + '<button class="btn btn-danger-outline btn-sm">Archive…</button>',
-        { consequence: `Archive ${user.username}? All browser and CLI sessions are revoked, sign-in is blocked, and history is retained. This cannot be undone here.`, title: 'Archive person', action: 'Archive', typedName: user.username }, 'data-success-url="/admin/users"')}</li></ul>`, { danger: true })
-    const profile = form(path, 'PATCH', card('Profile', '', `<div class="card-body stack">${revision(user.revision)}${field('profile-display-name', 'Display name', attributes => `<input class="input" ${attributes} name="displayName" value="${escape(user.displayName)}" required>`)}${administratorOption(user.administrator, 'Manage people, roles, tools and sign-in. Changes immediately.')}<div><button class="btn btn-secondary btn-sm">Save profile</button></div></div>`),
-      { consequence: `Update ${user.username}’s profile and administrator capability? Administrator access changes immediately.`, title: 'Save profile', action: 'Save profile' }, 'class="card-form"')
-    const facts = card('Sign-in', '', `<div class="card-body stack"><dl class="kv"><dt>Method</dt><dd>${user.source === 'sso' ? 'SSO' : user.breakGlass ? 'Break-glass password' : 'Local password'}</dd><dt>Failed sign-ins</dt><dd>${user.failedAttempts}</dd><dt>Locked</dt><dd>${isLocked ? `Until ${timestamp(user.lockedUntil)}` : 'No'}</dd>${user.source === 'local' ? `<dt>Password</dt><dd>${user.mustChange ? 'Password change required' : 'Set by them'}</dd>` : ''}</dl>
-      ${isLocked ? form(path + '/unlock', 'POST', `<button class="btn btn-secondary btn-sm">${icon('unlock')}Unlock</button>`,
-        { consequence: `Clear ${user.username}’s failed sign-in attempts and lockout? Their password and sessions stay unchanged.`, title: 'Unlock', action: 'Unlock' }) : ''}</div>`)
-    const reset = user.source === 'local' ? sheet({ name: 'reset-password', open: open.data.sheet === 'reset-password', closeHref: page, title: 'Reset password', description: `Set a new temporary password for ${user.username}.`,
-      body: temporaryPasswordField('reset-password-input') + callout('warn', 'All their sessions end', 'They are signed out everywhere and must change the temporary password at their next sign-in.'),
-      submit: '<button class="btn btn-primary">Reset password</button>',
-      wrap: inner => form(path + '/password-reset', 'POST', inner, { consequence: `Reset ${user.username}’s password? All their sessions are revoked and they must change the temporary password on next sign-in.`, title: 'Reset password', action: 'Reset password' }) }) : ''
-    const content = `<div class="grid2"><div class="stack">${rolesCard}${usable}${sessionTable(csrf, path + '/sessions', sessions.sessions)}${danger}</div><div class="stack">${profile}${facts}${meta}</div></div>${reset}`
-    return browserPage(reply, 'People', content, current, undefined, { ...header(stateBadge('person', user.enabled ? isLocked ? 'locked' : 'enabled' : 'disabled', true)), actions })
+    return respond({ identity: identity(describe('person', user.enabled ? isLocked ? 'locked' : 'enabled' : 'disabled')), changed, ruleGrants, archived: null,
+      active: { csrf, path, revision: user.revision, displayName: user.displayName, administrator: user.administrator, enabled: user.enabled, menu,
+        linkToSso: user.source === 'local' && user.enabled ? `/admin/invitations?userId=${encodeURIComponent(user.id)}&sheet=new-invitation` : null,
+        roles: roles.map(role => ({ id: role.id, name: role.name, detail: roleTools(role) + (user.directRoleIds.includes(role.id) ? ' · Direct' : '') })), directRoleIds: user.directRoleIds,
+        tools: user.effectiveTools.map(tool => ({ name: tool.name, product: toolProducts[tool.name].name, mark: toolProducts[tool.name].mark,
+          access: describe('access', tool.enabled ? 'yes' : user.enabled ? 'tool-disabled' : 'person-disabled'),
+          failing: tool.enabled && tools.find(item => item.name === tool.name)?.health.status === 'error', grantedBy: tool.roleIds.map(id => roleLink(user, id, roleName(id), true)) })),
+        sessions: sessionTable(csrf, path + '/sessions', sessions.sessions),
+        facts: { method: user.source === 'sso' ? 'SSO' : user.breakGlass ? 'Break-glass password' : 'Local password', failedAttempts: user.failedAttempts,
+          lockedUntil: isLocked ? new Date(user.lockedUntil!).toISOString() : null, password: user.source === 'local' ? user.mustChange ? 'Password change required' : 'Set by them' : null },
+        reset: user.source === 'local' ? { open: open.data.sheet === 'reset-password', closeHref: page } : null } })
   })
 }

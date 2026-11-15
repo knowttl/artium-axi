@@ -734,7 +734,7 @@ test('Users screen escapes HTML usernames, role names and change actors as text'
   expect(response.body).toContain('&lt;img src=x onerror=alert(1)&gt;')
   expect(response.body).not.toContain('<img')
   const detail = await request('GET', '/admin/users/' + userId)
-  expect(detail.body).toContain(`Last changed by &lt;b&gt;synthetic&lt;/b&gt; at <time datetime="${new Date(now).toISOString()}"`)
+  expect(detail.body).toMatch(new RegExp(`Last changed by &lt;b&gt;synthetic&lt;/b&gt; at <time datetime="${new Date(now).toISOString()}"`, 'i'))
   expect(detail.body).toContain('Revision 7.')
 })
 
@@ -870,9 +870,11 @@ test('/admin/users renders the add-user sheet open from the sheet query without 
 
 test('the person page renders its reset-password sheet open from the sheet query without JavaScript', async () => {
   await signIn()
-  const id = 'sheet-reset-password'
-  expect((await request('GET', `/admin/users/${userId}?sheet=reset-password`)).body).toContain(`id="${id}" aria-labelledby="${id}-title" open>`)
-  expect((await request('GET', `/admin/users/${userId}`)).body).toContain(`id="${id}" aria-labelledby="${id}-title">`)
+  const attribute = (element: DefaultTreeAdapterMap['element'], name: string) => element.attrs.find(item => item.name === name)?.value
+  const sheet = (body: string) => nodesOf(parse(body)).find(element => element.tagName === 'dialog' && attribute(element, 'id') === 'sheet-reset-password')!
+  const opened = sheet((await request('GET', `/admin/users/${userId}?sheet=reset-password`)).body)
+  expect([attribute(opened, 'open'), attribute(opened, 'aria-labelledby')]).toEqual(['', 'sheet-reset-password-title'])
+  expect(attribute(sheet((await request('GET', `/admin/users/${userId}`)).body), 'open')).toBeUndefined()
 })
 
 test('invitation navigation opens the creation sheet without JavaScript', async () => {
