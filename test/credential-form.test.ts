@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
 import { CredentialProfile, loadCredentialProfile } from '../src/server/adapters/credential-profile.js'
-import { credentialFields, editorProfile } from '../src/server/admin/credential-form.js'
+import { credentialEditor, credentialFields, editorProfile } from '../src/server/admin/credential-form.js'
 import { toolCredentialSchemaPaths } from '../src/server/config.js'
 import { credentialTlsSettings } from '../src/server/credential-tls-settings.js'
 import { toolSchema } from '../src/shared/api.js'
@@ -130,4 +130,28 @@ test.each([
 ] as const)('%s explains %s when upstream descriptions are absent', (tool, name, help) => {
   const profile = new CredentialProfile({ type: 'object', properties: { [name]: { type: 'string' } } })
   expect(credentialFields(tool, profile, {}, false)).toContain(help)
+})
+
+test('the editor marks a field secret from its profile schema, not from its name', () => {
+  const profile = new CredentialProfile({ type: 'object', properties: { harmless: { type: 'string', 'x-secret': true }, apiToken: { type: 'string' } } })
+  const { controls } = credentialEditor('checkpoint-axi', profile, { harmless: 'CANARY-harmless', apiToken: 'plain-token' }, true)
+  expect(controls.map(({ name, secret, kind, value, stored }) => ({ name, secret, kind, value, stored }))).toEqual([
+    { name: 'harmless', secret: true, kind: 'textarea', value: '', stored: true },
+    { name: 'apiToken', secret: false, kind: 'input', value: 'plain-token', stored: false },
+  ])
+})
+
+test.each(toolSchema.options.filter(tool => tool !== 'ssh-axi'))('%s editor model and markup never carry a saved secret value', tool => {
+  const published = profiles.find(([name]) => name === tool)
+  const profile = editorProfile(tool, published ? new CredentialProfile(published[1], tool) : undefined)
+  const secrets = profile.fields().filter(field => field.schema['x-secret'] === true).map(field => field.name)
+  expect(secrets.length).toBeGreaterThan(0)
+  const metadata = Object.fromEntries(profile.fields().map(field => [field.name, `CANARY-${tool}-${field.name}-END`]))
+  const editor = credentialEditor(tool, profile, metadata, true)
+  const offered = secrets.filter(name => !(tool === 'gh-axi' && name === 'accessToken'))
+  expect(editor.controls.filter(control => control.secret).map(control => [control.name, control.kind, control.value])).toEqual(offered.map(name => [name, 'textarea', '']))
+  for (const name of secrets) {
+    expect(JSON.stringify(editor)).not.toContain(`CANARY-${tool}-${name}-END`)
+    expect(credentialFields(tool, profile, metadata, true)).not.toContain(`CANARY-${tool}-${name}-END`)
+  }
 })

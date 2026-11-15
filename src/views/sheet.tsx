@@ -21,10 +21,12 @@ export interface SheetProps {
   successUrl?: string
   successMessage?: string
   claimLink?: boolean
+  saveTool?: string
+  footLead?: ReactNode
   children: ReactNode
 }
 
-export function Sheet({ name, open, closeHref, title, description, submit, action, method = 'POST', csrf, consequence, confirmTitle, confirmAction, successUrl, successMessage, claimLink, children }: SheetProps) {
+export function Sheet({ name, open, closeHref, title, description, submit, action, method = 'POST', csrf, consequence, confirmTitle, confirmAction, successUrl, successMessage, claimLink, saveTool, footLead, children }: SheetProps) {
   const id = `sheet-${name}`
   return (
     <>
@@ -38,13 +40,14 @@ export function Sheet({ name, open, closeHref, title, description, submit, actio
           <IconButton href={closeHref} label="Close" icon={<Icon name="x" />} variant="ghost" size="sm" data-sheet-close="" />
         </div>
         <ActionForm action={action} method={method} csrf={csrf} confirmation={consequence ? { consequence, title: confirmTitle ?? submit, action: confirmAction ?? submit } : undefined}
-          successUrl={successUrl} successMessage={successMessage} claimLink={claimLink}>
+          successUrl={successUrl} successMessage={successMessage} claimLink={claimLink} saveTool={saveTool}>
           <div className="sheet-body">
             <p className="message" data-sheet-message="" role="alert" tabIndex={-1} />
             {children}
           </div>
           <div className="sheet-foot">
             <Button href={closeHref} label="Cancel" variant="ghost" data-sheet-close="" />
+            {footLead}
             <Button type="submit" label={submit} variant="primary" />
           </div>
         </ActionForm>

@@ -13,6 +13,7 @@ import { shodanProfile } from '../adapters/shodan.js'
 import { giteaProfile } from '../adapters/gitea.js'
 import { kubernetesProfile } from '../adapters/kubernetes.js'
 import { nativeSettingsSchemas } from '../../shared/api.js'
+import type { CredentialControl, CredentialEditorProps } from '../../views/credential-editor.js'
 import type { ToolName } from '../store/credential-store.js'
 import { escape } from './escape.js'
 import { tlsCredentialRoots } from '../credential-tls-settings.js'
@@ -170,40 +171,64 @@ const fieldLabels: Record<string, string> = {
   username: 'Username',
 }
 
-export function credentialFields(tool: ToolName | undefined, profile: CredentialProfile, metadata: Record<string, unknown>, configured: boolean): string {
+export function credentialEditor(tool: ToolName | undefined, profile: CredentialProfile, metadata: Record<string, unknown>, configured: boolean): CredentialEditorProps {
   const excluded = new Set([...(tool ? [...Object.keys(nativeSettingsSchemas[tool].shape), ...tlsCredentialRoots(tool)] : []), 'tokenEnv', 'secretEnv'])
   if (tool === 'gh-axi') for (const name of ['accessToken', 'accessTokenExpiresAt', 'login']) excluded.add(name)
-  const fields = profile.fields().filter(field => !excluded.has(field.name))
+  const controls = profile.fields().filter(field => !excluded.has(field.name))
     .sort((a, b) => Number(['signIn', 'mode', 'auth', 'kind'].includes(b.name)) - Number(['signIn', 'mode', 'auth', 'kind'].includes(a.name)))
-    .map(({ name, schema, required }) => {
+    .map(({ name, schema, required }): CredentialControl => {
     const secret = schema['x-secret'] === true
     const ephemeral = schema['x-ephemeral'] === true
     const value = secret ? undefined : metadata[name]
-    const hint = `profile-${tool ?? 'provider'}-${name}-hint`
-    const attributes = `name="profile.${escape(name)}" data-profile-field="${escape(name)}" aria-describedby="${escape(hint)}"${required && !secret ? ' required' : ''} autocomplete="off"`
-    const label = escape(schema.title ?? fieldLabels[name] ?? name) + (schema.type === 'object' && !secret ? ' (advanced JSON)' : '')
+    const id = `profile-${tool ?? 'provider'}-${name}`
+    const label = (schema.title ?? fieldLabels[name] ?? name) + (schema.type === 'object' && !secret ? ' (advanced JSON)' : '')
     const help = schema.description ?? (tool ? fieldHelp[tool]?.[name] : providerHelp[name])
       ?? (secret ? 'Enter the secret itself. Leave blank to keep a stored secret for the same identity.' : 'Optional profile value.')
     const defaultHelp = Object.hasOwn(schema, 'default')
       ? ` Default: ${typeof schema.default === 'string' ? schema.default : JSON.stringify(schema.default)}.` : ''
-    let input: string
+    const common = { name, id, label, help: help + defaultHelp, secret, ephemeral, required: required && !secret, stored: secret && configured && !ephemeral }
+    if (secret) return { ...common, kind: 'textarea', dataType: 'string', value: '' }
     if (schema.enum) {
       const choices = tool === 'gh-axi' && name === 'auth' ? schema.enum.filter((choice: unknown) => choice !== 'device') : schema.enum
-      input = `<select ${attributes} data-profile-type="json"><option value="">Choose a value</option>${choices.map((choice: unknown) =>
-        `<option value="${escape(JSON.stringify(choice))}"${choice === value ? ' selected' : ''}>${escape(String(choice))}</option>`).join('')}</select>`
-    } else if (schema.type === 'boolean') {
-      input = `<select ${attributes} data-profile-type="json"><option value="">Use the default</option><option value="true"${value === true ? ' selected' : ''}>True</option><option value="false"${value === false ? ' selected' : ''}>False</option></select>`
-    } else if (schema.type === 'array' && (schema.items?.type === 'string' || schema.items?.const)) {
-      input = `<textarea ${attributes} data-profile-type="list" rows="3">${escape(Array.isArray(value) ? value.join('\n') : '')}</textarea><p>One value per line.</p>`
-    } else if (secret || name === 'clientCertificate' || !['string', 'number', 'integer'].includes(schema.type)) {
-      const type = secret || schema.type === 'string' ? 'string' : 'json'
-      input = `<textarea ${attributes} data-profile-type="${type}" rows="6" spellcheck="false">${escape(value === undefined ? '' : type === 'json' ? JSON.stringify(value) : String(value))}</textarea>`
-    } else {
-      input = `<input ${attributes} data-profile-type="${schema.type === 'string' ? 'string' : 'json'}" type="${schema.type === 'string' ? 'text' : 'number'}" value="${escape(value ?? '')}"${schema.type === 'number' ? ' step="any"' : ''}>`
+      return { ...common, kind: 'select', dataType: 'json', value: '', emptyLabel: 'Choose a value',
+        options: choices.map((choice: unknown) => ({ value: JSON.stringify(choice), label: String(choice), selected: choice === value })) }
     }
-    return `<div data-credential-field="${escape(name)}"${secret ? ' data-secret' : ''}${ephemeral ? ' data-ephemeral' : ''}><label>${label}${input}</label><p id="${escape(hint)}">${escape(help + defaultHelp)}</p>${secret && configured && !ephemeral ? '<p data-stored-secret>Stored when configured below. Leave blank to keep; enter a value to replace.</p>' : ''}</div>`
+    if (schema.type === 'boolean') {
+      return { ...common, kind: 'select', dataType: 'json', value: '', emptyLabel: 'Use the default',
+        options: [{ value: 'true', label: 'True', selected: value === true }, { value: 'false', label: 'False', selected: value === false }] }
+    }
+    if (schema.type === 'array' && (schema.items?.type === 'string' || schema.items?.const)) {
+      return { ...common, kind: 'list', dataType: 'list', value: Array.isArray(value) ? value.join('\n') : '' }
+    }
+    if (name === 'clientCertificate' || !['string', 'number', 'integer'].includes(schema.type)) {
+      const dataType = schema.type === 'string' ? 'string' : 'json'
+      return { ...common, kind: 'textarea', dataType, value: value === undefined ? '' : dataType === 'json' ? JSON.stringify(value) : String(value) }
+    }
+    return { ...common, kind: 'input', dataType: schema.type === 'string' ? 'string' : 'json', value: String(value ?? ''), ...schema.type === 'string' ? {} : { numeric: schema.type === 'number' ? 'decimal' : 'integer' } }
+  })
+  return { schema: profile.inputSchema, configured, controls, tls: { legacyHtml: tool ? tlsFields(tool, metadata) : '' },
+    identity: Object.fromEntries(['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org', 'appId', 'installationId', 'tokenId', 'userId', 'tokenKind', 'clientCertificate'].map(key => [key, metadata[key] ?? null])),
+    intro: `Non-secret values are pre-filled. Secrets are never displayed. Leave a secret blank to keep it, or enter a replacement. Changing authentication, mode, kind, tenant, client, origin, organization, App ID, installation ID, token identity, user identity, token kind or client certificate requires new secrets.${tool ? ' Saving keeps native settings and clears cached health.' : ' Saving keeps SSO sign-in disabled.'}` }
+}
+
+export function credentialFields(tool: ToolName | undefined, profile: CredentialProfile, metadata: Record<string, unknown>, configured: boolean): string {
+  const editor = credentialEditor(tool, profile, metadata, configured)
+  const fields = editor.controls.map(control => {
+    const attributes = `name="profile.${escape(control.name)}" data-profile-field="${escape(control.name)}" aria-describedby="${escape(control.id)}-hint"${control.required ? ' required' : ''} autocomplete="off"`
+    let input: string
+    if (control.kind === 'select') {
+      input = `<select ${attributes} data-profile-type="json"><option value="">${control.emptyLabel}</option>${control.options!.map(option =>
+        `<option value="${escape(option.value)}"${option.selected ? ' selected' : ''}>${escape(option.label)}</option>`).join('')}</select>`
+    } else if (control.kind === 'list') {
+      input = `<textarea ${attributes} data-profile-type="list" rows="3">${escape(control.value)}</textarea><p>One value per line.</p>`
+    } else if (control.kind === 'textarea') {
+      input = `<textarea ${attributes} data-profile-type="${control.dataType}" rows="6" spellcheck="false">${escape(control.value)}</textarea>`
+    } else {
+      input = `<input ${attributes} data-profile-type="${control.dataType}" type="${control.numeric ? 'number' : 'text'}" value="${escape(control.value)}"${control.numeric === 'decimal' ? ' step="any"' : ''}>`
+    }
+    return `<div data-credential-field="${escape(control.name)}"${control.secret ? ' data-secret' : ''}${control.ephemeral ? ' data-ephemeral' : ''}><label>${escape(control.label)}${input}</label><p id="${escape(control.id)}-hint">${escape(control.help)}</p>${control.stored ? '<p data-stored-secret>Stored when configured below. Leave blank to keep; enter a value to replace.</p>' : ''}</div>`
   }).join('')
-  return `<div data-credential-editor data-schema="${escape(JSON.stringify(profile.inputSchema))}" data-identity="${escape(JSON.stringify(Object.fromEntries(['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org', 'appId', 'installationId', 'tokenId', 'userId', 'tokenKind', 'clientCertificate'].map(key => [key, metadata[key] ?? null]))))}" data-configured="${configured}"><p>Non-secret values are pre-filled. Secrets are never displayed. Leave a secret blank to keep it, or enter a replacement. Changing authentication, mode, kind, tenant, client, origin, organization, App ID, installation ID, token identity, user identity, token kind or client certificate requires new secrets.${tool ? ' Saving keeps native settings and clears cached health.' : ' Saving keeps SSO sign-in disabled.'}</p>${fields}
-    ${tool ? tlsFields(tool, metadata) : ''}<div data-certificate hidden><label>Certificate and private key (one PEM file)<input type="file" data-certificate-file accept=".pem"></label><label>Or paste certificate and private key<textarea data-certificate-pem rows="8" autocomplete="off" spellcheck="false"></textarea></label><p>Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.</p></div>
-    <details><summary>Advanced: profile schema and requirements</summary><pre>${escape(JSON.stringify(profile.inputSchema, null, 2))}</pre></details></div>`
+  return `<div data-credential-editor data-schema="${escape(JSON.stringify(editor.schema))}" data-identity="${escape(JSON.stringify(editor.identity))}" data-configured="${configured}"><p>${editor.intro}</p>${fields}
+    ${editor.tls.legacyHtml}<div data-certificate hidden><label>Certificate and private key (one PEM file)<input type="file" data-certificate-file accept=".pem"></label><label>Or paste certificate and private key<textarea data-certificate-pem rows="8" autocomplete="off" spellcheck="false"></textarea></label><p>Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.</p></div>
+    <details><summary>Advanced: profile schema and requirements</summary><pre>${escape(JSON.stringify(editor.schema, null, 2))}</pre></details></div>`
 }

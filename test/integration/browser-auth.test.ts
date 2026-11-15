@@ -162,10 +162,11 @@ test('tool Access offers an instance access sheet per role, open from its query 
 test.each([
   ['instances', 'action="/v1/admin/tools/falcon-axi/instances/lab/test"'], ['access', 'id="sheet-instances-synthetic-role"'],
   ['writes', 'action="/v1/admin/tools/falcon-axi/write-access"'], ['advanced', 'name="nativeSettings"'],
-])('the %s tab of a tool page carries no credential value and shows its content once, outside its hydration data', async (tab, marker) => {
+  ['instances', 'id="sheet-add-instance"', '&sheet=add-instance'], ['instances', 'id="sheet-edit-lab"', '&sheet=edit-lab'],
+])('the %s tab of a tool page carries no credential value and shows its content once, outside its hydration data', async (tab, marker, sheet = '') => {
   new FakeCredentialStore([{ reference: { id: 'synthetic-lab', tool: 'falcon-axi' }, name: 'lab', value: { clientId: 'CANARY-client', clientSecret: 'CANARY-secret' } }]).seed(db)
   await signIn()
-  const body = (await request('GET', `/admin/tools/falcon-axi?tab=${tab}`)).body
+  const body = (await request('GET', `/admin/tools/falcon-axi?tab=${tab}${sheet}`)).body
   expect(body).not.toContain('CANARY-')
   const data = JSON.parse(/<script type="application\/json" data-astryx-props>(.*?)<\/script>/s.exec(body)![1]!) as { props: { panel: { tab: string, legacyHtml?: string } } }
   expect(data.props.panel.tab).toBe(tab)

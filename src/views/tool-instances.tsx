@@ -1,13 +1,16 @@
 import { Badge } from '@astryxdesign/core/Badge'
+import { Banner } from '@astryxdesign/core/Banner'
 import { Button } from '@astryxdesign/core/Button'
 import { HStack } from '@astryxdesign/core/HStack'
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from '@astryxdesign/core/Table'
 import { Text } from '@astryxdesign/core/Text'
 import { TextArea } from '@astryxdesign/core/TextArea'
+import { TextInput } from '@astryxdesign/core/TextInput'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
 import { ActionForm, Revision } from './action-form.js'
+import { CredentialEditor, type CredentialEditorProps } from './credential-editor.js'
 import { Icon } from './icon.js'
 import { LegacyIsland } from './legacy-island.js'
 import { Panel } from './panel.js'
@@ -26,16 +29,55 @@ interface Row {
   instance: { path: string, id: string, revision: number, enabled: boolean, readOnly: boolean, description: string, editOpen: boolean } | null
 }
 
+export interface AddInstanceProps {
+  tool: string
+  product: string
+  api: string
+  toolRevision: number
+  open: boolean
+  awx: boolean
+  hasInstances: boolean
+  editor: CredentialEditorProps | null
+}
+
 export interface InstancesProps {
   page: string
   ssh: boolean
   testGuide: string | null
   rows: Row[]
   github: { legacyHtml: string } | null
-  addInstance: { legacyHtml: string } | null
+  addInstance: AddInstanceProps | null
 }
 
 type Editable = Row & { instance: NonNullable<Row['instance']> }
+
+function AddInstanceSheet({ csrf, page, add }: { csrf: string, page: string, add: AddInstanceProps }) {
+  const { tool, product, api, awx, editor } = add
+  const [name, setName] = useState('')
+  const [detail, setDetail] = useState('')
+  return (
+    <Sheet name="add-instance" open={add.open} closeHref={page} title="Add instance" description={`Connect another ${product} endpoint under its own name.`}
+      submit="Add instance" confirmTitle="Add instance" confirmAction="Add instance" action={awx ? `${api}/origin` : `${api}/instances`} method={awx ? 'PUT' : 'POST'} csrf={csrf}
+      consequence={`Add this ${product} instance? It starts read-only.`} saveTool={awx ? undefined : tool}
+      footLead={awx ? undefined : <label className="check"><input type="checkbox" data-save-and-test="" defaultChecked /> Test after saving</label>}>
+      <VStack gap={3}>
+        <input type="hidden" name="expectedToolRevision" data-type="number" value={add.toolRevision} />
+        {awx && <Revision value={0} />}
+        <TextInput label="Name" id="instance-name" htmlName={awx ? 'instance' : 'name'} value={name} onChange={setName} autoComplete="off" hasSpellCheck={false} controlClassName="mono"
+          description="Lowercase letters, digits and hyphens. Agents type this name, and it never changes." {...{ required: true, maxLength: 32, pattern: '[a-z0-9][a-z0-9\\-]*' }} />
+        {awx
+          ? <TextInput label="Controller HTTPS origin" id="instance-origin" htmlName="origin" type="url" value={detail} onChange={setDetail}
+            description="Save the address first, then open the instance to inspect its certificate, save credentials and edit its description." {...{ required: true }} />
+          : <TextArea label="Description" id="instance-description" htmlName="description" value={detail} onChange={setDetail} rows={3} htmlMaxLength={500}
+            description="Say what this instance is for, for example “Production cluster. Use for inventory only.”" />}
+        {add.hasInstances && <Banner status="warning" icon={<Icon name="alert" />} title="Scripts may need to name an instance"
+          description="Calls that omit --instance fail with INSTANCE_REQUIRED when more than one enabled, configured instance is granted to the caller." />}
+        {editor && <CredentialEditor {...editor} />}
+        <Text as="p" type="supporting">New instances start read-only. Change this on the instance after it passes its test.</Text>
+      </VStack>
+    </Sheet>
+  )
+}
 
 function EditSheet({ csrf, page, row }: { csrf: string, page: string, row: Editable }) {
   const { instance } = row
@@ -170,7 +212,7 @@ export function Instances({ csrf, name, product, panel }: { csrf: string, name: 
       {github && <LegacyIsland {...github} />}
       <Notes name={name} ssh={ssh} testGuide={testGuide} />
       {rows.map(row => row.instance && <EditSheet key={row.name} csrf={csrf} page={page} row={{ ...row, instance: row.instance }} />)}
-      {addInstance && <LegacyIsland {...addInstance} />}
+      {addInstance && <AddInstanceSheet csrf={csrf} page={page} add={addInstance} />}
     </VStack>
   )
 }

@@ -313,6 +313,7 @@ a.chip:hover { background: var(--bg-active); }
 .field .hint { margin: 0; color: var(--text-muted); font-size: var(--fs-xs); }
 .input, .select { display: block; width: 100%; max-width: none; height: var(--ctl-h); margin: 0; padding: 0 10px; border: 1px solid var(--control); border-radius: var(--r-sm); background: var(--bg); color: var(--text); font: inherit; font-size: var(--fs-sm); }
 .input.mono { font-family: var(--mono); }
+textarea.input { height: auto; min-height: 96px; padding: 8px 10px; font-size: var(--fs-xs); line-height: 1.5; resize: vertical; }
 .input.narrow { width: 96px; }
 .input[aria-invalid="true"] { border-color: var(--err); }
 .input:disabled { background: var(--bg-muted); color: var(--text-faint); cursor: not-allowed; }
@@ -703,6 +704,7 @@ form.card, .card-foot form, .card-head form { margin: 0; }
 :where(.content) [data-credential-field] > p[data-stored-secret] { display: flex; align-items: center; min-height: var(--ctl-h-sm); padding: 4px 10px; border: 1px dashed var(--border-strong); border-radius: var(--r-sm); background: var(--bg-subtle); color: var(--text-muted); }
 :where(.content) [data-credential-editor] > details { margin: 0; }
 [data-credential-editor] [data-certificate] { display: grid; gap: 12px; }
+[data-astryx-root] :where([data-credential-field], [data-certificate]) :where(.input, .select) { border-color: var(--field-border); border-radius: var(--radius-element); background: var(--color-background-surface); color: var(--color-text-primary); }
 
 /* Switch: a native checkbox (or a decorative span inside a labelled button) */
 .switch { position: relative; width: 32px; height: 18px; flex: none; display: inline-block; margin: 0; border-radius: var(--r-full); background: var(--control); appearance: none; cursor: pointer; vertical-align: middle; }
