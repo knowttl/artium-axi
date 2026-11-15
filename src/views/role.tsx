@@ -98,7 +98,7 @@ function Members({ name, members: { people, pager } }: Pick<RoleProps, 'name' | 
             <TableBody>
               {people.map(person => (
                 <TableRow key={person.href}>
-                  <TableCell>
+                  <TableHeaderCell scope="row">
                     <HStack gap={2} vAlign="center">
                       <span className="avatar" aria-hidden="true">{person.initials}</span>
                       <VStack gap={0}>
@@ -106,7 +106,7 @@ function Members({ name, members: { people, pager } }: Pick<RoleProps, 'name' | 
                         <Text type="supporting">{person.username}</Text>
                       </VStack>
                     </HStack>
-                  </TableCell>
+                  </TableHeaderCell>
                   <TableCell><HStack gap={1} wrap="wrap">{person.grants.map(grant => <Badge key={grant.word} label={grant.word} variant={badgeVariants[grant.tone]} />)}</HStack></TableCell>
                   <TableCell><Badge label={person.state.word} variant={badgeVariants[person.state.tone]} /></TableCell>
                 </TableRow>
