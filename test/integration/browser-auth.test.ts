@@ -567,10 +567,10 @@ test('Roles page escapes names and change actors and preserves bounded paginatio
   db.exec("INSERT INTO roles (id, name) VALUES ('a', 'First')")
   const first = await request('GET', '/admin/roles?limit=1')
   expect(first.statusCode).toBe(200)
-  expect(first.body).toContain('href="/admin/roles/a">First</a>')
+  expect(first.body).toContain('href="/admin/roles/a"><strong>First</strong></a>')
   expect(first.body).toContain('/admin/roles?cursor=a&amp;limit=1')
   const second = await request('GET', '/admin/roles?cursor=a&limit=1')
-  expect(second.body).toContain('&lt;img src=x&gt;</a>')
+  expect(second.body).toContain('<strong>&lt;img src=x&gt;</strong></a>')
   const detail = await request('GET', '/admin/roles/synthetic-role')
   expect(detail.body).toContain('Last changed by &lt;b&gt;actor&lt;/b&gt;')
   expect(detail.body).toContain(new Date(now).toISOString())
@@ -883,6 +883,23 @@ test('/admin/users renders the add-user sheet open from the sheet query without 
   expect(attribute(sheet((await request('GET', '/admin/users?sheet=add-user')).body), 'open')).toBe('')
   expect(attribute(sheet((await request('GET', '/admin/users')).body), 'open')).toBeUndefined()
   expect(attribute(sheet((await request('GET', '/admin/users')).body), 'aria-labelledby')).toBe('sheet-add-user-title')
+})
+
+test('/admin/roles keeps the create-role form contract and opens its dialog from the dialog query without JavaScript', async () => {
+  await signIn()
+  const attribute = (element: DefaultTreeAdapterMap['element'], name: string) => element.attrs.find(item => item.name === name)?.value
+  const page = async (query = '') => nodesOf(parse((await request('GET', '/admin/roles' + query)).body))
+  const dialog = (elements: DefaultTreeAdapterMap['element'][]) => elements.find(element => element.tagName === 'dialog' && attribute(element, 'id') === 'new-role')!
+  expect([attribute(dialog(await page('?dialog=new-role')), 'open'), attribute(dialog(await page()), 'open')]).toEqual(['', undefined])
+  const elements = await page()
+  const form = elements.find(element => element.tagName === 'form' && attribute(element, 'action') === '/v1/admin/roles')!
+  expect(['method', 'data-method', 'data-confirm', 'data-success-url', 'data-success-message'].map(name => attribute(form, name)))
+    .toEqual(['post', 'POST', '', '/admin/roles/{id}', 'Role created. Choose the tools it grants.'])
+  const controls = nodesOf(form).filter(element => element.tagName === 'input')
+  expect(controls.map(control => [attribute(control, 'name'), attribute(control, 'required')])).toEqual([['_csrf', undefined], ['name', '']])
+  expect(attribute(controls[0]!, 'value')).toMatch(/\S/)
+  expect(elements.filter(element => attribute(element, 'data-open-dialog') === 'new-role').map(link => attribute(link, 'href'))).toEqual(['/admin/roles?dialog=new-role'])
+  expect((await request('GET', '/admin/roles?dialog=other')).statusCode).toBe(400)
 })
 
 test('the person page renders its reset-password sheet open from the sheet query without JavaScript', async () => {

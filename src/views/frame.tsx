@@ -18,6 +18,7 @@ export interface FrameAction {
   variant: 'primary' | 'secondary'
   icon: string
   sheet?: string
+  dialog?: string
 }
 
 export interface FrameProps {
@@ -78,7 +79,7 @@ export function Frame({ title, description, actions, crumbs, brand, navigation, 
           </VStack>
           {actions && <HStack gap={2} wrap="wrap">
             {actions.map(action => <Button key={action.href} href={action.href} label={action.label} variant={action.variant} icon={<Icon name={action.icon} />}
-              {...action.sheet ? { 'data-sheet': action.sheet } : {}} />)}
+              {...action.sheet ? { 'data-sheet': action.sheet } : {}} {...action.dialog ? { 'data-open-dialog': action.dialog } : {}} />)}
           </HStack>}
         </HStack>
         {children}

@@ -115,7 +115,7 @@ const prepareChange = `${signIn}
   await page.wait('a[href="/admin"]');
   await page.click('a[href="/admin"]');
   await page.open(base + '/admin/roles');
-  await page.click('.page-head [data-open-dialog=new-role]');
+  await page.click('a[data-open-dialog=new-role]');
   await page.wait('#new-role[open]');
   await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic resumed role');
   await page.click('form[action="/v1/admin/roles"] button');

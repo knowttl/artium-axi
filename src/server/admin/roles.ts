@@ -5,12 +5,12 @@ import { ArtiumError } from '../../shared/errors.js'
 import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { grantOrigin, personStatus, rawApiModeWords, status, toolProducts, toolState } from './design/status.js'
-import { avatar, card, icon, pager } from './design/ui.js'
+import { avatar, card, field, icon, pager } from './design/ui.js'
 import { escape } from './escape.js'
 import { adminRead, apiFormTag, changed, revision } from './forms.js'
+import { renderPage } from './render-page.js'
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
-const visibleChips = 4
 
 function roleCounts(db: Database.Database, table: 'user_roles' | 'role_rules' | 'invitation_roles', column: string): Map<string, number> {
   const rows = db.prepare(`SELECT role_id AS id, COUNT(DISTINCT ${column}) AS count FROM ${table} GROUP BY role_id`).all() as { id: string, count: number }[]
@@ -32,36 +32,19 @@ export function registerRolesPages(app: FastifyInstance, db: Database.Database):
     const members = roleCounts(db, 'user_roles', 'user_id')
     const rules = roleCounts(db, 'role_rules', 'id')
     const { total } = db.prepare('SELECT COUNT(*) AS total FROM roles').get() as { total: number }
-    const chip = (tool: (typeof toolSchema.options)[number]) => enabled.has(tool)
-      ? `<span class="chip">${escape(toolProducts[tool].name)}</span>`
-      : `<span class="chip" title="Tool disabled"><span class="dot off" aria-hidden="true"></span>${escape(toolProducts[tool].name)}<span class="sr-only"> (disabled)</span></span>`
-    const rows = page.roles.map(role => {
-      // A long list keeps one chip slot for the count of the rest.
-      const shown = role.tools.length > visibleChips ? visibleChips - 1 : visibleChips
-      const rest = role.tools.slice(shown)
-      const chips = role.tools.slice(0, shown).map(chip).join('') +
-        (rest.length ? `<span class="chip" title="${escape(rest.map(tool => toolProducts[tool].name).join(', '))}">+${rest.length}<span class="sr-only"> more: ${escape(rest.map(tool => toolProducts[tool].name).join(', '))}</span></span>` : '')
-      const count = (counts: Map<string, number>) => counts.get(role.id) ?? 0
-      return `<tr><th scope="row"><a href="/admin/roles/${escape(encodeURIComponent(role.id))}">${escape(role.name)}</a></th>
-        <td>${role.tools.length ? `<div class="chips">${chips}</div>` : '<span class="faint">No tools yet</span>'}</td>
-        <td class="num" data-label="Members">${count(members)}</td><td class="num${count(rules) ? '' : ' faint'}" data-label="SSO rules">${count(rules)}</td><td class="num faint">${icon('chev')}</td></tr>`
-    }).join('')
     const csrf = reply.generateCsrf()
     const newRole = `<dialog id="new-role" class="modal" aria-labelledby="new-role-title"${dialog ? ' open' : ''}>
       ${apiFormTag(csrf, '/v1/admin/roles', 'POST', '', 'data-success-url="/admin/roles/{id}" data-success-message="Role created. Choose the tools it grants."')}
       <div class="modal-body"><h2 id="new-role-title">New role</h2><p>Name it for the people who need it, such as Read-only analysts. You choose its tools next.</p>
-      <label for="new-role-name">Role name</label><input id="new-role-name" name="name" required autocomplete="off"><p data-form-error role="alert" tabindex="-1"></p></div>
+      ${field('new-role-name', 'Role name', attributes => `<input class="input" ${attributes} name="name" required autocomplete="off">`)}<p data-form-error role="alert" tabindex="-1"></p></div>
       <div class="modal-foot"><a class="btn btn-secondary" href="/admin/roles" data-close-dialog>Cancel</a><button class="btn btn-primary">Create role</button></div></form></dialog>`
-    const list = page.roles.length ? `<section class="card"><table class="tbl row-links stack"><caption class="sr-only">Roles and tool grants</caption>
-      <thead><tr><th scope="col">Role</th><th scope="col">Tools</th><th scope="col" class="num">Members</th><th scope="col" class="num">SSO rules</th><th scope="col"><span class="sr-only">Open</span></th></tr></thead>
-      <tbody>${rows}</tbody></table>
-      <p class="card-note"><span class="dot off" aria-hidden="true"></span>Grey dot: the tool is disabled, so members can't use it yet.</p>
-      ${pager(plural(total, 'role'), [{ label: 'First', href: query.data.cursor ? `/admin/roles?limit=${query.data.limit}` : null },
-        { label: 'Next', href: page.nextCursor ? `/admin/roles?cursor=${encodeURIComponent(page.nextCursor)}&limit=${query.data.limit}` : null }])}</section>`
-      : `<section class="card empty"><h2>No roles yet</h2><p>A role is a set of tools. Create one, choose its tools, then give it to people.</p><a class="btn btn-primary" href="/admin/roles?dialog=new-role" data-open-dialog="new-role">${icon('plus')}New role</a></section>`
-    return browserPage(reply, 'Roles', newRole + list, current, 'A role is a set of tools. Give roles to people, or map them from SSO groups.', {
-      actions: `<div class="actions"><a class="btn btn-primary" href="/admin/roles?dialog=new-role" data-open-dialog="new-role">${icon('plus')}New role</a></div>`,
-    })
+    return renderPage(reply, 'Roles', 'roles', {
+      roles: page.roles.map(role => ({ href: '/admin/roles/' + encodeURIComponent(role.id), name: role.name, members: members.get(role.id) ?? 0, rules: rules.get(role.id) ?? 0,
+        tools: role.tools.map(tool => ({ name: toolProducts[tool].name, enabled: enabled.has(tool) })) })),
+      pager: { summary: plural(total, 'role'), first: query.data.cursor ? `/admin/roles?limit=${query.data.limit}` : null,
+        next: page.nextCursor ? `/admin/roles?cursor=${encodeURIComponent(page.nextCursor)}&limit=${query.data.limit}` : null },
+      newRole }, current, 'A role is a set of tools. Give roles to people, or map them from SSO groups.',
+    [{ label: 'New role', href: '/admin/roles?dialog=new-role', variant: 'primary', icon: 'plus', dialog: 'new-role' }])
   })
 
   app.get('/admin/roles/:id', async (request, reply) => {

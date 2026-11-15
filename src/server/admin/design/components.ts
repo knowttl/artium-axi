@@ -274,6 +274,8 @@ a.chip:hover { background: var(--bg-active); }
 .link-rows tbody td.num { width: 48px; min-width: 48px; color: var(--text-faint); text-align: right; }
 .link-rows tbody tr.dim { opacity: 0.6; }
 .link-rows tbody td a.row-chip { position: relative; z-index: 1; }
+.roles-list .count { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.roles-list tbody tr:last-child th { border-bottom: 0; }
 .tbl tbody tr.link { position: relative; }
 .tbl tbody tr.link:hover { background: var(--bg-subtle); }
 .tbl .row-link { color: var(--text); text-decoration: none; }
@@ -776,6 +778,13 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .row-links.stack tbody th { flex-basis: 100%; }
   .row-links.stack tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
   .row-links.stack tbody td:not([data-label]):last-child.num { display: none; }
+  .roles-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .roles-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .roles-list tbody tr:last-child { border-bottom: 0; }
+  .roles-list tbody th, .roles-list tbody td { display: block; width: auto; max-width: none; padding: 0; border: 0; }
+  .roles-list tbody th { flex-basis: 100%; }
+  .roles-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
+  .roles-list tbody td.num { display: none; }
   .steps { grid-template-columns: minmax(0, 1fr); }
   .step { border-right: 0; border-bottom: 1px solid var(--border); }
   .step:last-child { border-bottom: 0; }

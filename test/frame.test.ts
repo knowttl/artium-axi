@@ -26,6 +26,13 @@ test('an action that opens a sheet names the sheet and stays a link without Java
   expect(links.map(link => [attribute(link, 'href'), attribute(link, 'data-sheet')])).toEqual([['/synthetic-page?sheet=synthetic', 'sheet-synthetic'], ['/synthetic-plain', undefined]])
 })
 
+test('an action that opens a dialog names the dialog and stays a link without JavaScript', () => {
+  const html = render({ actions: [{ label: 'Open dialog', href: '/synthetic-page?dialog=synthetic', variant: 'primary', icon: 'plus', dialog: 'synthetic' },
+    { label: 'Plain link', href: '/synthetic-plain', variant: 'secondary', icon: 'mail' }] })
+  const links = nodes(parseFragment(html)).filter(element => element.tagName === 'a' && attribute(element, 'href')?.startsWith('/synthetic-p'))
+  expect(links.map(link => [attribute(link, 'href'), attribute(link, 'data-open-dialog')])).toEqual([['/synthetic-page?dialog=synthetic', 'synthetic'], ['/synthetic-plain', undefined]])
+})
+
 const nodes = (node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['element'][] => [
   ...('tagName' in node ? [node] : []), ...('childNodes' in node ? node.childNodes.flatMap(nodes) : []),
 ]
