@@ -969,7 +969,7 @@ test.each([
 })
 
 test.each([
-  { tool: 'checkpoint-axi', help: 'Required region code for your tenant&#39;s regional gateway: us, eu, ca, au, uk, uae or in. Obtain it from your tenant administrator. There is no default; URLs are not accepted.', otherHelp: 'Falcon API region, for example us-1.' },
+  { tool: 'checkpoint-axi', help: 'Required region code for your tenant&#x27;s regional gateway: us, eu, ca, au, uk, uae or in. Obtain it from your tenant administrator. There is no default; URLs are not accepted.', otherHelp: 'Falcon API region, for example us-1.' },
   { tool: 'falcon-axi', help: 'Falcon API region, for example us-1.', otherHelp: 'Required region code for your tenant' },
 ])('$tool credential page displays provider-specific region guidance', async ({ tool, help, otherHelp }) => {
   const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
@@ -981,14 +981,14 @@ test.each([
   const page = await app.inject({ method: 'GET', url: `/admin/tools/${tool}`,
     headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
   expect(page.statusCode).toBe(200)
-  expect(page.body).toContain(`${help}</p>`)
+  expect(page.body).toContain(`${help}</span>`)
   expect(page.body).not.toContain(otherHelp)
   if (tool === 'checkpoint-axi') {
     const saas = /<div data-credential-field="saas">(.*?)<\/div>/s.exec(page.body)![1]!
     expect(saas).toContain('One non-blank SaaS application name for the tenant, not a gateway, host or authentication URL;')
-    expect(saas).toContain(' Default: office365_emails.</p>')
+    expect(saas).toContain(' Default: office365_emails.</span>')
     const downloads = /<div data-credential-field="downloads">(.*?)<\/div>/s.exec(page.body)![1]!
-    expect(downloads).toContain('Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow writes on and the exact download operation selected. Default: {&quot;allow&quot;:false}.</p>')
+    expect(downloads).toContain('Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow writes on and the exact download operation selected. Default: {&quot;allow&quot;:false}.</span>')
   }
 })
 
@@ -3302,3 +3302,65 @@ async function browserCookie() {
   expect(login.statusCode).toBe(303)
   return login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ')
 }
+
+test.each((Object.keys(values) as ToolName[]).filter(tool => tool !== 'ssh-axi'))('%s Add and Edit sheets and their page data carry no saved credential value', async tool => {
+  store.createInstance(tool, { name: 'lab', description: 'Synthetic lab.' }, values[tool as keyof typeof values], actor, Date.now())
+  const cookie = await browserCookie()
+  for (const [sheet, marker] of [['add-instance', 'id="sheet-add-instance"'], ['edit-lab', 'id="sheet-edit-lab"']]) {
+    const page = (await app.inject({ method: 'GET', url: `/admin/tools/${tool}?sheet=${sheet}`, headers: { cookie } })).body
+    expect(page).toContain(marker)
+    expect(page).not.toContain('CANARY-')
+    const { props } = JSON.parse(/data-astryx-props>(.*?)<\/script>/s.exec(page)![1]!) as { props: { panel: { instances: { addInstance: { editor: { controls: { secret: boolean, value: string }[] } | null } } } } }
+    const controls = props.panel.instances.addInstance.editor?.controls ?? []
+    expect(controls.filter(control => control.secret).every(control => control.value === '')).toBe(true)
+    expect(controls.some(control => control.secret)).toBe(tool !== 'awx-axi')
+  }
+})
+
+test('a typed secret is never returned, logged or audited when an Add instance save is rejected or accepted', async () => {
+  const secret = 'CANARY-typed-secret-r16'
+  const written: string[] = []
+  for (const stream of [process.stdout, process.stderr]) {
+    vi.spyOn(stream, 'write').mockImplementation(((chunk: unknown) => { written.push(String(chunk)); return true }) as typeof stream.write)
+  }
+  const revision = await toolRevision('falcon-axi')
+  const value = { ...values['falcon-axi'], clientSecret: secret }
+  const responses: string[] = []
+  for (const body of [{ name: 'Bad Name', description: '', value, expectedToolRevision: revision },
+    { name: 'east', description: '', value: { clientId: 'synthetic-client', clientSecret: secret }, expectedToolRevision: revision }]) {
+    const rejected = await request('POST', '/falcon-axi/instances', body)
+    expect(rejected.status).toBe(400)
+    responses.push(JSON.stringify([...rejected.headers]), await rejected.text())
+  }
+  const cookie = await browserCookie()
+  const form = await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi?sheet=add-instance', headers: { cookie } })
+  const posted = await app.inject({ method: 'POST', url: '/v1/admin/tools/falcon-axi/instances', headers: { host: 'localhost', origin: 'http://localhost', cookie,
+    'content-type': 'application/x-www-form-urlencoded' }, payload: new URLSearchParams({ _csrf: /name="_csrf" value="([^"]+)"/.exec(form.body)![1]!, name: 'Bad Name', 'profile.clientSecret': secret }).toString() })
+  expect(posted.statusCode).toBeGreaterThanOrEqual(400)
+  responses.push(JSON.stringify(posted.headers), posted.body)
+  const created = await request('POST', '/falcon-axi/instances', { name: 'east', description: '', value, expectedToolRevision: revision })
+  expect(created.status).toBe(200)
+  responses.push(JSON.stringify([...created.headers]), await created.text(), await (await request('GET', '/falcon-axi/instances')).text(), await (await request('GET', '/falcon-axi/instances/east')).text())
+  for (const path of ['/admin/tools/falcon-axi', '/admin/tools/falcon-axi?sheet=add-instance', '/admin/tools/falcon-axi/instances/east']) {
+    responses.push((await app.inject({ method: 'GET', url: path, headers: { cookie } })).body)
+  }
+  for (const text of [...responses, JSON.stringify(db.prepare('SELECT * FROM audit').all()), written.join('')]) expect(text).not.toContain(secret)
+  expect(db.prepare("SELECT user_id, action, tool, instance, outcome FROM audit WHERE action = 'create-instance' AND outcome = 'success'").all())
+    .toEqual([{ user_id: actor, action: 'create-instance', tool: 'falcon-axi', instance: 'east', outcome: 'success' }])
+})
+
+test('adding an instance needs an administrator and recent authentication, and an ordinary person is refused the sheet', async () => {
+  const revision = await toolRevision('falcon-axi')
+  const body = { name: 'east', description: '', value: values['falcon-axi'], expectedToolRevision: revision }
+  await failure(await request('POST', '/falcon-axi/instances', body, await adminHeaders('synthetic-ordinary')), 'ADMIN_REQUIRED')
+  const { 'x-artium-reauth-ticket': _ticket, ...missing } = headers
+  await failure(await request('POST', '/falcon-axi/instances', body, missing), 'REAUTH_REQUIRED')
+  expect(store.findInstance('falcon-axi', 'east')).toBeUndefined()
+  const loginPage = await app.inject({ method: 'GET', url: '/login', headers: { host: 'localhost' } })
+  const login = await app.inject({ method: 'POST', url: '/login', headers: { host: 'localhost', origin: 'http://localhost', 'content-type': 'application/x-www-form-urlencoded',
+    cookie: loginPage.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') },
+  payload: new URLSearchParams({ _csrf: /name="_csrf" value="([^"]+)"/.exec(loginPage.body)![1]!, username: 'synthetic-ordinary', password: 'CANARY-local-password' }).toString() })
+  const page = await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi?sheet=add-instance', headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
+  expect(page.statusCode).toBeGreaterThanOrEqual(300)
+  expect(page.body).not.toContain('sheet-add-instance')
+})

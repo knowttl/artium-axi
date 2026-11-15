@@ -13,9 +13,9 @@ import type { ToolName } from '../store/credential-store.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import type { InstancesProps } from '../../views/tool-instances.js'
 import { credentialTlsSettings } from '../credential-tls-settings.js'
-import { credentialFields, editorProfile } from './credential-form.js'
+import { credentialEditor, credentialFields, editorProfile } from './credential-form.js'
 import { describe, describeWrites, setupBadge, setupStatus, toolIcon, toolProducts, toolSetupState, writes, type Tone } from './design/status.js'
-import { callout, card, field, icon, noteCard, sheet, steps } from './design/ui.js'
+import { callout, card, icon, noteCard, steps } from './design/ui.js'
 import { escape } from './escape.js'
 import { actionForm, adminRead, changed, revision, timestamp, type Confirmation } from './forms.js'
 
@@ -103,31 +103,16 @@ export function instancesPanel(options: { tool: Tool, csrf: string, rows: Instan
   const ssh = tool.name === 'ssh-axi'
   const form = (action: string, method: string, body: string, confirmation?: Confirmation, attributes?: string) =>
     actionForm(csrf, action, method, body, confirmation, attributes)
-  let addInstance: string | null = null
-  if (!ssh) {
-    const add = 'add-instance'
-    const awx = tool.name === 'awx-axi'
-    addInstance = sheet({ name: add, open: options.sheet === add, closeHref: page, title: 'Add instance', description: `Connect another ${product} endpoint under its own name.`,
-      body: `<input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}">${awx ? revision(0) : ''}` +
-        field('instance-name', 'Name', attributes => `<input class="input mono" ${attributes} name="${awx ? 'instance' : 'name'}" required maxlength="32" pattern="[a-z0-9][a-z0-9\\-]*" autocomplete="off" spellcheck="false">`,
-          'Lowercase letters, digits and hyphens. Agents type this name, and it never changes.') +
-        (awx ? field('instance-origin', 'Controller HTTPS origin', attributes => `<input class="input" ${attributes} name="origin" type="url" required>`,
-          'Save the address first, then open the instance to inspect its certificate, save credentials and edit its description.')
-          : field('instance-description', 'Description', attributes => `<textarea ${attributes} name="description" rows="3" maxlength="500"></textarea>`,
-            'Say what this instance is for, for example “Production cluster. Use for inventory only.”')) +
-        (rows.length ? callout('warn', 'Scripts may need to name an instance', 'Calls that omit --instance fail with INSTANCE_REQUIRED when more than one enabled, configured instance is granted to the caller.') : '') +
-        (awx ? '' : credentialFields(tool.name, profile, {}, false)) +
-        '<p class="note">New instances start read-only. Change this on the instance after it passes its test.</p>',
-      submit: `${awx ? '' : '<label class="check"><input type="checkbox" data-save-and-test checked> Test after saving</label>'}<button class="btn btn-primary">Add instance</button>`,
-      wrap: inner => form(awx ? `${api}/origin` : `${api}/instances`, awx ? 'PUT' : 'POST', inner, { consequence: `Add this ${product} instance? It starts read-only.`, title: 'Add instance', action: 'Add instance' }, awx ? '' : `data-save-tool="${tool.name}"`) })
-  }
+  const awx = tool.name === 'awx-axi'
+  const addInstance = ssh ? null : { tool: tool.name, product, api, toolRevision: tool.revision, open: options.sheet === 'add-instance', awx, hasInstances: rows.length > 0,
+    editor: awx ? null : credentialEditor(tool.name, profile, {}, false) }
   return { page, ssh, testGuide: ssh ? null : testGuide[tool.name],
     rows: rows.map(row => ({ name: row.name, description: row.description, endpoint: row.endpoint, href: row.href, status: row.status,
       writes: describeWrites(!tool.writeAccess.capable || row.readOnly, tool.writeAccess.capable, null),
       checkedAt: row.checkedAt === null ? null : new Date(row.checkedAt).toISOString(),
       instance: row.instance ? { path: `${api}/instances/${row.instance.name}`, id: row.instance.id, revision: row.instance.revision, enabled: row.instance.enabled, readOnly: row.instance.readOnly,
         description: row.instance.description, editOpen: options.sheet === `edit-${row.instance.name}` } : null })),
-    github: tool.name === 'gh-axi' ? { legacyHtml: githubCard(form, tool) } : null, addInstance: addInstance === null ? null : { legacyHtml: addInstance } }
+    github: tool.name === 'gh-axi' ? { legacyHtml: githubCard(form, tool) } : null, addInstance }
 }
 
 export function registerInstancePages(app: FastifyInstance, db: Database.Database, credentialProfiles: Partial<Record<ToolName, CredentialProfile>>): void {

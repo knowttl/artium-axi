@@ -4,6 +4,7 @@ import { expect, test } from 'vitest'
 import { Theme } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import { parseFragment, type DefaultTreeAdapterMap } from 'parse5'
+import type { CredentialControl, CredentialEditorProps } from '../src/views/credential-editor.js'
 import { Tool, type ToolProps } from '../src/views/tool.js'
 import type { AccessProps } from '../src/views/tool-access.js'
 import type { InstancesProps } from '../src/views/tool-instances.js'
@@ -83,7 +84,7 @@ const instanceRow = (name: string, enabled: boolean, editOpen = false): Instance
   instance: { path: `/v1/admin/tools/falcon-axi/instances/${name}`, id: `synthetic-${name}-id`, revision: 3, enabled, readOnly: true, description: `Synthetic ${name} tenant.`, editOpen } })
 
 const instances: InstancesProps = { page: '/admin/tools/falcon-axi', ssh: false, testGuide: 'Falcon auth status', rows: [instanceRow('lab', true), instanceRow('old', false, true)], github: null,
-  addInstance: { legacyHtml: '<p data-legacy="add-instance">Synthetic add instance</p>' } }
+  addInstance: { tool: 'falcon-axi', product: 'CrowdStrike Falcon', api: '/v1/admin/tools/falcon-axi', toolRevision: 7, open: false, awx: false, hasInstances: true, editor: null } }
 
 const renderInstances = (panel: Partial<InstancesProps> = {}) => render({ panel: { tab: 'instances', instances: { ...instances, ...panel } } })
 const instanceForms = (html: string, name: string) => forms(html).filter(form => attribute(form, 'action')?.endsWith(`/instances/${name}`) || attribute(form, 'action')?.endsWith(`/instances/${name}/test`))
@@ -123,8 +124,63 @@ test('the Add instance link opens its sheet and the table lists each instance wi
   const html = renderInstances()
   const [add] = find(html, element => element.tagName === 'a' && attribute(element, 'data-sheet') === 'sheet-add-instance')
   expect(attribute(add!, 'href')).toBe('/admin/tools/falcon-axi?sheet=add-instance')
-  expect(find(html, element => attribute(element, 'data-legacy') === 'add-instance').map(text)).toEqual(['Synthetic add instance'])
+  expect(find(html, element => element.tagName === 'dialog' && attribute(element, 'id') === 'sheet-add-instance').map(dialog => attribute(dialog, 'open'))).toEqual([undefined])
   expect(find(html, element => element.tagName === 'tr').slice(1).map(row => nodes(row).filter(element => element.tagName === 'code').map(text))).toEqual([['lab.example'], ['old.example']])
+})
+
+const control = (overrides: Partial<CredentialControl>): CredentialControl => ({ name: 'region', id: 'profile-falcon-axi-region', label: 'Region', help: 'Falcon API region.', secret: false,
+  ephemeral: false, required: true, stored: false, kind: 'input', dataType: 'string', value: 'us-2', ...overrides })
+const editor: CredentialEditorProps = { intro: 'Synthetic credential introduction.', schema: { type: 'object' }, identity: { auth: null }, configured: false, tls: { legacyHtml: '' },
+  controls: [control({}), control({ name: 'clientSecret', id: 'profile-falcon-axi-clientSecret', label: 'Client secret', secret: true, required: false, kind: 'textarea', value: '' }),
+    control({ name: 'auth', id: 'profile-falcon-axi-auth', label: 'Authentication', kind: 'select', dataType: 'json', value: '', emptyLabel: 'Choose a value',
+      options: [{ value: '"token"', label: 'token', selected: false }, { value: '"password"', label: 'password', selected: true }] })] }
+const addInstance = (add: Partial<NonNullable<InstancesProps['addInstance']>> = {}): InstancesProps['addInstance'] => ({ ...instances.addInstance!, editor, ...add })
+const addForm = (html: string) => forms(html).find(form => attribute(form, 'action')?.endsWith('/instances') && attribute(form, 'data-save-tool') !== undefined || attribute(form, 'action')?.endsWith('/origin'))!
+
+test('the Add instance sheet posts the new instance with the tool revision, a test option and the saved-tool marker', () => {
+  const html = renderInstances({ addInstance: addInstance({ open: true }) })
+  const [dialog] = find(html, element => element.tagName === 'dialog' && attribute(element, 'id') === 'sheet-add-instance')
+  expect([attribute(dialog!, 'aria-labelledby'), attribute(dialog!, 'open')]).toEqual(['sheet-add-instance-title', ''])
+  const form = addForm(html)
+  expect(summary(form)).toEqual(['/v1/admin/tools/falcon-axi/instances', 'POST', 'Add this CrowdStrike Falcon instance? It starts read-only.', undefined, undefined])
+  expect([attribute(form, 'data-confirm-title'), attribute(form, 'data-confirm-action'), attribute(form, 'data-save-tool')]).toEqual(['Add instance', 'Add instance', 'falcon-axi'])
+  expect(controls(form).filter(([name]) => !String(name).startsWith('profile.'))).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedToolRevision', 'hidden', '7'],
+    ['name', 'text', ''], ['description', 'textarea', undefined], [undefined, 'file', undefined], [undefined, 'textarea', undefined], [undefined, 'checkbox', undefined]])
+  const [name] = nodes(form).filter(element => attribute(element, 'name') === 'name')
+  expect([attribute(name!, 'required'), attribute(name!, 'maxlength'), attribute(name!, 'pattern'), attribute(name!, 'autocomplete')]).toEqual(['', '32', '[a-z0-9][a-z0-9\\-]*', 'off'])
+  expect(nodes(form).filter(element => attribute(element, 'data-save-and-test') !== undefined).map(input => attribute(input, 'checked'))).toEqual([''])
+  expect(nodes(form).filter(element => element.tagName === 'button').map(text)).toEqual(['Add instance'])
+})
+
+test('the Add instance sheet warns that scripts may need to name an instance only when instances exist', () => {
+  const warning = (add: Partial<NonNullable<InstancesProps['addInstance']>>) => renderInstances({ addInstance: addInstance(add) }).includes('Scripts may need to name an instance')
+  expect([warning({ hasInstances: true }), warning({ hasInstances: false })]).toEqual([true, false])
+})
+
+test('AWX adds an instance by origin through its own route and asks for no credential', () => {
+  const form = addForm(renderInstances({ addInstance: addInstance({ awx: true, editor: null }) }))
+  expect(summary(form)).toEqual(['/v1/admin/tools/falcon-axi/origin', 'PUT', 'Add this CrowdStrike Falcon instance? It starts read-only.', undefined, undefined])
+  expect(attribute(form, 'data-save-tool')).toBeUndefined()
+  expect(controls(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedToolRevision', 'hidden', '7'], ['expectedRevision', 'hidden', '0'], ['instance', 'text', ''], ['origin', 'url', '']])
+  expect(nodes(form).filter(element => attribute(element, 'data-credential-editor') !== undefined || attribute(element, 'data-save-and-test') !== undefined)).toEqual([])
+})
+
+test('the credential editor posts each profile field under profile.<name> and keeps a typed secret out of its markup', () => {
+  const form = addForm(renderInstances({ addInstance: addInstance() }))
+  const fields = nodes(form).filter(element => attribute(element, 'data-profile-field') !== undefined)
+  expect(fields.map(field => [field.tagName, attribute(field, 'name'), attribute(field, 'data-profile-type'), attribute(field, 'autocomplete'), attribute(field, 'type')])).toEqual([
+    ['input', 'profile.region', 'string', 'off', 'text'], ['textarea', 'profile.clientSecret', 'string', 'off', undefined], ['select', 'profile.auth', 'json', 'off', undefined]])
+  const [secret] = fields.filter(field => attribute(field, 'name') === 'profile.clientSecret')
+  expect([text(secret!), attribute(secret!, 'value'), attribute(secret!, 'spellcheck'), attribute(secret!, 'rows')]).toEqual(['', undefined, 'false', '6'])
+  expect(nodes(form).filter(element => attribute(element, 'data-secret') !== undefined).map(wrapper => attribute(wrapper, 'data-credential-field'))).toEqual(['clientSecret'])
+  expect(nodes(form).filter(element => element.tagName === 'option').map(option => [attribute(option, 'value'), attribute(option, 'selected')])).toEqual([['', undefined], ['"token"', undefined], ['"password"', '']])
+})
+
+test('the credential editor follows the secret flag of each control, not its name', () => {
+  const swapped: CredentialEditorProps = { ...editor, controls: [control({ name: 'clientSecret', id: 'profile-falcon-axi-clientSecret', secret: false, value: 'plain-value' }),
+    control({ name: 'region', secret: true, required: false, kind: 'textarea', value: '' })] }
+  const fields = nodes(addForm(renderInstances({ addInstance: addInstance({ editor: swapped }) }))).filter(element => attribute(element, 'data-profile-field') !== undefined)
+  expect(fields.map(field => [attribute(field, 'data-profile-field'), field.tagName, attribute(field, 'value') ?? text(field)])).toEqual([['clientSecret', 'input', 'plain-value'], ['region', 'textarea', '']])
 })
 
 test('SSH hosts link to their own page and offer no instance forms', () => {
