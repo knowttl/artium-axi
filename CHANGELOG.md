@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.0.48](https://github.com/knowttl/artium-axi/compare/v0.0.47...v0.0.48) (2026-11-15)
+
+
+### Features
+
+* rebuild People list with Astryx components ([#463](https://github.com/knowttl/artium-axi/issues/463)) ([9d958ba](https://github.com/knowttl/artium-axi/commit/9d958ba4b7d6f7fa62a86f092f786f99700de14a))
+* rebuild person actions and sessions with Astryx ([#471](https://github.com/knowttl/artium-axi/issues/471)) ([3f354b6](https://github.com/knowttl/artium-axi/commit/3f354b68d9a73777a59374f675236dbc69a23a8f))
+* rebuild sign-in, password, re-auth, device approval and error pages with Astryx (R7) ([#456](https://github.com/knowttl/artium-axi/issues/456)) ([75091aa](https://github.com/knowttl/artium-axi/commit/75091aa86053e1a9290437f9dbfc44ac4ee0348e))
+* rebuild the People add-user sheet with Astryx ([#466](https://github.com/knowttl/artium-axi/issues/466)) ([15f806f](https://github.com/knowttl/artium-axi/commit/15f806f8874055633110d2ede03efc07d633e5e5))
+* rebuild the person detail page with Astryx (R9) ([#469](https://github.com/knowttl/artium-axi/issues/469)) ([6f17468](https://github.com/knowttl/artium-axi/commit/6f17468b8447b1b1e041cb8d03536527c4ed4cfa))
+* rebuild the Roles list with Astryx (R10) ([#473](https://github.com/knowttl/artium-axi/issues/473)) ([43537d5](https://github.com/knowttl/artium-axi/commit/43537d5c0b5583430d52259f0de53d56b6db0462))
+* **ssh:** accept password credentials ([#458](https://github.com/knowttl/artium-axi/issues/458)) ([1db1fae](https://github.com/knowttl/artium-axi/commit/1db1faea3cc140697cad286bf273a0def5161bda))
+* **ssh:** add password option to admin credential form ([#464](https://github.com/knowttl/artium-axi/issues/464)) ([6acfc68](https://github.com/knowttl/artium-axi/commit/6acfc68c881188ac5e7331636d2c7a7ee9b08ab9))
+* **ssh:** sudo with the binding password ([#467](https://github.com/knowttl/artium-axi/issues/467)) ([3a815c5](https://github.com/knowttl/artium-axi/commit/3a815c5d402ae1a9f4adc248dd77dea77eeef39a))
+
 ## [0.0.47](https://github.com/knowttl/artium-axi/compare/v0.0.46...v0.0.47) (2026-11-14)
 
 
