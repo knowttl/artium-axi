@@ -7,25 +7,17 @@ import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { adminScript, adminStyle } from './assets.js'
 import { registerAdminClientAssets } from './client-assets.js'
-import { escape } from './escape.js'
 import { adminRead, lastChange } from './forms.js'
 import { sessionsProps } from './session-card.js'
 import { describe, statusWord, toolProducts } from './design/status.js'
-import { checkOption, initials } from './design/ui.js'
+import { initials } from './design/ui.js'
 import { renderPage } from './render-page.js'
 import type { PersonProps } from '../../views/person.js'
 import type { Status } from '../../views/status.js'
 
 type Role = { id: string, name: string, tools: z.infer<typeof toolSchema>[] }
 
-const roleTools = (role: Role) => role.tools.map(tool => toolProducts[tool].name).join(', ') || 'No tools yet'
-
-// Role checkboxes for the roleIds array; the disabled hidden input makes an empty selection send [].
-export function roleOptions(roles: Role[], selected: string[], legend: string, empty: string, detail: (role: Role) => string = () => ''): string {
-  return `<fieldset class="options"><legend>${escape(legend)}</legend><input type="hidden" name="roleIds" disabled>${roles.length ? roles.map(role =>
-    checkOption(`<input type="checkbox" name="roleIds" value="${escape(role.id)}"${selected.includes(role.id) ? ' checked' : ''}>`, role.name,
-      roleTools(role) + detail(role))).join('') : `<p class="hint">${escape(empty)}</p>`}</fieldset>`
-}
+export const roleTools = (role: Role) => role.tools.map(tool => toolProducts[tool].name).join(', ') || 'No tools yet'
 
 // A role chip naming where the person's grant comes from: Direct, SSO rule, or both.
 function roleLabel(user: { roleGrants: { roleId: string, origin: string }[] }, id: string, name: string, alwaysOrigin: boolean): string {

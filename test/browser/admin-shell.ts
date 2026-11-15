@@ -700,7 +700,7 @@ test('invitations show each new link once and allow resend and revoke through th
     await page.open(base + '/admin');
     await page.click('a[href="/admin/invitations"]');
     await page.wait('form[data-invitation-link]');
-    check(await page.eval(() => document.querySelector('main .callout').innerText.includes('can’t be claimed yet')), 'Missing disabled-provider banner');
+    check(await page.eval(() => document.querySelector('[role=main] .astryx-banner-frame').innerText.includes('can’t be claimed yet')), 'Missing disabled-provider banner');
     await page.click('a[data-sheet="sheet-new-invitation"]');
     await page.wait('#sheet-new-invitation[open]');
     await page.fill('[name=displayName]', 'Synthetic invited user');

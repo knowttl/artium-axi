@@ -582,7 +582,7 @@ test('Roles page escapes names and change actors and preserves bounded paginatio
   expect((await request('GET', '/admin/roles/synthetic-role')).body).not.toMatch(/<dialog[^>]*id="sheet-rename-role"[^>]*open=""/)
 })
 
-test.each(['/admin/tools', '/admin/credentials', '/admin/roles', '/admin/roles/synthetic-role', '/admin/users/' + userId, '/admin/audit'])('page %s requires the current administrator capability', async path => {
+test.each(['/admin/tools', '/admin/credentials', '/admin/roles', '/admin/roles/synthetic-role', '/admin/users/' + userId, '/admin/invitations', '/admin/audit'])('page %s requires the current administrator capability', async path => {
   expect((await request('GET', path)).headers.location).toBe('/login')
   await signIn()
   db.prepare('UPDATE users SET administrator = 0 WHERE id = ?').run(userId)
@@ -922,17 +922,59 @@ test('the person page renders its reset-password sheet open from the sheet query
   expect(attribute(sheet((await request('GET', `/admin/users/${userId}`)).body), 'open')).toBeUndefined()
 })
 
+const sendJson = (url: string, payload: Record<string, unknown>) => app.inject({ method: 'POST', url, payload,
+  headers: { host: 'localhost', origin: 'http://localhost', cookie: Object.entries(cookies).map(([key, value]) => `${key}=${value}`).join('; ') } })
+
+const claimToken = (claimPath: string) => new URL(claimPath, 'https://artium.example').searchParams.get('invitation')!
+
+test('a created or resent invitation link appears only in the action response, never on the invitations page', async () => {
+  db.exec("INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'oidc', 'https://identity.example')")
+  await signIn()
+  const _csrf = await token('/admin/invitations')
+  const created = await sendJson('/v1/admin/sso/invitations', { _csrf, providerId: 'synthetic-provider', expectedUsername: 'synthetic@identity.example',
+    displayName: 'Synthetic Invitee', roleIds: [], expiresInDays: 7 })
+  expect(created.statusCode).toBe(201)
+  const { invitation } = created.json()
+  const resent = await sendJson(`/v1/admin/sso/invitations/${invitation.id}/resend`, { _csrf, expectedRevision: invitation.revision, expiresInDays: 7 })
+  expect(resent.statusCode).toBe(200)
+  const claims = [claimToken(created.json().claimPath), claimToken(resent.json().claimPath)]
+  expect(claims[0]).not.toBe(claims[1])
+  for (const url of ['/admin/invitations', `/admin/invitations?sheet=resend-${invitation.id}`, '/admin/invitations?sheet=new-invitation']) {
+    const { body } = await request('GET', url)
+    for (const secret of [...claims, ...claims.map(hashToken)]) expect(body).not.toContain(secret)
+  }
+})
+
+test.each(['', '/synthetic-invitation/resend', '/synthetic-invitation/revoke'])('invitation action %j needs the CSRF token and the current administrator capability', async action => {
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'oidc', 'https://identity.example');
+    INSERT INTO invitations (id, token_hash, provider_id, expected_username, display_name, created_at, created_by, expires_at)
+      VALUES ('synthetic-invitation', 'synthetic-hash', 'synthetic-provider', 'synthetic@identity.example', 'Synthetic Invitee', ${now}, '${userId}', ${now + 86_400_000})`)
+  await signIn()
+  const _csrf = await token('/admin/invitations')
+  const url = '/v1/admin/sso/invitations' + action
+  const payload = action ? { expectedRevision: 1, expiresInDays: 7 } : { providerId: 'synthetic-provider', expectedUsername: 'other@identity.example', displayName: 'Other', roleIds: [], expiresInDays: 7 }
+  expect((await sendJson(url, payload)).statusCode).toBe(403)
+  db.prepare('UPDATE users SET administrator = 0 WHERE id = ?').run(userId)
+  expect((await sendJson(url, { ...payload, _csrf })).statusCode).toBe(403)
+  expect(db.prepare('SELECT id, token_hash, revision, revoked_at FROM invitations').all()).toEqual([{ id: 'synthetic-invitation', token_hash: 'synthetic-hash', revision: 1, revoked_at: null }])
+  expect(db.prepare("SELECT COUNT(*) AS count FROM audit WHERE event LIKE 'invite-%'").get()).toEqual({ count: 0 })
+})
+
 test('invitation navigation opens the creation sheet without JavaScript', async () => {
   db.exec(`INSERT INTO sso_providers (id, name, kind, issuer) VALUES
     ('synthetic-entra', 'Synthetic Entra', 'entra', 'https://entra.example'),
     ('synthetic-oidc', 'Synthetic OIDC', 'oidc', 'https://oidc.example')`)
   await signIn()
-  const page = await request('GET', '/admin/invitations')
-  expect(page.body).toContain('href="/admin/invitations?limit=50&amp;sheet=new-invitation"')
-  const open = await request('GET', '/admin/invitations?sheet=new-invitation')
-  expect(open.body).toContain('id="sheet-new-invitation" aria-labelledby="sheet-new-invitation-title" open>')
-  expect(open.body).toContain('Synthetic Entra (not enabled yet)')
-  expect(open.body).toContain('Synthetic OIDC (not enabled yet)')
+  const attribute = (element: DefaultTreeAdapterMap['element'], name: string) => element.attrs.find(item => item.name === name)?.value
+  const elements = async (query = '') => nodesOf(parse((await request('GET', '/admin/invitations' + query)).body))
+  const sheet = (page: DefaultTreeAdapterMap['element'][]) => page.find(element => element.tagName === 'dialog' && attribute(element, 'id') === 'sheet-new-invitation')!
+  const closed = await elements()
+  expect(closed.filter(element => attribute(element, 'data-sheet') === 'sheet-new-invitation').map(link => attribute(link, 'href'))).toEqual(['/admin/invitations?limit=50&sheet=new-invitation'])
+  expect([attribute(sheet(closed), 'open'), attribute(sheet(closed), 'aria-labelledby')]).toEqual([undefined, 'sheet-new-invitation-title'])
+  const open = await elements('?sheet=new-invitation')
+  expect(attribute(sheet(open), 'open')).toBe('')
+  expect(nodesOf(sheet(open)).filter(element => element.tagName === 'option').map(option => option.childNodes.map(child => 'value' in child ? child.value : '').join('')))
+    .toEqual(['Synthetic Entra (not enabled yet)', 'Synthetic OIDC (not enabled yet)'])
 })
 
 test.each([
@@ -950,11 +992,15 @@ test.each([
   await signIn()
   const response = await request('GET', '/admin/invitations')
   expect(response.statusCode).toBe(200)
-  const row = /<tr data-invitation="synthetic-invitation">.*?<\/tr>/s.exec(response.body)![0]
-  expect(row).toContain(`>${status}</span>`)
-  expect(row).toContain(`<time datetime="${new Date(expiry).toISOString()}"`)
-  expect(row.includes('Resend')).toBe(actionable)
-  expect(row.includes('Revoke</button>')).toBe(actionable)
+  const attribute = (element: DefaultTreeAdapterMap['element'], name: string) => element.attrs.find(item => item.name === name)?.value
+  const text = (element: DefaultTreeAdapterMap['element']): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? text(child) : '').join('')
+  const row = nodesOf(parse(response.body)).find(element => element.tagName === 'tr' && attribute(element, 'data-invitation') === 'synthetic-invitation')!
+  const inRow = nodesOf(row)
+  expect(inRow.some(element => attribute(element, 'class')?.includes('badge') && text(element) === status)).toBe(true)
+  expect(inRow.filter(element => element.tagName === 'time').map(element => attribute(element, 'datetime'))).toEqual([new Date(expiry).toISOString()])
+  expect(inRow.filter(element => element.tagName === 'a' && attribute(element, 'data-sheet') === 'sheet-resend-synthetic-invitation')).toHaveLength(actionable ? 1 : 0)
+  expect(inRow.filter(element => element.tagName === 'form' && attribute(element, 'action')?.endsWith('/revoke'))).toHaveLength(actionable ? 1 : 0)
+  expect(nodesOf(parse(response.body)).filter(element => element.tagName === 'dialog' && attribute(element, 'id') === 'sheet-resend-synthetic-invitation')).toHaveLength(actionable ? 1 : 0)
 })
 
 test.each([
