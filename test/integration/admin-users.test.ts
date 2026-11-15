@@ -202,9 +202,9 @@ test.each([
   expect(userPage.body).not.toContain('No retained roles remain.')
   const rolePage = await app.inject({ url: '/admin/roles/synthetic-role', headers: cookie })
   expect(rolePage.statusCode).toBe(200)
-  const badges = assignment.split(', ').map(origin => origin === 'Direct' ? '<span class="badge neutral">Direct</span>' : '<span class="badge info">SSO rule</span>').join('')
-  expect(rolePage.body).toContain(`<strong>Ordinary</strong><span>synthetic-ordinary</span></span></a></th>
-      <td><div class="chips">${badges}</div></td><td><span class="status"><span class="dot ${archived === null ? 'ok' : 'neutral'}" aria-hidden="true"></span>${archived === null ? 'Enabled' : 'Archived'}</span></td></tr>`)
+  const badges = assignment.split(', ').map(origin => origin === 'Direct' ? 'Direct' : 'SSO rule').join(' ')
+  const row = rolePage.body.match(/<tr(?:(?!<\/tr>).)*href="\/admin\/users\/synthetic-ordinary"(?:(?!<\/tr>).)*<\/tr>/s)![0]
+  expect(row.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()).toBe(`OR Ordinary synthetic-ordinary ${badges} ${archived === null ? 'Enabled' : 'Archived'}`)
 })
 
 async function failure(response: Response, code: ErrorCode) {

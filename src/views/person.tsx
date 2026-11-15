@@ -17,7 +17,7 @@ import { RoleOptions, type RoleOption } from './role-options.js'
 import { Sessions, SignOutEverywhere, type SessionsProps } from './sessions.js'
 import { Sheet } from './sheet.js'
 import { badgeVariants, type Status } from './status.js'
-import { Time } from './time.js'
+import { LastChange, Time } from './time.js'
 
 interface Link { href: string, label: string }
 
@@ -234,7 +234,6 @@ function MoreActions({ active, username }: { active: Active, username: string })
 
 export function Person({ identity, changed, ruleGrants, archived, active }: PersonProps) {
   const { username } = identity
-  const meta = <Text className="card-meta" as="p" type="supporting">{`Last changed by ${changed.actor} at `}<Time iso={changed.at} />{`. Revision ${changed.revision}.`}</Text>
   return (
     <VStack gap={4}>
       <HStack className="person-identity" gap={3} justify="between" vAlign="center" wrap="wrap">
@@ -274,7 +273,7 @@ export function Person({ identity, changed, ruleGrants, archived, active }: Pers
         )}
         <VStack gap={4}>
           {active && <><Profile active={active} username={username} /><SignIn active={active} username={username} /></>}
-          {meta}
+          <LastChange {...changed} />
         </VStack>
       </div>
       {active?.reset && <ResetPassword active={active} username={username} reset={active.reset} />}
