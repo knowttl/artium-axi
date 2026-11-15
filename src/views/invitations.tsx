@@ -35,7 +35,7 @@ export interface InvitationsProps {
 function Lifetime() {
   const [days, setDays] = useState(defaultLifetimeDays)
   return <TextInput label="Expires in" htmlName="expiresInDays" value={days} onChange={setDays} inputMode="numeric" description="Choose 1 to 30 days." width={160}
-    {...{ required: true, min: 1, max: 30, 'data-type': 'number' }} />
+    {...{ required: true, pattern: '0*([1-9]|[12][0-9]|30)', 'data-type': 'number' }} />
 }
 
 function NewInvitationSheet({ csrf, path, create }: { csrf: string, path: string, create: NonNullable<InvitationsProps['create']> }) {
