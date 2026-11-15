@@ -678,7 +678,7 @@ test('user detail designates a break-glass administrator and removing it signs t
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form:has([name=breakGlass][value=false])');
-    check(await page.eval(() => document.querySelector('.account-menu summary').innerText.includes('Break-glass')), 'Designation was not shown');
+    check(await page.eval(() => document.querySelector('.frame-side .account-menu summary').innerText.includes('Break-glass')), 'Designation was not shown');
     await page.click('.more-menu summary');
     await page.click('form:has([name=breakGlass]) button');
     await page.wait('#confirmation[open]');
@@ -2088,7 +2088,7 @@ test('a local user can be created from the table and its profile edited from det
     const href = await page.eval(() => [...document.querySelectorAll('tbody tr')].find(row => row.innerText.includes('synthetic-new')).querySelector('a.row-link').getAttribute('href'));
     await page.click('a[href="' + href + '"]');
     await page.wait('form[action="' + href.replace('/admin/', '/v1/admin/') + '"] [name=displayName]');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Password change required')), 'New user did not require password change');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Password change required')), 'New user did not require password change');
     await page.fill('[name=displayName]', 'Updated analyst');
     await page.click('[name=administrator]');
     await page.click('form:has([name=displayName]) button');
@@ -2158,12 +2158,12 @@ test('disabled person status takes precedence over a retained lockout', async ()
   }
   browser(`
     await page.open(base + '/admin/users/synthetic-ordinary');
-    check(await page.eval(() => document.querySelector('.page-head').innerText.includes('Locked')), 'Initial lockout is missing');
+    check(await page.eval(() => document.querySelector('.person-identity').innerText.includes('Locked')), 'Initial lockout is missing');
     await page.click('form:has([name=enabled]) button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=enabled][value=true]');
-    check(await page.eval(() => document.querySelector('.page-head').innerText.includes('Disabled')), 'Lockout hides disabled status');
+    check(await page.eval(() => document.querySelector('.person-identity').innerText.includes('Disabled')), 'Lockout hides disabled status');
     check(await page.eval(() => [...document.querySelectorAll('.kv dt')].find(term => term.textContent === 'Locked').nextElementSibling.textContent.startsWith('Until ')), 'Lockout details were lost');
     await page.open(base + '/admin/users');
     check(await page.eval(() => document.querySelector('a[href="/admin/users/synthetic-ordinary"]').closest('tr').innerText.includes('Disabled')), 'List status disagrees with detail');
@@ -2172,7 +2172,7 @@ test('disabled person status takes precedence over a retained lockout', async ()
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=enabled][value=false]');
-    check(await page.eval(() => document.querySelector('.page-head').innerText.includes('Locked')), 'Re-enabling hides the retained lockout');
+    check(await page.eval(() => document.querySelector('.person-identity').innerText.includes('Locked')), 'Re-enabling hides the retained lockout');
   `)
 })
 
@@ -2203,7 +2203,7 @@ test('user detail unlock clears a lockout caused by failed sign-ins', async () =
   browser(`
     await page.open(base + '/admin/users/synthetic-ordinary');
     const failures = () => [...document.querySelectorAll('.kv dt')].find(term => term.textContent === 'Failed sign-ins').nextElementSibling.textContent;
-    check(await page.eval(failures) === '5' && await page.eval(() => document.querySelector('.page-head').innerText.includes('Locked')), 'Lockout was not shown');
+    check(await page.eval(failures) === '5' && await page.eval(() => document.querySelector('.person-identity').innerText.includes('Locked')), 'Lockout was not shown');
     await page.click('form[action$="/unlock"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
@@ -2221,19 +2221,19 @@ test('SSO user direct-role edits preserve rule access and offer no password rese
     await page.wait('form[action$="/roles"]');
     check(await page.eval(() => !document.querySelector('form[action$="/password-reset"]')), 'SSO account offers a local password');
     check(await page.eval(() => !document.querySelector('[name=roleIds][type=checkbox]').checked), 'Rule grant was treated as a direct grant');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic Role · SSO rule')), 'Rule access was not shown');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Synthetic Role · SSO rule')), 'Rule access was not shown');
     await page.click('form[action$="/roles"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=expectedRevision][value="2"]');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('falcon-axi') && document.querySelector('main').innerText.includes('Synthetic Role · SSO rule')), 'Saving empty direct roles removed rule access');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('falcon-axi') && document.querySelector('[role=main]').innerText.includes('Synthetic Role · SSO rule')), 'Saving empty direct roles removed rule access');
     await page.click('[name=roleIds][type=checkbox]');
     await page.click('form[action$="/roles"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=expectedRevision][value="3"]');
     check(await page.eval(() => document.querySelector('[name=roleIds][type=checkbox]').checked), 'Direct role was not saved alongside rule grant');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic Role · Direct, SSO rule')), 'Effective tools lost an overlapping grant origin');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Synthetic Role · Direct, SSO rule')), 'Effective tools lost an overlapping grant origin');
     await page.open(base + '/admin/roles/synthetic-role');
     check(await page.eval(() => document.querySelector('a[href="/admin/users/synthetic-sso"]').closest('tr').innerText.match(/Direct|SSO rule/g).join() === 'Direct,SSO rule'), 'Role membership lost an overlapping grant origin');
     await page.open(base + '/admin/users/synthetic-sso');
@@ -2242,16 +2242,16 @@ test('SSO user direct-role edits preserve rule access and offer no password rese
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=expectedRevision][value="4"]');
-    check(await page.eval(() => !document.querySelector('[name=roleIds][type=checkbox]').checked && document.querySelector('main').innerText.includes('Synthetic Role · SSO rule')), 'Removing direct role did not retain rule grant');
+    check(await page.eval(() => !document.querySelector('[name=roleIds][type=checkbox]').checked && document.querySelector('[role=main]').innerText.includes('Synthetic Role · SSO rule')), 'Removing direct role did not retain rule grant');
     await page.click('form[action$="/archive"] button');
     await page.wait('#confirmation[open]');
     await page.fill('#confirmation [data-confirm-name-input]', 'synthetic-sso');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action="/v1/admin/users"]');
     await page.open(base + '/admin/users/synthetic-sso');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic Role · SSO rule')
-      && document.querySelector('main').innerText.includes('From Entra ID rule')
-      && !document.querySelector('main form, main input')), 'Archived user lost read-only rule provenance');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Synthetic Role · SSO rule')
+      && document.querySelector('[role=main]').innerText.includes('From Entra ID rule')
+      && !document.querySelector('[role=main] form, [role=main] input')), 'Archived user lost read-only rule provenance');
   `)
 })
 
@@ -2268,7 +2268,7 @@ test('user detail resets a password and the person must change it at sign-in', (
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=expectedRevision][value="2"]');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Password change required')), 'Reset did not require password change');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Password change required')), 'Reset did not require password change');
     await page.open(base + '/admin');
     const menu = await openAccountMenu();
     await page.click(menu + ' form[action="/logout"] button');
@@ -2344,7 +2344,7 @@ test('role tool grants and membership explain effective tools and an empty role 
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('td a[href="' + roleHref + '"]');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Direct')), 'Missing grant origin');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Direct')), 'Missing grant origin');
     await page.click('td a[href="' + roleHref + '"]');
     await page.wait('tbody a[href="/admin/users/synthetic-ordinary"]');
     check(await page.eval(() => !document.querySelector('form[data-method=DELETE]')), 'Nonempty role offered deletion');
@@ -2425,9 +2425,9 @@ test('archiving from detail hides the user and shows retained history when reope
     await page.wait('form[action="/v1/admin/users"]');
     check(await page.eval(() => !document.querySelector('tbody a[href="/admin/users/synthetic-ordinary"]')), 'Archived user remains in table');
     await page.open(base + '/admin/users/synthetic-ordinary');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('history is retained')), 'Archived state is missing');
-    check(await page.eval(() => !document.querySelector('main form, main input')), 'Archived detail offers editing controls');
-    check(await page.eval(() => document.querySelector('main a.chip').textContent === 'Synthetic Role · Direct'
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('history is retained')), 'Archived state is missing');
+    check(await page.eval(() => !document.querySelector('[role=main] form, [role=main] input')), 'Archived detail offers editing controls');
+    check(await page.eval(() => document.querySelector('[role=main] a[href^="/admin/roles/"]').textContent === 'Synthetic Role · Direct'
       && document.querySelector('.card-meta').innerText.includes('Revision 2.')), 'Archived detail lost roles or change history');
     check(await page.eval(async () => {
       const response = await fetch('/v1/admin/users/synthetic-ordinary');

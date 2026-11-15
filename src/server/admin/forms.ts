@@ -65,7 +65,12 @@ export function timestamp(value: number | null, empty = 'Not recorded'): string 
   return `<time datetime="${iso}" title="${iso}">${iso}</time>`
 }
 
-export function changed(db: Database.Database, item: { updatedBy: string | null, updatedAt: number | null, revision: number }): string {
+export function lastChange(db: Database.Database, item: { updatedBy: string | null, updatedAt: number | null, revision: number }) {
   const actor = item.updatedBy ? (db.prepare('SELECT username FROM users WHERE id = ?').get(item.updatedBy) as { username: string } | undefined)?.username ?? item.updatedBy : 'System'
-  return `<p><small>Last changed by ${escape(actor)} at ${timestamp(item.updatedAt)}. Revision ${escape(item.revision)}.</small></p>`
+  return { actor, at: item.updatedAt === null ? null : new Date(item.updatedAt).toISOString(), revision: item.revision }
+}
+
+export function changed(db: Database.Database, item: { updatedBy: string | null, updatedAt: number | null, revision: number }): string {
+  const { actor, revision } = lastChange(db, item)
+  return `<p><small>Last changed by ${escape(actor)} at ${timestamp(item.updatedAt)}. Revision ${escape(revision)}.</small></p>`
 }

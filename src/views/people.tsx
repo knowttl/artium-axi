@@ -11,6 +11,7 @@ import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
 import { Icon } from './icon.js'
+import { RoleOptions, type RoleOption } from './role-options.js'
 import { Sheet } from './sheet.js'
 import { badgeVariants, type Status } from './status.js'
 
@@ -21,7 +22,7 @@ export interface PeopleProps {
   people: { href: string, name: string, initials: string, username: string, you: boolean, signIn: Status, administrator: boolean, roles: { href: string, label: string }[], status: Status, enabled: boolean }[]
   empty: string
   pager: { summary: string, first: string | null, next: string | null }
-  addUser: { open: boolean, closeHref: string, csrf: string, roles: { id: string, name: string, detail: string }[] }
+  addUser: { open: boolean, closeHref: string, csrf: string, roles: RoleOption[] }
 }
 
 function AddUserSheet({ open, closeHref, csrf, roles }: PeopleProps['addUser']) {
@@ -35,16 +36,7 @@ function AddUserSheet({ open, closeHref, csrf, roles }: PeopleProps['addUser']) 
         autoComplete="off" hasSpellCheck={false} controlClassName="mono" {...{ required: true }} />
       <TextInput label="Temporary password" htmlName="temporaryPassword" type="password" value={fields.temporaryPassword}
         onChange={temporaryPassword => setFields({ ...fields, temporaryPassword })} description={temporaryPasswordHint} autoComplete="new-password" {...{ required: true }} />
-      <fieldset className="options">
-        <legend>Roles</legend>
-        <input type="hidden" name="roleIds" disabled />
-        {roles.length ? roles.map(role => (
-          <label key={role.id} className="check">
-            <input type="checkbox" name="roleIds" value={role.id} />
-            <span><strong>{role.name}</strong><span>{role.detail}</span></span>
-          </label>
-        )) : <p className="hint">No roles yet. Create a role on Roles to grant tool access.</p>}
-      </fieldset>
+      <RoleOptions legend="Roles" roles={roles} selected={[]} />
       <label className="check">
         <input type="checkbox" name="administrator" data-type="boolean" />
         <span><strong>Administrator</strong><span>Can manage people, roles, tools and sign-in. Tool access still comes from roles.</span></span>

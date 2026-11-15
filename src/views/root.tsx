@@ -4,11 +4,12 @@ import { Auth, type AuthProps } from './auth.js'
 import { Frame, type FrameProps } from './frame.js'
 import { Overview, type OverviewProps } from './overview.js'
 import { People, type PeopleProps } from './people.js'
+import { Person, type PersonProps } from './person.js'
 
-export interface ViewProps { overview: OverviewProps, auth: AuthProps, people: PeopleProps }
+export interface ViewProps { overview: OverviewProps, auth: AuthProps, people: PeopleProps, person: PersonProps }
 export type ViewName = keyof ViewProps
 
-const views = { overview: Overview, auth: Auth, people: People }
+const views = { overview: Overview, auth: Auth, people: People, person: Person }
 
 export function Root<Name extends ViewName>({ name, props, frame, mode }: { name: Name, props: ViewProps[Name], frame?: FrameProps, mode: ThemeMode }) {
   const View = views[name] as (props: ViewProps[Name]) => React.JSX.Element

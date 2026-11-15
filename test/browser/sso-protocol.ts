@@ -702,8 +702,8 @@ test('local account linking keeps the account and role sync removes only rule ac
     await page.open(base + '/admin/users');
     await page.wait('a[href="/admin/users/synthetic-development-user"]');
     await page.click('a[href="/admin/users/synthetic-development-user"]');
-    await page.wait('section h2');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('From Entra ID rule synthetic-reader-rule') && document.querySelector('main').innerText.includes('Direct, SSO rule') && document.querySelector('.kv dd').textContent === 'SSO'), 'Linked account or grant labels missing');
+    await page.wait('[role=main] h2');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('From Entra ID rule synthetic-reader-rule') && document.querySelector('[role=main]').innerText.includes('Direct, SSO rule') && document.querySelector('.kv dd').textContent === 'SSO'), 'Linked account or grant labels missing');
   `)
   let evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.invitations[0].user_id, 'synthetic-development-user')
@@ -719,7 +719,7 @@ test('local account linking keeps the account and role sync removes only rule ac
     await page.wait('a[href="/admin/users/synthetic-development-user"]');
     await page.click('a[href="/admin/users/synthetic-development-user"]');
     await page.wait('section h2');
-    check(await page.eval(() => !document.querySelector('main').innerText.includes('From Entra ID rule') && document.querySelector('main').innerText.includes('Synthetic Role · Direct') && ![...document.querySelectorAll('.chip')].some(chip => chip.textContent.includes('SSO rule'))), 'Rule labels or direct grant did not synchronize');
+    check(await page.eval(() => !document.querySelector('[role=main]').innerText.includes('From Entra ID rule') && document.querySelector('[role=main]').innerText.includes('Synthetic Role · Direct') && ![...document.querySelectorAll('[role=main] a[href^="/admin/roles/"]')].some(chip => chip.textContent.includes('SSO rule'))), 'Rule labels or direct grant did not synchronize');
   `)
   evidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.deepEqual(evidence.grants.filter(grant => grant.user_id === 'synthetic-development-user'), [

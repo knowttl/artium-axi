@@ -6,11 +6,12 @@ import { HStack } from '@astryxdesign/core/HStack'
 import { List, ListItem } from '@astryxdesign/core/List'
 import { Step, Stepper } from '@astryxdesign/core/Stepper'
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from '@astryxdesign/core/Table'
-import { Heading, Text } from '@astryxdesign/core/Text'
+import { Text } from '@astryxdesign/core/Text'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
-import type { ReactNode } from 'react'
+import { Panel } from './panel.js'
 import { badgeVariants, type Status, type Tone } from './status.js'
+import { Time } from './time.js'
 
 export interface OverviewProps {
   stats: { label: string, value: string, note: string, tone?: Tone }[]
@@ -22,29 +23,8 @@ export interface OverviewProps {
   changes: { mark: string, title: string, actor: string, at: string }[]
 }
 
-function Panel({ title, description, link, children }: { title: string, description?: string, link?: { href: string, label: string }, children: ReactNode }) {
-  return (
-    <Card>
-      <VStack gap={3}>
-        <HStack gap={3} justify="between" vAlign="center">
-          <VStack gap={0.5}>
-            <Heading level={2} accessibilityLevel={2}>{title}</Heading>
-            {description && <Text type="supporting">{description}</Text>}
-          </VStack>
-          {link && <Button href={link.href} label={link.label} variant="ghost" size="sm" />}
-        </HStack>
-        {children}
-      </VStack>
-    </Card>
-  )
-}
-
 function Mark({ text }: { text: string }) {
   return <span aria-hidden="true"><Badge label={text} variant="neutral" /></span>
-}
-
-function Time({ iso }: { iso: string | null }) {
-  return iso === null ? <>Not checked</> : <time dateTime={iso} title={iso} suppressHydrationWarning>{iso}</time>
 }
 
 export function Overview({ stats, attention, attentionEmpty, tools, setupSummary, steps, changes }: OverviewProps) {
@@ -91,7 +71,7 @@ export function Overview({ stats, attention, attentionEmpty, tools, setupSummary
                   <TableCell><Badge label={tool.state.word} variant={badgeVariants[tool.state.tone]} /></TableCell>
                   <TableCell>{tool.writes.tone === 'warn' ? <Badge label={tool.writes.word} variant="warning" /> : tool.writes.word}</TableCell>
                   <TableCell>{tool.roles}</TableCell>
-                  <TableCell><Time iso={tool.checkedAt} /></TableCell>
+                  <TableCell><Time iso={tool.checkedAt} empty="Not checked" /></TableCell>
                 </TableRow>
               ))}
             </TableBody>

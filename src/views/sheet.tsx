@@ -2,6 +2,7 @@ import { Button } from '@astryxdesign/core/Button'
 import { IconButton } from '@astryxdesign/core/IconButton'
 import { Heading, Text } from '@astryxdesign/core/Text'
 import type { ReactNode } from 'react'
+import { ActionForm } from './action-form.js'
 import { Icon } from './icon.js'
 
 export interface SheetProps {
@@ -30,8 +31,7 @@ export function Sheet({ name, open, closeHref, title, description, submit, actio
           </div>
           <IconButton href={closeHref} label="Close" icon={<Icon name="x" />} variant="ghost" size="sm" data-sheet-close="" />
         </div>
-        <form data-api="" data-method="POST" data-confirm={consequence} data-confirm-title={submit} data-confirm-action={submit} action={action} method="post">
-          <input type="hidden" name="_csrf" value={csrf} />
+        <ActionForm action={action} method="POST" csrf={csrf} confirmation={{ consequence, title: submit, action: submit }}>
           <div className="sheet-body">
             <p className="message" data-sheet-message="" role="alert" tabIndex={-1} />
             {children}
@@ -40,7 +40,7 @@ export function Sheet({ name, open, closeHref, title, description, submit, actio
             <Button href={closeHref} label="Cancel" variant="ghost" data-sheet-close="" />
             <Button type="submit" label={submit} variant="primary" />
           </div>
-        </form>
+        </ActionForm>
       </dialog>
     </>
   )
