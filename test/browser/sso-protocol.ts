@@ -718,7 +718,7 @@ test('local account linking keeps the account and role sync removes only rule ac
     await page.open(base + '/admin/users');
     await page.wait('a[href="/admin/users/synthetic-development-user"]');
     await page.click('a[href="/admin/users/synthetic-development-user"]');
-    await page.wait('section h2');
+    await page.wait('[role=main] h2');
     check(await page.eval(() => !document.querySelector('[role=main]').innerText.includes('From Entra ID rule') && document.querySelector('[role=main]').innerText.includes('Synthetic Role · Direct') && ![...document.querySelectorAll('[role=main] a[href^="/admin/roles/"]')].some(chip => chip.textContent.includes('SSO rule'))), 'Rule labels or direct grant did not synchronize');
   `)
   evidence = await (await fetch(fixture.ssoEvidence)).json()

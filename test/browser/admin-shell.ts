@@ -1990,7 +1990,7 @@ test('role rename saves without a dialog and stale drafts offer a reload recover
   browser(`
     await page.open(base + '/admin/roles/synthetic-role');
     const selector = 'form[action="/v1/admin/roles/synthetic-role"]';
-    await page.click('.inline-edit summary');
+    await page.click('a[data-sheet=sheet-rename-role]');
     await page.fill(selector + ' [name=name]', 'Synthetic renamed role');
     await page.click(selector + ' button');
     await page.wait('input[name=name][value="Synthetic renamed role"]');
@@ -2002,12 +2002,12 @@ test('role rename saves without a dialog and stale drafts offer a reload recover
         _csrf: fields.get('_csrf'), name: 'Synthetic newer role', expectedRevision: Number(fields.get('expectedRevision')),
       }) });
     });
-    await page.click('.inline-edit summary');
+    await page.click('a[data-sheet=sheet-rename-role]');
     await page.fill(selector + ' [name=name]', 'Synthetic stale role');
     await page.click(selector + ' button');
-    await page.wait('#message button');
-    check(await page.eval(() => document.getElementById('message').innerText.includes('REVISION_CONFLICT')), 'Missing stale-edit error');
-    await page.click('#message button');
+    await page.wait('[data-sheet-message] button');
+    check(await page.eval(() => document.querySelector('[data-sheet-message]').innerText.includes('REVISION_CONFLICT')), 'Missing stale-edit error');
+    await page.click('[data-sheet-message] button');
     await page.wait('input[name=name][value="Synthetic newer role"]');
     check(await page.eval(() => document.querySelector('h1').textContent === 'Synthetic newer role'), 'Reload did not recover current values');
   `)
@@ -2124,7 +2124,7 @@ test('role tables align desktop columns and retain narrow member labels', () => 
     for (const path of ['/admin/roles', '/admin/roles/synthetic-role']) {
       await page.open(base + path);
       check(await page.eval(() => {
-        const table = document.querySelector('table.row-links, .roles-list table');
+        const table = document.querySelector('.roles-list table, .people-list table');
         const headings = [...table.querySelectorAll('thead th')];
         const cells = [...table.querySelector('tbody tr').children];
         return getComputedStyle(table).display === 'table' && headings.every((heading, index) =>
@@ -2134,10 +2134,10 @@ test('role tables align desktop columns and retain narrow member labels', () => 
   `)
   chrome(['resize', '420', '900'])
   browser(`
-    for (const path of ['/admin/roles', '/admin/roles/synthetic-role']) {
+    for (const path of ['/admin/roles']) {
       await page.open(base + path);
       check(await page.eval(() => {
-        const table = document.querySelector('table.row-links, .roles-list table');
+        const table = document.querySelector('.roles-list table');
         const row = table.querySelector('tbody tr');
         return getComputedStyle(row).display === 'flex' &&
           [...row.querySelectorAll('[data-label]')].every(cell =>

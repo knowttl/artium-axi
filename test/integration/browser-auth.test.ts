@@ -574,8 +574,12 @@ test('Roles page escapes names and change actors and preserves bounded paginatio
   const detail = await request('GET', '/admin/roles/synthetic-role')
   expect(detail.body).toContain('Last changed by &lt;b&gt;actor&lt;/b&gt;')
   expect(detail.body).toContain(new Date(now).toISOString())
-  expect(detail.body).toContain('value="falcon-axi" checked')
+  expect(detail.body).toContain('name="tools" checked="" value="falcon-axi"')
   expect((await request('GET', '/admin/roles?limit=101')).statusCode).toBe(400)
+  expect((await request('GET', '/admin/roles/synthetic-role?sheet=other')).statusCode).toBe(400)
+  expect((await request('GET', '/admin/roles/synthetic-role?limit=101')).statusCode).toBe(400)
+  expect((await request('GET', '/admin/roles/synthetic-role?sheet=rename-role')).body).toMatch(/<dialog[^>]*id="sheet-rename-role"[^>]*open=""/)
+  expect((await request('GET', '/admin/roles/synthetic-role')).body).not.toMatch(/<dialog[^>]*id="sheet-rename-role"[^>]*open=""/)
 })
 
 test.each(['/admin/tools', '/admin/credentials', '/admin/roles', '/admin/roles/synthetic-role', '/admin/users/' + userId, '/admin/audit'])('page %s requires the current administrator capability', async path => {

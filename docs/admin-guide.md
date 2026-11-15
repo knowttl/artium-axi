@@ -137,7 +137,7 @@ Administrator capability is separate from tool grants.
 Role changes apply on the next call, including calls using existing tokens.
 Choose **New role**, enter a name and select **Create role** to open the new role's detail page and choose its tools.
 The roles list marks disabled tools with a grey dot; role detail shows each tool's current state beside its grant checkbox.
-Use the pencil beside the role name to rename it inline.
+Use **Rename role** to open the rename sheet.
 User detail combines grants from every assigned role and links each tool to its granting roles.
 User detail and role membership pages distinguish **Direct** assignments made by an administrator from rule grants, labelled **SSO rule**.
 Saving a user's roles replaces direct assignments and preserves grants originating from SSO rules.

@@ -275,7 +275,7 @@ function confirmChange(form, fallbackAction) {
 }
 
 for (const form of document.querySelectorAll('form[data-track-changes]')) {
-  const save = form.querySelector('button:not([type])');
+  const save = form.querySelector('button:not([type=button]):not([type=reset])');
   const discard = form.querySelector('[data-discard]');
   const initial = new URLSearchParams(new FormData(form)).toString();
   const update = () => {
