@@ -981,6 +981,49 @@ test('a typed credential secret reaches only the rejected form submission and is
   `)
 })
 
+for (const [entry, noun] of [['paste', 'a pasted'], ['upload', 'an uploaded']]) test(noun + ' trusted certificate reaches only the rejected form submission and is cleared when the Add instance sheet closes', () => {
+  browser(`
+    await addInstance('kubernetes-axi');
+    await page.eval(() => {
+      window.leaks = [];
+      window.sent = [];
+      const note = (kind, value) => { if (String(value).includes('CANARY-typed-browser-certificate')) window.leaks.push(kind); };
+      for (const method of ['log', 'info', 'warn', 'error', 'debug']) {
+        const original = console[method];
+        console[method] = (...args) => { args.forEach(arg => note('console.' + method, typeof arg === 'string' ? arg : JSON.stringify(arg))); original.apply(console, args); };
+      }
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) { note('storage', key + value); return setItem.call(this, key, value); };
+      const send = window.fetch;
+      window.fetch = (input, init) => { window.sent.push([String(input instanceof Request ? input.url : input), String(init && init.body || '')]); return send(input, init); };
+      navigator.sendBeacon = (url, body) => { note('beacon', body); return false; };
+    });
+    await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"token"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
+    await page.fill('[data-profile-field=origin]', 'https://cluster.example');
+    await page.fill('[data-profile-field=token]', 'synthetic-token');
+    if (${JSON.stringify(entry)} === 'paste') await page.fill('[data-profile-field=certificateAuthority]', 'CANARY-typed-browser-certificate');
+    else {
+      await page.eval(() => { const transfer = new DataTransfer(); transfer.items.add(new File(['CANARY-typed-browser-certificate'], 'synthetic.pem')); const input = document.querySelector('[data-tls-file]'); input.files = transfer.files; input.dispatchEvent(new Event('change', { bubbles: true })); });
+      await page.eval(async () => { const field = document.querySelector('[data-profile-field=certificateAuthority]'); for (let attempt = 0; attempt < 100 && !field.value; attempt++) await new Promise(resolve => setTimeout(resolve, 20)); });
+    }
+    check(await page.eval(() => document.querySelector('[data-profile-field=certificateAuthority]').value === 'CANARY-typed-browser-certificate' && document.querySelector('[data-profile-field=certificateAuthority]').tagName === 'TEXTAREA'), 'The certificate is not in its native field');
+    await page.eval(() => { document.querySelector('#sheet-add-instance [name=expectedToolRevision]').value = '999'; });
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]');
+    check(await page.eval(() => !document.querySelector('#confirmation').textContent.includes('CANARY-typed-browser-certificate')), 'Confirmation exposed the certificate');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-sheet-message]:not(:empty)');
+    check(await page.eval(() => {
+      const sent = window.sent.filter(([, body]) => body.includes('CANARY-typed-browser-certificate')).map(([url]) => new URL(url, location.href).pathname);
+      return JSON.stringify(sent) === JSON.stringify(['/v1/admin/tools/kubernetes-axi/instances']) && window.leaks.length === 0
+        && !document.documentElement.outerHTML.includes('CANARY-typed-browser-certificate') && !location.href.includes('CANARY')
+        && !JSON.stringify(sessionStorage).includes('CANARY') && !JSON.stringify(localStorage).includes('CANARY');
+    }), 'The rejected save leaked the typed certificate');
+    await page.click('#sheet-add-instance .sheet-foot [data-sheet-close]');
+    check(await page.eval(() => document.querySelector('[data-profile-field=certificateAuthority]').value === '' && document.querySelector('[data-tls-file]').files.length === 0), 'Closing the sheet kept the typed certificate');
+  `)
+})
+
 test('closing the Add instance sheet clears the certificate file and permits selecting it again', () => {
   browser(`
     await page.open(base + '/admin/tools/az-axi');
@@ -1026,8 +1069,8 @@ test('SSH administration explains dedicated identities without offering generic 
   chrome(['resize', '420', '900'])
   browser(`
     await page.open(base + '/admin/tools/ssh-axi');
-    await page.wait('main');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Dedicated SSH identity')), 'Missing SSH identity guidance');
+    await page.wait('[role=main]');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Dedicated SSH identity')), 'Missing SSH identity guidance');
     check(await page.eval(() => !document.querySelector('form[action$="/credential"], [data-save-tool], [data-test-tool], [data-sheet="sheet-add-instance"]')), 'Generic SSH credential, instance or test form was offered');
     check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'SSH connection page overflows at 420px');
     check(await page.eval(() => !document.querySelector('.utabs a[href$="tab=certificates"], form[action*="/certificates"]')), 'HTTPS trust controls were offered for SSH');

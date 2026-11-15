@@ -3349,6 +3349,34 @@ test('a typed secret is never returned, logged or audited when an Add instance s
     .toEqual([{ user_id: actor, action: 'create-instance', tool: 'falcon-axi', instance: 'east', outcome: 'success' }])
 })
 
+test('a typed certificate is never returned, logged or audited when an Add instance save with certificate trust is rejected', async () => {
+  const certificate = '-----BEGIN CERTIFICATE-----\nCANARY-typed-certificate-r17\n-----END CERTIFICATE-----'
+  const written: string[] = []
+  for (const stream of [process.stdout, process.stderr]) {
+    vi.spyOn(stream, 'write').mockImplementation(((chunk: unknown) => { written.push(String(chunk)); return true }) as typeof stream.write)
+  }
+  const revision = await toolRevision('kubernetes-axi')
+  const value = { ...values['kubernetes-axi'], certificateAuthority: certificate }
+  const responses: string[] = []
+  for (const body of [{ name: 'Bad Name', description: '', value, expectedToolRevision: revision },
+    { name: 'east', description: '', value: { auth: 'token', token: 'synthetic-token', certificateAuthority: certificate }, expectedToolRevision: revision }]) {
+    const rejected = await request('POST', '/kubernetes-axi/instances', body)
+    expect(rejected.status).toBe(400)
+    responses.push(JSON.stringify([...rejected.headers]), await rejected.text())
+  }
+  const cookie = await browserCookie()
+  const form = await app.inject({ method: 'GET', url: '/admin/tools/kubernetes-axi?sheet=add-instance', headers: { cookie } })
+  expect(form.body.match(/<textarea[^>]*data-tls-input[^>]*>([^<]*)<\/textarea>/g)).toEqual([expect.stringContaining('name="profile.certificateAuthority"')])
+  expect(form.body.match(/<textarea[^>]*data-tls-input[^>]*>([^<]*)<\/textarea>/)![1]).toBe('')
+  const posted = await app.inject({ method: 'POST', url: '/v1/admin/tools/kubernetes-axi/instances', headers: { host: 'localhost', origin: 'http://localhost', cookie,
+    'content-type': 'application/x-www-form-urlencoded' }, payload: new URLSearchParams({ _csrf: /name="_csrf" value="([^"]+)"/.exec(form.body)![1]!, name: 'Bad Name', 'profile.certificateAuthority': certificate }).toString() })
+  expect(posted.statusCode).toBeGreaterThanOrEqual(400)
+  responses.push(JSON.stringify(posted.headers), posted.body)
+  responses.push((await app.inject({ method: 'GET', url: '/admin/tools/kubernetes-axi?sheet=add-instance', headers: { cookie } })).body)
+  for (const text of [...responses, JSON.stringify(db.prepare('SELECT * FROM audit').all()), written.join('')]) expect(text).not.toContain('CANARY-typed-certificate-r17')
+  expect(db.prepare("SELECT outcome FROM audit WHERE action = 'create-instance' AND outcome = 'success'").all()).toEqual([])
+})
+
 test('adding an instance needs an administrator and recent authentication, and an ordinary person is refused the sheet', async () => {
   const revision = await toolRevision('falcon-axi')
   const body = { name: 'east', description: '', value: values['falcon-axi'], expectedToolRevision: revision }

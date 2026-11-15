@@ -4,6 +4,8 @@ import { expect, test } from 'vitest'
 import { Theme } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import { parseFragment, type DefaultTreeAdapterMap } from 'parse5'
+import { tlsSection } from '../src/server/admin/tls-fields.js'
+import type { ToolName } from '../src/server/store/credential-store.js'
 import type { CredentialControl, CredentialEditorProps } from '../src/views/credential-editor.js'
 import { Tool, type ToolProps } from '../src/views/tool.js'
 import type { AccessProps } from '../src/views/tool-access.js'
@@ -130,7 +132,7 @@ test('the Add instance link opens its sheet and the table lists each instance wi
 
 const control = (overrides: Partial<CredentialControl>): CredentialControl => ({ name: 'region', id: 'profile-falcon-axi-region', label: 'Region', help: 'Falcon API region.', secret: false,
   ephemeral: false, required: true, stored: false, kind: 'input', dataType: 'string', value: 'us-2', ...overrides })
-const editor: CredentialEditorProps = { intro: 'Synthetic credential introduction.', schema: { type: 'object' }, identity: { auth: null }, configured: false, tls: { legacyHtml: '' },
+const editor: CredentialEditorProps = { intro: 'Synthetic credential introduction.', schema: { type: 'object' }, identity: { auth: null }, configured: false, tls: null,
   controls: [control({}), control({ name: 'clientSecret', id: 'profile-falcon-axi-clientSecret', label: 'Client secret', secret: true, required: false, kind: 'textarea', value: '' }),
     control({ name: 'auth', id: 'profile-falcon-axi-auth', label: 'Authentication', kind: 'select', dataType: 'json', value: '', emptyLabel: 'Choose a value',
       options: [{ value: '"token"', label: 'token', selected: false }, { value: '"password"', label: 'password', selected: true }] })] }
@@ -319,4 +321,72 @@ test('a policy whose ceilings are not saved offers no grant, and the page says w
   const everyone = renderAccess({ policies: [{ ...access.policies[0]!, grants: access.people.map(person => ({ id: person.id, summary: 'exec', operations: [] })) }] })
   expect(find(everyone, element => element.tagName === 'a' && text(element) === 'Grant a person')).toEqual([])
   expect(find(everyone, element => attribute(element, 'id') === 'sheet-grants-sessions-add')).toEqual([])
+})
+
+const verification = (tool: ToolName, metadata: Record<string, unknown> = {}) => {
+  const html = renderInstances({ addInstance: addInstance({ editor: { ...editor, tls: tlsSection(tool, metadata) } }) })
+  const [fieldset] = find(html, element => element.tagName === 'fieldset')
+  return { html, fieldset: fieldset!, fields: nodes(fieldset!).filter(element => attribute(element, 'data-profile-field') !== undefined) }
+}
+
+test.each([
+  ['unifi-axi', ['tls.connectAddress', 'tls.trustedCertificatePem', 'tls.peerFingerprintSha256'], ['tls.connectAddress'], ['tls.trustedCertificatePem']],
+  ['proxmox-axi', ['caBundle', 'certificatePin.sha256', 'certificatePin.replaceHostname'], [], ['caBundle']],
+  ['technitium-axi', ['tlsServerName', 'caFile'], ['tlsServerName'], ['caFile']],
+  ['ldap-axi', ['caFile'], [], ['caFile']],
+  ['vectra-axi', ['caBundle'], [], ['caBundle']],
+  ['kubernetes-axi', ['tlsServerName', 'certificateAuthority'], ['tlsServerName'], ['certificateAuthority']],
+] as const)('%s offers certificate verification with the attributes the submit script reads', (tool, names, clearable, uploads) => {
+  const { fields, fieldset } = verification(tool)
+  expect(fields.map(field => attribute(field, 'data-profile-field'))).toEqual(names)
+  expect(fields.map(field => [attribute(field, 'name'), attribute(field, 'data-tls-input')])).toEqual(names.map(name => [`profile.${name}`, '']))
+  expect(fields.filter(field => attribute(field, 'data-profile-clearable') !== undefined).map(field => attribute(field, 'data-profile-field'))).toEqual(clearable)
+  expect(nodes(fieldset).filter(element => attribute(element, 'data-tls-file') !== undefined).map(input => [attribute(input, 'type'), attribute(input, 'accept'), attribute(input, 'data-tls-file')]))
+    .toEqual(uploads.map(name => ['file', '.pem', name]))
+  expect(nodes(fieldset).filter(element => element.tagName === 'legend').map(text)).toEqual(['Certificate verification'])
+})
+
+test.each(['unifi-axi', 'proxmox-axi', 'technitium-axi', 'ldap-axi', 'vectra-axi', 'kubernetes-axi'] as const)('%s keeps a pasted certificate in a native, uncontrolled field that holds no value', tool => {
+  const saved = { caFile: 'CANARY-saved-certificate', caBundle: 'CANARY-saved-certificate', certificateAuthority: 'CANARY-saved-certificate', tls: { trustedCertificatePem: 'CANARY-saved-certificate' } }
+  for (const { fields } of [verification(tool), verification(tool, saved)]) {
+    const pasted = fields.filter(field => field.tagName === 'textarea')
+    expect(pasted.map(field => [attribute(field, 'autocomplete'), attribute(field, 'spellcheck'), attribute(field, 'value'), text(field)])).toEqual([['off', 'false', undefined, '']])
+  }
+})
+
+test.each([
+  ['proxmox-axi', {}, 'Use hostname verification'],
+  ['proxmox-axi', { certificatePin: { sha256: 'a'.repeat(64) } }, 'Keep saved setting'],
+] as const)('%s verifies the hostname unless a pin replaces it: %j starts on its safe choice', (tool, metadata, first) => {
+  const { fieldset } = verification(tool, metadata)
+  const [select] = nodes(fieldset).filter(element => element.tagName === 'select')
+  const options = nodes(select!).filter(element => element.tagName === 'option')
+  expect(options.map(option => [attribute(option, 'value'), text(option), attribute(option, 'selected')])).toEqual([['', first, undefined], ['true', 'Yes', undefined], ['false', 'No', undefined]])
+  expect([attribute(select!, 'data-profile-type'), attribute(select!, 'required')]).toEqual(['json', undefined])
+})
+
+test.each([
+  ['ldap-axi', { caFile: 'synthetic' }, ['caFile']],
+  ['unifi-axi', { tls: { trustedCertificatePem: 'synthetic' } }, ['tls']],
+  ['proxmox-axi', { caBundle: 'synthetic', certificatePin: { sha256: 'a'.repeat(64) } }, ['caBundle', 'certificatePin']],
+  ['kubernetes-axi', { certificateAuthority: 'synthetic' }, []],
+  ['ldap-axi', {}, []],
+] as const)('%s offers to remove saved trust only when it is saved, never checked in advance: %j', (tool, metadata, removable) => {
+  const { fieldset } = verification(tool, metadata)
+  const boxes = nodes(fieldset).filter(element => attribute(element, 'data-tls-remove') !== undefined)
+  expect(boxes.map(box => attribute(box, 'data-tls-remove'))).toEqual(removable)
+  expect(boxes.filter(box => attribute(box, 'checked') !== undefined)).toEqual([])
+})
+
+test('Kubernetes requires a trusted certificate until one is saved and opens its entry', () => {
+  const [entry] = nodes(verification('kubernetes-axi').fieldset).filter(element => element.tagName === 'details' && attribute(element, 'open') !== undefined)
+  expect(nodes(entry!).filter(element => attribute(element, 'data-profile-field') === 'certificateAuthority').map(field => attribute(field, 'required'))).toEqual([''])
+  const saved = verification('kubernetes-axi', { certificateAuthority: 'synthetic' })
+  expect(saved.fields.map(field => attribute(field, 'required'))).toEqual([undefined, undefined])
+  expect(nodes(saved.fieldset).filter(element => element.tagName === 'details' && attribute(element, 'open') !== undefined)).toEqual([])
+})
+
+test('a tool without certificate settings offers no certificate verification', () => {
+  expect(find(renderInstances({ addInstance: addInstance({ editor: { ...editor, tls: null } }) }), element => element.tagName === 'fieldset')).toEqual([])
+  expect(tlsSection('ssh-axi', {})).toBeNull()
 })

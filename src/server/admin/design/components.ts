@@ -703,7 +703,12 @@ form.card, .card-foot form, .card-head form { margin: 0; }
 :where(.content) [data-credential-field] > p { margin: 6px 0 0; color: var(--text-muted); font-size: var(--fs-xs); }
 :where(.content) [data-credential-field] > p[data-stored-secret] { display: flex; align-items: center; min-height: var(--ctl-h-sm); padding: 4px 10px; border: 1px dashed var(--border-strong); border-radius: var(--r-sm); background: var(--bg-subtle); color: var(--text-muted); }
 :where(.content) [data-credential-editor] > details { margin: 0; }
-[data-credential-editor] [data-certificate] { display: grid; gap: 12px; }
+[data-credential-editor] [data-certificate], [data-credential-editor] fieldset { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+[data-credential-editor] fieldset { min-width: 0; }
+:where(.content, dialog) [data-credential-editor] fieldset { margin: 0; }
+:where(.content, dialog) [data-credential-editor] fieldset details { margin: 0; }
+[data-credential-editor] fieldset p, [data-credential-editor] fieldset pre { margin: 0; }
+[data-credential-editor] fieldset details > :not(summary) { margin-top: 12px; }
 [data-astryx-root] :where([data-credential-field], [data-certificate]) :where(.input, .select) { border-color: var(--field-border); border-radius: var(--radius-element); background: var(--color-background-surface); color: var(--color-text-primary); }
 
 /* Switch: a native checkbox (or a decorative span inside a labelled button) */

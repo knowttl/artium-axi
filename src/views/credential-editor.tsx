@@ -3,7 +3,7 @@ import { Text } from '@astryxdesign/core/Text'
 import { TextArea } from '@astryxdesign/core/TextArea'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { memo, useEffect, useRef, useState } from 'react'
-import { LegacyIsland } from './legacy-island.js'
+import { CertificateVerification, type TlsSection } from './certificate-verification.js'
 
 export interface CredentialControl {
   name: string
@@ -28,7 +28,7 @@ export interface CredentialEditorProps {
   identity: Record<string, unknown>
   configured: boolean
   controls: CredentialControl[]
-  tls: { legacyHtml: string }
+  tls: TlsSection | null
 }
 
 function Control({ control, value, onChange }: { control: CredentialControl, value: string, onChange: (value: string) => void }) {
@@ -76,7 +76,7 @@ export const CredentialEditor = memo(function CredentialEditor({ intro, schema, 
   useEffect(() => {
     const dialog = editor.current?.closest('dialog')
     const clear = () => {
-      for (const typed of editor.current?.querySelectorAll<HTMLTextAreaElement | HTMLInputElement>('[data-secret] textarea, [data-certificate-pem], [data-certificate-file], [data-tls-file]') ?? []) typed.value = ''
+      for (const typed of editor.current?.querySelectorAll<HTMLTextAreaElement | HTMLInputElement>('[data-secret] textarea, [data-certificate-pem], [data-certificate-file], [data-tls-file], textarea[data-tls-input]') ?? []) typed.value = ''
       editor.current?.dispatchEvent(new Event('change', { bubbles: true }))
     }
     dialog?.addEventListener('close', clear)
@@ -91,7 +91,7 @@ export const CredentialEditor = memo(function CredentialEditor({ intro, schema, 
           {control.stored && <p data-stored-secret="" suppressHydrationWarning>Stored when configured below. Leave blank to keep; enter a value to replace.</p>}
         </div>
       ))}
-      <LegacyIsland {...tls} />
+      {tls && <CertificateVerification section={tls} />}
       <div data-certificate="" hidden suppressHydrationWarning>
         <Field label="Certificate and private key (one PEM file)" inputID="credential-certificate-file">
           <input id="credential-certificate-file" type="file" data-certificate-file="" accept=".pem" />
