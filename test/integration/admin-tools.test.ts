@@ -1097,6 +1097,10 @@ test('the tools list and Instances tab report every instance, with SSH hosts sho
   expect(tab).toContain('action="/v1/admin/tools/falcon-axi/instances"')
   expect(tab).toContain('data-confirm-name="production"')
   expect(tab).not.toContain('CANARY-')
+  expect(tab).not.toContain('synthetic-client')
+  const hydration = JSON.parse(/data-astryx-props>(.*?)<\/script>/s.exec(tab)![1]!) as { props: { panel: { instances: { rows: { instance: object }[] } } } }
+  expect(hydration.props.panel.instances.rows.map(row => Object.keys(row.instance).sort())).toEqual(
+    [['description', 'editOpen', 'enabled', 'id', 'path', 'readOnly', 'revision'], ['description', 'editOpen', 'enabled', 'id', 'path', 'readOnly', 'revision']])
 
   const detail = (await app.inject({ method: 'GET', url: '/admin/tools/falcon-axi/instances/production', headers: { cookie } })).body
   expect(detail).toContain('<h1>production</h1>')

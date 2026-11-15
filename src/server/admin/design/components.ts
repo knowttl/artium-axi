@@ -202,8 +202,8 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .modal-body form > button:last-child { display: flex; margin: 16px 0 10px auto; }
 .modal-body form { margin: 12px 0 0; }
 
-.popover .danger { color: var(--err); }
-.popover .danger:hover { background: var(--err-soft); }
+.popover .danger, .popover .astryx-button.danger { color: var(--err); }
+.popover .danger:hover, .popover .astryx-button.danger:hover { background: var(--err-soft); }
 
 /* Option card: a native radio with a title and description */
 .options { display: flex; flex-direction: column; gap: 8px; }
@@ -279,6 +279,12 @@ a.chip:hover { background: var(--bg-active); }
 .tools-list th, .tools-list td { max-width: none; overflow: visible; }
 @media (min-width: 761px) { .tools-list th, .tools-list td { white-space: nowrap; overflow-wrap: normal; word-break: normal; } }
 .tools-list tbody tr:last-child th, .tools-list tbody tr:last-child td { border-bottom: 0; }
+.astryx-card:has(.instances-list) { overflow: visible; }
+.instances-list th, .instances-list td { max-width: none; overflow: visible; }
+@media (min-width: 761px) { .instances-list td:not([data-label="Endpoint"]) { white-space: nowrap; overflow-wrap: normal; word-break: normal; } }
+.instances-list td[data-label="Endpoint"] { overflow-wrap: anywhere; }
+.instances-list td.actions-cell { text-align: right; }
+.instances-list tbody tr:last-child th, .instances-list tbody tr:last-child td { border-bottom: 0; }
 .invitations-list th, .invitations-list td { max-width: none; overflow: visible; }
 @media (min-width: 761px) { .invitations-list td:first-child, .invitations-list td:last-child, .invitations-list code { white-space: nowrap; overflow-wrap: normal; word-break: normal; } }
 .invitations-list tbody tr:last-child td { border-bottom: 0; }
@@ -785,12 +791,13 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .row-links.stack tbody th { flex-basis: 100%; }
   .row-links.stack tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
   .row-links.stack tbody td:not([data-label]):last-child.num { display: none; }
-  .roles-list thead, .tools-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .roles-list tbody tr, .tools-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
-  .roles-list tbody tr:last-child, .tools-list tbody tr:last-child { border-bottom: 0; }
-  .roles-list tbody th, .roles-list tbody td, .tools-list tbody th, .tools-list tbody td { display: block; width: auto; max-width: none; padding: 0; border: 0; }
-  .roles-list tbody th, .tools-list tbody th { flex-basis: 100%; }
-  .roles-list tbody td[data-label]::before, .tools-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
+  .roles-list thead, .tools-list thead, .instances-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .roles-list tbody tr, .tools-list tbody tr, .instances-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .roles-list tbody tr:last-child, .tools-list tbody tr:last-child, .instances-list tbody tr:last-child { border-bottom: 0; }
+  .roles-list tbody th, .roles-list tbody td, .tools-list tbody th, .tools-list tbody td, .instances-list tbody th, .instances-list tbody td { display: block; width: auto; max-width: none; padding: 0; border: 0; }
+  .roles-list tbody th, .tools-list tbody th, .instances-list tbody th { flex-basis: 100%; }
+  .roles-list tbody td[data-label]::before, .tools-list tbody td[data-label]::before, .instances-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
+  .instances-list tbody td.actions-cell { flex-basis: 100%; text-align: left; }
   .roles-list tbody td.num { display: none; }
   .steps { grid-template-columns: minmax(0, 1fr); }
   .step { border-right: 0; border-bottom: 1px solid var(--border); }

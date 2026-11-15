@@ -5,6 +5,7 @@ import { Theme } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import { parseFragment, type DefaultTreeAdapterMap } from 'parse5'
 import { Tool, type ToolProps } from '../src/views/tool.js'
+import type { InstancesProps } from '../src/views/tool-instances.js'
 import type { WritesProps } from '../src/views/tool-writes.js'
 
 type Element = DefaultTreeAdapterMap['element']
@@ -26,7 +27,7 @@ const base: ToolProps = { csrf: 'synthetic-csrf', name: 'falcon-axi', api: '/v1/
   state: { word: 'Ready to test', tone: 'neutral' }, writes: { word: 'Read-only', tone: 'neutral' }, checkedAt: null,
   setup: [{ title: 'Credential saved', detail: 'Not saved yet', at: null, state: 'todo' }, { title: 'Test passes', detail: 'Failing: AUTH_FAILED', at: null, state: 'fail' },
     { title: 'Enabled', detail: 'On', at: null, state: 'done' }],
-  tabs, panel: { tab: 'instances', legacyHtml: '<p data-legacy="instances">Synthetic legacy instances</p>' } }
+  tabs, panel: { tab: 'access', legacyHtml: '<p data-legacy="access">Synthetic legacy access</p>' } }
 
 function render(overrides: Partial<ToolProps> = {}) {
   return renderToString(createElement(Theme, { theme: neutralTheme, children: createElement(Tool, { ...base, ...overrides }) }))
@@ -61,7 +62,70 @@ test('each setup step names its state, so the failed test is not shown by colour
 })
 
 test('a legacy tab renders its markup in place', () => {
-  expect(find(render(), element => attribute(element, 'data-legacy') === 'instances').map(text)).toEqual(['Synthetic legacy instances'])
+  expect(find(render(), element => attribute(element, 'data-legacy') === 'access').map(text)).toEqual(['Synthetic legacy access'])
+})
+
+const instanceRow = (name: string, enabled: boolean, editOpen = false): InstancesProps['rows'][number] => ({ name, description: `Synthetic ${name} tenant.`, endpoint: `${name}.example`,
+  href: `/admin/tools/falcon-axi/instances/${name}`, status: { word: enabled ? 'Healthy' : 'Disabled', tone: enabled ? 'ok' : 'off' }, writes: { word: 'Read-only', tone: 'neutral' }, checkedAt: null,
+  instance: { path: `/v1/admin/tools/falcon-axi/instances/${name}`, id: `synthetic-${name}-id`, revision: 3, enabled, readOnly: true, description: `Synthetic ${name} tenant.`, editOpen } })
+
+const instances: InstancesProps = { page: '/admin/tools/falcon-axi', ssh: false, testGuide: 'Falcon auth status', rows: [instanceRow('lab', true), instanceRow('old', false, true)], github: null,
+  addInstance: { legacyHtml: '<p data-legacy="add-instance">Synthetic add instance</p>' } }
+
+const renderInstances = (panel: Partial<InstancesProps> = {}) => render({ panel: { tab: 'instances', instances: { ...instances, ...panel } } })
+const instanceForms = (html: string, name: string) => forms(html).filter(form => attribute(form, 'action')?.endsWith(`/instances/${name}`) || attribute(form, 'action')?.endsWith(`/instances/${name}/test`))
+const summary = (form: Element) => [attribute(form, 'action'), attribute(form, 'data-method'), attribute(form, 'data-confirm'), attribute(form, 'data-confirm-name'), attribute(form, 'data-success-message')]
+
+test('an enabled instance offers Test, Disable and Delete, each on its own route with the instance identity and revision', () => {
+  const [test, disable, remove] = instanceForms(renderInstances(), 'lab')
+  expect(summary(test!)).toEqual(['/v1/admin/tools/falcon-axi/instances/lab/test', 'POST', undefined, undefined, 'Test passed.'])
+  expect(summary(disable!)).toEqual(['/v1/admin/tools/falcon-axi/instances/lab', 'PATCH',
+    'Disable lab? Calls to it fail with INSTANCE_DISABLED until you enable it again. Its credential and certificates are kept.', undefined, undefined])
+  expect(controls(disable!)).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedId', 'hidden', 'synthetic-lab-id'], ['expectedRevision', 'hidden', '3'], ['enabled', 'hidden', 'false']])
+  expect(summary(remove!)).toEqual(['/v1/admin/tools/falcon-axi/instances/lab', 'DELETE',
+    'Delete lab? Its credential, certificate trust and health are removed. Calls that name it fail with INSTANCE_NOT_FOUND. Audit history is kept.', 'lab', undefined])
+  expect(controls(remove!)).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedId', 'hidden', 'synthetic-lab-id'], ['expectedRevision', 'hidden', '3']])
+})
+
+test('a disabled instance offers Enable with the opposite value', () => {
+  const [, enable] = instanceForms(renderInstances(), 'old')
+  expect(attribute(enable!, 'data-confirm')).toBe('Enable old? Agents who can use it can call it again.')
+  expect(controls(enable!).slice(-1)).toEqual([['enabled', 'hidden', 'true']])
+})
+
+test('Edit sends the description and read-only setting, and only the requested sheet is open', () => {
+  const html = renderInstances()
+  const dialogs = find(html, element => element.tagName === 'dialog' && attribute(element, 'id')?.startsWith('sheet-edit-') === true)
+  expect(dialogs.map(dialog => [attribute(dialog, 'id'), attribute(dialog, 'open') !== undefined])).toEqual([['sheet-edit-lab', false], ['sheet-edit-old', true]])
+  const [form] = forms(html).filter(item => attribute(item, 'data-confirm-title') === 'Save instance' && attribute(item, 'action')?.endsWith('/instances/old'))
+  expect([attribute(form!, 'data-method'), attribute(form!, 'data-confirm'), attribute(form!, 'data-confirm-action')]).toEqual(['PATCH',
+    'Save the description and read-only setting of old? Agents see the new description on their next listing.', 'Save'])
+  expect(controls(form!)).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedId', 'hidden', 'synthetic-old-id'], ['expectedRevision', 'hidden', '3'], ['description', 'textarea', undefined],
+    ['readOnly', 'checkbox', undefined]])
+  expect(nodes(form!).filter(element => attribute(element, 'name') === 'description').map(text)).toEqual(['Synthetic old tenant.'])
+  expect(nodes(form!).filter(element => attribute(element, 'name') === 'readOnly').map(element => attribute(element, 'checked') !== undefined)).toEqual([true])
+})
+
+test('the Add instance link opens its sheet and the table lists each instance with its endpoint', () => {
+  const html = renderInstances()
+  const [add] = find(html, element => element.tagName === 'a' && attribute(element, 'data-sheet') === 'sheet-add-instance')
+  expect(attribute(add!, 'href')).toBe('/admin/tools/falcon-axi?sheet=add-instance')
+  expect(find(html, element => attribute(element, 'data-legacy') === 'add-instance').map(text)).toEqual(['Synthetic add instance'])
+  expect(find(html, element => element.tagName === 'tr').slice(1).map(row => nodes(row).filter(element => element.tagName === 'code').map(text))).toEqual([['lab.example'], ['old.example']])
+})
+
+test('SSH hosts link to their own page and offer no instance forms', () => {
+  const host = { ...instanceRow('synthetic-host', true), href: '/admin/ssh', instance: null }
+  const html = renderInstances({ ssh: true, rows: [host], testGuide: null, addInstance: null })
+  expect(forms(html).filter(form => attribute(form, 'action')?.includes('/instances'))).toEqual([])
+  expect(find(html, element => element.tagName === 'a' && attribute(element, 'href') === '/admin/ssh').map(text)).toEqual(expect.arrayContaining(['Manage hosts', 'Manage']))
+})
+
+test('an empty Instances tab says so and still offers Add instance', () => {
+  const html = renderInstances({ rows: [] })
+  expect(html).toContain('No instances yet. Add one to connect CrowdStrike Falcon.')
+  expect(find(html, element => element.tagName === 'table')).toEqual([])
+  expect(find(html, element => attribute(element, 'data-sheet') === 'sheet-add-instance')).toHaveLength(1)
 })
 
 test('Raw API keeps both forms, the mode radios and the route fields, and sends a read-only tool\'s write routes as a hidden field', () => {
