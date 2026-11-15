@@ -10,6 +10,7 @@ Azure token-acquisition diagnostics retain supported provider codes.
 
 | Code | Source | HTTP | CLI exit | Message | Next step |
 |---|---|---|---|---|---|
+| SUDO_DENIED | artium-axi | 503 | 1 | The approved sudo account could not authenticate for elevation. | Ask an administrator to check the separate sudo binding credential and sudo authorization. |
 | CONNECTION_BUSY | artium-axi | 409 | 1 | An SSH command is already active on this connection. | Inspect its execution before submitting another command, or explicitly open another connection. |
 | CONNECTION_CLOSED | artium-axi | 409 | 1 | The selected SSH connection is closed or expired. | Inspect remote state before explicitly opening another connection; no reconnection or command replay occurred. |
 | STORE_SCHEMA_INVALID | artium-axi | 503 | 1 | The store schema is unsupported by this image. | Use the matching image, or restore the pre-upgrade backup into a new volume with its matching image and key. |

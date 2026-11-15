@@ -93,8 +93,7 @@ Open **Manage hosts, account bindings and grants** on the SSH tool page, or `/ad
 At `/admin/ssh/credentials`, choose **Use a private key** with an optional passphrase, or **Use a password**.
 Enter the username on the host account binding, not in the credential.
 Keys, passphrases and passwords are write-only and never displayed after saving; replacement requires the complete new credential.
-No minimum password length is enforced.
-A short password will also be withheld from command output and will refuse commands whose text contains it (`SECRET_IN_COMMAND`), so a longer password avoids unexpected refusals.
+Short passwords can cause executions to fail; see the [SSH capability boundary](safety.md#ssh-reads) for password scanning guidance.
 For scripted password authentication, send `POST /v1/admin/ssh/credential` with `id`, `expectedRevision`, `confirm: true` and `password` in the JSON body.
 Use revision `0` for a new credential and the current revision for replacement; the API accepts a password or a private key with an optional passphrase, not both.
 Supply secrets through protected input, never command arguments, and follow the [administrator API authentication requirements](runbook.md#scripted-administrator-sessions).

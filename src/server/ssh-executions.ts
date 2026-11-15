@@ -26,7 +26,7 @@ export interface SshExecutionRow { id: string, request_key: string, input_hash: 
   started_at: number, finished_at: number | null, outcome: z.infer<typeof sshExecutionStatus>['outcome'], metadata: string }
 type Row = SshExecutionRow
 const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
-const remoteCommand = (input: SshExecutionInput) => input.sudo ? `sudo -n -- /bin/sh -c '${input.command.replaceAll("'", "'\\''")}'` : input.command
+const remoteCommand = (input: SshExecutionInput, sudoPassword: boolean) => input.sudo && !sudoPassword ? `sudo -n -- /bin/sh -c '${input.command.replaceAll("'", "'\\''")}'` : input.command
 const claimsSchema = z.object({ version: z.literal(1), keyId: z.string(), nonce: z.uuid(),
   user: z.string(), family: z.string(), input: z.string(), binding: z.string(), expires: z.number().int() }).strict()
 const streamSchema = z.object({ text: z.string().max(8192), receivedBytes: z.number().int().nonnegative(),
@@ -85,15 +85,17 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
     verifySshArtifact(executable)
     const credential = hosts.profile(owner.user, input.host, input.sudo)
     const profile = sshProfile.prepare('ssh-axi', credential, writeLog, false)
+    const sudoPassword = input.sudo && credential.password !== undefined
+    const command = remoteCommand(input, sudoPassword)
     try {
       const protection = await scanner()
       protection.checkCommand(input.command, profile.secrets)
-      protection.checkCommand(remoteCommand(input), profile.secrets)
+      protection.checkCommand(command, profile.secrets)
     }
     catch { throw new ArtiumError('INVALID_INPUT', 'Command is invalid or contains protected material; nothing was journaled or dispatched.') }
     if (binding(owner, input).hash !== state.hash) throw new ArtiumError('REVISION_CONFLICT')
     if (input.connection) connections.assertAvailable(owner, input.host, input.connection, input.sudo)
-    return { input, state, profile }
+    return { input, state, profile, command, sudoPassword }
   }
   const sign = (body: string) => createHmac('sha256', provider.getKey().bytes).update('ssh-execution-v1\0').update(body).digest('base64url')
   const verifyKey = (key: string, owner: Owner) => {
@@ -146,23 +148,30 @@ export function registerSshExecutions(app: FastifyInstance, options: SshExecutio
     let result: Record<string, unknown> = { remoteExit: null, remoteSignal: null, termination: 'unknown', outcome: 'unknown',
       diagnostic: 'No proven remote result. Inspect remote state before preparing another command.' }
     try {
-      const command = remoteCommand(admitted.input)
+      const { command, sudoPassword } = admitted
       const raw = admitted.input.connection ? await connections.execute({ user: row.user_id, family: row.family_id },
         row.host_id, admitted.input.connection, admitted.input.sudo, { command, timeout: admitted.input.timeout,
-          outputLimit: Math.min(admitted.input.outputLimit, 8192) }, controller.signal, runner, guard)
+          outputLimit: Math.min(admitted.input.outputLimit, 8192), ...(sudoPassword ? { sudoPassword: true } : {}) }, controller.signal, runner, guard)
         : JSON.parse((await runner.run(row.user_id, process.execPath, [executable, 'exec', row.host_id, '--confirm', '--json'],
         admitted.profile.environment, admitted.profile.secrets, { timeoutMs: (admitted.input.timeout + 18) * 1000, delegated: !!delegationId(row.family_id),
           signal: controller.signal, trustedIpc: { revision: 1, hosts: [{ id: row.host_id, address: admitted.state.selected.address,
             port: admitted.state.selected.port, username: row.account }], execution: { command,
-            timeout: admitted.input.timeout, outputLimit: Math.min(admitted.input.outputLimit, 8192) } } }, {}, admitted.profile.files, guard)).stdout)
+            timeout: admitted.input.timeout, outputLimit: Math.min(admitted.input.outputLimit, 8192),
+            ...(sudoPassword ? { sudoPassword: true } : {}) } } }, {}, admitted.profile.files, guard)).stdout)
+      if (admitted.input.sudo && z.object({ error: z.object({ code: z.literal('SUDO_DENIED') }) }).safeParse(raw).success) throw new ArtiumError('SUDO_DENIED')
       const parsed = nativeResult.safeParse(raw)
       if (parsed.success) {
         result = parsed.data
-        if (admitted.input.sudo && result.remoteExit !== 0 && /sudo:.*(?:password|terminal|tty|required|not allowed|not in the sudoers)/i.test(parsed.data.stderr.text)) {
+        if (admitted.input.sudo && !admitted.sudoPassword && result.remoteExit !== 0 && /sudo:.*(?:password|terminal|tty|required|not allowed|not in the sudoers)/i.test(parsed.data.stderr.text)) {
           result = { ...result, code: 'SUDO_DENIED', diagnostic: 'The approved sudo account needs independently reviewed non-interactive passwordless authorization.' }
         }
       }
-    } catch { /* A durable claim is never released, even without a proven remote result. */ }
+    } catch (error) {
+      if (admitted.input.sudo && error instanceof ArtiumError && error.code === 'SUDO_DENIED') {
+        result = { remoteExit: null, remoteSignal: null, termination: 'unknown', outcome: 'failed',
+          code: error.code, diagnostic: error.message }
+      }
+    }
     if (controller.signal.reason === 'user' && result.outcome === 'unknown') result.outcome = 'cancelled'
     const { stdout, stderr, ...metadata } = result
     const counts = (value: unknown) => value && typeof value === 'object' ? { ...value, text: '' } : undefined

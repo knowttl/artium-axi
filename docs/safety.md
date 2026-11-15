@@ -314,7 +314,17 @@ Changes to the selected SSH configuration refuse queued discovery and authentica
 Confirmed commands use the [managed execution workflow](commands.md#ssh), with either a one-shot or explicitly selected reusable transport.
 Administrator **Allow writes**, a writable host and current caller grants are all required; writes default off.
 An active server `SSH_AXI_READ_ONLY` override still blocks execution.
-`--sudo` selects its distinct approved account and credential, requires a separate caller grant and uses non-interactive passwordless sudo.
+`--sudo` selects its distinct approved account and credential and requires a separate caller grant.
+Key credentials retain non-interactive passwordless `sudo -n`.
+For password credentials, Artium scans and journals the original command and enables the transport's password sudo mode.
+The transport owns the `sudo -S -k` wrapper, generates fresh unpredictable prompt and success markers, and sends the selected sudo binding's password at most once, followed by a newline, only after the exact stderr prompt.
+It strips both markers and redirects the privileged command's stdin from `/dev/null`, including when sudo does not request a password.
+Passwordless or cached authorization never delivers the password to the command, and a successful elevation preserves the command's exit result.
+Failed sudo authentication returns `SUDO_DENIED`; the ordinary binding's credential is never used for sudo.
+Passwords have no minimum length: short passwords can cause command refusals and withheld output whenever their text occurs in commands, output or protocol text.
+Artium reports `INVALID_INPUT` when command admission detects protected material; `SECRET_IN_COMMAND` is the underlying ssh-axi code.
+Both execution paths retain full protocol-envelope scanning.
+A short or common-word password, such as one character or a word appearing in protocol text, can make every execution on that binding fail; use a longer password.
 The server validates commands for protected material before journaling and passes command text through private IPC rather than child process arguments.
 Preparation signs the caller, session family, exact input and binding revisions for ten minutes without dispatching a command.
 The CLI durably saves a private command-free receipt before submitting the signed request key; each accepted key claims one execution before command dispatch.
