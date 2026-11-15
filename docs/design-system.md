@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview, People, the person detail page, the Roles list, the role detail page, Invitations and the Tools list use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
+Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list and the tool page use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -24,8 +24,12 @@ A page on the seam is a React view in `src/views`, registered in `src/views/root
 Both use `renderToString` and `hoistInlineStyles()` to move emitted `style` attributes into the response's one nonce'd `<style>` element, then provide the view props and optional frame props as an `application/json` data block and load `hydrate.js`.
 `src/client/hydrate.tsx` first writes each hoisted declaration back onto its element through `element.style`, which the policy allows because it is not markup, then reads the root's view name and the data block and hydrates the same tree.
 React therefore finds the markup it rendered and owns later style changes.
-Overview is the first page on the seam, People (`src/views/people.tsx`) is the second, the person detail page (`src/views/person.tsx`) is the third, the Roles list (`src/views/roles.tsx`) is the fourth, the role detail page (`src/views/role.tsx`) is the fifth, Invitations (`src/views/invitations.tsx`) is the sixth, and the Tools list (`src/views/tools.tsx`) is the seventh.
-The Tools list offers no action of its own: enabling and disabling a tool stays on the tool page, which is still legacy.
+Overview is the first page on the seam, People (`src/views/people.tsx`) is the second, the person detail page (`src/views/person.tsx`) is the third, the Roles list (`src/views/roles.tsx`) is the fourth, the role detail page (`src/views/role.tsx`) is the fifth, Invitations (`src/views/invitations.tsx`) is the sixth, the Tools list (`src/views/tools.tsx`) is the seventh, and the tool page (`src/views/tool.tsx` and `src/views/tool-writes.tsx`) is the eighth.
+The Tools list offers no action of its own: enabling and disabling a tool is on the tool page.
+The tool page frame holds the setup steps, the Enabled switch (a native `button` with `role="switch"` in an `ActionForm`, which keeps the confirmation text and the button label as the dialog action), the tab links (Astryx link buttons marking the current tab with `aria-current="page"`, so tabs work without JavaScript) and one panel per tab.
+The Write permissions, Raw API and Advanced tabs are Astryx views; operation groups stay native `details`, and the filter inputs join the page's `ops-filter` get form through the `form` attribute.
+The Instances and Access tabs are still legacy markup: the route passes it as `legacyHtml`, `Tool` renders it in a `legacy-island` element, and `renderPage()` blanks `legacyHtml` in the hydration data so the markup is sent once, which is safe because React does not compare or patch the inner markup of an element set with `dangerouslySetInnerHTML`.
+Elements that `confirm.js` fills before hydration, such as the test result and the JSON check status, render with `suppressHydrationWarning` and matching text so hydration does not discard the page's event handlers.
 Its Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`, and its search is the same get form that `confirm.js` submits without empty values.
 Invitations keeps the one-time link dialog (`#invitation-link`) as a native `dialog` that `confirm.js` opens after a create or resend form marked with `claimLink` in `ActionForm`, and its provider choice stays a native `select` inside an Astryx `Field`; the lifetime in days is a text input that `confirm.js` sends as a number.
 The Roles list opens its New role sheet from `?sheet=new-role`, and the earlier `?dialog=new-role` link redirects there.
@@ -50,7 +54,7 @@ The Sessions card (`Sessions` in `src/views/sessions.tsx`) is also on the accoun
 The People filter chips stay native `select` elements, so filtering works without JavaScript and the form fields are unchanged.
 A view that shows a time wraps it in `<time suppressHydrationWarning>`, because `confirm.js` formats every `time[datetime]` before hydration.
 Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
-The legacy base rules for headings, paragraphs, links, table elements, labels, selects, textareas, buttons and inputs other than checkboxes, radio buttons, hidden and file inputs skip content inside `[data-astryx-root]`.
+The legacy base rules for headings, paragraphs, links, table elements, labels, selects, textareas, buttons and inputs other than checkboxes, radio buttons, hidden and file inputs skip content inside `[data-astryx-root]`, except inside a `legacy-island` element, which keeps them.
 
 ## Constraints
 

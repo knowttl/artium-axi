@@ -1025,15 +1025,12 @@ test.each([false, true])('rendered Azure and Graph controls reflect enabled=%s w
       expect(page.body.match(/name="expectedToolRevision" data-type="number" value="2"/g)).toHaveLength(1)
       expect(page.body).toContain('Last changed by synthetic-user')
     }
-    if (path === '/admin/tools/az-axi') {
-      const forms = page.body.match(/<form\b[^>]*action="\/v1\/admin\/tools\/az-axi"[^>]*>[\s\S]*?<\/form>/g)!
-      expect(forms).toEqual(expect.arrayContaining([expect.stringContaining(
-        `<input type="hidden" name="enabled" data-type="boolean" value="${!enabled}"><button class="toggle" role="switch" aria-checked="${enabled}">`)]))
-    }
-    if (path === '/admin/tools/mg-axi') {
-      const graphForms = page.body.match(/<form\b[^>]*action="\/v1\/admin\/tools\/mg-axi"[^>]*>[\s\S]*?<\/form>/g)!
-      expect(graphForms).toEqual(expect.arrayContaining([expect.stringContaining(
-        `<input type="hidden" name="enabled" data-type="boolean" value="${!enabled}"><button class="toggle" role="switch" aria-checked="${enabled}">`)]))
+    for (const tool of ['az-axi', 'mg-axi']) {
+      if (path !== `/admin/tools/${tool}`) continue
+      const [form] = formsFor(page.body, `/v1/admin/tools/${tool}`)
+      const [hidden] = fields(page.body, 'enabled')
+      expect([attribute(hidden!, 'type'), attribute(hidden!, 'data-type'), attribute(hidden!, 'value')]).toEqual(['hidden', 'boolean', String(!enabled)])
+      expect(nodes(form!).filter(element => attribute(element, 'role') === 'switch').map(element => [text(element), attribute(element, 'aria-checked')])).toEqual([['Enabled', String(enabled)]])
     }
   }
 })
@@ -1058,11 +1055,14 @@ test.each([
   }
 })
 
+type Element = DefaultTreeAdapterMap['element']
+const nodes = (node: DefaultTreeAdapterMap['node']): Element[] => [...'tagName' in node ? [node] : [], ...'childNodes' in node ? node.childNodes.flatMap(nodes) : []]
+const text = (element: Element): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? text(child) : '').join('')
+const attribute = (element: Element, name: string) => element.attrs.find(item => item.name === name)?.value
+const fields = (body: string, name: string) => nodes(parse(body)).filter(element => ['input', 'textarea'].includes(element.tagName) && attribute(element, 'name') === name)
+const formsFor = (body: string, action: string) => nodes(parse(body)).filter(element => element.tagName === 'form' && attribute(element, 'action') === action)
+
 function toolsTable(body: string) {
-  type Element = DefaultTreeAdapterMap['element']
-  const nodes = (node: DefaultTreeAdapterMap['node']): Element[] => [...'tagName' in node ? [node] : [], ...'childNodes' in node ? node.childNodes.flatMap(nodes) : []]
-  const text = (element: Element): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? text(child) : '').join('')
-  const attribute = (element: Element, name: string) => element.attrs.find(item => item.name === name)?.value
   const table = nodes(parse(body)).find(element => element.tagName === 'table' && attribute(element, 'aria-label') === 'Tools')!
   const headings = nodes(table).filter(element => element.tagName === 'th' && attribute(element, 'scope') === 'col').map(text)
   const cells = (tool: string) => {
@@ -1130,10 +1130,10 @@ test('the tools list shows each Raw API mode and read-only raw tools offer only 
   expect(cells('ssh-axi')['Raw API']).toBe('None')
 
   const writable = (await app.inject({ method: 'GET', url: '/admin/tools/az-axi?tab=raw-api', headers: { cookie } })).body
-  expect(writable).toContain('<textarea name="write"')
+  expect(fields(writable, 'write').map(field => field.tagName)).toEqual(['textarea'])
   const readOnly = (await app.inject({ method: 'GET', url: '/admin/tools/vectra-axi?tab=raw-api', headers: { cookie } })).body
-  expect(readOnly).toContain('<textarea name="get"')
-  expect(readOnly).not.toContain('<textarea name="write"')
+  expect(fields(readOnly, 'get').map(field => field.tagName)).toEqual(['textarea'])
+  expect(fields(readOnly, 'write').map(field => [field.tagName, attribute(field, 'type')])).toEqual([['input', 'hidden']])
 })
 async function replace(tool: Exclude<ToolName, 'ssh-axi'>, value: unknown = values[tool], expectedRevision = 0) {
   const listed = await request('GET', '')
@@ -1943,13 +1943,17 @@ test.each([
   const page = await app.inject({ method: 'GET', url: '/admin/tools/awx-axi?tab=writes',
     headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
   expect(page.statusCode).toBe(200)
-  expect(page.body).toContain(`name="${grant}" data-type="boolean"><div><b>${label}</b>`)
+  const switchRow = (body: string) => {
+    const [input] = fields(body, grant)
+    return { checked: attribute(input!, 'checked') !== undefined, label: text(nodes(input!.parentNode as unknown as Element).find(element => element.tagName === 'b')!) }
+  }
+  expect(switchRow(page.body)).toEqual({ checked: false, label })
   const enabled = await request('PATCH', '/awx-axi/write-access', { enabled: true, [grant]: true, expectedRevision: 2 })
   expect(enabled.status).toBe(200)
   expect(await enabled.json()).toMatchObject({ nativeSettings: { allowWrites: true, [grant]: true } })
   const grantedPage = await app.inject({ method: 'GET', url: '/admin/tools/awx-axi?tab=writes',
     headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
-  expect(grantedPage.body).toContain(`name="${grant}" data-type="boolean" checked><div><b>${label}</b>`)
+  expect(switchRow(grantedPage.body)).toEqual({ checked: true, label })
   const disabled = await request('PATCH', '/awx-axi/write-access', { enabled: true, [grant]: false, expectedRevision: 3 })
   expect(disabled.status).toBe(200)
   expect(await disabled.json()).toMatchObject({ nativeSettings: { allowWrites: true, [grant]: false } })
@@ -3268,11 +3272,10 @@ test('the tool and role pages offer the Raw API controls', async () => {
   expect(tool.statusCode).toBe(200)
   expect(tool.body).toContain('action="/v1/admin/tools/az-axi/raw-api"')
   expect(tool.body).toContain('action="/v1/admin/tools/az-axi/raw-api/routes"')
-  expect(tool.body.match(/name="mode" value="(off|read|read-writes)"( checked)?/g)).toEqual([
-    'name="mode" value="off" checked', 'name="mode" value="read"', 'name="mode" value="read-writes"'])
+  const modes = (body: string) => fields(body, 'mode').map(field => [attribute(field, 'value'), attribute(field, 'checked') !== undefined])
+  expect(modes(tool.body)).toEqual([['off', true], ['read', false], ['read-writes', false]])
   const readOnly = await app.inject({ method: 'GET', url: '/admin/tools/vectra-axi?tab=raw-api', headers: { cookie } })
-  expect(readOnly.body.match(/name="mode" value="(off|read|read-writes)"( checked)?/g)).toEqual([
-    'name="mode" value="off" checked', 'name="mode" value="read"', 'name="mode" value="read-writes"'])
+  expect(modes(readOnly.body)).toEqual([['off', true], ['read', false], ['read-writes', false]])
   const unavailable = await app.inject({ method: 'GET', url: '/admin/tools/ldap-axi?tab=raw-api', headers: { cookie } })
   expect(unavailable.body).not.toContain('/raw-api"')
   const role = await app.inject({ method: 'GET', url: '/admin/roles/synthetic-role', headers: { cookie } })

@@ -5,15 +5,17 @@ import { adminToolRoutes, nativeSettingsSchemas, toolSchema } from '../../shared
 import { ArtiumError } from '../../shared/errors.js'
 import { userGrantPolicies } from '../../shared/user-grants.js'
 import operationCatalogue from '../../../tools/inventories/write-operations.json' with { type: 'json' }
-import { browserCookie, browserPage } from '../auth/browser.js'
+import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { escape } from './escape.js'
-import { actionForm, adminRead, revision, timestamp } from './forms.js'
+import { actionForm, adminRead, revision } from './forms.js'
 import { editorProfile } from './credential-form.js'
 import { instancesPanel, readInstanceRows, registerInstancePages } from './instances.js'
-import { describeWrites, rawApiModeWords, setupBadge, setupStatus, toolIcon, toolProducts, toolSetupState, writes as writesState } from './design/status.js'
-import { callout, card, checkOption, field, icon, noteCard, sheet, sheetLink, steps, tabs } from './design/ui.js'
+import { describeWrites, rawApiModeWords, setupStatus, toolProducts, toolSetupState } from './design/status.js'
+import { card, checkOption, field, icon, sheet, sheetLink } from './design/ui.js'
 import { renderPage } from './render-page.js'
+import type { ToolProps } from '../../views/tool.js'
+import type { WritesProps } from '../../views/tool-writes.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
 import type { ToolName } from '../store/credential-store.js'
 import type { TrustedCertificate } from '../trusted-ca.js'
@@ -120,9 +122,6 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const configured = tool.name === 'ssh-axi' ? hasSshConfiguration(db) : instanceRows.some(row => row.instance!.configured)
     const csrf = reply.generateCsrf()
     const product = toolProducts[tool.name].name
-    // Forms keep today's API, CSRF token, revision and confirmation; buttons sit wherever the card needs them.
-    const formStart = (action: string, method: string, confirmation: string, attributes = '', className = '') =>
-      `<form${className ? ` class="${className}"` : ''} data-api data-method="${method}" data-confirm="${escape(confirmation)}"${attributes ? ' ' + attributes : ''} action="${escape(action)}" method="post"><input type="hidden" name="_csrf" value="${escape(csrf)}">`
     const roles = db.prepare(`SELECT roles.id, roles.name, roles.revision, role_tools.all_instances AS allInstances,
       (SELECT COUNT(DISTINCT user_id) FROM user_roles WHERE user_roles.role_id = roles.id) AS members
       FROM roles JOIN role_tools ON role_tools.role_id = roles.id WHERE tool = ? ORDER BY roles.name`).all(tool.name) as { id: string, name: string, revision: number, allInstances: number, members: number }[]
@@ -132,48 +131,33 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const writes = tool.writeAccess
     const awx = tool.name === 'awx-axi'
 
-    const enable = formStart(api, 'PATCH', tool.enabled ? 'Disable this tool and block new calls?' : 'Enable this tool for people whose roles grant access?') +
-      `<input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}"><input type="hidden" name="enabled" data-type="boolean" value="${!tool.enabled}"><button class="toggle" role="switch" aria-checked="${tool.enabled}"><span class="switch${tool.enabled ? ' on' : ''}" aria-hidden="true"></span>Enabled</button></form>`
-    const meta = `<span class="mono">${escape(tool.name)} · ${escape(tool.version)}</span><span>${setupBadge(state)}</span>${writesState({ capable: writes.capable, enabled: !tool.readOnly, operations: writes.supportedOperations ? writes.allowedOperations.length : null }, 'badge')}<span>Checked ${timestamp(tool.health.checkedAt, 'never')}</span>`
-    const grants = roles.map(role => role.name).join(', ')
     const configuredAt = Math.max(0, ...instanceRows.map(row => row.instance?.updatedAt ?? 0))
-    const setup = steps([
-      { title: tool.name === 'ssh-axi' ? 'Ordinary host binding configured' : 'Credential saved', detail: tool.name === 'ssh-axi' ? configured ? 'Enabled host with an ordinary account binding' : 'No enabled host with an ordinary account binding' : configured ? `${instanceRows.length} instance${instanceRows.length === 1 ? '' : 's'}, last saved ${timestamp(configuredAt)}` : 'Not saved yet', state: configured ? 'done' : 'todo' },
-      ...(tool.name === 'ssh-axi' ? [] : [{ title: 'Test passes', detail: tested ? 'Passed' : failing ? `Failing: ${escape(tool.health.errorCode ?? 'error')}` : 'Not run', state: tested ? 'done' as const : failing ? 'fail' as const : 'todo' as const }]),
-      { title: 'Enabled', detail: tool.enabled ? 'On' : 'Off', state: tool.enabled ? 'done' : 'todo' },
-      { title: 'Granted to a role', detail: roles.length ? escape(grants) : 'No roles yet', state: roles.length ? 'done' : 'todo' },
-    ])
+    const setup: ToolProps['setup'] = [
+      { title: tool.name === 'ssh-axi' ? 'Ordinary host binding configured' : 'Credential saved', state: configured ? 'done' : 'todo',
+        ...tool.name === 'ssh-axi' ? { detail: configured ? 'Enabled host with an ordinary account binding' : 'No enabled host with an ordinary account binding', at: null }
+          : configured ? { detail: `${instanceRows.length} instance${instanceRows.length === 1 ? '' : 's'}, last saved `, at: new Date(configuredAt).toISOString() } : { detail: 'Not saved yet', at: null } },
+      ...(tool.name === 'ssh-axi' ? [] : [{ title: 'Test passes', detail: tested ? 'Passed' : failing ? `Failing: ${tool.health.errorCode ?? 'error'}` : 'Not run', at: null,
+        state: tested ? 'done' as const : failing ? 'fail' as const : 'todo' as const }]),
+      { title: 'Enabled', detail: tool.enabled ? 'On' : 'Off', at: null, state: tool.enabled ? 'done' : 'todo' },
+      { title: 'Granted to a role', detail: roles.length ? roles.map(role => role.name).join(', ') : 'No roles yet', at: null, state: roles.length ? 'done' : 'todo' },
+    ]
     const writesNote = !writes.capable ? 'Read-only' : tool.readOnly ? 'Off' : writes.supportedOperations ? `${writes.allowedOperations.length} on` : 'On'
-    const navigation = tabs(`/admin/tools/${tool.name}`, tab, [
+    const tabs: ToolProps['tabs'] = [
       { id: 'instances', label: 'Instances', icon: 'globe', note: String(instanceRows.length) },
       { id: 'writes', label: 'Write permissions', icon: 'zap', note: writesNote },
-      ...(rawCapable ? [{ id: 'raw-api', label: 'Raw API', icon: 'terminal' as const, note: rawApiModeWords[tool.rawApi.mode].label }] : []),
+      ...(rawCapable ? [{ id: 'raw-api', label: 'Raw API', icon: 'terminal', note: rawApiModeWords[tool.rawApi.mode].label }] : []),
       { id: 'access', label: 'Access', icon: 'users', note: String(roles.length) },
-      { id: 'advanced', label: 'Advanced', icon: 'sliders' },
-    ], 'Tool sections')
-    const result = '<p class="note" data-test-result role="status"></p>'
+      { id: 'advanced', label: 'Advanced', icon: 'sliders', note: null },
+    ].map(({ id, ...item }) => ({ ...item, href: `/admin/tools/${tool.name}?tab=${id}`, current: id === tab }))
 
-    let panel: string
+    let panel: ToolProps['panel']
     if (tab === 'instances') {
-      panel = instancesPanel({ tool, csrf, rows: instanceRows, profile: editorProfile(tool.name, credentialProfiles[tool.name]), sheet: query.sheet })
+      panel = { tab, legacyHtml: instancesPanel({ tool, csrf, rows: instanceRows, profile: editorProfile(tool.name, credentialProfiles[tool.name]), sheet: query.sheet }) }
     } else if (tab === 'writes') {
-      panel = writesPanel()
+      panel = { tab, writes: writesProps() }
     } else if (tab === 'raw-api') {
-      const options = tool.rawApi.modes.map(mode => `<label class="option"><input type="radio" name="mode" value="${mode}"${mode === tool.rawApi.mode ? ' checked' : ''}><div><strong>${rawApiModeWords[mode].label}</strong><span>${rawApiModeWords[mode].detail}</span></div></label>`).join('')
-      const form = formStart(api + '/raw-api', 'PATCH', `Change the Raw API mode for ${product}? It applies to every caller on the next call. This change is audited.`, '', 'card') +
-        `<div class="card-head"><div><h2>Raw API mode</h2><p>The most ${escape(product)} raw API calls may do for any caller.</p></div></div>
-        <div class="card-body"><fieldset class="options"><legend class="sr-only">Raw API mode</legend>${options}</fieldset>${revision(tool.revision)}</div>
-        <div class="card-foot"><span>Saving keeps the credential and other settings. Audited.</span><div class="actions"><button class="btn btn-primary btn-sm">Save Raw API mode</button></div></div></form>`
-      const routes = formStart(api + '/raw-api/routes', 'PUT', `Change the raw route patterns for ${product}? They apply to every caller on the next call. This change is audited.`, '', 'card') +
-        `<div class="card-head"><div><h2>Route patterns</h2><p>Which paths ${escape(product)} raw calls may use. One pattern per line.</p></div></div>
-        <div class="card-body">${tool.rawApi.writes ? `<label>Write routes<textarea name="write" data-type="lines" rows="4" spellcheck="false">${escape(tool.rawApi.routes.write.join('\n'))}</textarea></label>
-        <p class="note">Required for any raw write. Each line is a method and a relative path, such as <code>PATCH _apis/wit/workitems/*</code>. Methods: POST, PATCH, PUT or DELETE.</p>`
-          : `<input type="hidden" name="write" data-type="lines" value="${escape(tool.rawApi.routes.write.join('\n'))}">`}
-        <label>GET routes (optional)<textarea name="get" data-type="lines" rows="4" spellcheck="false">${escape(tool.rawApi.routes.get.join('\n'))}</textarea></label>
-        <p class="note">Leave empty to allow any path for raw reads. A <code>*</code> segment matches exactly one segment and a final <code>**</code> matches any deeper path.</p>${revision(tool.revision)}</div>
-        <div class="card-foot"><span>Saving keeps the credential and other settings. Audited.</span><div class="actions"><button class="btn btn-primary btn-sm">Save route patterns</button></div></div></form>`
-      panel = `<div class="split has-aside"><div class="column">${form}${routes}</div><div class="column">${noteCard('Two settings are required',
-        `<p>A raw call needs this mode and the Raw API access switch on a role that grants ${escape(product)} to the caller. Set the switch on the role’s page.</p>`)}</div></div>`
+      panel = { tab, mode: tool.rawApi.mode, options: tool.rawApi.modes.map(mode => ({ mode, ...rawApiModeWords[mode] })), writeRoutes: tool.rawApi.writes,
+        write: tool.rawApi.routes.write.join('\n'), get: tool.rawApi.routes.get.join('\n') }
     } else if (tab === 'access') {
       const instances = db.prepare('SELECT id, name, description FROM credentials WHERE tool = ? ORDER BY name').all(tool.name) as { id: string, name: string, description: string }[]
       const granted = db.prepare('SELECT credential_id AS id FROM role_tool_instances WHERE role_id = ? AND tool = ?')
@@ -195,11 +179,10 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
             { consequence: `Replace ${role.name}’s ${product} instance access? Changes apply to every member on the next call.`, title: 'Save instance access', action: 'Save access' }) }))
         return `<div class="list-row">${icon('shield')}<div class="grow"><a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a><p>${role.members} ${role.members === 1 ? 'person' : 'people'} · ${escape(scope)}</p></div>${sheetLink(name, accessHref(name), 'Instances', 'btn btn-ghost btn-sm')}${icon('chev')}</div>`
       }).join('')
-      panel = card(`Roles that grant ${product}`, 'Enabling alone gives nobody access. Assign these roles to people on People.',
+      panel = { tab, legacyHtml: card(`Roles that grant ${product}`, 'Enabling alone gives nobody access. Assign these roles to people on People.',
         rows || '<p class="empty">No roles grant this tool. Open a role and select this tool to give its members access.</p>',
-        { actions: '<a class="btn btn-secondary btn-sm" href="/admin/roles">Manage roles</a>' }) + sheets.join('') + userGrantCards()
+        { actions: '<a class="btn btn-secondary btn-sm" href="/admin/roles">Manage roles</a>' }) + sheets.join('') + userGrantCards() }
     } else {
-      const writeState = `writes ${writes.enabled ? 'on' : 'off'}`
       const policies = userGrantPolicies[tool.name] ?? {}
       const settings = { ...tool.nativeSettings }
       for (const key of Object.keys(policies)) {
@@ -208,15 +191,11 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
           settings[key] = rest
         }
       }
-      const grantNote = Object.keys(policies).length ? ' Per-person grants are managed with the picker on the Access tab. Omitting a policy turns it off and removes its grants.' : ''
-      panel = callout('warn', 'This replaces all native settings', 'Saving keeps the credential and clears cached health. Omitting write settings turns writes off. Use Write permissions for everyday changes.' + grantNote, '') +
-        formStart(api, 'PATCH', 'Replace native settings while keeping the credential?', '', 'card') +
-        `<div class="card-head"><div><h2>Native settings (JSON)</h2><p>Current: ${escape(writeState)}.</p></div></div><div class="card-body"><input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}"><p>${escape(settingsGuide[tool.name])}</p>${grantNote ? '<p class="note">Per-person grants are managed with the picker on the Access tab.</p>' : ''}<label>Native settings (JSON object)<textarea name="nativeSettings" data-type="json" data-json-check rows="10" required spellcheck="false">${escape(JSON.stringify(settings, null, 2))}</textarea></label><p class="note" data-json-status aria-live="polite"></p></div>
-        <div class="card-foot"><span>{} clears settings.</span><div class="actions"><button class="btn btn-secondary btn-sm">Replace settings</button></div></div></form>`
+      panel = { tab: 'advanced', writeState: `writes ${writes.enabled ? 'on' : 'off'}`, guide: settingsGuide[tool.name], grantNote: Object.keys(policies).length > 0, settings: JSON.stringify(settings, null, 2) }
     }
-    // The filter form sits outside the write form; its controls join it through the form attribute.
-    const filterForm = tab === 'writes' && writes.capable && writes.supportedOperations ? `<form id="ops-filter" method="get" action="/admin/tools/${tool.name}" hidden><input type="hidden" name="tab" value="writes"></form>` : ''
-    return browserPage(reply, product, setup + result + navigation + panel + filterForm, current, undefined, { lead: toolIcon(tool.name, 'lg'), heading: product, meta, actions: `<div class="actions">${enable}</div>`, helpTopic: 'Tools' })
+    return renderPage(reply, 'Tools', 'tool', { csrf, name: tool.name, api, product, mark: toolProducts[tool.name].mark, version: tool.version, revision: tool.revision, enabled: tool.enabled,
+      state: setupStatus(state), writes: describeWrites(!writes.capable || tool.readOnly, writes.capable, writes.supportedOperations ? writes.allowedOperations.length : null),
+      checkedAt: tool.health.checkedAt === null ? null : new Date(tool.health.checkedAt).toISOString(), setup, tabs, panel }, current, undefined, undefined, product)
 
     function userGrantCards(): string {
       const people = db.prepare('SELECT id, username, display_name AS displayName FROM users WHERE archived_at IS NULL AND disabled = 0 ORDER BY username').all() as { id: string, username: string, displayName: string }[]
@@ -259,34 +238,27 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       }).join('')
     }
 
-    function writesPanel(): string {
-      const blocked = noteCard(awx ? 'Capability boundary' : 'Always blocked', `<p>${escape(writes.blocked)}</p>`)
-      if (!writes.capable) {
-        return `<div class="split has-aside" data-write-access><div class="column">${card('Always read-only', `${product} cannot change data through Artium.`, `<div class="card-body"><p>${escape(writes.reason ?? 'No write actions.')}</p><p>No write actions are currently granted.</p></div>`)}</div><div class="column">${blocked}</div></div>`
-      }
+    function writesProps(): WritesProps {
       const deletes = (awx ? tool.nativeSettings.allowDeletes : (tool.nativeSettings.writes as { allowDeletes?: boolean } | undefined)?.allowDeletes) === true
-      let switches = `<label class="switch-row"><input type="checkbox" class="switch" role="switch" name="enabled" data-type="boolean"${writes.enabled ? ' checked' : ''}><div><b>Allow writes</b><span>${writes.enabled ? 'On.' : 'Off.'} ${awx ? 'Writes and previews for this tenant. Deletes and bulk host operations also require Allow destructive deletes. Reads and help remain available while off.' : `Agents can only read from ${escape(product)} while this is off.${writes.supportedOperations ? ' Turning it on allows only the operations you select below.' : ''}`}</span></div></label>`
-      if (awx) switches += `<label class="switch-row"><input type="checkbox" class="switch" role="switch" name="allowDeletes" data-type="boolean"${deletes ? ' checked' : ''}><div><b>Allow destructive deletes</b><span>${deletes ? 'On.' : 'Off.'} Deletes, api delete and bulk host operations also need Allow writes. Preview with --dry-run, then repeat with --confirm.</span></div></label>`
-      if (awx) switches += `<label class="switch-row"><input type="checkbox" class="switch" role="switch" name="allowSecurityAdministration" data-type="boolean"${tool.nativeSettings.allowSecurityAdministration === true ? ' checked' : ''}><div><b>Allow security administration</b><span>${tool.nativeSettings.allowSecurityAdministration === true ? 'On.' : 'Off.'} Organization, user, team, role and token administration also need Allow writes. Resource deletes additionally need Allow destructive deletes. Preview with --dry-run, then repeat with --confirm.</span></div></label>`
-      if (tool.name === 'beyondtrust-axi') switches += `<label class="switch-row"><input type="checkbox" class="switch" role="switch" name="allowDeletes" data-type="boolean"${deletes ? ' checked' : ''}><div><b>Allow deletes</b><span>${deletes ? 'On.' : 'Off.'} Deletes also need their exact operation selected below and both native confirmations.</span></div></label>`
-      const grant = `<p class="note">${writes.enabled ? `Current grant: ${escape(writes.unlocks)}` : 'No write actions are currently granted.'}</p>`
-      const confirmation = 'Save write access and the selected operations for this tool? Other native settings stay unchanged. Turning writes on allows the actions described on this page; turning writes off blocks them. This change is audited.'
-      const unsupported = writes.supportedOperations && writes.allowedOperations.some(operation => !writes.supportedOperations!.includes(operation))
-        ? callout('err', 'Unsupported operations saved', 'The saved allow-list contains operations outside the pinned catalogue. Saving write permissions removes them.', '', { role: 'alert' }) : ''
-      const save = '<div class="actions"><button class="btn btn-primary btn-sm">Save write permissions</button></div>'
-      let form: string
-      if (writes.supportedOperations) {
-        form = formStart(api + '/write-access', 'PATCH', confirmation, '', 'column') + `<input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}">` +
-          `<section class="card"><div class="card-body">${switches}</div></section>` + operationsCard(writes.supportedOperations, save) + '</form>'
-      } else {
-        form = formStart(api + '/write-access', 'PATCH', confirmation, '', 'card') + `<input type="hidden" name="expectedRevision" data-type="number" value="${tool.revision}">` +
-          `<div class="card-body">${switches}</div><div class="card-foot"><span>Saving keeps the credential and other settings. Audited.</span>${save}</div></form>`
+      const securityAdministration = tool.nativeSettings.allowSecurityAdministration === true
+      const flag = (on: boolean, text: string) => `${on ? 'On.' : 'Off.'} ${text}`
+      const switches: WritesProps['switches'] = [{ name: 'enabled', label: 'Allow writes', on: writes.enabled, text: flag(writes.enabled, awx
+        ? 'Writes and previews for this tenant. Deletes and bulk host operations also require Allow destructive deletes. Reads and help remain available while off.'
+        : `Agents can only read from ${product} while this is off.${writes.supportedOperations ? ' Turning it on allows only the operations you select below.' : ''}`) }]
+      if (awx) {
+        switches.push({ name: 'allowDeletes', label: 'Allow destructive deletes', on: deletes, text: flag(deletes, 'Deletes, api delete and bulk host operations also need Allow writes. Preview with --dry-run, then repeat with --confirm.') },
+          { name: 'allowSecurityAdministration', label: 'Allow security administration', on: securityAdministration,
+            text: flag(securityAdministration, 'Organization, user, team, role and token administration also need Allow writes. Resource deletes additionally need Allow destructive deletes. Preview with --dry-run, then repeat with --confirm.') })
       }
-      const warning = callout('warn', 'Read before enabling', escape(writes.unlocks), '')
-      return `<div class="split has-aside" data-write-access><div class="column">${unsupported}${form}${grant}</div><div class="column">${blocked}${warning}</div></div>`
+      if (tool.name === 'beyondtrust-axi') switches.push({ name: 'allowDeletes', label: 'Allow deletes', on: deletes, text: flag(deletes, 'Deletes also need their exact operation selected below and both native confirmations.') })
+      return { capable: writes.capable, readOnlyReason: writes.reason ?? 'No write actions.', blockedTitle: awx ? 'Capability boundary' : 'Always blocked', blocked: writes.blocked, unlocks: writes.unlocks,
+        grant: writes.enabled ? `Current grant: ${writes.unlocks}` : 'No write actions are currently granted.',
+        unsupported: Boolean(writes.supportedOperations && writes.allowedOperations.some(operation => !writes.supportedOperations!.includes(operation))),
+        confirmation: 'Save write access and the selected operations for this tool? Other native settings stay unchanged. Turning writes on allows the actions described on this page; turning writes off blocks them. This change is audited.',
+        switches, operations: writes.capable && writes.supportedOperations ? operationsProps(writes.supportedOperations) : null }
     }
 
-    function operationsCard(supported: readonly string[], save: string): string {
+    function operationsProps(supported: readonly string[]): NonNullable<WritesProps['operations']> {
       const selected = new Set(writes.allowedOperations)
       const kind = instanceRows[0]?.instance?.metadata.kind
       const groups = operationGroups(tool.name, supported, kind)
@@ -295,25 +267,19 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       const filtered = Boolean(search) || show !== 'all'
       const matches = (operation: Operation) => (!search || `${operation.label} ${operation.name}`.toLowerCase().includes(search))
         && (show === 'all' || (show === 'selected' ? selected.has(operation.name) : operation.risk.includes('delete')))
-      const deleteCount = groups.reduce((total, group) => total + group.operations.filter(operation => operation.risk.includes('delete')).length, 0)
       const families = new Set(groups.map(group => group.family).filter(Boolean))
       const family = typeof kind === 'string' && families.has(kind) ? kind : undefined
-      const familyNote = family ? ` Operations for your ${escape(family.toUpperCase())} deployment are listed first.` : ''
-      const selectControls = (scope: string) => `<div class="ops-actions" data-ops-actions hidden><button type="button" class="btn btn-ghost btn-sm" data-ops-select="all" aria-label="Select all ${scope}">Select all</button><button type="button" class="btn btn-ghost btn-sm" data-ops-select="none" aria-label="Clear all ${scope}">Clear all</button></div>`
-      const filters = `<div class="filters" data-ops-filter><label class="search"><span class="sr-only">Filter operations</span>${icon('search')}<input type="search" name="q" form="ops-filter" value="${escape(query.q ?? '')}" placeholder="Filter operations, for example note or close"></label>
-        <div class="seg" role="radiogroup" aria-label="Show">${(['all', 'selected', 'deletes'] as const).map(value => `<label><input class="sr-only" type="radio" name="show" value="${value}" form="ops-filter"${show === value ? ' checked' : ''}>${{ all: 'All', selected: 'Selected', deletes: `Deletes ${deleteCount}` }[value]}</label>`).join('')}</div>
-        <button class="btn btn-secondary btn-sm" form="ops-filter" data-ops-apply>Apply</button></div>`
-      const body = groups.map((group, index) => {
-        const visible = group.operations.filter(matches)
-        const picked = group.operations.filter(operation => selected.has(operation.name)).length
-        const groupDeletes = group.operations.filter(operation => operation.risk.includes('delete')).length
-        const other = group.family && group.family !== family && family
-        return `<details class="ops-group" data-ops-group${filtered ? (visible.length ? ' open' : ' hidden') : picked || index === 0 ? ' open' : ''}><summary>${icon('chev')}<b>${escape(group.title)}</b><span class="muted">${group.family ? `${escape(group.family.toUpperCase())} · ` : ''}${group.operations.length} operation${group.operations.length === 1 ? '' : 's'}<span data-ops-picked>${picked ? ` · ${picked} selected` : ''}</span>${other ? ' · not used by this deployment' : ''}</span>${groupDeletes ? `<span class="end"><span class="badge err">${groupDeletes} delete${groupDeletes === 1 ? '' : 's'}</span></span>` : ''}</summary>
-          <div class="ops-body">${selectControls(`operations in ${escape(group.title)}`)}${group.operations.map(operation => `<label class="op" data-op="${escape(`${operation.label} ${operation.name}`.toLowerCase())}"${operation.risk.includes('delete') ? ' data-delete' : ''}${matches(operation) ? '' : ' hidden'}><input type="checkbox" name="operations" data-type="array" value="${escape(operation.name)}"${selected.has(operation.name) ? ' checked' : ''}><span>${escape(operation.label)}</span>${operation.label === operation.name ? '' : `<code>${escape(operation.name)}</code>`}${operation.risk.includes('delete') ? '<span class="badge err">Delete</span>' : ''}${operation.risk.includes('bulk') ? '<span class="badge warn">Bulk</span>' : ''}</label>`).join('')}</div></details>`
-      }).join('')
-      return `<section class="card"><div class="card-head"><div><h2>Allowed operations</h2><p><span data-ops-selected>${selected.size}</span> of ${supported.length} selected. Unselected operations stay blocked. At least one is required to turn writes on.${familyNote}</p></div></div>
-        <div class="card-body column">${filters}${selectControls('shown operations')}<div class="ops">${body}</div><p class="ops-empty" data-ops-empty${groups.some(group => group.operations.some(matches)) ? ' hidden' : ''}>No operations match this filter.</p></div>
-        <div class="card-foot"><span>Saving keeps the credential and other settings. Audited.</span>${save}</div></section>`
+      return { supported: supported.length, selected: selected.size, q: query.q ?? '', show, empty: !groups.some(group => group.operations.some(matches)),
+        familyNote: family ? ` Operations for your ${family.toUpperCase()} deployment are listed first.` : '',
+        deleteCount: groups.reduce((total, group) => total + group.operations.filter(operation => operation.risk.includes('delete')).length, 0),
+        groups: groups.map((group, index) => {
+          const picked = group.operations.filter(operation => selected.has(operation.name)).length
+          const visible = group.operations.some(matches)
+          return { title: group.title, family: group.family?.toUpperCase() ?? null, picked, deletes: group.operations.filter(operation => operation.risk.includes('delete')).length,
+            notUsed: Boolean(group.family && group.family !== family && family), open: filtered ? visible : picked > 0 || index === 0, hidden: filtered && !visible,
+            operations: group.operations.map(operation => ({ name: operation.name, label: operation.label, search: `${operation.label} ${operation.name}`.toLowerCase(),
+              delete: operation.risk.includes('delete'), bulk: operation.risk.includes('bulk'), checked: selected.has(operation.name), hidden: !matches(operation) })) }
+        }) }
     }
   })
   registerInstancePages(app, db, credentialProfiles)

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 export interface Confirmation {
   consequence: string
   title?: string
-  action: string
+  action?: string
   typedName?: string
 }
 
