@@ -981,6 +981,23 @@ test('a typed credential secret reaches only the rejected form submission and is
   `)
 })
 
+test('closing the Add instance sheet clears the certificate file and permits selecting it again', () => {
+  browser(`
+    await page.open(base + '/admin/tools/az-axi');
+    await page.click('[data-sheet="sheet-add-instance"]');
+    await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"certificate"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
+    await page.eval('(() => { const transfer = new DataTransfer(); transfer.items.add(new File([' + ${JSON.stringify(JSON.stringify(fixture.certificatePem))} + '], "synthetic-identity.pem")); const input = document.querySelector("[data-certificate-file]"); input.files = transfer.files; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
+    await page.wait('[data-profile-field=privateKey]:not([required])');
+    check(await page.eval(() => document.querySelector('[data-certificate-pem]').value !== ''), 'Certificate file was not loaded');
+    await page.click('#sheet-add-instance .sheet-foot [data-sheet-close]');
+    check(await page.eval(() => document.querySelector('[data-certificate-file]').files.length === 0 && document.querySelector('[data-certificate-pem]').value === ''), 'Closing the sheet retained certificate data');
+    await page.click('[data-sheet="sheet-add-instance"]');
+    await page.eval('(() => { const transfer = new DataTransfer(); transfer.items.add(new File([' + ${JSON.stringify(JSON.stringify(fixture.certificatePem))} + '], "synthetic-identity.pem")); const input = document.querySelector("[data-certificate-file]"); input.files = transfer.files; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
+    await page.wait('[data-profile-field=privateKey]:not([required])');
+    check(await page.eval(() => document.querySelector('[data-certificate-pem]').value === ${JSON.stringify(fixture.certificatePem)}), 'Reselected certificate was not loaded');
+  `)
+})
+
 test('SSH administration explains dedicated identities without offering generic credential or trust overrides', () => {
   chrome(['resize', '420', '900'])
   browser(`
