@@ -1530,11 +1530,10 @@ test('the GitHub connection card never carries the device code, verification lin
     vi.spyOn(stream, 'write').mockImplementation(((chunk: unknown) => { written.push(String(chunk)); return true }) as typeof stream.write)
   }
   fakeGithubDevice()
-  const adapter = createGhAdapter(new EmbeddedSecretSource(store))
-  const prepare = adapter.prepare.bind(adapter)
-  vi.spyOn(adapter, 'prepare').mockImplementation(async (args, reference, input) => ({ ...await prepare(args, reference, input),
-    executable: fakeTool.executable, args: [...fakeTool.args, 'print', 'remaining: 4999'] }))
-  adapters.push(adapter)
+  const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+  vi.mocked(spawn).mockImplementation((_executable, _args, options) =>
+    original.spawn(fakeTool.executable, [...fakeTool.args, 'print', 'remaining: 4999'], options))
+  adapters.push(createGhAdapter(new EmbeddedSecretSource(store)))
   await replace('gh-axi')
   const cookie = await browserCookie()
   const read = async () => (await Promise.all(['/admin/tools/gh-axi?tab=instances', '/admin/tools/gh-axi/instances/default']
