@@ -8,10 +8,10 @@ import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
 import { ActionForm, Revision } from './action-form.js'
 import { Icon } from './icon.js'
-import { LegacyIsland } from './legacy-island.js'
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
 import { Time } from './time.js'
+import { Access, type AccessProps } from './tool-access.js'
 import { Instances, type InstancesProps } from './tool-instances.js'
 import { Writes, type WritesProps } from './tool-writes.js'
 
@@ -31,7 +31,7 @@ export interface ToolProps {
   tabs: { label: string, href: string, icon: string, note: string | null, current: boolean }[]
   panel:
     | { tab: 'instances', instances: InstancesProps }
-    | { tab: 'access', legacyHtml: string }
+    | { tab: 'access', access: AccessProps }
     | { tab: 'writes', writes: WritesProps }
     | { tab: 'raw-api', mode: string, options: { mode: string, label: string, detail: string }[], writeRoutes: boolean, write: string, get: string }
     | { tab: 'advanced', writeState: string, guide: string, grantNote: boolean, settings: string }
@@ -180,7 +180,7 @@ export function Tool(props: ToolProps) {
         : panel.tab === 'writes' ? <Writes {...props} panel={panel.writes} />
           : panel.tab === 'raw-api' ? <RawApi {...props} panel={panel} />
             : panel.tab === 'advanced' ? <Advanced {...props} panel={panel} />
-              : <LegacyIsland legacyHtml={panel.legacyHtml} />}
+              : <Access {...props} panel={panel.access} />}
     </VStack>
   )
 }

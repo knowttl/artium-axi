@@ -134,9 +134,9 @@ test.each([
     INSERT INTO role_rules (id, provider_id, claim, value, role_id) VALUES ('synthetic-rule', 'synthetic-provider', 'groups', 'synthetic-group', 'synthetic-role');
     INSERT INTO user_roles (user_id, role_id, origin) VALUES ${grants}`)
   await signIn()
-  const response = await request('GET', '/admin/tools/falcon-axi?tab=access')
-  expect(response.statusCode).toBe(200)
-  expect(response.body).toContain(`<a href="/admin/roles/synthetic-role">Synthetic Role</a><p>${members} · All instances</p>`)
+  const row = accessRow(await accessPage('falcon-axi'), 'Synthetic Role')
+  expect(nodesOf(row).filter(element => element.tagName === 'a').map(link => attributeOf(link, 'href'))).toContain('/admin/roles/synthetic-role')
+  expect(textOf(row)).toContain(`${members} · All instances`)
 })
 
 test('tool Access offers an instance access sheet per role, open from its query view', async () => {
@@ -145,17 +145,18 @@ test('tool Access offers an instance access sheet per role, open from its query 
     { reference: { id: 'synthetic-production', tool: 'falcon-axi' }, name: 'production', value: {} },
   ]).seed(db)
   await signIn()
-  const closed = (await request('GET', '/admin/tools/falcon-axi?tab=access')).body
-  expect(closed).toContain('Synthetic Role</a><p>1 person · All instances</p>')
-  expect(closed).toContain('<dialog class="sheet" id="sheet-instances-synthetic-role"')
+  const closed = await accessPage('falcon-axi')
+  expect(textOf(accessRow(closed, 'Synthetic Role'))).toContain('1 person · All instances')
+  expect([attributeOf(accessSheet(closed, 'instances-synthetic-role'), 'class'), attributeOf(accessSheet(closed, 'instances-synthetic-role'), 'open')]).toEqual(['sheet', undefined])
   db.exec("UPDATE role_tools SET all_instances = 0; INSERT INTO role_tool_instances VALUES ('synthetic-role', 'falcon-axi', 'synthetic-lab')")
-  const open = (await request('GET', '/admin/tools/falcon-axi?tab=access&sheet=instances-synthetic-role')).body
-  expect(open).toContain('Selected instances: lab</p>')
-  expect(open).toContain('id="sheet-instances-synthetic-role" aria-labelledby="sheet-instances-synthetic-role-title" open')
-  expect(open).toContain('<input type="radio" name="scope" value="selected" checked>')
-  expect(open).toContain('<input type="checkbox" name="instances" value="lab" checked>')
-  expect(open).toContain('<input type="checkbox" name="instances" value="production">')
-  expect(open).toContain('action="/v1/admin/roles/synthetic-role/tools/falcon-axi/instances"')
+  const open = await accessPage('falcon-axi', 'instances-synthetic-role')
+  expect(textOf(accessRow(open, 'Synthetic Role'))).toContain('Selected instances: lab')
+  expect([attributeOf(accessSheet(open, 'instances-synthetic-role'), 'aria-labelledby'), attributeOf(accessSheet(open, 'instances-synthetic-role'), 'open')])
+    .toEqual(['sheet-instances-synthetic-role-title', ''])
+  const form = accessForm(open, 'instances-synthetic-role')
+  expect(accessSummary(form).slice(0, 2)).toEqual(['/v1/admin/roles/synthetic-role/tools/falcon-axi/instances', 'PUT'])
+  expect(accessFields(form).filter(([name]) => name !== '_csrf')).toEqual([['scope', 'radio', 'all', false], ['scope', 'radio', 'selected', true],
+    ['instances', 'hidden', undefined, false], ['instances', 'checkbox', 'lab', true], ['instances', 'checkbox', 'production', false], ['expectedRevision', 'hidden', '1', false]])
 })
 
 test.each([
@@ -176,11 +177,13 @@ test('tool Access can restore all instances after the last selected instance is 
   new FakeCredentialStore([{ reference: { id: 'synthetic-lab', tool: 'falcon-axi' }, name: 'lab', value: {} }]).seed(db)
   db.exec("UPDATE role_tools SET all_instances = 0; INSERT INTO role_tool_instances VALUES ('synthetic-role', 'falcon-axi', 'synthetic-lab'); DELETE FROM credentials WHERE id = 'synthetic-lab'")
   await signIn()
-  const page = await request('GET', '/admin/tools/falcon-axi?tab=access&sheet=instances-synthetic-role')
-  expect(page.body).toContain('Selected instances: None</p>')
-  expect(page.body).toContain('id="sheet-instances-synthetic-role" aria-labelledby="sheet-instances-synthetic-role-title" open')
-  expect(page.body).toContain('href="/admin/tools/falcon-axi?tab=access&amp;sheet=instances-synthetic-role"')
-  expect(page.body).toContain('value="all"')
+  const page = await accessPage('falcon-axi', 'instances-synthetic-role')
+  const row = accessRow(page, 'Synthetic Role')
+  expect(textOf(row)).toContain('Selected instances: None')
+  expect(attributeOf(accessSheet(page, 'instances-synthetic-role'), 'open')).toBe('')
+  expect(nodesOf(row).filter(element => attributeOf(element, 'data-sheet') === 'sheet-instances-synthetic-role').map(link => attributeOf(link, 'href')))
+    .toEqual(['/admin/tools/falcon-axi?tab=access&sheet=instances-synthetic-role'])
+  expect(accessFields(accessForm(page, 'instances-synthetic-role')).filter(([name]) => name === 'scope').map(([, , value]) => value)).toEqual(['all', 'selected'])
   const csrf = await token('/admin/tools/falcon-axi?tab=access')
   const response = await app.inject({ method: 'PUT', url: '/v1/admin/roles/synthetic-role/tools/falcon-axi/instances', headers: {
     host: 'localhost', origin: 'http://localhost', cookie: Object.entries(cookies).map(([key, value]) => `${key}=${value}`).join('; '),
@@ -193,33 +196,37 @@ test('tool Access lists per-person grants and offers a picker of people without 
   db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'kubernetes-axi'")
     .run(JSON.stringify({ sessions: { grants: { 'synthetic-second': ['exec', 'logs'], 'departed-user': ['watch'] } } }))
   await signIn()
-  const page = (await request('GET', '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-add')).body
-  expect(page).toContain('Interactive sessions by person')
-  expect(page).toContain('<strong>synthetic-second</strong><p>exec, logs</p>')
-  expect(page).toContain('<strong>departed-user</strong> <span class="badge warn">Not an active person</span><p>watch</p>')
-  const picker = /<select [^>]*name="userId"[^>]*>(.*?)<\/select>/s.exec(page)![1]!
-  expect(picker).toContain(`value="${userId}"`)
-  expect(picker).not.toContain('synthetic-second')
-  expect(page).toContain('id="sheet-grants-sessions-add" aria-labelledby="sheet-grants-sessions-add-title" open')
-  expect(page).toContain('action="/v1/admin/tools/kubernetes-axi/user-grants"')
-  expect(page).toContain('<input type="hidden" name="policy" value="sessions">')
-  const edit = (await request('GET', '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-synthetic-second')).body
-  expect(edit).toContain('<input type="hidden" name="userId" value="synthetic-second">')
-  expect(edit).toContain('<input type="checkbox" name="operations" value="exec" checked>')
-  expect(edit).toContain('<input type="checkbox" name="operations" value="watch">')
+  const page = await accessPage('kubernetes-axi', 'grants-sessions-add')
+  expect(page.filter(element => element.tagName === 'h2' && textOf(element) === 'Interactive sessions by person')).toHaveLength(1)
+  expect(textOf(accessRow(page, 'synthetic-second'))).toContain('exec, logs')
+  expect(textOf(accessRow(page, 'synthetic-second'))).not.toContain('Not an active person')
+  expect(textOf(accessRow(page, 'departed-user'))).toContain('Not an active person')
+  expect(textOf(accessRow(page, 'departed-user'))).toContain('watch')
+  expect(pickerPeople(page, 'grants-sessions-add')).toContain(userId)
+  expect(pickerPeople(page, 'grants-sessions-add')).not.toContain('synthetic-second')
+  expect(attributeOf(accessSheet(page, 'grants-sessions-add'), 'open')).toBe('')
+  expect(attributeOf(accessSheet(page, 'grants-sessions-add'), 'aria-labelledby')).toBe('sheet-grants-sessions-add-title')
+  expect(accessSummary(accessForm(page, 'grants-sessions-add')).slice(0, 2)).toEqual(['/v1/admin/tools/kubernetes-axi/user-grants', 'PUT'])
+  expect(accessFields(accessForm(page, 'grants-sessions-add'))).toContainEqual(['policy', 'hidden', 'sessions', false])
+  const edit = await accessPage('kubernetes-axi', 'grants-sessions-synthetic-second')
+  const fields = accessFields(accessForm(edit, 'grants-sessions-synthetic-second'))
+  expect(fields).toContainEqual(['userId', 'hidden', 'synthetic-second', false])
+  expect(fields).toContainEqual(['operations', 'checkbox', 'exec', true])
+  expect(fields).toContainEqual(['operations', 'checkbox', 'watch', false])
 })
 
 test('tool Access holds back Shodan grants until the policy ceilings are saved', async () => {
   await signIn()
-  const before = (await request('GET', '/admin/tools/shodan-axi?tab=access')).body
-  expect(before).toContain('Set the ceilings for this policy in Advanced native settings before granting people here.')
-  expect(before).not.toContain('Grant a person')
+  const addLinks = (page: Element[]) => page.filter(element => element.tagName === 'a' && textOf(element) === 'Grant a person').map(link => attributeOf(link, 'data-sheet'))
+  const before = await accessPage('shodan-axi')
+  expect(before.filter(element => element.tagName === 'p' && textOf(element) === 'Set the ceilings for this policy in Advanced native settings before granting people here.')).toHaveLength(4)
+  expect(addLinks(before)).toEqual([])
   db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'shodan-axi'")
     .run(JSON.stringify({ scans: { grants: {}, maxScanCredits: 10, maxRequests: 10 } }))
-  const after = (await request('GET', '/admin/tools/shodan-axi?tab=access')).body
-  expect(after.match(/Grant a person/g)).toHaveLength(1)
-  expect(after).toContain('id="sheet-grants-scans-add"')
-  expect(after).not.toContain('id="sheet-grants-sessions-add"')
+  const after = await accessPage('shodan-axi')
+  expect(addLinks(after)).toEqual(['sheet-grants-scans-add'])
+  expect(accessSheet(after, 'grants-scans-add')).toBeDefined()
+  expect(accessSheet(after, 'grants-sessions-add')).toBeUndefined()
 })
 
 test('tool Access retains outside operations and identifies Shodan grants', async () => {
@@ -230,10 +237,11 @@ test('tool Access retains outside operations and identifies Shodan grants', asyn
     writes: { grants: { 'synthetic-second': ['OP-021', 'OP-070'] }, maxQueryCredits: 1, maxRequests: 1 },
   }))
   await signIn()
-  const page = (await request('GET', '/admin/tools/shodan-axi?tab=access&sheet=grants-scans-synthetic-second')).body
-  expect(page).toContain('<input type="checkbox" name="operations" value="OP-010" checked>')
-  expect(page).toContain('stream (OP-047), stream (OP-048)')
-  expect(page).toContain('alert ignore (OP-021), alert ignore (OP-070)')
+  const page = await accessPage('shodan-axi', 'grants-scans-synthetic-second')
+  expect(accessFields(accessForm(page, 'grants-scans-synthetic-second'))).toContainEqual(['operations', 'checkbox', 'OP-010', true])
+  const rows = page.filter(element => element.tagName === 'li').map(textOf)
+  expect(rows.some(row => row.includes('stream (OP-047), stream (OP-048)'))).toBe(true)
+  expect(rows.some(row => row.includes('alert ignore (OP-021), alert ignore (OP-070)'))).toBe(true)
 })
 
 test('tool Access shows each saved outside operation once', async () => {
@@ -281,9 +289,8 @@ test('Advanced hides per-person grants and preserves policy settings', async () 
 test('tool Access excludes disabled people from the add picker', async () => {
   db.prepare('UPDATE users SET disabled = 1 WHERE id = ?').run('synthetic-second')
   await signIn()
-  const page = (await request('GET', '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-add')).body
-  const picker = /<select [^>]*name="userId"[^>]*>(.*?)<\/select>/s.exec(page)![1]!
-  expect(picker).toContain(`value="${userId}"`)
+  const picker = pickerPeople(await accessPage('kubernetes-axi', 'grants-sessions-add'), 'grants-sessions-add')
+  expect(picker).toContain(userId)
   expect(picker).not.toContain('synthetic-second')
 })
 
@@ -296,24 +303,24 @@ test('a person grant saved from the Access sheet reaches the tool settings', asy
   expect(response.statusCode, response.body).toBe(200)
   expect(JSON.parse((db.prepare("SELECT native_settings FROM tools WHERE name = 'kubernetes-axi'").get() as { native_settings: string }).native_settings))
     .toEqual({ sessions: { grants: { 'synthetic-second': ['exec'] } } })
-  expect((await request('GET', '/admin/tools/kubernetes-axi?tab=access')).body).toContain('<strong>synthetic-second</strong><p>exec</p>')
+  expect(nodesOf(accessRow(await accessPage('kubernetes-axi'), 'synthetic-second')).some(element => textOf(element) === 'exec')).toBe(true)
 })
 
 test('removing an empty grant returns the person to the Access picker', async () => {
   db.prepare("UPDATE tools SET native_settings = ? WHERE name = 'kubernetes-axi'")
     .run(JSON.stringify({ sessions: { grants: { 'synthetic-second': [] } } }))
   await signIn()
-  const before = (await request('GET', '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-add')).body
-  expect(before).toContain('<strong>synthetic-second</strong><p>None</p>')
-  expect(/<select [^>]*name="userId"[^>]*>(.*?)<\/select>/s.exec(before)![1]).not.toContain('synthetic-second')
+  const before = await accessPage('kubernetes-axi', 'grants-sessions-add')
+  expect(nodesOf(accessRow(before, 'synthetic-second')).some(element => textOf(element) === 'None')).toBe(true)
+  expect(pickerPeople(before, 'grants-sessions-add')).not.toContain('synthetic-second')
   const csrf = await token('/admin/tools/kubernetes-axi?tab=access')
   const response = await app.inject({ method: 'PUT', url: '/v1/admin/tools/kubernetes-axi/user-grants', headers: {
     host: 'localhost', origin: 'http://localhost', accept: 'application/json', cookie: Object.entries(cookies).map(([key, value]) => `${key}=${value}`).join('; '),
   }, payload: { _csrf: csrf, policy: 'sessions', userId: 'synthetic-second', operations: [], expectedRevision: 1 } })
   expect(response.statusCode, response.body).toBe(200)
-  const after = (await request('GET', '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-add')).body
-  expect(after).not.toContain('<strong>synthetic-second</strong><p>None</p>')
-  expect(/<select [^>]*name="userId"[^>]*>(.*?)<\/select>/s.exec(after)![1]).toContain('value="synthetic-second"')
+  const after = await accessPage('kubernetes-axi', 'grants-sessions-add')
+  expect(accessRow(after, 'synthetic-second')).toBeUndefined()
+  expect(pickerPeople(after, 'grants-sessions-add')).toContain('synthetic-second')
 })
 
 test('administrators can inspect the loaded trusted CA metadata on Tools', async () => {
@@ -620,7 +627,7 @@ test('Roles page escapes names and change actors and preserves bounded paginatio
   expect((await request('GET', '/admin/roles/synthetic-role')).body).not.toMatch(/<dialog[^>]*id="sheet-rename-role"[^>]*open=""/)
 })
 
-test.each(['/admin/tools', '/admin/tools/falcon-axi', '/admin/tools/falcon-axi?tab=writes', '/admin/tools/falcon-axi?tab=advanced', '/admin/credentials', '/admin/roles', '/admin/roles/synthetic-role', '/admin/users/' + userId, '/admin/invitations', '/admin/audit'])('page %s requires the current administrator capability', async path => {
+test.each(['/admin/tools', '/admin/tools/falcon-axi', '/admin/tools/falcon-axi?tab=access', '/admin/tools/falcon-axi?tab=writes', '/admin/tools/falcon-axi?tab=advanced', '/admin/credentials', '/admin/roles', '/admin/roles/synthetic-role', '/admin/users/' + userId, '/admin/invitations', '/admin/audit'])('page %s requires the current administrator capability', async path => {
   expect((await request('GET', path)).headers.location).toBe('/login')
   await signIn()
   db.prepare('UPDATE users SET administrator = 0 WHERE id = ?').run(userId)
@@ -748,6 +755,8 @@ test.each([
   { method: 'PATCH', path: '/v1/admin/tools/falcon-axi/raw-api' },
   { method: 'PUT', path: '/v1/admin/tools/falcon-axi/raw-api/routes' },
   { method: 'PUT', path: '/v1/admin/tools/falcon-axi/credential' },
+  { method: 'PUT', path: '/v1/admin/tools/falcon-axi/user-grants' },
+  { method: 'PUT', path: '/v1/admin/roles/synthetic-role/tools/falcon-axi/instances' },
 ] as const)('security $method $path requires CSRF before editing', async ({ method, path }) => {
   await signIn()
   expect((await request(method, path, {})).statusCode).toBe(403)
@@ -860,6 +869,18 @@ const nodesOf = (node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['el
 ]
 
 const withoutProps = (body: string) => body.replace(/<script type="application\/json" data-astryx-props>.*?<\/script>/s, '')
+
+type Element = DefaultTreeAdapterMap['element']
+const attributeOf = (element: Element, name: string) => element.attrs.find(item => item.name === name)?.value
+const textOf = (element: Element): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? textOf(child) : '').join('')
+const accessPage = async (tool: string, sheet?: string) => nodesOf(parse(withoutProps((await request('GET', `/admin/tools/${tool}?tab=access${sheet ? '&sheet=' + sheet : ''}`)).body)))
+const accessRow = (page: Element[], label: string) => page.find(element => element.tagName === 'li' && nodesOf(element).some(item => ['a', 'strong'].includes(item.tagName) && textOf(item) === label))!
+const accessSheet = (page: Element[], name: string) => page.find(element => element.tagName === 'dialog' && attributeOf(element, 'id') === `sheet-${name}`)!
+const accessForm = (page: Element[], name: string) => nodesOf(accessSheet(page, name)).find(element => element.tagName === 'form')!
+const accessSummary = (form: Element) => ['action', 'data-method', 'data-confirm', 'data-confirm-title', 'data-confirm-action'].map(name => attributeOf(form, name))
+const accessFields = (form: Element) => nodesOf(form).filter(element => ['input', 'select'].includes(element.tagName))
+  .map(element => [attributeOf(element, 'name'), attributeOf(element, 'type') ?? element.tagName, attributeOf(element, 'value'), attributeOf(element, 'checked') !== undefined])
+const pickerPeople = (page: Element[], name: string) => nodesOf(accessSheet(page, name)).filter(element => element.tagName === 'option').map(option => attributeOf(option, 'value'))
 
 test('overview names each broken access link with the action that fixes it', async () => {
   await app.close()
