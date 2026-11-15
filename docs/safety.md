@@ -317,8 +317,9 @@ An active server `SSH_AXI_READ_ONLY` override still blocks execution.
 `--sudo` selects its distinct approved account and credential and requires a separate caller grant.
 Key credentials retain non-interactive passwordless `sudo -n`.
 For password credentials, Artium scans and journals the original command and enables the transport's password sudo mode.
-The transport owns the `sudo -S -k` wrapper, generates fresh unpredictable prompt and success markers, and sends the selected sudo binding's password once only after the exact stderr prompt.
+The transport owns the `sudo -S -k` wrapper, generates fresh unpredictable prompt and success markers, and sends the selected sudo binding's password at most once, followed by a newline, only after the exact stderr prompt.
 It strips both markers and redirects the privileged command's stdin from `/dev/null`, including when sudo does not request a password.
+Passwordless or cached authorization never delivers the password to the command, and a successful elevation preserves the command's exit result.
 Failed sudo authentication returns `SUDO_DENIED`; the ordinary binding's credential is never used for sudo.
 Passwords have no minimum length: short passwords can cause command refusals and withheld output whenever their text occurs in commands, output or protocol text.
 Artium reports `INVALID_INPUT` when command admission detects protected material; `SECRET_IN_COMMAND` is the underlying ssh-axi code.
