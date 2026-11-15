@@ -12,7 +12,7 @@ import { useState } from 'react'
 import { ActionForm, Revision } from './action-form.js'
 import { CredentialEditor, type CredentialEditorProps } from './credential-editor.js'
 import { Icon } from './icon.js'
-import { LegacyIsland } from './legacy-island.js'
+import { GithubConnection, type GithubConnectionProps } from './github-connection.js'
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
 import { LastChange, Time } from './time.js'
@@ -48,7 +48,7 @@ export interface InstanceProps {
   checkedAt: string | null
   setup: (ToolProps['setup'][number] & { test?: boolean })[]
   failure: { shown: boolean, summary: string, code: string, certificateHint: boolean, diagnostic: string }
-  github: { legacyHtml: string } | null
+  github: GithubConnectionProps | null
   controllerOrigin: string | null
   connection: CredentialEditorProps
   certificates: {
@@ -308,7 +308,7 @@ export function Instance(props: InstanceProps) {
       <Failure failure={failure} />
       <Setup setup={props.setup} />
       <p className="note" data-test-result="" role="status" suppressHydrationWarning>{''}</p>
-      {github && <LegacyIsland {...github} />}
+      {github && <GithubConnection csrf={csrf} {...github} />}
       {controllerOrigin !== null && <Controller csrf={csrf} api={api} props={props} origin={controllerOrigin} />}
       <Connection csrf={csrf} props={props} />
       <Certificates csrf={csrf} path={path} name={name} certificates={certificates} />

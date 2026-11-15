@@ -142,6 +142,7 @@ afterEach(async () => {
   await app.close()
   db.close()
   vi.restoreAllMocks()
+  vi.mocked(spawn).mockReset()
   vi.useRealTimers()
   rmSync(directory, { recursive: true, force: true })
 })
@@ -1522,6 +1523,52 @@ test('GitHub device approval stores a shared encrypted credential, audits once a
   expect(network).toHaveBeenCalledTimes(3)
   await failure(await request('POST', '/gh-axi/device/poll', started), 'NOT_FOUND')
   await failure(await save('gh-axi', { origin: 'https://github.com', auth: 'device', accessToken: 'gho_CANARY-forged', login: 'synthetic' }, 2), 'INVALID_INPUT')
+})
+
+test('the GitHub connection card never carries the device code, verification link or a token in a page, its data, a log or the audit', async () => {
+  const written: string[] = []
+  for (const stream of [process.stdout, process.stderr]) {
+    vi.spyOn(stream, 'write').mockImplementation(((chunk: unknown) => { written.push(String(chunk)); return true }) as typeof stream.write)
+  }
+  fakeGithubDevice()
+  const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+  vi.mocked(spawn).mockImplementation((_executable, _args, options) =>
+    original.spawn(fakeTool.executable, [...fakeTool.args, 'print', 'remaining: 4999'], options))
+  adapters.push(createGhAdapter(new EmbeddedSecretSource(store)))
+  await replace('gh-axi')
+  const cookie = await browserCookie()
+  const read = async () => (await Promise.all(['/admin/tools/gh-axi?tab=instances', '/admin/tools/gh-axi/instances/default']
+    .map(url => app.inject({ url, headers: { cookie } })))).map(page => page.body)
+  const secrets = ['CANARY-github-token', 'gho_CANARY-connected-token', 'CANARY-private-device-code']
+  const deviceFlow = ['ABCD-EFGH', '/login/device']
+  const hydrated = (body: string) => (JSON.parse(/data-astryx-props>(.*?)<\/script>/s.exec(body)![1]!) as
+    { props: { github?: unknown, panel?: { instances?: { github?: unknown } } } }).props
+
+  const before = await read()
+  for (const body of before) {
+    expect(body).toContain('data-connect-github')
+    for (const value of [...secrets, ...deviceFlow]) expect(body).not.toContain(value)
+  }
+  const detail = await (await request('GET', '/gh-axi')).json()
+  const response = await request('POST', '/gh-axi/device', { origin: 'https://github.com', expectedRevision: 1, expectedToolRevision: detail.revision })
+  const started = await response.json() as { connectionId: string, userCode: string, verificationUri: string }
+  expect([started.userCode, started.verificationUri]).toEqual(['ABCD-EFGH', 'https://github.com/login/device'])
+  for (const body of await read()) for (const value of [...secrets, ...deviceFlow]) expect(body).not.toContain(value)
+
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(Date.now() + 5000)
+  expect((await request('POST', '/gh-axi/device/poll', { connectionId: started.connectionId })).status).toBe(200)
+  const [tool, instance] = await read()
+  for (const body of [tool!, instance!]) for (const value of [...secrets, ...deviceFlow]) expect(body).not.toContain(value)
+  expect(instance).toContain('Connected account: <strong>synthetic-machine</strong>')
+  const toolRevision = (await (await request('GET', '/gh-axi')).json()).revision
+  expect(hydrated(instance!).github).toEqual({ action: '/v1/admin/tools/gh-axi/device', toolRevision, origin: 'https://github.com',
+    instance: { id: store.findCredential('gh-axi')!.id, name: 'default', revision: 2 }, connected: { login: 'synthetic-machine', expiresAt: null }, expired: false })
+  expect(hydrated(tool!).panel?.instances?.github).toEqual({ action: '/v1/admin/tools/gh-axi/device', toolRevision, origin: 'https://github.com',
+    instance: null, connected: null, expired: false })
+  for (const text of [JSON.stringify(db.prepare('SELECT * FROM audit').all()), written.join('')]) {
+    for (const value of [...secrets, 'ABCD-EFGH']) expect(text).not.toContain(value)
+  }
 })
 
 test.each([

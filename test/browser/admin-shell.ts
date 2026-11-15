@@ -638,11 +638,19 @@ test('GitHub device connection shows the code, stores approval and cancels recon
     await page.wait('[data-github-authorization]:not([hidden])');
     check(await page.eval(() => document.querySelector('[data-github-code]').textContent === 'ABCD-EFGH'), 'Device code missing');
     check(await page.eval(() => document.querySelector('[data-github-link]').href === location.origin + '/login/device'), 'Wrong verification URL');
+    check(await page.eval(() => {
+      const data = document.querySelector('[data-astryx-props]').textContent;
+      const html = document.documentElement.outerHTML;
+      return html.split('ABCD-EFGH').length === 2 && !data.includes('ABCD-EFGH') && !data.includes('/login/device') && !html.includes('CANARY-browser-device')
+        && !location.href.includes('ABCD-EFGH') && !location.href.includes('CANARY-browser-device');
+    }), 'The device code or link left its elements, or the private device code reached the page');
     await page.wait('tbody a[href="/admin/tools/gh-axi/instances/default"]');
+    check(await page.eval(() => !document.documentElement.outerHTML.includes('gho_CANARY-browser-device') && !document.documentElement.outerHTML.includes('ABCD-EFGH')),
+      'The Instances tab exposed the token or the device code');
     await openInstance('gh-axi');
     await page.wait('[data-connect-github] [name=expectedRevision][value="1"]');
     check(await page.eval(() => document.body.innerText.includes('Connected account: synthetic-machine')), 'Connected identity missing');
-    check(await page.eval(() => !document.body.innerHTML.includes('gho_CANARY-browser-device')), 'Token was exposed');
+    check(await page.eval(() => !document.documentElement.outerHTML.includes('gho_CANARY-browser-device') && !document.documentElement.outerHTML.includes('ABCD-EFGH')), 'Token was exposed');
     const revision = await page.eval(() => document.querySelector('[data-connect-github] [name=expectedRevision]').value);
     await page.eval(() => {
       const originalFetch = window.fetch.bind(window);

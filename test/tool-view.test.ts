@@ -130,6 +130,12 @@ test('the Add instance link opens its sheet and the table lists each instance wi
   expect(find(html, element => element.tagName === 'tr').slice(1).map(row => nodes(row).filter(element => element.tagName === 'code').map(text))).toEqual([['lab.example'], ['old.example']])
 })
 
+test.each([{ github: null, cards: [] }, { github: { action: '/v1/admin/tools/gh-axi/device', toolRevision: 7, origin: 'https://github.com', instance: null, connected: null, expired: false },
+  cards: [[['_csrf', 'hidden', 'synthetic-csrf'], ['expectedRevision', 'hidden', '0']]] }])(
+  'the Instances tab offers the GitHub connection card only for GitHub, and it adds a new instance (cards=$cards.length)', ({ github, cards }) => {
+    expect(find(renderInstances({ github }), element => element.tagName === 'form' && attribute(element, 'data-connect-github') !== undefined).map(form => controls(form).slice(0, 2))).toEqual(cards)
+  })
+
 const control = (overrides: Partial<CredentialControl>): CredentialControl => ({ name: 'region', id: 'profile-falcon-axi-region', label: 'Region', help: 'Falcon API region.', secret: false,
   ephemeral: false, required: true, stored: false, kind: 'input', dataType: 'string', value: 'us-2', ...overrides })
 const editor: CredentialEditorProps = { intro: 'Synthetic credential introduction.', schema: { type: 'object' }, identity: { auth: null }, configured: false, tls: null,

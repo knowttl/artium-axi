@@ -12,7 +12,7 @@ import { useState } from 'react'
 import { ActionForm, Revision } from './action-form.js'
 import { CredentialEditor, type CredentialEditorProps } from './credential-editor.js'
 import { Icon } from './icon.js'
-import { LegacyIsland } from './legacy-island.js'
+import { GithubConnection, type GithubConnectionProps } from './github-connection.js'
 import { Panel } from './panel.js'
 import { Sheet } from './sheet.js'
 import { badgeVariants, type Status } from './status.js'
@@ -45,7 +45,7 @@ export interface InstancesProps {
   ssh: boolean
   testGuide: string | null
   rows: Row[]
-  github: { legacyHtml: string } | null
+  github: GithubConnectionProps | null
   addInstance: AddInstanceProps | null
 }
 
@@ -209,7 +209,7 @@ export function Instances({ csrf, name, product, panel }: { csrf: string, name: 
           : <Button href={`${page}?sheet=add-instance`} label="Add instance" variant="primary" size="sm" icon={<Icon name="plus" />} data-sheet="sheet-add-instance" />}>
         <InstanceTable csrf={csrf} product={product} panel={panel} />
       </Panel>
-      {github && <LegacyIsland {...github} />}
+      {github && <GithubConnection csrf={csrf} {...github} />}
       <Notes name={name} ssh={ssh} testGuide={testGuide} />
       {rows.map(row => row.instance && <EditSheet key={row.name} csrf={csrf} page={page} row={{ ...row, instance: row.instance }} />)}
       {addInstance && <AddInstanceSheet csrf={csrf} page={page} add={addInstance} />}
