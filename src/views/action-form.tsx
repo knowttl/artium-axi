@@ -18,14 +18,15 @@ export interface ActionFormProps {
   claimLink?: boolean
   saveTool?: string
   className?: string
+  attributes?: Record<string, string | boolean>
   children: ReactNode
 }
 
-export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, trackChanges, claimLink, saveTool, className, children }: ActionFormProps) {
+export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, trackChanges, claimLink, saveTool, className, attributes, children }: ActionFormProps) {
   return (
     <form className={className} data-api="" data-method={method} data-confirm={confirmation?.consequence} data-confirm-title={confirmation?.title}
       data-confirm-action={confirmation?.action} data-confirm-name={confirmation?.typedName} data-success-url={successUrl} data-success-message={successMessage}
-      data-track-changes={trackChanges ? '' : undefined} data-invitation-link={claimLink ? '' : undefined} data-save-tool={saveTool} action={action} method="post">
+      data-track-changes={trackChanges ? '' : undefined} data-invitation-link={claimLink ? '' : undefined} data-save-tool={saveTool} {...attributes} action={action} method="post">
       <input type="hidden" name="_csrf" value={csrf} />
       {children}
     </form>

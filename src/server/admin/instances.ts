@@ -6,18 +6,19 @@ import { ArtiumError, errors } from '../../shared/errors.js'
 import type { Diagnostic } from '../../shared/errors.js'
 import { structuredDiagnostic } from '../../shared/diagnostic.js'
 import type { CredentialProfile } from '../adapters/credential-profile.js'
-import { browserCookie, browserPage } from '../auth/browser.js'
+import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { credentialCertificates } from '../store/trusted-certificates.js'
 import type { ToolName } from '../store/credential-store.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import type { InstancesProps } from '../../views/tool-instances.js'
 import { credentialTlsSettings } from '../credential-tls-settings.js'
-import { credentialEditor, credentialFields, editorProfile } from './credential-form.js'
-import { describe, describeWrites, setupBadge, setupStatus, toolIcon, toolProducts, toolSetupState, writes, type Tone } from './design/status.js'
-import { callout, card, icon, noteCard, steps } from './design/ui.js'
+import { credentialEditor, editorProfile } from './credential-form.js'
+import { describe, describeWrites, setupStatus, toolProducts, toolSetupState, type Tone } from './design/status.js'
+import { callout, icon } from './design/ui.js'
 import { escape } from './escape.js'
-import { actionForm, adminRead, changed, revision, timestamp, type Confirmation } from './forms.js'
+import { actionForm, adminRead, lastChange, revision, timestamp, type Confirmation } from './forms.js'
+import { renderPage } from './render-page.js'
 
 const testGuide = {
   'ssh-axi': 'doctor <granted-host> through the signed-in CLI; no shared tenant credential test is available',
@@ -127,77 +128,49 @@ export function registerInstancePages(app: FastifyInstance, db: Database.Databas
     const csrf = reply.generateCsrf()
     const product = toolProducts[tool.name].name
     const path = `${api}/instances/${instance.name}`
-    const page = `/admin/tools/${tool.name}/instances/${instance.name}`
-    const form = (action: string, method: string, body: string, confirmation?: Confirmation, attributes?: string) =>
-      actionForm(csrf, action, method, body, confirmation, attributes)
     const awx = tool.name === 'awx-axi'
-    const enabled = tool.enabled && instance.enabled
-    const state = toolSetupState({ enabled, configured: instance.configured, health: instance.health })
+    const state = toolSetupState({ enabled: tool.enabled && instance.enabled, configured: instance.configured, health: instance.health })
     const failing = state === 'failing'
-    const revisionInputs = `${versions(instance)}<input type="hidden" name="expectedToolRevision" data-type="number" value="${tool.revision}">`
-
-    const test = form(`${path}/test`, 'POST', `<button class="btn btn-secondary">${icon('test')}Test connection</button>`, undefined, `data-test-tool="${tool.name}"`)
-    const toggle = form(path, 'PATCH', `${versions(instance)}<input type="hidden" name="enabled" data-type="boolean" value="${!instance.enabled}"><button class="toggle" role="switch" aria-checked="${instance.enabled}"><span class="switch${instance.enabled ? ' on' : ''}" aria-hidden="true"></span>Enabled</button>`,
-      { consequence: instance.enabled ? `Disable ${instance.name}? Calls to it fail with INSTANCE_DISABLED until you enable it again.` : `Enable ${instance.name}? Agents who can use it can call it again.`,
-        title: instance.enabled ? 'Disable instance' : 'Enable instance', action: instance.enabled ? 'Disable' : 'Enable' })
-    const meta = `<span class="mono">${escape(tool.name)}</span><span data-tool-state>${setupBadge(state)}</span>${writes({ capable: tool.writeAccess.capable, enabled: !tool.readOnly && !instance.readOnly, operations: null }, 'badge')}<span>Checked <span data-check-time>${timestamp(instance.health.checkedAt, 'never')}</span></span>`
-    const stateTemplates = `<template data-state="ok">${setupBadge('healthy')}</template><template data-state="error">${setupBadge('failing')}</template>`
+    const iso = (value: number | null) => value === null ? null : new Date(value).toISOString()
     const definition = instance.health.errorCode && instance.health.errorCode in errors ? errors[instance.health.errorCode as keyof typeof errors] : undefined
-    const failure = callout('err', 'Last test failed', `<span data-check-summary>${escape(definition?.message ?? '')} ${escape(definition?.next ?? '')}</span>`, '',
-      { attributes: `data-check-failure${failing ? '' : ' hidden'}`, more: `<p>Agents calling this instance get <code data-check-error>${escape(instance.health.errorCode ?? '')}</code>.${instance.health.errorCode === 'UPSTREAM_TLS_FAILED' ? ' Review the endpoint under Certificates below.' : ''}</p><details><summary>Show diagnostic</summary><pre data-check-diagnostic>${escape(diagnosticText(instance.health.diagnostic))}</pre></details>` })
-    const setup = steps([
-      { title: 'Credential saved', detail: instance.configured ? timestamp(instance.updatedAt) : 'Not saved yet', state: instance.configured ? 'done' : 'todo' },
-      { title: 'Test passes', detail: state === 'healthy' ? 'Passed' : failing ? `Failing: ${escape(instance.health.errorCode ?? 'error')}` : 'Not run', state: state === 'healthy' ? 'done' : failing ? 'fail' : 'todo', attributes: 'data-test-checklist' },
-      { title: 'Instance enabled', detail: instance.enabled ? 'On' : 'Off', state: instance.enabled ? 'done' : 'todo' },
-    ])
-
-    let connection = ''
-    if (tool.name === 'gh-axi') connection += githubCard(form, tool, instance)
-    if (awx) {
-      connection += form(`${api}/origin`, 'PUT', `<div class="card-head"><div><h2>Controller address</h2><p>For password sign-in, save the address first, then check its certificate and sign in below.</p></div></div><div class="card-body">${revisionInputs}<input type="hidden" name="instance" value="${escape(instance.name)}"><label>Controller HTTPS origin<input name="origin" type="url" required value="${escape(instance.metadata.origin ?? '')}"></label><p>Changing the saved address removes the previous token and certificate trust.</p></div><div class="card-foot"><span>Sends no credentials.</span><div class="actions"><button class="btn btn-secondary btn-sm">Save controller address</button></div></div>`,
-        { consequence: 'Save this controller address without sending credentials? A changed address removes the previous token and certificate trust.' }, 'class="card"')
-    }
-    connection += form(`${path}/credential`, 'PATCH', `<div class="card-head"><div><h2>Connection</h2><p>How Artium signs in to ${escape(product)} for ${escape(instance.name)}. Secrets are encrypted and never shown again.</p></div></div><div class="card-body">${revisionInputs}${credentialFields(tool.name, editorProfile(tool.name, credentialProfiles[tool.name]), instance.metadata, instance.configured)}</div>
-      <div class="card-foot"><label class="check"><input type="checkbox" data-save-and-test checked> Test after saving</label><div class="actions"><button class="btn btn-primary btn-sm">Save connection</button></div></div>`,
-      { consequence: 'Save this credential, retaining unchanged stored secrets for the same identity and keeping native settings?' }, `class="card" data-save-tool="${tool.name}" data-save-instance="${escape(instance.name)}"`)
 
     const pins = credentialCertificates(db, instance.id)
     let endpoints: URL[] = []
     // An invalid saved credential must remain editable after a profile upgrade.
     try { endpoints = toolEndpoints(tool.name, { ...instance.metadata, ...tool.nativeSettings }) } catch { /* Save a valid endpoint before inspecting. */ }
     const soon = Date.now() + 30 * 86400000
-    const expiring = pins.some(pin => (pin.leaf !== null && Date.parse(pin.leaf.expiresAt) <= soon) || Date.parse(pin.certificate.expiresAt) <= soon)
-    const pinRows = pins.map(pin => `<tr><td class="mono">${escape(pin.endpoint)}</td><td data-label="Trust"><span class="badge">${pin.mode === 'pin' ? 'Pinned certificate' : 'Issuing CA'}</span></td>
-      <td data-label="SHA-256"><div><p class="mono">${escape(pin.certificate.fingerprint)}</p>${pin.leafFingerprint && pin.leafFingerprint !== pin.certificate.fingerprint ? `<p class="faint">Endpoint: <span class="mono">${escape(pin.leafFingerprint)}</span></p>` : ''}${pin.leaf ? '' : pin.leafFingerprint ? '<p class="faint">Certificate details not yet inspected.</p>' : '<p class="faint">No confirmed leaf; use Trust or Renew to confirm one</p>'}<p class="faint">${escape(pin.certificate.subject)}</p></div></td>
-      <td data-label="Expires"><div>${escape(pin.certificate.expiresAt)}${pin.leaf && pin.leaf.expiresAt !== pin.certificate.expiresAt ? `<p class="faint">Endpoint: ${escape(pin.leaf.expiresAt)}</p>` : ''}</div></td>
-      <td class="num">${form(`${path}/certificates`, 'DELETE', `<input type="hidden" name="id" value="${escape(pin.id)}"><button class="btn btn-secondary btn-sm">Remove endpoint trust</button>`, { consequence: 'Remove this endpoint trust record? Separately saved Certificate verification fields remain.' })}</td></tr>`).join('')
-    const pinTable = pins.length
-      ? `<table class="tbl stack-sm"><caption class="sr-only">Trusted certificates</caption><thead><tr><th scope="col">Endpoint</th><th scope="col">Trust</th><th scope="col">Fingerprint (SHA-256)</th><th scope="col">Expires</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody>${pinRows}</tbody></table>`
-      : '<p class="empty">No certificates trusted for this instance. Hostname and expiry checks always apply.</p>'
-    const offered = awx || tool.name === 'kubernetes-axi' && Boolean(instance.metadata.tlsServerName) || instance.health.errorCode === 'UPSTREAM_TLS_FAILED' || pins.length > 0
-    const inspect = endpoints.length ? form(`${path}/certificates/inspect`, 'POST',
-      `${endpoints.length > 1 ? `<label class="sr-only" for="endpoint-index">Saved TLS endpoint</label><select id="endpoint-index" name="endpointIndex" data-type="number">${endpoints.map((endpoint, index) => `<option value="${index}">${escape(endpoint.host)}</option>`).join('')}</select>` : `<input type="hidden" name="endpointIndex" data-type="number" value="0"><span class="mono">${escape(endpoints[0]!.host)}</span>`}<button class="btn btn-secondary btn-sm">${icon('cert')}Inspect certificate</button>`,
-      undefined, `class="row" data-inspect-certificate${offered ? '' : ' hidden'}`) : ''
-    const trustModes = `<option value="ca">Trust the issuing CA${tool.name === 'unifi-axi' ? ' (confirm a new leaf fingerprint after renewal)' : tool.name === 'proxmox-axi' ? ' (a separately saved fingerprint still applies)' : ' (recommended, renewed certificates keep working)'}</option><option value="pin">Strict leaf pinning (re-trust after every rotation)</option></select></label><p>Self-signed endpoints keep a leaf pin. Hostname and date verification always apply.</p>`
-    const dialog = `<dialog id="certificate-inspection" class="modal" aria-labelledby="certificate-inspection-title"><div class="modal-body"><h2 id="certificate-inspection-title">Inspect certificate for ${escape(instance.name)}</h2>
-      ${callout('warn', 'Compare the fingerprint before trusting', 'Trust is only as safe as the network path when this certificate was fetched. A certificate presented during interception would be trusted too. Compare the full SHA-256 fingerprint with the one shown by the appliance.', '', { role: 'alert' })}
-      <div data-certificate-details></div><p data-certificate-error role="alert"></p>${form(`${path}/certificates/use-name`, 'POST', '<input type="hidden" name="inspectionId"><button class="btn btn-secondary" data-use-certificate-name></button>', undefined, 'data-certificate-name-form hidden')}${form(`${path}/certificates/trust`, 'POST', `<input type="hidden" name="inspectionId"><input type="hidden" name="fillFields" data-type="boolean" value="${Boolean(credentialTlsSettings[tool.name].certificate)}">${credentialTlsSettings[tool.name].certificate ? '<p>Initial trust fills Certificate verification. Replacement preserves the existing trust mode.</p>' : '<p>This tool does not support a shared trusted certificate field. Confirmed endpoint trust is available.</p>'}<label>Trust mode<select name="mode">${trustModes}<label><input type="checkbox" name="confirmedFingerprint" required> I compared the displayed SHA-256 fingerprint with the appliance through a trusted route.</label><button class="btn btn-primary">Trust this certificate</button>`, undefined, `data-trust-certificate data-trust-test-url="${path}/test"`)}</div>
-      <div class="modal-foot"><button type="button" class="btn btn-ghost" data-close-certificate>Close</button></div></dialog>`
-    const certificates = !instance.configured && !(awx && instance.metadata.origin)
-      ? card('Trusted certificates', 'Trust applies only to this instance’s saved endpoints.', '<p class="empty">Save a connection first. Certificates are inspected at the saved endpoints.</p>')
-      : `<section class="card" data-trusted-certificates><div class="card-head"><div><h2>Trusted certificates</h2><p>Trust applies only to this instance’s saved credential. ${tool.name === 'unifi-axi' ? 'UniFi also checks the saved leaf fingerprint. Inspect the certificate to confirm its replacement after renewal.' : tool.name === 'proxmox-axi' ? 'CA trust allows leaf renewal unless a separately saved fingerprint rejects it; strict pinning needs re-trust after rotation.' : 'CA trust allows leaf renewal; strict pinning needs re-trust after rotation.'}</p></div></div>
-        ${expiring ? `<div class="card-body">${callout('warn', 'A trusted certificate expires soon', 'A trusted certificate has expired or expires within 30 days. Re-inspect this endpoint for rotation.', '', { role: 'alert' })}</div>` : ''}${pinTable}<div class="card-foot"><span>${offered ? 'Compare the fingerprint with the one the appliance shows before trusting.' : 'Inspection is offered after a connection test fails with a certificate error.'}</span><div class="actions">${inspect}</div></div></section>${dialog}`
+    const unifi = tool.name === 'unifi-axi'
+    const proxmox = tool.name === 'proxmox-axi'
 
-    const danger = card('Danger zone', '', `<ul class="rows"><li class="list-row"><div class="grow"><strong>Delete instance</strong><p>Permanent. Removes its credential, certificate trust and health. Calls that name it fail with INSTANCE_NOT_FOUND. Audit history is kept.</p></div>${form(path, 'DELETE',
-      `${versions(instance)}<button class="btn btn-danger-outline btn-sm">Delete…</button>`,
-      { consequence: `Delete ${instance.name}? Its credential, certificate trust and health are removed. This cannot be undone.`, title: 'Delete instance', action: 'Delete', typedName: instance.name },
-      `data-success-url="/admin/tools/${tool.name}"`)}</li></ul>`, { danger: true })
-    const aside = noteCard('What the test does', `<p>Runs one harmless read: <code>${escape(testGuide[tool.name])}</code>. It does not enable the tool or grant access.</p>`) +
-      noteCard('Keeping secrets', '<p>Leave a stored secret blank to keep it. Changing authentication, mode, kind, tenant, client or URL needs new secrets.</p>') +
-      (instance.configured ? changed(db, instance) : '')
-    const content = stateTemplates + failure + setup + '<p class="note" data-test-result role="status"></p>' +
-      `<div class="split has-aside"><div class="column">${connection}${certificates}${danger}</div><div class="column">${aside}</div></div>`
-    return browserPage(reply, product, content, current, instance.description || undefined,
-      { lead: toolIcon(tool.name, 'lg'), heading: instance.name, meta, actions: `<div class="actions">${test}${toggle}</div>`, parent: { href: `/admin/tools/${tool.name}`, label: product }, helpTopic: 'Tools' })
+    const props = { csrf, tool: tool.name, product, mark: toolProducts[tool.name].mark, api, path, toolRevision: tool.revision, id: instance.id, name: instance.name,
+      revision: instance.revision, enabled: instance.enabled, state: setupStatus(state), outcomes: { ok: setupStatus('healthy'), error: setupStatus('failing') },
+      writes: describeWrites(!tool.writeAccess.capable || tool.readOnly || instance.readOnly, tool.writeAccess.capable, null), checkedAt: iso(instance.health.checkedAt),
+      setup: [
+        { title: 'Credential saved', detail: instance.configured ? '' : 'Not saved yet', at: instance.configured ? iso(instance.updatedAt) : null, state: instance.configured ? 'done' as const : 'todo' as const },
+        { title: 'Test passes', detail: state === 'healthy' ? 'Passed' : failing ? `Failing: ${instance.health.errorCode ?? 'error'}` : 'Not run', at: null, test: true,
+          state: state === 'healthy' ? 'done' as const : failing ? 'fail' as const : 'todo' as const },
+        { title: 'Instance enabled', detail: instance.enabled ? 'On' : 'Off', at: null, state: instance.enabled ? 'done' as const : 'todo' as const },
+      ],
+      failure: { shown: failing, summary: [definition?.message, definition?.next].filter(Boolean).join(' '), code: instance.health.errorCode ?? '',
+        certificateHint: instance.health.errorCode === 'UPSTREAM_TLS_FAILED', diagnostic: diagnosticText(instance.health.diagnostic) },
+      github: tool.name === 'gh-axi' ? { legacyHtml: githubCard((action, method, body, confirmation, attributes) => actionForm(csrf, action, method, body, confirmation, attributes), tool, instance) } : null,
+      controllerOrigin: awx ? String(instance.metadata.origin ?? '') : null,
+      connection: credentialEditor(tool.name, editorProfile(tool.name, credentialProfiles[tool.name]), instance.metadata, instance.configured),
+      certificates: {
+        saved: instance.configured || Boolean(awx && instance.metadata.origin),
+        intro: `Trust applies only to this instance’s saved credential. ${unifi ? 'UniFi also checks the saved leaf fingerprint. Inspect the certificate to confirm its replacement after renewal.'
+          : proxmox ? 'CA trust allows leaf renewal unless a separately saved fingerprint rejects it; strict pinning needs re-trust after rotation.' : 'CA trust allows leaf renewal; strict pinning needs re-trust after rotation.'}`,
+        expiring: pins.some(pin => (pin.leaf !== null && Date.parse(pin.leaf.expiresAt) <= soon) || Date.parse(pin.certificate.expiresAt) <= soon),
+        pins: pins.map(pin => ({ id: pin.id, endpoint: pin.endpoint, trust: pin.mode === 'pin' ? 'Pinned certificate' : 'Issuing CA', fingerprint: pin.certificate.fingerprint,
+          endpointFingerprint: pin.leafFingerprint && pin.leafFingerprint !== pin.certificate.fingerprint ? pin.leafFingerprint : null,
+          note: pin.leaf ? null : pin.leafFingerprint ? 'Certificate details not yet inspected.' : 'No confirmed leaf; use Trust or Renew to confirm one',
+          subject: pin.certificate.subject, expires: pin.certificate.expiresAt, endpointExpires: pin.leaf && pin.leaf.expiresAt !== pin.certificate.expiresAt ? pin.leaf.expiresAt : null })),
+        offered: awx || tool.name === 'kubernetes-axi' && Boolean(instance.metadata.tlsServerName) || instance.health.errorCode === 'UPSTREAM_TLS_FAILED' || pins.length > 0,
+        endpoints: endpoints.map(endpoint => endpoint.host),
+        trust: { fills: Boolean(credentialTlsSettings[tool.name].certificate),
+          caOption: `Trust the issuing CA${unifi ? ' (confirm a new leaf fingerprint after renewal)' : proxmox ? ' (a separately saved fingerprint still applies)' : ' (recommended, renewed certificates keep working)'}` },
+      },
+      testGuide: testGuide[tool.name], change: instance.configured ? lastChange(db, instance) : null }
+    return renderPage(reply, 'Tools', 'instance', props, current, instance.description || undefined, undefined, instance.name, { href: `/admin/tools/${tool.name}`, label: product })
   })
 }

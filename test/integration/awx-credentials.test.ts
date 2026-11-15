@@ -64,7 +64,8 @@ test('AWX credentials save, test with scoped trust, read and gate operational wr
       expect(page.body).toContain('data-profile-field="signIn"')
       expect(page.body).toContain('data-profile-field="username"')
       expect(page.body).toContain('data-profile-field="password"')
-      expect(page.body).toContain('data-credential-field="password" data-secret data-ephemeral')
+      const password = elements(parse(page.body)).find(element => element.attrs.some(attr => attr.name === 'data-credential-field' && attr.value === 'password'))!
+      expect(password.attrs.map(attr => attr.name)).toEqual(expect.arrayContaining(['data-secret', 'data-ephemeral']))
       expect(page.body).toContain('stores only that token')
       expect(page.body).toContain('data-profile-field="token"')
       const writes = await app.inject({ url: '/admin/tools/awx-axi?tab=writes', headers: {

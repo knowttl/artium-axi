@@ -221,7 +221,7 @@ test.each([
     expect(symbols).toContain(reference!.slice(1))
   }
   expect(page.filter(element => element.tagName === 'h1')).toHaveLength(1)
-  expect(page.filter(element => element.tagName === 'form' && element.attrs.some(attribute => attribute.name === 'action' && attribute.value === '/theme'))).toHaveLength(['/admin', '/admin/users', '/admin/users/synthetic-ordinary', '/admin/roles', '/admin/roles/synthetic-role', '/admin/invitations', '/admin/tools'].includes(url) || /^\/admin\/tools\/[a-z-]+(\?|$)/.test(url) ? 2 : 1)
+  expect(page.filter(element => element.tagName === 'form' && element.attrs.some(attribute => attribute.name === 'action' && attribute.value === '/theme'))).toHaveLength(['/admin', '/admin/users', '/admin/users/synthetic-ordinary', '/admin/roles', '/admin/roles/synthetic-role', '/admin/invitations', '/admin/tools', '/admin/tools/vectra-axi/instances/lab'].includes(url) || /^\/admin\/tools\/[a-z-]+(\?|$)/.test(url) ? 2 : 1)
 })
 
 test.each([
@@ -277,6 +277,7 @@ test.each(['/admin/assets/style.css', '/admin/assets/astryx.css'])('%s loads onl
 
 test('the admin navigation marks the section of the current page', async () => {
   const response = await app.inject({ url: '/admin/tools/vectra-axi/instances/lab', headers: { cookie: `${browserCookie}=${admin}` } })
-  expect(response.body.match(/<a class="nav-item" href="([^"]+)" aria-current="page">/g)).toEqual(['<a class="nav-item" href="/admin/tools" aria-current="page">'])
+  const current = elements(parse(response.body)).filter(element => element.tagName === 'a' && element.attrs.some(attribute => attribute.name === 'aria-current' && attribute.value === 'page'))
+  expect([...new Set(current.map(link => link.attrs.find(attribute => attribute.name === 'href')?.value))]).toEqual(['/admin/tools'])
 })
 

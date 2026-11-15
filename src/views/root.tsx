@@ -2,6 +2,7 @@ import { Theme, type ThemeMode } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import { Auth, type AuthProps } from './auth.js'
 import { Frame, type FrameProps } from './frame.js'
+import { Instance, type InstanceProps } from './instance.js'
 import { Invitations, type InvitationsProps } from './invitations.js'
 import { Overview, type OverviewProps } from './overview.js'
 import { People, type PeopleProps } from './people.js'
@@ -12,10 +13,10 @@ import { Tool, type ToolProps } from './tool.js'
 import { Tools, type ToolsProps } from './tools.js'
 
 export interface ViewProps { overview: OverviewProps, auth: AuthProps, people: PeopleProps, person: PersonProps, roles: RolesProps, role: RoleProps, invitations: InvitationsProps,
-  tools: ToolsProps, tool: ToolProps }
+  tools: ToolsProps, tool: ToolProps, instance: InstanceProps }
 export type ViewName = keyof ViewProps
 
-const views = { overview: Overview, auth: Auth, people: People, person: Person, roles: Roles, role: Role, invitations: Invitations, tools: Tools, tool: Tool }
+const views = { overview: Overview, auth: Auth, people: People, person: Person, roles: Roles, role: Role, invitations: Invitations, tools: Tools, tool: Tool, instance: Instance }
 
 export function Root<Name extends ViewName>({ name, props, frame, mode }: { name: Name, props: ViewProps[Name], frame?: FrameProps, mode: ThemeMode }) {
   const View = views[name] as (props: ViewProps[Name]) => React.JSX.Element

@@ -282,7 +282,10 @@ a.chip:hover { background: var(--bg-active); }
 .astryx-card:has(.instances-list) { overflow: visible; }
 .instances-list th, .instances-list td { max-width: none; overflow: visible; }
 @media (min-width: 761px) { .instances-list td:not([data-label="Endpoint"]) { white-space: nowrap; overflow-wrap: normal; word-break: normal; } }
-.instances-list td[data-label="Endpoint"] { overflow-wrap: anywhere; }
+.instances-list td[data-label="Endpoint"], .instances-list td[data-label="SHA-256"], .instances-list td[data-label="Expires"] { overflow-wrap: anywhere; white-space: normal; }
+.instances-list td[data-label="Endpoint"] { min-width: 12rem; }
+.instances-list td[data-label="SHA-256"] { max-width: 22rem; }
+.instances-list td[data-label="Expires"] { min-width: 11rem; }
 .instances-list td.actions-cell { text-align: right; }
 .instances-list tbody tr:last-child th, .instances-list tbody tr:last-child td { border-bottom: 0; }
 .invitations-list th, .invitations-list td { max-width: none; overflow: visible; }
@@ -672,7 +675,7 @@ form.card, .card-foot form, .card-head form { margin: 0; }
 .utabs .n { color: var(--text-faint); font-size: 11px; font-weight: 400; }
 
 /* Steps: state is in the text, the mark is decorative */
-.steps { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+.steps { margin: 0; padding: 0; list-style: none; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
 .step { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-right: 1px solid var(--border); background: var(--bg); font-size: var(--fs-sm); }
 .step:last-child { border-right: 0; }
 .step b { display: block; font-weight: 500; }
@@ -806,7 +809,7 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .roles-list tbody td[data-label]::before, .tools-list tbody td[data-label]::before, .instances-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
   .instances-list tbody td.actions-cell { flex-basis: 100%; text-align: left; }
   .roles-list tbody td.num { display: none; }
-  .steps { grid-template-columns: minmax(0, 1fr); }
+  .steps { grid-auto-flow: row; }
   .step { border-right: 0; border-bottom: 1px solid var(--border); }
   .step:last-child { border-bottom: 0; }
   .ops-body, [data-credential-editor] { grid-template-columns: minmax(0, 1fr); }

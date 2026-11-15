@@ -158,7 +158,7 @@ if (savedTest) {
   if (result) {
     const saved = JSON.parse(savedTest);
     result.textContent = saved.diagnosticVersion === 1 ? saved.message : 'Details unavailable. Run Test connection again.';
-    if (saved.health && document.querySelector('[data-test-checklist]')) renderTestHealth(saved.health);
+    if (saved.health && document.querySelector('[data-test-checklist]')) document.addEventListener('astryx-hydrated', () => renderTestHealth(saved.health), { once: true });
   }
 }
 const operationFilter = document.getElementById('ops-filter');
@@ -415,7 +415,7 @@ function renderTestHealth(health) {
   const errorCode = Object.hasOwn(retestErrors, health.errorCode) ? health.errorCode : null;
   const passed = health.status === 'ok';
   // The server renders both state badges from the status vocabulary; this only swaps them.
-  document.querySelector('[data-tool-state]').replaceChildren(document.querySelector('template[data-state=' + (passed ? 'ok' : 'error') + ']').content.cloneNode(true));
+  document.querySelector('[data-tool-state]').replaceChildren(document.querySelector('[data-outcome=' + (passed ? 'ok' : 'error') + ']').firstChild.cloneNode(true));
   const step = document.querySelector('[data-test-checklist]');
   step.classList.remove('todo', 'done', 'fail');
   step.classList.add(passed ? 'done' : 'fail');
@@ -616,7 +616,7 @@ document.addEventListener('submit', async event => {
         delete body[input.name];
         if (input.disabled || input.value === '' && !input.hasAttribute('data-profile-clearable')) continue;
         if (input.hasAttribute('data-tls-input') && input.hasAttribute('data-profile-clearable') && !input.dataset.tlsEdited &&
-          [...form.querySelectorAll('[data-profile-field="origin"], [data-profile-field="url"]')].some(endpoint => endpoint.value !== endpoint.defaultValue)) continue;
+          [...form.querySelectorAll('[data-profile-field="origin"], [data-profile-field="url"]')].some(endpoint => endpoint.value !== (endpoint.dataset.saved ?? endpoint.defaultValue))) continue;
         try {
           const path = input.hasAttribute('data-tls-input') ? input.dataset.profileField.split('.') : [input.dataset.profileField];
           const key = path.pop();

@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list and the tool page use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
+Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page and the instance page use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -34,7 +34,8 @@ The Access tab (`src/views/tool-access.tsx`) is a "Roles that grant" panel with 
 When the policy can be created and an eligible person has no grant, an add `Sheet` offers a native `select` of people without a grant; the sheets keep their `instances-<role>` and `grants-<policy>-<person or add>` names and `?sheet=` open state.
 Its props are the people, role scopes and grants an administrator already sees, and no credential values.
 The Add instance sheet (`AddInstanceSheet` in `src/views/tool-instances.tsx`) is on the shared `Sheet` and `ActionForm`, with Astryx `TextInput`, `TextArea` and `Banner` for the instance name, description and warning, and `CredentialEditor` (`src/views/credential-editor.tsx`) for the credential fields.
-`credentialEditor()` in `src/server/admin/credential-form.ts` builds the editor's props once from the credential profile, and the legacy `credentialFields()` renders the same props as markup for the instance page, so the profile alone decides which fields are secret and the view never infers it from a name.
+`credentialEditor()` in `src/server/admin/credential-form.ts` builds the editor's props once from the credential profile, for the Add instance sheet and the instance page's Connection card, so the profile alone decides which fields are secret and the view never infers it from a name.
+The sign-in provider credential page still renders its fields through the legacy `credentialFields()` until that page is rebuilt.
 Credentials are write-only in the editor: a field the profile marks secret is a native, uncontrolled `textarea` with `autocomplete="off"` and no value, inside an Astryx `Field`, so a typed secret is never in React state, in the hydration data or in the markup, and the editor empties it when the sheet closes.
 Other text fields are Astryx inputs, selects and number fields stay native, and `confirm.js` still hides alternative-shape fields, sets `required` and builds the submitted value from the `data-profile-field` attributes, so the field names and attributes are the contract between the two.
 The Certificate verification fieldset (`CertificateVerification` in `src/views/certificate-verification.tsx`) is React inside `CredentialEditor`, built from the `TlsSection` that `tlsSection()` in `src/server/admin/tls-fields.ts` derives once from the tool's TLS settings and the saved metadata.
@@ -42,7 +43,13 @@ Its text, upload and select controls are native and uncontrolled inside Astryx `
 The pasted trusted certificate and each file upload are emptied when the sheet closes, like the secrets.
 The hostname choice defaults to hostname verification, or to keeping the saved setting when a fingerprint is stored, followed by Yes and No; removal checkboxes start unchecked.
 The GitHub connection card is still legacy markup: the route passes it as `legacyHtml`, `LegacyIsland` renders it in a `legacy-island` element, and `renderPage()` blanks `legacyHtml` in the hydration data so the markup is sent once, which is safe because React does not compare or patch the inner markup of an element set with `dangerouslySetInnerHTML`.
-The credential fields of an existing instance stay on its legacy instance page until that page is rebuilt; `credentialFields()` renders the same `TlsSection` as markup through `tlsFields()`, which is the only reason that function remains.
+The instance page (`src/views/instance.tsx`, route `/admin/tools/:tool/instances/:name`) is the ninth page on the seam.
+Its header holds the Test connection form and the Enabled switch, and below it come the failure banner, the setup steps, the optional GitHub card, the AWX controller address, the Connection card, the Trusted certificates panel with its inspection dialog, the Danger zone and two notes, in one column.
+The Connection card is `CredentialEditor` with the instance's `configured` state and saved non-secret values, which `credentialEditor()` takes from the instance metadata and only for fields the profile does not mark secret; a secret field is the same empty native textarea as in the Add instance sheet, and the editor empties it, and the pasted or uploaded certificate, when the page is left (`pagehide`) as well as when a sheet closes.
+Its form keeps `data-save-tool` and `data-save-instance`, so `confirm.js` sends only the fields that have a value, which leaves an empty secret unchanged on the server.
+Astryx text inputs are controlled, so their `defaultValue` follows what is typed; each carries its saved value in `data-saved`, which `confirm.js` compares with the typed URL to decide whether an unedited connection IP or certificate name is dropped with it.
+The test, inspection and trust controls keep the `data-test-tool`, `data-check-*`, `data-inspect-certificate`, `data-trust-certificate` and `#certificate-inspection` hooks that `confirm.js` fills in place; the two state badges it swaps in sit in a hidden `data-outcome` element, and it applies a test result saved before a reload only after the page announces `astryx-hydrated`, so React never hydrates markup the script already changed.
+The GitHub connection card on this page is still legacy markup passed as `legacyHtml`.
 Elements that `confirm.js` fills before hydration, such as the test result and the JSON check status, render with `suppressHydrationWarning` and matching text so hydration does not discard the page's event handlers.
 The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`, and its search is the same get form that `confirm.js` submits without empty values.
 Invitations keeps the one-time link dialog (`#invitation-link`) as a native `dialog` that `confirm.js` opens after a create or resend form marked with `claimLink` in `ActionForm`, and its provider choice stays a native `select` inside an Astryx `Field`; the lifetime in days is a text input that `confirm.js` sends as a number.
@@ -159,7 +166,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Segmented control and search | `.seg` (links or visually hidden radios), `.search`, `.filters` | current or checked | GET forms; JavaScript may apply them live |
 | Switch | `.switch` on a native checkbox, or `.toggle` button holding a decorative `.switch` | off, on, disabled | `role="switch"`; checkboxes save with their form; the Enabled button submits a confirmed change |
 | Operation catalogue | `.ops`, `details.ops-group`, `label.op` | collapsed, open, filtered, Delete and Bulk tags | Native disclosures and checkboxes; see [label and risk ownership](#write-operation-labels-and-risk) |
-| Credential editor | `credentialFields()` styled through `[data-credential-editor]` and `[data-credential-field]` | stored secret, required, hidden | Each input sits inside its label; `aria-describedby` links its hint |
+| Credential editor | `CredentialEditor` and the legacy `credentialFields()` styled through `[data-credential-editor]` and `[data-credential-field]` | stored secret, required, hidden | Controls have associated labels; `aria-describedby` links their hints |
 | Tabs | `tabs()`: `nav.utabs` | current, with a note or count | Links with `?tab=`, `aria-current="page"`; each tab is its own server-rendered view |
 
 Elements that no component covers yet (sections, tables, forms, fieldsets and plain buttons inside page content) get neutral base styles from `components.ts`, so existing pages stay readable until they are rebuilt from components.
