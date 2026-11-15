@@ -13,14 +13,17 @@ import { sessionTable } from './session-table.js'
 import { describe, stateBadge, stateStatus, statusWord, toolIcon, toolProducts } from './design/status.js'
 import { avatar, callout, card, checkOption, field, icon, initials, sheet, sheetLink } from './design/ui.js'
 import { renderPage } from './render-page.js'
+import { temporaryPasswordHint } from '../../views/people.js'
 
 type Role = { id: string, name: string, tools: z.infer<typeof toolSchema>[] }
+
+const roleTools = (role: Role) => role.tools.map(tool => toolProducts[tool].name).join(', ') || 'No tools yet'
 
 // Role checkboxes for the roleIds array; the disabled hidden input makes an empty selection send [].
 export function roleOptions(roles: Role[], selected: string[], legend: string, empty: string, detail: (role: Role) => string = () => ''): string {
   return `<fieldset class="options"><legend>${escape(legend)}</legend><input type="hidden" name="roleIds" disabled>${roles.length ? roles.map(role =>
     checkOption(`<input type="checkbox" name="roleIds" value="${escape(role.id)}"${selected.includes(role.id) ? ' checked' : ''}>`, role.name,
-      (role.tools.map(tool => toolProducts[tool].name).join(', ') || 'No tools yet') + detail(role))).join('') : `<p class="hint">${escape(empty)}</p>`}</fieldset>`
+      roleTools(role) + detail(role))).join('') : `<p class="hint">${escape(empty)}</p>`}</fieldset>`
 }
 
 // A role chip naming where the person's grant comes from: Direct, SSO rule, or both.
@@ -38,7 +41,7 @@ const signInState = (user: { source: string, breakGlass: boolean }) => user.sour
 
 export function temporaryPasswordField(id: string): string {
   return field(id, 'Temporary password', attributes => `<input class="input" ${attributes} type="password" name="temporaryPassword" autocomplete="new-password" required>`,
-    'At most 512 UTF-8 bytes. Share it securely; they must replace it at first sign-in.')
+    temporaryPasswordHint)
 }
 
 export function registerUsersPage(app: FastifyInstance, db: Database.Database): void {
@@ -84,14 +87,6 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
     const filterSelects: [name: 'source' | 'status' | 'role', label: string, options: [string, string][]][] = [
       ['source', 'Sign-in', [['local', 'Password'], ['sso', 'SSO']]], ['status', 'Status', [['enabled', 'Enabled'], ['disabled', 'Disabled']]],
       ['role', 'Role', roles.map(role => [role.id, role.name])]]
-    const addUser = sheet({ name: 'add-user', open: open === 'add-user', closeHref: link(query.data.cursor), title: 'Add a local user', description: 'For people without SSO, or a break-glass admin.',
-      body: field('add-display-name', 'Display name', attributes => `<input class="input" ${attributes} name="displayName" required>`) +
-        field('add-username', 'Username', attributes => `<input class="input mono" ${attributes} name="username" autocomplete="off" spellcheck="false" required>`, 'No spaces. It can’t be renamed later.') +
-        temporaryPasswordField('add-password') +
-        roleOptions(roles, [], 'Roles', 'No roles yet. Create a role on Roles to grant tool access.') +
-        administratorOption(false, 'Can manage people, roles, tools and sign-in. Tool access still comes from roles.'),
-      submit: '<button class="btn btn-primary">Add user</button>',
-      wrap: inner => actionForm(csrf, '/v1/admin/users', 'POST', inner, { consequence: 'Create this local account? They can sign in with the temporary password and must replace it first. Tool access comes from the selected roles.', title: 'Add user', action: 'Add user' }) })
     return renderPage(reply, 'People', 'people', {
       filters: { q: query.data.q ?? '', limit: query.data.limit, clear: filtered, count: `${users.totalCount} ${users.totalCount === 1 ? 'person' : 'people'}`,
         selects: filterSelects.map(([name, label, options]) => ({ name, label, options, value: query.data[name] ?? '' })) },
@@ -100,7 +95,7 @@ export function registerUsersPage(app: FastifyInstance, db: Database.Database): 
         enabled: user.enabled, roles: user.roleIds.map(id => ({ href: '/admin/roles/' + encodeURIComponent(id), label: roleLabel(user, id, roleName(id), false) })) })),
       empty: filtered ? 'Nobody matches these filters. Clear the filters or add a user.' : 'Add a local user, or invite someone to sign in with SSO.',
       pager: { summary: `Showing ${users.users.length} of ${users.totalCount}`, first: query.data.cursor ? link() : null, next: users.nextCursor ? link(users.nextCursor) : null },
-      sheet: addUser }, current, 'Everyone who can sign in. Tool access comes from their roles.',
+      addUser: { open: open === 'add-user', closeHref: link(query.data.cursor), csrf, roles: roles.map(role => ({ id: role.id, name: role.name, detail: roleTools(role) })) } }, current, 'Everyone who can sign in. Tool access comes from their roles.',
     [{ label: 'Invite with SSO', href: '/admin/invitations?sheet=new-invitation', variant: 'secondary', icon: 'mail' },
       { label: 'Add user', href: link(query.data.cursor).replace('?', '?sheet=add-user&'), variant: 'primary', icon: 'plus', sheet: 'sheet-add-user' }])
   })

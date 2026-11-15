@@ -2102,6 +2102,22 @@ test('a local user can be created from the table and its profile edited from det
   `)
 })
 
+test('the add-user sheet opened from its query view becomes a modal that survives hydration and returns focus on Escape', () => {
+  browser(`
+    await page.open(base + '/admin/users?sheet=add-user');
+    await page.wait('html[data-astryx-theme]');
+    await page.wait('#sheet-add-user[open]');
+    check(await page.eval(() => document.querySelector('#sheet-add-user').matches(':modal')), 'Query-opened sheet is not modal');
+    check(await page.eval(() => getComputedStyle(document.querySelector('#sheet-add-user [name=username]')).fontFamily
+      !== getComputedStyle(document.querySelector('#sheet-add-user [name=displayName]')).fontFamily), 'Username does not use the monospaced font');
+    check(await page.eval(() => document.activeElement.name === 'displayName'), 'Query-opened sheet did not focus its first field');
+    check(await page.eval(() => document.querySelector('[data-sheet-scrim]').hidden), 'The scrim of a modal sheet stays visible');
+    await page.press('Escape');
+    await page.wait('a[data-sheet="sheet-add-user"]:focus');
+    check(await page.eval(() => !document.querySelector('#sheet-add-user').open), 'Escape did not close the sheet');
+  `)
+})
+
 test('role tables align desktop columns and retain narrow member labels', () => {
   chrome(['resize', '1280', '900'])
   browser(`

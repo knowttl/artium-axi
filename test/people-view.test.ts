@@ -11,9 +11,11 @@ type Element = DefaultTreeAdapterMap['element']
 const person: PeopleProps['people'][number] = { href: '/admin/users/synthetic-one', name: 'Synthetic One', initials: 'SO', username: 'synthetic-one', you: false,
   signIn: { word: 'Password', tone: 'neutral' }, administrator: false, status: { word: 'Enabled', tone: 'ok' }, enabled: true, roles: [{ href: '/admin/roles/synthetic-role', label: 'Synthetic Role · Direct' }] }
 
+const addUser: PeopleProps['addUser'] = { open: false, closeHref: '/admin/users?limit=25', csrf: 'synthetic-csrf', roles: [{ id: 'synthetic-role', name: 'Synthetic Role', detail: 'Synthetic Tool' }] }
+
 function render(overrides: Partial<PeopleProps> = {}) {
   const props: PeopleProps = { filters: { q: '', limit: 25, clear: false, count: '1 person', selects: [] }, people: [person], empty: 'Synthetic empty message',
-    pager: { summary: 'Showing 1 of 1', first: null, next: null }, sheet: '<dialog id="synthetic-sheet"></dialog>', ...overrides }
+    pager: { summary: 'Showing 1 of 1', first: null, next: null }, addUser, ...overrides }
   return renderToString(createElement(Theme, { theme: neutralTheme, children: createElement(People, props) }))
 }
 
@@ -60,9 +62,54 @@ test('the pager links to its pages and disables a page that does not exist', () 
   expect(pager('/admin/users', null)).toEqual(['/admin/users', undefined])
 })
 
-test('no people shows the empty message instead of a table, and the sheet markup is always kept', () => {
+test('no people shows the empty message instead of a table, and the add-user sheet is always kept', () => {
   const html = render({ people: [] })
   expect(find(html, element => element.tagName === 'table')).toEqual([])
   expect(html).toContain('Synthetic empty message')
-  expect(find(html, element => attribute(element, 'id') === 'synthetic-sheet')).toHaveLength(1)
+  expect(find(html, element => attribute(element, 'id') === 'sheet-add-user')).toHaveLength(1)
+})
+
+const addUserForm = (html: string) => find(html, element => element.tagName === 'form' && attribute(element, 'action') === '/v1/admin/users')[0]!
+
+test('the add-user form posts the fields the API form handler reads, with the CSRF token and the confirmation text', () => {
+  const form = addUserForm(render())
+  const controls = nodes(form).filter(element => element.tagName === 'input')
+  expect(controls.map(control => [attribute(control, 'name'), attribute(control, 'type') ?? 'text', attribute(control, 'value') ?? ''])).toEqual([
+    ['_csrf', 'hidden', 'synthetic-csrf'], ['displayName', 'text', ''], ['username', 'text', ''], ['temporaryPassword', 'password', ''],
+    ['roleIds', 'hidden', ''], ['roleIds', 'checkbox', 'synthetic-role'], ['administrator', 'checkbox', ''],
+  ])
+  expect(controls.filter(control => attribute(control, 'name') === 'roleIds').map(control => attribute(control, 'disabled'))).toEqual(['', undefined])
+  expect(controls.filter(control => attribute(control, 'required') !== undefined).map(control => attribute(control, 'name'))).toEqual(['displayName', 'username', 'temporaryPassword'])
+  expect(attribute(controls.find(control => attribute(control, 'name') === 'administrator')!, 'data-type')).toBe('boolean')
+  expect([attribute(form, 'method'), attribute(form, 'data-method'), attribute(form, 'data-confirm-title'), attribute(form, 'data-confirm-action')]).toEqual(['post', 'POST', 'Add user', 'Add user'])
+  expect(attribute(form, 'data-confirm')).toBe('Create this local account? They can sign in with the temporary password and must replace it first. Tool access comes from the selected roles.')
+})
+
+test('every add-user field keeps its label for assistive technology', () => {
+  const html = render()
+  const labels = find(html, element => element.tagName === 'label' && attribute(element, 'for') !== undefined)
+  const labelled = (name: string) => {
+    const input = find(html, element => element.tagName === 'input' && attribute(element, 'name') === name)[0]!
+    return labels.filter(label => attribute(label, 'for') === attribute(input, 'id')).map(text)
+  }
+  expect(['displayName', 'username', 'temporaryPassword'].map(labelled)).toEqual([['Display name'], ['Username'], ['Temporary password']])
+  expect(find(html, element => element.tagName === 'legend').map(text)).toEqual(['Roles'])
+})
+
+test('the add-user sheet opens from the server only when asked, with a scrim link that closes it', () => {
+  const sheetState = (open: boolean) => {
+    const html = render({ addUser: { ...addUser, open } })
+    const [dialog] = find(html, element => element.tagName === 'dialog')
+    return [attribute(dialog!, 'open'), find(html, element => attribute(element, 'data-sheet-scrim') !== undefined).map(link => attribute(link, 'href')),
+      find(html, element => attribute(element, 'data-sheet-close') !== undefined).map(link => attribute(link, 'href'))]
+  }
+  expect(sheetState(false)).toEqual([undefined, [], ['/admin/users?limit=25', '/admin/users?limit=25']])
+  expect(sheetState(true)).toEqual(['', ['/admin/users?limit=25'], ['/admin/users?limit=25', '/admin/users?limit=25']])
+})
+
+test('add-user roles list each role with its tools, and say so when there are none', () => {
+  const withRoles = render()
+  expect(find(withRoles, element => element.tagName === 'label' && attribute(element, 'class') === 'check').map(text)).toEqual(['Synthetic RoleSynthetic Tool', 'AdministratorCan manage people, roles, tools and sign-in. Tool access still comes from roles.'])
+  const without = render({ addUser: { ...addUser, roles: [] } })
+  expect(text(find(without, element => element.tagName === 'fieldset')[0]!)).toContain('No roles yet. Create a role on Roles to grant tool access.')
 })

@@ -859,13 +859,20 @@ test.each([
   expect(body).toMatch(new RegExp(`<li [^>]*data-progress="${passed ? 'completed' : 'in-progress'}"[^>]*>.*?Connect a tool`, 's'))
 })
 
-test.each([
-  ['/admin/users', 'sheet-add-user'],
-  [`/admin/users/${userId}`, 'sheet-reset-password'],
-])('%s renders its sheet open from the sheet query without JavaScript', async (path, id) => {
+test('/admin/users renders the add-user sheet open from the sheet query without JavaScript', async () => {
   await signIn()
-  expect((await request('GET', `${path}?sheet=${id.slice('sheet-'.length)}`)).body).toContain(`id="${id}" aria-labelledby="${id}-title" open>`)
-  expect((await request('GET', path)).body).toContain(`id="${id}" aria-labelledby="${id}-title">`)
+  const attribute = (element: DefaultTreeAdapterMap['element'], name: string) => element.attrs.find(item => item.name === name)?.value
+  const sheet = (body: string) => nodesOf(parse(body)).find(element => element.tagName === 'dialog' && attribute(element, 'id') === 'sheet-add-user')!
+  expect(attribute(sheet((await request('GET', '/admin/users?sheet=add-user')).body), 'open')).toBe('')
+  expect(attribute(sheet((await request('GET', '/admin/users')).body), 'open')).toBeUndefined()
+  expect(attribute(sheet((await request('GET', '/admin/users')).body), 'aria-labelledby')).toBe('sheet-add-user-title')
+})
+
+test('the person page renders its reset-password sheet open from the sheet query without JavaScript', async () => {
+  await signIn()
+  const id = 'sheet-reset-password'
+  expect((await request('GET', `/admin/users/${userId}?sheet=reset-password`)).body).toContain(`id="${id}" aria-labelledby="${id}-title" open>`)
+  expect((await request('GET', `/admin/users/${userId}`)).body).toContain(`id="${id}" aria-labelledby="${id}-title">`)
 })
 
 test('invitation navigation opens the creation sheet without JavaScript', async () => {
