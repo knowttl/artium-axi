@@ -16,6 +16,7 @@ import { Runner } from '../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../src/server/store/key-provider.js'
 import { ProviderCredentials } from '../src/server/store/provider-credentials.js'
+import { SshHosts } from '../src/server/store/ssh-hosts.js'
 import { FakeCredentialStore } from './fixtures/credential-store.js'
 import { seedToolUser } from './fixtures/tokens.js'
 
@@ -129,7 +130,12 @@ beforeAll(async () => {
   store.createInstance('vectra-axi', { name: 'production', description: 'Synthetic production appliance.' },
     { kind: 'qux', apiVersion: '2.5', origin: 'https://production.example', auth: 'token', token: 'CANARY-design-token' }, 'synthetic-development-user', Date.now())
   db.exec(`INSERT INTO ssh_hosts (id, address, port, approved_host_keys, allowed_addresses, enabled) VALUES ('synthetic-host', 'host.example', 22, '[]', '[]', 1)`)
+  db.exec(`INSERT INTO ssh_executions VALUES ('exec_design', 'design-key', 'design-input', 'synthetic-development-user', 'family', 'synthetic-host', 'ordinary',
+      'design-binding', 'printf synthetic', 0, 'design-request', ${Date.now() - 1000}, ${Date.now()}, 'completed', '{"remoteExit":0}');
+    INSERT INTO ssh_connection_events (connection_id, user_id, family_id, host_id, sudo, event, occurred_at, binding)
+      VALUES ('design-connection', 'synthetic-development-user', 'family', 'synthetic-host', 0, 'opened', ${Date.now()}, 'design-binding')`)
   app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: {},
+    sshHosts: new SshHosts(db, key), sshExecution: { provider: key, writeLog: join(directory, 'writes.log') },
     adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([]), db), providerCredentials: new ProviderCredentials(db, key), credentialStore: store })
   admin = createBrowserSession(db, 'synthetic-development-user', 'CANARY-csrf').id
   ordinary = createBrowserSession(db, 'synthetic-ordinary', 'CANARY-csrf').id
@@ -191,6 +197,7 @@ test.each([
   ...['instances', 'writes', 'access', 'advanced'].map((tab): [string, string] => [`/admin/tools/vectra-axi?tab=${tab}`, 'admin']),
   ['/admin/tools/vectra-axi?sheet=add-instance', 'admin'], ['/admin/tools/vectra-axi?sheet=edit-lab', 'admin'],
   ['/admin/tools/vectra-axi/instances/lab', 'admin'], ['/admin/tools/vectra-axi/instances/missing', 'admin', 404], ['/admin/tools/ssh-axi', 'admin'],
+  ['/admin/ssh', 'admin'], ['/admin/ssh/credentials', 'admin'], ['/admin/ssh/audit', 'admin'],
   ['/admin/tools/awx-axi?tab=writes', 'admin'], ['/admin/tools/ldap-axi?tab=writes', 'admin'], ['/admin/audit', 'admin'], ['/admin/tokens', 'admin'],
   ['/admin/settings/sign-in', 'admin'], ['/admin/settings/sign-in?add=choose', 'admin'], ['/admin/settings/sign-in?add=entra', 'admin'], ['/admin/settings/sign-in?add=oidc', 'admin'],
   ['/admin/settings/sign-in/synthetic-provider', 'admin'], ['/admin/settings/sign-in/synthetic-provider?tab=credential', 'admin'],
@@ -221,7 +228,7 @@ test.each([
     expect(symbols).toContain(reference!.slice(1))
   }
   expect(page.filter(element => element.tagName === 'h1')).toHaveLength(1)
-  expect(page.filter(element => element.tagName === 'form' && element.attrs.some(attribute => attribute.name === 'action' && attribute.value === '/theme'))).toHaveLength(['/admin', '/admin/tokens', '/admin/audit', '/admin/users','/admin/users/synthetic-ordinary', '/admin/roles', '/admin/roles/synthetic-role', '/admin/invitations', '/admin/tools', '/admin/tools/vectra-axi/instances/lab',
+  expect(page.filter(element => element.tagName === 'form' && element.attrs.some(attribute => attribute.name === 'action' && attribute.value === '/theme'))).toHaveLength(['/admin', '/admin/tokens', '/admin/audit', '/admin/ssh/audit', '/admin/users','/admin/users/synthetic-ordinary', '/admin/roles', '/admin/roles/synthetic-role', '/admin/invitations', '/admin/tools', '/admin/tools/vectra-axi/instances/lab',
     '/admin/settings/sign-in', '/admin/settings/sign-in?add=choose', '/admin/settings/sign-in?add=entra', '/admin/settings/sign-in?add=oidc',
     '/admin/settings/sign-in/synthetic-provider', '/admin/settings/sign-in/synthetic-provider?tab=settings', '/admin/settings/sign-in/synthetic-provider?tab=credential', '/admin/settings/sign-in/synthetic-provider?tab=rules',
     '/admin/settings/sign-in/synthetic-provider?tab=rules&rule=synthetic-rule', '/admin/settings/sign-in/synthetic-provider/matches/synthetic-rule'].includes(url) || /^\/admin\/tools\/[a-z-]+(\?|$)/.test(url) ? 2 : 1)

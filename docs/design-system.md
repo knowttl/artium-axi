@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page, the provider page, Access tokens and the Audit log use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
+Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page, the provider page, Access tokens, the Audit log and the SSH audit use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -110,6 +110,13 @@ The record detail panel (`AuditDetail` in `src/views/audit-detail.tsx`, opened b
 Its props are exactly what the panel displays: the heading, time, record number, facts, settings changes as text, the diagnostic as text, and each stored field as text (or an ISO time) with `null` for a field that has no value, so no markup string reaches the page or the hydration data.
 A record that is gone shows "Record not found" with the same Close link.
 The records table is a container (`container-type: inline-size` on `.audit-list`): when the list is 880px wide or more it is a table, and below that, as with the open panel beside it at 1440px and narrower or on a narrow screen, each row becomes a stacked card that wraps its values, so no column is clipped or scrolled.
+
+The SSH audit (`SshAudit` in `src/views/ssh-audit.tsx`, route `/admin/ssh/audit`) is the fifteenth page on the seam.
+The header actions link to Hosts, bindings and grants and to the metadata-only export, which keeps the page's query.
+Each retained execution is an article with its outcome and Sudo badges, its facts (host, account, start, finish, remote exit, termination, request ID and output sample state), the command, the diagnostic, the retained standard output and error as text blocks with byte counts, and a native `details` disclosure with the rest of the stored record.
+Output is untrusted: it is rendered as text only and its markup characters are escaped in the page and in the hydration data.
+Connection events and denials use the same container-based table and stacked-card layout as the Audit log.
+The page keeps the SSH help topic Tools, which `renderPage` takes as its last argument.
 
 ## Constraints
 
