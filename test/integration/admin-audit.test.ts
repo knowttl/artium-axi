@@ -69,7 +69,8 @@ function seed() {
   record('run-1-start', -176 * minute, { ...run, event: 'run-start', userId: owner, outcome: 'started', args: ['detection', 'list'], sensitive: { flags: [], positions: [] }, requestId: 'run-1', instance: 'lab' })
   record('run-1-done', -175 * minute, { ...run, event: 'run-terminal', userId: owner, outcome: 'completed', exitCode: 0, requestId: 'run-1', instance: 'lab' })
   record('run-2-start', -174 * minute, { ...run, event: 'run-start', userId: second, outcome: 'started', args: ['host', 'list'], sensitive: { flags: [], positions: [] }, requestId: 'run-2', instance: 'prod' })
-  record('run-2-failed', -173 * minute, { ...run, event: 'run-terminal', userId: second, outcome: 'completed', exitCode: 3, errorCode: 'PERMISSION_DENIED', requestId: 'run-2', instance: 'prod' })
+  record('run-2-failed', -173 * minute, { ...run, event: 'run-terminal', userId: second, outcome: 'completed', exitCode: 3, errorCode: 'PERMISSION_DENIED', requestId: 'run-2', instance: 'prod',
+    failure: { diagnostic: { stage: 'tool run', message: 'Synthetic failure' }, secrets: [] } })
   record('run-3-interrupted', -172 * minute, { ...run, event: 'run-terminal', userId: owner, outcome: 'interrupted', exitCode: null, requestId: 'run-3' })
   record('denial', -171 * minute, { event: 'denial', userId: owner, tool: 'falcon-axi', outcome: 'PERMISSION_DENIED', requestId: 'denial', clientAddress: '192.0.2.4' })
   record('admin-change', -170 * minute, { event: 'admin-change', userId: owner, tool: 'falcon-axi', outcome: 'success', action: 'update-tool', targetId: 'falcon-axi',
@@ -277,9 +278,38 @@ test('the open record is marked, row links keep the cursor, and its panel is the
   const page = view((await auditPage(`?limit=3&${cursor}&record=${ids['admin-change']}`)).body)
   expect(page.rows.map(row => row.current)).toEqual([false, true, false])
   expect(page.rows[1]!.href).toBe(`/admin/audit?limit=3&record=${ids['admin-change']}&cursor=${cursor.slice(7)}`)
-  const panel = (body: string) => body.match(/<aside class="sheet docked"[\s\S]*?<\/aside>/)![0] + '\n'
-  await expect(panel((await auditPage('?record=' + ids['admin-change'])).body)).toMatchFileSnapshot('../fixtures/audit-record-panel.html')
-  await expect(panel((await auditPage('?record=999999')).body)).toMatchFileSnapshot('../fixtures/audit-record-missing.html')
+})
+
+function detail(body: string) {
+  const panel = nodes(parse(body)).find(element => element.tagName === 'aside' && attribute(element, 'id') === 'record')
+  if (!panel) return null
+  const inside = nodes(panel)
+  const request = inside.find(element => attribute(element, 'aria-label') === 'Request ID')
+  return {
+    labelledBy: attribute(panel, 'aria-labelledby'), heading: words(inside.find(element => attribute(element, 'id') === 'record-title')!),
+    subtitle: words(inside.find(element => element.tagName === 'p')!),
+    close: inside.filter(element => attribute(element, 'aria-label') === 'Close details').map(link => decode(attribute(link, 'href'))),
+    lists: inside.filter(element => element.tagName === 'dl').map(list => {
+      const terms = nodes(list).filter(element => element.tagName === 'dt').map(words)
+      const values = nodes(list).filter(element => element.tagName === 'dd').map(words)
+      return terms.map((term, index) => [term, values[index]])
+    }),
+    sections: inside.filter(element => element.tagName === 'h3').map(words), code: inside.filter(element => element.tagName === 'pre').map(words),
+    summary: words(inside.find(element => element.tagName === 'summary') ?? panel).slice(0, 80),
+    times: inside.filter(element => element.tagName === 'time').map(time => attribute(time, 'datetime')),
+    request: request && { value: attribute(request, 'value'), readonly: attribute(request, 'readonly') !== undefined,
+      copy: inside.some(element => attribute(element, 'aria-label') === 'Copy request ID' && attribute(element, 'data-copy') !== undefined),
+      status: inside.some(element => attribute(element, 'data-copy-status') !== undefined && attribute(element, 'role') === 'status') },
+  }
+}
+
+test('the detail panel of every record, and of a record that is gone, shows the same fields and values as before', async () => {
+  seed()
+  at = now - 165 * minute
+  ids['admin-change-lists'] = new Audit(db, () => at, () => {}).record({ event: 'admin-change', userId: owner, tool: 'falcon-axi', outcome: 'success', action: 'update-tool', targetId: 'falcon-axi',
+    requestId: 'admin-change-lists', clientAddress: null, settingsChanges: [{ path: ['subscriptions'], added: ['synthetic-c', null], removed: ['synthetic-a'] }, { path: ['mode'], before: 'read', after: 'write' }] }).id
+  const models = Object.fromEntries(await Promise.all([...Object.entries(ids), ['gone', 999999]].map(async ([label, id]) => [label, detail((await auditPage('?record=' + id)).body)])))
+  await expect(Object.values(models).map(model => JSON.stringify(model)).join('\n') + '\n').toMatchFileSnapshot('../fixtures/audit-record-details.jsonl')
 })
 
 test('the hydration data carries only what the list displays, and the open record only as the panel shown', async () => {
@@ -292,8 +322,33 @@ test('the hydration data carries only what the list displays, and the open recor
   expect(props(body).detail).toBeNull()
   const hidden = ['run-1', 'run-2', 'run-3', 'sso-failure', 'gone-user', 'canary-subject', '192.0.2.', 'c'.repeat(64), 'detection', 'managementGroup', 'synthetic-group', 'token-1']
   for (const value of hidden) expect(JSON.stringify([props(body), body.replace(/<script[\s\S]*?<\/script>/g, '')])).not.toContain(value)
-  const opened = (await auditPage('?record=' + ids['admin-change'])).body
-  expect(props(opened).detail).toBe(opened.match(/<aside class="sheet docked"[\s\S]*?<\/aside>/)![0])
+  const opened = props((await auditPage('?record=' + ids['admin-change'])).body)
+  expect(Object.keys(opened.detail).sort()).toEqual(['closeHref', 'id', 'record'])
+  expect(Object.keys(opened.detail.record).sort()).toEqual(['diagnostic', 'facts', 'fields', 'heading', 'number', 'settingsChanges', 'time'])
+  expect(opened.detail.record.fields.map((field: { name: string }) => field.name)).toEqual((db.pragma('table_info(audit)') as { name: string }[]).map(column => column.name))
+})
+
+test('no audit URL carries injected markup or a legacy island, in the page or its hydration data', async () => {
+  seed()
+  for (const query of ['', '?outcome=missing', '?range=custom', `?record=${ids['admin-change']}`, `?record=${ids['run-2-failed']}&event=run-terminal&limit=1`, '?record=999999']) {
+    const body = (await auditPage(query)).body
+    const data = body.match(/<script type="application\/json" data-astryx-props>(.*?)<\/script>/)![1]!
+    expect(body, query).not.toContain('legacy-island')
+    const { props } = JSON.parse(data)
+    expect(props.detail === null || typeof props.detail === 'object', query).toBe(true)
+    expect(JSON.stringify(props), query).not.toContain('<')
+  }
+})
+
+test('stored values of the open record render as text, never as markup', async () => {
+  seed()
+  db.prepare("UPDATE audit SET client_address = '<b>address</b>', subject = '<i>subject</i>', action = '<u>action</u>', request_id = '<s>request</s>', arguments = ? WHERE id = ?")
+    .run('{"x":"<script>"}', ids['admin-change'])
+  const page = (await auditPage('?record=' + ids['admin-change'])).body
+  const shown = JSON.stringify(detail(page)!.lists)
+  for (const literal of ['<b>address</b>', '<i>subject</i>', '<u>action</u>', '<s>request</s>', '{"x":"<script>"}']) expect(shown).toContain(JSON.stringify(literal).slice(1, -1))
+  const markup = page.replace(/<script type="application\/json" data-astryx-props>[\s\S]*?<\/script>/, '')
+  for (const tag of ['<b>', '<i>', '<u>', '<s>', '<script>']) expect(markup).not.toContain(tag)
 })
 
 test('values from audit rows render as text, never as markup', async () => {

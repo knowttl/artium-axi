@@ -302,7 +302,7 @@ a.chip:hover { background: var(--bg-active); }
 .audit-list th, .audit-list td { min-width: 0; max-width: none; overflow: visible; overflow-wrap: anywhere; white-space: normal; vertical-align: top; }
 .audit-list tbody th { font-weight: 400; }
 .audit-list tbody tr.sel { background: var(--bg-muted); }
-@media (min-width: 761px) { .audit-list table { min-width: 720px; } .audit-list tbody th { white-space: nowrap; overflow-wrap: normal; } .audit-list td[data-label="Event"] { min-width: 8rem; }
+@media (min-width: 761px) { .audit-list table { min-width: 860px; } .audit-list tbody th { white-space: nowrap; overflow-wrap: normal; } .audit-list td[data-label="Event"] { min-width: 8rem; }
   .audit-list td[data-label="Actor"] { min-width: 8rem; } .audit-list td[data-label="Tool"] { min-width: 7rem; } .audit-list td[data-label="Instance"] { min-width: 9rem; } }
 .audit-list tbody tr:last-child th, .audit-list tbody tr:last-child td { border-bottom: 0; }
 .tbl tbody tr.link { position: relative; }
@@ -609,7 +609,6 @@ form[data-track-changes] .astryx-button:disabled { opacity: 0.5; cursor: not-all
 .audit-toolbar { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
 .audit-toolbar > .filters { flex: 1 1 32rem; min-width: 0; }
 .audit-toolbar > .menu { margin-left: auto; }
-.audit-detail { display: contents; }
 
 /* Docked side sheet: record detail beside its list */
 .split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
@@ -631,6 +630,7 @@ form[data-track-changes] .astryx-button:disabled { opacity: 0.5; cursor: not-all
 .copyfield input:not(.input) { min-width: 0; max-width: none; height: auto; margin: 0; padding: 0; border: 0; background: var(--transparent); color: var(--text); font-family: var(--mono); font-size: var(--fs-xs); }
 .all-fields { margin: 0; padding: 0; border: 0; }
 .all-fields[open] > summary { margin-bottom: 14px; }
+.sheet.docked dd, .sheet.docked dt { min-width: 0; overflow-wrap: anywhere; }
 .all-fields .kv { font-size: var(--fs-xs); }
 
 /* Tier-3 confirmation: typing the exact name enables the red confirm button */
