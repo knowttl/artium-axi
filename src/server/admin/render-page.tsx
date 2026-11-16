@@ -25,7 +25,7 @@ export function renderPage<Name extends ViewName>(reply: FastifyReply, title: st
   const mode = readThemeMode(reply.request)
   const { crumbs, brand, navigation, account, controls, topbarEnd, overlays } = adminChrome({ title, heading, parent, description, content: '', help: pageHelp(helpTopic, current.source),
     path: reply.request.url.split('?')[0]!, viewer: browserViewer(reply, current), themeSwitch: '' })
-  const frame = { title: heading ?? title, description, actions, crumbs, brand, navigation, account, controls: controls + themeSwitch(reply, mode), topbarEnd }
+  const frame = { title: heading ?? title, description, actions, crumbs, brand: { ...brand, href: current.administrator ? brand.href : '/account' }, navigation: current.administrator ? navigation : [], account, controls: controls + themeSwitch(reply, mode), topbarEnd }
   return respond(reply, title, name, props, frame, overlays, current)
 }
 

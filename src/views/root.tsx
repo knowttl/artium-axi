@@ -1,5 +1,6 @@
 import { Theme, type ThemeMode } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
+import { Account, type AccountProps } from './account.js'
 import { Auth, type AuthProps } from './auth.js'
 import { AuditLog, type AuditProps } from './audit.js'
 import { Frame, type FrameProps } from './frame.js'
@@ -22,11 +23,11 @@ import { Tools, type ToolsProps } from './tools.js'
 
 export interface ViewProps { overview: OverviewProps, auth: AuthProps, people: PeopleProps, person: PersonProps, roles: RolesProps, role: RoleProps, invitations: InvitationsProps,
   tools: ToolsProps, tool: ToolProps, instance: InstanceProps, signIn: SignInProps, signInMatches: SignInMatchesProps, provider: ProviderProps, tokens: TokensProps, audit: AuditProps,
-  sshAudit: SshAuditProps, sshHosts: SshHostsProps, sshCredentials: SshCredentialsProps }
+  sshAudit: SshAuditProps, sshHosts: SshHostsProps, sshCredentials: SshCredentialsProps, account: AccountProps }
 export type ViewName = keyof ViewProps
 
 const views = { overview: Overview, auth: Auth, people: People, person: Person, roles: Roles, role: Role, invitations: Invitations, tools: Tools, tool: Tool, instance: Instance,
-  signIn: SignIn, signInMatches: SignInMatches, provider: Provider, tokens: Tokens, audit: AuditLog, sshAudit: SshAudit, sshHosts: SshHosts, sshCredentials: SshCredentials }
+  signIn: SignIn, signInMatches: SignInMatches, provider: Provider, tokens: Tokens, audit: AuditLog, sshAudit: SshAudit, sshHosts: SshHosts, sshCredentials: SshCredentials, account: Account }
 
 export function Root<Name extends ViewName>({ name, props, frame, mode }: { name: Name, props: ViewProps[Name], frame?: FrameProps, mode: ThemeMode }) {
   const View = views[name] as (props: ViewProps[Name]) => React.JSX.Element

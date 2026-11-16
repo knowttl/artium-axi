@@ -733,6 +733,7 @@ document.addEventListener('submit', async event => {
       const field = dialog.querySelector('[data-created-token]');
       field.value = result.token;
       dialog.addEventListener('close', () => { field.value = ''; location.reload(); }, { once: true });
+      window.addEventListener('pagehide', () => { field.value = ''; }, { once: true });
       dialog.querySelector('[data-close-created-token]').addEventListener('click', () => dialog.close(), { once: true });
       dialog.showModal(); field.focus(); field.select();
       return;

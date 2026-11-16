@@ -3,10 +3,10 @@ import type { FastifyReply } from 'fastify'
 import type { BrowserSession } from '../auth/sessions.js'
 import { listUserSessions } from '../auth/user-sessions.js'
 import { toolProducts } from './design/status.js'
-import { renderAccountCards, sessionsProps } from './session-card.js'
+import { sessionsProps } from './session-card.js'
 import { transferLimits, transferWarning, transferWarningFor } from '../../shared/api.js'
 import type { Adapter } from '../adapters/types.js'
-import type { AccountGuideProps } from '../../views/account.js'
+import type { AccountGuideProps, AccountProps } from '../../views/account.js'
 import { accountTokens } from './delegated-tokens.js'
 
 const hosts = [['claude', 'Claude'], ['codex', 'Codex'], ['opencode', 'OpenCode'], ['pi', 'Pi']] as const
@@ -17,7 +17,7 @@ export function accountRoles(db: Database.Database, current: BrowserSession): st
     WHERE user_roles.user_id = ? ORDER BY roles.name`).all(current.user_id) as { name: string }[]).map(role => role.name)
 }
 
-export function accountContent(db: Database.Database, current: BrowserSession, reply: FastifyReply, origin: string, adapters: readonly Adapter<unknown>[]): string {
+export function accountProps(db: Database.Database, current: BrowserSession, reply: FastifyReply, origin: string, adapters: readonly Adapter<unknown>[]): AccountProps {
   const csrf = reply.generateCsrf()
   const tools = db.prepare(`SELECT DISTINCT tools.name, tools.enabled FROM tools
     JOIN role_tools ON role_tools.tool = tools.name JOIN user_roles ON user_roles.role_id = role_tools.role_id
@@ -74,7 +74,7 @@ chmod 755 artium-axi.mjs`
         delivered: row.delivered ? 'Completed' : 'Unconfirmed', outcome: row.outcome, receipt: row.client_save_outcome })),
     } : null,
   }
-  return renderAccountCards(reply, guide, accountTokens(db, current, csrf, adapters), sessionsProps(csrf, '/v1/account/sessions', listUserSessions(db, current.user_id, current.family_id).sessions))
+  return { csrf, guide, tokens: accountTokens(db, current, adapters), sessions: sessionsProps(csrf, '/v1/account/sessions', listUserSessions(db, current.user_id, current.family_id).sessions) }
 }
 
 function shellQuote(value: string): string {

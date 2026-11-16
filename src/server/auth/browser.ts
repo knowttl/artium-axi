@@ -12,15 +12,14 @@ import type { AuthAttempts } from './attempts.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './local.js'
 import { browserIdentity, createBrowserSession, readBrowserSession, recentBrowserAuth, type BrowserSession } from './sessions.js'
 import { escape } from '../admin/escape.js'
-import { pageHelp } from '../admin/forms.js'
-import { readThemeMode, registerThemeRoute, themeSwitch } from '../admin/theme-mode.js'
-import { renderAuthPage } from '../admin/render-page.js'
-import { appShell, icon, type PageOptions, type Viewer } from '../admin/design/ui.js'
+import { readThemeMode, registerThemeRoute } from '../admin/theme-mode.js'
+import { renderAuthPage, renderPage } from '../admin/render-page.js'
+import type { Viewer } from '../admin/design/ui.js'
 import type { AuthBlock, AuthButton, AuthField } from '../../views/auth.js'
 import { authDefaults } from '../config.js'
 import { listUserSessions, revokeUserSession } from './user-sessions.js'
 import { revokeUserSessions } from './tokens.js'
-import { accountContent, accountRoles } from '../admin/account.js'
+import { accountProps, accountRoles } from '../admin/account.js'
 import type { Adapter } from '../adapters/types.js'
 
 declare module 'fastify' {
@@ -47,14 +46,6 @@ export function browserViewer(reply: FastifyReply, current: BrowserSession): Vie
 export function browserDocument(reply: FastifyReply, title: string, body: string, current?: BrowserSession, head = '') {
   const mode = readThemeMode(reply.request)
   return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"${mode === 'system' ? '' : ` data-theme="${mode}"`}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><link rel="stylesheet" href="/admin/assets/astryx.css"><script defer src="/admin/assets/confirm.js"></script>${head}</head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${body}</body></html>`)
-}
-
-export function browserPage(reply: FastifyReply, title: string, content: string, current: BrowserSession, description?: string,
-  options: PageOptions & { helpTopic?: string } = {}) {
-  const { helpTopic, ...page } = options
-  const switchHtml = reply.request.method === 'GET' && !reply.request.url.startsWith('/auth/sso/') ? themeSwitch(reply, readThemeMode(reply.request)) : ''
-  const body = appShell({ ...page, title, description, content, help: pageHelp(helpTopic ?? title, current.source), path: reply.request.url.split('?')[0]!, viewer: browserViewer(reply, current), themeSwitch: switchHtml })
-  return browserDocument(reply, title, body, current)
 }
 
 export function registerBrowser(app: FastifyInstance, db: Database.Database, audit: Audit, attempts: AuthAttempts,
@@ -182,9 +173,9 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
     const current = session(request)
     if (current.must_change) return reply.redirect('/password')
     const roles = accountRoles(db, current)
-    return browserPage(reply, 'Your account', accountContent(db, current, reply, `${request.protocol}://${request.host}`, adapters), current,
+    return renderPage(reply, 'Your account', 'account', accountProps(db, current, reply, `${request.protocol}://${request.host}`, adapters), current,
       `${current.display_name} (${current.username}) · ${current.source === 'sso' ? 'SSO sign-in' : 'Local password sign-in'} · ${roles.length === 1 ? 'Role' : 'Roles'}: ${roles.join(', ') || 'None'}`,
-      { helpTopic: 'Account', actions: current.source === 'local' ? `<a class="btn btn-secondary" href="/password">${icon('key')}Change password</a>` : '' })
+      current.source === 'local' ? [{ label: 'Change password', href: '/password', variant: 'secondary', icon: 'key' }] : undefined, undefined, undefined, 'Account')
   })
   app.route({ method: accountSessionRoutes.list.method, url: accountSessionRoutes.list.path, handler: async request => {
     const current = session(request)

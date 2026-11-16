@@ -42,13 +42,14 @@ function NavigationLinks({ sections }: { sections: NavigationSection[] }) {
 }
 
 export function Frame({ title, description, actions, crumbs, brand, navigation, account, controls, topbarEnd, children }: FrameProps & { children: ReactNode }) {
+  const label = navigation.length ? 'Administration' : 'Account'
   return (
     <AppShell variant="section" contentPadding={4}
       mobileNav={{ breakpoint: 'none' }}
       topNav={<header className="topbar frame-topbar" role="presentation">
-        <nav className="frame-mobile-nav" aria-label="Administration">
+        <nav className="frame-mobile-nav" aria-label={label}>
           <details>
-            <summary className="btn btn-ghost btn-sm" data-testid="mobile-nav-toggle">Navigation</summary>
+            <summary className="btn btn-ghost btn-sm" data-testid="mobile-nav-toggle">{navigation.length ? 'Navigation' : 'Menu'}</summary>
             <div className="frame-mobile-menu">
               <NavigationLinks sections={navigation} />
               <div className="frame-controls frame-controls-drawer" dangerouslySetInnerHTML={{ __html: controls }} />
@@ -65,7 +66,7 @@ export function Frame({ title, description, actions, crumbs, brand, navigation, 
         </div>
       </header>}
       sideNav={
-        <SideNav className="frame-side" aria-label="Administration"
+        <SideNav className="frame-side" aria-label={label}
           header={<SideNavHeading heading={brand.name} headingHref={brand.href} icon={<span className="logo" aria-hidden="true">{brand.name[0]}</span>} />}
           footer={<div className="side-foot" dangerouslySetInnerHTML={{ __html: account }} />}>
           <NavigationLinks sections={navigation} />
