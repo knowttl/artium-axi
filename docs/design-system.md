@@ -96,7 +96,7 @@ Astryx checkboxes emit inline SVG shapes, so the role and administrator checkbox
 `confirm.js` hides the server-rendered scrim of an open sheet with the `hidden` attribute rather than removing it, so hydration still finds it.
 `ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes that `confirm.js` reads (method, consequence, title, action, typed name, success URL and success message), and `Sheet` builds on it, so a view writes an API form without repeating them.
 The person detail page's "More actions" overflow menu keeps a native `details` disclosure, because Astryx dropdown components need runtime inline styles (see issue 462), and builds its items from Astryx `Button` and `ActionForm`.
-The Sessions card (`Sessions` in `src/views/sessions.tsx`) is also on the account page, which is still a legacy page: `renderSessionsCard()` in `src/server/admin/session-card.tsx` renders it there as server-rendered markup in a `data-astryx-root` element, with its inline styles hoisted into a nonce'd `<style>` element, and without hydration.
+The Sessions card (`Sessions` in `src/views/sessions.tsx`) is also on the Account page; see the Account rendering details below.
 The People filter chips stay native `select` elements, so filtering works without JavaScript and the form fields are unchanged.
 A view that shows a time wraps it in `<time suppressHydrationWarning>`, because `confirm.js` formats every `time[datetime]` before hydration.
 Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
