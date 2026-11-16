@@ -10,7 +10,7 @@ This document describes the current screens and their design rules.
 | --- | --- |
 | [tokens.ts](../src/server/admin/design/tokens.ts) | Legacy colour values and shared typography, radius, shadow, control-size and layout tokens, including light and dark palettes. |
 | `src/server/admin/design/components.ts` | Component classes and geometry using the shared tokens, plus base element styles for content that has no component yet. |
-| `src/server/admin/design/ui.ts` | Render helpers that own component markup, escaping and ARIA, including the app shell and the icon sprite. |
+| `src/server/admin/design/ui.ts` | Render helpers that own component markup, escaping and ARIA, including the frame chrome and the icon sprite. |
 | `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per state, the badge and status-dot helpers, and the product display name and mark of each tool. |
 
 `adminStyle` in `src/server/admin/assets.ts` concatenates tokens and components and is served from `/admin/assets/style.css`.
@@ -80,7 +80,7 @@ It shows non-secret values (the client ID, tenant, authentication method and thu
 The Access tokens page (`Tokens` in `src/views/tokens.tsx`, route `/admin/tokens`) is the thirteenth page on the seam, with a Settings, an All tokens and a Revoke all panel.
 Settings is an `ActionForm` marked `data-token-settings` that patches `/v1/admin/token-settings` under a tier 2 confirmation; its checkbox and two number inputs stay native and uncontrolled, and `confirm.js` converts the hours and days to milliseconds before sending.
 All tokens is an Astryx table with a Revoke `ActionForm` on each token that is not revoked (a tier 2 confirmation, `POST /v1/admin/tokens/<id>/revoke`) and Revoke all is one `ActionForm` that posts to `/v1/admin/tokens/revoke-all`; there is no row menu, so nothing can clip.
-The status word and tone of a token come from the `token` entry of the status vocabulary in `status.ts`, which the legacy Account token list also uses.
+The status word and tone of a token come from the `token` entry of the status vocabulary in `status.ts`, which the Account token list also uses.
 The props carry a token's id, label, creator, access, scope, expiry and status, never its value or hash; the value is shown once, on Account, in its one-time dialog.
 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet that `confirm.js` opens), and the side navigation slot.
@@ -88,7 +88,7 @@ The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: 
 The side navigation is an Astryx `SideNav` with a `SideNavSection` per group and a `SideNavItem` per link, whose current page is derived from the request path.
 The frame renders the legacy markup for the account menu, confirmation pill and help panel through `dangerouslySetInnerHTML`, so React neither re-renders nor compares what `confirm.js` updates there.
 Below the Astryx mobile breakpoint a native navigation disclosure remains usable without JavaScript, listing the same `SideNavItem` links without a second `SideNav`, and CSS hides the desktop sidebar.
-The frame retains one banner, one main and one navigation landmark labelled "Administration".
+The frame retains one banner, one main and one navigation landmark, labelled "Administration" for administrators and "Account" for other people.
 The toast regions, confirmation dialogs and icon sprite that `confirm.js` drives stay outside the React root.
 The People add-user sheet is the first sheet on the seam, the Roles New role sheet is the second, the role Rename sheet is the third, and the Invitations New invitation and Resend sheets are the fourth and fifth; the New role and Rename sheets pass no confirmation text so `confirm.js` submits without a confirmation dialog: `Sheet` in `src/views/sheet.tsx` keeps the native `dialog.sheet`, its `?sheet=` open state and the `data-api` form that `confirm.js` submits, and builds the header, text fields and buttons from Astryx `Heading`, `Text`, `IconButton`, `TextInput` and `Button`.
 Astryx `Drawer` and `Dialog` render closed until hydration, so they cannot serve the no-JavaScript view.
@@ -139,7 +139,7 @@ Set up the CLI has three steps: the verified download commands for this server, 
 Saving files from tools is a native `details` disclosure shown only when a granted tool saves files, with guidance for exactly those tools and a table of the latest 20 archive transfers.
 The guide receives text and `code` fragments rather than markup strings.
 The token card keeps the create form that `confirm.js` posts to `/v1/account/tokens` (the same fields and `data-token-*` selections as before), the native one-time dialog `#created-token`, and the person's own token list with a Revoke form per token.
-The token value reaches the browser only in the response to the create request, and `confirm.js` writes it into the dialog's read-only field, which is empty in the markup and in the hydration data; the field is cleared when the dialog closes and when the page is hidden (`pagehide`).
+The token value reaches the browser only in the response to the create request, and `confirm.js` writes it into the dialog's read-only field, which is empty in the markup and in the hydration data; the field is cleared when the dialog closes and when the `pagehide` event fires.
 The Sessions table sits in a `session-list` container and turns into stacked cards below 760px of container width, so every column and the Revoke action stay visible beside the sidebar.
 
 ## Constraints
