@@ -1004,11 +1004,11 @@ test('a typed provider credential secret reaches only the rejected form submissi
     await page.wait('#confirmation[open]');
     check(await page.eval(() => !document.querySelector('#confirmation').textContent.includes('CANARY-typed-browser-secret')), 'Confirmation exposed the secret');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('#message:not(:empty)');
+    await page.wait('.astryx-toast[data-type=error]');
     check(await page.eval(() => {
       const sent = window.sent.filter(([, body]) => body.includes('CANARY-typed-browser-secret')).map(([url]) => new URL(url, location.href).pathname);
       return sent.length === 1 && sent[0].endsWith('/credential') && window.leaks.length === 0
-        && !document.querySelector('#message').textContent.includes('CANARY-typed-browser-secret')
+        && !document.querySelector('.astryx-toast[data-type=error]').textContent.includes('CANARY-typed-browser-secret')
         && !document.documentElement.outerHTML.replace(/<textarea[^>]*data-profile-field="?clientSecret[\\s\\S]*?<\\/textarea>/, '').includes('CANARY-typed-browser-secret')
         && !location.href.includes('CANARY') && !JSON.stringify(sessionStorage).includes('CANARY') && !JSON.stringify(localStorage).includes('CANARY');
     }), 'The rejected save leaked the typed secret');
@@ -1192,7 +1192,7 @@ for (const [tool, value, saved, secret, typed, field, entry] of [
     await page.wait('#confirmation[open]');
     check(await page.eval(() => !document.querySelector('#confirmation').textContent.includes('CANARY-typed-browser')), 'Confirmation exposed the typed value');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('#message:not(:empty)');
+    await page.wait('.astryx-toast[data-type=error]');
     check(await page.eval(() => {
       const sent = window.sent.filter(([, body]) => body.includes('CANARY-typed-browser')).map(([url]) => new URL(url, location.href).pathname);
       return JSON.stringify(sent) === JSON.stringify(['/v1/admin/tools/${tool}/instances/default/credential']) && window.leaks.length === 0
@@ -1789,7 +1789,7 @@ for (const action of ['save', 'test']) {
           await page.wait('[data-test-result]:not(:empty)');
           check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test passed.'), 'Valid health was rejected');
         } else {
-          await page.wait('#message:not(:empty)');
+          await page.wait('.astryx-toast[data-type=error]');
           check(await page.eval(() => document.querySelector('[data-test-result]').textContent === ''), 'Invalid health reported success');
         }
       `);
@@ -1962,8 +1962,8 @@ for (const field of ['certificate', 'fingerprint']) test('UniFi ' + field + ' re
     await page.fill('[data-profile-field="${field === 'certificate' ? 'tls.trustedCertificatePem' : 'tls.peerFingerprintSha256'}"]', ${JSON.stringify(field === 'certificate' ? certificate : fingerprint)});
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('#message:not(:empty)');
-    check(await page.eval(() => document.querySelector('#message').textContent.includes('Enter the trusted certificate and SHA-256 fingerprint together.')), 'Missing paired trust error');
+    await page.wait('.astryx-toast[data-type=error]');
+    check(await page.eval(() => document.querySelector('.astryx-toast[data-type=error]').textContent.includes('Enter the trusted certificate and SHA-256 fingerprint together.')), 'Missing paired trust error');
     await page.fill('[data-profile-field="${field === 'certificate' ? 'tls.peerFingerprintSha256' : 'tls.trustedCertificatePem'}"]', ${JSON.stringify(field === 'certificate' ? fingerprint : certificate)});
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
@@ -2183,8 +2183,8 @@ for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi', 'unifi-axi', 'proxmox-a
     await page.click('[data-write-access] [role=switch]');
     await page.click('form[action$="/write-access"] button:not([form], [data-ops-select])');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('#message:not(:empty)');
-    check(await page.eval(() => document.querySelector('#message').innerText.includes('Select at least one')), 'Empty enabled allow-list accepted');
+    await page.wait('.astryx-toast[data-type=error]');
+    check(await page.eval(() => document.querySelector('.astryx-toast[data-type=error]').innerText.includes('Select at least one')), 'Empty enabled allow-list accepted');
     await page.click('[name=operations]');
     await page.click('form[action$="/write-access"] button:not([form], [data-ops-select])');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
