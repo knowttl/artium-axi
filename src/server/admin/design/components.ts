@@ -295,8 +295,10 @@ a.chip:hover { background: var(--bg-active); }
 .providers-list code { overflow-wrap: anywhere; }
 .providers-list tbody tr:last-child td { border-bottom: 0; }
 .rules-list th, .rules-list td { max-width: none; overflow: visible; }
-.rules-list .more-menu .popover { position: static; }
-@media (min-width: 761px) { .rules-list th, .rules-list td:not(.rule-grants) { white-space: nowrap; overflow-wrap: normal; word-break: normal; } .rules-list td.actions-cell { width: 1%; } }
+.rules-list tbody th { overflow-wrap: anywhere; }
+.rules-list .more-menu { width: var(--ctl-h-sm); }
+.rules-list .more-menu .popover { position: static; box-sizing: border-box; width: 220px; margin-left: calc(100% - 220px); }
+@media (min-width: 761px) { .rules-list thead th, .rules-list td:not(.rule-grants) { white-space: nowrap; overflow-wrap: normal; word-break: normal; } .rules-list td.actions-cell { width: 1%; } }
 .rules-list tbody tr:last-child th, .rules-list tbody tr:last-child td { border-bottom: 0; }
 .tbl tbody tr.link { position: relative; }
 .tbl tbody tr.link:hover { background: var(--bg-subtle); }
