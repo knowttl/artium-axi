@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page, the provider page, Access tokens and the Audit log list use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
+Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page, the provider page, Access tokens and the Audit log use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
