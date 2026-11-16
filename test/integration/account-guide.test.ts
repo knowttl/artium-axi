@@ -48,6 +48,14 @@ async function account() {
     section: (heading: string) => all.find(element => element.tagName === 'h3' && words(element) === heading) }
 }
 
+test.each([[0, '/account'], [1, '/admin']])('the Account brand links to the home for administrator=%i', async (administrator, home) => {
+  db.prepare('UPDATE users SET administrator = ? WHERE id = ?').run(administrator, owner)
+  const { all } = await account()
+  const side = all.find(element => attribute(element, 'class')?.split(' ').includes('frame-side'))!
+  const brand = nodes(side).find(element => element.tagName === 'a' && words(element).includes('Artium'))!
+  expect(attribute(brand, 'href')).toBe(home)
+})
+
 test('the Account response has at most one style element, authorized by the CSP nonce, and no style attributes', async () => {
   grant('hybrid-axi')
   const { response, all } = await account()
