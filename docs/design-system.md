@@ -64,7 +64,7 @@ Its tool tiles and Raw API switches stay native checkboxes, because Astryx check
 `renderPage()` takes an optional heading that replaces the page title in the `h1` and the breadcrumb while the document title and help topic keep the section name.
 The Sign-in & SSO list (`SignIn` in `src/views/sign-in.tsx`, route `/admin/settings/sign-in`) is the tenth page on the seam and the who-matches page (`SignInMatches` in `src/views/sign-in-matches.tsx`, route `/admin/settings/sign-in/:id/matches/:ruleId`) is the eleventh.
 The list shows the sign-in mode, break-glass readiness and pending invitations as three summary cards, then a Providers panel with each provider's kind, issuer, status and a link to its page; it also opens the Add provider sheets from `?add=choose` (a GET chooser), `?add=entra` and `?add=oidc` (the create form on the shared `Sheet` and `ActionForm`, with its tier 2 confirmation).
-Only the requested sheet is rendered, open, so each kind keeps its own unique field names, and closing a sheet returns to the list.
+Only the requested sheet is rendered, open, so its fields do not duplicate those of another provider form, and closing a sheet returns to the list.
 The who-matches page is read-only and shows the people whose last recorded sign-in claims match a role rule.
 Their props are provider names, kinds, issuers, a `configured` flag, counts and people an administrator already sees, and carry no credential value.
 The provider page (`Provider` in `src/views/provider.tsx`, route `/admin/settings/sign-in/:id`) is the twelfth page on the seam for its Setup and Settings tabs.
@@ -167,7 +167,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
 | Avatar and tool icon | `avatar()`: `.avatar`, `.avatar.lg`; `toolIcon()`: `.tool-ico`, `.tool-ico.lg`, using a mark from `toolProducts` | sm, lg | Initials and marks are `aria-hidden`; the name is adjacent text |
 | Overflow menu | `.more-menu` with `.popover` | closed, open | Native disclosure with `aria-label` on its icon summary |
-| Side sheet | `sheet()`, `sheetLink()`: `dialog.sheet` with `.sheet-head`, `.sheet-body`, `.sheet-foot`, `.scrim` | closed, open as a modal, open from `?sheet=<name>` without JavaScript | Modal focus handling from `showModal`; Close and Cancel are links back to the page |
+| Side sheet | `sheet()`, `sheetLink()`: `dialog.sheet` with `.sheet-head`, `.sheet-body`, `.sheet-foot`, `.scrim` | closed, open as a modal, open from a query parameter without JavaScript | Modal focus handling from `showModal`; Close and Cancel are links back to the page |
 | Option tile | `.tiles`, `.tile`, `.tool-ico` | unchecked, checked | Native checkbox inside its label |
 | Inline editor and menu | `.inline-edit`, `.menu` with `.popover` | closed, open | Native disclosure; works without JavaScript |
 | Filter row | `.filters`, `.input-wrap`, `.seg`, `.filter`, `.filter.set` | unset (dashed), set (with clear link) | One GET form; selects submit on change, Apply remains without JavaScript |
@@ -195,7 +195,7 @@ Use its helpers instead of defining page-specific status labels.
 
 **Sheets.**
 Create and edit flows that need several fields open in a side sheet.
-Every sheet has a query-parameter view (`?sheet=<name>`) that renders it open on the server for navigation without JavaScript.
+Every sheet has a query-parameter view that renders it open on the server for navigation without JavaScript, normally `?sheet=<name>`; the Add provider sheets use `?add=` as described above.
 Submitting its API form requires JavaScript; with JavaScript the sheet opens as a modal and errors show inside it.
 
 **Destructive placement.**
