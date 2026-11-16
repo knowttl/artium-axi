@@ -168,9 +168,8 @@ test.each([
   await signIn()
   const body = (await request('GET', `/admin/tools/falcon-axi?tab=${tab}${sheet}`)).body
   expect(body).not.toContain('CANARY-')
-  const data = JSON.parse(/<script type="application\/json" data-astryx-props>(.*?)<\/script>/s.exec(body)![1]!) as { props: { panel: { tab: string, legacyHtml?: string } } }
+  const data = JSON.parse(/<script type="application\/json" data-astryx-props>(.*?)<\/script>/s.exec(body)![1]!) as { props: { panel: { tab: string } } }
   expect(data.props.panel.tab).toBe(tab)
-  expect(data.props.panel.legacyHtml ?? '').toBe('')
   expect(body.split(marker)).toHaveLength(2)
 })
 

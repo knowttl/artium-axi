@@ -3364,6 +3364,23 @@ test.each((Object.keys(values) as ToolName[]).filter(tool => tool !== 'ssh-axi')
   }
 })
 
+test.each(Object.keys(values) as ToolName[])('%s pages carry no legacy markup island or legacyHtml data on any tab or its instance page', async tool => {
+  const paths = ['instances', 'writes', 'access', 'advanced', 'raw-api'].map(tab => `/admin/tools/${tool}?tab=${tab}`)
+  if (tool !== 'ssh-axi') {
+    store.createInstance(tool, { name: 'lab', description: 'Synthetic lab.' }, values[tool as keyof typeof values], actor, Date.now())
+    paths.push(`/admin/tools/${tool}/instances/lab`, `/admin/tools/${tool}?sheet=add-instance`, `/admin/tools/${tool}?sheet=edit-lab`)
+  }
+  const cookie = await browserCookie()
+  for (const url of paths) {
+    const response = await app.inject({ method: 'GET', url, headers: { cookie } })
+    expect(response.statusCode, url).toBe(200)
+    expect(/data-astryx-props>(.*?)<\/script>/s.exec(response.body)![1], url).not.toContain('legacyHtml')
+    const islands = [...response.body.matchAll(/<div class="legacy-island"([^>]*)>(.*?)<\/div>/gs)]
+    expect(islands.map(([, attributes, content]) => [attributes!.trim(), content]), url)
+      .toEqual(islands.map(() => ['data-certificate-details=""', '']))
+  }
+})
+
 test('a typed secret is never returned, logged or audited when an Add instance save is rejected or accepted', async () => {
   const secret = 'CANARY-typed-secret-r16'
   const written: string[] = []

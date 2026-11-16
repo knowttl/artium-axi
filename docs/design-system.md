@@ -81,6 +81,7 @@ The People filter chips stay native `select` elements, so filtering works withou
 A view that shows a time wraps it in `<time suppressHydrationWarning>`, because `confirm.js` formats every `time[datetime]` before hydration.
 Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
 The legacy base rules for headings, paragraphs, links, table elements, labels, selects, textareas, buttons and inputs other than checkboxes, radio buttons, hidden and file inputs skip content inside `[data-astryx-root]`, except inside a `legacy-island` element, which keeps them.
+Tool views no longer accept `legacyHtml`; the one `legacy-island` element left is the empty certificate details container in the instance page's inspection dialog, which `confirm.js` fills with the inspected chain.
 
 ## Constraints
 
