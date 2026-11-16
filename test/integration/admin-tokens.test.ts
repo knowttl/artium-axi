@@ -160,3 +160,10 @@ test('Account still renders its token card in the legacy markup, with the create
   const card = page.body.match(/<section class="card"><div class="card-head"><div><h2>Temporary access tokens<\/h2>.*?<\/section>/s)![0].replace(/(name="_csrf" value=")[^"]*/g, '$1CSRF')
   await expect(card).toMatchFileSnapshot('../fixtures/account-tokens-card.html')
 })
+
+test('Account still renders its local account header in the legacy markup', async () => {
+  const page = await app.inject({ url: '/account', headers })
+  expect(page.statusCode).toBe(200)
+  const header = page.body.match(/<div class="page-head">.*?<\/a><\/div>/s)![0].replace(/(name="_csrf" value=")[^"]*/g, '$1CSRF')
+  await expect(`${header}\n`).toMatchFileSnapshot('../fixtures/account-header.html')
+})

@@ -96,7 +96,7 @@ Astryx checkboxes emit inline SVG shapes, so the role and administrator checkbox
 `confirm.js` hides the server-rendered scrim of an open sheet with the `hidden` attribute rather than removing it, so hydration still finds it.
 `ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes that `confirm.js` reads (method, consequence, title, action, typed name, success URL and success message), and `Sheet` builds on it, so a view writes an API form without repeating them.
 The person detail page's "More actions" overflow menu keeps a native `details` disclosure, because Astryx dropdown components need runtime inline styles (see issue 462), and builds its items from Astryx `Button` and `ActionForm`.
-The Sessions card (`Sessions` in `src/views/sessions.tsx`) is also on the account page, which is still a legacy page: `renderSessionsCard()` in `src/server/admin/session-card.tsx` renders it there as server-rendered markup in a `data-astryx-root` element, with its inline styles hoisted into a nonce'd `<style>` element, and without hydration.
+The Sessions card (`Sessions` in `src/views/sessions.tsx`) is also on the Account page; see the Account rendering details below.
 The People filter chips stay native `select` elements, so filtering works without JavaScript and the form fields are unchanged.
 A view that shows a time wraps it in `<time suppressHydrationWarning>`, because `confirm.js` formats every `time[datetime]` before hydration.
 Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
@@ -129,6 +129,13 @@ The SSH credentials page (`SshCredentials` in `src/views/ssh-credentials.tsx`, r
 Each stored credential is a panel with its revision, the two exclusive native `details` choices "Use a private key" and "Use a password" with their forms, and Delete credential with its typed-name confirmation; New encrypted credential follows with the same two forms and a Credential ID field.
 Every form keeps its URL, method, `confirm` and `expectedRevision` fields, field names, ids, `autocomplete` values, required flags, labels, the password hint and the confirmation text; the integration test compares the form contract with a recorded copy of the previous forms, excluding CSS classes and CSRF controls.
 The private key, passphrase and password fields are native uncontrolled controls: they are never given a value and are not in React state or in the hydration data; the credential props carry ids and revisions only, and a `pagehide` listener clears the fields when that event fires.
+
+The Account page (`/account`) still uses the legacy shell and renders its parts in this order: the Your tools, Set up the CLI and Saving files from tools cards from `AccountGuide` (`src/views/account.tsx`), the legacy Temporary access tokens card, and the Sessions card.
+The two Astryx fragments are rendered server-side without hydration by `renderAccountCards` in `src/server/admin/session-card.tsx` and share one nonce'd style element.
+Your tools lists each granted tool with Available or Turned off by admin.
+Set up the CLI has three steps: the verified download commands for this server, the sign-in commands for a local or SSO account, and a radio group of four agent hosts that shows one setup command at a time with CSS only, each command in a native copy block that `confirm.js` wires.
+Saving files from tools is a native `details` disclosure shown only when a granted tool saves files, with guidance for exactly those tools and a table of the latest 20 archive transfers.
+The guide receives text and `code` fragments rather than markup strings; the legacy token card remains server-built markup between the Astryx fragments.
 
 ## Constraints
 
