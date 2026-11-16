@@ -14,7 +14,7 @@ function respond<Name extends ViewName>(reply: FastifyReply, title: string, name
   overlays: string, current?: BrowserSession) {
   const mode = readThemeMode(reply.request)
   const { html, style } = hoistInlineStyles(renderToString(<Root name={name} props={props} frame={frame} mode={mode} />), reply.styleNonce)
-  const data = JSON.stringify({ frame, props }, (key, value) => key === 'legacyHtml' ? '' : value).replace(/</g, '\\u003c')
+  const data = JSON.stringify({ frame, props }).replace(/</g, '\\u003c')
   const body = `<div data-astryx-root data-view="${name}" data-mode="${mode}">${html}</div><script type="application/json" data-astryx-props>${data}</script>${overlays}`
   const head = `${style}<script defer src="/admin/assets/hydrate.js"></script>`
   return browserDocument(reply, title, body, current, head)
