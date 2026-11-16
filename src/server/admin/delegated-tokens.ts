@@ -3,23 +3,33 @@ import type { FastifyInstance } from 'fastify'
 import type { Adapter } from '../adapters/types.js'
 import type { BrowserSession } from '../auth/sessions.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
-import { browserCookie, browserPage } from '../auth/browser.js'
+import { browserCookie } from '../auth/browser.js'
 import { delegatedCommands, delegationScopeWithInstanceNames, resolveDelegatedCommand } from '../auth/delegations.js'
 import { instanceGranted } from '../policy/policy.js'
 import { delegationPaused } from '../auth/tokens.js'
 import { apiForm, apiFormTag, timestamp } from './forms.js'
+import { describe, statusWord } from './design/status.js'
 import { card } from './design/ui.js'
 import { escape } from './escape.js'
+import { renderPage } from './render-page.js'
 import { delegationScopeSchema } from '../../shared/api.js'
 
 type Token = { id: string, creator_id: string, label: string, scope_json: string, read_only: number, expires_at: number, revoked_at: number | null, consumed_at: number | null, single_use: number }
 
-function tokenTable(db: Database.Database, csrf: string, userId?: string): string {
-  const rows = (userId ? db.prepare('SELECT * FROM delegations WHERE creator_id = ? ORDER BY created_at DESC').all(userId)
+function tokenState(db: Database.Database, row: Token) {
+  return row.revoked_at ? 'revoked' as const : row.expires_at <= Date.now() ? 'expired' as const : delegationPaused(db, row.creator_id) ? 'paused' as const
+    : row.single_use && row.consumed_at ? 'used' as const : 'active' as const
+}
+
+function tokenRows(db: Database.Database, userId?: string): Token[] {
+  return (userId ? db.prepare('SELECT * FROM delegations WHERE creator_id = ? ORDER BY created_at DESC').all(userId)
     : db.prepare('SELECT * FROM delegations ORDER BY created_at DESC').all()) as Token[]
-  const prefix = userId ? '/v1/account/tokens' : '/v1/admin/tokens'
+}
+
+function tokenTable(db: Database.Database, csrf: string, userId: string): string {
+  const rows = tokenRows(db, userId)
   if (!rows.length) return '<p class="empty">No tokens.</p>'
-  return `<div class="tbl-scroll"><table class="tbl stack-sm"><thead><tr><th>Label</th>${userId ? '' : '<th>Creator</th>'}<th>Access</th><th>Expires</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(row => `<tr><td>${escape(row.label)}<p class="mono">${escape(row.id)}</p></td>${userId ? '' : `<td>${escape(row.creator_id)}</td>`}<td>${row.read_only ? 'Read-only' : 'Writes allowed'} · ${row.single_use ? 'Single use' : 'Reusable'}<ul>${delegationScopeWithInstanceNames(db, row.scope_json).tools.map(item => `<li>${escape(item.tool)}${item.instances ? ` (instances: ${item.instances.map(escape).join(', ')})` : ''}: ${item.commands ? item.commands.map(escape).join(', ') : 'Tool-wide'}</li>`).join('')}</ul></td><td>${timestamp(row.expires_at)}</td><td>${row.revoked_at ? 'Revoked' : row.expires_at <= Date.now() ? 'Expired' : delegationPaused(db, row.creator_id) ? 'Paused until creator signs in via SSO' : row.single_use && row.consumed_at ? 'Used' : 'Active'}</td><td>${row.revoked_at ? '' : apiForm(csrf, `${prefix}/${encodeURIComponent(row.id)}/revoke`, 'POST', 'Revoke', '', 'Revoke this token and its sessions?', '', 'btn btn-danger-outline btn-sm')}</td></tr>`).join('')}</tbody></table></div>`
+  return `<div class="tbl-scroll"><table class="tbl stack-sm"><thead><tr><th>Label</th><th>Access</th><th>Expires</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(row => `<tr><td>${escape(row.label)}<p class="mono">${escape(row.id)}</p></td><td>${row.read_only ? 'Read-only' : 'Writes allowed'} · ${row.single_use ? 'Single use' : 'Reusable'}<ul>${delegationScopeWithInstanceNames(db, row.scope_json).tools.map(item => `<li>${escape(item.tool)}${item.instances ? ` (instances: ${item.instances.map(escape).join(', ')})` : ''}: ${item.commands ? item.commands.map(escape).join(', ') : 'Tool-wide'}</li>`).join('')}</ul></td><td>${timestamp(row.expires_at)}</td><td>${statusWord('token', tokenState(db, row))}</td><td>${row.revoked_at ? '' : apiForm(csrf, `/v1/account/tokens/${encodeURIComponent(row.id)}/revoke`, 'POST', 'Revoke', '', 'Revoke this token and its sessions?', '', 'btn btn-danger-outline btn-sm')}</td></tr>`).join('')}</tbody></table></div>`
 }
 
 export function accountTokens(db: Database.Database, current: BrowserSession, csrf: string, adapters: readonly Adapter<unknown>[]): string {
@@ -58,13 +68,11 @@ export function registerTokenPage(app: FastifyInstance, db: Database.Database): 
     const current = readBrowserSession(db, request.cookies[browserCookie]!)
     const csrf = reply.generateCsrf()
     const settings = db.prepare('SELECT minting_enabled, max_lifetime_ms, sso_window_ms FROM delegation_settings WHERE id = 1').get() as { minting_enabled: number, max_lifetime_ms: number, sso_window_ms: number }
-    const form = `${apiFormTag(csrf, '/v1/admin/token-settings', 'PATCH', 'Save these token settings?', 'data-token-settings')}
-      <div class="card-body column"><label class="check"><input type="checkbox" name="mintingEnabled" data-type="boolean" ${settings.minting_enabled ? 'checked' : ''}> Allow token creation</label>
-      <label>Maximum lifetime in hours<input type="number" name="maxLifetimeHours" min="0.01" step="any" value="${settings.max_lifetime_ms / 3600000}" required></label>
-      <label>SSO sign-in window in days<input type="number" name="ssoWindowDays" min="1" max="30" step="any" value="${settings.sso_window_ms / 86400000}" required></label>
-      <p>Tokens from SSO accounts pause after this long without an SSO sign-in and resume when the creator signs in again.</p>
-      <p>Disabling creation does not revoke existing tokens. The lifetime cap applies to new tokens.</p></div><div class="card-foot"><button class="btn btn-primary">Save settings</button></div></form>`
-    const revokeAll = apiForm(csrf, '/v1/admin/tokens/revoke-all', 'POST', 'Revoke all tokens', '', 'Revoke all tokens and their sessions?', '', 'btn btn-danger-outline')
-    return browserPage(reply, 'Temporary access tokens', card('Settings', 'Control new token creation.', form) + card('All tokens', 'Tokens created by all users.', tokenTable(db, csrf)) + card('Revoke all', 'End access for all tokens.', `<div class="card-body">${revokeAll}</div>`), current)
+    return renderPage(reply, 'Temporary access tokens', 'tokens', {
+      csrf,
+      settings: { mintingEnabled: Boolean(settings.minting_enabled), maxLifetimeHours: settings.max_lifetime_ms / 3600000, ssoWindowDays: settings.sso_window_ms / 86400000 },
+      tokens: tokenRows(db).map(row => ({ id: row.id, label: row.label, creator: row.creator_id, writable: !row.read_only, singleUse: Boolean(row.single_use),
+        scope: delegationScopeWithInstanceNames(db, row.scope_json).tools, expiresAt: new Date(row.expires_at).toISOString(), status: describe('token', tokenState(db, row)),
+        revocable: !row.revoked_at })) }, current)
   })
 }
