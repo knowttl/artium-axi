@@ -5,6 +5,7 @@ import { MetadataList, MetadataListItem } from '@astryxdesign/core/MetadataList'
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from '@astryxdesign/core/Table'
 import { Heading, Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
+import { Breakable, Mono } from './mono.js'
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
 import { Time } from './time.js'
@@ -33,10 +34,6 @@ export interface SshAuditProps {
   older: string | null
   connections: { id: number, time: string, event: string, host: string, sudo: boolean, user: string, connection: string, family: string, binding: string }[]
   denials: { time: string, user: string | null, requestId: string | null, outcome: string }[]
-}
-
-function Mono({ children }: { children: string }) {
-  return <span className="mono">{children}</span>
 }
 
 function Stream({ name, stream }: { name: string, stream: SshAuditStream | null }) {
@@ -103,7 +100,7 @@ export function SshAudit({ executions, older, connections, denials }: SshAuditPr
           <VStack gap={2}>
             <Heading level={3}>Connection events</Heading>
             {connections.length ? (
-              <Table aria-label="Connection events" scrollWrapper={({ children }) => <div className="table-wrap audit-list ssh-events">{children}</div>}>
+              <Table aria-label="Connection events" scrollWrapper={({ children }) => <div className="table-wrap ssh-events">{children}</div>}>
                 <TableHeader>
                   <TableRow isHeaderRow>
                     {['Time', 'Event', 'Host', 'User', 'Connection'].map(heading => <TableHeaderCell key={heading} scope="col">{heading}</TableHeaderCell>)}
@@ -132,7 +129,7 @@ export function SshAudit({ executions, older, connections, denials }: SshAuditPr
           <VStack gap={2}>
             <Heading level={3}>Denials</Heading>
             {denials.length ? (
-              <Table aria-label="Denials" scrollWrapper={({ children }) => <div className="table-wrap audit-list ssh-events">{children}</div>}>
+              <Table aria-label="Denials" scrollWrapper={({ children }) => <div className="table-wrap ssh-events">{children}</div>}>
                 <TableHeader>
                   <TableRow isHeaderRow>
                     {['Time', 'User', 'Request ID', 'Outcome'].map(heading => <TableHeaderCell key={heading} scope="col">{heading}</TableHeaderCell>)}
@@ -144,7 +141,7 @@ export function SshAudit({ executions, older, connections, denials }: SshAuditPr
                       <TableHeaderCell scope="row"><Time iso={denial.time} /></TableHeaderCell>
                       <TableCell data-label="User">{denial.user ? <Mono>{denial.user}</Mono> : <Text type="supporting">System</Text>}</TableCell>
                       <TableCell data-label="Request ID">{denial.requestId ? <Mono>{denial.requestId}</Mono> : <Text type="supporting">-</Text>}</TableCell>
-                      <TableCell data-label="Outcome">{denial.outcome}</TableCell>
+                      <TableCell data-label="Outcome"><Breakable text={denial.outcome} /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

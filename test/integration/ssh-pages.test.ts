@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
@@ -59,9 +59,10 @@ function retainOutput(id: string, output: object) {
 
 const nodes = (node: DefaultTreeAdapterMap['node']): Element[] => [...'tagName' in node ? [node] : [], ...'childNodes' in node ? node.childNodes.flatMap(nodes) : []]
 const attribute = (element: Element, name: string) => element.attrs.find(item => item.name === name)?.value
-const words = (element: Element): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? words(child) : '').join(' ').replace(/\s+/g, ' ').trim()
-const page = async (query = '') => {
-  const response = await app.inject({ url: '/admin/ssh/audit' + query, headers })
+const words = (element: Element): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? child.tagName === 'wbr' ? '\u0000' : words(child) : '')
+  .join(' ').replace(/ ?\u0000 ?/g, '').replace(/\s+/g, ' ').trim()
+const page = async (query = '', path = '/admin/ssh/audit') => {
+  const response = await app.inject({ url: path + query, headers })
   const all = nodes(parse(response.body))
   const table = (label: string) => all.find(element => element.tagName === 'table' && attribute(element, 'aria-label') === label)
   const rows = (label: string) => nodes(table(label)!).filter(element => element.tagName === 'tr').slice(1).map(row =>
@@ -139,10 +140,54 @@ test('people who are not administrators are refused', async () => {
   expect(refused.body).not.toContain('exec_fixture')
 })
 
-test.each([['/admin/ssh', 'ssh-hosts-legacy.html'], ['/admin/ssh/credentials', 'ssh-credentials-legacy.html']])('%s still renders its legacy markup until its own rebuild', async (url, fixture) => {
-  db.exec(`INSERT INTO ssh_bindings (host_id,username,credential_id,sudo) VALUES ('synthetic-host','ordinary','ordinary-key',0);
-    INSERT INTO ssh_grants (user_id,host_id,shell,sudo) VALUES ('${owner}','synthetic-host',1,0)`)
-  const response = await app.inject({ url, headers })
+const bindAndGrant = () => db.exec(`INSERT INTO ssh_bindings (host_id,username,credential_id,sudo) VALUES ('synthetic-host','ordinary','ordinary-key',0);
+  INSERT INTO ssh_grants (user_id,host_id,shell,sudo) VALUES ('${owner}','synthetic-host',1,0)`)
+
+test('the credentials page still renders its legacy markup until its own rebuild', async () => {
+  bindAndGrant()
+  const response = await app.inject({ url: '/admin/ssh/credentials', headers })
   const main = response.body.match(/<main id="main".*?<\/main>/s)![0].replace(/(name="_csrf" value=")[^"]*/g, '$1CSRF')
-  await expect(main).toMatchFileSnapshot(`../fixtures/${fixture}`)
+  await expect(main).toMatchFileSnapshot('../fixtures/ssh-credentials-legacy.html')
+})
+
+const contract = (html: string) => nodes(parse(html)).filter(element => element.tagName === 'form' && attribute(element, 'data-api') !== undefined).map(form => ({
+  action: attribute(form, 'action'), method: attribute(form, 'data-method'), confirm: attribute(form, 'data-confirm') ?? '', typedName: attribute(form, 'data-confirm-name'),
+  buttons: nodes(form).filter(element => element.tagName === 'button').map(words),
+  controls: nodes(form).filter(element => ['input', 'textarea', 'select'].includes(element.tagName) && attribute(element, 'name') !== '_csrf').map(control => ({
+    kind: control.tagName,
+    attributes: Object.fromEntries(['id', 'name', 'type', 'data-type', 'required', 'value', 'checked', 'autocomplete', 'min', 'max', 'step', 'pattern', 'inputmode', 'rows']
+      .map(name => [name, attribute(control, name)])),
+    content: control.tagName === 'textarea' ? words(control) : control.tagName === 'select' ? nodes(control).filter(option => option.tagName === 'option').map(option => attribute(option, 'value')) : undefined })) }))
+
+test('the rebuilt host forms keep the recorded legacy forms: URLs, methods, confirmations, fields and values', async () => {
+  bindAndGrant()
+  const recorded = contract(readFileSync(join(process.cwd(), 'test/fixtures/ssh-hosts-legacy.html'), 'utf8'))
+  const rebuilt = contract((await app.inject({ url: '/admin/ssh', headers })).body)
+  expect(recorded.map(form => form.action)).toEqual(['/v1/admin/ssh/hosts', '/v1/admin/ssh/binding', '/v1/admin/ssh/grant', '/v1/admin/ssh/host-delete', '/v1/admin/ssh/hosts'])
+  expect(rebuilt).toEqual(recorded)
+})
+
+test('the host panel shows its revision and state, and the page lists current bindings and grants', async () => {
+  bindAndGrant()
+  const { all, rows } = await page('', '/admin/ssh')
+  const text = all.map(words)
+  expect(text).toContain(`Revision ${(db.prepare("SELECT revision FROM ssh_hosts WHERE id = 'synthetic-host'").get() as { revision: number }).revision}`)
+  expect(text).toContain('Register host')
+  expect(rows('Account bindings')).toEqual([['synthetic-host', 'Ordinary', 'ordinary', 'ordinary-key', '1']])
+  expect(rows('Caller grants')).toEqual([['synthetic-host', 'synthetic-user', 'Allowed', 'Not allowed']])
+})
+
+test('with no hosts the page offers only registration and says nothing is bound or granted', async () => {
+  db.exec('DELETE FROM ssh_hosts')
+  const { response, all } = await page('', '/admin/ssh')
+  expect(contract(response.body).map(form => form.action)).toEqual(['/v1/admin/ssh/hosts'])
+  expect(all.map(words)).toEqual(expect.arrayContaining(['No account bindings.', 'No caller grants.']))
+})
+
+test('the hosts page is refused to people who are not administrators', async () => {
+  db.prepare("INSERT INTO users (id, username, display_name, password_hash, must_change) VALUES ('ordinary-user', 'ordinary-user', 'Ordinary User', 'CANARY-hash', 0)").run()
+  const ordinary = { ...headers, cookie: `${browserCookie}=${createBrowserSession(db, 'ordinary-user', 'CANARY-csrf').id}; _csrf=CANARY-csrf` }
+  const refused = await app.inject({ url: '/admin/ssh', headers: ordinary })
+  expect(refused.statusCode).toBe(403)
+  expect(refused.body).not.toContain('synthetic-host')
 })
