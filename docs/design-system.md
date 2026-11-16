@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page, the provider page, Access tokens, the Audit log and the SSH audit use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
+Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page, the provider page, Access tokens, the Audit log, the SSH audit and the SSH hosts page use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -115,8 +115,15 @@ The SSH audit (`SshAudit` in `src/views/ssh-audit.tsx`, route `/admin/ssh/audit`
 The header actions link to Hosts, bindings and grants and to the metadata-only export, which keeps the page's query.
 Each retained execution is an article with its outcome and Sudo badges, its facts (host, account, start, finish, remote exit, termination, request ID and output sample state), the command, the diagnostic, the retained standard output and error as text blocks with byte counts, and a native `details` disclosure with the rest of the stored record.
 Output is untrusted: it is rendered as text only and its markup characters are escaped in the page and in the hydration data.
-Connection events and denials use the same container-based table and stacked-card layout as the Audit log.
+Connection events and denials, and the bindings and grants tables of the SSH hosts page, use the `ssh-events` container: a table from 640 px of container width with column minimums that keep short values on one line, and stacked cards below it.
+Identifiers wrap at their separators and break mid-word only when no other room remains.
 The page keeps the SSH help topic Tools, which `renderPage` takes as its last argument.
+
+The SSH hosts page (`SshHosts` in `src/views/ssh-hosts.tsx`, route `/admin/ssh`) is the sixteenth page on the seam.
+Each host is a panel with its revision and Enabled and read-only state, a native `details` disclosure "Edit trust and policy" holding the host form, the Account binding and Caller grant forms, and Delete host with its typed-name confirmation; Register host and the Current bindings and grants tables follow.
+Every form keeps its URL, method, `confirm` and `expectedRevision` fields, field names, ids, `data-type` values, defaults (a new host starts disabled and read only) and confirmation text; the integration test compares them with a recorded copy of the previous forms.
+The one difference is that the three numeric host limits are text inputs with a numeric keypad and a digits-only pattern, because the Astryx text input has no number type; the client still converts them to numbers before sending.
+The credential, person and sudo selects stay native.
 
 ## Constraints
 

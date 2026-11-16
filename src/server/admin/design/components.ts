@@ -302,8 +302,28 @@ a.chip:hover { background: var(--bg-active); }
 .audit-list th, .audit-list td { min-width: 0; max-width: none; overflow: visible; overflow-wrap: anywhere; white-space: normal; vertical-align: top; }
 .audit-list tbody th { font-weight: 400; }
 .audit-list tbody tr.sel { background: var(--bg-muted); }
-@media (min-width: 761px) { .ssh-events table { min-width: 0; } .ssh-events td[data-label="Host"] { min-width: 7rem; } }
+.ssh-events { container-type: inline-size; }
+.ssh-events th, .ssh-events td { min-width: 0; max-width: none; overflow: visible; overflow-wrap: break-word; white-space: normal; vertical-align: top; }
+.ssh-events tbody th { font-weight: 400; }
+.ssh-events tbody th time { white-space: nowrap; }
+.ssh-events tbody tr:last-child th, .ssh-events tbody tr:last-child td { border-bottom: 0; }
+@container (min-width: 640px) {
+  .ssh-events td[data-label="Host"] { min-width: 8rem; } .ssh-events td[data-label="User"] { min-width: 10rem; } .ssh-events td[data-label="Request ID"] { min-width: 10rem; }
+  .ssh-events td[data-label="Outcome"] { min-width: 11rem; } .ssh-events td[data-label="Account type"] { min-width: 7rem; }
+  .ssh-events td[data-label="Person"] { min-width: 10rem; } .ssh-events td[data-label="Host use"], .ssh-events td[data-label="Sudo account"] { min-width: 8rem; }
+  .ssh-events td[data-label="Username"], .ssh-events td[data-label="Credential"] { min-width: 11rem; }
+}
+@container (width < 640px) {
+  .ssh-events thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .ssh-events tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .ssh-events tbody tr:last-child { border-bottom: 0; }
+  .ssh-events tbody th, .ssh-events tbody td { display: block; width: auto; padding: 0; border: 0; }
+  .ssh-events tbody td { flex: none; max-width: 100%; }
+  .ssh-events tbody td.connection-cell, .ssh-events tbody th { flex-basis: 100%; }
+  .ssh-events tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
+}
 .event-detail { color: var(--text-muted); font-size: var(--fs-xs); }
+.ssh-limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 16px; }
 .audit-list tbody tr:last-child th, .audit-list tbody tr:last-child td { border-bottom: 0; }
 .audit-list { container-type: inline-size; }
 @container (min-width: 880px) { .audit-list tbody th { white-space: nowrap; overflow-wrap: normal; } .audit-list td[data-label="Event"] { min-width: 8rem; }
@@ -314,7 +334,6 @@ a.chip:hover { background: var(--bg-active); }
   .audit-list tbody tr:last-child { border-bottom: 0; }
   .audit-list tbody th, .audit-list tbody td { display: block; width: auto; padding: 0; border: 0; }
   .audit-list tbody td { flex: none; max-width: 100%; }
-  .audit-list tbody td.connection-cell { flex-basis: 100%; }
   .audit-list tbody th { flex-basis: 100%; }
   .audit-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
 }

@@ -1274,7 +1274,7 @@ test('SSH dedicated administration provisions credentials, verified hosts and re
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/binding"] [name=expectedRevision][value="1"]');
-    check(await page.eval(() => [...document.querySelectorAll('main label[for]')].filter(label => label.closest('form')).every(label => label.control?.form === label.closest('form'))), 'Host labels target controls in another form');
+    check(await page.eval(() => [...document.querySelectorAll('[role=main] label[for]')].filter(label => label.closest('form')).every(label => label.control?.form === label.closest('form'))), 'Host labels target controls in another form');
     await page.fill('form[action$="/binding"] [name=username]', 'ordinary');
     await page.eval(() => { document.querySelector('form[action$="/binding"] [name=credential]').value = 'new-credential'; });
     await page.click('form[action$="/binding"] button');

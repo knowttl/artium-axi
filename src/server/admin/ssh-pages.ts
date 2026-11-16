@@ -5,60 +5,39 @@ import { browserCookie, browserPage } from '../auth/browser.js'
 import { readBrowserSession } from '../auth/sessions.js'
 import { escape } from './escape.js'
 import { apiForm, revision } from './forms.js'
-import { card, checkOption, field } from './design/ui.js'
+import { card, field } from './design/ui.js'
+import { renderPage } from './render-page.js'
 
 export function registerSshPages(app: FastifyInstance, db: Database.Database, authorize: (request: FastifyRequest) => string,
   readHosts: () => { hosts: SshAdminHost[], bindings: unknown[], grants: unknown[] },
   readCredentials: () => { credentials: unknown[] }): void {
   const text = (prefix: string, name: string, label: string, value: unknown = '', type = 'text') => field(`${prefix}-${name}`, label,
     attrs => `<input ${attrs} name="${name}" type="${type}"${type === 'number' ? ' data-type="number"' : ''} value="${escape(value)}" required>`)
-  const boolean = (name: string, label: string, value: boolean) => checkOption(`<input type="checkbox" name="${name}" data-type="boolean"${value ? ' checked' : ''}>`, label)
-  const json = (prefix: string, name: string, label: string, value: string[]) => field(`${prefix}-${name}`, label,
-    attrs => `<textarea ${attrs} name="${name}" data-type="json" rows="3" required>${escape(JSON.stringify(value))}</textarea>`)
   const proof = '<input type="hidden" name="confirm" data-type="boolean" value="true">'
   const links = '<p><a href="/admin/ssh">Hosts, bindings and grants</a> · <a href="/admin/ssh/credentials">Encrypted credentials</a> · <a href="/admin/ssh/audit">Execution audit</a> · <a href="/admin/tools/ssh-axi">Tool access</a></p>'
   const parent = { href: '/admin/tools/ssh-axi', label: 'SSH' }
   app.get('/admin/ssh', async (request, reply) => {
     authorize(request)
-    const csrf = reply.generateCsrf()
-    const form = (path: string, label: string, controls: string, consequence: string) => apiForm(csrf, `/v1/admin/ssh/${path}`, 'POST', label,
-      proof + controls, consequence, '', 'btn btn-primary')
-    const hostForm = (host?: SshAdminHost) => {
-      const prefix = host ? `stored-host-${host.id}` : 'new-host'
-      return form('hosts', 'Save host', revision(host?.revision ?? 0) + (host
-        ? `<input type="hidden" name="id" value="${escape(host.id)}">` : text(prefix, 'id', 'Host ID')) +
-        text(prefix, 'address', 'Approved hostname or address', host?.address) + text(prefix, 'port', 'Port', host?.port ?? 22, 'number') +
-        json(prefix, 'approvedHostKeys', 'Independently verified server public keys (JSON array)', host?.approvedHostKeys ?? []) +
-        json(prefix, 'allowedAddresses', 'Allowed literal IP addresses (JSON array)', host?.allowedAddresses ?? []) +
-        text(prefix, 'independentVerification', 'Independent verification reference', host?.independentVerification) +
-        boolean('enabled', 'Enable this host', host?.enabled ?? false) + boolean('readOnly', 'Keep this host read only', host?.readOnly ?? true) +
-        text(prefix, 'commandSeconds', 'Maximum command seconds (1-600)', host?.commandSeconds ?? 600, 'number') +
-        text(prefix, 'outputBytes', 'Maximum output bytes (0-1048576)', host?.outputBytes ?? 65536, 'number') +
-        text(prefix, 'idleMinutes', 'Maximum connection idle minutes (1-60)', host?.idleMinutes ?? 60, 'number'),
-        'Save this host trust and policy? Existing drafts using its previous revision will become stale.')
-    }
     const data = readHosts()
-    const credentialRows = readCredentials().credentials as { id: string }[]
     const users = db.prepare('SELECT id, username FROM users WHERE archived_at IS NULL ORDER BY username').all() as { id: string, username: string }[]
-    const hostSections = data.hosts.map(host => {
-      const context = revision(host.revision) + `<input type="hidden" name="host" value="${escape(host.id)}">`
-      const binding = form('binding', 'Save account binding', context + boolean('sudo', 'Separate sudo binding', false) +
-        text(host.id, 'username', 'Account username') + field(`${host.id}-credential`, 'Encrypted credential', attrs =>
-          `<select ${attrs} name="credential" required><option value="">Select a credential</option>${credentialRows.map(row => `<option value="${escape(row.id)}">${escape(row.id)}</option>`).join('')}</select>`),
-        'Replace this account binding? Ordinary and sudo accounts and credentials must differ.')
-      const grant = form('grant', 'Save caller grant', context + field(`${host.id}-user`, 'Person', attrs =>
-        `<select ${attrs} name="user" required>${users.map(user => `<option value="${escape(user.id)}">${escape(user.username)}</option>`).join('')}</select>`) +
-        boolean('shell', 'Allow this person to use the host', false) + boolean('sudo', 'Allow the separate sudo account', false),
-        'Replace this caller’s host grant? Tool and role grants remain required. Clearing access revokes subsequent calls.')
-      const remove = apiForm(csrf, '/v1/admin/ssh/host-delete', 'POST', 'Delete host', proof + revision(host.revision) +
-        `<input type="hidden" name="id" value="${escape(host.id)}">`, 'Delete this host and remove its bindings and caller grants?',
-        `data-confirm-name="${escape(host.id)}"`, 'btn btn-danger')
-      return card(host.id, `Revision ${host.revision}`, `<div class="card-body"><details><summary>Edit trust and policy</summary>${hostForm(host)}</details><h3>Account binding</h3>${binding}<h3>Caller grant</h3>${grant}<div class="actions">${remove}</div></div>`)
-    }).join('')
-    return browserPage(reply, 'SSH hosts', links + '<p>Verify server public keys through an independent trusted route before registration. Ordinary and sudo bindings require different accounts and credentials. Confirmed execution requires Allow writes, a writable host and current caller grants. Changing policy or grants fences connections and interrupts active commands; inspect remote state before preparing another uncertain command.</p>' +
-      hostSections + card('Register host', 'New hosts start disabled and read only.', `<div class="card-body">${hostForm()}</div>`) +
-      card('Current bindings and grants', 'Reload after each save to use the current host revision.', `<div class="card-body"><pre>${escape(JSON.stringify({ bindings: data.bindings, grants: data.grants }, null, 2))}</pre></div>`),
-      readBrowserSession(db, request.cookies[browserCookie] ?? ''), undefined, { parent, helpTopic: 'Tools' })
+    const names = new Map(users.map(user => [user.id, user.username]))
+    const bindings = data.bindings as { host: string, sudo: number, username: string, credential: string, revision: number }[]
+    const grants = data.grants as { user: string, host: string, shell: number, sudo: number }[]
+    return renderPage(reply, 'SSH hosts', 'sshHosts', {
+      csrf: reply.generateCsrf(),
+      intro: 'Verify server public keys through an independent trusted route before registration. Ordinary and sudo bindings require different accounts and credentials. Confirmed execution requires Allow writes, a writable host and current caller grants. Changing policy or grants fences connections and interrupts active commands; inspect remote state before preparing another uncertain command.',
+      hosts: data.hosts.map(host => ({ id: host.id, revision: host.revision, address: host.address, port: host.port, approvedHostKeys: JSON.stringify(host.approvedHostKeys),
+        allowedAddresses: JSON.stringify(host.allowedAddresses), independentVerification: host.independentVerification ?? '', enabled: host.enabled, readOnly: host.readOnly,
+        commandSeconds: host.commandSeconds, outputBytes: host.outputBytes, idleMinutes: host.idleMinutes })),
+      credentials: (readCredentials().credentials as { id: string }[]).map(row => row.id),
+      users,
+      bindings: bindings.map(binding => ({ ...binding, sudo: Boolean(binding.sudo) })),
+      grants: grants.map(grant => ({ host: grant.host, user: grant.user, username: names.get(grant.user) ?? null, shell: Boolean(grant.shell), sudo: Boolean(grant.sudo) })) },
+    readBrowserSession(db, request.cookies[browserCookie] ?? ''), undefined,
+    [{ label: 'Encrypted credentials', href: '/admin/ssh/credentials', variant: 'secondary', icon: 'key' },
+      { label: 'Execution audit', href: '/admin/ssh/audit', variant: 'secondary', icon: 'list' },
+      { label: 'Tool access', href: '/admin/tools/ssh-axi', variant: 'secondary', icon: 'sliders' }],
+    undefined, parent, 'Tools')
   })
   app.get('/admin/ssh/credentials', async (request, reply) => {
     authorize(request)
