@@ -56,96 +56,6 @@ export interface PageHeader {
   description?: string
 }
 
-export function card(title: string, description: string, body: string, options: { actions?: string, foot?: string, danger?: boolean } = {}): string {
-  return `<section class="card${options.danger ? ' danger' : ''}"><div class="card-head"><div><h2>${escape(title)}</h2>${description ? `<p>${escape(description)}</p>` : ''}</div>${options.actions ? `<div class="actions">${options.actions}</div>` : ''}</div>${body}${options.foot ? `<div class="card-foot">${options.foot}</div>` : ''}</section>`
-}
-
-export type Tone = 'ok' | 'warn' | 'err' | 'info'
-
-// Text is trusted HTML inside a paragraph; the title is optional. role="status" for results, "alert" for blocking errors.
-// `more` is trusted markup after the paragraph.
-export function callout(tone: Tone, title: string, text: string, actions = '', options: { role?: 'status' | 'alert', attributes?: string, more?: string } = {}): string {
-  return `<div class="callout ${tone}" role="${options.role ?? 'status'}"${options.attributes ? ' ' + options.attributes : ''}>${icon(tone === 'ok' ? 'check' : tone === 'info' ? 'info' : 'alert')}<div class="grow">${title ? `<strong>${escape(title)}</strong>` : ''}<p>${text}</p>${options.more ?? ''}</div>${actions ? `<div class="actions">${actions}</div>` : ''}</div>`
-}
-
-// A compact card for side guidance: a small heading and short text, no header bar.
-export function noteCard(title: string, body: string): string {
-  return `<section class="card"><div class="card-body"><h3>${escape(title)}</h3>${body}</div></section>`
-}
-
-// Tabs are links, so each tab is its own server-rendered view.
-export type StepState = 'done' | 'fail' | 'todo'
-const stepWords = { done: 'Done', fail: 'Failed', todo: 'To do' }
-export function steps(items: { title: string, detail: string, state: StepState, attributes?: string }[]): string {
-  const current = items.findIndex(item => item.state !== 'done')
-  return `<ol class="steps">${items.map((item, index) => `<li class="step ${item.state}${index === current ? ' current' : ''}"${item.attributes ? ' ' + item.attributes : ''}><span class="mark" aria-hidden="true">${item.state === 'done' ? icon('check') : item.state === 'fail' ? icon('x') : index + 1}</span><div><b><span class="sr-only" data-step-state>${stepWords[item.state]}: </span>${escape(item.title)}</b><span>${item.detail}</span></div></li>`).join('')}</ol>`
-}
-
-export interface Sheet {
-  name: string
-  // True when the page was requested with ?sheet=<name>.
-  open: boolean
-  // The page without the sheet; Close and Cancel link here.
-  closeHref: string
-  title: string
-  description: string
-  body: string
-  submit: string
-  // Wraps the body and footer, usually in the form that the submit button sends.
-  wrap: (inner: string) => string
-}
-
-// A side sheet on a native dialog. Without JavaScript the page renders it open from ?sheet=<name>,
-// with a scrim and Cancel linking back to the page; confirm.js reopens it as a modal.
-export function sheet(sheet: Sheet): string {
-  const id = `sheet-${escape(sheet.name)}`
-  const close = escape(sheet.closeHref)
-  return `${sheet.open ? `<a class="scrim" href="${close}" tabindex="-1" aria-hidden="true" data-sheet-scrim></a>` : ''}<dialog class="sheet" id="${id}" aria-labelledby="${id}-title"${sheet.open ? ' open' : ''}>
-    <div class="sheet-head"><div class="grow"><h2 id="${id}-title">${escape(sheet.title)}</h2><p>${escape(sheet.description)}</p></div><a class="btn btn-ghost btn-icon btn-sm" href="${close}" data-sheet-close aria-label="Close">${icon('x')}</a></div>
-    ${sheet.wrap(`<div class="sheet-body"><p class="message" data-sheet-message role="alert" tabindex="-1"></p>${sheet.body}</div><div class="sheet-foot"><a class="btn btn-ghost" href="${close}" data-sheet-close>Cancel</a>${sheet.submit}</div>`)}</dialog>`
-}
-
-// A labelled field; the control receives its id and the hint's aria-describedby.
-export function field(id: string, label: string, control: (attributes: string) => string, hint = ''): string {
-  const attributes = `id="${escape(id)}"${hint ? ` aria-describedby="${escape(id)}-hint"` : ''}`
-  return `<div class="field"><label for="${escape(id)}">${escape(label)}</label>${control(attributes)}${hint ? `<p class="hint" id="${escape(id)}-hint">${escape(hint)}</p>` : ''}</div>`
-}
-
-// A checkbox with a bold title and a one-line description.
-export function checkOption(input: string, title: string, description = ''): string {
-  return `<label class="check">${input}<span><strong>${escape(title)}</strong>${description ? `<span>${escape(description)}</span>` : ''}</span></label>`
-}
-
-// A link that opens a sheet: a modal with JavaScript, otherwise the ?sheet= view of the page.
-export function sheetLink(name: string, href: string, label: string, className: string, iconName?: IconName): string {
-  return `<a class="${className}" href="${escape(href)}" data-sheet="sheet-${escape(name)}">${iconName ? icon(iconName) : ''}${escape(label)}</a>`
-}
-
-// One step of an ordered checklist. Detail is trusted HTML.
-export function step(number: number, state: 'done' | 'current' | 'todo', title: string, detail: string): string {
-  return `<li class="vstep ${state === 'todo' ? '' : state}"><span class="mark">${state === 'done' ? `${icon('check')}<span class="sr-only">Done:</span>` : number}</span><div><strong>${escape(title)}</strong>${detail}</div></li>`
-}
-
-// Copy controls: confirm.js copies the input, pre or [data-copy-text] inside [data-copy-scope] and reports in its status.
-export function copyField(label: string, value: string): string {
-  return `<div data-copy-scope><div class="copyfield"><input readonly aria-label="${escape(label)}" value="${escape(value)}"><button type="button" class="btn btn-secondary" data-copy>${icon('copy')}Copy</button></div><p class="copy-status" role="status" data-copy-status></p></div>`
-}
-
-export function copyBlock(label: string, text: string): string {
-  return `<div class="copyblock" data-copy-scope><pre class="code" aria-label="${escape(label)}">${escape(text)}</pre><button type="button" class="btn btn-secondary btn-sm" data-copy aria-label="Copy: ${escape(label)}">${icon('copy')}Copy</button><p class="copy-status" role="status" data-copy-status></p></div>`
-}
-
-export function copyValue(label: string, value: string): string {
-  return `<span class="copyvalue" data-copy-scope><span data-copy-text>${escape(value)}</span><button type="button" class="btn btn-ghost btn-icon btn-sm" data-copy aria-label="Copy ${escape(label)}">${icon('copy')}</button><span class="copy-status" role="status" data-copy-status></span></span>`
-}
-
-// A list footer: a summary on the left and cursor links on the right; a null href is the current end.
-export function pager(summary: string, links: { label: string, href: string | null }[]): string {
-  return `<div class="card-foot"><span>${escape(summary)}</span><nav class="actions" aria-label="Pages">${links.map(link => link.href === null
-    ? `<span class="btn btn-secondary btn-sm" aria-disabled="true">${escape(link.label)}</span>`
-    : `<a class="btn btn-secondary btn-sm" href="${escape(link.href)}">${escape(link.label)}</a>`).join('')}</nav></div>`
-}
-
 export interface Viewer {
   name: string
   // Plain sign-in method words from the status vocabulary: Password, SSO or Break-glass.
@@ -218,7 +128,7 @@ function reauthPill(viewer: Viewer): string {
 
 function dialogs(viewer: Viewer): string {
   if (viewer.mustChange) return ''
-  return `<dialog id="reauth-dialog" class="modal" aria-labelledby="reauth-title"><div class="modal-body"><h2 id="reauth-title"><span class="ico-circle">${icon('lock')}</span>${viewer.sso ? 'Confirm your identity' : 'Confirm it’s you'}</h2><p>Sensitive changes need a confirmation every 15 minutes. ${viewer.sso ? 'Confirm with your provider in a new window.' : 'Enter your password.'} Cancel keeps your draft.</p></div><form data-reauth>${viewer.sso ? '' : '<div class="modal-body"><div class="field"><label for="reauth-password">Password</label><input id="reauth-password" name="password" type="password" autocomplete="current-password" required></div></div>'}<p class="modal-error" data-reauth-error role="alert"></p><div class="modal-foot"><button class="btn btn-ghost" type="button" data-reauth-cancel>Cancel</button><button class="btn btn-primary">Confirm and continue</button></div></form></dialog>`
+  return `<dialog id="reauth-dialog" class="modal" aria-labelledby="reauth-title"><div class="modal-body"><h2 id="reauth-title"><span class="ico-circle">${icon('lock')}</span>${viewer.sso ? 'Confirm your identity' : 'Confirm it’s you'}</h2><p>Sensitive changes need a confirmation every 15 minutes. ${viewer.sso ? 'Confirm with your provider in a new window.' : 'Enter your password.'} Cancel keeps your draft.</p></div><form>${viewer.sso ? '' : '<div class="modal-body"><div class="field"><label for="reauth-password">Password</label><input id="reauth-password" name="password" type="password" autocomplete="current-password" required></div></div>'}<p class="modal-error" data-reauth-error role="alert"></p><div class="modal-foot"><button class="btn btn-ghost" type="button" data-reauth-cancel>Cancel</button><button class="btn btn-primary">Confirm and continue</button></div></form></dialog>`
 }
 
 export const authOverlays = sprite

@@ -6,7 +6,6 @@ import { devicePollSchema, deviceUserCodeSchema, ssoReauthSchema } from '../../s
 import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import { deviceDefaults } from '../config.js'
-import { escape } from '../admin/escape.js'
 import { renderAuthPage } from '../admin/render-page.js'
 import type { AuthBlock } from '../../views/auth.js'
 import { AuthRateLimits } from './attempts.js'

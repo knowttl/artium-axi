@@ -1,7 +1,5 @@
 import type { z } from 'zod'
 import type { adminToolSchema, toolSchema } from '../../../shared/api.js'
-import { escape } from '../escape.js'
-import { icon } from './ui.js'
 
 // The authoritative status vocabulary: one word and tone per server state.
 export type Tone = 'ok' | 'warn' | 'err' | 'info' | 'off' | 'neutral' | 'solid'
@@ -27,26 +25,6 @@ export function describe<D extends StatusDomain>(domain: D, state: keyof Vocabul
 
 export function statusWord<D extends StatusDomain>(domain: D, state: keyof Vocabulary[D]): string {
   return describe(domain, state).word
-}
-
-// A word with a dot; the word carries the state and the dot is decorative. `detail` adds its consequence.
-export function status(word: string, tone: Tone, detail?: string): string {
-  return `<span class="status"><span class="dot ${tone}" aria-hidden="true"></span>${escape(word)}${detail ? `<span class="hint">· ${escape(detail)}</span>` : ''}</span>`
-}
-
-// A pill; `dot` adds the decorative state dot before the word.
-export function badge(word: string, tone: Tone = 'neutral', dot = false): string {
-  return `<span class="badge ${tone}">${dot ? `<span class="dot ${tone}" aria-hidden="true"></span>` : ''}${escape(word)}</span>`
-}
-
-export function stateBadge<D extends StatusDomain>(domain: D, state: keyof Vocabulary[D], dot = false): string {
-  const { word, tone } = describe(domain, state)
-  return badge(word, tone, dot)
-}
-
-export function stateStatus<D extends StatusDomain>(domain: D, state: keyof Vocabulary[D]): string {
-  const { word, tone } = describe(domain, state)
-  return status(word, tone)
 }
 
 // Writes: Read-only, Always read-only, or how many operations are on.
@@ -99,18 +77,6 @@ export function toolState(tool: Pick<z.infer<typeof adminToolSchema>, 'enabled' 
   return describe('health', 'unchecked')
 }
 
-export function personStatus(user: { enabled: boolean, archivedAt: number | null }): string {
-  return stateStatus('person', user.archivedAt !== null ? 'archived' : user.enabled ? 'enabled' : 'disabled')
-}
-
-export function grantOrigin(origin: string): string {
-  return stateBadge('grant', origin === 'direct' ? 'direct' : 'rule')
-}
-
-export function toolIcon(tool: ToolName, size: 'sm' | 'lg' = 'sm'): string {
-  return `<span class="tool-ico${size === 'lg' ? ' lg' : ''}" aria-hidden="true">${toolProducts[tool].mark}</span>`
-}
-
 // Outcomes stay exact codes; only their tone is derived.
 export function auditOutcome(record: { event: string, outcome: string, exit_code: number | null }): { word: string, tone: Tone } {
   if (record.event === 'run-terminal') {
@@ -136,7 +102,7 @@ const setupStates = {
   readyToTest: { word: 'Ready to test', tone: 'neutral' },
   hostChecks: { word: 'Check per host', tone: 'neutral' },
 } as const satisfies Record<string, { word: string, tone: Tone }>
-export type SetupState = keyof typeof setupStates
+type SetupState = keyof typeof setupStates
 
 // The next missing link of a tool's setup, then its cached test outcome; that outcome applies whether or not the tool is enabled.
 export function toolSetupState(tool: { enabled: boolean, configured: boolean, health: { errorCode: string | null, checkedAt: number | null } }): SetupState {
@@ -150,18 +116,7 @@ export function setupStatus(name: SetupState): { word: string, tone: Tone } {
   return setupStates[name]
 }
 
-export function setupBadge(name: SetupState): string {
-  const state = setupStatus(name)
-  return `<span class="badge ${state.tone}"><span class="dot ${state.tone}" aria-hidden="true"></span>${state.word}</span>`
-}
-
-// Write capability as an icon and word; `operations` is the selected count, or null when the tool has no operation list.
-export function writes(tool: { capable: boolean, enabled: boolean, operations: number | null }, form: 'badge' | 'status'): string {
-  const { word, tone, mark } = describeWrites(!tool.capable || !tool.enabled, tool.capable, tool.operations)
-  return `<span class="${form} ${tone}">${icon(mark)}${word}</span>`
-}
-
-export function describeWrites(readOnly: boolean, capable: boolean, operations: number | null): { word: string, tone: 'neutral' | 'warn', mark: 'eye' | 'lock' | 'zap' } {
-  if (readOnly) return capable ? { word: 'Read-only', tone: 'neutral', mark: 'eye' } : { word: 'Always read-only', tone: 'neutral', mark: 'lock' }
-  return { word: operations === null ? 'Writes on' : `${operations} operation${operations === 1 ? '' : 's'} on`, tone: 'warn', mark: 'zap' }
+export function describeWrites(readOnly: boolean, capable: boolean, operations: number | null): { word: string, tone: 'neutral' | 'warn' } {
+  if (readOnly) return capable ? { word: 'Read-only', tone: 'neutral' } : { word: 'Always read-only', tone: 'neutral' }
+  return { word: operations === null ? 'Writes on' : `${operations} operation${operations === 1 ? '' : 's'} on`, tone: 'warn' }
 }

@@ -3,7 +3,6 @@ import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { z } from 'zod'
 import { errorResponseSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
-import { escape } from './escape.js'
 
 export async function adminRead<T>(app: FastifyInstance, request: FastifyRequest, url: string, schema: z.ZodType<T>): Promise<T> {
   const response = await app.inject({ method: 'GET', url, headers: { cookie: request.headers.cookie ?? '' } })
@@ -31,38 +30,6 @@ export function pageHelp(title: string, source: 'local' | 'sso' = 'local'): stri
     'Request failed': '<p>Follow the recovery step shown above. If another administrator changed the record, reload its page and review the latest values before submitting again.</p>',
   }
   return help[title] ?? '<p>Use the navigation to return to your account or an administration screen.</p>'
-}
-
-// Opens an API form; the caller adds its own fields and submit button, then closes it.
-// An empty confirmation is tier 1: the change is saved without a dialog.
-export function apiFormTag(csrf: string, action: string, method: string, confirmation = '', attributes = ''): string {
-  return `<form data-api data-method="${escape(method)}" data-confirm="${escape(confirmation)}" ${attributes} action="${escape(action)}" method="post"><input type="hidden" name="_csrf" value="${escape(csrf)}">`
-}
-
-// A non-empty confirmation is the tier-2 dialog body; add data-confirm-name in attributes for a tier-3 typed confirmation.
-// A page that styles its own button (buttonClass) lets the dialog carry the consequence, so no inline help is added.
-export function apiForm(csrf: string, action: string, method: string, label: string, fields: string, confirmation = '', attributes = '', buttonClass = ''): string {
-  return `${apiFormTag(csrf, action, method, confirmation, attributes)}${fields}<button${buttonClass ? ` class="${escape(buttonClass)}"` : ''}>${escape(label)}</button>${confirmation && !buttonClass ? `<details class="action-help"><summary>What does this do?</summary><p>${escape(confirmation)}</p></details>` : ''}</form>`
-}
-
-// A form submitted by confirm.js to an API route; the body supplies its own submit button.
-// A tier-2 confirmation names the action in its button, and `title` overrides the dialog title.
-// Naming the target makes it tier 3: the button stays disabled until that exact name is typed.
-export interface Confirmation { consequence: string, title?: string, action?: string, typedName?: string }
-
-export function actionForm(csrf: string, action: string, method: string, body: string, confirmation?: Confirmation, attributes = ''): string {
-  const confirmAttributes = confirmation ? `${confirmation.title ? `data-confirm-title="${escape(confirmation.title)}" ` : ''}${confirmation.action ? `data-confirm-action="${escape(confirmation.action)}" ` : ''}${confirmation.typedName ? `data-confirm-name="${escape(confirmation.typedName)}" ` : ''}` : ''
-  return `${apiFormTag(csrf, action, method, confirmation?.consequence, confirmAttributes + attributes)}${body}</form>`
-}
-
-export function revision(value: number): string {
-  return `<input type="hidden" name="expectedRevision" data-type="number" value="${escape(value)}">`
-}
-
-export function timestamp(value: number | null, empty = 'Not recorded'): string {
-  if (value === null) return escape(empty)
-  const iso = new Date(value).toISOString()
-  return `<time datetime="${iso}" title="${iso}">${iso}</time>`
 }
 
 export function lastChange(db: Database.Database, item: { updatedBy: string | null, updatedAt: number | null, revision: number }) {
