@@ -1317,8 +1317,8 @@ test('SSH audit escapes retained output and exports only recorded metadata', asy
   chrome(['resize', '420', '900'])
   browser(`
     await page.open(base + '/admin/ssh/audit');
-    await page.wait('main');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('<script>window.syntheticOutputExecuted=true</script>')), 'Retained output was not displayed as text');
+    await page.wait('[role=main] article.execution');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('<script>window.syntheticOutputExecuted=true</script>')), 'Retained output was not displayed as text');
     check(await page.eval(() => window.syntheticOutputExecuted !== true), 'Untrusted output executed');
     check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'SSH audit overflows at 420px');
     const exported = await page.eval(async () => await (await fetch('/v1/admin/ssh/audit/export')).json());

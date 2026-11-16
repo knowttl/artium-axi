@@ -13,6 +13,7 @@ const vocabulary = {
   grant: { direct: ['Direct', 'neutral'], rule: ['SSO rule', 'info'] },
   access: { yes: ['Yes', 'ok'], 'tool-disabled': ['No, tool disabled', 'off'], 'person-disabled': ['No, person disabled', 'off'] },
   token: { active: ['Active', 'ok'], used: ['Used', 'neutral'], paused: ['Paused until creator signs in via SSO', 'warn'], expired: ['Expired', 'neutral'], revoked: ['Revoked', 'neutral'] },
+  execution: { running: ['Running', 'info'], completed: ['Completed', 'ok'], failed: ['Failed', 'err'], cancelled: ['Cancelled', 'off'], timed_out: ['Timed out', 'warn'], unknown: ['Unknown', 'warn'] },
   signIn: { password: ['Password', 'neutral'], sso: ['SSO', 'info'], 'break-glass': ['Break-glass', 'warn'], admin: ['Admin', 'solid'] },
 } as const satisfies Record<string, Record<string, readonly [string, Tone]>>
 
