@@ -115,7 +115,7 @@ The SSH audit (`SshAudit` in `src/views/ssh-audit.tsx`, route `/admin/ssh/audit`
 The header actions link to Hosts, bindings and grants and to the metadata-only export, which keeps the page's query.
 Each retained execution is an article with its outcome and Sudo badges, its facts (host, account, start, finish, remote exit, termination, request ID and output sample state), the command, the diagnostic, the retained standard output and error as text blocks with byte counts, and a native `details` disclosure with the rest of the stored record.
 Output is untrusted: it is rendered as text only and its markup characters are escaped in the page and in the hydration data.
-Connection events and denials are tables that become stacked cards below 760 px.
+Connection events and denials use the same container-based table and stacked-card layout as the Audit log.
 The page keeps the SSH help topic Tools, which `renderPage` takes as its last argument.
 
 ## Constraints
