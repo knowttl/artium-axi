@@ -9,7 +9,7 @@ export function Panel({ title, description, link, actions, children }: { title: 
   return (
     <Card>
       <VStack gap={3}>
-        <HStack gap={3} justify="between" vAlign="center">
+        <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
           <VStack gap={0.5}>
             <Heading level={2} accessibilityLevel={2}>{title}</Heading>
             {description && <Text type="supporting">{description}</Text>}

@@ -25,14 +25,6 @@ for (const button of document.querySelectorAll('[data-history-back]')) {
   button.hidden = false;
   button.addEventListener('click', () => history.back());
 }
-// Server-rendered open dialogs are the no-JavaScript view; make them modal and leave the view on close.
-for (const dialog of document.querySelectorAll('dialog[open][data-close-href]')) {
-  // Removing the attribute, unlike close(), queues no close event.
-  dialog.removeAttribute('open');
-  dialog.addEventListener('close', () => location.assign(dialog.dataset.closeHref), { once: true });
-  dialog.showModal();
-  dialog.querySelector('input:not([type=hidden]), select')?.focus();
-}
 const toastMessage = sessionStorage.getItem('artium-toast');
 if (toastMessage) {
   sessionStorage.removeItem('artium-toast');

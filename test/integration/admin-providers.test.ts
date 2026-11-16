@@ -138,10 +138,10 @@ test('the sign-in page lists providers from the store without any credential val
   for (const secret of [value.clientSecret, privateKey]) expect(exposure).not.toContain(secret)
 })
 
-function pageForm(body: string, action: string) {
-  const [, tag, content] = body.match(new RegExp(`<form([^>]*action="${action}"[^>]*)>(.*?)</form>`, 's')) ?? []
+function pageForm(body: string, action: string, method = '') {
+  const [, tag, content] = body.match(new RegExp(`<form([^>]*${method ? `data-method="${method}"[^>]*` : ''}action="${action}"[^>]*)>(.*?)</form>`, 's')) ?? []
   const attributes = (markup: string) => Object.fromEntries([...markup.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1]!, match[2]!.replaceAll('&amp;', '&').replaceAll('&#x27;', "'")]))
-  const inputs = [...(content ?? '').matchAll(/<input([^>]*)>/g)].map(match => attributes(match[1]!)).filter(input => input.name)
+  const inputs = [...(content ?? '').matchAll(/<(?:input|select)([^>]*)>/g)].map(match => attributes(match[1]!)).filter(input => input.name)
   const payload = Object.fromEntries(inputs.filter(input => input.name !== '_csrf').map(input =>
     [input.name!, input['data-type'] === 'number' ? Number(input.value) : input['data-type'] === 'boolean' ? input.value === 'true' : input.value]))
   return { attributes: tag ? attributes(tag) : undefined, names: inputs.map(input => input.name), csrf: inputs.find(input => input.name === '_csrf')?.value, payload }
@@ -254,19 +254,21 @@ test('the provider page, its hydration data, headers and audit carry no saved cr
   const privateKey = 'CANARY-private-key-pem'
   const certificate = (await app.inject({ method: 'POST', url: base, headers, payload: { name: 'Synthetic certificate provider', tenantId } })).json()
   credentials.replace(certificate.id, { tenantId, clientId, auth: 'certificate', privateKey, thumbprintSha256: '11'.repeat(32) }, 0, 'synthetic-development-user', Date.now())
-  const pages = await Promise.all([provider.id, certificate.id].flatMap(id => ['setup', 'settings'].map(tab =>
+  const pages = await Promise.all([provider.id, certificate.id].flatMap(id => ['setup', 'settings', 'rules'].map(tab =>
     app.inject({ url: `/admin/settings/sign-in/${id}?tab=${tab}`, headers: browserHeaders() }))))
   for (const page of pages) expect(page.statusCode).toBe(200)
   const exposure = JSON.stringify([pages.map(page => [page.body, page.headers]), db.prepare('SELECT * FROM audit').all()])
   for (const secret of [value.clientSecret, privateKey, '11'.repeat(32)]) expect(exposure).not.toContain(secret)
 })
 
-test.each([{ tab: 'credential', action: '/credential' }, { tab: 'rules', action: '' }])('the $tab tab still renders in the legacy shell with its tab strip', async ({ tab, action }) => {
+test('the credential tab still renders in the legacy shell with its tab strip', async () => {
   const provider = await create()
-  const page = await app.inject({ url: `/admin/settings/sign-in/${provider.id}?tab=${tab}`, headers: browserHeaders() })
+  const page = await app.inject({ url: `/admin/settings/sign-in/${provider.id}?tab=credential`, headers: browserHeaders() })
   expect(page.body).not.toContain('data-astryx-root')
   expect(page.body).toContain('<nav class="utabs" aria-label="Sections">')
-  if (action) expect(pageForm(page.body, `${base}/${provider.id}${action}`).attributes).toMatchObject({ 'data-method': 'PATCH' })
+  expect(pageForm(page.body, `${base}/${provider.id}/credential`).attributes).toMatchObject({ 'data-method': 'PATCH' })
+  const content = page.body.match(/<main[\s\S]*<\/main>/)![0].replaceAll(provider.id, 'PROVIDER').replace(/(name="_csrf" value=")[^"]*/g, '$1CSRF')
+  await expect(content).toMatchFileSnapshot('../fixtures/sign-in-credential-tab.html')
 })
 
 test('who matches lists the enabled people whose recorded claims match the rule, with when those claims were recorded', async () => {
@@ -760,4 +762,90 @@ test.each([
   expect(db.prepare('SELECT * FROM user_roles ORDER BY user_id, role_id, origin').all()).toEqual(clears ? retained : original)
   expect(db.prepare('SELECT action FROM audit WHERE target_id = ? ORDER BY id DESC LIMIT 1').get(rule.id))
     .toEqual({ action: method === 'DELETE' ? 'delete-role-rule' : 'update-role-rule' })
+})
+
+const rulesTab = (id: string, query = '') => app.inject({ url: `/admin/settings/sign-in/${id}?tab=rules${query}`, headers: browserHeaders() })
+const confirmations = {
+  add: 'Add this mapping? Matching users receive its role at their next sign-in.',
+  save: 'Save this mapping? Changing its claim name, value or target role immediately removes its existing rule-origin grants. Direct grants and grants from other rules are retained. Matching users receive grants at their next sign-in.',
+  remove: 'Remove this mapping and immediately remove its rule-origin grants? Direct grants and grants from other rules are retained. This cannot be undone.',
+}
+
+test.each([
+  { kind: 'entra', claim: 'roles', provider: { name: 'Synthetic provider', tenantId } },
+  { kind: 'oidc', claim: 'groups', provider: { name: 'Synthetic provider', kind: 'oidc', issuer: 'https://identity.example' } },
+])('the $kind Add rule sheet posts the form the old dialog did, and recent confirmation still gates it', async ({ claim, provider }) => {
+  const created = (await app.inject({ method: 'POST', url: base, headers, payload: provider })).json()
+  const page = await rulesTab(created.id, '&rule=new')
+  const form = pageForm(page.body, rulesBase)
+  expect(form.attributes).toMatchObject({ 'data-api': '', 'data-method': 'POST', 'data-confirm': confirmations.add, 'data-confirm-title': 'Add rule?',
+    'data-success-url': `/admin/settings/sign-in/${created.id}?tab=rules`, method: 'post' })
+  expect(form.attributes!['data-confirm-name']).toBeUndefined()
+  expect(form.names).toEqual(['_csrf', 'providerId', 'claim', 'value', 'roleId'])
+  expect(form.payload).toMatchObject({ providerId: created.id, claim })
+  expect(page.body).toContain('id="sheet-add-rule"')
+  const submitted = { ...form.payload, value: 'Artium.Readers', roleId: 'synthetic-role' }
+  const refused = await app.inject({ method: 'POST', url: rulesBase, headers: { authorization: headers.authorization! }, payload: submitted })
+  expect(refused.json()).toMatchObject({ error: { code: 'REAUTH_REQUIRED' } })
+  expect(db.prepare('SELECT count(*) AS count FROM role_rules').get()).toEqual({ count: 0 })
+  expect((await app.inject({ method: 'POST', url: rulesBase, headers, payload: submitted })).statusCode).toBe(200)
+  expect(db.prepare('SELECT provider_id AS providerId, claim, value, role_id AS roleId FROM role_rules').all()).toEqual([{ providerId: created.id, ...submitted }])
+})
+
+test('the Edit rule sheet carries the saved rule and its revision, and a stale save changes nothing', async () => {
+  const { rule, input } = await createRule()
+  const page = await rulesTab(input.providerId, `&rule=${rule.id}`)
+  const form = pageForm(page.body, `${rulesBase}/${rule.id}`, 'PATCH')
+  expect(form.attributes).toMatchObject({ 'data-method': 'PATCH', 'data-confirm': confirmations.save, 'data-confirm-title': 'Save rule?', 'data-success-url': `/admin/settings/sign-in/${input.providerId}?tab=rules` })
+  expect(form.names).toEqual(['_csrf', 'expectedRevision', 'providerId', 'claim', 'value', 'roleId'])
+  expect(form.payload).toMatchObject({ expectedRevision: 1, providerId: input.providerId, claim: 'roles', value: 'Artium.Readers' })
+  expect(page.body).toMatch(/<option value="synthetic-role" selected/)
+  expect(page.body).toContain('Last changed by')
+  const edit = (payload: Record<string, unknown>) => app.inject({ method: 'PATCH', url: `${rulesBase}/${rule.id}`, headers, payload })
+  expect((await edit({ ...form.payload, roleId: 'synthetic-role', value: 'Artium.Analysts' })).statusCode).toBe(200)
+  expect((await edit({ ...form.payload, roleId: 'synthetic-role', value: 'Artium.Stale' })).json()).toMatchObject({ error: { code: 'REVISION_CONFLICT' } })
+  expect(db.prepare('SELECT value, revision FROM role_rules').all()).toEqual([{ value: 'Artium.Analysts', revision: 2 }])
+  expect((await rulesTab(input.providerId, '&rule=missing-rule')).statusCode).toBe(404)
+})
+
+test('Remove rule is a typed-name confirmation that carries the revision, and a stale removal changes nothing', async () => {
+  const { rule, input } = await createRule()
+  const form = pageForm((await rulesTab(input.providerId)).body, `${rulesBase}/${rule.id}`, 'DELETE')
+  expect(form.attributes).toMatchObject({ 'data-method': 'DELETE', 'data-confirm': confirmations.remove, 'data-confirm-name': 'Artium.Readers', method: 'post' })
+  expect(form.attributes!['data-confirm-title']).toBeUndefined()
+  expect(form.names).toEqual(['_csrf', 'expectedRevision'])
+  expect(form.payload).toEqual({ expectedRevision: 1 })
+  expect((await app.inject({ method: 'PATCH', url: `${rulesBase}/${rule.id}`, headers, payload: { ...input, value: 'Artium.Analysts', expectedRevision: 1 } })).statusCode).toBe(200)
+  expect((await app.inject({ method: 'DELETE', url: `${rulesBase}/${rule.id}`, headers, payload: form.payload })).json()).toMatchObject({ error: { code: 'REVISION_CONFLICT' } })
+  expect(db.prepare('SELECT count(*) AS count FROM role_rules').get()).toEqual({ count: 1 })
+})
+
+test('each rule row names its role, its tools and how many enabled people match, linking to who matches', async () => {
+  const { rule, input } = await createRule()
+  db.exec("DELETE FROM role_tools WHERE role_id = 'synthetic-role' AND tool NOT IN ('gh-axi', 'ssh-axi')")
+  const second = (await app.inject({ method: 'POST', url: rulesBase, headers, payload: { ...input, value: 'Artium.Nobody' } })).json()
+  const provider = (await app.inject({ url: base, headers })).json().providers.find((candidate: { id: string }) => candidate.id === input.providerId)
+  db.exec(`INSERT INTO users (id, username, display_name, password_hash, must_change) SELECT 'synthetic-reader', 'synthetic-reader', 'Reader', password_hash, 0 FROM users LIMIT 1`)
+  db.prepare('INSERT INTO identities (id, user_id, provider_id, issuer, subject, created_at, claims_at, claim_values) VALUES (?, ?, ?, ?, ?, 1, ?, ?)')
+    .run('identity-reader', 'synthetic-reader', provider.id, provider.issuer, 'subject-1', Date.now(), JSON.stringify({ roles: ['Artium.Readers'] }))
+  const page = await rulesTab(input.providerId)
+  const rows = hydrationProps(page.body).props.rules.rules as { id: string, roleName: string, tools: string[], matches: number }[]
+  expect(Object.fromEntries(rows.map(row => [row.id, [row.roleName, row.tools, row.matches]])))
+    .toEqual({ [rule.id]: ['Synthetic Role', ['GitHub', 'SSH'], 1], [second.id]: ['Synthetic Role', ['GitHub', 'SSH'], 0] })
+  expect(page.body.replaceAll('<!-- -->', '').match(/GitHub, SSH · synced at each sign-in/g)).toHaveLength(2)
+  for (const [row, label] of [[rule, '1 match'], [second, '0 matches']] as const)
+    expect(page.body).toMatch(new RegExp(`<a[^>]*href="/admin/settings/sign-in/${input.providerId}/matches/${row.id}"[^>]*>(?:(?!</a>).)*${label}`, 's'))
+  expect(page.body).toContain('href="/admin/roles/synthetic-role"')
+})
+
+test('with no rules the tab says so and still offers Add rule; with no roles it points to Roles instead', async () => {
+  const provider = await create()
+  const empty = await rulesTab(provider.id)
+  expect(empty.body).toContain('No role rules yet')
+  expect(empty.body).toContain(`href="/admin/settings/sign-in/${provider.id}?tab=rules&amp;rule=new"`)
+  db.exec('DELETE FROM user_roles; DELETE FROM role_tools; DELETE FROM roles')
+  const noRoles = await rulesTab(provider.id, '&rule=new')
+  expect(noRoles.body).toContain('href="/admin/roles"')
+  expect(noRoles.body).not.toContain('data-sheet="sheet-add-rule"')
+  expect(noRoles.body).not.toContain('id="sheet-add-rule"')
 })
