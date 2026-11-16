@@ -62,6 +62,15 @@ test('the page content has no form, so nothing on it changes a provider or a sec
   expect(find(signIn(), element => ['form', 'input', 'textarea', 'select'].includes(element.tagName))).toEqual([])
 })
 
+test.each([
+  { people: [], content: 'No one matches this rule in the saved sign-in claims.' },
+  { people: [{ href: '/admin/users/synthetic-person', name: 'synthetic-person', initials: 'SY', claimsAt: '2026-11-15T10:00:00.000Z' }], content: 'synthetic-person' },
+])('matching people content is in a named region', ({ people, content }) => {
+  const regions = find(matches({ people }), element => attribute(element, 'role') === 'region' && attribute(element, 'aria-label') === 'Matching people')
+  expect(regions).toHaveLength(1)
+  expect(text(regions[0]!)).toContain(content)
+})
+
 test('matching people link to their pages with the time their claims were recorded', () => {
   const html = matches({ people: [{ href: '/admin/users/synthetic-person', name: 'synthetic-person', initials: 'SY', claimsAt: '2026-11-15T10:00:00.000Z' }] })
   const [row] = find(html, element => element.tagName === 'tr' && text(element).includes('synthetic-person'))

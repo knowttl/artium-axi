@@ -16,7 +16,7 @@ export interface SignInMatchesProps {
 export function SignInMatches({ people, note }: SignInMatchesProps) {
   return (
     <VStack gap={4}>
-      <Card padding={people.length ? 0 : undefined}>
+      <Card role="region" aria-label="Matching people" padding={people.length ? 0 : undefined}>
         <VisuallyHidden as="h2">Matching people</VisuallyHidden>
         {people.length ? (
           <Table aria-label={`${people.length} matching ${people.length === 1 ? 'person' : 'people'}`} scrollWrapper={({ children }) => <div className="table-wrap">{children}</div>}>
