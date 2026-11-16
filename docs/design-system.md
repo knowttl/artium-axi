@@ -130,6 +130,13 @@ Each stored credential is a panel with its revision, the two exclusive native `d
 Every form keeps its URL, method, `confirm` and `expectedRevision` fields, field names, ids, `autocomplete` values, required flags, labels, the password hint and the confirmation text; the integration test compares the form contract with a recorded copy of the previous forms, excluding CSS classes and CSRF controls.
 The private key, passphrase and password fields are native uncontrolled controls: they are never given a value and are not in React state or in the hydration data; the credential props carry ids and revisions only, and a `pagehide` listener clears the fields when that event fires.
 
+The Account page (`/account`) still uses the legacy shell and renders its parts in this order: the Your tools, Set up the CLI and Saving files from tools cards from `AccountGuide` (`src/views/account.tsx`), the legacy Temporary access tokens card, and the Sessions card.
+The two Astryx fragments are rendered by `renderAccountCards` in `src/server/admin/session-card.tsx` and share one nonce'd style element.
+Your tools lists each granted tool with Available or Turned off by admin.
+Set up the CLI has three steps: the verified download commands for this server, the sign-in commands for a local or SSO account, and a radio group of four agent hosts that shows one setup command at a time with CSS only, each command in a native copy block that `confirm.js` wires.
+Saving files from tools is a native `details` disclosure shown only when a granted tool saves files, with guidance for exactly those tools and a table of the latest 20 archive transfers.
+Its props are text and `code` fragments, so no markup string reaches the page or the hydration data.
+
 ## Constraints
 
 - Pages are server-rendered HTML through `browserPage` or, for render-seam views, `renderPage()` or `renderAuthPage()`.
