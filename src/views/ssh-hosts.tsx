@@ -50,13 +50,17 @@ function Check({ name, title, checked }: { name: string, title: string, checked:
 
 function HostForm({ csrf, host }: { csrf: string, host?: SshHostRow }) {
   const prefix = host ? `stored-host-${host.id}` : 'new-host'
-  const [fields, setFields] = useState({ id: '', address: host?.address ?? '', port: String(host?.port ?? 22), approvedHostKeys: host?.approvedHostKeys ?? '[]',
-    allowedAddresses: host?.allowedAddresses ?? '[]', independentVerification: host?.independentVerification ?? '', commandSeconds: String(host?.commandSeconds ?? 600),
-    outputBytes: String(host?.outputBytes ?? 65536), idleMinutes: String(host?.idleMinutes ?? 60) })
+  const [fields, setFields] = useState({ id: '', address: host?.address ?? '', approvedHostKeys: host?.approvedHostKeys ?? '[]',
+    allowedAddresses: host?.allowedAddresses ?? '[]', independentVerification: host?.independentVerification ?? '' })
   type Name = keyof typeof fields
-  const text = (name: Name, label: string, type: 'text' | 'number' = 'text') => (
+  const text = (name: Name, label: string) => (
     <TextInput label={label} id={`${prefix}-${name}`} htmlName={name} value={fields[name]} onChange={value => setFields({ ...fields, [name]: value })}
-      {...{ required: true, ...type === 'number' ? { pattern: '[0-9]+', 'data-type': 'number' } : {} }} {...type === 'number' ? { inputMode: 'numeric' as const } : {}} />
+      {...{ required: true }} />
+  )
+  const number = (name: 'port' | 'commandSeconds' | 'outputBytes' | 'idleMinutes', label: string, value: number) => (
+    <Field label={label} inputID={`${prefix}-${name}`}>
+      <input className="input" id={`${prefix}-${name}`} name={name} type="number" data-type="number" defaultValue={value} required />
+    </Field>
   )
   const json = (name: 'approvedHostKeys' | 'allowedAddresses', label: string) => (
     <TextArea label={label} id={`${prefix}-${name}`} htmlName={name} value={fields[name]} onChange={value => setFields({ ...fields, [name]: value })} rows={3} hasSpellCheck={false}
@@ -70,16 +74,16 @@ function HostForm({ csrf, host }: { csrf: string, host?: SshHostRow }) {
         <Revision value={host?.revision ?? 0} />
         {host ? <input type="hidden" name="id" value={host.id} /> : text('id', 'Host ID')}
         {text('address', 'Approved hostname or address')}
-        {text('port', 'Port', 'number')}
+        {number('port', 'Port', host?.port ?? 22)}
         {json('approvedHostKeys', 'Independently verified server public keys (JSON array)')}
         {json('allowedAddresses', 'Allowed literal IP addresses (JSON array)')}
         {text('independentVerification', 'Independent verification reference')}
         <Check name="enabled" title="Enable this host" checked={host?.enabled ?? false} />
         <Check name="readOnly" title="Keep this host read only" checked={host?.readOnly ?? true} />
         <div className="ssh-limits">
-          {text('commandSeconds', 'Maximum command seconds (1-600)', 'number')}
-          {text('outputBytes', 'Maximum output bytes (0-1048576)', 'number')}
-          {text('idleMinutes', 'Maximum connection idle minutes (1-60)', 'number')}
+          {number('commandSeconds', 'Maximum command seconds (1-600)', host?.commandSeconds ?? 600)}
+          {number('outputBytes', 'Maximum output bytes (0-1048576)', host?.outputBytes ?? 65536)}
+          {number('idleMinutes', 'Maximum connection idle minutes (1-60)', host?.idleMinutes ?? 60)}
         </div>
         <HStack><Button type="submit" label="Save host" variant="primary" /></HStack>
       </VStack>

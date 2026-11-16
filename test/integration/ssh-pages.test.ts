@@ -154,18 +154,17 @@ const contract = (html: string) => nodes(parse(html)).filter(element => element.
   action: attribute(form, 'action'), method: attribute(form, 'data-method'), confirm: attribute(form, 'data-confirm') ?? '', typedName: attribute(form, 'data-confirm-name'),
   buttons: nodes(form).filter(element => element.tagName === 'button').map(words),
   controls: nodes(form).filter(element => ['input', 'textarea', 'select'].includes(element.tagName) && attribute(element, 'name') !== '_csrf').map(control => ({
-    name: attribute(control, 'name'), kind: control.tagName === 'input' ? attribute(control, 'type') ?? 'text' : control.tagName, id: attribute(control, 'id'),
-    dataType: attribute(control, 'data-type'), required: attribute(control, 'required') !== undefined,
-    value: control.tagName === 'textarea' ? words(control) : control.tagName === 'select' ? nodes(control).filter(option => option.tagName === 'option').map(option => attribute(option, 'value'))
-      : attribute(control, 'type') === 'checkbox' ? attribute(control, 'checked') !== undefined : attribute(control, 'value') ?? '' })) }))
+    kind: control.tagName,
+    attributes: Object.fromEntries(['id', 'name', 'type', 'data-type', 'required', 'value', 'checked', 'autocomplete', 'min', 'max', 'step', 'pattern', 'inputmode', 'rows']
+      .map(name => [name, attribute(control, name)])),
+    content: control.tagName === 'textarea' ? words(control) : control.tagName === 'select' ? nodes(control).filter(option => option.tagName === 'option').map(option => attribute(option, 'value')) : undefined })) }))
 
 test('the rebuilt host forms keep the recorded legacy forms: URLs, methods, confirmations, fields and values', async () => {
   bindAndGrant()
   const recorded = contract(readFileSync(join(process.cwd(), 'test/fixtures/ssh-hosts-legacy.html'), 'utf8'))
   const rebuilt = contract((await app.inject({ url: '/admin/ssh', headers })).body)
-  const numbersAsText = (forms: typeof recorded) => forms.map(form => ({ ...form, controls: form.controls.map(control => control.kind === 'number' ? { ...control, kind: 'text' } : control) }))
   expect(recorded.map(form => form.action)).toEqual(['/v1/admin/ssh/hosts', '/v1/admin/ssh/binding', '/v1/admin/ssh/grant', '/v1/admin/ssh/host-delete', '/v1/admin/ssh/hosts'])
-  expect(rebuilt).toEqual(numbersAsText(recorded))
+  expect(rebuilt).toEqual(recorded)
 })
 
 test('the host panel shows its revision and state, and the page lists current bindings and grants', async () => {

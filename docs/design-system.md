@@ -122,7 +122,7 @@ The page keeps the SSH help topic Tools, which `renderPage` takes as its last ar
 The SSH hosts page (`SshHosts` in `src/views/ssh-hosts.tsx`, route `/admin/ssh`) is the sixteenth page on the seam.
 Each host is a panel with its revision and Enabled and read-only state, a native `details` disclosure "Edit trust and policy" holding the host form, the Account binding and Caller grant forms, and Delete host with its typed-name confirmation; Register host and the Current bindings and grants tables follow.
 Every form keeps its URL, method, `confirm` and `expectedRevision` fields, field names, ids, `data-type` values, defaults (a new host starts disabled and read only) and confirmation text; the integration test compares them with a recorded copy of the previous forms.
-The one difference is that the three numeric host limits are text inputs with a numeric keypad and a digits-only pattern, because the Astryx text input has no number type; the client still converts them to numbers before sending.
+The port and three numeric host limits are native number inputs; the client converts them to numbers before sending.
 The credential, person and sudo selects stay native.
 
 ## Constraints
