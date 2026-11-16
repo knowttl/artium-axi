@@ -48,6 +48,16 @@ async function account() {
     section: (heading: string) => all.find(element => element.tagName === 'h3' && words(element) === heading) }
 }
 
+test('the Account response has one CSP-authorized style element and no style attributes', async () => {
+  const { response, all } = await account()
+  const styles = all.filter(element => element.tagName === 'style')
+  expect(styles).toHaveLength(1)
+  const nonce = attribute(styles[0]!, 'nonce')
+  expect(nonce).toBeTruthy()
+  expect(response.headers['content-security-policy']).toContain(`'nonce-${nonce}'`)
+  expect(all.filter(element => attribute(element, 'style') !== undefined)).toEqual([])
+})
+
 test('the tools grid lists each granted tool with its availability, including tools an administrator turned off', async () => {
   grant('falcon-axi', 'vectra-axi')
   db.prepare("UPDATE tools SET enabled = 0 WHERE name = 'falcon-axi'").run()

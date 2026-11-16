@@ -21,5 +21,5 @@ export function renderAccountCards(reply: FastifyReply, guide: AccountGuideProps
   const render = (view: React.JSX.Element) => renderToString(<Theme theme={neutralTheme} mode={mode}>{view}</Theme>)
   const { html, style } = hoistInlineStyles(render(<AccountGuide {...guide} />) + split + render(<Sessions {...sessions} />), reply.styleNonce)
   const [guideHtml, sessionsHtml] = html.split(split)
-  return `${style}<div data-astryx-root>${guideHtml}</div>${between}<div data-astryx-root>${sessionsHtml}</div>`
+  return `${style || `<style nonce="${reply.styleNonce}"></style>`}<div data-astryx-root>${guideHtml}</div>${between}<div data-astryx-root>${sessionsHtml}</div>`
 }
