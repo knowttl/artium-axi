@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page and the provider page use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
+Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page, the provider page and Access tokens use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -77,6 +77,11 @@ Add rule opens the closed `add-rule` sheet in place, or `?tab=rules&rule=new` wi
 Both sheets send `providerId`, `claim`, `value` and `roleId` to the role-rules API with a tier 2 confirmation: Add uses POST, and Edit uses PATCH with `expectedRevision`.
 The Credential tab (`?tab=credential`, `ProviderCredential` in `src/views/provider-credential.tsx`) is an `ActionForm` that patches `/credential` with `expectedRevision` (the saved credential's revision), `expectedProviderRevision` and the shared `CredentialEditor`, under a tier 2 confirmation that names disabling the provider.
 It shows non-secret values (the client ID, tenant, authentication method and thumbprint), a Saved or Needs credential badge and when the credential last changed; a secret field is empty, a blank secret keeps the stored one for the same identity, and a changed tenant, client or authentication method needs a new secret.
+The Access tokens page (`Tokens` in `src/views/tokens.tsx`, route `/admin/tokens`) is the thirteenth page on the seam, with a Settings, an All tokens and a Revoke all panel.
+Settings is an `ActionForm` marked `data-token-settings` that patches `/v1/admin/token-settings` under a tier 2 confirmation; its checkbox and two number inputs stay native and uncontrolled, and `confirm.js` converts the hours and days to milliseconds before sending.
+All tokens is an Astryx table with a Revoke `ActionForm` on each token that is not revoked (a tier 2 confirmation, `POST /v1/admin/tokens/<id>/revoke`) and Revoke all is one `ActionForm` that posts to `/v1/admin/tokens/revoke-all`; there is no row menu, so nothing can clip.
+The status word and tone of a token come from the `token` entry of the status vocabulary in `status.ts`, which the legacy Account token list also uses.
+The props carry a token's id, label, creator, access, scope, expiry and status, never its value or hash; the value is shown once, on Account, which still renders its token card, create form and one-time dialog in the legacy shell.
 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet that `confirm.js` opens), and the side navigation slot.
 `adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu, confirmation pill and help panel once for both the frame and the legacy shell, so the links, landmarks and titles stay identical.
