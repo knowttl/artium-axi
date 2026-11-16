@@ -15,7 +15,8 @@ import { certificateFields } from './certificate.js'
 import { credentialFields } from './credential-form.js'
 import { escape } from './escape.js'
 import { matchesClaim } from '../auth/role-claims.js'
-import { adminRead, apiForm, changed, revision, timestamp } from './forms.js'
+import { adminRead, apiForm, changed, revision } from './forms.js'
+import { renderPage } from './render-page.js'
 import { callout, card, copyField, field, icon, initials, step, tabs, viewDialog } from './design/ui.js'
 import { badge, status, toolProducts } from './design/status.js'
 
@@ -184,34 +185,31 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
       const usable = usableBreakGlass()
       const pending = (db.prepare('SELECT count(*) AS count FROM invitations WHERE claimed_at IS NULL AND revoked_at IS NULL AND expires_at > ?')
         .get(Date.now()) as { count: number }).count
-      const summary = (label: string, value: string, detail: string, extra = '', tone = '') =>
-        `<section class="card${tone ? ' ' + tone : ''}" aria-label="${escape(label)}"><div class="card-body summary"><span class="label">${escape(label)}</span><strong>${escape(value)}</strong><p>${escape(detail)}</p>${extra}</div></section>`
-      const rows = providers.map(provider => {
-        const configured = Boolean(credentials?.read(provider.id))
-        const href = `${list}/${escape(provider.id)}`
-        return `<li class="list-row"><span class="tool-ico" aria-hidden="true">${escape(initials(provider.name))}</span><div class="grow"><strong><a href="${href}">${escape(provider.name)}</a></strong><p>${kindLabel(provider.kind)} · <span class="mono">${escape(provider.issuer)}</span></p></div>
-          <span class="badges">${configured ? '' : badge('Needs credential', 'warn')}${provider.enabled ? status('Enabled', 'ok') : status('Disabled', 'off')}</span><a class="btn btn-secondary btn-sm" href="${href}" aria-label="${provider.enabled ? 'Open' : 'Continue setup of'} ${escape(provider.name)}">${provider.enabled ? 'Open' : 'Continue setup'}</a></li>`
-      }).join('')
-      let content = `<div class="grid3">${summary('Current mode', enabledCount ? 'SSO, passwords for break-glass admins only' : 'Passwords for everyone',
-        enabledCount ? `${enabledCount} provider${enabledCount === 1 ? ' is' : 's are'} enabled. Disabling every provider restores passwords for everyone.` : 'No provider is enabled. Enabling one limits passwords to designated break-glass administrators.')}
-        ${usable ? summary('Break-glass admins', `${usable} ready`, 'A local administrator with a permanent password can still sign in if SSO fails. Every use is flagged in the audit log.')
-          : summary('Break-glass admins', designated ? 'None ready' : 'None designated', designated ? 'A designated administrator must be enabled, unlocked and have a permanent password before SSO can be enabled.' : 'Choose a local administrator with a permanent password before enabling SSO.',
-            `<a class="btn btn-secondary btn-sm" href="/admin/users?source=local">Choose admin</a>`, 'warn')}
-        ${summary('Invitations', `${pending} pending`, enabledCount ? 'Waiting to be claimed with an enabled provider.' : 'Claimable once a provider is enabled.', `<a class="btn btn-secondary btn-sm" href="/admin/invitations">Open invitations</a>`)}</div>`
-      content += card('Providers', 'New providers start disabled.', providers.length ? `<ul class="rows">${rows}</ul>`
-        : `<div class="card-body"><p>No providers yet. Add one, then save its credential.</p><a class="btn btn-secondary btn-sm" href="${list}?add=choose">${icon('plus')}Add provider</a></div>`)
+      const summaries = [
+        { label: 'Current mode', value: enabledCount ? 'SSO, passwords for break-glass admins only' : 'Passwords for everyone',
+          detail: enabledCount ? `${enabledCount} provider${enabledCount === 1 ? ' is' : 's are'} enabled. Disabling every provider restores passwords for everyone.` : 'No provider is enabled. Enabling one limits passwords to designated break-glass administrators.',
+          warning: false, action: null },
+        usable ? { label: 'Break-glass admins', value: `${usable} ready`, detail: 'A local administrator with a permanent password can still sign in if SSO fails. Every use is flagged in the audit log.', warning: false, action: null }
+          : { label: 'Break-glass admins', value: designated ? 'None ready' : 'None designated', detail: designated ? 'A designated administrator must be enabled, unlocked and have a permanent password before SSO can be enabled.' : 'Choose a local administrator with a permanent password before enabling SSO.',
+            warning: true, action: { href: '/admin/users?source=local', label: 'Choose admin' } },
+        { label: 'Invitations', value: `${pending} pending`, detail: enabledCount ? 'Waiting to be claimed with an enabled provider.' : 'Claimable once a provider is enabled.',
+          warning: false, action: { href: '/admin/invitations', label: 'Open invitations' } },
+      ]
+      let dialogs = ''
       const kind = query.data.add
       if (kind === 'choose') {
-        content += viewDialog('Add a sign-in provider', 'Pick the kind of identity provider. You configure its credential and rules next.', `<form method="get" action="${list}"><div class="options">
+        dialogs = viewDialog('Add a sign-in provider', 'Pick the kind of identity provider. You configure its credential and rules next.', `<form method="get" action="${list}"><div class="options">
           <label class="option"><input type="radio" name="add" value="entra" checked><div><strong>Microsoft Entra ID</strong><span>Single-tenant app registration. Uses the directory tenant ID. Roles map from app roles.</span></div></label>
           <label class="option"><input type="radio" name="add" value="oidc"><div><strong>OpenID Connect</strong><span>Any standards-compliant provider, using its exact HTTPS issuer. Roles map from any claim.</span></div></label></div>
           <button class="btn btn-primary">Continue</button></form>`, list)
       } else if (kind) {
-        content += viewDialog(kind === 'entra' ? 'Add an Entra ID provider' : 'Add an OpenID Connect provider', 'The provider starts disabled. Save its credential and test break-glass access before enabling it.',
+        dialogs = viewDialog(kind === 'entra' ? 'Add an Entra ID provider' : 'Add an OpenID Connect provider', 'The provider starts disabled. Save its credential and test break-glass access before enabling it.',
           apiForm(csrf, adminProviderRoutes.create.path, 'POST', 'Add provider', kind === 'entra' ? settingsFields() : oidcFields(), 'Create a disabled provider?', `data-success-url="${list}"`, 'btn btn-primary'), list)
       }
-      return browserPage(reply, 'Sign-in & SSO', content, current, 'How people sign in to Artium and the CLI.',
-        { actions: `<div class="actions"><a class="btn btn-primary" href="${list}?add=choose">${icon('plus')}Add provider</a></div>` })
+      return renderPage(reply, 'Sign-in & SSO', 'signIn', { summaries, addHref: `${list}?add=choose`,
+        providers: providers.map(provider => ({ href: `${list}/${encodeURIComponent(provider.id)}`, name: provider.name, initials: initials(provider.name),
+          kind: kindLabel(provider.kind), issuer: provider.issuer, configured: Boolean(credentials?.read(provider.id)), enabled: provider.enabled })) },
+      current, 'How people sign in to Artium and the CLI.', [{ label: 'Add provider', href: `${list}?add=choose`, variant: 'primary', icon: 'plus' }], undefined, undefined, dialogs)
     } else {
       const provider = providers.find(provider => provider.id === id)
       if (!provider) throw new ArtiumError('NOT_FOUND')
@@ -228,13 +226,12 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
         const { rules } = await adminRead(app, request, adminRoleRuleRoutes.list.path + '?providerId=' + encodeURIComponent(id), adminRoleRuleRoutes.list.response)
         const rule = rules.find(rule => rule.id === ruleId)
         if (!rule) throw new ArtiumError('NOT_FOUND')
-        const users = matchingUsers(rule)
-        const table = users.length ? `<div class="table-scroll"><table class="tbl"><caption class="sr-only">${users.length} matching ${users.length === 1 ? 'person' : 'people'}</caption><thead><tr><th scope="col">Person</th><th scope="col">Claims recorded</th></tr></thead><tbody>${users.map(user =>
-          `<tr><th scope="row"><span class="cell-main"><span class="avatar" aria-hidden="true">${escape(initials(user.username))}</span><a href="/admin/users/${escape(user.id)}">${escape(user.username)}</a></span></th><td class="muted">${timestamp(user.claims_at)}</td></tr>`).join('')}</tbody></table></div>`
-          : '<div class="card-body"><p>No one matches this rule in the saved sign-in claims.</p></div>'
-        return browserPage(reply, `Who matches “${rule.claim} contains ${rule.value}”`, `<section class="card" aria-label="Matching people">${table}</section>` +
-          callout('info', '', 'Matches come from the last successful sign-in of enabled, unarchived people. People who have never signed in with this provider can’t be counted yet. Grants synchronize on their next sign-in.'),
-        current, 'From each enabled person’s last successful sign-in. Not a live directory lookup.', { helpTopic: 'Sign-in & SSO', parent: { href: `/admin/settings/sign-in/${id}?tab=rules`, label: provider.name } })
+        return renderPage(reply, 'Sign-in & SSO', 'signInMatches', {
+          people: matchingUsers(rule).map(user => ({ href: `/admin/users/${encodeURIComponent(user.id)}`, name: user.username, initials: initials(user.username),
+            claimsAt: new Date(user.claims_at).toISOString() })),
+          note: 'Matches come from the last successful sign-in of enabled, unarchived people. People who have never signed in with this provider can’t be counted yet. Grants synchronize on their next sign-in.' },
+        current, 'From each enabled person’s last successful sign-in. Not a live directory lookup.', undefined, `Who matches “${rule.claim} contains ${rule.value}”`,
+        { href: `/admin/settings/sign-in/${encodeURIComponent(id)}?tab=rules`, label: provider.name })
       }
       const api = adminProviderRoutes.list.path + '/' + id
       const page = `/admin/settings/sign-in/${encodeURIComponent(id)}`

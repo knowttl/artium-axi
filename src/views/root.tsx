@@ -9,14 +9,17 @@ import { People, type PeopleProps } from './people.js'
 import { Person, type PersonProps } from './person.js'
 import { Role, type RoleProps } from './role.js'
 import { Roles, type RolesProps } from './roles.js'
+import { SignIn, type SignInProps } from './sign-in.js'
+import { SignInMatches, type SignInMatchesProps } from './sign-in-matches.js'
 import { Tool, type ToolProps } from './tool.js'
 import { Tools, type ToolsProps } from './tools.js'
 
 export interface ViewProps { overview: OverviewProps, auth: AuthProps, people: PeopleProps, person: PersonProps, roles: RolesProps, role: RoleProps, invitations: InvitationsProps,
-  tools: ToolsProps, tool: ToolProps, instance: InstanceProps }
+  tools: ToolsProps, tool: ToolProps, instance: InstanceProps, signIn: SignInProps, signInMatches: SignInMatchesProps }
 export type ViewName = keyof ViewProps
 
-const views = { overview: Overview, auth: Auth, people: People, person: Person, roles: Roles, role: Role, invitations: Invitations, tools: Tools, tool: Tool, instance: Instance }
+const views = { overview: Overview, auth: Auth, people: People, person: Person, roles: Roles, role: Role, invitations: Invitations, tools: Tools, tool: Tool, instance: Instance,
+  signIn: SignIn, signInMatches: SignInMatches }
 
 export function Root<Name extends ViewName>({ name, props, frame, mode }: { name: Name, props: ViewProps[Name], frame?: FrameProps, mode: ThemeMode }) {
   const View = views[name] as (props: ViewProps[Name]) => React.JSX.Element

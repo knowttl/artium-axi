@@ -21,12 +21,12 @@ function respond<Name extends ViewName>(reply: FastifyReply, title: string, name
 }
 
 export function renderPage<Name extends ViewName>(reply: FastifyReply, title: string, name: Name, props: ViewProps[Name],
-  current: BrowserSession, description?: string, actions?: FrameAction[], heading?: string, parent?: { href: string, label: string }) {
+  current: BrowserSession, description?: string, actions?: FrameAction[], heading?: string, parent?: { href: string, label: string }, dialogs = '') {
   const mode = readThemeMode(reply.request)
   const { crumbs, brand, navigation, account, controls, topbarEnd, overlays } = adminChrome({ title, heading, parent, description, content: '', help: pageHelp(title, current.source),
     path: reply.request.url.split('?')[0]!, viewer: browserViewer(reply, current), themeSwitch: '' })
   const frame = { title: heading ?? title, description, actions, crumbs, brand, navigation, account, controls: controls + themeSwitch(reply, mode), topbarEnd }
-  return respond(reply, title, name, props, frame, overlays, current)
+  return respond(reply, title, name, props, frame, overlays + dialogs, current)
 }
 
 export interface AuthPage {

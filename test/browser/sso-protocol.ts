@@ -168,8 +168,8 @@ test('generic provider settings and credential are editable and activation is ex
     await page.click('form:has([name=issuer]) button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('body:not(:has(dialog[data-close-href])) .list-row strong a');
-    const href = await page.eval(() => [...document.querySelectorAll('.list-row strong a')].find(link => link.textContent === 'Synthetic created OIDC')?.getAttribute('href'));
+    await page.wait('body:not(:has(dialog[data-close-href])) [data-provider] a:has(> strong)');
+    const href = await page.eval(() => [...document.querySelectorAll('[data-provider] a:has(> strong)')].find(link => link.textContent === 'Synthetic created OIDC')?.getAttribute('href'));
     check(href, 'Created provider missing');
     await page.open(base + href);
     await page.wait('.vsteps');
@@ -268,8 +268,8 @@ test('generic named rules can be added edited previewed and removed through real
     await page.wait('body:not(:has(dialog[data-close-href])) [data-who-matches]');
     check(await page.eval(() => document.querySelector('[data-who-matches]').textContent === '0 matches' && document.querySelector('[data-rule] .sentence').innerText.includes('custom.claim')), 'Claim edit did not refresh preview');
     await page.open(base + matches);
-    await page.wait('main');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('No one matches')), 'Empty match state missing');
+    await page.wait('[role=main]');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('No one matches')), 'Empty match state missing');
     await page.open(base + '/admin/settings/sign-in/synthetic-generic?tab=rules');
     await page.click('[data-rule] .menu summary');
     await page.click('[data-rule] form[data-method=DELETE] button');
@@ -597,8 +597,8 @@ test('administrator activates configured SSO through the guide and can disable i
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/activation"] [name=enabled][value=false]');
     await page.open(base + '/admin/settings/sign-in');
-    await page.wait('.list-row');
-    check(await page.eval(() => [...document.querySelectorAll('.list-row')].some(row => row.innerText.includes('Synthetic Entra') && row.querySelector('.badges').innerText.includes('Enabled'))), 'Activated status missing');
+    await page.wait('[data-provider]');
+    check(await page.eval(() => [...document.querySelectorAll('[data-provider]')].some(row => row.innerText.includes('Synthetic Entra') && row.querySelector('[data-label=Status]').innerText.includes('Enabled'))), 'Activated status missing');
     await page.open(base + '/admin/settings/sign-in/synthetic-entra');
     await page.click('form[action$="/activation"] button');
     await page.wait('#confirmation[open]');

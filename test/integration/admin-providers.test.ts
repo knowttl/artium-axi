@@ -112,6 +112,66 @@ test('setup checklist People link opens the users page', async () => {
   expect(users.body).toMatch(/<h1[^>]*>People<\/h1>/)
 })
 
+function browserHeaders() {
+  return { cookie: `${browserCookie}=${createBrowserSession(db, 'synthetic-development-user', 'CANARY-csrf').id}` }
+}
+const hydrationProps = (body: string) => JSON.parse(body.match(/<script type="application\/json" data-astryx-props>(.*?)<\/script>/)![1]!)
+
+test('the sign-in page lists providers from the store without any credential value in its markup, data, headers or audit', async () => {
+  const secretProvider = await create()
+  expect((await save(secretProvider.id, value)).statusCode).toBe(200)
+  const certificateProvider = (await app.inject({ method: 'POST', url: base, headers, payload: { name: 'Synthetic certificate provider', tenantId } })).json()
+  const privateKey = 'CANARY-private-key-pem'
+  credentials.replace(certificateProvider.id, { tenantId, clientId, auth: 'certificate', privateKey, thumbprintSha256: '11'.repeat(32) }, 0, 'synthetic-development-user', Date.now())
+  const bare = (await app.inject({ method: 'POST', url: base, headers, payload: { name: 'Synthetic bare provider', kind: 'oidc', issuer: 'https://identity.example' } })).json()
+  const page = await app.inject({ url: '/admin/settings/sign-in', headers: browserHeaders() })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toMatch(/<h1[^>]*>Sign-in &amp; SSO<\/h1>/)
+  const { props } = hydrationProps(page.body)
+  expect(props.providers.map((provider: { name: string, kind: string, issuer: string, configured: boolean, enabled: boolean }) => [provider.name, provider.kind, provider.issuer, provider.configured, provider.enabled]))
+    .toEqual([['Synthetic bare provider', 'OpenID Connect', 'https://identity.example', false, false],
+      ['Synthetic certificate provider', 'Entra ID', `https://login.microsoftonline.com/${tenantId}/v2.0`, true, false],
+      ['Synthetic provider', 'Entra ID', `https://login.microsoftonline.com/${tenantId}/v2.0`, true, false]])
+  expect(props.summaries.map((summary: { label: string, value: string }) => [summary.label, summary.value]))
+    .toEqual([['Current mode', 'Passwords for everyone'], ['Break-glass admins', 'None designated'], ['Invitations', '0 pending']])
+  expect(page.body).toContain(`href="/admin/settings/sign-in/${bare.id}"`)
+  const exposure = JSON.stringify([page.body, page.headers, db.prepare('SELECT * FROM audit').all()])
+  for (const secret of [value.clientSecret, privateKey]) expect(exposure).not.toContain(secret)
+})
+
+test.each([
+  { add: 'entra', fields: ['name', 'tenantId'], kind: undefined },
+  { add: 'oidc', fields: ['kind', 'name', 'issuer'], kind: 'oidc' },
+])('the $add Add provider dialog keeps its create form, confirmation and CSRF token beside the rebuilt page', async ({ add, fields, kind }) => {
+  const page = await app.inject({ url: `/admin/settings/sign-in?add=${add}`, headers: browserHeaders() })
+  expect(page.statusCode).toBe(200)
+  const form = page.body.match(/<form data-api data-method="POST" data-confirm="Create a disabled provider\?" data-success-url="\/admin\/settings\/sign-in" action="\/v1\/admin\/sso\/providers" method="post">(.*?)<\/form>/s)!
+  expect([...form[1]!.matchAll(/<input[^>]* name="([^"]+)"/g)].map(match => match[1])).toEqual(['_csrf', ...fields])
+  expect(form[1]).toMatch(/name="_csrf" value="[^"]+"/)
+  if (kind) expect(form[1]).toContain(`name="kind" value="${kind}"`)
+  expect(page.body.indexOf('data-close-href="/admin/settings/sign-in"')).toBeGreaterThan(page.body.indexOf('data-astryx-props'))
+})
+
+test('who matches lists the enabled people whose recorded claims match the rule, with when those claims were recorded', async () => {
+  const { rule, input } = await createRule()
+  const provider = (await app.inject({ url: base, headers })).json().providers.find((candidate: { id: string }) => candidate.id === input.providerId)
+  db.exec(`INSERT INTO users (id, username, display_name, password_hash, must_change) SELECT 'synthetic-reader', 'synthetic-reader', 'Reader', password_hash, 0 FROM users LIMIT 1;
+    INSERT INTO users (id, username, display_name, password_hash, must_change) SELECT 'synthetic-other', 'synthetic-other', 'Other', password_hash, 0 FROM users LIMIT 1;
+    INSERT INTO users (id, username, display_name, password_hash, must_change, disabled) SELECT 'synthetic-disabled', 'synthetic-disabled', 'Disabled', password_hash, 0, 1 FROM users LIMIT 1`)
+  const recorded = Date.UTC(2026, 10, 15, 10, 0, 0)
+  const identify = db.prepare('INSERT INTO identities (id, user_id, provider_id, issuer, subject, created_at, claims_at, claim_values) VALUES (?, ?, ?, ?, ?, 1, ?, ?)')
+  identify.run('identity-reader', 'synthetic-reader', provider.id, provider.issuer, 'subject-1', recorded, JSON.stringify({ roles: ['Artium.Readers'] }))
+  identify.run('identity-other', 'synthetic-other', provider.id, provider.issuer, 'subject-2', recorded, JSON.stringify({ roles: ['Artium.Other'] }))
+  identify.run('identity-disabled', 'synthetic-disabled', provider.id, provider.issuer, 'subject-3', recorded, JSON.stringify({ roles: ['Artium.Readers'] }))
+  const page = await app.inject({ url: `/admin/settings/sign-in/${provider.id}/matches/${rule.id}`, headers: browserHeaders() })
+  expect(page.statusCode).toBe(200)
+  expect(page.body).toMatch(/<h1[^>]*>Who matches “roles contains Artium.Readers”<\/h1>/)
+  expect(page.body).toContain(`href="/admin/settings/sign-in/${provider.id}?tab=rules"`)
+  expect(hydrationProps(page.body).props.people).toEqual([{ href: '/admin/users/synthetic-reader', name: 'synthetic-reader', initials: 'SY', claimsAt: '2026-11-15T10:00:00.000Z' }])
+  const missing = await app.inject({ url: `/admin/settings/sign-in/${provider.id}/matches/missing-rule`, headers: browserHeaders() })
+  expect(missing.statusCode).toBe(404)
+})
+
 async function activation(id: string, enabled = true, expectedRevision = 2, authorization = headers) {
   return app.inject({ method: 'PATCH', url: base + '/' + id + '/activation', headers: authorization,
     payload: { enabled, expectedRevision } })

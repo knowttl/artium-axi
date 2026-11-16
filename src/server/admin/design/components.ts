@@ -291,6 +291,9 @@ a.chip:hover { background: var(--bg-active); }
 .invitations-list th, .invitations-list td { max-width: none; overflow: visible; }
 @media (min-width: 761px) { .invitations-list td:first-child, .invitations-list td:last-child, .invitations-list code { white-space: nowrap; overflow-wrap: normal; word-break: normal; } }
 .invitations-list tbody tr:last-child td { border-bottom: 0; }
+.providers-list th, .providers-list td { max-width: none; overflow: visible; }
+.providers-list code { overflow-wrap: anywhere; }
+.providers-list tbody tr:last-child td { border-bottom: 0; }
 .tbl tbody tr.link { position: relative; }
 .tbl tbody tr.link:hover { background: var(--bg-subtle); }
 .tbl .row-link { color: var(--text); text-decoration: none; }
@@ -762,10 +765,10 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .session-table tbody tr:last-child { border-bottom: 0; }
   .session-table td { display: block; padding: 3px 14px; border: 0; }
   .session-table td[data-label]::before { content: attr(data-label) ": "; color: var(--text-faint); }
-  .people-list thead, .invitations-list thead { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-  .people-list tbody tr, .invitations-list tbody tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); }
-  .people-list tbody tr:last-child, .invitations-list tbody tr:last-child { border-bottom: 0; }
-  .people-list tbody th, .people-list tbody td, .invitations-list tbody td { display: block; width: auto; max-width: none; padding: 3px 14px; border: 0; text-align: left; }
+  .people-list thead, .invitations-list thead, .providers-list thead { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+  .people-list tbody tr, .invitations-list tbody tr, .providers-list tbody tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .people-list tbody tr:last-child, .invitations-list tbody tr:last-child, .providers-list tbody tr:last-child { border-bottom: 0; }
+  .people-list tbody th, .people-list tbody td, .invitations-list tbody td, .providers-list tbody td { display: block; width: auto; max-width: none; padding: 3px 14px; border: 0; text-align: left; }
   .people-list tbody td.num { position: absolute; top: 10px; right: 0; width: auto; min-width: 0; pointer-events: none; }  .filters .input-wrap { width: 100%; }
   .page-head > .actions { flex-basis: 100%; margin-left: 0; }
   .callout { flex-wrap: wrap; }
