@@ -860,7 +860,7 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
     await page.click('[data-rule] .more-menu summary');
     await page.click('[data-rule] form[data-method=DELETE] button');
     await page.wait('#confirmation[open]');
-    check(await page.eval(() => document.querySelector('[data-confirm-button]').disabled), 'Removal did not require the typed value');
+    check(await page.eval(() => document.querySelector('[data-confirm-button]').getAttribute('aria-disabled') === 'true'), 'Removal did not require the typed value');
     await page.click('#confirmation button[value=cancel]');
     check(await page.eval(() => !!document.querySelector('[data-rule]')), 'Cancel removed the rule');
     await page.click('[data-rule] form[data-method=DELETE] button');
@@ -1196,7 +1196,7 @@ for (const [tool, value, saved, secret, typed, field, entry] of [
     check(await page.eval(() => {
       const sent = window.sent.filter(([, body]) => body.includes('CANARY-typed-browser')).map(([url]) => new URL(url, location.href).pathname);
       return JSON.stringify(sent) === JSON.stringify(['/v1/admin/tools/${tool}/instances/default/credential']) && window.leaks.length === 0
-        && !document.documentElement.outerHTML.includes('CANARY-typed-browser') && !document.getElementById('message').textContent.includes('CANARY')
+        && !document.documentElement.outerHTML.includes('CANARY-typed-browser') && !document.querySelector('.astryx-toast[data-type=error]').textContent.includes('CANARY')
         && !location.href.includes('CANARY') && !JSON.stringify(sessionStorage).includes('CANARY') && !JSON.stringify(localStorage).includes('CANARY');
     }), 'The rejected save leaked the typed value');
     await page.eval(() => window.dispatchEvent(new Event('pagehide')));
@@ -2072,7 +2072,7 @@ test('Kubernetes mutation workflows default off and require the administrator sw
       const settings = JSON.parse(document.querySelector('[name=nativeSettings]').value);
       return settings.allowWrites === true && settings.collectionDelete !== true && settings.acquireCredential !== true;
     }), 'Master switch enabled bulk deletion');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('server-dry-run')), 'Native workflow settings guidance missing');
+    check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('server-dry-run')), 'Native workflow settings guidance missing');
     await page.fill('[name=nativeSettings]', JSON.stringify({ allowWrites: true, acquireCredential: true, sessions: {
       lifetimeSeconds: 300, outputBytes: 65536,
     } }));
@@ -2096,7 +2096,7 @@ test('Kubernetes mutation workflows default off and require the administrator sw
     await page.click('#sheet-grants-sessions-add form button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('a[href*="grants-sessions-synthetic-development-user"]');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('logs, exec, port-forward')), 'Session grants did not persist');
+    check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('logs, exec, port-forward')), 'Session grants did not persist');
   `)
 })
 
@@ -2748,7 +2748,7 @@ test('role tool grants and membership explain effective tools and an empty role 
     await page.open(base + roleHref);
     await page.click('form[data-method=DELETE] button');
     await page.wait('#confirmation[open]');
-    check(await page.eval(() => document.querySelector('#confirmation button[value=confirmed]').disabled), 'Delete is enabled before the name is typed');
+    check(await page.eval(() => document.querySelector('#confirmation button[value=confirmed]').getAttribute('aria-disabled') === 'true'), 'Delete is enabled before the name is typed');
     await page.fill('[data-confirm-name-input]', 'Synthetic readers');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action="/v1/admin/roles"]');
@@ -2803,9 +2803,9 @@ test('archiving from detail hides the user and shows retained history when reope
     await page.open(base + '/admin/users/synthetic-ordinary');
     await page.click('form[action$="/archive"] button');
     await page.wait('#confirmation[open]');
-    check(await page.eval(() => document.querySelector('#confirmation button[value=confirmed]').disabled), 'Archive did not require the typed username');
+    check(await page.eval(() => document.querySelector('#confirmation button[value=confirmed]').getAttribute('aria-disabled') === 'true'), 'Archive did not require the typed username');
     await page.fill('#confirmation [data-confirm-name-input]', 'synthetic-ordinar');
-    check(await page.eval(() => document.querySelector('#confirmation button[value=confirmed]').disabled), 'Archive accepted a partial username');
+    check(await page.eval(() => document.querySelector('#confirmation button[value=confirmed]').getAttribute('aria-disabled') === 'true'), 'Archive accepted a partial username');
     await page.click('#confirmation button[value=cancel]');
     check(await page.eval(() => !!document.querySelector('form[action$="/archive"]')), 'Cancel changed the user');
     await page.click('form[action$="/archive"] button');

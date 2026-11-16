@@ -89,7 +89,7 @@ The side navigation is an Astryx `SideNav` with a `SideNavSection` per group and
 The frame renders the legacy markup for the account menu, confirmation pill and help panel through `dangerouslySetInnerHTML`, so React neither re-renders nor compares what `confirm.js` updates there.
 Below the Astryx mobile breakpoint a native navigation disclosure remains usable without JavaScript, listing the same `SideNavItem` links without a second `SideNav`, and CSS hides the desktop sidebar.
 The frame retains one banner, one main and one navigation landmark, labelled "Administration" for administrators and "Account" for other people.
-The confirmation dialogs and icon sprite that `confirm.js` drives stay outside the React root; the toasts are part of it.
+The identity confirmation dialog and icon sprite that `confirm.js` drives stay outside the React root; the toasts and the action confirmation dialog (`Confirmation` in `src/views/confirmation.tsx`, on the Astryx dialog) are part of it, and `confirm.js` asks it to confirm a form through the `artium-confirm` event.
 The People add-user sheet is the first sheet on the seam, the Roles New role sheet is the second, the role Rename sheet is the third, and the Invitations New invitation and Resend sheets are the fourth and fifth; the New role and Rename sheets pass no confirmation text so `confirm.js` submits without a confirmation dialog: `Sheet` in `src/views/sheet.tsx` keeps the native `dialog.sheet`, its `?sheet=` open state and the `data-api` form that `confirm.js` submits, and builds the header, text fields and buttons from Astryx `Heading`, `Text`, `IconButton`, `TextInput` and `Button`.
 Astryx `Drawer` and `Dialog` render closed until hydration, so they cannot serve the no-JavaScript view.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
@@ -224,7 +224,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Option card | `.options`, `.option` | unchecked, checked | Native radio |
 | Code and copy | `copyBlock()`, `copyField()`, `copyValue()`: `[data-copy-scope]` with `[data-copy]` and `.copy-status`; existing `.copy-group` fields also supported | idle, copied, copy unavailable (text selected) | The copy result is announced in its status |
 | Disclosure card | `details.card.disclosure` | closed, open | Native disclosure |
-| Dialog | native `<dialog class="modal">` with `.modal-body`, `.modal-foot`, `.ico-circle` | confirmation tier 2 or 3, identity confirmation; rendered open by a query parameter without JavaScript | `showModal`, Esc closes, title names the action |
+| Dialog | The identity confirmation is a native `<dialog class="modal">` with `.modal-body`, `.modal-foot`, `.ico-circle`; the action confirmation (tier 2 or 3) is the Astryx `Dialog` in `Confirmation` | confirmation tier 2 or 3, identity confirmation | `showModal`, Esc closes, a backdrop press does not, title names the action, focus returns to the control that submitted |
 | Toasts | `Toasts` in `src/views/toasts.tsx` on the Astryx toast viewport | none, success, error, conflict with **Reload latest** | A success saved by `confirm.js` shows after the page reloads and is announced politely; an error from a form with no message area of its own is announced assertively and clears on the next submission of a form without its own message area |
 | Steps | `steps()`: `ol.steps`, `.step` | done, fail, to do, current | Ordered list; the state is in visually hidden text |
 | Segmented control and search | `.seg` (links or visually hidden radios), `.search`, `.filters` | current or checked | GET forms; JavaScript may apply them live |
@@ -263,7 +263,7 @@ API forms choose their tier:
 - Tier 1 has an empty or absent `data-confirm`: the change saves without an action confirmation dialog, and `data-success-message` (default "Change saved.") is shown in the toast after the page reloads.
 - Tier 2 sets `data-confirm` to the consequence and `data-confirm-action` to the verb (the button text when absent), which labels its confirm button and, by default, titles the dialog.
   `data-confirm-title` overrides the dialog title.
-- Tier 3 also sets `data-confirm-name`: the dialog shows a red status mark and confirm button, which stays disabled until that exact name is typed.
+- Tier 3 also sets `data-confirm-name`: the dialog asks for that name and shows a red confirm button, which stays disabled until that exact name is typed.
 
 `data-success-url` sends the person to another page after success; `{id}` in it is replaced with the created record's id.
 Recent-auth confirmation and CSRF apply to every tier; revision-checked mutations also include `expectedRevision`.

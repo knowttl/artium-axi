@@ -4,6 +4,7 @@ import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import { Account, type AccountProps } from './account.js'
 import { Auth, type AuthProps } from './auth.js'
 import { AuditLog, type AuditProps } from './audit.js'
+import { Confirmation } from './confirmation.js'
 import { Frame, type FrameProps } from './frame.js'
 import { Instance, type InstanceProps } from './instance.js'
 import { Invitations, type InvitationsProps } from './invitations.js'
@@ -33,5 +34,5 @@ const views = { overview: Overview, auth: Auth, people: People, person: Person, 
 
 export function Root<Name extends ViewName>({ name, props, frame, mode }: { name: Name, props: ViewProps[Name], frame?: FrameProps, mode: ThemeMode }) {
   const View = views[name] as (props: ViewProps[Name]) => React.JSX.Element
-  return <Theme theme={neutralTheme} mode={mode}><LayerProvider><Toasts>{frame ? <Frame {...frame}><View {...props} /></Frame> : <View {...props} />}</Toasts></LayerProvider></Theme>
+  return <Theme theme={neutralTheme} mode={mode}><LayerProvider><Toasts>{frame ? <><Frame {...frame}><View {...props} /></Frame><Confirmation /></> : <View {...props} />}</Toasts></LayerProvider></Theme>
 }

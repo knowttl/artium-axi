@@ -859,7 +859,8 @@ test('the overview frame keeps the administration links, landmarks, title and co
   expect(nodesOf(sidebar).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/logout')).toHaveLength(1)
   const outside = document.filter(element => !nodesOf(root).includes(element))
   expect(outside.filter(element => ['confirmation', 'reauth-dialog', 'toast', 'message'].includes(attribute(element, 'id') ?? '')).map(element => attribute(element, 'id')))
-    .toEqual(['confirmation', 'reauth-dialog'])
+    .toEqual(['reauth-dialog'])
+  expect(nodesOf(root).filter(element => attribute(element, 'id') === 'confirmation' && element.tagName === 'dialog' && !element.attrs.some(item => item.name === 'open'))).toHaveLength(1)
 })
 
 const nodesOf = (node: DefaultTreeAdapterMap['node']): DefaultTreeAdapterMap['element'][] => [

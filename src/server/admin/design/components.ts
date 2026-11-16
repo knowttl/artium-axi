@@ -667,10 +667,6 @@ form[data-track-changes] .astryx-button:disabled { opacity: 0.5; cursor: not-all
 .sheet.docked dd, .sheet.docked dt { min-width: 0; overflow-wrap: anywhere; }
 .all-fields .kv { font-size: var(--fs-xs); }
 
-/* Tier-3 confirmation: typing the exact name enables the red confirm button */
-[data-confirm-name-field] { margin: 0 0 12px; font-weight: 400; color: var(--text-muted); }
-[data-confirm-name-field] strong { color: var(--text); font-weight: 600; }
-
 @media (max-width: 1080px) {
   .grid2 { grid-template-columns: minmax(0, 1fr); }
 }
