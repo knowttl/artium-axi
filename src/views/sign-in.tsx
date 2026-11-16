@@ -10,14 +10,56 @@ import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
+import { ProviderFields } from './provider-fields.js'
+import { Sheet, SheetFrame } from './sheet.js'
 
 export interface SignInProps {
   summaries: { label: string, value: string, detail: string, warning: boolean, action: { href: string, label: string } | null }[]
   providers: { href: string, name: string, initials: string, kind: string, issuer: string, configured: boolean, enabled: boolean }[]
   addHref: string
+  add: { open: 'choose' | 'entra' | 'oidc' | null, closeHref: string, csrf: string }
 }
 
-export function SignIn({ summaries, providers, addHref }: SignInProps) {
+const kinds = [
+  { value: 'entra', name: 'Microsoft Entra ID', detail: 'Single-tenant app registration. Uses the directory tenant ID. Roles map from app roles.' },
+  { value: 'oidc', name: 'OpenID Connect', detail: 'Any standards-compliant provider, using its exact HTTPS issuer. Roles map from any claim.' },
+]
+
+function AddProvider({ open, closeHref, csrf }: SignInProps['add']) {
+  if (open === 'choose') {
+    return (
+      <SheetFrame name="add-provider" open query="add" closeHref={closeHref} title="Add a sign-in provider" description="Pick the kind of identity provider. You configure its credential and rules next.">
+        <form method="get" action={closeHref}>
+          <div className="sheet-body">
+            <fieldset className="options">
+              <legend className="sr-only">Kind of identity provider</legend>
+              {kinds.map(kind => (
+                <label key={kind.value} className="option">
+                  <input type="radio" name="add" value={kind.value} defaultChecked={kind.value === 'entra'} />
+                  <div><strong>{kind.name}</strong><span>{kind.detail}</span></div>
+                </label>
+              ))}
+            </fieldset>
+          </div>
+          <div className="sheet-foot">
+            <Button href={closeHref} label="Cancel" variant="ghost" data-sheet-close="" />
+            <Button type="submit" label="Continue" variant="primary" />
+          </div>
+        </form>
+      </SheetFrame>
+    )
+  }
+  if (!open) return null
+  return (
+    <Sheet name={`add-${open}`} open query="add" closeHref={closeHref} title={open === 'entra' ? 'Add an Entra ID provider' : 'Add an OpenID Connect provider'}
+      description="The provider starts disabled. Save its credential and test break-glass access before enabling it." submit="Add provider" confirmTitle="Add provider?"
+      action="/v1/admin/sso/providers" csrf={csrf} consequence="Create a disabled provider?" successUrl={closeHref}>
+      <ProviderFields kind={open} name="" identifier="" />
+    </Sheet>
+  )
+}
+
+export function SignIn({ summaries, providers, addHref, add }: SignInProps) {
   return (
     <VStack gap={4}>
       <section aria-labelledby="sign-in-summary">
@@ -77,6 +119,7 @@ export function SignIn({ summaries, providers, addHref }: SignInProps) {
             actions={<Button href={addHref} label="Add provider" variant="secondary" size="sm" icon={<Icon name="plus" />} />} />
         )}
       </Panel>
+      <AddProvider {...add} />
     </VStack>
   )
 }

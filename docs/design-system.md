@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list and the who-matches page use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
+Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page and the provider page's Setup and Settings tabs use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -63,11 +63,15 @@ The role detail page opens its Rename role sheet from `?sheet=rename-role`.
 Its tool tiles and Raw API switches stay native checkboxes, because Astryx checkboxes emit inline SVG shapes, and its tool grants form carries `data-track-changes` through `ActionForm`, so `confirm.js` keeps Save tools disabled until the selection changes.
 `renderPage()` takes an optional heading that replaces the page title in the `h1` and the breadcrumb while the document title and help topic keep the section name.
 The Sign-in & SSO list (`SignIn` in `src/views/sign-in.tsx`, route `/admin/settings/sign-in`) is the tenth page on the seam and the who-matches page (`SignInMatches` in `src/views/sign-in-matches.tsx`, route `/admin/settings/sign-in/:id/matches/:ruleId`) is the eleventh.
-The list shows the sign-in mode, break-glass readiness and pending invitations as three summary cards, then a Providers panel with each provider's kind, issuer, status and a link to its page; it also opens the Add provider dialogs.
+The list shows the sign-in mode, break-glass readiness and pending invitations as three summary cards, then a Providers panel with each provider's kind, issuer, status and a link to its page; it also opens the Add provider sheets from `?add=choose` (a GET chooser), `?add=entra` and `?add=oidc` (the create form on the shared `Sheet` and `ActionForm`, with its tier 2 confirmation).
+Only the requested sheet is rendered, open, so its fields do not duplicate those of another provider form, and closing a sheet returns to the list.
 The who-matches page is read-only and shows the people whose last recorded sign-in claims match a role rule.
 Their props are provider names, kinds, issuers, a `configured` flag, counts and people an administrator already sees, and carry no credential value.
-`renderPage()` takes the markup of the Add provider dialogs as its last argument and renders it after the React root, next to the confirmation dialogs, so those forms keep their `data-api` attributes, confirmation text and CSRF field exactly while they are not yet rebuilt.
-The provider page (`/admin/settings/sign-in/:id`) and its tabs still render in the legacy shell.
+The provider page (`Provider` in `src/views/provider.tsx`, route `/admin/settings/sign-in/:id`) is the twelfth page on the seam for its Setup and Settings tabs.
+It shows the provider's identity, its status and the Enable or Disable sign-in control, the shared `Tabs` strip, and either the setup checklist with its readiness banner and copy fields or the Provider settings form.
+The server sends state only (whether a credential is saved, whether a break-glass administrator is ready, the readiness problems and the redirect URIs) and the view owns the checklist copy, so its props carry no credential value.
+Enable and Disable sign-in is an `ActionForm` that patches `/activation` with `expectedRevision` and the opposite `enabled` value; a provider that is not ready shows a disabled button and no form, and the server still refuses activation without a usable credential and break-glass administrator.
+The Credential and Role rules tabs (`?tab=credential` and `?tab=rules`) still render in the legacy shell, with their own tab strip and activation form, until they are rebuilt.
 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet that `confirm.js` opens), and the side navigation slot.
 `adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu, confirmation pill and help panel once for both the frame and the legacy shell, so the links, landmarks and titles stay identical.
@@ -163,7 +167,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
 | Avatar and tool icon | `avatar()`: `.avatar`, `.avatar.lg`; `toolIcon()`: `.tool-ico`, `.tool-ico.lg`, using a mark from `toolProducts` | sm, lg | Initials and marks are `aria-hidden`; the name is adjacent text |
 | Overflow menu | `.more-menu` with `.popover` | closed, open | Native disclosure with `aria-label` on its icon summary |
-| Side sheet | `sheet()`, `sheetLink()`: `dialog.sheet` with `.sheet-head`, `.sheet-body`, `.sheet-foot`, `.scrim` | closed, open as a modal, open from `?sheet=<name>` without JavaScript | Modal focus handling from `showModal`; Close and Cancel are links back to the page |
+| Side sheet | `sheet()`, `sheetLink()`: `dialog.sheet` with `.sheet-head`, `.sheet-body`, `.sheet-foot`, `.scrim` | closed, open as a modal, open from a query parameter without JavaScript | Modal focus handling from `showModal`; Close and Cancel are links back to the page |
 | Option tile | `.tiles`, `.tile`, `.tool-ico` | unchecked, checked | Native checkbox inside its label |
 | Inline editor and menu | `.inline-edit`, `.menu` with `.popover` | closed, open | Native disclosure; works without JavaScript |
 | Filter row | `.filters`, `.input-wrap`, `.seg`, `.filter`, `.filter.set` | unset (dashed), set (with clear link) | One GET form; selects submit on change, Apply remains without JavaScript |
@@ -172,7 +176,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Code and copy | `copyBlock()`, `copyField()`, `copyValue()`: `[data-copy-scope]` with `[data-copy]` and `.copy-status`; existing `.copy-group` fields also supported | idle, copied, copy unavailable (text selected) | The copy result is announced in its status |
 | Disclosure card | `details.card.disclosure` | closed, open | Native disclosure |
 | Dialog | native `<dialog class="modal">` with `.modal-body`, `.modal-foot`, `.ico-circle` | confirmation tier 2 or 3, identity confirmation; rendered open by a query parameter without JavaScript | `showModal`, Esc closes, title names the action |
-| View dialog | `viewDialog()`: a server-rendered open `<dialog>` with `data-close-href` | open | The no-JavaScript fallback for a `?add=` or `?rule=` view; scripts make it modal and closing returns to `data-close-href` |
+| View dialog | `viewDialog()`: a server-rendered open `<dialog>` with `data-close-href` | open | The no-JavaScript fallback for a `?rule=` view; scripts make it modal and closing returns to `data-close-href` |
 | Toasts | `.toasts` with `#toast.toast.ok` and `#message.toast.err` | empty (hidden), success, error, conflict with **Reload latest** | `#toast` is a polite `status` region that shows a tier-1 or tier-2 result after the page reloads; `#message` is an `alert` |
 | Steps | `steps()`: `ol.steps`, `.step` | done, fail, to do, current | Ordered list; the state is in visually hidden text |
 | Segmented control and search | `.seg` (links or visually hidden radios), `.search`, `.filters` | current or checked | GET forms; JavaScript may apply them live |
@@ -191,7 +195,7 @@ Use its helpers instead of defining page-specific status labels.
 
 **Sheets.**
 Create and edit flows that need several fields open in a side sheet.
-Every sheet has a query-parameter view (`?sheet=<name>`) that renders it open on the server for navigation without JavaScript.
+Every sheet has a query-parameter view that renders it open on the server for navigation without JavaScript, normally `?sheet=<name>`; the Add provider sheets use `?add=` as described above.
 Submitting its API form requires JavaScript; with JavaScript the sheet opens as a modal and errors show inside it.
 
 **Destructive placement.**

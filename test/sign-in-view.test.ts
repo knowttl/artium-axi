@@ -18,7 +18,8 @@ const summaries: SignInProps['summaries'] = [
 ]
 
 const signIn = (overrides: Partial<SignInProps> = {}) => renderToString(createElement(Theme, { theme: neutralTheme,
-  children: createElement(SignIn, { summaries, providers: [provider], addHref: '/admin/settings/sign-in?add=choose', ...overrides }) }))
+  children: createElement(SignIn, { summaries, providers: [provider], addHref: '/admin/settings/sign-in?add=choose',
+    add: { open: null, closeHref: '/admin/settings/sign-in', csrf: 'CANARY-csrf' }, ...overrides }) }))
 const matches = (overrides: Partial<SignInMatchesProps> = {}) => renderToString(createElement(Theme, { theme: neutralTheme,
   children: createElement(SignInMatches, { people: [], note: 'Matches come from the last sign-in.', ...overrides }) }))
 

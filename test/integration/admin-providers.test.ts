@@ -105,8 +105,7 @@ test('setup checklist People link opens the users page', async () => {
   const browserHeaders = { cookie: `${browserCookie}=${session.id}` }
   const guide = await app.inject({ url: '/admin/settings/sign-in/' + provider.id, headers: browserHeaders })
   expect(guide.statusCode).toBe(200)
-  const setupGuide = guide.body.split('<h2>Set up this provider</h2>')[1]!
-  const usersLink = setupGuide.match(/<a href="([^"]+)">Open People<\/a>/)![1]!.replaceAll('&amp;', '&')
+  const usersLink = guide.body.match(/<a class="link" href="([^"]+)">Open People<\/a>/)![1]!.replaceAll('&amp;', '&')
   const users = await app.inject({ url: usersLink, headers: browserHeaders })
   expect(users.statusCode).toBe(200)
   expect(users.body).toMatch(/<h1[^>]*>People<\/h1>/)
@@ -139,17 +138,135 @@ test('the sign-in page lists providers from the store without any credential val
   for (const secret of [value.clientSecret, privateKey]) expect(exposure).not.toContain(secret)
 })
 
+function pageForm(body: string, action: string) {
+  const [, tag, content] = body.match(new RegExp(`<form([^>]*action="${action}"[^>]*)>(.*?)</form>`, 's')) ?? []
+  const attributes = (markup: string) => Object.fromEntries([...markup.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1]!, match[2]!.replaceAll('&amp;', '&').replaceAll('&#x27;', "'")]))
+  const inputs = [...(content ?? '').matchAll(/<input([^>]*)>/g)].map(match => attributes(match[1]!)).filter(input => input.name)
+  const payload = Object.fromEntries(inputs.filter(input => input.name !== '_csrf').map(input =>
+    [input.name!, input['data-type'] === 'number' ? Number(input.value) : input['data-type'] === 'boolean' ? input.value === 'true' : input.value]))
+  return { attributes: tag ? attributes(tag) : undefined, names: inputs.map(input => input.name), csrf: inputs.find(input => input.name === '_csrf')?.value, payload }
+}
+const enabledPolicy = () => db.prepare('SELECT enabled, revision FROM sso_providers').all()
+
 test.each([
-  { add: 'entra', fields: ['name', 'tenantId'], kind: undefined },
-  { add: 'oidc', fields: ['kind', 'name', 'issuer'], kind: 'oidc' },
-])('the $add Add provider dialog keeps its create form, confirmation and CSRF token beside the rebuilt page', async ({ add, fields, kind }) => {
+  { add: 'entra', fields: ['name', 'tenantId'], input: { name: 'Synthetic created', tenantId } },
+  { add: 'oidc', fields: ['kind', 'name', 'issuer'], input: { name: 'Synthetic created', issuer: 'https://identity.example' } },
+])('the $add sheet posts the create form the old dialog did, and submitting its fields creates a disabled provider', async ({ add, fields, input }) => {
   const page = await app.inject({ url: `/admin/settings/sign-in?add=${add}`, headers: browserHeaders() })
   expect(page.statusCode).toBe(200)
-  const form = page.body.match(/<form data-api data-method="POST" data-confirm="Create a disabled provider\?" data-success-url="\/admin\/settings\/sign-in" action="\/v1\/admin\/sso\/providers" method="post">(.*?)<\/form>/s)!
-  expect([...form[1]!.matchAll(/<input[^>]* name="([^"]+)"/g)].map(match => match[1])).toEqual(['_csrf', ...fields])
-  expect(form[1]).toMatch(/name="_csrf" value="[^"]+"/)
-  if (kind) expect(form[1]).toContain(`name="kind" value="${kind}"`)
-  expect(page.body.indexOf('data-close-href="/admin/settings/sign-in"')).toBeGreaterThan(page.body.indexOf('data-astryx-props'))
+  const form = pageForm(page.body, '/v1/admin/sso/providers')
+  expect(form.attributes).toMatchObject({ 'data-api': '', 'data-method': 'POST', 'data-confirm': 'Create a disabled provider?', 'data-success-url': '/admin/settings/sign-in', method: 'post' })
+  expect(form.names).toEqual(['_csrf', ...fields])
+  expect(form.csrf).toMatch(/^[\w-]+$/)
+  expect(page.body).toContain(`<dialog class="sheet" id="sheet-add-${add}"`)
+  const created = await app.inject({ method: 'POST', url: base, headers, payload: { ...form.payload, ...input } })
+  expect(created.statusCode).toBe(200)
+  expect(db.prepare('SELECT name, kind, enabled FROM sso_providers').all()).toEqual([{ name: 'Synthetic created', kind: add, enabled: 0 }])
+})
+
+test('the provider chooser is a GET form to the sheet for the chosen kind, with no CSRF token or API call', async () => {
+  const page = await app.inject({ url: '/admin/settings/sign-in?add=choose', headers: browserHeaders() })
+  const form = page.body.match(/<form action="\/admin\/settings\/sign-in" method="get">(.*?)<\/form>/s)![1]!
+  expect([...form.matchAll(/<input type="radio" name="([^"]+)"[^>]*value="([^"]+)"/g)].map(match => [match[1], match[2]])).toEqual([['add', 'entra'], ['add', 'oidc']])
+  expect(form).not.toContain('_csrf')
+  expect(form).not.toContain('data-api')
+})
+
+async function readyProvider() {
+  const provider = await create()
+  await save(provider.id, value)
+  db.exec('UPDATE users SET break_glass = 1')
+  return provider
+}
+
+test('the activation form posts the revision and the opposite state, is refused when stale, and the page then offers the reverse', async () => {
+  const provider = await readyProvider()
+  const before = await app.inject({ url: `/admin/settings/sign-in/${provider.id}`, headers: browserHeaders() })
+  const enable = pageForm(before.body, `${base}/${provider.id}/activation`)
+  expect(enable.attributes).toMatchObject({ 'data-method': 'PATCH', 'data-confirm': expect.stringContaining('restrict all local password use to designated break-glass administrators'), method: 'post' })
+  expect(enable.attributes!['data-confirm-name']).toBeUndefined()
+  expect(enable.names).toEqual(['_csrf', 'expectedRevision', 'enabled'])
+  expect(enable.payload).toEqual({ expectedRevision: 2, enabled: true })
+  expect((await app.inject({ method: 'PATCH', url: `${base}/${provider.id}/activation`, headers, payload: enable.payload })).statusCode).toBe(200)
+  expect((await app.inject({ method: 'PATCH', url: `${base}/${provider.id}/activation`, headers, payload: enable.payload })).json()).toMatchObject({ error: { code: 'REVISION_CONFLICT' } })
+  expect(enabledPolicy()).toEqual([{ enabled: 1, revision: 3 }])
+  const after = await app.inject({ url: `/admin/settings/sign-in/${provider.id}`, headers: browserHeaders() })
+  const disable = pageForm(after.body, `${base}/${provider.id}/activation`)
+  expect(disable.attributes!['data-confirm']).toContain('Existing Artium sessions remain active')
+  expect(disable.payload).toEqual({ expectedRevision: 3, enabled: false })
+})
+
+test.each([
+  { label: 'no saved credential', credential: false, breakGlass: true, problem: 'No credential saved.', revision: 1 },
+  { label: 'no usable break-glass administrator', credential: true, breakGlass: false, problem: 'A usable break-glass local administrator is required.', revision: 2 },
+])('with $label the page offers a disabled Enable sign-in button and no activation form, says why, and the API still refuses', async ({ credential, breakGlass, problem, revision }) => {
+  const provider = await create()
+  if (credential) await save(provider.id, value)
+  if (breakGlass) db.exec('UPDATE users SET break_glass = 1')
+  const page = await app.inject({ url: `/admin/settings/sign-in/${provider.id}`, headers: browserHeaders() })
+  expect(pageForm(page.body, `${base}/${provider.id}/activation`).attributes).toBeUndefined()
+  expect(page.body).toMatch(/<button type="button"[^>]*aria-disabled="true"[^>]*>.{0,600}?Enable sign-in<\/span>/s)
+  expect(page.body).toContain('Not ready to enable')
+  expect(page.body).toContain(problem)
+  expect((await activation(provider.id, true, revision)).statusCode).toBe(400)
+  expect(enabledPolicy()).toEqual([{ enabled: 0, revision }])
+})
+
+test.each([
+  { kind: 'entra', fields: ['_csrf', 'expectedRevision', 'name', 'tenantId'], change: { tenantId: clientId } },
+  { kind: 'oidc', fields: ['_csrf', 'expectedRevision', 'kind', 'name', 'issuer'], change: { issuer: 'https://second.example' } },
+])('the $kind settings form posts the revision and fields, warns about the credential, and a changed identity deletes it; a stale form changes nothing', async ({ kind, fields, change }) => {
+  const created = (await app.inject({ method: 'POST', url: base, headers, payload: kind === 'entra' ? { name: 'Synthetic provider', tenantId }
+    : { name: 'Synthetic provider', kind: 'oidc', issuer: 'https://identity.example' } })).json()
+  const credential = kind === 'entra' ? value : { clientId: 'synthetic-client', auth: 'secret', clientSecret: 'CANARY-oidc-secret' }
+  expect((await save(created.id, credential)).statusCode).toBe(200)
+  const page = await app.inject({ url: `/admin/settings/sign-in/${created.id}?tab=settings`, headers: browserHeaders() })
+  const form = pageForm(page.body, `${base}/${created.id}`)
+  expect(form.attributes).toMatchObject({ 'data-method': 'PATCH', 'data-confirm': expect.stringContaining('A changed tenant or issuer removes the stored credential.'), method: 'post' })
+  expect(form.names).toEqual(fields)
+  expect(form.payload).toMatchObject({ expectedRevision: 2, name: 'Synthetic provider' })
+  if (kind === 'oidc') expect(form.payload.kind).toBe('oidc')
+  const submit = (extra: Record<string, unknown>) => app.inject({ method: 'PATCH', url: `${base}/${created.id}`, headers, payload: { ...form.payload, ...extra } })
+  expect((await submit({ name: 'Unchanged identity' })).statusCode).toBe(200)
+  expect(credentials.read(created.id)).toBeDefined()
+  expect((await submit(change)).json()).toMatchObject({ error: { code: 'REVISION_CONFLICT' } })
+  expect(db.prepare('SELECT name, revision FROM sso_providers').get()).toEqual({ name: 'Unchanged identity', revision: 3 })
+  const fresh = pageForm((await app.inject({ url: `/admin/settings/sign-in/${created.id}?tab=settings`, headers: browserHeaders() })).body, `${base}/${created.id}`)
+  expect((await app.inject({ method: 'PATCH', url: `${base}/${created.id}`, headers, payload: { ...fresh.payload, ...change } })).statusCode).toBe(200)
+  expect(credentials.read(created.id)).toBeUndefined()
+  expect(db.prepare('SELECT enabled, revision FROM sso_providers').get()).toEqual({ enabled: 0, revision: 4 })
+})
+
+test.each([
+  { name: 'create', method: 'POST', url: base, payload: { name: 'Synthetic', tenantId } },
+  { name: 'update', method: 'PATCH', url: base + '/{id}', payload: { name: 'Synthetic', tenantId, expectedRevision: 1 } },
+  { name: 'activation', method: 'PATCH', url: base + '/{id}/activation', payload: { enabled: true, expectedRevision: 1 } },
+])('the $name API behind the page forms still needs recent confirmation and changes nothing without it', async ({ method, url, payload }) => {
+  const provider = await create()
+  const before = db.prepare('SELECT * FROM sso_providers').all()
+  const response = await app.inject({ method: method as 'POST' | 'PATCH', url: url.replace('{id}', provider.id), headers: { authorization: headers.authorization! }, payload })
+  expect(response.json()).toMatchObject({ error: { code: 'REAUTH_REQUIRED' } })
+  expect(db.prepare('SELECT * FROM sso_providers').all()).toEqual(before)
+})
+
+test('the provider page, its hydration data, headers and audit carry no saved credential value', async () => {
+  const provider = await readyProvider()
+  const privateKey = 'CANARY-private-key-pem'
+  const certificate = (await app.inject({ method: 'POST', url: base, headers, payload: { name: 'Synthetic certificate provider', tenantId } })).json()
+  credentials.replace(certificate.id, { tenantId, clientId, auth: 'certificate', privateKey, thumbprintSha256: '11'.repeat(32) }, 0, 'synthetic-development-user', Date.now())
+  const pages = await Promise.all([provider.id, certificate.id].flatMap(id => ['setup', 'settings'].map(tab =>
+    app.inject({ url: `/admin/settings/sign-in/${id}?tab=${tab}`, headers: browserHeaders() }))))
+  for (const page of pages) expect(page.statusCode).toBe(200)
+  const exposure = JSON.stringify([pages.map(page => [page.body, page.headers]), db.prepare('SELECT * FROM audit').all()])
+  for (const secret of [value.clientSecret, privateKey, '11'.repeat(32)]) expect(exposure).not.toContain(secret)
+})
+
+test.each([{ tab: 'credential', action: '/credential' }, { tab: 'rules', action: '' }])('the $tab tab still renders in the legacy shell with its tab strip', async ({ tab, action }) => {
+  const provider = await create()
+  const page = await app.inject({ url: `/admin/settings/sign-in/${provider.id}?tab=${tab}`, headers: browserHeaders() })
+  expect(page.body).not.toContain('data-astryx-root')
+  expect(page.body).toContain('<nav class="utabs" aria-label="Sections">')
+  if (action) expect(pageForm(page.body, `${base}/${provider.id}${action}`).attributes).toMatchObject({ 'data-method': 'PATCH' })
 })
 
 test('who matches lists the enabled people whose recorded claims match the rule, with when those claims were recorded', async () => {

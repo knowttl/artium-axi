@@ -583,7 +583,7 @@ test('administrator activates configured SSO through the guide and can disable i
     await page.wait('nav[aria-label=Administration]');
     await page.open(base + '/admin/settings/sign-in/synthetic-entra');
     await page.wait('form[action$="/activation"]');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Set up this provider') && document.querySelector('main').innerText.includes('Assignment required')), 'Setup instructions missing');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Set up this provider') && document.querySelector('[role=main]').innerText.includes('Assignment required')), 'Setup instructions missing');
     const redirect = await page.eval(() => document.querySelector('[data-copy]').parentElement.querySelector('input').value);
     check(redirect === base + '/auth/sso/synthetic-entra/callback', 'Incorrect redirect URI');
     await page.eval(() => Object.defineProperty(navigator.clipboard, 'writeText', { configurable: true, value: async value => { window.copied = value; } }));

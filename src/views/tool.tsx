@@ -10,6 +10,7 @@ import { ActionForm, Revision } from './action-form.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
+import { Tabs } from './tabs.js'
 import { Time } from './time.js'
 import { Access, type AccessProps } from './tool-access.js'
 import { Instances, type InstancesProps } from './tool-instances.js'
@@ -75,17 +76,6 @@ export function Setup({ setup }: { setup: (Pick<ToolProps, 'setup'>['setup'][num
         </li>
       ))}
     </ol>
-  )
-}
-
-function Tabs({ tabs }: Pick<ToolProps, 'tabs'>) {
-  return (
-    <nav aria-label="Tool sections">
-      <HStack gap={1} wrap="wrap">
-        {tabs.map(tab => <Button key={tab.href} href={tab.href} label={tab.note ? `${tab.label} ${tab.note}` : tab.label} variant={tab.current ? 'secondary' : 'ghost'} size="sm"
-          icon={<Icon name={tab.icon} />} {...{ 'aria-current': tab.current ? 'page' : undefined }} />)}
-      </HStack>
-    </nav>
   )
 }
 
@@ -175,7 +165,7 @@ export function Tool(props: ToolProps) {
       <Header {...props} />
       <Setup setup={props.setup} />
       <p className="note" data-test-result="" role="status" suppressHydrationWarning>{''}</p>
-      <Tabs tabs={props.tabs} />
+      <Tabs label="Tool sections" tabs={props.tabs} />
       {panel.tab === 'instances' ? <Instances {...props} panel={panel.instances} />
         : panel.tab === 'writes' ? <Writes {...props} panel={panel.writes} />
           : panel.tab === 'raw-api' ? <RawApi {...props} panel={panel} />

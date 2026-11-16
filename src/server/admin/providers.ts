@@ -15,9 +15,9 @@ import { certificateFields } from './certificate.js'
 import { credentialFields } from './credential-form.js'
 import { escape } from './escape.js'
 import { matchesClaim } from '../auth/role-claims.js'
-import { adminRead, apiForm, changed, revision } from './forms.js'
+import { adminRead, apiForm, changed, lastChange, revision } from './forms.js'
 import { renderPage } from './render-page.js'
-import { callout, card, copyField, field, icon, initials, step, tabs, viewDialog } from './design/ui.js'
+import { card, field, icon, initials, tabs, viewDialog } from './design/ui.js'
 import { badge, status, toolProducts } from './design/status.js'
 
 const signInQuery = z.object({ add: z.enum(['choose', 'entra', 'oidc']).optional(),
@@ -171,12 +171,6 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
     const csrf = reply.generateCsrf()
     const query = signInQuery.safeParse(request.query)
     if (!query.success) throw new ArtiumError('INVALID_INPUT')
-    const text = (name: string, label: string, value: string, hint: string, attributes = '') =>
-      field(`provider-${name}`, label, describedBy => `<input ${describedBy} name="${name}" value="${escape(value)}" ${attributes} required>`, hint)
-    const settingsFields = (name = '', tenantId = '') => text('name', 'Provider name', name, 'Shown on the sign-in button.', 'maxlength="256"') +
-      text('tenantId', 'Directory (tenant) ID', tenantId, 'The directory tenant UUID of a single-tenant app. Changing it removes the stored credential and requires a new one.', 'class="mono"')
-    const oidcFields = (name = '', issuer = '') => '<input type="hidden" name="kind" value="oidc">' + text('name', 'Provider name', name, 'Shown on the sign-in button.', 'maxlength="256"') +
-      text('issuer', 'Issuer URL', issuer, 'The exact HTTPS issuer, for example https://identity.example. Discovery reads its OpenID configuration over verified TLS at sign-in and does not follow redirects. Changing it removes the stored credential and requires a new one.', 'type="url" class="mono"')
     const enabledCount = providers.filter(provider => provider.enabled).length
     if (!id) {
       const list = '/admin/settings/sign-in'
@@ -195,21 +189,11 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
         { label: 'Invitations', value: `${pending} pending`, detail: enabledCount ? 'Waiting to be claimed with an enabled provider.' : 'Claimable once a provider is enabled.',
           warning: false, action: { href: '/admin/invitations', label: 'Open invitations' } },
       ]
-      let dialogs = ''
-      const kind = query.data.add
-      if (kind === 'choose') {
-        dialogs = viewDialog('Add a sign-in provider', 'Pick the kind of identity provider. You configure its credential and rules next.', `<form method="get" action="${list}"><div class="options">
-          <label class="option"><input type="radio" name="add" value="entra" checked><div><strong>Microsoft Entra ID</strong><span>Single-tenant app registration. Uses the directory tenant ID. Roles map from app roles.</span></div></label>
-          <label class="option"><input type="radio" name="add" value="oidc"><div><strong>OpenID Connect</strong><span>Any standards-compliant provider, using its exact HTTPS issuer. Roles map from any claim.</span></div></label></div>
-          <button class="btn btn-primary">Continue</button></form>`, list)
-      } else if (kind) {
-        dialogs = viewDialog(kind === 'entra' ? 'Add an Entra ID provider' : 'Add an OpenID Connect provider', 'The provider starts disabled. Save its credential and test break-glass access before enabling it.',
-          apiForm(csrf, adminProviderRoutes.create.path, 'POST', 'Add provider', kind === 'entra' ? settingsFields() : oidcFields(), 'Create a disabled provider?', `data-success-url="${list}"`, 'btn btn-primary'), list)
-      }
-      return renderPage(reply, 'Sign-in & SSO', 'signIn', { summaries, addHref: `${list}?add=choose`,
+      const addHref = `${list}?add=choose`
+      return renderPage(reply, 'Sign-in & SSO', 'signIn', { summaries, addHref, add: { open: query.data.add ?? null, closeHref: list, csrf },
         providers: providers.map(provider => ({ href: `${list}/${encodeURIComponent(provider.id)}`, name: provider.name, initials: initials(provider.name),
           kind: kindLabel(provider.kind), issuer: provider.issuer, configured: Boolean(credentials?.read(provider.id)), enabled: provider.enabled })) },
-      current, 'How people sign in to Artium and the CLI.', [{ label: 'Add provider', href: `${list}?add=choose`, variant: 'primary', icon: 'plus' }], undefined, undefined, dialogs)
+      current, 'How people sign in to Artium and the CLI.', [{ label: 'Add provider', href: addHref, variant: 'primary', icon: 'plus' }])
     } else {
       const provider = providers.find(provider => provider.id === id)
       if (!provider) throw new ArtiumError('NOT_FOUND')
@@ -244,52 +228,31 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
       const breakGlass = usableBreakGlass() > 0
       if (!breakGlass) problems.push(breakGlassMissing().message)
       const ready = !problems.length
+      const disableConsequence = 'Disable this provider? Sign-in and confirmation for it stop. Existing Artium sessions remain active. Local passwords become available to ordinary local accounts only if every provider is disabled.'
+      const enableConsequence = 'Enable SSO sign-in and restrict all local password use to designated break-glass administrators? Test the invitation claim and sign-in using a separate browser, keeping break-glass access available.'
+      const sections = [{ id: 'setup', label: 'Setup' }, { id: 'credential', label: 'Credential', note: credential.configured ? undefined : 'Missing' },
+        { id: 'rules', label: 'Role rules', note: String(rules.length) }, { id: 'settings', label: 'Settings' }]
+      if (tab === 'setup' || tab === 'settings') {
+        const origin = `${request.protocol}://${request.host}`
+        return renderPage(reply, 'Sign-in & SSO', 'provider', { csrf, page, api, tab, initials: initials(provider.name), kind: provider.kind, kindLabel: kindLabel(provider.kind),
+          tabs: sections.map(section => ({ label: section.label, href: `${page}?tab=${section.id}`, note: section.note ?? null, current: section.id === tab })),
+          name: provider.name, issuer: provider.issuer, tenantId: provider.kind === 'entra' ? provider.tenantId : null, enabled: provider.enabled, revision: provider.revision, changed: lastChange(db, provider),
+          credentialConfigured: credential.configured, breakGlass, problems, activationConsequence: provider.enabled ? disableConsequence : enableConsequence,
+          redirectUri: origin + '/auth/sso/' + encodeURIComponent(id) + '/callback', logoutUri: origin + '/login' }, current, undefined, undefined, provider.name)
+      }
       const activation = (label: string, enabled: boolean, confirmation: string, tone: string) => apiForm(csrf, api + '/activation', 'PATCH', label,
         revision(provider.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${enabled}">`, confirmation, '', tone)
-      const actions = provider.enabled
-        ? activation('Disable sign-in', false, 'Disable this provider? Sign-in and confirmation for it stop. Existing Artium sessions remain active. Local passwords become available to ordinary local accounts only if every provider is disabled.', 'btn btn-secondary')
-        : ready ? activation('Enable sign-in', true, 'Enable SSO sign-in and restrict all local password use to designated break-glass administrators? Test the invitation claim and sign-in using a separate browser, keeping break-glass access available.', 'btn btn-primary')
+      const actions = provider.enabled ? activation('Disable sign-in', false, disableConsequence, 'btn btn-secondary')
+        : ready ? activation('Enable sign-in', true, enableConsequence, 'btn btn-primary')
           : '<button class="btn btn-primary" type="button" disabled>Enable sign-in</button>'
-      let content = tabs(page, tab, [{ id: 'setup', label: 'Setup' }, { id: 'credential', label: 'Credential', note: credential.configured ? undefined : 'Missing' },
-        { id: 'rules', label: 'Role rules', note: String(rules.length) }, { id: 'settings', label: 'Settings' }])
-      const origin = `${request.protocol}://${request.host}`
-      if (tab === 'setup') {
-        const p = (html: string) => `<p>${html}</p>`
-        const redirect = copyField('Redirect URI', origin + '/auth/sso/' + encodeURIComponent(id) + '/callback')
-        const steps: [boolean, string, string][] = provider.kind === 'oidc' ? [
-          [true, 'Save the issuer', p(`<span class="mono">${escape(provider.issuer)}</span>. Discovery runs at sign-in, not while saving.`)],
-          [false, 'Register Artium as a confidential web app', p('Authorization code with PKCE S256, RS256 ID tokens and scopes openid and profile. Register this exact redirect URI:') + redirect],
-          [credential.configured, 'Save the app credential', p(`private_key_jwt with an RSA certificate (preferred), or a client secret for client_secret_post or client_secret_basic, preferring client_secret_post when discovered. The client ID is the provider’s application identifier. <a href="${page}?tab=credential">Open Credential</a>`)],
-          [false, 'Include the claims Artium needs', p('<code>preferred_username</code> in ID tokens for invitations, compared exactly, and <code>auth_time</code> for fresh CLI sign-in and identity confirmation. Account identity uses the immutable issuer and sub claims.')],
-          [breakGlass, 'Have a break-glass admin ready', p('A separate enabled local administrator with a permanent password, tested in another browser. <a href="/admin/users?source=local">Open People</a>')],
-          [false, 'Prepare access', p(`Create <a href="/admin/invitations">invitations</a>, and give people Artium roles directly or with <a href="${page}?tab=rules">role rules</a>.`)],
-          [provider.enabled, 'Enable, then test in a separate browser', p('Claim an invitation, sign in and approve a CLI sign-in while the break-glass session stays open.')],
-        ] : [
-          [true, 'Save the directory tenant', p(`Tenant <span class="mono">${escape(provider.tenantId ?? '')}</span>. Register the app in Microsoft Entra ID for accounts in this organizational directory only.`)],
-          [false, 'Add a Web platform redirect URI', p('Use the public HTTPS address people use for Artium; check it before copying.') + redirect],
-          [credential.configured, 'Save the app credential', p(`Upload the public certificate under Certificates &amp; secrets, then save its RSA private key and certificate as one PEM. A client secret is also accepted. <a href="${page}?tab=credential">Open Credential</a>`)],
-          [false, 'Define app roles', p(`Allowed member types Users/Groups, with exact values such as <code>Artium.Readers</code>. Map them to Artium roles in <a href="${page}?tab=rules">Role rules</a>.`)],
-          [false, 'Require assignment', p('In the enterprise application, set Assignment required to Yes and assign people or groups to app roles. Group assignment needs Entra ID P1 or P2; otherwise assign people directly. Scopes openid and profile are enough; no Graph permission is needed.')],
-          [breakGlass, 'Have a break-glass admin ready', p('A separate enabled local administrator with a permanent password, tested in another browser. Keep offline recover-admin access available. <a href="/admin/users?source=local">Open People</a>')],
-          [false, 'Prepare invitations', p('Create <a href="/admin/invitations">invitations</a>, including a link invitation for an existing administrator who will use SSO. No account is created automatically from a matching role or email.')],
-          [provider.enabled, 'Enable, then test in a separate browser', p('Test one invitation claim and one Microsoft sign-in while the break-glass browser stays open, and confirm the expected roles and tools. Disabling every provider restores ordinary local password sign-in.')],
-        ]
-        const next = steps.findIndex(([done]) => !done)
-        const checklist = `<ol class="vsteps">${steps.map(([done, title, detail], index) => step(index + 1, done ? 'done' : index === next ? 'current' : 'todo', title, detail)).join('')}</ol>`
-        const readiness = provider.enabled ? callout('ok', 'Sign-in is enabled', 'Saving provider settings or the credential disables this provider until you enable it again.')
-          : ready ? callout('info', 'Ready to enable', 'Credential configuration and a usable break-glass administrator are present.')
-            : callout('warn', 'Not ready to enable', problems.map(escape).join(' '))
-        content += `<div class="grid2">${card('Set up this provider', 'Work top to bottom. Artium ticks the steps it can check.', `<div class="card-body">${checklist}</div>`)}
-          <div class="provider-sidebar">${readiness}<p class="hint">These checks validate local configuration only. They cannot verify the provider’s app registration, credential acceptance or access policies.</p>
-          <section class="card"><div class="card-body"><h3>What enabling does</h3><p class="hint">People sign in with this provider. Local passwords then work only for designated break-glass administrators, and every such use is flagged in the audit log. Disabling every provider restores passwords for everyone.</p></div></section>
-          <section class="card"><div class="card-body"><h3>Optional sign-out</h3><p class="hint">If the provider supports end-session, register this post-logout URI. Artium sign-out always ends its own session first.</p>${copyField('Post-logout URI', origin + '/login')}</div></section></div></div>`
-      } else if (tab === 'credential') {
+      let content = tabs(page, tab, sections)
+      if (tab === 'credential') {
         content += card('App credential', credential.configured ? 'Saved. Secrets are never displayed.' : 'Not saved yet. Secrets are never displayed.', `<div class="card-body">${credential.configured ? changed(db, credential) : ''}
           <p class="hint">Certificate authentication is preferred. Upload one PEM containing the certificate and matching unencrypted private key; the SHA-256 fingerprint is calculated automatically. Client secrets are accepted but are less secure than certificates.</p>` +
           apiForm(csrf, api + '/credential', 'PATCH', 'Save credential', revision(credential.revision) +
             `<input type="hidden" name="expectedProviderRevision" data-type="number" value="${provider.revision}">` + credentialFields(undefined, profile(provider.kind), credential.metadata, credential.configured),
           'Save the encrypted provider credential and disable this provider, keeping omitted secrets only for the same identity? Review configuration and enable it again afterwards.', '', 'btn btn-primary') + '</div>', { actions: credential.configured ? badge('Saved', 'ok') : badge('Needs credential', 'warn') })
-      } else if (tab === 'rules') {
+      } else {
         const fields = (value = '', roleId = '', claim = 'groups') => `<input type="hidden" name="providerId" value="${escape(id)}">${provider.kind === 'entra'
           ? '<input type="hidden" name="claim" value="roles"><p class="hint">Claim: <code>roles</code> (Entra app roles)</p>'
           : field('rule-claim', 'Claim name', describedBy => `<input ${describedBy} class="mono" name="claim" value="${escape(claim)}" maxlength="256" required>`, 'An exact top-level claim name, for example groups. Dots are literal, not nested paths. String values and strings in arrays match exactly; other values are ignored.')}` +
@@ -321,10 +284,6 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
             : viewDialog('Add rule', 'Matching people receive the role at their next sign-in.', apiForm(csrf, adminRoleRuleRoutes.create.path, 'POST', 'Add rule', fields(),
               'Add this mapping? Matching users receive its role at their next sign-in.', `data-success-url="${back}"`, 'btn btn-primary'), back)
         }
-      } else {
-        content += card('Provider settings', 'Saving disables this provider until you enable it again.', `<div class="card-body">${changed(db, provider)}` +
-          apiForm(csrf, api, 'PATCH', 'Save provider settings', revision(provider.revision) + (provider.kind === 'entra' ? settingsFields(provider.name, provider.tenantId) : oidcFields(provider.name, provider.issuer)),
-            'Save provider settings and disable this provider? A changed tenant or issuer removes the stored credential. Review configuration and enable it again afterwards.', '', 'btn btn-primary') + '</div>')
       }
       return browserPage(reply, provider.name, content, current, undefined, { helpTopic: 'Sign-in & SSO', parent: { href: '/admin/settings/sign-in', label: 'Sign-in & SSO' },
         lead: `<span class="tool-ico lg" aria-hidden="true">${escape(initials(provider.name))}</span>`,

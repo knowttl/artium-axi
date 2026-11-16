@@ -853,6 +853,18 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
   `)
 })
 
+for (const [add, close] of [['choose', 'Escape'], ['entra', 'Close'], ['oidc', 'Cancel']]) test('closing the ' + add + ' provider sheet keeps it closed after reload', () => {
+  browser(`
+    await page.open(base + '/admin/settings/sign-in?add=${add}');
+    await page.wait('dialog.sheet:modal');
+    ${close === 'Escape' ? "await page.press('Escape');" : `await page.click('dialog.sheet ${close === 'Close' ? '.sheet-head' : '.sheet-foot'} [data-sheet-close]');`}
+    await page.wait('dialog.sheet:not([open])');
+    check(await page.eval(() => !new URL(location.href).searchParams.has('add')), 'Provider query stayed in the address');
+    await page.open(await page.eval(() => location.href));
+    check(await page.eval(() => !document.querySelector('dialog.sheet[open]')), 'Provider sheet reopened after reload');
+  `)
+})
+
 test('sign-in settings creates a disabled provider and saves a certificate without redisplaying its key', async () => {
   chrome(['resize', '420', '900'])
   browser(`
@@ -871,8 +883,8 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
     await page.wait('[data-provider] a:has(> strong)');
     await page.click('[data-provider] a:has(> strong)');
     await page.wait('.vsteps');
-    check(await page.eval(() => !document.querySelector('form[action$="/activation"]') && document.querySelector('main').innerText.includes('Set up this provider') && document.querySelector('main').innerText.includes('Not ready to enable')), 'Activation offered before completing setup');
-    await page.click('.utabs a[href$="tab=credential"]');
+    check(await page.eval(() => !document.querySelector('form[action$="/activation"]') && document.querySelector('[role=main]').innerText.includes('Set up this provider') && document.querySelector('[role=main]').innerText.includes('Not ready to enable')), 'Activation offered before completing setup');
+    await page.click('nav[aria-label=Sections] a[href$="tab=credential"]');
     await page.wait('[data-certificate-pem]');
     check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"certificate"'), 'Certificate is not the default');
     await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
