@@ -35,13 +35,12 @@ vi.mock('node:child_process', async importOriginal => {
   return { ...original, spawn: vi.fn(original.spawn) }
 })
 
-const originalChildProcess = await vi.importActual<typeof import('node:child_process')>('node:child_process')
-
-function controlledHealthProcess(output = { stdout: 'synthetic', stderr: '', exitCode: 0 }) {
+async function controlledHealthProcess(output = { stdout: 'synthetic', stderr: '', exitCode: 0 }) {
+  const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
   let started!: (finish: () => void) => void
   const ready = new Promise<() => void>(resolve => { started = resolve })
   vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) => {
-    const child = originalChildProcess.spawn(fakeTool.executable, [...fakeTool.args, 'controlled-health'], {
+    const child = original.spawn(fakeTool.executable, [...fakeTool.args, 'controlled-health'], {
       ...options, stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
     })
     void once(child, 'message').then(() => started(() => { child.send(output) }))
