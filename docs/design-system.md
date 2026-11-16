@@ -63,7 +63,8 @@ The role detail page opens its Rename role sheet from `?sheet=rename-role`.
 Its tool tiles and Raw API switches stay native checkboxes, because Astryx checkboxes emit inline SVG shapes, and its tool grants form carries `data-track-changes` through `ActionForm`, so `confirm.js` keeps Save tools disabled until the selection changes.
 `renderPage()` takes an optional heading that replaces the page title in the `h1` and the breadcrumb while the document title and help topic keep the section name.
 The Sign-in & SSO list (`SignIn` in `src/views/sign-in.tsx`, route `/admin/settings/sign-in`) is the tenth page on the seam and the who-matches page (`SignInMatches` in `src/views/sign-in-matches.tsx`, route `/admin/settings/sign-in/:id/matches/:ruleId`) is the eleventh.
-Both are read-only: the list shows the sign-in mode, break-glass readiness and pending invitations as three summary cards, then a Providers panel with each provider's kind, issuer, status and a link to its page, and the who-matches page shows the people whose last recorded sign-in claims match a role rule.
+The list shows the sign-in mode, break-glass readiness and pending invitations as three summary cards, then a Providers panel with each provider's kind, issuer, status and a link to its page; it also opens the Add provider dialogs.
+The who-matches page is read-only and shows the people whose last recorded sign-in claims match a role rule.
 Their props are provider names, kinds, issuers, a `configured` flag, counts and people an administrator already sees, and carry no credential value.
 `renderPage()` takes the markup of the Add provider dialogs as its last argument and renders it after the React root, next to the confirmation dialogs, so those forms keep their `data-api` attributes, confirmation text and CSRF field exactly while they are not yet rebuilt.
 The provider page (`/admin/settings/sign-in/:id`) and its tabs still render in the legacy shell.
