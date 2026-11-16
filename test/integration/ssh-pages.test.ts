@@ -143,13 +143,6 @@ test('people who are not administrators are refused', async () => {
 const bindAndGrant = () => db.exec(`INSERT INTO ssh_bindings (host_id,username,credential_id,sudo) VALUES ('synthetic-host','ordinary','ordinary-key',0);
   INSERT INTO ssh_grants (user_id,host_id,shell,sudo) VALUES ('${owner}','synthetic-host',1,0)`)
 
-test('the credentials page still renders its legacy markup until its own rebuild', async () => {
-  bindAndGrant()
-  const response = await app.inject({ url: '/admin/ssh/credentials', headers })
-  const main = response.body.match(/<main id="main".*?<\/main>/s)![0].replace(/(name="_csrf" value=")[^"]*/g, '$1CSRF')
-  await expect(main).toMatchFileSnapshot('../fixtures/ssh-credentials-legacy.html')
-})
-
 const contract = (html: string) => nodes(parse(html)).filter(element => element.tagName === 'form' && attribute(element, 'data-api') !== undefined).map(form => ({
   action: attribute(form, 'action'), method: attribute(form, 'data-method'), confirm: attribute(form, 'data-confirm') ?? '', typedName: attribute(form, 'data-confirm-name'),
   buttons: nodes(form).filter(element => element.tagName === 'button').map(words),

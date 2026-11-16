@@ -1238,6 +1238,19 @@ test('changing the instance URL drops a saved connection IP override that was no
   `)
 })
 
+test('SSH credential secret fields are cleared when the page is hidden', () => {
+  browser(`
+    await page.open(base + '/admin/ssh/credentials');
+    await page.fill('#new-credential-privateKey', 'CANARY-ssh-pagehide-key');
+    await page.fill('#new-credential-passphrase', 'CANARY-ssh-pagehide-passphrase');
+    await page.click('details:has(#new-credential-password) > summary');
+    await page.fill('#new-credential-password', 'CANARY-ssh-pagehide-password');
+    check(await page.eval(() => document.querySelector('#new-credential-privateKey').value !== ''), 'The key was not typed');
+    await page.eval(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
+    check(await page.eval(() => [...document.querySelectorAll('[name=privateKey], [name=passphrase], [name=password]')].every(field => field.value === '')), 'Secret fields kept their values when the page was hidden');
+  `)
+})
+
 test('SSH administration explains dedicated identities without offering generic credential or trust overrides', () => {
   chrome(['resize', '420', '900'])
   browser(`
@@ -1261,7 +1274,7 @@ test('SSH dedicated administration provisions credentials, verified hosts and re
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
     check(await page.eval(() => [...document.querySelectorAll('[name=privateKey]')].every(input => input.value === '') && !document.documentElement.outerHTML.includes('CANARY-browser-ssh-key')), 'SSH key was redisplayed');
-    check(await page.eval(() => [...document.querySelectorAll('main label[for]')].filter(label => label.closest('form')).every(label => label.control?.form === label.closest('form'))), 'Credential labels target controls in another form');
+    check(await page.eval(() => [...document.querySelectorAll('[role=main] label[for]')].filter(label => label.closest('form')).every(label => label.control?.form === label.closest('form'))), 'Credential labels target controls in another form');
     await page.open(base + '/admin/ssh');
     check(await page.eval(() => !document.querySelector('[name=enabled]').checked && document.querySelector('[name=readOnly]').checked), 'New hosts must start disabled and read only');
     await page.fill('[name=id]', 'new-host');

@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page, the provider page, Access tokens, the Audit log, the SSH audit and the SSH hosts page use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
+Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page, the provider page, Access tokens, the Audit log, the SSH audit, the SSH hosts page and the SSH credentials page use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -124,6 +124,11 @@ Each host is a panel with its revision and Enabled and read-only state, a native
 Every form keeps its URL, method, `confirm` and `expectedRevision` fields, field names, ids, `data-type` values, defaults (a new host starts disabled and read only) and confirmation text; the integration test compares them with a recorded copy of the previous forms.
 The port and three numeric host limits are native number inputs; the client converts them to numbers before sending.
 The credential and person selects and the sudo checkboxes stay native.
+
+The SSH credentials page (`SshCredentials` in `src/views/ssh-credentials.tsx`, route `/admin/ssh/credentials`) is the seventeenth page on the seam and the last SSH page to move there.
+Each stored credential is a panel with its revision, the two exclusive native `details` choices "Use a private key" and "Use a password" with their forms, and Delete credential with its typed-name confirmation; New encrypted credential follows with the same two forms and a Credential ID field.
+Every form keeps its URL, method, `confirm` and `expectedRevision` fields, field names, ids, `autocomplete` values, required flags, labels, the password hint and the confirmation text; the integration test compares the form contract with a recorded copy of the previous forms, excluding CSS classes and CSRF controls.
+The private key, passphrase and password fields are native uncontrolled controls: they are never given a value and are not in React state or in the hydration data; the credential props carry ids and revisions only, and a `pagehide` listener clears the fields when that event fires.
 
 ## Constraints
 
