@@ -302,9 +302,19 @@ a.chip:hover { background: var(--bg-active); }
 .audit-list th, .audit-list td { min-width: 0; max-width: none; overflow: visible; overflow-wrap: anywhere; white-space: normal; vertical-align: top; }
 .audit-list tbody th { font-weight: 400; }
 .audit-list tbody tr.sel { background: var(--bg-muted); }
-@media (min-width: 761px) { .audit-list table { min-width: 860px; } .audit-list tbody th { white-space: nowrap; overflow-wrap: normal; } .audit-list td[data-label="Event"] { min-width: 8rem; }
-  .audit-list td[data-label="Actor"] { min-width: 8rem; } .audit-list td[data-label="Tool"] { min-width: 7rem; } .audit-list td[data-label="Instance"] { min-width: 9rem; } }
 .audit-list tbody tr:last-child th, .audit-list tbody tr:last-child td { border-bottom: 0; }
+.audit-list { container-type: inline-size; }
+@container (min-width: 880px) { .audit-list tbody th { white-space: nowrap; overflow-wrap: normal; } .audit-list td[data-label="Event"] { min-width: 8rem; }
+  .audit-list td[data-label="Actor"], .audit-list td[data-label="Instance"] { min-width: 7rem; } .audit-list td[data-label="Tool"] { min-width: 6rem; } }
+@container (width < 880px) {
+  .audit-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .audit-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .audit-list tbody tr:last-child { border-bottom: 0; }
+  .audit-list tbody th, .audit-list tbody td { display: block; width: auto; padding: 0; border: 0; }
+  .audit-list tbody td { flex: none; max-width: 100%; }
+  .audit-list tbody th { flex-basis: 100%; }
+  .audit-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
+}
 .tbl tbody tr.link { position: relative; }
 .tbl tbody tr.link:hover { background: var(--bg-subtle); }
 .tbl .row-link { color: var(--text); text-decoration: none; }
@@ -801,14 +811,13 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .row-links.stack tbody th { flex-basis: 100%; }
   .row-links.stack tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
   .row-links.stack tbody td:not([data-label]):last-child.num { display: none; }
-  .roles-list thead, .tools-list thead, .instances-list thead, .rules-list thead, .tokens-list thead, .audit-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .roles-list tbody tr, .tools-list tbody tr, .instances-list tbody tr, .rules-list tbody tr, .tokens-list tbody tr, .audit-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
-  .roles-list tbody tr:last-child, .tools-list tbody tr:last-child, .instances-list tbody tr:last-child, .rules-list tbody tr:last-child, .tokens-list tbody tr:last-child, .audit-list tbody tr:last-child { border-bottom: 0; }
-  .roles-list tbody th, .roles-list tbody td, .tools-list tbody th, .tools-list tbody td, .instances-list tbody th, .instances-list tbody td, .rules-list tbody th, .rules-list tbody td, .tokens-list tbody th, .tokens-list tbody td, .audit-list tbody th, .audit-list tbody td { display: block; width: auto; max-width: none; padding: 0; border: 0; }
-  .roles-list tbody th, .tools-list tbody th, .instances-list tbody th, .rules-list tbody th, .rules-list tbody td.rule-grants, .tokens-list tbody th, .tokens-list tbody td.token-access, .audit-list tbody th { flex-basis: 100%; }
-  .audit-list tbody td { flex: none; max-width: 100%; }
+  .roles-list thead, .tools-list thead, .instances-list thead, .rules-list thead, .tokens-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .roles-list tbody tr, .tools-list tbody tr, .instances-list tbody tr, .rules-list tbody tr, .tokens-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .roles-list tbody tr:last-child, .tools-list tbody tr:last-child, .instances-list tbody tr:last-child, .rules-list tbody tr:last-child, .tokens-list tbody tr:last-child { border-bottom: 0; }
+  .roles-list tbody th, .roles-list tbody td, .tools-list tbody th, .tools-list tbody td, .instances-list tbody th, .instances-list tbody td, .rules-list tbody th, .rules-list tbody td, .tokens-list tbody th, .tokens-list tbody td { display: block; width: auto; max-width: none; padding: 0; border: 0; }
+  .roles-list tbody th, .tools-list tbody th, .instances-list tbody th, .rules-list tbody th, .rules-list tbody td.rule-grants, .tokens-list tbody th, .tokens-list tbody td.token-access { flex-basis: 100%; }
   .rules-list tbody td.actions-cell, .tokens-list tbody td.actions-cell { margin-left: auto; }
-  .roles-list tbody td[data-label]::before, .tools-list tbody td[data-label]::before, .instances-list tbody td[data-label]::before, .tokens-list tbody td[data-label]::before, .audit-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
+  .roles-list tbody td[data-label]::before, .tools-list tbody td[data-label]::before, .instances-list tbody td[data-label]::before, .tokens-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
   .instances-list tbody td.actions-cell { flex-basis: 100%; text-align: left; }
   .roles-list tbody td.num { display: none; }
   .steps { grid-auto-flow: row; }

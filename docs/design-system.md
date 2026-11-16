@@ -109,6 +109,7 @@ Its props carry what a row displays (time, event, break-glass flag, actor name, 
 The record detail panel (`AuditDetail` in `src/views/audit-detail.tsx`, opened by `?record=<id>`) is a docked `aside` beside the list with a Close details link, the facts (actor, tool, instance, outcome, a read-only Request ID with a copy button that `confirm.js` wires, client address, sign-in method, action and error code), the Settings changes of an admin change, the Failure diagnostic of a run, and a native `details` disclosure listing every stored field.
 Its props are exactly what the panel displays: the heading, time, record number, facts, settings changes as text, the diagnostic as text, and each stored field as text (or an ISO time) with `null` for a field that has no value, so no markup string reaches the page or the hydration data.
 A record that is gone shows "Record not found" with the same Close link.
+The records table is a container (`container-type: inline-size` on `.audit-list`): when the list is 880px wide or more it is a table, and below that, as with the open panel beside it at 1440px and narrower or on a narrow screen, each row becomes a stacked card that wraps its values, so no column is clipped or scrolled.
 
 ## Constraints
 

@@ -1439,6 +1439,45 @@ test('audit downloads export every filtered page with safe fields and explain th
   `)
 })
 
+test('an open audit record leaves every cell of its row fully inside the list at every width', async () => {
+  assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/audit'), { method: 'POST' })).status, 200)
+  try {
+    for (const width of [420, 1024, 1280, 1440]) {
+      chrome(['resize', String(width), '900'])
+      browser(`
+        await page.open(base + '/admin/audit?requestId=synthetic-long-values');
+        await page.click('tbody th a');
+        await page.wait('#record');
+        const clipped = await page.eval(() => {
+          const list = document.querySelector('.audit-list').getBoundingClientRect();
+          const cells = [...document.querySelectorAll('tbody tr.sel th, tbody tr.sel td')];
+          return { count: cells.length, outcome: cells.at(-1).textContent,
+            outcomeLabel: getComputedStyle(cells.at(-1), '::before').content,
+            cards: getComputedStyle(cells.at(-1).parentElement).display === 'flex',
+            outside: cells.filter(cell => { const box = cell.getBoundingClientRect(); return box.left < list.left - 1 || box.right > list.right + 1 || cell.scrollWidth > cell.clientWidth + 1; }).length,
+            scrolls: document.querySelector('.audit-list').scrollWidth > document.querySelector('.audit-list').clientWidth + 1 };
+        });
+        check(clipped.count === 6 && clipped.outcome === 'PERMISSION_DENIED', 'The open record row lost a cell');
+        check(!clipped.cards || clipped.outcomeLabel.trim() === '"Outcome "', 'The outcome label is missing from the card');
+        check(clipped.outside === 0 && !clipped.scrolls, 'A cell of the open record row is clipped at ${width}px');
+      `)
+    }
+    browser(`
+      const layouts = await page.eval(() => {
+        const sheet = [...document.styleSheets].find(sheet => sheet.ownerNode?.tagName === 'STYLE');
+        const index = sheet.cssRules.length;
+        return [879.5, 880].map(width => {
+          sheet.insertRule('.audit-list { width: ' + width + 'px !important; box-sizing: content-box !important; }', index);
+          const layout = getComputedStyle(document.querySelector('.audit-list tbody tr')).display;
+          sheet.deleteRule(index);
+          return layout;
+        });
+      });
+      check(layouts[0] === 'flex' && layouts[1] === 'table-row', 'Audit layout changed at the wrong list width');
+    `)
+  } finally { chrome(['resize', '1280', '900']) }
+})
+
 test('navigation exposes contextual help and one sign-out on every admin screen at desktop and narrow widths', () => {
   for (const width of [1280, 420]) {
     chrome(['resize', String(width), '900'])
