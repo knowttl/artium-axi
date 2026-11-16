@@ -150,7 +150,7 @@ const enabledPolicy = () => db.prepare('SELECT enabled, revision FROM sso_provid
 
 test.each([
   { add: 'entra', fields: ['name', 'tenantId'], input: { name: 'Synthetic created', tenantId } },
-  { add: 'oidc', fields: ['kind', 'name', 'issuer'], input: { kind: 'oidc', name: 'Synthetic created', issuer: 'https://identity.example' } },
+  { add: 'oidc', fields: ['kind', 'name', 'issuer'], input: { name: 'Synthetic created', issuer: 'https://identity.example' } },
 ])('the $add sheet posts the create form the old dialog did, and submitting its fields creates a disabled provider', async ({ add, fields, input }) => {
   const page = await app.inject({ url: `/admin/settings/sign-in?add=${add}`, headers: browserHeaders() })
   expect(page.statusCode).toBe(200)
@@ -161,7 +161,7 @@ test.each([
   expect(page.body).toContain(`<dialog class="sheet" id="sheet-add-${add}"`)
   const created = await app.inject({ method: 'POST', url: base, headers, payload: { ...form.payload, ...input } })
   expect(created.statusCode).toBe(200)
-  expect(db.prepare('SELECT name, kind, enabled FROM sso_providers').all()).toEqual([{ name: 'Synthetic created', kind: input.kind ?? 'entra', enabled: 0 }])
+  expect(db.prepare('SELECT name, kind, enabled FROM sso_providers').all()).toEqual([{ name: 'Synthetic created', kind: add, enabled: 0 }])
 })
 
 test('the provider chooser is a GET form to the sheet for the chosen kind, with no CSRF token or API call', async () => {
@@ -225,6 +225,7 @@ test.each([
   expect(form.attributes).toMatchObject({ 'data-method': 'PATCH', 'data-confirm': expect.stringContaining('A changed tenant or issuer removes the stored credential.'), method: 'post' })
   expect(form.names).toEqual(fields)
   expect(form.payload).toMatchObject({ expectedRevision: 2, name: 'Synthetic provider' })
+  if (kind === 'oidc') expect(form.payload.kind).toBe('oidc')
   const submit = (extra: Record<string, unknown>) => app.inject({ method: 'PATCH', url: `${base}/${created.id}`, headers, payload: { ...form.payload, ...extra } })
   expect((await submit({ name: 'Unchanged identity' })).statusCode).toBe(200)
   expect(credentials.read(created.id)).toBeDefined()
