@@ -822,6 +822,7 @@ test('Remove rule is a typed-name confirmation that carries the revision, and a 
 
 test('each rule row names its role, its tools and how many enabled people match, linking to who matches', async () => {
   const { rule, input } = await createRule()
+  db.exec("DELETE FROM role_tools WHERE role_id = 'synthetic-role' AND tool NOT IN ('gh-axi', 'ssh-axi')")
   const second = (await app.inject({ method: 'POST', url: rulesBase, headers, payload: { ...input, value: 'Artium.Nobody' } })).json()
   const provider = (await app.inject({ url: base, headers })).json().providers.find((candidate: { id: string }) => candidate.id === input.providerId)
   db.exec(`INSERT INTO users (id, username, display_name, password_hash, must_change) SELECT 'synthetic-reader', 'synthetic-reader', 'Reader', password_hash, 0 FROM users LIMIT 1`)
@@ -829,8 +830,9 @@ test('each rule row names its role, its tools and how many enabled people match,
     .run('identity-reader', 'synthetic-reader', provider.id, provider.issuer, 'subject-1', Date.now(), JSON.stringify({ roles: ['Artium.Readers'] }))
   const page = await rulesTab(input.providerId)
   const rows = hydrationProps(page.body).props.rules.rules as { id: string, roleName: string, tools: string[], matches: number }[]
-  expect(Object.fromEntries(rows.map(row => [row.id, [row.roleName, row.tools.length > 0, row.matches]])))
-    .toEqual({ [rule.id]: ['Synthetic Role', true, 1], [second.id]: ['Synthetic Role', true, 0] })
+  expect(Object.fromEntries(rows.map(row => [row.id, [row.roleName, row.tools, row.matches]])))
+    .toEqual({ [rule.id]: ['Synthetic Role', ['GitHub', 'SSH'], 1], [second.id]: ['Synthetic Role', ['GitHub', 'SSH'], 0] })
+  expect(page.body.match(/GitHub, SSH · synced at each sign-in/g)).toHaveLength(2)
   for (const [row, label] of [[rule, '1 match'], [second, '0 matches']] as const)
     expect(page.body).toMatch(new RegExp(`<a[^>]*href="/admin/settings/sign-in/${input.providerId}/matches/${row.id}"[^>]*>(?:(?!</a>).)*${label}`, 's'))
   expect(page.body).toContain('href="/admin/roles/synthetic-role"')
