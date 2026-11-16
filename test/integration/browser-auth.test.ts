@@ -647,7 +647,7 @@ test('Audit screen escapes stored fields and retains all filters across pages', 
   const [escaped, latest] = (db.prepare("SELECT id FROM audit WHERE event = 'admin-change' ORDER BY id").all() as { id: number }[]).map(row => String(row.id))
   const first = await request('GET', '/admin/audit?' + filters + '&record=' + latest)
   expect(first.statusCode).toBe(200)
-  expect(first.body).toContain('<dt>action</dt><dd>second</dd>')
+  expect(recordFields(first.body).action).toBe('second')
   expect(first.body).not.toContain('&lt;b&gt;action&lt;/b&gt;')
   const next = attributeOf(auditLink(first.body, 'Older'), 'href')!
   const older = new URL('http://localhost' + next)
@@ -656,10 +656,7 @@ test('Audit screen escapes stored fields and retains all filters across pages', 
   older.searchParams.set('record', escaped!)
   const second = await request('GET', older.pathname + older.search)
   expect(second.statusCode).toBe(200)
-  expect(second.body).toContain('<dt>action</dt><dd>&lt;b&gt;action&lt;/b&gt;</dd>')
-  expect(second.body).toContain('<dt>target_id</dt><dd>&lt;b&gt;target&lt;/b&gt;</dd>')
-  expect(second.body).toContain('<dt>request_id</dt><dd>&lt;b&gt;request&lt;/b&gt;</dd>')
-  expect(second.body).toContain('<dt>client_address</dt><dd>&lt;b&gt;address&lt;/b&gt;</dd>')
+  expect(recordFields(second.body)).toMatchObject({ action: '<b>action</b>', target_id: '<b>target</b>', request_id: '<b>request</b>', client_address: '<b>address</b>' })
   expect(second.body).toContain('&lt;b&gt;actor&lt;/b&gt;')
   expect(second.body).not.toContain('<b>')
   expect(attributeOf(auditLink(second.body, 'Older'), 'aria-disabled')).toBe('true')
@@ -678,8 +675,8 @@ test('R3: a displayed audit record opens after newer activity pushes it off the 
   audit.record({ ...context, action: 'newer-change', requestId: 'newer-change' })
   const opened = await request('GET', href)
   expect(opened.statusCode).toBe(200)
-  expect(opened.body).toContain('<dt>action</dt><dd>selected-change</dd>')
-  expect(opened.body).toContain('<h2 id="record-title">admin-change · succeeded</h2>')
+  expect(recordFields(opened.body).action).toBe('selected-change')
+  expect(textOf(nodesOf(parse(withoutProps(opened.body))).find(element => attributeOf(element, 'id') === 'record-title')!)).toBe('admin-change · succeeded')
   const current = await request('GET', '/admin/audit?event=admin-change&limit=1&record=' + (selected.id + 1))
   const marked = nodesOf(parse(withoutProps(current.body))).filter(element => element.tagName === 'a' && attributeOf(element, 'aria-current') === 'true' && attributeOf(element, 'class') === 'row-link')
   expect(marked.map(link => attributeOf(link, 'href'))).toEqual([`/admin/audit?event=admin-change&limit=1&record=${selected.id + 1}`])
@@ -733,7 +730,7 @@ test('Audit screen applies request ID and failed-run filters to rows and export 
   const { id } = db.prepare("SELECT id FROM audit WHERE request_id = 'synthetic-failed'").get() as { id: number }
   const page = await request('GET', '/admin/audit?requestId=synthetic-failed&failed=1&record=' + id)
   expect(page.statusCode).toBe(200)
-  expect(page.body).toContain('<dt>request_id</dt><dd>synthetic-failed</dd>')
+  expect(recordFields(page.body).request_id).toBe('synthetic-failed')
   expect(page.body).not.toContain('synthetic-success')
   const elements = nodesOf(parse(withoutProps(page.body)))
   expect(elements.find(element => attributeOf(element, 'name') === 'requestId')).toMatchObject({ attrs: expect.arrayContaining([{ name: 'value', value: 'synthetic-failed' }]) })
@@ -876,6 +873,11 @@ const attributeOf = (element: Element, name: string) => element.attrs.find(item 
 const textOf = (element: Element): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? textOf(child) : '').join('')
 const auditCells = (body: string) => nodesOf(parse(withoutProps(body))).filter(element => element.tagName === 'tr' && nodesOf(element).some(cell => cell.tagName === 'td'))
   .map(row => row.childNodes.filter((cell): cell is Element => 'tagName' in cell).map(textOf))
+const recordFields = (body: string) => Object.fromEntries(nodesOf(parse(withoutProps(body))).filter(element => element.tagName === 'dl').flatMap(list => {
+  const parts = nodesOf(list)
+  const values = parts.filter(element => element.tagName === 'dd').map(textOf)
+  return parts.filter(element => element.tagName === 'dt').map((term, index) => [textOf(term), values[index]])
+}))
 const auditLink = (body: string, label: string) => nodesOf(parse(withoutProps(body))).find(element => ['a', 'button'].includes(element.tagName) && textOf(element) === label)!
 const accessPage = async (tool: string, sheet?: string) => nodesOf(parse(withoutProps((await request('GET', `/admin/tools/${tool}?tab=access${sheet ? '&sheet=' + sheet : ''}`)).body)))
 const accessRow = (page: Element[], label: string) => page.find(element => element.tagName === 'li' && nodesOf(element).some(item => ['a', 'strong'].includes(item.tagName) && textOf(item) === label))!

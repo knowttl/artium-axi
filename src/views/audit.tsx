@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } f
 import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { useState } from 'react'
+import { AuditDetail, type AuditDetailProps } from './audit-detail.js'
 import { Icon } from './icon.js'
 import { badgeVariants, type Status } from './status.js'
 import { Time } from './time.js'
@@ -26,7 +27,7 @@ export interface AuditProps {
   exports: { csv: string, jsonl: string }
   rows: { href: string, current: boolean, time: string, event: string, breakGlass: boolean, actor: string | null, tool: string | null, instance: string | null, outcome: Status }[]
   pager: { summary: string, newest: string | null, older: string | null }
-  detail: string | null
+  detail: AuditDetailProps | null
 }
 
 function Chip({ name, label, value, clearHref, options }: AuditProps['filters']['chips'][number]) {
@@ -147,7 +148,7 @@ export function AuditLog({ filters, exports, rows, pager, detail }: AuditProps) 
           </Card>
         )}
       </div>
-      {detail && <div className="legacy-island audit-detail" dangerouslySetInnerHTML={{ __html: detail }} />}
+      {detail && <AuditDetail {...detail} />}
     </div>
   )
 }

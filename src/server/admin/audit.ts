@@ -5,10 +5,7 @@ import { ArtiumError } from '../../shared/errors.js'
 import { diagnosticCode } from '../../shared/diagnostic.js'
 import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
-import { auditOutcome, badge } from './design/status.js'
-import { icon } from './design/ui.js'
-import { escape } from './escape.js'
-import { timestamp } from './forms.js'
+import { auditOutcome } from './design/status.js'
 import { renderPage } from './render-page.js'
 import type { Audit, AuditRecord } from '../audit/audit.js'
 import { settingsChangesArgumentsSchema } from '../audit/settings-diff.js'
@@ -83,41 +80,29 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
       time: new Date(record.occurred_at).toISOString(), event: record.event, breakGlass: record.authentication_method === 'break-glass',
       actor: record.user_id === null ? null : actor(record.user_id), tool: record.tool, instance: record.instance ?? null, outcome: auditOutcome(record) }))
 
-    const close = link({ cursor: query.data.cursor })
-    let panel = ''
-    if (selected) {
+    const settingsChanges = selected?.event === 'admin-change' && selected.arguments !== null
+      ? settingsChangesArgumentsSchema.safeParse(JSON.parse(selected.arguments)).data?.settings : undefined
+    const showSetting = (value: unknown) => value === null ? 'unset' : JSON.stringify(value)
+    const detail = selectedId === undefined ? null : { closeHref: link({ cursor: query.data.cursor }), id: String(selectedId), record: selected ? (() => {
       const outcome = auditOutcome(selected)
       const diagnostic = selected.event === 'run-terminal' ? audit.runDiagnostic(selected.request_id) : undefined
-      const settingsChanges = selected.event === 'admin-change' && selected.arguments !== null
-        ? settingsChangesArgumentsSchema.safeParse(JSON.parse(selected.arguments)).data?.settings : undefined
-      const fields = Object.entries(selected)
-      const facts = [['Actor', escape(actor(selected.user_id))], ['Tool', escape(selected.tool ?? 'None')], ...(selected.instance ? [['Instance', escape(selected.instance)]] : []), ['Outcome', badge(outcome.word, outcome.tone)],
-        ['Request ID', `<span class="copyfield" data-copy-scope><input value="${escape(selected.request_id)}" readonly aria-label="Request ID"><button type="button" class="btn btn-ghost btn-icon btn-sm" data-copy aria-label="Copy request ID">${icon('copy')}</button><span class="sr-only" data-copy-status role="status"></span></span>`],
-        ['Client address', escape(selected.client_address ?? 'Not recorded')], ['Sign-in method', escape(selected.authentication_method ?? 'Not recorded')],
-        ...(selected.action ? [['Action', `<span class="mono">${escape(selected.action)}</span>`]] : []), ...(selected.error_code ? [['Error code', `<span class="mono">${escape(selected.error_code)}</span>`]] : [])]
-      panel = `<aside class="sheet docked" id="record" aria-labelledby="record-title"><div class="sheet-head"><div><h2 id="record-title">${escape(selected.event)} · ${outcome.tone === 'err' ? 'failed' : outcome.tone === 'ok' ? 'succeeded' : escape(outcome.word)}</h2>
-        <p>${timestamp(selected.occurred_at)} · #${escape(selected.id)}</p></div><a class="btn btn-ghost btn-icon btn-sm" href="${escape(close)}" aria-label="Close details">${icon('x')}</a></div>
-        <div class="sheet-body"><dl class="kv">${facts.map(([key, value]) => `<dt>${key}</dt><dd>${value}</dd>`).join('')}</dl>
-        ${settingsChanges ? `<div><h3>Settings changes</h3><dl class="kv">${settingsChanges.map(change => {
-          const show = (value: unknown) => value === null ? 'unset' : JSON.stringify(value)
-          const text = 'added' in change
-            ? [...change.added.map(item => '+ ' + show(item)), ...change.removed.map(item => '- ' + show(item))].join('\n')
-            : `${show(change.before)} → ${show(change.after)}`
-          return `<dt class="mono">${escape(change.path.join('.'))}</dt><dd><pre class="code">${escape(text)}</pre></dd>`
-        }).join('')}</dl></div>` : ''}
-        ${diagnostic ? `<div><h3>Failure diagnostic</h3><pre class="code">${escape(JSON.stringify(diagnostic, null, 2))}</pre></div>` : ''}
-        <details class="all-fields"><summary class="btn btn-secondary btn-sm">Show all ${fields.length} stored fields</summary><dl class="kv">${fields.map(([key, value]) =>
-          `<dt>${escape(key)}</dt><dd>${value === null ? 'Not recorded' : timeFields.includes(key) ? timestamp(Number(value)) : escape(value)}</dd>`).join('')}</dl></details></div></aside>`
-    } else if (selectedId !== undefined) {
-      panel = `<aside class="sheet docked" id="record" aria-labelledby="record-title"><div class="sheet-head"><div><h2 id="record-title">Record not found</h2>
-        <p>Record #${escape(selectedId)} is no longer retained or does not exist.</p></div><a class="btn btn-ghost btn-icon btn-sm" href="${escape(close)}" aria-label="Close details">${icon('x')}</a></div></aside>`
-    }
+      return { heading: `${selected.event} · ${outcome.tone === 'err' ? 'failed' : outcome.tone === 'ok' ? 'succeeded' : outcome.word}`,
+        time: new Date(selected.occurred_at).toISOString(), number: selected.id,
+        facts: { actor: actor(selected.user_id), tool: selected.tool ?? 'None', instance: selected.instance || null, outcome, requestId: selected.request_id,
+          clientAddress: selected.client_address ?? 'Not recorded', signInMethod: selected.authentication_method ?? 'Not recorded', action: selected.action || null, errorCode: selected.error_code || null },
+        settingsChanges: (settingsChanges ?? []).map(change => ({ path: change.path.join('.'), text: 'added' in change
+          ? [...change.added.map(item => '+ ' + showSetting(item)), ...change.removed.map(item => '- ' + showSetting(item))].join('\n')
+          : `${showSetting(change.before)} → ${showSetting(change.after)}` })),
+        diagnostic: diagnostic ? JSON.stringify(diagnostic, null, 2) : null,
+        fields: Object.entries(selected).map(([name, value]) => ({ name, value: value === null ? null : timeFields.includes(name) ? new Date(Number(value)).toISOString() : String(value),
+          time: timeFields.includes(name) })) }
+    })() : null }
 
     const exports = new URLSearchParams(params)
     exports.delete('limit')
     exports.delete('cursor')
     const download = (format: 'csv' | 'jsonl') => adminAuditExportRoute.path + '?' + new URLSearchParams([...exports, ['format', format]])
-    return renderPage(reply, 'Audit log', 'audit', { filters: filterProps, exports: { csv: download('csv'), jsonl: download('jsonl') }, rows, detail: panel || null,
+    return renderPage(reply, 'Audit log', 'audit', { filters: filterProps, exports: { csv: download('csv'), jsonl: download('jsonl') }, rows, detail,
       pager: { summary: `Showing ${rows.length} record${rows.length === 1 ? '' : 's'}`, newest: query.data.cursor ? link({}) : null,
         older: page.nextCursor ? link({ cursor: page.nextCursor }) : null } }, current, 'Sign-ins, admin changes and tool calls. Kept for 90 days.')
   })
