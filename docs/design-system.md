@@ -74,7 +74,7 @@ Enable and Disable sign-in is an `ActionForm` that patches `/activation` with `e
 The Role rules tab (`?tab=rules`, `RoleRules` in `src/views/role-rules.tsx`) lists each rule with its role, the tools that role grants and its match count, which links to the who-matches page.
 Its row menu holds Edit rule, a link to `?tab=rules&rule=<id>`, and Remove rule, an `ActionForm` that sends `DELETE` with `expectedRevision` and needs the rule's value typed to confirm.
 Add rule opens the closed `add-rule` sheet in place, or `?tab=rules&rule=new` without JavaScript, and Edit rule renders only its own open sheet, so the two forms never share field ids.
-Both sheets post `providerId`, `claim`, `value` and `roleId`, plus `expectedRevision` when editing, to the role-rules API with a tier 2 confirmation.
+Both sheets send `providerId`, `claim`, `value` and `roleId` to the role-rules API with a tier 2 confirmation: Add uses POST, and Edit uses PATCH with `expectedRevision`.
 The Credential tab (`?tab=credential`) still renders in the legacy shell, with its own tab strip and activation form, until it is rebuilt.
 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet that `confirm.js` opens), and the side navigation slot.
