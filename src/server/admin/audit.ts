@@ -3,12 +3,13 @@ import type { FastifyInstance } from 'fastify'
 import { adminAuditExportRoute, adminAuditRoute, toolSchema } from '../../shared/api.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { diagnosticCode } from '../../shared/diagnostic.js'
-import { browserCookie, browserPage } from '../auth/browser.js'
+import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import { auditOutcome, badge } from './design/status.js'
-import { icon, pager } from './design/ui.js'
+import { icon } from './design/ui.js'
 import { escape } from './escape.js'
 import { timestamp } from './forms.js'
+import { renderPage } from './render-page.js'
 import type { Audit, AuditRecord } from '../audit/audit.js'
 import { settingsChangesArgumentsSchema } from '../audit/settings-diff.js'
 
@@ -55,48 +56,32 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
     }
 
     const custom = range === 'custom' || (!preset && (query.data.from !== undefined || query.data.to !== undefined))
-    const segment = (label: string, value: string | undefined, on: boolean) =>
-      `<a href="${escape(link({ range: value, from: undefined, to: undefined }))}"${on ? ' class="on" aria-current="true"' : ''}>${escape(label)}</a>`
-    const time = `<div class="seg" role="group" aria-label="Time range">${segment('Any time', undefined, !preset && !custom)}${segment(ranges['24h'].label, '24h', range === '24h')}${segment(ranges['7d'].label, '7d', range === '7d')}${
-      custom ? '<a href="#audit-from" class="on" aria-current="true">Custom</a>' : segment('Custom', 'custom', false)}</div>`
-    const chip = (name: 'user' | 'tool' | 'instance' | 'event' | 'outcome', label: string, options: { value: string, text: string }[]) => {
-      const value = query.data[name]
-      return `<span class="filter${value ? ' set' : ''}">${value ? `<span>${escape(label)}</span>` : icon('plus')}<select name="${name}" aria-label="${escape(label)}"><option value="">${escape(label)}</option>${
-        options.map(option => `<option value="${escape(option.value)}"${option.value === value ? ' selected' : ''}>${escape(option.text)}</option>`).join('')}</select>${
-        value ? `<a href="${escape(link({ [name]: undefined }))}" aria-label="Clear ${escape(label.toLowerCase())} filter">${icon('x')}</a>` : ''}</span>`
-    }
-    const failed = query.data.failed === '1'
-      ? `<a class="filter set" href="${escape(link({ failed: undefined }))}" aria-label="Clear filter: Failed runs only"><strong>Failed runs only</strong>${icon('x')}</a>`
-      : `<a class="filter" href="${escape(link({ failed: '1' }))}">${icon('plus')}Failed runs only</a>`
-    // Error code has no chip of its own; a link that sets it can still be read and cleared here.
-    const errorCode = query.data.errorCode
-      ? `<span class="filter set"><span>Error code</span><strong>${escape(query.data.errorCode)}</strong><input type="hidden" name="errorCode" value="${escape(query.data.errorCode)}"><a href="${escape(link({ errorCode: undefined }))}" aria-label="Clear error code filter">${icon('x')}</a></span>`
-      : ''
+    const chip = (name: 'user' | 'tool' | 'instance' | 'event' | 'outcome', label: string, options: { value: string, text: string }[]) =>
+      ({ name, label, value: query.data[name] ?? '', clearHref: query.data[name] ? link({ [name]: undefined }) : null, options })
     const filtered = [...state.keys()].some(key => key !== 'limit')
-    const filterRow = `<form class="filters" method="get" action="/admin/audit" data-filters>
-      <label class="input-wrap">${icon('search')}<span class="sr-only">Request ID</span><input name="requestId" value="${escape(query.data.requestId ?? '')}" maxlength="100" placeholder="Request ID"></label>
-      <label class="input-wrap"><span class="sr-only">Token ID</span><input name="delegationId" value="${escape(query.data.delegationId ?? '')}" placeholder="Token ID"></label>
-      ${time}${failed}
-      ${chip('user', 'User', users.map(user => ({ value: user.id, text: user.username })))}
-      ${chip('tool', 'Tool', toolSchema.options.map(tool => ({ value: tool, text: tool })))}
-      ${chip('instance', 'Instance', distinct('instance', query.data.instance).map(instance => ({ value: instance, text: instance })))}
-      ${chip('event', 'Event', distinct('event', query.data.event).map(event => ({ value: event, text: event })))}
-      ${chip('outcome', 'Outcome', distinct('outcome', query.data.outcome).map(outcome => ({ value: outcome, text: outcome })))}
-      ${errorCode}${range ? `<input type="hidden" name="range" value="${range}">` : ''}${query.data.failed ? `<input type="hidden" name="failed" value="${query.data.failed}">` : ''}${query.data.limit !== 50 ? `<input type="hidden" name="limit" value="${query.data.limit}">` : ''}
-      ${custom ? `<span class="range-fields"><label for="audit-from">From (UTC)</label><input id="audit-from" name="from" value="${escape(query.data.from ?? '')}" placeholder="2026-01-01T00:00:00Z">
-        <label for="audit-to">To (UTC)</label><input id="audit-to" name="to" value="${escape(query.data.to ?? '')}" placeholder="2026-01-31T23:59:59Z"></span>` : ''}
-      <button class="btn btn-secondary btn-sm"${custom ? '' : ' data-filters-apply'}>Apply</button>${filtered ? '<a class="btn btn-ghost btn-sm" href="/admin/audit">Clear filters</a>' : ''}</form>`
+    const filterProps = {
+      requestId: query.data.requestId ?? '', delegationId: query.data.delegationId ?? '',
+      range: [{ label: 'Any time', href: link({ range: undefined, from: undefined, to: undefined }), current: !preset && !custom },
+        { label: ranges['24h'].label, href: link({ range: '24h', from: undefined, to: undefined }), current: range === '24h' },
+        { label: ranges['7d'].label, href: link({ range: '7d', from: undefined, to: undefined }), current: range === '7d' },
+        custom ? { label: 'Custom', href: '#audit-from', current: true } : { label: 'Custom', href: link({ range: 'custom', from: undefined, to: undefined }), current: false }],
+      failed: query.data.failed === '1' ? { on: true, href: link({ failed: undefined }) } : { on: false, href: link({ failed: '1' }) },
+      chips: [chip('user', 'User', users.map(user => ({ value: user.id, text: user.username }))),
+        chip('tool', 'Tool', toolSchema.options.map(tool => ({ value: tool, text: tool }))),
+        chip('instance', 'Instance', distinct('instance', query.data.instance).map(instance => ({ value: instance, text: instance }))),
+        chip('event', 'Event', distinct('event', query.data.event).map(event => ({ value: event, text: event }))),
+        chip('outcome', 'Outcome', distinct('outcome', query.data.outcome).map(outcome => ({ value: outcome, text: outcome })))],
+      // Error code has no chip of its own; a link that sets it can still be read and cleared here.
+      errorCode: query.data.errorCode ? { value: query.data.errorCode, clearHref: link({ errorCode: undefined }) } : null,
+      hidden: [...range ? [{ name: 'range', value: range }] : [], ...query.data.failed ? [{ name: 'failed', value: query.data.failed }] : [],
+        ...query.data.limit !== 50 ? [{ name: 'limit', value: String(query.data.limit) }] : []],
+      custom: custom ? { from: query.data.from ?? '', to: query.data.to ?? '' } : null, clear: filtered }
 
     const selected = selectedId === undefined ? undefined : db.prepare('SELECT * FROM audit WHERE id = ?').get(selectedId) as AuditRecord | undefined
     if (selected) selected.error_code = diagnosticCode(selected.error_code)
-    const rows = page.records.map(record => {
-      const outcome = auditOutcome(record)
-      const open = record.id === selected?.id
-      return `<tr${open ? ' class="sel"' : ''}><th scope="row"><a href="${escape(link({ record: String(record.id), cursor: query.data.cursor }))}"${open ? ' aria-current="true"' : ''}>${timestamp(record.occurred_at)}</a></th>
-        <td><span class="mono">${escape(record.event)}</span>${record.authentication_method === 'break-glass' ? ' ' + badge('Break-glass', 'warn') : ''}</td>
-        <td${record.user_id === null ? ' class="faint"' : ''}>${escape(actor(record.user_id))}</td><td${record.tool ? '' : ' class="faint"'}>${escape(record.tool ?? '-')}</td>
-        <td${record.instance ? '' : ' class="faint"'}>${escape(record.instance ?? 'default/unknown')}</td><td>${badge(outcome.word, outcome.tone)}</td></tr>`
-    }).join('')
+    const rows = page.records.map(record => ({ href: link({ record: String(record.id), cursor: query.data.cursor }), current: record.id === selected?.id,
+      time: new Date(record.occurred_at).toISOString(), event: record.event, breakGlass: record.authentication_method === 'break-glass',
+      actor: record.user_id === null ? null : actor(record.user_id), tool: record.tool, instance: record.instance ?? null, outcome: auditOutcome(record) }))
 
     const close = link({ cursor: query.data.cursor })
     let panel = ''
@@ -131,18 +116,9 @@ export function registerAuditPage(app: FastifyInstance, db: Database.Database, a
     const exports = new URLSearchParams(params)
     exports.delete('limit')
     exports.delete('cursor')
-    const downloads = (['csv', 'jsonl'] as const).map(format => {
-      exports.set('format', format)
-      return `<a download href="${escape(adminAuditExportRoute.path + '?' + exports)}">${icon('download')}${format === 'csv' ? 'CSV' : 'JSON lines'}</a>`
-    }).join('')
-    const exportMenu = `<div class="actions"><details class="menu"><summary class="btn btn-secondary">${icon('download')}Export${icon('chevd')}</summary><div class="popover">
-      <p class="popover-note">Uses the current filters. Downloads include all retained records matching the applied filters, across every page.</p>${downloads}</div></details></div>`
-    const table = rows ? `<section class="card"><div class="tbl-scroll"><table class="tbl audit-table row-links"><caption class="sr-only">Audit records</caption>
-      <thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Actor</th><th scope="col">Tool</th><th scope="col">Instance</th><th scope="col">Outcome</th></tr></thead><tbody>${rows}</tbody></table></div>
-      ${pager(`Showing ${page.records.length} record${page.records.length === 1 ? '' : 's'}`, [{ label: 'Newest', href: query.data.cursor ? link({}) : null },
-        { label: 'Older', href: page.nextCursor ? link({ cursor: page.nextCursor }) : null }])}</section>`
-      : `<section class="card empty"><h2>No audit records match these filters.</h2><p>Widen the time range or clear a filter.</p>${filtered ? '<a class="btn btn-secondary" href="/admin/audit">Clear filters</a>' : ''}</section>`
-    const content = `<div class="split${panel ? ' has-aside' : ''}"><div class="split-main">${filterRow}${table}</div>${panel}</div>`
-    return browserPage(reply, 'Audit log', content, current, 'Sign-ins, admin changes and tool calls. Kept for 90 days.', { actions: exportMenu })
+    const download = (format: 'csv' | 'jsonl') => adminAuditExportRoute.path + '?' + new URLSearchParams([...exports, ['format', format]])
+    return renderPage(reply, 'Audit log', 'audit', { filters: filterProps, exports: { csv: download('csv'), jsonl: download('jsonl') }, rows, detail: panel || null,
+      pager: { summary: `Showing ${rows.length} record${rows.length === 1 ? '' : 's'}`, newest: query.data.cursor ? link({}) : null,
+        older: page.nextCursor ? link({ cursor: page.nextCursor }) : null } }, current, 'Sign-ins, admin changes and tool calls. Kept for 90 days.')
   })
 }

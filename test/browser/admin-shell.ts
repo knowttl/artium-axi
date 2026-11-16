@@ -1384,7 +1384,7 @@ test('audit event filter, pagination and expanded details retain the selected se
     await page.eval(() => { const event = document.querySelector('[name=event]'); event.value = 'run-start'; event.dispatchEvent(new Event('change', { bubbles: true })); });
     await page.wait('.filter.set [name=event]');
     check(await page.eval(() => document.querySelectorAll('tbody tr').length === 1 && document.querySelector('tbody').textContent.includes('run-start')), 'Event filter failed');
-    check(await page.eval(() => [...document.querySelectorAll('thead th')].slice(3).every(cell => cell.getBoundingClientRect().width >= 80)), 'Tool and Outcome columns are too narrow to read');
+    check(await page.eval(() => [...document.querySelectorAll('tbody th, tbody td')].every(cell => cell.scrollWidth <= cell.clientWidth + 1)), 'A cell clips its value');
     await page.click('tbody th a');
     await page.wait('#record');
     await page.click('#record .all-fields summary');
@@ -1398,11 +1398,11 @@ test('audit event filter, pagination and expanded details retain the selected se
     await page.wait('#record');
     check(await page.eval(() => document.querySelector('[name=event]').value === 'run-start' && document.querySelector('#record .all-fields dl').textContent.includes('synthetic-run-101')), 'Older page lost the filter');
     await page.click('.card-foot a:not([href*="cursor="])');
-    await page.wait('.card-foot span[aria-disabled]');
+    await page.wait('.card-foot [aria-disabled]');
     await page.click('tbody th a');
     await page.wait('#record');
     check(await page.eval(() => document.querySelector('#record .all-fields dl').textContent.includes('synthetic-run-102')), 'Newest did not restart the search');
-    await page.click('main a[href="/admin/audit"]');
+    await page.click('form[data-filters] a[href="/admin/audit"]');
     await page.wait('[name=event]');
     check(await page.eval(() => document.querySelector('[name=event]').value === ''), 'Clear filters failed');
     await page.open(base + '/admin/audit?failed=1&range=7d');
