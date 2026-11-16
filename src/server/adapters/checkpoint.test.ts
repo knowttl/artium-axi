@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { expect, test, vi } from 'vitest'
 import { decode } from '@toon-format/toon'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
-import { credentialFields } from '../admin/credential-form.js'
+import { credentialEditor } from '../admin/credential-form.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import { checkpointCredentialSchema, checkpointProfile, checkpointWritePolicy, createCheckpointAdapter } from './checkpoint.js'
 
@@ -22,7 +22,7 @@ test('managed credentials require a secret and emit only env references in the p
     clientSecret: { env: 'ARTIUM_SECRET_0' }, downloads: { allow: false }, region: 'ca',
   } } })
   expect(checkpointProfile.metadata(credential)).toEqual({ region: 'ca', clientId: 'synthetic-client' })
-  expect(credentialFields('checkpoint-axi', checkpointProfile, {}, false)).toContain('data-credential-field="clientSecret" data-secret')
+  expect(credentialEditor('checkpoint-axi', checkpointProfile, {}, false).controls.find(control => control.name === 'clientSecret')!.secret).toBe(true)
   expect(toolEndpoints('checkpoint-axi', credential).map(url => url.origin)).toEqual(['https://cloudinfra-gw.ca.portal.checkpoint.com'])
 })
 
@@ -31,27 +31,25 @@ test.each([
   ['scope', 'Download scope', ''],
 ])('managed %s field renders its title, description and default', (name, title, defaultHelp) => {
   const field = checkpointProfile.fields().find(field => field.name === name)!
-  const html = credentialFields('checkpoint-axi', checkpointProfile, {}, false)
-  const rendered = html.match(new RegExp(`<div data-credential-field="${name}">(.+?)</div>`))![1]!
-  expect(rendered).toContain(`<label>${title}<input`)
-  expect(rendered).toContain(`aria-describedby="profile-checkpoint-axi-${name}-hint"`)
-  expect(rendered).toContain(`<p id="profile-checkpoint-axi-${name}-hint">${field.schema.description}${defaultHelp}</p>`)
-  expect(rendered).not.toContain('Optional profile value.')
+  const control = credentialEditor('checkpoint-axi', checkpointProfile, {}, false).controls.find(control => control.name === name)!
+  expect(control.label).toBe(title)
+  expect(control.id).toBe(`profile-checkpoint-axi-${name}`)
+  expect(control.help).toBe(`${field.schema.description}${defaultHelp}`)
 })
 
 test.each([false, true])('managed credential guidance describes hosted inputs when configured=%s', configured => {
-  const html = credentialFields('checkpoint-axi', checkpointProfile, {}, configured)
-  const clientSecret = html.match(/<div data-credential-field="clientSecret" data-secret>(.+?)<\/div>/)![1]!
-  const scope = html.match(/<div data-credential-field="scope">(.+?)<\/div>/)![1]!
-  expect(clientSecret).toContain('<label>Client secret<textarea')
-  expect(clientSecret).toContain('aria-describedby="profile-checkpoint-axi-clientSecret-hint"')
-  expect(clientSecret).toContain('<p id="profile-checkpoint-axi-clientSecret-hint">Enter the API client secret itself. Leave blank to keep a stored secret for the same identity.</p>')
-  expect(scope).toContain('Email downloads require this value as the scopes header.')
-  expect(scope).toContain('Attachment downloads use it as the scope query when set, and omit that query when unset.')
-  expect(scope).toContain('Artium uses this stored value for hosted transfers; there is no per-download scope override.')
-  expect(clientSecret).not.toContain('Client secret reference')
-  expect(clientSecret).not.toContain('CHECKPOINT_AXI_CLIENT_SECRET')
-  expect(scope).not.toContain('--scope')
+  const { controls } = credentialEditor('checkpoint-axi', checkpointProfile, {}, configured)
+  const clientSecret = controls.find(control => control.name === 'clientSecret')!
+  const scope = controls.find(control => control.name === 'scope')!
+  expect(clientSecret.label).toBe('Client secret')
+  expect(clientSecret.id).toBe('profile-checkpoint-axi-clientSecret')
+  expect(clientSecret.help).toBe('Enter the API client secret itself. Leave blank to keep a stored secret for the same identity.')
+  expect(scope.help).toContain('Email downloads require this value as the scopes header.')
+  expect(scope.help).toContain('Attachment downloads use it as the scope query when set, and omit that query when unset.')
+  expect(scope.help).toContain('Artium uses this stored value for hosted transfers; there is no per-download scope override.')
+  expect(clientSecret.label).not.toContain('Client secret reference')
+  expect(clientSecret.help).not.toContain('CHECKPOINT_AXI_CLIENT_SECRET')
+  expect(scope.help).not.toContain('--scope')
 })
 
 test.each([

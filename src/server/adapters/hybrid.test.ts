@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { expect, test } from 'vitest'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
-import { credentialFields } from '../admin/credential-form.js'
+import { credentialEditor } from '../admin/credential-form.js'
 import { toolEndpoints } from '../tool-endpoints.js'
 import { toolFailure } from '../health/diagnostic.js'
 import { createHybridAdapter, hybridCredentialSchema, hybridProfile, hybridWritePolicy } from './hybrid.js'
@@ -21,9 +21,9 @@ test('offline home passes validation and preparation without a flag value', asyn
 })
 
 test('one required secret and the fixed origin form the managed credential', async () => {
-  const form = credentialFields('hybrid-axi', hybridProfile, {}, false)
-  expect(form).toContain('data-credential-field="apiKey" data-secret')
-  expect(form).toContain('https://hybrid-analysis.com')
+  const { controls } = credentialEditor('hybrid-axi', hybridProfile, {}, false)
+  expect(controls.filter(control => control.secret).map(control => control.name)).toEqual(['apiKey'])
+  expect(controls.find(control => control.name === 'origin')!.help).toContain('https://hybrid-analysis.com')
   const call = await adapter.prepare(['quota'], reference)
   expect(call.secrets).toEqual([credential.apiKey])
   expect(call.environment).toMatchObject({ ARTIUM_SECRET_0: credential.apiKey, HYBRID_AXI_READ_ONLY: 'true' })

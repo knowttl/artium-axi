@@ -8,6 +8,7 @@ import type { ReactNode } from 'react'
 import { ActionForm, Revision } from './action-form.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
+import { ProviderCredential, type ProviderCredentialProps } from './provider-credential.js'
 import { ProviderFields } from './provider-fields.js'
 import { RoleRules, type RoleRulesProps } from './role-rules.js'
 import { Tabs, type TabLink } from './tabs.js'
@@ -17,9 +18,10 @@ export interface ProviderProps {
   csrf: string
   page: string
   api: string
-  tab: 'setup' | 'settings' | 'rules'
+  tab: 'setup' | 'settings' | 'rules' | 'credential'
   tabs: TabLink[]
   rules: RoleRulesProps | null
+  credential: ProviderCredentialProps | null
   initials: string
   kind: 'entra' | 'oidc'
   kindLabel: string
@@ -166,7 +168,9 @@ export function Provider(props: ProviderProps) {
     <VStack gap={4}>
       <Header {...props} />
       <Tabs label="Sections" tabs={props.tabs} />
-      {props.rules ? <RoleRules csrf={props.csrf} page={props.page} rules={props.rules} /> : props.tab === 'setup' ? <Setup {...props} /> : <Settings {...props} />}
+      {props.rules ? <RoleRules csrf={props.csrf} page={props.page} rules={props.rules} />
+        : props.credential ? <ProviderCredential csrf={props.csrf} api={props.api} providerRevision={props.revision} credential={props.credential} />
+          : props.tab === 'setup' ? <Setup {...props} /> : <Settings {...props} />}
     </VStack>
   )
 }

@@ -127,13 +127,6 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .list-row .grow strong a { text-decoration: none; }
 .list-row .grow strong a:hover { text-decoration: underline; }
 
-/* Tabs: links, each tab is its own server-rendered view */
-.utabs { display: flex; gap: 20px; overflow-x: auto; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
-.utabs a { display: inline-flex; align-items: center; gap: 6px; margin-bottom: -1px; padding: 10px 0; border-bottom: 2px solid var(--transparent); color: var(--text-muted); text-decoration: none; white-space: nowrap; }
-.utabs a:hover { color: var(--text); }
-.utabs a[aria-current="page"] { color: var(--text); border-color: var(--text); font-weight: 500; }
-.utabs .n { color: var(--text-faint); font-size: 11px; }
-
 /* Vertical steps: an ordered checklist with state in text */
 .vsteps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
 .vstep { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; padding-bottom: 18px; }
@@ -675,13 +668,6 @@ form.card, .card-foot form, .card-head form { margin: 0; }
 .callout details { margin: 8px 0 0; padding: 0; border: 0; }
 .callout pre { margin: 8px 0 0; background: var(--bg); }
 
-/* Tabs: links, one server-rendered view each */
-.utabs { display: flex; gap: 20px; overflow-x: auto; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
-.utabs a { display: inline-flex; align-items: center; gap: 6px; margin-bottom: -1px; padding: 10px 0; border-bottom: 2px solid var(--transparent); color: var(--text-muted); text-decoration: none; white-space: nowrap; }
-.utabs a:hover { color: var(--text); }
-.utabs a[aria-current="page"] { border-color: var(--text); color: var(--text); font-weight: 500; }
-.utabs .n { color: var(--text-faint); font-size: 11px; font-weight: 400; }
-
 /* Steps: state is in the text, the mark is decorative */
 .steps { margin: 0; padding: 0; list-style: none; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
 .step { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-right: 1px solid var(--border); background: var(--bg); font-size: var(--fs-sm); }
@@ -704,10 +690,11 @@ form.card, .card-foot form, .card-head form { margin: 0; }
 .filters .search { flex: 1; min-width: 200px; }
 .filters .search.narrow { flex: 0 1 240px; margin-left: auto; }
 
-/* Credential editor (credentialFields): a two-column field grid */
+/* Credential editor: a two-column field grid */
 [data-credential-editor] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 20px; }
 [data-credential-editor] > * { grid-column: 1 / -1; min-width: 0; }
 [data-credential-editor] > [data-credential-field]:not(:has(textarea)) { grid-column: auto; }
+[data-credential-editor] > [data-credential-field^="thumbprint"]:not(:has(textarea)) { grid-column: 1 / -1; }
 [data-credential-editor] > p { margin: 0; color: var(--text-muted); font-size: var(--fs-sm); }
 :where(.content) [data-credential-editor] label { margin: 0; }
 :where(.content) [data-credential-editor] :where(input:not([type=checkbox], [type=radio], [type=hidden]), select, textarea) { max-width: none; }

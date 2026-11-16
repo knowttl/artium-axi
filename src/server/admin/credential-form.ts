@@ -15,7 +15,6 @@ import { kubernetesProfile } from '../adapters/kubernetes.js'
 import { nativeSettingsSchemas } from '../../shared/api.js'
 import type { CredentialControl, CredentialEditorProps } from '../../views/credential-editor.js'
 import type { ToolName } from '../store/credential-store.js'
-import { escape } from './escape.js'
 import { tlsCredentialRoots } from '../credential-tls-settings.js'
 import { tlsSection } from './tls-fields.js'
 
@@ -209,26 +208,4 @@ export function credentialEditor(tool: ToolName | undefined, profile: Credential
   return { schema: profile.inputSchema, configured, controls, tls: tool ? tlsSection(tool, metadata) : null,
     identity: Object.fromEntries(['mode', 'kind', 'auth', 'tenantId', 'clientId', 'origin', 'org', 'appId', 'installationId', 'tokenId', 'userId', 'tokenKind', 'clientCertificate'].map(key => [key, metadata[key] ?? null])),
     intro: `Non-secret values are pre-filled. Secrets are never displayed. Leave a secret blank to keep it, or enter a replacement. Changing authentication, mode, kind, tenant, client, origin, organization, App ID, installation ID, token identity, user identity, token kind or client certificate requires new secrets.${tool ? ' Saving keeps native settings and clears cached health.' : ' Saving keeps SSO sign-in disabled.'}` }
-}
-
-export function credentialFields(tool: ToolName | undefined, profile: CredentialProfile, metadata: Record<string, unknown>, configured: boolean): string {
-  const editor = credentialEditor(tool, profile, metadata, configured)
-  const fields = editor.controls.map(control => {
-    const attributes = `name="profile.${escape(control.name)}" data-profile-field="${escape(control.name)}" aria-describedby="${escape(control.id)}-hint"${control.required ? ' required' : ''} autocomplete="off"`
-    let input: string
-    if (control.kind === 'select') {
-      input = `<select ${attributes} data-profile-type="json"><option value="">${control.emptyLabel}</option>${control.options!.map(option =>
-        `<option value="${escape(option.value)}"${option.selected ? ' selected' : ''}>${escape(option.label)}</option>`).join('')}</select>`
-    } else if (control.kind === 'list') {
-      input = `<textarea ${attributes} data-profile-type="list" rows="3">${escape(control.value)}</textarea><p>One value per line.</p>`
-    } else if (control.kind === 'textarea') {
-      input = `<textarea ${attributes} data-profile-type="${control.dataType}" rows="6" spellcheck="false">${escape(control.value)}</textarea>`
-    } else {
-      input = `<input ${attributes} data-profile-type="${control.dataType}" type="${control.numeric ? 'number' : 'text'}" value="${escape(control.value)}"${control.numeric === 'decimal' ? ' step="any"' : ''}>`
-    }
-    return `<div data-credential-field="${escape(control.name)}"${control.secret ? ' data-secret' : ''}${control.ephemeral ? ' data-ephemeral' : ''}><label>${escape(control.label)}${input}</label><p id="${escape(control.id)}-hint">${escape(control.help)}</p>${control.stored ? '<p data-stored-secret>Stored when configured below. Leave blank to keep; enter a value to replace.</p>' : ''}</div>`
-  }).join('')
-  return `<div data-credential-editor data-schema="${escape(JSON.stringify(editor.schema))}" data-identity="${escape(JSON.stringify(editor.identity))}" data-configured="${configured}"><p>${editor.intro}</p>${fields}
-    <div data-certificate hidden><label>Certificate and private key (one PEM file)<input type="file" data-certificate-file accept=".pem"></label><label>Or paste certificate and private key<textarea data-certificate-pem rows="8" autocomplete="off" spellcheck="false"></textarea></label><p>Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.</p></div>
-    <details><summary>Advanced: profile schema and requirements</summary><pre>${escape(JSON.stringify(editor.schema, null, 2))}</pre></details></div>`
 }

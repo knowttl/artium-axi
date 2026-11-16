@@ -6,7 +6,7 @@ import { renderToString } from 'react-dom/server'
 import { expect, test } from 'vitest'
 import { CredentialProfile, loadCredentialProfile } from '../src/server/adapters/credential-profile.js'
 import { CredentialEditor } from '../src/views/credential-editor.js'
-import { credentialEditor, credentialFields, editorProfile } from '../src/server/admin/credential-form.js'
+import { credentialEditor, editorProfile } from '../src/server/admin/credential-form.js'
 import { toolCredentialSchemaPaths } from '../src/server/config.js'
 import { credentialTlsSettings } from '../src/server/credential-tls-settings.js'
 import { toolSchema } from '../src/shared/api.js'
@@ -89,40 +89,40 @@ test.each([
   if (hidden) expect(html).not.toContain(`data-profile-field="${hidden}"`)
 })
 
+const controlsOf = (tool: ToolName | undefined, profile: CredentialProfile, metadata: Record<string, unknown> = {}, configured = false) =>
+  credentialEditor(tool, profile, metadata, configured).controls
+
 test.each(profiles)('%s explains every visible non-secret credential field', (tool, schema) => {
-  const html = credentialFields(tool, new CredentialProfile(schema, tool), {}, false)
-  const fields = [...html.matchAll(/<div data-credential-field="([^"]+)"([^>]*)>(.*?)<\/div>/gs)]
-  expect(fields.length).toBeGreaterThan(0)
-  for (const [, name, attributes, content] of fields) {
-    if (!attributes.includes('data-secret')) expect(content, `${tool}.${name}`).not.toContain('Optional profile value.')
-  }
+  const visible = controlsOf(tool, new CredentialProfile(schema, tool)).filter(control => !control.secret)
+  expect(visible.length).toBeGreaterThan(0)
+  for (const control of visible) expect(control.help, `${tool}.${control.name}`).not.toContain('Optional profile value.')
 })
 
 test('schema titles and descriptions take precedence over tool help', () => {
   const profile = new CredentialProfile({ type: 'object', properties: {
     region: { type: 'string', title: 'Regional gateway', description: 'Schema-owned region guidance.' },
   } })
-  expect(credentialFields('checkpoint-axi', profile, {}, false)).toContain('<label>Regional gateway<input')
-  expect(credentialFields('checkpoint-axi', profile, {}, false)).toContain('Schema-owned region guidance.</p>')
+  const [region] = controlsOf('checkpoint-axi', profile)
+  expect([region!.label, region!.help]).toEqual(['Regional gateway', 'Schema-owned region guidance.'])
 })
 
 test.each([
   ['saas', 'office365_emails', 'Default: office365_emails.'],
-  ['downloads', { allow: false }, 'Default: {&quot;allow&quot;:false}.'],
+  ['downloads', { allow: false }, 'Default: {"allow":false}.'],
   ['enabled', false, 'Default: false.'],
   ['limit', 0, 'Default: 0.'],
 ])('shows the schema default for %s', (name, value, help) => {
   const profile = new CredentialProfile({ type: 'object', properties: {
     [name]: { default: value, description: 'Field guidance.' },
   } })
-  expect(credentialFields('checkpoint-axi', profile, {}, false)).toContain(`Field guidance. ${help}</p>`)
+  expect(controlsOf('checkpoint-axi', profile)[0]!.help).toBe(`Field guidance. ${help}`)
 })
 
 test.each([
   ['checkpoint-axi', 'saas', 'SaaS application name, not a URL'],
   ['checkpoint-axi', 'scope', 'printable ASCII with no spaces'],
   ['checkpoint-axi', 'downloads', 'Artium manages download permissions'],
-  ['beyondtrust-axi', 'host', '&lt;organization&gt;-services.pm.beyondtrustcloud.com'],
+  ['beyondtrust-axi', 'host', '<organization>-services.pm.beyondtrustcloud.com'],
   ['beyondtrust-axi', 'downloads', 'Artium manages download permissions'],
   [undefined, 'tenantId', 'Directory tenant ID (UUID). Changing it requires new secrets.'],
   [undefined, 'clientId', 'Application client ID. Changing it requires new secrets.'],
@@ -132,7 +132,7 @@ test.each([
   ['gh-axi', 'auth', 'Choose authentication first. Changing it requires new secrets.'],
 ] as const)('%s explains %s when upstream descriptions are absent', (tool, name, help) => {
   const profile = new CredentialProfile({ type: 'object', properties: { [name]: { type: 'string' } } })
-  expect(credentialFields(tool, profile, {}, false)).toContain(help)
+  expect(controlsOf(tool, profile)[0]!.help).toContain(help)
 })
 
 test('the editor marks a field secret from its profile schema, not from its name', () => {
@@ -155,6 +155,6 @@ test.each(toolSchema.options.filter(tool => tool !== 'ssh-axi'))('%s editor mode
   expect(editor.controls.filter(control => control.secret).map(control => [control.name, control.kind, control.value])).toEqual(offered.map(name => [name, 'textarea', '']))
   for (const name of secrets) {
     expect(JSON.stringify(editor)).not.toContain(`CANARY-${tool}-${name}-END`)
-    expect(credentialFields(tool, profile, metadata, true)).not.toContain(`CANARY-${tool}-${name}-END`)
+    expect(renderToString(createElement(CredentialEditor, editor))).not.toContain(`CANARY-${tool}-${name}-END`)
   }
 })

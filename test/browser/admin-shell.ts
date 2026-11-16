@@ -900,7 +900,7 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/credential"] [name=expectedRevision][value="2"]');
     check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Settings page overflows at 420px');
-    await page.click('.utabs a[href$="tab=settings"]');
+    await page.click('nav[aria-label=Sections] a[href$="tab=settings"]');
     await page.wait('form:has([name=name])');
     await page.fill('form:has([name=name]) [name=name]', 'Renamed provider');
     await page.click('form:has([name=name]) button');
@@ -931,7 +931,7 @@ test('sign-in settings can save a client secret and requires a replacement when 
     await page.open(base + provider + '?tab=credential');
     await page.wait('[data-profile-field=auth]');
     await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"secret"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
-    check(await page.eval(() => document.querySelector('[data-certificate]').hidden && document.querySelector('main').innerText.includes('less secure than certificates')), 'Missing secret warning or conditional fields');
+    check(await page.eval(() => document.querySelector('[data-certificate]').hidden && document.querySelector('[role=main]').innerText.includes('less secure than certificates')), 'Missing secret warning or conditional fields');
     await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
     await page.fill('[data-profile-field=clientSecret]', 'CANARY-provider-secret');
     await page.click('form[action$="/credential"] button');
@@ -941,6 +941,54 @@ test('sign-in settings can save a client secret and requires a replacement when 
     check(await page.eval(() => document.querySelector('[data-profile-field=clientSecret]').value === '' && !document.documentElement.outerHTML.includes('CANARY-provider-secret')), 'Secret redisplayed');
     await page.fill('[data-profile-field=clientId]', '33333333-3333-4333-8333-333333333333');
     check(await page.eval(() => document.querySelector('[data-profile-field=clientSecret]').required), 'Changed client does not require a replacement secret');
+  `)
+})
+
+test('a typed provider credential secret reaches only the rejected form submission and is cleared when the page is left', () => {
+  browser(`
+    await page.open(base + '/admin/settings/sign-in?add=entra');
+    await page.fill('[name=name]', 'Synthetic leak provider');
+    await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
+    await page.click('form[action="/v1/admin/sso/providers"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-provider] a:has(> strong)');
+    const provider = await page.eval(() => document.querySelector('[data-provider] a:has(> strong)').getAttribute('href'));
+    await page.open(base + provider + '?tab=credential');
+    await page.wait('[data-profile-field=auth]');
+    await page.eval(() => {
+      window.leaks = [];
+      window.sent = [];
+      const note = (kind, value) => { if (String(value).includes('CANARY-typed-browser-secret')) window.leaks.push(kind); };
+      for (const method of ['log', 'info', 'warn', 'error', 'debug']) {
+        const original = console[method];
+        console[method] = (...args) => { args.forEach(arg => note('console.' + method, typeof arg === 'string' ? arg : JSON.stringify(arg))); original.apply(console, args); };
+      }
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) { note('storage', key + value); return setItem.call(this, key, value); };
+      const send = window.fetch;
+      window.fetch = (input, init) => { window.sent.push([String(input instanceof Request ? input.url : input), String(init && init.body || '')]); return send(input, init); };
+      navigator.sendBeacon = (url, body) => { note('beacon', body); return false; };
+      const input = document.querySelector('[data-profile-field=auth]'); input.value = '"secret"'; input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
+    await page.fill('[data-profile-field=tenantId]', '33333333-3333-4333-8333-333333333333');
+    await page.fill('[data-profile-field=clientSecret]', 'CANARY-typed-browser-secret');
+    check(await page.eval(() => document.querySelector('[data-profile-field=clientSecret]').tagName === 'TEXTAREA'), 'The typed secret is not in its native field');
+    await page.click('form[action$="/credential"] button');
+    await page.wait('#confirmation[open]');
+    check(await page.eval(() => !document.querySelector('#confirmation').textContent.includes('CANARY-typed-browser-secret')), 'Confirmation exposed the secret');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#message:not(:empty)');
+    check(await page.eval(() => {
+      const sent = window.sent.filter(([, body]) => body.includes('CANARY-typed-browser-secret')).map(([url]) => new URL(url, location.href).pathname);
+      return sent.length === 1 && sent[0].endsWith('/credential') && window.leaks.length === 0
+        && !document.querySelector('#message').textContent.includes('CANARY-typed-browser-secret')
+        && !document.documentElement.outerHTML.replace(/<textarea[^>]*data-profile-field="?clientSecret[\\s\\S]*?<\\/textarea>/, '').includes('CANARY-typed-browser-secret')
+        && !location.href.includes('CANARY') && !JSON.stringify(sessionStorage).includes('CANARY') && !JSON.stringify(localStorage).includes('CANARY');
+    }), 'The rejected save leaked the typed secret');
+    await page.eval(() => window.dispatchEvent(new Event('pagehide')));
+    check(await page.eval(() => document.querySelector('[data-profile-field=clientSecret]').value === ''), 'Leaving the page kept the typed secret');
   `)
 })
 

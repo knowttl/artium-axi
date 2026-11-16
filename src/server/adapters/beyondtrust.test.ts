@@ -3,7 +3,7 @@ import { expect, test, vi } from 'vitest'
 import { decode } from '@toon-format/toon'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
 import { beyondtrustCredentialSchema, beyondtrustWritePolicy, createBeyondtrustAdapter } from './beyondtrust.js'
-import { credentialFields, editorProfile } from '../admin/credential-form.js'
+import { credentialEditor, editorProfile } from '../admin/credential-form.js'
 
 const credential = { host: 'example.pm.beyondtrustcloud.com', clientId: 'synthetic-client', clientSecret: 'CANARY-beyondtrust-secret' }
 const reference = { id: 'synthetic-credential', tool: 'beyondtrust-axi' as const, revision: 1 }
@@ -17,11 +17,10 @@ test.each([
   { name: 'downloads', title: 'Download permissions', description: 'Artium manages download permissions. This value does not enable downloads. Use artium-axi download with Allow writes on and the exact download operation selected.' },
 ])('credential form renders host-adapted $name metadata', ({ name, title, description }) => {
   const profile = editorProfile('beyondtrust-axi')
-  const form = credentialFields('beyondtrust-axi', profile, {}, false)
-  const field = form.split(`data-credential-field="${name}"`)[1].split('</div>')[0]
-  expect(field).toContain(`<label>${title}`)
-  expect(field).toContain(`aria-describedby="profile-beyondtrust-axi-${name}-hint"`)
-  expect(field).toContain(`<p id="profile-beyondtrust-axi-${name}-hint">${description}`)
+  const control = credentialEditor('beyondtrust-axi', profile, {}, false).controls.find(control => control.name === name)!
+  expect(control.label.startsWith(title)).toBe(true)
+  expect(control.id).toBe(`profile-beyondtrust-axi-${name}`)
+  expect(control.help).toContain(description)
   expect(profile.inputSchema.properties[name].description).toContain(description)
 })
 
