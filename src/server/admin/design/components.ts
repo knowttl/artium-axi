@@ -297,7 +297,7 @@ a.chip:hover { background: var(--bg-active); }
 .astryx-card:has(.rules-list) { overflow: visible; }
 .rules-list th, .rules-list td { min-width: 0; max-width: none; overflow: visible; overflow-wrap: anywhere; white-space: normal; }
 .rules-list .rule-grants > * { min-width: 0; }
-@media (min-width: 761px) { .rules-list td.actions-cell { width: 1%; } }
+@media (min-width: 761px) { .rules-list th:nth-child(3), .rules-list td:nth-child(3) { white-space: nowrap; overflow-wrap: normal; } .rules-list td.actions-cell { width: 1%; } }
 .rules-list tbody tr:last-child th, .rules-list tbody tr:last-child td { border-bottom: 0; }
 .tbl tbody tr.link { position: relative; }
 .tbl tbody tr.link:hover { background: var(--bg-subtle); }

@@ -832,7 +832,7 @@ test('each rule row names its role, its tools and how many enabled people match,
   const rows = hydrationProps(page.body).props.rules.rules as { id: string, roleName: string, tools: string[], matches: number }[]
   expect(Object.fromEntries(rows.map(row => [row.id, [row.roleName, row.tools, row.matches]])))
     .toEqual({ [rule.id]: ['Synthetic Role', ['GitHub', 'SSH'], 1], [second.id]: ['Synthetic Role', ['GitHub', 'SSH'], 0] })
-  expect(page.body.match(/GitHub, SSH · synced at each sign-in/g)).toHaveLength(2)
+  expect(page.body.replaceAll('<!-- -->', '').match(/GitHub, SSH · synced at each sign-in/g)).toHaveLength(2)
   for (const [row, label] of [[rule, '1 match'], [second, '0 matches']] as const)
     expect(page.body).toMatch(new RegExp(`<a[^>]*href="/admin/settings/sign-in/${input.providerId}/matches/${row.id}"[^>]*>(?:(?!</a>).)*${label}`, 's'))
   expect(page.body).toContain('href="/admin/roles/synthetic-role"')
