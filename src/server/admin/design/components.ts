@@ -520,6 +520,14 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 :where(.content, dialog) :where(tbody tr:last-child) > *:where(:not([data-astryx-root] *:not(.legacy-island *))) { border-bottom: 0; }
 .session-table time, .session-table button, .session-table code { white-space: nowrap; }
 .session-table th, .session-table td { max-width: none; overflow: visible; }
+.session-list { container-type: inline-size; }
+@container (width < 760px) {
+  .session-table thead { display: none; }
+  .session-table tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .session-table tbody tr:last-child { border-bottom: 0; }
+  .session-table td { display: block; padding: 3px 14px; border: 0; }
+  .session-table td[data-label]::before { content: attr(data-label) ": "; color: var(--text-faint); }
+}
 
 /* Page header actions and record metadata */
 .page-head .actions, .card-head .actions, .card-foot .actions { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -793,11 +801,6 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .tbl.stacked td { display: block; padding: 3px 14px; border: 0; }
   .tbl.stacked td.num, .tbl.stacked td.actions-cell { text-align: left; }
   .tbl.stacked td[data-label]::before { content: attr(data-label) ": "; color: var(--text-faint); }
-  .session-table thead { display: none; }
-  .session-table tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); }
-  .session-table tbody tr:last-child { border-bottom: 0; }
-  .session-table td { display: block; padding: 3px 14px; border: 0; }
-  .session-table td[data-label]::before { content: attr(data-label) ": "; color: var(--text-faint); }
   .people-list thead, .invitations-list thead, .providers-list thead { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
   .people-list tbody tr, .invitations-list tbody tr, .providers-list tbody tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); }
   .people-list tbody tr:last-child, .invitations-list tbody tr:last-child, .providers-list tbody tr:last-child { border-bottom: 0; }

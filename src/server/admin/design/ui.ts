@@ -54,16 +54,6 @@ export interface PageHeader {
   // A detail page names its record in the h1 and crumbs while `title` keeps naming the screen.
   heading?: string
   description?: string
-  // Trusted markup for at most one primary action plus secondary actions, wrapped in `<div class="actions">`.
-  actions?: string
-  // Identity variant: an avatar or tool icon before the title, and badges under it.
-  lead?: string
-  meta?: string
-}
-
-export function pageHeader(title: string, header: PageHeader = {}): string {
-  const text = `<div class="grow"><h1>${escape(title)}</h1>${header.meta ? `<div class="row meta">${header.meta}</div>` : ''}${header.description ? `<p>${escape(header.description)}</p>` : ''}</div>`
-  return `<div class="page-head${header.lead ? ' identity' : ''}">${header.lead ?? ''}${text}${header.actions ?? ''}</div>`
 }
 
 export function card(title: string, description: string, body: string, options: { actions?: string, foot?: string, danger?: boolean } = {}): string {
@@ -180,9 +170,6 @@ export interface Page extends PageHeader {
   themeSwitch: string
 }
 
-// What a page route chooses beyond its title, description and content.
-export type PageOptions = Omit<Page, 'title' | 'description' | 'content' | 'help' | 'path' | 'viewer' | 'themeSwitch'>
-
 const navigation: { group?: string, href: string, label: string, icon: IconName }[] = [
   { href: '/admin', label: 'Overview', icon: 'home' },
   { group: 'Access', href: '/admin/users', label: 'People', icon: 'users' },
@@ -196,7 +183,6 @@ const navigation: { group?: string, href: string, label: string, icon: IconName 
 
 export const product = { name: 'Artium', href: '/admin' }
 
-const brand = (href: string) => `<a class="brand" href="${href}"><span class="logo" aria-hidden="true">A</span>${product.name}</a>`
 
 // Initials are decorative; the name is always adjacent text.
 export function initials(name: string): string {
@@ -245,19 +231,12 @@ const toasts = '<div class="toasts"><p id="toast" class="toast ok" role="status"
 export const authOverlays = toasts + sprite
 
 export interface AdminChrome extends Pick<FrameProps, 'crumbs' | 'brand' | 'navigation' | 'account' | 'controls' | 'topbarEnd'> {
-  legacyNavigation: string
   overlays: string
 }
 
 export function adminChrome(page: Page): AdminChrome {
   const { viewer } = page
   const active = navigation.find(item => item.href === '/admin' ? page.path === '/admin' : page.path === item.href || page.path.startsWith(item.href + '/'))
-  let group: string | undefined
-  const items = navigation.map(item => {
-    const label = item.group !== group ? `<p class="nav-label">${escape(item.group!)}</p>` : ''
-    group = item.group
-    return `${label}<a class="nav-item" href="${item.href}"${item === active ? ' aria-current="page"' : ''}>${icon(item.icon)}${escape(item.label)}</a>`
-  }).join('')
   const sections: NavigationSection[] = []
   for (const item of navigation) {
     const link = { href: item.href, label: item.label, icon: item.icon, current: item === active }
@@ -272,27 +251,8 @@ export function adminChrome(page: Page): AdminChrome {
     brand: product,
     navigation: sections,
     account,
-    legacyNavigation: `<nav aria-label="Administration">${items}</nav><div class="side-foot">${account}</div>`,
     controls: reauthPill(viewer),
     topbarEnd: learn(page.title, page.help),
     overlays: toasts + dialogs(viewer) + sprite,
   }
-}
-
-export function appShell(page: Page): string {
-  const { viewer } = page
-  const head = pageHeader(page.heading ?? page.title, page)
-  const message = toasts
-  if (!viewer.administrator || viewer.mustChange) {
-    return `<a class="skip" href="#main">Skip to content</a><div class="app plain"><header class="topbar">${brand(viewer.mustChange ? '/password' : '/account')}<div class="right">${viewer.mustChange ? '' : reauthPill(viewer)}${learn(page.title, page.help)}${accountMenu(viewer, page.path, 'down', page.themeSwitch)}</div></header>
-      <main id="main" class="content narrow" tabindex="-1">${head}${message}${page.content}</main></div>${dialogs(viewer)}${sprite}`
-  }
-  const chrome = adminChrome({ ...page, viewer })
-  const parent = chrome.crumbs.length > 1 ? chrome.crumbs[0]! : undefined
-  const crumbs = `<p class="crumbs">${parent ? `${parent.href ? `<a href="${escape(parent.href)}">${escape(parent.label)}</a>` : `<span>${escape(parent.label)}</span>`}<span class="sep" aria-hidden="true">/</span>` : ''}<strong>${escape(chrome.crumbs.at(-1)!.label)}</strong></p>`
-  return `<a class="skip" href="#main">Skip to content</a><div class="app">
-    <div class="side" id="nav"><div class="side-head">${brand(product.href)}<a class="btn btn-ghost btn-icon btn-sm side-close" href="#main" aria-label="Close navigation">${icon('x')}</a></div>
-      ${chrome.legacyNavigation}</div>
-    <div class="main"><header class="topbar"><a class="btn btn-ghost btn-icon btn-sm menu-open" href="#nav" aria-label="Open navigation">${icon('list')}</a>${crumbs}<div class="right">${chrome.controls}${chrome.topbarEnd}</div></header>
-      <main id="main" class="content" tabindex="-1">${head}${message}${page.content}</main></div></div>${dialogs(viewer)}${sprite}`
 }

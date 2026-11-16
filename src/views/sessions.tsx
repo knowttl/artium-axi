@@ -28,7 +28,7 @@ export function Sessions({ csrf, path, sessions }: SessionsProps) {
     <Panel title="Sessions" description="Browser sessions and CLI sign-ins. Revoking one ends it now; they can sign in again while their account is enabled."
       actions={sessions.length ? <SignOutEverywhere csrf={csrf} path={path} sessions={sessions} /> : undefined}>
       {sessions.length ? (
-        <Table className="session-table" aria-label={`${sessions.length} active sessions`} scrollWrapper={({ children }) => <div className="table-wrap">{children}</div>}>
+        <Table className="session-table" aria-label={`${sessions.length} active sessions`} scrollWrapper={({ children }) => <div className="table-wrap session-list">{children}</div>}>
           <TableHeader>
             <TableRow isHeaderRow>
               {['Session', 'Signed in', 'Last browser activity', 'Expires'].map(heading => <TableHeaderCell key={heading} scope="col">{heading}</TableHeaderCell>)}

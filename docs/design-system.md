@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page, the provider page, Access tokens, the Audit log, the SSH audit, the SSH hosts page and the SSH credentials page use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
+Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page, the provider page, Access tokens, the Audit log, the SSH audit, the SSH hosts page, the SSH credentials page and the Account page use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; no page uses the legacy shell any more.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -81,10 +81,10 @@ The Access tokens page (`Tokens` in `src/views/tokens.tsx`, route `/admin/tokens
 Settings is an `ActionForm` marked `data-token-settings` that patches `/v1/admin/token-settings` under a tier 2 confirmation; its checkbox and two number inputs stay native and uncontrolled, and `confirm.js` converts the hours and days to milliseconds before sending.
 All tokens is an Astryx table with a Revoke `ActionForm` on each token that is not revoked (a tier 2 confirmation, `POST /v1/admin/tokens/<id>/revoke`) and Revoke all is one `ActionForm` that posts to `/v1/admin/tokens/revoke-all`; there is no row menu, so nothing can clip.
 The status word and tone of a token come from the `token` entry of the status vocabulary in `status.ts`, which the legacy Account token list also uses.
-The props carry a token's id, label, creator, access, scope, expiry and status, never its value or hash; the value is shown once, on Account, which still renders its token card, create form and one-time dialog in the legacy shell.
+The props carry a token's id, label, creator, access, scope, expiry and status, never its value or hash; the value is shown once, on Account, in its one-time dialog.
 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet that `confirm.js` opens), and the side navigation slot.
-`adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu, confirmation pill and help panel once for both the frame and the legacy shell, so the links, landmarks and titles stay identical.
+`adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu, confirmation pill and help panel once for the frame, so the links, landmarks and titles stay identical.
 The side navigation is an Astryx `SideNav` with a `SideNavSection` per group and a `SideNavItem` per link, whose current page is derived from the request path.
 The frame renders the legacy markup for the account menu, confirmation pill and help panel through `dangerouslySetInnerHTML`, so React neither re-renders nor compares what `confirm.js` updates there.
 Below the Astryx mobile breakpoint a native navigation disclosure remains usable without JavaScript, listing the same `SideNavItem` links without a second `SideNav`, and CSS hides the desktop sidebar.
@@ -130,12 +130,17 @@ Each stored credential is a panel with its revision, the two exclusive native `d
 Every form keeps its URL, method, `confirm` and `expectedRevision` fields, field names, ids, `autocomplete` values, required flags, labels, the password hint and the confirmation text; the integration test compares the form contract with a recorded copy of the previous forms, excluding CSS classes and CSRF controls.
 The private key, passphrase and password fields are native uncontrolled controls: they are never given a value and are not in React state or in the hydration data; the credential props carry ids and revisions only, and a `pagehide` listener clears the fields when that event fires.
 
-The Account page (`/account`) still uses the legacy shell and renders its parts in this order: the Your tools, Set up the CLI and Saving files from tools cards from `AccountGuide` (`src/views/account.tsx`), the legacy Temporary access tokens card, and the Sessions card.
-The two Astryx fragments are rendered server-side without hydration by `renderAccountCards` in `src/server/admin/session-card.tsx` and share one nonce'd style element.
+The Account page (`Account` in `src/views/account.tsx`, route `/account`) is the eighteenth page on the seam and the last page to leave the legacy shell.
+It is available to every signed-in person: administrators get the usual sidebar, and other people get the same frame with the brand and account menu only and no administration links (the navigation landmark is labelled Account instead of Administration).
+The header carries the person's name, sign-in method and roles, and a Change password action for local accounts.
+The cards come in this order: Your tools, Set up the CLI and Saving files from tools (`AccountGuide`), Temporary access tokens (`AccountTokens` in `src/views/account-tokens.tsx`) and Sessions.
 Your tools lists each granted tool with Available or Turned off by admin.
 Set up the CLI has three steps: the verified download commands for this server, the sign-in commands for a local or SSO account, and a radio group of four agent hosts that shows one setup command at a time with CSS only, each command in a native copy block that `confirm.js` wires.
 Saving files from tools is a native `details` disclosure shown only when a granted tool saves files, with guidance for exactly those tools and a table of the latest 20 archive transfers.
-The guide receives text and `code` fragments rather than markup strings; the legacy token card remains server-built markup between the Astryx fragments.
+The guide receives text and `code` fragments rather than markup strings.
+The token card keeps the create form that `confirm.js` posts to `/v1/account/tokens` (the same fields and `data-token-*` selections as before), the native one-time dialog `#created-token`, and the person's own token list with a Revoke form per token.
+The token value reaches the browser only in the response to the create request, and `confirm.js` writes it into the dialog's read-only field, which is empty in the markup and in the hydration data; the field is cleared when the dialog closes and when the page is hidden (`pagehide`).
+The Sessions table sits in a `session-list` container and turns into stacked cards below 760px of container width, so every column and the Revoke action stay visible beside the sidebar.
 
 ## Constraints
 
@@ -281,12 +286,10 @@ Form errors appear inside the open dialog so they remain visible and can receive
 
 The sidebar groups administration into Overview, Access (People, Roles, Invitations), Tools (Tools) and Security (Sign-in & SSO, Audit log).
 The current section is derived from the request path.
-On legacy pages, at 760px and narrower the sidebar opens full screen through a `#nav` fragment link in the top bar.
 In the render-seam page frame the sidebar is an Astryx `SideNav`; at 767px and narrower it is replaced by a navigation disclosure in the header.
 The header stays one row there, and the recent-auth pill and the colour theme switch move into that disclosure.
 
 ## Changing the UI
 
 - Build render-seam views from Astryx components, subject to the constraints above.
-- For legacy pages, build from existing components; add a genuinely new legacy component to `ui.ts` and `components.ts` first, with all its states, document it here, and review it in light and dark.
 - Express new colours or sizes as new tokens, never literals.

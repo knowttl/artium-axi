@@ -1,7 +1,8 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type Database from 'better-sqlite3'
+import { parse, type DefaultTreeAdapterMap } from 'parse5'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
@@ -153,17 +154,64 @@ test('a person who is not an administrator sees no tokens', async () => {
   expect(page.body).not.toContain('Synthetic live')
 })
 
-test('Account still renders its token card in the legacy markup, with the create form and the one-time dialog', async () => {
+type Element = DefaultTreeAdapterMap['element']
+const nodes = (node: DefaultTreeAdapterMap['node']): Element[] => [...'tagName' in node ? [node] : [], ...'childNodes' in node ? node.childNodes.flatMap(nodes) : []]
+const attribute = (element: Element, name: string) => element.attrs.find(item => item.name === name)?.value
+const ownText = (element: Element): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child && !['input', 'select', 'textarea', 'option', 'button', 'svg'].includes(child.tagName) ? ownText(child) : '').join(' ').replace(/\s+/g, ' ').trim()
+const ignored = new Set(['class', 'id', 'style', 'aria-describedby', 'aria-labelledby', 'aria-invalid', 'aria-required', 'data-confirm'])
+const attributes = (element: Element) => Object.fromEntries(element.attrs.filter(item => !ignored.has(item.name)).map(item => [item.name, item.value]))
+const tokenCard = (html: string) => {
+  const all = nodes(parse(html))
+  const form = all.find(element => element.tagName === 'form' && attribute(element, 'data-create-token') !== undefined)!
+  const dialog = all.find(element => element.tagName === 'dialog' && attribute(element, 'id') === 'created-token')!
+  const table = all.find(element => element.tagName === 'table' && nodes(element).some(cell => cell.tagName === 'th' && ownText(cell) === 'Label'))
+  const inner = (root: Element) => nodes(root).filter(element => element !== root)
+  const rows = table ? nodes(table).filter(element => element.tagName === 'tr').slice(1) : []
+  return {
+    form: { ...attributes(form), confirm: attribute(form, 'data-confirm') ?? '' },
+    controls: inner(form).filter(element => ['input', 'select', 'textarea'].includes(element.tagName) && attribute(element, 'name') !== '_csrf').map(control => ({ tag: control.tagName, ...attributes(control), type: attribute(control, 'type') ?? 'text', value: attribute(control, 'value') ?? '' })),
+    texts: inner(form).filter(element => ['label', 'p', 'legend', 'summary'].includes(element.tagName)).map(ownText).filter(Boolean),
+    submit: inner(form).filter(element => element.tagName === 'button').map(ownText),
+    dialog: { ...attributes(dialog), parts: inner(dialog).filter(element => ['h2', 'p', 'label', 'button'].includes(element.tagName)).map(element => [element.tagName, ownText(element), attribute(element, 'id'), attribute(element, 'type')]),
+      field: inner(dialog).filter(element => element.tagName === 'input').map(attributes) },
+    headings: table ? nodes(table).filter(element => element.tagName === 'th').slice(0, 5).map(ownText) : [],
+    rows: rows.map(row => ({ cells: row.childNodes.filter((child): child is Element => 'tagName' in child).map(ownText),
+      revoke: nodes(row).filter(element => element.tagName === 'form').map(revoke => ({ ...attributes(revoke), confirm: attribute(revoke, 'data-confirm'), button: nodes(revoke).filter(element => element.tagName === 'button').map(ownText) })) })),
+  }
+}
+
+test('the rebuilt token card keeps the recorded legacy create form, one-time dialog and token list: URLs, fields, values, texts and confirmations', async () => {
   mint('token-account', 'Synthetic account')
-  const page = await app.inject({ url: '/account', headers })
-  expect(page.statusCode).toBe(200)
-  const card = page.body.match(/<section class="card"><div class="card-head"><div><h2>Temporary access tokens<\/h2>.*?<\/section>/s)![0].replace(/(name="_csrf" value=")[^"]*/g, '$1CSRF')
-  await expect(card).toMatchFileSnapshot('../fixtures/account-tokens-card.html')
+  const recorded = tokenCard(readFileSync(join(process.cwd(), 'test/fixtures/account-tokens-card.html'), 'utf8'))
+  const rebuilt = tokenCard((await app.inject({ url: '/account', headers })).body)
+  expect(recorded.rows).toHaveLength(1)
+  expect(rebuilt).toEqual(recorded)
 })
 
-test('Account still renders its local account header in the legacy markup', async () => {
-  const page = await app.inject({ url: '/account', headers })
-  expect(page.statusCode).toBe(200)
-  const header = page.body.match(/<div class="page-head">.*?<\/a><\/div>/s)![0].replace(/(name="_csrf" value=")[^"]*/g, '$1CSRF')
-  await expect(`${header}\n`).toMatchFileSnapshot('../fixtures/account-header.html')
+test('the rebuilt Account header keeps the recorded legacy title, description and Change password action', async () => {
+  const header = (html: string) => {
+    const all = nodes(parse(html))
+    const h1 = all.find(element => element.tagName === 'h1')!
+    const link = all.find(element => element.tagName === 'a' && ownText(element) === 'Change password')!
+    return { title: ownText(h1), description: all.filter(element => element.tagName === 'p').map(ownText).find(text => text.startsWith('Synthetic User')), action: [attribute(link, 'href'), ownText(link)] }
+  }
+  const recorded = header(readFileSync(join(process.cwd(), 'test/fixtures/account-header.html'), 'utf8'))
+  expect(recorded.action).toEqual(['/password', 'Change password'])
+  expect(header((await app.inject({ url: '/account', headers })).body)).toEqual(recorded)
+})
+
+test('the one-time token value is returned only by the create response and appears on no later page, in no hydration data and in no audit row', async () => {
+  const csrf = (await app.inject({ url: '/account', headers })).body.match(/data-create-token[^>]*><input type="hidden" name="_csrf" value="([^"]+)"/)![1]!
+  const created = await app.inject({ method: 'POST', url: '/v1/account/tokens', headers,
+    payload: { _csrf: csrf, label: 'Synthetic one-time', scope: { tools: [{ tool: 'falcon-axi' }] }, readOnly: true, reusable: false, expiresAt: now + 3600000 } })
+  expect(created.statusCode).toBe(200)
+  const token = created.json().token as string
+  expect(token.length).toBeGreaterThan(20)
+  for (const url of ['/account', '/admin/tokens', '/v1/account/tokens']) {
+    const later = await app.inject({ url, headers })
+    expect(later.body).not.toContain(token)
+    expect(JSON.stringify(later.headers)).not.toContain(token)
+  }
+  expect(JSON.stringify(db.prepare('SELECT * FROM audit').all())).not.toContain(token)
+  expect(JSON.stringify(db.prepare('SELECT * FROM delegations').all())).not.toContain(token)
 })

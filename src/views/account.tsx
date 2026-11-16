@@ -4,8 +4,10 @@ import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } f
 import { Heading, Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
 import { Fragment } from 'react'
+import { AccountTokens, type AccountTokensProps } from './account-tokens.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
+import { Sessions, type SessionsProps } from './sessions.js'
 
 type Rich = (string | { code: string })[]
 
@@ -165,6 +167,18 @@ export function AccountGuide({ tools, cli, saving }: AccountGuideProps) {
       <Tools tools={tools} />
       <Cli cli={cli} />
       {saving && <Saving saving={saving} />}
+    </VStack>
+  )
+}
+
+export interface AccountProps { csrf: string, guide: AccountGuideProps, tokens: AccountTokensProps, sessions: SessionsProps }
+
+export function Account({ csrf, guide, tokens, sessions }: AccountProps) {
+  return (
+    <VStack gap={4}>
+      <AccountGuide {...guide} />
+      <AccountTokens csrf={csrf} {...tokens} />
+      <Sessions {...sessions} />
     </VStack>
   )
 }

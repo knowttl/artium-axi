@@ -493,8 +493,8 @@ test('ordinary users can create temporary tokens after recent authentication exp
     check(await page.eval(() => document.querySelector('[data-created-token]').value.startsWith('artd_')), 'Token was not shown');
     await page.click('[data-close-created-token]');
     await page.wait('form[data-create-token]');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic token')), 'Token was not listed');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('detection list')), 'Exact selection was not retained alongside tool-wide access');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Synthetic token')), 'Token was not listed');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('detection list')), 'Exact selection was not retained alongside tool-wide access');
   `)
 })
 
@@ -520,6 +520,31 @@ test('token creation applies tool instances to all selections', () => {
       return items.length === 2 && items.every(item => item.innerText.includes('lab')) &&
         items.some(item => item.innerText.includes('detection list') && item.innerText.includes('detection show'));
     }), 'Tool instance scope was not retained for every selection');
+  `)
+})
+
+test('the one-time token field is filled once, cleared when the page is hidden and cleared again when the dialog closes', () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi');
+    if (await page.eval(() => document.querySelector('form:has([name=enabled]) [name=enabled]').value === 'true')) {
+      await page.click('form:has([name=enabled]) button');
+      await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+      await page.wait('[name=enabled][value=false]');
+    }
+    await page.open(base + '/account');
+    check(await page.eval(() => document.querySelector('[data-created-token]').value === ''), 'The token field was not empty on load');
+    await page.fill('form[data-create-token] [name=label]', 'Pagehide token');
+    await page.click('[data-token-tool="falcon-axi"]');
+    await page.click('form[data-create-token] button');
+    await page.wait('#created-token[open]');
+    check(await page.eval(() => document.querySelector('[data-created-token]').value.startsWith('artd_')), 'The token was not shown');
+    check(await page.eval(() => !document.documentElement.outerHTML.includes(document.querySelector('[data-created-token]').value)), 'The token is in the page markup');
+    await page.eval(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
+    check(await page.eval(() => document.querySelector('[data-created-token]').value === ''), 'The token stayed in the field when the page was hidden');
+    check(await page.eval(() => !JSON.stringify([...Object.entries(sessionStorage), ...Object.entries(localStorage)]).includes('artd_') && !location.href.includes('artd_')), 'The token reached browser storage or the URL');
+    await page.click('[data-close-created-token]');
+    await page.wait('form[data-create-token]');
+    check(await page.eval(() => document.querySelector('[data-created-token]').value === ''), 'The token field was not cleared after the dialog closed');
   `)
 })
 
@@ -2815,7 +2840,7 @@ test('ordinary account shows role tools and usable CLI guidance and can revoke i
     check(await page.eval(() => location.pathname === '/account'), 'Ordinary user did not reach account');
     await page.click('details.disclosure > summary');
     check(await page.eval(() => {
-      const text = document.querySelector('main').innerText;
+      const text = document.querySelector('[role=main]').innerText;
       return text.includes('Live malware: this archive may contain executable malware. Save only; do not extract or execute. Password protection is unverified; bytes are saved exactly as provided.')
         && text.includes('artium-axi download --help') && text.includes('250 MiB')
         && text.includes('Missing verified-save receipt remains unconfirmed.')
@@ -2823,7 +2848,7 @@ test('ordinary account shows role tools and usable CLI guidance and can revoke i
     }), 'Archive guidance lost its warning, limits, receipt distinction or CLI-only save boundary');
     check(await page.eval(() => document.querySelector('.tool-grid').innerText.includes('CrowdStrike Falcon')), 'Granted tools are missing');
     check(await page.eval(() => document.querySelector('pre').textContent.includes(location.origin)), 'CLI uses wrong server');
-    check(await page.eval(() => document.querySelector('main').innerText.includes("login --username 'synthetic-ordinary'")), 'CLI username is missing');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes("login --username 'synthetic-ordinary'")), 'CLI username is missing');
     check(await page.eval(() => {
       const help = document.querySelector('.page-help').textContent;
       return help.includes('your local username') && help.includes('Change password') && !help.includes('login --sso');

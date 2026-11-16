@@ -48,13 +48,12 @@ async function account() {
     section: (heading: string) => all.find(element => element.tagName === 'h3' && words(element) === heading) }
 }
 
-test('the Account response has one CSP-authorized style element and no style attributes', async () => {
+test('the Account response has at most one style element, authorized by the CSP nonce, and no style attributes', async () => {
+  grant('hybrid-axi')
   const { response, all } = await account()
   const styles = all.filter(element => element.tagName === 'style')
-  expect(styles).toHaveLength(1)
-  const nonce = attribute(styles[0]!, 'nonce')
-  expect(nonce).toBeTruthy()
-  expect(response.headers['content-security-policy']).toContain(`'nonce-${nonce}'`)
+  expect(styles.length).toBeLessThanOrEqual(1)
+  for (const style of styles) expect(response.headers['content-security-policy']).toContain(`'nonce-${attribute(style, 'nonce')}'`)
   expect(all.filter(element => attribute(element, 'style') !== undefined)).toEqual([])
 })
 
