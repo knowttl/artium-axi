@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterAll } from 'vitest'
-import { credentialFields } from '../admin/credential-form.js'
+import { credentialEditor } from '../admin/credential-form.js'
 import { rewriteSuggestions } from '../../cli/rewrite.js'
 import { Runner } from '../runner/runner.js'
 import { createTenableAdapter, tenableCredentialSchema, tenableProfile, tenableWritePolicy } from './tenable.js'
@@ -28,11 +28,10 @@ test('dash-prefixed query values remain values during preparation', async () => 
 })
 
 test('the credential form marks both keys secret and offers only the fixed origin', () => {
-  const form = credentialFields('tenable-axi', tenableProfile, {}, false)
-  expect(form).toContain('data-credential-field="accessKey" data-secret')
-  expect(form).toContain('data-credential-field="secretKey" data-secret')
-  expect(form).toContain('https://cloud.tenable.com')
-  expect(form).not.toContain('CANARY-')
+  const { controls } = credentialEditor('tenable-axi', tenableProfile, {}, false)
+  expect(controls.filter(control => control.secret).map(control => control.name).sort()).toEqual(['accessKey', 'secretKey'])
+  expect(controls.find(control => control.name === 'origin')!.help).toContain('https://cloud.tenable.com')
+  expect(JSON.stringify(controls)).not.toContain('CANARY-')
 })
 
 test.each([['--help'], ['card', 'list', '--help'], ['finding', 'summary', '--help'], ['export', 'asset', 'start', '--help']].map(args => ({ args })))('published help stays within managed commands: $args', ({ args }) => {

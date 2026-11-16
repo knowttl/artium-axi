@@ -141,7 +141,7 @@ test('the sign-in page lists providers from the store without any credential val
 function pageForm(body: string, action: string, method = '') {
   const [, tag, content] = body.match(new RegExp(`<form([^>]*${method ? `data-method="${method}"[^>]*` : ''}action="${action}"[^>]*)>(.*?)</form>`, 's')) ?? []
   const attributes = (markup: string) => Object.fromEntries([...markup.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1]!, match[2]!.replaceAll('&amp;', '&').replaceAll('&#x27;', "'")]))
-  const inputs = [...(content ?? '').matchAll(/<(?:input|select)([^>]*)>/g)].map(match => attributes(match[1]!)).filter(input => input.name)
+  const inputs = [...(content ?? '').matchAll(/<(?:input|select|textarea)([^>]*)>/g)].map(match => attributes(match[1]!)).filter(input => input.name)
   const payload = Object.fromEntries(inputs.filter(input => input.name !== '_csrf').map(input =>
     [input.name!, input['data-type'] === 'number' ? Number(input.value) : input['data-type'] === 'boolean' ? input.value === 'true' : input.value]))
   return { attributes: tag ? attributes(tag) : undefined, names: inputs.map(input => input.name), csrf: inputs.find(input => input.name === '_csrf')?.value, payload }
@@ -261,14 +261,127 @@ test('the provider page, its hydration data, headers and audit carry no saved cr
   for (const secret of [value.clientSecret, privateKey, '11'.repeat(32)]) expect(exposure).not.toContain(secret)
 })
 
-test('the credential tab still renders in the legacy shell with its tab strip', async () => {
+const credentialTab = (id: string) => app.inject({ url: `/admin/settings/sign-in/${id}?tab=credential`, headers: browserHeaders() })
+const credentialConfirmation = 'Save the encrypted provider credential and disable this provider, keeping omitted secrets only for the same identity? Review configuration and enable it again afterwards.'
+const decoded = (markup: string) => markup.replaceAll('&quot;', '"')
+const privateKey = 'CANARY-private-key-pem'
+
+function savedCredentialValue(body: string, action: string) {
+  const form = pageForm(body, action, 'PATCH')
+  const selected = body.match(/<option(?=[^>]*value="([^"]*)")(?=[^>]*selected)[^>]*>/)?.[1]
+  return { form, value: Object.fromEntries([...Object.entries(form.payload).filter(([name, text]) => name.startsWith('profile.') && text !== undefined && text !== ''),
+    ...selected ? [['profile.auth', JSON.parse(decoded(selected))]] : []].map(([name, text]) => [String(name).slice('profile.'.length), text])) }
+}
+
+test('the credential form posts the fields, revisions and confirmation the old page did, with every secret field empty and optional', async () => {
   const provider = await create()
-  const page = await app.inject({ url: `/admin/settings/sign-in/${provider.id}?tab=credential`, headers: browserHeaders() })
-  expect(page.body).not.toContain('data-astryx-root')
-  expect(page.body).toContain('<nav class="utabs" aria-label="Sections">')
-  expect(pageForm(page.body, `${base}/${provider.id}/credential`).attributes).toMatchObject({ 'data-method': 'PATCH' })
-  const content = page.body.match(/<main[\s\S]*<\/main>/)![0].replaceAll(provider.id, 'PROVIDER').replace(/(name="_csrf" value=")[^"]*/g, '$1CSRF')
-  await expect(content).toMatchFileSnapshot('../fixtures/sign-in-credential-tab.html')
+  const page = await credentialTab(provider.id)
+  expect(page.body).toContain('data-astryx-root')
+  const form = pageForm(page.body, `${base}/${provider.id}/credential`, 'PATCH')
+  expect(form.attributes).toMatchObject({ 'data-api': '', 'data-method': 'PATCH', 'data-confirm': credentialConfirmation, method: 'post' })
+  expect(form.attributes!['data-confirm-name']).toBeUndefined()
+  expect(form.names).toEqual(['_csrf', 'expectedRevision', 'expectedProviderRevision', 'profile.auth', 'profile.tenantId', 'profile.clientId', 'profile.privateKey',
+    'profile.thumbprintSha256', 'profile.clientSecret'])
+  expect(form.payload).toMatchObject({ expectedRevision: 0, expectedProviderRevision: 1, 'profile.tenantId': tenantId, 'profile.clientId': '' })
+  expect(page.body).toMatch(/<option(?=[^>]*value="&quot;certificate&quot;")(?=[^>]*selected)[^>]*>/)
+  for (const name of ['privateKey', 'clientSecret']) expect(page.body).toMatch(new RegExp(`<textarea(?![^>]*required)[^>]*name="profile.${name}"(?![^>]*required)[^>]*></textarea>`))
+  expect(page.body).toContain('Needs credential')
+  expect(page.body).toMatch(/<nav aria-label="Sections">/)
+})
+
+test.each([
+  { kind: 'entra', auth: 'certificate', names: ['auth', 'tenantId', 'clientId', 'privateKey', 'thumbprintSha256', 'clientSecret'],
+    provider: { name: 'Synthetic provider', tenantId } },
+  { kind: 'oidc', auth: 'certificate', names: ['auth', 'clientId', 'privateKey', 'thumbprintSha256', 'clientSecret'],
+    provider: { name: 'Synthetic provider', kind: 'oidc', issuer: 'https://identity.example' } },
+])('the $kind credential form offers the same fields, certificate by default and the two accepted kinds', async ({ names, auth, provider }) => {
+  const created = (await app.inject({ method: 'POST', url: base, headers, payload: provider })).json()
+  const { editor } = hydrationProps((await credentialTab(created.id)).body).props.credential
+  expect(editor.controls.map((control: { name: string }) => control.name)).toEqual(names)
+  const kinds = editor.controls.find((control: { name: string }) => control.name === 'auth')
+  expect(kinds.options.map((option: { label: string, selected: boolean }) => [option.label, option.selected])).toEqual([['certificate', auth === 'certificate'], ['secret', false]])
+  expect(editor.controls.filter((control: { secret: boolean }) => control.secret).map((control: { name: string }) => control.name)).toEqual(['privateKey', 'clientSecret'])
+})
+
+test.each([
+  { label: 'certificate with a client secret', input: { tenantId, clientId, auth: 'certificate', privateKey, thumbprintSha256: '11'.repeat(32), clientSecret: 'CANARY-mixed' } },
+  { label: 'secret with a private key', input: { tenantId, clientId, auth: 'secret', clientSecret: 'CANARY-mixed', privateKey } },
+  { label: 'an unknown authentication kind', input: { tenantId, clientId, auth: 'password', clientSecret: 'CANARY-mixed' } },
+])('the credential API still refuses $label, and the refusal echoes no secret', async ({ input }) => {
+  const provider = await create()
+  const writes = vi.spyOn(process.stdout, 'write')
+  const response = await save(provider.id, input)
+  expect(response.statusCode).toBe(400)
+  expect(JSON.stringify([response.body, writes.mock.calls, db.prepare('SELECT * FROM audit').all()])).not.toMatch(/CANARY-mixed|CANARY-private-key-pem/)
+  expect(credentials.read(provider.id)).toBeUndefined()
+})
+
+test.each(['secret', 'certificate'] as const)('the credential tab for a %s credential shows only the saved non-secret values, in the page, hydration data, headers, audit and logs', async auth => {
+  const provider = await create()
+  const stored = auth === 'secret' ? value : { tenantId, clientId, auth, privateKey, thumbprintSha256: '11'.repeat(32) }
+  const writes = vi.spyOn(process.stdout, 'write')
+  expect((await save(provider.id, stored)).statusCode).toBe(200)
+  const page = await credentialTab(provider.id)
+  const shown = decoded(page.body)
+  expect(shown).toContain(clientId)
+  expect(page.body).toContain('Saved')
+  if (auth === 'certificate') expect(shown).toContain('11'.repeat(32))
+  const exposure = JSON.stringify([page.body, page.headers, hydrationProps(page.body), db.prepare('SELECT * FROM audit').all(), writes.mock.calls])
+  for (const secret of [value.clientSecret, privateKey]) expect(exposure).not.toContain(secret)
+  const { editor } = hydrationProps(page.body).props.credential
+  expect(editor.controls.filter((control: { secret: boolean }) => control.secret).map((control: { value: string, stored: boolean }) => [control.value, control.stored])).toEqual([['', true], ['', true]])
+})
+
+test('a rejected save leaves the stored credential, the audit and the next page free of the typed secret', async () => {
+  const provider = await readyProvider()
+  const writes = vi.spyOn(process.stdout, 'write')
+  const rejected = await save(provider.id, { ...value, tenantId: clientId, clientSecret: 'CANARY-typed-replacement' }, 1, 2)
+  expect(rejected.json()).toMatchObject({ error: { code: 'INVALID_INPUT' } })
+  expect(credentials.read(provider.id)!.value.clientSecret).toBe(value.clientSecret)
+  const next = await credentialTab(provider.id)
+  expect(JSON.stringify([rejected.body, next.body, db.prepare('SELECT * FROM audit').all(), writes.mock.calls])).not.toContain('CANARY-typed-replacement')
+})
+
+test('posting the page form with every secret left blank keeps the stored secret and changes only what was edited', async () => {
+  const provider = await readyProvider()
+  const { form, value: posted } = savedCredentialValue((await credentialTab(provider.id)).body, `${base}/${provider.id}/credential`)
+  expect(posted).toEqual({ tenantId, clientId, auth: 'secret' })
+  const saved = await app.inject({ method: 'PATCH', url: `${base}/${provider.id}/credential`, headers,
+    payload: { value: posted, expectedRevision: form.payload.expectedRevision, expectedProviderRevision: form.payload.expectedProviderRevision } })
+  expect(saved.statusCode).toBe(200)
+  expect(credentials.read(provider.id)).toMatchObject({ revision: 2, value: { ...value } })
+  expect(db.prepare('SELECT enabled, revision FROM sso_providers').get()).toEqual({ enabled: 0, revision: 3 })
+})
+
+test.each([
+  { label: 'a stale credential revision', change: { expectedRevision: 0 }, code: 'REVISION_CONFLICT' },
+  { label: 'a stale provider revision', change: { expectedProviderRevision: 1 }, code: 'REVISION_CONFLICT' },
+])('the credential form refuses $label and changes nothing', async ({ change, code }) => {
+  const provider = await readyProvider()
+  const { form, value: posted } = savedCredentialValue((await credentialTab(provider.id)).body, `${base}/${provider.id}/credential`)
+  const audits = db.prepare('SELECT count(*) AS count FROM audit').get()
+  const response = await app.inject({ method: 'PATCH', url: `${base}/${provider.id}/credential`, headers,
+    payload: { value: posted, expectedRevision: form.payload.expectedRevision, expectedProviderRevision: form.payload.expectedProviderRevision, ...change } })
+  expect(response.json()).toMatchObject({ error: { code } })
+  expect(credentials.read(provider.id)).toMatchObject({ revision: 1, value })
+  expect(db.prepare('SELECT count(*) AS count FROM audit').get()).toEqual(audits)
+})
+
+test('saving the credential is audited and needs recent confirmation and an administrator', async () => {
+  const provider = await create()
+  expect((await save(provider.id, value)).statusCode).toBe(200)
+  const request = { method: 'PATCH' as const, url: `${base}/${provider.id}/credential`,
+    payload: { value: { tenantId, clientId, auth: 'secret' }, expectedRevision: 1, expectedProviderRevision: 2 } }
+  expect((await app.inject({ ...request, headers: { authorization: headers.authorization! } })).json()).toMatchObject({ error: { code: 'REAUTH_REQUIRED' } })
+  db.exec(`INSERT INTO users (id, username, display_name, password_hash, administrator)
+    SELECT 'synthetic-other-admin', 'synthetic-other-admin', 'Other admin', password_hash, 1 FROM users LIMIT 1;
+    UPDATE users SET administrator = 0 WHERE id = 'synthetic-development-user'`)
+  expect((await app.inject({ ...request, headers })).json()).toMatchObject({ error: { code: 'ADMIN_REQUIRED' } })
+  db.exec("UPDATE users SET administrator = 1 WHERE id = 'synthetic-development-user'")
+  expect(credentials.read(provider.id)).toMatchObject({ revision: 1 })
+  expect((await app.inject({ ...request, headers })).statusCode).toBe(200)
+  expect(db.prepare("SELECT action, target_id, user_id, outcome FROM audit WHERE action = 'replace-provider-credential' ORDER BY id DESC LIMIT 1").get())
+    .toEqual({ action: 'replace-provider-credential', target_id: provider.id, user_id: 'synthetic-development-user', outcome: 'success' })
 })
 
 test('who matches lists the enabled people whose recorded claims match the rule, with when those claims were recorded', async () => {

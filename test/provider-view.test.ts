@@ -10,7 +10,7 @@ type Element = DefaultTreeAdapterMap['element']
 
 const page = '/admin/settings/sign-in/synthetic-provider'
 const entra: ProviderProps = {
-  csrf: 'CANARY-csrf', page, api: '/v1/admin/sso/providers/synthetic-provider', tab: 'setup', tabs: [], rules: null, initials: 'SP', kind: 'entra', kindLabel: 'Entra ID', name: 'Synthetic provider',
+  csrf: 'CANARY-csrf', page, api: '/v1/admin/sso/providers/synthetic-provider', tab: 'setup', tabs: [], rules: null, credential: null, initials: 'SP', kind: 'entra', kindLabel: 'Entra ID', name: 'Synthetic provider',
   issuer: 'https://login.example/tenant/v2.0', tenantId: 'tenant', enabled: false, revision: 4, changed: { actor: 'synthetic-admin', at: '2026-11-15T10:00:00.000Z', revision: 4 },
   credentialConfigured: false, breakGlass: false, problems: ['No credential saved.', 'A usable break-glass local administrator is required.'],
   activationConsequence: 'Enable synthetic sign-in?', redirectUri: 'https://artium.example/auth/sso/synthetic-provider/callback', logoutUri: 'https://artium.example/login',

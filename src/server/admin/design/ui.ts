@@ -78,10 +78,6 @@ export function callout(tone: Tone, title: string, text: string, actions = '', o
   return `<div class="callout ${tone}" role="${options.role ?? 'status'}"${options.attributes ? ' ' + options.attributes : ''}>${icon(tone === 'ok' ? 'check' : tone === 'info' ? 'info' : 'alert')}<div class="grow">${title ? `<strong>${escape(title)}</strong>` : ''}<p>${text}</p>${options.more ?? ''}</div>${actions ? `<div class="actions">${actions}</div>` : ''}</div>`
 }
 
-export function tabs(base: string, current: string, items: { id: string, label: string, note?: string, icon?: IconName }[], label = 'Sections'): string {
-  return `<nav class="utabs" aria-label="${escape(label)}">${items.map(item => `<a href="${escape(base)}?tab=${escape(item.id)}"${item.id === current ? ' aria-current="page"' : ''}>${item.icon ? icon(item.icon) : ''}${escape(item.label)}${item.note ? ` <span class="n">${escape(item.note)}</span>` : ''}</a>`).join('')}</nav>`
-}
-
 // A compact card for side guidance: a small heading and short text, no header bar.
 export function noteCard(title: string, body: string): string {
   return `<section class="card"><div class="card-body"><h3>${escape(title)}</h3>${body}</div></section>`

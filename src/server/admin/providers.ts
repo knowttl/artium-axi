@@ -6,19 +6,18 @@ import { adminProviderRoutes, adminProviderSchema, adminRoleRuleRoutes, adminUse
 import { ArtiumError } from '../../shared/errors.js'
 import { CredentialProfile } from '../adapters/credential-profile.js'
 import type { Audit } from '../audit/audit.js'
-import { browserCookie, browserPage } from '../auth/browser.js'
+import { browserCookie } from '../auth/browser.js'
 import { entraCredential } from '../auth/entra-credential.js'
 import { oidcCredential } from '../auth/oidc-credential.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
 import type { ProviderCredentials } from '../store/provider-credentials.js'
 import { certificateFields } from './certificate.js'
-import { credentialFields } from './credential-form.js'
-import { escape } from './escape.js'
+import { credentialEditor } from './credential-form.js'
 import { matchesClaim } from '../auth/role-claims.js'
-import { adminRead, apiForm, changed, lastChange, revision } from './forms.js'
+import { adminRead, lastChange } from './forms.js'
 import { renderPage } from './render-page.js'
-import { card, initials, tabs } from './design/ui.js'
-import { badge, status, toolProducts } from './design/status.js'
+import { initials } from './design/ui.js'
+import { toolProducts } from './design/status.js'
 import type { RoleRulesProps } from '../../views/role-rules.js'
 
 const signInQuery = z.object({ add: z.enum(['choose', 'entra', 'oidc']).optional(),
@@ -228,43 +227,29 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
       try { checkCredential(id) } catch (error) { problems.push(!credential.configured ? 'No credential saved.' : error instanceof ArtiumError ? error.message : 'Configuration is unavailable.') }
       const breakGlass = usableBreakGlass() > 0
       if (!breakGlass) problems.push(breakGlassMissing().message)
-      const ready = !problems.length
       const disableConsequence = 'Disable this provider? Sign-in and confirmation for it stop. Existing Artium sessions remain active. Local passwords become available to ordinary local accounts only if every provider is disabled.'
       const enableConsequence = 'Enable SSO sign-in and restrict all local password use to designated break-glass administrators? Test the invitation claim and sign-in using a separate browser, keeping break-glass access available.'
       const sections = [{ id: 'setup', label: 'Setup' }, { id: 'credential', label: 'Credential', note: credential.configured ? undefined : 'Missing' },
         { id: 'rules', label: 'Role rules', note: String(rules.length) }, { id: 'settings', label: 'Settings' }]
-      if (tab !== 'credential') {
-        const origin = `${request.protocol}://${request.host}`
-        let ruleProps: RoleRulesProps | null = null
-        if (tab === 'rules') {
-          const editing = query.data.rule
-          const edited = editing && editing !== 'new' ? rules.find(rule => rule.id === editing) : undefined
-          if (editing && editing !== 'new' && !edited && roles.length) throw new ArtiumError('NOT_FOUND')
-          ruleProps = { providerId: id, kind: provider.kind, roles, addOpen: editing === 'new' && roles.length > 0,
-            edit: edited && roles.length ? { id: edited.id, claim: edited.claim, value: edited.value, roleId: edited.roleId, revision: edited.revision, changed: lastChange(db, edited) } : null,
-            rules: rules.map(rule => ({ id: rule.id, claim: rule.claim, value: rule.value, roleId: rule.roleId, roleName: roles.find(role => role.id === rule.roleId)!.name, revision: rule.revision,
-              tools: (db.prepare('SELECT tool FROM role_tools WHERE role_id = ? ORDER BY tool').all(rule.roleId) as { tool: keyof typeof toolProducts }[]).map(row => toolProducts[row.tool].name),
-              matches: matchingUsers(rule).length })) }
-        }
-        return renderPage(reply, 'Sign-in & SSO', 'provider', { csrf, page, api, tab, rules: ruleProps, initials: initials(provider.name), kind: provider.kind, kindLabel: kindLabel(provider.kind),
-          tabs: sections.map(section => ({ label: section.label, href: `${page}?tab=${section.id}`, note: section.note ?? null, current: section.id === tab })),
-          name: provider.name, issuer: provider.issuer, tenantId: provider.kind === 'entra' ? provider.tenantId : null, enabled: provider.enabled, revision: provider.revision, changed: lastChange(db, provider),
-          credentialConfigured: credential.configured, breakGlass, problems, activationConsequence: provider.enabled ? disableConsequence : enableConsequence,
-          redirectUri: origin + '/auth/sso/' + encodeURIComponent(id) + '/callback', logoutUri: origin + '/login' }, current, undefined, undefined, provider.name)
+      const origin = `${request.protocol}://${request.host}`
+      let ruleProps: RoleRulesProps | null = null
+      if (tab === 'rules') {
+        const editing = query.data.rule
+        const edited = editing && editing !== 'new' ? rules.find(rule => rule.id === editing) : undefined
+        if (editing && editing !== 'new' && !edited && roles.length) throw new ArtiumError('NOT_FOUND')
+        ruleProps = { providerId: id, kind: provider.kind, roles, addOpen: editing === 'new' && roles.length > 0,
+          edit: edited && roles.length ? { id: edited.id, claim: edited.claim, value: edited.value, roleId: edited.roleId, revision: edited.revision, changed: lastChange(db, edited) } : null,
+          rules: rules.map(rule => ({ id: rule.id, claim: rule.claim, value: rule.value, roleId: rule.roleId, roleName: roles.find(role => role.id === rule.roleId)!.name, revision: rule.revision,
+            tools: (db.prepare('SELECT tool FROM role_tools WHERE role_id = ? ORDER BY tool').all(rule.roleId) as { tool: keyof typeof toolProducts }[]).map(row => toolProducts[row.tool].name),
+            matches: matchingUsers(rule).length })) }
       }
-      const activation = (label: string, enabled: boolean, confirmation: string, tone: string) => apiForm(csrf, api + '/activation', 'PATCH', label,
-        revision(provider.revision) + `<input type="hidden" name="enabled" data-type="boolean" value="${enabled}">`, confirmation, '', tone)
-      const actions = provider.enabled ? activation('Disable sign-in', false, disableConsequence, 'btn btn-secondary')
-        : ready ? activation('Enable sign-in', true, enableConsequence, 'btn btn-primary')
-          : '<button class="btn btn-primary" type="button" disabled>Enable sign-in</button>'
-      const content = tabs(page, tab, sections) + card('App credential', credential.configured ? 'Saved. Secrets are never displayed.' : 'Not saved yet. Secrets are never displayed.', `<div class="card-body">${credential.configured ? changed(db, credential) : ''}
-          <p class="hint">Certificate authentication is preferred. Upload one PEM containing the certificate and matching unencrypted private key; the SHA-256 fingerprint is calculated automatically. Client secrets are accepted but are less secure than certificates.</p>` +
-          apiForm(csrf, api + '/credential', 'PATCH', 'Save credential', revision(credential.revision) +
-            `<input type="hidden" name="expectedProviderRevision" data-type="number" value="${provider.revision}">` + credentialFields(undefined, profile(provider.kind), credential.metadata, credential.configured),
-          'Save the encrypted provider credential and disable this provider, keeping omitted secrets only for the same identity? Review configuration and enable it again afterwards.', '', 'btn btn-primary') + '</div>', { actions: credential.configured ? badge('Saved', 'ok') : badge('Needs credential', 'warn') })
-      return browserPage(reply, provider.name, content, current, undefined, { helpTopic: 'Sign-in & SSO', parent: { href: '/admin/settings/sign-in', label: 'Sign-in & SSO' },
-        lead: `<span class="tool-ico lg" aria-hidden="true">${escape(initials(provider.name))}</span>`,
-        meta: `<span>${kindLabel(provider.kind)} · <span class="mono">${escape(provider.issuer)}</span></span>${provider.enabled ? status('Enabled', 'ok') : status('Disabled', 'off')}`, actions: `<div class="actions">${actions}</div>` })
+      const credentialProps = tab === 'credential' ? { configured: credential.configured, revision: credential.revision, changed: credential.configured ? lastChange(db, credential) : null,
+        editor: credentialEditor(undefined, profile(provider.kind), credential.metadata, credential.configured) } : null
+      return renderPage(reply, 'Sign-in & SSO', 'provider', { csrf, page, api, tab, rules: ruleProps, credential: credentialProps, initials: initials(provider.name), kind: provider.kind, kindLabel: kindLabel(provider.kind),
+        tabs: sections.map(section => ({ label: section.label, href: `${page}?tab=${section.id}`, note: section.note ?? null, current: section.id === tab })),
+        name: provider.name, issuer: provider.issuer, tenantId: provider.kind === 'entra' ? provider.tenantId : null, enabled: provider.enabled, revision: provider.revision, changed: lastChange(db, provider),
+        credentialConfigured: credential.configured, breakGlass, problems, activationConsequence: provider.enabled ? disableConsequence : enableConsequence,
+        redirectUri: origin + '/auth/sso/' + encodeURIComponent(id) + '/callback', logoutUri: origin + '/login' }, current, undefined, undefined, provider.name)
     }
   })
 }

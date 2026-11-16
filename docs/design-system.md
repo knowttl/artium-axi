@@ -1,7 +1,7 @@
 # Design system
 
 The legacy web UI is built in four layers: tokens, then components, then patterns, then pages.
-Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page and the provider page's Setup, Settings and Role rules tabs use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
+Overview, People, the person detail page, the Roles list, the role detail page, Invitations, the Tools list, the tool page, the instance page, the Sign-in & SSO list, the who-matches page and the provider page use the Astryx render seam and page frame, and the sign-in, password, confirmation, CLI approval, result and error pages use the Astryx auth view; other pages use the legacy shell.
 This document describes the current screens and their design rules.
 
 ## Files
@@ -35,7 +35,7 @@ When the policy can be created and an eligible person has no grant, an add `Shee
 Its props are the people, role scopes and grants an administrator already sees, and no credential values.
 The Add instance sheet (`AddInstanceSheet` in `src/views/tool-instances.tsx`) is on the shared `Sheet` and `ActionForm`, with Astryx `TextInput`, `TextArea` and `Banner` for the instance name, description and warning, and `CredentialEditor` (`src/views/credential-editor.tsx`) for the credential fields.
 `credentialEditor()` in `src/server/admin/credential-form.ts` builds the editor's props once from the credential profile, for the Add instance sheet and the instance page's Connection card, so the profile alone decides which fields are secret and the view never infers it from a name.
-The sign-in provider credential page still renders its fields through the legacy `credentialFields()` until that page is rebuilt.
+The sign-in provider's Credential tab renders the same `CredentialEditor`, built by `credentialEditor()` from the provider credential profile.
 Credentials are write-only in the editor: a field the profile marks secret is a native, uncontrolled `textarea` with `autocomplete="off"` and no value, inside an Astryx `Field`, so a typed secret is never in React state, in the hydration data or in the markup, and the editor empties it when the sheet closes.
 Other text fields are Astryx inputs, selects and number fields stay native, and `confirm.js` still hides alternative-shape fields, sets `required` and builds the submitted value from the `data-profile-field` attributes, so the field names and attributes are the contract between the two.
 The Certificate verification fieldset (`CertificateVerification` in `src/views/certificate-verification.tsx`) is React inside `CredentialEditor`, built from the `TlsSection` that `tlsSection()` in `src/server/admin/tls-fields.ts` derives once from the tool's TLS settings and the saved metadata.
@@ -67,15 +67,16 @@ The list shows the sign-in mode, break-glass readiness and pending invitations a
 Only the requested sheet is rendered, open, so its fields do not duplicate those of another provider form, and closing a sheet returns to the list.
 The who-matches page is read-only and shows the people whose last recorded sign-in claims match a role rule.
 Their props are provider names, kinds, issuers, a `configured` flag, counts and people an administrator already sees, and carry no credential value.
-The provider page (`Provider` in `src/views/provider.tsx`, route `/admin/settings/sign-in/:id`) is the twelfth page on the seam for its Setup, Settings and Role rules tabs.
-It shows the provider's identity, its status and the Enable or Disable sign-in control, the shared `Tabs` strip, and either the setup checklist with its readiness banner and copy fields, the Provider settings form or the role rules.
+The provider page (`Provider` in `src/views/provider.tsx`, route `/admin/settings/sign-in/:id`) is the twelfth page on the seam, with a Setup, Credential, Role rules and Settings tab.
+It shows the provider's identity, its status and the Enable or Disable sign-in control, the shared `Tabs` strip, and either the setup checklist with its readiness banner and copy fields, the credential form, the role rules or the Provider settings form.
 The server sends state only (whether a credential is saved, whether a break-glass administrator is ready, the readiness problems and the redirect URIs) and the view owns the checklist copy, so its props carry no credential value.
 Enable and Disable sign-in is an `ActionForm` that patches `/activation` with `expectedRevision` and the opposite `enabled` value; a provider that is not ready shows a disabled button and no form, and the server still refuses activation without a usable credential and break-glass administrator.
 The Role rules tab (`?tab=rules`, `RoleRules` in `src/views/role-rules.tsx`) lists each rule with its role, the tools that role grants and its match count, which links to the who-matches page.
 Its row menu holds Edit rule, a link to `?tab=rules&rule=<id>`, and Remove rule, an `ActionForm` that sends `DELETE` with `expectedRevision` and needs the rule's value typed to confirm.
 Add rule opens the closed `add-rule` sheet in place, or `?tab=rules&rule=new` without JavaScript, and Edit rule renders only its own open sheet, so the two forms never share field ids.
 Both sheets send `providerId`, `claim`, `value` and `roleId` to the role-rules API with a tier 2 confirmation: Add uses POST, and Edit uses PATCH with `expectedRevision`.
-The Credential tab (`?tab=credential`) still renders in the legacy shell, with its own tab strip and activation form, until it is rebuilt.
+The Credential tab (`?tab=credential`, `ProviderCredential` in `src/views/provider-credential.tsx`) is an `ActionForm` that patches `/credential` with `expectedRevision` (the saved credential's revision), `expectedProviderRevision` and the shared `CredentialEditor`, under a tier 2 confirmation that names disabling the provider.
+It shows only the saved non-secret values (the client ID, tenant and thumbprint), a Saved or Needs credential badge and when the credential last changed; a secret field is empty, a blank secret keeps the stored one for the same identity, and a changed tenant, client or authentication method needs a new secret.
 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet that `confirm.js` opens), and the side navigation slot.
 `adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu, confirmation pill and help panel once for both the frame and the legacy shell, so the links, landmarks and titles stay identical.
@@ -185,8 +186,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Segmented control and search | `.seg` (links or visually hidden radios), `.search`, `.filters` | current or checked | GET forms; JavaScript may apply them live |
 | Switch | `.switch` on a native checkbox, or `.toggle` button holding a decorative `.switch` | off, on, disabled | `role="switch"`; checkboxes save with their form; the Enabled button submits a confirmed change |
 | Operation catalogue | `.ops`, `details.ops-group`, `label.op` | collapsed, open, filtered, Delete and Bulk tags | Native disclosures and checkboxes; see [label and risk ownership](#write-operation-labels-and-risk) |
-| Credential editor | `CredentialEditor` and the legacy `credentialFields()` styled through `[data-credential-editor]` and `[data-credential-field]` | stored secret, required, hidden | Controls have associated labels; `aria-describedby` links their hints |
-| Tabs | `tabs()`: `nav.utabs` | current, with a note or count | Links with `?tab=`, `aria-current="page"`; each tab is its own server-rendered view |
+| Credential editor | `CredentialEditor` styled through `[data-credential-editor]` and `[data-credential-field]` | stored secret, required, hidden | Controls have associated labels; `aria-describedby` links their hints |
 
 Elements that no component covers yet (sections, tables, forms, fieldsets and plain buttons inside page content) get neutral base styles from `components.ts`, so existing pages stay readable until they are rebuilt from components.
 
