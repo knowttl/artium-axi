@@ -805,7 +805,7 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
     await page.wait('[data-provider] a:has(> strong)');
     const provider = await page.eval(() => document.querySelector('[data-provider] a:has(> strong)').getAttribute('href'));
     await page.open(base + provider + '?tab=rules');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('No role rules')), 'Missing rule empty state');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('No role rules')), 'Missing rule empty state');
     await page.click('a[href$="rule=new"]');
     await page.wait('dialog[open] [name=roleId]');
     await page.fill('form[action="/v1/admin/sso/role-rules"] [name=value]', 'Artium.Readers');
@@ -821,18 +821,18 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('[data-rule]');
     check(await page.eval(() => document.querySelector('[data-rule]').innerText.includes('CrowdStrike Falcon')), 'Missing target tool access');
-    await page.click('[data-rule] .menu summary');
-    await page.click('[data-rule] .menu a[href*="rule="]');
+    await page.click('[data-rule] .more-menu summary');
+    await page.click('[data-rule] .more-menu a[href*="rule="]');
     await page.wait('dialog[open] form[data-method=PATCH]');
     await page.fill('dialog[open] form[data-method=PATCH] [name=value]', 'Artium.Analysts');
     await page.click('dialog[open] form[data-method=PATCH] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('body:not(:has(dialog[data-close-href])) [data-rule]');
-    check(await page.eval(() => document.querySelector('[data-rule] .sentence').innerText.includes('Artium.Analysts')), 'Rule edit was not saved');
+    await page.wait('body:not(:has(dialog.sheet[open])) [data-rule]');
+    check(await page.eval(() => document.querySelector('[data-rule]').innerText.includes('Artium.Analysts')), 'Rule edit was not saved');
     check(await page.eval(() => document.querySelector('[data-rule] form[data-method=DELETE] [name=expectedRevision]').value === '2'), 'Rule revision did not advance');
     check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Rule list overflows at 420px');
-    await page.click('[data-rule] .menu summary');
+    await page.click('[data-rule] .more-menu summary');
     await page.click('[data-rule] form[data-method=DELETE] button');
     await page.wait('#confirmation[open]');
     check(await page.eval(() => document.querySelector('[data-confirm-button]').disabled), 'Removal did not require the typed value');
@@ -842,8 +842,8 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
     await page.wait('#confirmation[open]');
     await page.fill('#confirmation-name', 'Artium.Analysts');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('section.card:not(:has([data-rule])) a[href$="rule=new"]');
-    check(await page.eval(() => !document.querySelector('[data-rule]') && document.querySelector('main').innerText.includes('No role rules')), 'Rule was not removed');
+    await page.wait('[role=main]:not(:has([data-rule])) a[href$="rule=new"]');
+    check(await page.eval(() => !document.querySelector('[data-rule]') && document.querySelector('[role=main]').innerText.includes('No role rules')), 'Rule was not removed');
     check(await page.eval(async () => {
       const providers = (await (await fetch('/v1/admin/sso/providers')).json()).providers;
       const audit = (await (await fetch('/v1/admin/audit?event=admin-change')).json()).records;

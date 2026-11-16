@@ -258,25 +258,25 @@ test('generic named rules can be added edited previewed and removed through real
     await page.wait('table');
     check(await page.eval(() => document.querySelector('tbody').innerText.includes('synthetic-generic-user') && document.querySelectorAll('tbody tr').length === 1), 'Who matches included another provider');
     await page.open(base + '/admin/settings/sign-in/synthetic-generic?tab=rules');
-    await page.click('[data-rule] .menu summary');
-    await page.click('[data-rule] .menu a[href*="rule="]');
+    await page.click('[data-rule] .more-menu summary');
+    await page.click('[data-rule] .more-menu a[href*="rule="]');
     await page.wait('dialog[open] [name=claim]');
     await page.fill('dialog[open] [name=claim]', 'custom.claim');
     await page.click('dialog[open] form[data-method=PATCH] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('body:not(:has(dialog[data-close-href])) [data-who-matches]');
-    check(await page.eval(() => document.querySelector('[data-who-matches]').textContent === '0 matches' && document.querySelector('[data-rule] .sentence').innerText.includes('custom.claim')), 'Claim edit did not refresh preview');
+    await page.wait('body:not(:has(dialog.sheet[open])) [data-who-matches]');
+    check(await page.eval(() => document.querySelector('[data-who-matches]').textContent === '0 matches' && document.querySelector('[data-rule]').innerText.includes('custom.claim')), 'Claim edit did not refresh preview');
     await page.open(base + matches);
     await page.wait('[role=main]');
     check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('No one matches')), 'Empty match state missing');
     await page.open(base + '/admin/settings/sign-in/synthetic-generic?tab=rules');
-    await page.click('[data-rule] .menu summary');
+    await page.click('[data-rule] .more-menu summary');
     await page.click('[data-rule] form[data-method=DELETE] button');
     await page.wait('#confirmation[open]');
     await page.fill('#confirmation-name', 'Readers');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('section.card:not(:has([data-rule])) a[href$="rule=new"]');
+    await page.wait('[role=main]:not(:has([data-rule])) a[href$="rule=new"]');
     check(await page.eval(() => !document.querySelector('a[href*="/matches/"]')), 'Removed rule still present');`)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.deepEqual(evidence.events.filter(event => event.action?.endsWith('role-rule')).map(event => event.action),
@@ -634,7 +634,7 @@ test('who matches previews new rules from last validated claims and refreshes af
     await page.wait('a[href="/reauth?complete=1"]');
     await page.click('a[href="/reauth?complete=1"]');`)
   selectPage('/admin/settings/sign-in/')
-  browser(`await page.wait('body:not(:has(dialog[data-close-href])) [data-rule]');
+  browser(`await page.wait('body:not(:has(dialog.sheet[open])) [data-rule]');
     check(await page.eval(() => [...document.querySelectorAll('[data-rule]')].some(node => node.innerText.includes('Artium.Extra') && node.querySelector('[data-who-matches]').textContent === '1 match')), 'New rule preview depended on existing grants');`)
   await configure({ claims: { roles: [] } })
   browser(`${claim('/auth/sso/synthetic-entra/start')}

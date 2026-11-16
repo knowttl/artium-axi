@@ -17,8 +17,9 @@ import { escape } from './escape.js'
 import { matchesClaim } from '../auth/role-claims.js'
 import { adminRead, apiForm, changed, lastChange, revision } from './forms.js'
 import { renderPage } from './render-page.js'
-import { card, field, icon, initials, tabs, viewDialog } from './design/ui.js'
+import { card, initials, tabs } from './design/ui.js'
 import { badge, status, toolProducts } from './design/status.js'
+import type { RoleRulesProps } from '../../views/role-rules.js'
 
 const signInQuery = z.object({ add: z.enum(['choose', 'entra', 'oidc']).optional(),
   tab: z.enum(['setup', 'credential', 'rules', 'settings']).optional(), rule: z.string().min(1).max(256).optional() })
@@ -232,9 +233,20 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
       const enableConsequence = 'Enable SSO sign-in and restrict all local password use to designated break-glass administrators? Test the invitation claim and sign-in using a separate browser, keeping break-glass access available.'
       const sections = [{ id: 'setup', label: 'Setup' }, { id: 'credential', label: 'Credential', note: credential.configured ? undefined : 'Missing' },
         { id: 'rules', label: 'Role rules', note: String(rules.length) }, { id: 'settings', label: 'Settings' }]
-      if (tab === 'setup' || tab === 'settings') {
+      if (tab !== 'credential') {
         const origin = `${request.protocol}://${request.host}`
-        return renderPage(reply, 'Sign-in & SSO', 'provider', { csrf, page, api, tab, initials: initials(provider.name), kind: provider.kind, kindLabel: kindLabel(provider.kind),
+        let ruleProps: RoleRulesProps | null = null
+        if (tab === 'rules') {
+          const editing = query.data.rule
+          const edited = editing && editing !== 'new' ? rules.find(rule => rule.id === editing) : undefined
+          if (editing && editing !== 'new' && !edited && roles.length) throw new ArtiumError('NOT_FOUND')
+          ruleProps = { providerId: id, kind: provider.kind, roles, addOpen: editing === 'new' && roles.length > 0,
+            edit: edited && roles.length ? { id: edited.id, claim: edited.claim, value: edited.value, roleId: edited.roleId, revision: edited.revision, changed: lastChange(db, edited) } : null,
+            rules: rules.map(rule => ({ id: rule.id, claim: rule.claim, value: rule.value, roleId: rule.roleId, roleName: roles.find(role => role.id === rule.roleId)!.name, revision: rule.revision,
+              tools: (db.prepare('SELECT tool FROM role_tools WHERE role_id = ? ORDER BY tool').all(rule.roleId) as { tool: keyof typeof toolProducts }[]).map(row => toolProducts[row.tool].name),
+              matches: matchingUsers(rule).length })) }
+        }
+        return renderPage(reply, 'Sign-in & SSO', 'provider', { csrf, page, api, tab, rules: ruleProps, initials: initials(provider.name), kind: provider.kind, kindLabel: kindLabel(provider.kind),
           tabs: sections.map(section => ({ label: section.label, href: `${page}?tab=${section.id}`, note: section.note ?? null, current: section.id === tab })),
           name: provider.name, issuer: provider.issuer, tenantId: provider.kind === 'entra' ? provider.tenantId : null, enabled: provider.enabled, revision: provider.revision, changed: lastChange(db, provider),
           credentialConfigured: credential.configured, breakGlass, problems, activationConsequence: provider.enabled ? disableConsequence : enableConsequence,
@@ -245,46 +257,11 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
       const actions = provider.enabled ? activation('Disable sign-in', false, disableConsequence, 'btn btn-secondary')
         : ready ? activation('Enable sign-in', true, enableConsequence, 'btn btn-primary')
           : '<button class="btn btn-primary" type="button" disabled>Enable sign-in</button>'
-      let content = tabs(page, tab, sections)
-      if (tab === 'credential') {
-        content += card('App credential', credential.configured ? 'Saved. Secrets are never displayed.' : 'Not saved yet. Secrets are never displayed.', `<div class="card-body">${credential.configured ? changed(db, credential) : ''}
+      const content = tabs(page, tab, sections) + card('App credential', credential.configured ? 'Saved. Secrets are never displayed.' : 'Not saved yet. Secrets are never displayed.', `<div class="card-body">${credential.configured ? changed(db, credential) : ''}
           <p class="hint">Certificate authentication is preferred. Upload one PEM containing the certificate and matching unencrypted private key; the SHA-256 fingerprint is calculated automatically. Client secrets are accepted but are less secure than certificates.</p>` +
           apiForm(csrf, api + '/credential', 'PATCH', 'Save credential', revision(credential.revision) +
             `<input type="hidden" name="expectedProviderRevision" data-type="number" value="${provider.revision}">` + credentialFields(undefined, profile(provider.kind), credential.metadata, credential.configured),
           'Save the encrypted provider credential and disable this provider, keeping omitted secrets only for the same identity? Review configuration and enable it again afterwards.', '', 'btn btn-primary') + '</div>', { actions: credential.configured ? badge('Saved', 'ok') : badge('Needs credential', 'warn') })
-      } else {
-        const fields = (value = '', roleId = '', claim = 'groups') => `<input type="hidden" name="providerId" value="${escape(id)}">${provider.kind === 'entra'
-          ? '<input type="hidden" name="claim" value="roles"><p class="hint">Claim: <code>roles</code> (Entra app roles)</p>'
-          : field('rule-claim', 'Claim name', describedBy => `<input ${describedBy} class="mono" name="claim" value="${escape(claim)}" maxlength="256" required>`, 'An exact top-level claim name, for example groups. Dots are literal, not nested paths. String values and strings in arrays match exactly; other values are ignored.')}` +
-          field('rule-value', 'Claim value', describedBy => `<input ${describedBy} class="mono" name="value" value="${escape(value)}" maxlength="256" required>`, provider.kind === 'entra' ? 'The app role value, for example Artium.Readers, rather than its display name.' : 'The exact, case-sensitive value, for example Readers.') +
-          field('rule-role', 'Artium role', describedBy => `<select ${describedBy} name="roleId" required><option value="">Choose a role</option>${roles.map(role => `<option value="${escape(role.id)}"${role.id === roleId ? ' selected' : ''}>${escape(role.name)}</option>`).join('')}</select>`, 'Tool access comes from this role. Rules never grant administrator capability.')
-        const rows = rules.map(rule => {
-          const role = roles.find(role => role.id === rule.roleId)!
-          const tools = db.prepare('SELECT tool FROM role_tools WHERE role_id = ? ORDER BY tool').all(role.id) as { tool: keyof typeof toolProducts }[]
-          const count = matchingUsers(rule).length
-          const sentence = `<span class="mono">${escape(rule.claim)}</span> contains <span class="mono">${escape(rule.value)}</span>`
-          return `<li class="list-row" data-rule="${escape(rule.id)}"><div class="grow"><p class="sentence">${sentence} ${icon('arrow')}<span class="sr-only">grants</span> <a href="/admin/roles/${escape(role.id)}">${escape(role.name)}</a></p><p>${tools.map(tool => escape(toolProducts[tool.tool].name)).join(', ') || 'No tools granted'} · synced at each sign-in</p></div>
-            <a class="btn btn-ghost btn-sm" href="${page}/matches/${escape(encodeURIComponent(rule.id))}" data-who-matches>${count} ${count === 1 ? 'match' : 'matches'}</a>
-            <details class="menu"><summary class="btn btn-ghost btn-icon btn-sm" aria-label="Rule actions">${icon('more')}</summary><div class="popover"><a href="${page}?tab=rules&amp;rule=${escape(encodeURIComponent(rule.id))}">${icon('pen')}Edit rule</a><hr>` +
-            apiForm(csrf, adminRoleRuleRoutes.list.path + '/' + rule.id, 'DELETE', 'Remove rule', revision(rule.revision), 'Remove this mapping and immediately remove its rule-origin grants? Direct grants and grants from other rules are retained. This cannot be undone.',
-              `data-confirm-name="${escape(rule.value)}"`, 'btn danger') + '</div></details></li>'
-        }).join('')
-        content += card('Role rules', provider.kind === 'entra' ? 'Map an exact, case-sensitive value in the Entra roles claim to an Artium role.' : 'Map an exact, case-sensitive value in any named claim to an Artium role.',
-          (rules.length ? `<ul class="rows">${rows}</ul>` : `<div class="card-body"><p>No role rules yet. ${roles.length ? 'Add a mapping after granting the role its tools.' : '<a href="/admin/roles">Create an Artium role</a> before adding rules.'}</p></div>`) +
-          '<div class="card-foot"><p>Rules synchronize at sign-in. Removing or retargeting a rule immediately removes its grants; direct and other-rule grants remain. Match counts use enabled people’s last successful sign-in claims, not a live directory.</p></div>',
-          { actions: roles.length ? `<a class="btn btn-secondary btn-sm" href="${page}?tab=rules&amp;rule=new">${icon('plus')}Add rule</a>` : '' })
-        const editing = query.data.rule
-        if (editing && roles.length) {
-          const rule = editing === 'new' ? undefined : rules.find(rule => rule.id === editing)
-          if (editing !== 'new' && !rule) throw new ArtiumError('NOT_FOUND')
-          const back = `${page}?tab=rules`
-          content += rule
-            ? viewDialog('Edit rule', 'Changes apply at each person’s next sign-in.', changed(db, rule) + apiForm(csrf, adminRoleRuleRoutes.list.path + '/' + rule.id, 'PATCH', 'Save rule', revision(rule.revision) + fields(rule.value, rule.roleId, rule.claim),
-              'Save this mapping? Changing its claim name, value or target role immediately removes its existing rule-origin grants. Direct grants and grants from other rules are retained. Matching users receive grants at their next sign-in.', `data-success-url="${back}"`, 'btn btn-primary'), back)
-            : viewDialog('Add rule', 'Matching people receive the role at their next sign-in.', apiForm(csrf, adminRoleRuleRoutes.create.path, 'POST', 'Add rule', fields(),
-              'Add this mapping? Matching users receive its role at their next sign-in.', `data-success-url="${back}"`, 'btn btn-primary'), back)
-        }
-      }
       return browserPage(reply, provider.name, content, current, undefined, { helpTopic: 'Sign-in & SSO', parent: { href: '/admin/settings/sign-in', label: 'Sign-in & SSO' },
         lead: `<span class="tool-ico lg" aria-hidden="true">${escape(initials(provider.name))}</span>`,
         meta: `<span>${kindLabel(provider.kind)} · <span class="mono">${escape(provider.issuer)}</span></span>${provider.enabled ? status('Enabled', 'ok') : status('Disabled', 'off')}`, actions: `<div class="actions">${actions}</div>` })

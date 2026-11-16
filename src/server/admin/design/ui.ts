@@ -153,11 +153,6 @@ export function copyValue(label: string, value: string): string {
   return `<span class="copyvalue" data-copy-scope><span data-copy-text>${escape(value)}</span><button type="button" class="btn btn-ghost btn-icon btn-sm" data-copy aria-label="Copy ${escape(label)}">${icon('copy')}</button><span class="copy-status" role="status" data-copy-status></span></span>`
 }
 
-// A dialog view rendered open by the server: the page's no-JavaScript fallback. confirm.js makes it modal; closing returns to closeHref.
-export function viewDialog(title: string, description: string, body: string, closeHref: string): string {
-  return `<dialog open class="modal" data-close-href="${escape(closeHref)}" aria-labelledby="view-dialog-title"><div class="modal-body"><div class="modal-head"><h2 id="view-dialog-title">${escape(title)}</h2><a class="btn btn-ghost btn-icon btn-sm" href="${escape(closeHref)}" aria-label="Close">${icon('x')}</a></div>${description ? `<p>${escape(description)}</p>` : ''}<p class="modal-error" data-form-error role="alert" tabindex="-1"></p>${body}</div></dialog>`
-}
-
 // A list footer: a summary on the left and cursor links on the right; a null href is the current end.
 export function pager(summary: string, links: { label: string, href: string | null }[]): string {
   return `<div class="card-foot"><span>${escape(summary)}</span><nav class="actions" aria-label="Pages">${links.map(link => link.href === null

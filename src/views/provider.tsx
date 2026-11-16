@@ -9,6 +9,7 @@ import { ActionForm, Revision } from './action-form.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { ProviderFields } from './provider-fields.js'
+import { RoleRules, type RoleRulesProps } from './role-rules.js'
 import { Tabs, type TabLink } from './tabs.js'
 import { LastChange } from './time.js'
 
@@ -16,8 +17,9 @@ export interface ProviderProps {
   csrf: string
   page: string
   api: string
-  tab: 'setup' | 'settings'
+  tab: 'setup' | 'settings' | 'rules'
   tabs: TabLink[]
+  rules: RoleRulesProps | null
   initials: string
   kind: 'entra' | 'oidc'
   kindLabel: string
@@ -164,7 +166,7 @@ export function Provider(props: ProviderProps) {
     <VStack gap={4}>
       <Header {...props} />
       <Tabs label="Sections" tabs={props.tabs} />
-      {props.tab === 'setup' ? <Setup {...props} /> : <Settings {...props} />}
+      {props.rules ? <RoleRules csrf={props.csrf} page={props.page} rules={props.rules} /> : props.tab === 'setup' ? <Setup {...props} /> : <Settings {...props} />}
     </VStack>
   )
 }
