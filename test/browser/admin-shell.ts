@@ -1251,7 +1251,7 @@ test('SSH administration explains dedicated identities without offering generic 
 })
 
 test('SSH dedicated administration provisions credentials, verified hosts and revision-checked bindings and grants', () => {
-  chrome(['resize', '420', '900'])
+  chrome(['resize', '320', '900'])
   browser(`
     await page.open(base + '/admin/ssh/credentials');
     await page.fill('[name=id]', 'new-credential');
@@ -1274,6 +1274,11 @@ test('SSH dedicated administration provisions credentials, verified hosts and re
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/binding"] [name=expectedRevision][value="1"]');
+    await page.click('.all-fields > summary');
+    check(await page.eval(() => [...document.querySelectorAll('.ssh-limits')].length === 2 && [...document.querySelectorAll('.ssh-limits')].every(grid => {
+      const bounds = grid.getBoundingClientRect();
+      return [...grid.children].every(field => field.getBoundingClientRect().right <= bounds.right + 1);
+    })), 'Host limit fields overflow their forms at 320px');
     check(await page.eval(() => [...document.querySelectorAll('[role=main] label[for]')].filter(label => label.closest('form')).every(label => label.control?.form === label.closest('form'))), 'Host labels target controls in another form');
     await page.fill('form[action$="/binding"] [name=username]', 'ordinary');
     await page.eval(() => { document.querySelector('form[action$="/binding"] [name=credential]').value = 'new-credential'; });
@@ -1291,7 +1296,7 @@ test('SSH dedicated administration provisions credentials, verified hosts and re
       const data = await (await fetch('/v1/admin/ssh/hosts')).json();
       return data.hosts[0].readOnly && data.hosts[0].enabled && data.bindings[0].credential === 'new-credential' && data.grants[0].shell === 1;
     }), 'Saved host, binding and grant did not persist');
-    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'SSH host administration overflows at 420px');
+    check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'SSH host administration overflows at 320px');
   `)
 })
 

@@ -323,7 +323,7 @@ a.chip:hover { background: var(--bg-active); }
   .ssh-events tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
 }
 .event-detail { color: var(--text-muted); font-size: var(--fs-xs); }
-.ssh-limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 16px; }
+.ssh-limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr)); gap: 16px; }
 .audit-list tbody tr:last-child th, .audit-list tbody tr:last-child td { border-bottom: 0; }
 .audit-list { container-type: inline-size; }
 @container (min-width: 880px) { .audit-list tbody th { white-space: nowrap; overflow-wrap: normal; } .audit-list td[data-label="Event"] { min-width: 8rem; }
