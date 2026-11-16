@@ -234,31 +234,13 @@ for (const dialog of document.querySelectorAll('dialog.sheet')) {
   openSheet(dialog);
 }
 
-// Tier 2 names the action and its consequence; tier 3 (data-confirm-name) also needs the exact name typed.
+// The confirmation dialog in the React tree answers; a request made before hydration waits for it, so nothing is sent unconfirmed.
 function confirmChange(form, fallbackAction) {
-  const dialog = document.getElementById('confirmation');
   const action = form.dataset.confirmAction || fallbackAction;
-  const name = form.dataset.confirmName || '';
-  const field = dialog.querySelector('[data-confirm-name-field]');
-  const input = field.querySelector('input');
-  const confirm = dialog.querySelector('[data-confirm-button]');
-  const mark = dialog.querySelector('[data-confirm-mark]');
-  dialog.querySelector('[data-confirm-title]').textContent = form.dataset.confirmTitle || action + '?';
-  dialog.querySelector('[data-consequence]').textContent = form.dataset.confirm;
-  dialog.querySelector('[data-confirm-name]').textContent = name;
-  mark.className = 'ico-circle ' + (name ? 'err' : 'warn');
-  mark.querySelector('use').setAttribute('href', name ? '#i-trash' : '#i-alert');
-  confirm.textContent = action;
-  confirm.className = 'btn ' + (name ? 'btn-danger' : 'btn-primary');
-  field.hidden = !name;
-  input.value = '';
-  confirm.disabled = Boolean(name);
-  input.oninput = () => { confirm.disabled = input.value !== name; };
-  dialog.returnValue = '';
   return new Promise(resolve => {
-    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirmed' && (!name || input.value === name)), { once: true });
-    dialog.showModal();
-    if (name) input.focus();
+    const request = new CustomEvent('artium-confirm', { cancelable: true, detail: { action, title: form.dataset.confirmTitle || action + '?',
+      consequence: form.dataset.confirm, typedName: form.dataset.confirmName || '', resolve } });
+    if (document.dispatchEvent(request)) document.addEventListener('astryx-hydrated', () => document.dispatchEvent(request), { once: true });
   });
 }
 
@@ -601,7 +583,13 @@ document.addEventListener('submit', async event => {
   const fields = new FormData(form);
   const body = Object.fromEntries(fields);
   try {
-    if (form.dataset.confirm && !await confirmChange(form, (event.submitter || button).textContent.trim())) return;
+    if (form.dataset.confirm && !await confirmChange(form, (event.submitter || button).textContent.trim())) {
+      const dialog = document.getElementById('confirmation');
+      if (dialog.open) await new Promise(resolve => dialog.addEventListener('close', resolve, { once: true }));
+      button.disabled = false;
+      button.focus();
+      return;
+    }
     const profileFields = form.querySelectorAll('[data-profile-field]');
     if (profileFields.length) {
       body.value = Object.create(null);

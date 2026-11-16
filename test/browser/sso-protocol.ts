@@ -205,7 +205,7 @@ test('generic provider and Entra are both offered and generic sign-in reaches it
     await page.click('[data-oidc-approve]');
     await page.wait('a[href="/account"]');
     await page.click('a[href="/account"]');
-    await page.wait('section h2');
+    await page.wait('[role=main] h2');
     check(await page.eval(() => document.body.innerText.includes('SSO sign-in')), 'Generic account session missing');`)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions[0].user_id, 'synthetic-generic-user')
@@ -324,7 +324,7 @@ for (const decision of ['approve', 'deny', 'expire']) test(`bundled CLI device s
       const response = await fetch(fixture.clock, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ advanceMs: 600_000 }) })
       assert.equal(response.status, 200)
       browser(`await page.open(base + '/device?code=' + ${JSON.stringify(code)});
-        await page.wait('main');
+        await page.wait('[role=main], main');
         check(await page.eval(() => document.body.textContent.includes('DEVICE_CODE_EXPIRED')), 'browser did not report expiry');`)
     } else browser(`await page.open(base + '/device');
       await page.fill('[name=code]', ${JSON.stringify(code)});
@@ -344,7 +344,7 @@ for (const decision of ['approve', 'deny', 'expire']) test(`bundled CLI device s
       check(await page.eval(() => document.querySelector('button[value=deny]').textContent === "This wasn't me"), 'denial action missing');
       check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'device page overflows');
       await page.click('button[value=${decision}]');
-      await page.wait('main');`)
+      await page.wait('[role=main], main');`)
     const result = await login.result
     const sessionFile = join(fixture.clientHome, 'artium-axi', 'session.json')
     if (decision === 'approve') {
@@ -356,10 +356,10 @@ for (const decision of ['approve', 'deny', 'expire']) test(`bundled CLI device s
       assert.equal(me.code, 0, me.stdout + me.stderr)
       assert.match(me.stdout, /synthetic-browser-sso/)
       browser(`await page.open(base + '/device?code=' + ${JSON.stringify(code)});
-        await page.wait('main');
+        await page.wait('[role=main], main');
         check(await page.eval(() => document.body.textContent.includes('DEVICE_CODE_INVALID')), 'consumed approval was reusable');`)
       browser(`await page.open(base + '/account');
-        await page.wait('main');
+        await page.wait('[role=main], main');
         check(await page.eval(() => {
           const help = document.querySelector('.page-help').textContent;
           return help.includes('login --sso') && !help.includes('your local username') && !help.includes('Change password');
@@ -418,7 +418,7 @@ test('stale provider authentication is refused and leaves the pending draft inta
   openReauthPopup()
   browser(`await page.click('[data-oidc-approve]');
     await page.wait('main dl dd');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_TOKEN_INVALID')), 'Stale authentication was accepted');`)
+    check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('SSO_TOKEN_INVALID')), 'Stale authentication was accepted');`)
   selectPage('/admin/roles')
   browser(`await page.click('[data-reauth-cancel]');
     await page.wait('#reauth-dialog:not([open])');
@@ -459,15 +459,15 @@ test('CSP-compatible link and Strict-cookie callback hop establish an SSO accoun
     await page.wait('a[href="/account"]');
     check(await page.eval(() => document.querySelector('h1').textContent === 'Sign-in complete'), 'Callback did not finish');
     await page.click('a[href="/account"]');
-    await page.wait('table[aria-label], section h2');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic browser SSO') && document.querySelector('main').innerText.includes('SSO sign-in')), 'Strict session cookie was not accepted after hop');
+    await page.wait('table[aria-label], [role=main] h2');
+    check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('Synthetic browser SSO') && document.querySelector('[role=main], main').innerText.includes('SSO sign-in')), 'Strict session cookie was not accepted after hop');
     await page.open(base + '/auth/sso/synthetic-entra/start');
     await page.wait('[data-oidc-approve]');
     await page.click('[data-oidc-approve]');
     await page.wait('a[href="/account"]');
     check(await page.eval(() => document.querySelector('h1').textContent === 'Sign-in complete'), 'Second callback did not finish');
     await page.click('a[href="/account"]');
-    await page.wait('section h2');
+    await page.wait('[role=main] h2');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.deepEqual(evidence.callbackCookies, { session: false, preauth: true, csrf: false })
@@ -480,7 +480,7 @@ test('uninvited identity is refused without creating a session', async () => {
   await configure({ claims: { oid: '44444444-4444-4444-8444-444444444444', preferred_username: 'synthetic-browser-sso' } })
   browser(`${signIn}
     await page.wait('main dl dd');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_NOT_INVITED')), 'Uninvited identity was not refused');
+    check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('SSO_NOT_INVITED')), 'Uninvited identity was not refused');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
@@ -490,12 +490,12 @@ test('uninvited identity is refused without creating a session', async () => {
 test('SSO-enabled login page refuses an undesignated local administrator', async () => {
   await configure({ localBreakGlass: false })
   browser(`await page.open(base + '/login');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('designated break-glass administrators')), 'Password policy help is missing');
+    check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('designated break-glass administrators')), 'Password policy help is missing');
     await page.fill('[name=username]', 'synthetic-user');
     await page.fill('[name=password]', 'CANARY-local-password');
     await page.click('form[action="/login"] button');
     await page.wait('main dl dd');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('SIGN_IN_FAILED')), 'Undesignated administrator was admitted');`)
+    check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('SIGN_IN_FAILED')), 'Undesignated administrator was admitted');`)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
 })
@@ -528,7 +528,7 @@ test('tampered ID token is refused in the real callback page', async () => {
   await configure({ tamperSignature: true })
   browser(`${signIn}
     await page.wait('main dl dd');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_TOKEN_INVALID')), 'Tampered signature was accepted');
+    check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('SSO_TOKEN_INVALID')), 'Tampered signature was accepted');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
@@ -539,7 +539,7 @@ test('wrong ID token issuer is refused in the real callback page', async () => {
   await configure({ claims: { iss: 'https://other.example' } })
   browser(`${signIn}
     await page.wait('main dl dd');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_TOKEN_INVALID')), 'Wrong issuer was accepted');
+    check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('SSO_TOKEN_INVALID')), 'Wrong issuer was accepted');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
@@ -551,10 +551,10 @@ test('replaying a completed callback cannot issue another session', async () => 
     await page.wait('a[href="/account"]');
     const callback = await page.eval(() => location.href);
     await page.click('a[href="/account"]');
-    await page.wait('section h2');
+    await page.wait('[role=main] h2');
     await page.open(callback);
     await page.wait('main dl dd');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_STATE_INVALID')), 'Callback replay was accepted');
+    check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('SSO_STATE_INVALID')), 'Callback replay was accepted');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 1)
@@ -651,11 +651,11 @@ test('invitation claim grants direct and rule roles and a reused link is refused
   browser(`${claim(invitation.claimPath)}
     await page.wait('a[href="/account"]');
     await page.click('a[href="/account"]');
-    await page.wait('section h2');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('Synthetic invited user')), 'Claimed account missing');
+    await page.wait('[role=main] h2');
+    check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('Synthetic invited user')), 'Claimed account missing');
     await page.open(base + ${JSON.stringify(invitation.claimPath)});
     await page.wait('main dl dd');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Reused link accepted');
+    check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('SSO_INVITE_INVALID')), 'Reused link accepted');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   const userId = evidence.invitations[0].user_id
@@ -672,7 +672,7 @@ test('wrong-username claim refuses the identity and leaves the invitation unused
   await configure({ claims: { oid: '44444444-4444-4444-8444-444444444444', preferred_username: 'Synthetic-Invited' } })
   browser(`${claim(invitation.claimPath)}
     await page.wait('main dl dd');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Wrong username accepted');
+    check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('SSO_INVITE_INVALID')), 'Wrong username accepted');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.invitations[0].claimed_at, null)
@@ -685,7 +685,7 @@ test('expired invitation link is refused before provider sign-in', async () => {
     body: JSON.stringify({ advanceMs: 86_400_000 }) })).status, 200)
   browser(`await page.open(base + ${JSON.stringify(invitation.claimPath)});
     await page.wait('main dl dd');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('SSO_INVITE_INVALID')), 'Expired link accepted');
+    check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('SSO_INVITE_INVALID')), 'Expired link accepted');
   `)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions.length, 0)
