@@ -135,6 +135,8 @@ server.post('/test/audit', async () => {
   for (let id = 0; id < 103; id++) audit.record({ event: 'run-start', outcome: 'started',
     userId: 'synthetic-ordinary', tool: 'falcon-axi', requestId: 'synthetic-run-' + id, clientAddress: '192.0.2.1',
     args: ['read', '--password=CANARY-audit-secret'], sensitive: { flags: ['--password'], positions: [] } })
+  audit.record({ event: 'denial', outcome: 'PERMISSION_DENIED', userId: 'synthetic-ordinary', tool: 'falcon-axi', requestId: 'synthetic-long-values',
+    clientAddress: '192.0.2.1', instance: 'production-eu-west-region-analytics-cluster-primary-replica-with-a-very-long-name' })
   return { seeded: 103 }
 })
 server.post('/test/ssh-audit', async () => {
