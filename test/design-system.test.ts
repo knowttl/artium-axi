@@ -221,7 +221,8 @@ test.each([
     expect(symbols).toContain(reference!.slice(1))
   }
   expect(page.filter(element => element.tagName === 'h1')).toHaveLength(1)
-  expect(page.filter(element => element.tagName === 'form' && element.attrs.some(attribute => attribute.name === 'action' && attribute.value === '/theme'))).toHaveLength(['/admin', '/admin/users', '/admin/users/synthetic-ordinary', '/admin/roles', '/admin/roles/synthetic-role', '/admin/invitations', '/admin/tools', '/admin/tools/vectra-axi/instances/lab'].includes(url) || /^\/admin\/tools\/[a-z-]+(\?|$)/.test(url) ? 2 : 1)
+  expect(page.filter(element => element.tagName === 'form' && element.attrs.some(attribute => attribute.name === 'action' && attribute.value === '/theme'))).toHaveLength(['/admin', '/admin/users', '/admin/users/synthetic-ordinary', '/admin/roles', '/admin/roles/synthetic-role', '/admin/invitations', '/admin/tools', '/admin/tools/vectra-axi/instances/lab',
+    '/admin/settings/sign-in', '/admin/settings/sign-in?add=choose', '/admin/settings/sign-in?add=oidc', '/admin/settings/sign-in/synthetic-provider/matches/synthetic-rule'].includes(url) || /^\/admin\/tools\/[a-z-]+(\?|$)/.test(url) ? 2 : 1)
 })
 
 test.each([

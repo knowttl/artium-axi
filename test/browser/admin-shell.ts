@@ -802,8 +802,8 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
     await page.click('form[action="/v1/admin/sso/providers"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('.list-row strong a');
-    const provider = await page.eval(() => document.querySelector('.list-row strong a').getAttribute('href'));
+    await page.wait('[data-provider] a:has(> strong)');
+    const provider = await page.eval(() => document.querySelector('[data-provider] a:has(> strong)').getAttribute('href'));
     await page.open(base + provider + '?tab=rules');
     check(await page.eval(() => document.querySelector('main').innerText.includes('No role rules')), 'Missing rule empty state');
     await page.click('a[href$="rule=new"]');
@@ -857,9 +857,9 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
   chrome(['resize', '420', '900'])
   browser(`
     await page.open(base + '/admin/settings/sign-in');
-    await page.wait('main .page-head .actions a[href$="add=choose"]');
-    check(await page.eval(() => document.querySelector('main').innerText.includes('New providers start disabled')), 'Missing disabled-sign-in guidance');
-    await page.click('main .page-head .actions a[href$="add=choose"]');
+    await page.wait('[role=main] a[href$="add=choose"]');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('New providers start disabled')), 'Missing disabled-sign-in guidance');
+    await page.click('[role=main] a[href$="add=choose"]');
     await page.wait('dialog[open] [name=add][value=entra]:checked');
     await page.click('dialog[open] form button');
     await page.wait('[name=tenantId]');
@@ -868,8 +868,8 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
     await page.click('form[action="/v1/admin/sso/providers"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('.list-row strong a');
-    await page.click('.list-row strong a');
+    await page.wait('[data-provider] a:has(> strong)');
+    await page.click('[data-provider] a:has(> strong)');
     await page.wait('.vsteps');
     check(await page.eval(() => !document.querySelector('form[action$="/activation"]') && document.querySelector('main').innerText.includes('Set up this provider') && document.querySelector('main').innerText.includes('Not ready to enable')), 'Activation offered before completing setup');
     await page.click('.utabs a[href$="tab=credential"]');
@@ -914,8 +914,8 @@ test('sign-in settings can save a client secret and requires a replacement when 
     await page.click('form[action="/v1/admin/sso/providers"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('.list-row strong a');
-    const provider = await page.eval(() => document.querySelector('.list-row strong a').getAttribute('href'));
+    await page.wait('[data-provider] a:has(> strong)');
+    const provider = await page.eval(() => document.querySelector('[data-provider] a:has(> strong)').getAttribute('href'));
     await page.open(base + provider + '?tab=credential');
     await page.wait('[data-profile-field=auth]');
     await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"secret"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
