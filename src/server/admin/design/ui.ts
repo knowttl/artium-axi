@@ -226,9 +226,7 @@ function dialogs(viewer: Viewer): string {
   return confirmation + `<dialog id="reauth-dialog" class="modal" aria-labelledby="reauth-title"><div class="modal-body"><h2 id="reauth-title"><span class="ico-circle">${icon('lock')}</span>${viewer.sso ? 'Confirm your identity' : 'Confirm it’s you'}</h2><p>Sensitive changes need a confirmation every 15 minutes. ${viewer.sso ? 'Confirm with your provider in a new window.' : 'Enter your password.'} Cancel keeps your draft.</p></div><form data-reauth>${viewer.sso ? '' : '<div class="modal-body"><div class="field"><label for="reauth-password">Password</label><input id="reauth-password" name="password" type="password" autocomplete="current-password" required></div></div>'}<p class="modal-error" data-reauth-error role="alert"></p><div class="modal-foot"><button class="btn btn-ghost" type="button" data-reauth-cancel>Cancel</button><button class="btn btn-primary">Confirm and continue</button></div></form></dialog>`
 }
 
-// Results of an action: #toast announces success politely, #message carries errors.
-const toasts = '<div class="toasts"><p id="toast" class="toast ok" role="status"></p><p id="message" class="toast err" role="alert" tabindex="-1"></p></div>'
-export const authOverlays = toasts + sprite
+export const authOverlays = sprite
 
 export interface AdminChrome extends Pick<FrameProps, 'crumbs' | 'brand' | 'navigation' | 'account' | 'controls' | 'topbarEnd'> {
   overlays: string
@@ -253,6 +251,6 @@ export function adminChrome(page: Page): AdminChrome {
     account,
     controls: reauthPill(viewer),
     topbarEnd: learn(page.title, page.help),
-    overlays: toasts + dialogs(viewer) + sprite,
+    overlays: dialogs(viewer) + sprite,
   }
 }

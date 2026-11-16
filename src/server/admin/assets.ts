@@ -25,15 +25,6 @@ for (const button of document.querySelectorAll('[data-history-back]')) {
   button.hidden = false;
   button.addEventListener('click', () => history.back());
 }
-const toastMessage = sessionStorage.getItem('artium-toast');
-if (toastMessage) {
-  sessionStorage.removeItem('artium-toast');
-  const toast = document.getElementById('toast');
-  if (toast) {
-    toast.textContent = toastMessage;
-    setTimeout(() => { toast.textContent = ''; }, 6000);
-  }
-}
 for (const time of document.querySelectorAll('time[datetime]')) {
   time.textContent = new Date(time.dateTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
@@ -290,17 +281,27 @@ for (const form of document.querySelectorAll('form[data-filters]')) {
   if (apply) apply.hidden = true;
 }
 
-function showError(target, error) {
-  target.textContent = error.message + ' ' + error.next + ' (' + error.code + ')';
-  if (error.code === 'REVISION_CONFLICT') {
-    const reload = document.createElement('button');
-    reload.type = 'button';
-    reload.className = 'btn btn-secondary btn-sm';
-    reload.textContent = 'Reload latest';
-    reload.addEventListener('click', () => location.reload());
-    target.append(document.createElement('br'), reload);
+// A form with no message area of its own reports through the toast host in the React tree once it has hydrated.
+const hydrated = new Promise(resolve => document.addEventListener('astryx-hydrated', resolve, { once: true }));
+function say(target, text, reload = false) {
+  if (!target) {
+    hydrated.then(() => document.dispatchEvent(new CustomEvent('artium-toast', { detail: { text, reload } })));
+    return;
   }
-  target.focus();
+  target.textContent = text;
+  if (reload) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn-secondary btn-sm';
+    button.textContent = 'Reload latest';
+    button.addEventListener('click', () => location.reload());
+    target.append(document.createElement('br'), button);
+  }
+  if (text) target.focus();
+}
+
+function showError(target, error) {
+  say(target, error.message + ' ' + error.next + ' (' + error.code + ')', error.code === 'REVISION_CONFLICT');
 }
 
 function reauthenticate(csrf) {
@@ -593,8 +594,8 @@ document.addEventListener('submit', async event => {
   button.disabled = true;
   const message = form.querySelector('[data-form-error]') || (form.hasAttribute('data-trust-certificate') || form.hasAttribute('data-certificate-name-form')
     ? form.closest('dialog').querySelector('[data-certificate-error]')
-    : form.closest('dialog')?.querySelector('[data-form-error], [data-sheet-message]') || document.getElementById('message'));
-  message.textContent = '';
+    : form.closest('dialog')?.querySelector('[data-form-error], [data-sheet-message]') || null);
+  say(message, '');
   const testResult = form.dataset.testTool ? document.querySelector('[data-test-result]') : null;
   if (testResult) testResult.textContent = '';
   const fields = new FormData(form);
@@ -615,7 +616,7 @@ document.addEventListener('submit', async event => {
           const parent = path.reduce((value, name) => value[name] ??= Object.create(null), body.value);
           parent[key] = input.value === '' ? null : input.dataset.profileType === 'list' ? input.value.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean) : input.dataset.profileType === 'json' ? JSON.parse(input.value) : input.value;
         }
-        catch { message.textContent = 'Enter valid JSON in ' + input.dataset.profileField + '.'; message.focus(); return; }
+        catch { say(message, 'Enter valid JSON in ' + input.dataset.profileField + '.'); return; }
       }
       for (const input of form.querySelectorAll('[data-tls-remove]:checked')) body.value[input.dataset.tlsRemove] = null;
       const certificate = form.querySelector('[data-certificate]:not([hidden]) [data-certificate-pem]');
@@ -628,7 +629,7 @@ document.addEventListener('submit', async event => {
       if (input.dataset.type === 'lines') body[input.name] = input.value.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean);
       if (input.dataset.type === 'json') {
         try { body[input.name] = JSON.parse(input.value); }
-        catch { message.textContent = 'Enter valid JSON in ' + input.name + '.'; message.focus(); return; }
+        catch { say(message, 'Enter valid JSON in ' + input.name + '.'); return; }
       }
     }
     if (form.hasAttribute('data-create-token')) {
@@ -743,7 +744,7 @@ document.addEventListener('submit', async event => {
     if (form.dataset.successUrl?.includes('{id}')) location.assign(form.dataset.successUrl.replace('{id}', encodeURIComponent((await response.json()).id)));
     else if (form.dataset.successUrl) location.assign(form.dataset.successUrl);
     else location.reload();
-  } catch { message.textContent = 'Request could not complete. Reload the page to check the current state before trying again.'; message.focus(); }
+  } catch { say(message, 'Request could not complete. Reload the page to check the current state before trying again.'); }
   finally { button.disabled = false; pendingAction = false; }
 });
 `

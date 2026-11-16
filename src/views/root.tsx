@@ -1,3 +1,4 @@
+import { LayerProvider } from '@astryxdesign/core/Layer'
 import { Theme, type ThemeMode } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import { Account, type AccountProps } from './account.js'
@@ -19,6 +20,7 @@ import { SshCredentials, type SshCredentialsProps } from './ssh-credentials.js'
 import { SshHosts, type SshHostsProps } from './ssh-hosts.js'
 import { Tokens, type TokensProps } from './tokens.js'
 import { Tool, type ToolProps } from './tool.js'
+import { Toasts } from './toasts.js'
 import { Tools, type ToolsProps } from './tools.js'
 
 export interface ViewProps { overview: OverviewProps, auth: AuthProps, people: PeopleProps, person: PersonProps, roles: RolesProps, role: RoleProps, invitations: InvitationsProps,
@@ -31,5 +33,5 @@ const views = { overview: Overview, auth: Auth, people: People, person: Person, 
 
 export function Root<Name extends ViewName>({ name, props, frame, mode }: { name: Name, props: ViewProps[Name], frame?: FrameProps, mode: ThemeMode }) {
   const View = views[name] as (props: ViewProps[Name]) => React.JSX.Element
-  return <Theme theme={neutralTheme} mode={mode}>{frame ? <Frame {...frame}><View {...props} /></Frame> : <View {...props} />}</Theme>
+  return <Theme theme={neutralTheme} mode={mode}><LayerProvider><Toasts>{frame ? <Frame {...frame}><View {...props} /></Frame> : <View {...props} />}</Toasts></LayerProvider></Theme>
 }

@@ -101,15 +101,6 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .callout.err { background: var(--err-soft); border-color: var(--err-border); }
 .callout.err > svg { color: var(--err); }
 
-/* Toasts: action results in a fixed region */
-.toasts { position: fixed; right: 20px; bottom: 20px; z-index: 60; width: min(360px, calc(100vw - 32px)); display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
-.toast { margin: 0; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg); box-shadow: var(--shadow-pop); color: var(--text); font-size: var(--fs-sm); pointer-events: auto; overflow-wrap: anywhere; }
-.toast:empty { display: none; }
-.toast.ok::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: var(--r-full); background: var(--ok); vertical-align: 1px; }
-.toast.err { background: var(--err-soft); border-color: var(--err-border); color: var(--err); }
-.toast .btn { margin-top: 8px; }
-.toast:focus { outline: none; }
-
 /* Layout helpers for page content */
 .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .provider-sidebar { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
@@ -825,7 +816,6 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .list-row .grow { min-width: 60%; }
   .list-row .btn { margin-left: 36px; }
   .grid2, .grid3, .tool-grid { grid-template-columns: minmax(0, 1fr); }
-  .toasts { right: 16px; bottom: 16px; }
   .card.danger .list-row .btn { margin-left: 0; }
   .page-head .actions { margin-left: 0; }
   .page-head .menu .popover { left: 0; right: auto; }
