@@ -1452,10 +1452,13 @@ test('an open audit record leaves every cell of its row fully inside the list at
           const list = document.querySelector('.audit-list').getBoundingClientRect();
           const cells = [...document.querySelectorAll('tbody tr.sel th, tbody tr.sel td')];
           return { count: cells.length, outcome: cells.at(-1).textContent,
+            outcomeLabel: getComputedStyle(cells.at(-1), '::before').content,
+            cards: getComputedStyle(cells.at(-1).parentElement).display === 'flex',
             outside: cells.filter(cell => { const box = cell.getBoundingClientRect(); return box.left < list.left - 1 || box.right > list.right + 1 || cell.scrollWidth > cell.clientWidth + 1; }).length,
             scrolls: document.querySelector('.audit-list').scrollWidth > document.querySelector('.audit-list').clientWidth + 1 };
         });
         check(clipped.count === 6 && clipped.outcome === 'PERMISSION_DENIED', 'The open record row lost a cell');
+        check(!clipped.cards || clipped.outcomeLabel.trim() === '"Outcome "', 'The outcome label is missing from the card');
         check(clipped.outside === 0 && !clipped.scrolls, 'A cell of the open record row is clipped at ${width}px');
       `)
     }

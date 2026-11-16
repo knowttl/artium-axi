@@ -114,7 +114,7 @@ function Rows({ rows }: Pick<AuditProps, 'rows'>) {
             <TableCell data-label="Actor">{row.actor ?? <Text type="supporting">System</Text>}</TableCell>
             <TableCell data-label="Tool">{row.tool ?? <Text type="supporting">-</Text>}</TableCell>
             <TableCell data-label="Instance">{row.instance ?? <Text type="supporting">default/unknown</Text>}</TableCell>
-            <TableCell><Badge label={row.outcome.word} variant={badgeVariants[row.outcome.tone]} /></TableCell>
+            <TableCell data-label="Outcome"><Badge label={row.outcome.word} variant={badgeVariants[row.outcome.tone]} /></TableCell>
           </TableRow>
         ))}
       </TableBody>
