@@ -515,8 +515,8 @@ test('break-glass browser sign-in and password confirmation are highlighted in A
     await page.click('form[action="/reauth"] button');
     await page.wait('nav[aria-label=Administration]');
     await page.open(base + '/admin/audit');
-    await page.wait('.audit-table');
-    check(await page.eval(() => Array.from(document.querySelectorAll('.audit-table .badge.warn')).filter(node => node.textContent === 'Break-glass').length === 2), 'Sign-in and confirmation were not highlighted');`)
+    await page.wait('.audit-list');
+    check(await page.eval(() => Array.from(document.querySelectorAll('.audit-list tbody *')).filter(node => node.children.length === 0 && node.textContent === 'Break-glass').length === 2), 'Sign-in and confirmation were not highlighted');`)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.deepEqual(evidence.events.filter(event => ['sign-in', 'reauth'].includes(event.event))
     .map(event => ({ event: event.event, method: event.authentication_method })), [

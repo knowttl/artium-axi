@@ -299,6 +299,12 @@ a.chip:hover { background: var(--bg-active); }
 .astryx-button.revoke:hover { background: var(--err-soft); }
 @media (min-width: 761px) { .tokens-list td[data-label="Expires"], .tokens-list td.actions-cell { white-space: nowrap; overflow-wrap: normal; } .tokens-list td.actions-cell { width: 1%; } }
 .tokens-list tbody tr:last-child th, .tokens-list tbody tr:last-child td { border-bottom: 0; }
+.audit-list th, .audit-list td { min-width: 0; max-width: none; overflow: visible; overflow-wrap: anywhere; white-space: normal; vertical-align: top; }
+.audit-list tbody th { font-weight: 400; }
+.audit-list tbody tr.sel { background: var(--bg-muted); }
+@media (min-width: 761px) { .audit-list table { min-width: 720px; } .audit-list tbody th { white-space: nowrap; overflow-wrap: normal; } .audit-list td[data-label="Event"] { min-width: 8rem; }
+  .audit-list td[data-label="Actor"] { min-width: 8rem; } .audit-list td[data-label="Tool"] { min-width: 7rem; } .audit-list td[data-label="Instance"] { min-width: 9rem; } }
+.audit-list tbody tr:last-child th, .audit-list tbody tr:last-child td { border-bottom: 0; }
 .tbl tbody tr.link { position: relative; }
 .tbl tbody tr.link:hover { background: var(--bg-subtle); }
 .tbl .row-link { color: var(--text); text-decoration: none; }
@@ -555,8 +561,6 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 .cell-main a { font-weight: 500; }
 .cell-main .sub { display: block; color: var(--text-faint); font-size: var(--fs-xs); font-weight: 400; overflow-wrap: anywhere; }
 .cell-main span span { color: var(--text-faint); font-size: var(--fs-xs); font-weight: 400; }
-.audit-table { min-width: 720px; }
-.audit-table tbody th { font-weight: 400; color: var(--text-muted); white-space: nowrap; }
 
 /* Option tiles: a checkbox card per choice */
 .tiles { margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -591,13 +595,7 @@ form[data-track-changes] .astryx-button:disabled { opacity: 0.5; cursor: not-all
 
 /* Filter row: GET form controls */
 .filters { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.input-wrap { margin: 0; display: inline-flex; align-items: center; gap: 8px; height: var(--ctl-h-sm); width: 180px; padding: 0 10px; border: 1px solid var(--control); border-radius: var(--r-sm); background: var(--bg); color: var(--text-faint); font-weight: 400; }
-.input-wrap:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
-.input-wrap input { min-width: 0; height: auto; margin: 0; padding: 0; border: 0; background: var(--transparent); outline: none; color: var(--text); font-size: var(--fs-xs); }
 .seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: var(--r-sm); background: var(--bg-muted); font-size: var(--fs-xs); }
-.seg a { padding: 3px 10px; border-radius: var(--r-sm); color: var(--text-muted); text-decoration: none; white-space: nowrap; }
-.seg a:hover { color: var(--text); }
-.seg a.on { background: var(--bg); color: var(--text); font-weight: 500; box-shadow: 0 0 0 1px var(--border); }
 .filter { position: relative; display: inline-flex; align-items: center; gap: 6px; height: var(--ctl-h-sm); padding: 0 10px; border: 1px dashed var(--control); border-radius: var(--r-full); background: var(--bg); color: var(--text-muted); font-size: var(--fs-xs); text-decoration: none; white-space: nowrap; }
 .filter:hover { background: var(--bg-hover); }
 .filter.set { border-style: solid; color: var(--text); }
@@ -608,9 +606,10 @@ form[data-track-changes] .astryx-button:disabled { opacity: 0.5; cursor: not-all
 .filter:not(.set) select { font-weight: 400; }
 .filter a { display: inline-flex; color: var(--text-muted); }
 .filter:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
-.range-fields { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: var(--fs-xs); }
-.range-fields label { margin: 0; font-weight: 500; font-size: var(--fs-xs); }
-.range-fields input { width: 200px; height: var(--ctl-h-sm); margin: 0; font-family: var(--mono); font-size: var(--fs-xs); }
+.audit-toolbar { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+.audit-toolbar > .filters { flex: 1 1 32rem; min-width: 0; }
+.audit-toolbar > .menu { margin-left: auto; }
+.audit-detail { display: contents; }
 
 /* Docked side sheet: record detail beside its list */
 .split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
@@ -768,7 +767,7 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .people-list tbody tr, .invitations-list tbody tr, .providers-list tbody tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); }
   .people-list tbody tr:last-child, .invitations-list tbody tr:last-child, .providers-list tbody tr:last-child { border-bottom: 0; }
   .people-list tbody th, .people-list tbody td, .invitations-list tbody td, .providers-list tbody td { display: block; width: auto; max-width: none; padding: 3px 14px; border: 0; text-align: left; }
-  .people-list tbody td.num { position: absolute; top: 10px; right: 0; width: auto; min-width: 0; pointer-events: none; }  .filters .input-wrap { width: 100%; }
+  .people-list tbody td.num { position: absolute; top: 10px; right: 0; width: auto; min-width: 0; pointer-events: none; }
   .page-head > .actions { flex-basis: 100%; margin-left: 0; }
   .callout { flex-wrap: wrap; }
   .callout .grow { flex-basis: calc(100% - 28px); }
@@ -795,7 +794,6 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .tiles { grid-template-columns: minmax(0, 1fr); }
   .split.has-aside { grid-template-columns: minmax(0, 1fr); }
   .sheet.docked { position: static; max-height: none; order: -1; }
-  .input-wrap { width: 100%; }
   .row-links.stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .row-links.stack tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
   .row-links.stack tbody tr:last-child { border-bottom: 0; }
@@ -803,13 +801,14 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .row-links.stack tbody th { flex-basis: 100%; }
   .row-links.stack tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
   .row-links.stack tbody td:not([data-label]):last-child.num { display: none; }
-  .roles-list thead, .tools-list thead, .instances-list thead, .rules-list thead, .tokens-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .roles-list tbody tr, .tools-list tbody tr, .instances-list tbody tr, .rules-list tbody tr, .tokens-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
-  .roles-list tbody tr:last-child, .tools-list tbody tr:last-child, .instances-list tbody tr:last-child, .rules-list tbody tr:last-child, .tokens-list tbody tr:last-child { border-bottom: 0; }
-  .roles-list tbody th, .roles-list tbody td, .tools-list tbody th, .tools-list tbody td, .instances-list tbody th, .instances-list tbody td, .rules-list tbody th, .rules-list tbody td, .tokens-list tbody th, .tokens-list tbody td { display: block; width: auto; max-width: none; padding: 0; border: 0; }
-  .roles-list tbody th, .tools-list tbody th, .instances-list tbody th, .rules-list tbody th, .rules-list tbody td.rule-grants, .tokens-list tbody th, .tokens-list tbody td.token-access { flex-basis: 100%; }
+  .roles-list thead, .tools-list thead, .instances-list thead, .rules-list thead, .tokens-list thead, .audit-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .roles-list tbody tr, .tools-list tbody tr, .instances-list tbody tr, .rules-list tbody tr, .tokens-list tbody tr, .audit-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .roles-list tbody tr:last-child, .tools-list tbody tr:last-child, .instances-list tbody tr:last-child, .rules-list tbody tr:last-child, .tokens-list tbody tr:last-child, .audit-list tbody tr:last-child { border-bottom: 0; }
+  .roles-list tbody th, .roles-list tbody td, .tools-list tbody th, .tools-list tbody td, .instances-list tbody th, .instances-list tbody td, .rules-list tbody th, .rules-list tbody td, .tokens-list tbody th, .tokens-list tbody td, .audit-list tbody th, .audit-list tbody td { display: block; width: auto; max-width: none; padding: 0; border: 0; }
+  .roles-list tbody th, .tools-list tbody th, .instances-list tbody th, .rules-list tbody th, .rules-list tbody td.rule-grants, .tokens-list tbody th, .tokens-list tbody td.token-access, .audit-list tbody th { flex-basis: 100%; }
+  .audit-list tbody td { flex: none; max-width: 100%; }
   .rules-list tbody td.actions-cell, .tokens-list tbody td.actions-cell { margin-left: auto; }
-  .roles-list tbody td[data-label]::before, .tools-list tbody td[data-label]::before, .instances-list tbody td[data-label]::before, .tokens-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
+  .roles-list tbody td[data-label]::before, .tools-list tbody td[data-label]::before, .instances-list tbody td[data-label]::before, .tokens-list tbody td[data-label]::before, .audit-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
   .instances-list tbody td.actions-cell { flex-basis: 100%; text-align: left; }
   .roles-list tbody td.num { display: none; }
   .steps { grid-auto-flow: row; }

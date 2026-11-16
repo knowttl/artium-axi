@@ -455,7 +455,7 @@ test('browser password sign-in and confirmation are flagged for a designated bre
   expect((await request('POST', '/reauth', { _csrf: await token('/reauth'), password })).statusCode).toBe(303)
   expect(db.prepare("SELECT event, authentication_method FROM audit WHERE event IN ('sign-in', 'reauth') ORDER BY id").all())
     .toEqual([{ event: 'sign-in', authentication_method: 'break-glass' }, { event: 'reauth', authentication_method: 'break-glass' }])
-  expect((await request('GET', '/admin/audit')).body).toContain('<span class="mono">sign-in</span> <span class="badge warn">Break-glass</span>')
+  expect(auditCells((await request('GET', '/admin/audit')).body).map(cells => cells[1])).toContain('sign-in Break-glass')
   const exported = await request('GET', '/v1/admin/audit/export?format=jsonl')
   expect(exported.body.trim().split('\n').map(line => JSON.parse(line).authentication_method)).toEqual(['break-glass', 'break-glass'])
 })
@@ -467,7 +467,7 @@ test('password confirmation after break-glass designation flags the password cha
   expect((await request('POST', '/password', { _csrf: await token('/password'), currentPassword: password, newPassword }))
     .headers.location).toBe('/login')
   await signIn(newPassword)
-  expect((await request('GET', '/admin/audit')).body).toContain('<span class="mono">password-change</span> <span class="badge warn">Break-glass</span>')
+  expect(auditCells((await request('GET', '/admin/audit')).body).map(cells => cells[1])).toContain('password-change Break-glass')
   const exported = await request('GET', '/v1/admin/audit/export?format=jsonl&event=password-change')
   expect(exported.statusCode).toBe(200)
   expect(JSON.parse(exported.body.trim())).toMatchObject({ event: 'password-change', authentication_method: 'break-glass' })
@@ -649,7 +649,7 @@ test('Audit screen escapes stored fields and retains all filters across pages', 
   expect(first.statusCode).toBe(200)
   expect(first.body).toContain('<dt>action</dt><dd>second</dd>')
   expect(first.body).not.toContain('&lt;b&gt;action&lt;/b&gt;')
-  const next = /href="([^"]+)">Older/.exec(first.body)![1]!.replaceAll('&amp;', '&')
+  const next = attributeOf(auditLink(first.body, 'Older'), 'href')!
   const older = new URL('http://localhost' + next)
   expect(Object.fromEntries(older.searchParams)).toMatchObject(Object.fromEntries(filters))
   expect(older.searchParams.has('record')).toBe(false)
@@ -662,7 +662,7 @@ test('Audit screen escapes stored fields and retains all filters across pages', 
   expect(second.body).toContain('<dt>client_address</dt><dd>&lt;b&gt;address&lt;/b&gt;</dd>')
   expect(second.body).toContain('&lt;b&gt;actor&lt;/b&gt;')
   expect(second.body).not.toContain('<b>')
-  expect(second.body).toContain('<span class="btn btn-secondary btn-sm" aria-disabled="true">Older</span>')
+  expect(attributeOf(auditLink(second.body, 'Older'), 'aria-disabled')).toBe('true')
   expect(second.headers['cache-control']).toBe('no-store')
 })
 
@@ -681,7 +681,8 @@ test('R3: a displayed audit record opens after newer activity pushes it off the 
   expect(opened.body).toContain('<dt>action</dt><dd>selected-change</dd>')
   expect(opened.body).toContain('<h2 id="record-title">admin-change · succeeded</h2>')
   const current = await request('GET', '/admin/audit?event=admin-change&limit=1&record=' + (selected.id + 1))
-  expect(current.body).toContain(`<tr class="sel"><th scope="row"><a href="/admin/audit?event=admin-change&amp;limit=1&amp;record=${selected.id + 1}" aria-current="true">`)
+  const marked = nodesOf(parse(withoutProps(current.body))).filter(element => element.tagName === 'a' && attributeOf(element, 'aria-current') === 'true' && attributeOf(element, 'class') === 'row-link')
+  expect(marked.map(link => attributeOf(link, 'href'))).toEqual([`/admin/audit?event=admin-change&limit=1&record=${selected.id + 1}`])
 })
 
 test('Audit filters handle empty form fields and show a useful empty state', async () => {
@@ -689,7 +690,7 @@ test('Audit filters handle empty form fields and show a useful empty state', asy
   expect((await request('GET', '/admin/audit?user=&tool=&outcome=&from=&to=&limit=50')).statusCode).toBe(200)
   const empty = await request('GET', '/admin/audit?outcome=missing')
   expect(empty.body).toContain('No audit records match these filters.')
-  expect(empty.body).toContain('<option value="missing" selected>missing</option>')
+  expect(empty.body).toContain('<option value="missing" selected="">missing</option>')
   const byErrorCode = await request('GET', '/admin/audit?errorCode=PERMISSION_DENIED')
   expect(byErrorCode.statusCode).toBe(200)
   expect(byErrorCode.body).toContain('name="errorCode" value="PERMISSION_DENIED"')
@@ -707,12 +708,11 @@ test('Audit filtering by instance returns only that instance in the screen, API 
   audit.record({ event: 'denial', userId, tool: 'falcon-axi', outcome: 'INSTANCE_REQUIRED', requestId: 'unattributed', clientAddress: null })
   audit.record({ event: 'sign-in', userId, tool: null, outcome: 'success', requestId: 'historic-sign-in', clientAddress: null })
   const screen = await request('GET', '/admin/audit?instance=lab')
-  expect(screen.body).toContain('<th scope="col">Instance</th>')
-  expect(screen.body).toContain('<td>lab</td>')
-  expect(screen.body).not.toContain('<td>production</td>')
+  expect(screen.body).toContain('Instance</th>')
+  expect(auditCells(screen.body).map(cells => cells[4])).toEqual(['lab'])
   expect(screen.body).not.toContain('default/unknown')
-  expect((await request('GET', '/admin/audit')).body).toContain('<td class="faint">default/unknown</td>')
-  expect((await request('GET', '/admin/audit?requestId=historic-sign-in')).body).toContain('<td class="faint">default/unknown</td>')
+  expect(auditCells((await request('GET', '/admin/audit')).body).map(cells => cells[4])).toContain('default/unknown')
+  expect(auditCells((await request('GET', '/admin/audit?requestId=historic-sign-in')).body).map(cells => cells[4])).toEqual(['default/unknown'])
   const api = await request('GET', '/v1/admin/audit?instance=production')
   expect(api.json().records.map((record: { request_id: string }) => record.request_id)).toEqual(['production-call'])
   const jsonl = await request('GET', '/v1/admin/audit/export?format=jsonl&instance=lab')
@@ -735,9 +735,10 @@ test('Audit screen applies request ID and failed-run filters to rows and export 
   expect(page.statusCode).toBe(200)
   expect(page.body).toContain('<dt>request_id</dt><dd>synthetic-failed</dd>')
   expect(page.body).not.toContain('synthetic-success')
-  expect(page.body).toContain('name="requestId" value="synthetic-failed"')
-  expect(page.body).toContain('href="/admin/audit?requestId=synthetic-failed" aria-label="Clear filter: Failed runs only"')
-  const links = [...page.body.matchAll(/download href="([^"]+)"/g)].map(match => new URL('http://localhost' + match[1].replaceAll('&amp;', '&')))
+  const elements = nodesOf(parse(withoutProps(page.body)))
+  expect(elements.find(element => attributeOf(element, 'name') === 'requestId')).toMatchObject({ attrs: expect.arrayContaining([{ name: 'value', value: 'synthetic-failed' }]) })
+  expect(elements.find(element => attributeOf(element, 'aria-label') === 'Clear filter: Failed runs only')!.attrs).toContainEqual({ name: 'href', value: '/admin/audit?requestId=synthetic-failed' })
+  const links = elements.filter(element => attributeOf(element, 'download') !== undefined).map(link => new URL('http://localhost' + attributeOf(link, 'href')))
   expect(links).toHaveLength(2)
   expect(links.map(link => Object.fromEntries(link.searchParams))).toEqual([
     { requestId: 'synthetic-failed', failed: '1', format: 'csv' },
@@ -873,6 +874,9 @@ const withoutProps = (body: string) => body.replace(/<script type="application\/
 type Element = DefaultTreeAdapterMap['element']
 const attributeOf = (element: Element, name: string) => element.attrs.find(item => item.name === name)?.value
 const textOf = (element: Element): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? textOf(child) : '').join('')
+const auditCells = (body: string) => nodesOf(parse(withoutProps(body))).filter(element => element.tagName === 'tr' && nodesOf(element).some(cell => cell.tagName === 'td'))
+  .map(row => row.childNodes.filter((cell): cell is Element => 'tagName' in cell).map(textOf))
+const auditLink = (body: string, label: string) => nodesOf(parse(withoutProps(body))).find(element => ['a', 'button'].includes(element.tagName) && textOf(element) === label)!
 const accessPage = async (tool: string, sheet?: string) => nodesOf(parse(withoutProps((await request('GET', `/admin/tools/${tool}?tab=access${sheet ? '&sheet=' + sheet : ''}`)).body)))
 const accessRow = (page: Element[], label: string) => page.find(element => element.tagName === 'li' && nodesOf(element).some(item => ['a', 'strong'].includes(item.tagName) && textOf(item) === label))!
 const accessSheet = (page: Element[], name: string) => page.find(element => element.tagName === 'dialog' && attributeOf(element, 'id') === `sheet-${name}`)!
