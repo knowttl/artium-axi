@@ -79,7 +79,7 @@ function RuleActions({ csrf, page, rule }: { csrf: string, page: string, rule: R
 
 function RulesTable({ csrf, page, rules }: { csrf: string, page: string, rules: RoleRulesProps['rules'] }) {
   return (
-    <Table aria-label="Role rules" scrollWrapper={({ children }) => <div className="table-wrap rules-list">{children}</div>}>
+    <Table aria-label="Role rules" scrollWrapper={({ children }) => <div className="rules-list">{children}</div>}>
       <TableHeader>
         <TableRow isHeaderRow>
           <TableHeaderCell scope="col">Rule</TableHeaderCell>
