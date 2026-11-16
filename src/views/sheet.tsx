@@ -26,7 +26,7 @@ export interface SheetProps {
   children: ReactNode
 }
 
-export function Sheet({ name, open, closeHref, title, description, submit, action, method = 'POST', csrf, consequence, confirmTitle, confirmAction, successUrl, successMessage, claimLink, saveTool, footLead, children }: SheetProps) {
+export function SheetFrame({ name, open, closeHref, title, description, children }: Pick<SheetProps, 'name' | 'open' | 'closeHref' | 'title' | 'description' | 'children'>) {
   const id = `sheet-${name}`
   return (
     <>
@@ -39,19 +39,27 @@ export function Sheet({ name, open, closeHref, title, description, submit, actio
           </div>
           <IconButton href={closeHref} label="Close" icon={<Icon name="x" />} variant="ghost" size="sm" data-sheet-close="" />
         </div>
-        <ActionForm action={action} method={method} csrf={csrf} confirmation={consequence ? { consequence, title: confirmTitle ?? submit, action: confirmAction ?? submit } : undefined}
-          successUrl={successUrl} successMessage={successMessage} claimLink={claimLink} saveTool={saveTool}>
-          <div className="sheet-body">
-            <p className="message" data-sheet-message="" role="alert" tabIndex={-1} />
-            {children}
-          </div>
-          <div className="sheet-foot">
-            <Button href={closeHref} label="Cancel" variant="ghost" data-sheet-close="" />
-            {footLead}
-            <Button type="submit" label={submit} variant="primary" />
-          </div>
-        </ActionForm>
+        {children}
       </dialog>
     </>
+  )
+}
+
+export function Sheet({ name, open, closeHref, title, description, submit, action, method = 'POST', csrf, consequence, confirmTitle, confirmAction, successUrl, successMessage, claimLink, saveTool, footLead, children }: SheetProps) {
+  return (
+    <SheetFrame name={name} open={open} closeHref={closeHref} title={title} description={description}>
+      <ActionForm action={action} method={method} csrf={csrf} confirmation={consequence ? { consequence, title: confirmTitle ?? submit, action: confirmAction ?? submit } : undefined}
+        successUrl={successUrl} successMessage={successMessage} claimLink={claimLink} saveTool={saveTool}>
+        <div className="sheet-body">
+          <p className="message" data-sheet-message="" role="alert" tabIndex={-1} />
+          {children}
+        </div>
+        <div className="sheet-foot">
+          <Button href={closeHref} label="Cancel" variant="ghost" data-sheet-close="" />
+          {footLead}
+          <Button type="submit" label={submit} variant="primary" />
+        </div>
+      </ActionForm>
+    </SheetFrame>
   )
 }

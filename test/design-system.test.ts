@@ -192,7 +192,7 @@ test.each([
   ['/admin/tools/vectra-axi?sheet=add-instance', 'admin'], ['/admin/tools/vectra-axi?sheet=edit-lab', 'admin'],
   ['/admin/tools/vectra-axi/instances/lab', 'admin'], ['/admin/tools/vectra-axi/instances/missing', 'admin', 404], ['/admin/tools/ssh-axi', 'admin'],
   ['/admin/tools/awx-axi?tab=writes', 'admin'], ['/admin/tools/ldap-axi?tab=writes', 'admin'], ['/admin/audit', 'admin'], ['/admin/tokens', 'admin'],
-  ['/admin/settings/sign-in', 'admin'], ['/admin/settings/sign-in?add=choose', 'admin'], ['/admin/settings/sign-in?add=oidc', 'admin'],
+  ['/admin/settings/sign-in', 'admin'], ['/admin/settings/sign-in?sheet=add-provider', 'admin'], ['/admin/settings/sign-in?sheet=add-entra', 'admin'], ['/admin/settings/sign-in?sheet=add-oidc', 'admin'],
   ['/admin/settings/sign-in/synthetic-provider', 'admin'], ['/admin/settings/sign-in/synthetic-provider?tab=credential', 'admin'],
   ['/admin/settings/sign-in/synthetic-provider?tab=rules', 'admin'], ['/admin/settings/sign-in/synthetic-provider?tab=rules&rule=synthetic-rule', 'admin'],
   ['/admin/settings/sign-in/synthetic-provider?tab=settings', 'admin'], ['/admin/settings/sign-in/synthetic-provider/matches/synthetic-rule', 'admin'],
@@ -222,7 +222,8 @@ test.each([
   }
   expect(page.filter(element => element.tagName === 'h1')).toHaveLength(1)
   expect(page.filter(element => element.tagName === 'form' && element.attrs.some(attribute => attribute.name === 'action' && attribute.value === '/theme'))).toHaveLength(['/admin', '/admin/users', '/admin/users/synthetic-ordinary', '/admin/roles', '/admin/roles/synthetic-role', '/admin/invitations', '/admin/tools', '/admin/tools/vectra-axi/instances/lab',
-    '/admin/settings/sign-in', '/admin/settings/sign-in?add=choose', '/admin/settings/sign-in?add=oidc', '/admin/settings/sign-in/synthetic-provider/matches/synthetic-rule'].includes(url) || /^\/admin\/tools\/[a-z-]+(\?|$)/.test(url) ? 2 : 1)
+    '/admin/settings/sign-in', '/admin/settings/sign-in?sheet=add-provider', '/admin/settings/sign-in?sheet=add-entra', '/admin/settings/sign-in?sheet=add-oidc',
+    '/admin/settings/sign-in/synthetic-provider', '/admin/settings/sign-in/synthetic-provider?tab=settings', '/admin/settings/sign-in/synthetic-provider/matches/synthetic-rule'].includes(url) || /^\/admin\/tools\/[a-z-]+(\?|$)/.test(url) ? 2 : 1)
 })
 
 test.each([

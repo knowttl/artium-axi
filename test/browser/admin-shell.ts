@@ -700,7 +700,7 @@ test('user detail designates a break-glass administrator and removing it signs t
 
 test('invitations show each new link once and allow resend and revoke through the real forms', async () => {
   browser(`
-    await page.open(base + '/admin/settings/sign-in?add=entra');
+    await page.open(base + '/admin/settings/sign-in?sheet=add-entra');
     await page.fill('[name=name]', 'Synthetic provider');
     await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
     await page.click('form[action="/v1/admin/sso/providers"] button');
@@ -761,7 +761,7 @@ test('invitations show each new link once and allow resend and revoke through th
 
 test('invitations link an existing local user through its detail page and recent-auth confirmation', async () => {
   browser(`
-    await page.open(base + '/admin/settings/sign-in?add=entra');
+    await page.open(base + '/admin/settings/sign-in?sheet=add-entra');
     await page.fill('[name=name]', 'Synthetic provider');
     await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
     await page.click('form[action="/v1/admin/sso/providers"] button');
@@ -796,7 +796,7 @@ test('invitations link an existing local user through its detail page and recent
 test('sign-in settings stores, edits and removes a rule through recent-auth confirmation', async () => {
   chrome(['resize', '420', '900'])
   browser(`
-    await page.open(base + '/admin/settings/sign-in?add=entra');
+    await page.open(base + '/admin/settings/sign-in?sheet=add-entra');
     await page.fill('[name=name]', 'Synthetic provider');
     await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
     await page.click('form[action="/v1/admin/sso/providers"] button');
@@ -857,10 +857,10 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
   chrome(['resize', '420', '900'])
   browser(`
     await page.open(base + '/admin/settings/sign-in');
-    await page.wait('[role=main] a[href$="add=choose"]');
+    await page.wait('[role=main] a[href$="sheet=add-provider"]');
     check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('New providers start disabled')), 'Missing disabled-sign-in guidance');
-    await page.click('[role=main] a[href$="add=choose"]');
-    await page.wait('dialog[open] [name=add][value=entra]:checked');
+    await page.click('[role=main] a[href$="sheet=add-provider"]');
+    await page.wait('dialog[open] [name=sheet][value=add-entra]:checked');
     await page.click('dialog[open] form button');
     await page.wait('[name=tenantId]');
     await page.fill('[name=name]', 'Synthetic provider');
@@ -871,8 +871,8 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
     await page.wait('[data-provider] a:has(> strong)');
     await page.click('[data-provider] a:has(> strong)');
     await page.wait('.vsteps');
-    check(await page.eval(() => !document.querySelector('form[action$="/activation"]') && document.querySelector('main').innerText.includes('Set up this provider') && document.querySelector('main').innerText.includes('Not ready to enable')), 'Activation offered before completing setup');
-    await page.click('.utabs a[href$="tab=credential"]');
+    check(await page.eval(() => !document.querySelector('form[action$="/activation"]') && document.querySelector('[role=main]').innerText.includes('Set up this provider') && document.querySelector('[role=main]').innerText.includes('Not ready to enable')), 'Activation offered before completing setup');
+    await page.click('nav[aria-label=Sections] a[href$="tab=credential"]');
     await page.wait('[data-certificate-pem]');
     check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"certificate"'), 'Certificate is not the default');
     await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
@@ -908,7 +908,7 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
 
 test('sign-in settings can save a client secret and requires a replacement when the client changes', () => {
   browser(`
-    await page.open(base + '/admin/settings/sign-in?add=entra');
+    await page.open(base + '/admin/settings/sign-in?sheet=add-entra');
     await page.fill('[name=name]', 'Synthetic secret provider');
     await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
     await page.click('form[action="/v1/admin/sso/providers"] button');

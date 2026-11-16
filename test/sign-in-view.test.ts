@@ -18,7 +18,8 @@ const summaries: SignInProps['summaries'] = [
 ]
 
 const signIn = (overrides: Partial<SignInProps> = {}) => renderToString(createElement(Theme, { theme: neutralTheme,
-  children: createElement(SignIn, { summaries, providers: [provider], addHref: '/admin/settings/sign-in?add=choose', ...overrides }) }))
+  children: createElement(SignIn, { summaries, providers: [provider], addHref: '/admin/settings/sign-in?sheet=add-provider',
+    add: { open: null, closeHref: '/admin/settings/sign-in', csrf: 'CANARY-csrf' }, ...overrides }) }))
 const matches = (overrides: Partial<SignInMatchesProps> = {}) => renderToString(createElement(Theme, { theme: neutralTheme,
   children: createElement(SignInMatches, { people: [], note: 'Matches come from the last sign-in.', ...overrides }) }))
 
@@ -55,7 +56,7 @@ test('with no provider the list says so and offers the same Add provider link as
   expect(find(html, element => element.tagName === 'table')).toEqual([])
   expect(text(find(html, element => element.tagName === 'h3')[0]!)).toBe('No providers yet')
   expect(html).toContain('Add one, then save its credential.')
-  expect(links(html)).toContainEqual(['/admin/settings/sign-in?add=choose', 'Add provider'])
+  expect(links(html)).toContainEqual(['/admin/settings/sign-in?sheet=add-provider', 'Add provider'])
 })
 
 test('the page content has no form, so nothing on it changes a provider or a secret', () => {
