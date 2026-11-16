@@ -149,25 +149,25 @@ function pageForm(body: string, action: string) {
 const enabledPolicy = () => db.prepare('SELECT enabled, revision FROM sso_providers').all()
 
 test.each([
-  { sheet: 'add-entra', fields: ['name', 'tenantId'], input: { name: 'Synthetic created', tenantId } },
-  { sheet: 'add-oidc', fields: ['kind', 'name', 'issuer'], input: { kind: 'oidc', name: 'Synthetic created', issuer: 'https://identity.example' } },
-])('the $sheet sheet posts the create form the old dialog did, and submitting its fields creates a disabled provider', async ({ sheet, fields, input }) => {
-  const page = await app.inject({ url: `/admin/settings/sign-in?sheet=${sheet}`, headers: browserHeaders() })
+  { add: 'entra', fields: ['name', 'tenantId'], input: { name: 'Synthetic created', tenantId } },
+  { add: 'oidc', fields: ['kind', 'name', 'issuer'], input: { kind: 'oidc', name: 'Synthetic created', issuer: 'https://identity.example' } },
+])('the $add sheet posts the create form the old dialog did, and submitting its fields creates a disabled provider', async ({ add, fields, input }) => {
+  const page = await app.inject({ url: `/admin/settings/sign-in?add=${add}`, headers: browserHeaders() })
   expect(page.statusCode).toBe(200)
   const form = pageForm(page.body, '/v1/admin/sso/providers')
   expect(form.attributes).toMatchObject({ 'data-api': '', 'data-method': 'POST', 'data-confirm': 'Create a disabled provider?', 'data-success-url': '/admin/settings/sign-in', method: 'post' })
   expect(form.names).toEqual(['_csrf', ...fields])
   expect(form.csrf).toMatch(/^[\w-]+$/)
-  expect(page.body).toContain(`<dialog class="sheet" id="sheet-${sheet}"`)
+  expect(page.body).toContain(`<dialog class="sheet" id="sheet-add-${add}"`)
   const created = await app.inject({ method: 'POST', url: base, headers, payload: { ...form.payload, ...input } })
   expect(created.statusCode).toBe(200)
   expect(db.prepare('SELECT name, kind, enabled FROM sso_providers').all()).toEqual([{ name: 'Synthetic created', kind: input.kind ?? 'entra', enabled: 0 }])
 })
 
 test('the provider chooser is a GET form to the sheet for the chosen kind, with no CSRF token or API call', async () => {
-  const page = await app.inject({ url: '/admin/settings/sign-in?sheet=add-provider', headers: browserHeaders() })
+  const page = await app.inject({ url: '/admin/settings/sign-in?add=choose', headers: browserHeaders() })
   const form = page.body.match(/<form action="\/admin\/settings\/sign-in" method="get">(.*?)<\/form>/s)![1]!
-  expect([...form.matchAll(/<input type="radio" name="([^"]+)"[^>]*value="([^"]+)"/g)].map(match => [match[1], match[2]])).toEqual([['sheet', 'add-entra'], ['sheet', 'add-oidc']])
+  expect([...form.matchAll(/<input type="radio" name="([^"]+)"[^>]*value="([^"]+)"/g)].map(match => [match[1], match[2]])).toEqual([['add', 'entra'], ['add', 'oidc']])
   expect(form).not.toContain('_csrf')
   expect(form).not.toContain('data-api')
 })

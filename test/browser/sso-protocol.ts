@@ -161,7 +161,7 @@ test('generic provider settings and credential are editable and activation is ex
     await page.fill('[name=password]', 'CANARY-local-password');
     await page.click('form[action="/login"] button');
     await page.wait('nav[aria-label=Administration]');
-    await page.open(base + '/admin/settings/sign-in?sheet=add-oidc');
+    await page.open(base + '/admin/settings/sign-in?add=oidc');
     await page.wait('form[action="/v1/admin/sso/providers"] [name=issuer]');
     await page.fill('form:has([name=issuer]) [name=name]', 'Synthetic created OIDC');
     await page.fill('form:has([name=issuer]) [name=issuer]', 'https://generic.example');

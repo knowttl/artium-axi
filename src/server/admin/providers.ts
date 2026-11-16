@@ -20,7 +20,7 @@ import { renderPage } from './render-page.js'
 import { card, field, icon, initials, tabs, viewDialog } from './design/ui.js'
 import { badge, status, toolProducts } from './design/status.js'
 
-const signInQuery = z.object({ sheet: z.enum(['add-provider', 'add-entra', 'add-oidc']).optional(),
+const signInQuery = z.object({ add: z.enum(['choose', 'entra', 'oidc']).optional(),
   tab: z.enum(['setup', 'credential', 'rules', 'settings']).optional(), rule: z.string().min(1).max(256).optional() })
 const kindLabel = (kind: string) => kind === 'entra' ? 'Entra ID' : 'OpenID Connect'
 
@@ -189,8 +189,8 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
         { label: 'Invitations', value: `${pending} pending`, detail: enabledCount ? 'Waiting to be claimed with an enabled provider.' : 'Claimable once a provider is enabled.',
           warning: false, action: { href: '/admin/invitations', label: 'Open invitations' } },
       ]
-      const addHref = `${list}?sheet=add-provider`
-      return renderPage(reply, 'Sign-in & SSO', 'signIn', { summaries, addHref, add: { open: query.data.sheet ?? null, closeHref: list, csrf },
+      const addHref = `${list}?add=choose`
+      return renderPage(reply, 'Sign-in & SSO', 'signIn', { summaries, addHref, add: { open: query.data.add ?? null, closeHref: list, csrf },
         providers: providers.map(provider => ({ href: `${list}/${encodeURIComponent(provider.id)}`, name: provider.name, initials: initials(provider.name),
           kind: kindLabel(provider.kind), issuer: provider.issuer, configured: Boolean(credentials?.read(provider.id)), enabled: provider.enabled })) },
       current, 'How people sign in to Artium and the CLI.', [{ label: 'Add provider', href: addHref, variant: 'primary', icon: 'plus' }])

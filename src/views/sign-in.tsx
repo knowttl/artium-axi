@@ -17,7 +17,7 @@ export interface SignInProps {
   summaries: { label: string, value: string, detail: string, warning: boolean, action: { href: string, label: string } | null }[]
   providers: { href: string, name: string, initials: string, kind: string, issuer: string, configured: boolean, enabled: boolean }[]
   addHref: string
-  add: { open: 'add-provider' | 'add-entra' | 'add-oidc' | null, closeHref: string, csrf: string }
+  add: { open: 'choose' | 'entra' | 'oidc' | null, closeHref: string, csrf: string }
 }
 
 const kinds = [
@@ -26,7 +26,7 @@ const kinds = [
 ]
 
 function AddProvider({ open, closeHref, csrf }: SignInProps['add']) {
-  if (open === 'add-provider') {
+  if (open === 'choose') {
     return (
       <SheetFrame name="add-provider" open closeHref={closeHref} title="Add a sign-in provider" description="Pick the kind of identity provider. You configure its credential and rules next.">
         <form method="get" action={closeHref}>
@@ -35,7 +35,7 @@ function AddProvider({ open, closeHref, csrf }: SignInProps['add']) {
               <legend className="sr-only">Kind of identity provider</legend>
               {kinds.map(kind => (
                 <label key={kind.value} className="option">
-                  <input type="radio" name="sheet" value={`add-${kind.value}`} defaultChecked={kind.value === 'entra'} />
+                  <input type="radio" name="add" value={kind.value} defaultChecked={kind.value === 'entra'} />
                   <div><strong>{kind.name}</strong><span>{kind.detail}</span></div>
                 </label>
               ))}
@@ -50,12 +50,11 @@ function AddProvider({ open, closeHref, csrf }: SignInProps['add']) {
     )
   }
   if (!open) return null
-  const kind = open === 'add-entra' ? 'entra' : 'oidc'
   return (
-    <Sheet name={open} open closeHref={closeHref} title={kind === 'entra' ? 'Add an Entra ID provider' : 'Add an OpenID Connect provider'}
+    <Sheet name={`add-${open}`} open closeHref={closeHref} title={open === 'entra' ? 'Add an Entra ID provider' : 'Add an OpenID Connect provider'}
       description="The provider starts disabled. Save its credential and test break-glass access before enabling it." submit="Add provider" confirmTitle="Add provider?"
       action="/v1/admin/sso/providers" csrf={csrf} consequence="Create a disabled provider?" successUrl={closeHref}>
-      <ProviderFields kind={kind} name="" identifier="" />
+      <ProviderFields kind={open} name="" identifier="" />
     </Sheet>
   )
 }
