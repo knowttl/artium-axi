@@ -853,6 +853,18 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
   `)
 })
 
+for (const [add, close] of [['choose', 'Escape'], ['entra', 'Close'], ['oidc', 'Cancel']]) test('closing the ' + add + ' provider sheet keeps it closed after reload', () => {
+  browser(`
+    await page.open(base + '/admin/settings/sign-in?add=${add}');
+    await page.wait('dialog.sheet:modal');
+    ${close === 'Escape' ? "await page.press('Escape');" : `await page.click('dialog.sheet ${close === 'Close' ? '.sheet-head' : '.sheet-foot'} [data-sheet-close]');`}
+    await page.wait('dialog.sheet:not([open])');
+    check(await page.eval(() => !new URL(location.href).searchParams.has('add')), 'Provider query stayed in the address');
+    await page.open(await page.eval(() => location.href));
+    check(await page.eval(() => !document.querySelector('dialog.sheet[open]')), 'Provider sheet reopened after reload');
+  `)
+})
+
 test('sign-in settings creates a disabled provider and saves a certificate without redisplaying its key', async () => {
   chrome(['resize', '420', '900'])
   browser(`

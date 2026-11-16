@@ -8,6 +8,7 @@ import { Icon } from './icon.js'
 export interface SheetProps {
   name: string
   open: boolean
+  query?: string
   closeHref: string
   title: string
   description: string
@@ -26,12 +27,12 @@ export interface SheetProps {
   children: ReactNode
 }
 
-export function SheetFrame({ name, open, closeHref, title, description, children }: Pick<SheetProps, 'name' | 'open' | 'closeHref' | 'title' | 'description' | 'children'>) {
+export function SheetFrame({ name, open, query, closeHref, title, description, children }: Pick<SheetProps, 'name' | 'open' | 'query' | 'closeHref' | 'title' | 'description' | 'children'>) {
   const id = `sheet-${name}`
   return (
     <>
       {open && <a className="scrim" href={closeHref} tabIndex={-1} aria-hidden="true" data-sheet-scrim="" />}
-      <dialog className="sheet" id={id} aria-labelledby={`${id}-title`} open={open}>
+      <dialog className="sheet" id={id} aria-labelledby={`${id}-title`} data-sheet-query={query} open={open}>
         <div className="sheet-head">
           <div className="grow">
             <Heading level={2} id={`${id}-title`}>{title}</Heading>
@@ -45,9 +46,9 @@ export function SheetFrame({ name, open, closeHref, title, description, children
   )
 }
 
-export function Sheet({ name, open, closeHref, title, description, submit, action, method = 'POST', csrf, consequence, confirmTitle, confirmAction, successUrl, successMessage, claimLink, saveTool, footLead, children }: SheetProps) {
+export function Sheet({ name, open, query, closeHref, title, description, submit, action, method = 'POST', csrf, consequence, confirmTitle, confirmAction, successUrl, successMessage, claimLink, saveTool, footLead, children }: SheetProps) {
   return (
-    <SheetFrame name={name} open={open} closeHref={closeHref} title={title} description={description}>
+    <SheetFrame name={name} open={open} query={query} closeHref={closeHref} title={title} description={description}>
       <ActionForm action={action} method={method} csrf={csrf} confirmation={consequence ? { consequence, title: confirmTitle ?? submit, action: confirmAction ?? submit } : undefined}
         successUrl={successUrl} successMessage={successMessage} claimLink={claimLink} saveTool={saveTool}>
         <div className="sheet-body">

@@ -246,7 +246,7 @@ for (const dialog of document.querySelectorAll('dialog.sheet')) {
   // A reload after saving must not reopen the sheet.
   document.querySelector('[data-sheet-scrim]')?.setAttribute('hidden', '');
   const url = new URL(location.href);
-  url.searchParams.delete('sheet');
+  url.searchParams.delete(dialog.dataset.sheetQuery || 'sheet');
   history.replaceState(null, '', url);
   openSheet(dialog);
 }
