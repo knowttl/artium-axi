@@ -104,7 +104,7 @@ The legacy base rules for headings, paragraphs, links, table elements, labels, s
 Tool views no longer accept `legacyHtml`; the `legacy-island` elements left are the empty certificate details container in the instance page's inspection dialog, which `confirm.js` fills with the inspected chain, and the Audit log's record detail panel.
 The Audit log (`AuditLog` in `src/views/audit.tsx`, route `/admin/audit`) is the fourteenth page on the seam.
 It is a GET filter form (Request ID and Token ID search, the Time range link group, the Failed runs only link, native `select` chips for User, Tool, Instance, Event and Outcome, the Error code chip that appears only when the query sets it, and the From and To fields of a custom range), an Export menu (a native `details` with the CSV and JSON lines download links to `/v1/admin/audit/export` for the applied filters), the records table and a cursor pager.
-Every filter, the pager and every row link are plain links or GET form fields with the same query parameter names as before, so filtering and paging work without JavaScript; `confirm.js` only auto-submits the chips and hides Apply.
+Every filter, the pager and every row link are plain links or GET form fields with the same query parameter names as before, so filtering and paging work without JavaScript; `confirm.js` auto-submits the chips and hides Apply except for a custom range.
 Its props carry what a row displays (time, event, break-glass flag, actor name, tool, instance and outcome word and tone) and no other stored field; the open record's detail panel is still server-built markup passed as a string and shown in a `legacy-island` wrapper (`display: contents`, so the panel stays docked beside the list) until its own slice.
 
 ## Constraints
