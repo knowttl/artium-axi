@@ -306,7 +306,7 @@ a.chip:hover { background: var(--bg-active); }
 .audit-list { container-type: inline-size; }
 @container (min-width: 880px) { .audit-list tbody th { white-space: nowrap; overflow-wrap: normal; } .audit-list td[data-label="Event"] { min-width: 8rem; }
   .audit-list td[data-label="Actor"], .audit-list td[data-label="Instance"] { min-width: 7rem; } .audit-list td[data-label="Tool"] { min-width: 6rem; } }
-@container (max-width: 879px) {
+@container (width < 880px) {
   .audit-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .audit-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
   .audit-list tbody tr:last-child { border-bottom: 0; }

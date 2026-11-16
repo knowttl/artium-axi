@@ -1462,6 +1462,19 @@ test('an open audit record leaves every cell of its row fully inside the list at
         check(clipped.outside === 0 && !clipped.scrolls, 'A cell of the open record row is clipped at ${width}px');
       `)
     }
+    browser(`
+      const layouts = await page.eval(() => {
+        const sheet = [...document.styleSheets].find(sheet => sheet.ownerNode?.tagName === 'STYLE');
+        const index = sheet.cssRules.length;
+        return [879.5, 880].map(width => {
+          sheet.insertRule('.audit-list { width: ' + width + 'px !important; box-sizing: content-box !important; }', index);
+          const layout = getComputedStyle(document.querySelector('.audit-list tbody tr')).display;
+          sheet.deleteRule(index);
+          return layout;
+        });
+      });
+      check(layouts[0] === 'flex' && layouts[1] === 'table-row', 'Audit layout changed at the wrong list width');
+    `)
   } finally { chrome(['resize', '1280', '900']) }
 })
 
