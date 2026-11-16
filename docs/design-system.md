@@ -127,8 +127,8 @@ The credential and person selects and the sudo checkboxes stay native.
 
 The SSH credentials page (`SshCredentials` in `src/views/ssh-credentials.tsx`, route `/admin/ssh/credentials`) is the seventeenth page on the seam and the last SSH page to move there.
 Each stored credential is a panel with its revision, the two exclusive native `details` choices "Use a private key" and "Use a password" with their forms, and Delete credential with its typed-name confirmation; New encrypted credential follows with the same two forms and a Credential ID field.
-Every form keeps its URL, method, `confirm` and `expectedRevision` fields, field names, ids, `autocomplete` values, required flags, labels, the password hint and the confirmation text; the integration test compares every attribute of every control with a recorded copy of the previous forms.
-The private key, passphrase and password fields are native uncontrolled controls: they are never given a value, are not in React state or in the hydration data (the props carry credential ids and revisions only), and a `pagehide` listener clears them when the page is left or hidden.
+Every form keeps its URL, method, `confirm` and `expectedRevision` fields, field names, ids, `autocomplete` values, required flags, labels, the password hint and the confirmation text; the integration test compares the form contract with a recorded copy of the previous forms, excluding CSS classes and CSRF controls.
+The private key, passphrase and password fields are native uncontrolled controls: they are never given a value and are not in React state or in the hydration data; the credential props carry ids and revisions only, and a `pagehide` listener clears the fields when that event fires.
 
 ## Constraints
 
