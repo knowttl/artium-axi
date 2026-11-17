@@ -1,5 +1,4 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
-import { browserDefaults } from '../config.js'
 
 const key = randomBytes(32)
 
@@ -10,11 +9,10 @@ export function mintConfirmation(sessionId: string, method: string, path: string
   return `${now}.${sign(sessionId, method, path, String(now))}`
 }
 
-export function isConfirmed(value: unknown, sessionId: string, method: string, path: string, now = Date.now()) {
+export function isConfirmed(value: unknown, sessionId: string, method: string, path: string) {
   if (typeof value !== 'string') return false
   const [issuedAt = '', signature = ''] = value.split('.')
-  const age = now - Number(issuedAt)
-  if (!/^\d{1,16}$/.test(issuedAt) || age < 0 || age > browserDefaults.idleMs) return false
+  if (!/^\d{1,16}$/.test(issuedAt)) return false
   const expected = Buffer.from(sign(sessionId, method, path, issuedAt))
   const actual = Buffer.from(signature)
   return actual.length === expected.length && timingSafeEqual(actual, expected)

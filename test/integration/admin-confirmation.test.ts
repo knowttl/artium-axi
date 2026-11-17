@@ -84,7 +84,8 @@ test('a native post without confirmation changes nothing and answers with the co
   expect(revoked()).toEqual([])
   const confirmation = pageForm(step.body, revokeAll).inputs
   expect(Object.keys(confirmation).sort()).toEqual(['_confirm', '_csrf'])
-  expect((await postForm(revokeAll, confirmation)).statusCode).toBe(204)
+  const completed = await postForm(revokeAll, confirmation)
+  expect([completed.statusCode, completed.headers.location]).toEqual([303, '/admin'])
   expect(revoked()).toEqual(['token-live'])
   expect(revocations()).toBe(1)
 })
@@ -121,7 +122,7 @@ test('a confirmation minted for one action is refused for another action and for
   expect(revoked()).toEqual([])
 })
 
-test('a confirmation from another session, a lapsed one and a malformed one are each refused', async () => {
+test('a confirmation from another session and a malformed one are refused', async () => {
   mint('token-live')
   const issued = pageForm(await tokenPage(), revokeAll).attributes['data-confirm-token']!
   const otherSession = browserHeaders()
@@ -129,11 +130,18 @@ test('a confirmation from another session, a lapsed one and a malformed one are 
   for (const malformed of ['', 'garbage', `${now}.`, `${now + 1}.${issued.split('.')[1]}`, `x.${issued.split('.')[1]}`]) {
     expect((await post(revokeAll, { _confirm: malformed })).json().error.code).toBe('CONFIRMATION_REQUIRED')
   }
+  expect(revoked()).toEqual([])
+})
+
+test('a confirmation remains valid while the session stays active', async () => {
+  mint('token-live')
+  const issued = pageForm(await tokenPage(), revokeAll).attributes['data-confirm-token']!
   vi.spyOn(Date, 'now').mockReturnValue(now + 20 * 60000)
   expect((await app.inject({ url: '/admin/tokens', headers })).statusCode).toBe(200)
   vi.spyOn(Date, 'now').mockReturnValue(now + 40 * 60000)
-  expect((await post(revokeAll, { _confirm: issued })).json().error.code).toBe('CONFIRMATION_REQUIRED')
-  expect(revoked()).toEqual([])
+  db.prepare('UPDATE sessions SET reauthenticated_at = ?').run(now + 40 * 60000)
+  expect((await post(revokeAll, { _confirm: issued })).statusCode).toBe(204)
+  expect(revoked()).toEqual(['token-live'])
 })
 
 test('a native post to a route that needs the page script changes nothing and says so', async () => {

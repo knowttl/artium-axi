@@ -8,6 +8,7 @@ import { isConfirmed, mintConfirmation } from './confirmation-token.js'
 import { renderAuthPage } from './render-page.js'
 
 export function registerConfirmationGate(app: FastifyInstance, db: Database.Database) {
+  const nativeConfirmations = new WeakMap<object, string>()
   app.addHook('preValidation', async (request, reply) => {
     const route = request.routeOptions.url && confirmationRoutes[`${request.method} ${request.routeOptions.url}`]
     if (!route || request.headers.authorization || !request.cookies[browserCookie]) return
@@ -16,7 +17,12 @@ export function registerConfirmationGate(app: FastifyInstance, db: Database.Data
     if (body) request.body = input
     const session = readBrowserSession(db, request.cookies[browserCookie]!)
     const path = request.url.split('?')[0]!
-    if (isConfirmed(_confirm,session.id, request.method, path)) return
+    if (isConfirmed(_confirm, session.id, request.method, path)) {
+      if (request.headers['content-type']?.startsWith('application/x-www-form-urlencoded')) {
+        nativeConfirmations.set(request, path.startsWith('/v1/account/') ? '/account' : '/admin')
+      }
+      return
+    }
     if (!request.headers['content-type']?.startsWith('application/x-www-form-urlencoded')) throw new ArtiumError('CONFIRMATION_REQUIRED')
     const referrer = (() => {
       try { return new URL(request.headers.referer ?? '') } catch { return undefined }
@@ -35,5 +41,11 @@ export function registerConfirmationGate(app: FastifyInstance, db: Database.Data
       { kind: 'text', parts: [text('_confirmText') || 'This change takes effect as soon as you confirm it.'] },
       { kind: 'form', action: path, fields: [], post: { csrf: reply.generateCsrf(), hidden: { ...carried, _confirm: mintConfirmation(session.id, request.method, path) } }, blocks: [
         { kind: 'buttons', row: true, buttons: [{ label: 'Cancel', tone: 'ghost', href: back }, { label: text('_confirmAction') || 'Confirm', tone: 'primary' }] }] }] }, session)
+  })
+  app.addHook('onSend', async (request, reply, payload) => {
+    const destination = nativeConfirmations.get(request)
+    if (!destination || reply.statusCode < 200 || reply.statusCode >= 300) return payload
+    reply.code(303).header('location', destination)
+    return null
   })
 }
