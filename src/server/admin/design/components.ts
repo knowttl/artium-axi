@@ -243,7 +243,7 @@ a.chip:hover { background: var(--bg-active); }
 .card.danger .card-head h2 { color: var(--err); }
 .card > form, .card-foot form, .list-row form, .tbl form, .page-head form, .popover form { margin: 0; }
 .card > form { display: contents; }
-.card-meta { margin: 0 4px; color: var(--text-faint); font-size: var(--fs-xs); }
+.card-meta { margin: 0; color: var(--text-faint); font-size: var(--fs-xs); }
 
 /* Stats */
 
@@ -264,8 +264,10 @@ a.chip:hover { background: var(--bg-active); }
 @media (min-width: 761px) { .tools-list th, .tools-list td { white-space: nowrap; overflow-wrap: normal; word-break: normal; } }
 .tools-list tbody tr:last-child th, .tools-list tbody tr:last-child td { border-bottom: 0; }
 .astryx-card:has(.instances-list) { overflow: visible; }
+.instances-list { container-type: inline-size; }
 .instances-list th, .instances-list td { max-width: none; overflow: visible; }
-@media (min-width: 761px) { .instances-list td:not([data-label="Endpoint"]) { white-space: nowrap; overflow-wrap: normal; word-break: normal; } }
+.instances-list tbody th { white-space: normal; overflow-wrap: anywhere; }
+@container (width >= 900px) { .instances-list tbody th { min-width: 12rem; } .instances-list td:not([data-label="Endpoint"]) { white-space: nowrap; overflow-wrap: normal; word-break: normal; } }
 .instances-list td[data-label="Endpoint"], .instances-list td[data-label="SHA-256"], .instances-list td[data-label="Expires"] { overflow-wrap: anywhere; white-space: normal; }
 .instances-list td[data-label="Endpoint"] { min-width: 12rem; }
 .instances-list td[data-label="SHA-256"] { max-width: 22rem; }
@@ -283,13 +285,24 @@ a.chip:hover { background: var(--bg-active); }
 .rules-list .rule-grants > * { min-width: 0; }
 @media (min-width: 761px) { .rules-list th:nth-child(3), .rules-list td:nth-child(3) { white-space: nowrap; overflow-wrap: normal; } .rules-list td.actions-cell { width: 1%; } }
 .rules-list tbody tr:last-child th, .rules-list tbody tr:last-child td { border-bottom: 0; }
+.tokens-list { container-type: inline-size; }
 .tokens-list th, .tokens-list td { min-width: 0; max-width: none; overflow: visible; overflow-wrap: anywhere; white-space: normal; vertical-align: top; }
 .tokens-list th *, .tokens-list td * { min-width: 0; overflow-wrap: anywhere; }
 .token-scope { margin: 0; padding-left: 1.2em; }
 .astryx-button.revoke { color: var(--err); }
 .astryx-button.revoke:hover { background: var(--err-soft); }
-@media (min-width: 761px) { .tokens-list td[data-label="Expires"], .tokens-list td.actions-cell { white-space: nowrap; overflow-wrap: normal; } .tokens-list td.actions-cell { width: 1%; } }
+@container (width >= 900px) { .tokens-list td[data-label="Creator"] { min-width: 14rem; } .tokens-list td[data-label="Expires"], .tokens-list td.actions-cell { white-space: nowrap; overflow-wrap: normal; } .tokens-list td.actions-cell { width: 1%; } }
 .tokens-list tbody tr:last-child th, .tokens-list tbody tr:last-child td { border-bottom: 0; }
+@container (width < 900px) {
+  .instances-list thead, .tokens-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .instances-list tbody tr, .tokens-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .instances-list tbody tr:last-child, .tokens-list tbody tr:last-child { border-bottom: 0; }
+  .instances-list tbody th, .instances-list tbody td, .tokens-list tbody th, .tokens-list tbody td { display: block; width: auto; max-width: none; padding: 0; border: 0; }
+  .instances-list tbody th, .tokens-list tbody th, .tokens-list tbody td.token-access, .instances-list tbody td.actions-cell { flex-basis: 100%; }
+  .tokens-list tbody td.actions-cell { margin-left: auto; }
+  .instances-list tbody td.actions-cell { text-align: left; }
+  .instances-list tbody td[data-label]::before, .tokens-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
+}
 .audit-list th, .audit-list td { min-width: 0; max-width: none; overflow: visible; overflow-wrap: anywhere; white-space: normal; vertical-align: top; }
 .audit-list tbody th { font-weight: 400; }
 .audit-list tbody tr.sel { background: var(--bg-muted); }
@@ -298,13 +311,14 @@ a.chip:hover { background: var(--bg-active); }
 .ssh-events tbody th { font-weight: 400; }
 .ssh-events tbody th time { white-space: nowrap; }
 .ssh-events tbody tr:last-child th, .ssh-events tbody tr:last-child td { border-bottom: 0; }
-@container (min-width: 640px) {
+@container (min-width: 760px) {
+  .ssh-events td[data-label="Event"] { min-width: 6rem; } .ssh-events td.connection-cell { min-width: 11rem; }
   .ssh-events td[data-label="Host"] { min-width: 8rem; } .ssh-events td[data-label="User"] { min-width: 10rem; } .ssh-events td[data-label="Request ID"] { min-width: 10rem; }
   .ssh-events td[data-label="Outcome"] { min-width: 11rem; } .ssh-events td[data-label="Account type"] { min-width: 7rem; }
   .ssh-events td[data-label="Person"] { min-width: 10rem; } .ssh-events td[data-label="Host use"], .ssh-events td[data-label="Sudo account"] { min-width: 8rem; }
   .ssh-events td[data-label="Username"], .ssh-events td[data-label="Credential"] { min-width: 11rem; }
 }
-@container (width < 640px) {
+@container (width < 760px) {
   .ssh-events thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .ssh-events tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
   .ssh-events tbody tr:last-child { border-bottom: 0; }
@@ -731,11 +745,8 @@ form.card, .card-foot form, .card-head form { margin: 0; }
 [data-credential-editor] > * { grid-column: 1 / -1; min-width: 0; }
 [data-credential-editor] > [data-credential-field]:not(:has(textarea)) { grid-column: auto; }
 [data-credential-editor] > [data-credential-field^="thumbprint"]:not(:has(textarea)) { grid-column: 1 / -1; }
-[data-credential-editor] > p { margin: 0; color: var(--text-muted); font-size: var(--fs-sm); }
 :where(.content) [data-credential-editor] label { margin: 0; }
 :where(.content) [data-credential-editor] :where(input:not([type=checkbox], [type=radio], [type=hidden]), select, textarea) { max-width: none; }
-:where(.content) [data-credential-field] > p { margin: 6px 0 0; color: var(--text-muted); font-size: var(--fs-xs); }
-:where(.content) [data-credential-field] > p[data-stored-secret] { display: flex; align-items: center; min-height: var(--ctl-h-sm); padding: 4px 10px; border: 1px dashed var(--border-strong); border-radius: var(--r-sm); background: var(--bg-subtle); color: var(--text-muted); }
 :where(.content) [data-credential-editor] > details { margin: 0; }
 [data-credential-editor] [data-certificate], [data-credential-editor] fieldset { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 [data-credential-editor] fieldset { min-width: 0; }
@@ -825,14 +836,13 @@ input.switch:disabled { opacity: 0.5; cursor: not-allowed; }
   .row-links.stack tbody th { flex-basis: 100%; }
   .row-links.stack tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
   .row-links.stack tbody td:not([data-label]):last-child.num { display: none; }
-  .roles-list thead, .tools-list thead, .instances-list thead, .rules-list thead, .tokens-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .roles-list tbody tr, .tools-list tbody tr, .instances-list tbody tr, .rules-list tbody tr, .tokens-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
-  .roles-list tbody tr:last-child, .tools-list tbody tr:last-child, .instances-list tbody tr:last-child, .rules-list tbody tr:last-child, .tokens-list tbody tr:last-child { border-bottom: 0; }
-  .roles-list tbody th, .roles-list tbody td, .tools-list tbody th, .tools-list tbody td, .instances-list tbody th, .instances-list tbody td, .rules-list tbody th, .rules-list tbody td, .tokens-list tbody th, .tokens-list tbody td { display: block; width: auto; max-width: none; padding: 0; border: 0; }
-  .roles-list tbody th, .tools-list tbody th, .instances-list tbody th, .rules-list tbody th, .rules-list tbody td.rule-grants, .tokens-list tbody th, .tokens-list tbody td.token-access { flex-basis: 100%; }
-  .rules-list tbody td.actions-cell, .tokens-list tbody td.actions-cell { margin-left: auto; }
-  .roles-list tbody td[data-label]::before, .tools-list tbody td[data-label]::before, .instances-list tbody td[data-label]::before, .tokens-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
-  .instances-list tbody td.actions-cell { flex-basis: 100%; text-align: left; }
+  .roles-list thead, .tools-list thead, .rules-list thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .roles-list tbody tr, .tools-list tbody tr, .rules-list tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .roles-list tbody tr:last-child, .tools-list tbody tr:last-child, .rules-list tbody tr:last-child { border-bottom: 0; }
+  .roles-list tbody th, .roles-list tbody td, .tools-list tbody th, .tools-list tbody td, .rules-list tbody th, .rules-list tbody td { display: block; width: auto; max-width: none; padding: 0; border: 0; }
+  .roles-list tbody th, .tools-list tbody th, .rules-list tbody th, .rules-list tbody td.rule-grants { flex-basis: 100%; }
+  .rules-list tbody td.actions-cell { margin-left: auto; }
+  .roles-list tbody td[data-label]::before, .tools-list tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
   .roles-list tbody td.num { display: none; }
   .steps { grid-auto-flow: row; }
   .step { border-right: 0; border-bottom: 1px solid var(--border); }
