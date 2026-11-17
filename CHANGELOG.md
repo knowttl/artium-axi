@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.51](https://github.com/knowttl/artium-axi/compare/v0.0.50...v0.0.51) (2026-11-17)
+
+
+### Features
+
+* support Falcon 1.2.0 reads and writes ([#527](https://github.com/knowttl/artium-axi/issues/527)) ([ebc13d7](https://github.com/knowttl/artium-axi/commit/ebc13d77941dacf237b4b2e183f78bec29c6da64))
+
+
+### Bug Fixes
+
+* keep SSH audit event labels and values on one line ([#525](https://github.com/knowttl/artium-axi/issues/525)) ([44cdf18](https://github.com/knowttl/artium-axi/commit/44cdf18f9307a0839ecc2f650fe32105f0d8fc87))
+
 ## [0.0.50](https://github.com/knowttl/artium-axi/compare/v0.0.49...v0.0.50) (2026-11-17)
 
 
