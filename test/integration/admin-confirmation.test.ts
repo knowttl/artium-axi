@@ -365,6 +365,7 @@ test('a native role-rule create carries only its listed plain fields into the st
   const created = await postForm(roleRules, confirmation)
   expect([created.statusCode, created.headers.location]).toEqual([303, '/admin'])
   expect(ruleCount()).toBe(1)
+  expect(db.prepare('SELECT provider_id AS providerId, claim, value, role_id AS roleId FROM role_rules').get()).toEqual(ruleFields)
 })
 
 test('an Authorization header does not replace the confirmation on a route the session cookie authenticates, and is only a token elsewhere', async () => {
