@@ -3,19 +3,19 @@ import { browserDefaults } from '../config.js'
 
 const key = randomBytes(32)
 
-const sign = (sessionId: string, method: string, path: string, issuedAt: string) =>
-  createHmac('sha256', key).update([sessionId, method.toUpperCase(), path, issuedAt].join('\0')).digest('base64url')
+const sign = (sessionId: string, method: string, path: string, name: string, issuedAt: string) =>
+  createHmac('sha256', key).update([sessionId, method.toUpperCase(), path, name, issuedAt].join('\0')).digest('base64url')
 
-export function mintConfirmation(sessionId: string, method: string, path: string, now = Date.now()) {
-  return `${now}.${sign(sessionId, method, path, String(now))}`
+export function mintConfirmation(sessionId: string, method: string, path: string, name: string, now = Date.now()) {
+  return `${now}.${sign(sessionId, method, path, name, String(now))}`
 }
 
-export function isConfirmed(value: unknown, sessionId: string, method: string, path: string, now = Date.now()) {
-  if (typeof value !== 'string') return false
+export function checkConfirmation(value: unknown, sessionId: string, method: string, path: string, name: string, now = Date.now()): 'confirmed' | 'lapsed' | 'invalid' {
+  if (typeof value !== 'string') return 'invalid'
   const [issuedAt = '', signature = ''] = value.split('.')
-  const age = now - Number(issuedAt)
-  if (!/^\d{1,16}$/.test(issuedAt) || age < 0 || age > browserDefaults.idleMs) return false
-  const expected = Buffer.from(sign(sessionId, method, path, issuedAt))
+  if (!/^\d{1,16}$/.test(issuedAt) || now - Number(issuedAt) < 0) return 'invalid'
+  const expected = Buffer.from(sign(sessionId, method, path, name, issuedAt))
   const actual = Buffer.from(signature)
-  return actual.length === expected.length && timingSafeEqual(actual, expected)
+  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return 'invalid'
+  return now - Number(issuedAt) > browserDefaults.idleMs ? 'lapsed' : 'confirmed'
 }

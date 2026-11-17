@@ -583,7 +583,8 @@ document.addEventListener('submit', async event => {
   const fields = new FormData(form);
   const body = Object.fromEntries(fields);
   try {
-    if (form.dataset.confirm && !await confirmChange(form, (event.submitter || button).textContent.trim())) {
+    const typedName = form.dataset.confirm ? await confirmChange(form, (event.submitter || button).textContent.trim()) : null;
+    if (form.dataset.confirm && typedName === null) {
       const dialog = document.getElementById('confirmation');
       if (dialog.open) await new Promise(resolve => dialog.addEventListener('close', resolve, { once: true }));
       button.disabled = false;
@@ -592,6 +593,7 @@ document.addEventListener('submit', async event => {
     }
     if (form.dataset.confirm) {
       body._confirm = form.dataset.confirmToken;
+      if (form.dataset.confirmName) body._confirmName = typedName;
       for (const name of ['_confirmTitle', '_confirmAction', '_confirmText']) delete body[name];
     }
     const profileFields = form.querySelectorAll('[data-profile-field]');
@@ -646,8 +648,18 @@ document.addEventListener('submit', async event => {
       delete body.ssoWindowDays;
     }
     if (form.querySelector('[name=roleIds]')) body.roleIds = fields.getAll('roleIds');
-    const send = () => fetch(form.action, { method: form.dataset.method || 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body) });
+    let confirmationRetried = false;
+    const send = async () => {
+      const request = () => fetch(form.action, { method: form.dataset.method || 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body) });
+      let response = await request();
+      if (!confirmationRetried && response.status === 428 && response.headers.get('x-artium-confirmation')) {
+        confirmationRetried = true;
+        body._confirm = response.headers.get('x-artium-confirmation');
+        response = await request();
+      }
+      return response;
+    };
     let response = await send();
     if (response.status === 401 && !response.redirected) {
       const result = await response.clone().json();

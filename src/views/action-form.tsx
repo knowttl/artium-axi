@@ -10,7 +10,7 @@ export interface Confirmation {
 
 export interface ConfirmationTokens {
   issued: Record<string, string>
-  mint?: (method: string, path: string) => string
+  mint?: (method: string, path: string, name: string) => string
 }
 
 export const ConfirmationTokenContext = createContext<ConfirmationTokens>({ issued: {} })
@@ -36,8 +36,8 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
   if (Boolean(route) !== Boolean(confirmation) || route && (route.tier === 3) !== Boolean(confirmation?.typedName)) {
     throw new Error(`${method} ${action} and its confirmation disagree with the confirmation routes`)
   }
-  const tokenKey = `${method} ${action}`
-  const token = confirmation && (tokens.issued[tokenKey] ??= tokens.mint?.(method, action) ?? '')
+  const tokenKey = JSON.stringify([method, action, confirmation?.typedName ?? ''])
+  const token = confirmation && (tokens.issued[tokenKey] ??= tokens.mint?.(method, action, confirmation.typedName ?? '') ?? '')
   return (
     <form className={className} data-api="" data-method={method} data-confirm={confirmation?.consequence} data-confirm-title={confirmation?.title}
       data-confirm-action={confirmation?.action} data-confirm-name={confirmation?.typedName} data-confirm-token={token || undefined} data-success-url={successUrl} data-success-message={successMessage}

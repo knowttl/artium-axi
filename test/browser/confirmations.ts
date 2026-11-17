@@ -1,7 +1,25 @@
 import { test } from 'node:test'
 import { useAdminBrowser } from './harness.mjs'
 
-const { browser } = useAdminBrowser('confirmations')
+const { browser, advanceClock } = useAdminBrowser('confirmations')
+
+const keepRequests = `
+  await page.eval(() => {
+    sessionStorage.clear();
+    window.draft = 'kept';
+    window.dialogs = 0;
+    document.addEventListener('artium-confirm', () => { window.dialogs += 1; });
+    const send = window.fetch;
+    window.fetch = async (input, init) => {
+      const response = await send(input, init);
+      if (!init || !init.body) return response;
+      const sent = JSON.parse(sessionStorage.getItem('test-sent') || '[]');
+      sent.push([init.method, new URL(String(input), location.href).pathname, JSON.parse(init.body), response.status, window.draft, window.dialogs]);
+      sessionStorage.setItem('test-sent', JSON.stringify(sent));
+      return response;
+    };
+  });
+`
 
 const record = `
   await page.eval(() => {
@@ -146,5 +164,70 @@ test('a tier 1 action sends its request at once with no confirmation', () => {
     await page.click('form[data-test-tool] button');
     await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => window.sent.length === 1 && window.sent[0][1] === 'POST' && new URL(window.sent[0][0], location.href).pathname === '/v1/admin/tools/falcon-axi/instances/lab/test' && !document.querySelector('#confirmation').open), 'The tier 1 action asked for confirmation or sent the wrong request');
+  `)
+})
+
+test('confirming a tier 3 action sends the typed name with its one request and completes it', () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi/instances/lab');
+    ${keepRequests}
+    await page.click('form[data-confirm-name] button');
+    await page.wait('#confirmation[open]');
+    await page.fill('#confirmation-name', 'lab');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('.astryx-toast');
+    const sent = JSON.parse(await page.eval(() => sessionStorage.getItem('test-sent')));
+    check(sent.length === 1 && sent[0][0] === 'DELETE' && sent[0][1] === '/v1/admin/tools/falcon-axi/instances/lab' && sent[0][3] === 200, 'The tier 3 request is wrong: ' + JSON.stringify(sent));
+    check(sent[0][2]._confirmName === 'lab' && /^\\d+\\.[\\w-]+$/.test(sent[0][2]._confirm), 'The tier 3 request lacks the typed name or the confirmation: ' + JSON.stringify(sent[0][2]));
+  `)
+})
+
+test('a confirmation that lapsed while the form stayed open is replaced once and the same request is retried with the draft untouched', async () => {
+  browser(`
+    await page.open(base + '/account');
+    ${keepRequests}
+  `)
+  await advanceClock(20)
+  browser(`await page.eval(async () => { await fetch(location.href); });`)
+  await advanceClock(20)
+  browser(`
+    await page.click('form[action="/v1/account/sessions/revoke"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=username]');
+    const sent = JSON.parse(await page.eval(() => sessionStorage.getItem('test-sent')));
+    check(sent.length === 2 && sent.every(item => item[0] === 'POST' && item[1] === '/v1/account/sessions/revoke'), 'Expected exactly two POST requests: ' + JSON.stringify(sent));
+    check([sent[0][3], sent[1][3]].join() === '428,200' && sent[0][2]._confirm !== sent[1][2]._confirm, 'The retry did not carry a fresh confirmation: ' + JSON.stringify(sent));
+    check(sent[1][4] === 'kept' && sent[1][5] === 1, 'The page was reloaded or the dialog reopened before the retry: ' + JSON.stringify(sent));
+  `)
+})
+
+for (const lastStatus of [200, 428]) test(`a lapsed confirmation after reauthentication is retried once when the retry returns ${lastStatus}`, () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi');
+    await page.eval(() => {
+      sessionStorage.removeItem('retry-requests');
+      const send = window.fetch;
+      window.fetch = async (input, init) => {
+        if (new URL(String(input), location.href).pathname !== '/v1/admin/tools/falcon-axi') return send(input, init);
+        const requests = JSON.parse(sessionStorage.getItem('retry-requests') || '[]');
+        requests.push(JSON.parse(init.body));
+        sessionStorage.setItem('retry-requests', JSON.stringify(requests));
+        if (requests.length === 1) return Response.json({ error: { code: 'REAUTH_REQUIRED' } }, { status: 401 });
+        if (requests.length === 2 || ${lastStatus} === 428) return Response.json({ error: { code: 'CONFIRMATION_REQUIRED', message: 'Confirm again', next: 'Reload' } },
+          { status: 428, headers: { 'x-artium-confirmation': requests.length === 2 ? 'fresh-value' : 'another-value' } });
+        return Response.json({});
+      };
+    });
+    await page.click('${enable}');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#reauth-dialog[open]');
+    await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
+    await page.click('#reauth-dialog button:not([type=button])');
+    await page.wait('${lastStatus === 200 ? '.astryx-toast, #toast:not(:empty)' : '#message:not(:empty)'}');
+    const requests = JSON.parse(await page.eval(() => sessionStorage.getItem('retry-requests')));
+    check(requests.length === 3, 'Expected exactly three action requests: ' + JSON.stringify(requests));
+    check(requests[0]._confirm === requests[1]._confirm && requests[2]._confirm === 'fresh-value', 'The retry did not use the fresh confirmation: ' + JSON.stringify(requests));
   `)
 })
