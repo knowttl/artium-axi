@@ -9,7 +9,7 @@ import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { browserCookie } from '../../src/server/auth/browser.js'
 import { createDelegation } from '../../src/server/auth/delegations.js'
-import { createBrowserSession } from '../../src/server/auth/sessions.js'
+import { createBrowserSession, readBrowserSession } from '../../src/server/auth/sessions.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
 import { Runner } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
@@ -239,7 +239,7 @@ test.each([
     INSERT INTO credentials (id, tool, name, schema_version, key_id, nonce, ciphertext, authentication_tag)
       VALUES ('instance-id', 'falcon-axi', 'instance-one', 1, 'synthetic', zeroblob(12), X'00', zeroblob(16))`)
   const session = headers.cookie!.split(`${browserCookie}=`)[1]!.split(';')[0]!
-  const confirmation = mintConfirmation(session, method, url, name)
+  const confirmation = mintConfirmation(readBrowserSession(db, session).id, method, url, name)
   const request = (typed: string) => app.inject({ method, url, headers, payload: { _csrf: csrf, ...payload, _confirm: confirmation, _confirmName: typed } })
   const wrong = await request('wrong-name')
   expect([wrong.statusCode, wrong.json().error.code]).toEqual([428, 'CONFIRMATION_REQUIRED'])
