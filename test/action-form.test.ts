@@ -17,10 +17,10 @@ test.each([
 
 test('a confirmation form carries the confirmation minted for its own method and URL, and keeps it outside its fields', () => {
   const minted: string[] = []
-  const tokens: ConfirmationTokens = { issued: {}, mint: (method, path) => { minted.push(`${method} ${path}`); return 'synthetic-confirmation' } }
+  const tokens: ConfirmationTokens = { issued: {}, mint: (method, path, name) => { minted.push(`${method} ${path} ${name}`); return 'synthetic-confirmation' } }
   const html = render({ confirmation: { consequence: 'Revoke all tokens and their sessions?' } }, tokens)
   expect(html).toContain('data-confirm-token="synthetic-confirmation"')
   expect(html).not.toContain('name="_confirm"')
-  expect(minted).toEqual(['POST /v1/admin/tokens/revoke-all'])
+  expect(minted).toEqual(['POST /v1/admin/tokens/revoke-all '])
   expect(tokens.issued).toEqual({ 'POST /v1/admin/tokens/revoke-all': 'synthetic-confirmation' })
 })

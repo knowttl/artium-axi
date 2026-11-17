@@ -109,7 +109,7 @@ export function createApp(options: {
       delegationId: delegation.id, tool: null, requestId: request.id, clientAddress: request.ip, outcome })
   })
   const browser = registerBrowser(app, db, audit, authAttempts, (session, origin) => sso.endSession(session, origin), adapters)
-  registerConfirmationGate(app, db)
+  registerConfirmationGate(app, db, browser.isBrowser)
   const device = registerDevice(app, db, audit)
   const sso = registerSso(app, db, audit, options.providerCredentials, options.ssoFetch, device)
   const health = new ToolHealth(db, audit, runner, adapters, options.credentialStore, proxmox)

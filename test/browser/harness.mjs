@@ -10,6 +10,7 @@ export function useAdminBrowser(name) {
   const environment = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: `artium-${name}-${process.pid}`, CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors' }
   let server
   let base = ''
+  let clock = ''
 
   const chrome = (args, input) => {
     const result = spawnSync('chrome-devtools-axi', args, { env: environment, input, encoding: 'utf8', timeout: 90_000 })
@@ -43,7 +44,7 @@ export function useAdminBrowser(name) {
     const lines = createInterface({ input: server.stdout })
     try {
       const [line] = await once(lines, 'line', { signal: AbortSignal.timeout(15_000) })
-      base = JSON.parse(line).url
+      ;({ url: base, clock } = JSON.parse(line))
     } finally { lines.close() }
     browser(`
       await page.open(base + '/login');
@@ -70,5 +71,10 @@ export function useAdminBrowser(name) {
 
   after(() => chrome(['stop']))
 
-  return { browser, url: () => base }
+  const advanceClock = async minutes => {
+    const response = await fetch(clock, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ advanceMs: minutes * 60_000 }) })
+    assert.equal(response.status, 200)
+  }
+
+  return { browser, url: () => base, advanceClock }
 }

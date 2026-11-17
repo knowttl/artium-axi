@@ -14,7 +14,7 @@ export interface ConfirmationRequest {
   consequence: string
   action: string
   typedName: string
-  resolve: (confirmed: boolean) => void
+  resolve: (typedName: string | null) => void
 }
 
 // The confirmation tiers for the page script's forms: tier 2 shows the consequence, tier 3 also needs the exact name typed.
@@ -34,7 +34,7 @@ export function Confirmation() {
     return () => document.removeEventListener(confirmationEvent, open)
   }, [])
   const answer = (confirmed: boolean) => {
-    request?.resolve(confirmed)
+    request?.resolve(confirmed ? typed : null)
     setRequest(null)
   }
   const name = shown?.typedName ?? ''

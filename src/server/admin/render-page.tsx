@@ -15,7 +15,7 @@ import { readThemeMode, themeSwitch } from './theme-mode.js'
 function respond<Name extends ViewName>(reply: FastifyReply, title: string, name: Name, props: ViewProps[Name], frame: FrameProps | undefined,
   overlays: string, current?: BrowserSession) {
   const mode = readThemeMode(reply.request)
-  const confirmations: ConfirmationTokens = { issued: {}, mint: current && ((method, path) => mintConfirmation(current.id, method, path)) }
+  const confirmations: ConfirmationTokens = { issued: {}, mint: current && ((method, path, name) => mintConfirmation(current.id, method, path, name)) }
   const { html, style } = hoistInlineStyles(renderToString(<Root name={name} props={props} frame={frame} mode={mode} confirmations={confirmations} />), reply.styleNonce)
   const data = JSON.stringify({ frame, props, confirmations: confirmations.issued }).replace(/</g, '\\u003c')
   const body = `<div data-astryx-root data-view="${name}" data-mode="${mode}">${html}</div><script type="application/json" data-astryx-props>${data}</script>${overlays}`

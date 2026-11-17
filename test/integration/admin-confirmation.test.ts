@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { confirmationRoutes } from '../../src/shared/confirmation-routes.js'
+import { confirmationNames } from '../../src/server/admin/confirmation.js'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { browserCookie } from '../../src/server/auth/browser.js'
@@ -163,6 +164,132 @@ test.each([revokeAll, '/v1/admin/tokens/token-live/revoke'])('a token-authentica
   const bearer = { authorization: `Bearer ${login.json().accessToken}` }
   const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers: bearer, payload: { password: 'CANARY-local-password' } })
   const response = await app.inject({ method: 'POST', url, headers: { ...bearer, 'x-artium-reauth-ticket': reauth.json().ticket }, payload: {} })
-  expect(response.statusCode).toBe(204)
+  expect([response.statusCode, response.body]).toEqual([204, ''])
   expect(revoked()).toEqual(['token-live'])
+})
+
+const archive = (id: string) => `/v1/admin/users/${id}/archive`
+const later = (minutes: number) => {
+  vi.spyOn(Date, 'now').mockReturnValue(now + minutes * 60000)
+  db.prepare('UPDATE sessions SET reauthenticated_at = ?').run(now + minutes * 60000)
+}
+const archived = (id: string) => (db.prepare('SELECT archived_at AS at FROM users WHERE id = ?').get(id) as { at: number | null }).at !== null
+function addUser(id: string) {
+  db.prepare("INSERT INTO users (id, username, display_name, password_hash, must_change) SELECT ?, ?, 'Second', password_hash, 0 FROM users LIMIT 1").run(id, id)
+}
+async function archiveConfirmation(id: string) {
+  const page = pageForm((await app.inject({ url: `/admin/users/${id}`, headers })).body, archive(id))
+  return { confirmation: page.attributes['data-confirm-token']!, expectedRevision: Number(page.inputs.expectedRevision) }
+}
+async function roleConfirmation(id: string) {
+  const body = (await app.inject({ url: `/admin/roles/${id}`, headers })).body
+  const [, tag] = body.match(new RegExp(`<form([^>]*data-method="DELETE"[^>]*action="/v1/admin/roles/${id}"[^>]*)>`)) ?? []
+  return /data-confirm-token="([^"]+)"/.exec(tag ?? '')![1]!
+}
+const deleteRole = (id: string, payload: Record<string, unknown>) => app.inject({ method: 'DELETE', url: `/v1/admin/roles/${id}`, headers, payload: { _csrf: csrf, expectedRevision: 1, ...payload } })
+const roles = () => db.prepare('SELECT name FROM roles WHERE id = ?')
+
+test.each([
+  ['no typed name', undefined],
+  ['a different name', 'synthetic-other'],
+  ['the right name in another case', 'Synthetic-Second'],
+  ['the right name and a trailing space', 'synthetic-second '],
+  ['an empty name', ''],
+])('archiving a person with %s is refused and changes nothing', async (_case, typed) => {
+  addUser('synthetic-second')
+  const { confirmation, expectedRevision } = await archiveConfirmation('synthetic-second')
+  const response = await post(archive('synthetic-second'), { _confirm: confirmation, expectedRevision, ...typed === undefined ? {} : { _confirmName: typed } })
+  expect([response.statusCode, response.json().error.code]).toEqual([428, 'CONFIRMATION_REQUIRED'])
+  expect(response.headers['x-artium-confirmation']).toBeUndefined()
+  expect(archived('synthetic-second')).toBe(false)
+})
+
+test('archiving a person with the exact typed name and the page confirmation completes once', async () => {
+  addUser('synthetic-second')
+  const { confirmation, expectedRevision } = await archiveConfirmation('synthetic-second')
+  expect((await post(archive('synthetic-second'), { _confirm: confirmation, expectedRevision, _confirmName: 'synthetic-second' })).statusCode).toBe(200)
+  expect(archived('synthetic-second')).toBe(true)
+})
+
+test('a role is deleted only with its exact typed name, and a confirmation is bound to the name the page showed', async () => {
+  db.prepare("INSERT INTO roles (id, name) VALUES ('role-doomed', 'Doomed role')").run()
+  const confirmation = await roleConfirmation('role-doomed')
+  expect((await deleteRole('role-doomed', { _confirm: confirmation, _confirmName: 'doomed role' })).json().error.code).toBe('CONFIRMATION_REQUIRED')
+  db.prepare("UPDATE roles SET name = 'Renamed role' WHERE id = 'role-doomed'").run()
+  for (const typed of ['Doomed role', 'Renamed role']) {
+    expect((await deleteRole('role-doomed', { _confirm: confirmation, _confirmName: typed })).json().error.code).toBe('CONFIRMATION_REQUIRED')
+  }
+  expect(roles().get('role-doomed')).toEqual({ name: 'Renamed role' })
+  const renamed = await roleConfirmation('role-doomed')
+  expect((await deleteRole('role-doomed', { _confirm: renamed, _confirmName: 'Renamed role' })).statusCode).toBe(200)
+  expect(roles().get('role-doomed')).toBeUndefined()
+})
+
+test('every tier 3 route has a server-computed name and no other route has one', () => {
+  expect(Object.keys(confirmationNames).sort()).toEqual(Object.entries(confirmationRoutes).filter(([, route]) => route.tier === 3).map(([route]) => route).sort())
+})
+
+test('a value that lapsed but is otherwise valid is answered with a fresh value for the same action, and the fresh value completes it', async () => {
+  mint('token-live')
+  const issued = pageForm(await tokenPage(), revokeAll).attributes['data-confirm-token']!
+  later(20)
+  expect((await app.inject({ url: '/admin/tokens', headers })).statusCode).toBe(200)
+  later(40)
+  const lapsed = await post(revokeAll, { _confirm: issued })
+  expect([lapsed.statusCode, lapsed.json().error.code]).toEqual([428, 'CONFIRMATION_REQUIRED'])
+  expect(revoked()).toEqual([])
+  const fresh = lapsed.headers['x-artium-confirmation'] as string
+  expect(fresh).toMatch(/^\d+\.[\w-]+$/)
+  expect((await post(revokeAll, { _confirm: fresh })).statusCode).toBe(204)
+  expect(revoked()).toEqual(['token-live'])
+  expect(revocations()).toBe(1)
+})
+
+test('a lapsed value for another action, another session or a wrong typed name gets no fresh value', async () => {
+  mint('token-a')
+  addUser('synthetic-second')
+  const forAll = pageForm(await tokenPage(), revokeAll).attributes['data-confirm-token']!
+  const { confirmation, expectedRevision } = await archiveConfirmation('synthetic-second')
+  const otherSession = browserHeaders()
+  later(20)
+  expect((await app.inject({ url: '/admin/tokens', headers })).statusCode).toBe(200)
+  expect((await app.inject({ url: '/admin/tokens', headers: otherSession })).statusCode).toBe(200)
+  later(40)
+  const refused = [
+    await post('/v1/admin/tokens/token-a/revoke', { _confirm: forAll }),
+    await post(revokeAll, { _confirm: forAll }, otherSession),
+    await post(revokeAll, { _confirm: `${forAll.split('.')[0]}.garbage` }),
+    await post(archive('synthetic-second'), { _confirm: confirmation, expectedRevision, _confirmName: 'synthetic-other' }),
+  ]
+  expect(refused.map(response => [response.statusCode, response.headers['x-artium-confirmation']])).toEqual(Array(4).fill([428, undefined]))
+  const right = await post(archive('synthetic-second'), { _confirm: confirmation, expectedRevision, _confirmName: 'synthetic-second' })
+  expect([right.statusCode, typeof right.headers['x-artium-confirmation']]).toEqual([428, 'string'])
+  expect([revoked(), archived('synthetic-second')]).toEqual([[], false])
+})
+
+test.each([
+  ['no Origin', ({ origin: _origin, ...as }: Record<string, string>) => as, (inputs: Record<string, string>) => inputs],
+  ['a foreign Origin', (as: Record<string, string>) => ({ ...as, origin: 'https://elsewhere.example' }), (inputs: Record<string, string>) => inputs],
+  ['no CSRF token', (as: Record<string, string>) => as, ({ _csrf: _removed, ...inputs }: Record<string, string>) => inputs],
+  ['a wrong CSRF token', (as: Record<string, string>) => as, (inputs: Record<string, string>) => ({ ...inputs, _csrf: 'wrong' })],
+])('a native post with %s is refused as CSRF_INVALID and never reaches the confirmation step', async (_case, request, fields) => {
+  mint('token-live')
+  addUser('synthetic-second')
+  const archivePage = pageForm((await app.inject({ url: '/admin/users/synthetic-second', headers })).body, archive('synthetic-second'))
+  for (const [url, inputs] of [[revokeAll, pageForm(await tokenPage(), revokeAll).inputs], [archive('synthetic-second'), archivePage.inputs]] as const) {
+    const response = await postForm(url, fields(inputs), request(headers))
+    expect([response.statusCode, response.json().error.code]).toEqual([403, 'CSRF_INVALID'])
+  }
+  expect([revoked(), archived('synthetic-second')]).toEqual([[], false])
+})
+
+test('an Authorization header does not replace the confirmation on a route the session cookie authenticates, and is only a token elsewhere', async () => {
+  mint('token-live')
+  const garbage = { ...headers, authorization: 'Bearer garbage' }
+  const admin = await post(revokeAll, {}, garbage)
+  expect([admin.statusCode, admin.json().error.code]).toEqual([401, 'TOKEN_INVALID'])
+  const account = await post('/v1/account/sessions/revoke', {}, garbage)
+  expect([account.statusCode, account.json().error.code]).toEqual([428, 'CONFIRMATION_REQUIRED'])
+  expect(revoked()).toEqual([])
+  expect((await app.inject({ url: '/admin/tokens', headers })).statusCode).toBe(200)
 })

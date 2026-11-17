@@ -181,6 +181,7 @@ Confirmation dialogs are titled with the action and explain its consequence befo
 If the page script has not loaded or JavaScript is off, session and token revocations, user unlock and adding an SSO role rule use a server confirmation page.
 After a successful server-confirmed action, the browser returns to Account or Administration; revoking the current session signs you out.
 Other confirmed actions require the page script: reload the page, wait for it to finish loading and submit again.
+The server checks the typed name of every typed-name confirmation, and refuses a confirmation older than 30 minutes; the page replaces a lapsed one once and resends the same request without reloading.
 Archiving a person requires typing their exact username before the **Archive** confirmation button becomes available.
 Role creation and rename save without an additional action confirmation dialog; saving tool grants requires confirmation, and deleting an eligible role requires typing its exact name.
 The role's deletion control is disabled while blockers remain and lists their counts.
