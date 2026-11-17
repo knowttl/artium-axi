@@ -326,6 +326,7 @@ a.chip:hover { background: var(--bg-active); }
   .ssh-events tbody td { flex: none; max-width: 100%; }
   .ssh-events tbody td.connection-cell, .ssh-events tbody th { flex-basis: 100%; }
   .ssh-events tbody td[data-label]::before { content: attr(data-label) " "; color: var(--text-faint); }
+  .ssh-events tbody td[data-label="Event"] > * { display: inline-flex; }
 }
 .event-detail { color: var(--text-muted); font-size: var(--fs-xs); }
 .ssh-limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr)); gap: 16px; }
