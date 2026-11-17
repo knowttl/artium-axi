@@ -159,7 +159,7 @@ Closed empty stdin remains valid transport input; the tool validates whether its
 Other Azure commands, including the dashboard and `home`, leave stdin unread; help and version calls also leave it unread.
 Local upload paths become leaf names in the request; duplicate leaf names and oversized input are refused.
 The [shared API contract](../src/shared/api.ts) owns the named-file fields, optional size compatibility and input limits, enforced by the streaming client reader and independently by the server before tool execution.
-Only commands declaring the corresponding file flag in the reviewed inventory accept uploads; an extra upload or a file on a non-declaring command returns `UNSUPPORTED_INPUT`.
+Uploads require a corresponding input declared by the command; an extra upload or a file on a command without a matching input returns `UNSUPPORTED_INPUT`.
 The runner substitutes a private mode-0600 file path for the uploaded leaf argument inside a per-call mode-0700 directory, removed after success, error or cancellation.
 Adapters requiring stable paths for native confirmation retain their private profile upload paths and cleanup ownership.
 See [upload audit metadata](admin-guide.md#audit-screen-and-api) for what is recorded about accepted files.
@@ -194,6 +194,8 @@ See the [Hybrid Analysis capability boundary](safety.md) for current download av
 Tenable uploads local inputs for the `adapterBoundary.inputFileFlags` declared in the [reviewed Tenable inventory](../tools/inventories/tenable-axi.json); each accepts `-` to read bounded stdin instead.
 Its run API accepts uploaded leaf names or `-` for explicit stdin; server file paths are unavailable.
 Falcon `--body-file` and `--query-file` also accept local uploads or `-` for bounded stdin.
+For `artium-axi falcon-axi identity graphql --query @query.graphql`, the CLI uploads the local file and sends its leaf name.
+Run API callers must supply `--query @<leaf-name>` and a matching named upload; an unmatched value is refused and server paths are never read.
 Check Point uploads private JSON inputs with `--input <local-file>`; the server receives only the uploaded leaf and materializes a private file for the pinned native parser.
 Check Point stdin and server paths are unavailable.
 Proxmox `--protected-input` accepts a private piped JSON object containing only `api` and `secrets`, at most 64 KiB; both fields must be objects.
