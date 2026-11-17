@@ -114,13 +114,48 @@ test('a rule help request needs no grant', async () => {
   expect(nativeWrites(call)).toBeUndefined()
 })
 
-test('identity graphql reads without a write grant and never reads a server file', async () => {
+test('identity graphql reads without a write grant', async () => {
   const call = await rawAdapter().prepare(['identity', 'graphql', '--query', 'query { synthetic }', '--all'], synthetic)
   expect(call).toMatchObject({ effect: 'read', environment: { FALCON_AXI_READ_ONLY: 'true' } })
   expect(nativeWrites(call)).toBeUndefined()
-  for (const query of [['--query', '@/etc/hostname'], ['--query=@query.graphql']]) {
-    await expect(rawAdapter().prepare(['identity', 'graphql', ...query], synthetic)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
-  }
+})
+
+const queryUpload = { name: 'query.graphql', contentBase64: Buffer.from('query { synthetic }').toString('base64') }
+
+test('identity graphql runs the staged copy of an uploaded query file', async () => {
+  const call = await rawAdapter().prepare(['identity', 'graphql', '--query', '@query.graphql', '--all'], synthetic, { files: [queryUpload] })
+  expect(call).toMatchObject({ effect: 'read', fileArguments: [] })
+  expect(call.args.slice(1)).toEqual(['identity', 'graphql', '--query', '@/proc/self/cwd/falcon-axi/uploads/query.graphql', '--all'])
+  expect(call.files.at(-1)).toEqual({ name: 'falcon-axi/uploads/query.graphql', content: Buffer.from('query { synthetic }') })
+})
+
+test.each([
+  { args: ['--query', '@/etc/hostname'], input: {} },
+  { args: ['--query', '@/etc/hostname'], input: { files: [queryUpload] } },
+  { args: ['--query', '@dir/query.graphql'], input: { files: [queryUpload] } },
+  { args: ['--query', '@../query.graphql'], input: { files: [queryUpload] } },
+  { args: ['--query', '@query.graphql'], input: {} },
+  { args: ['--query', '@query.graphql'], input: { files: [{ ...queryUpload, name: 'other.graphql' }] } },
+  { args: ['--query', '@query.graphql'], input: { files: [queryUpload, { ...queryUpload, name: 'extra.graphql' }] } },
+  { args: ['--query=@query.graphql'], input: { files: [queryUpload] } },
+])('identity graphql refuses $args before reading credentials with input $input', async ({ args, input }) => {
+  const getCredential = vi.fn(async () => rawCredential)
+  await expect(createFalconAdapter({ getCredential }).prepare(['identity', 'graphql', ...args], synthetic, input))
+    .rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
+  expect(getCredential).not.toHaveBeenCalled()
+})
+
+test('the pinned CLI parses an uploaded query file and refuses its mutation before sending', async () => {
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    const input = { files: [{ name: 'query.graphql', contentBase64: Buffer.from('mutation { synthetic }').toString('base64') }] }
+    const call = await rawAdapter().prepare(['identity', 'graphql', '--query', '@query.graphql'], synthetic, input)
+    const result = await runner.run('synthetic-user', call.executable,
+      [join(process.cwd(), 'tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js'), ...call.args.slice(1)],
+      call.environment, call.secrets, call.limits, { ...input, fileArguments: call.fileArguments }, call.files)
+    expect(result.exitCode).toBe(1)
+    expect(result.stdout + result.stderr).toMatch(/READ_ONLY_VIOLATION/)
+  } finally { await runner.shutdown() }
 })
 
 test('a raw write to the Identity Protection GraphQL route carries only the raw-write grant', async () => {

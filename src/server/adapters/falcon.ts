@@ -20,6 +20,7 @@ const inputFileFlags = inventory.adapterBoundary.inputFileFlags
 const falconLimits ={ timeoutMs: inventory.requirements.timeoutMs, terminationGraceMs: 12_000 }
 const defaultWriteLog = '/data/tool-logs/falcon-axi/writes.log'
 const previewedWrites = ['raw write', 'identity rule create', 'identity rule delete']
+const graphqlQueryUpload = 'falcon-axi/uploads/query.graphql'
 const capabilityPolicy = writePolicy({
   supportedOperations: falconWriteOperations,
   unlocks: 'Exact search, search-backed and MalQuery commands; restricted RTR with native profile opt-in and execution confirmation; identity policy rule create and delete and raw write previews and execution with native preview, --execute, exact --confirm and journal. Raw API permission is separate.',
@@ -81,6 +82,7 @@ export function createFalconAdapter(source: SecretSource, writeLog = defaultWrit
       return { executable: process.execPath, args: [toolPaths['falcon-axi'], ...call.args], invocation: call.invocation,
         fileArguments: call.fileArguments.map(index => index + 1),
         effect: call.executing ? 'write' : 'read', ...prepared,
+        files: [...prepared.files, ...(call.queryFile ? [call.queryFile] : [])],
         environment: { ...prepared.environment, FALCON_AXI_CREDENTIAL_REVISION: `${reference.id}:${reference.revision}` },
         limits: { ...falconLimits, ...(call.device ? { falconRtrDevice: call.device } : {}) } }
     },
@@ -92,7 +94,7 @@ function parseFalconArgs(original: readonly string[], input: RunnerInput = {}) {
     const equals = token.indexOf('=')
     return token.startsWith('--') && equals > 0 && inputFileFlags.includes(token.slice(2, equals)) ? [token.slice(0, equals), token.slice(equals + 1)] : [token]
   })
-  if (!args.some(token => inputFileFlags.some(name => token === `--${name}`)) && (input.stdin !== undefined || input.files?.length)) {
+  if (!args.some(token => ['--query', ...inputFileFlags.map(name => `--${name}`)].includes(token)) && (input.stdin !== undefined || input.files?.length)) {
     throw new ArtiumError('UNSUPPORTED_INPUT')
   }
   if (inventory.blockedCommands.includes(args[0]) || inventory.blockedCommands.includes(args.slice(0, 2).join(' '))) throw new ArtiumError('FLAG_BLOCKED')
@@ -114,6 +116,7 @@ function parseFalconArgs(original: readonly string[], input: RunnerInput = {}) {
   const values = new Map<string, string>()
   const positionals: string[] = []
   const fileValues: [value: string, index: number][] = []
+  let graphqlQuery: { name: string, index: number } | undefined
   const length = selected.command === 'home' ? 0 : selected.command.split(' ').length
   for (let index = length; index < args.length; index++) {
     const token = args[index]
@@ -130,19 +133,23 @@ function parseFalconArgs(original: readonly string[], input: RunnerInput = {}) {
       if (value === undefined || value === '' || value.startsWith('--')) throw new ArtiumError('INVALID_INPUT')
       values.set(name, value)
       if (inputFileFlags.includes(name)) fileValues.push([value, index])
+      if (selected.command === 'identity graphql' && name === 'query' && value.startsWith('@')) {
+        if (inline !== undefined) throw new ArtiumError('UNSUPPORTED_INPUT')
+        graphqlQuery = { name: value.slice(1), index }
+      }
     }
   }
   const uploads = fileValues.filter(([value]) => value !== '-')
   const readsStdin = uploads.length < fileValues.length
+  const uploadNames = [...uploads.map(([value]) => value), ...(graphqlQuery ? [graphqlQuery.name] : [])]
   if (readsStdin !== (input.stdin !== undefined)
-    || uploads.some(([value]) => !input.files?.some(file => file.name === value))
-    || input.files?.some(file => !uploads.some(([value]) => value === file.name))) throw new ArtiumError('UNSUPPORTED_INPUT')
+    || uploadNames.some(name => !input.files?.some(file => file.name === name))
+    || input.files?.some(file => !uploadNames.includes(file.name))) throw new ArtiumError('UNSUPPORTED_INPUT')
   if (!values.has('help')) {
     const hostname = ['host logins', 'host network'].includes(selected.command) && values.has('hostname')
     if (positionals.length !== (selected.positional && !hostname ? 1 : 0)) throw new ArtiumError('INVALID_INPUT')
   }
   const operation = selected.effect === 'write' && !values.has('help') ? selected.command : null
-  if (selected.command === 'identity graphql' && values.get('query')?.startsWith('@')) throw new ArtiumError('UNSUPPORTED_INPUT')
   let executing = previewedWrites.includes(operation!) ? values.has('execute') : Boolean(operation && operation !== 'rtr run')
   let device: string | undefined
   if (operation === 'rtr run') {
@@ -152,7 +159,10 @@ function parseFalconArgs(original: readonly string[], input: RunnerInput = {}) {
       || executing && values.get('confirm') !== `${positionals[0]}:${command}`) throw new ArtiumError('INVALID_INPUT')
     if (executing) device = positionals[0].toLowerCase()
   }
-  return { args, fileArguments: uploads.map(([, index]) => index), invocation: { command: selected.command, help: values.has('help') }, operation, executing, device }
+  const query = graphqlQuery
+  if (query) args[query.index] = `@/proc/self/cwd/${graphqlQueryUpload}`
+  const queryFile = query && { name: graphqlQueryUpload, content: Buffer.from(input.files!.find(file => file.name === query.name)!.contentBase64, 'base64') }
+  return { args, fileArguments: uploads.map(([, index]) => index), invocation: { command: selected.command, help: values.has('help') }, operation, executing, device, queryFile }
 }
 
 export function validateFalconArgs(args: readonly string[], input: RunnerInput = {}): NonNullable<PreparedCall['invocation']> {

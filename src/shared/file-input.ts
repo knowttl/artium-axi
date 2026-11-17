@@ -50,6 +50,12 @@ export function inputFileFlags(tool: string, args: readonly string[]): string[] 
   return flags.filter(name => Object.hasOwn(route.flags, name))
 }
 
+export function falconGraphqlQueryIndex(args: readonly string[]): number | undefined {
+  if (args[0] !== 'identity' || args[1] !== 'graphql' || args.includes('--help')) return undefined
+  const index = args.indexOf('--query', 2) + 1
+  return /^@./.test(args[index] ?? '') ? index : undefined
+}
+
 export function ghReleaseUploadFileIndexes(args: readonly string[]): number[] {
   if (args[0] !== 'release' || args[1] !== 'upload' || args.some(arg => ['--help', '-h'].includes(arg))) return []
   const positionals: number[] = []
@@ -66,6 +72,8 @@ export function validateFileInput(tool: string, args: readonly string[], input: 
   const flags = inputFileFlags(tool, args)
   const names = new Set<string>()
   if (tool === 'gh-axi') for (const index of ghReleaseUploadFileIndexes(args)) names.add(args[index])
+  const graphqlQuery = tool === 'falcon-axi' ? falconGraphqlQueryIndex(args) : undefined
+  if (graphqlQuery !== undefined) names.add(args[graphqlQuery].slice(1))
   if (!args.some(arg => ['--help', '-h', '--version', '-v', '-V'].includes(arg))) {
     for (let index = 0; index < args.length; index++) {
       const token = args[index]

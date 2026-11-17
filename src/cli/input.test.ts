@@ -389,3 +389,24 @@ test('Tenable leaves undeclared paths untouched', async () => {
   const args = ['asset', 'list', '--query', '/missing/input.json']
   expect(await toolInput('tenable-axi', args)).toEqual({ args })
 })
+
+test('Falcon identity graphql uploads a local query file under its basename', async () => {
+  const text = 'query { synthetic }'
+  const path = join(directory, 'query.graphql')
+  writeFileSync(path, text)
+  expect(await toolInput('falcon-axi', ['identity', 'graphql', '--query', `@${path}`, '--all']))
+    .toEqual({ args: ['identity', 'graphql', '--query', '@query.graphql', '--all'],
+      files: [{ name: 'query.graphql', size: text.length, contentBase64: Buffer.from(text).toString('base64') }] })
+})
+
+test('Falcon identity graphql fails when the named query file is missing', async () => {
+  await expect(toolInput('falcon-axi', ['identity', 'graphql', '--query', `@${join(directory, 'missing.graphql')}`]))
+    .rejects.toMatchObject({ code: 'INVALID_INPUT' })
+})
+
+test.each([
+  { args: ['identity', 'graphql', '--query', 'query { synthetic }'] },
+  { args: ['raw', 'get', '--path', '/synthetic/v1', '--query', '@query.graphql'] },
+])('Falcon leaves $args untouched without a graphql file upload', async ({ args }) => {
+  expect(await toolInput('falcon-axi', args)).toEqual({ args })
+})
