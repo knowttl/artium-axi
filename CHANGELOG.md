@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.0.49](https://github.com/knowttl/artium-axi/compare/v0.0.48...v0.0.49) (2026-11-17)
+
+
+### Features
+
+* rebuild access tokens admin page with Astryx ([#499](https://github.com/knowttl/artium-axi/issues/499)) ([5785837](https://github.com/knowttl/artium-axi/commit/5785837836f8c67803b28c3550695fa343edef66))
+* rebuild account tokens and the account page with Astryx ([#513](https://github.com/knowttl/artium-axi/issues/513)) ([3a50644](https://github.com/knowttl/artium-axi/commit/3a506442ab1868d244cd698e4a11f2f6b14ac187))
+* rebuild account tools and CLI setup with Astryx ([#512](https://github.com/knowttl/artium-axi/issues/512)) ([e4900ed](https://github.com/knowttl/artium-axi/commit/e4900ed04e26801725c9c181dae8396160548c66))
+* rebuild audit log list with Astryx ([#502](https://github.com/knowttl/artium-axi/issues/502)) ([c6be896](https://github.com/knowttl/artium-axi/commit/c6be8964953184e8dcd8528a432ac43cb9ce29d4))
+* rebuild certificate verification controls ([#486](https://github.com/knowttl/artium-axi/issues/486)) ([49eefaa](https://github.com/knowttl/artium-axi/commit/49eefaaa7a943bf421b960e733c2ad96542e6440))
+* rebuild invitations page with Astryx ([#477](https://github.com/knowttl/artium-axi/issues/477)) ([6a3876f](https://github.com/knowttl/artium-axi/commit/6a3876fb6f34d8c4b47c6a90c953a7d252a5687d))
+* rebuild provider credential tab with Astryx ([#498](https://github.com/knowttl/artium-axi/issues/498)) ([da28403](https://github.com/knowttl/artium-axi/commit/da28403c7471c9ed9988d5608c683e3c62f9afe6))
+* rebuild provider role rules tab with Astryx ([#497](https://github.com/knowttl/artium-axi/issues/497)) ([2cde17e](https://github.com/knowttl/artium-axi/commit/2cde17e6af27ea55288a35b49d3dbacc6d6a31d1))
+* rebuild role detail page with Astryx ([#476](https://github.com/knowttl/artium-axi/issues/476)) ([6f719d8](https://github.com/knowttl/artium-axi/commit/6f719d865c75a970f4bcea83a5f81a08056392ba))
+* rebuild sign-in and SSO list with Astryx ([#495](https://github.com/knowttl/artium-axi/issues/495)) ([a4f6953](https://github.com/knowttl/artium-axi/commit/a4f6953ac6e650b2278162a3d859b8b25d459bdb))
+* rebuild SSH audit page with Astryx ([#509](https://github.com/knowttl/artium-axi/issues/509)) ([00b28b4](https://github.com/knowttl/artium-axi/commit/00b28b41b9c9ff9e44b8ffa80796cdccc1443133))
+* rebuild SSH credentials page with Astryx ([#511](https://github.com/knowttl/artium-axi/issues/511)) ([e386023](https://github.com/knowttl/artium-axi/commit/e38602326c0a209a82b2434f5c9d06a55837a88f))
+* rebuild SSH hosts page with Astryx ([#510](https://github.com/knowttl/artium-axi/issues/510)) ([2cf64fe](https://github.com/knowttl/artium-axi/commit/2cf64fee6a67635152fcb78a294a1537e6f1635b))
+* rebuild the add instance credential editor ([#484](https://github.com/knowttl/artium-axi/issues/484)) ([0bb4f15](https://github.com/knowttl/artium-axi/commit/0bb4f15034ef4fa18bf323fd66fa91521209c7e6))
+* rebuild the GitHub connection card with Astryx ([#491](https://github.com/knowttl/artium-axi/issues/491)) ([82363d2](https://github.com/knowttl/artium-axi/commit/82363d2f243074377c8c0b828f83298fb83a5862))
+* rebuild the instance page with Astryx ([#490](https://github.com/knowttl/artium-axi/issues/490)) ([9433e71](https://github.com/knowttl/artium-axi/commit/9433e71fe40876819f68d5bec8464b4e07aebb1d))
+* rebuild the New role dialog as an Astryx sheet ([#474](https://github.com/knowttl/artium-axi/issues/474)) ([06b359a](https://github.com/knowttl/artium-axi/commit/06b359a1c1e7cee920f38e958642bae21d077d6d))
+* rebuild the sign-in provider page and Add provider sheets with Astryx ([#496](https://github.com/knowttl/artium-axi/issues/496)) ([d1075bd](https://github.com/knowttl/artium-axi/commit/d1075bd764d1dfd0e73e0d99b589fb566e1e0d80))
+* rebuild the Tools list with Astryx ([#478](https://github.com/knowttl/artium-axi/issues/478)) ([d98f04f](https://github.com/knowttl/artium-axi/commit/d98f04f726d9633ce99fe021dc5a62afe46bb53a))
+* rebuild tool access tab with Astryx components ([#482](https://github.com/knowttl/artium-axi/issues/482)) ([3d8498f](https://github.com/knowttl/artium-axi/commit/3d8498f26d6710db2121d622cac4d968f6f5ea89))
+* rebuild tool detail page with Astryx ([#480](https://github.com/knowttl/artium-axi/issues/480)) ([84c36a4](https://github.com/knowttl/artium-axi/commit/84c36a4f8b6065a0e0a0131af75c5814686e7c0a))
+* rebuild tool instances tab with Astryx ([#481](https://github.com/knowttl/artium-axi/issues/481)) ([e3a5453](https://github.com/knowttl/artium-axi/commit/e3a5453f64161b4e8046de3f85cd1b8c53a780e1))
+* use Astryx toasts for admin action results ([#514](https://github.com/knowttl/artium-axi/issues/514)) ([f6f3dcc](https://github.com/knowttl/artium-axi/commit/f6f3dcc2013c2d6808eb479707137f4026e06aac))
+
+
+### Bug Fixes
+
+* correct admin credential and table layouts ([#518](https://github.com/knowttl/artium-axi/issues/518)) ([801e832](https://github.com/knowttl/artium-axi/commit/801e832d61f6fcee1b0dd711fa86624d8370210e))
+* move admin confirmations to Astryx dialog ([#516](https://github.com/knowttl/artium-axi/issues/516)) ([155f88c](https://github.com/knowttl/artium-axi/commit/155f88cd6fed664ee403cc2f424ae3ae0f462aac))
+* prevent audit records from clipping beside details ([#504](https://github.com/knowttl/artium-axi/issues/504)) ([c7129f8](https://github.com/knowttl/artium-axi/commit/c7129f8487cde416a2f25486ec753763a67c3e5c))
+* rebuild audit record details with Astryx ([#503](https://github.com/knowttl/artium-axi/issues/503)) ([0daace4](https://github.com/knowttl/artium-axi/commit/0daace4397ce14204fcedb5f461f02eaad05092a))
+
 ## [0.0.48](https://github.com/knowttl/artium-axi/compare/v0.0.47...v0.0.48) (2026-11-15)
 
 
