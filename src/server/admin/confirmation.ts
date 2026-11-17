@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
-import { confirmationRoutes } from '../../shared/confirmation-routes.js'
+import { confirmationRouteFor, confirmationRoutes } from '../../shared/confirmation-routes.js'
 import { ArtiumError } from '../../shared/errors.js'
 import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession } from '../auth/sessions.js'
@@ -24,14 +24,27 @@ export function registerConfirmationGate(app: FastifyInstance, db: Database.Data
   const nativeConfirmations = new WeakMap<object, string>()
   app.addHook('preValidation', async (request, reply) => {
     const key = `${request.method} ${request.routeOptions.url}`
-    const route = request.routeOptions.url && confirmationRoutes[key]
-    if (!route || !isBrowser(request) || !request.cookies[browserCookie]) return
+    const path = request.url.split('?')[0]!
+    const native = Boolean(request.headers['content-type']?.startsWith('application/x-www-form-urlencoded'))
+    const route = request.routeOptions.url ? confirmationRoutes[key] : undefined
+    const unreachable = !request.routeOptions.url && native && request.method === 'POST' && ['PUT', 'PATCH', 'DELETE'].some(method => confirmationRouteFor(method, path))
+    if (!route && !unreachable || !isBrowser(request) || !request.cookies[browserCookie]) return
+    const session = readBrowserSession(db, request.cookies[browserCookie]!)
+    const referrer = (() => {
+      try { return new URL(request.headers.referer ?? '') } catch { return undefined }
+    })()
+    const back = referrer?.origin === `${request.protocol}://${request.host}` && /^\/[^/\\]/.test(referrer.pathname) ? referrer.pathname + referrer.search
+      : session.administrator ? '/admin' : '/account'
+    const scriptRequired = () => {
+      reply.code(409)
+      return renderAuthPage(reply, { title: 'Page script required', mark: { icon: 'alert', tone: 'warn' }, blocks: [
+        { kind: 'text', parts: ['This change needs the page to finish loading. Nothing was changed. Reload the page, wait for it to finish loading, and submit it again.'] },
+        { kind: 'buttons', buttons: [{ label: 'Go back', tone: 'primary', href: back }] }] }, session)
+    }
+    if (!route) return scriptRequired()
     const body = request.body !== null && typeof request.body === 'object' && !Array.isArray(request.body) ? request.body as Fields : undefined
     const { _confirm, _confirmName, ...input } = body ?? {}
     if (body) request.body = input
-    const session = readBrowserSession(db, request.cookies[browserCookie]!)
-    const path = request.url.split('?')[0]!
-    const native = Boolean(request.headers['content-type']?.startsWith('application/x-www-form-urlencoded'))
     const name = route.tier === 3 ? confirmationNames[key]?.(db, request.params as Fields, input) : ''
     const state = name === undefined ? 'invalid' : checkConfirmation(_confirm, session.id, request.method, path, name)
     const typed = route.tier === 2 || _confirmName === name
@@ -43,17 +56,7 @@ export function registerConfirmationGate(app: FastifyInstance, db: Database.Data
       if (state === 'lapsed' && typed) reply.header('x-artium-confirmation', mintConfirmation(session.id, request.method, path, name!))
       throw new ArtiumError('CONFIRMATION_REQUIRED')
     }
-    const referrer = (() => {
-      try { return new URL(request.headers.referer ?? '') } catch { return undefined }
-    })()
-    const back = referrer?.origin === `${request.protocol}://${request.host}` && /^\/[^/\\]/.test(referrer.pathname) ? referrer.pathname + referrer.search
-      : session.administrator ? '/admin' : '/account'
-    if (!route.native) {
-      reply.code(409)
-      return renderAuthPage(reply, { title: 'Page script required', mark: { icon: 'alert', tone: 'warn' }, blocks: [
-        { kind: 'text', parts: ['This change needs the page to finish loading. Nothing was changed. Reload the page, wait for it to finish loading, and submit it again.'] },
-        { kind: 'buttons', buttons: [{ label: 'Go back', tone: 'primary', href: back }] }] }, session)
-    }
+    if (!route.native) return scriptRequired()
     const text = (field: string) => typeof input[field] === 'string' ? input[field].slice(0, 1000) : ''
     const carried = Object.fromEntries(route.native.flatMap(field => typeof input[field] === 'string' ? [[field, input[field]]] : []))
     return renderAuthPage(reply, { title: text('_confirmTitle') || 'Confirm this change', mark: { icon: 'alert', tone: 'warn' }, blocks: [

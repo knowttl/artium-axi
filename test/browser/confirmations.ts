@@ -225,9 +225,24 @@ for (const lastStatus of [200, 428]) test(`a lapsed confirmation after reauthent
     await page.wait('#reauth-dialog[open]');
     await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
     await page.click('#reauth-dialog button:not([type=button])');
-    await page.wait('${lastStatus === 200 ? '.astryx-toast, #toast:not(:empty)' : '#message:not(:empty)'}');
+    await page.wait('${lastStatus === 200 ? '.astryx-toast, #toast:not(:empty)' : '.astryx-toast[data-type=error]'}');
     const requests = JSON.parse(await page.eval(() => sessionStorage.getItem('retry-requests')));
     check(requests.length === 3, 'Expected exactly three action requests: ' + JSON.stringify(requests));
     check(requests[0]._confirm === requests[1]._confirm && requests[2]._confirm === 'fresh-value', 'The retry did not use the fresh confirmation: ' + JSON.stringify(requests));
+  `)
+})
+
+test('a tier 3 form submitted before the page script runs changes nothing and says the page script is required', () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi/instances/lab');
+    ${withoutScripts}
+    check(await page.eval(() => document.scripts.length === 0), 'The page script was not held back');
+    await page.click('form[data-confirm-name] button');
+    await page.wait('a[href="/admin/tools/falcon-axi/instances/lab"]');
+    check(await page.eval(() => location.pathname === '/v1/admin/tools/falcon-axi/instances/lab' && document.querySelector('h1').innerText === 'Page script required'
+      && document.body.innerText.includes('Nothing was changed')), 'The page does not say the page script is required and that nothing changed');
+    await page.click('a[href="/admin/tools/falcon-axi/instances/lab"]');
+    await page.wait('form[data-confirm-name]');
+    check(await page.eval(() => location.pathname === '/admin/tools/falcon-axi/instances/lab'), 'The instance was removed');
   `)
 })
