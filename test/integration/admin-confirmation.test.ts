@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import type Database from 'better-sqlite3'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { confirmationRoutes } from '../../src/shared/confirmation-routes.js'
-import { confirmationNames } from '../../src/server/admin/confirmation.js'
+import { mintConfirmation } from '../../src/server/admin/confirmation-token.js'
 import { createApp } from '../../src/server/app.js'
 import { Audit } from '../../src/server/audit/audit.js'
 import { browserCookie } from '../../src/server/auth/browser.js'
@@ -225,8 +225,28 @@ test('a role is deleted only with its exact typed name, and a confirmation is bo
   expect(roles().get('role-doomed')).toBeUndefined()
 })
 
-test('every tier 3 route has a server-computed name and no other route has one', () => {
-  expect(Object.keys(confirmationNames).sort()).toEqual(Object.entries(confirmationRoutes).filter(([, route]) => route.tier === 3).map(([route]) => route).sort())
+test.each([
+  ['POST', '/v1/admin/ssh/credential-delete', 'credential-one', { id: 'credential-one', expectedRevision: 1, confirm: true }, 'ssh_credentials', 'credential-one'],
+  ['POST', '/v1/admin/ssh/host-delete', 'host-one', { id: 'host-one', expectedRevision: 1, confirm: true }, 'ssh_hosts', 'host-one'],
+  ['DELETE', '/v1/admin/sso/role-rules/rule-one', 'Group.One', { expectedRevision: 1 }, 'role_rules', 'rule-one'],
+  ['DELETE', '/v1/admin/tools/falcon-axi/instances/instance-one', 'instance-one', { expectedId: 'instance-id', expectedRevision: 1 }, 'credentials', 'instance-id'],
+] as const)('%s %s checks the target name before proceeding', async (method, url, name, payload, table, id) => {
+  db.exec(`INSERT INTO sso_providers (id, name, kind, issuer, enabled) VALUES ('provider-one', 'Provider', 'oidc', 'https://example.test', 1);
+    INSERT INTO role_rules (id, provider_id, claim, value, role_id) VALUES ('rule-one', 'provider-one', 'groups', 'Group.One', 'synthetic-role');
+    INSERT INTO ssh_hosts (id, address, port, approved_host_keys, allowed_addresses) VALUES ('host-one', '127.0.0.1', 22, '[]', '[]');
+    INSERT INTO ssh_credentials (id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag, updated_at)
+      VALUES ('credential-one', 'ssh-axi', 1, 'synthetic', X'00', X'00', X'00', 0);
+    INSERT INTO credentials (id, tool, name, schema_version, key_id, nonce, ciphertext, authentication_tag)
+      VALUES ('instance-id', 'falcon-axi', 'instance-one', 1, 'synthetic', zeroblob(12), X'00', zeroblob(16))`)
+  const session = headers.cookie!.split(`${browserCookie}=`)[1]!.split(';')[0]!
+  const confirmation = mintConfirmation(session, method, url, name)
+  const request = (typed: string) => app.inject({ method, url, headers, payload: { _csrf: csrf, ...payload, _confirm: confirmation, _confirmName: typed } })
+  const wrong = await request('wrong-name')
+  expect([wrong.statusCode, wrong.json().error.code]).toEqual([428, 'CONFIRMATION_REQUIRED'])
+  expect(db.prepare(`SELECT id FROM ${table} WHERE id = ?`).get(id)).toEqual({ id })
+  const right = await request(name)
+  expect(right.statusCode).toBe(200)
+  expect(db.prepare(`SELECT id FROM ${table} WHERE id = ?`).get(id)).toBeUndefined()
 })
 
 test('a value that lapsed but is otherwise valid is answered with a fresh value for the same action, and the fresh value completes it', async () => {

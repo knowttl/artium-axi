@@ -22,5 +22,12 @@ test('a confirmation form carries the confirmation minted for its own method and
   expect(html).toContain('data-confirm-token="synthetic-confirmation"')
   expect(html).not.toContain('name="_confirm"')
   expect(minted).toEqual(['POST /v1/admin/tokens/revoke-all '])
-  expect(tokens.issued).toEqual({ 'POST /v1/admin/tokens/revoke-all': 'synthetic-confirmation' })
+})
+
+test.each(['/v1/admin/ssh/credential-delete', '/v1/admin/ssh/host-delete'])('forms for different targets at %s receive their own confirmations', action => {
+  const tokens: ConfirmationTokens = { issued: {}, mint: (_method, _path, name) => `token-for-${name}` }
+  const first = render({ action, confirmation: { consequence: 'Delete?', typedName: 'first' } }, tokens)
+  const second = render({ action, confirmation: { consequence: 'Delete?', typedName: 'second' } }, tokens)
+  expect(first).toContain('data-confirm-token="token-for-first"')
+  expect(second).toContain('data-confirm-token="token-for-second"')
 })
