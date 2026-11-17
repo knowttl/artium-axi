@@ -130,6 +130,14 @@ await withFakeService(async ({ directory: certificates, send }) => {
       }
       assert.deepEqual((await evidence()).requests.filter(request => request.path === '/identity-protection/combined/graphql/v1')
         .map(request => request.document), ['query', 'query'])
+      const query = 'query IdentityList { entities { nodes { entityId } } }'
+      const response = await app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run', headers, payload: {
+        args: ['identity', 'graphql', '--query', '@query.graphql'],
+        files: [{ name: 'query.graphql', contentBase64: Buffer.from(query).toString('base64') }],
+      } })
+      assert.equal(response.statusCode, 200, response.body)
+      assert.equal(response.json().exitCode, 0, response.body)
+      assert.equal((await evidence()).requests.filter(request => request.path === '/identity-protection/combined/graphql/v1').at(-1).query, query)
       const beforeDenials = (await evidence()).requests.length
       for (const args of [['search', 'start', '--query', 'synthetic'], ['search', 'stop', 'synthetic-search'],
         ['host', 'usb', 'a'.repeat(32)], ['identity', 'activity', 'a'.repeat(32)], ['malquery', 'search', '--string', 'synthetic'],
