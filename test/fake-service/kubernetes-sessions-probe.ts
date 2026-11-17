@@ -131,7 +131,18 @@ await withFakeService(async ({ directory, port, send }) => {
     assert.match((await output(logs.id)).chunks.map(chunk => Buffer.from(chunk.base64, 'base64').toString()).join(''), /Synthetic pod log/)
     await cancel(logs.id)
     const watched = await start('watch', ['get', 'pods', '--watch-only'])
-    assert.match((await output(watched.id)).chunks.map(chunk => Buffer.from(chunk.base64, 'base64').toString()).join(''), /synthetic-pod/)
+    let watchOutput = '', after = 0
+    while (!watchOutput.includes('synthetic-pod')) {
+      const response = await request(`${prefix}/${watched.id}/output?wait=true&after=${after}`)
+      assert.equal(response.statusCode, 200, response.body)
+      const result = response.json() as { state: string, chunks: { sequence: number, base64: string }[] }
+      for (const chunk of result.chunks) {
+        after = chunk.sequence
+        watchOutput += Buffer.from(chunk.base64, 'base64').toString()
+      }
+      if (result.state !== 'running') break
+    }
+    assert.match(watchOutput, /synthetic-pod/)
     await cancel(watched.id)
     await policy(true)
     const delegated = createDelegation(db, 'synthetic-development-user', { label: 'Synthetic',
