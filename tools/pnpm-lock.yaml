@@ -24,8 +24,8 @@ importers:
         specifier: 0.1.6
         version: 0.1.6
       '@knowttl/falcon-axi':
-        specifier: 1.1.0
-        version: 1.1.0
+        specifier: 1.2.0
+        version: 1.2.0
       '@knowttl/gitea-axi':
         specifier: 0.1.4
         version: 0.1.4
@@ -124,8 +124,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@knowttl/falcon-axi@1.1.0':
-    resolution: {integrity: sha512-iOnTT7V6cwf7dcBrfnOaSbT2FZ+BfWlB5huN9cWw52/Fm2H+7D5wURzzOsyxZ2SUd8Fre1ndtXtiaHkmxGjBWA==}
+  '@knowttl/falcon-axi@1.2.0':
+    resolution: {integrity: sha512-xHUUbznMTRhHgZeKH4/QOQB4HdaHA3rcl7jVFtxSKiUw3Eziaw3P0rjy2AgRNCIOiCZX08yOapZxaGGe++ECkw==}
     engines: {node: '>=22.18.0'}
     hasBin: true
 
@@ -555,6 +555,10 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  graphql@16.13.1:
+    resolution: {integrity: sha512-gGgrVCoDKlIZ8fIqXBBb0pPKqDgki0Z/FSKNiQzSGj2uEYHr1tq5wmBegGwJx6QB5S5cM0khSBpi/JFHMCvsmQ==}
+    engines: {node: ^12.22.0 || ^14.16.0 || ^16.0.0 || >=17.0.0}
 
   has-bigints@1.1.0:
     resolution: {integrity: sha512-R3pbpkcIqv2Pm3dUwgjclDRVmWpTJW2DcMzcIhEXEx1oh/CEMObMm3KLmRJOdvhM7o4uQBnwr8pzRK2sJWIqfg==}
@@ -1257,11 +1261,12 @@ snapshots:
       axi-sdk-js: 0.1.13
       zod: 4.3.6
 
-  '@knowttl/falcon-axi@1.1.0':
+  '@knowttl/falcon-axi@1.2.0':
     dependencies:
       '@toon-format/toon': 4.1.1
       ajv: 8.20.0
       axi-sdk-js: 0.1.13
+      graphql: 16.13.1
       toml-eslint-parser: 1.0.3
 
   '@knowttl/gitea-axi@0.1.4':
@@ -1833,6 +1838,8 @@ snapshots:
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
+
+  graphql@16.13.1: {}
 
   has-bigints@1.1.0: {}
 

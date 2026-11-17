@@ -12,7 +12,7 @@ import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { EmbeddedSecretSource } from '../../src/server/store/secret-source.js'
 import { SharedIdentityResolver } from '../../src/server/policy/identity-resolver.js'
-import { seedToolUser } from '../fixtures/tokens.js'
+import { allowRawApi, seedToolUser } from '../fixtures/tokens.js'
 
 let held = () => {}
 assert.ok(!readFileSync('/proc/net/route', 'utf8').split('\n').slice(1).some(line => line.split(/\s+/)[1] === '00000000'))
@@ -33,9 +33,9 @@ await withFakeService(async ({ directory, send }) => {
     const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })
     assert.equal(login.statusCode, 200, login.body)
     const headers = { authorization: `Bearer ${login.json().accessToken}` }
-    const invoke = (args: string[]) => app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run', headers, payload: { args } })
-    const success = async (args: string[]) => {
-      const response = await invoke(args)
+    const invoke = (args: string[], stdin?: string) => app.inject({ method: 'POST', url: '/v1/tools/falcon-axi/run', headers, payload: { args, ...stdin === undefined ? {} : { stdin } } })
+    const success = async (args: string[], stdin?: string) => {
+      const response = await invoke(args, stdin)
       assert.equal(response.statusCode, 200, response.body)
       assert.equal(response.json().exitCode, 0, response.body)
       assert.doesNotMatch(response.body, /CANARY-|ARTIUM_SECRET_/)
@@ -56,6 +56,8 @@ await withFakeService(async ({ directory, send }) => {
     const rtr = ['rtr', 'run', device, '--command', 'ps']
     assert.match(await success(rtr), /preview:/)
     assert.equal((await evidence()).mutations, 0)
+    await success(['identity', 'graphql', '--query', 'query IdentityList { entities { nodes { entityId } } }'])
+    assert.equal((await evidence()).mutations, 0)
     assert.equal((await invoke(['search', 'start', '--query', 'synthetic'])).statusCode, 400)
     await policy(['malquery search'])
     assert.match(await success(['malquery', 'search', '--string', 'synthetic']), /11111111-1111-4111-8111-111111111111/)
@@ -74,6 +76,34 @@ await withFakeService(async ({ directory, send }) => {
       const before = (await evidence()).mutations
       await success([...command, device])
       assert.equal((await evidence()).mutations, before + 1)
+    }
+    const sent = async (path: string) => (await evidence()).requests.filter(row => row.path === path).length
+    const confirmation = (stdout: string) => /confirm: (.+)/.exec(stdout)![1].replace(/^"|"$/g, '')
+    const ruleBody = JSON.stringify({ name: 'synthetic-rule', action: 'ALLOW', trigger: 'access', enabled: false, simulationMode: true })
+    const mutation = JSON.stringify({ query: 'mutation SyntheticMutation { syntheticField }' })
+    const graphqlWrite = ['raw', 'write', '--method', 'POST', '--path', '/identity-protection/combined/graphql/v1', '--body-file', '-']
+    const guarded = [
+      { operation: 'identity rule create', command: ['identity', 'rule', 'create', '--body-file', '-'], stdin: ruleBody, path: '/identity-protection/entities/policy-rules/v1' },
+      { operation: 'identity rule delete', command: ['identity', 'rule', 'delete', 'synthetic-rule-id'], stdin: undefined, path: '/identity-protection/entities/policy-rules/v1' },
+      { operation: 'raw write', command: graphqlWrite, stdin: mutation, path: '/identity-protection/combined/graphql/v1' },
+    ]
+    allowRawApi(db, 'falcon-axi')
+    for (const { operation, command, stdin, path } of guarded) {
+      await policy(['malquery search'])
+      const before = await evidence()
+      const sentBefore = await sent(path)
+      assert.equal((await invoke(command, stdin)).statusCode, 400)
+      assert.equal((await invoke([...command, '--execute', '--confirm', 'synthetic'], stdin)).statusCode, 400)
+      await policy([operation])
+      const preview = await success(command, stdin)
+      assert.match(preview, /preview:/)
+      const wrong = await invoke([...command, '--execute', '--confirm', 'wrong'], stdin)
+      assert.notEqual(wrong.json().exitCode, 0, wrong.body)
+      assert.equal(await sent(path), sentBefore)
+      assert.equal((await evidence()).mutations, before.mutations)
+      await success([...command, '--execute', '--confirm', confirmation(preview)], stdin)
+      assert.equal(await sent(path), sentBefore + 1)
+      assert.equal((await evidence()).mutations, before.mutations + 1)
     }
     await policy(['search start'])
     const beforeLost = (await evidence()).mutations
@@ -108,7 +138,7 @@ await withFakeService(async ({ directory, send }) => {
     assert.equal((await invoke(['detection', 'list'])).statusCode, 403)
     assert.ok((await evidence()).requests.every(row => row.canaryReceived), 'Every native request must use the managed canary identity')
     assert.doesNotMatch(JSON.stringify(db.prepare('SELECT * FROM audit').all()), /CANARY-|ARTIUM_SECRET_/)
-    console.log(JSON.stringify({ falcon: '1.1.0', writes: 'exact grants, default off', rtr: 'profile opt-in, command restriction, native confirm and cancellation cleanup',
+    console.log(JSON.stringify({ falcon: '1.2.0', writes: 'exact grants, default off, including identity policy rules and raw GraphQL writes', rtr: 'profile opt-in, command restriction, native confirm and cancellation cleanup',
       search: 'no automatic replay after lost response', network: 'guarded loopback only', credentials: 'profile SecretRefs and redacted audit' }))
   } finally { await app.close(); db.close(); await runner.shutdown() }
 }, () => held(), { port: 443, hosts: ['localhost', ...falconTestHosts] })

@@ -795,6 +795,10 @@
         "host usb": { "label": "Search host USB activity" },
         "identity activity": { "label": "Search identity activity" }
       } },
+      { "title": "Identity policy rules", "operations": {
+        "identity rule create": { "label": "Create policy rule" },
+        "identity rule delete": { "label": "Delete policy rule", "risk": ["delete"] }
+      } },
       { "title": "Remote response", "operations": {
         "rtr run": { "label": "Run command" }
       } },

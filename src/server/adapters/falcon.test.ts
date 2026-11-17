@@ -89,6 +89,49 @@ test.each([
   expect(nativeWrites(call)).toEqual({ allowWrites: true, operations: ['raw-write'] })
 })
 
+test.each([
+  { operation: 'identity rule create', other: 'identity rule delete', args: ['identity', 'rule', 'create', '--body-file', '-'], input: { stdin: '{}' } },
+  { operation: 'identity rule delete', other: 'identity rule create', args: ['identity', 'rule', 'delete', 'synthetic-rule'], input: {} },
+].flatMap(call => [
+  { ...call, extra: [], effect: 'read', readOnly: 'true' },
+  { ...call, extra: ['--execute', '--confirm', 'synthetic'], effect: 'write', readOnly: 'false' },
+]))('$operation $extra needs the exact grant before any credential is read and carries the native opt-in', async ({ operation, other, args, input, extra, effect, readOnly }) => {
+  const getCredential = vi.fn(async () => rawCredential)
+  const prepare = (settings: Record<string, unknown>) => createFalconAdapter({ getSettings: () => settings, getCredential },
+    join(directory, 'writes.log')).prepare([...args, ...extra], synthetic, input)
+  for (const settings of [{}, { writes: { allowWrites: false, operations: [operation] } }, { writes: { allowWrites: true, operations: [other, 'raw write'] } }]) {
+    await expect(prepare(settings)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  }
+  expect(getCredential).not.toHaveBeenCalled()
+  const call = await prepare({ writes: { allowWrites: true, operations: [operation] } })
+  expect(call).toMatchObject({ effect, environment: { FALCON_AXI_READ_ONLY: readOnly } })
+  expect(nativeWrites(call)).toEqual({ allowWrites: true, operations: [operation.replaceAll(' ', '-')] })
+})
+
+test('a rule help request needs no grant', async () => {
+  const call = await rawAdapter().prepare(['identity', 'rule', 'create', '--help'], synthetic)
+  expect(call).toMatchObject({ effect: 'read', invocation: { command: 'identity rule create', help: true } })
+  expect(nativeWrites(call)).toBeUndefined()
+})
+
+test('identity graphql reads without a write grant and never reads a server file', async () => {
+  const call = await rawAdapter().prepare(['identity', 'graphql', '--query', 'query { synthetic }', '--all'], synthetic)
+  expect(call).toMatchObject({ effect: 'read', environment: { FALCON_AXI_READ_ONLY: 'true' } })
+  expect(nativeWrites(call)).toBeUndefined()
+  for (const query of [['--query', '@/etc/hostname'], ['--query=@query.graphql']]) {
+    await expect(rawAdapter().prepare(['identity', 'graphql', ...query], synthetic)).rejects.toMatchObject({ code: 'UNSUPPORTED_INPUT' })
+  }
+})
+
+test('a raw write to the Identity Protection GraphQL route carries only the raw-write grant', async () => {
+  const write = ['raw', 'write', '--method', 'POST', '--path', '/identity-protection/combined/graphql/v1', '--body-file', 'body.json']
+  const input = { files: [{ name: 'body.json', contentBase64: Buffer.from('{"query":"mutation { synthetic }"}').toString('base64') }] }
+  await expect(rawAdapter({ writes: { allowWrites: true, operations: ['identity rule create'] } }).prepare(write, synthetic, input)).rejects.toMatchObject({ code: 'FLAG_BLOCKED' })
+  const call = await rawAdapter(rawGrant).prepare([...write, '--execute', '--confirm', 'synthetic'], synthetic, input)
+  expect(call).toMatchObject({ effect: 'write', environment: { FALCON_AXI_READ_ONLY: 'false' } })
+  expect(nativeWrites(call)).toEqual({ allowWrites: true, operations: ['raw-write'] })
+})
+
 test('raw files are uploaded leaves or the single explicit stdin and nothing else', async () => {
   const adapter = rawAdapter(rawGrant)
   const file = { name: 'body.json', contentBase64: Buffer.from('{}').toString('base64') }
@@ -117,6 +160,22 @@ test('the pinned CLI previews a raw write from an uploaded body through the inje
       { ...input, fileArguments: call.fileArguments }, call.files)
     expect(result.exitCode, result.stdout + result.stderr).toBe(0)
     expect(result.stdout).toMatch(/preview:[\s\S]*method: POST[\s\S]*body_bytes: 18/)
+  } finally { await runner.shutdown() }
+})
+
+test.each([
+  { operation: 'identity rule create', args: ['identity', 'rule', 'create', '--body-file', '-'],
+    input: { stdin: '{"name":"synthetic-rule","action":"ALLOW","trigger":"access","enabled":false,"simulationMode":true}' } },
+  { operation: 'identity rule delete', args: ['identity', 'rule', 'delete', 'synthetic-rule'], input: {} },
+])('the pinned CLI previews $operation through the injected profile opt-in', async ({ operation, args, input }) => {
+  const runner = await Runner.create(join(directory, 'calls'))
+  try {
+    const call = await rawAdapter({ writes: { allowWrites: true, operations: [operation] } }).prepare(args, synthetic, input)
+    const result = await runner.run('synthetic-user', call.executable,
+      [join(process.cwd(), 'tools/node_modules/@knowttl/falcon-axi/.typescript-build/src/bin.js'), ...call.args.slice(1)],
+      call.environment, call.secrets, call.limits, { ...input, fileArguments: call.fileArguments }, call.files)
+    expect(result.exitCode, result.stdout + result.stderr).toBe(0)
+    expect(result.stdout).toMatch(/preview:[\s\S]*confirm:/)
   } finally { await runner.shutdown() }
 })
 
@@ -259,7 +318,8 @@ test.each(['login list', 'account list', 'cloud-asset list', 'identity rule list
   'sandbox list', 'sandbox show synthetic-report', 'file-change list', 'file-change show synthetic-change',
   'policy show synthetic-policy', 'malquery show aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
   'malquery quota', 'malquery status synthetic-search', 'identity list', 'identity show aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-  'identity timeline aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'identity assessment'])
+  'identity timeline aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'identity assessment', 'identity graphql --query synthetic --variables {} --limit 5 --cursor synthetic',
+  'identity graphql --query synthetic --all --max-rows 10', 'identity sensor aggregate --name synthetic --type synthetic --field synthetic --filter synthetic --size 5'])
   ('new read command %s keeps managed credentials and investigation operations enabled', async command => {
     const args = command.split(' ')
     const prepared = await prepareFalcon(args, configuration)

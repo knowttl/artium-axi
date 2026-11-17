@@ -413,7 +413,7 @@ function hostedHelp(help: string, tool: string, flags: string[], commands: boole
       .replace(/\nRTR execution requires[\s\S]*$/, '\n')
       .replace(/ \([^)]*\bexception N[1-4]\)/gi, '')
       .split('\n').filter(line => !falcon.blockedCommands.some(command => line.includes(`falcon-axi ${command}`))).join('\n')
-    const guidance = 'Artium manages the Falcon profile, region and member CID. Passive reads are available. Search start/stop, host usb, identity activity, malquery search and rtr run require exact administrator grants, off by default. Search and MalQuery dispatch immediately. RTR previews without --execute; execution requires profile opt-in, an allowed command and exact --confirm device:command. Never automatically replay an uncertain submission. Use artium-axi falcon-axi scopes for permissions.'
+    const guidance = 'Artium manages the Falcon profile, region and member CID. Passive reads are available. Search start/stop, host usb, identity activity, identity rule create and delete, malquery search and rtr run require exact administrator grants, off by default. Search and MalQuery dispatch immediately. RTR previews without --execute; execution requires profile opt-in, an allowed command and exact --confirm device:command. Never automatically replay an uncertain submission. Use artium-axi falcon-axi scopes for permissions.'
     if (rootPosture && !help.includes(guidance)) help = help.trimEnd() + '\n' + guidance + '\n'
   }
   if (tool === 'gh-axi') {

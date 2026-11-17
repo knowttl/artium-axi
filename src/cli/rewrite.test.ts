@@ -113,7 +113,7 @@ test('Falcon discovery hosts every indented executable example', () => {
   expect(rewriteDiscoveryHelp(output.upstreamHelp, 'falcon-axi')).toBe(expected)
 })
 
-test.each(['search start', 'search stop', 'host usb', 'identity activity', 'malquery search', 'rtr run'])
+test.each(['search start', 'search stop', 'host usb', 'identity activity', 'identity rule create', 'identity rule delete', 'malquery search', 'rtr run'])
   ('Falcon suggestions retain admitted native operation %s', command => {
     expect(decode(rewriteSuggestions(encode({ help: [`Run ` + '`' + `falcon-axi ${command}` + '`'] }), 'falcon-axi')))
       .toEqual({ help: [`Run ` + '`' + `artium-axi falcon-axi ${command}` + '`'] })
