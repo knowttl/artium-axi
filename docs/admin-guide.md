@@ -178,6 +178,9 @@ After signing out of artium, choose **Continue to provider sign-out** to finish 
 The artium session is revoked first; if provider sign-out cannot be started, the page explains that the provider session may still be active.
 Register the artium `/login` URL as an allowed post-logout return URI in the provider before using that option.
 Confirmation dialogs are titled with the action and explain its consequence before the change; removing an SSO role rule also requires typing its claim value.
+If the page script has not loaded or JavaScript is off, session and token revocations, user unlock and adding an SSO role rule use a server confirmation page.
+After a successful server-confirmed action, the browser returns to Account or Administration; revoking the current session signs you out.
+Other confirmed actions require the page script: reload the page, wait for it to finish loading and submit again.
 Archiving a person requires typing their exact username before the **Archive** confirmation button becomes available.
 Role creation and rename save without an additional action confirmation dialog; saving tool grants requires confirmation, and deleting an eligible role requires typing its exact name.
 The role's deletion control is disabled while blockers remain and lists their counts.
