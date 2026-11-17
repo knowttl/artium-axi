@@ -29,6 +29,7 @@ The Tools list offers no action of its own: enabling and disabling a tool is on 
 The tool page frame holds the setup steps, the Enabled switch (a native `button` with `role="switch"` in an `ActionForm`, which keeps the confirmation text and the button label as the dialog action), the tab links (Astryx link buttons marking the current tab with `aria-current="page"`, so tabs work without JavaScript) and one panel per tab.
 The Write permissions, Raw API and Advanced tabs are Astryx views; operation groups stay native `details`, and the filter inputs join the page's `ops-filter` get form through the `form` attribute.
 The Instances tab (`src/views/tool-instances.tsx`) is an Astryx table with the Test, Edit, Enable or Disable, and Delete actions, and the Edit sheet on the shared `Sheet`; the actions menu stays a native `details` with the `more-menu` class, and the page's `Card` allows overflow so the menu is not clipped.
+The table sits in an `instances-list` container: a table from 900 px of container width, with the instance name and description wrapping in their column, and stacked cards below it, so every action stays inside the card.
 Its row props carry the displayed instance details and status, action paths, identity and revision, but no credential values or raw metadata.
 The Access tab (`src/views/tool-access.tsx`) is a "Roles that grant" panel with an Astryx `List` row and an instance access `Sheet` per role, and for Kubernetes and Shodan one panel per grant policy with a row and an edit `Sheet` per person.
 When the policy can be created and an eligible person has no grant, an add `Sheet` offers a native `select` of people without a grant; the sheets keep their `instances-<role>` and `grants-<policy>-<person or add>` names and `?sheet=` open state.
@@ -80,6 +81,7 @@ It shows non-secret values (the client ID, tenant, authentication method and thu
 The Access tokens page (`Tokens` in `src/views/tokens.tsx`, route `/admin/tokens`) is the thirteenth page on the seam, with a Settings, an All tokens and a Revoke all panel.
 Settings is an `ActionForm` marked `data-token-settings` that patches `/v1/admin/token-settings` under a tier 2 confirmation; its checkbox and two number inputs stay native and uncontrolled, and `confirm.js` converts the hours and days to milliseconds before sending.
 All tokens is an Astryx table with a Revoke `ActionForm` on each token that is not revoked (a tier 2 confirmation, `POST /v1/admin/tokens/<id>/revoke`) and Revoke all is one `ActionForm` that posts to `/v1/admin/tokens/revoke-all`; there is no row menu, so nothing can clip.
+The table sits in a `tokens-list` container: a table from 900 px of container width, with the Creator column held to a minimum width, and stacked cards below it.
 The status word and tone of a token come from the `token` entry of the status vocabulary in `status.ts`, which the Account token list also uses.
 The props carry a token's id, label, creator, access, scope, expiry and status, never its value or hash; the value is shown once, on Account, in its one-time dialog.
 
@@ -115,7 +117,7 @@ The SSH audit (`SshAudit` in `src/views/ssh-audit.tsx`, route `/admin/ssh/audit`
 The header actions link to Hosts, bindings and grants and to the metadata-only export, which keeps the page's query.
 Each retained execution is an article with its outcome and Sudo badges, its facts (host, account, start, finish, remote exit, termination, request ID and output sample state), the command, the diagnostic, the retained standard output and error as text blocks with byte counts, and a native `details` disclosure with the rest of the stored record.
 Output is untrusted: it is rendered as text only and its markup characters are escaped in the page and in the hydration data.
-Connection events and denials, and the bindings and grants tables of the SSH hosts page, use the `ssh-events` container: a table from 640 px of container width with column minimums that keep short values on one line, and stacked cards below it.
+Connection events and denials, and the bindings and grants tables of the SSH hosts page, use the `ssh-events` container: a table from 760 px of container width with column minimums that keep short values on one line, and stacked cards below it.
 Identifiers wrap at their separators and break mid-word only when no other room remains.
 The page keeps the SSH help topic Tools, which `renderPage` takes as its last argument.
 

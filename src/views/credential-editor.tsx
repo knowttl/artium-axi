@@ -2,6 +2,7 @@ import { Field } from '@astryxdesign/core/Field'
 import { Text } from '@astryxdesign/core/Text'
 import { TextArea } from '@astryxdesign/core/TextArea'
 import { TextInput } from '@astryxdesign/core/TextInput'
+import { VStack } from '@astryxdesign/core/VStack'
 import { memo, useEffect, useRef, useState } from 'react'
 import { CertificateVerification, type TlsSection } from './certificate-verification.js'
 
@@ -91,8 +92,10 @@ export const CredentialEditor = memo(function CredentialEditor({ intro, schema, 
       <Text as="p" type="supporting">{intro}</Text>
       {controls.map(control => (
         <div key={control.name} data-credential-field={control.name} data-secret={control.secret ? '' : undefined} data-ephemeral={control.ephemeral ? '' : undefined} suppressHydrationWarning>
-          <Control control={control} value={values[control.name] ?? ''} onChange={value => setValues(current => ({ ...current, [control.name]: value }))} />
-          {control.stored && <p data-stored-secret="" suppressHydrationWarning>Stored when configured below. Leave blank to keep; enter a value to replace.</p>}
+          <VStack gap={1}>
+            <Control control={control} value={values[control.name] ?? ''} onChange={value => setValues(current => ({ ...current, [control.name]: value }))} />
+            {control.stored && <Text as="p" type="supporting"><span data-stored-secret="" suppressHydrationWarning>Stored when configured below. Leave blank to keep; enter a value to replace.</span></Text>}
+          </VStack>
         </div>
       ))}
       {tls && <CertificateVerification section={tls} />}
