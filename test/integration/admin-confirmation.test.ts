@@ -192,6 +192,10 @@ test.each([revokeAll, '/v1/admin/tokens/token-live/revoke'])('a token-authentica
 })
 
 const archive = (id: string) => `/v1/admin/users/${id}/archive`
+const roleRules = '/v1/admin/sso/role-rules'
+const ruleFields = { providerId: 'synthetic-provider', claim: 'groups', value: 'Synthetic.Readers', roleId: 'synthetic-role' }
+const addProvider = () => db.prepare("INSERT INTO sso_providers (id, name, kind, issuer) VALUES ('synthetic-provider', 'Synthetic provider', 'oidc', 'https://identity.example')").run()
+const ruleCount = () => (db.prepare('SELECT COUNT(*) AS count FROM role_rules').get() as { count: number }).count
 const later = (minutes: number) => {
   vi.spyOn(Date, 'now').mockReturnValue(now + minutes * 60000)
   db.prepare('UPDATE sessions SET reauthenticated_at = ?').run(now + minutes * 60000)
@@ -318,12 +322,49 @@ test.each([
 ])('a native post with %s is refused as CSRF_INVALID and never reaches the confirmation step', async (_case, request, fields) => {
   mint('token-live')
   addUser('synthetic-second')
+  addProvider()
   const archivePage = pageForm((await app.inject({ url: '/admin/users/synthetic-second', headers })).body, archive('synthetic-second'))
-  for (const [url, inputs] of [[revokeAll, pageForm(await tokenPage(), revokeAll).inputs], [archive('synthetic-second'), archivePage.inputs]] as const) {
+  for (const [url, inputs] of [[revokeAll, pageForm(await tokenPage(), revokeAll).inputs], [archive('synthetic-second'), archivePage.inputs],
+    [roleRules, { _csrf: csrf, ...ruleFields }]] as const) {
     const response = await postForm(url, fields(inputs), request(headers))
     expect([response.statusCode, response.json().error.code]).toEqual([403, 'CSRF_INVALID'])
   }
-  expect([revoked(), archived('synthetic-second')]).toEqual([[], false])
+  expect([revoked(), archived('synthetic-second'), ruleCount()]).toEqual([[], false, 0])
+})
+
+test.each([
+  ['PATCH', '/v1/admin/tools/falcon-axi', { expectedRevision: '1', enabled: 'false' }],
+  ['DELETE', '/v1/admin/roles/role-doomed', { expectedRevision: '1' }],
+  ['PUT', '/v1/admin/users/synthetic-second/roles', { expectedRevision: '1' }],
+])('a native post to a %s confirmation route changes nothing and answers that the page script is required', async (_method, url, fields) => {
+  db.prepare("INSERT INTO roles (id, name) VALUES ('role-doomed', 'Doomed role')").run()
+  addUser('synthetic-second')
+  const response = await postForm(url, { _csrf: csrf, ...fields })
+  expect(response.statusCode).toBe(409)
+  expect(response.body).toContain('Page script required')
+  expect(response.body).not.toContain('name="_confirm"')
+  const crossSite = await postForm(url, { _csrf: csrf, ...fields }, { ...headers, origin: 'https://elsewhere.example' })
+  expect([crossSite.statusCode, crossSite.json().error.code]).toEqual([403, 'CSRF_INVALID'])
+  expect(db.prepare("SELECT enabled FROM tools WHERE name = 'falcon-axi'").get()).toEqual({ enabled: 1 })
+  expect(roles().get('role-doomed')).toEqual({ name: 'Doomed role' })
+})
+
+test('a native post to a path that is not a confirmation route is still not found', async () => {
+  const response = await postForm('/v1/admin/tools/falcon-axi/unknown', { _csrf: csrf })
+  expect([response.statusCode, response.json().error.code]).toEqual([404, 'NOT_FOUND'])
+})
+
+test('a native role-rule create carries only its listed plain fields into the step, and confirming creates the rule once', async () => {
+  addProvider()
+  const step = await postForm(roleRules, { _csrf: csrf, ...ruleFields, temporaryPassword: 'CANARY-typed-secret' })
+  expect(step.statusCode).toBe(200)
+  expect(step.body).not.toContain('CANARY-typed-secret')
+  const confirmation = pageForm(step.body, roleRules).inputs
+  expect(Object.keys(confirmation).sort()).toEqual(['_confirm', '_csrf', 'claim', 'providerId', 'roleId', 'value'])
+  expect(ruleCount()).toBe(0)
+  const created = await postForm(roleRules, confirmation)
+  expect([created.statusCode, created.headers.location]).toEqual([303, '/admin'])
+  expect(ruleCount()).toBe(1)
 })
 
 test('an Authorization header does not replace the confirmation on a route the session cookie authenticates, and is only a token elsewhere', async () => {
