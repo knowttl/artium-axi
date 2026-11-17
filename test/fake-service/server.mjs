@@ -1091,7 +1091,9 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     req.on('data', chunk => { body += chunk })
     req.on('end', () => {
       const { query } = JSON.parse(body)
-      recorded.document = typeof query === 'string' && /^query (?:IdentityAssessment|IdentityList)\b/.test(query) ? 'query' : 'unsupported'
+      recorded.document = typeof query === 'string' && /^mutation\b/.test(query) ? 'mutation'
+        : typeof query === 'string' && /^query (?:IdentityAssessment|IdentityList)\b/.test(query) ? 'query' : 'unsupported'
+      if (recorded.document === 'mutation') { mutations++; res.end(JSON.stringify({ data: { synthetic: true } })); return }
       if (recorded.document !== 'query') { res.statusCode = 400; res.end(JSON.stringify({ errors: [{ message: 'Synthetic query refused' }] })); return }
       res.end(JSON.stringify({ data: {
         securityAssessment: { overallScore: 42, overallScoreLevel: 'MEDIUM', assessmentFactors: [] },
@@ -1099,6 +1101,9 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
           riskScore: 42, riskScoreSeverity: 'MEDIUM' }], pageInfo: { hasNextPage: false, endCursor: null } },
       } }))
     })
+  } else if (url.pathname === '/identity-protection/entities/policy-rules/v1') {
+    req.resume()
+    req.on('end', () => { mutations++; res.end(JSON.stringify({ resources: [{ id: 'synthetic-rule-id' }] })) })
   } else if (url.pathname === '/real-time-response/queries/sessions/v1') {
     res.end(JSON.stringify({ resources: ['synthetic-rtr-session'], meta: { pagination: { total: 1, offset: 0 } } }))
   } else if (url.pathname === '/real-time-response/entities/sessions/GET/v1'

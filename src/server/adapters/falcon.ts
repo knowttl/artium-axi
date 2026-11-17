@@ -19,9 +19,10 @@ export type FalconCredential = z.infer<typeof falconCredentialSchema>
 const inputFileFlags = inventory.adapterBoundary.inputFileFlags
 const falconLimits ={ timeoutMs: inventory.requirements.timeoutMs, terminationGraceMs: 12_000 }
 const defaultWriteLog = '/data/tool-logs/falcon-axi/writes.log'
+const previewedWrites = ['raw write', 'identity rule create', 'identity rule delete']
 const capabilityPolicy = writePolicy({
   supportedOperations: falconWriteOperations,
-  unlocks: 'Exact search, search-backed and MalQuery commands; restricted RTR with native profile opt-in and execution confirmation; raw write previews and execution with native preview, --execute, exact --confirm and journal. Raw API permission is separate.',
+  unlocks: 'Exact search, search-backed and MalQuery commands; restricted RTR with native profile opt-in and execution confirmation; identity policy rule create and delete and raw write previews and execution with native preview, --execute, exact --confirm and journal. Raw API permission is separate.',
   blocked: 'Host changes, scripts and file transfers remain unavailable. RTR command restrictions and exact --execute/--confirm still apply.',
 })
 function capabilitySettings(settings: Record<string, unknown>) {
@@ -69,12 +70,12 @@ export function createFalconAdapter(source: SecretSource, writeLog = defaultWrit
     async prepare(args, reference, input) {
       const call = parseFalconArgs(args, input)
       if (reference.tool !== 'falcon-axi') throw new ArtiumError('CREDENTIAL_INVALID')
-      const rawWrite = call.operation === 'raw write'
-      if (call.executing || rawWrite) authorizeOperation(call.operation!, source.getSettings?.(reference) ?? {})
+      const previewedWrite = previewedWrites.includes(call.operation!)
+      if (call.executing || previewedWrite) authorizeOperation(call.operation!, source.getSettings?.(reference) ?? {})
       const prepared = profile.prepare('falcon-axi', await source.getCredential(reference), writeLog, !call.executing)
-      if (rawWrite) {
+      if (previewedWrite) {
         const configuration = JSON.parse(String(prepared.files[0].content))
-        configuration.profiles.artium.writes = { allowWrites: true, operations: ['raw-write'] }
+        configuration.profiles.artium.writes = { allowWrites: true, operations: [call.operation!.replaceAll(' ', '-')] }
         prepared.files[0].content = JSON.stringify(configuration)
       }
       return { executable: process.execPath, args: [toolPaths['falcon-axi'], ...call.args], invocation: call.invocation,
@@ -141,7 +142,8 @@ function parseFalconArgs(original: readonly string[], input: RunnerInput = {}) {
     if (positionals.length !== (selected.positional && !hostname ? 1 : 0)) throw new ArtiumError('INVALID_INPUT')
   }
   const operation = selected.effect === 'write' && !values.has('help') ? selected.command : null
-  let executing = operation === 'raw write' ? values.has('execute') : Boolean(operation && operation !== 'rtr run')
+  if (selected.command === 'identity graphql' && values.get('query')?.startsWith('@')) throw new ArtiumError('UNSUPPORTED_INPUT')
+  let executing = previewedWrites.includes(operation!) ? values.has('execute') : Boolean(operation && operation !== 'rtr run')
   let device: string | undefined
   if (operation === 'rtr run') {
     const command = values.get('command')

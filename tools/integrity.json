@@ -12,8 +12,8 @@
     "integrity": "sha512-vLMFveWfQ/u8XEUVIaqGuCKxhfkzegi5jybAYItENbrz4m3aVjIgaE0+o7do+NGg77+pJ/Sr7x+J2K+ek0G26Q=="
   },
   "@knowttl/falcon-axi": {
-    "version": "1.1.0",
-    "integrity": "sha512-iOnTT7V6cwf7dcBrfnOaSbT2FZ+BfWlB5huN9cWw52/Fm2H+7D5wURzzOsyxZ2SUd8Fre1ndtXtiaHkmxGjBWA=="
+    "version": "1.2.0",
+    "integrity": "sha512-xHUUbznMTRhHgZeKH4/QOQB4HdaHA3rcl7jVFtxSKiUw3Eziaw3P0rjy2AgRNCIOiCZX08yOapZxaGGe++ECkw=="
   },
   "@knowttl/unifi-axi": {
     "version": "0.1.3",

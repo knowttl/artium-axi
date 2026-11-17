@@ -13,7 +13,7 @@ const native = JSON.parse(read('artium-invocations.json')) as { commands: Comman
 const metadata = await import(new URL('.typescript-build/src/metadata.js', base).href) as { commands: NativeCommand[] }
 const help = JSON.parse(read('.typescript-build/src/help.json')) as Record<string, string>
 const unsafeOverrides = ['region', 'member-cid', 'allow-unknown-origin', 'no-member-cid', 'config', 'profile']
-const writeCommands = ['search start', 'search stop', 'host usb', 'identity activity', 'malquery search', 'rtr run', 'raw write']
+const writeCommands = ['search start', 'search stop', 'host usb', 'identity activity', 'malquery search', 'rtr run', 'raw write', 'identity rule create', 'identity rule delete']
 const inputFileFlags = ['body-file', 'query-file']
 const blockedCommands = ['setup', 'config', 'profile', 'credentials', 'credential', 'export', 'auth login', 'auth logout']
 const admitted = native.commands.filter(entry => !blockedCommands.includes(entry.command)

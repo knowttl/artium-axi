@@ -2104,7 +2104,7 @@ test('Falcon offers exact lifecycle and RTR capabilities off by default', () => 
   browser(`
     await page.open(base + '/admin/tools/falcon-axi?tab=writes');
     await page.wait('[data-write-access]');
-    for (const operation of ['search start', 'search stop', 'host usb', 'identity activity', 'malquery search', 'rtr run']) {
+    for (const operation of ['search start', 'search stop', 'host usb', 'identity activity', 'identity rule create', 'identity rule delete', 'malquery search', 'rtr run']) {
       check(await page.eval('document.querySelector(' + JSON.stringify('[name=operations][value="' + operation + '"]') + ')?.checked === false'), operation + ' missing or selected by default');
     }
     check(await page.eval(() => document.querySelector('[data-write-access] input[role=switch]').checked === false), 'Falcon writes enabled by default');

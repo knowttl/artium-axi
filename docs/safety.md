@@ -42,7 +42,7 @@ Other related workspace, session, stream and protected-result APIs do not carry 
 Those paths check the role's instance grant when selecting credentials and recheck it for ongoing operations.
 See [instance administration](admin-guide.md#browser-administration) for managing named instances in the UI.
 Host-owned confirmations (GitHub, Gitea and transfers) bind the credential identity and revision.
-For Proxmox writes, Tenable writes and Falcon `raw write`, Artium passes the credential ID and revision to the native tool, which binds them to the confirmation and refuses a different instance or revision with `CREDENTIAL_CHANGED` (Proxmox uses `CONFIRMATION_MISMATCH`).
+For Proxmox writes, Tenable writes, Falcon `raw write` and Falcon `identity rule create` and `delete`, Artium passes the credential ID and revision to the native tool, which binds them to the confirmation and refuses a different instance or revision with `CREDENTIAL_CHANGED` (Proxmox uses `CONFIRMATION_MISMATCH`).
 After a credential or write-setting change, preview again on the current instance and confirm with the new value.
 Azure, Azure DevOps and Falcon `rtr run` use a boolean confirmation or a value the caller types, such as a resource name, `--confirm-delete` or `<device>:<command>`, rather than a confirmation bound to a preview.
 AWX uses `--confirm`, with a matching preview required for security administration and deletes as described under [Raw API access](#raw-api-access).
@@ -245,7 +245,11 @@ Related collections are bounded without paging; section failures retain successf
 Falcon investigation reads include detection lineage, process details and trees, existing sandbox reports, FileVantage changes and device-control policy details.
 Falcon `host logins` and `host network` accept `--hostname <name>` to resolve a host before reading its history.
 The pinned TypeScript runtime admits passive reads, including existing search status and RTR session and audit history.
-Search start/stop, host USB and identity activity searches, MalQuery submission and RTR execution require exact administrator-selected command grants, with writes off by default.
+Search start/stop, host USB and identity activity searches, Identity Protection policy rule create and delete, MalQuery submission and RTR execution require exact administrator-selected command grants, with writes off by default.
+Falcon `identity graphql` runs one read-only Identity Protection GraphQL query without a write grant; the native parser refuses mutations and subscriptions, and an `@file` query value is refused because the server never reads caller-named files.
+Falcon `identity sensor aggregate` is a passive read.
+`identity rule create` and `identity rule delete` need their grant even to preview, because the native tool requires its profile opt-in then; Artium injects that opt-in only after the grant check passes.
+Their execution requires `--execute`, the exact preview `--confirm` and a native journal entry, as for `raw write`.
 Legacy `allowWrites: true` grants retain only their RTR meaning and never enable other commands.
 Search and MalQuery use native immediate submission without an invented preview or confirmation gate; preserve returned job/request IDs and do not automatically retry uncertain submissions.
 RTR previews without `--execute`; execution also requires native profile `rtr.enabled: true`, its fixed command restriction and exact `--confirm <device_id>:<complete command>`.
@@ -253,6 +257,7 @@ Shared device custody spans users and case aliases until native session cleanup 
 Native RTR children retain their own device lock in a shared server-owned state directory across calls.
 Host changes, arbitrary scripts and file transfers remain unavailable.
 Falcon `raw get` sends a GET to a validated API path and `raw write` is the native guarded write: execution requires `--execute`, the exact preview `--confirm` and a native journal entry.
+A caller-written Identity Protection GraphQL mutation reaches its route only through `raw write`, with its `raw write` grant, the `read-writes` raw API mode, `--execute` and the exact `--confirm`.
 See [Raw API access](#raw-api-access) for the separate raw permission.
 
 Vectra `host show` and `entity show --type host`, plus the matching raw host reads, retain every returned API field under `host`, separate from CLI metadata.

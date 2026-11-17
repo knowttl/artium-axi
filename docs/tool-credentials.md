@@ -227,7 +227,6 @@ Grant additional scopes only for the domains you use, following `artium-axi falc
 For example, account reads need `Assets:read`, while CVE reads need `Vulnerabilities (Falcon Intelligence):read`, distinct from Spotlight vulnerability access.
 Identity Protection directory/timeline queries require `Identity Protection GraphQL:write` plus the documented read scopes, even though those queries read data.
 These are optional domain requirements and do not justify granting other write or response scopes.
-The pinned tool does not change hosts, detections, policies or identities and exposes no arbitrary REST or GraphQL requests.
 See the [Falcon capability boundary](safety.md#write-gates-by-tool) for admitted reads, exact write grants and native execution gates.
 Search creation/stopping and search-backed commands require `NGSIEM:write`; MalQuery submissions require `MalQuery:write`.
 RTR additionally needs native profile `rtr.enabled: true`, an optional narrower `rtr.commands` subset and the published `Real time response:read` permission.

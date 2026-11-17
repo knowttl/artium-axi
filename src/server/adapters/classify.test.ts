@@ -209,6 +209,7 @@ test.each([
   ['checkpoint-axi', 'email search', 'read'], ['checkpoint-axi', 'email quarantine', 'write'],
   ['hybrid-axi', 'api get', 'read'], ['hybrid-axi', 'hunting yara create', 'write'],
   ['falcon-axi', 'detection summary', 'read'], ['falcon-axi', 'host usb', 'write'],
+  ['falcon-axi', 'identity graphql', 'read'], ['falcon-axi', 'identity rule delete', 'write'],
   ['gitea-axi', 'repo view', 'read'], ['gitea-axi', 'issue upload', 'write'],
   ['proxmox-axi', 'task status', 'read'], ['proxmox-axi', 'task cancel', 'write'],
   ['technitium-axi', 'schema', 'read'], ['technitium-axi', 'admin cluster init', 'write'],

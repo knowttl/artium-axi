@@ -2,16 +2,16 @@
   "generatedBy": "scripts/falcon-inventory.ts",
   "tool": "falcon-axi",
   "package": "@knowttl/falcon-axi",
-  "version": "1.1.0",
-  "integrity": "sha512-iOnTT7V6cwf7dcBrfnOaSbT2FZ+BfWlB5huN9cWw52/Fm2H+7D5wURzzOsyxZ2SUd8Fre1ndtXtiaHkmxGjBWA==",
+  "version": "1.2.0",
+  "integrity": "sha512-xHUUbznMTRhHgZeKH4/QOQB4HdaHA3rcl7jVFtxSKiUw3Eziaw3P0rjy2AgRNCIOiCZX08yOapZxaGGe++ECkw==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "35badd3ec877a610860974807563a1803977b378b4b8504d95942028046f7561"
+      "sha256": "238cee4ef8999db650c3c69849d25459f008fd55af508d892b839bc94f54c6a7"
     },
     {
       "path": "artium-invocations.json",
-      "sha256": "4ca8b41fb1d7b5d0aa1bc6c6939f039de8680669c597aab32b45deca30436f15"
+      "sha256": "5522061d94c3c3c878530460a8a50711038b5da1512d12dcae835c861ad48cce"
     },
     {
       "path": ".typescript-build/native/checksums.json",
@@ -31,7 +31,7 @@
     },
     {
       "path": ".typescript-build/src/cli.js",
-      "sha256": "6d621a6cac4441bb7c15365000bda8e04a5e52f0163342daa18bb69d189af792"
+      "sha256": "7894379990935c0451b1320609d5be2637de76c5a52380130df9e9c55b175154"
     },
     {
       "path": ".typescript-build/src/core.js",
@@ -51,7 +51,7 @@
     },
     {
       "path": ".typescript-build/src/domain.js",
-      "sha256": "159283c7e876113c14bf979ce375c0fe81a89972ebde949d74f0b833a97398c9"
+      "sha256": "768b3ecab21686540ecbad6130a51e50bf92138de4646854e701c9250a2b20ae"
     },
     {
       "path": ".typescript-build/src/executable.js",
@@ -63,15 +63,19 @@
     },
     {
       "path": ".typescript-build/src/help.json",
-      "sha256": "1fcce907e77f3adccbf884ac6e95eeaa4473a792446afb83088709a4dd759f32"
+      "sha256": "680e0c761846b302da0ac600f45db39be5453123d628c6df2b15939ea2bf38b5"
     },
     {
       "path": ".typescript-build/src/hook.js",
       "sha256": "c236c0dab352d93254b47a222d6f580f555b018f1f68c7cb67264dd766b8e8a0"
     },
     {
+      "path": ".typescript-build/src/identity-rule.js",
+      "sha256": "47d6f02fe329a150e2dc6fd1925e8652424c17f7f4ad3c693b62a926f303f374"
+    },
+    {
       "path": ".typescript-build/src/identity.js",
-      "sha256": "69b3b41dffe14978e4cc3bd7a10f69a86a6584d58cb220274e59fd65e8a1611c"
+      "sha256": "ad931ff1910aa75bcddffcae993ac23e7ef5428f7e816ebe68c64e20cf73c7cb"
     },
     {
       "path": ".typescript-build/src/inspection-commands.json",
@@ -83,7 +87,7 @@
     },
     {
       "path": ".typescript-build/src/inventory.js",
-      "sha256": "62c069c171b612016070ba6b82d4dcb26732f06144aeb28b99b9c37918b5da9f"
+      "sha256": "1916da80d54e9370279b902c98ee2b2527372b3dfa551a350eed611a5c0ca46a"
     },
     {
       "path": ".typescript-build/src/investigation.js",
@@ -95,7 +99,7 @@
     },
     {
       "path": ".typescript-build/src/metadata.js",
-      "sha256": "94946bd97ce92157a23b6bf0ee94a9bb3ec9f49a92184e8c39f26a58352595d6"
+      "sha256": "74582586d52f290aafab4a2e69ae2f1c5abafdc8e80a7c2a98c8b10839243c45"
     },
     {
       "path": ".typescript-build/src/origin.js",
@@ -103,11 +107,11 @@
     },
     {
       "path": ".typescript-build/src/parser.js",
-      "sha256": "1a348bb4a13e0034d5919b218e02ddf7ed0036b51d78d06b488bda4fcb78f8eb"
+      "sha256": "111ca5c9f53bcfac677a3728109a4c5275a7516272ce859455333e312274034f"
     },
     {
       "path": ".typescript-build/src/raw.js",
-      "sha256": "5097f40bc12f28817da5f739f3218c928ad9891804fc1ae1d8a868669a5dec07"
+      "sha256": "02afb9479e50db3a2e5623b9ccc1ae0abe582f16f1c36f4d4f8a6b24001c3f95"
     },
     {
       "path": ".typescript-build/src/render.js",
@@ -131,11 +135,11 @@
     },
     {
       "path": ".typescript-build/src/search-commands.json",
-      "sha256": "6c8a4892f93becd8084d3ecdcfc09bf6791c1a230498397aca17bd402a9bf1f5"
+      "sha256": "62c30843b097dfe3beac0d9dce64efc526a396d43a07fd6bceec7bce082142ed"
     },
     {
       "path": ".typescript-build/src/search-help.json",
-      "sha256": "484b7f071907af1dd62f206950064b92581193f0262fe9ed36026c0ced0ff169"
+      "sha256": "80377180f644c3cb7940ba79839ddbe040333c371e93a24e5ecacefd3a2f63db"
     },
     {
       "path": ".typescript-build/src/search.js",
@@ -151,7 +155,7 @@
     },
     {
       "path": ".typescript-build/src/transport/descriptors.json",
-      "sha256": "3154a51581e3242fd6f77e87ffd91f28201af021c93b1f91bc9a7711117d75e2"
+      "sha256": "fe938e3fc3051a1a9761b44d924938b048668898ce9b697399bf8632176fb98a"
     },
     {
       "path": ".typescript-build/src/transport/dns-worker.js",
@@ -163,11 +167,15 @@
     },
     {
       "path": ".typescript-build/src/transport/https.js",
-      "sha256": "eec275013e61c95de4d4ac9a57f8ed71a2dfd84875e8490918f32993d6927a37"
+      "sha256": "6a038f7eac47bd745432c0d34b28aba2d5ca892eacfd7cd468d2129086022b48"
     },
     {
       "path": ".typescript-build/src/transport/operations.js",
-      "sha256": "f2ea3f6655fdc72745c25d1e3bd60828856299011e702861ee0162da1243d83c"
+      "sha256": "b27de26d76a21374da852e6db46ebe4fb177c37346fef690a4e66a2210c20ee7"
+    },
+    {
+      "path": ".typescript-build/src/transport/policy-rule.js",
+      "sha256": "0a0afcb71152da9f7a71a30f4a1236be1550e84babdb33b534b4e30d70ff0f64"
     },
     {
       "path": ".typescript-build/src/transport/raw-authority.js",
@@ -179,11 +187,11 @@
     },
     {
       "path": ".typescript-build/src/transport/search-authority.js",
-      "sha256": "c6d2e73052b75c48b5e9e42a76ab1460da7ba1f995b22f8d0d1b0c87b4a64d9f"
+      "sha256": "a1a0df55cff342d65ebd4b35e97bb28d3ad465fb8f45062af874403c27e10e69"
     },
     {
       "path": ".typescript-build/src/version.js",
-      "sha256": "0d455dbe36c03ee50c8346836a3d2e2da9599187b11c529b26c66db0b85fca30"
+      "sha256": "aff6babe5d4ec012aa1db7f777306c4831fc72492193ab6a58b965fef15c56d9"
     },
     {
       "path": ".typescript-build/src/windows-acl.js",
@@ -215,7 +223,7 @@
     },
     {
       "path": "skills/falcon-axi/references/agent-guide.md",
-      "sha256": "d261918741701be9b99b39aeda4fa3ec5e9aa87587d53434d84e59829b4dc7a1"
+      "sha256": "a097c851612e7132948e7e3da665954cb323ce13cf2526eb593f127c09ef6a29"
     },
     {
       "path": "skills/falcon-axi/references/application-list.md",
@@ -370,8 +378,20 @@
       "sha256": "f61ccc39a4bc44203dd9ec5823b4cffa70018ac596bd41d98a90a4a0479c2b3a"
     },
     {
+      "path": "skills/falcon-axi/references/identity-graphql.md",
+      "sha256": "3cce9b35e69a76f23e3fd69e114e144638ff15eef96351f18defd250520757e6"
+    },
+    {
       "path": "skills/falcon-axi/references/identity-list.md",
       "sha256": "37cbd9f92894c6cf122371ce2252ed19864271e818a2a9289c54acb3c62e5a47"
+    },
+    {
+      "path": "skills/falcon-axi/references/identity-rule-create.md",
+      "sha256": "2a5b585c1af85403d35311bb01e14fb47fc98849cb3bd5432659622a5ded377c"
+    },
+    {
+      "path": "skills/falcon-axi/references/identity-rule-delete.md",
+      "sha256": "78ceddaf85c4ae8c368c4c3a73e5fbc2ded99a2d8bff7826e6843845010016bf"
     },
     {
       "path": "skills/falcon-axi/references/identity-rule-list.md",
@@ -380,6 +400,10 @@
     {
       "path": "skills/falcon-axi/references/identity-rule-show.md",
       "sha256": "c7c43e459b24edcc6ffc4cfb9343d1c779c6205bdd72d55cc979770082913678"
+    },
+    {
+      "path": "skills/falcon-axi/references/identity-sensor-aggregate.md",
+      "sha256": "4af9d4567c39e4068423c14dcf48f2dd5f2d32e86d75552372de4972d7cc211e"
     },
     {
       "path": "skills/falcon-axi/references/identity-sensor-list.md",
@@ -619,7 +643,7 @@
     },
     {
       "path": "skills/falcon-axi/SKILL.md",
-      "sha256": "ca8a131e79e675b51b9fbe0b296a2740ca3445d8e76bfa61c681e0b16773b9d2"
+      "sha256": "d286fc681c929eef73347f5e1bf4efba4ca0437ad525417ae77fb2b5938cccf9"
     }
   ],
   "credentialSchema": {
@@ -734,10 +758,10 @@
       }
     }
   },
-  "skillSha256": "ca8a131e79e675b51b9fbe0b296a2740ca3445d8e76bfa61c681e0b16773b9d2",
+  "skillSha256": "d286fc681c929eef73347f5e1bf4efba4ca0437ad525417ae77fb2b5938cccf9",
   "parser": {
     "path": ".typescript-build/src/parser.js",
-    "sha256": "1a348bb4a13e0034d5919b218e02ddf7ed0036b51d78d06b488bda4fcb78f8eb",
+    "sha256": "111ca5c9f53bcfac677a3728109a4c5275a7516272ce859455333e312274034f",
     "aliases": {},
     "shortFlags": {},
     "repeats": "last value wins",
@@ -1554,6 +1578,26 @@
       "positional": null
     },
     {
+      "command": "identity graphql",
+      "flags": {
+        "help": "boolean",
+        "allow-unknown-origin": "boolean",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "region": "value",
+        "member-cid": "value",
+        "all": "boolean",
+        "query": "value",
+        "variables": "value",
+        "limit": "value",
+        "cursor": "value",
+        "max-rows": "value"
+      },
+      "effect": "read",
+      "positional": null
+    },
+    {
       "command": "identity sensor list",
       "flags": {
         "help": "boolean",
@@ -1566,6 +1610,25 @@
         "filter": "value",
         "limit": "value",
         "cursor": "value"
+      },
+      "effect": "read",
+      "positional": null
+    },
+    {
+      "command": "identity sensor aggregate",
+      "flags": {
+        "help": "boolean",
+        "allow-unknown-origin": "boolean",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "region": "value",
+        "member-cid": "value",
+        "name": "value",
+        "type": "value",
+        "field": "value",
+        "filter": "value",
+        "size": "value"
       },
       "effect": "read",
       "positional": null
@@ -1613,6 +1676,39 @@
         "member-cid": "value"
       },
       "effect": "read",
+      "positional": "rule identifier"
+    },
+    {
+      "command": "identity rule create",
+      "flags": {
+        "help": "boolean",
+        "allow-unknown-origin": "boolean",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "region": "value",
+        "member-cid": "value",
+        "execute": "boolean",
+        "body-file": "value",
+        "confirm": "value"
+      },
+      "effect": "write",
+      "positional": null
+    },
+    {
+      "command": "identity rule delete",
+      "flags": {
+        "help": "boolean",
+        "allow-unknown-origin": "boolean",
+        "no-member-cid": "boolean",
+        "config": "value",
+        "profile": "value",
+        "region": "value",
+        "member-cid": "value",
+        "execute": "boolean",
+        "confirm": "value"
+      },
+      "effect": "write",
       "positional": "rule identifier"
     },
     {
