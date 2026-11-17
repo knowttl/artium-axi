@@ -201,3 +201,33 @@ test('a confirmation that lapsed while the form stayed open is replaced once and
     check(sent[1][4] === 'kept' && sent[1][5] === 1, 'The page was reloaded or the dialog reopened before the retry: ' + JSON.stringify(sent));
   `)
 })
+
+for (const lastStatus of [200, 428]) test(`a lapsed confirmation after reauthentication is retried once when the retry returns ${lastStatus}`, () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi');
+    await page.eval(() => {
+      sessionStorage.removeItem('retry-requests');
+      const send = window.fetch;
+      window.fetch = async (input, init) => {
+        if (new URL(String(input), location.href).pathname !== '/v1/admin/tools/falcon-axi') return send(input, init);
+        const requests = JSON.parse(sessionStorage.getItem('retry-requests') || '[]');
+        requests.push(JSON.parse(init.body));
+        sessionStorage.setItem('retry-requests', JSON.stringify(requests));
+        if (requests.length === 1) return Response.json({ error: { code: 'REAUTH_REQUIRED' } }, { status: 401 });
+        if (requests.length === 2 || ${lastStatus} === 428) return Response.json({ error: { code: 'CONFIRMATION_REQUIRED', message: 'Confirm again', next: 'Reload' } },
+          { status: 428, headers: { 'x-artium-confirmation': requests.length === 2 ? 'fresh-value' : 'another-value' } });
+        return Response.json({});
+      };
+    });
+    await page.click('${enable}');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('#reauth-dialog[open]');
+    await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
+    await page.click('#reauth-dialog button:not([type=button])');
+    await page.wait('${lastStatus === 200 ? '.astryx-toast, #toast:not(:empty)' : '#message:not(:empty)'}');
+    const requests = JSON.parse(await page.eval(() => sessionStorage.getItem('retry-requests')));
+    check(requests.length === 3, 'Expected exactly three action requests: ' + JSON.stringify(requests));
+    check(requests[0]._confirm === requests[1]._confirm && requests[2]._confirm === 'fresh-value', 'The retry did not use the fresh confirmation: ' + JSON.stringify(requests));
+  `)
+})

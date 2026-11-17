@@ -75,6 +75,29 @@ test('a confirmation-tier form carries its confirmation outside its fields, so a
   expect(Object.keys(revoke.inputs)).not.toContain('_confirm')
 })
 
+test.each([
+  ['/admin/ssh/credentials', 'credential-delete', 'ssh_credentials'],
+  ['/admin/ssh', 'host-delete', 'ssh_hosts'],
+] as const)('each form on %s confirms only its own target', async (page, action, table) => {
+  db.exec(`INSERT INTO ssh_hosts (id, address, port, approved_host_keys, allowed_addresses) VALUES
+      ('first', '127.0.0.1', 22, '[]', '[]'), ('second', '127.0.0.1', 22, '[]', '[]');
+    INSERT INTO ssh_credentials (id, tool, schema_version, key_id, nonce, ciphertext, authentication_tag, updated_at) VALUES
+      ('first', 'ssh-axi', 1, 'synthetic', X'00', X'00', X'00', 0), ('second', 'ssh-axi', 1, 'synthetic', X'00', X'00', X'00', 0)`)
+  const url = `/v1/admin/ssh/${action}`
+  const html = (await app.inject({ url: page, headers })).body
+  const forms = [...html.matchAll(new RegExp(`<form[^>]*action="${url}"[^>]*>.*?</form>`, 'gs'))].map(match => pageForm(match[0], url))
+  expect(forms.map(item => item.inputs.id)).toEqual(['first', 'second'])
+  const confirmations = forms.map(item => item.attributes['data-confirm-token']!)
+  for (const [index, id] of ['first', 'second'].entries()) {
+    const payload = { id, expectedRevision: 1, confirm: true, _confirmName: id }
+    const refused = await post(url, { ...payload, _confirm: confirmations[1 - index] })
+    expect([refused.statusCode, refused.json().error.code]).toEqual([428, 'CONFIRMATION_REQUIRED'])
+    expect(db.prepare(`SELECT id FROM ${table} WHERE id = ?`).get(id)).toEqual({ id })
+    expect((await post(url, { ...payload, _confirm: confirmations[index] })).statusCode).toBe(200)
+    expect(db.prepare(`SELECT id FROM ${table} WHERE id = ?`).get(id)).toBeUndefined()
+  }
+})
+
 test('a native post without confirmation changes nothing and answers with the confirmation step, and confirming completes it once', async () => {
   mint('token-live')
   const page = pageForm(await tokenPage(), revokeAll)

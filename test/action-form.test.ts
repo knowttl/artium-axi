@@ -1,9 +1,9 @@
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
 import { expect, test } from 'vitest'
-import { ActionForm, ConfirmationTokenContext, type ActionFormProps, type ConfirmationTokens } from '../src/views/action-form.js'
+import { ActionForm, ConfirmationTokenContext, type ActionFormProps } from '../src/views/action-form.js'
 
-const render = (props: Partial<ActionFormProps>, tokens: ConfirmationTokens = { issued: {} }) => renderToString(createElement(ConfirmationTokenContext, { value: tokens },
+const render = (props: Partial<ActionFormProps>) => renderToString(createElement(ConfirmationTokenContext, { value: { issued: {} } },
   createElement(ActionForm, { action: '/v1/admin/tokens/revoke-all', method: 'POST', csrf: 'synthetic-csrf', children: null, ...props })))
 
 test.each([
@@ -15,19 +15,3 @@ test.each([
   expect(() => render(props as Partial<ActionFormProps>)).toThrow('disagree with the confirmation routes')
 })
 
-test('a confirmation form carries the confirmation minted for its own method and URL, and keeps it outside its fields', () => {
-  const minted: string[] = []
-  const tokens: ConfirmationTokens = { issued: {}, mint: (method, path, name) => { minted.push(`${method} ${path} ${name}`); return 'synthetic-confirmation' } }
-  const html = render({ confirmation: { consequence: 'Revoke all tokens and their sessions?' } }, tokens)
-  expect(html).toContain('data-confirm-token="synthetic-confirmation"')
-  expect(html).not.toContain('name="_confirm"')
-  expect(minted).toEqual(['POST /v1/admin/tokens/revoke-all '])
-})
-
-test.each(['/v1/admin/ssh/credential-delete', '/v1/admin/ssh/host-delete'])('forms for different targets at %s receive their own confirmations', action => {
-  const tokens: ConfirmationTokens = { issued: {}, mint: (_method, _path, name) => `token-for-${name}` }
-  const first = render({ action, confirmation: { consequence: 'Delete?', typedName: 'first' } }, tokens)
-  const second = render({ action, confirmation: { consequence: 'Delete?', typedName: 'second' } }, tokens)
-  expect(first).toContain('data-confirm-token="token-for-first"')
-  expect(second).toContain('data-confirm-token="token-for-second"')
-})

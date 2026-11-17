@@ -648,13 +648,19 @@ document.addEventListener('submit', async event => {
       delete body.ssoWindowDays;
     }
     if (form.querySelector('[name=roleIds]')) body.roleIds = fields.getAll('roleIds');
-    const send = () => fetch(form.action, { method: form.dataset.method || 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body) });
+    let confirmationRetried = false;
+    const send = async () => {
+      const request = () => fetch(form.action, { method: form.dataset.method || 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body) });
+      let response = await request();
+      if (!confirmationRetried && response.status === 428 && response.headers.get('x-artium-confirmation')) {
+        confirmationRetried = true;
+        body._confirm = response.headers.get('x-artium-confirmation');
+        response = await request();
+      }
+      return response;
+    };
     let response = await send();
-    if (response.status === 428 && response.headers.get('x-artium-confirmation')) {
-      body._confirm = response.headers.get('x-artium-confirmation');
-      response = await send();
-    }
     if (response.status === 401 && !response.redirected) {
       const result = await response.clone().json();
       if (result.error.code === 'REAUTH_REQUIRED') {
