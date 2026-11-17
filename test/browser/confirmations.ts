@@ -60,7 +60,7 @@ test('confirming a tier 2 action sends exactly one request with the method, URL,
     });
     const expected = await page.eval(() => {
       const form = document.querySelector('form:has([name=enabled])');
-      return { csrf: form.elements._csrf.value, revision: Number(form.elements.expectedRevision.value) };
+      return { csrf: form.elements._csrf.value, revision: Number(form.elements.expectedRevision.value), confirmation: form.dataset.confirmToken };
     });
     await page.click('${enable}');
     await page.wait('#confirmation[open]');
@@ -69,7 +69,45 @@ test('confirming a tier 2 action sends exactly one request with the method, URL,
     const sent = JSON.parse(await page.eval(() => sessionStorage.getItem('test-sent')));
     check(sent.length === 1 && sent[0][1] === 'PATCH' && new URL(sent[0][0], base).pathname === '/v1/admin/tools/falcon-axi', 'The request has the wrong method or URL: ' + JSON.stringify(sent));
     const body = JSON.parse(sent[0][2]);
-    check(JSON.stringify(Object.keys(body).sort()) === '["_csrf","enabled","expectedRevision"]' && body._csrf === expected.csrf && body.expectedRevision === expected.revision && body.enabled === true, 'The request body differs from the form: ' + sent[0][2]);
+    check(JSON.stringify(Object.keys(body).sort()) === '["_confirm","_csrf","enabled","expectedRevision"]' && body._csrf === expected.csrf && body._confirm === expected.confirmation
+      && body.expectedRevision === expected.revision && body.enabled === true, 'The request body differs from the form: ' + sent[0][2]);
+  `)
+})
+
+const withoutScripts = `
+  await page.eval(async () => {
+    const html = (await (await fetch(location.href)).text()).replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/g, '');
+    document.open(); document.write(html); document.close();
+  });
+`
+const signOutEverywhere = 'form[action="/v1/account/sessions/revoke"] button'
+
+test('a tier 2 form submitted before the page script runs gets the server confirmation step, and Cancel changes nothing', () => {
+  browser(`
+    await page.open(base + '/account');
+    ${withoutScripts}
+    check(await page.eval(() => document.scripts.length === 0), 'The page script was not held back');
+    await page.click('${signOutEverywhere}');
+    await page.wait('form[action="/v1/account/sessions/revoke"] [name=_confirm]');
+    check(await page.eval(() => location.pathname === '/v1/account/sessions/revoke' && document.querySelector('h1').innerText === 'Sign out everywhere'
+      && document.body.innerText.includes('Sign out all') && [...document.querySelectorAll('a, button')].some(item => item.innerText.trim() === 'Cancel')), 'The confirmation step does not show the action and consequence');
+    await page.click('a[href="/account"]');
+    await page.wait('nav[aria-label=Administration]');
+    await page.open(base + '/admin');
+    check(await page.eval(() => location.pathname === '/admin'), 'Cancel signed the person out');
+  `)
+})
+
+test('confirming the server step finishes the action the unconfirmed submit only asked for', () => {
+  browser(`
+    await page.open(base + '/account');
+    ${withoutScripts}
+    await page.click('${signOutEverywhere}');
+    await page.wait('form[action="/v1/account/sessions/revoke"] [name=_confirm]');
+    await page.click('form[action="/v1/account/sessions/revoke"] button:last-of-type');
+    await page.wait(1000);
+    await page.open(base + '/admin');
+    check(await page.eval(() => location.pathname === '/login'), 'Confirming the step did not sign the person out');
   `)
 })
 

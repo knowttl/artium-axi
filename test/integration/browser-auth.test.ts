@@ -15,6 +15,7 @@ import { SharedIdentityResolver } from '../../src/server/policy/identity-resolve
 import { Runner } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
+import { confirmBrowserRequests, withConfirmation } from '../fixtures/confirmation.js'
 import { FakeCredentialStore } from '../fixtures/credential-store.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 import { withFakeService } from '../fake-service/fixture.js'
@@ -44,6 +45,7 @@ beforeEach(async () => {
   vi.spyOn(Date, 'now').mockImplementation(() => now)
   app = createApp({ db, audit: new Audit(db), runner: await Runner.create(join(directory, 'calls')), environment: {},
     adapters: [], resolver: new SharedIdentityResolver(new FakeCredentialStore([]), db), credentialStore: createCredentialStore(db, keyProvider) })
+  confirmBrowserRequests(app)
   cookies = {}
 })
 
@@ -55,10 +57,10 @@ afterEach(async () => {
 })
 
 async function request(method: 'GET' | 'POST' | 'PATCH' | 'PUT', url: string, input?: Record<string, string>, extra: Record<string, string> = {}) {
-  const response = await app.inject({ method, url, headers: { host: 'localhost', origin: 'http://localhost',
-    cookie: Object.entries(cookies).map(([key, value]) => `${key}=${value}`).join('; '),
+  const cookie = Object.entries(cookies).map(([key, value]) => `${key}=${value}`).join('; ')
+  const response = await app.inject({ method, url, headers: { host: 'localhost', origin: 'http://localhost', cookie,
     ...(input ? { 'content-type': 'application/x-www-form-urlencoded' } : {}), ...extra },
-  payload: input ? new URLSearchParams(input).toString() : undefined })
+  payload: input ? new URLSearchParams(withConfirmation(cookie, method, url, input)).toString() : undefined })
   for (const cookie of response.cookies) cookies[cookie.name] = cookie.value
   return response
 }

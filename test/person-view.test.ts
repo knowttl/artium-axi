@@ -111,7 +111,8 @@ test('sign out everywhere is offered in the menu and the Sessions card with the 
   for (const form of both) {
     expect(['data-method', 'data-confirm', 'data-confirm-title', 'data-confirm-action'].map(name => attribute(form, name)))
       .toEqual(['POST', signOutConsequence, 'Sign out everywhere', 'Sign out everywhere'])
-    expect(fields(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf']])
+    expect(fields(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['_confirmTitle', 'hidden', 'Sign out everywhere'],
+      ['_confirmAction', 'hidden', 'Sign out everywhere'], ['_confirmText', 'hidden', signOutConsequence]])
   }
 })
 
@@ -127,7 +128,8 @@ test.each([
 ])('revoking the $id session posts to its own route with the matching confirmation', ({ id, consequence }) => {
   const form = formFor(render(), `/v1/admin/users/synthetic-one/sessions/${id}/revoke`)
   expect(['data-method', 'data-confirm', 'data-confirm-title', 'data-confirm-action'].map(name => attribute(form, name))).toEqual(['POST', consequence, 'Revoke session', 'Revoke'])
-  expect(fields(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf']])
+  expect(fields(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['_confirmTitle', 'hidden', 'Revoke session'],
+    ['_confirmAction', 'hidden', 'Revoke'], ['_confirmText', 'hidden', consequence]])
   expect(text(form)).toBe('Revoke')
 })
 

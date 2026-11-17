@@ -13,6 +13,7 @@ import { SharedIdentityResolver } from '../../src/server/policy/identity-resolve
 import { Runner } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
+import { confirmBrowserRequests } from '../fixtures/confirmation.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 
 let directory: string
@@ -32,6 +33,7 @@ beforeEach(async () => {
   const store = createCredentialStore(db, key)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db), adapters: [], credentialStore: store,
     resolver: new SharedIdentityResolver(store, db), environment: {} })
+  confirmBrowserRequests(app)
   headers = { host: 'localhost', origin: 'http://localhost', cookie: `${browserCookie}=${createBrowserSession(db, owner, 'CANARY-csrf').id}; _csrf=CANARY-csrf` }
 })
 afterEach(async () => {
@@ -81,7 +83,8 @@ test('each token that is not revoked has a Revoke form for its own URL, and Revo
   expect(pageForm(body, '/v1/admin/tokens/token-gone/revoke').attributes).toBeUndefined()
   const all = pageForm(body, '/v1/admin/tokens/revoke-all')
   expect(all.attributes).toMatchObject({ 'data-method': 'POST', 'data-confirm': 'Revoke all tokens and their sessions?' })
-  expect(Object.keys(all.inputs)).toEqual(['_csrf'])
+  expect(Object.keys(all.inputs)).toEqual(['_csrf', '_confirmTitle', '_confirmAction', '_confirmText'])
+  expect(all.inputs._confirmText).toMatchObject({ value: 'Revoke all tokens and their sessions?' })
 })
 
 test('submitting the rendered Revoke form revokes that token and the page then shows it Revoked without a form', async () => {
@@ -158,7 +161,7 @@ type Element = DefaultTreeAdapterMap['element']
 const nodes = (node: DefaultTreeAdapterMap['node']): Element[] => [...'tagName' in node ? [node] : [], ...'childNodes' in node ? node.childNodes.flatMap(nodes) : []]
 const attribute = (element: Element, name: string) => element.attrs.find(item => item.name === name)?.value
 const ownText = (element: Element): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child && !['input', 'select', 'textarea', 'option', 'button', 'svg'].includes(child.tagName) ? ownText(child) : '').join(' ').replace(/\s+/g, ' ').trim()
-const ignored = new Set(['class', 'id', 'style', 'aria-describedby', 'aria-labelledby', 'aria-invalid', 'aria-required', 'data-confirm'])
+const ignored = new Set(['class', 'id', 'style', 'aria-describedby', 'aria-labelledby', 'aria-invalid', 'aria-required', 'data-confirm', 'data-confirm-token'])
 const attributes = (element: Element) => Object.fromEntries(element.attrs.filter(item => !ignored.has(item.name)).map(item => [item.name, item.value]))
 const tokenCard = (html: string) => {
   const all = nodes(parse(html))

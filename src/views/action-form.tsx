@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
+import { confirmationRouteFor } from '../shared/confirmation-routes.js'
 
 export interface Confirmation {
   consequence: string
@@ -6,6 +7,13 @@ export interface Confirmation {
   action?: string
   typedName?: string
 }
+
+export interface ConfirmationTokens {
+  issued: Record<string, string>
+  mint?: (method: string, path: string) => string
+}
+
+export const ConfirmationTokenContext = createContext<ConfirmationTokens>({ issued: {} })
 
 export interface ActionFormProps {
   action: string
@@ -23,11 +31,25 @@ export interface ActionFormProps {
 }
 
 export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, trackChanges, claimLink, saveTool, className, attributes, children }: ActionFormProps) {
+  const tokens = useContext(ConfirmationTokenContext)
+  const route = confirmationRouteFor(method, action)
+  if (Boolean(route) !== Boolean(confirmation) || route && (route.tier === 3) !== Boolean(confirmation?.typedName)) {
+    throw new Error(`${method} ${action} and its confirmation disagree with the confirmation routes`)
+  }
+  const tokenKey = `${method} ${action}`
+  const token = confirmation && (tokens.issued[tokenKey] ??= tokens.mint?.(method, action) ?? '')
   return (
     <form className={className} data-api="" data-method={method} data-confirm={confirmation?.consequence} data-confirm-title={confirmation?.title}
-      data-confirm-action={confirmation?.action} data-confirm-name={confirmation?.typedName} data-success-url={successUrl} data-success-message={successMessage}
+      data-confirm-action={confirmation?.action} data-confirm-name={confirmation?.typedName} data-confirm-token={token || undefined} data-success-url={successUrl} data-success-message={successMessage}
       data-track-changes={trackChanges ? '' : undefined} data-invitation-link={claimLink ? '' : undefined} data-save-tool={saveTool} {...attributes} action={action} method="post">
       <input type="hidden" name="_csrf" value={csrf} />
+      {confirmation && route?.native && (
+        <>
+          <input type="hidden" name="_confirmTitle" value={confirmation.title ?? ''} />
+          <input type="hidden" name="_confirmAction" value={confirmation.action ?? ''} />
+          <input type="hidden" name="_confirmText" value={confirmation.consequence} />
+        </>
+      )}
       {children}
     </form>
   )

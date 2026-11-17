@@ -12,6 +12,7 @@ import { Runner } from '../../src/server/runner/runner.js'
 import { createCredentialStore, openStore } from '../../src/server/store/db.js'
 import { EnvironmentKeyProvider } from '../../src/server/store/key-provider.js'
 import { ProviderCredentials } from '../../src/server/store/provider-credentials.js'
+import { confirmBrowserRequests } from '../fixtures/confirmation.js'
 import { seedToolUser } from '../fixtures/tokens.js'
 import { createTestCertificates } from '../fake-service/certificates.js'
 
@@ -34,6 +35,7 @@ beforeEach(async () => {
   credentials = new ProviderCredentials(db, key)
   app = createApp({ db, runner: await Runner.create(join(directory, 'calls')), audit: new Audit(db),
     adapters: [], credentialStore: store, providerCredentials: credentials, resolver: new SharedIdentityResolver(store, db), environment: {} })
+  confirmBrowserRequests(app)
   const login = await app.inject({ method: 'POST', url: '/v1/auth/login', payload: { username: 'synthetic-user', password: 'CANARY-local-password' } })
   headers = { authorization: 'Bearer ' + login.json().accessToken }
   const reauth = await app.inject({ method: 'POST', url: '/v1/auth/reauth', headers, payload: { password: 'CANARY-local-password' } })
@@ -142,7 +144,7 @@ function pageForm(body: string, action: string, method = '') {
   const [, tag, content] = body.match(new RegExp(`<form([^>]*${method ? `data-method="${method}"[^>]*` : ''}action="${action}"[^>]*)>(.*?)</form>`, 's')) ?? []
   const attributes = (markup: string) => Object.fromEntries([...markup.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1]!, match[2]!.replaceAll('&amp;', '&').replaceAll('&#x27;', "'")]))
   const inputs = [...(content ?? '').matchAll(/<(?:input|select|textarea)([^>]*)>/g)].map(match => attributes(match[1]!)).filter(input => input.name)
-  const payload = Object.fromEntries(inputs.filter(input => input.name !== '_csrf').map(input =>
+  const payload = Object.fromEntries(inputs.filter(input => input.name !== '_csrf' && !input.name!.startsWith('_confirm')).map(input =>
     [input.name!, input['data-type'] === 'number' ? Number(input.value) : input['data-type'] === 'boolean' ? input.value === 'true' : input.value]))
   return { attributes: tag ? attributes(tag) : undefined, names: inputs.map(input => input.name), csrf: inputs.find(input => input.name === '_csrf')?.value, payload }
 }
@@ -894,7 +896,7 @@ test.each([
   expect(form.attributes).toMatchObject({ 'data-api': '', 'data-method': 'POST', 'data-confirm': confirmations.add, 'data-confirm-title': 'Add rule?',
     'data-success-url': `/admin/settings/sign-in/${created.id}?tab=rules`, method: 'post' })
   expect(form.attributes!['data-confirm-name']).toBeUndefined()
-  expect(form.names).toEqual(['_csrf', 'providerId', 'claim', 'value', 'roleId'])
+  expect(form.names).toEqual(['_csrf', '_confirmTitle', '_confirmAction', '_confirmText', 'providerId', 'claim', 'value', 'roleId'])
   expect(form.payload).toMatchObject({ providerId: created.id, claim })
   expect(page.body).toContain('id="sheet-add-rule"')
   const submitted = { ...form.payload, value: 'Artium.Readers', roleId: 'synthetic-role' }

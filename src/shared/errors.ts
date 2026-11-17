@@ -34,6 +34,7 @@ const definitions = {
   ACCOUNT_LOCKED: { status: 429, message: 'The account is temporarily locked.', next: 'Wait 15 minutes or ask an administrator to unlock the account.' },
   REAUTH_REQUIRED: { status: 401, message: 'Recent identity confirmation is required.', next: 'In the browser, confirm at /reauth using Microsoft for SSO or your local password. Local CLI users confirm their password through /v1/auth/reauth.' },
   CSRF_INVALID: { status: 403, message: 'The form token or request origin is invalid.', next: 'Reload the form on this server and submit it again.' },
+  CONFIRMATION_REQUIRED: { status: 428, message: 'This change needs your confirmation.', next: 'Confirm the change on the administration page, or reload the page and try again.' },
   AUTH_BUSY: { status: 429, message: 'The concurrent password hashing limit was reached.', next: 'Wait for an active authentication request to finish.' },
   MAINTENANCE_BUSY: { status: 503, message: 'The store is held by another server or maintenance process.', next: 'Stop the server and wait for maintenance to finish before retrying.' },
   MAINTENANCE_UNAVAILABLE: { status: 503, message: 'The store maintenance lock is unavailable.', next: 'Check data-volume capacity and permissions.' },
