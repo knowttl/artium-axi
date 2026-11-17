@@ -105,7 +105,8 @@ test('a scripted request without confirmation is refused with CONFIRMATION_REQUI
   expect([refused.statusCode, refused.json().error.code]).toEqual([428, 'CONFIRMATION_REQUIRED'])
   expect(revoked()).toEqual([])
   const confirmation = pageForm(await tokenPage(), revokeAll).attributes['data-confirm-token']!
-  expect((await post(revokeAll, { _confirm: confirmation })).statusCode).toBe(204)
+  const completed = await post(revokeAll, { _confirm: confirmation }, { ...headers, accept: 'application/json' })
+  expect([completed.statusCode, completed.body]).toEqual([204, ''])
   expect(revoked()).toEqual(['token-live'])
   expect(revocations()).toBe(1)
 })
@@ -133,15 +134,17 @@ test('a confirmation from another session and a malformed one are refused', asyn
   expect(revoked()).toEqual([])
 })
 
-test('a confirmation remains valid while the session stays active', async () => {
+test('a lapsed confirmation returns the confirmation step without changing anything', async () => {
   mint('token-live')
   const issued = pageForm(await tokenPage(), revokeAll).attributes['data-confirm-token']!
   vi.spyOn(Date, 'now').mockReturnValue(now + 20 * 60000)
   expect((await app.inject({ url: '/admin/tokens', headers })).statusCode).toBe(200)
   vi.spyOn(Date, 'now').mockReturnValue(now + 40 * 60000)
   db.prepare('UPDATE sessions SET reauthenticated_at = ?').run(now + 40 * 60000)
-  expect((await post(revokeAll, { _confirm: issued })).statusCode).toBe(204)
-  expect(revoked()).toEqual(['token-live'])
+  const response = await postForm(revokeAll, { _csrf: csrf, _confirm: issued })
+  expect(response.statusCode).toBe(200)
+  expect(pageForm(response.body, revokeAll).inputs._confirm).toBeTruthy()
+  expect(revoked()).toEqual([])
 })
 
 test('a native post to a route that needs the page script changes nothing and says so', async () => {

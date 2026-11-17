@@ -518,8 +518,11 @@ test('ordinary account sessions exclude expired families and refuse revoking ano
   const listed = accountSessionRoutes.list.response.parse((await request('GET', '/v1/account/sessions')).json())
   expect(listed.sessions).toHaveLength(1)
   expect(listed.sessions[0]).toMatchObject({ kind: 'browser', current: true, expiresAt: expect.any(Number) })
-  expect((await request('POST', '/v1/account/sessions/' + listed.sessions[0]!.id + '/revoke', { _csrf: csrf })).statusCode).toBe(200)
-  expect((await request('GET', '/account')).headers.location).toBe('/login')
+  const completed = await request('POST', '/v1/account/sessions/' + listed.sessions[0]!.id + '/revoke', { _csrf: csrf })
+  expect([completed.statusCode, completed.headers.location]).toEqual([303, '/account'])
+  const account = await request('GET', completed.headers.location!)
+  expect(account.headers.location).toBe('/login')
+  expect((await request('GET', account.headers.location!)).body).toContain('Sign in')
   expect(db.prepare("SELECT action, target_id FROM audit WHERE event = 'sign-out'").get())
     .toEqual({ action: 'revoke-session', target_id: listed.sessions[0]!.id })
 })
@@ -561,8 +564,11 @@ test('the account Sessions card posts to the account routes, emits no style attr
   expect(all.filter(element => attribute(element, 'style') !== undefined)).toEqual([])
   const signOutEverywhere = forms[0]!
   const csrf = attribute(nodes(signOutEverywhere).find(element => attribute(element, 'name') === '_csrf')!, 'value')!
-  expect((await request('POST', attribute(signOutEverywhere, 'action')!, { _csrf: csrf })).statusCode).toBe(200)
-  expect((await request('GET', '/account')).headers.location).toBe('/login')
+  const completed = await request('POST', attribute(signOutEverywhere, 'action')!, { _csrf: csrf })
+  expect([completed.statusCode, completed.headers.location]).toEqual([303, '/account'])
+  const account = await request('GET', completed.headers.location!)
+  expect(account.headers.location).toBe('/login')
+  expect((await request('GET', account.headers.location!)).body).toContain('Sign in')
 })
 
 test.each([
