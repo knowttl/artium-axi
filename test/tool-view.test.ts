@@ -166,8 +166,8 @@ test('the Add instance sheet warns that scripts may need to name an instance onl
 })
 
 test('AWX adds an instance by origin through its own route and asks for no credential', () => {
-  const form = addForm(renderInstances({ addInstance: addInstance({ awx: true, editor: null }) }))
-  expect(summary(form)).toEqual(['/v1/admin/tools/falcon-axi/origin', 'PUT', 'Add this CrowdStrike Falcon instance? It starts read-only.', undefined, undefined])
+  const form = addForm(renderInstances({ addInstance: addInstance({ awx: true, editor: null, tool: 'awx-axi', api: '/v1/admin/tools/awx-axi' }) }))
+  expect(summary(form)).toEqual(['/v1/admin/tools/awx-axi/origin', 'PUT', 'Add this CrowdStrike Falcon instance? It starts read-only.', undefined, undefined])
   expect(attribute(form, 'data-save-tool')).toBeUndefined()
   expect(controls(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedToolRevision', 'hidden', '7'], ['expectedRevision', 'hidden', '0'], ['instance', 'text', ''], ['origin', 'url', '']])
   expect(nodes(form).filter(element => attribute(element, 'data-credential-editor') !== undefined || attribute(element, 'data-save-and-test') !== undefined)).toEqual([])

@@ -40,6 +40,7 @@ Azure token-acquisition diagnostics retain supported provider codes.
 | ACCOUNT_LOCKED | artium-axi | 429 | 1 | The account is temporarily locked. | Wait 15 minutes or ask an administrator to unlock the account. |
 | REAUTH_REQUIRED | artium-axi | 401 | 1 | Recent identity confirmation is required. | In the browser, confirm at /reauth using Microsoft for SSO or your local password. Local CLI users confirm their password through /v1/auth/reauth. |
 | CSRF_INVALID | artium-axi | 403 | 1 | The form token or request origin is invalid. | Reload the form on this server and submit it again. |
+| CONFIRMATION_REQUIRED | artium-axi | 428 | 1 | This change needs your confirmation. | Confirm the change on the administration page, or reload the page and try again. |
 | AUTH_BUSY | artium-axi | 429 | 1 | The concurrent password hashing limit was reached. | Wait for an active authentication request to finish. |
 | MAINTENANCE_BUSY | artium-axi | 503 | 1 | The store is held by another server or maintenance process. | Stop the server and wait for maintenance to finish before retrying. |
 | MAINTENANCE_UNAVAILABLE | artium-axi | 503 | 1 | The store maintenance lock is unavailable. | Check data-volume capacity and permissions. |

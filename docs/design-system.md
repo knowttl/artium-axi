@@ -245,7 +245,7 @@ Use its helpers instead of defining page-specific status labels.
 **Sheets.**
 Create and edit flows that need several fields open in a side sheet.
 Every sheet has a query-parameter view that renders it open on the server for navigation without JavaScript, normally `?sheet=<name>`; the Add provider sheets use `?add=` as described above.
-Submitting its API form requires JavaScript; with JavaScript the sheet opens as a modal and errors show inside it.
+With JavaScript the sheet opens as a modal and errors show inside it; see [browser administration](admin-guide.md#browser-administration) for confirmation without the page script.
 
 **Destructive placement.**
 Destructive actions live in a danger zone card at the bottom of detail pages, or in an overflow menu, never next to Save.
@@ -269,7 +269,7 @@ API forms choose their tier:
 
 `data-success-url` sends the person to another page after success; `{id}` in it is replaced with the created record's id.
 Recent-auth confirmation and CSRF apply to every tier; revision-checked mutations also include `expectedRevision`.
-Confirmation does not change the request, CSRF token, revision check or recent-auth flow.
+Confirmed browser requests carry a server-issued confirmation token; CSRF, revision checks and recent authentication still apply.
 
 **Interstitials.**
 Sign-in, password, identity confirmation, CLI approval, results and error pages use the `Auth` view in `src/views/auth.tsx`, with an Astryx `Card` inside `.auth` and `.auth-wrap` and an optional `.auth-foot`.
@@ -281,7 +281,7 @@ Error pages say what happened and what to do, show the code and a copyable reque
 
 **Dialog views without JavaScript.**
 Add and edit forms that open as dialogs have a query-parameter view rendered open by the server, so their fields and close link remain accessible without scripts.
-Submitting API forms requires JavaScript.
+See [browser administration](admin-guide.md#browser-administration) for which confirmed actions can be submitted without the page script.
 Form errors appear inside the open dialog so they remain visible and can receive focus.
 
 ## Navigation

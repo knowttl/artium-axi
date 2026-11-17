@@ -590,6 +590,10 @@ document.addEventListener('submit', async event => {
       button.focus();
       return;
     }
+    if (form.dataset.confirm) {
+      body._confirm = form.dataset.confirmToken;
+      for (const name of ['_confirmTitle', '_confirmAction', '_confirmText']) delete body[name];
+    }
     const profileFields = form.querySelectorAll('[data-profile-field]');
     if (profileFields.length) {
       body.value = Object.create(null);

@@ -44,7 +44,7 @@ const attribute = (element: Element, name: string) => element.attrs.find(item =>
 const words = (element: Element): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child ? words(child) : '').join(' ').replace(/\s+/g, ' ').trim()
 const page = async () => (await app.inject({ url: '/admin/ssh/credentials', headers })).body
 
-const attributes = (element: Element) => Object.fromEntries(element.attrs.filter(item => item.name !== 'class').map(item => [item.name, item.value]))
+const attributes = (element: Element) => Object.fromEntries(element.attrs.filter(item => !['class', 'data-confirm-token'].includes(item.name)).map(item => [item.name, item.value]))
 const content = (html: string) => {
   const all = nodes(parse(html))
   const main = all.find(element => attribute(element, 'role') === 'main' || element.tagName === 'main')

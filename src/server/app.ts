@@ -24,6 +24,7 @@ import { AuthAttempts, AuthRateLimits } from './auth/attempts.js'
 import { browserCookie, registerBrowser } from './auth/browser.js'
 import { readBrowserSession, recentBrowserAuth, type BrowserSession } from './auth/sessions.js'
 import { registerAdmin } from './admin/api.js'
+import { registerConfirmationGate } from './admin/confirmation.js'
 import { registerOverviewPage } from './admin/overview.js'
 import { registerUsersPage } from './admin/users.js'
 import { registerRolesPages } from './admin/roles.js'
@@ -108,6 +109,7 @@ export function createApp(options: {
       delegationId: delegation.id, tool: null, requestId: request.id, clientAddress: request.ip, outcome })
   })
   const browser = registerBrowser(app, db, audit, authAttempts, (session, origin) => sso.endSession(session, origin), adapters)
+  registerConfirmationGate(app, db)
   const device = registerDevice(app, db, audit)
   const sso = registerSso(app, db, audit, options.providerCredentials, options.ssoFetch, device)
   const health = new ToolHealth(db, audit, runner, adapters, options.credentialStore, proxmox)
