@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.50](https://github.com/knowttl/artium-axi/compare/v0.0.49...v0.0.50) (2026-11-17)
+
+
+### Bug Fixes
+
+* **admin:** enforce target-bound confirmations ([#523](https://github.com/knowttl/artium-axi/issues/523)) ([027c7be](https://github.com/knowttl/artium-axi/commit/027c7bef48b073b266d6e6d14ba5f2d45e8bd7e0))
+* enforce confirmation for admin browser actions ([#521](https://github.com/knowttl/artium-axi/issues/521)) ([027817e](https://github.com/knowttl/artium-axi/commit/027817ecb6324dfde8b56836d9300ad31a746d91))
+* handle native submissions to script-only confirmation routes ([#524](https://github.com/knowttl/artium-axi/issues/524)) ([1ec90fd](https://github.com/knowttl/artium-axi/commit/1ec90fdfd6145c17f5ff075a2e0d84d71614ad80))
+
 ## [0.0.49](https://github.com/knowttl/artium-axi/compare/v0.0.48...v0.0.49) (2026-11-17)
 
 
