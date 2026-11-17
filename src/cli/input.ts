@@ -8,7 +8,7 @@ import gitea from '../../tools/inventories/gitea-axi.json' with { type: 'json' }
 import { inputLimits, runRequestSchema } from '../shared/api.js'
 import type { RunInput } from '../shared/api.js'
 import { ArtiumError } from '../shared/errors.js'
-import { ghReleaseUploadFileIndexes, inputFileFlags, normalizeGiteaFileArguments, validateFileInput } from '../shared/file-input.js'
+import { falconGraphqlQueryIndex, ghReleaseUploadFileIndexes, inputFileFlags, normalizeGiteaFileArguments, validateFileInput } from '../shared/file-input.js'
 import { technitiumToolInput } from './technitium-input.js'
 
 async function readBounded(stream: Readable, limit: number, stdinAlternative?: string): Promise<Buffer> {
@@ -54,6 +54,13 @@ export async function toolInput(tool: string, original: string[]) {
     if (totalFileBytes > inputLimits.totalFileBytes) throw new ArtiumError('INVALID_INPUT', 'Uploads exceed the total byte limit.')
     input.files ??= []
     input.files.push({ name, size: content.length, contentBase64: content.toString('base64') })
+  }
+  const falconQuery = tool === 'falcon-axi' ? falconGraphqlQueryIndex(args) : undefined
+  if (falconQuery !== undefined) {
+    const path = args[falconQuery].slice(1)
+    const name = basename(path)
+    await stageFile(path, name, inputLimits.fileBytes)
+    args[falconQuery] = `@${name}`
   }
   if (tool === 'gh-axi') for (const index of ghReleaseUploadFileIndexes(args)) {
     const name = basename(args[index])

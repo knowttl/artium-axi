@@ -246,7 +246,8 @@ Falcon investigation reads include detection lineage, process details and trees,
 Falcon `host logins` and `host network` accept `--hostname <name>` to resolve a host before reading its history.
 The pinned TypeScript runtime admits passive reads, including existing search status and RTR session and audit history.
 Search start/stop, host USB and identity activity searches, Identity Protection policy rule create and delete, MalQuery submission and RTR execution require exact administrator-selected command grants, with writes off by default.
-Falcon `identity graphql` runs one read-only Identity Protection GraphQL query without a write grant; the native parser refuses mutations and subscriptions, and an `@file` query value is refused because the server never reads caller-named files.
+Falcon `identity graphql` runs one read-only Identity Protection GraphQL query without a write grant; the native parser refuses mutations and subscriptions.
+For query file uploads and server path restrictions, see [client input handling](client-reference.md#command-surface-and-subcommands).
 Falcon `identity sensor aggregate` is a passive read.
 `identity rule create` and `identity rule delete` need their grant even to preview, because the native tool requires its profile opt-in then; Artium injects that opt-in only after the grant check passes.
 Their execution requires `--execute`, the exact preview `--confirm` and a native journal entry, as for `raw write`.

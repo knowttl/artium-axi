@@ -1091,6 +1091,7 @@ const server = createServer({ key: readFileSync(join(certs, 'server.key')), cert
     req.on('data', chunk => { body += chunk })
     req.on('end', () => {
       const { query } = JSON.parse(body)
+      recorded.query = query
       recorded.document = typeof query === 'string' && /^mutation\b/.test(query) ? 'mutation'
         : typeof query === 'string' && /^query (?:IdentityAssessment|IdentityList)\b/.test(query) ? 'query' : 'unsupported'
       if (recorded.document === 'mutation') { mutations++; res.end(JSON.stringify({ data: { synthetic: true } })); return }
