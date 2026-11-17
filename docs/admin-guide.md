@@ -180,7 +180,8 @@ Register the artium `/login` URL as an allowed post-logout return URI in the pro
 Confirmation dialogs are titled with the action and explain its consequence before the change; removing an SSO role rule also requires typing its claim value.
 If the page script has not loaded or JavaScript is off, session and token revocations, user unlock and adding an SSO role rule use a server confirmation page.
 After a successful server-confirmed action, the browser returns to Account or Administration; revoking the current session signs you out.
-Other confirmed actions require the page script: reload the page, wait for it to finish loading and submit again.
+Other confirmed actions require the page script; a native submission shows **Page script required** and changes nothing.
+Reload the page, wait for it to finish loading and submit again.
 The server checks each typed name against the target and binds the confirmation to that name.
 A confirmation older than 30 minutes is refused; for a scripted request, if it still matches the session, method, path and target and the typed name is correct, the page replaces it once and resends the same request without reloading or losing the draft.
 Other scripted confirmation failures do not receive a replacement; reload the page and try again.
