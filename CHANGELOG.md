@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.52](https://github.com/knowttl/artium-axi/compare/v0.0.51...v0.0.52) (2026-11-18)
+
+
+### Features
+
+* accept uploaded query files for falcon identity graphql ([#529](https://github.com/knowttl/artium-axi/issues/529)) ([330cc3a](https://github.com/knowttl/artium-axi/commit/330cc3a4f9905fae873532744ebb1e6d0fabf32d))
+
+
+### Bug Fixes
+
+* update proxmox-axi to 0.1.4 ([#531](https://github.com/knowttl/artium-axi/issues/531)) ([863100f](https://github.com/knowttl/artium-axi/commit/863100f0a03f485305dc14dddbf51c6f079ac971))
+
 ## [0.0.51](https://github.com/knowttl/artium-axi/compare/v0.0.50...v0.0.51) (2026-11-17)
 
 
