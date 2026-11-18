@@ -2,16 +2,16 @@
   "generatedBy": "scripts/network-read-inventory.ts",
   "tool": "proxmox-axi",
   "package": "@knowttl/proxmox-axi",
-  "version": "0.1.3",
-  "integrity": "sha512-5JtlI0Drtc7/x+2Ss/fjGs3WHUdAD1xgOgqK9ziEA8Vh5n45QhlBZT0ivHyJQ5hsl1qcxHWF24PT1WR1PtlBrA==",
+  "version": "0.1.4",
+  "integrity": "sha512-6WGsZ6QElQ38ugbCetjKjB9NPQd8fGVogBfJl7eiuezyfGdXNEKHsuJLDIA+qYnoyLcdPtHa6dMH2fZ9l573kw==",
   "sources": [
     {
       "path": "package.json",
-      "sha256": "0f9aa7218f9bb26f23d0ab9467641a4f593afaf51a6d46f65a7c272cd15c22d1"
+      "sha256": "fc83b9fea493aee0e1840b0299b4e655a6e807634c3126215f1eb84c51cd6d6a"
     },
     {
       "path": "README.md",
-      "sha256": "065a66abd150f22b96eea42b77915c096579bfc54aadf21190dbbd6f08e1f12d"
+      "sha256": "568c73106073e36d5abffde8ed81ca54c15471d7e84a7d8e2249e71ef9298846"
     },
     {
       "path": "artium-invocations.json",
@@ -55,7 +55,7 @@
     },
     {
       "path": "dist/journal.js",
-      "sha256": "6fc4df85c2ba04cf02599089c8158ea619bfe57bbbf569151bb59f56debe85da"
+      "sha256": "c0ed16c78b6fa6721c78e5ef2bb40a4670be3e76d706ba60ee9998d3ae10d49b"
     },
     {
       "path": "dist/node-network.js",
@@ -75,7 +75,7 @@
     },
     {
       "path": "dist/private-file.js",
-      "sha256": "1327dd1af417bcb9a2cb82de28bb93117c9967e3e7976923f6d69927e75dbc8c"
+      "sha256": "deb0023ab3bbbee75a7e95ecbcf1931c57f7c2d85f2376b375d34a4a87f16150"
     },
     {
       "path": "dist/private-results.js",
