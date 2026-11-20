@@ -2241,7 +2241,10 @@ test('role tool grants enable Save and show Discard only while the selection dif
     await expectState(true, true, 'Edited again');
     await page.click('form[action$="/tools"] button[type=reset]');
     await page.wait('form[action$="/tools"] button[type=submit][aria-disabled=true]');
+    check(await page.eval('document.querySelector(' + JSON.stringify(tile) + ').checked'), 'Discard did not restore the granted tool');
     await expectState(false, false, 'Discarded form');
+    await page.click(tile);
+    await expectState(true, true, 'Edited after discarding');
   `)
 })
 
