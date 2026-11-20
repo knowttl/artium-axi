@@ -131,22 +131,6 @@ if (savedTest) {
     result.textContent = latestTestResult.message;
   }
 }
-for (const settings of document.querySelectorAll('[data-json-check]')) {
-  const status = settings.closest('form').querySelector('[data-json-status]');
-  const check = () => {
-    try {
-      const value = JSON.parse(settings.value);
-      const valid = value !== null && typeof value === 'object' && !Array.isArray(value);
-      status.textContent = valid ? 'Valid JSON object.' : 'Enter a JSON object, such as {}.';
-      status.dataset.valid = String(valid);
-    } catch (error) {
-      status.textContent = 'Not valid JSON: ' + error.message;
-      status.dataset.valid = 'false';
-    }
-  };
-  settings.addEventListener('input', check);
-  check();
-}
 
 // Sheets open as modals; without JavaScript their links load the ?sheet= view instead.
 function openSheet(dialog) {

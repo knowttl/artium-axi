@@ -285,7 +285,8 @@ Review the Vectra grant warnings: host/account close closes every active detecti
 Choose **Save write permissions** and confirm the change, completing identity confirmation if requested.
 See [write-access audit events](#audit-screen-and-api) to review saved changes.
 The **Advanced** tab (`?tab=advanced`) shows the saved write state, but **Replace settings** replaces native settings subject to the per-person grant rules below, and omitting write settings turns writes off.
-With JavaScript, the editor reports whether the input is a valid JSON object as you type; saving also validates the tool's native settings on the server.
+The editor shows whether the saved settings are a valid JSON object when the page opens and updates the status as you type once the editor is interactive.
+The server validates the tool's native settings on save.
 Each save records an `admin-change` audit event; changes to Kubernetes session grants or Shodan scan, stream, write and export grants include a field-level list shown as **Settings changes** in the audit record details; see [the audit screen](#audit-screen-and-api).
 Per-person grants stay per person.
 On the **Access** tab of Kubernetes and Shodan, each grant policy lists the people granted operations.
