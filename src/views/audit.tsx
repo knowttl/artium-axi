@@ -8,6 +8,7 @@ import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { useState } from 'react'
 import { AuditDetail, type AuditDetailProps } from './audit-detail.js'
+import { FilterForm } from './filter-form.js'
 import { Icon } from './icon.js'
 import { badgeVariants, type Status } from './status.js'
 import { Time } from './time.js'
@@ -49,7 +50,7 @@ function Filters({ requestId, delegationId, range, failed, chips, errorCode, hid
   const [from, setFrom] = useState(custom?.from ?? '')
   const [to, setTo] = useState(custom?.to ?? '')
   return (
-    <form className="filters" method="get" action="/admin/audit" data-filters>
+    <FilterForm action="/admin/audit" apply={custom ? 'always' : 'until-hydrated'} trailing={clear && <Button href="/admin/audit" label="Clear filters" variant="ghost" size="sm" />}>
       <TextInput label="Request ID" isLabelHidden htmlName="requestId" value={request} onChange={setRequest} size="sm" width={180} startIcon={<Icon name="search" />}
         placeholder="Request ID" {...{ maxLength: 100 }} />
       <TextInput label="Token ID" isLabelHidden htmlName="delegationId" value={delegation} onChange={setDelegation} size="sm" width={180} placeholder="Token ID" />
@@ -74,9 +75,7 @@ function Filters({ requestId, delegationId, range, failed, chips, errorCode, hid
           <TextInput label="To (UTC)" id="audit-to" htmlName="to" value={to} onChange={setTo} size="sm" width={220} placeholder="2026-01-31T23:59:59Z" controlClassName="mono" />
         </HStack>
       )}
-      <Button type="submit" label="Apply" variant="secondary" size="sm" {...custom ? {} : { 'data-filters-apply': '' }} />
-      {clear && <Button href="/admin/audit" label="Clear filters" variant="ghost" size="sm" />}
-    </form>
+    </FilterForm>
   )
 }
 

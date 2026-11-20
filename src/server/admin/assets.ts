@@ -244,11 +244,6 @@ for (const form of document.querySelectorAll('form[data-track-changes]')) {
   form.addEventListener('reset', () => setTimeout(update));
   update();
 }
-for (const form of document.querySelectorAll('form[data-filters]')) {
-  for (const select of form.querySelectorAll('select')) select.addEventListener('change', () => form.requestSubmit());
-  const apply = form.querySelector('[data-filters-apply]');
-  if (apply) apply.hidden = true;
-}
 
 // A form with no message area of its own reports through the toast host in the React tree once it has hydrated.
 const hydrated = new Promise(resolve => document.addEventListener('astryx-hydrated', resolve, { once: true }));
@@ -568,13 +563,6 @@ async function connectGithub(connection, csrf, message) {
 }
 document.addEventListener('submit', async event => {
   const form = event.target;
-  if (form.matches('[data-filters]')) {
-    event.preventDefault();
-    const query = new URLSearchParams();
-    for (const [key, value] of new FormData(form)) if (value !== '') query.set(key, value);
-    location.assign(form.action + '?' + query);
-    return;
-  }
   if (!form.matches('[data-api]')) return;
   event.preventDefault();
   // A filter control placed inside this form can belong to another form.

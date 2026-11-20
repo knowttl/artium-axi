@@ -10,6 +10,7 @@ import { Token } from '@astryxdesign/core/Token'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
+import { FilterForm } from './filter-form.js'
 import { Icon } from './icon.js'
 import { RoleOptions, type RoleOption } from './role-options.js'
 import { Sheet } from './sheet.js'
@@ -48,7 +49,10 @@ function AddUserSheet({ open, closeHref, csrf, roles }: PeopleProps['addUser']) 
 function Filters({ q, limit, selects, clear, count }: PeopleProps['filters']) {
   const [query, setQuery] = useState(q)
   return (
-    <form className="filters" method="get" action="/admin/users" data-filters>
+    <FilterForm action="/admin/users" apply="until-hydrated" trailing={<>
+      {clear && <Button href="/admin/users" label="Clear" variant="ghost" size="sm" />}
+      <Text className="count-note" type="supporting">{count}</Text>
+    </>}>
       <TextInput label="Search" isLabelHidden type="search" htmlName="q" value={query} onChange={setQuery} size="sm" width={300} startIcon={<Icon name="search" />}
         placeholder="Search name or username" {...{ maxLength: 256 }} />
       {selects.map(select => (
@@ -62,10 +66,7 @@ function Filters({ q, limit, selects, clear, count }: PeopleProps['filters']) {
         </label>
       ))}
       <input type="hidden" name="limit" value={limit} />
-      <Button type="submit" label="Apply" variant="secondary" size="sm" data-filters-apply="" />
-      {clear && <Button href="/admin/users" label="Clear" variant="ghost" size="sm" />}
-      <Text className="count-note" type="supporting">{count}</Text>
-    </form>
+    </FilterForm>
   )
 }
 

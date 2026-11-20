@@ -28,7 +28,7 @@ const rows = (html: string) => find(html, element => element.tagName === 'tr' &&
 test('the filter form is a get form whose controls submit the query, selections and page size', () => {
   const html = render({ filters: { q: 'synthetic', limit: 50, clear: true, count: '1 person',
     selects: [{ name: 'source', label: 'Sign-in', value: 'sso', options: [['local', 'Password'], ['sso', 'SSO']] }] } })
-  const [form] = find(html, element => element.tagName === 'form' && attribute(element, 'data-filters') !== undefined)
+  const [form] = find(html, element => element.tagName === 'form' && attribute(element, 'class') === 'filters')
   expect([attribute(form!, 'method'), attribute(form!, 'action')]).toEqual(['get', '/admin/users'])
   const controls = nodes(form!).filter(element => ['input', 'select'].includes(element.tagName) && attribute(element, 'type') !== 'hidden' || attribute(element, 'name') === 'limit')
   expect(controls.map(control => attribute(control, 'name'))).toEqual(['q', 'source', 'limit'])

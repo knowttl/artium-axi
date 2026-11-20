@@ -1545,7 +1545,7 @@ test('audit event filter, pagination and expanded details retain the selected se
     await page.click('tbody th a');
     await page.wait('#record');
     check(await page.eval(() => document.querySelector('#record .all-fields dl').textContent.includes('synthetic-run-102')), 'Newest did not restart the search');
-    await page.click('form[data-filters] a[href="/admin/audit"]');
+    await page.click('form.filters a[href="/admin/audit"]');
     await page.wait('[name=event]');
     check(await page.eval(() => document.querySelector('[name=event]').value === ''), 'Clear filters failed');
     await page.open(base + '/admin/audit?failed=1&range=7d');
@@ -2611,10 +2611,10 @@ test('ordinary accounts have account help and no administration navigation', () 
 test('user search combines filters, retains them through pagination and explains empty results', () => {
   browser(`
     await page.open(base + '/admin/users?limit=1');
-    check(await page.eval(() => document.querySelector('[data-filters-apply]').hidden), 'Filter chips did not switch to applying on change');
+    check(await page.eval(() => document.querySelector('form.filters [type=submit]').hidden), 'Filter chips did not switch to applying on change');
     await page.fill('[name=q]', 'synthetic');
     await page.eval(() => {
-      const form = document.querySelector('form[data-filters]');
+      const form = document.querySelector('form.filters');
       form.elements.source.value = 'local';
       form.elements.status.value = 'enabled';
       form.elements.role.value = 'synthetic-role';
@@ -2626,10 +2626,34 @@ test('user search combines filters, retains them through pagination and explains
     await page.wait('a[href="/admin/users/synthetic-ordinary"]');
     check(await page.eval(() => ['q', 'source', 'status', 'role'].every(name => new URLSearchParams(location.search).has(name))), 'Pagination lost filters');
     await page.fill('[name=q]', 'no-matching-person');
-    await page.eval(() => document.querySelector('form[data-filters]').requestSubmit());
+    await page.eval(() => {
+      const form = document.querySelector('form.filters');
+      form.elements.role.value = '';
+      form.requestSubmit();
+    });
     await page.wait('[name=q][value="no-matching-person"]');
+    check(await page.eval(() => !new URLSearchParams(location.search).has('role')), 'Empty filter was sent');
     check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Nobody matches these filters')), 'Missing empty-state guidance');
     check(await page.eval(() => !new URLSearchParams(location.search).has('cursor')), 'Search retained old cursor');
+  `)
+})
+
+test('tool search and the audit custom range submit through the hydrated filter form', () => {
+  browser(`
+    await page.open(base + '/admin/tools?show=attention');
+    await page.fill('[name=q]', 'vectra');
+    await page.press('Enter');
+    await page.wait('[name=q][value="vectra"]');
+    check(await page.eval(() => {
+      const query = new URLSearchParams(location.search);
+      return location.pathname === '/admin/tools' && query.get('q') === 'vectra' && query.get('show') === 'attention';
+    }), 'Tool search lost the view or the text');
+    await page.open(base + '/admin/audit?range=custom');
+    check(await page.eval(() => !document.querySelector('form.filters [type=submit]').hidden), 'Custom range hid Apply');
+    await page.fill('[name=from]', '2026-01-01T00:00:00Z');
+    await page.click('form.filters [type=submit]');
+    await page.wait('[name=from][value="2026-01-01T00:00:00Z"]');
+    check(await page.eval(() => [...new URLSearchParams(location.search).keys()].sort().join() === 'from,range'), 'Audit filter sent empty fields');
   `)
 })
 
