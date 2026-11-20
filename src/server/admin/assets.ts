@@ -581,7 +581,7 @@ document.addEventListener('submit', async event => {
     }
     if (response.ok && form.hasAttribute('data-invitation-link')) {
       const result = await response.json();
-      form.closest('dialog.sheet')?.close();
+      form.dispatchEvent(new Event('artium-invitation-link-created', { bubbles: true }));
       const dialog = document.getElementById('invitation-link');
       const link = dialog.querySelector('[data-claim-link]');
       link.value = new URL(result.claimPath, location.origin).href;

@@ -63,7 +63,7 @@ function RuleForm({ providerId, kind, roles, rule, prefix }: Pick<RoleRulesProps
 function RuleActions({ csrf, page, rule }: { csrf: string, page: string, rule: RoleRulesProps['rules'][number] }) {
   return (
     <details className="more-menu">
-      <summary className="btn btn-ghost btn-icon btn-sm" aria-label="Rule actions"><Icon name="more" /></summary>
+      <summary id={`rule-actions-${rule.id}`} className="btn btn-ghost btn-icon btn-sm" aria-label="Rule actions"><Icon name="more" /></summary>
       <div className="popover">
         <Button href={`${page}?tab=rules&rule=${encodeURIComponent(rule.id)}`} label="Edit rule" variant="ghost" icon={<Icon name="pen" />} />
         <hr />
@@ -130,7 +130,7 @@ export function RoleRules({ csrf, page, rules: { providerId, kind, roles, rules,
         </Sheet>
       )}
       {edit && (
-        <Sheet key={edit.id} name="edit-rule" open query="rule" closeHref={back} title="Edit rule" description="Changes apply at each person’s next sign-in." submit="Save rule"
+        <Sheet key={edit.id} name="edit-rule" open query="rule" returnFocusId={`rule-actions-${edit.id}`} closeHref={back} title="Edit rule" description="Changes apply at each person’s next sign-in." submit="Save rule"
           confirmTitle="Save rule?" action={`${rulesPath}/${edit.id}`} method="PATCH" csrf={csrf} successUrl={back}
           consequence="Save this mapping? Changing its claim name, value or target role immediately removes its existing rule-origin grants. Direct grants and grants from other rules are retained. Matching users receive grants at their next sign-in.">
           <RuleForm {...form} prefix="edit-rule" rule={edit} />

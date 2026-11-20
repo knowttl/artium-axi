@@ -5,7 +5,8 @@ import { createContext, useContext, useEffect, useRef, useState, type MouseEvent
 import { ActionForm } from './action-form.js'
 import { Icon } from './icon.js'
 
-const SheetClose = createContext({ closeHref: '', close: () => {} })
+const SheetClose = createContext<{ closeHref: string, close: () => void } | null>(null)
+const openers = new WeakMap<HTMLDialogElement, HTMLElement>()
 
 function showSheet(dialog: HTMLDialogElement) {
   if (dialog.open) dialog.close()
@@ -13,19 +14,23 @@ function showSheet(dialog: HTMLDialogElement) {
   dialog.querySelector<HTMLElement>('input:not([type=hidden]), select, textarea, button')?.focus()
 }
 
-export const sheetTrigger = (sheet: string) => ({
+export const sheetTrigger = (sheet: string, primary = true) => ({
+  id: primary ? `${sheet}-opener` : undefined,
   'data-sheet': sheet,
   onClick(event: MouseEvent<HTMLElement>) {
     const dialog = document.getElementById(sheet)
     if (!(dialog instanceof HTMLDialogElement)) return
     event.preventDefault()
+    openers.set(dialog, event.currentTarget)
     event.currentTarget.closest('details')?.removeAttribute('open')
     showSheet(dialog)
   },
 })
 
 export function SheetCancel() {
-  const { closeHref, close } = useContext(SheetClose)
+  const sheet = useContext(SheetClose)
+  if (!sheet) throw new Error('SheetCancel requires a SheetFrame')
+  const { closeHref, close } = sheet
   return <Button href={closeHref} label="Cancel" variant="ghost" data-sheet-close="" onClick={event => { event.preventDefault(); close() }} />
 }
 
@@ -33,6 +38,7 @@ export interface SheetProps {
   name: string
   open: boolean
   query?: string
+  returnFocusId?: string
   closeHref: string
   title: string
   description: string
@@ -51,10 +57,16 @@ export interface SheetProps {
   children: ReactNode
 }
 
-export function SheetFrame({ name, open, query, closeHref, title, description, children }: Pick<SheetProps, 'name' | 'open' | 'query' | 'closeHref' | 'title' | 'description' | 'children'>) {
+export function SheetFrame({ name, open, query, returnFocusId, closeHref, title, description, children }: Pick<SheetProps, 'name' | 'open' | 'query' | 'returnFocusId' | 'closeHref' | 'title' | 'description' | 'children'>) {
   const id = `sheet-${name}`
   const dialog = useRef<HTMLDialogElement>(null)
   const [modal, setModal] = useState(false)
+  useEffect(() => {
+    const element = dialog.current!
+    const close = () => element.close()
+    element.addEventListener('artium-invitation-link-created', close)
+    return () => element.removeEventListener('artium-invitation-link-created', close)
+  }, [])
   useEffect(() => {
     if (!open) return
     const url = new URL(location.href)
@@ -65,9 +77,12 @@ export function SheetFrame({ name, open, query, closeHref, title, description, c
   }, [open, query])
   const close = () => dialog.current!.close()
   const returnFocus = () => {
-    if (dialog.current!.open) return
-    const trigger = [...document.querySelectorAll<HTMLElement>('[data-sheet]')].find(link => link.dataset.sheet === id)
-    ;(trigger?.closest('details')?.querySelector('summary') ?? trigger)?.focus()
+    const element = dialog.current!
+    if (element.open) return
+    const opener = openers.get(element) ?? document.getElementById(returnFocusId ?? `${id}-opener`)
+    openers.delete(element)
+    const target = opener?.closest('details')?.querySelector<HTMLElement>(':scope > summary') ?? opener
+    target?.focus()
   }
   return (
     <SheetClose value={{ closeHref, close }}>
@@ -86,9 +101,9 @@ export function SheetFrame({ name, open, query, closeHref, title, description, c
   )
 }
 
-export function Sheet({ name, open, query, closeHref, title, description, submit, action, method = 'POST', csrf, consequence, confirmTitle, confirmAction, successUrl, successMessage, claimLink, saveTool, footLead, children }: SheetProps) {
+export function Sheet({ name, open, query, returnFocusId, closeHref, title, description, submit, action, method = 'POST', csrf, consequence, confirmTitle, confirmAction, successUrl, successMessage, claimLink, saveTool, footLead, children }: SheetProps) {
   return (
-    <SheetFrame name={name} open={open} query={query} closeHref={closeHref} title={title} description={description}>
+    <SheetFrame name={name} open={open} query={query} returnFocusId={returnFocusId} closeHref={closeHref} title={title} description={description}>
       <ActionForm action={action} method={method} csrf={csrf} confirmation={consequence ? { consequence, title: confirmTitle ?? submit, action: confirmAction ?? submit } : undefined}
         successUrl={successUrl} successMessage={successMessage} claimLink={claimLink} saveTool={saveTool}>
         <div className="sheet-body">

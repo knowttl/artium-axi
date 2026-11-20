@@ -14,6 +14,7 @@ export interface NavigationSection {
 }
 
 export interface FrameAction {
+  id?: string
   label: string
   href: string
   variant: 'primary' | 'secondary'
@@ -81,7 +82,7 @@ export function Frame({ title, description, actions, crumbs, brand, navigation, 
           </VStack>
           {actions && <HStack gap={2} wrap="wrap">
             {actions.map(action => <Button key={action.href} href={action.href} isDisabled={action.disabled} label={action.label} variant={action.variant} icon={<Icon name={action.icon} />}
-              {...action.sheet ? sheetTrigger(action.sheet) : {}} />)}
+              {...action.sheet ? sheetTrigger(action.sheet) : { id: action.id }} />)}
           </HStack>}
         </HStack>
         {children}

@@ -848,7 +848,8 @@ test('invitations show each new link once and allow resend and revoke through th
     await page.click('form[data-invitation-link] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('#invitation-link[open]');
+    await page.wait('#invitation-link:modal [data-claim-link]:focus');
+    check(await page.eval(() => !document.querySelector('#sheet-new-invitation').open), 'The creation sheet stayed open under the claim link');
     const first = await page.eval(() => document.querySelector('[data-claim-link]').value);
     check(first.startsWith(base + '/auth/sso/'), 'Invitation was not a link for this server');
     await page.eval(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.copied = text; } } }));
@@ -870,7 +871,8 @@ test('invitations show each new link once and allow resend and revoke through th
     await page.click('form[action$="/resend"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('#invitation-link[open]');
+    await page.wait('#invitation-link:modal [data-claim-link]:focus');
+    check(await page.eval(() => !document.querySelector('dialog[id^="sheet-resend-"][open]')), 'The resend sheet stayed open under the claim link');
     const second = await page.eval(() => document.querySelector('[data-claim-link]').value);
     check(second !== first, 'Resend reused the old link');
     await page.click('#invitation-link form button');
@@ -910,7 +912,8 @@ test('invitations link an existing local user through its detail page and recent
     await page.wait('#reauth-dialog[open]');
     await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
     await page.click('#reauth-dialog button:not([type=button])');
-    await page.wait('#invitation-link[open]');
+    await page.wait('#invitation-link:modal [data-claim-link]:focus');
+    check(await page.eval(() => !document.querySelector('#sheet-new-invitation').open), 'The account-linking sheet stayed open under the claim link');
     await page.click('#invitation-link form button');
     await page.wait('tr[data-invitation]');
     const invitations = await page.eval(async () => (await (await fetch('/v1/admin/sso/invitations')).json()).invitations);
@@ -952,6 +955,11 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
     await page.click('[data-rule] .more-menu a[href*="rule="]');
     await page.wait('dialog.sheet:modal form[data-method=PATCH]');
     check(await page.eval(() => !new URL(location.href).searchParams.has('rule')), 'Edit rule query stayed in the address');
+    await page.press('Escape');
+    await page.wait('[data-rule] .more-menu summary:focus');
+    await page.press('Enter');
+    await page.click('[data-rule] .more-menu a[href*="rule="]');
+    await page.wait('dialog.sheet:modal form[data-method=PATCH]');
     await page.fill('dialog[open] form[data-method=PATCH] [name=value]', 'Artium.Analysts');
     await page.click('dialog[open] form[data-method=PATCH] button');
     await page.wait('#confirmation[open]');
@@ -987,6 +995,7 @@ for (const [add, close] of [['choose', 'Escape'], ['entra', 'Close'], ['oidc', '
     await page.wait('dialog.sheet:modal');
     ${close === 'Escape' ? "await page.press('Escape');" : `await page.click('dialog.sheet ${close === 'Close' ? '.sheet-head' : '.sheet-foot'} [data-sheet-close]');`}
     await page.wait('dialog.sheet:not([open])');
+    await page.wait('a[href$="add=choose"]:not(.astryx-empty-state a):focus');
     check(await page.eval(() => !new URL(location.href).searchParams.has('add')), 'Provider query stayed in the address');
     await page.open(await page.eval(() => location.href));
     check(await page.eval(() => !document.querySelector('dialog.sheet[open]')), 'Provider sheet reopened after reload');
@@ -2666,6 +2675,7 @@ test('changing Vectra authentication requires new secrets and saves only the sel
 })
 
 test('expired confirmation resumes the populated action exactly once after a wrong password is corrected', async () => {
+  chrome(['resize', '1280', '900'])
   await expireConfirmation()
   browser(`
     await page.open(base + '/admin/roles?dialog=new-role');
@@ -2684,7 +2694,7 @@ test('expired confirmation resumes the populated action exactly once after a wro
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('form[action$="/tools"]');
     check(await page.eval(() => document.querySelector('h1').innerText === 'Synthetic resumed role'), 'Pending role was not created');
-    check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation window was not refreshed');
+    check(await page.eval(() => document.querySelector('.frame-controls-header [data-reauth-until]').innerText.includes('Changes unlocked')), 'Confirmation window was not refreshed');
     check(await page.eval(async () => {
       const { records } = await (await fetch('/v1/admin/audit')).json();
       return records.filter(record => record.action === 'create-role').length === 1;
@@ -2925,6 +2935,23 @@ test('the add-user sheet opened from its query view becomes a modal that survive
     await page.press('Escape');
     await page.wait('a[data-sheet="sheet-add-user"]:focus');
     check(await page.eval(() => !document.querySelector('#sheet-add-user').open), 'Escape did not close the sheet');
+  `)
+})
+
+test('closing New role from the empty state returns focus to that button', () => {
+  browser(`
+    await page.open(base + '/admin/roles?cursor=synthetic-role');
+    await page.wait('html[data-astryx-theme]');
+    const launcher = '.astryx-empty-state a[href$="sheet=new-role"]';
+    await page.click(launcher);
+    await page.wait('#sheet-new-role:modal');
+    await page.eval(() => {
+      const sheet = document.querySelector('#sheet-new-role');
+      document.newRoleSheetClosed = new Promise(resolve => sheet.addEventListener('close', () => resolve(true), { once: true }));
+    });
+    await page.press('Escape');
+    await page.eval(() => document.newRoleSheetClosed);
+    check(await page.eval(() => document.activeElement.matches('.astryx-empty-state a[href$="sheet=new-role"]')), 'Focus moved away from the empty-state launcher');
   `)
 })
 
