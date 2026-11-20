@@ -16,7 +16,7 @@ import { ActionForm, Revision } from './action-form.js'
 import { useCopy } from './copy.js'
 import { Icon } from './icon.js'
 import { RoleOptions, type RoleOption } from './role-options.js'
-import { Sheet } from './sheet.js'
+import { Sheet, sheetTrigger } from './sheet.js'
 import { badgeVariants, type Status } from './status.js'
 import { Time } from './time.js'
 
@@ -135,7 +135,7 @@ export function Invitations({ csrf, path, banner, invitations, pager, create }: 
                   <TableCell>
                     {invitation.actions && (
                       <HStack gap={1} vAlign="center">
-                        <Button href={invitation.actions.resend.href} label="Resend" variant="ghost" size="sm" data-sheet={`sheet-resend-${invitation.id}`} />
+                        <Button href={invitation.actions.resend.href} label="Resend" variant="ghost" size="sm" {...sheetTrigger(`sheet-resend-${invitation.id}`)} />
                         <ActionForm action={`${path}/${encodeURIComponent(invitation.id)}/revoke`} method="POST" csrf={csrf}
                           confirmation={{ consequence: 'Revoke this invitation? The link can no longer be claimed. Existing accounts and access are unchanged.', title: 'Revoke invitation', action: 'Revoke' }}>
                           <Revision value={invitation.actions.revision} />

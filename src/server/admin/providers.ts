@@ -19,8 +19,9 @@ import { renderPage } from './render-page.js'
 import { initials } from './design/ui.js'
 import { toolProducts } from './design/status.js'
 import type { RoleRulesProps } from '../../views/role-rules.js'
+import { addProviderOpenerId } from '../../views/sign-in.js'
 
-const signInQuery = z.object({ add: z.enum(['choose', 'entra', 'oidc']).optional(),
+const signInQuery = z.object({ add: z.enum(['choose', 'entra', 'oidc']).optional(), addFrom: z.literal('empty').optional(),
   tab: z.enum(['setup', 'credential', 'rules', 'settings']).optional(), rule: z.string().min(1).max(256).optional() })
 const kindLabel = (kind: string) => kind === 'entra' ? 'Entra ID' : 'OpenID Connect'
 
@@ -190,10 +191,11 @@ export function registerProviderAdmin(app: FastifyInstance, db: Database.Databas
           warning: false, action: { href: '/admin/invitations', label: 'Open invitations' } },
       ]
       const addHref = `${list}?add=choose`
-      return renderPage(reply, 'Sign-in & SSO', 'signIn', { summaries, addHref, add: { open: query.data.add ?? null, closeHref: list, csrf },
+      return renderPage(reply, 'Sign-in & SSO', 'signIn', { summaries, addHref,
+        add: { open: query.data.add ?? null, fromEmptyState: query.data.addFrom === 'empty' && !providers.length, closeHref: list, csrf },
         providers: providers.map(provider => ({ href: `${list}/${encodeURIComponent(provider.id)}`, name: provider.name, initials: initials(provider.name),
           kind: kindLabel(provider.kind), issuer: provider.issuer, configured: Boolean(credentials?.read(provider.id)), enabled: provider.enabled })) },
-      current, 'How people sign in to Artium and the CLI.', [{ label: 'Add provider', href: addHref, variant: 'primary', icon: 'plus' }])
+      current, 'How people sign in to Artium and the CLI.', [{ id: addProviderOpenerId, label: 'Add provider', href: addHref, variant: 'primary', icon: 'plus' }])
     } else {
       const provider = providers.find(provider => provider.id === id)
       if (!provider) throw new ArtiumError('NOT_FOUND')

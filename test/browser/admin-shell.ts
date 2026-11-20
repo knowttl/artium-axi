@@ -25,6 +25,7 @@ const testWithoutHydration = 'direct credential tests finish when hydration is u
 const testWithLateHydration = 'latest direct credential result survives late hydration'
 const pickerWithLateHydration = 'operation picker preserves edits across late hydration'
 const trackChangesWithLateHydration = 'role tool grants count a selection edited before late hydration as a change'
+const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
 let chromeDebugPort: number
 
 before(async () => {
@@ -90,12 +91,21 @@ function browser(script: string) {
         await wait(...args);
       }
     };
+    const dismissSheet = async (sheet, opener, closeButton) => {
+      await page.wait(sheet + ':modal');
+      await page.eval('() => { document.sheetClosed = new Promise(resolve => document.querySelector(' + JSON.stringify(sheet) + ').addEventListener("close", () => resolve(true), { once: true })); }');
+      if (closeButton) await page.click(sheet + ' ' + closeButton);
+      else await page.press('Escape');
+      await page.wait(sheet + ':not([open])');
+      await page.eval(() => document.sheetClosed);
+      check(await page.eval('() => document.activeElement === document.querySelector(' + JSON.stringify(opener) + ')'), 'Closing ' + sheet + ' did not return focus to ' + opener);
+    };
     ${script}`)
 }
 
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
-    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration].includes(context.name) ? '1' : '0' },
+    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration, instanceSheetWithLateHydration].includes(context.name) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -834,8 +844,11 @@ test('invitations show each new link once and allow resend and revoke through th
     await page.click('a[href="/admin/invitations"]');
     await page.wait('form[data-invitation-link]');
     check(await page.eval(() => document.querySelector('[role=main] .astryx-banner-frame').innerText.includes('can’t be claimed yet')), 'Missing disabled-provider banner');
-    await page.click('a[data-sheet="sheet-new-invitation"]');
-    await page.wait('#sheet-new-invitation[open]');
+    const newInvitation = 'a[data-sheet="sheet-new-invitation"]';
+    await page.click(newInvitation);
+    await dismissSheet('#sheet-new-invitation', newInvitation);
+    await page.press('Enter');
+    await page.wait('#sheet-new-invitation:modal');
     await page.fill('[name=displayName]', 'Synthetic invited user');
     await page.fill('[name=expectedUsername]', 'synthetic@identity.example');
     await page.click('[name=roleIds][type=checkbox]');
@@ -848,7 +861,8 @@ test('invitations show each new link once and allow resend and revoke through th
     await page.click('form[data-invitation-link] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('#invitation-link[open]');
+    await page.wait('#invitation-link:modal [data-claim-link]:focus');
+    check(await page.eval(() => !document.querySelector('#sheet-new-invitation').open), 'The creation sheet stayed open under the claim link');
     const first = await page.eval(() => document.querySelector('[data-claim-link]').value);
     check(first.startsWith(base + '/auth/sso/'), 'Invitation was not a link for this server');
     await page.eval(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.copied = text; } } }));
@@ -859,8 +873,12 @@ test('invitations show each new link once and allow resend and revoke through th
     await page.wait('tr[data-invitation]');
     check(await page.eval(() => document.querySelector('[data-claim-link]').value === ''), 'Old link was redisplayed');
     check(await page.eval(() => document.querySelector('tr[data-invitation]').innerText.includes('Synthetic Role')), 'Direct role was not retained');
-    await page.click('a[data-sheet^="sheet-resend-"]');
-    await page.wait('dialog[id^="sheet-resend-"][open]');
+    const resend = 'tr[data-invitation] a[data-sheet^="sheet-resend-"]';
+    const resendSheet = 'dialog[id^="sheet-resend-"]';
+    await page.click(resend);
+    await dismissSheet(resendSheet, resend, '.sheet-foot [data-sheet-close]');
+    await page.press('Enter');
+    await page.wait(resendSheet + ':modal');
     for (const value of ['0', '31', '1.5']) {
       await page.fill('form[action$="/resend"] [name=expiresInDays]', value);
       await page.click('form[action$="/resend"] button');
@@ -870,7 +888,8 @@ test('invitations show each new link once and allow resend and revoke through th
     await page.click('form[action$="/resend"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('#invitation-link[open]');
+    await page.wait('#invitation-link:modal [data-claim-link]:focus');
+    check(await page.eval(() => !document.querySelector('dialog[id^="sheet-resend-"][open]')), 'The resend sheet stayed open under the claim link');
     const second = await page.eval(() => document.querySelector('[data-claim-link]').value);
     check(second !== first, 'Resend reused the old link');
     await page.click('#invitation-link form button');
@@ -897,6 +916,9 @@ test('invitations link an existing local user through its detail page and recent
     await page.wait('a[href^="/admin/settings/sign-in/"]');
     await page.open(base + '/admin/users/synthetic-ordinary');
     await page.click('a[href^="/admin/invitations?userId="]');
+    await dismissSheet('#sheet-new-invitation', 'a[data-sheet="sheet-new-invitation"]');
+    await page.press('Enter');
+    await page.wait('#sheet-new-invitation:modal');
     await page.wait('[name=userId]');
     check(await page.eval(() => document.querySelector('[name=userId]').value === 'synthetic-ordinary'), 'Wrong account selected for linking');
     check(await page.eval(() => document.querySelector('[name=displayName]').value === 'Ordinary'), 'Display name was not prefilled');
@@ -910,7 +932,8 @@ test('invitations link an existing local user through its detail page and recent
     await page.wait('#reauth-dialog[open]');
     await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
     await page.click('#reauth-dialog button:not([type=button])');
-    await page.wait('#invitation-link[open]');
+    await page.wait('#invitation-link:modal [data-claim-link]:focus');
+    check(await page.eval(() => !document.querySelector('#sheet-new-invitation').open), 'The account-linking sheet stayed open under the claim link');
     await page.click('#invitation-link form button');
     await page.wait('tr[data-invitation]');
     const invitations = await page.eval(async () => (await (await fetch('/v1/admin/sso/invitations')).json()).invitations);
@@ -920,7 +943,8 @@ test('invitations link an existing local user through its detail page and recent
   `)
 })
 
-test('sign-in settings stores, edits and removes a rule through recent-auth confirmation', async () => {
+test('sign-in settings stores, edits and removes a rule through recent-auth confirmation', async context => {
+  context.after(() => chrome(['stop']))
   chrome(['resize', '420', '900'])
   browser(`
     await page.open(base + '/admin/settings/sign-in?add=entra');
@@ -933,8 +957,11 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
     const provider = await page.eval(() => document.querySelector('[data-provider] a:has(> strong)').getAttribute('href'));
     await page.open(base + provider + '?tab=rules');
     check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('No role rules')), 'Missing rule empty state');
-    await page.click('a[href$="rule=new"]');
-    await page.wait('dialog[open] [name=roleId]');
+    const addRule = 'a[href$="rule=new"]';
+    await page.click(addRule);
+    await dismissSheet('#sheet-add-rule', addRule);
+    await page.press('Enter');
+    await page.wait('#sheet-add-rule:modal');
     await page.fill('form[action="/v1/admin/sso/role-rules"] [name=value]', 'Artium.Readers');
     await page.fill('form[action="/v1/admin/sso/role-rules"] [name=roleId]', 'synthetic-role');
   `)
@@ -948,34 +975,49 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('[data-rule]');
     check(await page.eval(() => document.querySelector('[data-rule]').innerText.includes('CrowdStrike Falcon')), 'Missing target tool access');
-    await page.click('[data-rule] .more-menu summary');
-    await page.click('[data-rule] .more-menu a[href*="rule="]');
-    await page.wait('dialog[open] form[data-method=PATCH]');
+    await page.click('a[href$="rule=new"]');
+    await page.wait('#sheet-add-rule:modal');
+    await page.fill('#sheet-add-rule [name=value]', 'Artium.Admins');
+    await page.fill('#sheet-add-rule [name=roleId]', 'synthetic-role');
+    await page.click('#sheet-add-rule form button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    const row = '[data-rule]:nth-child(2)';
+    await page.wait(row);
+    check(await page.eval(() => document.querySelector('[data-rule]:nth-child(2)').innerText.includes('Artium.Readers')), 'Readers should be the second rule');
+    await page.click(row + ' .more-menu summary');
+    await page.click(row + ' .more-menu a[href*="rule="]');
+    await page.wait('dialog.sheet:modal form[data-method=PATCH]');
+    check(await page.eval(() => !new URL(location.href).searchParams.has('rule')), 'Edit rule query stayed in the address');
+    await page.press('Escape');
+    await page.wait(row + ' .more-menu summary:focus');
+    await page.press('Enter');
+    await page.click(row + ' .more-menu a[href*="rule="]');
+    await page.wait('dialog.sheet:modal form[data-method=PATCH]');
     await page.fill('dialog[open] form[data-method=PATCH] [name=value]', 'Artium.Analysts');
     await page.click('dialog[open] form[data-method=PATCH] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('body:not(:has(dialog.sheet[open])) [data-rule]');
-    check(await page.eval(() => document.querySelector('[data-rule]').innerText.includes('Artium.Analysts')), 'Rule edit was not saved');
-    check(await page.eval(() => document.querySelector('[data-rule] form[data-method=DELETE] [name=expectedRevision]').value === '2'), 'Rule revision did not advance');
+    await page.wait('body:not(:has(dialog.sheet[open])) ' + row + ' form[data-method=DELETE] [name=expectedRevision][value="2"]');
+    check(await page.eval(() => document.querySelector('[data-rule]:nth-child(2)').innerText.includes('Artium.Analysts')), 'Rule edit was not saved');
     check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Rule list overflows at 420px');
-    await page.click('[data-rule] .more-menu summary');
-    await page.click('[data-rule] form[data-method=DELETE] button');
+    await page.click(row + ' .more-menu summary');
+    await page.click(row + ' form[data-method=DELETE] button');
     await page.wait('#confirmation[open]');
     check(await page.eval(() => document.querySelector('[data-confirm-button]').getAttribute('aria-disabled') === 'true'), 'Removal did not require the typed value');
     await page.click('#confirmation button[value=cancel]');
-    check(await page.eval(() => !!document.querySelector('[data-rule]')), 'Cancel removed the rule');
-    await page.click('[data-rule] form[data-method=DELETE] button');
+    check(await page.eval(() => document.querySelector('[data-rule]:nth-child(2)')?.innerText.includes('Artium.Analysts')), 'Cancel removed the rule');
+    await page.click(row + ' form[data-method=DELETE] button');
     await page.wait('#confirmation[open]');
     await page.fill('#confirmation-name', 'Artium.Analysts');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('[role=main]:not(:has([data-rule])) a[href$="rule=new"]');
-    check(await page.eval(() => !document.querySelector('[data-rule]') && document.querySelector('[role=main]').innerText.includes('No role rules')), 'Rule was not removed');
+    await page.wait('[data-rule]:only-child');
+    check(await page.eval(() => document.querySelector('[data-rule]').innerText.includes('Artium.Admins')), 'Removal did not preserve the other rule');
     check(await page.eval(async () => {
       const providers = (await (await fetch('/v1/admin/sso/providers')).json()).providers;
       const audit = (await (await fetch('/v1/admin/audit?event=admin-change')).json()).records;
-      return providers[0].enabled === false && ['create-role-rule', 'update-role-rule', 'delete-role-rule'].every(action =>
-        audit.filter(row => row.action === action && row.outcome === 'success').length === 1);
+      return providers[0].enabled === false && [['create-role-rule', 2], ['update-role-rule', 1], ['delete-role-rule', 1]].every(([action, count]) =>
+        audit.filter(row => row.action === action && row.outcome === 'success').length === count);
     }), 'Rule audit missing or provider enabled');
   `)
 })
@@ -986,9 +1028,32 @@ for (const [add, close] of [['choose', 'Escape'], ['entra', 'Close'], ['oidc', '
     await page.wait('dialog.sheet:modal');
     ${close === 'Escape' ? "await page.press('Escape');" : `await page.click('dialog.sheet ${close === 'Close' ? '.sheet-head' : '.sheet-foot'} [data-sheet-close]');`}
     await page.wait('dialog.sheet:not([open])');
+    await page.wait('a[href$="add=choose"]:not(.astryx-empty-state a):focus');
     check(await page.eval(() => !new URL(location.href).searchParams.has('add')), 'Provider query stayed in the address');
     await page.open(await page.eval(() => location.href));
     check(await page.eval(() => !document.querySelector('dialog.sheet[open]')), 'Provider sheet reopened after reload');
+  `)
+})
+
+test('provider sheets return focus to the empty-state Add provider button', () => {
+  browser(`
+    await page.open(base + '/admin/settings/sign-in');
+    const opener = '.astryx-empty-state a';
+    await page.click(opener);
+    await page.wait('#sheet-add-provider:modal');
+    check(await page.eval(() => !location.search), 'Chooser opening parameters stayed in the address');
+    await page.press('Escape');
+    await page.wait(opener + ':focus');
+    for (const kind of ['entra', 'oidc']) {
+      await page.press('Enter');
+      await page.wait('#sheet-add-provider:modal');
+      await page.click('#sheet-add-provider [name=add][value=' + kind + ']');
+      await page.click('#sheet-add-provider button[type=submit]');
+      await page.wait('#sheet-add-' + kind + ':modal');
+      await page.click('#sheet-add-' + kind + ' .sheet-foot [data-sheet-close]');
+      await page.wait(opener + ':focus');
+      check(await page.eval(() => !location.search), 'Provider opening parameters stayed in the address');
+    }
   `)
 })
 
@@ -1137,6 +1202,43 @@ test('Proxmox stored password administration saves one credential without a sepa
     check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('signs in automatically') && !document.querySelector('form[action*="/connect"]')), 'Automatic authentication guidance missing');
     await page.fill('[data-profile-field=userId]', 'different@pve');
     check(await page.eval(() => document.querySelector('[data-profile-field=password]').required), 'Changed username did not require a new password');
+  `)
+})
+
+test(instanceSheetWithLateHydration, () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi?sheet=add-instance');
+    await page.wait('#sheet-add-instance[open]:not(:modal)');
+    await page.fill('#sheet-add-instance [data-profile-field=clientSecret]', 'CANARY-promotion-draft');
+    await page.eval(() => {
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
+    });
+    await page.wait('#sheet-add-instance:modal');
+    await page.eval(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))));
+    check(await page.eval(() => document.querySelector('#sheet-add-instance [data-profile-field=clientSecret]').value === 'CANARY-promotion-draft'), 'Modal promotion cleared the draft');
+    await page.press('Escape');
+    await page.wait('a[data-sheet="sheet-add-instance"]:focus');
+    check(await page.eval(() => document.querySelector('#sheet-add-instance [data-profile-field=clientSecret]').value === ''), 'Dismissing the modal kept the draft');
+  `)
+})
+
+test('instance names lab and lab-opener open their own sheets in place', () => {
+  browser(`
+    await createInstance('falcon-axi', falconValue, 'lab-opener');
+    await page.open(base + '/admin/tools/falcon-axi');
+    await page.wait('html[data-astryx-theme]');
+    await page.eval(() => { document.instanceOpenerDocument = true; });
+    for (const name of ['lab', 'lab-opener']) {
+      const id = 'sheet-edit-' + name;
+      const opener = 'a[data-sheet="' + id + '"]';
+      await page.click(opener);
+      await page.wait('#' + id + ':modal');
+      check(await page.eval(() => document.instanceOpenerDocument === true), 'Editing an instance replaced the document');
+      await page.press('Escape');
+      await page.wait(opener + ':focus');
+    }
   `)
 })
 
@@ -1341,7 +1443,7 @@ test('changing the instance URL drops a saved connection IP override that was no
       const form = document.querySelector('form[data-save-tool]');
       const response = await fetch(form.action, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ value: { origin: 'https://controller.example', tls: { connectAddress: '127.0.0.1' } }, expectedId: form.elements.expectedId.value,
-          expectedRevision: 1, expectedToolRevision: Number(form.elements.expectedToolRevision.value), _csrf: form.elements._csrf.value }) });
+          expectedRevision: 1, expectedToolRevision: Number(form.elements.expectedToolRevision.value), _csrf: form.elements._csrf.value, _confirm: form.dataset.confirmToken }) });
       return response.status;
     });
     check(saved === 200, 'Could not save the connection IP override: ' + saved);
@@ -2209,6 +2311,9 @@ test('tool detail enablement and granting roles lead to the role access editor',
     await page.wait('[name=enabled][value=true]');
     check(await page.eval(() => document.querySelector('form:has([name=enabled]) [role=switch]').getAttribute('aria-checked') === 'false'), 'Switch does not show the disabled state');
     await page.click('nav[aria-label="Tool sections"] a[href$="?tab=access"]');
+    const instances = 'a[data-sheet="sheet-instances-synthetic-role"]';
+    await page.click(instances);
+    await dismissSheet('#sheet-instances-synthetic-role', instances);
     await page.click('a[href="/admin/roles/synthetic-role"]');
     await page.wait('[name=tools][value="falcon-axi"]');
     check(await page.eval(() => document.querySelector('[name=tools][value="falcon-axi"]').checked), 'Role did not grant the tool');
@@ -2338,15 +2443,20 @@ test('Kubernetes mutation workflows default off and require the administrator sw
         && settings.sessions.lifetimeSeconds === 300 && settings.sessions.outputBytes === 65536;
     }), 'Session limits did not persist');
     await page.open(base + '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-add');
-    await page.wait('#sheet-grants-sessions-add[open]');
+    await dismissSheet('#sheet-grants-sessions-add', 'a[data-sheet="sheet-grants-sessions-add"]', '.sheet-foot [data-sheet-close]');
+    await page.press('Enter');
+    await page.wait('#sheet-grants-sessions-add:modal');
     await page.eval(() => { document.querySelector('#sheet-grants-sessions-add [name=userId]').value = 'synthetic-development-user'; });
     await page.click('#sheet-grants-sessions-add [name=operations][value=exec]');
     await page.click('#sheet-grants-sessions-add [name=operations][value=logs]');
     await page.click('#sheet-grants-sessions-add [name=operations][value=port-forward]');
     await page.click('#sheet-grants-sessions-add form button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('a[href*="grants-sessions-synthetic-development-user"]');
+    const editGrant = 'a[data-sheet="sheet-grants-sessions-synthetic-development-user"]';
+    await page.wait(editGrant);
     check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('logs, exec, port-forward')), 'Session grants did not persist');
+    await page.click(editGrant);
+    await dismissSheet('#sheet-grants-sessions-synthetic-development-user', editGrant);
   `)
 })
 
@@ -2668,8 +2778,8 @@ test('expired confirmation resumes the populated action exactly once after a wro
   await expireConfirmation()
   browser(`
     await page.open(base + '/admin/roles?dialog=new-role');
-    await page.wait('#sheet-new-role[open]');
-    check(await page.eval(() => !location.search.includes('sheet=')), 'Sheet query stayed in the address');
+    await page.wait('#sheet-new-role:modal');
+    check(await page.eval(() => !new URL(location.href).searchParams.has('sheet')), 'New role query stayed in the address');
     await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic resumed role');
     await page.click('form[action="/v1/admin/roles"] button');
     await page.wait('#reauth-dialog[open]');
@@ -2683,7 +2793,10 @@ test('expired confirmation resumes the populated action exactly once after a wro
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('form[action$="/tools"]');
     check(await page.eval(() => document.querySelector('h1').innerText === 'Synthetic resumed role'), 'Pending role was not created');
-    check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes unlocked')), 'Confirmation window was not refreshed');
+    const mobile = await page.eval(() => document.querySelector('[data-testid=mobile-nav-toggle]').getClientRects().length > 0);
+    if (mobile) await page.click('[data-testid=mobile-nav-toggle]');
+    const controls = mobile ? '.frame-controls-drawer' : '.frame-controls-header';
+    check(await page.eval('() => document.querySelector(' + JSON.stringify(controls + ' [data-reauth-until]') + ').innerText.includes("Changes unlocked")'), 'Confirmation window was not refreshed');
     check(await page.eval(async () => {
       const { records } = await (await fetch('/v1/admin/audit')).json();
       return records.filter(record => record.action === 'create-role').length === 1;
@@ -2729,7 +2842,11 @@ test('role rename saves without a dialog and stale drafts offer a reload recover
   browser(`
     await page.open(base + '/admin/roles/synthetic-role');
     const selector = 'form[action="/v1/admin/roles/synthetic-role"]';
-    await page.click('a[data-sheet=sheet-rename-role]');
+    const rename = 'a[data-sheet=sheet-rename-role]';
+    await page.click(rename);
+    await dismissSheet('#sheet-rename-role', rename, '.sheet-head [data-sheet-close]');
+    await page.press('Enter');
+    await page.wait('#sheet-rename-role:modal');
     await page.fill(selector + ' [name=name]', 'Synthetic renamed role');
     await page.click(selector + ' button');
     await page.wait('input[name=name][value="Synthetic renamed role"]');
@@ -2741,7 +2858,7 @@ test('role rename saves without a dialog and stale drafts offer a reload recover
         _csrf: fields.get('_csrf'), name: 'Synthetic newer role', expectedRevision: Number(fields.get('expectedRevision')),
       }) });
     });
-    await page.click('a[data-sheet=sheet-rename-role]');
+    await page.click(rename);
     await page.fill(selector + ' [name=name]', 'Synthetic stale role');
     await page.click(selector + ' button');
     await page.wait('[data-sheet-message] button');
@@ -2896,19 +3013,51 @@ test('a local user can be created from the table and its profile edited from det
   `)
 })
 
+test('a sheet opened from a menu closes the menu and returns focus to its summary', () => {
+  browser(`
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    await page.click('.more-menu summary');
+    await page.eval(() => { document.resetPasswordLauncherDocument = true; });
+    await page.click('a[data-sheet="sheet-reset-password"]');
+    await page.wait('#sheet-reset-password:modal');
+    check(await page.eval(() => document.resetPasswordLauncherDocument === true), 'Opening Reset password replaced the document');
+    check(await page.eval(() => !document.querySelector('.more-menu').open && !location.search), 'The menu stayed open or the address changed');
+    await page.press('Escape');
+    await page.wait('.more-menu summary:focus');
+    check(await page.eval(() => !document.querySelector('#sheet-reset-password').open), 'Escape did not close the sheet');
+  `)
+})
+
 test('the add-user sheet opened from its query view becomes a modal that survives hydration and returns focus on Escape', () => {
   browser(`
     await page.open(base + '/admin/users?sheet=add-user');
     await page.wait('html[data-astryx-theme]');
-    await page.wait('#sheet-add-user[open]');
-    check(await page.eval(() => document.querySelector('#sheet-add-user').matches(':modal')), 'Query-opened sheet is not modal');
+    await page.wait('#sheet-add-user:modal');
+    check(await page.eval(() => !new URL(location.href).searchParams.has('sheet')), 'Add user query stayed in the address');
     check(await page.eval(() => getComputedStyle(document.querySelector('#sheet-add-user [name=username]')).fontFamily
       !== getComputedStyle(document.querySelector('#sheet-add-user [name=displayName]')).fontFamily), 'Username does not use the monospaced font');
     check(await page.eval(() => document.activeElement.name === 'displayName'), 'Query-opened sheet did not focus its first field');
-    check(await page.eval(() => document.querySelector('[data-sheet-scrim]').hidden), 'The scrim of a modal sheet stays visible');
+    await page.wait('[data-sheet-scrim][hidden]');
     await page.press('Escape');
     await page.wait('a[data-sheet="sheet-add-user"]:focus');
     check(await page.eval(() => !document.querySelector('#sheet-add-user').open), 'Escape did not close the sheet');
+  `)
+})
+
+test('closing New role from the empty state returns focus to that button', () => {
+  browser(`
+    await page.open(base + '/admin/roles?cursor=synthetic-role');
+    await page.wait('html[data-astryx-theme]');
+    const launcher = '.astryx-empty-state a[href$="sheet=new-role"]';
+    await page.click(launcher);
+    await page.wait('#sheet-new-role:modal');
+    await page.eval(() => {
+      const sheet = document.querySelector('#sheet-new-role');
+      document.newRoleSheetClosed = new Promise(resolve => sheet.addEventListener('close', () => resolve(true), { once: true }));
+    });
+    await page.press('Escape');
+    await page.eval(() => document.newRoleSheetClosed);
+    check(await page.eval(() => document.activeElement.matches('.astryx-empty-state a[href$="sheet=new-role"]')), 'Focus moved away from the empty-state launcher');
   `)
 })
 

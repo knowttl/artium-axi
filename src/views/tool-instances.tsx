@@ -14,7 +14,7 @@ import { CredentialEditor, type CredentialEditorProps } from './credential-edito
 import { Icon } from './icon.js'
 import { GithubConnection, type GithubConnectionProps } from './github-connection.js'
 import { Panel } from './panel.js'
-import { Sheet } from './sheet.js'
+import { Sheet, sheetTrigger } from './sheet.js'
 import { badgeVariants, type Status } from './status.js'
 import { Time } from './time.js'
 
@@ -112,7 +112,7 @@ function Actions({ csrf, page, ssh, row }: { csrf: string, page: string, ssh: bo
       <ActionForm action={`${instance.path}/test`} method="POST" csrf={csrf} successMessage="Test passed.">
         <Button type="submit" label="Test" variant="secondary" size="sm" icon={<Icon name="test" />} />
       </ActionForm>
-      <Button href={`${page}?sheet=${sheet}`} label="Edit" variant="ghost" size="sm" icon={<Icon name="pen" />} data-sheet={`sheet-${sheet}`} />
+      <Button href={`${page}?sheet=${sheet}`} label="Edit" variant="ghost" size="sm" icon={<Icon name="pen" />} {...sheetTrigger(`sheet-${sheet}`)} />
       <details className="more-menu">
         <summary className="btn btn-ghost btn-icon btn-sm" aria-label={`More actions for ${row.name}`}><Icon name="more" /></summary>
         <div className="popover">
@@ -206,7 +206,7 @@ export function Instances({ csrf, name, product, panel }: { csrf: string, name: 
         description={ssh ? 'SSH hosts are reported as instances. Hosts, bindings and grants stay on their own pages.'
           : `Each instance is a named connection to ${product} with its own credential, certificates and read-only setting.`}
         actions={ssh ? <Button href="/admin/ssh" label="Manage hosts" variant="secondary" size="sm" />
-          : <Button href={`${page}?sheet=add-instance`} label="Add instance" variant="primary" size="sm" icon={<Icon name="plus" />} data-sheet="sheet-add-instance" />}>
+          : <Button href={`${page}?sheet=add-instance`} label="Add instance" variant="primary" size="sm" icon={<Icon name="plus" />} {...sheetTrigger('sheet-add-instance')} />}>
         <InstanceTable csrf={csrf} product={product} panel={panel} />
       </Panel>
       {github && <GithubConnection csrf={csrf} {...github} />}

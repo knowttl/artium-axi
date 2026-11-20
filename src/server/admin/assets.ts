@@ -132,38 +132,6 @@ if (savedTest) {
   }
 }
 
-// Sheets open as modals; without JavaScript their links load the ?sheet= view instead.
-function openSheet(dialog) {
-  if (dialog.open) dialog.close();
-  dialog.showModal();
-  dialog.querySelector('input:not([type=hidden]), select, textarea, button')?.focus();
-}
-for (const link of document.querySelectorAll('[data-sheet]')) {
-  link.addEventListener('click', event => {
-    const dialog = document.getElementById(link.dataset.sheet);
-    if (!dialog) return;
-    event.preventDefault();
-    link.closest('details')?.removeAttribute('open');
-    openSheet(dialog);
-  });
-}
-for (const dialog of document.querySelectorAll('dialog.sheet')) {
-  dialog.addEventListener('close', () => {
-    if (dialog.open) return;
-    const trigger = [...document.querySelectorAll('[data-sheet]')].find(link => link.dataset.sheet === dialog.id);
-    // A sheet opened from a disclosure returns to its summary because the menu is now closed.
-    (trigger?.closest('details')?.querySelector('summary') || trigger)?.focus();
-  });
-  for (const close of dialog.querySelectorAll('[data-sheet-close]')) close.addEventListener('click', event => { event.preventDefault(); dialog.close(); });
-  if (!dialog.open) continue;
-  // A reload after saving must not reopen the sheet.
-  document.querySelector('[data-sheet-scrim]')?.setAttribute('hidden', '');
-  const url = new URL(location.href);
-  url.searchParams.delete(dialog.dataset.sheetQuery || 'sheet');
-  history.replaceState(null, '', url);
-  openSheet(dialog);
-}
-
 // The confirmation dialog in the React tree answers; a request made before hydration waits for it, so nothing is sent unconfirmed.
 function confirmChange(form, fallbackAction) {
   const action = form.dataset.confirmAction || fallbackAction;
@@ -613,7 +581,7 @@ document.addEventListener('submit', async event => {
     }
     if (response.ok && form.hasAttribute('data-invitation-link')) {
       const result = await response.json();
-      form.closest('dialog.sheet')?.close();
+      form.dispatchEvent(new Event('artium-invitation-link-created', { bubbles: true }));
       const dialog = document.getElementById('invitation-link');
       const link = dialog.querySelector('[data-claim-link]');
       link.value = new URL(result.claimPath, location.origin).href;

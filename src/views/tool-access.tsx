@@ -7,7 +7,7 @@ import { VStack } from '@astryxdesign/core/VStack'
 import { Revision } from './action-form.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
-import { Sheet } from './sheet.js'
+import { Sheet, sheetTrigger } from './sheet.js'
 
 interface Person { id: string, username: string, displayName: string }
 interface Operation { id: string, label: string }
@@ -25,7 +25,7 @@ type Policy = AccessProps['policies'][number]
 
 interface Context { csrf: string, api: string, name: string, product: string, revision: number, access: AccessProps }
 
-const opensSheet = (access: AccessProps, name: string) => ({ href: `${access.page}&sheet=${encodeURIComponent(name)}`, 'data-sheet': `sheet-${name}` })
+const opensSheet = (access: AccessProps, name: string) => ({ href: `${access.page}&sheet=${encodeURIComponent(name)}`, ...sheetTrigger(`sheet-${name}`) })
 
 function Checkbox({ name, value, title, description, checked }: { name: string, value: string, title: string, description?: string, checked: boolean }) {
   return (
