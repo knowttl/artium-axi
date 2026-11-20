@@ -124,10 +124,11 @@ if (savedTest) {
   const result = document.querySelector('[data-test-result]');
   if (result) {
     const saved = JSON.parse(savedTest);
-    renderTestResult({
+    latestTestResult = {
       message: saved.diagnosticVersion === 1 ? saved.message : 'Details unavailable. Run Test connection again.',
       health: saved.health
-    });
+    };
+    result.textContent = latestTestResult.message;
   }
 }
 const operationFilter = document.getElementById('ops-filter');
@@ -379,6 +380,34 @@ function renderTestResult(result) {
   const step = document.querySelector('[data-test-checklist]');
   if (!health || !step) return;
   const errorCode = Object.hasOwn(retestErrors, health.errorCode) ? health.errorCode : null;
+  const detail = structuredDiagnostic(health.diagnostic);
+  document.querySelector('[data-check-failure]').hidden = !errorCode;
+  document.querySelector('[data-check-summary]').textContent = retestErrors[errorCode] || '';
+  document.querySelector('[data-check-error]').textContent = errorCode || '';
+  const inspect = document.querySelector('[data-inspect-certificate]');
+  if (inspect && errorCode === 'UPSTREAM_TLS_FAILED') inspect.hidden = false;
+  document.querySelector('[data-check-diagnostic]').textContent = detail
+    ? [detail.stage, detail.toolCode, detail.transportCode, detail.providerCode, detail.upstreamStatus, detail.trust].filter(value => value !== undefined).join('\\n') : 'Details unavailable.';
+
+  const checkedAt = health.checkedAt === null ? null : new Date(health.checkedAt).toISOString();
+  const checked = document.querySelector('[data-check-time]');
+  const fallback = document.querySelector('[data-check-time-fallback]');
+  if (!testViewHydrated) {
+    checked.hidden = true;
+    fallback.hidden = false;
+    if (checkedAt === null) {
+      fallback.textContent = 'never';
+    } else {
+      const time = document.createElement('time');
+      time.dateTime = time.title = time.textContent = checkedAt;
+      fallback.replaceChildren(time);
+    }
+    return;
+  }
+  fallback.hidden = true;
+  checked.hidden = false;
+  document.dispatchEvent(new CustomEvent('artium-check-time', { detail: checkedAt }));
+
   const passed = health.status === 'ok';
   // The server renders both state badges from the status vocabulary; this only swaps them.
   document.querySelector('[data-tool-state]').replaceChildren(document.querySelector('[data-outcome=' + (passed ? 'ok' : 'error') + ']').firstChild.cloneNode(true));
@@ -391,27 +420,6 @@ function renderTestResult(result) {
   mark.append(document.createElementNS('http://www.w3.org/2000/svg', 'use'));
   mark.firstChild.setAttribute('href', passed ? '#i-check' : '#i-x');
   step.querySelector('.mark').replaceChildren(mark);
-  const checkedAt = health.checkedAt === null ? null : new Date(health.checkedAt).toISOString();
-  if (testViewHydrated) {
-    document.dispatchEvent(new CustomEvent('artium-check-time', { detail: checkedAt }));
-  } else {
-    const checked = document.querySelector('[data-check-time]');
-    if (checkedAt === null) {
-      checked.textContent = 'never';
-    } else {
-      const time = document.createElement('time');
-      time.dateTime = time.title = time.textContent = checkedAt;
-      checked.replaceChildren(time);
-    }
-  }
-  const detail = structuredDiagnostic(health.diagnostic);
-  document.querySelector('[data-check-failure]').hidden = !errorCode;
-  document.querySelector('[data-check-summary]').textContent = retestErrors[errorCode] || '';
-  document.querySelector('[data-check-error]').textContent = errorCode || '';
-  const inspect = document.querySelector('[data-inspect-certificate]');
-  if (inspect && errorCode === 'UPSTREAM_TLS_FAILED') inspect.hidden = false;
-  document.querySelector('[data-check-diagnostic]').textContent = detail
-    ? [detail.stage, detail.toolCode, detail.transportCode, detail.providerCode, detail.upstreamStatus, detail.trust].filter(value => value !== undefined).join('\\n') : 'Details unavailable.';
 }
 
 let pendingAction = false;

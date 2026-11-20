@@ -94,7 +94,8 @@ function Header({ csrf, tool, mark, path, id, name, revision, enabled, state, ou
           <Badge label={writes.word} variant={writes.tone === 'warn' ? 'warning' : 'neutral'} />
           <Text as="span" type="supporting">
             {'Checked '}
-            <span data-check-time=""><Time iso={checkedAt} empty="never" /></span>
+            <span data-check-time="" suppressHydrationWarning><Time iso={checkedAt} empty="never" /></span>
+            <span data-check-time-fallback="" hidden suppressHydrationWarning dangerouslySetInnerHTML={{ __html: '' }} />
           </Text>
         </HStack>
       </HStack>
@@ -279,7 +280,7 @@ function Certificates({ csrf, path, name, certificates }: { csrf: string, path: 
           <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
             <Text type="supporting">{offered ? 'Compare the fingerprint with the one the appliance shows before trusting.' : 'Inspection is offered after a connection test fails with a certificate error.'}</Text>
             {endpoints.length > 0 && (
-              <ActionForm action={`${path}/certificates/inspect`} method="POST" csrf={csrf} attributes={{ 'data-inspect-certificate': '', hidden: !offered }}>
+              <ActionForm action={`${path}/certificates/inspect`} method="POST" csrf={csrf} attributes={{ 'data-inspect-certificate': '', hidden: !offered, suppressHydrationWarning: true }}>
                 <HStack gap={2} vAlign="center">
                   {endpoints.length > 1
                     ? <>

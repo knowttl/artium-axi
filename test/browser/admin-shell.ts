@@ -337,6 +337,24 @@ test('request-failed page go back button appears with history and returns to the
   `)
 })
 
+test('request-failed page keeps Go back hidden without history', () => {
+  chrome(['newpage', 'about:blank', '--no-snapshot'])
+  const id = /^\s*(\d+),about:blank,true$/m.exec(chrome(['pages']))?.[1]
+  assert.ok(id)
+  try {
+    browser(`
+      await page.eval('() => location.replace(' + JSON.stringify(base + '/admin/missing') + ')');
+      await page.wait('html[data-astryx-theme]');
+      await page.eval(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => {} } }));
+      await page.click('[aria-label="Copy request ID"]');
+      await page.wait('[data-copy-status]:not(:empty)');
+      check(await page.eval(() => history.length === 1), 'The fresh tab had a previous history entry');
+      check(await page.eval(() => document.querySelector('[data-history-back]').getClientRects().length === 0),
+        'Go back was visible in a hydrated tab without history');
+    `)
+  } finally { chrome(['closepage', id]) }
+})
+
 test('account CLI command copies its text', () => {
   browser(`
     await page.open(base + '/account');
@@ -1810,8 +1828,6 @@ for (const name of [testWithoutHydration, testWithLateHydration]) test(name, () 
     await page.wait('[data-test-result]:not(:empty)');
     const checkResult = async () => check(await page.eval(() =>
       document.querySelector('[data-test-result]').textContent === 'Test failed.' &&
-      document.querySelector('[data-tool-state]').textContent === 'Failing' &&
-      document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: ' &&
       !document.querySelector('[data-check-failure]').hidden &&
       document.querySelector('[data-check-error]').textContent === 'UPSTREAM_TLS_FAILED' &&
       document.querySelector('[data-check-diagnostic]').textContent.includes('TLS')
@@ -1820,8 +1836,9 @@ for (const name of [testWithoutHydration, testWithLateHydration]) test(name, () 
     await page.wait('form[data-test-tool] button:not([disabled])');
     const iso = await page.eval(() => window.checkIso);
     check(await page.eval(() => {
-      const time = document.querySelector('[data-check-time] time');
-      return time?.textContent === window.checkIso && time.dateTime === window.checkIso && time.title === window.checkIso;
+      const time = document.querySelector('[data-check-time-fallback]:not([hidden]) time');
+      return time?.textContent === window.checkIso && time.dateTime === window.checkIso && time.title === window.checkIso &&
+        document.querySelector('[data-check-time]').hidden;
     }), 'Fallback did not show the response timestamp');
     if (${name === testWithLateHydration}) {
       await page.eval(() => {
@@ -1829,8 +1846,23 @@ for (const name of [testWithoutHydration, testWithLateHydration]) test(name, () 
         script.src = '/admin/assets/hydrate.js?resume';
         document.head.append(script);
       });
-      await waitForTime('[data-check-time] time', iso);
+      await waitForTime('[data-check-time]:not([hidden]) time', iso);
       await checkResult();
+      check(await page.eval(() =>
+        document.querySelector('[data-check-time-fallback]').hidden &&
+        document.querySelector('[data-tool-state]').textContent === 'Failing' &&
+        document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '
+      ), 'Hydrated result did not replace the fallback and update the checklist');
+      check(await page.eval(async () => {
+        const transfer = new DataTransfer();
+        transfer.items.add(new File(['CANARY-upload'], 'synthetic.pem'));
+        const input = document.querySelector('[data-tls-file="caBundle"]');
+        input.files = transfer.files;
+        File.prototype.text = async () => 'CANARY-upload';
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        await Promise.resolve();
+        return document.querySelector('[data-profile-field="caBundle"]').value === 'CANARY-upload';
+      }), 'Credential editor lost its certificate upload handler');
     }
   `)
 })
