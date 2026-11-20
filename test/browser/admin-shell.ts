@@ -2262,6 +2262,27 @@ test(trackChangesWithLateHydration, () => {
   `)
 })
 
+test('native settings status follows the JSON as it is edited', () => {
+  browser(`
+    await page.open(base + '/admin/tools/kubernetes-axi?tab=advanced');
+    const status = '[data-json-status]';
+    await page.wait(status + '[data-valid=true]');
+    check(await page.eval(() => document.querySelector('[data-json-status]').textContent === 'Valid JSON object.'), 'Saved settings are not reported as valid');
+    const edits = [
+      ['{', false, text => text.startsWith('Not valid JSON: ')],
+      ['{}', true, text => text === 'Valid JSON object.'],
+      ['[]', false, text => text === 'Enter a JSON object, such as {}.'],
+      ['{"a": 1}', true, text => text === 'Valid JSON object.'],
+      ['null', false, text => text === 'Enter a JSON object, such as {}.'],
+    ];
+    for (const [value, valid, expected] of edits) {
+      await page.fill('[name=nativeSettings]', value);
+      await page.wait(status + '[data-valid=' + valid + ']');
+      check(expected(await page.eval(() => document.querySelector('[data-json-status]').textContent)), 'Wrong status for ' + value);
+    }
+  `)
+})
+
 test('tools show capability and current write state including fixed read-only reasons', () => {
   browser(`
     await page.open(base + '/admin/tools');
