@@ -112,7 +112,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
     const current = readBrowserSession(db, request.cookies[browserCookie]!)
     const parsed = toolSchema.safeParse((request.params as { tool: string }).tool)
     if (!parsed.success) throw new ArtiumError('NOT_FOUND')
-    const query = request.query as { tab?: string, q?: string, show?: string, sheet?: string }
+    const query = request.query as { tab?: string, q?: unknown, show?: string, sheet?: string }
     const api = '/v1/admin/tools/' + parsed.data
     const tool = await adminRead(app, request, api, adminToolRoutes.get.response)
     const rawCapable = tool.rawApi.modes.length > 0
@@ -220,7 +220,7 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       const show = query.show === 'selected' || query.show === 'deletes' ? query.show : 'all'
       const families = new Set(groups.map(group => group.family).filter(Boolean))
       const family = typeof kind === 'string' && families.has(kind) ? kind : undefined
-      return { supported: supported.length, q: query.q ?? '', show,
+      return { supported: supported.length, q: typeof query.q === 'string' ? query.q : '', show,
         familyNote: family ? ` Operations for your ${family.toUpperCase()} deployment are listed first.` : '',
         deleteCount: groups.reduce((total, group) => total + group.operations.filter(operation => operation.risk.includes('delete')).length, 0),
         groups: groups.map(group => ({ title: group.title, family: group.family?.toUpperCase() ?? null, deletes: group.operations.filter(operation => operation.risk.includes('delete')).length,

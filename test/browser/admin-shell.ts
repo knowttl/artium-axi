@@ -2384,76 +2384,93 @@ for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi', 'unifi-axi', 'proxmox-a
   `)
 })
 
-for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' group controls select and clear only shown operations', () => {
+const pickerOperations = [['mg-axi', 'mail.message.mark'], ['vectra-axi', 'qux.detection.note.add']] as const
+
+for (const [tool, operation] of pickerOperations) test(tool + ' group controls select and clear only shown operations', () => {
   browser(`
     await page.open(base + '/admin/tools/${tool}?tab=writes');
     await page.wait('.ops-actions:not([hidden])');
+    const groupSelector = 'details:has([name=operations][value="${operation}"])';
     const state = () => page.eval(() => {
-      const group = document.querySelector('[data-ops-group]:has([data-delete])');
+      const group = document.querySelector('details:has([name=operations][value="${operation}"])');
       const operations = [...group.querySelectorAll('[data-op]')];
       return { total: operations.length, visible: operations.filter(operation => !operation.hidden).length, checked: operations.filter(operation => operation.querySelector('input').checked).length,
-        deletes: operations.filter(operation => operation.hasAttribute('data-delete')).length,
-        deletesChecked: operations.filter(operation => operation.hasAttribute('data-delete') && operation.querySelector('input').checked).length,
+        shown: operations.filter(operation => !operation.hidden).map(operation => operation.querySelector('input').value),
         hiddenChecked: operations.filter(operation => operation.hidden && operation.querySelector('input').checked).length,
         otherChecked: [...document.querySelectorAll('[data-ops-group]')].filter(other => other !== group).flatMap(other => [...other.querySelectorAll('[data-op] input:checked')]).length };
     });
     const none = await state();
-    await page.eval(() => { document.querySelector('[data-ops-group]:has([data-delete])').open = true; });
-    await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=all]');
+    await page.eval(() => { document.querySelector('details:has([name=operations][value="${operation}"])').open = true; });
+    await page.click(groupSelector + ' [data-ops-select=all]');
     const all = await state();
-    check(all.deletes > 0 && all.checked === all.total && all.deletesChecked === all.deletes, 'Select all must include every operation in the group, including deletes');
+    check(all.checked === all.total, 'Select all must include every operation in the group');
     check(all.otherChecked === 0, 'Select all changed another group');
-    await page.fill('[name=q]', await page.eval(() => document.querySelector('[data-ops-group]:has([data-delete]) [data-op]').dataset.op));
-    await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=none]');
+    await page.fill('[name=q]', '${operation}');
+    check(JSON.stringify((await state()).shown) === JSON.stringify(['${operation}']), 'Group filter showed the wrong operations');
+    await page.click(groupSelector + ' [data-ops-select=none]');
     const filteredClear = await state();
     check(filteredClear.checked === all.checked - 1 && filteredClear.hiddenChecked === filteredClear.checked, 'Clear all must clear only the shown operations');
-    await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=all]');
+    await page.click(groupSelector + ' [data-ops-select=all]');
     check((await state()).checked === all.checked, 'Select all must select the shown operation');
     check(none.checked === 0, 'Unexpected initial selection');
     await page.fill('[name=q]', '');
     await page.click('label:has([name=show][value=selected])');
-    await page.click('[data-ops-group]:has([data-delete]) [data-op]:not([hidden]) input');
+    await page.click(groupSelector + ' [data-op]:not([hidden]) input');
     const individualClear = await state();
     check(individualClear.checked === all.checked - 1 && individualClear.visible === individualClear.checked, 'Unchecked operation remains visible in Selected view');
-    await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=none]');
+    await page.click(groupSelector + ' [data-ops-select=none]');
     check(await page.eval(() => document.querySelector('[data-ops-empty]').hidden === false && !document.querySelector('[data-ops-group]:not([hidden])')), 'Cleared operations remain visible in Selected view');
   `)
 })
 
-test('the operation filter narrows the list in place, opens the matching group and survives Enter, and a deep link starts filtered', () => {
+test('the operation filter matches a catalogue label and Enter reopens its group in place', () => {
   browser(`
     await page.open(base + '/admin/tools/mg-axi?tab=writes');
     await page.wait('.ops-actions:not([hidden])');
     check(await page.eval(() => document.querySelector('button[form=ops-filter]').hidden), 'Apply stays visible once the page is interactive');
-    const target = await page.eval(() => {
-      const group = [...document.querySelectorAll('[data-ops-group]')].at(-1);
-      return group.open ? '' : group.querySelector('[data-op]').dataset.op;
-    });
-    check(target, 'The last group must start collapsed');
-    await page.fill('[name=q]', target);
+    const groups = 'details:has([name=operations][value="mg.entra.group.member.add"])';
+    const isOpen = () => page.eval(() => document.querySelector('details:has([name=operations][value="mg.entra.group.member.add"])').open);
+    check(!await isOpen(), 'Groups must start collapsed');
+    await page.fill('[name=q]', 'Add member');
+    const shown = await page.eval(() => [...document.querySelectorAll('[data-op]:not([hidden]) [name=operations]')].map(input => input.value));
+    check(JSON.stringify(shown) === JSON.stringify(['mg.entra.group.member.add']), 'Label filter showed the wrong operations');
+    check(await isOpen() && await page.eval(() => document.querySelectorAll('[data-ops-group]:not([hidden])').length) === 1, 'Filter did not open Groups and hide the others');
+    await page.click(groups + ' > summary');
+    check(!await isOpen(), 'Groups did not close');
+    await page.click('[name=q]');
     await page.press('Enter');
-    const filtered = await page.eval(() => ({ search: location.search, hiddenGroups: document.querySelectorAll('[data-ops-group][hidden]').length, groups: document.querySelectorAll('[data-ops-group]').length,
-      lastOpen: [...document.querySelectorAll('[data-ops-group]')].at(-1).open,
-      shown: [...document.querySelectorAll('[data-op]:not([hidden])')].map(operation => operation.dataset.op) }));
-    check(filtered.search === '?tab=writes', 'Enter reloaded the page: ' + filtered.search);
-    check(filtered.shown.length > 0 && filtered.shown.every(search => search.includes(target)), 'Filter left a non-matching operation visible');
-    check(filtered.lastOpen && filtered.hiddenGroups > 0 && filtered.hiddenGroups < filtered.groups, 'Filter did not open the matching group and hide the others');
-    await page.open(base + '/admin/tools/mg-axi?tab=writes&show=deletes');
-    await page.wait('.ops-actions:not([hidden])');
-    check(await page.eval(() => document.querySelector('[name=show][value=deletes]').checked
-      && [...document.querySelectorAll('[data-op]:not([hidden])')].every(operation => operation.hasAttribute('data-delete'))
-      && !!document.querySelector('[data-op][data-delete]:not([hidden])')), 'Deep link did not start on the Deletes view');
+    check(await isOpen(), 'Enter did not reopen Groups');
+    check(await page.eval(() => location.search === '?tab=writes'), 'Enter reloaded the page');
   `)
 })
 
-for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' card-level controls act on every shown operation and keep the selected counts live', () => {
+test('the Deletes deep link shows exactly the pinned Graph Mail deletes', () => {
+  browser(`
+    await page.open(base + '/admin/tools/mg-axi?tab=writes&show=deletes');
+    await page.wait('.ops-actions:not([hidden])');
+    check(await page.eval(() => document.querySelector('[name=show][value=deletes]').checked), 'Deep link did not start on the Deletes view');
+    const shown = await page.eval(() => [...document.querySelectorAll('[data-op]:not([hidden]) [name=operations]')].map(input => input.value).sort());
+    check(JSON.stringify(shown) === JSON.stringify(['mail.folder.delete', 'mail.message.trash', 'mail.rule.delete']), 'Deletes view showed the wrong operations');
+  `)
+})
+
+test('a writes deep link with repeated search keys opens the unfiltered picker', () => {
+  browser(`
+    await page.open(base + '/admin/tools/mg-axi?tab=writes&q=note&q=close');
+    await page.wait('.ops-actions:not([hidden])');
+    check(await page.eval(() => document.querySelector('[name=q]').value === ''
+      && document.querySelectorAll('[data-op]:not([hidden]) [name=operations]').length === 19), 'Repeated query keys did not leave the picker unfiltered');
+  `)
+})
+
+for (const [tool, operation] of pickerOperations) test(tool + ' card-level controls act on every shown operation and keep the selected counts live', () => {
   browser(`
     await page.open(base + '/admin/tools/${tool}?tab=writes');
     await page.wait('.ops-actions:not([hidden])');
     const state = () => page.eval(() => {
       const operations = [...document.querySelectorAll('[data-op]')];
       const checked = operations.filter(operation => operation.querySelector('input').checked);
-      return { total: operations.length, checked: checked.length, visible: operations.filter(operation => !operation.hidden).length,
+      return { total: operations.length, checked: checked.length, shown: operations.filter(operation => !operation.hidden).map(operation => operation.querySelector('input').value),
         hiddenChecked: checked.filter(operation => operation.hidden).length,
         collapsedChecked: checked.filter(operation => !operation.closest('[data-ops-group]').open).length,
         header: document.querySelector('[data-ops-selected]').textContent, headline: document.querySelector('[data-ops-selected]').parentElement.textContent,
@@ -2466,17 +2483,17 @@ for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' card-level controls a
     check(all.checked === all.total && all.collapsedChecked > 0, 'Card-level Select all must reach every group, collapsed ones included');
     check(all.header === String(all.total) && all.headline.startsWith(all.total + ' of ' + all.total + ' selected'), 'Header count stale after Select all: ' + all.headline);
     check(all.groupCounts, 'Group counts stale after Select all');
-    await page.fill('[name=q]', await page.eval(() => document.querySelector('[data-op]').dataset.op));
+    await page.fill('[name=q]', '${operation}');
     const shown = await state();
-    check(shown.visible > 0 && shown.visible < shown.total, 'Filter must hide some operations');
+    check(JSON.stringify(shown.shown) === JSON.stringify(['${operation}']), 'Card filter showed the wrong operations');
     await page.click('[aria-label="Clear all shown operations"]');
     const filtered = await state();
-    check(filtered.checked === all.total - shown.visible &&filtered.hiddenChecked === filtered.checked, 'Card-level Clear all must clear only shown operations');
+    check(filtered.checked === all.total - 1 && filtered.hiddenChecked === filtered.checked, 'Card-level Clear all must clear only shown operations');
     check(filtered.header === String(filtered.checked) && filtered.groupCounts, 'Counts stale after filtered Clear all');
     await page.fill('[name=q]', '');
     await page.click('label:has([name=show][value=selected])');
     const selectedView = await state();
-    check(selectedView.visible === selectedView.checked && selectedView.header === String(selectedView.checked), 'Selected view disagrees with the header count');
+    check(selectedView.shown.length === selectedView.checked && selectedView.header === String(selectedView.checked), 'Selected view disagrees with the header count');
     await page.click('[data-op]:not([hidden]) input');
     const unchecked = await state();
     check(unchecked.header === String(selectedView.checked - 1) && unchecked.groupCounts, 'Header count stale after an individual change');

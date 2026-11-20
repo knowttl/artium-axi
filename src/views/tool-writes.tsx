@@ -5,7 +5,7 @@ import { HStack } from '@astryxdesign/core/HStack'
 import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
-import { useLayoutEffect, useState } from 'react'
+import { useLayoutEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import { ActionForm, Revision } from './action-form.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
@@ -76,11 +76,13 @@ function startingPicker(groups: OperationGroup[], query: string, show: Show): Pi
   return { ...picker, open: new Set(groups.flatMap((group, index) => index === 0 || group.operations.some(operation => checked.has(operation.name)) ? [index] : [])) }
 }
 
-function Operations({ q, show, deleteCount, groups, supported, familyNote }: NonNullable<WritesProps['operations']>) {
-  const [picker, setPicker] = useState(() => startingPicker(groups, q, show))
+function Operations({ deleteCount, groups, supported, familyNote, picker, setPicker, update }: NonNullable<WritesProps['operations']> & {
+  picker: Picker
+  setPicker: Dispatch<SetStateAction<Picker>>
+  update: (change: (current: Picker) => Partial<Picker>) => void
+}) {
   const [hydrated, setHydrated] = useState(false)
   useLayoutEffect(() => setHydrated(true), [])
-  const update = (change: (current: Picker) => Partial<Picker>) => setPicker(current => openMatchingGroups(groups, { ...current, ...change(current) }))
   const select = (scope: OperationGroup[], on: boolean) => update(current => {
     const checked = new Set(current.checked)
     for (const operation of scope.flatMap(group => shownOperations(group, current))) {
@@ -149,6 +151,9 @@ function Operations({ q, show, deleteCount, groups, supported, familyNote }: Non
 
 export function Writes({ csrf, name, api, product, revision, panel }: { csrf: string, name: string, api: string, product: string, revision: number, panel: WritesProps }) {
   const { capable, readOnlyReason, blockedTitle, blocked, unlocks, grant, unsupported, confirmation, switches, operations } = panel
+  const groups = operations?.groups ?? []
+  const [picker, setPicker] = useState(() => startingPicker(groups, operations?.q ?? '', operations?.show ?? 'all'))
+  const update = (change?: (current: Picker) => Partial<Picker>) => setPicker(current => openMatchingGroups(groups, change ? { ...current, ...change(current) } : current))
   const save = <Button type="submit" label="Save write permissions" variant="primary" size="sm" />
   return (
     <div className="split has-aside" data-write-access="">
@@ -166,7 +171,7 @@ export function Writes({ csrf, name, api, product, revision, panel }: { csrf: st
               <VStack gap={4}>
                 <Revision value={revision} />
                 <Panel title="Write access"><VStack gap={0}><Switches switches={switches} /></VStack></Panel>
-                {operations && <Operations {...operations} />}
+                {operations && <Operations {...operations} picker={picker} setPicker={setPicker} update={update} />}
                 <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
                   <Text type="supporting">{SAVED}</Text>
                   {save}
@@ -174,7 +179,10 @@ export function Writes({ csrf, name, api, product, revision, panel }: { csrf: st
               </VStack>
             </ActionForm>
             <Text as="p" type="supporting">{grant}</Text>
-            {operations && <form id="ops-filter" method="get" action={`/admin/tools/${name}`} hidden onSubmit={event => event.preventDefault()}><input type="hidden" name="tab" value="writes" /></form>}
+            {operations && <form id="ops-filter" method="get" action={`/admin/tools/${name}`} hidden onSubmit={event => {
+              event.preventDefault()
+              update()
+            }}><input type="hidden" name="tab" value="writes" /></form>}
           </>
         )}
       </VStack>
