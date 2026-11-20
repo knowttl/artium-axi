@@ -55,9 +55,9 @@ function render(overrides: Partial<ToolProps> = {}) {
 
 const writes: WritesProps = { capable: true, readOnlyReason: '', blockedTitle: 'Always blocked', blocked: 'Synthetic blocked text.', unlocks: 'Synthetic unlock text.', grant: 'No write actions are currently granted.',
   unsupported: false, confirmation: 'Synthetic write confirmation?', switches: [{ name: 'enabled', label: 'Allow writes', on: true, text: 'On. Synthetic.' }],
-  operations: { supported: 2, selected: 1, familyNote: '', q: 'note', show: 'selected', deleteCount: 1, empty: false, groups: [{ title: 'Notes', family: null, picked: 1, deletes: 1, notUsed: false, open: true, hidden: false,
-    operations: [{ name: 'notes.set', label: 'Set notes', search: 'set notes notes.set', delete: false, bulk: false, checked: true, hidden: false },
-      { name: 'notes.delete', label: 'notes.delete', search: 'notes.delete notes.delete', delete: true, bulk: false, checked: false, hidden: false }] }] } }
+  operations: { supported: 2, familyNote: '', q: 'note', show: 'selected', deleteCount: 1, groups: [{ title: 'Notes', family: null, deletes: 1, notUsed: false,
+    operations: [{ name: 'notes.set', label: 'Set notes', search: 'set notes notes.set', delete: false, bulk: false, checked: true },
+      { name: 'notes.delete', label: 'notes.delete', search: 'notes.delete notes.delete', delete: true, bulk: false, checked: false }] }] } }
 
 test.each([
   { enabled: false, consequence: 'Enable this tool for people whose roles grant access?', next: 'true', checked: 'false' },
@@ -235,6 +235,22 @@ test('Write permissions patch the write-access route, list each operation under 
   const [filter] = find(html, element => element.tagName === 'form' && attribute(element, 'id') === 'ops-filter')
   expect([attribute(filter!, 'method'), attribute(filter!, 'action'), controls(filter!)]).toEqual(['get', '/admin/tools/falcon-axi', [['tab', 'hidden', 'writes']]])
   expect(find(html, element => attribute(element, 'form') === 'ops-filter').map(element => attribute(element, 'name'))).toEqual(expect.arrayContaining(['q', 'show']))
+})
+
+test.each([
+  { q: '', show: 'all' as const, hidden: [false, false], empty: false, open: [true, false] },
+  { q: 'tickets', show: 'all' as const, hidden: [true, false], empty: false, open: [false, true] },
+  { q: '', show: 'deletes' as const, hidden: [true, false], empty: false, open: [false, true] },
+  { q: 'notes', show: 'deletes' as const, hidden: [true, true], empty: true, open: [false, false] },
+])('the server-rendered picker filtered by "$q" and $show hides $hidden groups, opens $open and reports empty=$empty without JavaScript', ({ q, show, hidden, empty, open }) => {
+  const group = (title: string, operations: { name: string, delete: boolean }[]) => ({ title, family: null, deletes: operations.filter(operation => operation.delete).length, notUsed: false,
+    operations: operations.map(operation => ({ ...operation, label: operation.name, search: operation.name, bulk: false, checked: false })) })
+  const html = render({ panel: { tab: 'writes', writes: { ...writes, operations: { supported: 2, familyNote: '', q, show, deleteCount: 1,
+    groups: [group('Notes', [{ name: 'notes.set', delete: false }]), group('Tickets', [{ name: 'tickets.delete', delete: true }])] } } } })
+  const groups = find(html, element => attribute(element, 'data-ops-group') !== undefined)
+  expect(groups.map(element => attribute(element, 'hidden') !== undefined)).toEqual(hidden)
+  expect(groups.map(element => attribute(element, 'open') !== undefined)).toEqual(open)
+  expect(find(html, element => attribute(element, 'data-ops-empty') !== undefined).map(element => attribute(element, 'hidden') === undefined)).toEqual([empty])
 })
 
 test('a tool that is always read-only offers no write form', () => {

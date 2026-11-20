@@ -271,7 +271,10 @@ Writes default to off; the master **Allow writes** switch is absent on fixed rea
 Review the current grant, actions enabled by the switch and actions that always stay blocked.
 For AWX, use **Allow writes**, **Allow destructive deletes** and **Allow security administration**, each off by default, and review the [AWX write boundary](safety.md#write-gates-by-tool) for its scope, preview requirements, legacy settings and operations awaiting support.
 For tools with an operations allow-list, select supported operations from the pinned catalogue, grouped by resource with a search box and All, Selected and Deletes filters; turning writes on requires at least one selection.
-With JavaScript enabled, the **Allowed operations** card and each group have **Select all** and **Clear all** controls that affect only operations shown by the current filters, including deletes when shown; the card-level pair covers every group, collapsed ones included, and the selected count updates as you go.
+Once the picker is interactive, search and view changes apply live and open matching groups while a filter is active.
+If **Apply** is still visible, it reloads the page with the search and view you entered.
+In the interactive picker, the **Allowed operations** card and each group have **Select all** and **Clear all** controls that affect only operations matching the current filters, including deletes when shown.
+The card-level controls include collapsed groups, and the selection counts update as you go.
 See the [UniFi capability boundary](safety.md#network-appliance-reads) for required operation and variant grants.
 See the [Falcon capability boundary](safety.md#write-gates-by-tool) for exact lifecycle grants and the independent RTR profile opt-in and command restriction.
 For BeyondTrust, the separate **Allow deletes** toggle can be saved while writes are off; see the [delete gates](safety.md#beyondtrust-endpoint-privilege-management) before enabling it.
