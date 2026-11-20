@@ -5,7 +5,7 @@ import { HStack } from '@astryxdesign/core/HStack'
 import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
-import { useLayoutEffect, useState, type Dispatch, type SetStateAction } from 'react'
+import { useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { ActionForm, Revision } from './action-form.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
@@ -76,13 +76,12 @@ function startingPicker(groups: OperationGroup[], query: string, show: Show): Pi
   return { ...picker, open: new Set(groups.flatMap((group, index) => index === 0 || group.operations.some(operation => checked.has(operation.name)) ? [index] : [])) }
 }
 
-function Operations({ deleteCount, groups, supported, familyNote, picker, setPicker, update }: NonNullable<WritesProps['operations']> & {
+function Operations({ deleteCount, groups, supported, familyNote, hydrated, picker, setPicker, update }: NonNullable<WritesProps['operations']> & {
+  hydrated: boolean
   picker: Picker
   setPicker: Dispatch<SetStateAction<Picker>>
   update: (change: (current: Picker) => Partial<Picker>) => void
 }) {
-  const [hydrated, setHydrated] = useState(false)
-  useLayoutEffect(() => setHydrated(true), [])
   const select = (scope: OperationGroup[], on: boolean) => update(current => {
     const checked = new Set(current.checked)
     for (const operation of scope.flatMap(group => shownOperations(group, current))) {
@@ -129,7 +128,7 @@ function Operations({ deleteCount, groups, supported, familyNote, picker, setPic
               <div className="ops-body">
                 <SelectControls scope={`operations in ${group.title}`} hidden={!hydrated} onSelect={on => select([group], on)} />
                 {group.operations.map(operation => (
-                  <label key={operation.name} className="op" data-op={operation.search} data-delete={operation.delete ? '' : undefined} hidden={!shown.has(operation.name)}>
+                  <label key={operation.name} className="op" data-op="" hidden={!shown.has(operation.name)}>
                     <input type="checkbox" name="operations" data-type="array" value={operation.name} checked={picker.checked.has(operation.name)}
                       onChange={event => { const on = event.currentTarget.checked; update(current => ({ checked: new Set(on ? [...current.checked, operation.name] : [...current.checked].filter(name => name !== operation.name)) })) }} />
                     <span>{operation.label}</span>
@@ -153,10 +152,31 @@ export function Writes({ csrf, name, api, product, revision, panel }: { csrf: st
   const { capable, readOnlyReason, blockedTitle, blocked, unlocks, grant, unsupported, confirmation, switches, operations } = panel
   const groups = operations?.groups ?? []
   const [picker, setPicker] = useState(() => startingPicker(groups, operations?.q ?? '', operations?.show ?? 'all'))
+  const [hydrated, setHydrated] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    if (!operations) return
+    const page = root.current!
+    const query = page.querySelector<HTMLInputElement>('input[name=q]')!.value
+    const view = page.querySelector<HTMLInputElement>('input[name=show]:checked')!.value
+    const show = view === 'selected' || view === 'deletes' ? view : 'all'
+    const checked = new Set(Array.from(page.querySelectorAll<HTMLInputElement>('input[name=operations]:checked'), input => input.value))
+    const next: Picker = { query, show, checked, open: picker.open }
+    const filterChanged = query !== picker.query || show !== picker.show ||
+      (show === 'selected' && (checked.size !== picker.checked.size || [...checked].some(name => !picker.checked.has(name))))
+    const open = new Set((filterChanged ? openMatchingGroups(groups, next) : next).open)
+    page.querySelectorAll<HTMLDetailsElement>('[data-ops-group]').forEach((group, index) => {
+      if (group.open === picker.open.has(index)) return
+      if (group.open) open.add(index)
+      else open.delete(index)
+    })
+    setPicker({ ...next, open })
+    setHydrated(true)
+  }, [])
   const update = (change?: (current: Picker) => Partial<Picker>) => setPicker(current => openMatchingGroups(groups, change ? { ...current, ...change(current) } : current))
   const save = <Button type="submit" label="Save write permissions" variant="primary" size="sm" />
   return (
-    <div className="split has-aside" data-write-access="">
+    <div ref={root} className="split has-aside" data-write-access="">
       <VStack gap={4}>
         {!capable ? (
           <Panel title="Always read-only" description={`${product} cannot change data through Artium.`}>
@@ -171,7 +191,7 @@ export function Writes({ csrf, name, api, product, revision, panel }: { csrf: st
               <VStack gap={4}>
                 <Revision value={revision} />
                 <Panel title="Write access"><VStack gap={0}><Switches switches={switches} /></VStack></Panel>
-                {operations && <Operations {...operations} picker={picker} setPicker={setPicker} update={update} />}
+                {operations && <Operations {...operations} hydrated={hydrated} picker={picker} setPicker={setPicker} update={update} />}
                 <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
                   <Text type="supporting">{SAVED}</Text>
                   {save}
