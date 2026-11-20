@@ -5,12 +5,12 @@ export function FilterForm({ action, apply, trailing, children }: { action: stri
   const [hydrated, setHydrated] = useState(false)
   useEffect(() => setHydrated(true), [])
   return (
-    <form className="filters" method="get" action={action} data-hydrated={hydrated || undefined}
+    <form className="filters" method="get" action={action}
       onChange={event => { if (event.target instanceof HTMLSelectElement) event.currentTarget.requestSubmit() }}
       onSubmit={event => {
         event.preventDefault()
         const query = new URLSearchParams()
-        for (const [name, value] of new FormData(event.currentTarget)) if (typeof value === 'string' && value !== '') query.set(name, value)
+        for (const [name, value] of new FormData(event.currentTarget)) if (value !== '') query.set(name, String(value))
         location.assign(`${event.currentTarget.action}?${query}`)
       }}>
       {children}
