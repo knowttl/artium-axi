@@ -93,7 +93,7 @@ function view(body: string) {
   const all = nodes(parse(body))
   const within = (root: Element | undefined, tag: string) => root ? nodes(root).filter(element => element.tagName === tag) : []
   const table = all.find(element => element.tagName === 'table')
-  const form = all.find(element => element.tagName === 'form' && attribute(element, 'data-filters') !== undefined)
+  const form = all.find(element => element.tagName === 'form' && attribute(element, 'class') === 'filters')
   const pages = all.find(element => attribute(element, 'aria-label') === 'Pages')
   const group = all.find(element => attribute(element, 'aria-label') === 'Time range')
   return {
@@ -108,7 +108,9 @@ function view(body: string) {
       options: within(select, 'option').map(option => [attribute(option, 'value'), words(option)]) })),
     links: within(form, 'a').map(link => ({ text: words(link), label: attribute(link, 'aria-label'), href: decode(attribute(link, 'href')), current: attribute(link, 'aria-current') })),
     range: within(group, 'a').map(link => ({ text: words(link), href: decode(attribute(link, 'href')), current: attribute(link, 'aria-current') === 'true' })),
-    apply: within(form, 'button').map(button => ({ text: words(button), hiddenByScript: attribute(button, 'data-filters-apply') !== undefined })),
+    apply: within(form, 'button').map(button => ({
+      text: words(button), type: attribute(button, 'type'),
+      hidden: attribute(button, 'hidden') !== undefined, disabled: attribute(button, 'disabled') !== undefined })),
     pager: (pages ? nodes(pages) : []).filter(element => element.tagName === 'a' || element.tagName === 'button' || attribute(element, 'aria-disabled') === 'true').map(element => ({
       text: words(element), href: decode(attribute(element, 'href')), disabled: attribute(element, 'aria-disabled') === 'true' || attribute(element, 'disabled') !== undefined })),
     summary: all.map(words).find(text => /^Showing \d+ records?$/.test(text)),
@@ -233,7 +235,7 @@ test('with every filter set the form, time range, chips and clear links keep the
     ['Clear event filter', `${href({ drop: 'event' })}&range=24h`], ['Clear outcome filter', `${href({ drop: 'outcome' })}&range=24h`],
     ['Clear error code filter', `${href({ drop: 'errorCode' })}&range=24h`]])
   expect(page.links.at(-1)).toMatchObject({ text: 'Clear filters', href: '/admin/audit' })
-  expect(page.apply).toEqual([{ text: 'Apply', hiddenByScript: true }])
+  expect(page.apply).toEqual([{ text: 'Apply', type: 'submit', hidden: false, disabled: false }])
 })
 
 test('a custom range shows From and To fields, keeps its Custom link on them and leaves Apply visible', async () => {
@@ -244,7 +246,7 @@ test('a custom range shows From and To fields, keeps its Custom link on them and
   expect(page.range).toEqual([{ text: 'Any time', href: '/admin/audit', current: false }, { text: '24 h', href: '/admin/audit?range=24h', current: false },
     { text: '7 days', href: '/admin/audit?range=7d', current: false }, { text: 'Custom', href: '#audit-from', current: true }])
   expect(page.links.find(link => link.text === 'Failed runs only')!.href).toBe('/admin/audit?from=2026-01-01T00%3A00%3A00Z&range=custom&failed=1')
-  expect(page.apply).toEqual([{ text: 'Apply', hiddenByScript: false }])
+  expect(page.apply).toEqual([{ text: 'Apply', type: 'submit', hidden: false, disabled: false }])
 })
 
 test('with no filter the form is bare, Any time is current, and the export links name only the format', async () => {

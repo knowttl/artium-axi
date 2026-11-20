@@ -9,6 +9,7 @@ import { TextInput } from '@astryxdesign/core/TextInput'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
+import { FilterForm } from './filter-form.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
@@ -24,7 +25,7 @@ export interface ToolsProps {
 function Filters({ show, q, links }: ToolsProps['filters']) {
   const [query, setQuery] = useState(q)
   return (
-    <form className="filters" method="get" action="/admin/tools" data-filters>
+    <FilterForm action="/admin/tools">
       <HStack gap={1} role="group" aria-label="Show">
         {links.map(link => <Button key={link.label} href={link.href} label={`${link.label} ${link.count}`} variant={link.current ? 'secondary' : 'ghost'} size="sm"
           {...{ 'aria-current': link.current ? 'page' : undefined }} />)}
@@ -32,7 +33,7 @@ function Filters({ show, q, links }: ToolsProps['filters']) {
       {show !== 'all' && <input type="hidden" name="show" value={show} />}
       <TextInput label="Filter tools" isLabelHidden type="search" htmlName="q" value={query} onChange={setQuery} size="sm" width={300} startIcon={<Icon name="search" />}
         placeholder="Filter tools" />
-    </form>
+    </FilterForm>
   )
 }
 

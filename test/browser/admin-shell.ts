@@ -1524,6 +1524,8 @@ test('audit event filter, pagination and expanded details retain the selected se
   chrome(['resize', '420', '900'])
   browser(`
     await page.open(base + '/admin/audit?limit=1');
+    await page.wait('form.filters [type=submit][hidden]');
+    check(await page.eval(() => document.querySelector('form.filters [type=submit]').getClientRects().length === 0), 'Ordinary audit filters did not hide Apply');
     await page.eval(() => { const event = document.querySelector('[name=event]'); event.value = 'run-start'; event.dispatchEvent(new Event('change', { bubbles: true })); });
     await page.wait('.filter.set [name=event]');
     check(await page.eval(() => document.querySelectorAll('tbody tr').length === 1 && document.querySelector('tbody').textContent.includes('run-start')), 'Event filter failed');
@@ -1545,10 +1547,11 @@ test('audit event filter, pagination and expanded details retain the selected se
     await page.click('tbody th a');
     await page.wait('#record');
     check(await page.eval(() => document.querySelector('#record .all-fields dl').textContent.includes('synthetic-run-102')), 'Newest did not restart the search');
-    await page.click('form[data-filters] a[href="/admin/audit"]');
+    await page.click('form.filters a[href="/admin/audit"]');
     await page.wait('[name=event]');
     check(await page.eval(() => document.querySelector('[name=event]').value === ''), 'Clear filters failed');
     await page.open(base + '/admin/audit?failed=1&range=7d');
+    await page.wait('form.filters [type=submit][hidden]');
     await page.eval(() => { const tool = document.querySelector('[name=tool]'); tool.value = 'falcon-axi'; tool.dispatchEvent(new Event('change', { bubbles: true })); });
     await page.wait('.filter.set [name=tool]');
     check(await page.eval(() => {
@@ -2611,25 +2614,80 @@ test('ordinary accounts have account help and no administration navigation', () 
 test('user search combines filters, retains them through pagination and explains empty results', () => {
   browser(`
     await page.open(base + '/admin/users?limit=1');
-    check(await page.eval(() => document.querySelector('[data-filters-apply]').hidden), 'Filter chips did not switch to applying on change');
+    await page.wait('form.filters [type=submit][hidden]');
+    check(await page.eval(() => document.querySelector('form.filters [type=submit]').getClientRects().length === 0), 'People filters did not hide Apply');
     await page.fill('[name=q]', 'synthetic');
     await page.eval(() => {
-      const form = document.querySelector('form[data-filters]');
+      const form = document.querySelector('form.filters');
       form.elements.source.value = 'local';
       form.elements.status.value = 'enabled';
       form.elements.role.value = 'synthetic-role';
-      form.requestSubmit();
+      form.elements.role.dispatchEvent(new Event('change', { bubbles: true }));
     });
-    await page.wait('[name=q][value="synthetic"]');
+    await page.wait('.filter.set [name=role]');
+    check(await page.eval(() => new URLSearchParams(location.search).get('role') === 'synthetic-role'), 'Changing the role did not apply the filter');
     check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Showing 1 of 2')), 'Missing filtered count');
     await page.click('a[href*="cursor="]');
     await page.wait('a[href="/admin/users/synthetic-ordinary"]');
     check(await page.eval(() => ['q', 'source', 'status', 'role'].every(name => new URLSearchParams(location.search).has(name))), 'Pagination lost filters');
+    await page.wait('form.filters [type=submit][hidden]');
     await page.fill('[name=q]', 'no-matching-person');
-    await page.eval(() => document.querySelector('form[data-filters]').requestSubmit());
-    await page.wait('[name=q][value="no-matching-person"]');
+    await page.eval(() => {
+      const role = document.querySelector('form.filters [name=role]');
+      role.value = '';
+      role.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await page.wait('.filter:not(.set) [name=role]');
+    check(await page.eval(() => {
+      const query = new URLSearchParams(location.search);
+      return query.get('q') === 'no-matching-person' && !query.has('role');
+    }), 'Search text was lost or the empty role was sent');
     check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Nobody matches these filters')), 'Missing empty-state guidance');
     check(await page.eval(() => !new URLSearchParams(location.search).has('cursor')), 'Search retained old cursor');
+  `)
+})
+
+test('tool search and the audit custom range submit through the hydrated filter form', () => {
+  browser(`
+    const waitForRootTheme = () => page.eval(() => new Promise((resolve, reject) => {
+      const root = document.documentElement;
+      if (root.hasAttribute('data-astryx-theme')) { resolve(); return; }
+      const observer = new MutationObserver(() => {
+        observer.disconnect();
+        clearTimeout(timeout);
+        resolve();
+      });
+      const timeout = setTimeout(() => {
+        observer.disconnect();
+        reject(new Error('Timed out waiting for the root Astryx theme'));
+      }, 5000);
+      observer.observe(root, { attributeFilter: ['data-astryx-theme'] });
+    }));
+    await page.open(base + '/admin/tools?show=attention');
+    await waitForRootTheme();
+    await page.fill('[name=q]', 'vectra');
+    await page.press('Enter');
+    await page.wait('form.filters a[href="/admin/tools?show=attention&q=vectra"][aria-current=page]');
+    check(await page.eval(() => {
+      const query = new URLSearchParams(location.search);
+      return location.pathname === '/admin/tools' && query.get('q') === 'vectra' && query.get('show') === 'attention';
+    }), 'Tool search lost the view or the text');
+    await waitForRootTheme();
+    await page.fill('[name=q]', '');
+    await page.press('Enter');
+    await page.wait('form.filters a[href="/admin/tools?show=attention"][aria-current=page]');
+    check(await page.eval(() => location.pathname === '/admin/tools' && location.search === '?show=attention'), 'Clearing tool search sent q or lost the view');
+    await page.open(base + '/admin/audit?range=custom');
+    await waitForRootTheme();
+    await page.fill('[name=from]', '2026-01-01T00:00:00Z');
+    const apply = (await page.snapshot()).match(/uid=(\\S+) button "Apply"/)?.[1];
+    check(apply, 'Custom range hid Apply');
+    await page.click('@' + apply);
+    await page.wait('form.filters a[href*="from=2026-01-01T00%3A00%3A00Z"][href*="failed=1"]');
+    check(await page.eval(() => {
+      const query = new URLSearchParams(location.search);
+      return query.size === 2 && query.get('from') === '2026-01-01T00:00:00Z' && query.get('range') === 'custom';
+    }), 'Audit filter lost the custom start or sent empty fields');
   `)
 })
 
