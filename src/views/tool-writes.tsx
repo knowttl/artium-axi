@@ -158,8 +158,7 @@ export function Writes({ csrf, name, api, product, revision, panel }: { csrf: st
     if (!operations) return
     const page = root.current!
     const query = page.querySelector<HTMLInputElement>('input[name=q]')!.value
-    const view = page.querySelector<HTMLInputElement>('input[name=show]:checked')!.value
-    const show = view === 'selected' || view === 'deletes' ? view : 'all'
+    const show = page.querySelector<HTMLInputElement>('input[name=show]:checked')!.value as Show
     const checked = new Set(Array.from(page.querySelectorAll<HTMLInputElement>('input[name=operations]:checked'), input => input.value))
     const next: Picker = { query, show, checked, open: picker.open }
     const filterChanged = query !== picker.query || show !== picker.show ||
