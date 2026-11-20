@@ -950,8 +950,8 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
     check(await page.eval(() => document.querySelector('[data-rule]').innerText.includes('CrowdStrike Falcon')), 'Missing target tool access');
     await page.click('[data-rule] .more-menu summary');
     await page.click('[data-rule] .more-menu a[href*="rule="]');
-    await page.wait('dialog[open] form[data-method=PATCH]');
-    check(await page.eval(() => document.querySelector('dialog.sheet[open]').matches(':modal') && !new URL(location.href).searchParams.has('rule')), 'Edit rule sheet was not a modal or kept its query in the address');
+    await page.wait('dialog.sheet:modal form[data-method=PATCH]');
+    check(await page.eval(() => !new URL(location.href).searchParams.has('rule')), 'Edit rule query stayed in the address');
     await page.fill('dialog[open] form[data-method=PATCH] [name=value]', 'Artium.Analysts');
     await page.click('dialog[open] form[data-method=PATCH] button');
     await page.wait('#confirmation[open]');
@@ -2669,8 +2669,8 @@ test('expired confirmation resumes the populated action exactly once after a wro
   await expireConfirmation()
   browser(`
     await page.open(base + '/admin/roles?dialog=new-role');
-    await page.wait('#sheet-new-role[open]');
-    check(await page.eval(() => !location.search.includes('sheet=')), 'Sheet query stayed in the address');
+    await page.wait('#sheet-new-role:modal');
+    check(await page.eval(() => !new URL(location.href).searchParams.has('sheet')), 'New role query stayed in the address');
     await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic resumed role');
     await page.click('form[action="/v1/admin/roles"] button');
     await page.wait('#reauth-dialog[open]');
@@ -2684,7 +2684,7 @@ test('expired confirmation resumes the populated action exactly once after a wro
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('form[action$="/tools"]');
     check(await page.eval(() => document.querySelector('h1').innerText === 'Synthetic resumed role'), 'Pending role was not created');
-    check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes unlocked')), 'Confirmation window was not refreshed');
+    check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation window was not refreshed');
     check(await page.eval(async () => {
       const { records } = await (await fetch('/v1/admin/audit')).json();
       return records.filter(record => record.action === 'create-role').length === 1;
@@ -2901,8 +2901,10 @@ test('a sheet opened from a menu closes the menu and returns focus to its summar
   browser(`
     await page.open(base + '/admin/users/synthetic-ordinary');
     await page.click('.more-menu summary');
+    await page.eval(() => { document.resetPasswordLauncherDocument = true; });
     await page.click('a[data-sheet="sheet-reset-password"]');
     await page.wait('#sheet-reset-password:modal');
+    check(await page.eval(() => document.resetPasswordLauncherDocument === true), 'Opening Reset password replaced the document');
     check(await page.eval(() => !document.querySelector('.more-menu').open && !location.search), 'The menu stayed open or the address changed');
     await page.press('Escape');
     await page.wait('.more-menu summary:focus');
@@ -2914,12 +2916,12 @@ test('the add-user sheet opened from its query view becomes a modal that survive
   browser(`
     await page.open(base + '/admin/users?sheet=add-user');
     await page.wait('html[data-astryx-theme]');
-    await page.wait('#sheet-add-user[open]');
-    check(await page.eval(() => document.querySelector('#sheet-add-user').matches(':modal')), 'Query-opened sheet is not modal');
+    await page.wait('#sheet-add-user:modal');
+    check(await page.eval(() => !new URL(location.href).searchParams.has('sheet')), 'Add user query stayed in the address');
     check(await page.eval(() => getComputedStyle(document.querySelector('#sheet-add-user [name=username]')).fontFamily
       !== getComputedStyle(document.querySelector('#sheet-add-user [name=displayName]')).fontFamily), 'Username does not use the monospaced font');
     check(await page.eval(() => document.activeElement.name === 'displayName'), 'Query-opened sheet did not focus its first field');
-    check(await page.eval(() => document.querySelector('[data-sheet-scrim]').hidden), 'The scrim of a modal sheet stays visible');
+    await page.wait('[data-sheet-scrim][hidden]');
     await page.press('Escape');
     await page.wait('a[data-sheet="sheet-add-user"]:focus');
     check(await page.eval(() => !document.querySelector('#sheet-add-user').open), 'Escape did not close the sheet');
