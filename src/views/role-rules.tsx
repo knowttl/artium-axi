@@ -33,6 +33,7 @@ export interface RoleRulesProps {
 }
 
 const rulesPath = '/v1/admin/sso/role-rules'
+const ruleQuery = ['rule'] as const
 
 function RuleForm({ providerId, kind, roles, rule, prefix }: Pick<RoleRulesProps, 'providerId' | 'kind' | 'roles'> & { rule: RuleSheet, prefix: string }) {
   const [claim, setClaim] = useState(rule.claim)
@@ -124,13 +125,13 @@ export function RoleRules({ csrf, page, rules: { providerId, kind, roles, rules,
         <Text as="p" type="supporting">Rules synchronize at sign-in. Removing or retargeting a rule immediately removes its grants; direct and other-rule grants remain. Match counts use enabled people’s last successful sign-in claims, not a live directory.</Text>
       </Panel>
       {roles.length > 0 && (
-        <Sheet name="add-rule" open={addOpen} query="rule" closeHref={back} title="Add rule" description="Matching people receive the role at their next sign-in." submit="Add rule"
+        <Sheet name="add-rule" open={addOpen} query={ruleQuery} closeHref={back} title="Add rule" description="Matching people receive the role at their next sign-in." submit="Add rule"
           confirmTitle="Add rule?" action={rulesPath} csrf={csrf} consequence="Add this mapping? Matching users receive its role at their next sign-in." successUrl={back}>
           <RuleForm {...form} prefix="add-rule" rule={{ id: null, claim: 'groups', value: '', roleId: '', revision: 0, changed: null }} />
         </Sheet>
       )}
       {edit && (
-        <Sheet key={edit.id} name="edit-rule" open query="rule" returnFocusId={`rule-actions-${edit.id}`} closeHref={back} title="Edit rule" description="Changes apply at each person’s next sign-in." submit="Save rule"
+        <Sheet key={edit.id} name="edit-rule" open query={ruleQuery} returnFocusId={`rule-actions-${edit.id}`} closeHref={back} title="Edit rule" description="Changes apply at each person’s next sign-in." submit="Save rule"
           confirmTitle="Save rule?" action={`${rulesPath}/${edit.id}`} method="PATCH" csrf={csrf} successUrl={back}
           consequence="Save this mapping? Changing its claim name, value or target role immediately removes its existing rule-origin grants. Direct grants and grants from other rules are retained. Matching users receive grants at their next sign-in.">
           <RuleForm {...form} prefix="edit-rule" rule={edit} />

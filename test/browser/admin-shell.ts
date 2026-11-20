@@ -25,6 +25,7 @@ const testWithoutHydration = 'direct credential tests finish when hydration is u
 const testWithLateHydration = 'latest direct credential result survives late hydration'
 const pickerWithLateHydration = 'operation picker preserves edits across late hydration'
 const trackChangesWithLateHydration = 'role tool grants count a selection edited before late hydration as a change'
+const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
 let chromeDebugPort: number
 
 before(async () => {
@@ -95,7 +96,7 @@ function browser(script: string) {
 
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
-    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration].includes(context.name) ? '1' : '0' },
+    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration, instanceSheetWithLateHydration].includes(context.name) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -951,40 +952,49 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('[data-rule]');
     check(await page.eval(() => document.querySelector('[data-rule]').innerText.includes('CrowdStrike Falcon')), 'Missing target tool access');
-    await page.click('[data-rule] .more-menu summary');
-    await page.click('[data-rule] .more-menu a[href*="rule="]');
+    await page.click('a[href$="rule=new"]');
+    await page.wait('#sheet-add-rule:modal');
+    await page.fill('#sheet-add-rule [name=value]', 'Artium.Admins');
+    await page.fill('#sheet-add-rule [name=roleId]', 'synthetic-role');
+    await page.click('#sheet-add-rule form button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    const row = '[data-rule]:nth-child(2)';
+    await page.wait(row);
+    check(await page.eval(() => document.querySelector('[data-rule]:nth-child(2)').innerText.includes('Artium.Readers')), 'Readers should be the second rule');
+    await page.click(row + ' .more-menu summary');
+    await page.click(row + ' .more-menu a[href*="rule="]');
     await page.wait('dialog.sheet:modal form[data-method=PATCH]');
     check(await page.eval(() => !new URL(location.href).searchParams.has('rule')), 'Edit rule query stayed in the address');
     await page.press('Escape');
-    await page.wait('[data-rule] .more-menu summary:focus');
+    await page.wait(row + ' .more-menu summary:focus');
     await page.press('Enter');
-    await page.click('[data-rule] .more-menu a[href*="rule="]');
+    await page.click(row + ' .more-menu a[href*="rule="]');
     await page.wait('dialog.sheet:modal form[data-method=PATCH]');
     await page.fill('dialog[open] form[data-method=PATCH] [name=value]', 'Artium.Analysts');
     await page.click('dialog[open] form[data-method=PATCH] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('body:not(:has(dialog.sheet[open])) [data-rule]');
-    check(await page.eval(() => document.querySelector('[data-rule]').innerText.includes('Artium.Analysts')), 'Rule edit was not saved');
-    check(await page.eval(() => document.querySelector('[data-rule] form[data-method=DELETE] [name=expectedRevision]').value === '2'), 'Rule revision did not advance');
+    await page.wait('body:not(:has(dialog.sheet[open])) ' + row + ' form[data-method=DELETE] [name=expectedRevision][value="2"]');
+    check(await page.eval(() => document.querySelector('[data-rule]:nth-child(2)').innerText.includes('Artium.Analysts')), 'Rule edit was not saved');
     check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'Rule list overflows at 420px');
-    await page.click('[data-rule] .more-menu summary');
-    await page.click('[data-rule] form[data-method=DELETE] button');
+    await page.click(row + ' .more-menu summary');
+    await page.click(row + ' form[data-method=DELETE] button');
     await page.wait('#confirmation[open]');
     check(await page.eval(() => document.querySelector('[data-confirm-button]').getAttribute('aria-disabled') === 'true'), 'Removal did not require the typed value');
     await page.click('#confirmation button[value=cancel]');
-    check(await page.eval(() => !!document.querySelector('[data-rule]')), 'Cancel removed the rule');
-    await page.click('[data-rule] form[data-method=DELETE] button');
+    check(await page.eval(() => document.querySelector('[data-rule]:nth-child(2)')?.innerText.includes('Artium.Analysts')), 'Cancel removed the rule');
+    await page.click(row + ' form[data-method=DELETE] button');
     await page.wait('#confirmation[open]');
     await page.fill('#confirmation-name', 'Artium.Analysts');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait('[role=main]:not(:has([data-rule])) a[href$="rule=new"]');
-    check(await page.eval(() => !document.querySelector('[data-rule]') && document.querySelector('[role=main]').innerText.includes('No role rules')), 'Rule was not removed');
+    await page.wait('[data-rule]:only-child');
+    check(await page.eval(() => document.querySelector('[data-rule]').innerText.includes('Artium.Admins')), 'Removal did not preserve the other rule');
     check(await page.eval(async () => {
       const providers = (await (await fetch('/v1/admin/sso/providers')).json()).providers;
       const audit = (await (await fetch('/v1/admin/audit?event=admin-change')).json()).records;
-      return providers[0].enabled === false && ['create-role-rule', 'update-role-rule', 'delete-role-rule'].every(action =>
-        audit.filter(row => row.action === action && row.outcome === 'success').length === 1);
+      return providers[0].enabled === false && [['create-role-rule', 2], ['update-role-rule', 1], ['delete-role-rule', 1]].every(([action, count]) =>
+        audit.filter(row => row.action === action && row.outcome === 'success').length === count);
     }), 'Rule audit missing or provider enabled');
   `)
 })
@@ -999,6 +1009,28 @@ for (const [add, close] of [['choose', 'Escape'], ['entra', 'Close'], ['oidc', '
     check(await page.eval(() => !new URL(location.href).searchParams.has('add')), 'Provider query stayed in the address');
     await page.open(await page.eval(() => location.href));
     check(await page.eval(() => !document.querySelector('dialog.sheet[open]')), 'Provider sheet reopened after reload');
+  `)
+})
+
+test('provider sheets return focus to the empty-state Add provider button', () => {
+  browser(`
+    await page.open(base + '/admin/settings/sign-in');
+    const opener = '.astryx-empty-state a[href*="add=choose"]';
+    await page.click(opener);
+    await page.wait('#sheet-add-provider:modal');
+    check(await page.eval(() => !location.search), 'Chooser opening parameters stayed in the address');
+    await page.press('Escape');
+    await page.wait(opener + ':focus');
+    for (const kind of ['entra', 'oidc']) {
+      await page.press('Enter');
+      await page.wait('#sheet-add-provider:modal');
+      await page.click('#sheet-add-provider [name=add][value=' + kind + ']');
+      await page.click('#sheet-add-provider button[type=submit]');
+      await page.wait('#sheet-add-' + kind + ':modal');
+      await page.click('#sheet-add-' + kind + ' .sheet-foot [data-sheet-close]');
+      await page.wait(opener + ':focus');
+      check(await page.eval(() => !location.search), 'Provider opening parameters stayed in the address');
+    }
   `)
 })
 
@@ -1147,6 +1179,43 @@ test('Proxmox stored password administration saves one credential without a sepa
     check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('signs in automatically') && !document.querySelector('form[action*="/connect"]')), 'Automatic authentication guidance missing');
     await page.fill('[data-profile-field=userId]', 'different@pve');
     check(await page.eval(() => document.querySelector('[data-profile-field=password]').required), 'Changed username did not require a new password');
+  `)
+})
+
+test(instanceSheetWithLateHydration, () => {
+  browser(`
+    await page.open(base + '/admin/tools/falcon-axi?sheet=add-instance');
+    await page.wait('#sheet-add-instance[open]:not(:modal)');
+    await page.fill('#sheet-add-instance [data-profile-field=clientSecret]', 'CANARY-promotion-draft');
+    await page.eval(() => {
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
+    });
+    await page.wait('#sheet-add-instance:modal');
+    await page.eval(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))));
+    check(await page.eval(() => document.querySelector('#sheet-add-instance [data-profile-field=clientSecret]').value === 'CANARY-promotion-draft'), 'Modal promotion cleared the draft');
+    await page.press('Escape');
+    await page.wait('a[data-sheet="sheet-add-instance"]:focus');
+    check(await page.eval(() => document.querySelector('#sheet-add-instance [data-profile-field=clientSecret]').value === ''), 'Dismissing the modal kept the draft');
+  `)
+})
+
+test('instance names lab and lab-opener open their own sheets in place', () => {
+  browser(`
+    await createInstance('falcon-axi', falconValue, 'lab-opener');
+    await page.open(base + '/admin/tools/falcon-axi');
+    await page.wait('html[data-astryx-theme]');
+    await page.eval(() => { document.instanceOpenerDocument = true; });
+    for (const name of ['lab', 'lab-opener']) {
+      const id = 'sheet-edit-' + name;
+      const opener = 'a[data-sheet="' + id + '"]';
+      await page.click(opener);
+      await page.wait('#' + id + ':modal');
+      check(await page.eval(() => document.instanceOpenerDocument === true), 'Editing an instance replaced the document');
+      await page.press('Escape');
+      await page.wait(opener + ':focus');
+    }
   `)
 })
 

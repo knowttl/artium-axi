@@ -89,7 +89,7 @@ export function Roles({ roles, pager, newRole }: RolesProps) {
       ) : (
         <Card>
           <EmptyState title="No roles yet" headingLevel={2} description="A role is a set of tools. Create one, choose its tools, then give it to people."
-            actions={<Button href="/admin/roles?sheet=new-role" label="New role" variant="primary" icon={<Icon name="plus" />} {...sheetTrigger('sheet-new-role', false)} />} />
+            actions={<Button href="/admin/roles?sheet=new-role" label="New role" variant="primary" icon={<Icon name="plus" />} {...sheetTrigger('sheet-new-role')} />} />
         </Card>
       )}
       <NewRoleSheet {...newRole} />

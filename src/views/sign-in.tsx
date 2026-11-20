@@ -17,21 +17,25 @@ export interface SignInProps {
   summaries: { label: string, value: string, detail: string, warning: boolean, action: { href: string, label: string } | null }[]
   providers: { href: string, name: string, initials: string, kind: string, issuer: string, configured: boolean, enabled: boolean }[]
   addHref: string
-  add: { open: 'choose' | 'entra' | 'oidc' | null, closeHref: string, csrf: string }
+  add: { open: 'choose' | 'entra' | 'oidc' | null, fromEmptyState?: boolean, closeHref: string, csrf: string }
 }
 
 export const addProviderOpenerId = 'add-provider-opener'
+const emptyStateOpenerId = 'add-provider-empty-state'
+const addProviderQuery = ['add', 'addFrom'] as const
 
 const kinds = [
   { value: 'entra', name: 'Microsoft Entra ID', detail: 'Single-tenant app registration. Uses the directory tenant ID. Roles map from app roles.' },
   { value: 'oidc', name: 'OpenID Connect', detail: 'Any standards-compliant provider, using its exact HTTPS issuer. Roles map from any claim.' },
 ]
 
-function AddProvider({ open, closeHref, csrf }: SignInProps['add']) {
+function AddProvider({ open, fromEmptyState, closeHref, csrf }: SignInProps['add']) {
+  const returnFocusId = fromEmptyState ? emptyStateOpenerId : addProviderOpenerId
   if (open === 'choose') {
     return (
-      <SheetFrame name="add-provider" open query="add" returnFocusId={addProviderOpenerId} closeHref={closeHref} title="Add a sign-in provider" description="Pick the kind of identity provider. You configure its credential and rules next.">
+      <SheetFrame name="add-provider" open query={addProviderQuery} returnFocusId={returnFocusId} closeHref={closeHref} title="Add a sign-in provider" description="Pick the kind of identity provider. You configure its credential and rules next.">
         <form method="get" action={closeHref}>
+          {fromEmptyState && <input type="hidden" name="addFrom" value="empty" />}
           <div className="sheet-body">
             <fieldset className="options">
               <legend className="sr-only">Kind of identity provider</legend>
@@ -53,7 +57,7 @@ function AddProvider({ open, closeHref, csrf }: SignInProps['add']) {
   }
   if (!open) return null
   return (
-    <Sheet name={`add-${open}`} open query="add" returnFocusId={addProviderOpenerId} closeHref={closeHref} title={open === 'entra' ? 'Add an Entra ID provider' : 'Add an OpenID Connect provider'}
+    <Sheet name={`add-${open}`} open query={addProviderQuery} returnFocusId={returnFocusId} closeHref={closeHref} title={open === 'entra' ? 'Add an Entra ID provider' : 'Add an OpenID Connect provider'}
       description="The provider starts disabled. Save its credential and test break-glass access before enabling it." submit="Add provider" confirmTitle="Add provider?"
       action="/v1/admin/sso/providers" csrf={csrf} consequence="Create a disabled provider?" successUrl={closeHref}>
       <ProviderFields kind={open} name="" identifier="" />
@@ -118,7 +122,7 @@ export function SignIn({ summaries, providers, addHref, add }: SignInProps) {
           </Table>
         ) : (
           <EmptyState title="No providers yet" headingLevel={3} description="Add one, then save its credential."
-            actions={<Button href={addHref} label="Add provider" variant="secondary" size="sm" icon={<Icon name="plus" />} />} />
+            actions={<Button id={emptyStateOpenerId} href={`${addHref}&addFrom=empty`} label="Add provider" variant="secondary" size="sm" icon={<Icon name="plus" />} />} />
         )}
       </Panel>
       <AddProvider {...add} />
