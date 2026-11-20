@@ -2356,6 +2356,7 @@ for (const tool of ['unifi-axi', 'proxmox-axi']) test(tool + ' operation picker 
 for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi', 'unifi-axi', 'proxmox-axi']) test(tool + ' operation picker matches the pinned catalogue and saves the selection', () => {
   browser(`
     await page.open(base + '/admin/tools/${tool}?tab=writes');
+    await page.wait('.ops-actions:not([hidden])');
     const initial = await page.eval(async () => (await (await fetch('/v1/admin/tools/${tool}')).json()));
     const choices = await page.eval(() => [...document.querySelectorAll('[name=operations]')].map(input => input.value));
     check(JSON.stringify([...choices].sort()) === JSON.stringify([...initial.writeAccess.supportedOperations].sort()), 'Picker differs from pinned catalogue');
@@ -2386,6 +2387,7 @@ for (const tool of ['mg-axi', 'vectra-axi', 'gitea-axi', 'unifi-axi', 'proxmox-a
 for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' group controls select and clear only shown operations', () => {
   browser(`
     await page.open(base + '/admin/tools/${tool}?tab=writes');
+    await page.wait('.ops-actions:not([hidden])');
     const state = () => page.eval(() => {
       const group = document.querySelector('[data-ops-group]:has([data-delete])');
       const operations = [...group.querySelectorAll('[data-op]')];
@@ -2401,22 +2403,14 @@ for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' group controls select
     const all = await state();
     check(all.deletes > 0 && all.checked === all.total && all.deletesChecked === all.deletes, 'Select all must include every operation in the group, including deletes');
     check(all.otherChecked === 0, 'Select all changed another group');
-    await page.eval(() => {
-      const input = document.querySelector('[name=q]');
-      input.value = document.querySelector('[data-ops-group]:has([data-delete]) [data-op]').dataset.op;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    });
+    await page.fill('[name=q]', await page.eval(() => document.querySelector('[data-ops-group]:has([data-delete]) [data-op]').dataset.op));
     await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=none]');
     const filteredClear = await state();
     check(filteredClear.checked === all.checked - 1 && filteredClear.hiddenChecked === filteredClear.checked, 'Clear all must clear only the shown operations');
     await page.click('[data-ops-group]:has([data-delete]) [data-ops-select=all]');
     check((await state()).checked === all.checked, 'Select all must select the shown operation');
     check(none.checked === 0, 'Unexpected initial selection');
-    await page.eval(() => {
-      const input = document.querySelector('[name=q]');
-      input.value = '';
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    });
+    await page.fill('[name=q]', '');
     await page.click('label:has([name=show][value=selected])');
     await page.click('[data-ops-group]:has([data-delete]) [data-op]:not([hidden]) input');
     const individualClear = await state();
@@ -2426,9 +2420,36 @@ for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' group controls select
   `)
 })
 
+test('the operation filter narrows the list in place, opens the matching group and survives Enter, and a deep link starts filtered', () => {
+  browser(`
+    await page.open(base + '/admin/tools/mg-axi?tab=writes');
+    await page.wait('.ops-actions:not([hidden])');
+    check(await page.eval(() => document.querySelector('button[form=ops-filter]').hidden), 'Apply stays visible once the page is interactive');
+    const target = await page.eval(() => {
+      const group = [...document.querySelectorAll('[data-ops-group]')].at(-1);
+      return group.open ? '' : group.querySelector('[data-op]').dataset.op;
+    });
+    check(target, 'The last group must start collapsed');
+    await page.fill('[name=q]', target);
+    await page.press('Enter');
+    const filtered = await page.eval(() => ({ search: location.search, hiddenGroups: document.querySelectorAll('[data-ops-group][hidden]').length, groups: document.querySelectorAll('[data-ops-group]').length,
+      lastOpen: [...document.querySelectorAll('[data-ops-group]')].at(-1).open,
+      shown: [...document.querySelectorAll('[data-op]:not([hidden])')].map(operation => operation.dataset.op) }));
+    check(filtered.search === '?tab=writes', 'Enter reloaded the page: ' + filtered.search);
+    check(filtered.shown.length > 0 && filtered.shown.every(search => search.includes(target)), 'Filter left a non-matching operation visible');
+    check(filtered.lastOpen && filtered.hiddenGroups > 0 && filtered.hiddenGroups < filtered.groups, 'Filter did not open the matching group and hide the others');
+    await page.open(base + '/admin/tools/mg-axi?tab=writes&show=deletes');
+    await page.wait('.ops-actions:not([hidden])');
+    check(await page.eval(() => document.querySelector('[name=show][value=deletes]').checked
+      && [...document.querySelectorAll('[data-op]:not([hidden])')].every(operation => operation.hasAttribute('data-delete'))
+      && !!document.querySelector('[data-op][data-delete]:not([hidden])')), 'Deep link did not start on the Deletes view');
+  `)
+})
+
 for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' card-level controls act on every shown operation and keep the selected counts live', () => {
   browser(`
     await page.open(base + '/admin/tools/${tool}?tab=writes');
+    await page.wait('.ops-actions:not([hidden])');
     const state = () => page.eval(() => {
       const operations = [...document.querySelectorAll('[data-op]')];
       const checked = operations.filter(operation => operation.querySelector('input').checked);
@@ -2445,22 +2466,14 @@ for (const tool of ['mg-axi', 'vectra-axi']) test(tool + ' card-level controls a
     check(all.checked === all.total && all.collapsedChecked > 0, 'Card-level Select all must reach every group, collapsed ones included');
     check(all.header === String(all.total) && all.headline.startsWith(all.total + ' of ' + all.total + ' selected'), 'Header count stale after Select all: ' + all.headline);
     check(all.groupCounts, 'Group counts stale after Select all');
-    await page.eval(() => {
-      const input = document.querySelector('[name=q]');
-      input.value = document.querySelector('[data-op]').dataset.op;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    });
+    await page.fill('[name=q]', await page.eval(() => document.querySelector('[data-op]').dataset.op));
     const shown = await state();
     check(shown.visible > 0 && shown.visible < shown.total, 'Filter must hide some operations');
     await page.click('[aria-label="Clear all shown operations"]');
     const filtered = await state();
     check(filtered.checked === all.total - shown.visible &&filtered.hiddenChecked === filtered.checked, 'Card-level Clear all must clear only shown operations');
     check(filtered.header === String(filtered.checked) && filtered.groupCounts, 'Counts stale after filtered Clear all');
-    await page.eval(() => {
-      const input = document.querySelector('[name=q]');
-      input.value = '';
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    });
+    await page.fill('[name=q]', '');
     await page.click('label:has([name=show][value=selected])');
     const selectedView = await state();
     check(selectedView.visible === selectedView.checked && selectedView.header === String(selectedView.checked), 'Selected view disagrees with the header count');

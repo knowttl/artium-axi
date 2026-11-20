@@ -131,47 +131,6 @@ if (savedTest) {
     result.textContent = latestTestResult.message;
   }
 }
-const operationFilter = document.getElementById('ops-filter');
-if (operationFilter) {
-  // Filters apply live with JavaScript; without it the GET form reloads the filtered view.
-  document.querySelector('[data-ops-apply]').hidden = true;
-  const filterOperations = () => {
-    const text = operationFilter.elements.q.value.trim().toLowerCase();
-    const show = operationFilter.elements.show.value;
-    const filtered = text !== '' || show !== 'all';
-    let any = false;
-    for (const group of document.querySelectorAll('[data-ops-group]')) {
-      let visible = 0;
-      for (const operation of group.querySelectorAll('[data-op]')) {
-        const match = operation.dataset.op.includes(text) && (show === 'all' ||
-          (show === 'selected' ? operation.querySelector('input').checked : operation.hasAttribute('data-delete')));
-        operation.hidden = !match;
-        if (match) visible++;
-      }
-      group.hidden = filtered && !visible;
-      if (filtered && visible) group.open = true;
-      any ||= visible > 0;
-      const picked = group.querySelectorAll('[data-op] input:checked').length;
-      group.querySelector('[data-ops-picked]').textContent = picked ? ' · ' + picked + ' selected' : '';
-    }
-    document.querySelector('[data-ops-selected]').textContent = document.querySelectorAll('[data-op] input:checked').length;
-    document.querySelector('[data-ops-empty]').hidden = any;
-  };
-  document.querySelector('[data-ops-filter]').addEventListener('input', filterOperations);
-  operationFilter.addEventListener('submit', event => { event.preventDefault(); filterOperations(); });
-  for (const operation of document.querySelectorAll('[data-op] input')) operation.addEventListener('change', filterOperations);
-  for (const actions of document.querySelectorAll('[data-ops-actions]')) actions.hidden = false;
-  for (const control of document.querySelectorAll('[data-ops-select]')) {
-    control.addEventListener('click', () => {
-      const scope = control.closest('[data-ops-group]') || document;
-      const select = control.dataset.opsSelect === 'all';
-      for (const operation of scope.querySelectorAll('[data-ops-group]:not([hidden]) [data-op]:not([hidden])')) {
-        operation.querySelector('input').checked = select;
-      }
-      filterOperations();
-    });
-  }
-}
 for (const settings of document.querySelectorAll('[data-json-check]')) {
   const status = settings.closest('form').querySelector('[data-json-status]');
   const check = () => {

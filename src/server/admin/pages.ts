@@ -217,24 +217,16 @@ export function registerAdminPages(app: FastifyInstance, db: Database.Database,
       const selected = new Set(writes.allowedOperations)
       const kind = instanceRows[0]?.instance?.metadata.kind
       const groups = operationGroups(tool.name, supported, kind)
-      const search = typeof query.q === 'string' ? query.q.trim().toLowerCase() : ''
       const show = query.show === 'selected' || query.show === 'deletes' ? query.show : 'all'
-      const filtered = Boolean(search) || show !== 'all'
-      const matches = (operation: Operation) => (!search || `${operation.label} ${operation.name}`.toLowerCase().includes(search))
-        && (show === 'all' || (show === 'selected' ? selected.has(operation.name) : operation.risk.includes('delete')))
       const families = new Set(groups.map(group => group.family).filter(Boolean))
       const family = typeof kind === 'string' && families.has(kind) ? kind : undefined
-      return { supported: supported.length, selected: selected.size, q: query.q ?? '', show, empty: !groups.some(group => group.operations.some(matches)),
+      return { supported: supported.length, q: query.q ?? '', show,
         familyNote: family ? ` Operations for your ${family.toUpperCase()} deployment are listed first.` : '',
         deleteCount: groups.reduce((total, group) => total + group.operations.filter(operation => operation.risk.includes('delete')).length, 0),
-        groups: groups.map((group, index) => {
-          const picked = group.operations.filter(operation => selected.has(operation.name)).length
-          const visible = group.operations.some(matches)
-          return { title: group.title, family: group.family?.toUpperCase() ?? null, picked, deletes: group.operations.filter(operation => operation.risk.includes('delete')).length,
-            notUsed: Boolean(group.family && group.family !== family && family), open: filtered ? visible : picked > 0 || index === 0, hidden: filtered && !visible,
-            operations: group.operations.map(operation => ({ name: operation.name, label: operation.label, search: `${operation.label} ${operation.name}`.toLowerCase(),
-              delete: operation.risk.includes('delete'), bulk: operation.risk.includes('bulk'), checked: selected.has(operation.name), hidden: !matches(operation) })) }
-        }) }
+        groups: groups.map(group => ({ title: group.title, family: group.family?.toUpperCase() ?? null, deletes: group.operations.filter(operation => operation.risk.includes('delete')).length,
+          notUsed: Boolean(group.family && group.family !== family && family),
+          operations: group.operations.map(operation => ({ name: operation.name, label: operation.label, search: `${operation.label} ${operation.name}`.toLowerCase(),
+            delete: operation.risk.includes('delete'), bulk: operation.risk.includes('bulk'), checked: selected.has(operation.name) })) })) }
     }
   })
   registerInstancePages(app, db, credentialProfiles)
