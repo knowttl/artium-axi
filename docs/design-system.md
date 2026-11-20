@@ -65,14 +65,16 @@ The GitHub connection card on this page is the same `GithubConnection` view, abo
 The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`.
 Tools, People and Audit use the shared React [`FilterForm`](../src/views/filter-form.tsx) for their GET forms.
 See [Browser administration](admin-guide.md#browser-administration) for submission and fallback behavior.
-Invitations keeps the one-time link dialog (`#invitation-link`) as a native `dialog` that `confirm.js` opens after a create or resend form marked with `claimLink` in `ActionForm`, and its provider choice stays a native `select` inside an Astryx `Field`; the lifetime in days is a text input that `confirm.js` sends as a number.
+After a successful create or resend marked with `claimLink` in `ActionForm`, `confirm.js` emits `artium-invitation-link-created` so React closes the sheet before `confirm.js` opens the native one-time link dialog (`#invitation-link`).
+The provider choice stays a native `select` inside an Astryx `Field`, and `confirm.js` sends the lifetime in days as a number.
 The Roles list opens its New role sheet from `?sheet=new-role`, and the earlier `?dialog=new-role` link redirects there.
 The role detail page opens its Rename role sheet from `?sheet=rename-role`.
 Its tool tiles and Raw API switches stay native checkboxes, because Astryx checkboxes emit inline SVG shapes, and its tool grants form sets `trackChanges` on `ActionForm`, so Save tools stays disabled and Discard hidden until a checkbox differs from its saved state.
 `renderPage()` takes an optional heading that replaces the page title in the `h1` and the breadcrumb while the document title and help topic keep the section name.
 The Sign-in & SSO list (`SignIn` in `src/views/sign-in.tsx`, route `/admin/settings/sign-in`) is the tenth page on the seam and the who-matches page (`SignInMatches` in `src/views/sign-in-matches.tsx`, route `/admin/settings/sign-in/:id/matches/:ruleId`) is the eleventh.
 The list shows the sign-in mode, break-glass readiness and pending invitations as three summary cards, then a Providers panel with each provider's kind, issuer, status and a link to its page; it also opens the Add provider sheets from `?add=choose` (a GET chooser), `?add=entra` and `?add=oidc` (the create form on the shared `Sheet` and `ActionForm`, with its tier 2 confirmation).
-Only the requested sheet is rendered, open, so its fields do not duplicate those of another provider form, and closing a sheet returns to the list.
+Only the requested sheet is rendered, so provider forms never share field IDs on the page.
+The chooser carries the empty-state launcher's focus destination into either provider form.
 The who-matches page is read-only and shows the people whose last recorded sign-in claims match a role rule.
 Their props are provider names, kinds, issuers, a `configured` flag, counts and people an administrator already sees, and carry no credential value.
 The provider page (`Provider` in `src/views/provider.tsx`, route `/admin/settings/sign-in/:id`) is the twelfth page on the seam, with a Setup, Credential, Role rules and Settings tab.
@@ -81,7 +83,9 @@ For the setup checklist, the server sends state (whether a credential is saved, 
 Enable and Disable sign-in is an `ActionForm` that patches `/activation` with `expectedRevision` and the opposite `enabled` value; a provider that is not ready shows a disabled button and no form, and the server still refuses activation without a usable credential and break-glass administrator.
 The Role rules tab (`?tab=rules`, `RoleRules` in `src/views/role-rules.tsx`) lists each rule with its role, the tools that role grants and its match count, which links to the who-matches page.
 Its row menu holds Edit rule, a link to `?tab=rules&rule=<id>`, and Remove rule, an `ActionForm` that sends `DELETE` with `expectedRevision` and needs the rule's value typed to confirm.
-Add rule opens the closed `add-rule` sheet in place, or `?tab=rules&rule=new` without JavaScript, and Edit rule renders only its own open sheet, so the two forms never share field ids.
+Add rule opens the `add-rule` sheet in place and uses `?tab=rules&rule=new` for navigation without JavaScript.
+Dismiss Edit rule to return focus to the edited row's menu summary.
+Modal promotion removes `rule` while keeping `tab=rules`, and the Add and Edit forms use distinct field IDs.
 Both sheets send `providerId`, `claim`, `value` and `roleId` to the role-rules API with a tier 2 confirmation: Add uses POST, and Edit uses PATCH with `expectedRevision`.
 The Credential tab (`?tab=credential`, `ProviderCredential` in `src/views/provider-credential.tsx`) is an `ActionForm` that patches `/credential` with `expectedRevision` (the saved credential's revision), `expectedProviderRevision` and the shared `CredentialEditor`, under a tier 2 confirmation that names disabling the provider.
 It shows non-secret values (the client ID, tenant, authentication method and thumbprint), a Saved or Needs credential badge and when the credential last changed; a secret field is empty, a blank secret keeps the stored one for the same identity, and a changed tenant, client or authentication method needs a new secret.
@@ -99,12 +103,8 @@ The frame renders the legacy markup for the account menu, confirmation pill and 
 Below the Astryx mobile breakpoint a native navigation disclosure remains usable without JavaScript, listing the same `SideNavItem` links without a second `SideNav`, and CSS hides the desktop sidebar.
 The frame retains one banner, one main and one navigation landmark, labelled "Administration" for administrators and "Account" for other people.
 The identity confirmation dialog and icon sprite that `confirm.js` drives stay outside the React root; the toasts and the action confirmation dialog (`Confirmation` in `src/views/confirmation.tsx`, on the Astryx dialog) are part of it, and `confirm.js` asks it to confirm a form through the `artium-confirm` event.
-The People add-user sheet is the first sheet on the seam, the Roles New role sheet is the second, the role Rename sheet is the third, and the Invitations New invitation and Resend sheets are the fourth and fifth; the New role and Rename sheets pass no confirmation text so `confirm.js` submits without a confirmation dialog: `Sheet` in `src/views/sheet.tsx` keeps the native `dialog.sheet`, its `?sheet=` open state and the `data-api` form that `confirm.js` submits, and builds the header, text fields and buttons from Astryx `Heading`, `Text`, `IconButton`, `TextInput` and `Button`.
-Astryx `Drawer` and `Dialog` render closed until hydration, so they cannot serve the no-JavaScript view.
+The New role and Rename sheets pass no confirmation text, so `confirm.js` submits them without a confirmation dialog.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
-`SheetFrame` opens a server-rendered open sheet as a modal once hydrated, removes its opening query parameter from the address and hides its scrim with the `hidden` attribute.
-Closing returns focus to the designated launcher for a server-opened sheet or to the launcher used for an in-page open through `sheetTrigger`.
-For a launcher inside a menu, focus returns to its summary.
 `ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes that `confirm.js` reads (method, consequence, title, action, typed name, success URL and success message), and `Sheet` builds on it, so a view writes an API form without repeating them.
 The person detail page's "More actions" overflow menu keeps a native `details` disclosure, because Astryx dropdown components need runtime inline styles (see issue 462), and builds its items from Astryx `Button` and `ActionForm`.
 The Sessions card (`Sessions` in `src/views/sessions.tsx`) is also on the Account page; see the Account rendering details below.
@@ -228,7 +228,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | List row | `.rows`, `.list-row`, `.step-mark` | | Ordered list when the order matters |
 | Avatar and tool icon | `avatar()`: `.avatar`, `.avatar.lg`; `toolIcon()`: `.tool-ico`, `.tool-ico.lg`, using a mark from `toolProducts` | sm, lg | Initials and marks are `aria-hidden`; the name is adjacent text |
 | Overflow menu | `.more-menu` with `.popover` | closed, open | Native disclosure with `aria-label` on its icon summary |
-| Side sheet | `sheet()`, `sheetLink()`: `dialog.sheet` with `.sheet-head`, `.sheet-body`, `.sheet-foot`, `.scrim` | closed, open as a modal, open from a query parameter without JavaScript | Modal focus handling from `showModal`; Close and Cancel are links back to the page |
+| Side sheet | `dialog.sheet` with `.sheet-head`, `.sheet-body`, `.sheet-foot`, `.scrim` | See [sheet behavior](#patterns) | Labelled by its heading |
 | Option tile | `.tiles`, `.tile`, `.tool-ico` | unchecked, checked | Native checkbox inside its label |
 | Inline editor and menu | `.inline-edit`, `.menu` with `.popover` | closed, open | Native disclosure; works without JavaScript |
 | Filter row | `.filters`, `.input-wrap`, `.seg`, `.filter`, `.filter.set` | unset (dashed), set (with clear link) | See [Browser administration](admin-guide.md#browser-administration) |
@@ -254,8 +254,15 @@ Use its helpers instead of defining page-specific status labels.
 
 **Sheets.**
 Create and edit flows that need several fields open in a side sheet.
-Every sheet has a query-parameter view that renders it open on the server for navigation without JavaScript, normally `?sheet=<name>`; the Add provider sheets use `?add=` as described above.
-With JavaScript the sheet opens as a modal and errors show inside it; see [browser administration](admin-guide.md#browser-administration) for confirmation without the page script.
+`SheetFrame` in `src/views/sheet.tsx` renders a native `dialog` that can open on the server for a query view, usually `?sheet=<name>`.
+Astryx `Drawer` and `Dialog` render closed until hydration, so the server view uses the native dialog.
+Close and Cancel link back to the page without JavaScript.
+Once React hydrates, `sheetTrigger` opens an already rendered sheet in place when available.
+`SheetFrame` promotes a server-open sheet to a modal without firing a dismissal event, removes its opening query parameters while preserving unrelated parameters, and hides the server-rendered scrim.
+Close, Cancel and Escape dismiss the modal and return focus to the actual in-page launcher or to the associated control for a server-opened sheet.
+For a launcher inside a menu, focus returns to the menu summary.
+`Sheet` wraps `SheetFrame` with an `ActionForm`, and form errors appear inside the open dialog where they can receive focus.
+See [browser administration](admin-guide.md#browser-administration) for confirmation without the page script.
 
 **Destructive placement.**
 Destructive actions live in a danger zone card at the bottom of detail pages, or in an overflow menu, never next to Save.
@@ -290,9 +297,7 @@ For the optional provider sign-out choice, see [browser administration](admin-gu
 Error pages say what happened and what to do, show the code and a copyable request ID, and offer the viewer's home page.
 
 **Dialog views without JavaScript.**
-Add and edit forms that open as dialogs have a query-parameter view rendered open by the server, so their fields and close link remain accessible without scripts.
-See [browser administration](admin-guide.md#browser-administration) for which confirmed actions can be submitted without the page script.
-Form errors appear inside the open dialog so they remain visible and can receive focus.
+See [sheet behavior](#patterns) for the server-rendered add and edit views and confirmation fallback.
 
 ## Navigation
 
