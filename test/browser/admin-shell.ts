@@ -22,6 +22,8 @@ const environment: NodeJS.ProcessEnv = { ...process.env, CHROME_DEVTOOLS_AXI_SES
 let server: ChildProcessByStdio<null, Readable, null>
 let fixture: Fixture
 const testWithoutHydration = 'direct credential tests finish when hydration is unavailable'
+const testWithLateHydration = 'latest direct credential result survives late hydration'
+let chromeDebugPort: number
 
 before(async () => {
   // Session-name hashes can collide with other browser workers on this host.
@@ -30,6 +32,11 @@ before(async () => {
   await once(reservation, 'listening')
   environment.CHROME_DEVTOOLS_AXI_PORT = String((reservation.address() as AddressInfo).port)
   await new Promise<void>((resolve, reject) => reservation.close(error => error ? reject(error) : resolve()))
+  reservation.listen(0, '127.0.0.1')
+  await once(reservation, 'listening')
+  chromeDebugPort = (reservation.address() as AddressInfo).port
+  await new Promise<void>((resolve, reject) => reservation.close(error => error ? reject(error) : resolve()))
+  environment.CHROME_DEVTOOLS_AXI_CHROME_ARGS += ' --remote-debugging-port=' + chromeDebugPort
 })
 
 function chrome(args: string[], input?: string) {
@@ -86,7 +93,7 @@ function browser(script: string) {
 
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
-    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: context.name === testWithoutHydration ? '1' : '0' },
+    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: context.name === testWithoutHydration || context.name === testWithLateHydration ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -357,14 +364,32 @@ test('hydrating the overview frame keeps the elements the confirmation script al
 
 test('audit list and detail show the local date and time', async () => {
   assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/audit'), { method: 'POST' })).status, 200)
-  browser(`
-    ${waitForTime}
-    const iso = '2026-01-01T00:00:00.000Z';
-    await page.open(base + '/admin/audit?event=run-start&limit=1');
-    await waitForTime('tbody th a time', iso);
-    await page.click('tbody th a');
-    await waitForTime('#record .sheet-head time', iso);
-  `)
+  const targets: { url: string, webSocketDebuggerUrl: string }[] = await (await fetch(`http://127.0.0.1:${chromeDebugPort}/json/list`)).json()
+  const target = targets.find(page => page.url === fixture.url + '/admin/users')
+  assert.ok(target)
+  const socket = new WebSocket(target.webSocketDebuggerUrl)
+  try {
+    await once(socket, 'open', { signal: AbortSignal.timeout(5000) })
+    const overrides = [
+      { method: 'Emulation.setLocaleOverride', params: { locale: 'de_DE' } },
+      { method: 'Emulation.setTimezoneOverride', params: { timezoneId: 'America/Phoenix' } },
+    ]
+    for (const [id, override] of overrides.entries()) {
+      const reply = once(socket, 'message', { signal: AbortSignal.timeout(5000) })
+      socket.send(JSON.stringify({ id, ...override }))
+      const [message] = await reply
+      assert.deepEqual(JSON.parse(message.data), { id, result: {} })
+    }
+    browser(`
+      ${waitForTime}
+      const iso = '2026-01-01T00:00:00.000Z';
+      const expected = '31.12.2025, 17:00';
+      await page.open(base + '/admin/audit?event=run-start&limit=1');
+      await waitForTime('tbody th a time', iso, expected);
+      await page.click('tbody th a');
+      await waitForTime('#record .sheet-head time', iso, expected);
+    `)
+  } finally { socket.close() }
 })
 
 test('the confirmation pill keeps following the confirmation state when the narrow-screen frame replaces it', () => {
@@ -1766,15 +1791,47 @@ test('disabled tool retains cached test outcomes after reloading the instance', 
   `)
 })
 
-test(testWithoutHydration, () => {
+for (const name of [testWithoutHydration, testWithLateHydration]) test(name, () => {
   browser(`
+    ${waitForTime}
     await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-cached-test' });
+    await page.eval(() => {
+      const original = window.fetch.bind(window);
+      window.fetch = async (...args) => {
+        const response = await original(...args);
+        if (new URL(args[0], location.href).pathname.endsWith('/test')) {
+          const { error } = await response.clone().json();
+          window.checkIso = new Date(error.diagnostic.checkedAt).toISOString();
+        }
+        return response;
+      };
+    });
     await page.click('form[data-test-tool] button');
     await page.wait('[data-test-result]:not(:empty)');
-    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test failed.'), 'Direct test result depends on hydration');
-    check(await page.eval(() => !document.querySelector('[data-check-failure]').hidden &&
-      document.querySelector('[data-check-error]').textContent === 'UPSTREAM_TLS_FAILED'), 'Failure details depend on hydration');
+    const checkResult = async () => check(await page.eval(() =>
+      document.querySelector('[data-test-result]').textContent === 'Test failed.' &&
+      document.querySelector('[data-tool-state]').textContent === 'Failing' &&
+      document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: ' &&
+      !document.querySelector('[data-check-failure]').hidden &&
+      document.querySelector('[data-check-error]').textContent === 'UPSTREAM_TLS_FAILED' &&
+      document.querySelector('[data-check-diagnostic]').textContent.includes('TLS')
+    ), 'Direct test result or details were lost');
+    await checkResult();
     await page.wait('form[data-test-tool] button:not([disabled])');
+    const iso = await page.eval(() => window.checkIso);
+    check(await page.eval(() => {
+      const time = document.querySelector('[data-check-time] time');
+      return time?.textContent === window.checkIso && time.dateTime === window.checkIso && time.title === window.checkIso;
+    }), 'Fallback did not show the response timestamp');
+    if (${name === testWithLateHydration}) {
+      await page.eval(() => {
+        const script = document.createElement('script');
+        script.src = '/admin/assets/hydrate.js?resume';
+        document.head.append(script);
+      });
+      await waitForTime('[data-check-time] time', iso);
+      await checkResult();
+    }
   `)
 })
 

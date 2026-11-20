@@ -113,17 +113,21 @@ for (const editor of document.querySelectorAll('[data-credential-editor]')) {
   update();
 }
 const savedTest = sessionStorage.getItem('credential-test:' + location.pathname);
-let replayTestHealth;
+let latestTestResult;
+let testViewHydrated = false;
+document.addEventListener('astryx-hydrated', () => {
+  testViewHydrated = true;
+  if (latestTestResult) renderTestResult(latestTestResult);
+}, { once: true });
 if (savedTest) {
   sessionStorage.removeItem('credential-test:' + location.pathname);
   const result = document.querySelector('[data-test-result]');
   if (result) {
     const saved = JSON.parse(savedTest);
-    result.textContent = saved.diagnosticVersion === 1 ? saved.message : 'Details unavailable. Run Test connection again.';
-    if (saved.health && document.querySelector('[data-test-checklist]')) {
-      replayTestHealth = () => renderTestHealth(saved.health);
-      document.addEventListener('astryx-hydrated', replayTestHealth, { once: true });
-    }
+    renderTestResult({
+      message: saved.diagnosticVersion === 1 ? saved.message : 'Details unavailable. Run Test connection again.',
+      health: saved.health
+    });
   }
 }
 const operationFilter = document.getElementById('ops-filter');
@@ -368,12 +372,16 @@ async function readTestResponse(response) {
   return { health: { status: 'ok', checkedAt: health.checkedAt, credentialRevision: health.credentialRevision, errorCode: null } };
 }
 
-function renderTestHealth(health) {
+function renderTestResult(result) {
+  latestTestResult = result;
+  document.querySelector('[data-test-result]').textContent = result.message;
+  const { health } = result;
+  const step = document.querySelector('[data-test-checklist]');
+  if (!health || !step) return;
   const errorCode = Object.hasOwn(retestErrors, health.errorCode) ? health.errorCode : null;
   const passed = health.status === 'ok';
   // The server renders both state badges from the status vocabulary; this only swaps them.
   document.querySelector('[data-tool-state]').replaceChildren(document.querySelector('[data-outcome=' + (passed ? 'ok' : 'error') + ']').firstChild.cloneNode(true));
-  const step = document.querySelector('[data-test-checklist]');
   step.classList.remove('todo', 'done', 'fail');
   step.classList.add(passed ? 'done' : 'fail');
   step.querySelector('[data-step-state]').textContent = (passed ? 'Done' : 'Failed') + ': ';
@@ -384,7 +392,18 @@ function renderTestHealth(health) {
   mark.firstChild.setAttribute('href', passed ? '#i-check' : '#i-x');
   step.querySelector('.mark').replaceChildren(mark);
   const checkedAt = health.checkedAt === null ? null : new Date(health.checkedAt).toISOString();
-  hydrated.then(() => document.dispatchEvent(new CustomEvent('artium-check-time', { detail: checkedAt })));
+  if (testViewHydrated) {
+    document.dispatchEvent(new CustomEvent('artium-check-time', { detail: checkedAt }));
+  } else {
+    const checked = document.querySelector('[data-check-time]');
+    if (checkedAt === null) {
+      checked.textContent = 'never';
+    } else {
+      const time = document.createElement('time');
+      time.dateTime = time.title = time.textContent = checkedAt;
+      checked.replaceChildren(time);
+    }
+  }
   const detail = structuredDiagnostic(health.diagnostic);
   document.querySelector('[data-check-failure]').hidden = !errorCode;
   document.querySelector('[data-check-summary]').textContent = retestErrors[errorCode] || '';
@@ -703,9 +722,7 @@ document.addEventListener('submit', async event => {
     }
     if (testResult) {
       const current = await readTestResponse(response);
-      if (replayTestHealth) document.removeEventListener('astryx-hydrated', replayTestHealth);
-      testResult.textContent = response.ok ? 'Test passed.' : 'Test failed.';
-      renderTestHealth(current.health);
+      renderTestResult({ message: response.ok ? 'Test passed.' : 'Test failed.', health: current.health });
       if (current.error) showError(message, current.error);
       return;
     }

@@ -5,9 +5,9 @@ import { createServer } from 'node:net'
 import { createInterface } from 'node:readline'
 import { after, afterEach, before, beforeEach } from 'node:test'
 
-export const waitForTime = `const waitForTime = async (selector, iso) => {
+export const waitForTime = `const waitForTime = async (selector, iso, expected) => {
   await page.wait(selector);
-  const expected = await page.eval('() => (' + (iso => {
+  expected ??= await page.eval('() => (' + (iso => {
     const instant = new Date(iso);
     const date = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(instant);
     const time = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(instant);
