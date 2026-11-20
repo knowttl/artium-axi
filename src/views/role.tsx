@@ -6,7 +6,7 @@ import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
-import { ActionForm, Revision } from './action-form.js'
+import { ActionForm, Revision, useFormDirty } from './action-form.js'
 import { Panel } from './panel.js'
 import { Sheet } from './sheet.js'
 import { badgeVariants, type Status } from './status.js'
@@ -22,6 +22,16 @@ export interface RoleProps {
   members: { people: { href: string, name: string, initials: string, username: string, grants: Status[], state: Status }[], pager: { summary: string, first: string | null, next: string | null } }
   blocked: string | null
   rename: { open: boolean, closeHref: string }
+}
+
+function SaveOrDiscard() {
+  const dirty = useFormDirty()
+  return (
+    <HStack gap={2}>
+      <Button type="submit" label="Save tools" variant="primary" size="sm" isDisabled={!dirty} />
+      <Button type="reset" label="Discard" variant="ghost" size="sm" hidden={!dirty} />
+    </HStack>
+  )
 }
 
 function Tools({ csrf, path, name, changed, tools }: Pick<RoleProps, 'csrf' | 'path' | 'name' | 'changed' | 'tools'>) {
@@ -47,10 +57,7 @@ function Tools({ csrf, path, name, changed, tools }: Pick<RoleProps, 'csrf' | 'p
           </fieldset>
           <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
             <Text type="supporting">Saving replaces the whole selection. A tool must also be enabled before members can run it.</Text>
-            <HStack gap={2}>
-              <Button type="submit" label="Save tools" variant="primary" size="sm" />
-              <Button type="reset" label="Discard" variant="ghost" size="sm" data-discard="" hidden />
-            </HStack>
+            <SaveOrDiscard />
           </HStack>
         </VStack>
       </ActionForm>

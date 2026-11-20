@@ -190,20 +190,6 @@ function confirmChange(form, fallbackAction) {
   });
 }
 
-for (const form of document.querySelectorAll('form[data-track-changes]')) {
-  const save = form.querySelector('button:not([type=button]):not([type=reset])');
-  const discard = form.querySelector('[data-discard]');
-  const initial = new URLSearchParams(new FormData(form)).toString();
-  const update = () => {
-    const dirty = new URLSearchParams(new FormData(form)).toString() !== initial;
-    save.disabled = !dirty;
-    discard.hidden = !dirty;
-  };
-  form.addEventListener('change', update);
-  form.addEventListener('reset', () => setTimeout(update));
-  update();
-}
-
 // A form with no message area of its own reports through the toast host in the React tree once it has hydrated.
 const hydrated = new Promise(resolve => document.addEventListener('astryx-hydrated', resolve, { once: true }));
 function say(target, text, reload = false) {

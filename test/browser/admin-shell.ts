@@ -24,6 +24,7 @@ let fixture: Fixture
 const testWithoutHydration = 'direct credential tests finish when hydration is unavailable'
 const testWithLateHydration = 'latest direct credential result survives late hydration'
 const pickerWithLateHydration = 'operation picker preserves edits across late hydration'
+const trackChangesWithLateHydration = 'role tool grants count a selection edited before late hydration as a change'
 let chromeDebugPort: number
 
 before(async () => {
@@ -94,7 +95,7 @@ function browser(script: string) {
 
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
-    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration].includes(context.name) ? '1' : '0' },
+    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration].includes(context.name) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -2211,6 +2212,50 @@ test('tool detail enablement and granting roles lead to the role access editor',
     await page.click('a[href="/admin/roles/synthetic-role"]');
     await page.wait('[name=tools][value="falcon-axi"]');
     check(await page.eval(() => document.querySelector('[name=tools][value="falcon-axi"]').checked), 'Role did not grant the tool');
+  `)
+})
+
+const trackedChanges = `
+  const tile = '[name=tools][type=checkbox]';
+  const state = () => page.eval(() => {
+    const form = document.querySelector('form[action$="/tools"]');
+    return { canSave: form.querySelector('button[type=submit]').getAttribute('aria-disabled') !== 'true',
+      canDiscard: getComputedStyle(form.querySelector('button[type=reset]')).display !== 'none' };
+  });
+  const expectState = async (canSave, canDiscard, message) => {
+    const { canSave: saveNow, canDiscard: discardNow } = await state();
+    check(saveNow === canSave && discardNow === canDiscard, message + ': Save enabled ' + saveNow + ', Discard visible ' + discardNow);
+  };
+`
+
+test('role tool grants enable Save and show Discard only while the selection differs', () => {
+  browser(trackedChanges + `
+    await page.open(base + '/admin/roles/synthetic-role');
+    await page.wait('form[action$="/tools"] button[type=submit][aria-disabled=true]');
+    await expectState(false, false, 'Untouched form');
+    await page.click(tile);
+    await expectState(true, true, 'Edited form');
+    await page.click(tile);
+    await expectState(false, false, 'Selection restored by hand');
+    await page.click(tile);
+    await expectState(true, true, 'Edited again');
+    await page.click('form[action$="/tools"] button[type=reset]');
+    await page.wait('form[action$="/tools"] button[type=submit][aria-disabled=true]');
+    await expectState(false, false, 'Discarded form');
+  `)
+})
+
+test(trackChangesWithLateHydration, () => {
+  browser(trackedChanges + `
+    await page.open(base + '/admin/roles/synthetic-role');
+    await page.click(tile);
+    await page.eval(() => {
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
+    });
+    await page.wait('form[action$="/tools"] button[type=submit]:not([aria-disabled])');
+    await expectState(true, true, 'Form edited before hydration');
   `)
 })
 
