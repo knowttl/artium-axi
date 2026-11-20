@@ -5,7 +5,7 @@ export function FilterForm({ action, apply, trailing, children }: { action: stri
   const [hydrated, setHydrated] = useState(false)
   useEffect(() => setHydrated(true), [])
   return (
-    <form className="filters" method="get" action={action}
+    <form className="filters" method="get" action={action} data-hydrated={hydrated || undefined}
       onChange={event => { if (event.target instanceof HTMLSelectElement) event.currentTarget.requestSubmit() }}
       onSubmit={event => {
         event.preventDefault()
