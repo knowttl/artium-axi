@@ -190,7 +190,8 @@ Role creation and rename save without an additional action confirmation dialog; 
 The role's deletion control is disabled while blockers remain and lists their counts.
 Successful changes show a short confirmation, and a change that another administrator made first shows **Reload latest**.
 Recent identity confirmation still applies to these actions; each screen also has expandable help.
-Timestamps display in the browser's local time, with their UTC value available on hover.
+Timestamps initially display as ISO values, then use the browser's locale and time zone with a medium date and short time once the page hydrates.
+Hover over a timestamp to see its original UTC value.
 
 User detail and Account list active browser sessions and CLI token families.
 Revoke ends one whole family, including its access and refresh tokens; Sign out everywhere ends all sessions while allowing a new sign-in.
@@ -290,6 +291,8 @@ The **Advanced** editor shows policy settings without per-person grants, which a
 Omitting a policy in **Advanced** turns it off and removes its grants, with the removal recorded in **Settings changes**.
 See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for automatic checks after configuration changes, pending status, recovery retries and concurrency limits.
 Use **Test connection** on an instance, or **Test** in its row, for a current fixed read before enabling a configured tool; it asks for no confirmation dialog but still needs recent identity confirmation.
+If the instance page receives a connection-test result before hydration, it shows the result and any failure details immediately.
+When the response includes a check time, the page displays it in ISO format until hydration finishes.
 For failed tests, follow the [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) and the [error reference](errors.md).
 Graph tests read at most one user through `entra user list --limit 1`.
 For a new installation, follow [Graph credential setup](tool-credentials.md#microsoft-graph), verify the required permissions against your intended operations and obtain maintainer approval before enabling Graph on a running installation.

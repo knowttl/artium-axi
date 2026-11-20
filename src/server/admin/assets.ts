@@ -6,14 +6,6 @@ export const adminStyle = tokens + components
 
 export const adminScript = `
 ${retestScript}
-for (const button of document.querySelectorAll('[data-history-back]')) {
-  if (history.length < 2) continue;
-  button.hidden = false;
-  button.addEventListener('click', () => history.back());
-}
-for (const time of document.querySelectorAll('time[datetime]')) {
-  time.textContent = new Date(time.dateTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-}
 const findReauthState = () => document.querySelector('[data-reauth-until]');
 let reauthUntil = Number(findReauthState()?.dataset.reauthUntil || 0);
 function updateReauthState() {
@@ -121,13 +113,22 @@ for (const editor of document.querySelectorAll('[data-credential-editor]')) {
   update();
 }
 const savedTest = sessionStorage.getItem('credential-test:' + location.pathname);
+let latestTestResult;
+let testViewHydrated = false;
+document.addEventListener('astryx-hydrated', () => {
+  testViewHydrated = true;
+  if (latestTestResult) renderTestResult(latestTestResult);
+}, { once: true });
 if (savedTest) {
   sessionStorage.removeItem('credential-test:' + location.pathname);
   const result = document.querySelector('[data-test-result]');
   if (result) {
     const saved = JSON.parse(savedTest);
-    result.textContent = saved.diagnosticVersion === 1 ? saved.message : 'Details unavailable. Run Test connection again.';
-    if (saved.health && document.querySelector('[data-test-checklist]')) document.addEventListener('astryx-hydrated', () => renderTestHealth(saved.health), { once: true });
+    latestTestResult = {
+      message: saved.diagnosticVersion === 1 ? saved.message : 'Details unavailable. Run Test connection again.',
+      health: saved.health
+    };
+    result.textContent = latestTestResult.message;
   }
 }
 const operationFilter = document.getElementById('ops-filter');
@@ -372,12 +373,44 @@ async function readTestResponse(response) {
   return { health: { status: 'ok', checkedAt: health.checkedAt, credentialRevision: health.credentialRevision, errorCode: null } };
 }
 
-function renderTestHealth(health) {
+function renderTestResult(result) {
+  latestTestResult = result;
+  document.querySelector('[data-test-result]').textContent = result.message;
+  const { health } = result;
+  const step = document.querySelector('[data-test-checklist]');
+  if (!health || !step) return;
   const errorCode = Object.hasOwn(retestErrors, health.errorCode) ? health.errorCode : null;
+  const detail = structuredDiagnostic(health.diagnostic);
+  document.querySelector('[data-check-failure]').hidden = !errorCode;
+  document.querySelector('[data-check-summary]').textContent = retestErrors[errorCode] || '';
+  document.querySelector('[data-check-error]').textContent = errorCode || '';
+  const inspect = document.querySelector('[data-inspect-certificate]');
+  if (inspect && errorCode === 'UPSTREAM_TLS_FAILED') inspect.hidden = false;
+  document.querySelector('[data-check-diagnostic]').textContent = detail
+    ? [detail.stage, detail.toolCode, detail.transportCode, detail.providerCode, detail.upstreamStatus, detail.trust].filter(value => value !== undefined).join('\\n') : 'Details unavailable.';
+
+  const checkedAt = health.checkedAt === null ? null : new Date(health.checkedAt).toISOString();
+  const checked = document.querySelector('[data-check-time]');
+  const fallback = document.querySelector('[data-check-time-fallback]');
+  if (!testViewHydrated) {
+    checked.hidden = true;
+    fallback.hidden = false;
+    if (checkedAt === null) {
+      fallback.textContent = 'never';
+    } else {
+      const time = document.createElement('time');
+      time.dateTime = time.title = time.textContent = checkedAt;
+      fallback.replaceChildren(time);
+    }
+    return;
+  }
+  fallback.hidden = true;
+  checked.hidden = false;
+  document.dispatchEvent(new CustomEvent('artium-check-time', { detail: checkedAt }));
+
   const passed = health.status === 'ok';
   // The server renders both state badges from the status vocabulary; this only swaps them.
   document.querySelector('[data-tool-state]').replaceChildren(document.querySelector('[data-outcome=' + (passed ? 'ok' : 'error') + ']').firstChild.cloneNode(true));
-  const step = document.querySelector('[data-test-checklist]');
   step.classList.remove('todo', 'done', 'fail');
   step.classList.add(passed ? 'done' : 'fail');
   step.querySelector('[data-step-state]').textContent = (passed ? 'Done' : 'Failed') + ': ';
@@ -387,17 +420,6 @@ function renderTestHealth(health) {
   mark.append(document.createElementNS('http://www.w3.org/2000/svg', 'use'));
   mark.firstChild.setAttribute('href', passed ? '#i-check' : '#i-x');
   step.querySelector('.mark').replaceChildren(mark);
-  const checked = document.querySelector('[data-check-time]');
-  checked.textContent = health.checkedAt === null ? 'never' : new Date(health.checkedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-  checked.title = health.checkedAt === null ? '' : new Date(health.checkedAt).toISOString();
-  const detail = structuredDiagnostic(health.diagnostic);
-  document.querySelector('[data-check-failure]').hidden = !errorCode;
-  document.querySelector('[data-check-summary]').textContent = retestErrors[errorCode] || '';
-  document.querySelector('[data-check-error]').textContent = errorCode || '';
-  const inspect = document.querySelector('[data-inspect-certificate]');
-  if (inspect && errorCode === 'UPSTREAM_TLS_FAILED') inspect.hidden = false;
-  document.querySelector('[data-check-diagnostic]').textContent = detail
-    ? [detail.stage, detail.toolCode, detail.transportCode, detail.providerCode, detail.upstreamStatus, detail.trust].filter(value => value !== undefined).join('\\n') : 'Details unavailable.';
 }
 
 let pendingAction = false;
@@ -708,8 +730,7 @@ document.addEventListener('submit', async event => {
     }
     if (testResult) {
       const current = await readTestResponse(response);
-      testResult.textContent = response.ok ? 'Test passed.' : 'Test failed.';
-      renderTestHealth(current.health);
+      renderTestResult({ message: response.ok ? 'Test passed.' : 'Test failed.', health: current.health });
       if (current.error) showError(message, current.error);
       return;
     }

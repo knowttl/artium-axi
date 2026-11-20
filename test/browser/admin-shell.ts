@@ -7,6 +7,7 @@ import { createInterface } from 'node:readline'
 import { createServer, type AddressInfo } from 'node:net'
 import type { Readable } from 'node:stream'
 import { after, afterEach, before, beforeEach, test } from 'node:test'
+import { waitForTime } from './harness.mjs'
 
 type Fixture = {
   url: string
@@ -16,9 +17,13 @@ type Fixture = {
 }
 
 const environment: NodeJS.ProcessEnv = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: `artium-shell-${process.pid}`,
-  CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors' }
+  LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', TZ: 'America/Phoenix',
+  CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors --lang=en-US' }
 let server: ChildProcessByStdio<null, Readable, null>
 let fixture: Fixture
+const testWithoutHydration = 'direct credential tests finish when hydration is unavailable'
+const testWithLateHydration = 'latest direct credential result survives late hydration'
+let chromeDebugPort: number
 
 before(async () => {
   // Session-name hashes can collide with other browser workers on this host.
@@ -27,6 +32,11 @@ before(async () => {
   await once(reservation, 'listening')
   environment.CHROME_DEVTOOLS_AXI_PORT = String((reservation.address() as AddressInfo).port)
   await new Promise<void>((resolve, reject) => reservation.close(error => error ? reject(error) : resolve()))
+  reservation.listen(0, '127.0.0.1')
+  await once(reservation, 'listening')
+  chromeDebugPort = (reservation.address() as AddressInfo).port
+  await new Promise<void>((resolve, reject) => reservation.close(error => error ? reject(error) : resolve()))
+  environment.CHROME_DEVTOOLS_AXI_CHROME_ARGS += ' --remote-debugging-port=' + chromeDebugPort
 })
 
 function chrome(args: string[], input?: string) {
@@ -57,7 +67,14 @@ function browser(script: string) {
     };
     const createInstance = async (tool, value, name = 'default') => {
       await page.open(base + '/admin/tools/' + tool);
-      const status = await page.eval('(async () => { const response = await fetch("/v1/admin/tools/' + tool + '/instances", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ name: "' + name + '", description: "", value: ' + JSON.stringify(value) + ', expectedToolRevision: Number(document.querySelector("[name=expectedToolRevision]").value), _csrf: document.querySelector("[name=_csrf]").value }) }); return response.status; })()');
+      const status = await page.eval('async () => (' + (async (tool, value, name) => {
+        const form = document.querySelector('form[action="/v1/admin/tools/' + tool + '/instances"]');
+        const body = { name, description: '', value, expectedToolRevision: Number(form.elements.expectedToolRevision.value),
+          _csrf: form.elements._csrf.value, _confirm: form.dataset.confirmToken };
+        const response = await fetch(form.action, { method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body) });
+        return response.status;
+      }).toString() + ')(...' + JSON.stringify([tool, value, name]) + ')');
       if (status !== 200) throw new Error('Could not create the ' + tool + ' instance: ' + status);
       await openInstance(tool, name);
     };
@@ -74,8 +91,9 @@ function browser(script: string) {
     ${script}`)
 }
 
-beforeEach(async () => {
+beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
+    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: context.name === testWithoutHydration || context.name === testWithLateHydration ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -308,6 +326,35 @@ test('request-failed page request ID copies', () => {
   `)
 })
 
+test('request-failed page go back button appears with history and returns to the previous page', () => {
+  browser(`
+    await page.open(base + '/admin');
+    await page.open(base + '/admin/missing');
+    await page.wait('[data-history-back]:not([hidden])');
+    await page.click('[data-history-back]');
+    await page.wait('section[aria-labelledby=overview-summary]');
+    check(await page.eval(() => location.pathname === '/admin'), 'Go back did not return to the previous page');
+  `)
+})
+
+test('request-failed page keeps Go back hidden without history', () => {
+  chrome(['newpage', 'about:blank', '--no-snapshot'])
+  const id = /^\s*(\d+),about:blank,true$/m.exec(chrome(['pages']))?.[1]
+  assert.ok(id)
+  try {
+    browser(`
+      await page.eval('() => location.replace(' + JSON.stringify(base + '/admin/missing') + ')');
+      await page.wait('html[data-astryx-theme]');
+      await page.eval(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => {} } }));
+      await page.click('[aria-label="Copy request ID"]');
+      await page.wait('[data-copy-status]:not(:empty)');
+      check(await page.eval(() => history.length === 1), 'The fresh tab had a previous history entry');
+      check(await page.eval(() => document.querySelector('[data-history-back]').getClientRects().length === 0),
+        'Go back was visible in a hydrated tab without history');
+    `)
+  } finally { chrome(['closepage', id]) }
+})
+
 test('account CLI command copies its text', () => {
   browser(`
     await page.open(base + '/account');
@@ -318,20 +365,49 @@ test('account CLI command copies its text', () => {
   `)
 })
 
-test('hydrating the overview frame keeps the elements the confirmation script already owns', () => {
+test('hydrating the overview frame keeps the elements the confirmation script already owns', async () => {
+  assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/overview'), { method: 'POST' })).status, 200)
   browser(`
-    await page.open(base + '/admin/roles');
-    const status = await page.eval('(async () => { const response = await fetch("/v1/admin/roles", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ name: "Synthetic hydration role", _csrf: document.querySelector("[name=_csrf]").value }) }); return response.status; })()');
-    check(status === 200 || status === 201, 'Could not create a role to list under recent changes: ' + status);
+    ${waitForTime}
     await page.open(base + '/admin');
     await page.wait('html[data-astryx-theme]');
-    await page.wait('[data-astryx-root] time');
+    const iso = '2026-01-01T00:00:00.000Z';
+    await waitForTime('li time[datetime="' + iso + '"]', iso);
     check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
     await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
     await page.wait('.unlock.off', 35000);
     check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'The confirmation pill stopped following the confirmation state after hydration');
-    check(await page.eval(() => !/T\\d\\d:\\d\\d:\\d\\d/.test(document.querySelector('[data-astryx-root] time').textContent)), 'Hydration restored the unformatted time');
   `)
+})
+
+test('audit list and detail show the local date and time', async () => {
+  assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/audit'), { method: 'POST' })).status, 200)
+  const targets: { url: string, webSocketDebuggerUrl: string }[] = await (await fetch(`http://127.0.0.1:${chromeDebugPort}/json/list`)).json()
+  const target = targets.find(page => page.url === fixture.url + '/admin/users')
+  assert.ok(target)
+  const socket = new WebSocket(target.webSocketDebuggerUrl)
+  try {
+    await once(socket, 'open', { signal: AbortSignal.timeout(5000) })
+    const overrides = [
+      { method: 'Emulation.setLocaleOverride', params: { locale: 'de_DE' } },
+      { method: 'Emulation.setTimezoneOverride', params: { timezoneId: 'America/Phoenix' } },
+    ]
+    for (const [id, override] of overrides.entries()) {
+      const reply = once(socket, 'message', { signal: AbortSignal.timeout(5000) })
+      socket.send(JSON.stringify({ id, ...override }))
+      const [message] = await reply
+      assert.deepEqual(JSON.parse(message.data), { id, result: {} })
+    }
+    browser(`
+      ${waitForTime}
+      const iso = '2026-01-01T00:00:00.000Z';
+      const expected = '31.12.2025, 17:00';
+      await page.open(base + '/admin/audit?event=run-start&limit=1');
+      await waitForTime('tbody th a time', iso, expected);
+      await page.click('tbody th a');
+      await waitForTime('#record .sheet-head time', iso, expected);
+    `)
+  } finally { socket.close() }
 })
 
 test('the confirmation pill keeps following the confirmation state when the narrow-screen frame replaces it', () => {
@@ -1733,35 +1809,112 @@ test('disabled tool retains cached test outcomes after reloading the instance', 
   `)
 })
 
-for (const action of ['save', 'test']) {
+for (const name of [testWithoutHydration, testWithLateHydration]) test(name, () => {
+  browser(`
+    ${waitForTime}
+    await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-cached-test' });
+    await page.eval(() => {
+      const original = window.fetch.bind(window);
+      window.fetch = async (...args) => {
+        const response = await original(...args);
+        if (new URL(args[0], location.href).pathname.endsWith('/test')) {
+          const { error } = await response.clone().json();
+          window.checkIso = new Date(error.diagnostic.checkedAt).toISOString();
+        }
+        return response;
+      };
+    });
+    await page.click('form[data-test-tool] button');
+    await page.wait('[data-test-result]:not(:empty)');
+    const checkResult = async () => check(await page.eval(() =>
+      document.querySelector('[data-test-result]').textContent === 'Test failed.' &&
+      !document.querySelector('[data-check-failure]').hidden &&
+      document.querySelector('[data-check-error]').textContent === 'UPSTREAM_TLS_FAILED' &&
+      document.querySelector('[data-check-diagnostic]').textContent.includes('TLS')
+    ), 'Direct test result or details were lost');
+    await checkResult();
+    await page.wait('form[data-test-tool] button:not([disabled])');
+    const iso = await page.eval(() => window.checkIso);
+    check(await page.eval(() => {
+      const time = document.querySelector('[data-check-time-fallback]:not([hidden]) time');
+      return time?.textContent === window.checkIso && time.dateTime === window.checkIso && time.title === window.checkIso &&
+        document.querySelector('[data-check-time]').hidden;
+    }), 'Fallback did not show the response timestamp');
+    if (${name === testWithLateHydration}) {
+      await page.eval(() => {
+        const script = document.createElement('script');
+        script.src = '/admin/assets/hydrate.js?resume';
+        document.head.append(script);
+      });
+      await waitForTime('[data-check-time]:not([hidden]) time', iso);
+      await checkResult();
+      check(await page.eval(() =>
+        document.querySelector('[data-check-time-fallback]').hidden &&
+        document.querySelector('[data-tool-state]').textContent === 'Failing' &&
+        document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '
+      ), 'Hydrated result did not replace the fallback and update the checklist');
+      check(await page.eval(async () => {
+        const transfer = new DataTransfer();
+        transfer.items.add(new File(['CANARY-upload'], 'synthetic.pem'));
+        const input = document.querySelector('[data-tls-file="caBundle"]');
+        input.files = transfer.files;
+        File.prototype.text = async () => 'CANARY-upload';
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        await Promise.resolve();
+        return document.querySelector('[data-profile-field="caBundle"]').value === 'CANARY-upload';
+      }), 'Credential editor lost its certificate upload handler');
+    }
+  `)
+})
+
+for (const action of ['save', 'test', 'trust']) {
   test('credential diagnostics retain the current ' + action + ' response over cached health', () => {
     browser(`
-      await createInstance('falcon-axi', falconValue);
+      ${waitForTime}
+      const action = ${JSON.stringify(action)};
+      await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-cached-test' });
+      if (action === 'trust') {
+        await page.click('form[data-test-tool] button');
+        await page.wait('[data-inspect-certificate]:not([hidden])');
+        await page.click('[data-inspect-certificate] button');
+        await page.wait('#certificate-inspection[open]');
+        await page.click('[name=confirmedFingerprint]');
+      }
       await page.eval(() => {
         const original = window.fetch.bind(window);
         window.fetch = async (url, options) => {
-          if (new URL(url, location.href).pathname !== '/v1/admin/tools/falcon-axi/instances/default/test') return original(url, options);
+          if (new URL(url, location.href).pathname !== '/v1/admin/tools/vectra-axi/instances/default/test') return original(url, options);
+          const response = await original(url, options);
+          const cached = await response.json();
+          if (${action === 'trust'}) {
+            if (!response.ok || cached.status !== 'ok') throw new Error('Expected a cached loopback success');
+            return Response.json({ ...cached, checkedAt: 1700000000000 });
+          }
+          if (cached.error?.code !== 'UPSTREAM_TLS_FAILED' || !cached.error.diagnostic?.checkedAt) throw new Error('Expected a cached loopback TLS failure');
           return Response.json({ error: { code: 'TOO_MANY_CALLS', message: 'A check is already running.', next: 'Try again later.',
             diagnostic: { stage: 'configuration', message: 'This credential check was not admitted.', checkedAt: 1700000000000,
               credentialRevision: 1 } } }, { status: 429 });
         };
       });
-      if (${JSON.stringify(action)} === 'save') {
-        await page.fill('[data-profile-field="clientId"]', 'CANARY-falcon-client');
-        await page.fill('[data-profile-field="clientSecret"]', 'CANARY-falcon-secret');
-        await page.fill('[data-profile-field="region"]', 'us-1');
+      if (action === 'save') {
         await page.click('form[data-save-tool] button');
         await page.wait('#confirmation[open]');
         await page.click('#confirmation button[value=confirmed]');
-      } else {
+      } else if (action === 'test') {
         await page.click('form[data-test-tool] button');
+      } else {
+        await page.click('[data-trust-certificate] button');
+        await page.wait('form[data-method=DELETE][action$="/certificates"]');
       }
-      await page.wait('[data-check-diagnostic]:not(:empty)');
-      check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent === 'configuration'), 'Current test diagnostic was replaced');
-      check(await page.eval(() => document.querySelector('[data-check-error]').textContent === 'TOO_MANY_CALLS'), 'Current test category was replaced');
-      check(await page.eval(() => document.querySelector('[data-check-time]').title === '2023-11-14T22:13:20.000Z'), 'Current test time was replaced');
-      check(await page.eval(() => document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '), 'Failed test marked the checklist complete');
-      check(await page.eval(() => !document.querySelector('[data-check-failure]').hidden), 'Failure callout hidden');
+      await waitForTime('[data-check-time] time', '2023-11-14T22:13:20.000Z');
+      if (action === 'trust') {
+        check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Connected'), 'Automatic credential test did not connect after trust');
+      } else {
+        check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent === 'configuration'), 'Current test diagnostic was replaced');
+        check(await page.eval(() => document.querySelector('[data-check-error]').textContent === 'TOO_MANY_CALLS'), 'Current test category was replaced');
+        check(await page.eval(() => document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '), 'Failed test marked the checklist complete');
+        check(await page.eval(() => !document.querySelector('[data-check-failure]').hidden), 'Failure callout hidden');
+      }
     `)
   })
 }

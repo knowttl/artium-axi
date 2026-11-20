@@ -7,6 +7,7 @@ import type { Readable } from 'node:stream'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, afterEach, before, beforeEach, test } from 'node:test'
+import { waitForTime } from './harness.mjs'
 
 type Fixture = {
   url: string
@@ -29,7 +30,8 @@ type SsoEvidence = {
 }
 
 const environment: NodeJS.ProcessEnv = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: `artium-sso-${process.pid}`,
-  CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors' }
+  LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', TZ: 'America/Phoenix',
+  CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors --lang=en-US' }
 let server: ChildProcessByStdio<null, Readable, null>
 let fixture: Fixture
 
@@ -143,13 +145,15 @@ function cli(args: string[]) {
   return { child, result }
 }
 
-async function cliDeviceCode(child: ChildProcessByStdio<null, Readable, Readable>) {
+async function cliDeviceRequest(child: ChildProcessByStdio<null, Readable, Readable>) {
   const lines = createInterface({ input: child.stdout })
   try {
+    let code: string | undefined
     for await (const line of lines) {
-      if (line.startsWith('code: ')) return line.slice(6)
+      if (line.startsWith('code: ')) code = line.slice(6)
+      if (code && line.startsWith('expires: ')) return { code, expiresAt: Date.parse(line.slice(9)) }
     }
-    throw new Error('CLI exited without an approval code')
+    throw new Error('CLI exited without an approval request')
   } finally { lines.close() }
 }
 
@@ -297,7 +301,7 @@ test('generic ID token with another issuer is refused in the real browser', asyn
 test('generic provider approves bundled CLI sign-in alongside Entra', async () => {
   const login = cli(['login', '--sso'])
   try {
-    const code = await cliDeviceCode(login.child)
+    const { code } = await cliDeviceRequest(login.child)
     browser(`await page.open(base + '/device?code=' + ${JSON.stringify(code)});
       await page.wait('[data-device-sso][href^="/auth/sso/synthetic-generic/"]');
       check(await page.eval(() => !!document.querySelector('[data-device-sso][href^="/auth/sso/synthetic-entra/"]')), 'Entra approval option missing');
@@ -319,14 +323,16 @@ test('generic provider approves bundled CLI sign-in alongside Entra', async () =
 for (const decision of ['approve', 'deny', 'expire']) test(`bundled CLI device sign-in: ${decision}`, async () => {
   const login = cli(['login', '--sso'])
   try {
-    const code = await cliDeviceCode(login.child)
+    const { code, expiresAt } = await cliDeviceRequest(login.child)
+    const requestedAt = new Date(expiresAt - 600_000)
     if (decision === 'expire') {
       const response = await fetch(fixture.clock, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ advanceMs: 600_000 }) })
       assert.equal(response.status, 200)
       browser(`await page.open(base + '/device?code=' + ${JSON.stringify(code)});
         await page.wait('[role=main], main');
         check(await page.eval(() => document.body.textContent.includes('DEVICE_CODE_EXPIRED')), 'browser did not report expiry');`)
-    } else browser(`await page.open(base + '/device');
+    } else browser(`${waitForTime}
+      await page.open(base + '/device');
       await page.fill('[name=code]', ${JSON.stringify(code)});
       await page.click('form[action="/device"] button');
       await page.wait('[data-device-sso]');
@@ -336,11 +342,8 @@ for (const decision of ['approve', 'deny', 'expire']) test(`bundled CLI device s
       await page.wait('a[href^="/device?code="]');
       await page.click('a[href^="/device?code="]');
       await page.wait('button[value=approve]');
-      check(await page.eval(() => document.querySelector('main dl').textContent.includes('127.0.0.1') && document.querySelector('main dl time[datetime]') && document.body.textContent.includes('Never approve a code someone sent you')), 'approval omitted request details or warning');
-      check(await page.eval(() => {
-        const time = document.querySelector('[data-astryx-root] time');
-        return time.textContent === new Date(time.dateTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-      }), 'Request time was not localized after hydration');
+      await waitForTime('main dl time', ${JSON.stringify(requestedAt.toISOString())});
+      check(await page.eval(() => document.querySelector('main dl').textContent.includes('127.0.0.1') && document.body.textContent.includes('Never approve a code someone sent you')), 'approval omitted request details or warning');
       check(await page.eval(() => document.querySelector('button[value=deny]').textContent === "This wasn't me"), 'denial action missing');
       check(await page.eval(() => document.documentElement.scrollWidth <= innerWidth), 'device page overflows');
       await page.click('button[value=${decision}]');

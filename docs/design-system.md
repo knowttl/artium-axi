@@ -54,9 +54,11 @@ Its header holds the Test connection form and the Enabled switch, and below it c
 The Connection card is `CredentialEditor` with the instance's `configured` state and saved non-secret values, which `credentialEditor()` takes from the instance metadata and only for fields the profile does not mark secret; a secret field is the same empty native textarea as in the Add instance sheet, and the editor empties it, and the pasted or uploaded certificate, when the page is left (`pagehide`) as well as when a sheet closes.
 Its form keeps `data-save-tool` and `data-save-instance`, so `confirm.js` sends only the fields that have a value, which leaves an empty secret unchanged on the server.
 Astryx text inputs are controlled, so their `defaultValue` follows what is typed; each carries its saved value in `data-saved`, which `confirm.js` compares with the typed URL to decide whether an unedited connection IP or certificate name is dropped with it.
-The test, inspection and trust controls keep the `data-test-tool`, `data-check-*`, `data-inspect-certificate`, `data-trust-certificate` and `#certificate-inspection` hooks that `confirm.js` fills in place; the two state badges it swaps in sit in a hidden `data-outcome` element, and it applies a test result saved before a reload only after the page announces `astryx-hydrated`, so React never hydrates markup the script already changed.
+The test, inspection and trust controls keep the `data-test-tool`, `data-check-*`, `data-inspect-certificate`, `data-trust-certificate` and `#certificate-inspection` hooks that `confirm.js` uses.
+Before hydration, a result restored after reload supplies the result message, and a direct check can also fill the failure details and the separate `data-check-time-fallback` slot.
+On `astryx-hydrated`, the script applies the latest result, updates the checklist, replaces the status badge with a copy from a hidden `data-outcome` element and sends the check time to React through `artium-check-time`.
+Keeping the pre-hydration updates in elements that suppress hydration warnings preserves the credential editor's event handlers.
 The GitHub connection card on this page is the same `GithubConnection` view, above the Connection card.
-Elements that `confirm.js` fills before hydration, such as the test result and the JSON check status, render with `suppressHydrationWarning` and matching text so hydration does not discard the page's event handlers.
 The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`, and its search is the same get form that `confirm.js` submits without empty values.
 Invitations keeps the one-time link dialog (`#invitation-link`) as a native `dialog` that `confirm.js` opens after a create or resend form marked with `claimLink` in `ActionForm`, and its provider choice stays a native `select` inside an Astryx `Field`; the lifetime in days is a text input that `confirm.js` sends as a number.
 The Roles list opens its New role sheet from `?sheet=new-role`, and the earlier `?dialog=new-role` link redirects there.
@@ -100,7 +102,9 @@ Astryx checkboxes emit inline SVG shapes, so the role and administrator checkbox
 The person detail page's "More actions" overflow menu keeps a native `details` disclosure, because Astryx dropdown components need runtime inline styles (see issue 462), and builds its items from Astryx `Button` and `ActionForm`.
 The Sessions card (`Sessions` in `src/views/sessions.tsx`) is also on the Account page; see the Account rendering details below.
 The People filter chips stay native `select` elements, so filtering works without JavaScript and the form fields are unchanged.
-A view that shows a time wraps it in `<time suppressHydrationWarning>`, because `confirm.js` formats every `time[datetime]` before hydration.
+Views render timestamps with `Time` in `src/views/time.tsx`.
+See [browser administration](admin-guide.md#browser-administration) for the timestamp display behavior.
+The CLI approval page's Go back button (`BackButton` in `src/views/auth.tsx`) renders hidden and appears once hydrated when the browser has history.
 Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
 The legacy base rules for headings, paragraphs, links, table elements, labels, selects, textareas, buttons and inputs other than checkboxes, radio buttons, hidden and file inputs skip content inside `[data-astryx-root]`, except inside a `legacy-island` element, which keeps them.
 Tool views no longer accept `legacyHtml`; the one `legacy-island` element left is the empty certificate details container in the instance page's inspection dialog, which `confirm.js` fills with the inspected chain.

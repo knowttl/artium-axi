@@ -8,7 +8,7 @@ import { Heading, Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ActionForm, Revision } from './action-form.js'
 import { CredentialEditor, type CredentialEditorProps } from './credential-editor.js'
 import { Icon } from './icon.js'
@@ -73,7 +73,13 @@ function Versions({ id, revision }: Pick<InstanceProps, 'id' | 'revision'>) {
   )
 }
 
-function Header({ csrf, tool, mark, path, id, name, revision, enabled, state, outcomes, writes, checkedAt }: InstanceProps) {
+function Header({ csrf, tool, mark, path, id, name, revision, enabled, state, outcomes, writes, checkedAt: initialCheckedAt }: InstanceProps) {
+  const [checkedAt, setCheckedAt] = useState(initialCheckedAt)
+  useEffect(() => {
+    const update = (event: Event) => setCheckedAt((event as CustomEvent<string | null>).detail)
+    document.addEventListener('artium-check-time', update)
+    return () => document.removeEventListener('artium-check-time', update)
+  }, [])
   return (
     <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
       <HStack gap={3} vAlign="center">
@@ -88,9 +94,8 @@ function Header({ csrf, tool, mark, path, id, name, revision, enabled, state, ou
           <Badge label={writes.word} variant={writes.tone === 'warn' ? 'warning' : 'neutral'} />
           <Text as="span" type="supporting">
             {'Checked '}
-            {checkedAt === null
-              ? <span data-check-time="" suppressHydrationWarning>never</span>
-              : <time data-check-time="" dateTime={checkedAt} title={checkedAt} suppressHydrationWarning>{checkedAt}</time>}
+            <span data-check-time="" suppressHydrationWarning><Time iso={checkedAt} empty="never" /></span>
+            <span data-check-time-fallback="" hidden suppressHydrationWarning dangerouslySetInnerHTML={{ __html: '' }} />
           </Text>
         </HStack>
       </HStack>
@@ -275,7 +280,7 @@ function Certificates({ csrf, path, name, certificates }: { csrf: string, path: 
           <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
             <Text type="supporting">{offered ? 'Compare the fingerprint with the one the appliance shows before trusting.' : 'Inspection is offered after a connection test fails with a certificate error.'}</Text>
             {endpoints.length > 0 && (
-              <ActionForm action={`${path}/certificates/inspect`} method="POST" csrf={csrf} attributes={{ 'data-inspect-certificate': '', hidden: !offered }}>
+              <ActionForm action={`${path}/certificates/inspect`} method="POST" csrf={csrf} attributes={{ 'data-inspect-certificate': '', hidden: !offered, suppressHydrationWarning: true }}>
                 <HStack gap={2} vAlign="center">
                   {endpoints.length > 1
                     ? <>

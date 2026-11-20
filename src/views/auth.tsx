@@ -10,8 +10,10 @@ import { TextInput } from '@astryxdesign/core/TextInput'
 import { Heading, Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
+import { useClientValue } from './client-value.js'
 import { useCopy } from './copy.js'
 import { Icon } from './icon.js'
+import { Time } from './time.js'
 
 export interface AuthButton {
   label: string
@@ -61,10 +63,15 @@ function Field({ field }: { field: AuthField }) {
     autoComplete={field.autoComplete} description={field.hint} controlClassName={field.mono ? 'mono' : undefined} {...{ required: true, maxLength: field.maxLength }} />
 }
 
+function BackButton({ label, tone }: { label: string, tone: AuthButton['tone'] }) {
+  const hasHistory = useClientValue(() => history.length > 1, false)
+  return <Button label={label} variant={tone} width="100%" type="button" hidden={!hasHistory} onClick={() => history.back()} data-history-back="" />
+}
+
 function Buttons({ buttons, row }: { buttons: AuthButton[], row?: true }) {
-  const items = buttons.map(({ label, tone, href, name, value, marker, back }) => (
+  const items = buttons.map(({ label, tone, href, name, value, marker, back }) => back ? <BackButton key={label} label={label} tone={tone} /> : (
     <Button key={label} label={label} variant={tone} width="100%" href={href} name={name} value={value} {...marker ? { [marker]: '' } : {}}
-      {...back ? { type: 'button', hidden: true, 'data-history-back': '' } : href ? {} : { type: 'submit' }} />
+      {...href ? {} : { type: 'submit' }} />
   ))
   return row ? <HStack gap={2}>{items}</HStack> : <VStack gap={2}>{items}</VStack>
 }
@@ -94,7 +101,7 @@ function Block({ block }: { block: AuthBlock }) {
       <MetadataList columns="single">
         {block.rows.map(({ label, value, mono, time, copyLabel }) => (
           <MetadataListItem key={label} label={label}>
-            {copyLabel ? <CopyValue value={value} label={copyLabel} /> : mono ? <Text type="code">{value}</Text> : time ? <time dateTime={value} title={value} suppressHydrationWarning>{value}</time> : value}
+            {copyLabel ? <CopyValue value={value} label={copyLabel} /> : mono ? <Text type="code">{value}</Text> : time ? <Time iso={value} /> : value}
           </MetadataListItem>
         ))}
       </MetadataList>
