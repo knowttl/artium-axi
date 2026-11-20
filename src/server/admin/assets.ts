@@ -6,14 +6,6 @@ export const adminStyle = tokens + components
 
 export const adminScript = `
 ${retestScript}
-for (const button of document.querySelectorAll('[data-history-back]')) {
-  if (history.length < 2) continue;
-  button.hidden = false;
-  button.addEventListener('click', () => history.back());
-}
-for (const time of document.querySelectorAll('time[datetime]')) {
-  time.textContent = new Date(time.dateTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-}
 const findReauthState = () => document.querySelector('[data-reauth-until]');
 let reauthUntil = Number(findReauthState()?.dataset.reauthUntil || 0);
 function updateReauthState() {

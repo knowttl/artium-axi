@@ -56,7 +56,7 @@ test('decision buttons submit their name and value and links stay links', () => 
   expect(attribute(link!, 'data-synthetic-marker')).toBe('')
 })
 
-test('the go back button starts hidden for the history script to reveal', () => {
+test('the go back button is server rendered hidden until the browser reports history', () => {
   const [back] = find(render({ blocks: [{ kind: 'buttons', buttons: [{ label: 'Synthetic back', tone: 'secondary', back: true }] }] }), element => attribute(element, 'data-history-back') !== undefined)
   expect([back!.tagName, attribute(back!, 'type'), attribute(back!, 'hidden')]).toEqual(['button', 'button', ''])
 })

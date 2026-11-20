@@ -90,7 +90,7 @@ function Header({ csrf, tool, mark, path, id, name, revision, enabled, state, ou
             {'Checked '}
             {checkedAt === null
               ? <span data-check-time="" suppressHydrationWarning>never</span>
-              : <time data-check-time="" dateTime={checkedAt} title={checkedAt} suppressHydrationWarning>{checkedAt}</time>}
+              : <Time iso={checkedAt} attributes={{ 'data-check-time': '' }} />}
           </Text>
         </HStack>
       </HStack>

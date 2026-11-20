@@ -1,7 +1,13 @@
 import { Text } from '@astryxdesign/core/Text'
+import { useClientValue } from './client-value.js'
 
-export function Time({ iso, empty = 'Not recorded' }: { iso: string | null, empty?: string }) {
-  return iso === null ? <>{empty}</> : <time dateTime={iso} title={iso} suppressHydrationWarning>{iso}</time>
+function LocalTime({ iso, attributes }: { iso: string, attributes?: Record<string, string> }) {
+  const text = useClientValue(() => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }), iso)
+  return <time {...attributes} dateTime={iso} title={iso}>{text}</time>
+}
+
+export function Time({ iso, empty = 'Not recorded', attributes }: { iso: string | null, empty?: string, attributes?: Record<string, string> }) {
+  return iso === null ? <>{empty}</> : <LocalTime iso={iso} attributes={attributes} />
 }
 
 export function LastChange({ actor, at, revision }: { actor: string, at: string | null, revision: number }) {

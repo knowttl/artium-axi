@@ -308,6 +308,17 @@ test('request-failed page request ID copies', () => {
   `)
 })
 
+test('request-failed page go back button appears with history and returns to the previous page', () => {
+  browser(`
+    await page.open(base + '/admin');
+    await page.open(base + '/admin/missing');
+    await page.wait('[data-history-back]:not([hidden])');
+    await page.click('[data-history-back]');
+    await page.wait('html[data-astryx-theme]');
+    check(await page.eval(() => location.pathname === '/admin'), 'Go back did not return to the previous page');
+  `)
+})
+
 test('account CLI command copies its text', () => {
   browser(`
     await page.open(base + '/account');

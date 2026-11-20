@@ -100,7 +100,8 @@ Astryx checkboxes emit inline SVG shapes, so the role and administrator checkbox
 The person detail page's "More actions" overflow menu keeps a native `details` disclosure, because Astryx dropdown components need runtime inline styles (see issue 462), and builds its items from Astryx `Button` and `ActionForm`.
 The Sessions card (`Sessions` in `src/views/sessions.tsx`) is also on the Account page; see the Account rendering details below.
 The People filter chips stay native `select` elements, so filtering works without JavaScript and the form fields are unchanged.
-A view that shows a time wraps it in `<time suppressHydrationWarning>`, because `confirm.js` formats every `time[datetime]` before hydration.
+A view shows a time with `Time` in `src/views/time.tsx`, which renders the ISO value on the server and formats it in the browser's locale (medium date, short time) once hydrated.
+The CLI approval page's Go back button (`BackButton` in `src/views/auth.tsx`) renders hidden and appears once hydrated when the browser has history.
 Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
 The legacy base rules for headings, paragraphs, links, table elements, labels, selects, textareas, buttons and inputs other than checkboxes, radio buttons, hidden and file inputs skip content inside `[data-astryx-root]`, except inside a `legacy-island` element, which keeps them.
 Tool views no longer accept `legacyHtml`; the one `legacy-island` element left is the empty certificate details container in the instance page's inspection dialog, which `confirm.js` fills with the inspected chain.
