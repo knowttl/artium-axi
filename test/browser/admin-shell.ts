@@ -21,6 +21,7 @@ const environment: NodeJS.ProcessEnv = { ...process.env, CHROME_DEVTOOLS_AXI_SES
   CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors --lang=en-US' }
 let server: ChildProcessByStdio<null, Readable, null>
 let fixture: Fixture
+const testWithoutHydration = 'direct credential tests finish when hydration is unavailable'
 
 before(async () => {
   // Session-name hashes can collide with other browser workers on this host.
@@ -83,8 +84,9 @@ function browser(script: string) {
     ${script}`)
 }
 
-beforeEach(async () => {
+beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
+    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: context.name === testWithoutHydration ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -338,10 +340,14 @@ test('account CLI command copies its text', () => {
   `)
 })
 
-test('hydrating the overview frame keeps the elements the confirmation script already owns', () => {
+test('hydrating the overview frame keeps the elements the confirmation script already owns', async () => {
+  assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/overview'), { method: 'POST' })).status, 200)
   browser(`
+    ${waitForTime}
     await page.open(base + '/admin');
     await page.wait('html[data-astryx-theme]');
+    const iso = '2026-01-01T00:00:00.000Z';
+    await waitForTime('li time[datetime="' + iso + '"]', iso);
     check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
     await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
     await page.wait('.unlock.off', 35000);
@@ -1757,6 +1763,18 @@ test('disabled tool retains cached test outcomes after reloading the instance', 
     await page.open(base + '/admin/tools');
     await page.wait('tbody a[href="/admin/tools/vectra-axi"]');
     check(await page.eval(() => document.querySelector('tbody a[href="/admin/tools/vectra-axi"]').closest('tr').querySelector('[data-label=State]').textContent.includes('Healthy')), 'List lost the successful outcome');
+  `)
+})
+
+test(testWithoutHydration, () => {
+  browser(`
+    await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-cached-test' });
+    await page.click('form[data-test-tool] button');
+    await page.wait('[data-test-result]:not(:empty)');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test failed.'), 'Direct test result depends on hydration');
+    check(await page.eval(() => !document.querySelector('[data-check-failure]').hidden &&
+      document.querySelector('[data-check-error]').textContent === 'UPSTREAM_TLS_FAILED'), 'Failure details depend on hydration');
+    await page.wait('form[data-test-tool] button:not([disabled])');
   `)
 })
 

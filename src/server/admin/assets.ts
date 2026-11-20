@@ -113,13 +113,17 @@ for (const editor of document.querySelectorAll('[data-credential-editor]')) {
   update();
 }
 const savedTest = sessionStorage.getItem('credential-test:' + location.pathname);
+let replayTestHealth;
 if (savedTest) {
   sessionStorage.removeItem('credential-test:' + location.pathname);
   const result = document.querySelector('[data-test-result]');
   if (result) {
     const saved = JSON.parse(savedTest);
     result.textContent = saved.diagnosticVersion === 1 ? saved.message : 'Details unavailable. Run Test connection again.';
-    if (saved.health && document.querySelector('[data-test-checklist]')) document.addEventListener('astryx-hydrated', () => renderTestHealth(saved.health), { once: true });
+    if (saved.health && document.querySelector('[data-test-checklist]')) {
+      replayTestHealth = () => renderTestHealth(saved.health);
+      document.addEventListener('astryx-hydrated', replayTestHealth, { once: true });
+    }
   }
 }
 const operationFilter = document.getElementById('ops-filter');
@@ -379,9 +383,8 @@ function renderTestHealth(health) {
   mark.append(document.createElementNS('http://www.w3.org/2000/svg', 'use'));
   mark.firstChild.setAttribute('href', passed ? '#i-check' : '#i-x');
   step.querySelector('.mark').replaceChildren(mark);
-  document.dispatchEvent(new CustomEvent('artium-check-time', {
-    detail: health.checkedAt === null ? null : new Date(health.checkedAt).toISOString()
-  }));
+  const checkedAt = health.checkedAt === null ? null : new Date(health.checkedAt).toISOString();
+  hydrated.then(() => document.dispatchEvent(new CustomEvent('artium-check-time', { detail: checkedAt })));
   const detail = structuredDiagnostic(health.diagnostic);
   document.querySelector('[data-check-failure]').hidden = !errorCode;
   document.querySelector('[data-check-summary]').textContent = retestErrors[errorCode] || '';
@@ -700,7 +703,7 @@ document.addEventListener('submit', async event => {
     }
     if (testResult) {
       const current = await readTestResponse(response);
-      await hydrated;
+      if (replayTestHealth) document.removeEventListener('astryx-hydrated', replayTestHealth);
       testResult.textContent = response.ok ? 'Test passed.' : 'Test failed.';
       renderTestHealth(current.health);
       if (current.error) showError(message, current.error);

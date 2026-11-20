@@ -139,6 +139,12 @@ server.post('/test/audit', async () => {
     clientAddress: '192.0.2.1', instance: 'production-eu-west-region-analytics-cluster-primary-replica-with-a-very-long-name' })
   return { seeded: 103 }
 })
+server.post('/test/overview', async () => {
+  const audit = new Audit(db, () => Date.UTC(2026, 0, 1))
+  audit.record({ event: 'admin-change', action: 'create-role', outcome: 'success', targetId: 'synthetic-role',
+    userId: 'synthetic-development-user', tool: null, requestId: 'synthetic-recent-change', clientAddress: '192.0.2.1' })
+  return { seeded: true }
+})
 server.post('/test/ssh-audit', async () => {
   const family = db.prepare("SELECT id FROM session_families WHERE user_id='synthetic-development-user' ORDER BY created_at DESC LIMIT 1").get()
   const sample = '<script>window.syntheticOutputExecuted=true</script>'
@@ -168,6 +174,10 @@ server.get('/test/tools/:tool', async request => {
 const address = new URL(await server.listen({ host: '127.0.0.1', port: 0 }))
 const proxy = createServer({ key: readFileSync(join(directory, 'server.key')),
   cert: readFileSync(join(directory, 'server.crt'), 'utf8') + readFileSync(join(directory, 'ca.crt'), 'utf8') }, (request, response) => {
+  if (process.env.ARTIUM_TEST_SKIP_HYDRATION === '1' && request.url === '/admin/assets/hydrate.js') {
+    response.writeHead(404).end()
+    return
+  }
   const providerRequest = genericSso && request.url.startsWith('/test/generic-oidc/') ? genericSso
     : sso && request.url.startsWith('/test/oidc/') ? sso : undefined
   const upstream = httpRequest({ hostname: '127.0.0.1', port: providerRequest ? new URL(providerRequest.url).port : address.port,
