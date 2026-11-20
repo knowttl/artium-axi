@@ -91,6 +91,15 @@ function browser(script: string) {
         await wait(...args);
       }
     };
+    const dismissSheet = async (sheet, opener, closeButton) => {
+      await page.wait(sheet + ':modal');
+      await page.eval('() => { document.sheetClosed = new Promise(resolve => document.querySelector(' + JSON.stringify(sheet) + ').addEventListener("close", () => resolve(true), { once: true })); }');
+      if (closeButton) await page.click(sheet + ' ' + closeButton);
+      else await page.press('Escape');
+      await page.wait(sheet + ':not([open])');
+      await page.eval(() => document.sheetClosed);
+      check(await page.eval('() => document.activeElement === document.querySelector(' + JSON.stringify(opener) + ')'), 'Closing ' + sheet + ' did not return focus to ' + opener);
+    };
     ${script}`)
 }
 
@@ -835,8 +844,11 @@ test('invitations show each new link once and allow resend and revoke through th
     await page.click('a[href="/admin/invitations"]');
     await page.wait('form[data-invitation-link]');
     check(await page.eval(() => document.querySelector('[role=main] .astryx-banner-frame').innerText.includes('can’t be claimed yet')), 'Missing disabled-provider banner');
-    await page.click('a[data-sheet="sheet-new-invitation"]');
-    await page.wait('#sheet-new-invitation[open]');
+    const newInvitation = 'a[data-sheet="sheet-new-invitation"]';
+    await page.click(newInvitation);
+    await dismissSheet('#sheet-new-invitation', newInvitation);
+    await page.press('Enter');
+    await page.wait('#sheet-new-invitation:modal');
     await page.fill('[name=displayName]', 'Synthetic invited user');
     await page.fill('[name=expectedUsername]', 'synthetic@identity.example');
     await page.click('[name=roleIds][type=checkbox]');
@@ -861,8 +873,12 @@ test('invitations show each new link once and allow resend and revoke through th
     await page.wait('tr[data-invitation]');
     check(await page.eval(() => document.querySelector('[data-claim-link]').value === ''), 'Old link was redisplayed');
     check(await page.eval(() => document.querySelector('tr[data-invitation]').innerText.includes('Synthetic Role')), 'Direct role was not retained');
-    await page.click('a[data-sheet^="sheet-resend-"]');
-    await page.wait('dialog[id^="sheet-resend-"][open]');
+    const resend = 'tr[data-invitation] a[data-sheet^="sheet-resend-"]';
+    const resendSheet = 'dialog[id^="sheet-resend-"]';
+    await page.click(resend);
+    await dismissSheet(resendSheet, resend, '.sheet-foot [data-sheet-close]');
+    await page.press('Enter');
+    await page.wait(resendSheet + ':modal');
     for (const value of ['0', '31', '1.5']) {
       await page.fill('form[action$="/resend"] [name=expiresInDays]', value);
       await page.click('form[action$="/resend"] button');
@@ -900,6 +916,9 @@ test('invitations link an existing local user through its detail page and recent
     await page.wait('a[href^="/admin/settings/sign-in/"]');
     await page.open(base + '/admin/users/synthetic-ordinary');
     await page.click('a[href^="/admin/invitations?userId="]');
+    await dismissSheet('#sheet-new-invitation', 'a[data-sheet="sheet-new-invitation"]');
+    await page.press('Enter');
+    await page.wait('#sheet-new-invitation:modal');
     await page.wait('[name=userId]');
     check(await page.eval(() => document.querySelector('[name=userId]').value === 'synthetic-ordinary'), 'Wrong account selected for linking');
     check(await page.eval(() => document.querySelector('[name=displayName]').value === 'Ordinary'), 'Display name was not prefilled');
@@ -937,8 +956,11 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
     const provider = await page.eval(() => document.querySelector('[data-provider] a:has(> strong)').getAttribute('href'));
     await page.open(base + provider + '?tab=rules');
     check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('No role rules')), 'Missing rule empty state');
-    await page.click('a[href$="rule=new"]');
-    await page.wait('dialog[open] [name=roleId]');
+    const addRule = 'a[href$="rule=new"]';
+    await page.click(addRule);
+    await dismissSheet('#sheet-add-rule', addRule);
+    await page.press('Enter');
+    await page.wait('#sheet-add-rule:modal');
     await page.fill('form[action="/v1/admin/sso/role-rules"] [name=value]', 'Artium.Readers');
     await page.fill('form[action="/v1/admin/sso/role-rules"] [name=roleId]', 'synthetic-role');
   `)
@@ -1015,7 +1037,7 @@ for (const [add, close] of [['choose', 'Escape'], ['entra', 'Close'], ['oidc', '
 test('provider sheets return focus to the empty-state Add provider button', () => {
   browser(`
     await page.open(base + '/admin/settings/sign-in');
-    const opener = '.astryx-empty-state a[href*="add=choose"]';
+    const opener = '.astryx-empty-state a';
     await page.click(opener);
     await page.wait('#sheet-add-provider:modal');
     check(await page.eval(() => !location.search), 'Chooser opening parameters stayed in the address');
@@ -2288,6 +2310,9 @@ test('tool detail enablement and granting roles lead to the role access editor',
     await page.wait('[name=enabled][value=true]');
     check(await page.eval(() => document.querySelector('form:has([name=enabled]) [role=switch]').getAttribute('aria-checked') === 'false'), 'Switch does not show the disabled state');
     await page.click('nav[aria-label="Tool sections"] a[href$="?tab=access"]');
+    const instances = 'a[data-sheet="sheet-instances-synthetic-role"]';
+    await page.click(instances);
+    await dismissSheet('#sheet-instances-synthetic-role', instances);
     await page.click('a[href="/admin/roles/synthetic-role"]');
     await page.wait('[name=tools][value="falcon-axi"]');
     check(await page.eval(() => document.querySelector('[name=tools][value="falcon-axi"]').checked), 'Role did not grant the tool');
@@ -2417,15 +2442,20 @@ test('Kubernetes mutation workflows default off and require the administrator sw
         && settings.sessions.lifetimeSeconds === 300 && settings.sessions.outputBytes === 65536;
     }), 'Session limits did not persist');
     await page.open(base + '/admin/tools/kubernetes-axi?tab=access&sheet=grants-sessions-add');
-    await page.wait('#sheet-grants-sessions-add[open]');
+    await dismissSheet('#sheet-grants-sessions-add', 'a[data-sheet="sheet-grants-sessions-add"]', '.sheet-foot [data-sheet-close]');
+    await page.press('Enter');
+    await page.wait('#sheet-grants-sessions-add:modal');
     await page.eval(() => { document.querySelector('#sheet-grants-sessions-add [name=userId]').value = 'synthetic-development-user'; });
     await page.click('#sheet-grants-sessions-add [name=operations][value=exec]');
     await page.click('#sheet-grants-sessions-add [name=operations][value=logs]');
     await page.click('#sheet-grants-sessions-add [name=operations][value=port-forward]');
     await page.click('#sheet-grants-sessions-add form button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('a[href*="grants-sessions-synthetic-development-user"]');
+    const editGrant = 'a[data-sheet="sheet-grants-sessions-synthetic-development-user"]';
+    await page.wait(editGrant);
     check(await page.eval(() => document.querySelector('[role=main], main').innerText.includes('logs, exec, port-forward')), 'Session grants did not persist');
+    await page.click(editGrant);
+    await dismissSheet('#sheet-grants-sessions-synthetic-development-user', editGrant);
   `)
 })
 
@@ -2744,7 +2774,6 @@ test('changing Vectra authentication requires new secrets and saves only the sel
 })
 
 test('expired confirmation resumes the populated action exactly once after a wrong password is corrected', async () => {
-  chrome(['resize', '1280', '900'])
   await expireConfirmation()
   browser(`
     await page.open(base + '/admin/roles?dialog=new-role');
@@ -2763,7 +2792,7 @@ test('expired confirmation resumes the populated action exactly once after a wro
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('form[action$="/tools"]');
     check(await page.eval(() => document.querySelector('h1').innerText === 'Synthetic resumed role'), 'Pending role was not created');
-    check(await page.eval(() => document.querySelector('.frame-controls-header [data-reauth-until]').innerText.includes('Changes unlocked')), 'Confirmation window was not refreshed');
+    check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes unlocked')), 'Confirmation window was not refreshed');
     check(await page.eval(async () => {
       const { records } = await (await fetch('/v1/admin/audit')).json();
       return records.filter(record => record.action === 'create-role').length === 1;
@@ -2809,7 +2838,11 @@ test('role rename saves without a dialog and stale drafts offer a reload recover
   browser(`
     await page.open(base + '/admin/roles/synthetic-role');
     const selector = 'form[action="/v1/admin/roles/synthetic-role"]';
-    await page.click('a[data-sheet=sheet-rename-role]');
+    const rename = 'a[data-sheet=sheet-rename-role]';
+    await page.click(rename);
+    await dismissSheet('#sheet-rename-role', rename, '.sheet-head [data-sheet-close]');
+    await page.press('Enter');
+    await page.wait('#sheet-rename-role:modal');
     await page.fill(selector + ' [name=name]', 'Synthetic renamed role');
     await page.click(selector + ' button');
     await page.wait('input[name=name][value="Synthetic renamed role"]');
@@ -2821,7 +2854,7 @@ test('role rename saves without a dialog and stale drafts offer a reload recover
         _csrf: fields.get('_csrf'), name: 'Synthetic newer role', expectedRevision: Number(fields.get('expectedRevision')),
       }) });
     });
-    await page.click('a[data-sheet=sheet-rename-role]');
+    await page.click(rename);
     await page.fill(selector + ' [name=name]', 'Synthetic stale role');
     await page.click(selector + ' button');
     await page.wait('[data-sheet-message] button');

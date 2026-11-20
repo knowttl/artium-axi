@@ -51,12 +51,11 @@ test.each([
     .toEqual([[provider.href, 'Synthetic Entra'], [provider.href, action]])
 })
 
-test('with no provider the list offers the provider chooser from the empty state', () => {
+test('with no provider the list shows empty-state guidance', () => {
   const html = signIn({ providers: [] })
   expect(find(html, element => element.tagName === 'table')).toEqual([])
   expect(text(find(html, element => element.tagName === 'h3')[0]!)).toBe('No providers yet')
   expect(html).toContain('Add one, then save its credential.')
-  expect(links(html)).toContainEqual(['/admin/settings/sign-in?add=choose&addFrom=empty', 'Add provider'])
 })
 
 test('the page content has no form, so nothing on it changes a provider or a secret', () => {
