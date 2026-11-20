@@ -298,6 +298,26 @@ test('POST errors do not offer a theme switch', () => {
   `)
 })
 
+test('request-failed page request ID copies', () => {
+  browser(`
+    await page.open(base + '/admin/missing');
+    await page.eval(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.copied = text; } } }));
+    await page.click('[aria-label="Copy request ID"]');
+    check(await page.eval(() => window.copied !== '' && window.copied === document.querySelector('[data-copy-scope]').firstElementChild.textContent &&
+      document.querySelector('[data-copy-status]').textContent === 'Copied.'), 'Request-failed page request ID copy failed');
+  `)
+})
+
+test('account CLI command copies its text', () => {
+  browser(`
+    await page.open(base + '/account');
+    await page.eval(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.copied = text; } } }));
+    await page.click('.copyblock [data-copy]');
+    check(await page.eval(() => window.copied === document.querySelector('.copyblock pre').textContent && window.copied !== '' &&
+      document.querySelector('.copyblock [data-copy-status]').textContent === 'Copied.'), 'Account CLI command copy failed');
+  `)
+})
+
 test('hydrating the overview frame keeps the elements the confirmation script already owns', () => {
   browser(`
     await page.open(base + '/admin/roles');
@@ -753,6 +773,10 @@ test('invitations show each new link once and allow resend and revoke through th
     await page.wait('#invitation-link[open]');
     const first = await page.eval(() => document.querySelector('[data-claim-link]').value);
     check(first.startsWith(base + '/auth/sso/'), 'Invitation was not a link for this server');
+    await page.eval(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.copied = text; } } }));
+    await page.click('#invitation-link [data-copy]');
+    check(await page.eval(() => window.copied === document.querySelector('[data-claim-link]').value &&
+      document.querySelector('#invitation-link [data-copy-status]').textContent === 'Copied.'), 'Invitation link copy failed');
     await page.click('#invitation-link form button');
     await page.wait('tr[data-invitation]');
     check(await page.eval(() => document.querySelector('[data-claim-link]').value === ''), 'Old link was redisplayed');

@@ -10,6 +10,7 @@ import { TextInput } from '@astryxdesign/core/TextInput'
 import { Heading, Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
+import { useCopy } from './copy.js'
 import { Icon } from './icon.js'
 
 export interface AuthButton {
@@ -68,6 +69,17 @@ function Buttons({ buttons, row }: { buttons: AuthButton[], row?: true }) {
   return row ? <HStack gap={2}>{items}</HStack> : <VStack gap={2}>{items}</VStack>
 }
 
+function CopyValue({ value, label }: { value: string, label: string }) {
+  const { source, status, copy } = useCopy<HTMLElement>()
+  return (
+    <span data-copy-scope="">
+      <Text ref={source} type="code">{value}</Text>
+      <Button type="button" variant="ghost" size="sm" label={`Copy ${label}`} onClick={copy} data-copy=""><Icon name="copy" /></Button>
+      <span role="status" data-copy-status="">{status}</span>
+    </span>
+  )
+}
+
 function Block({ block }: { block: AuthBlock }) {
   switch (block.kind) {
     case 'text': return (
@@ -82,13 +94,7 @@ function Block({ block }: { block: AuthBlock }) {
       <MetadataList columns="single">
         {block.rows.map(({ label, value, mono, time, copyLabel }) => (
           <MetadataListItem key={label} label={label}>
-            {copyLabel ? (
-              <span data-copy-scope="">
-                <Text type="code" data-copy-text="">{value}</Text>
-                <Button type="button" variant="ghost" size="sm" label={`Copy ${copyLabel}`} data-copy=""><Icon name="copy" /></Button>
-                <span role="status" data-copy-status="" />
-              </span>
-            ) : mono ? <Text type="code">{value}</Text> : time ? <time dateTime={value} title={value} suppressHydrationWarning>{value}</time> : value}
+            {copyLabel ? <CopyValue value={value} label={copyLabel} /> : mono ? <Text type="code">{value}</Text> : time ? <time dateTime={value} title={value} suppressHydrationWarning>{value}</time> : value}
           </MetadataListItem>
         ))}
       </MetadataList>

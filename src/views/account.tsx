@@ -5,6 +5,7 @@ import { Heading, Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
 import { Fragment } from 'react'
 import { AccountTokens, type AccountTokensProps } from './account-tokens.js'
+import { useCopy } from './copy.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { Sessions, type SessionsProps } from './sessions.js'
@@ -32,11 +33,12 @@ function Inline({ parts }: { parts: Rich }) {
 }
 
 function CopyBlock({ label, text }: { label: string, text: string }) {
+  const { source, status, copy } = useCopy<HTMLPreElement>()
   return (
     <div className="copyblock" data-copy-scope="">
-      <pre className="code" aria-label={label}>{text}</pre>
-      <button type="button" className="btn btn-secondary btn-sm" data-copy="" aria-label={`Copy: ${label}`}><Icon name="copy" />Copy</button>
-      <p className="copy-status" role="status" data-copy-status="" />
+      <pre ref={source} className="code" aria-label={label}>{text}</pre>
+      <button type="button" className="btn btn-secondary btn-sm" onClick={copy} data-copy="" aria-label={`Copy: ${label}`}><Icon name="copy" />Copy</button>
+      <p className="copy-status" role="status" data-copy-status="">{status}</p>
     </div>
   )
 }

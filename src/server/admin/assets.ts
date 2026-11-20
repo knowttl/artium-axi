@@ -6,20 +6,6 @@ export const adminStyle = tokens + components
 
 export const adminScript = `
 ${retestScript}
-for (const button of document.querySelectorAll('[data-copy]')) {
-  button.addEventListener('click', async () => {
-    const scope = button.closest('[data-copy-scope], .copy-group');
-    const source = scope.querySelector('input, textarea, pre, [data-copy-text]');
-    const status = scope.querySelector('[data-copy-status]');
-    try {
-      await navigator.clipboard.writeText(source.value ?? source.textContent);
-      status.textContent = 'Copied.';
-    } catch {
-      if (source.select) { source.focus(); source.select(); } else getSelection().selectAllChildren(source);
-      status.textContent = 'Copy unavailable. Copy the selected text manually.';
-    }
-  });
-}
 for (const button of document.querySelectorAll('[data-history-back]')) {
   if (history.length < 2) continue;
   button.hidden = false;

@@ -32,15 +32,16 @@ import { FakeTokenTransport, azureTestTenant } from '../fixtures/azure-token-tra
 
 vi.mock('node:child_process', async importOriginal => {
   const original = await importOriginal<typeof import('node:child_process')>()
-  return { ...original, spawn: vi.fn(original.spawn) }
+  return { ...original, spawn: vi.fn<typeof original.spawn>(() => { throw new Error('Unexpected health process') }) }
 })
 
-async function controlledHealthProcess(output = { stdout: 'synthetic', stderr: '', exitCode: 0 }) {
-  const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+const { spawn: spawnProcess } = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+
+function controlledHealthProcess(output = { stdout: 'synthetic', stderr: '', exitCode: 0 }) {
   let started!: (finish: () => void) => void
   const ready = new Promise<() => void>(resolve => { started = resolve })
   vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) => {
-    const child = original.spawn(fakeTool.executable, [...fakeTool.args, 'controlled-health'], {
+    const child = spawnProcess(fakeTool.executable, [...fakeTool.args, 'controlled-health'], {
       ...options, stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
     })
     void once(child, 'message').then(() => started(() => { child.send(output) }))
@@ -49,10 +50,9 @@ async function controlledHealthProcess(output = { stdout: 'synthetic', stderr: '
   return ready
 }
 
-async function failHealthProcess(text: string) {
-  const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+function failHealthProcess(text: string) {
   vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) =>
-    original.spawn(fakeTool.executable, [...fakeTool.args, 'failure', text], options))
+    spawnProcess(fakeTool.executable, [...fakeTool.args, 'failure', text], options))
 }
 
 let directory: string
@@ -86,6 +86,7 @@ afterEach(async () => {
   await health.stop()
   db.close()
   vi.useRealTimers()
+  vi.mocked(spawn).mockReset()
   vi.restoreAllMocks()
   rmSync(directory, { recursive: true, force: true })
 })
@@ -180,7 +181,7 @@ test.each([
   const audit = new Audit(db, Date.now, line => { lines.push(line) })
   health = new ToolHealth(db, audit, runner, [adapter], store)
   const stderr = 'code: AUTH_FAILED\nmessage: Synthetic retained health failure'
-  await failHealthProcess(stderr)
+  failHealthProcess(stderr)
   await expect(health.check('falcon-axi', actor, 'retained-check', null)).rejects.toMatchObject({ code: 'UPSTREAM_AUTH_FAILED' })
   const diagnostic = { stage: 'authentication', message: 'Details unavailable.', toolCode: 'AUTH_FAILED',
     checkedAt: expect.any(Number), credentialRevision: 1 }
@@ -224,9 +225,7 @@ test.each([
 ])('security #419: $route drops unlabelled upstream credentials from every diagnostic sink', async ({ actor, retest, replacement }) => {
   const untrusted = 'UnlabelledCanaryCredential419'
   const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
-  const original = await vi.importActual<typeof import('node:child_process')>('node:child_process')
-  vi.mocked(spawn).mockImplementationOnce((_executable, _args, options) =>
-    original.spawn(fakeTool.executable, [...fakeTool.args, 'failure', `code: ${untrusted}\nmessage: ${untrusted}\nhint: ${untrusted}`], options))
+  failHealthProcess(`code: ${untrusted}\nmessage: ${untrusted}\nhint: ${untrusted}`)
   const check = replacement
     ? health.checkReplacement('falcon-axi', actor, 'route-check', null, () => {})
     : health.check('falcon-axi', actor, 'route-check', null, undefined, undefined, retest)
@@ -533,7 +532,7 @@ test.each([
   ['OAuth credential exchange failed', 'TOOL_FAILED'],
 ])('background health retains the token-exchange category for %s', async (message, code) => {
   const text = `code: AUTH_EXCHANGE_FAILED\nmessage: ${message}`
-  await failHealthProcess(text)
+  failHealthProcess(text)
   await health.refresh('falcon-axi')
   const cached = db.prepare('SELECT status, error_code, checked_at FROM tool_health').get() as {
     status: string, error_code: string, checked_at: number,
@@ -553,7 +552,7 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
       db.exec("UPDATE tools SET enabled = 1 WHERE name = 'vectra-axi'")
       const vectra = createVectraAdapter(new EmbeddedSecretSource(store), join(directory, 'writes.log'))
       const text = `code: TRANSPORT_FAILED\nmessage: Request to https://appliance.test could not complete\nhint: ${cause}`
-      await failHealthProcess(text)
+      failHealthProcess(text)
       health = new ToolHealth(db, new Audit(db), runner, [vectra], store)
       await expect(health.check('vectra-axi', actor, 'native-transport', null)).rejects.toMatchObject({
         code: 'UPSTREAM_NETWORK_FAILED', diagnostic: { stage: 'TCP', toolCode: 'TRANSPORT_FAILED',
@@ -594,7 +593,7 @@ describe.each(['synthetic-development-user', healthDefaults.actor])('destination
     db.prepare('UPDATE tools SET enabled = 1 WHERE name = ?').run(tool)
     health = new ToolHealth(db, new Audit(db), runner, [create()], store)
     const text = `code: ${toolCode}\nmessage: ${message}`
-    await failHealthProcess(text)
+    failHealthProcess(text)
     await expect(health.check(tool, actor, 'destination-test', null)).rejects.toMatchObject({
       code, diagnostic: { stage, message: 'Details unavailable.', checkedAt: expect.any(Number), credentialRevision: 1 },
     })

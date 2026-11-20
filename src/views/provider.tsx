@@ -6,6 +6,7 @@ import { Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
 import type { ReactNode } from 'react'
 import { ActionForm, Revision } from './action-form.js'
+import { useCopy } from './copy.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { ProviderCredential, type ProviderCredentialProps } from './provider-credential.js'
@@ -66,13 +67,14 @@ function Header(props: ProviderProps) {
 }
 
 function CopyField({ label, value }: { label: string, value: string }) {
+  const { source, status, copy } = useCopy<HTMLInputElement>()
   return (
     <div className="copy-group" data-copy-scope="">
       <div className="copyfield">
-        <input className="input" readOnly aria-label={label} value={value} />
-        <Button type="button" label="Copy" variant="secondary" icon={<Icon name="copy" />} data-copy="" />
+        <input ref={source} className="input" readOnly aria-label={label} value={value} />
+        <Button type="button" label="Copy" variant="secondary" icon={<Icon name="copy" />} onClick={copy} data-copy="" />
       </div>
-      <p className="copy-status" data-copy-status="" role="status" />
+      <p className="copy-status" data-copy-status="" role="status">{status}</p>
     </div>
   )
 }
