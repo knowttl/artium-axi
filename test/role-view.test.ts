@@ -29,11 +29,11 @@ const text = (element: Element): string => element.childNodes.map(child => 'valu
 const find = (html: string, match: (element: Element) => boolean) => nodes(parseFragment(html)).filter(match)
 const formFor = (html: string, action: string, method: string) => find(html, element => element.tagName === 'form' && attribute(element, 'action') === action && attribute(element, 'data-method') === method)[0]
 const fields = (form: Element) => nodes(form).filter(element => element.tagName === 'input').map(input => [attribute(input, 'name'), attribute(input, 'type') ?? 'text', attribute(input, 'value') ?? '', attribute(input, 'checked'), attribute(input, 'disabled')])
-const formAttributes = (form: Element) => ['method', 'data-confirm', 'data-confirm-title', 'data-confirm-action', 'data-confirm-name', 'data-success-url', 'data-success-message', 'data-track-changes'].map(name => attribute(form, name))
+const formAttributes = (form: Element) => ['method', 'data-confirm', 'data-confirm-title', 'data-confirm-action', 'data-confirm-name', 'data-success-url', 'data-success-message'].map(name => attribute(form, name))
 
-test('the tool grants form replaces the selection after a confirmation, posts the revision and tracks changes', () => {
+test('the tool grants form posts the selection and revision with a confirmation', () => {
   const form = formFor(render(), '/v1/admin/roles/synthetic-role/tools', 'PUT')!
-  expect(formAttributes(form)).toEqual(['post', 'Replace Synthetic Role’s tool grants? Changes apply to every member on the next call.', undefined, 'Save tools', undefined, undefined, undefined, ''])
+  expect(formAttributes(form)).toEqual(['post', 'Replace Synthetic Role’s tool grants? Changes apply to every member on the next call.', undefined, 'Save tools', undefined, undefined, undefined])
   expect(fields(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf', undefined, undefined], ['expectedRevision', 'hidden', '7', undefined, undefined],
     ['tools', 'hidden', '', undefined, ''], ['tools', 'checkbox', 'falcon-axi', '', undefined], ['tools', 'checkbox', 'vectra-axi', undefined, undefined]])
 })
@@ -63,7 +63,7 @@ test('a role granting no raw API tool says how to offer it', () => {
 
 test('an unused role offers a typed-name delete that returns to the list', () => {
   const form = formFor(render(), '/v1/admin/roles/synthetic-role', 'DELETE')!
-  expect(formAttributes(form)).toEqual(['post', 'Delete Synthetic Role? Its tool grants will be removed. This cannot be undone.', undefined, 'Delete role', 'Synthetic Role', '/admin/roles', 'Role deleted.', undefined])
+  expect(formAttributes(form)).toEqual(['post', 'Delete Synthetic Role? Its tool grants will be removed. This cannot be undone.', undefined, 'Delete role', 'Synthetic Role', '/admin/roles', 'Role deleted.'])
   expect(fields(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf', undefined, undefined], ['expectedRevision', 'hidden', '7', undefined, undefined]])
 })
 
@@ -100,7 +100,7 @@ test('the rename sheet patches the name with the revision and no confirmation, a
   const state = (open: boolean) => find(render({ rename: { ...base.rename, open } }), element => element.tagName === 'dialog').map(dialog => attribute(dialog, 'open'))
   expect([state(false), state(true)]).toEqual([[undefined], ['']])
   const form = formFor(render(), '/v1/admin/roles/synthetic-role', 'PATCH')!
-  expect(formAttributes(form)).toEqual(['post', undefined, undefined, undefined, undefined, undefined, 'Role renamed.', undefined])
+  expect(formAttributes(form)).toEqual(['post', undefined, undefined, undefined, undefined, undefined, 'Role renamed.'])
   expect(fields(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf', undefined, undefined], ['expectedRevision', 'hidden', '7', undefined, undefined], ['name', 'text', 'Synthetic Role', undefined, undefined]])
   expect(find(render(), element => element.tagName === 'a' && attribute(element, 'data-sheet-close') !== undefined).map(link => attribute(link, 'href'))).toEqual(['/admin/roles/synthetic-role?limit=25', '/admin/roles/synthetic-role?limit=25'])
 })

@@ -445,7 +445,6 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 .tile:hover { background: var(--bg-subtle); }
 .tile:has(input:checked) { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
 .tile input { margin: 0; accent-color: var(--primary); }
-form[data-track-changes] .astryx-button:disabled { opacity: 0.5; cursor: not-allowed; }
 .tile-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .tile-text strong { font-size: var(--fs-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tile-text .status { font-size: var(--fs-xs); color: var(--text-muted); white-space: normal; }
