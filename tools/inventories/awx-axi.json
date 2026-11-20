@@ -1,8 +1,8 @@
 {
   "generatedBy": "scripts/awx-inventory.mjs",
   "tool": "awx-axi",
-  "version": "0.1.14",
-  "integrity": "sha512-Ti8M9MGw9o/gnV5fNpjTU78jp7kpyyFLAwXph0XN7MTjJNcqwCrMsU5E8Dch/tehQww2fiM4RDItEryQ/tNpXg==",
+  "version": "0.1.15",
+  "integrity": "sha512-I4te1Nf3tq3UdtFgzr8Z2FqcrtQIaUk3k1eFWfnKT8bbf5ZjzAR7yp18gmmt8bmNsz2TY5kGaMF3RVBY5rV/UA==",
   "parserEvidence": "Published domain registry, reviewed plan effects and transport safety gates",
   "sources": [
     {

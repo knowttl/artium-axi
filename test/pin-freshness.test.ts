@@ -42,9 +42,9 @@ test('current pins pass', () => {
 })
 
 test('a published release newer than its pin fails and names the package', () => {
-  const result = run({ ...pins, 'axi-sdk-js': '0.1.14' })
+  const result = run({ ...pins, 'axi-sdk-js': '0.1.15' })
   expect(result.status).toBe(1)
-  expect(result.stdout).toContain(`stale pin: axi-sdk-js is pinned at ${pins['axi-sdk-js']}, npm latest is 0.1.14`)
+  expect(result.stdout).toContain(`stale pin: axi-sdk-js is pinned at ${pins['axi-sdk-js']}, npm latest is 0.1.15`)
   expect(result.stdout).toContain('1 stale')
 })
 

@@ -32,12 +32,12 @@
     "integrity": "sha512-FUVFX9QvSOU59vNkb3snSgASYoj3WhVghQk+fOAf6o1qj1TwocSnNtqRJhXk1Pe6x9Si8TCsGMyiFegCDQ5N4A=="
   },
   "axi-sdk-js": {
-    "version": "0.1.13",
-    "integrity": "sha512-Ygh8qUN5kdwQ3ASw+BNzCKYpy5QYi18vfcEpqEOQOSrcyh6i4wChrPMtvVW0/3Sqho3xPH3CuFkP0QUma5oxxA=="
+    "version": "0.1.14",
+    "integrity": "sha512-m4zQbGj7+xwOeLDMPhFE/+DGAvtX6tATNcQiBOHXTEoZoolF0jZKpO2gkGdydQ3p8y2gytfr8X3aGvSY9u/flQ=="
   },
   "gh-axi": {
-    "version": "0.1.51",
-    "integrity": "sha512-uZ/DIKzfmYOPkcHdM7Dn8fBmdO7bZt7QzcZ6ZXUz55m58UbdfemQ3rlZNYT6avH3h7d9tPAjwUeMJ9JmFqVjAA=="
+    "version": "0.1.52",
+    "integrity": "sha512-HWCP4xvRkvO2ESQSr2Vns8Z2BEiMBRqEkAs/BoQAFkGmyxhV0ZL7KnZSQ3M8oXhZnz+DgOGtose3QKaIqdYGSA=="
   },
   "@knowttl/checkpoint-axi": {
     "version": "0.1.6",
@@ -56,8 +56,8 @@
     "integrity": "sha512-vrr91+Sb6tbDea6DrG+8lRuNqWkTLJlJs5XqpCIg30q1JwhiIFoC8WfLjzEOqQdMKyqhm2/b3U56EXU/FVe5jQ=="
   },
   "@knowttl/awx-axi": {
-    "version": "0.1.14",
-    "integrity": "sha512-Ti8M9MGw9o/gnV5fNpjTU78jp7kpyyFLAwXph0XN7MTjJNcqwCrMsU5E8Dch/tehQww2fiM4RDItEryQ/tNpXg=="
+    "version": "0.1.15",
+    "integrity": "sha512-I4te1Nf3tq3UdtFgzr8Z2FqcrtQIaUk3k1eFWfnKT8bbf5ZjzAR7yp18gmmt8bmNsz2TY5kGaMF3RVBY5rV/UA=="
   },
   "@knowttl/ado-axi": {
     "version": "0.5.2",
