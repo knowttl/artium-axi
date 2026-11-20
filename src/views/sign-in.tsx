@@ -11,7 +11,7 @@ import { VStack } from '@astryxdesign/core/VStack'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { ProviderFields } from './provider-fields.js'
-import { Sheet, SheetFrame } from './sheet.js'
+import { Sheet, SheetCancel, SheetFrame } from './sheet.js'
 
 export interface SignInProps {
   summaries: { label: string, value: string, detail: string, warning: boolean, action: { href: string, label: string } | null }[]
@@ -42,7 +42,7 @@ function AddProvider({ open, closeHref, csrf }: SignInProps['add']) {
             </fieldset>
           </div>
           <div className="sheet-foot">
-            <Button href={closeHref} label="Cancel" variant="ghost" data-sheet-close="" />
+            <SheetCancel />
             <Button type="submit" label="Continue" variant="primary" />
           </div>
         </form>

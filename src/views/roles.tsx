@@ -10,7 +10,7 @@ import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
 import { Icon } from './icon.js'
-import { Sheet } from './sheet.js'
+import { Sheet, sheetTrigger } from './sheet.js'
 
 const visibleTools = 4
 
@@ -89,7 +89,7 @@ export function Roles({ roles, pager, newRole }: RolesProps) {
       ) : (
         <Card>
           <EmptyState title="No roles yet" headingLevel={2} description="A role is a set of tools. Create one, choose its tools, then give it to people."
-            actions={<Button href="/admin/roles?sheet=new-role" label="New role" variant="primary" icon={<Icon name="plus" />} data-sheet="sheet-new-role" />} />
+            actions={<Button href="/admin/roles?sheet=new-role" label="New role" variant="primary" icon={<Icon name="plus" />} {...sheetTrigger('sheet-new-role')} />} />
         </Card>
       )}
       <NewRoleSheet {...newRole} />

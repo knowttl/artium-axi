@@ -951,6 +951,7 @@ test('sign-in settings stores, edits and removes a rule through recent-auth conf
     await page.click('[data-rule] .more-menu summary');
     await page.click('[data-rule] .more-menu a[href*="rule="]');
     await page.wait('dialog[open] form[data-method=PATCH]');
+    check(await page.eval(() => document.querySelector('dialog.sheet[open]').matches(':modal') && !new URL(location.href).searchParams.has('rule')), 'Edit rule sheet was not a modal or kept its query in the address');
     await page.fill('dialog[open] form[data-method=PATCH] [name=value]', 'Artium.Analysts');
     await page.click('dialog[open] form[data-method=PATCH] button');
     await page.wait('#confirmation[open]');
@@ -1341,7 +1342,7 @@ test('changing the instance URL drops a saved connection IP override that was no
       const form = document.querySelector('form[data-save-tool]');
       const response = await fetch(form.action, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ value: { origin: 'https://controller.example', tls: { connectAddress: '127.0.0.1' } }, expectedId: form.elements.expectedId.value,
-          expectedRevision: 1, expectedToolRevision: Number(form.elements.expectedToolRevision.value), _csrf: form.elements._csrf.value }) });
+          expectedRevision: 1, expectedToolRevision: Number(form.elements.expectedToolRevision.value), _csrf: form.elements._csrf.value, _confirm: form.dataset.confirmToken }) });
       return response.status;
     });
     check(saved === 200, 'Could not save the connection IP override: ' + saved);
@@ -2893,6 +2894,19 @@ test('a local user can be created from the table and its profile edited from det
     await page.click('.crumbs a[href="/admin/users"]');
     await page.wait('tbody');
     check(await page.eval(() => [...document.querySelectorAll('tbody tr')].some(row => row.innerText.includes('Updated analyst') && row.innerText.includes('Admin'))), 'Table did not reflect profile');
+  `)
+})
+
+test('a sheet opened from a menu closes the menu and returns focus to its summary', () => {
+  browser(`
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    await page.click('.more-menu summary');
+    await page.click('a[data-sheet="sheet-reset-password"]');
+    await page.wait('#sheet-reset-password:modal');
+    check(await page.eval(() => !document.querySelector('.more-menu').open && !location.search), 'The menu stayed open or the address changed');
+    await page.press('Escape');
+    await page.wait('.more-menu summary:focus');
+    check(await page.eval(() => !document.querySelector('#sheet-reset-password').open), 'Escape did not close the sheet');
   `)
 })
 

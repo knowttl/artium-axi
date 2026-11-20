@@ -11,7 +11,7 @@ import { useState } from 'react'
 import { ActionForm, Revision } from './action-form.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
-import { Sheet } from './sheet.js'
+import { Sheet, sheetTrigger } from './sheet.js'
 import { LastChange } from './time.js'
 
 export interface RuleSheet {
@@ -115,7 +115,7 @@ export function RoleRules({ csrf, page, rules: { providerId, kind, roles, rules,
   return (
     <VStack gap={4}>
       <Panel title="Role rules" description={kind === 'entra' ? 'Map an exact, case-sensitive value in the Entra roles claim to an Artium role.' : 'Map an exact, case-sensitive value in any named claim to an Artium role.'}
-        actions={roles.length ? <Button href={`${back}&rule=new`} label="Add rule" variant="secondary" size="sm" icon={<Icon name="plus" />} data-sheet="sheet-add-rule" /> : undefined}>
+        actions={roles.length ? <Button href={`${back}&rule=new`} label="Add rule" variant="secondary" size="sm" icon={<Icon name="plus" />} {...sheetTrigger('sheet-add-rule')} /> : undefined}>
         {rules.length
           ? <RulesTable csrf={csrf} page={page} rules={rules} />
           : <EmptyState title="No role rules yet" headingLevel={3}

@@ -6,6 +6,7 @@ import { Heading, Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
 import type { ReactNode } from 'react'
 import { Icon } from './icon.js'
+import { sheetTrigger } from './sheet.js'
 
 export interface NavigationSection {
   title?: string
@@ -80,7 +81,7 @@ export function Frame({ title, description, actions, crumbs, brand, navigation, 
           </VStack>
           {actions && <HStack gap={2} wrap="wrap">
             {actions.map(action => <Button key={action.href} href={action.href} isDisabled={action.disabled} label={action.label} variant={action.variant} icon={<Icon name={action.icon} />}
-              {...action.sheet ? { 'data-sheet': action.sheet } : {}} />)}
+              {...action.sheet ? sheetTrigger(action.sheet) : {}} />)}
           </HStack>}
         </HStack>
         {children}

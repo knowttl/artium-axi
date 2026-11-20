@@ -15,7 +15,7 @@ import { Panel } from './panel.js'
 import { temporaryPasswordHint } from './people.js'
 import { RoleOptions, type RoleOption } from './role-options.js'
 import { Sessions, SignOutEverywhere, type SessionsProps } from './sessions.js'
-import { Sheet } from './sheet.js'
+import { Sheet, sheetTrigger } from './sheet.js'
 import { badgeVariants, type Status } from './status.js'
 import { LastChange, Time } from './time.js'
 
@@ -213,7 +213,7 @@ function MoreActions({ active, username }: { active: Active, username: string })
     <details className="more-menu">
       <summary className="btn btn-secondary btn-icon" aria-label="More actions"><Icon name="more" /></summary>
       <div className="popover">
-        {reset && <Button href={reset.closeHref + '?sheet=reset-password'} label="Reset password…" variant="ghost" icon={<Icon name="key" />} data-sheet="sheet-reset-password" />}
+        {reset && <Button href={reset.closeHref + '?sheet=reset-password'} label="Reset password…" variant="ghost" icon={<Icon name="key" />} {...sheetTrigger('sheet-reset-password')} />}
         {sessions.sessions.length > 0 && <SignOutEverywhere {...sessions} inMenu />}
         {menu.breakGlass && (
           <ActionForm action={active.path} method="PATCH" csrf={active.csrf} confirmation={designated
