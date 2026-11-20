@@ -466,11 +466,11 @@ An administrator enables exact operations on the **Write permissions** tab, pers
 The collaboration and repository tiers describe capabilities; selecting one operation never enables its siblings.
 For exact operation names and tier membership, use the `effect: "write"` command entries and their `tier` fields in the [reviewed inventory](../tools/inventories/gh-axi.json).
 
-Issue lock/unlock is unsupported because pinned gh-axi 0.1.51 requests the `locked` issue field, which gh 2.103.3 does not export.
+Issue lock/unlock is unsupported because the pinned gh-axi requests the `locked` issue field, which the pinned GitHub CLI does not export.
 A compatible published upstream release is required before these operations can be enabled.
 Repository creation requires an explicit `OWNER/NAME`; unqualified and host-qualified names are refused.
 Repository visibility changes are unavailable.
-PR merge uses `--method merge|squash|rebase`; release create/edit uses `--notes` for inline release notes.
+PR merge uses `--method merge|squash|rebase`.
 Every project write requires `--owner OWNER`, or `--source-owner` and `--target-owner` for `project copy`, so recovery checks inspect the intended user's or organization's projects.
 Project visibility changes are unavailable.
 After an uncertain `project edit`, the recovery check `project view` shows the title and short description but not the README.

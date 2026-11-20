@@ -1,14 +1,14 @@
 {
   "generatedBy": "scripts/gh-inventory.mjs",
   "tool": "gh-axi",
-  "version": "0.1.51",
-  "integrity": "sha512-uZ/DIKzfmYOPkcHdM7Dn8fBmdO7bZt7QzcZ6ZXUz55m58UbdfemQ3rlZNYT6avH3h7d9tPAjwUeMJ9JmFqVjAA==",
+  "version": "0.1.52",
+  "integrity": "sha512-HWCP4xvRkvO2ESQSr2Vns8Z2BEiMBRqEkAs/BoQAFkGmyxhV0ZL7KnZSQ3M8oXhZnz+DgOGtose3QKaIqdYGSA==",
   "parserEvidence": "Hand-reviewed published dispatch switches and per-command parsers; exact writes use host preview and confirmation",
   "skillSha256": "3d01b3112442275d52cc5847cb17543c710128f4591346e77eeecc30c45e76f3",
   "sdk": {
-    "version": "0.1.13",
-    "integrity": "sha512-Ygh8qUN5kdwQ3ASw+BNzCKYpy5QYi18vfcEpqEOQOSrcyh6i4wChrPMtvVW0/3Sqho3xPH3CuFkP0QUma5oxxA==",
-    "manifestSha256": "dbe3acffeb40dfcca73ce33f60f807bbba8cd5cec6a470b2c7f255b50e02e184"
+    "version": "0.1.14",
+    "integrity": "sha512-m4zQbGj7+xwOeLDMPhFE/+DGAvtX6tATNcQiBOHXTEoZoolF0jZKpO2gkGdydQ3p8y2gytfr8X3aGvSY9u/flQ==",
+    "manifestSha256": "8986b9247492a21db827e0df56d120b3dd163707bc5681fe579c92c0cd16fc29"
   },
   "gh": {
     "version": "2.103.3",
@@ -31,7 +31,7 @@
     },
     {
       "path": "dist/src/body.js",
-      "sha256": "460030cb2561e7188ca6b7aa0d441de64238d4ccc6df189ece5249b8bd4b56a6"
+      "sha256": "bc93102f8a5d8e13421d5291f5a8a05511370f4fede7d880c0eb3afe038abedd"
     },
     {
       "path": "dist/src/cli.js",
@@ -43,7 +43,7 @@
     },
     {
       "path": "dist/src/commands/discussion.js",
-      "sha256": "3e806177d3bebbf2da08fafc07bccc8ca3e0dced78296dfe2d41d9d2baa50904"
+      "sha256": "dc88899c8d653313032231265dcf8ba150e9069f09020e81abf7c7b1a901d61c"
     },
     {
       "path": "dist/src/commands/gist.js",
@@ -55,7 +55,7 @@
     },
     {
       "path": "dist/src/commands/issue.js",
-      "sha256": "9c4f650cc4b5229da6807537e9c4a3c7e2250f81f7c6c66fe5a3a52c2ed5f244"
+      "sha256": "856868d83d0075e74c42c045779fd2e940ed5b889b7fc5573f0886ed92d5f05c"
     },
     {
       "path": "dist/src/commands/label.js",
@@ -63,7 +63,7 @@
     },
     {
       "path": "dist/src/commands/pr.js",
-      "sha256": "5fa6912036a10b424ce783ef0f6d383405597807ae0a904ab88c9ac94bd0e6c8"
+      "sha256": "b734eb496cc116bbde738e92ffa337f90370c15e86a5fb0d8b2e2aec5d0c6b9c"
     },
     {
       "path": "dist/src/commands/project.js",
@@ -71,7 +71,7 @@
     },
     {
       "path": "dist/src/commands/release.js",
-      "sha256": "5a8bc903d81b94767cece3ab7ecb788e74803251720db79b0d6aadcf728ea738"
+      "sha256": "cb4c6b15eb1b79ebdeea0ec6231b7225148ddde329beac5e440c683c8e60eb44"
     },
     {
       "path": "dist/src/commands/repo.js",
@@ -83,7 +83,7 @@
     },
     {
       "path": "dist/src/commands/search.js",
-      "sha256": "e86b89cc5597f2d8fc0aa552b3462264b9db8c7c1af6659314af2e63687fd641"
+      "sha256": "99c7e50019084d391614e400a5d1c0d5b86e4f50fcc8dbbeb15efb207461dbf0"
     },
     {
       "path": "dist/src/commands/secret.js",
@@ -183,7 +183,7 @@
     },
     {
       "path": "axi-sdk-js/dist/hooks.js",
-      "sha256": "3bfe0ce4ec57b475cd69f63a1c9c6487317219540619534dbd583f1042fbb777"
+      "sha256": "d8b9f806ac7cad2ada9c984a69d75180a9230161ede547a1b1507555344aca0c"
     },
     {
       "path": "axi-sdk-js/dist/index.js",

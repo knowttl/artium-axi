@@ -103,6 +103,8 @@ See [audit decision records](admin-guide.md#audit-screen-and-api) for mutation j
 
 The [full client reference](client-reference.md#command-surface-and-subcommands) describes help, delegated discovery, forwarding and supported input.
 GitHub PR details support field selection, for example `artium-axi gh-axi pr view 42 -R OWNER/NAME --fields number,title,mergeStateStatus,body`.
+Managed GitHub writes reject upstream `--body-file` with `FLAG_BLOCKED`, including `--body-file -`.
+Use inline `--body` for supported writes and `--notes` for release creation and edits.
 The [reviewed GitHub inventory](../tools/inventories/gh-axi.json) owns the accepted command and flag boundary.
 
 For AWX, the [generated parity matrix](awx-parity-matrix.md) compares pinned upstream commands and flags with the reviewed Artium boundary.
