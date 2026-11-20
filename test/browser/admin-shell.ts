@@ -2679,9 +2679,10 @@ test('tool search and the audit custom range submit through the hydrated filter 
     check(await page.eval(() => location.pathname === '/admin/tools' && location.search === '?show=attention'), 'Clearing tool search sent q or lost the view');
     await page.open(base + '/admin/audit?range=custom');
     await waitForRootTheme();
-    check(await page.eval(() => document.querySelector('form.filters [type=submit]').getClientRects().length > 0), 'Custom range hid Apply');
     await page.fill('[name=from]', '2026-01-01T00:00:00Z');
-    await page.click('form.filters [type=submit]');
+    const apply = (await page.snapshot()).match(/uid=(\\S+) button "Apply"/)?.[1];
+    check(apply, 'Custom range hid Apply');
+    await page.click('@' + apply);
     await page.wait('form.filters a[href*="from=2026-01-01T00%3A00%3A00Z"][href*="failed=1"]');
     check(await page.eval(() => {
       const query = new URLSearchParams(location.search);

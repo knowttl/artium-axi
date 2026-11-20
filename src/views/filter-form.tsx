@@ -1,9 +1,9 @@
 import { Button } from '@astryxdesign/core/Button'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useState, type ReactNode } from 'react'
 
 export function FilterForm({ action, apply, trailing, children }: { action: string, apply?: 'always' | 'until-hydrated', trailing?: ReactNode, children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false)
-  useEffect(() => setHydrated(true), [])
+  useLayoutEffect(() => setHydrated(true), [])
   return (
     <form className="filters" method="get" action={action}
       onChange={event => { if (event.target instanceof HTMLSelectElement) event.currentTarget.requestSubmit() }}
