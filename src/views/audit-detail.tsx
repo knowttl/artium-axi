@@ -3,6 +3,7 @@ import { IconButton } from '@astryxdesign/core/IconButton'
 import { MetadataList, MetadataListItem } from '@astryxdesign/core/MetadataList'
 import { Heading, Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
+import { useCopy } from './copy.js'
 import { Icon } from './icon.js'
 import { badgeVariants, type Status } from './status.js'
 import { Time } from './time.js'
@@ -25,6 +26,17 @@ function Mono({ children }: { children: string }) {
   return <span className="mono">{children}</span>
 }
 
+function RequestId({ value }: { value: string }) {
+  const { source, status, copy } = useCopy<HTMLInputElement>()
+  return (
+    <span className="copyfield" data-copy-scope="">
+      <input ref={source} className="input" readOnly value={value} aria-label="Request ID" />
+      <IconButton type="button" label="Copy request ID" icon={<Icon name="copy" />} variant="ghost" size="sm" onClick={copy} data-copy="" />
+      <span className="sr-only" data-copy-status="" role="status">{status}</span>
+    </span>
+  )
+}
+
 export function AuditDetail({ closeHref, id, record }: AuditDetailProps) {
   return (
     <aside className="sheet docked" id="record" aria-labelledby="record-title">
@@ -44,13 +56,7 @@ export function AuditDetail({ closeHref, id, record }: AuditDetailProps) {
             <MetadataListItem label="Tool">{record.facts.tool}</MetadataListItem>
             {record.facts.instance && <MetadataListItem label="Instance">{record.facts.instance}</MetadataListItem>}
             <MetadataListItem label="Outcome"><Badge label={record.facts.outcome.word} variant={badgeVariants[record.facts.outcome.tone]} /></MetadataListItem>
-            <MetadataListItem label="Request ID">
-              <span className="copyfield" data-copy-scope="">
-                <input className="input" readOnly value={record.facts.requestId} aria-label="Request ID" />
-                <IconButton type="button" label="Copy request ID" icon={<Icon name="copy" />} variant="ghost" size="sm" data-copy="" />
-                <span className="sr-only" data-copy-status="" role="status" />
-              </span>
-            </MetadataListItem>
+            <MetadataListItem label="Request ID"><RequestId value={record.facts.requestId} /></MetadataListItem>
             <MetadataListItem label="Client address">{record.facts.clientAddress}</MetadataListItem>
             <MetadataListItem label="Sign-in method">{record.facts.signInMethod}</MetadataListItem>
             {record.facts.action && <MetadataListItem label="Action"><Mono>{record.facts.action}</Mono></MetadataListItem>}

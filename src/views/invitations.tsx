@@ -13,6 +13,7 @@ import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
 import { ActionForm, Revision } from './action-form.js'
+import { useCopy } from './copy.js'
 import { Icon } from './icon.js'
 import { RoleOptions, type RoleOption } from './role-options.js'
 import { Sheet } from './sheet.js'
@@ -74,6 +75,7 @@ function ResendSheet({ csrf, path, invitation }: { csrf: string, path: string, i
 }
 
 function ClaimLinkDialog() {
+  const { source, status, copy } = useCopy<HTMLInputElement>()
   return (
     <dialog id="invitation-link" className="modal" aria-labelledby="invitation-link-title">
       <div className="modal-body">
@@ -81,10 +83,10 @@ function ClaimLinkDialog() {
         <p>This link is shown once. Send it to the person over a channel you trust. Their provider must be enabled before they can claim it.</p>
         <div className="copy-group">
           <div className="copyfield">
-            <input className="input" data-claim-link="" readOnly aria-label="Invitation link" />
-            <Button type="button" label="Copy" variant="primary" icon={<Icon name="copy" />} data-copy="" />
+            <input ref={source} className="input" data-claim-link="" readOnly aria-label="Invitation link" />
+            <Button type="button" label="Copy" variant="primary" icon={<Icon name="copy" />} onClick={copy} data-copy="" />
           </div>
-          <p className="copy-status" data-copy-status="" role="status" />
+          <p className="copy-status" data-copy-status="" role="status">{status}</p>
         </div>
       </div>
       <form method="dialog" className="modal-foot"><Button type="submit" label="Done" variant="secondary" /></form>
