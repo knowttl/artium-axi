@@ -20,7 +20,7 @@ const FormDirtyContext = createContext(false)
 export const useFormDirty = () => useContext(FormDirtyContext)
 
 const differsFromDefaults = (form: HTMLFormElement) =>
-  Array.from(form.elements).some(field => field instanceof HTMLInputElement && (field.checked !== field.defaultChecked || field.value !== field.defaultValue))
+  Array.from(form.elements).some(field => field instanceof HTMLInputElement && field.type === 'checkbox' && field.checked !== field.defaultChecked)
 
 export interface ActionFormProps {
   action: string
