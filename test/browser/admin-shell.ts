@@ -943,7 +943,8 @@ test('invitations link an existing local user through its detail page and recent
   `)
 })
 
-test('sign-in settings stores, edits and removes a rule through recent-auth confirmation', async () => {
+test('sign-in settings stores, edits and removes a rule through recent-auth confirmation', async context => {
+  context.after(() => chrome(['stop']))
   chrome(['resize', '420', '900'])
   browser(`
     await page.open(base + '/admin/settings/sign-in?add=entra');
