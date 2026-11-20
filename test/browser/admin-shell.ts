@@ -2793,7 +2793,10 @@ test('expired confirmation resumes the populated action exactly once after a wro
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('form[action$="/tools"]');
     check(await page.eval(() => document.querySelector('h1').innerText === 'Synthetic resumed role'), 'Pending role was not created');
-    check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes unlocked')), 'Confirmation window was not refreshed');
+    const mobile = await page.eval(() => document.querySelector('[data-testid=mobile-nav-toggle]').getClientRects().length > 0);
+    if (mobile) await page.click('[data-testid=mobile-nav-toggle]');
+    const controls = mobile ? '.frame-controls-drawer' : '.frame-controls-header';
+    check(await page.eval('() => document.querySelector(' + JSON.stringify(controls + ' [data-reauth-until]') + ').innerText.includes("Changes unlocked")'), 'Confirmation window was not refreshed');
     check(await page.eval(async () => {
       const { records } = await (await fetch('/v1/admin/audit')).json();
       return records.filter(record => record.action === 'create-role').length === 1;
