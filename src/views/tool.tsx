@@ -157,7 +157,7 @@ function Advanced({ csrf, api, revision, panel }: Pick<ToolProps, 'csrf' | 'api'
             <Text as="p">{panel.guide}</Text>
             {panel.grantNote && <Text as="p" type="supporting">Per-person grants are managed with the picker on the Access tab.</Text>}
             <TextArea label="Native settings (JSON object)" htmlName="nativeSettings" value={settings} onChange={setSettings} rows={10} hasSpellCheck={false}
-              {...{ 'data-type': 'json', required: true }} />
+              {...{ 'data-type': 'json', 'data-json-check': '', required: true }} />
             <p className="note" data-json-status="" data-valid={String(jsonStatus.valid)} aria-live="polite">{jsonStatus.message}</p>
             <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
               <Text type="supporting">{'{} clears settings.'}</Text>

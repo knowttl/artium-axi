@@ -2276,7 +2276,7 @@ test('native settings status follows the JSON as it is edited', () => {
       ['null', false, text => text === 'Enter a JSON object, such as {}.'],
     ];
     for (const [value, valid, expected] of edits) {
-      await page.fill('[name=nativeSettings]', value);
+      await page.fill('[data-json-check]', value);
       await page.wait(status + '[data-valid=' + valid + ']');
       check(expected(await page.eval(() => document.querySelector('[data-json-status]').textContent)), 'Wrong status for ' + value);
     }
