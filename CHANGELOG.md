@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.53](https://github.com/knowttl/artium-axi/compare/v0.0.52...v0.0.53) (2026-11-20)
+
+
+### Bug Fixes
+
+* **admin:** render local timestamps and Go back in React ([#535](https://github.com/knowttl/artium-axi/issues/535)) ([14a7aec](https://github.com/knowttl/artium-axi/commit/14a7aec9f6cec2c352c5c272b340c5932a9843fb))
+* keep admin filters usable until React loads ([#538](https://github.com/knowttl/artium-axi/issues/538)) ([13647e7](https://github.com/knowttl/artium-axi/commit/13647e7939cfc27bd200253929eef4d42d289970))
+
 ## [0.0.52](https://github.com/knowttl/artium-axi/compare/v0.0.51...v0.0.52) (2026-11-18)
 
 
