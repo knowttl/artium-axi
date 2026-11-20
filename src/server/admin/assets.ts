@@ -379,9 +379,9 @@ function renderTestHealth(health) {
   mark.append(document.createElementNS('http://www.w3.org/2000/svg', 'use'));
   mark.firstChild.setAttribute('href', passed ? '#i-check' : '#i-x');
   step.querySelector('.mark').replaceChildren(mark);
-  const checked = document.querySelector('[data-check-time]');
-  checked.textContent = health.checkedAt === null ? 'never' : new Date(health.checkedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-  checked.title = health.checkedAt === null ? '' : new Date(health.checkedAt).toISOString();
+  document.dispatchEvent(new CustomEvent('artium-check-time', {
+    detail: health.checkedAt === null ? null : new Date(health.checkedAt).toISOString()
+  }));
   const detail = structuredDiagnostic(health.diagnostic);
   document.querySelector('[data-check-failure]').hidden = !errorCode;
   document.querySelector('[data-check-summary]').textContent = retestErrors[errorCode] || '';
@@ -700,6 +700,7 @@ document.addEventListener('submit', async event => {
     }
     if (testResult) {
       const current = await readTestResponse(response);
+      await hydrated;
       testResult.textContent = response.ok ? 'Test passed.' : 'Test failed.';
       renderTestHealth(current.health);
       if (current.error) showError(message, current.error);

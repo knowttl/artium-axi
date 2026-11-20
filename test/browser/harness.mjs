@@ -5,6 +5,35 @@ import { createServer } from 'node:net'
 import { createInterface } from 'node:readline'
 import { after, afterEach, before, beforeEach } from 'node:test'
 
+export const waitForTime = `const waitForTime = async (selector, iso) => {
+  await page.wait(selector);
+  const expected = await page.eval('() => (' + (iso => {
+    const instant = new Date(iso);
+    const date = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(instant);
+    const time = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(instant);
+    return date + ', ' + time;
+  }).toString() + ')(' + JSON.stringify(iso) + ')');
+  const matches = await page.eval('() => (' + ((selector, iso, expected) => new Promise(resolve => {
+    const matches = () => {
+      const time = document.querySelector(selector);
+      return time?.textContent === expected && time.dateTime === iso && time.title === iso;
+    };
+    const finish = value => {
+      observer.disconnect();
+      clearTimeout(timeout);
+      resolve(value);
+    };
+    const observer = new MutationObserver(() => { if (matches()) finish(true); });
+    const timeout = setTimeout(() => finish(false), 5000);
+    observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+    if (matches()) finish(true);
+  })).toString() + ')(...' + JSON.stringify([selector, iso, expected]) + ')');
+  if (!matches) {
+    const actual = await page.eval('() => document.querySelector(' + JSON.stringify(selector) + ')?.outerHTML');
+    throw new Error(selector + ' did not render ' + expected + ' with datetime and tooltip ' + iso + '. Received ' + actual);
+  }
+};`
+
 // Starts the fake service, signs the synthetic administrator in and hands each test a browser session script runner.
 export function useAdminBrowser(name) {
   const environment = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: `artium-${name}-${process.pid}`, CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors' }

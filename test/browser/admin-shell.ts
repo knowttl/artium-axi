@@ -7,6 +7,7 @@ import { createInterface } from 'node:readline'
 import { createServer, type AddressInfo } from 'node:net'
 import type { Readable } from 'node:stream'
 import { after, afterEach, before, beforeEach, test } from 'node:test'
+import { waitForTime } from './harness.mjs'
 
 type Fixture = {
   url: string
@@ -16,7 +17,8 @@ type Fixture = {
 }
 
 const environment: NodeJS.ProcessEnv = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: `artium-shell-${process.pid}`,
-  CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors' }
+  LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', TZ: 'America/Phoenix',
+  CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors --lang=en-US' }
 let server: ChildProcessByStdio<null, Readable, null>
 let fixture: Fixture
 
@@ -57,7 +59,14 @@ function browser(script: string) {
     };
     const createInstance = async (tool, value, name = 'default') => {
       await page.open(base + '/admin/tools/' + tool);
-      const status = await page.eval('(async () => { const response = await fetch("/v1/admin/tools/' + tool + '/instances", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ name: "' + name + '", description: "", value: ' + JSON.stringify(value) + ', expectedToolRevision: Number(document.querySelector("[name=expectedToolRevision]").value), _csrf: document.querySelector("[name=_csrf]").value }) }); return response.status; })()');
+      const status = await page.eval('async () => (' + (async (tool, value, name) => {
+        const form = document.querySelector('form[action="/v1/admin/tools/' + tool + '/instances"]');
+        const body = { name, description: '', value, expectedToolRevision: Number(form.elements.expectedToolRevision.value),
+          _csrf: form.elements._csrf.value, _confirm: form.dataset.confirmToken };
+        const response = await fetch(form.action, { method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body) });
+        return response.status;
+      }).toString() + ')(...' + JSON.stringify([tool, value, name]) + ')');
       if (status !== 200) throw new Error('Could not create the ' + tool + ' instance: ' + status);
       await openInstance(tool, name);
     };
@@ -314,7 +323,7 @@ test('request-failed page go back button appears with history and returns to the
     await page.open(base + '/admin/missing');
     await page.wait('[data-history-back]:not([hidden])');
     await page.click('[data-history-back]');
-    await page.wait('html[data-astryx-theme]');
+    await page.wait('section[aria-labelledby=overview-summary]');
     check(await page.eval(() => location.pathname === '/admin'), 'Go back did not return to the previous page');
   `)
 })
@@ -331,17 +340,24 @@ test('account CLI command copies its text', () => {
 
 test('hydrating the overview frame keeps the elements the confirmation script already owns', () => {
   browser(`
-    await page.open(base + '/admin/roles');
-    const status = await page.eval('(async () => { const response = await fetch("/v1/admin/roles", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ name: "Synthetic hydration role", _csrf: document.querySelector("[name=_csrf]").value }) }); return response.status; })()');
-    check(status === 200 || status === 201, 'Could not create a role to list under recent changes: ' + status);
     await page.open(base + '/admin');
     await page.wait('html[data-astryx-theme]');
-    await page.wait('[data-astryx-root] time');
     check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
     await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
     await page.wait('.unlock.off', 35000);
     check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'The confirmation pill stopped following the confirmation state after hydration');
-    check(await page.eval(() => !/T\\d\\d:\\d\\d:\\d\\d/.test(document.querySelector('[data-astryx-root] time').textContent)), 'Hydration restored the unformatted time');
+  `)
+})
+
+test('audit list and detail show the local date and time', async () => {
+  assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/audit'), { method: 'POST' })).status, 200)
+  browser(`
+    ${waitForTime}
+    const iso = '2026-01-01T00:00:00.000Z';
+    await page.open(base + '/admin/audit?event=run-start&limit=1');
+    await waitForTime('tbody th a time', iso);
+    await page.click('tbody th a');
+    await waitForTime('#record .sheet-head time', iso);
   `)
 })
 
@@ -1744,35 +1760,54 @@ test('disabled tool retains cached test outcomes after reloading the instance', 
   `)
 })
 
-for (const action of ['save', 'test']) {
+for (const action of ['save', 'test', 'trust']) {
   test('credential diagnostics retain the current ' + action + ' response over cached health', () => {
     browser(`
-      await createInstance('falcon-axi', falconValue);
+      ${waitForTime}
+      const action = ${JSON.stringify(action)};
+      await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-cached-test' });
+      if (action === 'trust') {
+        await page.click('form[data-test-tool] button');
+        await page.wait('[data-inspect-certificate]:not([hidden])');
+        await page.click('[data-inspect-certificate] button');
+        await page.wait('#certificate-inspection[open]');
+        await page.click('[name=confirmedFingerprint]');
+      }
       await page.eval(() => {
         const original = window.fetch.bind(window);
         window.fetch = async (url, options) => {
-          if (new URL(url, location.href).pathname !== '/v1/admin/tools/falcon-axi/instances/default/test') return original(url, options);
+          if (new URL(url, location.href).pathname !== '/v1/admin/tools/vectra-axi/instances/default/test') return original(url, options);
+          const response = await original(url, options);
+          const cached = await response.json();
+          if (${action === 'trust'}) {
+            if (!response.ok || cached.status !== 'ok') throw new Error('Expected a cached loopback success');
+            return Response.json({ ...cached, checkedAt: 1700000000000 });
+          }
+          if (cached.error?.code !== 'UPSTREAM_TLS_FAILED' || !cached.error.diagnostic?.checkedAt) throw new Error('Expected a cached loopback TLS failure');
           return Response.json({ error: { code: 'TOO_MANY_CALLS', message: 'A check is already running.', next: 'Try again later.',
             diagnostic: { stage: 'configuration', message: 'This credential check was not admitted.', checkedAt: 1700000000000,
               credentialRevision: 1 } } }, { status: 429 });
         };
       });
-      if (${JSON.stringify(action)} === 'save') {
-        await page.fill('[data-profile-field="clientId"]', 'CANARY-falcon-client');
-        await page.fill('[data-profile-field="clientSecret"]', 'CANARY-falcon-secret');
-        await page.fill('[data-profile-field="region"]', 'us-1');
+      if (action === 'save') {
         await page.click('form[data-save-tool] button');
         await page.wait('#confirmation[open]');
         await page.click('#confirmation button[value=confirmed]');
-      } else {
+      } else if (action === 'test') {
         await page.click('form[data-test-tool] button');
+      } else {
+        await page.click('[data-trust-certificate] button');
+        await page.wait('form[data-method=DELETE][action$="/certificates"]');
       }
-      await page.wait('[data-check-diagnostic]:not(:empty)');
-      check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent === 'configuration'), 'Current test diagnostic was replaced');
-      check(await page.eval(() => document.querySelector('[data-check-error]').textContent === 'TOO_MANY_CALLS'), 'Current test category was replaced');
-      check(await page.eval(() => document.querySelector('[data-check-time]').title === '2023-11-14T22:13:20.000Z'), 'Current test time was replaced');
-      check(await page.eval(() => document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '), 'Failed test marked the checklist complete');
-      check(await page.eval(() => !document.querySelector('[data-check-failure]').hidden), 'Failure callout hidden');
+      await waitForTime('[data-check-time] time', '2023-11-14T22:13:20.000Z');
+      if (action === 'trust') {
+        check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Connected'), 'Automatic credential test did not connect after trust');
+      } else {
+        check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent === 'configuration'), 'Current test diagnostic was replaced');
+        check(await page.eval(() => document.querySelector('[data-check-error]').textContent === 'TOO_MANY_CALLS'), 'Current test category was replaced');
+        check(await page.eval(() => document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '), 'Failed test marked the checklist complete');
+        check(await page.eval(() => !document.querySelector('[data-check-failure]').hidden), 'Failure callout hidden');
+      }
     `)
   })
 }
