@@ -51,7 +51,7 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
   return (
     <form ref={form} className={className} data-api="" data-method={method} data-confirm={confirmation?.consequence} data-confirm-title={confirmation?.title}
       data-confirm-action={confirmation?.action} data-confirm-name={confirmation?.typedName} data-confirm-token={token || undefined} data-success-url={successUrl} data-success-message={successMessage}
-      data-track-changes={trackChanges ? '' : undefined} data-invitation-link={claimLink ? '' : undefined} data-save-tool={saveTool} {...attributes} action={action} method="post"
+      data-invitation-link={claimLink ? '' : undefined} data-save-tool={saveTool} {...attributes} action={action} method="post"
       onInput={trackChanges ? event => setDirty(differsFromDefaults(event.currentTarget)) : undefined} onReset={trackChanges ? () => setDirty(false) : undefined}>
       <input type="hidden" name="_csrf" value={csrf} />
       {confirmation && route?.native && (
