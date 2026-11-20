@@ -59,7 +59,9 @@ Before hydration, a result restored after reload supplies the result message, an
 On `astryx-hydrated`, the script applies the latest result, updates the checklist, replaces the status badge with a copy from a hidden `data-outcome` element and sends the check time to React through `artium-check-time`.
 Keeping the pre-hydration updates in elements that suppress hydration warnings preserves the credential editor's event handlers.
 The GitHub connection card on this page is the same `GithubConnection` view, above the Connection card.
-The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`, and its search is the same get form, which `FilterForm` in `src/views/filter-form.tsx` submits without empty values.
+The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`.
+Tools, People and Audit use the shared React [`FilterForm`](../src/views/filter-form.tsx) for their GET forms.
+See [Browser administration](admin-guide.md#browser-administration) for submission and fallback behavior.
 Invitations keeps the one-time link dialog (`#invitation-link`) as a native `dialog` that `confirm.js` opens after a create or resend form marked with `claimLink` in `ActionForm`, and its provider choice stays a native `select` inside an Astryx `Field`; the lifetime in days is a text input that `confirm.js` sends as a number.
 The Roles list opens its New role sheet from `?sheet=new-role`, and the earlier `?dialog=new-role` link redirects there.
 The role detail page opens its Rename role sheet from `?sheet=rename-role`.
@@ -101,7 +103,7 @@ Astryx checkboxes emit inline SVG shapes, so the role and administrator checkbox
 `ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes that `confirm.js` reads (method, consequence, title, action, typed name, success URL and success message), and `Sheet` builds on it, so a view writes an API form without repeating them.
 The person detail page's "More actions" overflow menu keeps a native `details` disclosure, because Astryx dropdown components need runtime inline styles (see issue 462), and builds its items from Astryx `Button` and `ActionForm`.
 The Sessions card (`Sessions` in `src/views/sessions.tsx`) is also on the Account page; see the Account rendering details below.
-The People filter chips stay native `select` elements, so filtering works without JavaScript and the form fields are unchanged.
+The People filter chips are native `select` elements.
 Views render timestamps with `Time` in `src/views/time.tsx`.
 See [browser administration](admin-guide.md#browser-administration) for the timestamp display behavior.
 The CLI approval page's Go back button (`BackButton` in `src/views/auth.tsx`) renders hidden and appears once hydrated when the browser has history.
@@ -110,7 +112,6 @@ The legacy base rules for headings, paragraphs, links, table elements, labels, s
 Tool views no longer accept `legacyHtml`; the one `legacy-island` element left is the empty certificate details container in the instance page's inspection dialog, which `confirm.js` fills with the inspected chain.
 The Audit log (`AuditLog` in `src/views/audit.tsx`, route `/admin/audit`) is the fourteenth page on the seam.
 It is a GET filter form (Request ID and Token ID search, the Time range link group, the Failed runs only link, native `select` chips for User, Tool, Instance, Event and Outcome, the Error code chip that appears only when the query sets it, and the From and To fields of a custom range), an Export menu (a native `details` with the CSV and JSON lines download links to `/v1/admin/audit/export` for the applied filters), the records table and a cursor pager.
-Every filter, the pager and every row link are plain links or GET form fields with the same query parameter names as before, so filtering and paging work without JavaScript; once hydrated, `FilterForm` auto-submits the chips and hides Apply except for a custom range.
 Its props carry what a row displays (time, event, break-glass flag, actor name, tool, instance and outcome word and tone) and no other stored field; the open record is a separate `detail` prop.
 The record detail panel (`AuditDetail` in `src/views/audit-detail.tsx`, opened by `?record=<id>`) is a docked `aside` beside the list with a Close details link, the facts (actor, tool, instance, outcome, a read-only Request ID with a copy button, client address, sign-in method, action and error code), the Settings changes of an admin change, the Failure diagnostic of a run, and a native `details` disclosure listing every stored field.
 Its props are exactly what the panel displays: the heading, time, record number, facts, settings changes as text, the diagnostic as text, and each stored field as text (or an ISO time) with `null` for a field that has no value, so no markup string reaches the page or the hydration data.
@@ -225,7 +226,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Side sheet | `sheet()`, `sheetLink()`: `dialog.sheet` with `.sheet-head`, `.sheet-body`, `.sheet-foot`, `.scrim` | closed, open as a modal, open from a query parameter without JavaScript | Modal focus handling from `showModal`; Close and Cancel are links back to the page |
 | Option tile | `.tiles`, `.tile`, `.tool-ico` | unchecked, checked | Native checkbox inside its label |
 | Inline editor and menu | `.inline-edit`, `.menu` with `.popover` | closed, open | Native disclosure; works without JavaScript |
-| Filter row | `.filters`, `.input-wrap`, `.seg`, `.filter`, `.filter.set` | unset (dashed), set (with clear link) | One GET form; selects submit on change, Apply remains without JavaScript |
+| Filter row | `.filters`, `.input-wrap`, `.seg`, `.filter`, `.filter.set` | unset (dashed), set (with clear link) | See [Browser administration](admin-guide.md#browser-administration) |
 | Docked sheet | `.split`, `.sheet.docked`, `.sheet-head`, `.sheet-body`, `.kv`, `.code`, `.copyfield` | open beside its list; above it below 760px | `aside` labelled by its `h2`; opened by a `?record=` link, so it works without JavaScript |
 | Option card | `.options`, `.option` | unchecked, checked | Native radio |
 | Code and copy | Copy controls use [`useCopy`](../src/views/copy.ts) in the hydrated React view | Idle, copied, or clipboard access unavailable (the source is selected for manual copying) | `role="status"` announces the copy result |

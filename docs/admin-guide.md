@@ -125,6 +125,12 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/settings/sign-in/:id/matches/:ruleId` | Who matches a role rule, from saved sign-in claims. |
 | `/device` | Approve or deny a CLI sign-in or identity confirmation code. |
 
+People and Audit show **Apply** before the interactive controls load and when JavaScript is disabled.
+Once the controls load, changing a dropdown applies the current filters automatically.
+Only Audit's **Custom** range keeps **Apply** visible after loading so you can submit the UTC date fields.
+On Tools, press Enter in **Filter tools** to search within the current **Show** view.
+After the interactive controls load, filter submissions omit empty fields from the URL.
+
 Tool State reflects cached instance health even while the tool is disabled; Enabled is shown separately, with its switch on the tool detail page.
 See the [health aggregation rules](runbook.md#backup-restore-and-upgrade-rollback).
 The Needs attention filter includes Failing and Needs credential states.
@@ -397,7 +403,7 @@ An upload event's `success` outcome records input acceptance, not successful too
 Select a record in the table to open its detail panel, which shows its key fields and every persisted field.
 The `/admin/audit?record=<id>` link opens a retained record without JavaScript, even if it is outside the current list filters; an absent or expired record shows **Record not found**.
 A terminal record's panel can also show a separately retained failure diagnostic; see [diagnostic storage and retention](runbook.md#scripted-administrator-sessions).
-Pagination retains filters; starting a new search includes records inserted after the previous search began.
+Audit pagination works without JavaScript and retains filters; starting a new search includes records inserted after the previous search began.
 
 `GET /v1/admin/audit` exposes the same records; [the API contract](../src/shared/api.ts) owns the accepted filters (`auditFiltersSchema`) and pagination parameters (`adminAuditQuerySchema`).
 Pages default to 50 records and accept 1 to 100; pass `nextCursor` with the same filters until it is null.
