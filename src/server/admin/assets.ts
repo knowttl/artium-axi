@@ -8,7 +8,7 @@ export const adminScript = `
 ${retestScript}
 for (const button of document.querySelectorAll('[data-copy]')) {
   button.addEventListener('click', async () => {
-    const scope = button.closest('[data-copy-scope], .copy-group') || button.parentElement;
+    const scope = button.closest('[data-copy-scope], .copy-group');
     const source = scope.querySelector('input, textarea, pre, [data-copy-text]');
     const status = scope.querySelector('[data-copy-status]');
     try {
@@ -574,9 +574,9 @@ document.addEventListener('submit', async event => {
   if (pendingAction || button.disabled) return;
   pendingAction = true;
   button.disabled = true;
-  const message = form.querySelector('[data-form-error]') || (form.hasAttribute('data-trust-certificate') || form.hasAttribute('data-certificate-name-form')
+  const message = form.hasAttribute('data-trust-certificate') || form.hasAttribute('data-certificate-name-form')
     ? form.closest('dialog').querySelector('[data-certificate-error]')
-    : form.closest('dialog')?.querySelector('[data-form-error], [data-sheet-message]') || null);
+    : form.closest('dialog')?.querySelector('[data-sheet-message]') || null;
   say(message, '');
   const testResult = form.dataset.testTool ? document.querySelector('[data-test-result]') : null;
   if (testResult) testResult.textContent = '';
