@@ -16,6 +16,7 @@ review:
     - path: "**"
       instructions: |
         Review focus for this build: does the change work as its plan task specifies, and is it well designed? Raise functional bugs, broken or missing flows, wrong results, crashes, hangs, data loss, regressions, unhandled errors that break a flow, missing tests for the slice's behaviour, and style, simplification and design-principle issues. Security hardening and threat-model concerns are deferred until the full app is built: do not raise them unless they cause a functional bug.
+        Use error or warning only for a failing sequence a user or caller can hit in ordinary use, or one this change introduces into a path that was working. A sequence that needs another component to fail first (an asset failing to load, a write failing transiently, a crash inside a specific window), or two or more coincident timing events, is info unless the code is on a safety path. Calibrating severity by likelihood is not lowering acceptance standards. When a finding concerns code an earlier fix round added, prefer recommending removal or narrowing of that code over adding new mechanism.
         Keep code, docs, tests and generated assets generic: no real employer hostnames, tenant names, secret names or credentials.
         Use only fakes, synthetic users and canary credentials during the build; escalate live services, real credentials, deployment and irreversible actions.
         Review the intended public outcomes across sibling callers and error paths together, using the submission checklist in CONTRIBUTING.md.
