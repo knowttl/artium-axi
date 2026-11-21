@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.55](https://github.com/knowttl/artium-axi/compare/v0.0.54...v0.0.55) (2026-11-21)
+
+
+### Bug Fixes
+
+* **admin:** rebuild plain form submission in React ([#557](https://github.com/knowttl/artium-axi/issues/557)) ([0e856c9](https://github.com/knowttl/artium-axi/commit/0e856c9c53971d7a6dbe87bddc822ff8f8b0cc11))
+* **views:** migrate token creation and settings to React ([#562](https://github.com/knowttl/artium-axi/issues/562)) ([42954e2](https://github.com/knowttl/artium-axi/commit/42954e2aaa7fb6f5a70c3303c9293406ef411fe3))
+* **views:** move the invitation claim link dialog to React ([#560](https://github.com/knowttl/artium-axi/issues/560)) ([1a6ac2e](https://github.com/knowttl/artium-axi/commit/1a6ac2e88b8dc9809de0dfa89506e62b4414e79f))
+
 ## [0.0.54](https://github.com/knowttl/artium-axi/compare/v0.0.53...v0.0.54) (2026-11-21)
 
 
