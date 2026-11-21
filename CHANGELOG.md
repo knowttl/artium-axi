@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.54](https://github.com/knowttl/artium-axi/compare/v0.0.53...v0.0.54) (2026-11-21)
+
+
+### Bug Fixes
+
+* **admin:** keep recent-authentication indicators in sync ([#552](https://github.com/knowttl/artium-axi/issues/552)) ([ad1f000](https://github.com/knowttl/artium-axi/commit/ad1f00009ac574c1c05b1f074451fddab5dae440))
+* **admin:** keep the operations picker in sync with filters and selections ([#541](https://github.com/knowttl/artium-axi/issues/541)) ([68252ec](https://github.com/knowttl/artium-axi/commit/68252ec244445e72b8b3a6000cb435a37296e507))
+* **admin:** rebuild the reauthentication dialog in React ([#553](https://github.com/knowttl/artium-axi/issues/553)) ([e96157d](https://github.com/knowttl/artium-axi/commit/e96157d7831c89e10def9b8772fef58f6e77e803))
+* **admin:** render native settings JSON status in React ([#547](https://github.com/knowttl/artium-axi/issues/547)) ([fb05373](https://github.com/knowttl/artium-axi/commit/fb053734d5b769506557e4b25a5b42d18ad0585e))
+* **admin:** restore focus when dismissing React sheets ([#549](https://github.com/knowttl/artium-axi/issues/549)) ([c56f137](https://github.com/knowttl/artium-axi/commit/c56f1374de54b6f5e70e81803322ad43c6f9f1d1))
+* track role tool-grant edits in React ([#546](https://github.com/knowttl/artium-axi/issues/546)) ([84139a6](https://github.com/knowttl/artium-axi/commit/84139a6bc3b29c73c79dfb2e45d1b956f5611bc8))
+
 ## [0.0.53](https://github.com/knowttl/artium-axi/compare/v0.0.52...v0.0.53) (2026-11-20)
 
 
