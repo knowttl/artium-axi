@@ -13,13 +13,14 @@ import { hoistInlineStyles } from './inline-styles.js'
 import { readThemeMode, themeSwitch } from './theme-mode.js'
 
 function respond<Name extends ViewName>(reply: FastifyReply, title: string, name: Name, props: ViewProps[Name], frame: FrameProps | undefined,
-  overlays: string, current?: BrowserSession, headScript = '') {
+  overlays: string, current?: BrowserSession, notifiesOpener?: true) {
   const mode = readThemeMode(reply.request)
   const confirmations: ConfirmationTokens = { issued: {}, mint: current && ((method, path, name) => mintConfirmation(current.id, method, path, name)) }
   const { html, style } = hoistInlineStyles(renderToString(<Root name={name} props={props} frame={frame} mode={mode} confirmations={confirmations} />), reply.styleNonce)
   const data = JSON.stringify({ frame, props, confirmations: confirmations.issued }).replace(/</g, '\\u003c')
   const body = `<div data-astryx-root data-view="${name}" data-mode="${mode}">${html}</div><script type="application/json" data-astryx-props>${data}</script>${overlays}`
-  const head = `${headScript}${style}<script defer src="/admin/assets/hydrate.js"></script>`
+  const completion = notifiesOpener ? '<script src="/admin/assets/reauth-complete.js"></script>' : ''
+  const head = `${completion}${style}<script defer src="/admin/assets/hydrate.js"></script>`
   return browserDocument(reply, title, body, current, head)
 }
 
@@ -47,8 +48,7 @@ export function renderAuthPage(reply: FastifyReply, { title, description, mark, 
   const viewer = current && browserViewer(reply, current)
   const home = !viewer ? '/login' : viewer.mustChange ? '/password' : viewer.administrator ? '/admin' : '/account'
   const switchable = reply.request.method === 'GET' && !reply.request.url.startsWith('/auth/sso/')
-  const headScript = notifiesOpener ? '<script src="/admin/assets/reauth-complete.js"></script>' : ''
   return respond(reply, title, 'auth', { title, description, mark, blocks, footnote, brand: { name: product.name, href: home },
     signedIn: viewer && { name: viewer.name, csrf: viewer.csrf, sso: viewer.sso }, help: pageHelp(helpTopic ?? title, current?.source),
-    themeSwitch: switchable ? themeSwitch(reply, readThemeMode(reply.request)) : '' }, undefined, authOverlays, current, headScript)
+    themeSwitch: switchable ? themeSwitch(reply, readThemeMode(reply.request)) : '' }, undefined, authOverlays, current, notifiesOpener)
 }

@@ -416,6 +416,7 @@ test('SSO popup confirmation refreshes both pills on the original document', asy
     await page.wait('form[data-create-token]');
     await page.wait('html[data-astryx-theme]');
     await waitForReauthPills('Changes locked', 'off', '#i-lock');
+    check(await page.eval(async () => (await (await fetch('/reauth?status=1')).json()).until === 0), 'Unconfirmed SSO status must report no legacy deadline');
     await page.eval(() => {
       window.sameDocument = true;
       const now = Date.now.bind(Date);
@@ -430,10 +431,15 @@ test('SSO popup confirmation refreshes both pills on the original document', asy
     await page.wait('a[href="/reauth?complete=1"]');
     await page.click('a[href="/reauth?complete=1"]');`)
   selectPage('/account')
+  const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
+  const confirmedAt = evidence.sessions[0]?.reauthenticated_at
+  assert.ok(confirmedAt)
   browser(`${waitForReauthPills}
     await page.wait('#created-token[open]');
     check(await page.eval(() => window.sameDocument === true), 'SSO confirmation replaced the opener document');
-    await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');`)
+    await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');
+    const until = await page.eval(async () => (await (await fetch('/reauth?status=1')).json()).until);
+    check(until === ${confirmedAt + 900_000}, 'SSO status must retain the original 15-minute deadline');`)
 })
 
 test('cancelled SSO confirmation keeps the entered draft without making the change', async () => {

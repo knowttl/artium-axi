@@ -15,6 +15,8 @@ export const waitForReauthPills = `const waitForReauthPills = (expectedText, sta
         && pill.querySelector('[data-reauth-text]')?.textContent === expectedText;
     });
     if (matches()) return;
+    const fail = () => new Error('Expected one recent-authentication pill in each frame placement showing ' + expectedText + ', ' + state + ', ' + icon);
+    if (timeoutMs === 0) throw fail();
     return new Promise((resolve, reject) => {
       const observer = new MutationObserver(() => {
         if (!matches()) return;
@@ -24,7 +26,7 @@ export const waitForReauthPills = `const waitForReauthPills = (expectedText, sta
       });
       const timeout = setTimeout(() => {
         observer.disconnect();
-        reject(new Error('Expected one recent-authentication pill in each frame placement showing ' + expectedText + ', ' + state + ', ' + icon));
+        reject(fail());
       }, timeoutMs);
       observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
     });

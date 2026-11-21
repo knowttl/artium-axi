@@ -147,7 +147,7 @@ function showError(target, error) {
 }
 
 function announceReauth(remainingMs) {
-  const expiresAt = performance.now() + remainingMs;
+  const expiresAt = Date.now() + remainingMs;
   hydrated.then(() => document.dispatchEvent(new CustomEvent('artium-reauth', { detail: expiresAt })));
 }
 

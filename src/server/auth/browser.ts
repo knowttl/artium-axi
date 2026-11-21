@@ -222,7 +222,11 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
     if (current.must_change) return reply.redirect('/password')
     const query = z.object({ complete: z.literal('1').optional(), status: z.literal('1').optional() }).strict().safeParse(request.query)
     if (!query.success) throw new ArtiumError('INVALID_INPUT')
-    if (query.data.status) return { sessionId: current.id, remainingMs: browserReauthRemainingMs(current) }
+    if (query.data.status) {
+      const now = Date.now()
+      const remainingMs = browserReauthRemainingMs(current, now)
+      return { sessionId: current.id, until: remainingMs > 0 ? now + remainingMs : 0, remainingMs }
+    }
     if (current.source === 'sso') {
       const identity = browserIdentity(db, current)
       if (query.data.complete) {

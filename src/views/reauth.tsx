@@ -14,8 +14,8 @@ export function useReauthWindow({ remainingMs }: ReauthState) {
   const [remaining, setRemaining] = useState(remainingMs)
   useEffect(() => {
     const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming
-    let expiresAt = navigation.responseStart + remainingMs
-    const refresh = () => setRemaining(Math.max(0, expiresAt - performance.now()))
+    let expiresAt = performance.timeOrigin + navigation.responseStart + remainingMs
+    const refresh = () => setRemaining(Math.max(0, expiresAt - Date.now()))
     const confirmed = (event: Event) => {
       expiresAt = (event as CustomEvent<number>).detail
       refresh()

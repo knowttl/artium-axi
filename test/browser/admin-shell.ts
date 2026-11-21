@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { X509Certificate } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { spawn, spawnSync, type ChildProcessByStdio } from 'node:child_process'
-import { once } from 'node:events'
+import { on, once } from 'node:events'
 import { createInterface } from 'node:readline'
 import { createServer, type AddressInfo } from 'node:net'
 import type { Readable } from 'node:stream'
@@ -26,6 +26,9 @@ const testWithLateHydration = 'latest direct credential result survives late hyd
 const pickerWithLateHydration = 'operation picker preserves edits across late hydration'
 const trackChangesWithLateHydration = 'role tool grants count a selection edited before late hydration as a change'
 const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
+const overviewCadence = 'hydrating the overview frame keeps the elements the confirmation script already owns'
+const narrowCadence = 'the confirmation pill keeps following the confirmation state when the narrow-screen frame replaces it'
+const resizeCadence = 'confirmation expiry survives resizing across the mobile breakpoint'
 let chromeDebugPort: number
 
 before(async () => {
@@ -105,7 +108,8 @@ function browser(script: string) {
 
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
-    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration, instanceSheetWithLateHydration].includes(context.name) ? '1' : '0' },
+    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration,
+      instanceSheetWithLateHydration, overviewCadence, narrowCadence, resizeCadence].includes(context.name) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -377,19 +381,78 @@ test('account CLI command copies its text', () => {
   `)
 })
 
-test('hydrating the overview frame keeps the elements the confirmation script already owns', async () => {
-  assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/overview'), { method: 'POST' })).status, 200)
-  browser(`
-    ${waitForTime}
-    ${waitForReauthPills}
+async function verifyReauthCadence() {
+  browser(`${waitForReauthPills}
     await page.open(base + '/admin');
-    await page.wait('html[data-astryx-theme]');
-    const iso = '2026-01-01T00:00:00.000Z';
-    await waitForTime('li time[datetime="' + iso + '"]', iso);
-    await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');
-    await page.eval(() => { const now = performance.now.bind(performance); performance.now = () => now() + 900_000; });
-    await waitForReauthPills('Changes locked', 'off', '#i-lock', 35000);
-  `)
+    await page.eval(() => {
+      document.addEventListener('astryx-hydrated', () => {
+        document.documentElement.dataset.reauthTestHydrated = String(performance.now());
+      }, { once: true });
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
+    });
+    await page.wait('html[data-reauth-test-hydrated]');
+    await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');`)
+  const targets: { url: string, webSocketDebuggerUrl: string }[] = await (await fetch(`http://127.0.0.1:${chromeDebugPort}/json/list`)).json()
+  const target = targets.find(page => page.url === fixture.url + '/admin')
+  assert.ok(target)
+  const socket = new WebSocket(target.webSocketDebuggerUrl)
+  let nextId = 0
+  type ClockMessage = { id?: number, method?: string, error?: { message: string }, result?: { result?: { value?: number } } }
+  const waitForMessage = async (matches: (message: ClockMessage) => boolean) => {
+    for await (const [event] of on(socket, 'message', { signal: AbortSignal.timeout(5000) })) {
+      const message: ClockMessage = JSON.parse(event.data)
+      if (matches(message)) return message
+    }
+    throw new Error('Browser clock connection closed')
+  }
+  const send = async (method: string, params: object) => {
+    const id = ++nextId
+    const reply = waitForMessage(message => message.id === id)
+    socket.send(JSON.stringify({ id, method, params }))
+    const response = await reply
+    assert.equal(response.error, undefined)
+    return response.result
+  }
+  const advance = async (budget: number) => {
+    const expired = waitForMessage(message => message.method === 'Emulation.virtualTimeBudgetExpired')
+    await Promise.all([send('Emulation.setVirtualTimePolicy', { policy: 'advance', budget }), expired])
+  }
+  try {
+    await once(socket, 'open', { signal: AbortSignal.timeout(5000) })
+    await send('Emulation.setVirtualTimePolicy', { policy: 'pause' })
+    const clock = await send('Runtime.evaluate', { expression: `(() => {
+      const now = Date.now.bind(Date);
+      Date.now = () => now() + 830_000;
+      return performance.now() - Number(document.documentElement.dataset.reauthTestHydrated);
+    })()`, returnByValue: true })
+    const elapsed = clock?.result?.value
+    assert.ok(elapsed !== undefined && elapsed >= 0 && elapsed < 29_750, `Unexpected time since hydration: ${elapsed}`)
+
+    await advance(29_750 - elapsed)
+    browser(`${waitForReauthPills} await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock', 0);`)
+    await advance(500)
+    browser(`${waitForReauthPills}
+      await waitForReauthPills('Changes unlocked · 1 min', 'on', '#i-unlock', 0);
+      await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 45_000; });`)
+    await advance(29_500)
+    browser(`${waitForReauthPills} await waitForReauthPills('Changes unlocked · 1 min', 'on', '#i-unlock', 0);`)
+    await advance(500)
+    browser(`${waitForReauthPills} await waitForReauthPills('Changes locked', 'off', '#i-lock', 0);`)
+  } finally { socket.close() }
+}
+
+test(overviewCadence, async () => {
+  assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/overview'), { method: 'POST' })).status, 200)
+  try {
+    await verifyReauthCadence()
+    browser(`
+      ${waitForTime}
+      const iso = '2026-01-01T00:00:00.000Z';
+      await waitForTime('li time[datetime="' + iso + '"]', iso);
+    `)
+  } finally { chrome(['stop']) }
 })
 
 test('audit list and detail show the local date and time', async () => {
@@ -422,18 +485,11 @@ test('audit list and detail show the local date and time', async () => {
   } finally { socket.close() }
 })
 
-test('the confirmation pill keeps following the confirmation state when the narrow-screen frame replaces it', () => {
+test(narrowCadence, async () => {
   chrome(['emulate', '--viewport', '390x844x1,mobile,touch'])
   try {
-    browser(`
-      ${waitForReauthPills}
-      await page.open(base + '/admin');
-      await page.wait('html[data-astryx-theme]');
-      await page.wait('[data-testid=mobile-nav-toggle]');
-      await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');
-      await page.eval(() => { const now = performance.now.bind(performance); performance.now = () => now() + 900_000; });
-      await waitForReauthPills('Changes locked', 'off', '#i-lock', 35000);
-    `)
+    await verifyReauthCadence()
+    browser(`await page.wait('[data-testid=mobile-nav-toggle]');`)
   } finally {
     chrome(['stop'])
   }
@@ -514,17 +570,10 @@ test('mobile navigation keeps account controls reachable on short screens', () =
   } finally { chrome(['resize', '1280', '900']) }
 })
 
-test('confirmation expiry survives resizing across the mobile breakpoint', () => {
+test(resizeCadence, async () => {
   try {
     chrome(['resize', '1280', '900'])
-    browser(`
-      ${waitForReauthPills}
-      await page.open(base + '/admin');
-      await page.wait('html[data-astryx-theme]');
-      await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');
-      await page.eval(() => { const now = performance.now.bind(performance); performance.now = () => now() + 900_000; });
-      await waitForReauthPills('Changes locked', 'off', '#i-lock', 35000);
-    `)
+    await verifyReauthCadence()
     chrome(['resize', '390', '900'])
     browser(`
       ${waitForReauthPills}
@@ -537,7 +586,7 @@ test('confirmation expiry survives resizing across the mobile breakpoint', () =>
       await page.wait('.astryx-app-shell-sidenav');
       await waitForReauthPills('Changes locked', 'off', '#i-lock');
     `)
-  } finally { chrome(['resize', '1280', '900']) }
+  } finally { chrome(['stop']) }
 })
 
 test('Figtree loads from the same origin under the admin content security policy', () => {
