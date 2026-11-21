@@ -1,6 +1,6 @@
 import { Field } from '@astryxdesign/core/Field'
 import { Text } from '@astryxdesign/core/Text'
-import { useLayoutEffect, useRef, useState, type ChangeEvent, type RefObject } from 'react'
+import { useLayoutEffect, useRef, type ChangeEvent, type RefObject } from 'react'
 
 export interface TlsField {
   path: string
@@ -30,37 +30,59 @@ export interface TlsSection {
   note: string
 }
 
-async function loadPem(upload: HTMLInputElement, target: HTMLTextAreaElement) {
+const pemPrefix = 'pem.'
+const pemReads = new WeakMap<File, Promise<string>>()
+
+function readPem(file: File) {
+  let read = pemReads.get(file)
+  if (!read) {
+    read = file.text()
+    pemReads.set(file, read)
+  }
+  return read
+}
+
+export async function completePemFields(fields: FormData) {
+  for (const [name, file] of Array.from(fields)) {
+    if (!name.startsWith(pemPrefix) || !(file instanceof File)) continue
+    fields.delete(name)
+    const target = name.slice(pemPrefix.length)
+    if (file.name && fields.has(target)) fields.set(target, await readPem(file))
+  }
+}
+
+async function loadPem(upload: HTMLInputElement, target: HTMLTextAreaElement, name: string) {
   const file = upload.files?.[0]
   if (!file) return
-  const content = await file.text()
-  if (upload.files?.[0] !== file) return
+  upload.name = name
+  const content = await readPem(file).catch(() => null)
+  if (content === null || upload.files?.[0] !== file) return
   target.value = content
+  upload.removeAttribute('name')
   target.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
-export function usePemUpload(target: RefObject<HTMLTextAreaElement | null>) {
+export function usePemUpload(target: RefObject<HTMLTextAreaElement | null>, targetName: string) {
   const ref = useRef<HTMLInputElement>(null)
+  const name = pemPrefix + targetName
   useLayoutEffect(() => {
-    if (ref.current && target.current) void loadPem(ref.current, target.current)
-  }, [target])
-  return { ref, onChange: (event: ChangeEvent<HTMLInputElement>) => loadPem(event.currentTarget, target.current!) }
+    if (ref.current && target.current) void loadPem(ref.current, target.current, name)
+  }, [target, name])
+  return { ref, name, onChange: (event: ChangeEvent<HTMLInputElement>) => loadPem(event.currentTarget, target.current!, name) }
 }
 
 function TlsInput({ field }: { field: TlsField }) {
   const { path, id, label, help, value, required, clearable, upload } = field
   const hint = `${id}-hint`
   const profile = { id, name: `profile.${path}`, 'data-profile-field': path, 'data-profile-type': 'string', 'data-tls-input': '', 'aria-describedby': hint, autoComplete: 'off', required }
-  const [edited, setEdited] = useState(false)
   const pem = useRef<HTMLTextAreaElement>(null)
-  const pemUpload = usePemUpload(pem)
+  const pemUpload = usePemUpload(pem, profile.name)
   return (
     <div data-credential-field={path}>
       <Field label={label} description={help} inputID={id} descriptionID={hint}>
         {upload
           ? <textarea {...profile} ref={pem} rows={6} spellCheck={false} className="input mono" />
-          : <input {...profile} type="text" defaultValue={value} className="input" data-profile-clearable={clearable ? '' : undefined} data-tls-edited={edited ? 'true' : undefined}
-            onChange={clearable ? () => setEdited(true) : undefined} />}
+          : <input {...profile} type="text" defaultValue={value} className="input" data-profile-clearable={clearable ? '' : undefined} />}
       </Field>
       {upload && (
         <Field label={upload} inputID={`${id}-file`}>

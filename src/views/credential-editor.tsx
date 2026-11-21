@@ -112,7 +112,7 @@ export const CredentialEditor = memo(function CredentialEditor({ intro, schema, 
   const [snapshot, setSnapshot] = useState(() => initialSnapshot(controls))
   const editor = useRef<HTMLDivElement>(null)
   const certificate = useRef<HTMLTextAreaElement>(null)
-  const pemUpload = usePemUpload(certificate)
+  const pemUpload = usePemUpload(certificate, 'certificatePem')
   useLayoutEffect(() => {
     const root = editor.current!
     const dialog = root.closest('dialog')

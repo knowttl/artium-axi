@@ -48,6 +48,7 @@ The Certificate verification fieldset (`CertificateVerification` in `src/views/c
 Its text, upload, select and removal controls are native and uncontrolled inside Astryx `Field`.
 The submit handler reads TLS values from the form, and the schema evaluator uses the credential fields and whether a combined PEM is present.
 Each PEM picker reads its selected file into the corresponding textarea, including files selected before hydration.
+A save that captures a pending selection waits for its contents before building the credential request.
 The pasted trusted certificate and each file upload are emptied when the sheet closes, like the secrets.
 The hostname choice defaults to hostname verification, or to keeping the saved setting when a fingerprint is stored, followed by Yes and No; removal checkboxes start unchecked.
 The GitHub connection card (`GithubConnection` in `src/views/github-connection.tsx`) is a `Panel` with the shared `ActionForm`, on the gh-axi Instances tab to add an instance and on a gh-axi instance page to connect or reconnect it; `githubConnection()` in `src/server/admin/instances.ts` builds its props once for both.

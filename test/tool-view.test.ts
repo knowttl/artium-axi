@@ -153,7 +153,7 @@ test('the Add instance sheet posts the new instance with the tool revision, a te
   expect(summary(form)).toEqual(['/v1/admin/tools/falcon-axi/instances', 'POST', 'Add this CrowdStrike Falcon instance? It starts read-only.', undefined])
   expect([attribute(form, 'data-confirm-title'), attribute(form, 'data-confirm-action'), attribute(form, 'data-save-tool')]).toEqual(['Add instance', 'Add instance', 'falcon-axi'])
   expect(controls(form).filter(([name]) => !String(name).startsWith('profile.'))).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedToolRevision', 'hidden', '7'],
-    ['name', 'text', ''], ['description', 'textarea', undefined], [undefined, 'file', undefined], [undefined, 'textarea', undefined], [undefined, 'checkbox', undefined]])
+    ['name', 'text', ''], ['description', 'textarea', undefined], ['pem.certificatePem', 'file', undefined], ['certificatePem', 'textarea', undefined], ['testAfterSave', 'checkbox', undefined]])
   const [name] = nodes(form).filter(element => attribute(element, 'name') === 'name')
   expect([attribute(name!, 'required'), attribute(name!, 'maxlength'), attribute(name!, 'pattern'), attribute(name!, 'autocomplete')]).toEqual(['', '32', '[a-z0-9][a-z0-9\\-]*', 'off'])
   expect(nodes(form).filter(element => attribute(element, 'data-save-and-test') !== undefined).map(input => attribute(input, 'checked'))).toEqual([''])

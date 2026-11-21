@@ -283,7 +283,7 @@ test('the credential form renders revision checks and empty certificate and secr
   expect(form.attributes).toMatchObject({ 'data-api': '', 'data-method': 'PATCH', 'data-confirm': credentialConfirmation, method: 'post' })
   expect(form.attributes!['data-confirm-name']).toBeUndefined()
   expect(form.names).toEqual(['_csrf', 'expectedRevision', 'expectedProviderRevision', 'profile.auth', 'profile.tenantId', 'profile.clientId', 'profile.privateKey',
-    'profile.thumbprintSha256', 'profile.clientSecret', 'certificatePem'])
+    'profile.thumbprintSha256', 'profile.clientSecret', 'pem.certificatePem', 'certificatePem'])
   expect(form.payload).toMatchObject({ expectedRevision: 0, expectedProviderRevision: 1, 'profile.tenantId': tenantId, 'profile.clientId': '' })
   expect(page.body).toMatch(/<option(?=[^>]*value="&quot;certificate&quot;")(?=[^>]*selected)[^>]*>/)
   expect(page.body).toMatch(/<textarea(?=[^>]*required)[^>]*name="profile.privateKey"[^>]*><\/textarea>/)

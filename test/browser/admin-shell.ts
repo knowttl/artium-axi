@@ -30,7 +30,7 @@ const submitBeforeDialogs = 'a React submit waits for dialogs and saves its orig
 const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
 const credentialEditorWithLateHydration = 'the credential editor applies a selection made before hydration'
 const connectionDraftWithLateHydration = 'the instance connection preserves text edited before hydration'
-const combinedPemWithLateHydration = 'the instance credential saves a combined PEM selected before hydration'
+const combinedPemWithLateHydration = 'the instance credential waits for a PEM selected before hydration'
 const editedOverrides = ' endpoint changes keep explicitly edited certificate overrides'
 const resizeCadence = 'confirmation expiry survives resizing across the mobile breakpoint'
 let chromeDebugPort: number
@@ -54,6 +54,16 @@ function chrome(args: string[], input?: string) {
   assert.equal(result.error, undefined)
   assert.equal(result.status, 0, result.stdout + result.stderr)
   return result.stdout
+}
+
+function pemSelection(selector: string, content: string) {
+  return JSON.stringify(`(() => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([${JSON.stringify(content)}], 'synthetic.pem'));
+    const input = document.querySelector(${JSON.stringify(selector)});
+    input.files = transfer.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`)
 }
 
 function browser(script: string) {
@@ -1334,7 +1344,8 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
     await page.wait('[data-certificate-pem]');
     check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"certificate"'), 'Certificate is not the default');
     await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
-    await page.fill('[data-certificate-pem]', ${JSON.stringify(fixture.certificatePem)});
+    await page.eval(${pemSelection('[data-certificate-file]', fixture.certificatePem)});
+    await page.wait('[data-profile-field=privateKey]:not([required])');
     await page.click('form[action$="/credential"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
@@ -2477,6 +2488,7 @@ for (const tool of ['technitium-axi', 'unifi-axi', 'kubernetes-axi']) for (const
       ? { origin: 'https://cluster.example', auth: 'token', token: 'CANARY-token', certificateAuthority: certificate, tlsServerName: 'cluster.example' }
       : { origin: 'https://dns.example', auth: 'token', tokenKind: 'api', token: 'CANARY-token', tlsServerName: 'dns.example' }
   const field = tool === 'unifi-axi' ? 'tls.connectAddress' : 'tlsServerName'
+  const savedOverride = tool === 'unifi-axi' ? tls.connectAddress : value.tlsServerName
   browser(`
     const resume = () => page.eval(() => new Promise(resolve => {
       document.addEventListener('astryx-hydrated', () => resolve(true), { once: true });
@@ -2490,27 +2502,38 @@ for (const tool of ['technitium-axi', 'unifi-axi', 'kubernetes-axi']) for (const
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
-    check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(tool === 'unifi-axi' ? tls.connectAddress : value.tlsServerName)}), 'Unchanged override was lost');
+    check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(savedOverride)}), 'Unchanged override was lost');
     if (${edited}) {
       await page.fill('[data-profile-field="${field}"]', ${JSON.stringify(tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example')});
+      await page.fill('[data-profile-field="${field}"]', ${JSON.stringify(savedOverride)});
       await resume();
     }
     await page.fill('[data-profile-field=origin]', 'https://replacement.example');
     await page.fill('[data-profile-field=${tool === 'unifi-axi' ? 'apiKey' : 'token'}]', 'CANARY-new-secret');
     ${tool === 'kubernetes-axi' ? `await page.click('details:has([data-profile-field="certificateAuthority"]) summary'); await page.fill('[data-profile-field="certificateAuthority"]', ${JSON.stringify(certificate)});` : ''}
-    ${tool === 'unifi-axi' && edited ? `await page.click('details:has([data-profile-field="tls.trustedCertificatePem"]) summary'); await page.fill('[data-profile-field="tls.trustedCertificatePem"]', ${JSON.stringify(certificate)}); await page.fill('[data-profile-field="tls.peerFingerprintSha256"]', ${JSON.stringify(tls.peerFingerprintSha256)});` : ''}
+    ${tool === 'unifi-axi' && edited ? `
+      await page.click('details:has([data-profile-field="tls.trustedCertificatePem"]) summary');
+      await page.fill('[data-profile-field="tls.peerFingerprintSha256"]', ${JSON.stringify(tls.peerFingerprintSha256)});
+      await page.eval(() => {
+        const pending = new Promise(resolve => { window.finishPemRead = resolve; });
+        const read = File.prototype.text;
+        File.prototype.text = async function () { await pending; return read.call(this); };
+      });
+      await page.eval(${pemSelection('[data-tls-file="tls.trustedCertificatePem"]', certificate)});
+    ` : ''}
     await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
+    ${tool === 'unifi-axi' && edited ? `await page.wait('html[data-submit-pending]'); await page.eval(() => window.finishPemRead());` : ''}
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="3"]');
-    check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(edited ? (tool === 'unifi-axi' ? '127.0.0.2' : 'replacement.example') : '')}), 'Endpoint override was incorrect');
+    check(await page.eval(() => document.querySelector('[data-profile-field="${field}"]').value === ${JSON.stringify(edited ? savedOverride : '')}), 'Endpoint override was incorrect');
   `)
   const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/' + tool))).json() as {
     stored: { origin: string; tls?: unknown; tlsServerName?: string }
   }
   assert.equal(stored.origin, 'https://replacement.example')
-  if (tool === 'unifi-axi') assert.deepEqual(stored.tls, edited ? { ...tls, connectAddress: '127.0.0.2' } : undefined)
-  else assert.equal(stored.tlsServerName, edited ? 'replacement.example' : undefined)
+  if (tool === 'unifi-axi') assert.deepEqual(stored.tls, edited ? tls : undefined)
+  else assert.equal(stored.tlsServerName, edited ? savedOverride : undefined)
 })
 
 for (const field of ['certificate', 'fingerprint']) test('UniFi ' + field + ' replacement requires both trust values', async () => {
@@ -2566,16 +2589,15 @@ test(combinedPemWithLateHydration, async () => {
     await createInstance('az-axi', { tenantId: '11111111-1111-4111-8111-111111111111', clientId: '22222222-2222-4222-8222-222222222222',
       auth: 'certificate', thumbprintSha256: 'a'.repeat(64), privateKey: 'CANARY-original-key' });
     await page.wait('[data-certificate]:not([hidden]) [data-certificate-file]');
-    await page.eval('(() => { const transfer = new DataTransfer(); transfer.items.add(new File([' + ${JSON.stringify(JSON.stringify(fixture.certificatePem))} + '], "synthetic-identity.pem")); const input = document.querySelector("[data-certificate-file]"); input.files = transfer.files; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
+    await page.eval(${pemSelection('[data-certificate-file]', fixture.certificatePem)});
+    await page.click('[data-save-and-test]');
+    await page.click('form[data-save-tool] button');
+    await page.wait('html[data-submit-pending]');
     await page.eval(() => {
       const script = document.createElement('script');
       script.src = '/admin/assets/hydrate.js?resume';
       document.head.append(script);
-      const field = document.querySelector('[data-certificate-pem]');
-      return new Promise(resolve => field.addEventListener('input', () => resolve(true), { once: true }));
     });
-    await page.click('[data-save-and-test]');
-    await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
     check(await page.eval(() => document.querySelector('[data-profile-field=thumbprintSha256]').value) === ${JSON.stringify(fingerprint)}, 'Saved fingerprint did not come from the selected PEM');

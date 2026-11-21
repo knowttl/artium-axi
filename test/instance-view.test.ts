@@ -55,7 +55,7 @@ test('the Connection card patches the credential with identity, both revisions, 
   expect([attribute(form, 'data-method'), attribute(form, 'data-save-tool'), attribute(form, 'data-save-instance'),
     attribute(form, 'data-confirm')]).toEqual(['PATCH', 'falcon-axi', 'lab', 'Save this credential, retaining unchanged stored secrets for the same identity and keeping native settings?'])
   expect(controls(form).filter(([name]) => !String(name).startsWith('profile.'))).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedId', 'hidden', 'synthetic-lab-id'],
-    ['expectedRevision', 'hidden', '3'], ['expectedToolRevision', 'hidden', '7'], [undefined, 'file', undefined], [undefined, 'textarea', undefined], [undefined, 'checkbox', undefined]])
+    ['expectedRevision', 'hidden', '3'], ['expectedToolRevision', 'hidden', '7'], ['pem.certificatePem', 'file', undefined], ['certificatePem', 'textarea', undefined], ['testAfterSave', 'checkbox', undefined]])
   expect(nodes(form).filter(element => attribute(element, 'data-save-and-test') !== undefined).map(input => attribute(input, 'checked'))).toEqual([''])
   expect(nodes(form).filter(element => element.tagName === 'button').map(text)).toEqual(['Save connection'])
 })

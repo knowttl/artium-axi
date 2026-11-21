@@ -1,4 +1,5 @@
 import type { Confirmation } from './action-form.js'
+import { completePemFields } from './certificate-verification.js'
 import { claimLinkEvent } from './claim-link.js'
 import { confirmationEvent, type ConfirmationRequest } from './confirmation.js'
 import { createdTokenEvent } from './created-token.js'
@@ -52,6 +53,12 @@ export function beginSubmit(form: HTMLFormElement, submitter: HTMLButtonElement 
   }
 }
 
+function wasEdited(input: HTMLInputElement) {
+  const clone = input.cloneNode() as HTMLInputElement
+  clone.defaultValue = `${clone.value} `
+  return clone.value !== clone.defaultValue
+}
+
 function applyProfile(form: HTMLFormElement, fields: FormData, body: Body): string | null {
   const inputs = Array.from(form.querySelectorAll<Control>('[data-profile-field]'))
   if (!inputs.length) return null
@@ -64,7 +71,7 @@ function applyProfile(form: HTMLFormElement, fields: FormData, body: Body): stri
     const clearable = input.hasAttribute('data-profile-clearable')
     const tls = input.hasAttribute('data-tls-input')
     if (raw === null || raw === '' && !clearable) continue
-    if (input instanceof HTMLInputElement && clearable && endpointChanged && !input.dataset.tlsEdited && raw === input.defaultValue) continue
+    if (input instanceof HTMLInputElement && clearable && endpointChanged && !wasEdited(input)) continue
     const path = tls ? input.dataset.profileField!.split('.') : [input.dataset.profileField!]
     const key = path.pop()!
     const parent = path.reduce((node, name) => node[name] ??= Object.create(null), value)
@@ -119,6 +126,7 @@ export async function submitForm({ form, submitter, draft, action, method, confi
   const { button, release } = submission
   try {
     draft ??= snapshotForm(form)
+    if (form.querySelector('[data-credential-editor]')) await completePemFields(draft.fields)
     const body: Body = bodyFrom ? { _csrf: draft.fields.get('_csrf'), ...bodyFrom(draft.fields) } : Object.fromEntries(draft.fields)
     const invalidProfile = applyProfile(form, draft.fields, body)
     const testUrl = saveTool && draft.fields.has('testAfterSave')
