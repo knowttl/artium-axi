@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.56](https://github.com/knowttl/artium-axi/compare/v0.0.55...v0.0.56) (2026-11-21)
+
+
+### Bug Fixes
+
+* **views:** move GitHub device authorization into React ([#569](https://github.com/knowttl/artium-axi/issues/569)) ([1c2b90e](https://github.com/knowttl/artium-axi/commit/1c2b90ec512af2b490ac5f8f4d252a0605d0a395))
+
 ## [0.0.55](https://github.com/knowttl/artium-axi/compare/v0.0.54...v0.0.55) (2026-11-21)
 
 
