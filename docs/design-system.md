@@ -68,9 +68,9 @@ The certificate panel uses the last TLS decision for offers that depend on test 
 On the tool page, only the result note reads the outcome.
 Both pages consume their path's `credential-test:` entry from session storage after hydration.
 The Inspect certificate form passes `showInspection` to `ActionForm`, so `submitForm` hands the inspection response to the Trusted certificates panel, which opens [`CertificateInspectionDialog`](../src/views/certificate-inspection.tsx) instead of reloading.
-The dialog is an Astryx `Dialog` that renders the hostname, reason, warnings and every certificate in the chain.
-It offers the trust form only when the inspection allows trust, and the certificate-name form only when the tool can use the certificate name.
-Both forms report request errors in the dialog's own message area through the `onMessage` prop of `ActionForm`, and a new inspection starts with an empty message.
+The Astryx dialog renders the inspection in React and mounts the applicable forms after the response arrives.
+Both forms report through the `onMessage` prop of `ActionForm` to a shared message area that resets when the dialog closes.
+See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-administration-ui) for the available actions and recovery steps.
 The GitHub connection card on this page is the same `GithubConnection` view, above the Connection card.
 The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`.
 Tools, People and Audit use the shared React [`FilterForm`](../src/views/filter-form.tsx) for their GET forms.
@@ -130,7 +130,7 @@ When the endpoint changes, it omits an untouched connection IP or certificate na
 After creating or updating an instance with credentials, `submitForm` runs the optional connection test and stores the save message with any normalization notices and test outcome.
 Both `ActionForm` and `confirm.js` use `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
 After certificate trust is saved, `submitForm` uses [`retestConnection`](../src/views/retest.ts) to test with `X-Artium-Retest: 1` and stores the outcome for the reloaded instance page.
-`confirm.js` still submits forms matched by `scriptedFormSelector`, which is the GitHub connection form.
+`scriptedFormSelector` matches only the GitHub connection form, which `confirm.js` submits.
 For a plain form submitted before React can handle it, `confirm.js` captures the submitted values and hands them to `ActionForm` after `astryx-hydrated`, when the dialog listeners are ready.
 `ActionForm` also captures the submitted values before waiting for dialog readiness, and both handlers share a page-wide submit lock.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
@@ -144,7 +144,7 @@ See [browser administration](admin-guide.md#browser-administration) for the time
 The CLI approval page's Go back button (`BackButton` in `src/views/auth.tsx`) renders hidden and appears once hydrated when the browser has history.
 Views avoid Astryx components that emit inline SVG or style values the hoister rejects (`Avatar`, `ProgressBar`, the default `Stepper` and `Banner` icons, and `Table` without its own `scrollWrapper`).
 The legacy base rules for headings, paragraphs, links, table elements, labels, selects, textareas, buttons and inputs other than checkboxes, radio buttons, hidden and file inputs skip content inside `[data-astryx-root]`.
-Tool views no longer accept `legacyHtml`.
+Tool views render without `legacyHtml` or `legacy-island` markup.
 The Audit log (`AuditLog` in `src/views/audit.tsx`, route `/admin/audit`) is the fourteenth page on the seam.
 It is a GET filter form (Request ID and Token ID search, the Time range link group, the Failed runs only link, native `select` chips for User, Tool, Instance, Event and Outcome, the Error code chip that appears only when the query sets it, and the From and To fields of a custom range), an Export menu (a native `details` with the CSV and JSON lines download links to `/v1/admin/audit/export` for the applied filters), the records table and a cursor pager.
 Its props carry what a row displays (time, event, break-glass flag, actor name, tool, instance and outcome word and tone) and no other stored field; the open record is a separate `detail` prop.

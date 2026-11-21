@@ -308,6 +308,8 @@ Strict pin replacement updates supported shared fields and removes previous pin 
 CA-mode replacement updates the paired leaf fingerprint and leaves existing CA records unchanged.
 If CA verification fails, check the certificate's hostname, validity and chain; update the CA manually if the issuing CA changed.
 Replacement preserves strict leaf pinning or CA trust, and automatically tests the connection.
+If saving trust, replacing trust or applying a certificate name is rejected, the error appears in the open inspection dialog.
+If the error offers **Reload latest**, reload and inspect the affected endpoint again before retrying.
 Strict pins reject the old leaf and other leaves from the same CA; CA trust continues to allow leaves signed by the confirmed CA, subject to any separately saved fingerprint.
 Removing an endpoint trust record retains the separately saved Certificate verification fields; clear those fields too when revoking that trust.
 CA trust is selected when an issuing CA is available; self-signed endpoints select strict leaf pinning.
@@ -354,7 +356,7 @@ Trust does not disable date verification; hostname verification remains enabled 
 Across every tool, a saved exact pin remains mandatory even when the endpoint also has CA trust; a CA supplies chain trust and never overrides a pin.
 See the [TLS route and fixture inventory](tls-policy.md) for transport scope and the read-only compatibility assessment.
 Existing setups that relied on a CA to override a stale pin will fail until the pin is updated.
-Inspect the endpoint, compare the new fingerprint through an independent trusted route, then use **Renew trust** or replace the saved fingerprint in **Certificate verification** before testing again.
+Inspect the affected endpoint and follow the replacement steps above, or verify the new fingerprint through an independent trusted route before updating it in **Certificate verification** and testing again.
 Confirming initial trust for an expired or hostname-mismatched certificate saves trust but does not fix the connection: renew the certificate or use its matching hostname.
 
 If the server omitted an intermediate, inspection can retrieve the leaf certificate’s AIA issuer automatically.
@@ -366,7 +368,8 @@ If an endpoint omits an intermediate below a confirmed root, confirm that interm
 
 The instance page lists trusted certificates and available expiry dates, with warnings within 30 days of expiry.
 For remaining CA trust at a resolvable saved endpoint, changing the saved fingerprint or removing a CA record refreshes the displayed leaf from the saved fingerprint, or clears it if no fingerprint applies.
-When only the fingerprint is known, matching inspection fills in the leaf details; when no leaf is confirmed, use Trust or Renew to confirm one.
+When only the fingerprint is known, matching inspection fills in the leaf details.
+To confirm a leaf, follow the trust or replacement steps above when inspection offers the action.
 Use the [credential editor](admin-guide.md#browser-administration) to replace a changed CA or remove credential-level trust.
 Use **Remove endpoint trust** to retire endpoint entries, and clear separately saved credential trust when it should no longer apply.
 These changes take effect on subsequent calls and survive server restarts.
