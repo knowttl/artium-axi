@@ -1,6 +1,7 @@
 import type { Confirmation } from './action-form.js'
 import { claimLinkEvent } from './claim-link.js'
 import { confirmationEvent, type ConfirmationRequest } from './confirmation.js'
+import { createdTokenEvent } from './created-token.js'
 import { reauthRequestEvent } from './reauth.js'
 import { successKey } from './toasts.js'
 
@@ -15,6 +16,8 @@ export interface SubmitRequest {
   successUrl?: string
   successMessage?: string
   claimLink?: boolean
+  createdToken?: boolean
+  bodyFrom?: (fields: FormData) => Body
   report: (text: string, reload?: boolean) => void
 }
 
@@ -75,7 +78,7 @@ function shapeBody({ fields, typed }: FormDraft, body: Body): string | null {
   return null
 }
 
-export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, report }: SubmitRequest) {
+export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, report }: SubmitRequest) {
   const submission = beginSubmit(form, submitter)
   if (!submission) return
   const { button, release } = submission
@@ -83,7 +86,7 @@ export async function submitForm({ form, submitter, draft, action, method, confi
     draft ??= snapshotForm(form)
     await hydrated
     report('')
-    const body: Body = Object.fromEntries(draft.fields)
+    const body: Body = bodyFrom ? { _csrf: draft.fields.get('_csrf'), ...bodyFrom(draft.fields) } : Object.fromEntries(draft.fields)
     if (confirmation) {
       const confirmAction = confirmation.action || button.textContent!.trim()
       const typedName = await ask<string | null>(confirmationEvent, { action: confirmAction, title: confirmation.title || `${confirmAction}?`,
@@ -136,6 +139,11 @@ export async function submitForm({ form, submitter, draft, action, method, confi
       const { claimPath } = await response.json() as { claimPath: string }
       form.closest('dialog')!.close()
       document.dispatchEvent(new CustomEvent(claimLinkEvent, { detail: new URL(claimPath, location.origin).href }))
+      return
+    }
+    if (createdToken) {
+      const { token: created } = await response.json() as { token: string }
+      document.dispatchEvent(new CustomEvent(createdTokenEvent, { detail: created }))
       return
     }
     sessionStorage.setItem(successKey, successMessage || 'Change saved.')

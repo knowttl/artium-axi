@@ -414,7 +414,7 @@ test('SSO popup confirmation refreshes both pills on the original document', asy
     ${waitForReauthPills}
     await page.wait('a[href="/account"]');
     await page.click('a[href="/account"]');
-    await page.wait('form[data-create-token]');
+    await page.wait('form[action="/v1/account/tokens"]');
     await page.wait('html[data-astryx-theme]');
     await waitForReauthPills('Changes locked', 'off', '#i-lock');
     check(await page.eval(async () => (await (await fetch('/reauth?status=1')).json()).until === 0), 'Unconfirmed SSO status must report no legacy deadline');
@@ -423,9 +423,9 @@ test('SSO popup confirmation refreshes both pills on the original document', asy
       const now = Date.now.bind(Date);
       Date.now = () => now() + 960_000;
     });
-    await page.fill('form[data-create-token] [name=label]', 'Synthetic SSO token');
-    await page.click('[data-token-tool="falcon-axi"]');
-    await page.click('form[data-create-token] button');
+    await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Synthetic SSO token');
+    await page.click('[name="tool:falcon-axi"]');
+    await page.click('form[action="/v1/account/tokens"] button');
     await page.wait('#reauth-dialog[open]');`)
   openReauthPopup()
   browser(`await page.click('[data-oidc-approve]');

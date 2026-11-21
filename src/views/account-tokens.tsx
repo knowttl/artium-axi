@@ -2,12 +2,13 @@ import { Badge } from '@astryxdesign/core/Badge'
 import { Button } from '@astryxdesign/core/Button'
 import { HStack } from '@astryxdesign/core/HStack'
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from '@astryxdesign/core/Table'
-import { Heading, Text } from '@astryxdesign/core/Text'
+import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
 import { ActionForm } from './action-form.js'
+import { CreatedTokenDialog } from './created-token.js'
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
 import { Time } from './time.js'
@@ -20,10 +21,21 @@ export interface AccountTokensProps {
     scope: { tool: string, instances?: string[], commands?: string[] }[] }[]
 }
 
+function tokenBody(fields: FormData, choices: AccountTokensProps['choices']) {
+  const tools = choices.flatMap(({ tool }) => {
+    const commands = fields.getAll(`command:${tool}`)
+    const instances = fields.getAll(`instance:${tool}`)
+    const scope = instances.length ? { instances } : {}
+    return [...fields.has(`tool:${tool}`) ? [{ tool, ...scope }] : [], ...commands.length ? [{ tool, commands, ...scope }] : []]
+  })
+  const expiresAt = fields.get('expiryType') === 'date' ? new Date(String(fields.get('expiryDate'))).getTime() : Date.now() + Math.floor(Number(fields.get('duration')) * 3600000)
+  return { label: fields.get('label'), scope: { tools }, expiresAt }
+}
+
 function CreateForm({ csrf, maxLifetimeHours, choices }: { csrf: string } & Pick<AccountTokensProps, 'maxLifetimeHours' | 'choices'>) {
   const [label, setLabel] = useState('')
   return (
-    <ActionForm action="/v1/account/tokens" method="POST" csrf={csrf} attributes={{ 'data-create-token': '' }}>
+    <ActionForm action="/v1/account/tokens" method="POST" csrf={csrf} createdToken bodyFrom={fields => tokenBody(fields, choices)}>
       <VStack gap={3}>
         <TextInput label="Label" htmlName="label" value={label} onChange={setLabel} {...{ required: true, maxLength: 100 }} />
         <label className="field">
@@ -39,8 +51,8 @@ function CreateForm({ csrf, maxLifetimeHours, choices }: { csrf: string } & Pick
           <input className="input" name="expiryDate" type="datetime-local" />
         </label>
         <Text as="p" type="supporting">{`Maximum lifetime: ${maxLifetimeHours} hours. The server refuses longer lifetimes.`}</Text>
-        <label className="check"><input name="readOnly" type="checkbox" defaultChecked /> Read-only</label>
-        <label className="check"><input name="reusable" type="checkbox" /> Reusable token</label>
+        <label className="check"><input name="readOnly" type="checkbox" data-type="boolean" defaultChecked /> Read-only</label>
+        <label className="check"><input name="reusable" type="checkbox" data-type="boolean" /> Reusable token</label>
         <Text as="p" type="supporting">Read-only follows tool inventory labels; some reads send data to external services. Writable SSH access reaches every granted host, including sudo. Credential-issuing commands require an exact selection and can create credentials that token revocation does not end.</Text>
         <fieldset className="options">
           <legend>Tool and exact command access</legend>
@@ -51,11 +63,11 @@ function CreateForm({ csrf, maxLifetimeHours, choices }: { csrf: string } & Pick
                 {instances.length > 0 && (
                   <fieldset>
                     <legend>Instances (none selected allows every instance you can use)</legend>
-                    {instances.map(instance => <label key={instance} className="check"><input type="checkbox" data-token-instance={tool} value={instance} /> <code>{instance}</code></label>)}
+                    {instances.map(instance => <label key={instance} className="check"><input type="checkbox" name={`instance:${tool}`} value={instance} /> <code>{instance}</code></label>)}
                   </fieldset>
                 )}
-                <label className="check"><input type="checkbox" data-token-tool={tool} /> All permitted commands</label>
-                {commands.map(command => <label key={command} className="check"><input type="checkbox" data-token-command={tool} value={command} /> <code>{command}</code></label>)}
+                <label className="check"><input type="checkbox" name={`tool:${tool}`} /> All permitted commands</label>
+                {commands.map(command => <label key={command} className="check"><input type="checkbox" name={`command:${tool}`} value={command} /> <code>{command}</code></label>)}
               </div>
             </details>
           )) : <Text as="p">No enabled tools granted.</Text>}
@@ -63,24 +75,6 @@ function CreateForm({ csrf, maxLifetimeHours, choices }: { csrf: string } & Pick
         <HStack><Button type="submit" label="Create token" variant="primary" /></HStack>
       </VStack>
     </ActionForm>
-  )
-}
-
-function CreatedTokenDialog() {
-  return (
-    <dialog id="created-token" className="modal" aria-labelledby="created-token-title">
-      <div className="modal-body">
-        <Heading level={2} id="created-token-title">Copy your token now</Heading>
-        <Text as="p">It will not be shown again.</Text>
-        <label className="field">
-          <span>Token</span>
-          <input className="input mono" data-created-token="" readOnly autoComplete="off" />
-        </label>
-      </div>
-      <div className="modal-foot">
-        <Button type="button" label="Done" variant="secondary" {...{ 'data-close-created-token': '' }} />
-      </div>
-    </dialog>
   )
 }
 

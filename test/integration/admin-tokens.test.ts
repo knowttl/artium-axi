@@ -58,7 +58,7 @@ function pageForm(body: string, action: string) {
 
 test('the settings form posts what the old form did, with its saved values', async () => {
   const form = pageForm((await tokensPage()).body, '/v1/admin/token-settings')
-  expect(form.attributes).toMatchObject({ 'data-api': '', 'data-method': 'PATCH', 'data-confirm': 'Save these token settings?', 'data-token-settings': '', method: 'post' })
+  expect(form.attributes).toMatchObject({ 'data-api': '', 'data-method': 'PATCH', 'data-confirm': 'Save these token settings?', method: 'post' })
   expect(Object.keys(form.inputs)).toEqual(['_csrf', 'mintingEnabled', 'maxLifetimeHours', 'ssoWindowDays'])
   expect(form.inputs.mintingEnabled).toMatchObject({ type: 'checkbox', 'data-type': 'boolean', checked: '' })
   expect(form.inputs.maxLifetimeHours).toMatchObject({ type: 'number', min: '0.01', step: 'any', value: '720', required: '' })
@@ -161,12 +161,11 @@ type Element = DefaultTreeAdapterMap['element']
 const nodes = (node: DefaultTreeAdapterMap['node']): Element[] => [...'tagName' in node ? [node] : [], ...'childNodes' in node ? node.childNodes.flatMap(nodes) : []]
 const attribute = (element: Element, name: string) => element.attrs.find(item => item.name === name)?.value
 const ownText = (element: Element): string => element.childNodes.map(child => 'value' in child ? child.value : 'tagName' in child && !['input', 'select', 'textarea', 'option', 'button', 'svg'].includes(child.tagName) ? ownText(child) : '').join(' ').replace(/\s+/g, ' ').trim()
-const ignored = new Set(['class', 'id', 'style', 'aria-describedby', 'aria-labelledby', 'aria-invalid', 'aria-required', 'data-confirm', 'data-confirm-token'])
+const ignored = new Set(['class', 'id', 'style', 'aria-describedby', 'aria-labelledby', 'aria-invalid', 'aria-required', 'data-confirm', 'data-confirm-token', 'data-type', 'data-create-token'])
 const attributes = (element: Element) => Object.fromEntries(element.attrs.filter(item => !ignored.has(item.name)).map(item => [item.name, item.value]))
 const tokenCard = (html: string) => {
   const all = nodes(parse(html))
-  const form = all.find(element => element.tagName === 'form' && attribute(element, 'data-create-token') !== undefined)!
-  const dialog = all.find(element => element.tagName === 'dialog' && attribute(element, 'id') === 'created-token')!
+  const form = all.find(element => element.tagName === 'form' && attribute(element, 'action') === '/v1/account/tokens')!
   const table = all.find(element => element.tagName === 'table' && nodes(element).some(cell => cell.tagName === 'th' && ownText(cell) === 'Label'))
   const inner = (root: Element) => nodes(root).filter(element => element !== root)
   const rows = table ? nodes(table).filter(element => element.tagName === 'tr').slice(1) : []
@@ -175,20 +174,28 @@ const tokenCard = (html: string) => {
     controls: inner(form).filter(element => ['input', 'select', 'textarea'].includes(element.tagName) && attribute(element, 'name') !== '_csrf').map(control => ({ tag: control.tagName, ...attributes(control), type: attribute(control, 'type') ?? 'text', value: attribute(control, 'value') ?? '' })),
     texts: inner(form).filter(element => ['label', 'p', 'legend', 'summary'].includes(element.tagName)).map(ownText).filter(Boolean),
     submit: inner(form).filter(element => element.tagName === 'button').map(ownText),
-    dialog: { ...attributes(dialog), parts: inner(dialog).filter(element => ['h2', 'p', 'label', 'button'].includes(element.tagName)).map(element => [element.tagName, ownText(element), attribute(element, 'id'), attribute(element, 'type')]),
-      field: inner(dialog).filter(element => element.tagName === 'input').map(attributes) },
     headings: table ? nodes(table).filter(element => element.tagName === 'th').slice(0, 5).map(ownText) : [],
     rows: rows.map(row => ({ cells: row.childNodes.filter((child): child is Element => 'tagName' in child).map(ownText),
       revoke: nodes(row).filter(element => element.tagName === 'form').map(revoke => ({ ...attributes(revoke), confirm: attribute(revoke, 'data-confirm'), button: nodes(revoke).filter(element => element.tagName === 'button').map(ownText) })) })),
   }
 }
 
-test('the rebuilt token card keeps the recorded legacy create form, one-time dialog and token list: URLs, fields, values, texts and confirmations', async () => {
+test('the rebuilt token card keeps the recorded legacy create form and token list: URLs, fields, values, texts and confirmations', async () => {
   mint('token-account', 'Synthetic account')
   const recorded = tokenCard(readFileSync(join(process.cwd(), 'test/fixtures/account-tokens-card.html'), 'utf8'))
   const rebuilt = tokenCard((await app.inject({ url: '/account', headers })).body)
   expect(recorded.rows).toHaveLength(1)
   expect(rebuilt).toEqual(recorded)
+})
+
+test('the one-time token dialog is closed with an empty read-only token field and a Done button', async () => {
+  const dialog = nodes(parse((await app.inject({ url: '/account', headers })).body)).find(element => element.tagName === 'dialog' && attribute(element, 'id') === 'created-token')!
+  const inner = nodes(dialog).filter(element => element !== dialog)
+  expect(attribute(dialog, 'open')).toBeUndefined()
+  expect(inner.filter(element => ['h2', 'p', 'label', 'button'].includes(element.tagName)).map(element => [element.tagName, ownText(element)]))
+    .toEqual([['h2', 'Copy your token now'], ['p', 'It will not be shown again.'], ['label', 'Token'], ['button', 'Done']])
+  const [field] = inner.filter(element => element.tagName === 'input')
+  expect([attribute(field!, 'readonly'), attribute(field!, 'value') ?? '', attribute(field!, 'autocomplete')]).toEqual(['', '', 'off'])
 })
 
 test('the rebuilt Account header keeps the recorded legacy title, description and Change password action', async () => {
@@ -204,7 +211,7 @@ test('the rebuilt Account header keeps the recorded legacy title, description an
 })
 
 test('the one-time token value is returned only by the create response and appears on no later page, in no hydration data and in no audit row', async () => {
-  const csrf = (await app.inject({ url: '/account', headers })).body.match(/data-create-token[^>]*><input type="hidden" name="_csrf" value="([^"]+)"/)![1]!
+  const csrf = (await app.inject({ url: '/account', headers })).body.match(/action="\/v1\/account\/tokens"[^>]*><input type="hidden" name="_csrf" value="([^"]+)"/)![1]!
   const created = await app.inject({ method: 'POST', url: '/v1/account/tokens', headers,
     payload: { _csrf: csrf, label: 'Synthetic one-time', scope: { tools: [{ tool: 'falcon-axi' }] }, readOnly: true, reusable: false, expiresAt: now + 3600000 } })
   expect(created.statusCode).toBe(200)

@@ -22,7 +22,8 @@ export interface TokensProps {
 function Settings({ csrf, settings }: Pick<TokensProps, 'csrf' | 'settings'>) {
   return (
     <Panel title="Settings" description="Control new token creation.">
-      <ActionForm action="/v1/admin/token-settings" method="PATCH" csrf={csrf} confirmation={{ consequence: 'Save these token settings?' }} attributes={{ 'data-token-settings': '' }}>
+      <ActionForm action="/v1/admin/token-settings" method="PATCH" csrf={csrf} confirmation={{ consequence: 'Save these token settings?' }}
+        bodyFrom={fields => ({ maxLifetimeMs: Math.floor(Number(fields.get('maxLifetimeHours')) * 3600000), ssoWindowMs: Math.round(Number(fields.get('ssoWindowDays')) * 86400000) })}>
         <VStack gap={3}>
           <label className="check"><input type="checkbox" name="mintingEnabled" data-type="boolean" defaultChecked={settings.mintingEnabled} /> Allow token creation</label>
           <Field label="Maximum lifetime in hours" inputID="token-max-lifetime">
