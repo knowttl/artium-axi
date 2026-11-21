@@ -2081,7 +2081,7 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     await page.click('[data-inspect-certificate] button');
     await page.wait('#certificate-inspection[open]');
     check(await page.eval(() => document.querySelector('[data-certificate-details]').textContent.includes('No trust is needed')), 'Default trust was not explained');
-    check(await page.eval(() => document.querySelector('[data-trust-certificate]').hidden), 'Already verified endpoint offers trust');
+    check(await page.eval(() => !document.querySelector('[data-trust-certificate]')), 'Already verified endpoint offers trust');
     await page.click('[data-close-certificate]');
     await page.click('form[data-method=DELETE][action$="/certificates"] button');
     await page.wait('#confirmation[open]');
@@ -2089,6 +2089,45 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     await page.wait('[data-inspect-certificate][hidden]');
     check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('No certificates trusted')), 'Removed trust remains displayed');
   `)
+})
+
+test('a rejected trust reports inside the certificate dialog and keeps it open', () => {
+  browser(`
+    await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-rejected' });
+    await page.click('form[data-test-tool] button');
+    await page.wait('[data-inspect-certificate]:not([hidden])');
+    await page.click('[data-inspect-certificate] button');
+    await page.wait('#certificate-inspection[open]');
+    await page.eval(() => {
+      const original = window.fetch.bind(window);
+      window.fetch = async (url, options) => String(url).endsWith('/certificates/trust')
+        ? Response.json({ error: { code: 'INVALID_INPUT', source: 'artium-axi', requestId: 'synthetic-request', message: 'Synthetic rejection.', next: 'Inspect the certificate again.' } }, { status: 400 })
+        : original(url, options);
+    });
+    await page.click('[name=confirmedFingerprint]');
+    await page.click('[data-trust-certificate] button');
+    await page.wait('#certificate-inspection [role=alert]:focus');
+    check(await page.eval(() => document.activeElement.textContent) === 'Synthetic rejection. Inspect the certificate again. (INVALID_INPUT)', 'Trust rejection missing from the certificate dialog');
+    check(await page.eval(() => document.querySelector('#certificate-inspection').open), 'Trust rejection closed the dialog');
+    check(await page.eval(() => ![...document.querySelectorAll('.astryx-toast')].some(toast => toast.textContent.includes('Synthetic rejection'))), 'Trust rejection used a toast');
+  `)
+})
+
+test('certificate inspection offers the certificate name for an IP endpoint and saves it', async () => {
+  browser(`
+    await createInstance('technitium-axi', { origin: base.replace('localhost', '127.0.0.1'), auth: 'token', tokenKind: 'api', token: 'CANARY-name' });
+    await page.click('form[data-test-tool] button');
+    await page.wait('[data-inspect-certificate]:not([hidden])');
+    await page.click('[data-inspect-certificate] button');
+    await page.wait('#certificate-inspection[open]');
+    check(await page.eval(() => document.querySelector('[data-use-certificate-name]').textContent) === 'Use localhost as the name and keep connecting to 127.0.0.1', 'Certificate name offer missing');
+    await page.click('[data-use-certificate-name]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
+    check(await page.eval(() => !document.querySelector('#certificate-inspection[open]')), 'Certificate dialog stayed open after the name change');
+  `)
+  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/technitium-axi'))).json() as { stored: { origin: string, tlsServerName?: string } }
+  assert.equal(stored.tlsServerName, 'localhost')
+  assert.equal(new URL(stored.origin).hostname, '127.0.0.1')
 })
 
 test('trust automatically tests credentials and displays the exact failure', () => {

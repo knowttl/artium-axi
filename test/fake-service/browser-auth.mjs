@@ -26,6 +26,7 @@ import { createVectraAdapter } from '../../dist/src/server/adapters/vectra.js'
 import { createMgAdapter } from '../../dist/src/server/adapters/mg.js'
 import { createAzAdapter } from '../../dist/src/server/adapters/az.js'
 import { createLdapAdapter } from '../../dist/src/server/adapters/ldap.js'
+import { createTechnitiumAdapter } from '../../dist/src/server/adapters/technitium.js'
 import { createGhAdapter } from '../../dist/src/server/adapters/gh.js'
 import { loadCredentialProfile } from '../../dist/src/server/adapters/credential-profile.js'
 import { AzureTokenCache } from '../../dist/src/server/adapters/azure-token-cache.js'
@@ -50,7 +51,7 @@ const profile = tool => loadCredentialProfile(tool, join(process.cwd(), `tools/n
 const adapters = [createFalconAdapter(source), createVectraAdapter(source, join(directory, 'writes.log'), profile('vectra-axi')),
   createMgAdapter(source, join(directory, 'mg-writes.log'), profile('mg-axi')),
   createAzAdapter(source, join(directory, 'az-writes.log'), new AzureTokenCache(new FakeTokenTransport())),
-  createLdapAdapter(source, profile('ldap-axi')), createGhAdapter(source)]
+  createLdapAdapter(source, profile('ldap-axi')), createGhAdapter(source), createTechnitiumAdapter(source)]
 const deliveryFile = join(directory, 'ldap-delivery.json')
 // Use the real preparation and secret scan, replacing only the executable boundary.
 for (const adapter of adapters) {

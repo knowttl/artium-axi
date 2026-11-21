@@ -1,6 +1,7 @@
 import { Button } from '@astryxdesign/core/Button'
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { confirmationRouteFor } from '../shared/confirmation-routes.js'
+import type { CertificateInspection } from './certificate-inspection.js'
 import { submitForm, type DeferredSubmitEvent } from './submit.js'
 import type { TestOutcome } from './test-outcome.js'
 import { toastEvent, type ToastDetail } from './toasts.js'
@@ -21,7 +22,7 @@ export const ConfirmationTokenContext = createContext<ConfirmationTokens>({ issu
 
 const FormDirtyContext = createContext(false)
 
-interface FormMessageState {
+export interface FormMessageState {
   text: string
   reload: boolean
 }
@@ -30,7 +31,6 @@ const FormMessageContext = createContext<{ message: FormMessageState | null, are
 
 export const scriptedFormSelector = [
   '[data-connect-github]',
-  '[data-certificate-name-form]', '[data-inspect-certificate]',
 ].join(',')
 
 export function writeFormMessage(target: HTMLElement, text: string, reload = false) {
@@ -48,11 +48,15 @@ export function writeFormMessage(target: HTMLElement, text: string, reload = fal
 
 export function FormMessage() {
   const { message, area } = useContext(FormMessageContext)!
-  const element = useRef<HTMLParagraphElement>(null)
   useLayoutEffect(() => {
     area.current = true
     return () => { area.current = false }
   }, [area])
+  return <MessageArea message={message} />
+}
+
+export function MessageArea({ message }: { message: FormMessageState | null }) {
+  const element = useRef<HTMLParagraphElement>(null)
   useEffect(() => { if (message?.text) element.current!.focus() }, [message])
   return (
     <p ref={element} className="message" data-sheet-message="" role="alert" tabIndex={-1}>
@@ -81,12 +85,14 @@ export interface ActionFormProps {
   saveTool?: string
   retestUrl?: string
   showTest?: (outcome: TestOutcome) => void
+  showInspection?: (inspection: CertificateInspection) => void
+  onMessage?: (message: FormMessageState) => void
   className?: string
   attributes?: Record<string, string | boolean>
   children: ReactNode
 }
 
-export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, trackChanges, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, className, attributes, children }: ActionFormProps) {
+export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, trackChanges, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, onMessage, className, attributes, children }: ActionFormProps) {
   const tokens = useContext(ConfirmationTokenContext)
   const form = useRef<HTMLFormElement>(null)
   const [dirty, setDirty] = useState(false)
@@ -100,7 +106,7 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
   const tokenKey = JSON.stringify([method, action, confirmation?.typedName ?? ''])
   const token = confirmation && (tokens.issued[tokenKey] ??= tokens.mint?.(method, action, confirmation.typedName ?? '') ?? '')
   const report = (text: string, reload = false) => {
-    if (retestUrl) writeFormMessage(form.current!.closest('dialog')!.querySelector<HTMLElement>('[data-certificate-error]')!, text, reload)
+    if (onMessage) onMessage({ text, reload })
     else if (area.current) setMessage({ text, reload })
     else document.dispatchEvent(new CustomEvent<ToastDetail>(toastEvent, { detail: { text, reload } }))
   }
@@ -114,7 +120,7 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
         event.stopPropagation()
         const { submitter, astryxDraft } = event.nativeEvent as DeferredSubmitEvent
         void submitForm({ form: event.currentTarget, submitter: submitter as HTMLButtonElement | null, draft: astryxDraft, action, method, confirmation,
-          token: token || undefined, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, report })
+          token: token || undefined, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, report })
       }}
       onInput={trackChanges ? event => setDirty(differsFromDefaults(event.currentTarget)) : undefined} onReset={trackChanges ? () => setDirty(false) : undefined}>
       <input type="hidden" name="_csrf" value={csrf} />

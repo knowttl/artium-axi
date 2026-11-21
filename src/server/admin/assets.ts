@@ -42,87 +42,6 @@ function reauthenticate(csrf) {
   });
 }
 
-function showCertificateInspection(result) {
-  const dialog = document.getElementById('certificate-inspection');
-  const details = dialog.querySelector('[data-certificate-details]');
-  dialog.querySelector('[data-certificate-error]').textContent = '';
-  details.replaceChildren();
-  const line = (parent, text, warning = false) => {
-    const element = document.createElement('p');
-    element.textContent = text;
-    if (warning) element.setAttribute('role', 'alert');
-    parent.append(element);
-  };
-  line(details, 'Hostname: ' + result.hostname);
-  line(details, result.reason);
-  const nameForm = dialog.querySelector('[data-certificate-name-form]');
-  nameForm.hidden = !result.nameChange || Boolean(result.nameChange.refusalReason);
-  if (result.nameChange?.refusalReason) line(details, result.nameChange.refusalReason, true);
-  if (!nameForm.hidden) {
-    nameForm.elements.inspectionId.value = result.inspectionId;
-    nameForm.querySelector('button').textContent = 'Use ' + result.nameChange.certificateName + ' as the name and keep connecting to ' + result.nameChange.connectAddress;
-  }
-  line(details, 'Leaf expires: ' + result.chain[0].expiresAt);
-  line(details, 'Trust anchor expires: ' + result.anchor.expiresAt);
-  for (const warning of result.warnings) line(details, warning, true);
-  for (const fingerprint of result.previousFingerprints) line(details, 'Previously trusted endpoint SHA-256: ' + fingerprint);
-  for (const certificate of result.chain) {
-    const section = document.createElement('section');
-    const heading = document.createElement('h3');
-    heading.textContent = certificate.subject;
-    section.append(heading);
-    line(section, 'Issuer: ' + certificate.issuer);
-    line(section, 'Names: ' + (certificate.subjectAlternativeNames || 'No subject alternative names'));
-    line(section, 'Hostname matches: ' + certificate.matchesHostname);
-    line(section, 'Valid from: ' + certificate.validFrom + '; expires: ' + certificate.expiresAt);
-    line(section, 'Expired: ' + certificate.expired + '; not yet valid: ' + certificate.notYetValid);
-    line(section, 'Key: ' + certificate.keyType + ' ' + (certificate.keyBits ?? 'unknown') + ' bits; signature: ' + certificate.signatureAlgorithm);
-    line(section, 'Self-signed: ' + certificate.selfSigned + '; CA: ' + certificate.ca);
-    const label = document.createElement('label');
-    label.textContent = 'SHA-256 fingerprint (select to copy)';
-    const fingerprint = document.createElement('input');
-    fingerprint.readOnly = true;
-    fingerprint.value = certificate.fingerprint;
-    fingerprint.addEventListener('click', () => fingerprint.select());
-    label.append(fingerprint);
-    section.append(label);
-    details.append(section);
-  }
-  if (result.verificationError && result.anchor.fingerprint !== result.chain[0].fingerprint) {
-    line(details, 'Issuing CA to trust: ' + result.anchor.subject + '; SHA-256: ' + result.anchor.fingerprint);
-  }
-  const form = dialog.querySelector('[data-trust-certificate]');
-  form.hidden = !result.pinRequired && (result.trustMode ? !result.rotation : !result.verificationError);
-  let replacement = form.elements.replace;
-  if (!replacement) {
-    replacement = document.createElement('input');
-    replacement.type = 'hidden';
-    replacement.name = 'replace';
-    replacement.dataset.type = 'boolean';
-    form.append(replacement);
-  }
-  replacement.value = String(result.rotation);
-  form.querySelector('button').textContent = result.rotation ? 'Replace trusted certificate' : 'Trust this certificate';
-  if (result.rotation) line(details, 'Confirm the new fingerprint to replace saved trust. The existing trust mode is preserved.', true);
-  form.elements.inspectionId.value = result.inspectionId;
-  form.elements.confirmedFingerprint.checked = false;
-  form.elements.confirmedFingerprint.value = result.chain[0].fingerprint;
-  const hasCA = result.rotation && result.trustMode === 'ca' || result.anchor.ca && result.anchor.fingerprint !== result.chain[0].fingerprint;
-  const supportsPin = Boolean(form.elements.mode.querySelector('option[value="pin"]'));
-  if (!supportsPin && !hasCA) {
-    form.hidden = true;
-    line(details, 'This tool requires an issuing CA. Configure the server trusted CA bundle for a self-signed endpoint.', true);
-  }
-  form.elements.mode.required = true;
-  form.elements.mode.value = result.pinRequired ? 'pin' : result.rotation ? result.trustMode : hasCA ? 'ca' : result.chain[0].selfSigned ? 'pin' : '';
-  for (const option of form.elements.mode.options) option.disabled = result.rotation && option.value !== result.trustMode;
-  form.elements.mode.querySelector('option[value="ca"]').disabled = result.pinRequired || !hasCA || result.rotation && result.trustMode !== 'ca';
-  if (supportsPin && result.verificationError && !hasCA && !result.chain[0].selfSigned) {
-    line(details, 'CA trust is unavailable because no issuing CA was obtained. Choose strict leaf pinning explicitly.', true);
-  }
-  dialog.querySelector('[data-close-certificate]').onclick = () => dialog.close();
-  dialog.showModal();
-}
 async function connectGithub(connection, csrf, message) {
   const panel = document.querySelector('[data-github-authorization]');
   const status = panel.querySelector('[data-github-status]');
@@ -205,9 +124,7 @@ document.addEventListener('submit', async event => {
     form.dispatchEvent(Object.assign(new SubmitEvent('submit', { bubbles: true, cancelable: true, submitter }), { astryxDraft }));
     return;
   }
-  const message = form.hasAttribute('data-certificate-name-form')
-    ? form.closest('dialog').querySelector('[data-certificate-error]')
-    : form.closest('dialog')?.querySelector('[data-sheet-message]') || null;
+  const message = form.closest('dialog')?.querySelector('[data-sheet-message]') || null;
   try {
     say(message, '');
     const fields = new FormData(form);
@@ -249,10 +166,6 @@ document.addEventListener('submit', async event => {
     if (response.redirected) { location.assign(response.url); return; }
     if (response.ok && form.hasAttribute('data-connect-github')) {
       await connectGithub(await response.json(), body._csrf, message);
-      return;
-    }
-    if (response.ok && form.hasAttribute('data-inspect-certificate')) {
-      showCertificateInspection(await response.json());
       return;
     }
     if (!response.ok) {

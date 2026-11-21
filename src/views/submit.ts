@@ -1,5 +1,6 @@
 import { readTestResponse } from '../shared/diagnostic.js'
 import type { Confirmation } from './action-form.js'
+import type { CertificateInspection } from './certificate-inspection.js'
 import { completePemFields } from './certificate-verification.js'
 import { claimLinkEvent } from './claim-link.js'
 import { confirmationEvent, type ConfirmationRequest } from './confirmation.js'
@@ -25,6 +26,7 @@ export interface SubmitRequest {
   saveTool?: string
   retestUrl?: string
   showTest?: (outcome: TestOutcome) => void
+  showInspection?: (inspection: CertificateInspection) => void
   report: (text: string, reload?: boolean) => void
 }
 
@@ -123,7 +125,7 @@ function shapeBody({ fields, typed }: FormDraft, body: Body): string | null {
   return null
 }
 
-export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, report }: SubmitRequest) {
+export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, report }: SubmitRequest) {
   const submission = beginSubmit(form, submitter)
   if (!submission) return
   const { button, release } = submission
@@ -190,6 +192,10 @@ export async function submitForm({ form, submitter, draft, action, method, confi
     if (!response.ok) {
       const { error } = await response.json() as { error: { message: string, next: string, code: string } }
       report(`${error.message} ${error.next} (${error.code})`, error.code === 'REVISION_CONFLICT')
+      return
+    }
+    if (showInspection) {
+      showInspection(await response.json() as CertificateInspection)
       return
     }
     if (retestUrl) {

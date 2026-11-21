@@ -1,15 +1,15 @@
 import { Badge } from '@astryxdesign/core/Badge'
 import { Banner } from '@astryxdesign/core/Banner'
 import { Button } from '@astryxdesign/core/Button'
-import { Field } from '@astryxdesign/core/Field'
 import { HStack } from '@astryxdesign/core/HStack'
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from '@astryxdesign/core/Table'
-import { Heading, Text } from '@astryxdesign/core/Text'
+import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
 import { ActionForm, Revision } from './action-form.js'
+import { CertificateInspectionDialog, type CertificateInspection, type TrustOptions } from './certificate-inspection.js'
 import { CredentialEditor, type CredentialEditorProps } from './credential-editor.js'
 import { Icon } from './icon.js'
 import { GithubConnection, type GithubConnectionProps } from './github-connection.js'
@@ -59,7 +59,7 @@ export interface InstanceProps {
     pins: Pin[]
     alwaysOfferInspection: boolean
     endpoints: string[]
-    trust: { fills: boolean, caOption: string }
+    trust: TrustOptions
   }
   testGuide: string
   change: { actor: string, at: string | null, revision: number } | null
@@ -219,46 +219,10 @@ function PinTable({ csrf, path, pins }: { csrf: string, path: string, pins: Pin[
   )
 }
 
-function InspectionDialog({ csrf, path, name, trust }: { csrf: string, path: string, name: string, trust: InstanceProps['certificates']['trust'] }) {
-  return (
-    <dialog id="certificate-inspection" className="modal" aria-labelledby="certificate-inspection-title">
-      <VStack gap={3} className="modal-body">
-        <Heading level={2} id="certificate-inspection-title">{`Inspect certificate for ${name}`}</Heading>
-        <Banner status="warning" icon={<Icon name="alert" />} title="Compare the fingerprint before trusting" role="alert"
-          description="Trust is only as safe as the network path when this certificate was fetched. A certificate presented during interception would be trusted too. Compare the full SHA-256 fingerprint with the one shown by the appliance." />
-        <div className="legacy-island" data-certificate-details="" suppressHydrationWarning />
-        <p data-certificate-error="" role="alert" suppressHydrationWarning />
-        <ActionForm action={`${path}/certificates/use-name`} method="POST" csrf={csrf} attributes={{ 'data-certificate-name-form': '', hidden: true }}>
-          <input type="hidden" name="inspectionId" />
-          <Button type="submit" label="Use certificate name" variant="secondary" data-use-certificate-name="" />
-        </ActionForm>
-        <ActionForm action={`${path}/certificates/trust`} method="POST" csrf={csrf} retestUrl={`${path}/test`} attributes={{ 'data-trust-certificate': '' }}>
-          <VStack gap={3}>
-            <input type="hidden" name="inspectionId" />
-            <input type="hidden" name="fillFields" data-type="boolean" value={String(trust.fills)} />
-            <Text as="p" type="supporting">
-              {trust.fills ? 'Initial trust fills Certificate verification. Replacement preserves the existing trust mode.'
-                : 'This tool does not support a shared trusted certificate field. Confirmed endpoint trust is available.'}
-            </Text>
-            <Field label="Trust mode" inputID="certificate-trust-mode" description="Self-signed endpoints keep a leaf pin. Hostname and date verification always apply.">
-              <select id="certificate-trust-mode" name="mode" className="select">
-                <option value="ca">{trust.caOption}</option>
-                <option value="pin">Strict leaf pinning (re-trust after every rotation)</option>
-              </select>
-            </Field>
-            <label className="check"><input type="checkbox" name="confirmedFingerprint" required /> I compared the displayed SHA-256 fingerprint with the appliance through a trusted route.</label>
-            <div><Button type="submit" label="Trust this certificate" variant="primary" /></div>
-          </VStack>
-        </ActionForm>
-        <HStack justify="end"><Button type="button" label="Close" variant="ghost" data-close-certificate="" /></HStack>
-      </VStack>
-    </dialog>
-  )
-}
-
 function Certificates({ csrf, path, name, certificates, savedTlsFailure }: { csrf: string, path: string, name: string, certificates: InstanceProps['certificates'], savedTlsFailure: boolean }) {
   const { saved, intro, expiring, pins, alwaysOfferInspection, endpoints, trust } = certificates
   const { tlsFailed } = useTestOutcome()
+  const [inspection, setInspection] = useState<CertificateInspection | null>(null)
   const inspectable = endpoints.length > 0 && (alwaysOfferInspection || (tlsFailed ?? savedTlsFailure))
   if (!saved) {
     return (
@@ -278,7 +242,7 @@ function Certificates({ csrf, path, name, certificates, savedTlsFailure }: { csr
           <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
             <Text type="supporting">{inspectable ? 'Compare the fingerprint with the one the appliance shows before trusting.' : 'Inspection is offered after a connection test fails with a certificate error.'}</Text>
             {endpoints.length > 0 && (
-              <ActionForm action={`${path}/certificates/inspect`} method="POST" csrf={csrf} attributes={{ 'data-inspect-certificate': '', hidden: !inspectable }}>
+              <ActionForm action={`${path}/certificates/inspect`} method="POST" csrf={csrf} showInspection={setInspection} attributes={{ 'data-inspect-certificate': '', hidden: !inspectable }}>
                 <HStack gap={2} vAlign="center">
                   {endpoints.length > 1
                     ? <>
@@ -298,7 +262,7 @@ function Certificates({ csrf, path, name, certificates, savedTlsFailure }: { csr
           </HStack>
         </VStack>
       </Panel>
-      <InspectionDialog csrf={csrf} path={path} name={name} trust={trust} />
+      <CertificateInspectionDialog csrf={csrf} path={path} name={name} trust={trust} inspection={inspection} onClose={() => setInspection(null)} />
     </>
   )
 }

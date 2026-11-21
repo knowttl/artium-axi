@@ -4,7 +4,7 @@ export const components = `
 html, body { background: var(--bg); }
 body { margin: 0; color: var(--text); font: var(--fs-base)/1.5 var(--font); -webkit-font-smoothing: antialiased; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-a:where(:not([data-astryx-root] *:not(.legacy-island *))) { color: var(--text); text-underline-offset: 2px; }
+a:where(:not([data-astryx-root] *)) { color: var(--text); text-underline-offset: 2px; }
 code, pre, kbd { font-family: var(--mono); font-size: 0.92em; }
 small { overflow-wrap: anywhere; }
 [hidden] { display: none !important; }
@@ -118,9 +118,6 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .disclosure[open] > summary > svg:last-child { transform: rotate(180deg); }
 [data-copy-scope] > .copy-status { margin: 4px 0 0; }
 
-/* View dialogs: server-rendered forms in a dialog */
-.modal-body form > button:last-child { display: flex; margin: 16px 0 10px auto; }
-.modal-body form { margin: 12px 0 0; }
 
 .popover .danger, .popover .astryx-button.danger { color: var(--err); }
 .popover .danger:hover, .popover .astryx-button.danger:hover { background: var(--err-soft); }
@@ -304,7 +301,6 @@ dialog.sheet > form { display: flex; flex-direction: column; flex: 1; min-height
 dialog.sheet .sheet-head { padding: 18px 20px; }
 dialog.sheet .sheet-body { flex: 1; overflow: auto; padding: 20px; }
 .sheet-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); background: var(--bg-subtle); }
-.modal-body .field { margin-top: 4px; }
 
 /* Overflow menu: a native disclosure like the account menu */
 .more-menu { position: relative; margin: 0; padding: 0; border: 0; }
@@ -341,16 +337,9 @@ dialog.sheet .sheet-body { flex: 1; overflow: auto; padding: 20px; }
 dialog { width: 480px; max-width: calc(100% - 32px); max-height: calc(100% - 48px); overflow: auto; padding: 24px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-pop); }
 dialog::backdrop { background: var(--overlay); }
 dialog h2 { margin: 0 0 6px; font-size: var(--fs-md); font-weight: 600; }
-dialog.modal { width: 460px; padding: 0; }
-.modal-body { padding: 20px 22px 8px; }
-.modal-body h2 { display: flex; align-items: center; gap: 10px; }
-.modal-body p { margin: 0 0 12px; color: var(--text-muted); font-size: var(--fs-sm); }
-.modal-body .field { margin-bottom: 12px; }
 .ico-circle { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border-radius: var(--r-full); background: var(--bg-muted); color: var(--text-muted); }
 .ico-circle.ok { background: var(--ok-soft); color: var(--ok); }
 .ico-circle.warn { background: var(--warn-soft); color: var(--warn); }
-/* A dialog rendered open by the server is the no-JavaScript fallback; confirm.js makes it modal. */
-dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin: auto; height: fit-content; }
 .modal-foot, .dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .modal-foot { margin: 0; padding: 14px 22px 18px; }
 #certificate-inspection, [data-trusted-certificates] { overflow-wrap: anywhere; }
@@ -367,19 +356,19 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 .auth-help p { text-align: left; }
 
 /* Base elements, so pages without their own components yet stay readable inside the shell */
-:where(.content, .auth-card, dialog) :where(h2):where(:not([data-astryx-root] *:not(.legacy-island *))) { margin: 0 0 8px; font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em; }
+:where(.content, .auth-card, dialog) :where(h2):where(:not([data-astryx-root] *)) { margin: 0 0 8px; font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em; }
 :where(.content, dialog) :where(h3) { margin: 16px 0 6px; font-size: var(--fs-base); font-weight: 600; }
-:where(.content, .auth-card, dialog) :where(a):where(:not([data-astryx-root] *:not(.legacy-island *))) { color: var(--text); }
+:where(.content, .auth-card, dialog) :where(a):where(:not([data-astryx-root] *)) { color: var(--text); }
 :where(.content, dialog) :where(form) { margin: 12px 0; }
-:where(.content, .auth-card, dialog) :where(label):where(:not([data-astryx-root] *:not(.legacy-island *))) { display: block; margin: 10px 0; font-size: var(--fs-sm); font-weight: 500; }
-:where(.content, .auth-card, dialog) :where(input:not([type=checkbox], [type=radio], [type=hidden], [type=file]), select, textarea):where(:not([data-astryx-root] *:not(.legacy-island *))) { display: block; width: 100%; max-width: 420px; height: var(--ctl-h); margin-top: 6px; padding: 0 10px; color: var(--text); background: var(--bg); border: 1px solid var(--control); border-radius: var(--r-sm); font: inherit; font-size: var(--fs-sm); font-weight: 400; }
-:where(.content, .auth-card, dialog) :where(textarea):where(:not([data-astryx-root] *:not(.legacy-island *))) { max-width: none; height: auto; min-height: 96px; padding: 8px 10px; font-family: var(--mono); font-size: var(--fs-xs); line-height: 1.6; }
-:where(.content, .auth-card, dialog) :where(input:disabled, select:disabled, textarea:disabled):where(:not([data-astryx-root] *:not(.legacy-island *))) { background: var(--bg-muted); color: var(--text-faint); }
+:where(.content, .auth-card, dialog) :where(label):where(:not([data-astryx-root] *)) { display: block; margin: 10px 0; font-size: var(--fs-sm); font-weight: 500; }
+:where(.content, .auth-card, dialog) :where(input:not([type=checkbox], [type=radio], [type=hidden], [type=file]), select, textarea):where(:not([data-astryx-root] *)) { display: block; width: 100%; max-width: 420px; height: var(--ctl-h); margin-top: 6px; padding: 0 10px; color: var(--text); background: var(--bg); border: 1px solid var(--control); border-radius: var(--r-sm); font: inherit; font-size: var(--fs-sm); font-weight: 400; }
+:where(.content, .auth-card, dialog) :where(textarea):where(:not([data-astryx-root] *)) { max-width: none; height: auto; min-height: 96px; padding: 8px 10px; font-family: var(--mono); font-size: var(--fs-xs); line-height: 1.6; }
+:where(.content, .auth-card, dialog) :where(input:disabled, select:disabled, textarea:disabled):where(:not([data-astryx-root] *)) { background: var(--bg-muted); color: var(--text-faint); }
 :where(.content, .auth-card, dialog) :where(input[type=checkbox], input[type=radio]) { accent-color: var(--primary); width: 15px; height: 15px; vertical-align: -2px; margin: 0 6px 0 0; }
 :where(.content, .auth-card, dialog) :where(input[type=file]) { display: block; margin-top: 6px; font-size: var(--fs-sm); }
-:where(.content, .auth-card, dialog) :where(button):where(:not([data-astryx-root] *:not(.legacy-island *))) { display: inline-flex; align-items: center; gap: 6px; height: var(--ctl-h); padding: 0 12px; background: var(--bg); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--r-sm); font: inherit; font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
-:where(.content, .auth-card, dialog) :where(button):where(:not([data-astryx-root] *:not(.legacy-island *))):hover { background: var(--bg-hover); }
-:where(.content, .auth-card, dialog) :where(button:disabled):where(:not([data-astryx-root] *:not(.legacy-island *))) { opacity: 0.5; cursor: wait; }
+:where(.content, .auth-card, dialog) :where(button):where(:not([data-astryx-root] *)) { display: inline-flex; align-items: center; gap: 6px; height: var(--ctl-h); padding: 0 12px; background: var(--bg); color: var(--text); border: 1px solid var(--border-strong); border-radius: var(--r-sm); font: inherit; font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
+:where(.content, .auth-card, dialog) :where(button):where(:not([data-astryx-root] *)):hover { background: var(--bg-hover); }
+:where(.content, .auth-card, dialog) :where(button:disabled):where(:not([data-astryx-root] *)) { opacity: 0.5; cursor: wait; }
 :where(.content, dialog) :where(fieldset) { margin: 12px 0; padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--r-md); }
 :where(.content, dialog) :where(legend) { padding: 0 4px; font-size: var(--fs-sm); font-weight: 600; }
 :where(.content, dialog) :where(fieldset label) { font-weight: 400; margin: 6px 0; }
@@ -390,12 +379,12 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 :where(.content, dialog) :where(label small) { display: block; margin-top: 4px; font-weight: 400; }
 :where(.content, dialog) :where(pre) { overflow-x: auto; padding: 12px 14px; background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--r-md); font-size: var(--fs-xs); line-height: 1.7; }
 :where(.content, dialog) :where([role=alert]) { color: var(--err); }
-:where(.content, dialog) :where(table):where(:not([data-astryx-root] *:not(.legacy-island *))) { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); text-align: left; }
+:where(.content, dialog) :where(table):where(:not([data-astryx-root] *)) { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); text-align: left; }
 :where(.content, dialog) :where(caption) { padding: 10px 14px; text-align: left; font-weight: 600; border-bottom: 1px solid var(--border); }
-:where(.content, dialog) :where(th, td):where(:not([data-astryx-root] *:not(.legacy-island *))) { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: break-word; }
-:where(.content, dialog) :where(thead th):where(:not([data-astryx-root] *:not(.legacy-island *))) { background: var(--bg-subtle); color: var(--text-faint); font-size: var(--fs-xs); font-weight: 500; white-space: nowrap; }
+:where(.content, dialog) :where(th, td):where(:not([data-astryx-root] *)) { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: break-word; }
+:where(.content, dialog) :where(thead th):where(:not([data-astryx-root] *)) { background: var(--bg-subtle); color: var(--text-faint); font-size: var(--fs-xs); font-weight: 500; white-space: nowrap; }
 :where(.content, dialog) :where(tbody th) { font-weight: 500; }
-:where(.content, dialog) :where(tbody tr:last-child) > *:where(:not([data-astryx-root] *:not(.legacy-island *))) { border-bottom: 0; }
+:where(.content, dialog) :where(tbody tr:last-child) > *:where(:not([data-astryx-root] *)) { border-bottom: 0; }
 .session-table time, .session-table button, .session-table code { white-space: nowrap; }
 .session-table th, .session-table td { max-width: none; overflow: visible; }
 .session-list { container-type: inline-size; }
@@ -432,7 +421,7 @@ dialog.modal[open]:not(:modal) { position: fixed; inset: 0; z-index: 70; margin:
 .card-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 18px; border-top: 1px solid var(--border); border-radius: 0 0 var(--r-lg) var(--r-lg); background: var(--bg-subtle); color: var(--text-muted); font-size: var(--fs-sm); }
 .card-foot p { margin: 0; }
 .card-note { margin: 0; display: flex; align-items: center; gap: 8px; padding: 10px 18px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: var(--fs-xs); }
-.card form, .filters, dialog.modal form { margin: 0; }
+.card form, .filters { margin: 0; }
 .list-row h2 { margin: 0; font-size: var(--fs-sm); font-weight: 500; }
 
 /* Option tiles: a checkbox card per choice */
