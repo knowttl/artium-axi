@@ -36,6 +36,8 @@ afterAll(async () => {
 const assets = [
   ['/admin/assets/hydrate.js', 'application/javascript'],
   ['/admin/assets/astryx.css', 'text/css'],
+  ['/admin/assets/style.css', 'text/css'],
+  ['/admin/assets/reauth-complete.js', 'application/javascript'],
 ]
 
 test.each(assets)('%s is served same-origin without a session under the script and style policy', async (url, type) => {
@@ -44,6 +46,10 @@ test.each(assets)('%s is served same-origin without a session under the script a
   expect(response.headers['content-type']).toMatch(new RegExp(`^${type}`))
   expect(response.headers['content-security-policy']).toMatch(/script-src 'self'; style-src 'self' 'nonce-[A-Za-z0-9+/]{22}=='; font-src 'self';/)
   expect(response.headers['content-security-policy']).not.toContain('unsafe-')
+})
+
+test('the retired confirm.js page script is no longer served', async () => {
+  expect((await app.inject({ url: '/admin/assets/confirm.js' })).statusCode).toBe(404)
 })
 
 test('every response carries its own style nonce and no style attribute allowance', async () => {

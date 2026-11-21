@@ -930,7 +930,7 @@ test('the overview hands its data to hydration without letting a name end the da
   expect(props.attention.map(item => item.title)).toEqual([`${hostile} can’t claim their invitation yet`])
   expect(document.filter(element => element.attrs.some(attribute => attribute.name === 'id' && attribute.value === 'injected'))).toEqual([])
   expect(document.filter(element => element.tagName === 'script').map(element => element.attrs.find(attribute => attribute.name === 'src')?.value))
-    .toEqual(['/admin/assets/confirm.js', '/admin/assets/hydrate.js', undefined])
+    .toEqual(['/admin/assets/hydrate.js', undefined])
 })
 
 test.each([

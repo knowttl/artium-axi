@@ -14,7 +14,6 @@ import { successKey } from './toasts.js'
 export interface SubmitRequest {
   form: HTMLFormElement
   submitter: HTMLButtonElement | null
-  draft?: FormDraft
   action: string
   method: string
   confirmation?: Confirmation
@@ -38,15 +37,11 @@ type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
 type Body = Record<string, unknown>
 type FormDraft = ReturnType<typeof snapshotForm>
 
-export interface DeferredSubmitEvent extends SubmitEvent {
-  astryxDraft?: FormDraft
-}
-
 const hydrated = typeof document === 'undefined' ? undefined : new Promise<void>(resolve => {
   document.addEventListener('astryx-hydrated', () => resolve(), { once: true })
 })
 
-export function beginSubmit(form: HTMLFormElement, submitter: HTMLButtonElement | null) {
+function beginSubmit(form: HTMLFormElement, submitter: HTMLButtonElement | null) {
   const button = submitter ?? form.querySelector<HTMLButtonElement>('button:not([form]):not([type=button]):not([type=reset])')!
   const page = document.documentElement
   const pending = 'data-submit-pending'
@@ -100,7 +95,7 @@ function applyProfile(form: HTMLFormElement, fields: FormData, body: Body): stri
   return null
 }
 
-export function snapshotForm(form: HTMLFormElement) {
+function snapshotForm(form: HTMLFormElement) {
   return {
     fields: new FormData(form),
     typed: Array.from(form.querySelectorAll<Control>('[data-type]'), input => ({
@@ -129,12 +124,12 @@ function shapeBody({ fields, typed }: FormDraft, body: Body): string | null {
   return null
 }
 
-export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, showDevice, report }: SubmitRequest) {
+export async function submitForm({ form, submitter, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, showDevice, report }: SubmitRequest) {
   const submission = beginSubmit(form, submitter)
   if (!submission) return
   const { button, release } = submission
   try {
-    draft ??= snapshotForm(form)
+    const draft = snapshotForm(form)
     if (form.querySelector('[data-credential-editor]')) await completePemFields(draft.fields)
     const body: Body = bodyFrom ? { _csrf: draft.fields.get('_csrf'), ...bodyFrom(draft.fields) } : Object.fromEntries(draft.fields)
     const invalidProfile = applyProfile(form, draft.fields, body)

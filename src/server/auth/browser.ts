@@ -11,12 +11,12 @@ import type { Audit } from '../audit/audit.js'
 import type { AuthAttempts } from './attempts.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './local.js'
 import { browserIdentity, browserReauthRemainingMs, createBrowserSession, readBrowserSession, recentBrowserAuth, type BrowserSession } from './sessions.js'
-import { reauthCompleteScript } from '../admin/assets.js'
 import { escape } from '../admin/escape.js'
 import { readThemeMode, registerThemeRoute } from '../admin/theme-mode.js'
 import { renderAuthPage, renderPage } from '../admin/render-page.js'
 import type { Viewer } from '../admin/design/ui.js'
 import type { AuthBlock, AuthButton, AuthField } from '../../views/auth.js'
+import { reauthCompleteMessage } from '../../views/reauth.js'
 import { authDefaults } from '../config.js'
 import { listUserSessions, revokeUserSession } from './user-sessions.js'
 import { revokeUserSessions } from './tokens.js'
@@ -45,7 +45,7 @@ export function browserViewer(reply: FastifyReply, current: BrowserSession): Vie
 
 export function browserDocument(reply: FastifyReply, title: string, body: string, current?: BrowserSession, head = '') {
   const mode = readThemeMode(reply.request)
-  return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"${mode === 'system' ? '' : ` data-theme="${mode}"`}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><link rel="stylesheet" href="/admin/assets/astryx.css"><script defer src="/admin/assets/confirm.js"></script>${head}</head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${body}</body></html>`)
+  return reply.type('text/html; charset=utf-8').send(`<!doctype html><html lang="en"${mode === 'system' ? '' : ` data-theme="${mode}"`}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} - artium-axi</title><link rel="stylesheet" href="/admin/assets/style.css"><link rel="stylesheet" href="/admin/assets/astryx.css">${head}</head><body${current ? ` class="signed-in" data-session-id="${escape(current.id)}"` : ''}>${body}</body></html>`)
 }
 
 export function registerBrowser(app: FastifyInstance, db: Database.Database, audit: Audit, attempts: AuthAttempts,
@@ -104,7 +104,7 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
   const cancel = (current: BrowserSession): AuthButton => ({ label: 'Cancel', tone: 'ghost', href: home(current) })
 
   registerThemeRoute(app)
-  app.get('/admin/assets/reauth-complete.js', async (_request, reply) => reply.type('application/javascript').send(reauthCompleteScript))
+  app.get('/admin/assets/reauth-complete.js', async (_request, reply) => reply.type('application/javascript').send(`window.opener?.postMessage('${reauthCompleteMessage}', location.origin);`))
   app.get('/', async (_request, reply) => reply.redirect('/admin'))
   app.get('/login', async (request, reply) => {
     if (request.cookies[browserCookie]) {

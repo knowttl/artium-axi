@@ -13,7 +13,7 @@ This document describes the current screens and their design rules.
 | `src/server/admin/design/ui.ts` | Render helpers that own component markup, escaping and ARIA, including the frame chrome and the icon sprite. |
 | `src/server/admin/design/status.ts` | The status vocabulary: one word and tone per state, the badge and status-dot helpers, and the product display name and mark of each tool. |
 
-`adminStyle` in `src/server/admin/assets.ts` concatenates tokens and components and is served from `/admin/assets/style.css`.
+The tokens and components in `src/server/admin/design` are concatenated and served from `/admin/assets/style.css`.
 The build also produces a React and Astryx browser bundle and the Astryx neutral stylesheet, served at `/admin/assets/hydrate.js` and `/admin/assets/astryx.css`.
 All pages load the stylesheet; render-seam pages also load the browser bundle.
 
@@ -136,8 +136,8 @@ When the endpoint changes, it omits an untouched connection IP or certificate na
 After creating or updating an instance with credentials, `submitForm` runs the optional connection test and stores the save message with any normalization notices and test outcome.
 `ActionForm` uses `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
 After certificate trust is saved, `submitForm` uses [`retestConnection`](../src/views/retest.ts) to test with `X-Artium-Retest: 1` and stores the outcome for the reloaded instance page.
-For a form submitted before React can handle it, `confirm.js` captures the submitted values and hands them to `ActionForm` after `astryx-hydrated`, when the dialog listeners are ready.
-`ActionForm` also captures the submitted values before waiting for dialog readiness, and both handlers share a page-wide submit lock.
+`ActionForm` captures the submitted values before waiting for `astryx-hydrated`, when the dialog listeners are ready, and holds a page-wide submit lock.
+A form submitted before React hydrates posts natively.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
 `ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes (method, consequence, title, action, typed name, success URL and success message) and the submission itself, and `Sheet` builds on it, so a view writes an API form without repeating them.

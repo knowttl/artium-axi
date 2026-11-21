@@ -5,11 +5,12 @@ import { adminRoleRoutes, adminToolRoutes, adminUserParamsSchema, adminUserRoute
 import { ArtiumError } from '../../shared/errors.js'
 import { browserCookie } from '../auth/browser.js'
 import { readBrowserSession, requireBrowserAdmin } from '../auth/sessions.js'
-import { adminScript, adminStyle } from './assets.js'
 import { registerAdminClientAssets } from './client-assets.js'
 import { adminRead, lastChange } from './forms.js'
 import { sessionsProps } from './session-card.js'
+import { components } from './design/components.js'
 import { describe, statusWord, toolProducts } from './design/status.js'
+import { tokens } from './design/tokens.js'
 import { initials } from './design/ui.js'
 import { renderPage } from './render-page.js'
 import type { PersonProps } from '../../views/person.js'
@@ -32,8 +33,7 @@ const roleLink = (user: { roleGrants: { roleId: string, origin: string }[] }, id
 const signInState = (user: { source: string, breakGlass: boolean }) => user.source === 'sso' ? 'sso' : user.breakGlass ? 'break-glass' : 'password'
 
 export function registerUsersPage(app: FastifyInstance, db: Database.Database): void {
-  app.get('/admin/assets/confirm.js', async (_request, reply) => reply.type('application/javascript').send(adminScript))
-  app.get('/admin/assets/style.css', async (_request, reply) => reply.type('text/css').send(adminStyle))
+  app.get('/admin/assets/style.css', async (_request, reply) => reply.type('text/css').send(tokens + components))
   registerAdminClientAssets(app)
 
   async function allRoles(request: FastifyRequest) {

@@ -21,15 +21,12 @@ const environment: NodeJS.ProcessEnv = { ...process.env, CHROME_DEVTOOLS_AXI_SES
   CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors --lang=en-US' }
 let server: ChildProcessByStdio<null, Readable, null>
 let fixture: Fixture
-const testWithLateHydration = 'a connection test requested before hydration shows its result once hydration finishes'
 const pickerWithLateHydration = 'operation picker preserves edits across late hydration'
 const trackChangesWithLateHydration = 'role tool grants count a selection edited before late hydration as a change'
-const submitWithLateHydration = 'a server-rendered submit saves its original draft after hydration'
 const submitBeforeDialogs = 'a React submit waits for dialogs and saves its original draft'
 const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
 const credentialEditorWithLateHydration = 'the credential editor applies a selection made before hydration'
 const connectionDraftWithLateHydration = 'the instance connection preserves text edited before hydration'
-const combinedPemWithLateHydration = 'the instance credential waits for a PEM selected before hydration'
 const editedOverrides = ' endpoint changes keep explicitly edited certificate overrides'
 const resizeCadence = 'confirmation expiry survives resizing across the mobile breakpoint'
 const graphCertificateRotation = 'certificate inspection pins and replaces the selected Graph endpoint'
@@ -123,9 +120,9 @@ function browser(script: string) {
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
     env: { ...process.env, ARTIUM_TEST_GRAPH_CERTIFICATES: context.name === graphCertificateRotation ? '1' : '0',
-      ARTIUM_TEST_SKIP_HYDRATION: [testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration,
-      submitWithLateHydration, submitBeforeDialogs, instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration,
-      combinedPemWithLateHydration, resizeCadence].includes(context.name) || context.name.endsWith(editedOverrides) ? '1' : '0' },
+      ARTIUM_TEST_SKIP_HYDRATION: [pickerWithLateHydration, trackChangesWithLateHydration,
+      submitBeforeDialogs, instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration,
+      resizeCadence].includes(context.name) || context.name.endsWith(editedOverrides) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -2412,51 +2409,6 @@ test('disabled tool retains cached test outcomes after reloading the instance', 
   `)
 })
 
-test(testWithLateHydration, () => {
-  browser(`
-    ${waitForTime}
-    await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-cached-test' });
-    await page.click('form[data-test-tool] button');
-    check(await page.eval(() => document.querySelector('[data-test-result]').textContent === '' && document.querySelector('form[data-test-tool] button').disabled), 'The test was not held for hydration');
-    await page.eval(() => {
-      const original = window.fetch.bind(window);
-      window.fetch = async (...args) => {
-        const response = await original(...args);
-        if (new URL(args[0], location.href).pathname.endsWith('/test')) {
-          const { error } = await response.clone().json();
-          window.checkIso = new Date(error.diagnostic.checkedAt).toISOString();
-        }
-        return response;
-      };
-      document.querySelector('details:has([data-tls-file="caBundle"])').open = true;
-      const transfer = new DataTransfer();
-      transfer.items.add(new File(['CANARY-upload'], 'synthetic.pem'));
-      const input = document.querySelector('[data-tls-file="caBundle"]');
-      input.files = transfer.files;
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-      const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate.js?resume';
-      document.head.append(script);
-    });
-    await page.wait('[data-test-result]:not(:empty)');
-    const iso = await page.eval(() => window.checkIso);
-    await waitForTime('[data-check-time] time', iso);
-    check(await page.eval(() =>
-      document.querySelector('[data-test-result]').textContent === 'Test failed.' &&
-      !document.querySelector('[data-check-failure]').hidden &&
-      document.querySelector('[data-check-error]').textContent === 'UPSTREAM_TLS_FAILED' &&
-      document.querySelector('[data-check-diagnostic]').textContent.includes('TLS') &&
-      document.querySelector('[data-tool-state]').textContent === 'Failing' &&
-      document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Failed: '
-    ), 'The test result and its details were lost');
-    await page.wait('form[data-test-tool] button:not([disabled])');
-    check(await page.eval(() => {
-      const field = document.querySelector('[data-profile-field="caBundle"]');
-      return field.value || new Promise(resolve => field.addEventListener('input', () => resolve(field.value), { once: true }));
-    }) === 'CANARY-upload', 'Hydration discarded the selected TLS PEM');
-  `)
-})
-
 test('retesting replaces a failed result with a passing one without reloading', () => {
   browser(`
     await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-retest' });
@@ -2911,27 +2863,6 @@ for (const tool of ['az-axi', 'mg-axi']) test(tool + ' certificate PEM calculate
   assert.equal(stored.privateKey, fixture.certificatePem.match(/-----BEGIN (?:RSA |EC )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC )?PRIVATE KEY-----/)![0] + '\n')
 })
 
-test(combinedPemWithLateHydration, async () => {
-  const fingerprint = new X509Certificate(fixture.certificatePem).fingerprint256.replaceAll(':', '').toLowerCase()
-  browser(`
-    await createInstance('az-axi', { tenantId: '11111111-1111-4111-8111-111111111111', clientId: '22222222-2222-4222-8222-222222222222',
-      auth: 'certificate', thumbprintSha256: 'a'.repeat(64), privateKey: 'CANARY-original-key' });
-    await page.wait('[data-certificate]:not([hidden]) [data-certificate-file]');
-    await page.eval(${pemSelection('[data-certificate-file]', fixture.certificatePem)});
-    await page.click('[data-save-and-test]');
-    await page.click('form[data-save-tool] button');
-    await page.wait('html[data-submit-pending]');
-    await page.eval(() => {
-      const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate.js?resume';
-      document.head.append(script);
-    });
-    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
-    check(await page.eval(() => document.querySelector('[data-profile-field=thumbprintSha256]').value) === ${JSON.stringify(fingerprint)}, 'Saved fingerprint did not come from the selected PEM');
-  `)
-})
-
 test('malformed certificate PEM keeps the draft and leaves the credential unconfigured', async () => {
   browser(`
     await addInstance('az-axi');
@@ -3017,72 +2948,65 @@ test(trackChangesWithLateHydration, () => {
   `)
 })
 
-for (const name of [submitWithLateHydration, submitBeforeDialogs]) {
-  test(name, () => {
-    browser(`
-      await page.open(base + '/admin/users/synthetic-ordinary');
-      const readPerson = () => page.eval(async () => {
-        const response = await fetch('/v1/admin/users/synthetic-ordinary');
-        if (!response.ok) throw new Error('Could not read the synthetic person');
-        return response.json();
-      });
-      const initial = await readPerson();
-      check(JSON.stringify(initial.roleIds) === '["synthetic-role"]', 'The synthetic person must start with one role');
-      const submitBeforeDialogs = ${name === submitBeforeDialogs};
-      await page.eval('() => (' + (submitBeforeDialogs => {
-        const form = document.querySelector('form[action$="/synthetic-ordinary/roles"]');
-        const role = form.querySelector('[name=roleIds][value="synthetic-role"]');
-        const submit = () => {
-          role.click();
-          form.requestSubmit(form.querySelector('button[type=submit]'));
-          role.click();
-        };
-        const key = 'test-role-submissions';
-        sessionStorage.removeItem(key);
-        const send = window.fetch;
-        window.fetch = (url, options) => {
-          if (url === '/v1/admin/users/synthetic-ordinary/roles') {
-            const requests = JSON.parse(sessionStorage.getItem(key) || '[]');
-            requests.push({ method: options.method, body: JSON.parse(options.body) });
-            sessionStorage.setItem(key, JSON.stringify(requests));
-          }
-          return send(url, options);
-        };
-        if (submitBeforeDialogs) {
-          const add = document.addEventListener;
-          document.addEventListener = function (type, listener, options) {
-            if (type === 'artium-confirm') {
-              document.addEventListener = add;
-              let reachedScript = false;
-              document.addEventListener('submit', () => { reachedScript = true; }, { once: true });
-              submit();
-              if (reachedScript) throw new Error('The early submit did not reach the React handler');
-            }
-            return add.call(this, type, listener, options);
-          };
-        } else {
-          submit();
+test(submitBeforeDialogs, () => {
+  browser(`
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    const readPerson = () => page.eval(async () => {
+      const response = await fetch('/v1/admin/users/synthetic-ordinary');
+      if (!response.ok) throw new Error('Could not read the synthetic person');
+      return response.json();
+    });
+    const initial = await readPerson();
+    check(JSON.stringify(initial.roleIds) === '["synthetic-role"]', 'The synthetic person must start with one role');
+    await page.eval('() => (' + (() => {
+      const form = document.querySelector('form[action$="/synthetic-ordinary/roles"]');
+      const role = form.querySelector('[name=roleIds][value="synthetic-role"]');
+      const submit = () => {
+        role.click();
+        form.requestSubmit(form.querySelector('button[type=submit]'));
+        role.click();
+      };
+      const key = 'test-role-submissions';
+      sessionStorage.removeItem(key);
+      const send = window.fetch;
+      window.fetch = (url, options) => {
+        if (url === '/v1/admin/users/synthetic-ordinary/roles') {
+          const requests = JSON.parse(sessionStorage.getItem(key) || '[]');
+          requests.push({ method: options.method, body: JSON.parse(options.body) });
+          sessionStorage.setItem(key, JSON.stringify(requests));
         }
-      }).toString() + ')(' + submitBeforeDialogs + ')');
-      check(await page.eval(() => !document.querySelector('#confirmation[open]') && !sessionStorage.getItem('test-role-submissions')), 'The submission ran before hydration');
-      await page.eval(() => {
-        const script = document.createElement('script');
-        script.src = '/admin/assets/hydrate.js?resume';
-        document.head.append(script);
-      });
-      await page.wait('#confirmation[open]');
-      check(await page.eval(() => document.querySelector('[name=roleIds][value="synthetic-role"]').checked && !sessionStorage.getItem('test-role-submissions')), 'The later role edit should be visible before the request is sent');
-      await page.click('#confirmation button[value=confirmed]');
-      await page.wait('form[action$="/synthetic-ordinary/roles"] [name=expectedRevision][value="' + (initial.revision + 1) + '"]');
-      const requests = await page.eval(() => JSON.parse(sessionStorage.getItem('test-role-submissions') || '[]'));
-      check(requests.length === 1 && requests[0].method === 'PUT', 'Expected one role update');
-      const { body } = requests[0];
-      check(JSON.stringify(body.roleIds) === '[]' && body.expectedRevision === initial.revision && typeof body._confirm === 'string' && body._confirm.length > 0, 'The request did not contain the confirmed original role selection');
-      const saved = await readPerson();
-      check(JSON.stringify(saved.roleIds) === '[]' && saved.revision === initial.revision + 1, 'The original role selection was not saved');
-    `)
-  })
-}
+        return send(url, options);
+      };
+      const add = document.addEventListener;
+      document.addEventListener = function (type, listener, options) {
+        if (type === 'artium-confirm') {
+          document.addEventListener = add;
+          let reachedScript = false;
+          document.addEventListener('submit', () => { reachedScript = true; }, { once: true });
+          submit();
+          if (reachedScript) throw new Error('The early submit did not reach the React handler');
+        }
+        return add.call(this, type, listener, options);
+      };
+    }).toString() + ')()');
+    check(await page.eval(() => !document.querySelector('#confirmation[open]') && !sessionStorage.getItem('test-role-submissions')), 'The submission ran before hydration');
+    await page.eval(() => {
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
+    });
+    await page.wait('#confirmation[open]');
+    check(await page.eval(() => document.querySelector('[name=roleIds][value="synthetic-role"]').checked && !sessionStorage.getItem('test-role-submissions')), 'The later role edit should be visible before the request is sent');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('form[action$="/synthetic-ordinary/roles"] [name=expectedRevision][value="' + (initial.revision + 1) + '"]');
+    const requests = await page.eval(() => JSON.parse(sessionStorage.getItem('test-role-submissions') || '[]'));
+    check(requests.length === 1 && requests[0].method === 'PUT', 'Expected one role update');
+    const { body } = requests[0];
+    check(JSON.stringify(body.roleIds) === '[]' && body.expectedRevision === initial.revision && typeof body._confirm === 'string' && body._confirm.length > 0, 'The request did not contain the confirmed original role selection');
+    const saved = await readPerson();
+    check(JSON.stringify(saved.roleIds) === '[]' && saved.revision === initial.revision + 1, 'The original role selection was not saved');
+  `)
+})
 
 test('native settings status follows the JSON as it is edited', () => {
   browser(`
