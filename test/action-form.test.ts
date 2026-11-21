@@ -15,3 +15,12 @@ test.each([
   expect(() => render(props as Partial<ActionFormProps>)).toThrow('disagree with the confirmation routes')
 })
 
+test.each([
+  { name: 'an unconfirmed API route', props: { action: '/v1/admin/roles' }, inert: true },
+  { name: 'a confirmed route with no native confirmation page', props: { action: '/v1/admin/token-settings', method: 'PATCH', confirmation: { consequence: 'Save?' } }, inert: true },
+  { name: 'a confirmed route with a native confirmation page', props: { confirmation: { consequence: 'Revoke?' } }, inert: false },
+  { name: 'a route that carries fields to its native confirmation page', props: { action: '/v1/admin/sso/role-rules', confirmation: { consequence: 'Add?' } }, inert: false },
+])('before hydration a form for $name is inert: $inert', ({ props, inert }) => {
+  const markup = render(props as Partial<ActionFormProps>)
+  expect(/<fieldset[^>]*data-hydration-gate=""[^>]*\sdisabled=""/.test(markup)).toBe(inert)
+})

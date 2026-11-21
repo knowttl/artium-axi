@@ -137,7 +137,9 @@ After creating or updating an instance with credentials, `submitForm` runs the o
 `ActionForm` uses `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
 After certificate trust is saved, `submitForm` tests with `X-Artium-Retest: 1` and stores the outcome for the reloaded instance page.
 Once React handles a submit, `submitForm` holds a page-wide submit lock and captures the submitted values before waiting for `astryx-hydrated`, when the dialog listeners are ready.
-Before the hydration bundle executes, forms submit natively.
+Until React hydrates, `ActionForm` renders its fields and buttons inside a disabled `fieldset` (`data-hydration-gate`, shown as `display: contents`), so nothing can be edited or submitted while the page loads.
+A form whose confirmation route has a native confirmation page (the `native` entry in `src/shared/confirmation-routes.ts`) stays enabled and posts natively to that page, so it also works without JavaScript.
+Every form built on `ActionForm`, including `Sheet`, inherits this; a new form must not add its own pre-hydration handling or its own `<form>` that posts to an API route.
 See [browser administration](admin-guide.md#browser-administration) for the actions that support server confirmation.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
 Their name fields read the current input value during hydration so text entered while the bundle is loading is preserved.

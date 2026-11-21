@@ -232,17 +232,15 @@ for (const lastStatus of [200, 428]) test(`a lapsed confirmation after reauthent
   `)
 })
 
-test('a tier 3 form submitted before the page script runs changes nothing and says the page script is required', () => {
+test('a tier 3 form is inert before the page script runs and changes nothing', () => {
   browser(`
     await page.open(base + '/admin/tools/falcon-axi/instances/lab');
     ${withoutScripts}
     check(await page.eval(() => document.scripts.length === 0), 'The page script was not held back');
+    check(await page.eval(() => document.querySelector('form[data-confirm-name] button').matches(':disabled')), 'The tier 3 form accepted a submit before the page script');
     await page.click('form[data-confirm-name] button');
-    await page.wait('a[href="/admin/tools/falcon-axi/instances/lab"]');
-    check(await page.eval(() => location.pathname === '/v1/admin/tools/falcon-axi/instances/lab' && document.querySelector('h1').innerText === 'Page script required'
-      && document.body.innerText.includes('Nothing was changed')), 'The page does not say the page script is required and that nothing changed');
-    await page.click('a[href="/admin/tools/falcon-axi/instances/lab"]');
+    check(await page.eval(() => location.pathname === '/admin/tools/falcon-axi/instances/lab'), 'The inert form navigated');
+    await page.open(base + '/admin/tools/falcon-axi/instances/lab');
     await page.wait('form[data-confirm-name]');
-    check(await page.eval(() => location.pathname === '/admin/tools/falcon-axi/instances/lab'), 'The instance was removed');
   `)
 })

@@ -503,6 +503,7 @@ dialog h2 { margin: 0 0 6px; font-size: var(--fs-md); font-weight: 600; }
 
 /* Card parts */
 form.card, .card-foot form, .card-head form { margin: 0; }
+fieldset[data-hydration-gate] { display: contents; }
 
 /* Table */
 .tool-ico.lg { width: 44px; height: 44px; border-radius: 10px; font-size: 15px; }

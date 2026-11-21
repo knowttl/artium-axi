@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import { confirmationRouteFor } from '../shared/confirmation-routes.js'
 import type { CertificateInspection } from './certificate-inspection.js'
 import type { GithubDeviceStart } from './github-device.js'
+import { useHydrated } from './hydrated.js'
 import { submitForm, type Report } from './submit.js'
 import type { TestOutcome } from './test-outcome.js'
 import { toastEvent, type ToastDetail } from './toasts.js'
@@ -90,6 +91,7 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
   const [dirty, setDirty] = useState(false)
   const [message, setMessage] = useState<FormMessageState | null>(null)
   const area = useRef(false)
+  const hydrated = useHydrated()
   useLayoutEffect(() => { if (trackChanges) setDirty(differsFromDefaults(form.current!)) }, [trackChanges])
   const route = confirmationRouteFor(method, action)
   if (Boolean(route) !== Boolean(confirmation) || route && (route.tier === 3) !== Boolean(confirmation?.typedName)) {
@@ -121,7 +123,9 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
           <input type="hidden" name="_confirmText" value={confirmation.consequence} />
         </>
       )}
-      <FormMessageContext value={{ message, area }}><FormDirtyContext value={dirty}>{children}</FormDirtyContext></FormMessageContext>
+      <fieldset data-hydration-gate="" disabled={!hydrated && !route?.native}>
+        <FormMessageContext value={{ message, area }}><FormDirtyContext value={dirty}>{children}</FormDirtyContext></FormMessageContext>
+      </fieldset>
     </form>
   )
 }

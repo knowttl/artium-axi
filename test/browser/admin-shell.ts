@@ -21,9 +21,9 @@ const environment: NodeJS.ProcessEnv = { ...process.env, CHROME_DEVTOOLS_AXI_SES
   CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors --lang=en-US' }
 let server: ChildProcessByStdio<null, Readable, null>
 let fixture: Fixture
-const pickerWithLateHydration = 'operation picker preserves edits across late hydration'
-const trackChangesWithLateHydration = 'role tool grants count a selection edited before late hydration as a change'
-const actionsWithLateHydration = 'admin drafts survive delayed hydration and native confirmation works'
+const pickerWithLateHydration = 'operation picker is inert until late hydration and then follows edits'
+const trackChangesWithLateHydration = 'role tool grants ignore a click made before late hydration'
+const actionsWithLateHydration = 'admin forms are inert until delayed hydration and native confirmation works'
 const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
 const credentialEditorWithLateHydration = 'the credential editor applies a selection made before hydration'
 const connectionDraftWithLateHydration = 'the instance connection preserves text edited before hydration'
@@ -2937,14 +2937,15 @@ test('role tool grants enable Save and show Discard only while the selection dif
 test(trackChangesWithLateHydration, () => {
   browser(trackedChanges + `
     await page.open(base + '/admin/roles/synthetic-role');
+    check(await page.eval(() => document.querySelector('[name=tools][type=checkbox]').matches(':disabled')), 'The grants form accepted edits before hydration');
     await page.click(tile);
     await page.eval(() => {
       const script = document.createElement('script');
       script.src = '/admin/assets/hydrate.js?resume';
       document.head.append(script);
     });
-    await page.wait('form[action$="/tools"] button[type=submit]:not([aria-disabled])');
-    await expectState(true, true, 'Form edited before hydration');
+    await page.wait('form[action$="/tools"] fieldset:not(:disabled) button[type=submit][aria-disabled=true]');
+    await expectState(false, false, 'Form clicked before hydration');
   `)
 })
 
@@ -2978,8 +2979,9 @@ test(actionsWithLateHydration, () => {
     });
     const initial = await readPerson();
     check(JSON.stringify(initial.roleIds) === '["synthetic-role"]', 'The synthetic person must start with one role');
-    await page.click(assignment + ' [name=roleIds][value=synthetic-role]');
+    check(await page.eval(() => document.querySelector('form[action$="/synthetic-ordinary/roles"] [name=roleIds][value=synthetic-role]').matches(':disabled')), 'The role assignment accepted edits before hydration');
     await resume();
+    await page.click(assignment + ' [name=roleIds][value=synthetic-role]');
     await page.eval(() => {
       const form = document.querySelector('form[action$="/synthetic-ordinary/roles"]');
       form.querySelector('button[type=submit]').click();
@@ -2997,6 +2999,8 @@ test(actionsWithLateHydration, () => {
     const creation = '#sheet-new-role';
     await page.open(base + '/admin/roles?sheet=new-role');
     await page.fill(creation + ' [name=name]', 'Synthetic readers');
+    await page.click(creation + ' button[type=submit]');
+    check(await page.eval(() => location.pathname === '/admin/roles' && document.querySelector('#sheet-new-role button[type=submit]').matches(':disabled')), 'The new role form submitted before hydration');
     await resume();
     await page.click(creation + ' button[type=submit]');
     await page.wait('[name=tools]');
@@ -3250,6 +3254,8 @@ test(pickerWithLateHydration, () => {
       await page.click('#confirmation button[value=confirmed]');
       await page.wait('form[action$="/write-access"] [name=expectedRevision][value="' + revision + '"]');
     };
+    const inert = async () => check(await page.eval(() => [...document.querySelectorAll('[name=operations], [name=q]')].every(input => input.matches(':disabled'))), 'The picker accepted edits before hydration');
+    await inert();
     await hydrate();
     await page.click(mail + ' > summary');
     await page.click(mark);
@@ -3257,12 +3263,11 @@ test(pickerWithLateHydration, () => {
     await page.click('[data-write-access] [role=switch]');
     await save(2);
 
-    await page.click(folderDelete);
-    await page.click(ruleDelete);
+    await inert();
     await page.click(mail + ' > summary');
     await page.click(groups + ' > summary');
     await page.fill('[name=q]', 'mail.');
-    await page.click('label:has([name=show][value=selected])');
+    await page.eval(() => { document.querySelector('[name=show][value=selected]').checked = true; });
     await hydrate();
     const picker = await page.eval(() => ({
       query: document.querySelector('[name=q]').value,
@@ -3272,8 +3277,12 @@ test(pickerWithLateHydration, () => {
       groupsOpen: document.querySelector('details:has([value="mg.entra.group.member.add"])').open,
     }));
     check(picker.query === 'mail.' && picker.view === 'selected', 'Hydration lost the edited filter');
-    check(JSON.stringify(picker.shown) === JSON.stringify(['mail.message.mark', 'mail.rule.delete']), 'Hydration lost the edited selection');
+    check(JSON.stringify(picker.shown) === JSON.stringify(['mail.folder.delete', 'mail.message.mark']), 'Hydration lost the saved selection');
     check(!picker.mailOpen && picker.groupsOpen, 'Hydration lost the edited group disclosure state');
+    await page.eval(() => {
+      document.querySelector('[name=operations][value="mail.folder.delete"]').click();
+      document.querySelector('[name=operations][value="mail.rule.delete"]').click();
+    });
     await save(3);
     const saved = await page.eval(async () => (await (await fetch('/v1/admin/tools/mg-axi')).json()).writeAccess.allowedOperations.sort());
     check(JSON.stringify(saved) === JSON.stringify(['mail.message.mark', 'mail.rule.delete']), 'Save did not preserve the edited selection');

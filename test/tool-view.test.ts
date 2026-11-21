@@ -347,7 +347,7 @@ test('a policy whose ceilings are not saved offers no grant, and the page says w
 
 const verification = (tool: ToolName, metadata: Record<string, unknown> = {}) => {
   const html = renderInstances({ addInstance: addInstance({ editor: { ...editor, tls: tlsSection(tool, metadata) } }) })
-  const [fieldset] = find(html, element => element.tagName === 'fieldset')
+  const [fieldset] = find(html, element => element.tagName === 'fieldset' && attribute(element, 'data-hydration-gate') === undefined)
   return { html, fieldset: fieldset!, fields: nodes(fieldset!).filter(element => attribute(element, 'data-profile-field') !== undefined) }
 }
 
@@ -409,6 +409,6 @@ test('Kubernetes requires a trusted certificate until one is saved and opens its
 })
 
 test('a tool without certificate settings offers no certificate verification', () => {
-  expect(find(renderInstances({ addInstance: addInstance({ editor: { ...editor, tls: null } }) }), element => element.tagName === 'fieldset')).toEqual([])
+  expect(find(renderInstances({ addInstance: addInstance({ editor: { ...editor, tls: null } }) }), element => element.tagName === 'fieldset' && attribute(element, 'data-hydration-gate') === undefined)).toEqual([])
   expect(tlsSection('ssh-axi', {})).toBeNull()
 })
