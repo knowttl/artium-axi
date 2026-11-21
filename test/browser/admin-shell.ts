@@ -2492,6 +2492,12 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
     await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => location.pathname === '/admin/tools/${entry.tool}' &&
       document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'The tool page did not restore the successful connection test');
+    check(await page.eval(async () => {
+      const response = await fetch('/v1/admin/audit?event=credential-test&tool=${entry.tool}&instance=default');
+      const { records } = await response.json();
+      return records.some(record => record.event === 'credential-test' && record.tool === '${entry.tool}' &&
+        record.instance === 'default' && record.credential_revision === 1 && record.outcome === 'success');
+    }), 'Add instance did not run a successful explicit credential test');
     await openInstance('${entry.tool}');
     check(await page.eval(() => document.querySelector('[data-profile-field="${entry.secret}"]').value === ''), 'Stored secret was displayed');
     await page.click('[data-save-and-test]');

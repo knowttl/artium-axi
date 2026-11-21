@@ -303,13 +303,20 @@ function Certificates({ csrf, path, name, certificates, savedTlsFailure }: { csr
   )
 }
 
+function InstanceSetup({ setup }: Pick<InstanceProps, 'setup'>) {
+  const health = useTestHealth()
+  if (!health) return <Setup setup={setup} />
+  return <Setup setup={setup.map(step => step.test ? { ...step, state: health.passed ? 'done' : 'fail',
+    detail: health.passed ? 'Passed' : `Failing: ${health.errorCode ?? 'error'}`, at: null } : step)} />
+}
+
 export function Instance(props: InstanceProps) {
   const { csrf, api, path, name, product, tool, github, controllerOrigin, certificates, failure, testGuide, change } = props
   return (
     <TestOutcomeProvider><VStack gap={4}>
       <Header {...props} />
       <Failure failure={failure} />
-      <Setup setup={props.setup} />
+      <InstanceSetup setup={props.setup} />
       <TestResultNote />
       {github && <GithubConnection csrf={csrf} {...github} />}
       {controllerOrigin !== null && <Controller csrf={csrf} api={api} props={props} origin={controllerOrigin} />}

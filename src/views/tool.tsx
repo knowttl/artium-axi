@@ -11,7 +11,7 @@ import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
 import { Tabs } from './tabs.js'
-import { TestOutcomeProvider, TestResultNote, useTestHealth } from './test-outcome.js'
+import { TestOutcomeProvider, TestResultNote } from './test-outcome.js'
 import { Time } from './time.js'
 import { Access, type AccessProps } from './tool-access.js'
 import { Instances, type InstancesProps } from './tool-instances.js'
@@ -66,10 +66,7 @@ function Header({ csrf, api, mark, name, version, revision, enabled, state, writ
   )
 }
 
-export function Setup({ setup: saved }: { setup: (Pick<ToolProps, 'setup'>['setup'][number] & { test?: boolean })[] }) {
-  const health = useTestHealth()
-  const setup = health ? saved.map(step => step.test ? { ...step, state: health.passed ? 'done' as const : 'fail' as const,
-    detail: health.passed ? 'Passed' : `Failing: ${health.errorCode ?? 'error'}`, at: null } : step) : saved
+export function Setup({ setup }: { setup: (ToolProps['setup'][number] & { test?: boolean })[] }) {
   const current = setup.findIndex(step => step.state !== 'done')
   return (
     <ol className="steps">
