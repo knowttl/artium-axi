@@ -211,9 +211,11 @@ Revoking your current browser session signs you out immediately.
 Account session management requires a normal browser sign-in and CSRF protection, without administrator capability or the [recent confirmation required for administration](admin-guide.md#browser-administration).
 
 Temporary access tokens are managed separately on Account.
-When creation is enabled, select tool-wide access or exact commands, read-only access, a date or duration within the administrator's lifetime cap, and whether the token can be reused.
+When creation is enabled, select tool-wide access, exact commands, or both.
+Choose read-only or writable access, a date or duration within the administrator's lifetime cap, and whether the token can be reused.
 For each shared-credential tool, choose instances for all its selections or leave them unselected to allow every instance you can use; see [delegated sessions](safety.md#delegated-sessions) for overlapping grants and the SSH boundary.
-Creation requires recent identity confirmation and displays the token once.
+Creation requires recent identity confirmation.
+Copy the token from the **Copy your token now** dialog before selecting **Done**, pressing Escape or leaving the page, since Account displays the value only once.
 Account lists your tokens and lets you revoke them; administrators can review everyone's tokens and revoke individual tokens or all tokens on `/admin/tokens`.
 Revoking a token also ends its exchanged sessions.
 Set the SSO sign-in window on `/admin/tokens`; Account and the administrator token list show when tokens are paused awaiting the creator's SSO sign-in.
