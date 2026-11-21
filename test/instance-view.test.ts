@@ -128,7 +128,6 @@ test.each([
 ])('the trust form fills the credential fields only when the tool supports them (fills=$fills)', ({ fills, note }) => {
   const html = render({ certificates: { ...base.certificates, trust: { fills, caOption: 'Trust the issuing CA (synthetic)' } } })
   const form = formFor(html, `${path}/certificates/trust`)
-  expect(attribute(form, 'data-trust-test-url')).toBe(`${path}/test`)
   expect(controls(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['inspectionId', 'hidden', undefined], ['fillFields', 'hidden', String(fills)], ['confirmedFingerprint', 'checkbox', undefined]])
   expect(text(form)).toContain(note)
   expect(nodes(form).filter(element => element.tagName === 'option').map(text)).toEqual(['Trust the issuing CA (synthetic)', 'Strict leaf pinning (re-trust after every rotation)'])

@@ -1522,6 +1522,29 @@ test('instance names lab and lab-opener open their own sheets in place', () => {
   `)
 })
 
+test('Add instance restores the default connection test result on the tool page', () => {
+  browser(`
+    await addInstance('vectra-axi', 'save-and-test');
+    await page.eval(async () => {
+      const response = await fetch('/test/trust-ca', { method: 'POST' });
+      if (!response.ok) throw new Error('Could not install the fixture CA');
+    });
+    for (const [name, value] of Object.entries({ kind: 'qux', apiVersion: '2.5', auth: 'token' })) {
+      await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = ' + JSON.stringify(JSON.stringify(value)) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
+    }
+    await page.fill('[data-profile-field=origin]', base);
+    await page.fill('[data-profile-field=token]', 'CANARY-add-and-test');
+    check(await page.eval(() => document.querySelector('[data-save-and-test]').checked), 'Test after saving is off by default');
+    await page.click('form[data-save-tool] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('tbody a[href="/admin/tools/vectra-axi/instances/save-and-test"]');
+    await page.wait('[data-test-result]:not(:empty)');
+    check(await page.eval(() => location.pathname === '/admin/tools/vectra-axi' &&
+      document.querySelector('[data-test-result]').textContent === 'Saved. Test passed.'), 'The tool page did not restore the successful connection test');
+  `)
+})
+
 test('a typed credential secret reaches only the rejected form submission and is cleared when the Add instance sheet closes', () => {
   browser(`
     await addInstance('falcon-axi');
@@ -2249,6 +2272,7 @@ test('retesting replaces a failed result with a passing one without reloading', 
     await page.wait('.astryx-toast[data-type=error]');
     await openInstance('vectra-axi');
     await page.wait('[data-inspect-certificate]:not([hidden])');
+    await page.fill('[data-profile-field=token]', 'CANARY-unsaved-retest-draft');
     await page.eval(async () => {
       const response = await fetch('/test/trust-ca', { method: 'POST' });
       if (!response.ok) throw new Error('Could not install the fixture CA');
@@ -2264,8 +2288,37 @@ test('retesting replaces a failed result with a passing one without reloading', 
       document.querySelector('[data-inspect-certificate]').hidden &&
       document.querySelector('[data-inspect-certificate]').parentElement.textContent.includes('Inspection is offered after a connection test fails with a certificate error.')
     ), 'The retest did not replace the failed result');
+    check(await page.eval(() => document.querySelector('[data-profile-field=token]').value === 'CANARY-unsaved-retest-draft'), 'The retest lost the unsaved credential draft');
   `)
 })
+
+for (const reopen of [false, true]) {
+  test('a rejected retest preserves certificate inspection after a ' + (reopen ? 'reopened' : 'live') + ' TLS failure', () => {
+    browser(`
+      ${waitForTime}
+      await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-retest' });
+      await page.click('form[data-test-tool] button');
+      await page.wait('[data-inspect-certificate]:not([hidden])');
+      await page.wait('form[data-test-tool] button:not([disabled])');
+      if (${reopen}) await openInstance('vectra-axi');
+      await page.eval(() => {
+        const original = window.fetch.bind(window);
+        window.fetch = async (url, options) => new URL(url, location.href).pathname === '/v1/admin/tools/vectra-axi/instances/default/test'
+          ? Response.json({ error: { code: 'TOO_MANY_CALLS', source: 'artium-axi', requestId: 'synthetic-request',
+            message: 'The concurrent call limit was reached.', next: 'Wait for an active call to finish.',
+            diagnostic: { stage: 'configuration', message: 'Details unavailable.', checkedAt: 1700000000000, credentialRevision: 1 } } }, { status: 429 })
+          : original(url, options);
+      });
+      await page.click('form[data-test-tool] button');
+      await waitForTime('[data-check-time] time', '2023-11-14T22:13:20.000Z');
+      check(await page.eval(() => {
+        const inspect = document.querySelector('[data-inspect-certificate]');
+        return document.querySelector('[data-check-error]').textContent === 'TOO_MANY_CALLS' && !inspect.hidden &&
+          inspect.parentElement.textContent.includes('Compare the fingerprint with the one the appliance shows before trusting.');
+      }), 'The rejected attempt did not report the error and preserve certificate inspection');
+    `)
+  })
+}
 
 test('a connection test revision conflict offers to reload the latest instance', () => {
   browser(`
@@ -2303,6 +2356,7 @@ for (const action of ['save', 'test', 'trust']) {
         const original = window.fetch.bind(window);
         window.fetch = async (url, options) => {
           if (new URL(url, location.href).pathname !== '/v1/admin/tools/vectra-axi/instances/default/test') return original(url, options);
+          if (${action === 'trust'} && new Headers(options.headers).get('X-Artium-Retest') !== '1') throw new Error('Missing certificate retest header');
           const response = await original(url, options);
           const cached = await response.json();
           if (${action === 'trust'}) {

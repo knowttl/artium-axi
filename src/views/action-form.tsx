@@ -30,8 +30,21 @@ const FormMessageContext = createContext<{ message: FormMessageState | null, are
 
 export const scriptedFormSelector = [
   '[data-connect-github]',
-  '[data-trust-certificate]', '[data-certificate-name-form]', '[data-inspect-certificate]',
+  '[data-certificate-name-form]', '[data-inspect-certificate]',
 ].join(',')
+
+export function writeFormMessage(target: HTMLElement, text: string, reload = false) {
+  target.textContent = text
+  if (reload) {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'btn btn-secondary btn-sm'
+    button.textContent = 'Reload latest'
+    button.addEventListener('click', () => location.reload())
+    target.append(document.createElement('br'), button)
+  }
+  if (text) target.focus()
+}
 
 export function FormMessage() {
   const { message, area } = useContext(FormMessageContext)!
@@ -66,13 +79,14 @@ export interface ActionFormProps {
   createdToken?: boolean
   bodyFrom?: (fields: FormData) => Record<string, unknown>
   saveTool?: string
+  retestUrl?: string
   showTest?: (outcome: TestOutcome) => void
   className?: string
   attributes?: Record<string, string | boolean>
   children: ReactNode
 }
 
-export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, trackChanges, claimLink, createdToken, bodyFrom, saveTool, showTest, className, attributes, children }: ActionFormProps) {
+export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, trackChanges, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, className, attributes, children }: ActionFormProps) {
   const tokens = useContext(ConfirmationTokenContext)
   const form = useRef<HTMLFormElement>(null)
   const [dirty, setDirty] = useState(false)
@@ -86,7 +100,8 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
   const tokenKey = JSON.stringify([method, action, confirmation?.typedName ?? ''])
   const token = confirmation && (tokens.issued[tokenKey] ??= tokens.mint?.(method, action, confirmation.typedName ?? '') ?? '')
   const report = (text: string, reload = false) => {
-    if (area.current) setMessage({ text, reload })
+    if (retestUrl) writeFormMessage(form.current!.closest('dialog')!.querySelector<HTMLElement>('[data-certificate-error]')!, text, reload)
+    else if (area.current) setMessage({ text, reload })
     else document.dispatchEvent(new CustomEvent<ToastDetail>(toastEvent, { detail: { text, reload } }))
   }
   return (
@@ -99,7 +114,7 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
         event.stopPropagation()
         const { submitter, astryxDraft } = event.nativeEvent as DeferredSubmitEvent
         void submitForm({ form: event.currentTarget, submitter: submitter as HTMLButtonElement | null, draft: astryxDraft, action, method, confirmation,
-          token: token || undefined, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, showTest, report })
+          token: token || undefined, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, report })
       }}
       onInput={trackChanges ? event => setDirty(differsFromDefaults(event.currentTarget)) : undefined} onReset={trackChanges ? () => setDirty(false) : undefined}>
       <input type="hidden" name="_csrf" value={csrf} />

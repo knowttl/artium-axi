@@ -16,7 +16,7 @@ import { GithubConnection, type GithubConnectionProps } from './github-connectio
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
 import { LastChange, Time } from './time.js'
-import { TestResultNote, useTestHealth, useTestOutcome } from './test-outcome.js'
+import { TestOutcomeProvider, TestResultNote, useTestHealth, useTestOutcome } from './test-outcome.js'
 import { Setup, type ToolProps } from './tool.js'
 
 interface Pin {
@@ -232,7 +232,7 @@ function InspectionDialog({ csrf, path, name, trust }: { csrf: string, path: str
           <input type="hidden" name="inspectionId" />
           <Button type="submit" label="Use certificate name" variant="secondary" data-use-certificate-name="" />
         </ActionForm>
-        <ActionForm action={`${path}/certificates/trust`} method="POST" csrf={csrf} attributes={{ 'data-trust-certificate': '', 'data-trust-test-url': `${path}/test` }}>
+        <ActionForm action={`${path}/certificates/trust`} method="POST" csrf={csrf} retestUrl={`${path}/test`} attributes={{ 'data-trust-certificate': '' }}>
           <VStack gap={3}>
             <input type="hidden" name="inspectionId" />
             <input type="hidden" name="fillFields" data-type="boolean" value={String(trust.fills)} />
@@ -258,9 +258,8 @@ function InspectionDialog({ csrf, path, name, trust }: { csrf: string, path: str
 
 function Certificates({ csrf, path, name, certificates, savedTlsFailure }: { csrf: string, path: string, name: string, certificates: InstanceProps['certificates'], savedTlsFailure: boolean }) {
   const { saved, intro, expiring, pins, alwaysOfferInspection, endpoints, trust } = certificates
-  const health = useTestHealth()
-  const tlsFailed = health ? health.errorCode === 'UPSTREAM_TLS_FAILED' : savedTlsFailure
-  const inspectable = endpoints.length > 0 && (alwaysOfferInspection || tlsFailed)
+  const { tlsFailed } = useTestOutcome()
+  const inspectable = endpoints.length > 0 && (alwaysOfferInspection || (tlsFailed ?? savedTlsFailure))
   if (!saved) {
     return (
       <Panel title="Trusted certificates" description="Trust applies only to this instance’s saved endpoints.">
@@ -307,7 +306,7 @@ function Certificates({ csrf, path, name, certificates, savedTlsFailure }: { csr
 export function Instance(props: InstanceProps) {
   const { csrf, api, path, name, product, tool, github, controllerOrigin, certificates, failure, testGuide, change } = props
   return (
-    <VStack gap={4}>
+    <TestOutcomeProvider><VStack gap={4}>
       <Header {...props} />
       <Failure failure={failure} />
       <Setup setup={props.setup} />
@@ -336,6 +335,6 @@ export function Instance(props: InstanceProps) {
         <Text as="p">Leave a stored secret blank to keep it. Changing authentication, mode, kind, tenant, client or URL needs new secrets.</Text>
         {change && <LastChange {...change} />}
       </Panel>
-    </VStack>
+    </VStack></TestOutcomeProvider>
   )
 }

@@ -11,7 +11,7 @@ import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
 import { Tabs } from './tabs.js'
-import { TestResultNote, useTestHealth } from './test-outcome.js'
+import { TestOutcomeProvider, TestResultNote, useTestHealth } from './test-outcome.js'
 import { Time } from './time.js'
 import { Access, type AccessProps } from './tool-access.js'
 import { Instances, type InstancesProps } from './tool-instances.js'
@@ -177,7 +177,7 @@ function Advanced({ csrf, api, revision, panel }: Pick<ToolProps, 'csrf' | 'api'
 export function Tool(props: ToolProps) {
   const { panel } = props
   return (
-    <VStack gap={4}>
+    <TestOutcomeProvider><VStack gap={4}>
       <Header {...props} />
       <Setup setup={props.setup} />
       <TestResultNote />
@@ -187,6 +187,6 @@ export function Tool(props: ToolProps) {
           : panel.tab === 'raw-api' ? <RawApi {...props} panel={panel} />
             : panel.tab === 'advanced' ? <Advanced {...props} panel={panel} />
               : <Access {...props} panel={panel.access} />}
-    </VStack>
+    </VStack></TestOutcomeProvider>
   )
 }

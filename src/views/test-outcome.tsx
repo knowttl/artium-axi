@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { diagnosticText } from '../shared/diagnostic.js'
+import { diagnosticText, leavesCachedHealth } from '../shared/diagnostic.js'
 import { errors } from '../shared/errors.js'
 
 export interface TestHealth {
@@ -14,21 +14,29 @@ export interface TestOutcome {
   health?: TestHealth
 }
 
-export const testOutcomeKey = () => 'credential-test:' + location.pathname
+const testOutcomeKey = () => 'credential-test:' + location.pathname
 
-const TestOutcomeContext = createContext<{ outcome: TestOutcome, show: (outcome: TestOutcome) => void }>({ outcome: { message: '' }, show: () => {} })
+export function storeTestOutcome(outcome: TestOutcome) {
+  sessionStorage.setItem(testOutcomeKey(), JSON.stringify({ diagnosticVersion: 1, ...outcome }))
+}
+
+const TestOutcomeContext = createContext<{ outcome: TestOutcome, tlsFailed?: boolean, show: (outcome: TestOutcome) => void }>({ outcome: { message: '' }, show: () => {} })
 
 export function TestOutcomeProvider({ children }: { children: ReactNode }) {
-  const [outcome, setOutcome] = useState<TestOutcome>({ message: '' })
-  const show = (next: TestOutcome) => setOutcome(previous => ({ message: next.message, health: next.health ?? previous.health }))
+  const [result, setResult] = useState<{ outcome: TestOutcome, tlsFailed?: boolean }>({ outcome: { message: '' } })
+  const show = (next: TestOutcome) => setResult(previous => ({
+    outcome: { message: next.message, health: next.health ?? previous.outcome.health },
+    tlsFailed: next.health && !leavesCachedHealth(next.health.errorCode) && next.health.errorCode !== 'REVISION_CONFLICT'
+      ? next.health.errorCode === 'UPSTREAM_TLS_FAILED' : previous.tlsFailed,
+  }))
   useEffect(() => {
     const saved = sessionStorage.getItem(testOutcomeKey())
     if (!saved) return
     sessionStorage.removeItem(testOutcomeKey())
     const { diagnosticVersion, message, health } = JSON.parse(saved) as { diagnosticVersion?: number, message: string, health?: TestHealth }
-    setOutcome({ message: diagnosticVersion === 1 ? message : 'Details unavailable. Run Test connection again.', health })
+    show({ message: diagnosticVersion === 1 ? message : 'Details unavailable. Run Test connection again.', health })
   }, [])
-  return <TestOutcomeContext value={{ outcome, show }}>{children}</TestOutcomeContext>
+  return <TestOutcomeContext value={{ ...result, show }}>{children}</TestOutcomeContext>
 }
 
 export const useTestOutcome = () => useContext(TestOutcomeContext)

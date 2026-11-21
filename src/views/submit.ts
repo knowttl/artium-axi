@@ -5,7 +5,8 @@ import { claimLinkEvent } from './claim-link.js'
 import { confirmationEvent, type ConfirmationRequest } from './confirmation.js'
 import { createdTokenEvent } from './created-token.js'
 import { reauthRequestEvent } from './reauth.js'
-import { testOutcomeKey, type TestOutcome } from './test-outcome.js'
+import { retestConnection } from './retest.js'
+import { storeTestOutcome, type TestOutcome } from './test-outcome.js'
 import { successKey } from './toasts.js'
 
 export interface SubmitRequest {
@@ -22,6 +23,7 @@ export interface SubmitRequest {
   createdToken?: boolean
   bodyFrom?: (fields: FormData) => Body
   saveTool?: string
+  retestUrl?: string
   showTest?: (outcome: TestOutcome) => void
   report: (text: string, reload?: boolean) => void
 }
@@ -121,7 +123,7 @@ function shapeBody({ fields, typed }: FormDraft, body: Body): string | null {
   return null
 }
 
-export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, showTest, report }: SubmitRequest) {
+export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, report }: SubmitRequest) {
   const submission = beginSubmit(form, submitter)
   if (!submission) return
   const { button, release } = submission
@@ -190,6 +192,16 @@ export async function submitForm({ form, submitter, draft, action, method, confi
       report(`${error.message} ${error.next} (${error.code})`, error.code === 'REVISION_CONFLICT')
       return
     }
+    if (retestUrl) {
+      report('Certificate trusted. Testing connection…')
+      const outcome = await retestConnection(retestUrl, body._csrf)
+      if ('redirect' in outcome) location.assign(outcome.redirect)
+      else {
+        storeTestOutcome(outcome)
+        location.reload()
+      }
+      return
+    }
     if (saveTool) {
       const { normalizations = [] } = await response.json() as { normalizations?: { field: string, reason: string }[] }
       const tested = testUrl ? await fetch(testUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -202,7 +214,7 @@ export async function submitForm({ form, submitter, draft, action, method, confi
       let message = !testUrl ? 'Saved.' : !result ? 'Saved. Test could not complete. Run Test connection again.'
         : result.error ? `Saved. Test failed. ${result.error.message} ${result.error.next} (${result.error.code})` : 'Saved. Test passed.'
       for (const { field, reason } of normalizations) message += ` ${field}: ${reason}.`
-      sessionStorage.setItem(testOutcomeKey(), JSON.stringify({ diagnosticVersion: 1, message, health: result?.health }))
+      storeTestOutcome({ message, health: result?.health })
       location.reload()
       return
     }

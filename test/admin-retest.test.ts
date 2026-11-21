@@ -1,6 +1,7 @@
-import { runInNewContext } from 'node:vm'
-import { expect, test } from 'vitest'
-import { retestScript } from '../src/server/admin/retest.js'
+import { afterEach, expect, test, vi } from 'vitest'
+import { retestConnection } from '../src/views/retest.js'
+
+afterEach(() => vi.unstubAllGlobals())
 
 const secret = 'CANARY-unlabelled-credential'
 const quotedSecret = '"CANARY several secret words"'
@@ -59,22 +60,18 @@ const cases: { name: string, failure?: unknown, response?: unknown, kind: string
     expected: 'Connection test: HTTP 503. The upstream certificate could not be verified. (UPSTREAM_TLS_FAILED). Failed step: TLS. Code: HOSTNAME_MISMATCH. Run Test connection again.' },
 ]
 
-test.each(cases)('retest shows only structured detail for $name', async ({ failure, response, expected, kind }) => {
-  const messages: unknown[] = []
-  const context = { fetch: async () => { if (failure) throw failure; return response },
-    console: { log: (...args: unknown[]) => messages.push(args), error: (...args: unknown[]) => messages.push(args), warn: (...args: unknown[]) => messages.push(args) } }
-  const result = await runInNewContext(retestScript + '; retestConnection("/test", "CANARY-csrf")', context)
-  expect(result.diagnostic.kind).toBe(kind)
-  expect(runInNewContext(retestScript + '; renderRetestDiagnostic(detail)', { detail: result.diagnostic })).toBe(expected)
-  expect(JSON.stringify(result)).not.toContain(secret)
-  expect(JSON.stringify(result)).not.toContain(quotedSecret)
-  expect(messages).toEqual([])
+test.each(cases)('retest shows only structured $kind detail for $name', async ({ failure, response, expected }) => {
+  vi.stubGlobal('fetch', async () => { if (failure) throw failure; return response })
+  await expect(retestConnection('/test', 'CANARY-csrf')).resolves.toEqual({ message: expected })
 })
 
 test('successful retest projects only validated health', async () => {
-  const result = await runInNewContext(retestScript + '; retestConnection("/test", "CANARY-csrf")', {
-    fetch: async () => Response.json({ status: 'ok', checkedAt: 1234, credentialRevision: 2, errorCode: null,
-      diagnostic: { message: secret }, extra: quotedSecret }),
-  })
-  expect(result).toEqual({ health: { status: 'ok', checkedAt: 1234, credentialRevision: 2, errorCode: null } })
+  vi.stubGlobal('fetch', async () => Response.json({ status: 'ok', checkedAt: 1234, credentialRevision: 2, errorCode: null,
+    diagnostic: { message: secret }, extra: quotedSecret }))
+  await expect(retestConnection('/test', 'CANARY-csrf')).resolves.toEqual({ message: 'Connected', health: { status: 'ok', checkedAt: 1234, credentialRevision: 2, errorCode: null } })
+})
+
+test('retest returns the browser sign-in redirect', async () => {
+  vi.stubGlobal('fetch', async () => ({ redirected: true, url: 'https://admin.example/login' }))
+  await expect(retestConnection('/test', 'CANARY-csrf')).resolves.toEqual({ redirect: 'https://admin.example/login' })
 })

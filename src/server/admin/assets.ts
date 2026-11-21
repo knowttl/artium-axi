@@ -1,16 +1,15 @@
 import { components } from './design/components.js'
 import { tokens } from './design/tokens.js'
-import { scriptedFormSelector } from '../../views/action-form.js'
+import { scriptedFormSelector, writeFormMessage } from '../../views/action-form.js'
 import { reauthCompleteMessage, reauthRequestEvent } from '../../views/reauth.js'
 import { beginSubmit, snapshotForm } from '../../views/submit.js'
-import { retestScript } from './retest.js'
 
 export const adminStyle = tokens + components
 
 export const reauthCompleteScript = `window.opener?.postMessage('${reauthCompleteMessage}', location.origin);`
 
 export const adminScript = `
-${retestScript}
+${writeFormMessage.toString()}
 // The confirmation dialog in the React tree answers; a request made before hydration waits for it, so nothing is sent unconfirmed.
 function confirmChange(form, fallbackAction) {
   const action = form.dataset.confirmAction || fallbackAction;
@@ -28,16 +27,7 @@ function say(target, text, reload = false) {
     hydrated.then(() => document.dispatchEvent(new CustomEvent('artium-toast', { detail: { text, reload } })));
     return;
   }
-  target.textContent = text;
-  if (reload) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'btn btn-secondary btn-sm';
-    button.textContent = 'Reload latest';
-    button.addEventListener('click', () => location.reload());
-    target.append(document.createElement('br'), button);
-  }
-  if (text) target.focus();
+  writeFormMessage(target, text, reload);
 }
 
 function showError(target, error) {
@@ -215,7 +205,7 @@ document.addEventListener('submit', async event => {
     form.dispatchEvent(Object.assign(new SubmitEvent('submit', { bubbles: true, cancelable: true, submitter }), { astryxDraft }));
     return;
   }
-  const message = form.hasAttribute('data-trust-certificate') || form.hasAttribute('data-certificate-name-form')
+  const message = form.hasAttribute('data-certificate-name-form')
     ? form.closest('dialog').querySelector('[data-certificate-error]')
     : form.closest('dialog')?.querySelector('[data-sheet-message]') || null;
   try {
@@ -263,15 +253,6 @@ document.addEventListener('submit', async event => {
     }
     if (response.ok && form.hasAttribute('data-inspect-certificate')) {
       showCertificateInspection(await response.json());
-      return;
-    }
-    if (response.ok && form.hasAttribute('data-trust-certificate')) {
-      message.textContent = 'Certificate trusted. Testing connection…';
-      const current = await retestConnection(form.dataset.trustTestUrl, body._csrf);
-      if (current.redirect) { location.assign(current.redirect); return; }
-      const result = current.diagnostic ? renderRetestDiagnostic(current.diagnostic) : 'Connected';
-      sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ diagnosticVersion: 1, message: result, health: current.health }));
-      location.reload();
       return;
     }
     if (!response.ok) {
