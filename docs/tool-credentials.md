@@ -507,10 +507,14 @@ GitHub CLI telemetry, prompts and update notifications are disabled.
 For private CAs, follow the [GitHub certificate trust exception](runbook.md#trusting-one-tool-from-the-administration-ui).
 
 See the [supported GitHub boundary](safety.md) for why SSH keys are out of scope.
-For device flow, open **Connect with GitHub** on `/admin/tools/gh-axi`, enter an instance name and the HTTPS origin, and confirm your admin identity when prompted.
+To add an instance with device flow, open the `gh-axi` **Instances** tab, enter the instance name and GitHub HTTPS origin, and choose **Connect with GitHub** in the **Add an instance with GitHub** card.
+To connect an existing instance, open its detail page and choose **Connect with GitHub** or **Reconnect with GitHub**.
+Approve the action and confirm your administrator identity if prompted.
 Artium uses GitHub CLI's public OAuth client ID `178c6fc778ccc68e1d6a`, without a client secret or app registration, and requests `repo read:org gist workflow project`.
 Enter only the code displayed by your own connection at the displayed GitHub verification URL.
-The page shows the countdown, waits for approval, honours GitHub's polling interval and `slow_down`, and offers cancellation.
+The page shows the countdown, honours GitHub's polling interval and `slow_down`, and reloads after it saves the approved connection.
+To stop a pending attempt, choose **Cancel connection**.
+If the page says cancellation could not be confirmed, reload and check which credential is saved before trying again.
 Denied, expired or unsupported flows require a new connection; GHES must support device flow for its GitHub CLI app, otherwise use a PAT or GitHub App.
 Pending codes live only in server memory and disappear on restart; leaving the page stops polling.
 Starting another connection replaces the deployment's pending connection.
