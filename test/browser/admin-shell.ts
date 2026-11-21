@@ -2837,7 +2837,7 @@ test('expired confirmation resumes the populated action exactly once after a wro
     await page.wait('#reauth-dialog [data-reauth-error]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-reauth-error]').innerText.includes('SIGN_IN_FAILED')), 'Missing error code');
     check(await page.eval(() => document.querySelector('form[action="/v1/admin/roles"] [name=name]').value === 'Synthetic resumed role'), 'Draft was lost');
-    await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
+    await page.eval(() => { document.querySelector('#reauth-dialog [name=password]').value = 'CANARY-browser-password'; });
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('form[action$="/tools"]');
     check(await page.eval(() => document.querySelector('h1').innerText === 'Synthetic resumed role'), 'Pending role was not created');

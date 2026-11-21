@@ -1,6 +1,6 @@
 import { components } from './design/components.js'
 import { tokens } from './design/tokens.js'
-import { reauthCompleteMessage } from '../../views/reauth.js'
+import { reauthCompleteMessage, reauthRequestEvent } from '../../views/reauth.js'
 import { retestScript } from './retest.js'
 
 export const adminStyle = tokens + components
@@ -149,7 +149,7 @@ function showError(target, error) {
 // The identity confirmation dialog in the React tree answers; a request made before hydration waits for it, so nothing is sent unconfirmed.
 function reauthenticate(csrf) {
   return new Promise(resolve => {
-    const request = new CustomEvent('artium-reauth-request', { cancelable: true, detail: { csrf, resolve } });
+    const request = new CustomEvent('${reauthRequestEvent}', { cancelable: true, detail: { csrf, resolve } });
     if (document.dispatchEvent(request)) document.addEventListener('astryx-hydrated', () => document.dispatchEvent(request), { once: true });
   });
 }

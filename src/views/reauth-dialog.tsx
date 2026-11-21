@@ -8,9 +8,8 @@ import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Icon } from './icon.js'
-import { announceReauth, reauthCompleteMessage } from './reauth.js'
+import { announceReauth, reauthCompleteMessage, reauthRequestEvent } from './reauth.js'
 
-export const reauthRequestEvent = 'artium-reauth-request'
 const popupPollMs = 500
 
 export interface ReauthRequest {
@@ -77,7 +76,7 @@ export function ReauthDialog({ sso }: { sso: boolean }) {
     request?.resolve(false)
     setRequest(null)
   }
-  const submit = async (event: FormEvent) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const current = attempt.current
     if (!request || !current || busy) return
@@ -102,7 +101,7 @@ export function ReauthDialog({ sso }: { sso: boolean }) {
     }
     try {
       const response = await fetch('/v1/auth/reauth', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ _csrf: request.csrf, password }), signal })
+        body: JSON.stringify({ _csrf: request.csrf, password: new FormData(event.currentTarget).get('password') }), signal })
       if (signal.aborted) return
       setPassword('')
       if (response.redirected) {

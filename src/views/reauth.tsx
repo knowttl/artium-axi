@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Icon } from './icon.js'
 
 const reauthEvent = 'artium-reauth'
+export const reauthRequestEvent = 'artium-reauth-request'
 export const reauthCompleteMessage = 'artium-reauth-complete'
 const refreshMs = 30_000
 const minuteMs = 60_000
