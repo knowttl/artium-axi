@@ -2469,10 +2469,11 @@ test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalizatio
 }
 
 test('LDAP saves the pasted CA PEM after an upload and delivers multi-line secrets unchanged', async () => {
+  const savedPem = '-----BEGIN CERTIFICATE-----\nCANARY-stored-ca\n-----END CERTIFICATE-----\n'
   const pem = '-----BEGIN CERTIFICATE-----\nCANARY-first-line\nCANARY-second-line\n-----END CERTIFICATE-----\n'
   const password = 'CANARY-first-line\nCANARY-second-line\n'
   browser(`
-    await createInstance('ldap-axi', { url: 'ldaps://directory.example', auth: 'simple', bindDn: 'cn=reader,dc=example', bindPassword: 'CANARY-original', caFile: ${JSON.stringify(pem)} });
+    await createInstance('ldap-axi', { url: 'ldaps://directory.example', auth: 'simple', bindDn: 'cn=reader,dc=example', bindPassword: 'CANARY-original', caFile: ${JSON.stringify(savedPem)} });
     await page.click('details:has([data-tls-file="caFile"]) > summary');
     await page.eval(${pemSelection('[data-tls-file="caFile"]', readFileSync(fixture.caFile, 'utf8'))});
     await page.eval(() => {

@@ -1,3 +1,4 @@
+import { readTestResponse } from '../shared/diagnostic.js'
 import type { Confirmation } from './action-form.js'
 import { completePemFields } from './certificate-verification.js'
 import { claimLinkEvent } from './claim-link.js'
@@ -26,8 +27,6 @@ export interface SubmitRequest {
 type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
 type Body = Record<string, unknown>
 type FormDraft = ReturnType<typeof snapshotForm>
-
-export const credentialSavedEvent = 'artium-credential-saved'
 
 export interface DeferredSubmitEvent extends SubmitEvent {
   astryxDraft?: FormDraft
@@ -190,7 +189,11 @@ export async function submitForm({ form, submitter, draft, action, method, confi
         location.assign(tested.url)
         return
       }
-      if (!await ask<boolean>(credentialSavedEvent, { testRequested: Boolean(testUrl), tested, normalizations })) throw new Error()
+      const result = tested ? await readTestResponse(tested).catch(() => undefined) : undefined
+      let message = !testUrl ? 'Saved.' : !result ? 'Saved. Test could not complete. Run Test connection again.'
+        : result.error ? `Saved. Test failed. ${result.error.message} ${result.error.next} (${result.error.code})` : 'Saved. Test passed.'
+      for (const { field, reason } of normalizations) message += ` ${field}: ${reason}.`
+      sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ diagnosticVersion: 1, message, health: result?.health }))
       location.reload()
       return
     }

@@ -1,9 +1,7 @@
 import { errors, type Diagnostic } from './errors.js'
-import { constants } from 'node:os'
-import { getSystemErrorMap } from 'node:util'
+import { transportCodes } from './transport-codes.js'
 
 export const diagnosticStages = ['configuration', 'token acquisition', 'DNS', 'TCP', 'TLS', 'authentication', 'response', 'tool run'] as const
-export const transportCodes = [...new Set([...Object.keys(constants.errno), ...[...getSystemErrorMap().values()].map(([code]) => code)])]
 export const retestCodes = ['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT', 'ECONNABORTED', 'ENETUNREACH', 'EHOSTUNREACH',
   'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION', 'SERVICE_UNAVAILABLE',
   'CONNECTION_FAILED', 'ERR_TLS_CERT_ALTNAME_INVALID', 'CERT_NOT_YET_VALID', 'CERT_HAS_EXPIRED', 'CERT_REVOKED',
@@ -66,4 +64,18 @@ export function structuredDiagnostic(input: unknown): StructuredDiagnostic | und
     ...(detail.credentialRevision === null || Number.isSafeInteger(detail.credentialRevision)
       ? { credentialRevision: detail.credentialRevision as number | null } : {}),
   }
+}
+
+export async function readTestResponse(response: Response) {
+  const result = await response.json()
+  if (!response.ok) {
+    const submittedCode = result?.error?.code
+    const code = typeof submittedCode === 'string' && Object.hasOwn(errors, submittedCode) ? submittedCode as keyof typeof errors : 'INTERNAL_ERROR'
+    const diagnostic = structuredDiagnostic(result?.error?.diagnostic)
+    const { message, next } = errors[code]
+    return { error: { code, message, next }, health: { status: 'error', checkedAt: diagnostic?.checkedAt ?? null, errorCode: code, diagnostic } }
+  }
+  if (result.status !== 'ok' || !Number.isInteger(result.checkedAt) ||
+      !Number.isInteger(result.credentialRevision) || result.errorCode !== null) throw new Error()
+  return { health: { status: 'ok', checkedAt: result.checkedAt, credentialRevision: result.credentialRevision, errorCode: null } }
 }

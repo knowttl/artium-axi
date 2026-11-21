@@ -2,7 +2,7 @@ import { components } from './design/components.js'
 import { tokens } from './design/tokens.js'
 import { scriptedFormSelector } from '../../views/action-form.js'
 import { reauthCompleteMessage, reauthRequestEvent } from '../../views/reauth.js'
-import { beginSubmit, credentialSavedEvent, snapshotForm } from '../../views/submit.js'
+import { beginSubmit, snapshotForm } from '../../views/submit.js'
 import { retestScript } from './retest.js'
 
 export const adminStyle = tokens + components
@@ -71,40 +71,6 @@ function reauthenticate(csrf) {
     if (document.dispatchEvent(request)) document.addEventListener('astryx-hydrated', () => document.dispatchEvent(request), { once: true });
   });
 }
-
-async function readTestResponse(response) {
-  const result = await response.json();
-  if (!response.ok) {
-    const code = Object.hasOwn(retestErrors, result?.error?.code) ? result.error.code : 'INTERNAL_ERROR';
-    const diagnostic = structuredDiagnostic(result?.error?.diagnostic);
-    const error = { code, message: retestErrors[code], next: retestNext[code] };
-    return { error, health: { status: 'error', checkedAt: diagnostic?.checkedAt ?? null,
-      errorCode: code, diagnostic } };
-  }
-  const health = result;
-  if (health.status !== 'ok' || !Number.isInteger(health.checkedAt) ||
-      !Number.isInteger(health.credentialRevision) || health.errorCode !== null) throw new Error();
-  return { health: { status: 'ok', checkedAt: health.checkedAt, credentialRevision: health.credentialRevision, errorCode: null } };
-}
-
-document.addEventListener('${credentialSavedEvent}', async event => {
-  const { testRequested, tested, normalizations, resolve } = event.detail;
-  try {
-    let result = testRequested ? 'Saved. Test could not complete. Run Test connection again.' : 'Saved.';
-    let health;
-    if (tested) {
-      try {
-        const current = await readTestResponse(tested);
-        health = current.health;
-        result = tested.ok ? 'Saved. Test passed.' : 'Saved. Test failed.';
-        if (current.error) { const error = current.error; result += ' ' + error.message + ' ' + error.next + ' (' + error.code + ')'; }
-      } catch {}
-    }
-    const normalized = normalizations.map(change => change.field + ': ' + change.reason + '.').join(' ');
-    sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ diagnosticVersion: 1, message: result + (normalized ? ' ' + normalized : ''), health }));
-    resolve(true);
-  } catch { resolve(false); }
-});
 
 function renderTestResult(result) {
   latestTestResult = result;

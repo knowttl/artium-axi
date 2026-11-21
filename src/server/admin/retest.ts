@@ -1,5 +1,6 @@
 import { errors } from '../../shared/errors.js'
-import { diagnosticCodes, diagnosticStages, transportCodes, validDiagnosticCode, structuredDiagnostic } from '../../shared/diagnostic.js'
+import { diagnosticCodes, diagnosticStages, readTestResponse, validDiagnosticCode, structuredDiagnostic } from '../../shared/diagnostic.js'
+import { transportCodes } from '../../shared/transport-codes.js'
 
 export const retestScript = `
 const diagnosticCodes = ${JSON.stringify(diagnosticCodes)};
@@ -7,8 +8,9 @@ const diagnosticStages = ${JSON.stringify(diagnosticStages)};
 const transportCodes = ${JSON.stringify(transportCodes)};
 ${validDiagnosticCode.toString()}
 ${structuredDiagnostic.toString()}
-const retestErrors = ${JSON.stringify(Object.fromEntries(Object.entries(errors).map(([code, error]) => [code, error.message])))};
-const retestNext = ${JSON.stringify(Object.fromEntries(Object.entries(errors).map(([code, error]) => [code, error.next])))};
+const errors = ${JSON.stringify(Object.fromEntries(Object.entries(errors).map(([code, { message, next }]) => [code, { message, next }])))};
+const retestErrors = Object.fromEntries(Object.entries(errors).map(([code, error]) => [code, error.message]));
+${readTestResponse.toString()}
 function renderRetestDiagnostic(detail) {
   const status = detail.status === undefined ? '' : ' HTTP ' + detail.status + '.';
   if (detail.kind === 'network') return 'Connection test: Could not reach the artium admin server. Run Test connection again.';
