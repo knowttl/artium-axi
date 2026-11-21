@@ -42,13 +42,13 @@ The Add instance sheet (`AddInstanceSheet` in `src/views/tool-instances.tsx`) is
 The sign-in provider's Credential tab renders the same `CredentialEditor`, built by `credentialEditor()` from the provider credential profile.
 Credentials are write-only in the editor: a field the profile marks secret is a native, uncontrolled `textarea` with `autocomplete="off"` and no value, inside an Astryx `Field`, so a typed secret is never in React state, in the hydration data or in the markup, and the editor empties it when the sheet closes.
 Other text fields are Astryx inputs, selects and number fields stay native.
-`CredentialEditor` reads the field values from the form, evaluates the profile schema with `evaluateCredentialSchema()` in `src/views/credential-schema.ts`, hides and disables the fields the chosen alternative forbids, sets `required`, and tells whether stored secrets still apply; the server renders the same state from the saved values, and a change made before hydration is read when the page hydrates.
-`ActionForm` builds the submitted credential `value` in `src/views/submit.ts` using the captured form values and `data-profile-field` attributes.
+`CredentialEditor` uses `evaluateCredentialSchema()` in `src/views/credential-schema.ts` to identify required and forbidden fields and check whether the saved identity still applies.
+The editor marks required fields, hides and disables forbidden fields, and makes the separate private key and fingerprint inputs optional when a combined PEM is present.
+It renders the initial field state from the server-provided values and reads the current form values during hydration.
 The Certificate verification fieldset (`CertificateVerification` in `src/views/certificate-verification.tsx`) is React inside `CredentialEditor`, built from the `TlsSection` that `tlsSection()` in `src/server/admin/tls-fields.ts` derives once from the tool's TLS settings and the saved metadata.
 Its text, upload, select and removal controls are native and uncontrolled inside Astryx `Field`.
-The submit handler reads TLS values from the form, and the schema evaluator uses the credential fields and whether a combined PEM is present.
 Each PEM picker reads its selected file into the corresponding textarea, including files selected before hydration.
-A save that captures a pending selection waits for its contents before building the credential request.
+The picker clears its selection after copying the PEM, leaving the textarea available for edits.
 The pasted trusted certificate and each file upload are emptied when the sheet closes, like the secrets.
 The hostname choice defaults to hostname verification, or to keeping the saved setting when a fingerprint is stored, followed by Yes and No; removal checkboxes start unchecked.
 The GitHub connection card (`GithubConnection` in `src/views/github-connection.tsx`) is a `Panel` with the shared `ActionForm`, on the gh-axi Instances tab to add an instance and on a gh-axi instance page to connect or reconnect it; `githubConnection()` in `src/server/admin/instances.ts` builds its props once for both.
@@ -60,13 +60,11 @@ The elements `confirm.js` fills render with `suppressHydrationWarning`.
 The instance page (`src/views/instance.tsx`, route `/admin/tools/:tool/instances/:name`) is the ninth page on the seam.
 Its header holds the Test connection form and the Enabled switch, and below it come the failure banner, the setup steps, the optional GitHub card, the AWX controller address, the Connection card, the Trusted certificates panel with its inspection dialog, the Danger zone and two notes, in one column.
 The Connection card is `CredentialEditor` with the instance's `configured` state and saved non-secret values, which `credentialEditor()` takes from the instance metadata and only for fields the profile does not mark secret; a secret field is the same empty native textarea as in the Add instance sheet, and the editor empties it, and the pasted or uploaded certificate, when the page is left (`pagehide`) as well as when a sheet closes.
-React sends the Connection credential and runs the test when Test after saving was selected.
-The existing result renderer keeps the normalization notices and connection diagnostics across reloads.
-Each controlled endpoint field carries its saved value in `data-saved`, which submission compares with the entered URL to decide whether to drop an untouched connection IP or certificate name.
+The Connection card uses the shared `ActionForm` for credential saves.
 The test, inspection and trust controls keep the `data-test-tool`, `data-check-*`, `data-inspect-certificate`, `data-trust-certificate` and `#certificate-inspection` hooks that `confirm.js` uses.
 Before hydration, a result restored after reload supplies the result message, and a direct check can also fill the failure details and the separate `data-check-time-fallback` slot.
 On `astryx-hydrated`, the script applies the latest result, updates the checklist, replaces the status badge with a copy from a hidden `data-outcome` element and sends the check time to React through `artium-check-time`.
-Keeping the pre-hydration updates in elements that suppress hydration warnings stops React from discarding them.
+The result elements that receive pre-hydration updates use `suppressHydrationWarning`.
 The GitHub connection card on this page is the same `GithubConnection` view, above the Connection card.
 The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`.
 Tools, People and Audit use the shared React [`FilterForm`](../src/views/filter-form.tsx) for their GET forms.
@@ -120,7 +118,10 @@ The frame retains one banner, one main and one navigation landmark, labelled "Ad
 The icon sprite stays outside the React root.
 The root contains the toasts and both confirmation dialogs.
 `ActionForm` submits plain forms through [`submitForm`](../src/views/submit.ts), which starts the body from the captured `FormData` or the form's `bodyFrom` result.
-It includes the CSRF token, applies conversions from the captured `data-type` controls, builds the credential `value` from the captured `data-profile-field` controls and sends `expectedRevision` for revision-checked mutations.
+It includes the CSRF token, applies conversions from the captured `data-type` controls and sends `expectedRevision` for revision-checked mutations.
+For a credential form, `submitForm` reads any pending PEM selection captured by the submit and builds the request's `value` from the captured values of the profile and TLS controls.
+When the endpoint changes, it omits an untouched connection IP or certificate name.
+After an instance credential save, `submitForm` runs the optional connection test and stores the normalization notices and test result for the existing renderer to display after reload.
 Both `ActionForm` and `confirm.js` use `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
 `confirm.js` still submits forms matched by `scriptedFormSelector`, including direct connection tests, GitHub and certificate forms.
 For a plain form submitted before React can handle it, `confirm.js` captures the submitted values and hands them to `ActionForm` after `astryx-hydrated`, when the dialog listeners are ready.
