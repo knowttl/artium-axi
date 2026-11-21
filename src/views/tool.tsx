@@ -1,12 +1,11 @@
 import { Badge } from '@astryxdesign/core/Badge'
 import { Banner } from '@astryxdesign/core/Banner'
-import { Button } from '@astryxdesign/core/Button'
 import { HStack } from '@astryxdesign/core/HStack'
 import { Text } from '@astryxdesign/core/Text'
 import { TextArea } from '@astryxdesign/core/TextArea'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
-import { ActionForm, Revision } from './action-form.js'
+import { ActionForm, ActionSubmit, ActionToggle, Revision } from './action-form.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
@@ -60,7 +59,7 @@ function Header({ csrf, api, mark, name, version, revision, enabled, state, writ
         confirmation={{ consequence: enabled ? 'Disable this tool and block new calls?' : 'Enable this tool for people whose roles grant access?' }}>
         <Revision value={revision} />
         <input type="hidden" name="enabled" data-type="boolean" value={String(!enabled)} />
-        <button type="submit" className="toggle" role="switch" aria-checked={enabled}><span className={`switch${enabled ? ' on' : ''}`} aria-hidden="true" />Enabled</button>
+        <ActionToggle enabled={enabled} />
       </ActionForm>
     </HStack>
   )
@@ -102,7 +101,7 @@ function RawApi({ csrf, api, product, revision, panel }: Pick<ToolProps, 'csrf' 
               <Revision value={revision} />
               <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
                 <Text type="supporting">{SAVED}</Text>
-                <Button type="submit" label="Save Raw API mode" variant="primary" size="sm" />
+                <ActionSubmit label="Save Raw API mode" variant="primary" size="sm" />
               </HStack>
             </VStack>
           </Panel>
@@ -122,7 +121,7 @@ function RawApi({ csrf, api, product, revision, panel }: Pick<ToolProps, 'csrf' 
               <Revision value={revision} />
               <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
                 <Text type="supporting">{SAVED}</Text>
-                <Button type="submit" label="Save route patterns" variant="primary" size="sm" />
+                <ActionSubmit label="Save route patterns" variant="primary" size="sm" />
               </HStack>
             </VStack>
           </Panel>
@@ -162,7 +161,7 @@ function Advanced({ csrf, api, revision, panel }: Pick<ToolProps, 'csrf' | 'api'
             <p className="note" data-json-status="" data-valid={String(jsonStatus.valid)} aria-live="polite">{jsonStatus.message}</p>
             <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
               <Text type="supporting">{'{} clears settings.'}</Text>
-              <Button type="submit" label="Replace settings" variant="secondary" size="sm" />
+              <ActionSubmit label="Replace settings" variant="secondary" size="sm" />
             </HStack>
           </VStack>
         </Panel>

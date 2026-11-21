@@ -23,7 +23,8 @@ let server: ChildProcessByStdio<null, Readable, null>
 let fixture: Fixture
 const pickerWithLateHydration = 'operation picker preserves edits across late hydration'
 const trackChangesWithLateHydration = 'role tool grants count a selection edited before late hydration as a change'
-const submitBeforeDialogs = 'a React submit waits for dialogs and saves its original draft'
+const actionsWithLateHydration = 'admin actions wait for React while drafts remain editable'
+const submitBeforeHydrationCompletes = 'a React submit waits for hydration to finish and saves its original draft'
 const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
 const credentialEditorWithLateHydration = 'the credential editor applies a selection made before hydration'
 const connectionDraftWithLateHydration = 'the instance connection preserves text edited before hydration'
@@ -121,7 +122,7 @@ beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
     env: { ...process.env, ARTIUM_TEST_GRAPH_CERTIFICATES: context.name === graphCertificateRotation ? '1' : '0',
       ARTIUM_TEST_SKIP_HYDRATION: [pickerWithLateHydration, trackChangesWithLateHydration,
-      submitBeforeDialogs, instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration,
+      actionsWithLateHydration, submitBeforeHydrationCompletes, instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration,
       resizeCadence].includes(context.name) || context.name.endsWith(editedOverrides) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
@@ -2948,7 +2949,70 @@ test(trackChangesWithLateHydration, () => {
   `)
 })
 
-test(submitBeforeDialogs, () => {
+test(actionsWithLateHydration, () => {
+  browser(`
+    const waitForReact = async selector => {
+      const submitted = await page.eval('() => (' + (selector => {
+        const button = document.querySelector(selector);
+        let submitted = false;
+        const capture = event => { submitted = true; event.preventDefault(); };
+        button.form.addEventListener('submit', capture);
+        button.click();
+        button.form.removeEventListener('submit', capture);
+        return submitted;
+      }).toString() + ')(' + JSON.stringify(selector) + ')');
+      check(!submitted, 'An admin action submitted before React was ready');
+      await page.eval(() => {
+        const script = document.createElement('script');
+        script.src = '/admin/assets/hydrate.js?resume';
+        document.head.append(script);
+      });
+      await page.wait(selector + ':enabled');
+    };
+
+    const testButton = 'form[data-test-tool] button[type=submit]';
+    await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-cached-test' });
+    await waitForReact(testButton);
+    await page.click(testButton);
+    await page.wait('[data-test-result]:not(:empty)');
+    check(await page.eval(() => document.querySelector('[data-test-result]').textContent) === 'Test failed.', 'The instance lost its inline test result');
+
+    const assignment = 'form[action$="/synthetic-ordinary/roles"]';
+    await page.open(base + '/admin/users/synthetic-ordinary');
+    const revision = await page.eval(() => Number(document.querySelector('form[action$="/synthetic-ordinary/roles"] [name=expectedRevision]').value));
+    await page.click(assignment + ' [name=roleIds][value=synthetic-role]');
+    await waitForReact(assignment + ' button[type=submit]');
+    await page.click(assignment + ' button[type=submit]');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait(assignment + ' [name=expectedRevision][value="' + (revision + 1) + '"]');
+    check(await page.eval(async () => (await (await fetch('/v1/admin/users/synthetic-ordinary')).json()).roleIds.length) === 0, 'The staged assignment did not persist');
+
+    const creation = '#sheet-new-role';
+    await page.open(base + '/admin/roles?sheet=new-role');
+    await page.fill(creation + ' [name=name]', 'Synthetic readers');
+    await waitForReact(creation + ' button[type=submit]');
+    await page.wait(creation + ':modal');
+    check(await page.eval(() => document.querySelector('#sheet-new-role [name=name]').value) === 'Synthetic readers', 'Hydration discarded the role name');
+    await page.click(creation + ' button[type=submit]');
+    await page.wait('[name=tools]');
+    check(await page.eval(() => document.querySelector('h1').textContent) === 'Synthetic readers', 'Role creation did not open the new role');
+
+    const rename = '#sheet-rename-role';
+    const rolePath = await page.eval(() => location.pathname);
+    await page.open(base + rolePath + '?sheet=rename-role');
+    const roleRevision = await page.eval(() => Number(document.querySelector('#sheet-rename-role [name=expectedRevision]').value));
+    await page.fill(rename + ' [name=name]', 'Synthetic reviewers');
+    await waitForReact(rename + ' button[type=submit]');
+    await page.wait(rename + ':modal');
+    check(await page.eval(() => document.querySelector('#sheet-rename-role [name=name]').value) === 'Synthetic reviewers', 'Hydration discarded the renamed role draft');
+    await page.click(rename + ' button[type=submit]');
+    await page.wait(rename + ' [name=expectedRevision][value="' + (roleRevision + 1) + '"]');
+    check(await page.eval(() => document.querySelector('h1').textContent) === 'Synthetic reviewers', 'Role rename did not save the staged name');
+  `)
+})
+
+test(submitBeforeHydrationCompletes, () => {
   browser(`
     await page.open(base + '/admin/users/synthetic-ordinary');
     const readPerson = () => page.eval(async () => {
@@ -2958,14 +3022,7 @@ test(submitBeforeDialogs, () => {
     });
     const initial = await readPerson();
     check(JSON.stringify(initial.roleIds) === '["synthetic-role"]', 'The synthetic person must start with one role');
-    await page.eval('() => (' + (() => {
-      const form = document.querySelector('form[action$="/synthetic-ordinary/roles"]');
-      const role = form.querySelector('[name=roleIds][value="synthetic-role"]');
-      const submit = () => {
-        role.click();
-        form.requestSubmit(form.querySelector('button[type=submit]'));
-        role.click();
-      };
+    await page.eval(() => {
       const key = 'test-role-submissions';
       sessionStorage.removeItem(key);
       const send = window.fetch;
@@ -2977,24 +3034,21 @@ test(submitBeforeDialogs, () => {
         }
         return send(url, options);
       };
-      const add = document.addEventListener;
-      document.addEventListener = function (type, listener, options) {
-        if (type === 'artium-confirm') {
-          document.addEventListener = add;
-          let reachedScript = false;
-          document.addEventListener('submit', () => { reachedScript = true; }, { once: true });
-          submit();
-          if (reachedScript) throw new Error('The early submit did not reach the React handler');
-        }
-        return add.call(this, type, listener, options);
-      };
-    }).toString() + ')()');
-    check(await page.eval(() => !document.querySelector('#confirmation[open]') && !sessionStorage.getItem('test-role-submissions')), 'The submission ran before hydration');
-    await page.eval(() => {
+      document.addEventListener('astryx-hydrated', event => event.stopImmediatePropagation(), { capture: true, once: true });
       const script = document.createElement('script');
       script.src = '/admin/assets/hydrate.js?resume';
       document.head.append(script);
     });
+    await page.wait('form[action$="/synthetic-ordinary/roles"] button[type=submit]:enabled');
+    await page.eval(() => {
+      const form = document.querySelector('form[action$="/synthetic-ordinary/roles"]');
+      const role = form.querySelector('[name=roleIds][value="synthetic-role"]');
+      role.click();
+      form.querySelector('button[type=submit]').click();
+      role.click();
+    });
+    check(await page.eval(() => !document.querySelector('#confirmation[open]') && !sessionStorage.getItem('test-role-submissions')), 'The submission ran before hydration finished');
+    await page.eval(() => document.dispatchEvent(new Event('astryx-hydrated')));
     await page.wait('#confirmation[open]');
     check(await page.eval(() => document.querySelector('[name=roleIds][value="synthetic-role"]').checked && !sessionStorage.getItem('test-role-submissions')), 'The later role edit should be visible before the request is sent');
     await page.click('#confirmation button[value=confirmed]');

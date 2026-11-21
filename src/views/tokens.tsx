@@ -1,5 +1,4 @@
 import { Badge } from '@astryxdesign/core/Badge'
-import { Button } from '@astryxdesign/core/Button'
 import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { Field } from '@astryxdesign/core/Field'
 import { HStack } from '@astryxdesign/core/HStack'
@@ -7,7 +6,7 @@ import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } f
 import { Text } from '@astryxdesign/core/Text'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
-import { ActionForm } from './action-form.js'
+import { ActionForm, ActionSubmit } from './action-form.js'
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
 import { Time } from './time.js'
@@ -36,7 +35,7 @@ function Settings({ csrf, settings }: Pick<TokensProps, 'csrf' | 'settings'>) {
             <Text as="p" type="supporting">Tokens from SSO accounts pause after this long without an SSO sign-in and resume when the creator signs in again.</Text>
             <Text as="p" type="supporting">Disabling creation does not revoke existing tokens. The lifetime cap applies to new tokens.</Text>
           </VStack>
-          <HStack justify="end"><Button type="submit" label="Save settings" variant="primary" /></HStack>
+          <HStack justify="end"><ActionSubmit label="Save settings" variant="primary" /></HStack>
         </VStack>
       </ActionForm>
     </Panel>
@@ -70,7 +69,7 @@ function TokenRow({ csrf, token }: { csrf: string, token: TokensProps['tokens'][
       <TableCell className="actions-cell">
         {token.revocable && (
           <ActionForm action={`/v1/admin/tokens/${encodeURIComponent(token.id)}/revoke`} method="POST" csrf={csrf} confirmation={{ consequence: 'Revoke this token and its sessions?' }}>
-            <Button type="submit" label="Revoke" variant="secondary" size="sm" className="revoke" />
+            <ActionSubmit label="Revoke" variant="secondary" size="sm" className="revoke" />
           </ActionForm>
         )}
       </TableCell>
@@ -97,7 +96,7 @@ export function Tokens({ csrf, settings, tokens }: TokensProps) {
       </Panel>
       <Panel title="Revoke all" description="End access for all tokens.">
         <ActionForm action="/v1/admin/tokens/revoke-all" method="POST" csrf={csrf} confirmation={{ consequence: 'Revoke all tokens and their sessions?' }}>
-          <Button type="submit" label="Revoke all tokens" variant="secondary" className="revoke" />
+          <ActionSubmit label="Revoke all tokens" variant="secondary" className="revoke" />
         </ActionForm>
       </Panel>
     </VStack>

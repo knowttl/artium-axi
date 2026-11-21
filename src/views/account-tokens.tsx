@@ -1,5 +1,4 @@
 import { Badge } from '@astryxdesign/core/Badge'
-import { Button } from '@astryxdesign/core/Button'
 import { HStack } from '@astryxdesign/core/HStack'
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from '@astryxdesign/core/Table'
 import { Text } from '@astryxdesign/core/Text'
@@ -7,7 +6,7 @@ import { TextInput } from '@astryxdesign/core/TextInput'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
-import { ActionForm } from './action-form.js'
+import { ActionForm, ActionSubmit } from './action-form.js'
 import { CreatedTokenDialog } from './created-token.js'
 import { Panel } from './panel.js'
 import { badgeVariants, type Status } from './status.js'
@@ -72,7 +71,7 @@ function CreateForm({ csrf, maxLifetimeHours, choices }: { csrf: string } & Pick
             </details>
           )) : <Text as="p">No enabled tools granted.</Text>}
         </fieldset>
-        <HStack><Button type="submit" label="Create token" variant="primary" /></HStack>
+        <HStack><ActionSubmit label="Create token" variant="primary" /></HStack>
       </VStack>
     </ActionForm>
   )
@@ -104,7 +103,7 @@ function TokenRow({ csrf, token }: { csrf: string, token: AccountTokensProps['to
       <TableCell className="actions-cell">
         {token.revocable && (
           <ActionForm action={`/v1/account/tokens/${encodeURIComponent(token.id)}/revoke`} method="POST" csrf={csrf} confirmation={{ consequence: 'Revoke this token and its sessions?' }}>
-            <Button type="submit" label="Revoke" variant="secondary" size="sm" className="revoke" />
+            <ActionSubmit label="Revoke" variant="secondary" size="sm" className="revoke" />
           </ActionForm>
         )}
       </TableCell>

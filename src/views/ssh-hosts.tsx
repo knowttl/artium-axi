@@ -1,5 +1,4 @@
 import { Badge } from '@astryxdesign/core/Badge'
-import { Button } from '@astryxdesign/core/Button'
 import { Field } from '@astryxdesign/core/Field'
 import { HStack } from '@astryxdesign/core/HStack'
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from '@astryxdesign/core/Table'
@@ -8,7 +7,7 @@ import { TextArea } from '@astryxdesign/core/TextArea'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
-import { ActionForm, Revision } from './action-form.js'
+import { ActionForm, ActionSubmit, Revision } from './action-form.js'
 import { Icon } from './icon.js'
 import { Mono } from './mono.js'
 import { Panel } from './panel.js'
@@ -85,7 +84,7 @@ function HostForm({ csrf, host }: { csrf: string, host?: SshHostRow }) {
           {number('outputBytes', 'Maximum output bytes (0-1048576)', host?.outputBytes ?? 65536)}
           {number('idleMinutes', 'Maximum connection idle minutes (1-60)', host?.idleMinutes ?? 60)}
         </div>
-        <HStack><Button type="submit" label="Save host" variant="primary" /></HStack>
+        <HStack><ActionSubmit label="Save host" variant="primary" /></HStack>
       </VStack>
     </ActionForm>
   )
@@ -108,7 +107,7 @@ function BindingForm({ csrf, host, credentials }: { csrf: string, host: SshHostR
             {credentials.map(id => <option key={id} value={id}>{id}</option>)}
           </select>
         </Field>
-        <HStack><Button type="submit" label="Save account binding" variant="primary" /></HStack>
+        <HStack><ActionSubmit label="Save account binding" variant="primary" /></HStack>
       </VStack>
     </ActionForm>
   )
@@ -129,7 +128,7 @@ function GrantForm({ csrf, host, users }: { csrf: string, host: SshHostRow, user
         </Field>
         <Check name="shell" title="Allow this person to use the host" checked={false} />
         <Check name="sudo" title="Allow the separate sudo account" checked={false} />
-        <HStack><Button type="submit" label="Save caller grant" variant="primary" /></HStack>
+        <HStack><ActionSubmit label="Save caller grant" variant="primary" /></HStack>
       </VStack>
     </ActionForm>
   )
@@ -161,7 +160,7 @@ function HostPanel({ csrf, host, credentials, users }: { csrf: string, host: Ssh
             {proof}
             <Revision value={host.revision} />
             <input type="hidden" name="id" value={host.id} />
-            <Button type="submit" label="Delete host" variant="ghost" className="danger" icon={<Icon name="trash" />} />
+            <ActionSubmit label="Delete host" variant="ghost" className="danger" icon={<Icon name="trash" />} />
           </ActionForm>
         </HStack>
       </VStack>

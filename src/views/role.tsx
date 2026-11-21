@@ -5,8 +5,7 @@ import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } f
 import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
-import { useState } from 'react'
-import { ActionForm, Revision, useFormDirty } from './action-form.js'
+import { ActionForm, ActionSubmit, Revision, useFormDirty, useTextDraft } from './action-form.js'
 import { Panel } from './panel.js'
 import { Sheet } from './sheet.js'
 import { badgeVariants, type Status } from './status.js'
@@ -28,7 +27,7 @@ function SaveOrDiscard() {
   const dirty = useFormDirty()
   return (
     <HStack gap={2}>
-      <Button type="submit" label="Save tools" variant="primary" size="sm" isDisabled={!dirty} />
+      <ActionSubmit label="Save tools" variant="primary" size="sm" isDisabled={!dirty} />
       <Button type="reset" label="Discard" variant="ghost" size="sm" hidden={!dirty} />
     </HStack>
   )
@@ -83,7 +82,7 @@ function RawApi({ csrf, path, name, changed, rawApi }: Pick<RoleProps, 'csrf' | 
                   <input type="checkbox" className="switch" role="switch" name="enabled" data-type="boolean" aria-label={`Allow Raw API for ${tool.product}`} defaultChecked={tool.allowed} />
                   <span>Allow</span>
                 </label>
-                <Button type="submit" label="Save" variant="secondary" size="sm" />
+                <ActionSubmit label="Save" variant="secondary" size="sm" />
               </ActionForm>
             </HStack>
           ))}
@@ -142,19 +141,19 @@ function Delete({ csrf, path, name, changed, blocked }: Pick<RoleProps, 'csrf' |
         <ActionForm action={path} method="DELETE" csrf={csrf} successUrl="/admin/roles" successMessage="Role deleted."
           confirmation={{ consequence: `Delete ${name}? Its tool grants will be removed. This cannot be undone.`, action: 'Delete role', typedName: name }}>
           <Revision value={changed.revision} />
-          <Button type="submit" label="Delete…" variant="destructive" size="sm" />
+          <ActionSubmit label="Delete…" variant="destructive" size="sm" />
         </ActionForm>
       )} />
   )
 }
 
 function RenameSheet({ csrf, path, changed, name, rename }: Pick<RoleProps, 'csrf' | 'path' | 'changed' | 'name' | 'rename'>) {
-  const [draft, setDraft] = useState(name)
+  const draft = useTextDraft(name)
   return (
     <Sheet name="rename-role" open={rename.open} closeHref={rename.closeHref} title="Rename role" description="Renaming keeps its members and grants."
       submit="Rename" action={path} method="PATCH" csrf={csrf} successMessage="Role renamed.">
       <Revision value={changed.revision} />
-      <TextInput label="Role name" htmlName="name" value={draft} onChange={setDraft} autoComplete="off" {...{ required: true }} />
+      <TextInput label="Role name" htmlName="name" {...draft} autoComplete="off" {...{ required: true }} />
     </Sheet>
   )
 }

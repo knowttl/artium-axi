@@ -4,7 +4,7 @@ import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
-import { ActionForm, Revision } from './action-form.js'
+import { ActionForm, ActionSubmit, Revision } from './action-form.js'
 import { useGithubDevice } from './github-device.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
@@ -60,7 +60,7 @@ export function GithubConnection({ csrf, action, toolRevision, origin, instance,
               </>}
             <input type="hidden" name="expectedToolRevision" data-type="number" value={toolRevision} />
             <TextInput label="GitHub HTTPS origin" htmlName="origin" type="url" value={endpoint} onChange={setEndpoint} {...{ required: true }} />
-            <div><Button type="submit" label={`${connected ? 'Reconnect' : 'Connect'} with GitHub`} variant="secondary" icon={<Icon name="link" />} /></div>
+            <div><ActionSubmit label={`${connected ? 'Reconnect' : 'Connect'} with GitHub`} variant="secondary" icon={<Icon name="link" />} /></div>
           </VStack>
         </ActionForm>
         <div data-github-authorization="" hidden={!device}>

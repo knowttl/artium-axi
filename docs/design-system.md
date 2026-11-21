@@ -135,9 +135,10 @@ For a credential form, `submitForm` reads any pending PEM selection captured by 
 When the endpoint changes, it omits an untouched connection IP or certificate name.
 After creating or updating an instance with credentials, `submitForm` runs the optional connection test and stores the save message with any normalization notices and test outcome.
 `ActionForm` uses `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
-After certificate trust is saved, `submitForm` uses [`retestConnection`](../src/views/retest.ts) to test with `X-Artium-Retest: 1` and stores the outcome for the reloaded instance page.
+After certificate trust is saved, `submitForm` tests with `X-Artium-Retest: 1` and stores the outcome for the reloaded instance page.
 `ActionForm` captures the submitted values before waiting for `astryx-hydrated`, when the dialog listeners are ready, and holds a page-wide submit lock.
-A form submitted before React hydrates posts natively.
+Action form drafts can be edited before hydration.
+Their submit controls become available when React takes ownership of the form.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
 `ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes (method, consequence, title, action, typed name, success URL and success message) and the submission itself, and `Sheet` builds on it, so a view writes an API form without repeating them.

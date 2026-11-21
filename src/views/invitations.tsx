@@ -12,7 +12,7 @@ import { Token } from '@astryxdesign/core/Token'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
-import { ActionForm, Revision } from './action-form.js'
+import { ActionForm, ActionSubmit, Revision } from './action-form.js'
 import { ClaimLinkDialog } from './claim-link.js'
 import { Icon } from './icon.js'
 import { RoleOptions, type RoleOption } from './role-options.js'
@@ -119,7 +119,7 @@ export function Invitations({ csrf, path, banner, invitations, pager, create }: 
                         <ActionForm action={`${path}/${encodeURIComponent(invitation.id)}/revoke`} method="POST" csrf={csrf}
                           confirmation={{ consequence: 'Revoke this invitation? The link can no longer be claimed. Existing accounts and access are unchanged.', title: 'Revoke invitation', action: 'Revoke' }}>
                           <Revision value={invitation.actions.revision} />
-                          <Button type="submit" label="Revoke" variant="ghost" size="sm" />
+                          <ActionSubmit label="Revoke" variant="ghost" size="sm" />
                         </ActionForm>
                       </HStack>
                     )}

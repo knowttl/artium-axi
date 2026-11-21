@@ -1,11 +1,10 @@
-import { Button } from '@astryxdesign/core/Button'
 import { Field } from '@astryxdesign/core/Field'
 import { HStack } from '@astryxdesign/core/HStack'
 import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useEffect, useRef, useState } from 'react'
-import { ActionForm, Revision } from './action-form.js'
+import { ActionForm, ActionSubmit, Revision } from './action-form.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 
@@ -41,7 +40,7 @@ function SecretsForm({ csrf, credential, prefix, method }: { csrf: string, crede
             <input id={`${prefix}-password`} name="password" type="password" autoComplete="off" required aria-describedby={`${prefix}-password-hint`} className="input" />
           </Field>
         )}
-        <HStack><Button type="submit" label={credential ? 'Replace credential' : 'Save credential'} variant="primary" /></HStack>
+        <HStack><ActionSubmit label={credential ? 'Replace credential' : 'Save credential'} variant="primary" /></HStack>
       </VStack>
     </ActionForm>
   )
@@ -86,7 +85,7 @@ export function SshCredentials({ csrf, credentials }: SshCredentialsProps) {
                   {proof}
                   <Revision value={credential.revision} />
                   <input type="hidden" name="id" value={credential.id} />
-                  <Button type="submit" label="Delete credential" variant="ghost" className="danger" icon={<Icon name="trash" />} />
+                  <ActionSubmit label="Delete credential" variant="ghost" className="danger" icon={<Icon name="trash" />} />
                 </ActionForm>
               </HStack>
             </VStack>

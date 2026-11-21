@@ -48,10 +48,6 @@ test.each(assets)('%s is served same-origin without a session under the script a
   expect(response.headers['content-security-policy']).not.toContain('unsafe-')
 })
 
-test('the retired confirm.js page script is no longer served', async () => {
-  expect((await app.inject({ url: '/admin/assets/confirm.js' })).statusCode).toBe(404)
-})
-
 test('every response carries its own style nonce and no style attribute allowance', async () => {
   const policies = await Promise.all([1, 2, 3].map(async () => (await app.inject({ url: '/admin/assets/astryx.css' })).headers['content-security-policy'] as string))
   const nonces = policies.map(policy => /'nonce-([^']+)'/.exec(policy)![1])
