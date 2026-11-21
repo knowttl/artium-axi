@@ -595,15 +595,18 @@ test('Figtree loads from the same origin under the admin content security policy
 })
 
 const createdTokenDialog = `
-    const readCreatedToken = async () => {
+    const expectCreatedToken = async () => {
       await page.wait('#created-token:modal input:focus');
-      return page.eval(() => document.querySelector('#created-token input').value);
+      check(await page.eval(() => document.querySelector('#created-token input').value.startsWith('artd_')), 'The token was not shown');
     };
-    const closeCreatedToken = async () => {
-      const done = [...(await page.snapshot()).matchAll(/uid=(\\S+) button "([^"]+)"/g)].find(([, , name]) => name === 'Done')?.[1];
-      check(done, 'The token dialog did not show Done');
-      await page.click('@' + done);
-      await page.wait('form[action="/v1/account/tokens"]');
+    const closeCreatedToken = async (action = 'Done') => {
+      if (action === 'Escape') await page.press('Escape');
+      else {
+        const done = [...(await page.snapshot()).matchAll(/uid=(\\S+) button "([^"]+)"/g)].find(([, , name]) => name === 'Done')?.[1];
+        check(done, 'The token dialog did not show Done');
+        await page.click('@' + done);
+      }
+      await page.wait('tr[data-token]');
     };
 `
 
@@ -625,7 +628,7 @@ test('administrators can disable and re-enable token creation', () => {
     await page.click('[name=mintingEnabled]');
     await page.click('form[action="/v1/admin/token-settings"] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('[name=mintingEnabled]:checked');
+    await page.wait('[name=mintingEnabled][checked]');
     await page.open(base + '/account');
     check(await page.eval(() => !!document.querySelector('form[action="/v1/account/tokens"]')), 'Minting did not become available');
   `)
@@ -655,22 +658,29 @@ test('ordinary users can create temporary tokens after recent authentication exp
     await waitForReauthPills('Changes locked', 'off', '#i-lock');
     await page.eval(() => { window.sameDocument = true; });
     await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Synthetic token');
-    await page.click('[name="tool:falcon-axi"]');
+    await page.fill('[name=duration]', '2.5');
     await page.click('[name="command:falcon-axi"][value="detection list"]');
+    const submittedAt = await page.eval(() => {
+      const now = Date.now();
+      Date.now = () => now;
+      return now;
+    });
     await page.click('form[action="/v1/account/tokens"] button');
     await page.wait('#reauth-dialog[open]');
     await page.fill('#reauth-dialog [name=password]', 'CANARY-local-password');
     await page.click('#reauth-dialog button:not([type=button])');
-    const token = await readCreatedToken();
+    await expectCreatedToken();
     await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');
     check(await page.eval(() => window.sameDocument === true), 'Confirmation reloaded the page instead of refreshing the pill');
-    check(token.startsWith('artd_'), 'Token was not shown');
     await closeCreatedToken();
-    await page.wait('tr[data-token]');
-    const row = await page.eval(() => document.querySelector('tr[data-token]').innerText);
-    check(row.includes('Synthetic token'), 'Token was not listed');
-    check(row.includes('Read-only · Single use'), 'Default token access and reuse were not saved');
-    check(row.includes('detection list'), 'Exact selection was not retained alongside tool-wide access');
+    const saved = await page.eval(() => {
+      const row = document.querySelector('tr[data-token]');
+      return { text: row.innerText, scope: [...row.querySelectorAll('.token-scope li')].map(item => item.innerText), expiresAt: row.querySelector('time').dateTime };
+    });
+    check(saved.text.includes('Synthetic token'), 'Token was not listed');
+    check(saved.text.includes('Read-only · Single use'), 'Default token access and reuse were not saved');
+    check(saved.scope.length === 1 && saved.scope[0] === 'falcon-axi: detection list', 'The saved token did not grant only the selected command');
+    check(Date.parse(saved.expiresAt) === submittedAt + 9_000_000, 'The saved token did not expire two and a half hours after submission');
   `)
 })
 
@@ -690,14 +700,14 @@ test('token creation applies tool instances to all selections', () => {
     await page.click('[name="command:falcon-axi"][value="detection list"]');
     await page.click('[name="command:falcon-axi"][value="detection show"]');
     await page.click('form[action="/v1/account/tokens"] button');
-    await readCreatedToken();
+    await expectCreatedToken();
     await closeCreatedToken();
-    await page.wait('tr[data-token]');
     check(await page.eval(() => document.querySelector('tr[data-token] .token-access').innerText.includes('Writes allowed · Reusable')), 'Selected token access and reuse were not saved');
     check(await page.eval(() => {
       const row = [...document.querySelectorAll('tr')].find(item => item.innerText.includes('Split token'));
       const items = [...row.querySelectorAll('li')];
       return items.length === 2 && items.every(item => item.innerText.includes('lab')) &&
+        items.some(item => item.innerText.includes('Tool-wide')) &&
         items.some(item => item.innerText.includes('detection list') && item.innerText.includes('detection show'));
     }), 'Tool instance scope was not retained for every selection');
   `)
@@ -725,14 +735,40 @@ test('token creation by date and time expires the token at that moment', () => {
     await page.fill('form[action="/v1/account/tokens"] [name=expiryDate]', expiry.field);
     await page.click('[name="tool:falcon-axi"]');
     await page.click('form[action="/v1/account/tokens"] button');
-    await readCreatedToken();
+    await expectCreatedToken();
     await closeCreatedToken();
-    await page.wait('tr[data-token] time');
     check(await page.eval('() => (' + (iso => [...document.querySelectorAll('tr')].find(row => row.innerText.includes('Dated token'))?.querySelector('time')?.dateTime === iso).toString() + ')(' + JSON.stringify(expiry.iso) + ')'), 'The token did not expire at the chosen date and time');
   `)
 })
 
-test('the one-time token field is filled once, cleared when the page is hidden and cleared again when the dialog closes', () => {
+for (const action of ['Done', 'Escape']) {
+  test(`the one-time token clears on ${action} before the account reloads`, () => {
+    browser(`
+      ${createdTokenDialog}
+      await page.open(base + '/admin/tools/falcon-axi');
+      await page.click('form:has([name=enabled]) button');
+      await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+      await page.wait('[name=enabled][value=false]');
+      await page.open(base + '/account');
+      await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Dismissed token');
+      await page.click('[name="tool:falcon-axi"]');
+      await page.click('form[action="/v1/account/tokens"] button');
+      await expectCreatedToken();
+      await page.eval(() => {
+        const field = document.querySelector('#created-token input');
+        window.addEventListener('beforeunload', () => {
+          sessionStorage.setItem('test-token-cleared-before-unload', String(field.value === ''));
+        }, { once: true });
+      });
+      await closeCreatedToken(${JSON.stringify(action)});
+      check(await page.eval(() => performance.getEntriesByType('navigation')[0].type === 'reload'), 'Dismissal did not reload the account');
+      check(await page.eval(() => sessionStorage.getItem('test-token-cleared-before-unload') === 'true'), 'Dismissal did not clear the token before pagehide');
+      check(await page.eval(() => !document.querySelector('#created-token').open && document.querySelector('#created-token input').value === ''), 'The token dialog was open or populated after reload');
+    `)
+  })
+}
+
+test('the one-time token field clears when the page is hidden', () => {
   browser(`
     ${createdTokenDialog}
     await page.open(base + '/admin/tools/falcon-axi');
@@ -746,13 +782,11 @@ test('the one-time token field is filled once, cleared when the page is hidden a
     await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Pagehide token');
     await page.click('[name="tool:falcon-axi"]');
     await page.click('form[action="/v1/account/tokens"] button');
-    check((await readCreatedToken()).startsWith('artd_'), 'The token was not shown');
+    await expectCreatedToken();
     check(await page.eval(() => !document.documentElement.outerHTML.includes(document.querySelector('#created-token input').value)), 'The token is in the page markup');
+    check(await page.eval(() => !JSON.stringify([...Object.entries(sessionStorage), ...Object.entries(localStorage)]).includes('artd_') && !location.href.includes('artd_')), 'The token reached browser storage or the URL');
     await page.eval(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
     check(await page.eval(() => document.querySelector('#created-token input').value === ''), 'The token stayed in the field when the page was hidden');
-    check(await page.eval(() => !JSON.stringify([...Object.entries(sessionStorage), ...Object.entries(localStorage)]).includes('artd_') && !location.href.includes('artd_')), 'The token reached browser storage or the URL');
-    await closeCreatedToken();
-    check(await page.eval(() => document.querySelector('#created-token input').value === ''), 'The token field was not cleared after the dialog closed');
   `)
 })
 
