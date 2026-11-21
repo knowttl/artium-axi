@@ -589,9 +589,31 @@ test('ordinary users can create temporary tokens after recent authentication exp
   `)
   await expireConfirmation()
   browser(`
+    const waitForPills = pattern => page.eval('() => (' + (expectedText => {
+      const pattern = new RegExp(expectedText);
+      const matches = () => ['.frame-controls-header', '.frame-controls-drawer'].every(placement => {
+        const pills = document.querySelectorAll(placement + ' [data-reauth-method]');
+        const text = pills[0]?.querySelector('[data-reauth-text]')?.textContent;
+        return pills.length === 1 && text != null && pattern.test(text);
+      });
+      if (matches()) return;
+      return new Promise((resolve, reject) => {
+        const observer = new MutationObserver(() => {
+          if (!matches()) return;
+          observer.disconnect();
+          clearTimeout(timeout);
+          resolve();
+        });
+        const timeout = setTimeout(() => {
+          observer.disconnect();
+          reject(new Error('Expected one recent-authentication pill in each frame placement with text matching ' + expectedText));
+        }, 5000);
+        observer.observe(document.body, { childList: true, characterData: true, subtree: true });
+      });
+    }).toString() + ')(' + JSON.stringify(pattern.source) + ')');
     await page.open(base + '/account');
     await page.wait('html[data-astryx-theme]');
-    check(await page.eval(() => [...document.querySelectorAll('[data-reauth-text]')].every(pill => /^Changes unlocked · 1[0-5] min$/.test(pill.textContent))), 'The pill should start with the expired window');
+    await waitForPills(/^Changes unlocked · 1[0-5] min$/);
     await page.eval(() => { window.sameDocument = true; });
     await page.fill('form[data-create-token] [name=label]', 'Synthetic token');
     await page.click('[data-token-tool="falcon-axi"]');
@@ -601,7 +623,7 @@ test('ordinary users can create temporary tokens after recent authentication exp
     await page.fill('#reauth-dialog [name=password]', 'CANARY-local-password');
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('#created-token[open]');
-    await page.eval(() => new Promise(resolve => { const poll = () => [...document.querySelectorAll('[data-reauth-text]')].every(pill => /· (29|30) min$/.test(pill.textContent)) ? resolve() : setTimeout(poll, 50); poll(); }));
+    await waitForPills(/^Changes unlocked · (29|30) min$/);
     check(await page.eval(() => window.sameDocument === true), 'Confirmation reloaded the page instead of refreshing the pill');
     check(await page.eval(() => document.querySelector('[data-created-token]').value.startsWith('artd_')), 'Token was not shown');
     await page.click('[data-close-created-token]');
