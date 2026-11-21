@@ -64,7 +64,7 @@ test('a saved secret is an empty native textarea that keeps the stored value, an
   const fields = nodes(formFor(render(), `${path}/credential`)).filter(element => attribute(element, 'data-profile-field') !== undefined)
   expect(fields.map(field => [attribute(field, 'name'), field.tagName, attribute(field, 'autocomplete'), attribute(field, 'value') ?? text(field)])).toEqual([
     ['profile.region', 'input', 'off', 'us-2'], ['profile.clientSecret', 'textarea', 'off', '']])
-  expect(find(render(), element => attribute(element, 'data-stored-secret') !== undefined).map(text)).toEqual(['Stored when configured below. Leave blank to keep; enter a value to replace.'])
+  expect(find(render(), element => attribute(element, 'data-stored-secret') !== undefined).map(text)).toEqual(['Stored when configured. Leave blank to keep; enter a value to replace.'])
 })
 
 test('Delete asks for the instance name', () => {

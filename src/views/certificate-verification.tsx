@@ -1,5 +1,6 @@
 import { Field } from '@astryxdesign/core/Field'
 import { Text } from '@astryxdesign/core/Text'
+import { useRef, useState } from 'react'
 
 export interface TlsField {
   path: string
@@ -29,20 +30,32 @@ export interface TlsSection {
   note: string
 }
 
+export async function loadPem(upload: HTMLInputElement, target: HTMLTextAreaElement) {
+  const file = upload.files?.[0]
+  if (!file) return
+  const content = await file.text()
+  if (upload.files?.[0] !== file) return
+  target.value = content
+  target.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
 function TlsInput({ field }: { field: TlsField }) {
   const { path, id, label, help, value, required, clearable, upload } = field
   const hint = `${id}-hint`
   const profile = { id, name: `profile.${path}`, 'data-profile-field': path, 'data-profile-type': 'string', 'data-tls-input': '', 'aria-describedby': hint, autoComplete: 'off', required }
+  const [edited, setEdited] = useState(false)
+  const pem = useRef<HTMLTextAreaElement>(null)
   return (
     <div data-credential-field={path}>
       <Field label={label} description={help} inputID={id} descriptionID={hint}>
         {upload
-          ? <textarea {...profile} rows={6} spellCheck={false} className="input mono" />
-          : <input {...profile} type="text" defaultValue={value} className="input" data-profile-clearable={clearable ? '' : undefined} />}
+          ? <textarea {...profile} ref={pem} rows={6} spellCheck={false} className="input mono" />
+          : <input {...profile} type="text" defaultValue={value} className="input" data-profile-clearable={clearable ? '' : undefined} data-tls-edited={edited ? 'true' : undefined}
+            onChange={clearable ? () => setEdited(true) : undefined} />}
       </Field>
       {upload && (
         <Field label={upload} inputID={`${id}-file`}>
-          <input id={`${id}-file`} type="file" data-tls-file={path} accept=".pem" />
+          <input id={`${id}-file`} type="file" data-tls-file={path} accept=".pem" onChange={event => loadPem(event.currentTarget, pem.current!)} />
         </Field>
       )}
     </div>

@@ -28,6 +28,7 @@ const trackChangesWithLateHydration = 'role tool grants count a selection edited
 const submitWithLateHydration = 'a server-rendered submit saves its original draft after hydration'
 const submitBeforeDialogs = 'a React submit waits for dialogs and saves its original draft'
 const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
+const credentialEditorWithLateHydration = 'the credential editor applies a selection made before hydration'
 const resizeCadence = 'confirmation expiry survives resizing across the mobile breakpoint'
 let chromeDebugPort: number
 
@@ -109,7 +110,7 @@ function browser(script: string) {
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
     env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration,
-      submitWithLateHydration, submitBeforeDialogs, instanceSheetWithLateHydration, resizeCadence].includes(context.name) ? '1' : '0' },
+      submitWithLateHydration, submitBeforeDialogs, instanceSheetWithLateHydration, credentialEditorWithLateHydration, resizeCadence].includes(context.name) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -1372,7 +1373,8 @@ test('sign-in settings can save a client secret and requires a replacement when 
     await page.open(base + provider + '?tab=credential');
     await page.wait('[data-profile-field=auth]');
     await page.eval(() => { const input = document.querySelector('[data-profile-field=auth]'); input.value = '"secret"'; input.dispatchEvent(new Event('change', { bubbles: true })); });
-    check(await page.eval(() => document.querySelector('[data-certificate]').hidden && document.querySelector('[role=main]').innerText.includes('less secure than certificates')), 'Missing secret warning or conditional fields');
+    await page.wait('[data-certificate][hidden]');
+    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('less secure than certificates')), 'Missing secret warning or conditional fields');
     await page.fill('[data-profile-field=clientId]', '22222222-2222-4222-8222-222222222222');
     await page.fill('[data-profile-field=clientSecret]', 'CANARY-provider-secret');
     await page.click('form[action$="/credential"] button');
@@ -1380,8 +1382,9 @@ test('sign-in settings can save a client secret and requires a replacement when 
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
     check(await page.eval(() => document.querySelector('[data-profile-field=clientSecret]').value === '' && !document.documentElement.outerHTML.includes('CANARY-provider-secret')), 'Secret redisplayed');
+    check(await page.eval(() => !document.querySelector('[data-profile-field=clientSecret]').required), 'Saved client required a replacement secret');
     await page.fill('[data-profile-field=clientId]', '33333333-3333-4333-8333-333333333333');
-    check(await page.eval(() => document.querySelector('[data-profile-field=clientSecret]').required), 'Changed client does not require a replacement secret');
+    await page.wait('[data-profile-field=clientSecret][required]');
   `)
 })
 
@@ -1449,8 +1452,9 @@ test('Proxmox stored password administration saves one credential without a sepa
     check(await page.eval(() => document.querySelector('[data-profile-field=password]').value === '' && !document.documentElement.outerHTML.includes('CANARY-proxmox-browser-password')), 'Password redisplayed');
     check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"password"' && document.querySelector('[data-profile-field=userId]').value === 'automation@pve'), 'Selected identity was not saved');
     check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('signs in automatically') && !document.querySelector('form[action*="/connect"]')), 'Automatic authentication guidance missing');
+    check(await page.eval(() => !document.querySelector('[data-profile-field=password]').required), 'Saved username required a new password');
     await page.fill('[data-profile-field=userId]', 'different@pve');
-    check(await page.eval(() => document.querySelector('[data-profile-field=password]').required), 'Changed username did not require a new password');
+    await page.wait('[data-profile-field=password][required]');
   `)
 })
 
@@ -1684,7 +1688,7 @@ test('saving an instance connection with a blank secret sends no secret and keep
   assert.equal(stored.region, 'eu-2')
 })
 
-test('changing the instance URL drops a saved connection IP override that was not edited', () => {
+for (const edited of [false, true]) test('changing the instance URL ' + (edited ? 'keeps' : 'drops') + ' a saved connection IP override that was ' + (edited ? '' : 'not ') + 'edited', () => {
   const tls = { trustedCertificatePem: readFileSync(fixture.caFile, 'utf8'), peerFingerprintSha256: new X509Certificate(fixture.certificatePem).fingerprint256.replaceAll(':', '') }
   browser(`
     await createInstance('unifi-axi', { origin: 'https://controller.example', apiKey: 'CANARY-stored-key', tls: ${JSON.stringify(tls)} });
@@ -1704,15 +1708,17 @@ test('changing the instance URL drops a saved connection IP override that was no
     });
     check(await page.eval(() => document.querySelector('[data-profile-field="tls.connectAddress"]').value === '127.0.0.1'), 'The saved connection IP is not shown');
     await page.fill('[data-profile-field=origin]', 'https://other.example');
+    if (${edited}) await page.fill('[data-profile-field="tls.connectAddress"]', '127.0.0.2');
     await page.fill('[data-profile-field=apiKey]', 'CANARY-replacement-key');
     await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form[data-save-tool] [name=expectedRevision][value="3"]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="3"], .astryx-toast[data-type=error]');
     check(await page.eval(() => {
       const saves = JSON.parse(window.name).filter(([url]) => url.endsWith('/instances/default/credential'));
-      return saves.length === 1 && JSON.parse(saves[0][1]).value.origin === 'https://other.example' && !JSON.stringify(JSON.parse(saves[0][1]).value).includes('connectAddress');
-    }), 'The unedited connection IP was sent with the new URL');
+      const value = saves.length === 1 && JSON.parse(saves[0][1]).value;
+      return value && value.origin === 'https://other.example' && (${edited} ? value.tls?.connectAddress === '127.0.0.2' : !JSON.stringify(value).includes('connectAddress'));
+    }), ${JSON.stringify(edited ? 'The edited connection IP was dropped with the new URL' : 'The unedited connection IP was sent with the new URL')});
   `)
 })
 
@@ -2342,6 +2348,7 @@ test('Graph federated authentication hides incompatible fields before entering a
         input.dispatchEvent(new Event('change', { bubbles: true }));
       }
     });
+    await page.wait('[data-profile-field=thumbprintSha256]:disabled');
     check(await page.eval(() => {
       const token = document.querySelector('[data-profile-field=token]');
       return token.value === '' && !token.disabled && token.required && !token.closest('[data-credential-field]').hidden;
@@ -2349,6 +2356,25 @@ test('Graph federated authentication hides incompatible fields before entering a
     for (const name of ['privateKey', 'clientSecret', 'thumbprintSha256']) {
       check(await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field=' + name + ']') + '); return input.disabled && input.closest("[data-credential-field]").hidden; })()'), name + ' remained visible or enabled');
     }
+  `)
+})
+
+test(credentialEditorWithLateHydration, () => {
+  browser(`
+    await page.open(base + '/admin/tools/mg-axi');
+    await page.eval(() => {
+      for (const [name, value] of [['mode', 'application'], ['auth', 'federated']]) {
+        const input = document.querySelector('[data-profile-field=' + name + ']');
+        input.value = JSON.stringify(value);
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
+    });
+    await page.wait('[data-profile-field=thumbprintSha256]:disabled');
+    await page.wait('[data-profile-field=token][required]');
+    check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"federated"'), 'Hydration discarded the selection');
   `)
 })
 
@@ -2367,7 +2393,10 @@ for (const entry of toolCredentials) test(entry.tool + ' guided credential save 
     await page.wait('form[data-save-tool] [name=expectedToolRevision][value="2"]');
     const fields = ${JSON.stringify(entry.fields)};
     for (const [name, value] of Object.entries(fields)) {
-      await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field="' + name + '"]') + '); input.value = input.tagName === "SELECT" ? ' + JSON.stringify(JSON.stringify(value)) + ' : ' + JSON.stringify(value) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
+      const selector = '[data-profile-field="' + name + '"]';
+      if (await page.eval('(() => document.querySelector(' + JSON.stringify(selector) + ').tagName === "SELECT")()')) {
+        await page.eval('(() => { const input = document.querySelector(' + JSON.stringify(selector) + '); input.value = ' + JSON.stringify(JSON.stringify(value)) + '; input.dispatchEvent(new Event("change", { bubbles: true })); })()');
+      } else await page.fill(selector, String(value));
     }
     check(await page.eval(() => document.querySelector('[data-save-and-test]').checked), 'Test after saving is not on by default');
     await page.click('form[data-save-tool] button');

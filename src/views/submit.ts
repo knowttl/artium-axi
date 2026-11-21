@@ -49,9 +49,43 @@ export function beginSubmit(form: HTMLFormElement, submitter: HTMLButtonElement 
   }
 }
 
+export function profileBody(form: HTMLFormElement): { names: string[], value: Record<string, any> } | { invalid: string } | null {
+  const inputs = Array.from(form.querySelectorAll<Control>('[data-profile-field]'))
+  if (!inputs.length) return null
+  const endpointChanged = Array.from(form.querySelectorAll<HTMLInputElement>('[data-profile-field="origin"], [data-profile-field="url"]'))
+    .some(endpoint => endpoint.value !== (endpoint.dataset.saved ?? endpoint.defaultValue))
+  const value: Record<string, any> = Object.create(null)
+  for (const input of inputs) {
+    const clearable = input.hasAttribute('data-profile-clearable')
+    const tls = input.hasAttribute('data-tls-input')
+    if (input.disabled || input.value === '' && !clearable) continue
+    if (tls && clearable && !input.dataset.tlsEdited && endpointChanged) continue
+    const path = tls ? input.dataset.profileField!.split('.') : [input.dataset.profileField!]
+    const key = path.pop()!
+    const parent = path.reduce((node, name) => node[name] ??= Object.create(null), value)
+    try {
+      parent[key] = input.value === '' ? null : input.dataset.profileType === 'list' ? input.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+        : input.dataset.profileType === 'json' ? JSON.parse(input.value) : input.value
+    } catch { return { invalid: `Enter valid JSON in ${input.dataset.profileField}.` } }
+  }
+  for (const removal of form.querySelectorAll<HTMLInputElement>('[data-tls-remove]:checked')) value[removal.dataset.tlsRemove!] = null
+  const certificate = form.querySelector<HTMLTextAreaElement>('[data-certificate]:not([hidden]) [data-certificate-pem]')
+  if (certificate?.value) value.certificatePem = certificate.value
+  return { names: inputs.map(input => input.name), value }
+}
+
+export function applyProfile(body: Body, profile: ReturnType<typeof profileBody>): string | null {
+  if (!profile) return null
+  if ('invalid' in profile) return profile.invalid
+  for (const name of profile.names) delete body[name]
+  body.value = profile.value
+  return null
+}
+
 export function snapshotForm(form: HTMLFormElement) {
   return {
     fields: new FormData(form),
+    profile: profileBody(form),
     typed: Array.from(form.querySelectorAll<Control>('[data-type]'), input => ({
       name: input.name,
       value: input.value,
@@ -65,7 +99,9 @@ function ask<Answer>(type: string, detail: object) {
   return new Promise<Answer>(resolve => document.dispatchEvent(new CustomEvent(type, { cancelable: true, detail: { ...detail, resolve } })))
 }
 
-function shapeBody({ fields, typed }: FormDraft, body: Body): string | null {
+function shapeBody({ fields, typed, profile }: FormDraft, body: Body): string | null {
+  const invalidProfile = applyProfile(body, profile)
+  if (invalidProfile) return invalidProfile
   for (const { name, value, type, checked } of typed) {
     if (type === 'boolean') body[name] = checked ?? (value === 'true')
     if (type === 'number') body[name] = Number(value)

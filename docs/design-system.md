@@ -41,9 +41,12 @@ The Add instance sheet (`AddInstanceSheet` in `src/views/tool-instances.tsx`) is
 `credentialEditor()` in `src/server/admin/credential-form.ts` builds the editor's props once from the credential profile, for the Add instance sheet and the instance page's Connection card, so the profile alone decides which fields are secret and the view never infers it from a name.
 The sign-in provider's Credential tab renders the same `CredentialEditor`, built by `credentialEditor()` from the provider credential profile.
 Credentials are write-only in the editor: a field the profile marks secret is a native, uncontrolled `textarea` with `autocomplete="off"` and no value, inside an Astryx `Field`, so a typed secret is never in React state, in the hydration data or in the markup, and the editor empties it when the sheet closes.
-Other text fields are Astryx inputs, selects and number fields stay native, and `confirm.js` still hides alternative-shape fields, sets `required` and builds the submitted value from the `data-profile-field` attributes, so the field names and attributes are the contract between the two.
+Other text fields are Astryx inputs, selects and number fields stay native.
+`CredentialEditor` reads the field values from the form, evaluates the profile schema with `evaluateCredentialSchema()` in `src/views/credential-schema.ts`, hides and disables the fields the chosen alternative forbids, sets `required`, and tells whether stored secrets still apply; the server renders the same state from the saved values, and a change made before hydration is read when the page hydrates.
+`profileBody()` in `src/views/submit.ts` builds the submitted `value` from the `data-profile-field` attributes, for the React submit path and for the page script that still sends the save-and-test forms, so the field names and attributes are the contract between the editor and the body.
 The Certificate verification fieldset (`CertificateVerification` in `src/views/certificate-verification.tsx`) is React inside `CredentialEditor`, built from the `TlsSection` that `tlsSection()` in `src/server/admin/tls-fields.ts` derives once from the tool's TLS settings and the saved metadata.
-Its text, upload and select controls are native and uncontrolled inside Astryx `Field`, so nothing typed or uploaded is in React state, because Astryx `TextInput` is controlled-only; removal uses native checkboxes, and the `data-profile-field`, `data-tls-input`, `data-tls-file`, `data-profile-clearable` and `data-tls-remove` attributes are the contract with `confirm.js`.
+Its text, upload and select controls are native and uncontrolled inside Astryx `Field`, so nothing typed or uploaded is in React state, because Astryx `TextInput` is controlled-only; removal uses native checkboxes, and the `data-profile-field`, `data-tls-input`, `data-tls-file`, `data-profile-clearable`, `data-tls-edited` and `data-tls-remove` attributes are what `profileBody()` reads.
+A PEM file chosen in an upload control is read into its own textarea in the browser, and the editor reads that field like a pasted one.
 The pasted trusted certificate and each file upload are emptied when the sheet closes, like the secrets.
 The hostname choice defaults to hostname verification, or to keeping the saved setting when a fingerprint is stored, followed by Yes and No; removal checkboxes start unchecked.
 The GitHub connection card (`GithubConnection` in `src/views/github-connection.tsx`) is a `Panel` with the shared `ActionForm`, on the gh-axi Instances tab to add an instance and on a gh-axi instance page to connect or reconnect it; `githubConnection()` in `src/server/admin/instances.ts` builds its props once for both.
@@ -55,12 +58,12 @@ The elements `confirm.js` fills render with `suppressHydrationWarning`.
 The instance page (`src/views/instance.tsx`, route `/admin/tools/:tool/instances/:name`) is the ninth page on the seam.
 Its header holds the Test connection form and the Enabled switch, and below it come the failure banner, the setup steps, the optional GitHub card, the AWX controller address, the Connection card, the Trusted certificates panel with its inspection dialog, the Danger zone and two notes, in one column.
 The Connection card is `CredentialEditor` with the instance's `configured` state and saved non-secret values, which `credentialEditor()` takes from the instance metadata and only for fields the profile does not mark secret; a secret field is the same empty native textarea as in the Add instance sheet, and the editor empties it, and the pasted or uploaded certificate, when the page is left (`pagehide`) as well as when a sheet closes.
-Its form keeps `data-save-tool` and `data-save-instance`, so `confirm.js` sends only the fields that have a value, which leaves an empty secret unchanged on the server.
-Astryx text inputs are controlled, so their `defaultValue` follows what is typed; each carries its saved value in `data-saved`, which `confirm.js` compares with the typed URL to decide whether an unedited connection IP or certificate name is dropped with it.
+Its form keeps `data-save-tool` and `data-save-instance`, so the page script still sends it, with the body `profileBody()` builds from the fields that have a value, which leaves an empty secret unchanged on the server.
+Astryx text inputs are controlled, so their `defaultValue` follows what is typed; each carries its saved value in `data-saved`, which `profileBody()` compares with the typed URL to decide whether an unedited connection IP or certificate name is dropped with it.
 The test, inspection and trust controls keep the `data-test-tool`, `data-check-*`, `data-inspect-certificate`, `data-trust-certificate` and `#certificate-inspection` hooks that `confirm.js` uses.
 Before hydration, a result restored after reload supplies the result message, and a direct check can also fill the failure details and the separate `data-check-time-fallback` slot.
 On `astryx-hydrated`, the script applies the latest result, updates the checklist, replaces the status badge with a copy from a hidden `data-outcome` element and sends the check time to React through `artium-check-time`.
-Keeping the pre-hydration updates in elements that suppress hydration warnings preserves the credential editor's event handlers.
+Keeping the pre-hydration updates in elements that suppress hydration warnings stops React from discarding them.
 The GitHub connection card on this page is the same `GithubConnection` view, above the Connection card.
 The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`.
 Tools, People and Audit use the shared React [`FilterForm`](../src/views/filter-form.tsx) for their GET forms.
@@ -114,9 +117,9 @@ The frame retains one banner, one main and one navigation landmark, labelled "Ad
 The icon sprite stays outside the React root.
 The root contains the toasts and both confirmation dialogs.
 `ActionForm` submits plain forms through [`submitForm`](../src/views/submit.ts), which starts the body from the captured `FormData` or the form's `bodyFrom` result.
-It includes the CSRF token, applies conversions from the captured `data-type` controls and sends `expectedRevision` for revision-checked mutations.
+It includes the CSRF token, applies conversions from the captured `data-type` controls, builds the credential `value` from the captured `data-profile-field` controls and sends `expectedRevision` for revision-checked mutations.
 Both `ActionForm` and `confirm.js` use `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
-`confirm.js` still submits forms matched by `scriptedFormSelector`, including credential, GitHub and certificate forms.
+`confirm.js` still submits forms matched by `scriptedFormSelector`, including the save-and-test credential, GitHub and certificate forms.
 For a plain form submitted before React can handle it, `confirm.js` captures the submitted values and hands them to `ActionForm` after `astryx-hydrated`, when the dialog listeners are ready.
 `ActionForm` also captures the submitted values before waiting for dialog readiness, and both handlers share a page-wide submit lock.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.

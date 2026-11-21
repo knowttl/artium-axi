@@ -29,7 +29,7 @@ const FormMessageContext = createContext<{ message: FormMessageState | null, are
 
 export const scriptedFormSelector = [
   '[data-connect-github]', '[data-test-tool]', '[data-save-tool]',
-  '[data-trust-certificate]', '[data-certificate-name-form]', '[data-inspect-certificate]', ':has([data-profile-field])',
+  '[data-trust-certificate]', '[data-certificate-name-form]', '[data-inspect-certificate]',
 ].join(',')
 
 export function FormMessage() {

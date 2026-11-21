@@ -4,7 +4,8 @@ import { TextArea } from '@astryxdesign/core/TextArea'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
 import { memo, useEffect, useRef, useState } from 'react'
-import { CertificateVerification, type TlsSection } from './certificate-verification.js'
+import { CertificateVerification, loadPem, type TlsSection } from './certificate-verification.js'
+import { evaluateCredentialSchema } from './credential-schema.js'
 
 export interface CredentialControl {
   name: string
@@ -32,21 +33,48 @@ export interface CredentialEditorProps {
   tls: TlsSection | null
 }
 
-function Control({ control, value, onChange }: { control: CredentialControl, value: string, onChange: (value: string) => void }) {
-  const { name, id, label, help, required, dataType } = control
+type NativeField = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+
+interface Snapshot {
+  values: Record<string, unknown>
+  certificateEntered: boolean
+}
+
+const certificateIdentityFields = ['privateKey', 'thumbprint', 'thumbprintSha256']
+
+function parse(raw: string, dataType?: string) {
+  if (!raw) return null
+  if (dataType !== 'json') return raw
+  try { return JSON.parse(raw) } catch { return null }
+}
+
+const initialSnapshot = (controls: CredentialControl[]): Snapshot => ({
+  values: Object.fromEntries(controls.map(control => [control.name, control.secret ? null
+    : parse(control.kind === 'select' ? control.options!.find(option => option.selected)?.value ?? '' : control.value, control.dataType)])),
+  certificateEntered: false,
+})
+
+const readSnapshot = (editor: HTMLElement): Snapshot => ({
+  values: Object.fromEntries(Array.from(editor.querySelectorAll<NativeField>('[data-profile-field]'), field => [field.dataset.profileField,
+    field.closest('[data-secret]') ? field.value ? true : null : parse(field.value, field.dataset.profileType)])),
+  certificateEntered: editor.querySelector<HTMLTextAreaElement>('[data-certificate-pem]')!.value !== '',
+})
+
+function Control({ control, value, required, disabled, onChange }: { control: CredentialControl, value: string, required: boolean, disabled: boolean, onChange: (value: string) => void }) {
+  const { name, id, label, help, dataType } = control
   const hint = `${id}-hint`
   const profile = { 'data-profile-field': name, 'data-profile-type': dataType }
   if (control.secret) {
     return (
       <Field label={label} description={help} inputID={id} descriptionID={hint}>
-        <textarea {...profile} id={id} name={`profile.${name}`} aria-describedby={hint} autoComplete="off" spellCheck={false} rows={6} className="input mono" />
+        <textarea {...profile} id={id} name={`profile.${name}`} aria-describedby={hint} autoComplete="off" spellCheck={false} rows={6} required={required} disabled={disabled} className="input mono" />
       </Field>
     )
   }
   if (control.kind === 'select') {
     return (
       <Field label={label} description={help} inputID={id} descriptionID={hint}>
-        <select {...profile} id={id} name={`profile.${name}`} aria-describedby={hint} autoComplete="off" required={required} className="select"
+        <select {...profile} id={id} name={`profile.${name}`} aria-describedby={hint} autoComplete="off" required={required} disabled={disabled} className="select"
           defaultValue={control.options!.find(option => option.selected)?.value ?? ''}>
           <option value="">{control.emptyLabel}</option>
           {control.options!.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -57,55 +85,75 @@ function Control({ control, value, onChange }: { control: CredentialControl, val
   if (control.numeric) {
     return (
       <Field label={label} description={help} inputID={id} descriptionID={hint}>
-        <input {...profile} id={id} name={`profile.${name}`} aria-describedby={hint} autoComplete="off" required={required} type="number" className="input"
+        <input {...profile} id={id} name={`profile.${name}`} aria-describedby={hint} autoComplete="off" required={required} disabled={disabled} type="number" className="input"
           step={control.numeric === 'decimal' ? 'any' : undefined} defaultValue={control.value} />
       </Field>
     )
   }
   if (control.kind === 'input') {
-    return <TextInput label={label} description={help} id={id} htmlName={`profile.${name}`} value={value} onChange={onChange} autoComplete="off" {...profile} {...{ required, 'data-saved': control.value }} />
+    return <TextInput label={label} description={help} id={id} htmlName={`profile.${name}`} value={value} onChange={onChange} autoComplete="off" {...profile} {...{ required, disabled, 'data-saved': control.value }} />
   }
   return (
     <TextArea label={label} description={control.kind === 'list' ? `${help} One value per line.` : help} id={id} htmlName={`profile.${name}`} value={value} onChange={onChange}
-      rows={control.kind === 'list' ? 3 : 6} autoComplete="off" hasSpellCheck={control.kind === 'list'} {...profile} {...{ required }} />
+      rows={control.kind === 'list' ? 3 : 6} autoComplete="off" hasSpellCheck={control.kind === 'list'} {...profile} {...{ required, disabled }} />
   )
 }
 
 export const CredentialEditor = memo(function CredentialEditor({ intro, schema, identity, configured, controls, tls }: CredentialEditorProps) {
   const [values, setValues] = useState(() => Object.fromEntries(controls.filter(control => !control.secret).map(control => [control.name, control.value])))
+  const [snapshot, setSnapshot] = useState(() => initialSnapshot(controls))
   const editor = useRef<HTMLDivElement>(null)
+  const certificate = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
-    const dialog = editor.current?.closest('dialog')
+    const root = editor.current!
+    const dialog = root.closest('dialog')
+    const refresh = () => setSnapshot(readSnapshot(root))
     const clear = () => {
-      for (const typed of editor.current?.querySelectorAll<HTMLTextAreaElement | HTMLInputElement>('[data-secret] textarea, [data-certificate-pem], [data-certificate-file], [data-tls-file], textarea[data-tls-input]') ?? []) typed.value = ''
-      editor.current?.dispatchEvent(new Event('change', { bubbles: true }))
+      for (const typed of root.querySelectorAll<HTMLTextAreaElement | HTMLInputElement>('[data-secret] textarea, [data-certificate-pem], [data-certificate-file], [data-tls-file], textarea[data-tls-input]')) typed.value = ''
+      refresh()
     }
+    refresh()
+    root.addEventListener('input', refresh)
+    root.addEventListener('change', refresh)
     dialog?.addEventListener('close', clear)
     window.addEventListener('pagehide', clear)
     return () => {
+      root.removeEventListener('input', refresh)
+      root.removeEventListener('change', refresh)
       dialog?.removeEventListener('close', clear)
       window.removeEventListener('pagehide', clear)
     }
   }, [])
+  const { required, forbidden, sameIdentity } = evaluateCredentialSchema(schema, identity, configured, snapshot.values)
+  const certificateHidden = forbidden.has('auth') || snapshot.values.auth !== 'certificate' || !controls.some(control => ['thumbprint', 'thumbprintSha256'].includes(control.name))
+  const combinedCertificate = !certificateHidden && snapshot.certificateEntered
   return (
-    <div ref={editor} data-credential-editor="" data-schema={JSON.stringify(schema)} data-identity={JSON.stringify(identity)} data-configured={String(configured)}>
+    <div ref={editor} data-credential-editor="">
       <Text as="p" type="supporting">{intro}</Text>
-      {controls.map(control => (
-        <div key={control.name} data-credential-field={control.name} data-secret={control.secret ? '' : undefined} data-ephemeral={control.ephemeral ? '' : undefined} suppressHydrationWarning>
-          <VStack gap={1}>
-            <Control control={control} value={values[control.name] ?? ''} onChange={value => setValues(current => ({ ...current, [control.name]: value }))} />
-            {control.stored && <Text as="p" type="supporting"><span data-stored-secret="" suppressHydrationWarning>Stored when configured below. Leave blank to keep; enter a value to replace.</span></Text>}
-          </VStack>
-        </div>
-      ))}
+      {controls.map(control => {
+        const hidden = forbidden.has(control.name)
+        const needed = !hidden && required.has(control.name) && !(control.secret && !control.ephemeral && sameIdentity) && !(combinedCertificate && certificateIdentityFields.includes(control.name))
+        return (
+          <div key={control.name} data-credential-field={control.name} data-secret={control.secret ? '' : undefined} data-ephemeral={control.ephemeral ? '' : undefined} hidden={hidden}>
+            <VStack gap={1}>
+              <Control control={control} value={values[control.name] ?? ''} required={needed} disabled={hidden} onChange={value => setValues(current => ({ ...current, [control.name]: value }))} />
+              {control.stored && (
+                <Text as="p" type="supporting" data-stored-secret="">
+                  {sameIdentity ? 'Stored when configured. Leave blank to keep; enter a value to replace.' : 'Identity changed. Enter a new secret before saving.'}
+                </Text>
+              )}
+            </VStack>
+          </div>
+        )
+      })}
       {tls && <CertificateVerification section={tls} />}
-      <div data-certificate="" hidden suppressHydrationWarning>
+      <div data-certificate="" hidden={certificateHidden}>
         <Field label="Certificate and private key (one PEM file)" inputID="credential-certificate-file">
-          <input id="credential-certificate-file" type="file" data-certificate-file="" accept=".pem" />
+          <input id="credential-certificate-file" type="file" data-certificate-file="" accept=".pem" onChange={event => loadPem(event.currentTarget, certificate.current!)} />
         </Field>
         <Field label="Or paste certificate and private key" inputID="credential-certificate-pem"
           description="Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.">
-          <textarea id="credential-certificate-pem" data-certificate-pem="" rows={8} autoComplete="off" spellCheck={false} className="input mono" />
+          <textarea ref={certificate} id="credential-certificate-pem" data-certificate-pem="" rows={8} autoComplete="off" spellCheck={false} className="input mono" />
         </Field>
       </div>
       <details>

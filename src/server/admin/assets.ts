@@ -2,7 +2,7 @@ import { components } from './design/components.js'
 import { tokens } from './design/tokens.js'
 import { scriptedFormSelector } from '../../views/action-form.js'
 import { reauthCompleteMessage, reauthRequestEvent } from '../../views/reauth.js'
-import { beginSubmit, snapshotForm } from '../../views/submit.js'
+import { applyProfile, beginSubmit, profileBody, snapshotForm } from '../../views/submit.js'
 import { retestScript } from './retest.js'
 
 export const adminStyle = tokens + components
@@ -11,90 +11,6 @@ export const reauthCompleteScript = `window.opener?.postMessage('${reauthComplet
 
 export const adminScript = `
 ${retestScript}
-for (const editor of document.querySelectorAll('[data-credential-editor]')) {
-  const schema = JSON.parse(editor.dataset.schema);
-  const identity = JSON.parse(editor.dataset.identity);
-  const inputs = [...editor.querySelectorAll('[data-profile-field]')];
-  const selectors = ['mode', 'kind', 'auth', 'apiVersion', 'signIn'];
-  function values() {
-    return Object.fromEntries(inputs.map(input => {
-      let value = input.value || null;
-      if (input.dataset.profileType === 'json' && value) { try { value = JSON.parse(value); } catch { value = null; } }
-      return [input.dataset.profileField, value];
-    }));
-  }
-  function matches(condition, current) {
-    return (condition.required || []).every(key => current[key] !== null && current[key] !== undefined) &&
-      Object.entries(condition.properties || {}).every(([key, rule]) => {
-        if (rule.pattern && !rule['x-secret']) return typeof current[key] === 'string' && new RegExp(rule.pattern).test(current[key]);
-        if (!selectors.includes(key)) return true;
-        return (!Object.hasOwn(rule, 'const') || current[key] === rule.const) && (!rule.enum || rule.enum.includes(current[key]));
-      });
-  }
-  function update() {
-    const current = values();
-    const branches = (schema.oneOf || []).filter(branch => matches({ properties: branch.properties }, current));
-    const required = new Set(schema.required || []);
-    const forbidden = new Set();
-    for (const branch of branches) {
-      for (const key of branch.required || []) required.add(key);
-      for (const rule of branch.not ? branch.not.anyOf || [branch.not] : []) {
-        if (rule.required?.length === 1) forbidden.add(rule.required[0]);
-      }
-    }
-    for (const branch of schema.allOf || []) {
-      if (!branch.if) continue;
-      const chosen = matches(branch.if, current) ? branch.then : branch.else;
-      if (!chosen) continue;
-      for (const key of chosen.required || []) required.add(key);
-      for (const rule of chosen.not ? chosen.not.anyOf || [chosen.not] : []) {
-        if (rule.required?.length === 1) forbidden.add(rule.required[0]);
-      }
-    }
-    // A delegated Graph token has no application authentication selector.
-    if (current.mode === 'delegated') forbidden.add('auth');
-    const sameIdentity = editor.dataset.configured === 'true' && Object.entries(identity).every(([key, value]) =>
-      (forbidden.has(key) ? null : current[key] ?? null) === value);
-    const certificate = editor.querySelector('[data-certificate]');
-    certificate.hidden = forbidden.has('auth') || current.auth !== 'certificate' ||
-      !inputs.some(input => ['thumbprint', 'thumbprintSha256'].includes(input.dataset.profileField));
-    const combined = !certificate.hidden && editor.querySelector('[data-certificate-pem]').value !== '';
-    for (const input of inputs) {
-      if (input.hasAttribute('data-tls-input')) continue;
-      const key = input.dataset.profileField;
-      const wrapper = input.closest('[data-credential-field]');
-      wrapper.hidden = forbidden.has(key);
-      input.disabled = wrapper.hidden;
-      input.required = !input.disabled && required.has(key) && !(wrapper.hasAttribute('data-secret') && !wrapper.hasAttribute('data-ephemeral') && sameIdentity) &&
-        !(combined && ['privateKey', 'thumbprint', 'thumbprintSha256'].includes(key));
-      const stored = wrapper.querySelector('[data-stored-secret]');
-      if (stored) stored.textContent = sameIdentity ? 'Stored when configured. Leave blank to keep; enter a value to replace.' : 'Identity changed. Enter a new secret before saving.';
-    }
-  }
-  editor.addEventListener('input', update);
-  editor.addEventListener('change', update);
-  for (const input of editor.querySelectorAll('[data-tls-input][data-profile-clearable]')) {
-    input.addEventListener('input', () => { input.dataset.tlsEdited = 'true'; });
-    input.addEventListener('change', () => { input.dataset.tlsEdited = 'true'; });
-  }
-  for (const upload of editor.querySelectorAll('[data-tls-file]')) upload.addEventListener('change', async () => {
-    const file = upload.files[0];
-    if (!file) return;
-    const content = await file.text();
-    if (upload.files[0] !== file) return;
-    editor.querySelector('[data-profile-field="' + upload.dataset.tlsFile + '"]').value = content;
-    update();
-  });
-  editor.querySelector('[data-certificate-file]').addEventListener('change', async event => {
-    const file = event.target.files[0];
-    if (!file) return;
-    const content = await file.text();
-    if (event.target.files[0] !== file) return;
-    editor.querySelector('[data-certificate-pem]').value = content;
-    update();
-  });
-  update();
-}
 const savedTest = sessionStorage.getItem('credential-test:' + location.pathname);
 let latestTestResult;
 let testViewHydrated = false;
@@ -363,6 +279,8 @@ async function connectGithub(connection, csrf, message) {
     else status.textContent = 'Code expired. Start a new connection.';
   } finally { clearInterval(timer); cancel.disabled = true; }
 }
+${profileBody.toString()}
+${applyProfile.toString()}
 ${snapshotForm.toString()}
 ${beginSubmit.toString()}
 document.addEventListener('submit', async event => {
@@ -401,26 +319,8 @@ document.addEventListener('submit', async event => {
       return;
     }
     if (form.dataset.confirm) body._confirm = form.dataset.confirmToken;
-    const profileFields = form.querySelectorAll('[data-profile-field]');
-    if (profileFields.length) {
-      body.value = Object.create(null);
-      for (const input of profileFields) {
-        delete body[input.name];
-        if (input.disabled || input.value === '' && !input.hasAttribute('data-profile-clearable')) continue;
-        if (input.hasAttribute('data-tls-input') && input.hasAttribute('data-profile-clearable') && !input.dataset.tlsEdited &&
-          [...form.querySelectorAll('[data-profile-field="origin"], [data-profile-field="url"]')].some(endpoint => endpoint.value !== (endpoint.dataset.saved ?? endpoint.defaultValue))) continue;
-        try {
-          const path = input.hasAttribute('data-tls-input') ? input.dataset.profileField.split('.') : [input.dataset.profileField];
-          const key = path.pop();
-          const parent = path.reduce((value, name) => value[name] ??= Object.create(null), body.value);
-          parent[key] = input.value === '' ? null : input.dataset.profileType === 'list' ? input.value.split(/\\r?\\n/).map(value => value.trim()).filter(Boolean) : input.dataset.profileType === 'json' ? JSON.parse(input.value) : input.value;
-        }
-        catch { say(message, 'Enter valid JSON in ' + input.dataset.profileField + '.'); return; }
-      }
-      for (const input of form.querySelectorAll('[data-tls-remove]:checked')) body.value[input.dataset.tlsRemove] = null;
-      const certificate = form.querySelector('[data-certificate]:not([hidden]) [data-certificate-pem]');
-      if (certificate?.value) body.value.certificatePem = certificate.value;
-    }
+    const invalidProfile = applyProfile(body, profileBody(form));
+    if (invalidProfile) { say(message, invalidProfile); return; }
     for (const input of form.querySelectorAll('[data-type]')) {
       if (input.dataset.type === 'boolean') body[input.name] = input.type === 'checkbox' ? input.checked : input.value === 'true';
       if (input.dataset.type === 'number') body[input.name] = Number(input.value);
