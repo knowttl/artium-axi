@@ -7,7 +7,7 @@ import { createInterface } from 'node:readline'
 import { createServer, type AddressInfo } from 'node:net'
 import type { Readable } from 'node:stream'
 import { after, afterEach, before, beforeEach, test, type TestContext } from 'node:test'
-import { waitForReauthPills, waitForTime } from './harness.mjs'
+import { tokenCreation, waitForReauthPills, waitForTime } from './harness.mjs'
 
 type Fixture = {
   url: string
@@ -595,10 +595,7 @@ test('Figtree loads from the same origin under the admin content security policy
 })
 
 const createdTokenDialog = `
-    const expectCreatedToken = async () => {
-      await page.wait('#created-token:modal input:focus');
-      check(await page.eval(() => document.querySelector('#created-token input').value.startsWith('artd_')), 'The token was not shown');
-    };
+    ${tokenCreation}
     const closeCreatedToken = async (action = 'Done') => {
       if (action === 'Escape') await page.press('Escape');
       else {
@@ -659,13 +656,14 @@ test('ordinary users can create temporary tokens after recent authentication exp
     await page.eval(() => { window.sameDocument = true; });
     await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Synthetic token');
     await page.fill('[name=duration]', '2.5');
-    await page.click('[name="command:falcon-axi"][value="detection list"]');
+    await openFalconScope();
+    await page.click('details[open] [name="command:falcon-axi"][value="detection list"]');
     const submittedAt = await page.eval(() => {
       const now = Date.now();
       Date.now = () => now;
       return now;
     });
-    await page.click('form[action="/v1/account/tokens"] button');
+    await submitToken();
     await page.wait('#reauth-dialog[open]');
     await page.fill('#reauth-dialog [name=password]', 'CANARY-local-password');
     await page.click('#reauth-dialog button:not([type=button])');
@@ -695,11 +693,12 @@ test('token creation applies tool instances to all selections', () => {
     await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Split token');
     await page.click('[name=readOnly]');
     await page.click('[name=reusable]');
-    await page.click('[name="tool:falcon-axi"]');
-    await page.click('[name="instance:falcon-axi"][value="lab"]');
-    await page.click('[name="command:falcon-axi"][value="detection list"]');
-    await page.click('[name="command:falcon-axi"][value="detection show"]');
-    await page.click('form[action="/v1/account/tokens"] button');
+    await openFalconScope();
+    await page.click('details[open] [name="tool:falcon-axi"]');
+    await page.click('details[open] [name="instance:falcon-axi"][value="lab"]');
+    await page.click('details[open] [name="command:falcon-axi"][value="detection list"]');
+    await page.click('details[open] [name="command:falcon-axi"][value="detection show"]');
+    await submitToken();
     await expectCreatedToken();
     await closeCreatedToken();
     check(await page.eval(() => document.querySelector('tr[data-token] .token-access').innerText.includes('Writes allowed · Reusable')), 'Selected token access and reuse were not saved');
@@ -717,11 +716,9 @@ test('token creation by date and time expires the token at that moment', () => {
   browser(`
     ${createdTokenDialog}
     await page.open(base + '/admin/tools/falcon-axi');
-    if (await page.eval(() => document.querySelector('form:has([name=enabled]) [name=enabled]').value === 'true')) {
-      await page.click('form:has([name=enabled]) button');
-      await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-      await page.wait('[name=enabled][value=false]');
-    }
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=enabled][value=false]');
     await page.open(base + '/account');
     const expiry = await page.eval(() => {
       const date = new Date();
@@ -733,8 +730,9 @@ test('token creation by date and time expires the token at that moment', () => {
     await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Dated token');
     await page.fill('form[action="/v1/account/tokens"] [name=expiryType]', 'date');
     await page.fill('form[action="/v1/account/tokens"] [name=expiryDate]', expiry.field);
-    await page.click('[name="tool:falcon-axi"]');
-    await page.click('form[action="/v1/account/tokens"] button');
+    await openFalconScope();
+    await page.click('details[open] [name="tool:falcon-axi"]');
+    await submitToken();
     await expectCreatedToken();
     await closeCreatedToken();
     check(await page.eval('() => (' + (iso => [...document.querySelectorAll('tr')].find(row => row.innerText.includes('Dated token'))?.querySelector('time')?.dateTime === iso).toString() + ')(' + JSON.stringify(expiry.iso) + ')'), 'The token did not expire at the chosen date and time');
@@ -742,7 +740,8 @@ test('token creation by date and time expires the token at that moment', () => {
 })
 
 for (const action of ['Done', 'Escape']) {
-  test(`the one-time token clears on ${action} before the account reloads`, () => {
+  test(`the one-time token clears on ${action} before the account reloads`, async context => {
+    await observeHydration(context, '/account')
     browser(`
       ${createdTokenDialog}
       await page.open(base + '/admin/tools/falcon-axi');
@@ -751,8 +750,9 @@ for (const action of ['Done', 'Escape']) {
       await page.wait('[name=enabled][value=false]');
       await page.open(base + '/account');
       await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Dismissed token');
-      await page.click('[name="tool:falcon-axi"]');
-      await page.click('form[action="/v1/account/tokens"] button');
+      await openFalconScope();
+      await page.click('details[open] [name="tool:falcon-axi"]');
+      await submitToken();
       await expectCreatedToken();
       await page.eval(() => {
         const field = document.querySelector('#created-token input');
@@ -761,6 +761,7 @@ for (const action of ['Done', 'Escape']) {
         }, { once: true });
       });
       await closeCreatedToken(${JSON.stringify(action)});
+      await page.wait('html[data-test-hydrated]');
       check(await page.eval(() => performance.getEntriesByType('navigation')[0].type === 'reload'), 'Dismissal did not reload the account');
       check(await page.eval(() => sessionStorage.getItem('test-token-cleared-before-unload') === 'true'), 'Dismissal did not clear the token before pagehide');
       check(await page.eval(() => !document.querySelector('#created-token').open && document.querySelector('#created-token input').value === ''), 'The token dialog was open or populated after reload');
@@ -772,16 +773,15 @@ test('the one-time token field clears when the page is hidden', () => {
   browser(`
     ${createdTokenDialog}
     await page.open(base + '/admin/tools/falcon-axi');
-    if (await page.eval(() => document.querySelector('form:has([name=enabled]) [name=enabled]').value === 'true')) {
-      await page.click('form:has([name=enabled]) button');
-      await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-      await page.wait('[name=enabled][value=false]');
-    }
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[name=enabled][value=false]');
     await page.open(base + '/account');
     check(await page.eval(() => document.querySelector('#created-token input').value === ''), 'The token field was not empty on load');
     await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Pagehide token');
-    await page.click('[name="tool:falcon-axi"]');
-    await page.click('form[action="/v1/account/tokens"] button');
+    await openFalconScope();
+    await page.click('details[open] [name="tool:falcon-axi"]');
+    await submitToken();
     await expectCreatedToken();
     check(await page.eval(() => !document.documentElement.outerHTML.includes(document.querySelector('#created-token input').value)), 'The token is in the page markup');
     check(await page.eval(() => !JSON.stringify([...Object.entries(sessionStorage), ...Object.entries(localStorage)]).includes('artd_') && !location.href.includes('artd_')), 'The token reached browser storage or the URL');
@@ -971,7 +971,7 @@ test('user detail designates a break-glass administrator and removing it signs t
     await page.wait('form[action="/login"]');`)
 })
 
-async function observeInvitationHydration(context: TestContext) {
+async function observeHydration(context: TestContext, path: string) {
   const targets: { url: string, webSocketDebuggerUrl: string }[] = await (await fetch('http://127.0.0.1:' + chromeDebugPort + '/json/list')).json()
   const target = targets.find(page => page.url === fixture.url + '/admin/users')
   assert.ok(target, 'The browser fixture did not open the users page')
@@ -993,11 +993,11 @@ async function observeInvitationHydration(context: TestContext) {
   await send('Page.enable')
   const result = await send('Page.addScriptToEvaluateOnNewDocument', { source: `
     document.addEventListener('astryx-hydrated', () => {
-      if (location.origin === ${JSON.stringify(fixture.url)} && location.pathname === '/admin/invitations') {
+      if (location.origin === ${JSON.stringify(fixture.url)} && location.pathname === ${JSON.stringify(path)}) {
         document.documentElement.dataset.testHydrated = '';
       }
     }, { once: true });` })
-  assert.ok(result?.identifier, 'Chrome did not register the invitation hydration observer')
+  assert.ok(result?.identifier, 'Chrome did not register the hydration observer')
 }
 
 const invitationResult = `
@@ -1063,7 +1063,7 @@ const invitationResult = `
 `
 
 test('invitations show each new link once and allow resend and revoke through the real forms', async context => {
-  await observeInvitationHydration(context)
+  await observeHydration(context, '/admin/invitations')
   browser(`
     await page.open(base + '/admin/settings/sign-in?add=entra');
     await page.fill('[name=name]', 'Synthetic provider');
@@ -1148,7 +1148,7 @@ test('invitations show each new link once and allow resend and revoke through th
 })
 
 test('invitations link an existing local user through its detail page and recent-auth confirmation', async context => {
-  await observeInvitationHydration(context)
+  await observeHydration(context, '/admin/invitations')
   browser(`
     await page.open(base + '/admin/settings/sign-in?add=entra');
     await page.fill('[name=name]', 'Synthetic provider');

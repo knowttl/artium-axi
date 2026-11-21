@@ -61,6 +61,36 @@ export const waitForTime = `const waitForTime = async (selector, iso, expected) 
   }
 };`
 
+export const tokenCreation = `
+    const openFalconScope = async () => {
+      check(await page.eval(() => document.querySelector('details:has([name="tool:falcon-axi"]) > summary').checkVisibility()), 'The Falcon scope summary was hidden');
+      await page.click('details:has([name="tool:falcon-axi"]) > summary');
+      await page.wait('details[open] [name="tool:falcon-axi"]');
+    };
+    const submitToken = async () => {
+      await page.eval(() => {
+        const fetch = window.fetch;
+        window.fetch = async (input, options) => {
+          const response = await fetch.call(window, input, options);
+          if (options?.method === 'POST' && response.ok && new URL(response.url).pathname === '/v1/account/tokens') {
+            window.fetch = fetch;
+            document.testIssuedToken = (await response.clone().json()).token;
+          }
+          return response;
+        };
+      });
+      await page.click('form[action="/v1/account/tokens"] button');
+    };
+    const expectCreatedToken = async () => {
+      await page.wait('#created-token:modal input:focus');
+      check(await page.eval(() => {
+        const issued = document.testIssuedToken;
+        delete document.testIssuedToken;
+        return typeof issued === 'string' && issued.startsWith('artd_') && document.querySelector('#created-token input').value === issued;
+      }), 'The dialog did not show the issued token');
+    };
+`
+
 // Starts the fake service, signs the synthetic administrator in and hands each test a browser session script runner.
 export function useAdminBrowser(name) {
   const environment = { ...process.env, CHROME_DEVTOOLS_AXI_SESSION: `artium-${name}-${process.pid}`, CHROME_DEVTOOLS_AXI_CHROME_ARGS: '--ignore-certificate-errors' }

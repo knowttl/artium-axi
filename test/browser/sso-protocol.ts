@@ -7,7 +7,7 @@ import type { Readable } from 'node:stream'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, afterEach, before, beforeEach, test } from 'node:test'
-import { waitForReauthPills, waitForTime } from './harness.mjs'
+import { tokenCreation, waitForReauthPills, waitForTime } from './harness.mjs'
 
 type Fixture = {
   url: string
@@ -412,6 +412,7 @@ test('SSO popup confirmation refreshes both pills on the original document', asy
   await configure({ grantFalcon: true })
   browser(`${signIn}
     ${waitForReauthPills}
+    ${tokenCreation}
     await page.wait('a[href="/account"]');
     await page.click('a[href="/account"]');
     await page.wait('form[action="/v1/account/tokens"]');
@@ -424,8 +425,9 @@ test('SSO popup confirmation refreshes both pills on the original document', asy
       Date.now = () => now() + 960_000;
     });
     await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Synthetic SSO token');
-    await page.click('[name="tool:falcon-axi"]');
-    await page.click('form[action="/v1/account/tokens"] button');
+    await openFalconScope();
+    await page.click('details[open] [name="tool:falcon-axi"]');
+    await submitToken();
     await page.wait('#reauth-dialog[open]');`)
   openReauthPopup()
   browser(`await page.click('[data-oidc-approve]');
@@ -436,7 +438,8 @@ test('SSO popup confirmation refreshes both pills on the original document', asy
   const confirmedAt = evidence.sessions[0]?.reauthenticated_at
   assert.ok(confirmedAt)
   browser(`${waitForReauthPills}
-    await page.wait('#created-token[open]');
+    ${tokenCreation}
+    await expectCreatedToken();
     check(await page.eval(() => window.sameDocument === true), 'SSO confirmation replaced the opener document');
     await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');
     const until = await page.eval(async () => (await (await fetch('/reauth?status=1')).json()).until);
