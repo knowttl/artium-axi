@@ -962,13 +962,69 @@ test('GitHub device connection shows the code, stores approval and cancels recon
     await page.click('form:has([name=enabled]) button');
     check(await page.eval(() => !document.querySelector('#confirmation[open]')), 'An Enabled submit interrupted the pending connection');
     await page.click('[data-cancel-github]');
-    await page.wait('body[data-github-cancel="200"] [data-cancel-github]:disabled');
+    await page.wait('body[data-github-cancel="200"] [data-cancel-github][aria-disabled=true]');
     check(await page.eval(() => document.querySelector('[data-github-status]').textContent.includes('Connection cancelled.')), 'Cancellation not confirmed');
     check(await page.eval(() => document.querySelector('[data-connect-github] [name=expectedRevision]').value) === revision, 'Cancel replaced credential');
     await page.wait('[data-connect-github] button[type=submit]:not(:disabled)');
     await page.click('form:has([name=enabled]) button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=cancel]');
+  `)
+})
+
+const stubGithubDevice = (expiresInMs: number, poll: string) => `
+    await page.open(base + '/admin/tools/gh-axi');
+    await page.eval(() => {
+      const send = window.fetch.bind(window);
+      let polls = 0;
+      window.fetch = async (url, options) => {
+        if (url === '/v1/admin/tools/gh-axi/device') {
+          return Response.json({ connectionId: '123e4567-e89b-42d3-a456-426614174000', userCode: 'WXYZ-2345', verificationUri: 'https://github.example/login/device',
+            expiresAt: Date.now() + ${expiresInMs}, interval: 1 });
+        }
+        if (url === '/v1/admin/tools/gh-axi/device/poll') {
+          polls++;
+          document.body.dataset.githubPolls = String(polls);
+          ${poll}
+        }
+        return send(url, options);
+      };
+    });
+    await page.fill('[data-connect-github] [name=instance]', 'stub');
+    await page.fill('[data-connect-github] [name=origin]', 'https://github.example');
+    await page.click('[data-connect-github] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('[data-github-authorization]:not([hidden])');
+  `
+
+test('GitHub device connection retries a poll after reauthentication and stops with the server error', () => {
+  browser(stubGithubDevice(900_000, `
+          if (polls === 1) return Response.json({ error: { code: 'REAUTH_REQUIRED', message: 'Confirm your identity.', next: 'Confirm and retry.' } }, { status: 401 });
+          return Response.json({ error: { code: 'UPSTREAM_AUTH_FAILED', message: 'GitHub authorization was denied.', next: 'Start a new connection.' } }, { status: 502 });`) + `
+    check(await page.eval(() => document.querySelector('[data-github-code]').textContent === 'WXYZ-2345'
+      && document.querySelector('[data-github-link]').href === 'https://github.example/login/device'), 'The code or link was not shown');
+    check(await page.eval(() => document.querySelector('[data-github-status]').textContent.startsWith('Waiting for GitHub approval. Code expires in ')), 'The countdown was not shown');
+    await page.wait('#reauth-dialog[open]');
+    await page.fill('#reauth-dialog [name=password]', 'CANARY-browser-password');
+    await page.click('#reauth-dialog button:not([type=button])');
+    await page.wait('body[data-github-polls="2"]');
+    await page.wait('.astryx-toast[data-type=error]');
+    check(await page.eval(() => document.querySelector('.astryx-toast').textContent.includes('GitHub authorization was denied. Start a new connection. (UPSTREAM_AUTH_FAILED)')), 'The server error was not reported');
+    check(await page.eval(() => document.querySelector('[data-github-status]').textContent.startsWith('Connection stopped.')), 'The connection did not stop');
+    await page.wait('[data-cancel-github][aria-disabled=true]');
+    await page.wait('[data-connect-github] button[type=submit]:not(:disabled)');
+  `)
+})
+
+test('GitHub device connection reports an expired code and stops polling', () => {
+  browser(stubGithubDevice(2500, `
+          return Response.json({ status: 'pending', interval: 1 });`) + `
+    await page.wait('body[data-github-polls="1"]');
+    await page.wait('[data-cancel-github][aria-disabled=true]');
+    check(await page.eval(() => document.querySelector('[data-github-status]').textContent === 'Code expired. Start a new connection.'), 'Expiry was not reported');
+    check(await page.eval(() => Number(document.body.dataset.githubPolls) <= 2), 'Polling continued past the expiry');
+    await page.wait('[data-connect-github] button[type=submit]:not(:disabled)');
   `)
 })
 

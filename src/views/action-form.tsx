@@ -2,7 +2,8 @@ import { Button } from '@astryxdesign/core/Button'
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { confirmationRouteFor } from '../shared/confirmation-routes.js'
 import type { CertificateInspection } from './certificate-inspection.js'
-import { submitForm, type DeferredSubmitEvent } from './submit.js'
+import type { GithubDeviceStart } from './github-device.js'
+import { submitForm, type DeferredSubmitEvent, type Report } from './submit.js'
 import type { TestOutcome } from './test-outcome.js'
 import { toastEvent, type ToastDetail } from './toasts.js'
 
@@ -28,23 +29,6 @@ export interface FormMessageState {
 }
 
 const FormMessageContext = createContext<{ message: FormMessageState | null, area: RefObject<boolean> } | null>(null)
-
-export const scriptedFormSelector = [
-  '[data-connect-github]',
-].join(',')
-
-export function writeFormMessage(target: HTMLElement, text: string, reload = false) {
-  target.textContent = text
-  if (reload) {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = 'btn btn-secondary btn-sm'
-    button.textContent = 'Reload latest'
-    button.addEventListener('click', () => location.reload())
-    target.append(document.createElement('br'), button)
-  }
-  if (text) target.focus()
-}
 
 export function FormMessage() {
   const { message, area } = useContext(FormMessageContext)!
@@ -86,13 +70,14 @@ export interface ActionFormProps {
   retestUrl?: string
   showTest?: (outcome: TestOutcome) => void
   showInspection?: (inspection: CertificateInspection) => void
+  showDevice?: (connection: GithubDeviceStart, report: Report) => Promise<void>
   onMessage?: (message: FormMessageState) => void
   className?: string
   attributes?: Record<string, string | boolean>
   children: ReactNode
 }
 
-export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, trackChanges, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, onMessage, className, attributes, children }: ActionFormProps) {
+export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, trackChanges, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, showDevice, onMessage, className, attributes, children }: ActionFormProps) {
   const tokens = useContext(ConfirmationTokenContext)
   const form = useRef<HTMLFormElement>(null)
   const [dirty, setDirty] = useState(false)
@@ -115,12 +100,11 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
       data-confirm-action={confirmation?.action} data-confirm-name={confirmation?.typedName} data-confirm-token={token || undefined}
       data-save-tool={saveTool} {...attributes} action={action} method="post"
       onSubmit={event => {
-        if (event.currentTarget.matches(scriptedFormSelector)) return
         event.preventDefault()
         event.stopPropagation()
         const { submitter, astryxDraft } = event.nativeEvent as DeferredSubmitEvent
         void submitForm({ form: event.currentTarget, submitter: submitter as HTMLButtonElement | null, draft: astryxDraft, action, method, confirmation,
-          token: token || undefined, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, report })
+          token: token || undefined, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, showDevice, report })
       }}
       onInput={trackChanges ? event => setDirty(differsFromDefaults(event.currentTarget)) : undefined} onReset={trackChanges ? () => setDirty(false) : undefined}>
       <input type="hidden" name="_csrf" value={csrf} />
