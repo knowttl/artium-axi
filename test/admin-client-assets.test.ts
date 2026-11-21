@@ -35,7 +35,6 @@ afterAll(async () => {
 
 const assets = [
   ['/admin/assets/hydrate.js', 'application/javascript'],
-  ['/admin/assets/hydrate-app.js', 'application/javascript'],
   ['/admin/assets/astryx.css', 'text/css'],
   ['/admin/assets/style.css', 'text/css'],
   ['/admin/assets/reauth-complete.js', 'application/javascript'],
@@ -99,8 +98,6 @@ test('the build entry point works in a path containing spaces', () => {
       readFileSync('src/server/admin/client/astryx.css', 'utf8'))
     expect(readFileSync(join(root, 'src/server/admin/client/hydrate.js'), 'utf8')).toBe(
       readFileSync('src/server/admin/client/hydrate.js', 'utf8'))
-    expect(readFileSync(join(root, 'src/server/admin/client/hydrate-app.js'), 'utf8')).toBe(
-      readFileSync('src/server/admin/client/hydrate-app.js', 'utf8'))
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

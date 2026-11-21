@@ -23,7 +23,7 @@ let server: ChildProcessByStdio<null, Readable, null>
 let fixture: Fixture
 const pickerWithLateHydration = 'operation picker preserves edits across late hydration'
 const trackChangesWithLateHydration = 'role tool grants count a selection edited before late hydration as a change'
-const actionsWithLateHydration = 'admin actions wait for React while drafts remain editable'
+const actionsWithLateHydration = 'admin drafts survive delayed hydration and native confirmation works'
 const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
 const credentialEditorWithLateHydration = 'the credential editor applies a selection made before hydration'
 const connectionDraftWithLateHydration = 'the instance connection preserves text edited before hydration'
@@ -121,7 +121,7 @@ beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
     env: { ...process.env, ARTIUM_TEST_GRAPH_CERTIFICATES: context.name === graphCertificateRotation ? '1' : '0',
       ARTIUM_TEST_SKIP_HYDRATION: [pickerWithLateHydration, trackChangesWithLateHydration,
-      instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration,
+      actionsWithLateHydration, instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration,
       resizeCadence].includes(context.name) || context.name.endsWith(editedOverrides) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
@@ -405,7 +405,7 @@ async function verifyReauthCadence() {
         document.documentElement.dataset.reauthTestHydrated = String(performance.now());
       }, { once: true });
       const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate-app.js?resume';
+      script.src = '/admin/assets/hydrate.js?resume';
       document.head.append(script);
     });
     await page.wait('html[data-reauth-test-hydrated]');
@@ -1619,7 +1619,7 @@ test(instanceSheetWithLateHydration, () => {
     await page.fill('#sheet-add-instance [data-profile-field=clientSecret]', 'CANARY-promotion-draft');
     await page.eval(() => {
       const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate-app.js?resume';
+      script.src = '/admin/assets/hydrate.js?resume';
       document.head.append(script);
     });
     await page.wait('#sheet-add-instance:modal');
@@ -1984,7 +1984,7 @@ test(connectionDraftWithLateHydration, () => {
     await page.fill('[data-profile-field=clientCertificate]', certificate);
     await page.eval(() => {
       const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate-app.js?resume';
+      script.src = '/admin/assets/hydrate.js?resume';
       document.head.append(script);
     });
     await page.wait('[data-profile-field=privateKey][required]');
@@ -2633,7 +2633,7 @@ test(credentialEditorWithLateHydration, () => {
         input.dispatchEvent(new Event('change', { bubbles: true }));
       }
       const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate-app.js?resume';
+      script.src = '/admin/assets/hydrate.js?resume';
       document.head.append(script);
     });
     await page.wait('[data-profile-field=thumbprintSha256]:disabled');
@@ -2773,7 +2773,7 @@ for (const tool of ['technitium-axi', 'unifi-axi', 'kubernetes-axi']) for (const
     const resume = () => page.eval(() => new Promise(resolve => {
       document.addEventListener('astryx-hydrated', () => resolve(true), { once: true });
       const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate-app.js?resume';
+      script.src = '/admin/assets/hydrate.js?resume';
       document.head.append(script);
     }));
     await createInstance('${tool}', ${JSON.stringify(value)});
@@ -2940,7 +2940,7 @@ test(trackChangesWithLateHydration, () => {
     await page.click(tile);
     await page.eval(() => {
       const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate-app.js?resume';
+      script.src = '/admin/assets/hydrate.js?resume';
       document.head.append(script);
     });
     await page.wait('form[action$="/tools"] button[type=submit]:not([aria-disabled])');
@@ -2951,30 +2951,25 @@ test(trackChangesWithLateHydration, () => {
 test(actionsWithLateHydration, () => {
   const fingerprint = new X509Certificate(fixture.certificatePem).fingerprint256.replaceAll(':', '').toLowerCase()
   browser(`
-    const hold = () => page.eval(async () => {
-      const response = await fetch('/test/hold-hydration', { method: 'POST' });
-      if (!response.ok) throw new Error('Could not hold the React bundle');
-    });
-    const resume = () => page.eval(async () => {
-      const response = await fetch('/test/resume-hydration', { method: 'POST' });
-      if (!response.ok) throw new Error('Could not resume the React bundle');
-    });
+    const resume = () => page.eval(() => new Promise(resolve => {
+      document.addEventListener('astryx-hydrated', () => resolve(true), { once: true });
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
+    }));
     const confirm = async () => {
       await page.wait('#confirmation[open]');
       await page.click('#confirmation button[value=confirmed]');
     };
 
     const testButton = 'form[data-test-tool] button[type=submit]';
-    await hold();
     await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-cached-test' });
-    await page.click(testButton);
-    check(await page.eval(() => document.querySelector('[data-test-result]').textContent) === '', 'Test connection ran before React loaded');
     await resume();
-    await page.wait('[data-test-result]:not(:empty)');
-    check(await page.eval(() => document.querySelector('[data-test-result]').textContent) === 'Test failed.', 'The instance lost its inline test result');
+    await page.click(testButton);
+    await page.wait('[data-check-failure]:not([hidden]) [data-check-error]:not(:empty)');
+    check(await page.eval(() => document.querySelector('[data-check-error]').textContent) === 'UPSTREAM_TLS_FAILED', 'The untrusted loopback certificate did not reach the connection health result');
 
     const assignment = 'form[action$="/synthetic-ordinary/roles"]';
-    await hold();
     await page.open(base + '/admin/users/synthetic-ordinary');
     const readPerson = () => page.eval(async () => {
       const response = await fetch('/v1/admin/users/synthetic-ordinary');
@@ -2984,10 +2979,12 @@ test(actionsWithLateHydration, () => {
     const initial = await readPerson();
     check(JSON.stringify(initial.roleIds) === '["synthetic-role"]', 'The synthetic person must start with one role');
     await page.click(assignment + ' [name=roleIds][value=synthetic-role]');
-    await page.click(assignment + ' button[type=submit]');
-    await page.click(assignment + ' [name=roleIds][value=synthetic-role]');
-    check(await page.eval(() => !document.querySelector('#confirmation[open]')), 'Role confirmation opened before React loaded');
     await resume();
+    await page.eval(() => {
+      const form = document.querySelector('form[action$="/synthetic-ordinary/roles"]');
+      form.querySelector('button[type=submit]').click();
+      form.querySelector('[name=roleIds][value="synthetic-role"]').click();
+    });
     await page.wait('#confirmation[open]');
     check(await page.eval(() => document.querySelector('[name=roleIds][value="synthetic-role"]').checked), 'The later edit was not visible while confirming');
     const unconfirmed = await readPerson();
@@ -2998,45 +2995,39 @@ test(actionsWithLateHydration, () => {
     check(saved.revision === initial.revision + 1 && saved.roleIds.length === 0, 'The role selection from the first submit did not persist');
 
     const creation = '#sheet-new-role';
-    await hold();
     await page.open(base + '/admin/roles?sheet=new-role');
     await page.fill(creation + ' [name=name]', 'Synthetic readers');
-    await page.press('Enter');
-    check(await page.eval(() => location.pathname) === '/admin/roles', 'Creating a role navigated before React loaded');
     await resume();
+    await page.click(creation + ' button[type=submit]');
     await page.wait('[name=tools]');
     check(await page.eval(() => document.querySelector('h1').textContent) === 'Synthetic readers', 'Role creation did not open the new role');
 
     const rename = '#sheet-rename-role';
     const rolePath = await page.eval(() => location.pathname);
-    await hold();
     await page.open(base + rolePath + '?sheet=rename-role');
     const roleRevision = await page.eval(() => Number(document.querySelector('#sheet-rename-role [name=expectedRevision]').value));
     await page.fill(rename + ' [name=name]', 'Synthetic reviewers');
-    await page.click(rename + ' button[type=submit]');
     await resume();
+    await page.click(rename + ' button[type=submit]');
     await page.wait(rename + ' [name=expectedRevision][value="' + (roleRevision + 1) + '"]');
     check(await page.eval(() => document.querySelector('h1').textContent) === 'Synthetic reviewers', 'Role rename did not save the staged name');
 
-    await hold();
     await createInstance('az-axi', { tenantId: '11111111-1111-4111-8111-111111111111', clientId: '22222222-2222-4222-8222-222222222222',
       auth: 'certificate', thumbprintSha256: 'a'.repeat(64), privateKey: 'CANARY-original-key' });
     await page.wait('[data-certificate]:not([hidden]) [data-certificate-file]');
     await page.eval(${pemSelection('[data-certificate-file]', fixture.certificatePem)});
     await page.click('[data-save-and-test]');
-    await page.click('form[data-save-tool] button');
     await resume();
+    await page.click('form[data-save-tool] button');
     await confirm();
     await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
-    check(await page.eval(() => document.querySelector('[data-profile-field=thumbprintSha256]').value) === ${JSON.stringify(fingerprint)}, 'The early submission lost its selected certificate');
+    check(await page.eval(() => document.querySelector('[data-profile-field=thumbprintSha256]').value) === ${JSON.stringify(fingerprint)}, 'Hydration lost the selected certificate');
 
     const revoke = 'form[action="/v1/admin/tokens/revoke-all"]';
-    await hold();
     await page.open(base + '/admin/tokens');
     await page.click(revoke + ' button[type=submit]');
     await page.wait(revoke + ' [name=_confirm]');
     check(await page.eval(() => document.body.innerText.includes('Revoke all tokens and their sessions?')), 'The native token confirmation did not open while React was delayed');
-    await resume();
   `)
 })
 
@@ -3248,7 +3239,7 @@ test(pickerWithLateHydration, () => {
     const hydrate = async () => {
       await page.eval(() => {
         const script = document.createElement('script');
-        script.src = '/admin/assets/hydrate-app.js?resume';
+        script.src = '/admin/assets/hydrate.js?resume';
         document.head.append(script);
       });
       await page.wait('.ops-actions:not([hidden])');

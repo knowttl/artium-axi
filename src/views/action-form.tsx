@@ -2,7 +2,6 @@ import { Button } from '@astryxdesign/core/Button'
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { confirmationRouteFor } from '../shared/confirmation-routes.js'
 import type { CertificateInspection } from './certificate-inspection.js'
-import type { DeferredSubmitEvent } from './form-draft.js'
 import type { GithubDeviceStart } from './github-device.js'
 import { submitForm, type Report } from './submit.js'
 import type { TestOutcome } from './test-outcome.js'
@@ -104,15 +103,13 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
     else document.dispatchEvent(new CustomEvent<ToastDetail>(toastEvent, { detail: { text, reload } }))
   }
   return (
-    <form ref={form} className={className} data-api="" data-native-submit={route?.native ? '' : undefined}
-      data-method={method} data-confirm={confirmation?.consequence} data-confirm-title={confirmation?.title}
+    <form ref={form} className={className} data-api="" data-method={method} data-confirm={confirmation?.consequence} data-confirm-title={confirmation?.title}
       data-confirm-action={confirmation?.action} data-confirm-name={confirmation?.typedName} data-confirm-token={token || undefined}
       data-save-tool={saveTool} {...attributes} action={action} method="post"
       onSubmit={event => {
         event.preventDefault()
         event.stopPropagation()
-        const { submitter, draft } = event.nativeEvent as DeferredSubmitEvent
-        void submitForm({ form: event.currentTarget, submitter: submitter as HTMLButtonElement | null, draft, action, method, confirmation,
+        void submitForm({ form: event.currentTarget, submitter: (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null, action, method, confirmation,
           token: token || undefined, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, showDevice, report })
       }}
       onInput={trackChanges ? event => setDirty(differsFromDefaults(event.currentTarget)) : undefined} onReset={trackChanges ? () => setDirty(false) : undefined}>

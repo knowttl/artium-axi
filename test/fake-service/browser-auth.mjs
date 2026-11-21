@@ -195,27 +195,11 @@ server.get('/test/tools/:tool', async request => {
     delivered: request.params.tool === 'ldap-axi' && existsSync(deliveryFile) ? JSON.parse(readFileSync(deliveryFile, 'utf8')) : null }
 })
 const address = new URL(await server.listen({ host: '127.0.0.1', port: 0 }))
-let hydration
 const proxy = createServer({ key: readFileSync(join(directory, 'server.key')),
-  cert: readFileSync(join(directory, 'server.crt'), 'utf8') + readFileSync(join(directory, 'ca.crt'), 'utf8') }, async (request, response) => {
-  if (request.method === 'POST' && request.url === '/test/hold-hydration') {
-    hydration = Promise.withResolvers()
-    response.writeHead(204).end()
+  cert: readFileSync(join(directory, 'server.crt'), 'utf8') + readFileSync(join(directory, 'ca.crt'), 'utf8') }, (request, response) => {
+  if (process.env.ARTIUM_TEST_SKIP_HYDRATION === '1' && request.url === '/admin/assets/hydrate.js') {
+    response.writeHead(404).end()
     return
-  }
-  if (request.method === 'POST' && request.url === '/test/resume-hydration') {
-    hydration?.resolve()
-    hydration = undefined
-    response.writeHead(204).end()
-    return
-  }
-  if (request.url === '/admin/assets/hydrate-app.js') {
-    if (process.env.ARTIUM_TEST_SKIP_HYDRATION === '1') {
-      response.writeHead(404).end()
-      return
-    }
-    await hydration?.promise
-    if (response.destroyed) return
   }
   const providerRequest = genericSso && request.url.startsWith('/test/generic-oidc/') ? genericSso
     : sso && request.url.startsWith('/test/oidc/') ? sso : undefined

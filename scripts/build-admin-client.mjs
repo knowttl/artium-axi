@@ -10,7 +10,7 @@ export async function buildAdminClient(directory = adminClientDirectory) {
   mkdirSync(directory, { recursive: true })
   const staging = mkdtempSync(join(dirname(directory), `.${basename(directory)}-build-`))
   try {
-    await build({ entryPoints: { hydrate: 'src/client/hydration-entry.ts', 'hydrate-app': 'src/client/hydrate.tsx' }, outdir: staging, bundle: true, minify: true,
+    await build({ entryPoints: ['src/client/hydrate.tsx'], outfile: join(staging, 'hydrate.js'), bundle: true, minify: true,
       platform: 'browser', format: 'iife', target: 'es2022', jsx: 'automatic', define: { 'process.env.NODE_ENV': '"production"' },
       plugins: [{ name: 'transport-codes', setup(builder) {
         builder.onLoad({ filter: /[/\\]transport-codes\.ts$/ }, () => ({ contents: `export const transportCodes = ${JSON.stringify(transportCodes)}` }))
@@ -23,7 +23,7 @@ export async function buildAdminClient(directory = adminClientDirectory) {
     for (const weight of figtreeWeights) copyFileSync(`node_modules/@fontsource/figtree/files/figtree-latin-${weight}-normal.woff2`, join(staging, `fonts/figtree-${weight}.woff2`))
     copyFileSync('node_modules/@fontsource/figtree/LICENSE', join(staging, 'fonts/figtree-OFL.txt'))
     rmSync(join(directory, 'fonts'), { recursive: true, force: true })
-    for (const name of ['hydrate.js', 'hydrate-app.js', 'astryx.css', 'fonts']) renameSync(join(staging, name), join(directory, name))
+    for (const name of ['hydrate.js', 'astryx.css', 'fonts']) renameSync(join(staging, name), join(directory, name))
   } finally {
     rmSync(staging, { recursive: true, force: true })
   }
