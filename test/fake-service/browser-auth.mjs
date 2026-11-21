@@ -31,11 +31,13 @@ import { createGhAdapter } from '../../dist/src/server/adapters/gh.js'
 import { loadCredentialProfile } from '../../dist/src/server/adapters/credential-profile.js'
 import { AzureTokenCache } from '../../dist/src/server/adapters/azure-token-cache.js'
 import { FakeTokenTransport } from '../../dist/test/fixtures/azure-token-transport.js'
-import { createTestCertificates } from './certificates.ts'
+import { createInspectionCertificates, createTestCertificates } from './certificates.ts'
 import { seedBrowserSso, seedSsoInvitation, seedSsoRules } from '../../dist/test/fixtures/sso.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-browser-'))
-createTestCertificates(directory, ['localhost'], 1)
+const graphCertificates = process.env.ARTIUM_TEST_GRAPH_CERTIFICATES === '1'
+if (graphCertificates) createInspectionCertificates(directory, 'http://127.0.0.1/')
+else createTestCertificates(directory, ['localhost'], 1)
 const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const db = openStore(join(directory, 'artium.db'), key)
 await seedToolUser(db)
@@ -81,6 +83,12 @@ Date.now = () => realNow() + offset
 server.post('/test/trust-ca', async () => {
   setDefaultCACertificates([...getCACertificates('default'), readFileSync(join(directory, 'ca.crt'), 'utf8')])
   return { trusted: true }
+})
+if (graphCertificates) server.post('/test/rotate-graph-certificate', async () => {
+  const leaf = readFileSync(join(directory, 'rotated.crt'), 'utf8')
+  proxy.addContext('graph.microsoft.com', { key: readFileSync(join(directory, 'server.key')),
+    cert: leaf + readFileSync(join(directory, 'intermediate.crt'), 'utf8') + readFileSync(join(directory, 'ca.crt'), 'utf8') })
+  return { fingerprint: new X509Certificate(leaf).fingerprint256 }
 })
 server.post('/login/device/code', async request => {
   const input = new URLSearchParams(request.body)
@@ -219,7 +227,7 @@ proxy.listen(0, '127.0.0.1', async () => {
     sockets.add(socket)
     return socket
   }
-  tls.connect = (options, ...args) => connectTls(options.socket && sockets.has(options.socket)
+  tls.connect = (options, ...args) => connectTls(options.socket && sockets.has(options.socket) && !(graphCertificates && options.servername === 'graph.microsoft.com')
     ? { ...options, servername: 'localhost', ca } : options, ...args)
   syncBuiltinESMExports()
   const cert = new X509Certificate(readFileSync(join(directory, 'server.crt')))
