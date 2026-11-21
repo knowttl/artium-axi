@@ -44,7 +44,7 @@ export function ClaimLinkDialog() {
         footer={
           <LayoutFooter>
             <HStack gap={2} justify="end">
-              <Button type="button" value="done" label="Done" variant="secondary" onClick={done} />
+              <Button type="button" label="Done" variant="secondary" onClick={done} />
             </HStack>
           </LayoutFooter>
         }
