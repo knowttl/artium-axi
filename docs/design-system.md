@@ -93,11 +93,11 @@ Both sheets send `providerId`, `claim`, `value` and `roleId` to the role-rules A
 The Credential tab (`?tab=credential`, `ProviderCredential` in `src/views/provider-credential.tsx`) is an `ActionForm` that patches `/credential` with `expectedRevision` (the saved credential's revision), `expectedProviderRevision` and the shared `CredentialEditor`, under a tier 2 confirmation that names disabling the provider.
 It shows non-secret values (the client ID, tenant, authentication method and thumbprint), a Saved or Needs credential badge and when the credential last changed; a secret field is empty, a blank secret keeps the stored one for the same identity, and a changed tenant, client or authentication method needs a new secret.
 The Access tokens page (`Tokens` in `src/views/tokens.tsx`, route `/admin/tokens`) is the thirteenth page on the seam, with a Settings, an All tokens and a Revoke all panel.
-Settings is an `ActionForm` marked `data-token-settings` that patches `/v1/admin/token-settings` under a tier 2 confirmation; its checkbox and two number inputs stay native and uncontrolled, and `confirm.js` converts the hours and days to milliseconds before sending.
+Settings is an `ActionForm` that patches `/v1/admin/token-settings` under a tier 2 confirmation; its checkbox and two number inputs stay native and uncontrolled, and its `bodyFrom` converts the hours and days to milliseconds before `submitForm` sends them.
 All tokens is an Astryx table with a Revoke `ActionForm` on each token that is not revoked (a tier 2 confirmation, `POST /v1/admin/tokens/<id>/revoke`) and Revoke all is one `ActionForm` that posts to `/v1/admin/tokens/revoke-all`; there is no row menu, so nothing can clip.
 The table sits in a `tokens-list` container: a table from 900 px of container width, with the Creator column held to a minimum width, and stacked cards below it.
 The status word and tone of a token come from the `token` entry of the status vocabulary in `status.ts`, which the Account token list also uses.
-The props carry a token's id, label, creator, access, scope, expiry and status, never its value or hash; the value is shown once, on Account, in its one-time dialog.
+The props carry a token's id, label, creator, access, scope, expiry and status, never its value or hash.
 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet it opens through `sheetTrigger`), and the side navigation slot.
 `adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu and help panel once for the frame, so the links, landmarks and titles stay identical.
@@ -113,9 +113,10 @@ Below the Astryx mobile breakpoint a native navigation disclosure remains usable
 The frame retains one banner, one main and one navigation landmark, labelled "Administration" for administrators and "Account" for other people.
 The icon sprite stays outside the React root.
 The root contains the toasts and both confirmation dialogs.
-`ActionForm` submits plain forms through [`submitForm`](../src/views/submit.ts), which shapes the body from `data-type` controls and sends the CSRF token and, for revision-checked mutations, `expectedRevision`.
+`ActionForm` submits plain forms through [`submitForm`](../src/views/submit.ts), which starts the body from the captured `FormData` or the form's `bodyFrom` result.
+It includes the CSRF token, applies conversions from the captured `data-type` controls and sends `expectedRevision` for revision-checked mutations.
 Both `ActionForm` and `confirm.js` use `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
-`confirm.js` still submits forms matched by `scriptedFormSelector`, including credential, token, GitHub and certificate forms.
+`confirm.js` still submits forms matched by `scriptedFormSelector`, including credential, GitHub and certificate forms.
 For a plain form submitted before React can handle it, `confirm.js` captures the submitted values and hands them to `ActionForm` after `astryx-hydrated`, when the dialog listeners are ready.
 `ActionForm` also captures the submitted values before waiting for dialog readiness, and both handlers share a page-wide submit lock.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
@@ -165,8 +166,11 @@ Your tools lists each granted tool with Available or Turned off by admin.
 Set up the CLI has three steps: the verified download commands for this server, the sign-in commands for a local or SSO account, and a radio group of four agent hosts that shows one setup command at a time with CSS only, each command in a native copy block.
 Saving files from tools is a native `details` disclosure shown only when a granted tool saves files, with guidance for exactly those tools and a table of the latest 20 archive transfers.
 The guide receives text and `code` fragments rather than markup strings.
-The token card keeps the create form that `confirm.js` posts to `/v1/account/tokens` (the same fields and `data-token-*` selections as before), the native one-time dialog `#created-token`, and the person's own token list with a Revoke form per token.
-The token value reaches the browser only in the response to the create request, and `confirm.js` writes it into the dialog's read-only field, which is empty in the markup and in the hydration data; the field is cleared when the dialog closes and when the `pagehide` event fires.
+The token card keeps the create form that `ActionForm` posts to `/v1/account/tokens`, the React one-time dialog `#created-token` ([`CreatedTokenDialog`](../src/views/created-token.tsx)), and the person's own token list with a Revoke form per token.
+The create form's `bodyFrom` builds the scope from the named tool, instance and command checkboxes and turns the duration or the chosen date into `expiresAt`, and `readOnly` and `reusable` are `data-type` booleans.
+The token value reaches the browser only in the response to the create request.
+`submitForm` emits it with the `artium-created-token` event and the dialog writes it directly into its read-only field, keeping the value out of the markup, hydration data and React state.
+The dismissal handler clears the field before reloading the Account page, and the `pagehide` handler clears it on navigation away.
 The Sessions table sits in a `session-list` container and turns into stacked cards below 760px of container width, so every column and the Revoke action stay visible beside the sidebar.
 
 ## Constraints

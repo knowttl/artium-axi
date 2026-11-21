@@ -28,7 +28,7 @@ interface FormMessageState {
 const FormMessageContext = createContext<{ message: FormMessageState | null, area: RefObject<boolean> } | null>(null)
 
 export const scriptedFormSelector = [
-  '[data-create-token]', '[data-token-settings]', '[data-connect-github]', '[data-test-tool]', '[data-save-tool]',
+  '[data-connect-github]', '[data-test-tool]', '[data-save-tool]',
   '[data-trust-certificate]', '[data-certificate-name-form]', '[data-inspect-certificate]', ':has([data-profile-field])',
 ].join(',')
 
@@ -62,13 +62,15 @@ export interface ActionFormProps {
   successMessage?: string
   trackChanges?: boolean
   claimLink?: boolean
+  createdToken?: boolean
+  bodyFrom?: (fields: FormData) => Record<string, unknown>
   saveTool?: string
   className?: string
   attributes?: Record<string, string | boolean>
   children: ReactNode
 }
 
-export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, trackChanges, claimLink, saveTool, className, attributes, children }: ActionFormProps) {
+export function ActionForm({ action, method, csrf, confirmation, successUrl, successMessage, trackChanges, claimLink, createdToken, bodyFrom, saveTool, className, attributes, children }: ActionFormProps) {
   const tokens = useContext(ConfirmationTokenContext)
   const form = useRef<HTMLFormElement>(null)
   const [dirty, setDirty] = useState(false)
@@ -95,7 +97,7 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
         event.stopPropagation()
         const { submitter, astryxDraft } = event.nativeEvent as DeferredSubmitEvent
         void submitForm({ form: event.currentTarget, submitter: submitter as HTMLButtonElement | null, draft: astryxDraft, action, method, confirmation,
-          token: token || undefined, successUrl, successMessage, claimLink, report })
+          token: token || undefined, successUrl, successMessage, claimLink, createdToken, bodyFrom, report })
       }}
       onInput={trackChanges ? event => setDirty(differsFromDefaults(event.currentTarget)) : undefined} onReset={trackChanges ? () => setDirty(false) : undefined}>
       <input type="hidden" name="_csrf" value={csrf} />

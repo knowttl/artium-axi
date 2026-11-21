@@ -425,27 +425,6 @@ document.addEventListener('submit', async event => {
       if (input.dataset.type === 'boolean') body[input.name] = input.type === 'checkbox' ? input.checked : input.value === 'true';
       if (input.dataset.type === 'number') body[input.name] = Number(input.value);
     }
-    if (form.hasAttribute('data-create-token')) {
-      const tools = [];
-      for (const input of form.querySelectorAll('[data-token-tool]')) {
-        const commands = [...form.querySelectorAll('[data-token-command]')].filter(item => item.dataset.tokenCommand === input.dataset.tokenTool && item.checked).map(item => item.value);
-        const instances = [...form.querySelectorAll('[data-token-instance]')].filter(item => item.dataset.tokenInstance === input.dataset.tokenTool && item.checked).map(item => item.value);
-        const scope = instances.length ? { instances } : {};
-        if (input.checked) tools.push({ tool: input.dataset.tokenTool, ...scope });
-        if (commands.length) tools.push({ tool: input.dataset.tokenTool, commands, ...scope });
-      }
-      body.scope = { tools };
-      body.readOnly = form.elements.readOnly.checked;
-      body.reusable = form.elements.reusable.checked;
-      body.expiresAt = body.expiryType === 'date' ? new Date(body.expiryDate).getTime() : Date.now() + Math.floor(Number(body.duration) * 3600000);
-      delete body.expiryType; delete body.expiryDate; delete body.duration;
-    }
-    if (form.hasAttribute('data-token-settings')) {
-      body.maxLifetimeMs = Math.floor(Number(body.maxLifetimeHours) * 3600000);
-      body.ssoWindowMs = Math.round(Number(body.ssoWindowDays) * 86400000);
-      delete body.maxLifetimeHours;
-      delete body.ssoWindowDays;
-    }
     if (form.querySelector('[name=roleIds]')) body.roleIds = fields.getAll('roleIds');
     let confirmationRetried = false;
     const send = async () => {
@@ -516,17 +495,6 @@ document.addEventListener('submit', async event => {
     if (!response.ok) {
       const result = await response.json();
       showError(message, result.error);
-      return;
-    }
-    if (form.hasAttribute('data-create-token')) {
-      const result = await response.json();
-      const dialog = document.getElementById('created-token');
-      const field = dialog.querySelector('[data-created-token]');
-      field.value = result.token;
-      dialog.addEventListener('close', () => { field.value = ''; location.reload(); }, { once: true });
-      window.addEventListener('pagehide', () => { field.value = ''; }, { once: true });
-      dialog.querySelector('[data-close-created-token]').addEventListener('click', () => dialog.close(), { once: true });
-      dialog.showModal(); field.focus(); field.select();
       return;
     }
     sessionStorage.setItem('artium-toast', 'Change saved.');

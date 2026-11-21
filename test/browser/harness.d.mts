@@ -6,3 +6,4 @@ export interface AdminBrowser {
 export function useAdminBrowser(name: string): AdminBrowser
 export const waitForReauthPills: string
 export const waitForTime: string
+export const tokenCreation: string
