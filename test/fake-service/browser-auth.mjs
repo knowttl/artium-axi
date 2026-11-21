@@ -92,11 +92,13 @@ if (graphCertificates) server.post('/test/rotate-graph-certificate', async () =>
 })
 const githubDeviceLogins = new Map([['CANARY-browser-device', 'synthetic-machine'], ['CANARY-browser-replacement', 'synthetic-replacement']])
 let githubDeviceCode = 'CANARY-browser-device'
+let githubDevicePending = false
 server.post('/login/device/code', async request => {
   const input = new URLSearchParams(request.body)
   if (input.get('client_id') !== '178c6fc778ccc68e1d6a' || input.get('scope') !== 'repo read:org gist workflow project') throw new Error('Unexpected device request')
   const device_code = githubDeviceCode
   githubDeviceCode = 'CANARY-browser-replacement'
+  githubDevicePending = true
   return { device_code, user_code: 'ABCD-EFGH',
     verification_uri: `https://${request.headers.host}/login/device`, expires_in: 900, interval: 1 }
 })
@@ -104,6 +106,10 @@ server.post('/login/oauth/access_token', async request => {
   const input = new URLSearchParams(request.body)
   const code = input.get('device_code')
   if (!githubDeviceLogins.has(code)) throw new Error('Unexpected device code')
+  if (githubDevicePending) {
+    githubDevicePending = false
+    return { error: 'authorization_pending' }
+  }
   return { access_token: `gho_${code}`, token_type: 'bearer' }
 })
 server.get('/api/v3/user', async request => {
