@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest'
+import graphSchema from '../tools/inventories/mg-axi-headless.schema.json' with { type: 'json' }
 import { evaluateCredentialSchema } from '../src/views/credential-schema.js'
 
 const applicationSchema = {
@@ -27,7 +28,6 @@ test.each([
   ['no selector chosen yet', applicationSchema, {}, ['tenantId'], []],
   ['the secret branch requires its secret and forbids certificate material', applicationSchema, { auth: 'secret' }, ['clientSecret', 'tenantId'], ['privateKey', 'thumbprint']],
   ['the certificate branch requires its key and forbids the secret', applicationSchema, { auth: 'certificate' }, ['privateKey', 'tenantId', 'thumbprint'], ['clientSecret']],
-  ['a delegated token has no application authentication selector', applicationSchema, { mode: 'delegated', auth: 'secret' }, ['clientSecret', 'tenantId'], ['auth', 'privateKey', 'thumbprint']],
   ['a pattern condition selects the matching branch', conditionalSchema, { origin: 'https://synthetic.invalid' }, ['token'], []],
   ['a failed pattern condition selects the else branch', conditionalSchema, { origin: 'http://synthetic.invalid' }, ['username'], ['token']],
   ['a missing origin fails its pattern condition', conditionalSchema, {}, ['username'], ['token']],
@@ -42,7 +42,13 @@ test.each([
   ['an unchanged identity keeps stored secrets', { auth: 'secret', tenantId: 'tenant-a' }, { auth: 'secret', tenantId: 'tenant-a' }, true, true],
   ['a changed identity field needs new secrets', { auth: 'secret', tenantId: 'tenant-b' }, { auth: 'secret', tenantId: 'tenant-a' }, true, false],
   ['a cleared identity field needs new secrets', { auth: 'secret', tenantId: null }, { auth: 'secret', tenantId: 'tenant-a' }, true, false],
-  ['a forbidden identity field compares as empty', { mode: 'delegated', auth: 'secret' }, { mode: 'delegated', auth: null }, true, true],
 ])('%s', (_name, current, identity, configured, sameIdentity) => {
   expect(evaluate(applicationSchema, current, identity, configured).sameIdentity).toBe(sameIdentity)
+})
+
+test('Graph delegated mode excludes application authentication and keeps the delegated identity', () => {
+  const identity = { mode: 'delegated', tenantId: '11111111-1111-4111-8111-111111111111', clientId: '22222222-2222-4222-8222-222222222222', auth: null }
+  expect(evaluate(graphSchema, { ...identity, auth: 'client-secret' }, identity, true)).toEqual({
+    required: ['clientId', 'mode', 'tenantId'], forbidden: ['auth', 'clientSecret', 'privateKey', 'thumbprintSha256'], sameIdentity: true,
+  })
 })

@@ -18,12 +18,15 @@ export interface SubmitRequest {
   claimLink?: boolean
   createdToken?: boolean
   bodyFrom?: (fields: FormData) => Body
+  saveTool?: string
   report: (text: string, reload?: boolean) => void
 }
 
 type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
 type Body = Record<string, unknown>
 type FormDraft = ReturnType<typeof snapshotForm>
+
+export const credentialSavedEvent = 'artium-credential-saved'
 
 export interface DeferredSubmitEvent extends SubmitEvent {
   astryxDraft?: FormDraft
@@ -49,43 +52,41 @@ export function beginSubmit(form: HTMLFormElement, submitter: HTMLButtonElement 
   }
 }
 
-export function profileBody(form: HTMLFormElement): { names: string[], value: Record<string, any> } | { invalid: string } | null {
+function applyProfile(form: HTMLFormElement, fields: FormData, body: Body): string | null {
   const inputs = Array.from(form.querySelectorAll<Control>('[data-profile-field]'))
   if (!inputs.length) return null
   const endpointChanged = Array.from(form.querySelectorAll<HTMLInputElement>('[data-profile-field="origin"], [data-profile-field="url"]'))
-    .some(endpoint => endpoint.value !== (endpoint.dataset.saved ?? endpoint.defaultValue))
+    .some(endpoint => fields.has(endpoint.name) && fields.get(endpoint.name) !== (endpoint.dataset.saved ?? endpoint.defaultValue))
   const value: Record<string, any> = Object.create(null)
   for (const input of inputs) {
+    delete body[input.name]
+    const raw = fields.get(input.name) as string | null
     const clearable = input.hasAttribute('data-profile-clearable')
     const tls = input.hasAttribute('data-tls-input')
-    if (input.disabled || input.value === '' && !clearable) continue
-    if (tls && clearable && !input.dataset.tlsEdited && endpointChanged) continue
+    if (raw === null || raw === '' && !clearable) continue
+    if (input instanceof HTMLInputElement && clearable && endpointChanged && !input.dataset.tlsEdited && raw === input.defaultValue) continue
     const path = tls ? input.dataset.profileField!.split('.') : [input.dataset.profileField!]
     const key = path.pop()!
     const parent = path.reduce((node, name) => node[name] ??= Object.create(null), value)
     try {
-      parent[key] = input.value === '' ? null : input.dataset.profileType === 'list' ? input.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
-        : input.dataset.profileType === 'json' ? JSON.parse(input.value) : input.value
-    } catch { return { invalid: `Enter valid JSON in ${input.dataset.profileField}.` } }
+      parent[key] = raw === '' ? null : input.dataset.profileType === 'list' ? raw.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+        : input.dataset.profileType === 'json' ? JSON.parse(raw) : raw
+    } catch { return `Enter valid JSON in ${input.dataset.profileField}.` }
   }
-  for (const removal of form.querySelectorAll<HTMLInputElement>('[data-tls-remove]:checked')) value[removal.dataset.tlsRemove!] = null
-  const certificate = form.querySelector<HTMLTextAreaElement>('[data-certificate]:not([hidden]) [data-certificate-pem]')
-  if (certificate?.value) value.certificatePem = certificate.value
-  return { names: inputs.map(input => input.name), value }
-}
-
-export function applyProfile(body: Body, profile: ReturnType<typeof profileBody>): string | null {
-  if (!profile) return null
-  if ('invalid' in profile) return profile.invalid
-  for (const name of profile.names) delete body[name]
-  body.value = profile.value
+  for (const removal of form.querySelectorAll<HTMLInputElement>('[data-tls-remove]')) {
+    delete body[removal.name]
+    if (fields.has(removal.name)) value[removal.dataset.tlsRemove!] = null
+  }
+  delete body.certificatePem
+  const certificate = fields.get('certificatePem')
+  if (certificate) value.certificatePem = certificate
+  body.value = value
   return null
 }
 
 export function snapshotForm(form: HTMLFormElement) {
   return {
     fields: new FormData(form),
-    profile: profileBody(form),
     typed: Array.from(form.querySelectorAll<Control>('[data-type]'), input => ({
       name: input.name,
       value: input.value,
@@ -99,9 +100,7 @@ function ask<Answer>(type: string, detail: object) {
   return new Promise<Answer>(resolve => document.dispatchEvent(new CustomEvent(type, { cancelable: true, detail: { ...detail, resolve } })))
 }
 
-function shapeBody({ fields, typed, profile }: FormDraft, body: Body): string | null {
-  const invalidProfile = applyProfile(body, profile)
-  if (invalidProfile) return invalidProfile
+function shapeBody({ fields, typed }: FormDraft, body: Body): string | null {
   for (const { name, value, type, checked } of typed) {
     if (type === 'boolean') body[name] = checked ?? (value === 'true')
     if (type === 'number') body[name] = Number(value)
@@ -114,15 +113,19 @@ function shapeBody({ fields, typed, profile }: FormDraft, body: Body): string | 
   return null
 }
 
-export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, report }: SubmitRequest) {
+export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, report }: SubmitRequest) {
   const submission = beginSubmit(form, submitter)
   if (!submission) return
   const { button, release } = submission
   try {
     draft ??= snapshotForm(form)
+    const body: Body = bodyFrom ? { _csrf: draft.fields.get('_csrf'), ...bodyFrom(draft.fields) } : Object.fromEntries(draft.fields)
+    const invalidProfile = applyProfile(form, draft.fields, body)
+    const testUrl = saveTool && draft.fields.has('testAfterSave')
+      ? `/v1/admin/tools/${saveTool}/instances/${form.dataset.saveInstance || body.name}/test` : undefined
+    if (saveTool) delete body.testAfterSave
     await hydrated
     report('')
-    const body: Body = bodyFrom ? { _csrf: draft.fields.get('_csrf'), ...bodyFrom(draft.fields) } : Object.fromEntries(draft.fields)
     if (confirmation) {
       const confirmAction = confirmation.action || button.textContent!.trim()
       const typedName = await ask<string | null>(confirmationEvent, { action: confirmAction, title: confirmation.title || `${confirmAction}?`,
@@ -138,7 +141,7 @@ export async function submitForm({ form, submitter, draft, action, method, confi
       if (confirmation.typedName) body._confirmName = typedName
       for (const name of ['_confirmTitle', '_confirmAction', '_confirmText']) delete body[name]
     }
-    const invalid = shapeBody(draft, body)
+    const invalid = invalidProfile ?? shapeBody(draft, body)
     if (invalid) {
       report(invalid)
       return
@@ -169,6 +172,18 @@ export async function submitForm({ form, submitter, draft, action, method, confi
     if (!response.ok) {
       const { error } = await response.json() as { error: { message: string, next: string, code: string } }
       report(`${error.message} ${error.next} (${error.code})`, error.code === 'REVISION_CONFLICT')
+      return
+    }
+    if (saveTool) {
+      const { normalizations = [] } = await response.json() as { normalizations?: { field: string, reason: string }[] }
+      const tested = testUrl ? await fetch(testUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ _csrf: body._csrf }) }).catch(() => undefined) : undefined
+      if (tested?.redirected) {
+        location.assign(tested.url)
+        return
+      }
+      if (!await ask<boolean>(credentialSavedEvent, { testRequested: Boolean(testUrl), tested, normalizations })) throw new Error()
+      location.reload()
       return
     }
     if (claimLink) {

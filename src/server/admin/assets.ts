@@ -2,7 +2,7 @@ import { components } from './design/components.js'
 import { tokens } from './design/tokens.js'
 import { scriptedFormSelector } from '../../views/action-form.js'
 import { reauthCompleteMessage, reauthRequestEvent } from '../../views/reauth.js'
-import { applyProfile, beginSubmit, profileBody, snapshotForm } from '../../views/submit.js'
+import { beginSubmit, credentialSavedEvent, snapshotForm } from '../../views/submit.js'
 import { retestScript } from './retest.js'
 
 export const adminStyle = tokens + components
@@ -86,6 +86,25 @@ async function readTestResponse(response) {
       !Number.isInteger(health.credentialRevision) || health.errorCode !== null) throw new Error();
   return { health: { status: 'ok', checkedAt: health.checkedAt, credentialRevision: health.credentialRevision, errorCode: null } };
 }
+
+document.addEventListener('${credentialSavedEvent}', async event => {
+  const { testRequested, tested, normalizations, resolve } = event.detail;
+  try {
+    let result = testRequested ? 'Saved. Test could not complete. Run Test connection again.' : 'Saved.';
+    let health;
+    if (tested) {
+      try {
+        const current = await readTestResponse(tested);
+        health = current.health;
+        result = tested.ok ? 'Saved. Test passed.' : 'Saved. Test failed.';
+        if (current.error) { const error = current.error; result += ' ' + error.message + ' ' + error.next + ' (' + error.code + ')'; }
+      } catch {}
+    }
+    const normalized = normalizations.map(change => change.field + ': ' + change.reason + '.').join(' ');
+    sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ diagnosticVersion: 1, message: result + (normalized ? ' ' + normalized : ''), health }));
+    resolve(true);
+  } catch { resolve(false); }
+});
 
 function renderTestResult(result) {
   latestTestResult = result;
@@ -279,8 +298,6 @@ async function connectGithub(connection, csrf, message) {
     else status.textContent = 'Code expired. Start a new connection.';
   } finally { clearInterval(timer); cancel.disabled = true; }
 }
-${profileBody.toString()}
-${applyProfile.toString()}
 ${snapshotForm.toString()}
 ${beginSubmit.toString()}
 document.addEventListener('submit', async event => {
@@ -319,8 +336,6 @@ document.addEventListener('submit', async event => {
       return;
     }
     if (form.dataset.confirm) body._confirm = form.dataset.confirmToken;
-    const invalidProfile = applyProfile(body, profileBody(form));
-    if (invalidProfile) { say(message, invalidProfile); return; }
     for (const input of form.querySelectorAll('[data-type]')) {
       if (input.dataset.type === 'boolean') body[input.name] = input.type === 'checkbox' ? input.checked : input.value === 'true';
       if (input.dataset.type === 'number') body[input.name] = Number(input.value);
@@ -361,28 +376,6 @@ document.addEventListener('submit', async event => {
       if (current.redirect) { location.assign(current.redirect); return; }
       const result = current.diagnostic ? renderRetestDiagnostic(current.diagnostic) : 'Connected';
       sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ diagnosticVersion: 1, message: result, health: current.health }));
-      location.reload();
-      return;
-    }
-    if (response.ok && form.dataset.saveTool) {
-      const saved = await response.json();
-      const normalized = (saved.normalizations || []).map(change => change.field + ': ' + change.reason + '.').join(' ');
-      if (!form.querySelector('[data-save-and-test]').checked) {
-        sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ diagnosticVersion: 1, message: 'Saved.' + (normalized ? ' ' + normalized : '') }));
-        location.reload(); return;
-      }
-      let result = 'Saved. Test could not complete. Run Test connection again.';
-      let health;
-      try {
-        const tested = await fetch('/v1/admin/tools/' + form.dataset.saveTool + '/instances/' + (form.dataset.saveInstance || body.name) + '/test', { method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ _csrf: body._csrf }) });
-        if (tested.redirected) { location.assign(tested.url); return; }
-        const current = await readTestResponse(tested);
-        health = current.health;
-        result = tested.ok ? 'Saved. Test passed.' : 'Saved. Test failed.';
-        if (current.error) { const error = current.error; result += ' ' + error.message + ' ' + error.next + ' (' + error.code + ')'; }
-      } catch { /* The credential is saved even when its test cannot complete. */ }
-      sessionStorage.setItem('credential-test:' + location.pathname, JSON.stringify({ diagnosticVersion: 1, message: result + (normalized ? ' ' + normalized : ''), health }));
       location.reload();
       return;
     }

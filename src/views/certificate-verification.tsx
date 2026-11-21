@@ -1,6 +1,6 @@
 import { Field } from '@astryxdesign/core/Field'
 import { Text } from '@astryxdesign/core/Text'
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState, type ChangeEvent, type RefObject } from 'react'
 
 export interface TlsField {
   path: string
@@ -30,7 +30,7 @@ export interface TlsSection {
   note: string
 }
 
-export async function loadPem(upload: HTMLInputElement, target: HTMLTextAreaElement) {
+async function loadPem(upload: HTMLInputElement, target: HTMLTextAreaElement) {
   const file = upload.files?.[0]
   if (!file) return
   const content = await file.text()
@@ -39,12 +39,21 @@ export async function loadPem(upload: HTMLInputElement, target: HTMLTextAreaElem
   target.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
+export function usePemUpload(target: RefObject<HTMLTextAreaElement | null>) {
+  const ref = useRef<HTMLInputElement>(null)
+  useLayoutEffect(() => {
+    if (ref.current && target.current) void loadPem(ref.current, target.current)
+  }, [target])
+  return { ref, onChange: (event: ChangeEvent<HTMLInputElement>) => loadPem(event.currentTarget, target.current!) }
+}
+
 function TlsInput({ field }: { field: TlsField }) {
   const { path, id, label, help, value, required, clearable, upload } = field
   const hint = `${id}-hint`
   const profile = { id, name: `profile.${path}`, 'data-profile-field': path, 'data-profile-type': 'string', 'data-tls-input': '', 'aria-describedby': hint, autoComplete: 'off', required }
   const [edited, setEdited] = useState(false)
   const pem = useRef<HTMLTextAreaElement>(null)
+  const pemUpload = usePemUpload(pem)
   return (
     <div data-credential-field={path}>
       <Field label={label} description={help} inputID={id} descriptionID={hint}>
@@ -55,7 +64,7 @@ function TlsInput({ field }: { field: TlsField }) {
       </Field>
       {upload && (
         <Field label={upload} inputID={`${id}-file`}>
-          <input id={`${id}-file`} type="file" data-tls-file={path} accept=".pem" onChange={event => loadPem(event.currentTarget, pem.current!)} />
+          <input id={`${id}-file`} type="file" data-tls-file={path} accept=".pem" {...pemUpload} />
         </Field>
       )}
     </div>
@@ -63,7 +72,7 @@ function TlsInput({ field }: { field: TlsField }) {
 }
 
 function TlsRemove({ removal }: { removal: TlsRemoval | null }) {
-  return removal && <label className="check"><input type="checkbox" data-tls-remove={removal.path} />{removal.label}</label>
+  return removal && <label className="check"><input type="checkbox" name={`removeTls.${removal.path}`} data-tls-remove={removal.path} />{removal.label}</label>
 }
 
 export function CertificateVerification({ section }: { section: TlsSection }) {

@@ -169,7 +169,7 @@ function Connection({ csrf, props }: { csrf: string, props: InstanceProps }) {
           <input type="hidden" name="expectedToolRevision" data-type="number" value={toolRevision} />
           <CredentialEditor {...connection} />
           <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
-            <label className="check"><input type="checkbox" data-save-and-test="" defaultChecked /> Test after saving</label>
+            <label className="check"><input type="checkbox" name="testAfterSave" data-save-and-test="" defaultChecked /> Test after saving</label>
             <Button type="submit" label="Save connection" variant="primary" size="sm" />
           </HStack>
         </VStack>

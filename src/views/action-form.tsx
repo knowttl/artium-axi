@@ -28,7 +28,7 @@ interface FormMessageState {
 const FormMessageContext = createContext<{ message: FormMessageState | null, area: RefObject<boolean> } | null>(null)
 
 export const scriptedFormSelector = [
-  '[data-connect-github]', '[data-test-tool]', '[data-save-tool]',
+  '[data-connect-github]', '[data-test-tool]',
   '[data-trust-certificate]', '[data-certificate-name-form]', '[data-inspect-certificate]',
 ].join(',')
 
@@ -97,7 +97,7 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
         event.stopPropagation()
         const { submitter, astryxDraft } = event.nativeEvent as DeferredSubmitEvent
         void submitForm({ form: event.currentTarget, submitter: submitter as HTMLButtonElement | null, draft: astryxDraft, action, method, confirmation,
-          token: token || undefined, successUrl, successMessage, claimLink, createdToken, bodyFrom, report })
+          token: token || undefined, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, report })
       }}
       onInput={trackChanges ? event => setDirty(differsFromDefaults(event.currentTarget)) : undefined} onReset={trackChanges ? () => setDirty(false) : undefined}>
       <input type="hidden" name="_csrf" value={csrf} />

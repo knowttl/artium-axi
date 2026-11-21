@@ -41,7 +41,6 @@ export function evaluateCredentialSchema(schema: Record<string, unknown>, identi
     const chosen = condition && (matches(condition, current) ? then : otherwise)
     if (chosen) constrain(chosen)
   }
-  if (current.mode === 'delegated') forbidden.add('auth')
   const sameIdentity = configured && Object.entries(identity).every(([key, value]) => (forbidden.has(key) ? null : current[key] ?? null) === value)
   return { required, forbidden, sameIdentity }
 }

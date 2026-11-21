@@ -275,7 +275,7 @@ function savedCredentialValue(body: string, action: string) {
     ...selected ? [['profile.auth', JSON.parse(decoded(selected))]] : []].map(([name, text]) => [String(name).slice('profile.'.length), text])) }
 }
 
-test('the credential form posts the fields, revisions and confirmation the old page did, with every secret field empty and only the default authentication\'s secrets required', async () => {
+test('the credential form renders revision checks and empty certificate and secret fields', async () => {
   const provider = await create()
   const page = await credentialTab(provider.id)
   expect(page.body).toContain('data-astryx-root')
@@ -283,11 +283,12 @@ test('the credential form posts the fields, revisions and confirmation the old p
   expect(form.attributes).toMatchObject({ 'data-api': '', 'data-method': 'PATCH', 'data-confirm': credentialConfirmation, method: 'post' })
   expect(form.attributes!['data-confirm-name']).toBeUndefined()
   expect(form.names).toEqual(['_csrf', 'expectedRevision', 'expectedProviderRevision', 'profile.auth', 'profile.tenantId', 'profile.clientId', 'profile.privateKey',
-    'profile.thumbprintSha256', 'profile.clientSecret'])
+    'profile.thumbprintSha256', 'profile.clientSecret', 'certificatePem'])
   expect(form.payload).toMatchObject({ expectedRevision: 0, expectedProviderRevision: 1, 'profile.tenantId': tenantId, 'profile.clientId': '' })
   expect(page.body).toMatch(/<option(?=[^>]*value="&quot;certificate&quot;")(?=[^>]*selected)[^>]*>/)
   expect(page.body).toMatch(/<textarea(?=[^>]*required)[^>]*name="profile.privateKey"[^>]*><\/textarea>/)
   expect(page.body).toMatch(/<textarea(?=[^>]*disabled)(?![^>]*required)[^>]*name="profile.clientSecret"[^>]*><\/textarea>/)
+  expect(page.body).toMatch(/<textarea[^>]*name="certificatePem"[^>]*><\/textarea>/)
   expect(page.body).toMatch(/<div data-credential-field="clientSecret"[^>]*hidden=""/)
   expect(page.body).toContain('Needs credential')
   expect(page.body).toMatch(/<nav aria-label="Sections">/)

@@ -4,7 +4,7 @@ import { TextArea } from '@astryxdesign/core/TextArea'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
 import { memo, useLayoutEffect, useRef, useState } from 'react'
-import { CertificateVerification, loadPem, type TlsSection } from './certificate-verification.js'
+import { CertificateVerification, usePemUpload, type TlsSection } from './certificate-verification.js'
 import { evaluateCredentialSchema } from './credential-schema.js'
 
 export interface CredentialControl {
@@ -62,7 +62,7 @@ const initialSnapshot = (controls: CredentialControl[]): Snapshot => ({
 })
 
 const readSnapshot = (editor: HTMLElement): Snapshot => ({
-  values: Object.fromEntries(Array.from(editor.querySelectorAll<NativeField>('[data-profile-field]'), field => [field.dataset.profileField,
+  values: Object.fromEntries(Array.from(editor.querySelectorAll<NativeField>('[data-profile-field]:not([data-tls-input])'), field => [field.dataset.profileField,
     field.closest('[data-secret]') ? field.value ? true : null : parse(field.value, field.dataset.profileType)])),
   certificateEntered: editor.querySelector<HTMLTextAreaElement>('[data-certificate-pem]')!.value !== '',
 })
@@ -112,6 +112,7 @@ export const CredentialEditor = memo(function CredentialEditor({ intro, schema, 
   const [snapshot, setSnapshot] = useState(() => initialSnapshot(controls))
   const editor = useRef<HTMLDivElement>(null)
   const certificate = useRef<HTMLTextAreaElement>(null)
+  const pemUpload = usePemUpload(certificate)
   useLayoutEffect(() => {
     const root = editor.current!
     const dialog = root.closest('dialog')
@@ -163,11 +164,11 @@ export const CredentialEditor = memo(function CredentialEditor({ intro, schema, 
       {tls && <CertificateVerification section={tls} />}
       <div data-certificate="" hidden={certificateHidden}>
         <Field label="Certificate and private key (one PEM file)" inputID="credential-certificate-file">
-          <input id="credential-certificate-file" type="file" data-certificate-file="" accept=".pem" onChange={event => loadPem(event.currentTarget, certificate.current!)} />
+          <input id="credential-certificate-file" type="file" data-certificate-file="" accept=".pem" {...pemUpload} />
         </Field>
         <Field label="Or paste certificate and private key" inputID="credential-certificate-pem"
           description="Include one certificate and its matching unencrypted private key. The server calculates the fingerprint. Leave blank to keep the stored key and fingerprint, or use the separate fields above.">
-          <textarea ref={certificate} id="credential-certificate-pem" data-certificate-pem="" rows={8} autoComplete="off" spellCheck={false} className="input mono" />
+          <textarea ref={certificate} id="credential-certificate-pem" name="certificatePem" data-certificate-pem="" disabled={certificateHidden} rows={8} autoComplete="off" spellCheck={false} className="input mono" />
         </Field>
       </div>
       <details>
