@@ -702,13 +702,14 @@ test('token creation applies tool instances to all selections', () => {
     await expectCreatedToken();
     await closeCreatedToken();
     check(await page.eval(() => document.querySelector('tr[data-token] .token-access').innerText.includes('Writes allowed · Reusable')), 'Selected token access and reuse were not saved');
-    check(await page.eval(() => {
-      const row = [...document.querySelectorAll('tr')].find(item => item.innerText.includes('Split token'));
-      const items = [...row.querySelectorAll('li')];
-      return items.length === 2 && items.every(item => item.innerText.includes('lab')) &&
-        items.some(item => item.innerText.includes('Tool-wide')) &&
-        items.some(item => item.innerText.includes('detection list') && item.innerText.includes('detection show'));
-    }), 'Tool instance scope was not retained for every selection');
+    const scope = await page.eval(() => {
+      const row = [...document.querySelectorAll('tr[data-token]')].find(item => item.innerText.includes('Split token'));
+      return [...row.querySelectorAll('.token-scope li')].map(item => item.innerText).sort();
+    });
+    check(JSON.stringify(scope) === JSON.stringify([
+      'falcon-axi (instances: lab): Tool-wide',
+      'falcon-axi (instances: lab): detection list, detection show',
+    ]), 'The saved grants did not match the selected instance and commands');
   `)
 })
 
@@ -769,26 +770,28 @@ for (const action of ['Done', 'Escape']) {
   })
 }
 
-test('the one-time token field clears when the page is hidden', () => {
-  browser(`
-    ${createdTokenDialog}
-    await page.open(base + '/admin/tools/falcon-axi');
-    await page.click('form:has([name=enabled]) button');
-    await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('[name=enabled][value=false]');
-    await page.open(base + '/account');
-    check(await page.eval(() => document.querySelector('#created-token input').value === ''), 'The token field was not empty on load');
-    await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Pagehide token');
-    await openFalconScope();
-    await page.click('details[open] [name="tool:falcon-axi"]');
-    await submitToken();
-    await expectCreatedToken();
-    check(await page.eval(() => !document.documentElement.outerHTML.includes(document.querySelector('#created-token input').value)), 'The token is in the page markup');
-    check(await page.eval(() => !JSON.stringify([...Object.entries(sessionStorage), ...Object.entries(localStorage)]).includes('artd_') && !location.href.includes('artd_')), 'The token reached browser storage or the URL');
-    await page.eval(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
-    check(await page.eval(() => document.querySelector('#created-token input').value === ''), 'The token stayed in the field when the page was hidden');
-  `)
-})
+for (const persisted of [true, false]) {
+  test(`the one-time token field clears on pagehide (persisted: ${persisted})`, () => {
+    browser(`
+      ${createdTokenDialog}
+      await page.open(base + '/admin/tools/falcon-axi');
+      await page.click('form:has([name=enabled]) button');
+      await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
+      await page.wait('[name=enabled][value=false]');
+      await page.open(base + '/account');
+      check(await page.eval(() => document.querySelector('#created-token input').value === ''), 'The token field was not empty on load');
+      await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Pagehide token');
+      await openFalconScope();
+      await page.click('details[open] [name="tool:falcon-axi"]');
+      await submitToken();
+      await expectCreatedToken();
+      check(await page.eval(() => !document.documentElement.outerHTML.includes(document.querySelector('#created-token input').value)), 'The token is in the page markup');
+      check(await page.eval(() => !JSON.stringify([...Object.entries(sessionStorage), ...Object.entries(localStorage)]).includes('artd_') && !location.href.includes('artd_')), 'The token reached browser storage or the URL');
+      await page.eval(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: ${persisted} })));
+      check(await page.eval(() => document.querySelector('#created-token input').value === ''), 'The token stayed in the field when the page was hidden');
+    `)
+  })
+}
 
 test('People role links and stretched person and tool rows keep independent pointer targets', () => {
   browser(`
