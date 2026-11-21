@@ -51,14 +51,13 @@ export async function completePemFields(fields: FormData) {
   }
 }
 
-async function loadPem(upload: HTMLInputElement, target: HTMLTextAreaElement, name: string) {
+async function loadPem(upload: HTMLInputElement, target: HTMLTextAreaElement) {
   const file = upload.files?.[0]
   if (!file) return
-  upload.name = name
   const content = await readPem(file).catch(() => null)
   if (content === null || upload.files?.[0] !== file) return
   target.value = content
-  upload.removeAttribute('name')
+  upload.value = ''
   target.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
@@ -66,9 +65,9 @@ export function usePemUpload(target: RefObject<HTMLTextAreaElement | null>, targ
   const ref = useRef<HTMLInputElement>(null)
   const name = pemPrefix + targetName
   useLayoutEffect(() => {
-    if (ref.current && target.current) void loadPem(ref.current, target.current, name)
-  }, [target, name])
-  return { ref, name, onChange: (event: ChangeEvent<HTMLInputElement>) => loadPem(event.currentTarget, target.current!, name) }
+    if (ref.current && target.current) void loadPem(ref.current, target.current)
+  }, [target])
+  return { ref, name, onChange: (event: ChangeEvent<HTMLInputElement>) => loadPem(event.currentTarget, target.current!) }
 }
 
 function TlsInput({ field }: { field: TlsField }) {

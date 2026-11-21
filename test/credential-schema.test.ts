@@ -1,5 +1,6 @@
+import { fileURLToPath } from 'node:url'
 import { expect, test } from 'vitest'
-import graphSchema from '../tools/inventories/mg-axi-headless.schema.json' with { type: 'json' }
+import { loadCredentialProfile } from '../src/server/adapters/credential-profile.js'
 import { evaluateCredentialSchema } from '../src/views/credential-schema.js'
 
 const applicationSchema = {
@@ -47,8 +48,11 @@ test.each([
 })
 
 test('Graph delegated mode excludes application authentication and keeps the delegated identity', () => {
+  const path = fileURLToPath(new URL('../tools/node_modules/@knowttl/mg-axi/axi-credential.schema.json', import.meta.url))
+  const { inputSchema } = loadCredentialProfile('mg-axi', path)!
   const identity = { mode: 'delegated', tenantId: '11111111-1111-4111-8111-111111111111', clientId: '22222222-2222-4222-8222-222222222222', auth: null }
-  expect(evaluate(graphSchema, { ...identity, auth: 'client-secret' }, identity, true)).toEqual({
-    required: ['clientId', 'mode', 'tenantId'], forbidden: ['auth', 'clientSecret', 'privateKey', 'thumbprintSha256'], sameIdentity: true,
+  expect(evaluate(inputSchema, identity, identity, true).required).toEqual(['clientId', 'mode', 'tenantId', 'token'])
+  expect(evaluate(inputSchema, { ...identity, auth: 'client-secret' }, identity, true)).toMatchObject({
+    forbidden: ['auth', 'clientSecret', 'privateKey', 'thumbprintSha256'], sameIdentity: true,
   })
 })

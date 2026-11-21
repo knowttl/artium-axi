@@ -1352,6 +1352,19 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
     await page.wait('form[action$="/credential"] [name=expectedRevision][value="1"]');
     check(await page.eval(() => document.querySelector('[data-profile-field=privateKey]').value === '' && document.querySelector('[data-certificate-pem]').value === ''), 'Private key redisplayed');
     check(await page.eval(() => document.querySelector('[data-profile-field=thumbprintSha256]').value) === ${JSON.stringify(new X509Certificate(fixture.certificatePem).fingerprint256.replaceAll(':', '').toLowerCase())}, 'Incorrect fingerprint');
+    await page.eval(${pemSelection('[data-certificate-file]', fixture.certificatePem)});
+    await page.eval(() => {
+      const field = document.querySelector('[data-certificate-pem]');
+      return field.value || new Promise(resolve => field.addEventListener('input', () => resolve(field.value), { once: true }));
+    });
+    await page.fill('[data-certificate-pem]', 'CANARY-invalid-replacement');
+    await page.click('form[action$="/credential"] button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=confirmed]');
+    await page.wait('.astryx-toast[data-type=error]');
+    check(await page.eval(() => document.querySelector('form[action$="/credential"] [name=expectedRevision]').value === '1' &&
+      document.querySelector('[data-certificate-pem]').value === 'CANARY-invalid-replacement'), 'The rejected paste changed the saved credential or lost the draft');
+    await page.fill('[data-certificate-pem]', '');
     await page.click('form[action$="/credential"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
@@ -2455,11 +2468,18 @@ test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalizatio
 })
 }
 
-test('LDAP saved CA PEM survives browser edits and multi-line secrets reach delivered files unchanged', async () => {
+test('LDAP saves the pasted CA PEM after an upload and delivers multi-line secrets unchanged', async () => {
   const pem = '-----BEGIN CERTIFICATE-----\nCANARY-first-line\nCANARY-second-line\n-----END CERTIFICATE-----\n'
   const password = 'CANARY-first-line\nCANARY-second-line\n'
   browser(`
     await createInstance('ldap-axi', { url: 'ldaps://directory.example', auth: 'simple', bindDn: 'cn=reader,dc=example', bindPassword: 'CANARY-original', caFile: ${JSON.stringify(pem)} });
+    await page.click('details:has([data-tls-file="caFile"]) > summary');
+    await page.eval(${pemSelection('[data-tls-file="caFile"]', readFileSync(fixture.caFile, 'utf8'))});
+    await page.eval(() => {
+      const field = document.querySelector('textarea[data-profile-field=caFile]');
+      return field.value || new Promise(resolve => field.addEventListener('input', () => resolve(field.value), { once: true }));
+    });
+    await page.fill('textarea[data-profile-field=caFile]', ${JSON.stringify(pem)});
     await page.fill('textarea[data-profile-field=bindPassword]', ${JSON.stringify(password)});
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
