@@ -3,7 +3,7 @@ import { Text } from '@astryxdesign/core/Text'
 import { TextArea } from '@astryxdesign/core/TextArea'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useLayoutEffect, useRef, useState } from 'react'
 import { CertificateVerification, loadPem, type TlsSection } from './certificate-verification.js'
 import { evaluateCredentialSchema } from './credential-schema.js'
 
@@ -41,6 +41,13 @@ interface Snapshot {
 }
 
 const certificateIdentityFields = ['privateKey', 'thumbprint', 'thumbprintSha256']
+const textareaDrafts = new WeakMap<Element, string>()
+
+export function captureCredentialTextareaDrafts(root: HTMLElement) {
+  for (const field of root.querySelectorAll<HTMLTextAreaElement>('textarea[data-credential-draft]')) {
+    if (field.value !== field.defaultValue) textareaDrafts.set(field, field.value)
+  }
+}
 
 function parse(raw: string, dataType?: string) {
   if (!raw) return null
@@ -90,21 +97,22 @@ function Control({ control, value, required, disabled, onChange }: { control: Cr
       </Field>
     )
   }
+  const draft = { ...profile, 'data-credential-draft': '' }
   if (control.kind === 'input') {
-    return <TextInput label={label} description={help} id={id} htmlName={`profile.${name}`} value={value} onChange={onChange} autoComplete="off" {...profile} {...{ required, disabled, 'data-saved': control.value }} />
+    return <TextInput label={label} description={help} id={id} htmlName={`profile.${name}`} value={value} onChange={onChange} autoComplete="off" {...draft} {...{ required, disabled, 'data-saved': control.value }} />
   }
   return (
     <TextArea label={label} description={control.kind === 'list' ? `${help} One value per line.` : help} id={id} htmlName={`profile.${name}`} value={value} onChange={onChange}
-      rows={control.kind === 'list' ? 3 : 6} autoComplete="off" hasSpellCheck={control.kind === 'list'} {...profile} {...{ required, disabled }} />
+      rows={control.kind === 'list' ? 3 : 6} autoComplete="off" hasSpellCheck={control.kind === 'list'} {...draft} {...{ required, disabled }} />
   )
 }
 
 export const CredentialEditor = memo(function CredentialEditor({ intro, schema, identity, configured, controls, tls }: CredentialEditorProps) {
-  const [values, setValues] = useState(() => Object.fromEntries(controls.filter(control => !control.secret).map(control => [control.name, control.value])))
+  const [values, setValues] = useState<Record<string, string>>({})
   const [snapshot, setSnapshot] = useState(() => initialSnapshot(controls))
   const editor = useRef<HTMLDivElement>(null)
   const certificate = useRef<HTMLTextAreaElement>(null)
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = editor.current!
     const dialog = root.closest('dialog')
     const refresh = () => setSnapshot(readSnapshot(root))
@@ -112,6 +120,12 @@ export const CredentialEditor = memo(function CredentialEditor({ intro, schema, 
       for (const typed of root.querySelectorAll<HTMLTextAreaElement | HTMLInputElement>('[data-secret] textarea, [data-certificate-pem], [data-certificate-file], [data-tls-file], textarea[data-tls-input]')) typed.value = ''
       refresh()
     }
+    setValues(Object.fromEntries(Array.from(root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-credential-draft]'), field => {
+      const draft = textareaDrafts.get(field)
+      textareaDrafts.delete(field)
+      if (draft !== undefined && field.value === field.defaultValue) field.value = draft
+      return [field.dataset.profileField!, field.value]
+    })))
     refresh()
     root.addEventListener('input', refresh)
     root.addEventListener('change', refresh)
@@ -136,7 +150,7 @@ export const CredentialEditor = memo(function CredentialEditor({ intro, schema, 
         return (
           <div key={control.name} data-credential-field={control.name} data-secret={control.secret ? '' : undefined} data-ephemeral={control.ephemeral ? '' : undefined} hidden={hidden}>
             <VStack gap={1}>
-              <Control control={control} value={values[control.name] ?? ''} required={needed} disabled={hidden} onChange={value => setValues(current => ({ ...current, [control.name]: value }))} />
+              <Control control={control} value={values[control.name] ?? control.value} required={needed} disabled={hidden} onChange={value => setValues(current => ({ ...current, [control.name]: value }))} />
               {control.stored && (
                 <Text as="p" type="supporting" data-stored-secret="">
                   {sameIdentity ? 'Stored when configured. Leave blank to keep; enter a value to replace.' : 'Identity changed. Enter a new secret before saving.'}

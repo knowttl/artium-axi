@@ -29,6 +29,7 @@ const submitWithLateHydration = 'a server-rendered submit saves its original dra
 const submitBeforeDialogs = 'a React submit waits for dialogs and saves its original draft'
 const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
 const credentialEditorWithLateHydration = 'the credential editor applies a selection made before hydration'
+const connectionDraftWithLateHydration = 'the instance connection preserves text edited before hydration'
 const resizeCadence = 'confirmation expiry survives resizing across the mobile breakpoint'
 let chromeDebugPort: number
 
@@ -110,7 +111,7 @@ function browser(script: string) {
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
     env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration,
-      submitWithLateHydration, submitBeforeDialogs, instanceSheetWithLateHydration, credentialEditorWithLateHydration, resizeCadence].includes(context.name) ? '1' : '0' },
+      submitWithLateHydration, submitBeforeDialogs, instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration, resizeCadence].includes(context.name) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -1688,7 +1689,7 @@ test('saving an instance connection with a blank secret sends no secret and keep
   assert.equal(stored.region, 'eu-2')
 })
 
-for (const edited of [false, true]) test('changing the instance URL ' + (edited ? 'keeps' : 'drops') + ' a saved connection IP override that was ' + (edited ? '' : 'not ') + 'edited', () => {
+for (const edited of [false, true]) test('changing the instance URL ' + (edited ? 'keeps' : 'drops') + ' a saved connection IP override that was ' + (edited ? '' : 'not ') + 'edited', async () => {
   const tls = { trustedCertificatePem: readFileSync(fixture.caFile, 'utf8'), peerFingerprintSha256: new X509Certificate(fixture.certificatePem).fingerprint256.replaceAll(':', '') }
   browser(`
     await createInstance('unifi-axi', { origin: 'https://controller.example', apiKey: 'CANARY-stored-key', tls: ${JSON.stringify(tls)} });
@@ -1701,25 +1702,24 @@ for (const edited of [false, true]) test('changing the instance URL ' + (edited 
     });
     check(saved === 200, 'Could not save the connection IP override: ' + saved);
     await openInstance('unifi-axi');
-    await page.eval(() => {
-      const sent = [];
-      const send = window.fetch;
-      window.fetch = (input, init) => { sent.push([String(input instanceof Request ? input.url : input), String(init && init.body || '')]); window.name = JSON.stringify(sent); return send(input, init); };
-    });
     check(await page.eval(() => document.querySelector('[data-profile-field="tls.connectAddress"]').value === '127.0.0.1'), 'The saved connection IP is not shown');
     await page.fill('[data-profile-field=origin]', 'https://other.example');
-    if (${edited}) await page.fill('[data-profile-field="tls.connectAddress"]', '127.0.0.2');
+    if (${edited}) {
+      await page.fill('[data-profile-field="tls.connectAddress"]', '127.0.0.2');
+      await page.click('details:has([data-tls-file]) > summary');
+      await page.fill('[data-profile-field="tls.trustedCertificatePem"]', ${JSON.stringify(tls.trustedCertificatePem)});
+      await page.fill('[data-profile-field="tls.peerFingerprintSha256"]', ${JSON.stringify(tls.peerFingerprintSha256)});
+    }
     await page.fill('[data-profile-field=apiKey]', 'CANARY-replacement-key');
     await page.click('[data-save-and-test]');
     await page.click('form[data-save-tool] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form[data-save-tool] [name=expectedRevision][value="3"], .astryx-toast[data-type=error]');
-    check(await page.eval(() => {
-      const saves = JSON.parse(window.name).filter(([url]) => url.endsWith('/instances/default/credential'));
-      const value = saves.length === 1 && JSON.parse(saves[0][1]).value;
-      return value && value.origin === 'https://other.example' && (${edited} ? value.tls?.connectAddress === '127.0.0.2' : !JSON.stringify(value).includes('connectAddress'));
-    }), ${JSON.stringify(edited ? 'The edited connection IP was dropped with the new URL' : 'The unedited connection IP was sent with the new URL')});
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="3"]');
   `)
+  const response = await fetch(fixture.clock.replace('/test/clock', '/test/tools/unifi-axi'))
+  const { stored } = await response.json() as { stored: Record<string, unknown> }
+  assert.equal(stored.origin, 'https://other.example')
+  assert.deepEqual(stored.tls, edited ? { ...tls, connectAddress: '127.0.0.2' } : undefined)
 })
 
 test('SSH credential secret fields are cleared when the page is hidden', () => {
@@ -1851,6 +1851,25 @@ test('Kubernetes certificate editor saves separate fields and requires a key whe
     check(await page.eval(() => !document.querySelector('[data-profile-field=privateKey]').required), 'Unchanged identity cannot retain its stored key');
     await page.fill('[data-profile-field=clientCertificate]', 'CANARY-replacement-certificate');
     check(await page.eval(() => document.querySelector('[data-profile-field=privateKey]').required), 'Changed certificate does not require a replacement key');
+  `)
+})
+
+test(connectionDraftWithLateHydration, () => {
+  browser(`
+    await createInstance('kubernetes-axi', { origin: 'https://cluster.example', auth: 'certificate', certificateAuthority: 'CANARY-cluster-CA',
+      clientCertificate: 'synthetic-saved-certificate', privateKey: 'CANARY-stored-key' });
+    check(await page.eval(() => !document.querySelector('[data-profile-field=privateKey]').required), 'Unchanged identity required a replacement key');
+    await page.fill('[data-profile-field=origin]', 'https://other-cluster.example');
+    const certificate = 'synthetic-replacement\\ncertificate';
+    await page.fill('[data-profile-field=clientCertificate]', certificate);
+    await page.eval(() => {
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
+    });
+    await page.wait('[data-profile-field=privateKey][required]');
+    check(await page.eval(() => document.querySelector('[data-profile-field=origin]').value) === 'https://other-cluster.example', 'Hydration discarded the URL');
+    check(await page.eval(() => document.querySelector('[data-profile-field=clientCertificate]').value) === certificate, 'Hydration discarded the client certificate');
   `)
 })
 
