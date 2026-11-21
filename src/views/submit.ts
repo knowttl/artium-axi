@@ -182,7 +182,7 @@ export async function submitForm({ form, submitter, draft, action, method, confi
     if (showTest) {
       const { error, health } = await readTestResponse(response)
       showTest({ message: response.ok ? 'Test passed.' : 'Test failed.', health })
-      if (error) report(`${error.message} ${error.next} (${error.code})`)
+      if (error) report(`${error.message} ${error.next} (${error.code})`, error.code === 'REVISION_CONFLICT')
       return
     }
     if (!response.ok) {

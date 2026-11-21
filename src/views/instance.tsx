@@ -57,7 +57,7 @@ export interface InstanceProps {
     intro: string
     expiring: boolean
     pins: Pin[]
-    offered: boolean
+    alwaysOfferInspection: boolean
     endpoints: string[]
     trust: { fills: boolean, caOption: string }
   }
@@ -256,10 +256,11 @@ function InspectionDialog({ csrf, path, name, trust }: { csrf: string, path: str
   )
 }
 
-function Certificates({ csrf, path, name, certificates }: { csrf: string, path: string, name: string, certificates: InstanceProps['certificates'] }) {
-  const { saved, intro, expiring, pins, offered, endpoints, trust } = certificates
-  const tlsFailed = useTestHealth()?.errorCode === 'UPSTREAM_TLS_FAILED'
-  const inspectable = offered || tlsFailed
+function Certificates({ csrf, path, name, certificates, savedTlsFailure }: { csrf: string, path: string, name: string, certificates: InstanceProps['certificates'], savedTlsFailure: boolean }) {
+  const { saved, intro, expiring, pins, alwaysOfferInspection, endpoints, trust } = certificates
+  const health = useTestHealth()
+  const tlsFailed = health ? health.errorCode === 'UPSTREAM_TLS_FAILED' : savedTlsFailure
+  const inspectable = endpoints.length > 0 && (alwaysOfferInspection || tlsFailed)
   if (!saved) {
     return (
       <Panel title="Trusted certificates" description="Trust applies only to this instance’s saved endpoints.">
@@ -276,7 +277,7 @@ function Certificates({ csrf, path, name, certificates }: { csrf: string, path: 
           {pins.length ? <PinTable csrf={csrf} path={path} pins={pins} />
             : <Text as="p" type="supporting">No certificates trusted for this instance. Hostname and expiry checks always apply.</Text>}
           <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
-            <Text type="supporting">{offered ? 'Compare the fingerprint with the one the appliance shows before trusting.' : 'Inspection is offered after a connection test fails with a certificate error.'}</Text>
+            <Text type="supporting">{inspectable ? 'Compare the fingerprint with the one the appliance shows before trusting.' : 'Inspection is offered after a connection test fails with a certificate error.'}</Text>
             {endpoints.length > 0 && (
               <ActionForm action={`${path}/certificates/inspect`} method="POST" csrf={csrf} attributes={{ 'data-inspect-certificate': '', hidden: !inspectable }}>
                 <HStack gap={2} vAlign="center">
@@ -314,7 +315,7 @@ export function Instance(props: InstanceProps) {
       {github && <GithubConnection csrf={csrf} {...github} />}
       {controllerOrigin !== null && <Controller csrf={csrf} api={api} props={props} origin={controllerOrigin} />}
       <Connection csrf={csrf} props={props} />
-      <Certificates csrf={csrf} path={path} name={name} certificates={certificates} />
+      <Certificates csrf={csrf} path={path} name={name} certificates={certificates} savedTlsFailure={failure.certificateHint} />
       <Panel title="Danger zone">
         <HStack gap={3} justify="between" vAlign="center" wrap="wrap">
           <VStack gap={0.5}>

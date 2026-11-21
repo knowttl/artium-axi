@@ -144,7 +144,7 @@ export function registerInstancePages(app: FastifyInstance, db: Database.Databas
           endpointFingerprint: pin.leafFingerprint && pin.leafFingerprint !== pin.certificate.fingerprint ? pin.leafFingerprint : null,
           note: pin.leaf ? null : pin.leafFingerprint ? 'Certificate details not yet inspected.' : 'No confirmed leaf; use Trust or Renew to confirm one',
           subject: pin.certificate.subject, expires: pin.certificate.expiresAt, endpointExpires: pin.leaf && pin.leaf.expiresAt !== pin.certificate.expiresAt ? pin.leaf.expiresAt : null })),
-        offered: awx || tool.name === 'kubernetes-axi' && Boolean(instance.metadata.tlsServerName) || instance.health.errorCode === 'UPSTREAM_TLS_FAILED' || pins.length > 0,
+        alwaysOfferInspection: awx || tool.name === 'kubernetes-axi' && Boolean(instance.metadata.tlsServerName) || pins.length > 0,
         endpoints: endpoints.map(endpoint => endpoint.host),
         trust: { fills: Boolean(credentialTlsSettings[tool.name].certificate),
           caOption: `Trust the issuing CA${unifi ? ' (confirm a new leaf fingerprint after renewal)' : proxmox ? ' (a separately saved fingerprint still applies)' : ' (recommended, renewed certificates keep working)'}` },

@@ -2072,6 +2072,7 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
       const audit = await (await fetch('/v1/admin/audit?event=admin-change')).json();
       return result.certificates.length === 1 && result.certificates[0].mode === 'ca' && audit.records.some(row => row.action === 'trust-certificate' && row.target_id === result.certificates[0].certificate.fingerprint);
     }), 'Trust or fingerprint audit missing');
+    await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Connected'), 'Automatic credential test did not connect after trust');
     await page.eval(async () => {
       const response = await fetch('/test/trust-ca', { method: 'POST' });
@@ -2100,6 +2101,7 @@ test('trust automatically tests credentials and displays the exact failure', () 
     await page.click('[name=confirmedFingerprint]');
     await page.click('[data-trust-certificate] button');
     await page.wait('form[data-method=DELETE][action$="/certificates"]');
+    await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('The tool exited unsuccessfully.')), 'Exact test failure missing');
     check(await page.eval(() => document.querySelector('[data-check-diagnostic]').textContent.includes('tool run') && !document.querySelector('[data-check-diagnostic]').textContent.includes('Tool exited with status 1.')), 'Structured tool failure missing');
   `)
@@ -2130,6 +2132,7 @@ for (const [failure, expected] of [
     });
     await page.click('[data-trust-certificate] button');
     await page.wait('form[data-method=DELETE][action$="/certificates"]');
+    await page.wait('[data-test-result]:not(:empty)');
     const message = await page.eval(() => document.querySelector('[data-test-result]').textContent);
     check(message.startsWith('${expected}'), 'Missing safe failure category: ' + message);
     check(!message.includes('CANARY-private-value'), 'Client failure exposed response or exception text');
@@ -2239,11 +2242,13 @@ test('retesting replaces a failed result with a passing one without reloading', 
       document.querySelector('[data-tool-state]').textContent === 'Failing' &&
       document.querySelector('[data-test-checklist]').textContent.includes('Failing: UPSTREAM_TLS_FAILED') &&
       document.querySelector('[data-test-checklist]').classList.contains('fail') &&
-      document.querySelector('[data-check-summary]').textContent.length > 0 &&
-      document.querySelector('[data-check-time] time') !== null &&
-      !document.querySelector('[data-inspect-certificate]').hidden
+      document.querySelector('[data-check-summary]').textContent === 'The upstream certificate could not be verified. Ask an administrator to check the host, certificate chain and trusted CA configuration.' &&
+      !document.querySelector('[data-inspect-certificate]').hidden &&
+      document.querySelector('[data-inspect-certificate]').parentElement.textContent.includes('Compare the fingerprint with the one the appliance shows before trusting.')
     ), 'The failed result was not rendered');
     await page.wait('.astryx-toast[data-type=error]');
+    await openInstance('vectra-axi');
+    await page.wait('[data-inspect-certificate]:not([hidden])');
     await page.eval(async () => {
       const response = await fetch('/test/trust-ca', { method: 'POST' });
       if (!response.ok) throw new Error('Could not install the fixture CA');
@@ -2256,8 +2261,28 @@ test('retesting replaces a failed result with a passing one without reloading', 
       document.querySelector('[data-test-checklist]').textContent.includes('Passed') &&
       document.querySelector('[data-test-checklist] [data-step-state]').textContent === 'Done: ' &&
       document.querySelector('[data-test-checklist]').classList.contains('done') &&
-      document.querySelector('[data-inspect-certificate]').hidden
+      document.querySelector('[data-inspect-certificate]').hidden &&
+      document.querySelector('[data-inspect-certificate]').parentElement.textContent.includes('Inspection is offered after a connection test fails with a certificate error.')
     ), 'The retest did not replace the failed result');
+  `)
+})
+
+test('a connection test revision conflict offers to reload the latest instance', () => {
+  browser(`
+    await createInstance('falcon-axi', falconValue);
+    await page.eval(() => {
+      const original = window.fetch.bind(window);
+      window.fetch = async (url, options) => new URL(url, location.href).pathname === '/v1/admin/tools/falcon-axi/instances/default/test'
+        ? Response.json({ error: { code: 'REVISION_CONFLICT', source: 'artium-axi', requestId: 'synthetic-request',
+          message: 'The record changed since it was read.', next: 'Read the current record revision and retry your edit.' } }, { status: 409 })
+        : original(url, options);
+    });
+    await page.click('form[data-test-tool] button');
+    await page.wait('.astryx-toast[data-type=error]');
+    check(await page.eval(() => {
+      const toast = document.querySelector('.astryx-toast[data-type=error]');
+      return toast.textContent.includes('(REVISION_CONFLICT)') && [...toast.querySelectorAll('button')].some(button => button.textContent === 'Reload latest');
+    }), 'Connection test conflict did not offer to reload the latest instance');
   `)
 })
 
@@ -2478,6 +2503,7 @@ test('credential save' + (saveAndTest ? ' and test' : '') + ' shows normalizatio
     await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
     check(await page.eval(() => document.querySelector('[data-profile-field=origin]').value === 'https://appliance.example'), 'Stored canonical origin missing');
     check(await page.eval(() => document.querySelector('[data-profile-field=token]').value === ''), 'Stored secret was displayed');
+    await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('origin: canonicalized format.')), 'Origin normalization notice missing');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.includes('token: removed surrounding whitespace.')), 'Secret normalization notice missing');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent.startsWith(${JSON.stringify(saveAndTest ? 'Saved. Test failed.' : 'Saved.')})), 'Save result missing');

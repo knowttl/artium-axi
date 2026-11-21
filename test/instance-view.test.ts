@@ -29,7 +29,7 @@ const base: InstanceProps = { csrf: 'synthetic-csrf', tool: 'falcon-axi', produc
   failure: { shown: false, summary: 'Synthetic failure summary.', code: 'AUTH_FAILED', certificateHint: false, diagnostic: 'Details unavailable.' }, github: null, controllerOrigin: null,
   connection: { intro: 'Synthetic credential introduction.', schema: { type: 'object' }, identity: { auth: null }, configured: true, tls: null,
     controls: [control({}), control({ name: 'clientSecret', id: 'profile-falcon-axi-clientSecret', label: 'Client secret', secret: true, required: false, kind: 'textarea', value: '', stored: true })] },
-  certificates: { saved: true, intro: 'Synthetic certificate introduction.', expiring: false, pins: [], offered: false, endpoints: ['lab.example'], trust: { fills: true, caOption: 'Trust the issuing CA' } },
+  certificates: { saved: true, intro: 'Synthetic certificate introduction.', expiring: false, pins: [], alwaysOfferInspection: false, endpoints: ['lab.example'], trust: { fills: true, caOption: 'Trust the issuing CA' } },
   testGuide: 'Falcon auth status', change: { actor: 'synthetic-user', at: null, revision: 3 } }
 
 const render = (overrides: Partial<InstanceProps> = {}) => renderToString(createElement(Theme, { theme: neutralTheme, children: createElement(Instance, { ...base, ...overrides }) }))
@@ -108,7 +108,7 @@ test.each([
   { endpoints: ['a.example'], inputs: [['endpointIndex', 'hidden', '0']], selects: 0 },
   { endpoints: ['a.example', 'b.example'], inputs: [], selects: 1 },
 ])('inspection of $endpoints is posted for the saved endpoint index', ({ endpoints, inputs, selects }) => {
-  const form = formFor(render({ certificates: { ...base.certificates, endpoints, offered: true } }), `${path}/certificates/inspect`)
+  const form = formFor(render({ certificates: { ...base.certificates, endpoints, alwaysOfferInspection: true } }), `${path}/certificates/inspect`)
   expect([attribute(form, 'data-inspect-certificate'), attribute(form, 'hidden')]).toEqual(['', undefined])
   expect(controls(form).slice(1)).toEqual(inputs)
   expect(nodes(form).filter(element => element.tagName === 'select' && attribute(element, 'name') === 'endpointIndex').map(select => nodes(select).filter(element => element.tagName === 'option').map(text)))
@@ -117,6 +117,9 @@ test.each([
 
 test('inspection stays hidden until a certificate failure offers it', () => {
   expect(attribute(formFor(render(), `${path}/certificates/inspect`), 'hidden')).toBe('')
+  const failed = render({ failure: { ...base.failure, shown: true, code: 'UPSTREAM_TLS_FAILED', certificateHint: true } })
+  expect(attribute(formFor(failed, `${path}/certificates/inspect`), 'hidden')).toBeUndefined()
+  expect(failed).toContain('Compare the fingerprint with the one the appliance shows before trusting.')
 })
 
 test.each([
