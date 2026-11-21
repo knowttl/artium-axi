@@ -2,6 +2,7 @@ import { components } from './design/components.js'
 import { tokens } from './design/tokens.js'
 import { scriptedFormSelector } from '../../views/action-form.js'
 import { reauthCompleteMessage, reauthRequestEvent } from '../../views/reauth.js'
+import { snapshotForm } from '../../views/submit.js'
 import { retestScript } from './retest.js'
 
 export const adminStyle = tokens + components
@@ -363,12 +364,16 @@ async function connectGithub(connection, csrf, message) {
     else status.textContent = 'Code expired. Start a new connection.';
   } finally { clearInterval(timer); cancel.disabled = true; }
 }
+${snapshotForm.toString()}
 document.addEventListener('submit', async event => {
   const form = event.target;
   if (!form.matches('[data-api]')) return;
   event.preventDefault();
   if (!form.matches('${scriptedFormSelector}')) {
-    hydrated.then(() => form.requestSubmit(event.submitter));
+    if (event.astryxDraft) return;
+    const astryxDraft = snapshotForm(form);
+    const submitter = event.submitter;
+    hydrated.then(() => form.dispatchEvent(Object.assign(new SubmitEvent('submit', { bubbles: true, cancelable: true, submitter }), { astryxDraft })));
     return;
   }
   // A filter control placed inside this form can belong to another form.

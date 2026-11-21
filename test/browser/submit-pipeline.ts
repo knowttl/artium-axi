@@ -14,39 +14,61 @@ const keepSent = `
   });
 `
 const sentRequests = "JSON.parse(await page.eval(() => sessionStorage.getItem('test-sent') || '[]'))"
-const confirmAndWait = `
+const confirm = `
   await page.wait('#confirmation[open]');
   await page.click('#confirmation button[value=confirmed]');
-  await page.wait('.astryx-toast');
 `
+const confirmAndWaitForSuccess = `
+  ${confirm}
+  await page.wait('.astryx-toast:not([data-type=error])');
+  check(await page.eval(() => document.querySelector('.astryx-toast:not([data-type=error])').textContent === 'Change saved.'), 'The form did not report a successful save');
+`
+const readSettings = `
+  const readSettings = path => page.eval('() => (' + (async path => {
+    const response = await fetch(path, { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error('Settings request failed with HTTP ' + response.status);
+    return response.json();
+  }).toString() + ')(' + JSON.stringify(path) + ')');
+`
+const toolApi = '/v1/admin/tools/falcon-axi'
+const roleApi = '/v1/admin/roles/synthetic-role'
 const routes = 'form[action$="/raw-api/routes"]'
 
 test('route patterns are sent as trimmed lines with the revision as a number', () => {
   browser(`
     await page.open(base + '/admin/tools/falcon-axi?tab=raw-api');
+    ${readSettings}
+    const initial = await readSettings('${toolApi}');
     ${keepSent}
     await page.fill('${routes} [name=write]', 'PATCH items/*\\n  POST items  \\n\\n');
     await page.fill('${routes} [name=get]', 'items/**');
     await page.click('${routes} button');
-    ${confirmAndWait}
+    ${confirmAndWaitForSuccess}
     const sent = ${sentRequests};
     check(sent.length === 1 && sent[0][0] === 'PUT' && sent[0][1] === '/v1/admin/tools/falcon-axi/raw-api/routes', 'The request has the wrong method or URL: ' + JSON.stringify(sent));
     const body = sent[0][2];
-    check(JSON.stringify([body.write, body.get, typeof body.expectedRevision]) === '[["PATCH items/*","POST items"],["items/**"],"number"]', 'The request body is not shaped: ' + JSON.stringify(body));
+    const expected = { write: ['PATCH items/*', 'POST items'], get: ['items/**'] };
+    check(body.expectedRevision === initial.revision && JSON.stringify([body.write, body.get]) === JSON.stringify([expected.write, expected.get]), 'The request body is not shaped: ' + JSON.stringify(body));
+    const saved = await readSettings('${toolApi}');
+    check(saved.revision === initial.revision + 1 && JSON.stringify([saved.rawApi.routes.write, saved.rawApi.routes.get]) === JSON.stringify([expected.write, expected.get]), 'The route patterns did not persist: ' + JSON.stringify(saved.rawApi.routes));
   `)
 })
 
 test('one chosen option of a multi-select form is still sent as an array', () => {
   browser(`
     await page.open(base + '/admin/roles/synthetic-role');
+    ${readSettings}
+    const initial = await readSettings('${roleApi}');
     ${keepSent}
     await page.eval(() => {
       for (const box of document.querySelectorAll('form[action$="/synthetic-role/tools"] input[name=tools]:checked')) if (box.value !== 'falcon-axi') box.click();
     });
     await page.click('form[action$="/synthetic-role/tools"] button[type=submit]');
-    ${confirmAndWait}
+    ${confirmAndWaitForSuccess}
     const sent = ${sentRequests};
-    check(sent.length === 1 && JSON.stringify(sent[0][2].tools) === '["falcon-axi"]', 'The chosen tool is not an array: ' + JSON.stringify(sent));
+    check(sent.length === 1 && sent[0][2].expectedRevision === initial.revision && JSON.stringify(sent[0][2].tools) === '["falcon-axi"]', 'The chosen tool or revision was sent incorrectly: ' + JSON.stringify(sent));
+    const saved = await readSettings('${roleApi}');
+    check(saved.revision === initial.revision + 1 && JSON.stringify(saved.tools) === '["falcon-axi"]', 'The tool grants did not persist: ' + JSON.stringify(saved.tools));
   `)
 })
 
@@ -60,50 +82,81 @@ test('invalid JSON in a plain form is reported and nothing is sent', () => {
     await page.fill(form + ' [name=approvedHostKeys]', 'not json');
     await page.fill(form + ' [name=independentVerification]', 'synthetic reference');
     await page.click(form + ' button');
-    ${confirmAndWait}
+    ${confirm}
+    await page.wait('.astryx-toast[data-type=error]');
     check(await page.eval(() => document.querySelector('.astryx-toast[data-type=error]')?.textContent === 'Enter valid JSON in approvedHostKeys.'), 'The invalid JSON was not reported');
     check((${sentRequests}).length === 0, 'A request was sent with invalid JSON');
   `)
 })
 
-test('a form submitted before the page hydrates waits for hydration, then confirms and sends the shaped request', () => {
+test('a pre-hydration submission confirms and saves the original draft after edits', () => {
   browser(`
-    const inFrame = fn => page.eval('() => (' + fn.toString() + ')()');
+    const within = (promise, message) => {
+      let timer;
+      const deadline = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), 5000); });
+      return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
+    };
+    const inFrame = fn => page.eval('() => (' + fn.toString() + ')(' + within.toString() + ')');
     await page.open(base + '/admin/tools/falcon-axi');
-    await inFrame(async () => {
-      sessionStorage.removeItem('test-sent');
+    ${readSettings}
+    const initial = await readSettings('${toolApi}');
+    await inFrame(async within => {
       const html = (await (await fetch(location.href)).text()).replace(/<script\\b[^>]*hydrate\\.js[^>]*><\\/script>/, '');
       const frame = document.createElement('iframe');
       frame.srcdoc = html;
+      const loaded = new Promise(resolve => frame.addEventListener('load', resolve, { once: true }));
       document.body.append(frame);
-      await new Promise(resolve => frame.addEventListener('load', resolve, { once: true }));
+      await within(loaded, 'The server-rendered frame did not load');
       const win = frame.contentWindow;
       win.dialogs = 0;
       win.document.addEventListener('artium-confirm', () => { win.dialogs += 1; });
+      win.submission = Promise.withResolvers();
       const send = win.fetch;
-      win.fetch = (input, init) => {
-        if (init && init.body) sessionStorage.setItem('test-sent', JSON.stringify([init.method, JSON.parse(init.body)]));
-        return send(input, init);
+      win.fetch = async (input, init) => {
+        if (!init?.body) return send(input, init);
+        win.sent = true;
+        const response = await send(input, init);
+        win.submission.resolve({ method: init.method, body: JSON.parse(init.body), status: response.status });
+        return response;
       };
-      win.document.querySelector('form:has([name=enabled]) button').click();
+      const form = win.document.querySelector('form:has([name=enabled])');
+      form.querySelector('button').click();
+      form.elements.enabled.value = 'false';
+      form.elements.expectedRevision.value = '999';
+      form.elements._csrf.value = 'edited-csrf';
     });
     check(await page.eval(() => {
       const win = document.querySelector('iframe').contentWindow;
-      return win.dialogs === 0 && !win.document.querySelector('#confirmation[open]') && !sessionStorage.getItem('test-sent');
+      return win.dialogs === 0 && !win.document.querySelector('#confirmation[open]') && !win.sent;
     }), 'The form was handled before the page hydrated');
-    await inFrame(async () => {
+    const { method, body, status } = await inFrame(async within => {
       const win = document.querySelector('iframe').contentWindow;
-      await new Promise(resolve => {
-        const script = win.document.createElement('script');
-        script.src = '/admin/assets/hydrate.js';
+      const dialog = win.document.querySelector('#confirmation');
+      const script = win.document.createElement('script');
+      script.src = '/admin/assets/hydrate.js';
+      const loaded = new Promise((resolve, reject) => {
         script.onload = resolve;
-        win.document.head.append(script);
+        script.onerror = () => reject(new Error('The hydration script failed to load'));
       });
-      while (!win.document.querySelector('#confirmation[open]')) await new Promise(resolve => setTimeout(resolve, 50));
-      win.document.querySelector('#confirmation button[value=confirmed]').click();
-      while (!sessionStorage.getItem('test-sent')) await new Promise(resolve => setTimeout(resolve, 50));
+      win.document.head.append(script);
+      await within(loaded, 'The hydration script did not load');
+      let observer;
+      try {
+        await within(new Promise(resolve => {
+          if (dialog.open) return resolve();
+          observer = new MutationObserver(() => { if (dialog.open) resolve(); });
+          observer.observe(dialog, { attributes: true, attributeFilter: ['open'] });
+        }), 'The deferred submit did not open confirmation');
+      } finally {
+        observer?.disconnect();
+      }
+      const submission = win.submission.promise;
+      dialog.querySelector('button[value=confirmed]').click();
+      return within(submission, 'The deferred submit did not receive a response');
     });
-    const [method, body] = JSON.parse(await page.eval(() => sessionStorage.getItem('test-sent')));
-    check(method === 'PATCH' && body.enabled === true && typeof body.expectedRevision === 'number' && typeof body._confirm === 'string', 'The deferred submit did not send the confirmed, shaped request: ' + JSON.stringify(body));
+    check(method === 'PATCH' && body.enabled === true && body.expectedRevision === initial.revision && typeof body._confirm === 'string' && body._confirm.length > 0, 'The deferred submit did not send the confirmed original draft: ' + JSON.stringify(body));
+    check(status === 200, 'The deferred submit failed with HTTP ' + status);
+    const saved = await readSettings('${toolApi}');
+    check(saved.enabled === true && saved.revision === initial.revision + 1, 'The deferred submit did not enable the tool');
   `)
 })

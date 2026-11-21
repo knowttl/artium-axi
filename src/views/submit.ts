@@ -6,6 +6,7 @@ import { successKey } from './toasts.js'
 export interface SubmitRequest {
   form: HTMLFormElement
   submitter: HTMLButtonElement | null
+  draft?: FormDraft
   action: string
   method: string
   confirmation?: Confirmation
@@ -17,37 +18,54 @@ export interface SubmitRequest {
 
 type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
 type Body = Record<string, unknown>
+type FormDraft = ReturnType<typeof snapshotForm>
+
+export interface DeferredSubmitEvent extends SubmitEvent {
+  astryxDraft?: FormDraft
+}
 
 let pending = false
+
+export function snapshotForm(form: HTMLFormElement) {
+  return {
+    fields: new FormData(form),
+    typed: Array.from(form.querySelectorAll<Control>('[data-type]'), input => ({
+      name: input.name,
+      value: input.value,
+      type: input.dataset.type,
+      checked: input instanceof HTMLInputElement && input.type === 'checkbox' ? input.checked : undefined,
+    })),
+    hasRoleIds: Boolean(form.querySelector('[name=roleIds]')),
+  }
+}
 
 function ask<Answer>(type: string, detail: object) {
   return new Promise<Answer>(resolve => document.dispatchEvent(new CustomEvent(type, { cancelable: true, detail: { ...detail, resolve } })))
 }
 
-function shapeBody(form: HTMLFormElement, fields: FormData, body: Body): string | null {
-  for (const input of form.querySelectorAll<Control>('[data-type]')) {
-    const { name, value } = input
-    if (input.dataset.type === 'boolean') body[name] = input instanceof HTMLInputElement && input.type === 'checkbox' ? input.checked : value === 'true'
-    if (input.dataset.type === 'number') body[name] = Number(value)
-    if (input.dataset.type === 'array') body[name] = fields.getAll(name)
-    if (input.dataset.type === 'lines') body[name] = value.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
-    if (input.dataset.type === 'json') {
+function shapeBody({ fields, typed, hasRoleIds }: FormDraft, body: Body): string | null {
+  for (const { name, value, type, checked } of typed) {
+    if (type === 'boolean') body[name] = checked ?? (value === 'true')
+    if (type === 'number') body[name] = Number(value)
+    if (type === 'array') body[name] = fields.getAll(name)
+    if (type === 'lines') body[name] = value.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+    if (type === 'json') {
       try { body[name] = JSON.parse(value) } catch { return `Enter valid JSON in ${name}.` }
     }
   }
-  if (form.querySelector('[name=roleIds]')) body.roleIds = fields.getAll('roleIds')
+  if (hasRoleIds) body.roleIds = fields.getAll('roleIds')
   return null
 }
 
-export async function submitForm({ form, submitter, action, method, confirmation, token, successUrl, successMessage, report }: SubmitRequest) {
+export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, report }: SubmitRequest) {
   const button = submitter ?? form.querySelector<HTMLButtonElement>('button:not([form]):not([type=button]):not([type=reset])')!
   if (pending || button.disabled) return
   pending = true
   button.disabled = true
   report('')
-  const fields = new FormData(form)
-  const body: Body = Object.fromEntries(fields)
   try {
+    draft ??= snapshotForm(form)
+    const body: Body = Object.fromEntries(draft.fields)
     if (confirmation) {
       const confirmAction = confirmation.action || button.textContent!.trim()
       const typedName = await ask<string | null>(confirmationEvent, { action: confirmAction, title: confirmation.title || `${confirmAction}?`,
@@ -63,7 +81,7 @@ export async function submitForm({ form, submitter, action, method, confirmation
       if (confirmation.typedName) body._confirmName = typedName
       for (const name of ['_confirmTitle', '_confirmAction', '_confirmText']) delete body[name]
     }
-    const invalid = shapeBody(form, fields, body)
+    const invalid = shapeBody(draft, body)
     if (invalid) {
       report(invalid)
       return

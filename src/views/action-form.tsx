@@ -1,7 +1,7 @@
 import { Button } from '@astryxdesign/core/Button'
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { confirmationRouteFor } from '../shared/confirmation-routes.js'
-import { submitForm } from './submit.js'
+import { submitForm, type DeferredSubmitEvent } from './submit.js'
 import { toastEvent, type ToastDetail } from './toasts.js'
 
 export interface Confirmation {
@@ -93,7 +93,8 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
         if (event.currentTarget.matches(scriptedFormSelector)) return
         event.preventDefault()
         event.stopPropagation()
-        void submitForm({ form: event.currentTarget, submitter: (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null, action, method, confirmation,
+        const { submitter, astryxDraft } = event.nativeEvent as DeferredSubmitEvent
+        void submitForm({ form: event.currentTarget, submitter: submitter as HTMLButtonElement | null, draft: astryxDraft, action, method, confirmation,
           token: token || undefined, successUrl, successMessage, report })
       }}
       onInput={trackChanges ? event => setDirty(differsFromDefaults(event.currentTarget)) : undefined} onReset={trackChanges ? () => setDirty(false) : undefined}>
