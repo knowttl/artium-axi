@@ -171,15 +171,19 @@ Signed-in authentication cards instead show your identity and a sign-out control
 The administration and Account top bars show "Changes unlocked" with the minutes left, or "Changes locked".
 The status refreshes every 30 seconds while the page is active and updates after successful confirmation.
 At 767px and narrower, open the header's **Navigation** or **Menu** disclosure to find that status and the System, Light and Dark theme switch.
-Local admin forms open a password dialog when confirmation expires, then resume the pending action after successful confirmation.
-SSO admin forms instead open a confirmation window with the session's provider, with a forced login and fresh authentication-time check.
+When confirmation expires, the form opens an identity confirmation dialog and resumes the pending action after successful confirmation.
+For a local account, enter your password and select **Confirm and continue**.
+If the password is rejected, you can retry in the dialog.
+For SSO, select **Confirm and continue** to open the popup, then select **Confirm with your provider** to start a fresh sign-in.
 For Entra, configure `auth_time` as an optional ID-token claim in the application registration, following [Microsoft's optional-claims instructions](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims).
 Confirmation is refused if that claim is absent or stale.
 After signing in with the same identity, select **Continue to Artium** on the **One more step** screen to resume the pending action in the original window.
-You can close the popup when it shows **Identity confirmed**.
-Keep the original window open; drafts, including credential fields, remain there and are not stored for the round trip.
+Keep the original window open while you confirm.
+Your draft, including credential fields in the original form, stays in that window.
 Allow popups for artium if the browser blocks the confirmation window.
-Cancel keeps the entered values without submitting the change.
+If you close the popup before confirmation completes, use **Confirm and continue** to try again.
+Select **Cancel** or press Escape to keep the original draft without submitting the change.
+Cancelling clears any password entered in the confirmation dialog.
 SSO sign-out optionally also visits the provider's discovered end-session endpoint, when supported.
 Select **Also sign out of your identity provider** in the account menu or below a signed-in authentication card to request it; the checkbox starts unchecked.
 After signing out of artium, choose **Continue to provider sign-out** to finish that optional step.
