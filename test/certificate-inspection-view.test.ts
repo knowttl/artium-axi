@@ -37,10 +37,10 @@ test('a closed dialog holds no inspection forms', () => {
 
 test.each([
   { name: 'a self-signed leaf is pinned', overrides: {}, mode: 'pin', ca: 'disabled', pin: 'enabled', replace: 'false', button: 'Trust this certificate' },
-  { name: 'an issuing CA is trusted by default', overrides: { chain: [certificate({ selfSigned: false })], anchor: issuer }, mode: 'ca', ca: 'enabled', pin: 'enabled', replace: 'false', button: 'Trust this certificate' },
-  { name: 'a rotation keeps the saved pin mode', overrides: { trustMode: 'pin', rotation: true, verificationError: null }, mode: 'pin', ca: 'disabled', pin: 'enabled', replace: 'true', button: 'Replace trusted certificate' },
-  { name: 'a rotation keeps the saved CA mode', overrides: { chain: [certificate({ selfSigned: false })], anchor: issuer, trustMode: 'ca', rotation: true, verificationError: null }, mode: 'ca', ca: 'enabled', pin: 'disabled', replace: 'true', button: 'Replace trusted certificate' },
-  { name: 'a required pin disables CA trust', overrides: { chain: [certificate({ selfSigned: false })], anchor: issuer, pinRequired: true, verificationError: null }, mode: 'pin', ca: 'disabled', pin: 'enabled', replace: 'false', button: 'Trust this certificate' },
+  { name: 'an issuing CA is trusted by default', overrides: { chain: [certificate({ selfSigned: false }), issuer], anchor: issuer }, mode: 'ca', ca: 'enabled', pin: 'enabled', replace: 'false', button: 'Trust this certificate' },
+  { name: 'a rotation keeps the saved pin mode', overrides: { trustMode: 'pin', rotation: true, verificationError: 'CERTIFICATE_PIN_MISMATCH' }, mode: 'pin', ca: 'disabled', pin: 'enabled', replace: 'true', button: 'Replace trusted certificate' },
+  { name: 'a rotation keeps the saved CA mode', overrides: { chain: [certificate({ selfSigned: false })], anchor: issuer, trustMode: 'ca', rotation: true, verificationError: 'CERTIFICATE_PIN_MISMATCH' }, mode: 'ca', ca: 'enabled', pin: 'disabled', replace: 'true', button: 'Replace trusted certificate' },
+  { name: 'a required pin disables saved CA trust as a choice', overrides: { chain: [certificate({ selfSigned: false })], anchor: issuer, trustMode: 'ca', pinRequired: true, verificationError: null, reason: 'No trust is needed. The certificate verifies with this server’s existing trust.' }, mode: 'pin', ca: 'disabled', pin: 'enabled', replace: 'false', button: 'Trust this certificate' },
 ] as const)('trust form: $name', ({ overrides, mode, ca, pin, replace, button }) => {
   const html = render(inspect(overrides as Partial<CertificateInspection>))
   const trust = form(html, '/certificates/trust')!
