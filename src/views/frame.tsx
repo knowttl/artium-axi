@@ -6,6 +6,7 @@ import { Heading, Text } from '@astryxdesign/core/Text'
 import { VStack } from '@astryxdesign/core/VStack'
 import type { ReactNode } from 'react'
 import { Icon } from './icon.js'
+import { ReauthPill, useReauthWindow, type ReauthState } from './reauth.js'
 import { sheetTrigger } from './sheet.js'
 
 export interface NavigationSection {
@@ -31,6 +32,7 @@ export interface FrameProps {
   brand: { name: string, href: string }
   navigation: NavigationSection[]
   account: string
+  reauth: ReauthState
   controls: string
   topbarEnd: string
 }
@@ -43,7 +45,8 @@ function NavigationLinks({ sections }: { sections: NavigationSection[] }) {
   })
 }
 
-export function Frame({ title, description, actions, crumbs, brand, navigation, account, controls, topbarEnd, children }: FrameProps & { children: ReactNode }) {
+export function Frame({ title, description, actions, crumbs, brand, navigation, account, reauth, controls, topbarEnd, children }: FrameProps & { children: ReactNode }) {
+  const pill = <ReauthPill minutes={useReauthWindow(reauth)} />
   const label = navigation.length ? 'Administration' : 'Account'
   return (
     <AppShell variant="section" contentPadding={4}
@@ -54,7 +57,7 @@ export function Frame({ title, description, actions, crumbs, brand, navigation, 
             <summary className="btn btn-ghost btn-sm" data-testid="mobile-nav-toggle">{navigation.length ? 'Navigation' : 'Menu'}</summary>
             <div className="frame-mobile-menu">
               <NavigationLinks sections={navigation} />
-              <div className="frame-controls frame-controls-drawer" dangerouslySetInnerHTML={{ __html: controls }} />
+              <div className="frame-controls frame-controls-drawer">{pill}<div className="frame-theme" dangerouslySetInnerHTML={{ __html: controls }} /></div>
               <div className="side-foot" dangerouslySetInnerHTML={{ __html: account }} />
             </div>
           </details>
@@ -63,7 +66,7 @@ export function Frame({ title, description, actions, crumbs, brand, navigation, 
           ? <strong aria-current="page">{crumb.label}</strong>
           : crumb.href ? <a href={crumb.href}>{crumb.label}</a> : <span>{crumb.label}</span>}</li>)}</ol>
         <div data-frame-slot="header-end">
-          <div className="frame-controls frame-controls-header" dangerouslySetInnerHTML={{ __html: controls }} />
+          <div className="frame-controls frame-controls-header">{pill}<div className="frame-theme" dangerouslySetInnerHTML={{ __html: controls }} /></div>
           <div dangerouslySetInnerHTML={{ __html: topbarEnd }} />
         </div>
       </header>}

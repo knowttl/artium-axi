@@ -37,7 +37,7 @@ export interface AuthField {
 }
 
 export type AuthBlock =
-  | { kind: 'text', parts: (string | { code: string })[], hint?: true, marker?: string }
+  | { kind: 'text', parts: (string | { code: string })[], hint?: true }
   | { kind: 'divider', label: string }
   | { kind: 'banner', status: 'success' | 'warning', text: string }
   | { kind: 'code', value: string }
@@ -90,7 +90,7 @@ function CopyValue({ value, label }: { value: string, label: string }) {
 function Block({ block }: { block: AuthBlock }) {
   switch (block.kind) {
     case 'text': return (
-      <Text as="p" type={block.hint ? 'supporting' : 'body'} {...block.marker ? { [block.marker]: '' } : {}}>
+      <Text as="p" type={block.hint ? 'supporting' : 'body'}>
         {block.parts.map((part, index) => typeof part === 'string' ? part : <Code key={index}>{part.code}</Code>)}
       </Text>
     )

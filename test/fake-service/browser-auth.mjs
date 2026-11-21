@@ -113,6 +113,8 @@ if (process.env.ARTIUM_TEST_SSO === '1') {
     selected.token.claims = request.body.claims
     selected.token.tamperSignature = request.body.tamperSignature
     if (request.body.administrator !== undefined) db.prepare("UPDATE users SET administrator = ? WHERE id = 'synthetic-browser-sso'").run(request.body.administrator ? 1 : 0)
+    if (request.body.grantFalcon) db.exec(`UPDATE tools SET enabled = 1 WHERE name = 'falcon-axi';
+      INSERT OR IGNORE INTO user_roles (user_id, role_id) VALUES ('synthetic-browser-sso', 'synthetic-role');`)
     if (request.body.localBreakGlass !== undefined) db.prepare("UPDATE users SET break_glass = ?, must_change = 0 WHERE id = 'synthetic-development-user'").run(request.body.localBreakGlass ? 1 : 0)
     if (request.body.enabled !== undefined) db.prepare('UPDATE sso_providers SET enabled = ? WHERE id = ?')
       .run(Number(request.body.enabled), request.body.providerId ?? 'synthetic-entra')

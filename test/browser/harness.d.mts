@@ -4,4 +4,5 @@ export interface AdminBrowser {
   advanceClock: (minutes: number) => Promise<void>
 }
 export function useAdminBrowser(name: string): AdminBrowser
+export const waitForReauthPills: string
 export const waitForTime: string

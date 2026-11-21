@@ -26,6 +26,7 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
 .frame-mobile-menu { position: absolute; top: 100%; left: 0; width: min(var(--side-w), 100vw); max-height: calc(100dvh - 100%); overflow-y: auto; padding: 12px 10px; background: var(--bg); border: 1px solid var(--border); }
 .frame-controls { display: flex; align-items: center; gap: 8px; }
 .frame-controls-drawer { flex-direction: column; align-items: flex-start; padding: 10px 8px; }
+.frame-theme { display: contents; }
 .topbar.frame-topbar { height: auto; min-height: var(--topbar-h); flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px; }
 @media (max-width: 767px) {
   .frame-mobile-nav { display: block; }

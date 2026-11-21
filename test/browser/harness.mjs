@@ -5,6 +5,33 @@ import { createServer } from 'node:net'
 import { createInterface } from 'node:readline'
 import { after, afterEach, before, beforeEach } from 'node:test'
 
+export const waitForReauthPills = `const waitForReauthPills = (expectedText, state, icon, timeoutMs = 5000) => page.eval('() => (' +
+  ((expectedText, state, icon, timeoutMs) => {
+    const matches = () => ['.frame-controls-header', '.frame-controls-drawer'].every(placement => {
+      const pills = document.querySelectorAll(placement + ' .unlock');
+      const pill = pills[0];
+      return pills.length === 1 && pill.className === 'unlock ' + state
+        && pill.querySelector('use')?.getAttribute('href') === icon
+        && pill.textContent === expectedText;
+    });
+    if (matches()) return;
+    const fail = () => new Error('Expected one recent-authentication pill in each frame placement showing ' + expectedText + ', ' + state + ', ' + icon);
+    if (timeoutMs === 0) throw fail();
+    return new Promise((resolve, reject) => {
+      const observer = new MutationObserver(() => {
+        if (!matches()) return;
+        observer.disconnect();
+        clearTimeout(timeout);
+        resolve();
+      });
+      const timeout = setTimeout(() => {
+        observer.disconnect();
+        reject(fail());
+      }, timeoutMs);
+      observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+    });
+  }).toString() + ')(...' + JSON.stringify([expectedText, state, icon, timeoutMs]) + ')');`
+
 export const waitForTime = `const waitForTime = async (selector, iso, expected) => {
   await page.wait(selector);
   expected ??= await page.eval('() => (' + (iso => {

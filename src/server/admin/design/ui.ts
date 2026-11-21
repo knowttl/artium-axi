@@ -65,8 +65,6 @@ export interface Viewer {
   sso: boolean
   local: boolean
   csrf: string
-  // Epoch milliseconds when recent identity confirmation expires; 0 when it has.
-  reauthUntil: number
 }
 
 export interface Page extends PageHeader {
@@ -115,17 +113,6 @@ function learn(title: string, help: string): string {
   return `<details class="page-help learn"><summary class="btn btn-ghost btn-sm" aria-label="Learn">${icon('book')}<span class="label">Learn</span></summary><div class="learn-panel"><h2>Help with ${escape(title.toLowerCase())}</h2>${help}</div></details>`
 }
 
-// confirm.js repeats this wording when it refreshes the pill every 30 seconds.
-function reauthText(until: number): string {
-  const minutes = Math.max(0, Math.ceil((until - Date.now()) / 60_000))
-  return minutes ? `Changes unlocked · ${minutes} min` : 'Changes locked'
-}
-
-function reauthPill(viewer: Viewer): string {
-  const on = viewer.reauthUntil > Date.now()
-  return `<span class="unlock ${on ? 'on' : 'off'}" data-reauth-until="${viewer.reauthUntil}" data-reauth-method="${viewer.sso ? 'sso' : 'local'}" title="Changes need an identity confirmation in the last 15 minutes. You are asked to confirm when you save.">${icon(on ? 'unlock' : 'lock')}<span data-reauth-text>${reauthText(viewer.reauthUntil)}</span></span>`
-}
-
 function dialogs(viewer: Viewer): string {
   if (viewer.mustChange) return ''
   return `<dialog id="reauth-dialog" class="modal" aria-labelledby="reauth-title"><div class="modal-body"><h2 id="reauth-title"><span class="ico-circle">${icon('lock')}</span>${viewer.sso ? 'Confirm your identity' : 'Confirm it’s you'}</h2><p>Sensitive changes need a confirmation every 15 minutes. ${viewer.sso ? 'Confirm with your provider in a new window.' : 'Enter your password.'} Cancel keeps your draft.</p></div><form>${viewer.sso ? '' : '<div class="modal-body"><div class="field"><label for="reauth-password">Password</label><input id="reauth-password" name="password" type="password" autocomplete="current-password" required></div></div>'}<p class="modal-error" data-reauth-error role="alert"></p><div class="modal-foot"><button class="btn btn-ghost" type="button" data-reauth-cancel>Cancel</button><button class="btn btn-primary">Confirm and continue</button></div></form></dialog>`
@@ -133,7 +120,7 @@ function dialogs(viewer: Viewer): string {
 
 export const authOverlays = sprite
 
-export interface AdminChrome extends Pick<FrameProps, 'crumbs' | 'brand' | 'navigation' | 'account' | 'controls' | 'topbarEnd'> {
+export interface AdminChrome extends Pick<FrameProps, 'crumbs' | 'brand' | 'navigation' | 'account' | 'topbarEnd'> {
   overlays: string
 }
 
@@ -154,7 +141,6 @@ export function adminChrome(page: Page): AdminChrome {
     brand: product,
     navigation: sections,
     account,
-    controls: reauthPill(viewer),
     topbarEnd: learn(page.title, page.help),
     overlays: dialogs(viewer) + sprite,
   }

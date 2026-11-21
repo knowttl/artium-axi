@@ -2,12 +2,12 @@ import assert from 'node:assert/strict'
 import { X509Certificate } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { spawn, spawnSync, type ChildProcessByStdio } from 'node:child_process'
-import { once } from 'node:events'
+import { on, once } from 'node:events'
 import { createInterface } from 'node:readline'
 import { createServer, type AddressInfo } from 'node:net'
 import type { Readable } from 'node:stream'
 import { after, afterEach, before, beforeEach, test } from 'node:test'
-import { waitForTime } from './harness.mjs'
+import { waitForReauthPills, waitForTime } from './harness.mjs'
 
 type Fixture = {
   url: string
@@ -26,6 +26,7 @@ const testWithLateHydration = 'latest direct credential result survives late hyd
 const pickerWithLateHydration = 'operation picker preserves edits across late hydration'
 const trackChangesWithLateHydration = 'role tool grants count a selection edited before late hydration as a change'
 const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
+const resizeCadence = 'confirmation expiry survives resizing across the mobile breakpoint'
 let chromeDebugPort: number
 
 before(async () => {
@@ -105,7 +106,8 @@ function browser(script: string) {
 
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
-    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration, instanceSheetWithLateHydration].includes(context.name) ? '1' : '0' },
+    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration,
+      instanceSheetWithLateHydration, resizeCadence].includes(context.name) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -377,18 +379,79 @@ test('account CLI command copies its text', () => {
   `)
 })
 
-test('hydrating the overview frame keeps the elements the confirmation script already owns', async () => {
+async function verifyReauthCadence() {
+  const response = await fetch(fixture.clock, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ advanceMs: 812_000 }) })
+  assert.equal(response.status, 200)
+  browser(`${waitForReauthPills}
+    await page.open(base + '/admin');
+    await page.eval(() => {
+      document.addEventListener('astryx-hydrated', () => {
+        document.documentElement.dataset.reauthTestHydrated = String(performance.now());
+      }, { once: true });
+      const script = document.createElement('script');
+      script.src = '/admin/assets/hydrate.js?resume';
+      document.head.append(script);
+    });
+    await page.wait('html[data-reauth-test-hydrated]');
+    await waitForReauthPills('Changes unlocked · 2 min', 'on', '#i-unlock');`)
+  const targets: { url: string, webSocketDebuggerUrl: string }[] = await (await fetch(`http://127.0.0.1:${chromeDebugPort}/json/list`)).json()
+  const target = targets.find(page => page.url === fixture.url + '/admin')
+  assert.ok(target)
+  const socket = new WebSocket(target.webSocketDebuggerUrl)
+  let nextId = 0
+  type ClockMessage = { id?: number, method?: string, error?: { message: string }, result?: { result?: { value?: number } } }
+  const waitForMessage = async (matches: (message: ClockMessage) => boolean) => {
+    for await (const [event] of on(socket, 'message', { signal: AbortSignal.timeout(5000) })) {
+      const message: ClockMessage = JSON.parse(event.data)
+      if (matches(message)) return message
+    }
+    throw new Error('Browser clock connection closed')
+  }
+  const send = async (method: string, params: object) => {
+    const id = ++nextId
+    const reply = waitForMessage(message => message.id === id)
+    socket.send(JSON.stringify({ id, method, params }))
+    const response = await reply
+    assert.equal(response.error, undefined)
+    return response.result
+  }
+  const advance = async (budget: number) => {
+    const expired = waitForMessage(message => message.method === 'Emulation.virtualTimeBudgetExpired')
+    await Promise.all([send('Emulation.setVirtualTimePolicy', { policy: 'advance', budget }), expired])
+  }
+  try {
+    await once(socket, 'open', { signal: AbortSignal.timeout(5000) })
+    await send('Emulation.setVirtualTimePolicy', { policy: 'pause' })
+    const clock = await send('Runtime.evaluate', {
+      expression: 'performance.now() - Number(document.documentElement.dataset.reauthTestHydrated)', returnByValue: true,
+    })
+    const elapsed = clock?.result?.value
+    assert.ok(elapsed !== undefined && elapsed >= 0 && elapsed < 29_750, `Unexpected time since hydration: ${elapsed}`)
+
+    await advance(29_750 - elapsed)
+    browser(`${waitForReauthPills} await waitForReauthPills('Changes unlocked · 2 min', 'on', '#i-unlock', 0);`)
+    await advance(500)
+    browser(`${waitForReauthPills}
+      await waitForReauthPills('Changes unlocked · 1 min', 'on', '#i-unlock', 0);
+      await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 45_000; });`)
+    await advance(29_500)
+    browser(`${waitForReauthPills} await waitForReauthPills('Changes unlocked · 1 min', 'on', '#i-unlock', 0);`)
+    await advance(500)
+    browser(`${waitForReauthPills} await waitForReauthPills('Changes locked', 'off', '#i-lock', 0);`)
+    browser(`await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() - 120_000; });`)
+    await advance(30_000)
+    browser(`${waitForReauthPills} await waitForReauthPills('Changes locked', 'off', '#i-lock', 0);`)
+  } finally { socket.close() }
+}
+
+test('the overview shows the local execution time after hydration', async () => {
   assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/overview'), { method: 'POST' })).status, 200)
   browser(`
     ${waitForTime}
     await page.open(base + '/admin');
-    await page.wait('html[data-astryx-theme]');
     const iso = '2026-01-01T00:00:00.000Z';
     await waitForTime('li time[datetime="' + iso + '"]', iso);
-    check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
-    await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
-    await page.wait('.unlock.off', 35000);
-    check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'The confirmation pill stopped following the confirmation state after hydration');
   `)
 })
 
@@ -422,23 +485,6 @@ test('audit list and detail show the local date and time', async () => {
   } finally { socket.close() }
 })
 
-test('the confirmation pill keeps following the confirmation state when the narrow-screen frame replaces it', () => {
-  chrome(['emulate', '--viewport', '390x844x1,mobile,touch'])
-  try {
-    browser(`
-      await page.open(base + '/admin');
-      await page.wait('html[data-astryx-theme]');
-      await page.wait('[data-testid=mobile-nav-toggle]');
-      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
-      await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
-      await page.wait('.unlock.off', 35000);
-      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'The confirmation pill stopped following the confirmation state on a narrow screen');
-    `)
-  } finally {
-    chrome(['stop'])
-  }
-})
-
 test('the overview keeps landmarks and a reachable theme switch at both widths', () => {
   try {
     for (const width of [1280, 390, 320]) {
@@ -463,7 +509,7 @@ test('the overview keeps landmarks and a reachable theme switch at both widths',
         check(await page.eval(() => {
           const header = document.querySelector('.frame-topbar').getBoundingClientRect();
           const main = document.querySelector('[role=main]').getBoundingClientRect();
-          const controls = [...document.querySelectorAll('.frame-topbar [data-reauth-until], .frame-topbar .learn > summary, .frame-topbar form[action="/theme"], .frame-topbar [data-testid=mobile-nav-toggle]')]
+          const controls = [...document.querySelectorAll('.frame-topbar .unlock, .frame-topbar .learn > summary, .frame-topbar form[action="/theme"], .frame-topbar [data-testid=mobile-nav-toggle]')]
             .filter(control => control.checkVisibility());
           return header.bottom <= main.top && controls.every(control => {
             const bounds = control.getBoundingClientRect();
@@ -474,13 +520,13 @@ test('the overview keeps landmarks and a reachable theme switch at both widths',
           const toggle = document.querySelector('[data-testid=mobile-nav-toggle]').getBoundingClientRect();
           const centre = element => { const bounds = element.getBoundingClientRect(); return (bounds.top + bounds.bottom) / 2; };
           const row = [...document.querySelectorAll('.frame-topbar .crumbs, .frame-topbar .learn > summary')].map(centre);
-          const hidden = [...document.querySelectorAll('.frame-topbar [data-reauth-until], .frame-topbar form[action="/theme"]')].filter(control => control.checkVisibility());
+          const hidden = [...document.querySelectorAll('.frame-topbar .unlock, .frame-topbar form[action="/theme"]')].filter(control => control.checkVisibility());
           return row.length === 2 && row.every(value => Math.abs(value - (toggle.top + toggle.bottom) / 2) < 4) && hidden.length === 0;
         }), 'The narrow header is not one row without the pill and theme switch');
         await page.click('[data-testid=mobile-nav-toggle]'); await page.wait('.frame-mobile-nav details[open]');` : ''}
         const placement = await page.eval(() => {
           const visible = selector => [...document.querySelectorAll(selector)].filter(element => element.checkVisibility());
-          return [visible('form[action="/theme"]').map(form => [Boolean(form.closest('${region}')), form.elements.next.value]), visible('[data-reauth-until]').map(pill => Boolean(pill.closest('${region}')))];
+          return [visible('form[action="/theme"]').map(form => [Boolean(form.closest('${region}')), form.elements.next.value]), visible('.unlock').map(pill => Boolean(pill.closest('${region}')))];
         });
         check(placement[0].length === 1 && placement[0][0][0] && placement[0][0][1] === '/admin' && placement[1].length === 1 && placement[1][0], 'Theme switch and confirmation pill are not in ${region}: ' + JSON.stringify(placement));
         check(await page.eval(() => { const button = document.querySelector('${region} form[action="/theme"] button[value=${choice}]'); button.focus(); return document.activeElement === button && button.getAttribute('aria-pressed') === 'false'; }), 'Theme choice must be keyboard focusable and change');
@@ -514,27 +560,23 @@ test('mobile navigation keeps account controls reachable on short screens', () =
   } finally { chrome(['resize', '1280', '900']) }
 })
 
-test('confirmation expiry survives resizing across the mobile breakpoint', () => {
+test(resizeCadence, async () => {
   try {
     chrome(['resize', '1280', '900'])
-    browser(`
-      await page.open(base + '/admin');
-      await page.wait('html[data-astryx-theme]');
-      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
-      await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
-      await page.wait('.unlock.off', 35000);
-    `)
+    await verifyReauthCadence()
     chrome(['resize', '390', '900'])
     browser(`
+      ${waitForReauthPills}
       await page.wait('[data-testid=mobile-nav-toggle]');
-      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'Mobile header restored an expired confirmation');
+      await waitForReauthPills('Changes locked', 'off', '#i-lock');
     `)
     chrome(['resize', '1280', '900'])
     browser(`
+      ${waitForReauthPills}
       await page.wait('.astryx-app-shell-sidenav');
-      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'Desktop header restored an expired confirmation');
+      await waitForReauthPills('Changes locked', 'off', '#i-lock');
     `)
-  } finally { chrome(['resize', '1280', '900']) }
+  } finally { chrome(['stop']) }
 })
 
 test('Figtree loads from the same origin under the admin content security policy', () => {
@@ -589,7 +631,11 @@ test('ordinary users can create temporary tokens after recent authentication exp
   `)
   await expireConfirmation()
   browser(`
+    ${waitForReauthPills}
     await page.open(base + '/account');
+    await page.wait('html[data-astryx-theme]');
+    await waitForReauthPills('Changes locked', 'off', '#i-lock');
+    await page.eval(() => { window.sameDocument = true; });
     await page.fill('form[data-create-token] [name=label]', 'Synthetic token');
     await page.click('[data-token-tool="falcon-axi"]');
     await page.click('[data-token-command="falcon-axi"][value="detection list"]');
@@ -598,6 +644,8 @@ test('ordinary users can create temporary tokens after recent authentication exp
     await page.fill('#reauth-dialog [name=password]', 'CANARY-local-password');
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('#created-token[open]');
+    await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');
+    check(await page.eval(() => window.sameDocument === true), 'Confirmation reloaded the page instead of refreshing the pill');
     check(await page.eval(() => document.querySelector('[data-created-token]').value.startsWith('artd_')), 'Token was not shown');
     await page.click('[data-close-created-token]');
     await page.wait('form[data-create-token]');
@@ -2796,7 +2844,7 @@ test('expired confirmation resumes the populated action exactly once after a wro
     const mobile = await page.eval(() => document.querySelector('[data-testid=mobile-nav-toggle]').getClientRects().length > 0);
     if (mobile) await page.click('[data-testid=mobile-nav-toggle]');
     const controls = mobile ? '.frame-controls-drawer' : '.frame-controls-header';
-    check(await page.eval('() => document.querySelector(' + JSON.stringify(controls + ' [data-reauth-until]') + ').innerText.includes("Changes unlocked")'), 'Confirmation window was not refreshed');
+    check(await page.eval('() => document.querySelector(' + JSON.stringify(controls + ' .unlock') + ').innerText.includes("Changes unlocked")'), 'Confirmation window was not refreshed');
     check(await page.eval(async () => {
       const { records } = await (await fetch('/v1/admin/audit')).json();
       return records.filter(record => record.action === 'create-role').length === 1;

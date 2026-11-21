@@ -97,9 +97,14 @@ The status word and tone of a token come from the `token` entry of the status vo
 The props carry a token's id, label, creator, access, scope, expiry and status, never its value or hash; the value is shown once, on Account, in its one-time dialog.
 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet it opens through `sheetTrigger`), and the side navigation slot.
-`adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu, confirmation pill and help panel once for the frame, so the links, landmarks and titles stay identical.
+`adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu and help panel once for the frame, so the links, landmarks and titles stay identical.
 The side navigation is an Astryx `SideNav` with a `SideNavSection` per group and a `SideNavItem` per link, whose current page is derived from the request path.
-The frame renders the legacy markup for the account menu, confirmation pill and help panel through `dangerouslySetInnerHTML`, so React neither re-renders nor compares what `confirm.js` updates there.
+The frame renders the legacy markup for the account menu and help panel through `dangerouslySetInnerHTML`, so React neither re-renders nor compares what `confirm.js` updates there.
+The frame receives the remaining confirmation time as typed data and uses one countdown for both copies of the React pill.
+The [pill component](../src/views/reauth.tsx) updates the text, `.unlock.on` or `.unlock.off` class, and lock icon together.
+`confirm.js` hands the remaining duration to the frame through `artium-reauth` after password confirmation or verified SSO confirmation.
+The SSO completion page uses `/admin/assets/reauth-complete.js` to message the original window, which checks the message's origin and source and verifies recent confirmation for the current session with the server.
+See [browser administration](admin-guide.md#browser-administration) for the refresh cadence and confirmation flow.
 Below the Astryx mobile breakpoint a native navigation disclosure remains usable without JavaScript, listing the same `SideNavItem` links without a second `SideNav`, and CSS hides the desktop sidebar.
 The frame retains one banner, one main and one navigation landmark, labelled "Administration" for administrators and "Account" for other people.
 The identity confirmation dialog and icon sprite that `confirm.js` drives stay outside the React root; the toasts and the action confirmation dialog (`Confirmation` in `src/views/confirmation.tsx`, on the Astryx dialog) are part of it, and `confirm.js` asks it to confirm a form through the `artium-confirm` event.
@@ -210,7 +215,6 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | --- | --- | --- | --- |
 | App shell | `appShell()`: `.app`, `.side`, `.main`, `.topbar`, `.content` | Administrator (sidebar), ordinary user (top bar only) | Skip link to `main#main`; sidebar `nav` labelled "Administration" |
 | Nav item | `.nav-item`, `.nav-label` | default, hover, current | `aria-current="page"` on the current section |
-| Recent-auth pill | `.unlock.on`, `.unlock.off` | unlocked with minutes left, locked | Text carries the state; refreshed every 30 seconds |
 | Account menu | `.account-menu` with `.popover` | closed, open | Native disclosure; "Signed in as" is announced |
 | Learn panel | `.learn` with `.learn-panel` | closed, open | Native disclosure holding the page help |
 | Breadcrumb | `.crumbs` | section group, or a parent page link on detail pages | Current page in `strong` |
