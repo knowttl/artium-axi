@@ -270,7 +270,9 @@ Browser saves keep native settings and retain blank stored secrets for the same 
 Complete credential replacement keeps saved per-person grants for each supplied policy, ignoring supplied grant maps; omitting a policy removes it and its grants.
 Instance credential create, replace and save do not change shared tool settings.
 Identity changes require new secrets as defined by the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`).
-**Test after saving** is on by default in the credential-bearing Add instance sheet and the instance's Connection card and reports a harmless credential check inline; clear it to save without testing.
+**Test after saving** is on by default in the credential-bearing Add instance sheet and the instance's Connection card.
+Clear it to save without testing.
+When selected, it runs a harmless credential check after the save and shows the result on the reloaded tool page for Add instance or on the reloaded instance page for the Connection card.
 After saving, the page reports applied normalizations and reloads stored non-secret values; secret notices name only the field and change, never the value.
 See the [credential-save contract](../src/shared/api.ts) (`adminToolRoutes.save`) for API inputs and complete replacement semantics.
 See [credential rotation](runbook.md#roles-credentials-and-health).
@@ -310,8 +312,8 @@ Omitting a policy in **Advanced** turns it off and removes its grants, with the 
 See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for automatic checks after configuration changes, pending status, recovery retries and concurrency limits.
 Use **Test connection** on an instance, or **Test** in its row, for a current fixed read before enabling a configured tool; it asks for no confirmation dialog but still needs recent identity confirmation.
 If you choose **Test connection** while the instance page is still loading, the test starts once the page is ready to submit it.
-The result and any failure details appear on the instance page.
-After a save and test, the tool or instance page displays the saved result once the reloaded page is ready.
+**Test connection** updates the result and any failure details in place.
+Choose it again after correcting a connection problem to check the saved connection without losing unsaved edits.
 New check times are shown in your browser's locale and time zone.
 For failed tests, follow the [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) and the [error reference](errors.md).
 Graph tests read at most one user through `entra user list --limit 1`.
