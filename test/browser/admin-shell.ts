@@ -2606,45 +2606,31 @@ for (const action of ['save', 'test']) {
   }
 }
 
-test('Graph federated authentication hides incompatible fields before entering a token', () => {
+for (const delayed of [false, true]) test(delayed ? credentialEditorWithLateHydration : 'Graph federated authentication hides incompatible fields before entering a token', () => {
   browser(`
-    await page.open(base + '/admin/tools/mg-axi');
-    await page.eval(() => {
-      for (const [name, value] of [['mode', 'delegated'], ['mode', 'application'], ['auth', 'federated']]) {
-        const input = document.querySelector('[data-profile-field=' + name + ']');
-        input.value = JSON.stringify(value);
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
-    await page.wait('[data-profile-field=thumbprintSha256]:disabled');
+    await page.open(base + '/admin/tools/mg-axi?sheet=add-instance');
+    if (${delayed}) {
+      check(await page.eval(() => document.querySelector('[data-profile-field=mode]').matches(':disabled')
+        && document.querySelector('[data-profile-field=auth]').matches(':disabled')), 'The credential editor accepted selections before hydration');
+      await resumeHydration();
+    }
+    await page.wait('#sheet-add-instance:modal select[data-profile-field=mode]:enabled');
+    await page.eval(() => document.querySelector('select[data-profile-field=mode]').focus());
+    await page.press('End');
+    await page.wait('#sheet-add-instance:modal select[data-profile-field=auth]:enabled');
+    await page.eval(() => document.querySelector('select[data-profile-field=auth]').focus());
+    await page.press('Home');
+    await page.press('ArrowDown');
+    await page.wait('[data-profile-field=thumbprintSha256]:enabled[required]');
+    await page.press('End');
+    await page.wait('[data-profile-field=token]:enabled[required]');
     check(await page.eval(() => {
       const token = document.querySelector('[data-profile-field=token]');
-      return token.value === '' && !token.disabled && token.required && !token.closest('[data-credential-field]').hidden;
+      return token.value === '' && token.checkVisibility();
     }), 'Federated token must be available and required while blank');
     for (const name of ['privateKey', 'clientSecret', 'thumbprintSha256']) {
       check(await page.eval('(() => { const input = document.querySelector(' + JSON.stringify('[data-profile-field=' + name + ']') + '); return input.disabled && input.closest("[data-credential-field]").hidden; })()'), name + ' remained visible or enabled');
     }
-  `)
-})
-
-test(credentialEditorWithLateHydration, () => {
-  browser(`
-    await page.open(base + '/admin/tools/mg-axi?sheet=add-instance');
-    check(await page.eval(() => document.querySelector('[data-profile-field=mode]').matches(':disabled')
-      && document.querySelector('[data-profile-field=auth]').matches(':disabled')), 'The credential editor accepted selections before hydration');
-    await resumeHydration();
-    await page.wait('#sheet-add-instance:modal [data-profile-field=mode]:enabled');
-    await page.wait('#sheet-add-instance:modal [data-profile-field=auth]:enabled');
-    await page.eval(() => {
-      for (const [name, value] of [['mode', 'application'], ['auth', 'federated']]) {
-        const input = document.querySelector('[data-profile-field=' + name + ']');
-        input.value = JSON.stringify(value);
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
-    await page.wait('[data-profile-field=thumbprintSha256]:disabled');
-    await page.wait('[data-profile-field=token][required]');
-    check(await page.eval(() => document.querySelector('[data-profile-field=auth]').value === '"federated"'), 'The credential editor did not retain the selected authentication');
   `)
 })
 

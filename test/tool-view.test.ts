@@ -345,10 +345,13 @@ test('a policy whose ceilings are not saved offers no grant, and the page says w
   expect(find(everyone, element => attribute(element, 'id') === 'sheet-grants-sessions-add')).toEqual([])
 })
 
+const certificateGroups = (form: Element) => nodes(form).filter(element => element.tagName === 'fieldset'
+  && element.childNodes.some(child => 'tagName' in child && child.tagName === 'legend' && text(child) === 'Certificate verification'))
+
 const verification = (tool: ToolName, metadata: Record<string, unknown> = {}) => {
   const html = renderInstances({ addInstance: addInstance({ editor: { ...editor, tls: tlsSection(tool, metadata) } }) })
-  const [fieldset] = find(html, element => element.tagName === 'fieldset' && attribute(element, 'data-hydration-gate') === undefined)
-  return { html, fieldset: fieldset!, fields: nodes(fieldset!).filter(element => attribute(element, 'data-profile-field') !== undefined) }
+  const [fieldset] = certificateGroups(addForm(html))
+  return { fieldset: fieldset!, fields: nodes(fieldset!).filter(element => attribute(element, 'data-profile-field') !== undefined) }
 }
 
 test.each([
@@ -365,7 +368,6 @@ test.each([
   expect(fields.filter(field => attribute(field, 'data-profile-clearable') !== undefined).map(field => attribute(field, 'data-profile-field'))).toEqual(clearable)
   expect(nodes(fieldset).filter(element => attribute(element, 'data-tls-file') !== undefined).map(input => [attribute(input, 'type'), attribute(input, 'accept'), attribute(input, 'data-tls-file')]))
     .toEqual(uploads.map(name => ['file', '.pem', name]))
-  expect(nodes(fieldset).filter(element => element.tagName === 'legend').map(text)).toEqual(['Certificate verification'])
 })
 
 test.each(['unifi-axi', 'proxmox-axi', 'technitium-axi', 'ldap-axi', 'vectra-axi', 'kubernetes-axi'] as const)('%s keeps a pasted certificate in a native, uncontrolled field that holds no value', tool => {
@@ -409,6 +411,10 @@ test('Kubernetes requires a trusted certificate until one is saved and opens its
 })
 
 test('a tool without certificate settings offers no certificate verification', () => {
-  expect(find(renderInstances({ addInstance: addInstance({ editor: { ...editor, tls: null } }) }), element => element.tagName === 'fieldset' && attribute(element, 'data-hydration-gate') === undefined)).toEqual([])
-  expect(tlsSection('ssh-axi', {})).toBeNull()
+  const form = addForm(renderInstances({ addInstance: addInstance() }))
+  expect(certificateGroups(form)).toEqual([])
+  expect(nodes(form).filter(element => ['input', 'select', 'textarea'].includes(element.tagName))
+    .map(element => attribute(element, 'name')).sort()).toEqual([
+    '_csrf', 'certificatePem', 'description', 'expectedToolRevision', 'name', 'pem.certificatePem', 'profile.auth', 'profile.clientSecret', 'profile.region', 'testAfterSave',
+  ])
 })
