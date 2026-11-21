@@ -46,7 +46,7 @@ function NavigationLinks({ sections }: { sections: NavigationSection[] }) {
 }
 
 export function Frame({ title, description, actions, crumbs, brand, navigation, account, reauth, controls, topbarEnd, children }: FrameProps & { children: ReactNode }) {
-  const pill = <ReauthPill minutes={useReauthWindow(reauth)} sso={reauth.sso} />
+  const pill = <ReauthPill minutes={useReauthWindow(reauth)} />
   const label = navigation.length ? 'Administration' : 'Account'
   return (
     <AppShell variant="section" contentPadding={4}

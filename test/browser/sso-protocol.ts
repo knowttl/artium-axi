@@ -399,7 +399,7 @@ test('SSO identity confirmation resumes the pending form through the real popup 
   selectPage('/admin/roles')
   browser(`await page.wait('form[action$="/tools"]');
     check(await page.eval(() => document.querySelector('h1').innerText === 'Synthetic resumed role'), 'Pending role was not saved');
-    check(await page.eval(() => document.querySelector('[data-reauth-method]').innerText.includes('Changes unlocked')), 'Recent-auth window was not updated');`)
+    check(await page.eval(() => document.querySelector('.unlock').innerText.includes('Changes unlocked')), 'Recent-auth window was not updated');`)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.deepEqual(evidence.callbackCookies, { session: false, preauth: true, csrf: false })
   assert.equal(evidence.authorizations.at(-1)!.prompt, 'login')

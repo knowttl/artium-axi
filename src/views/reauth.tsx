@@ -7,7 +7,6 @@ const minuteMs = 60_000
 
 export interface ReauthState {
   remainingMs: number
-  sso: boolean
 }
 
 interface ReauthSample {
@@ -45,9 +44,9 @@ export function useReauthWindow({ remainingMs }: ReauthState) {
   return Math.ceil(remaining / minuteMs)
 }
 
-export function ReauthPill({ minutes, sso }: { minutes: number, sso: boolean }) {
+export function ReauthPill({ minutes }: { minutes: number }) {
   return (
-    <span className={`unlock ${minutes ? 'on' : 'off'}`} data-reauth-method={sso ? 'sso' : 'local'}
+    <span className={`unlock ${minutes ? 'on' : 'off'}`}
       title="Changes need an identity confirmation in the last 15 minutes. You are asked to confirm when you save.">
       <Icon name={minutes ? 'unlock' : 'lock'} />
       <span>{minutes ? `Changes unlocked · ${minutes} min` : 'Changes locked'}</span>

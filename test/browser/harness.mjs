@@ -8,7 +8,7 @@ import { after, afterEach, before, beforeEach } from 'node:test'
 export const waitForReauthPills = `const waitForReauthPills = (expectedText, state, icon, timeoutMs = 5000) => page.eval('() => (' +
   ((expectedText, state, icon, timeoutMs) => {
     const matches = () => ['.frame-controls-header', '.frame-controls-drawer'].every(placement => {
-      const pills = document.querySelectorAll(placement + ' [data-reauth-method]');
+      const pills = document.querySelectorAll(placement + ' .unlock');
       const pill = pills[0];
       return pills.length === 1 && pill.className === 'unlock ' + state
         && pill.querySelector('use')?.getAttribute('href') === icon

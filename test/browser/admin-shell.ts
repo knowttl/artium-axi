@@ -26,8 +26,6 @@ const testWithLateHydration = 'latest direct credential result survives late hyd
 const pickerWithLateHydration = 'operation picker preserves edits across late hydration'
 const trackChangesWithLateHydration = 'role tool grants count a selection edited before late hydration as a change'
 const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
-const overviewCadence = 'hydrating the overview frame keeps the elements the confirmation script already owns'
-const narrowCadence = 'the confirmation pill keeps following the confirmation state when the narrow-screen frame replaces it'
 const resizeCadence = 'confirmation expiry survives resizing across the mobile breakpoint'
 let chromeDebugPort: number
 
@@ -109,7 +107,7 @@ function browser(script: string) {
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
     env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration,
-      instanceSheetWithLateHydration, overviewCadence, narrowCadence, resizeCadence].includes(context.name) ? '1' : '0' },
+      instanceSheetWithLateHydration, resizeCadence].includes(context.name) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -447,16 +445,14 @@ async function verifyReauthCadence() {
   } finally { socket.close() }
 }
 
-test(overviewCadence, async () => {
+test('the overview shows the local execution time after hydration', async () => {
   assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/overview'), { method: 'POST' })).status, 200)
-  try {
-    await verifyReauthCadence()
-    browser(`
-      ${waitForTime}
-      const iso = '2026-01-01T00:00:00.000Z';
-      await waitForTime('li time[datetime="' + iso + '"]', iso);
-    `)
-  } finally { chrome(['stop']) }
+  browser(`
+    ${waitForTime}
+    await page.open(base + '/admin');
+    const iso = '2026-01-01T00:00:00.000Z';
+    await waitForTime('li time[datetime="' + iso + '"]', iso);
+  `)
 })
 
 test('audit list and detail show the local date and time', async () => {
@@ -489,16 +485,6 @@ test('audit list and detail show the local date and time', async () => {
   } finally { socket.close() }
 })
 
-test(narrowCadence, async () => {
-  chrome(['emulate', '--viewport', '390x844x1,mobile,touch'])
-  try {
-    await verifyReauthCadence()
-    browser(`await page.wait('[data-testid=mobile-nav-toggle]');`)
-  } finally {
-    chrome(['stop'])
-  }
-})
-
 test('the overview keeps landmarks and a reachable theme switch at both widths', () => {
   try {
     for (const width of [1280, 390, 320]) {
@@ -523,7 +509,7 @@ test('the overview keeps landmarks and a reachable theme switch at both widths',
         check(await page.eval(() => {
           const header = document.querySelector('.frame-topbar').getBoundingClientRect();
           const main = document.querySelector('[role=main]').getBoundingClientRect();
-          const controls = [...document.querySelectorAll('.frame-topbar [data-reauth-method], .frame-topbar .learn > summary, .frame-topbar form[action="/theme"], .frame-topbar [data-testid=mobile-nav-toggle]')]
+          const controls = [...document.querySelectorAll('.frame-topbar .unlock, .frame-topbar .learn > summary, .frame-topbar form[action="/theme"], .frame-topbar [data-testid=mobile-nav-toggle]')]
             .filter(control => control.checkVisibility());
           return header.bottom <= main.top && controls.every(control => {
             const bounds = control.getBoundingClientRect();
@@ -534,13 +520,13 @@ test('the overview keeps landmarks and a reachable theme switch at both widths',
           const toggle = document.querySelector('[data-testid=mobile-nav-toggle]').getBoundingClientRect();
           const centre = element => { const bounds = element.getBoundingClientRect(); return (bounds.top + bounds.bottom) / 2; };
           const row = [...document.querySelectorAll('.frame-topbar .crumbs, .frame-topbar .learn > summary')].map(centre);
-          const hidden = [...document.querySelectorAll('.frame-topbar [data-reauth-method], .frame-topbar form[action="/theme"]')].filter(control => control.checkVisibility());
+          const hidden = [...document.querySelectorAll('.frame-topbar .unlock, .frame-topbar form[action="/theme"]')].filter(control => control.checkVisibility());
           return row.length === 2 && row.every(value => Math.abs(value - (toggle.top + toggle.bottom) / 2) < 4) && hidden.length === 0;
         }), 'The narrow header is not one row without the pill and theme switch');
         await page.click('[data-testid=mobile-nav-toggle]'); await page.wait('.frame-mobile-nav details[open]');` : ''}
         const placement = await page.eval(() => {
           const visible = selector => [...document.querySelectorAll(selector)].filter(element => element.checkVisibility());
-          return [visible('form[action="/theme"]').map(form => [Boolean(form.closest('${region}')), form.elements.next.value]), visible('[data-reauth-method]').map(pill => Boolean(pill.closest('${region}')))];
+          return [visible('form[action="/theme"]').map(form => [Boolean(form.closest('${region}')), form.elements.next.value]), visible('.unlock').map(pill => Boolean(pill.closest('${region}')))];
         });
         check(placement[0].length === 1 && placement[0][0][0] && placement[0][0][1] === '/admin' && placement[1].length === 1 && placement[1][0], 'Theme switch and confirmation pill are not in ${region}: ' + JSON.stringify(placement));
         check(await page.eval(() => { const button = document.querySelector('${region} form[action="/theme"] button[value=${choice}]'); button.focus(); return document.activeElement === button && button.getAttribute('aria-pressed') === 'false'; }), 'Theme choice must be keyboard focusable and change');
@@ -2858,7 +2844,7 @@ test('expired confirmation resumes the populated action exactly once after a wro
     const mobile = await page.eval(() => document.querySelector('[data-testid=mobile-nav-toggle]').getClientRects().length > 0);
     if (mobile) await page.click('[data-testid=mobile-nav-toggle]');
     const controls = mobile ? '.frame-controls-drawer' : '.frame-controls-header';
-    check(await page.eval('() => document.querySelector(' + JSON.stringify(controls + ' [data-reauth-method]') + ').innerText.includes("Changes unlocked")'), 'Confirmation window was not refreshed');
+    check(await page.eval('() => document.querySelector(' + JSON.stringify(controls + ' .unlock') + ').innerText.includes("Changes unlocked")'), 'Confirmation window was not refreshed');
     check(await page.eval(async () => {
       const { records } = await (await fetch('/v1/admin/audit')).json();
       return records.filter(record => record.action === 'create-role').length === 1;

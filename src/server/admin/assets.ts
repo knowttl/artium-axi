@@ -154,6 +154,7 @@ function announceReauth(remainingMs) {
 function reauthenticate(csrf) {
   const dialog = document.getElementById('reauth-dialog');
   const form = dialog.querySelector('form');
+  const password = form.elements.password;
   const button = form.querySelector('button:not([type=button])');
   const error = form.querySelector('[data-reauth-error]');
   dialog.returnValue = '';
@@ -181,7 +182,7 @@ function reauthenticate(csrf) {
       if (button.disabled) return;
       button.disabled = true;
       error.textContent = '';
-      if (document.querySelector('[data-reauth-method]').dataset.reauthMethod === 'sso') {
+      if (!password) {
         popup = window.open('/reauth', 'artium-reauth', 'popup,width=600,height=760');
         if (!popup) {
           error.textContent = 'Allow a popup for artium, then try again. Your draft stays here.';
@@ -200,14 +201,14 @@ function reauthenticate(csrf) {
       try {
         const response = await fetch('/v1/auth/reauth', { method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ _csrf: csrf, password: form.elements.password.value }), signal: controller.signal });
+          body: JSON.stringify({ _csrf: csrf, password: password.value }), signal: controller.signal });
         if (closed) return;
-        form.elements.password.value = '';
+        password.value = '';
         if (!dialog.open) return;
         if (response.redirected) { location.assign(response.url); dialog.close('cancel'); return; }
         if (!response.ok) {
           showError(error, (await response.json()).error);
-          form.elements.password.focus();
+          password.focus();
           return;
         }
         announceReauth(Number(response.headers.get('x-artium-reauth-remaining-ms')));

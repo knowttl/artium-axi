@@ -30,7 +30,7 @@ export function renderPage<Name extends ViewName>(reply: FastifyReply, title: st
   const viewer = browserViewer(reply, current)
   const { crumbs, brand, navigation, account, topbarEnd, overlays } = adminChrome({ title, heading, parent, description, content: '', help: pageHelp(helpTopic, current.source),
     path: reply.request.url.split('?')[0]!, viewer, themeSwitch: '' })
-  const frame = { title: heading ?? title, description, actions, crumbs, brand: { ...brand, href: current.administrator ? brand.href : '/account' }, navigation: current.administrator ? navigation : [], account, reauth: { remainingMs: browserReauthRemainingMs(current), sso: viewer.sso }, controls: themeSwitch(reply, mode), topbarEnd }
+  const frame = { title: heading ?? title, description, actions, crumbs, brand: { ...brand, href: current.administrator ? brand.href : '/account' }, navigation: current.administrator ? navigation : [], account, reauth: { remainingMs: browserReauthRemainingMs(current) }, controls: themeSwitch(reply, mode), topbarEnd }
   return respond(reply, title, name, props, frame, overlays, current)
 }
 
