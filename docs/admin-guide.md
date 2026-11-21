@@ -309,8 +309,10 @@ The **Advanced** editor shows policy settings without per-person grants, which a
 Omitting a policy in **Advanced** turns it off and removes its grants, with the removal recorded in **Settings changes**.
 See the runbook's [background health schedule](runbook.md#roles-credentials-and-health) for automatic checks after configuration changes, pending status, recovery retries and concurrency limits.
 Use **Test connection** on an instance, or **Test** in its row, for a current fixed read before enabling a configured tool; it asks for no confirmation dialog but still needs recent identity confirmation.
-If the instance page receives a connection-test result before hydration, it shows the result and any failure details immediately.
-When the response includes a check time, the page displays it in ISO format until hydration finishes.
+If you choose **Test connection** while the instance page is still loading, the test starts once the page is ready to submit it.
+The result and any failure details appear on the instance page.
+After a save and test, the tool or instance page displays the saved result once the reloaded page is ready.
+New check times are shown in your browser's locale and time zone.
 For failed tests, follow the [credential diagnostic guidance](runbook.md#scripted-administrator-sessions) and the [error reference](errors.md).
 Graph tests read at most one user through `entra user list --limit 1`.
 For a new installation, follow [Graph credential setup](tool-credentials.md#microsoft-graph), verify the required permissions against your intended operations and obtain maintainer approval before enabling Graph on a running installation.

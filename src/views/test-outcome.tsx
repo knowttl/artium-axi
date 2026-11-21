@@ -20,7 +20,7 @@ export function storeTestOutcome(outcome: TestOutcome) {
   sessionStorage.setItem(testOutcomeKey(), JSON.stringify({ diagnosticVersion: 1, ...outcome }))
 }
 
-const TestOutcomeContext = createContext<{ outcome: TestOutcome, tlsFailed?: boolean, show: (outcome: TestOutcome) => void }>({ outcome: { message: '' }, show: () => {} })
+const TestOutcomeContext = createContext<{ outcome: TestOutcome, tlsFailed?: boolean, show: (outcome: TestOutcome) => void } | null>(null)
 
 export function TestOutcomeProvider({ children }: { children: ReactNode }) {
   const [result, setResult] = useState<{ outcome: TestOutcome, tlsFailed?: boolean }>({ outcome: { message: '' } })
@@ -39,7 +39,11 @@ export function TestOutcomeProvider({ children }: { children: ReactNode }) {
   return <TestOutcomeContext value={{ ...result, show }}>{children}</TestOutcomeContext>
 }
 
-export const useTestOutcome = () => useContext(TestOutcomeContext)
+export function useTestOutcome() {
+  const context = useContext(TestOutcomeContext)
+  if (!context) throw new Error('Test outcomes require TestOutcomeProvider')
+  return context
+}
 
 export function TestResultNote() {
   return <p className="note" data-test-result="" role="status">{useTestOutcome().outcome.message}</p>

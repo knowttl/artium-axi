@@ -2172,9 +2172,11 @@ test('disabled tool retains cached test outcomes after reloading the instance', 
       if (!response.ok) throw new Error('Could not install the fixture CA');
     });
     await openInstance('vectra-axi');
+    await page.wait('[data-inspect-certificate]:not([hidden])');
     await page.click('form[data-test-tool] button');
     await page.wait('[data-test-result]:not(:empty)');
     check(await page.eval(() => document.querySelector('[data-test-result]').textContent === 'Test passed.'), 'Loopback test did not pass after trust');
+    check(await page.eval(() => document.querySelector('[data-inspect-certificate]').hidden), 'The passing test retained the cached certificate offer');
     await openInstance('vectra-axi');
     check(await page.eval(() => document.querySelector('[data-tool-state]').textContent.includes('Healthy')), 'Detail lost the successful outcome');
     check(await page.eval(() => document.querySelector('[data-check-failure]').hidden), 'Successful test retained the failure callout');
@@ -2246,9 +2248,7 @@ test('retesting replaces a failed result with a passing one without reloading', 
       !document.querySelector('[data-inspect-certificate]').hidden &&
       document.querySelector('[data-inspect-certificate]').parentElement.textContent.includes('Compare the fingerprint with the one the appliance shows before trusting.')
     ), 'The failed result was not rendered');
-    await page.wait('.astryx-toast[data-type=error]');
-    await openInstance('vectra-axi');
-    await page.wait('[data-inspect-certificate]:not([hidden])');
+    await page.wait('form[data-test-tool] button:not([disabled])');
     await page.fill('[data-profile-field=token]', 'CANARY-unsaved-retest-draft');
     await page.eval(async () => {
       const response = await fetch('/test/trust-ca', { method: 'POST' });
