@@ -17,6 +17,10 @@ interface ReauthSample {
   monotonicTime: number
 }
 
+export function requestReauth(csrf: unknown) {
+  return new Promise<boolean>(resolve => document.dispatchEvent(new CustomEvent(reauthRequestEvent, { cancelable: true, detail: { csrf, resolve } })))
+}
+
 export function announceReauth(remainingMs: number) {
   const sample: ReauthSample = { remainingMs, wallTime: Date.now(), monotonicTime: performance.now() }
   document.dispatchEvent(new CustomEvent(reauthEvent, { detail: sample }))

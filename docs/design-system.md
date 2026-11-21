@@ -53,10 +53,16 @@ The pasted trusted certificate and each file upload are emptied when the sheet c
 The hostname choice defaults to hostname verification, or to keeping the saved setting when a fingerprint is stored, followed by Yes and No; removal checkboxes start unchecked.
 The GitHub connection card (`GithubConnection` in `src/views/github-connection.tsx`) is a `Panel` with the shared `ActionForm`, on the gh-axi Instances tab to add an instance and on a gh-axi instance page to connect or reconnect it; `githubConnection()` in `src/server/admin/instances.ts` builds its props once for both.
 Its props are the start route, the tool revision, the saved origin, the instance's identity and revision, the connected login and expiry, and whether the credential expired; they carry no token, device code or verification link.
-The form keeps `data-connect-github` and its field names, and posts with the same confirmation and recent-authentication step as before.
-The hidden `data-github-authorization` panel keeps the empty `data-github-link`, `data-github-code` and `data-github-status` elements and the `data-cancel-github` button.
-After the start route answers, `confirm.js` displays the user code and verification URL, sets the link's `href` to that URL and wires cancellation; neither value is in the server-rendered markup or hydration data.
-The elements `confirm.js` fills render with `suppressHydrationWarning`.
+The `data-connect-github` form passes the successful start response from `ActionForm` to `useGithubDevice` through `showDevice`.
+The `data-github-authorization` panel stays hidden until a connection starts, and React renders the user code and verification link from the start response.
+The server-rendered markup and hydration data omit both values.
+The start form uses action confirmation, and start, poll and cancel can request identity confirmation through `artium-reauth-request` and retry once if the administrator confirms.
+`submitForm` holds the page-wide submit lock while `useGithubDevice` runs.
+The polling loop caps each wait at the time remaining before the code deadline.
+If the deadline passes during a poll, the lock stays held while the panel shows that it is checking the result.
+Cancel clears any pending poll timer, wakes the polling loop and discards any outstanding poll result.
+The card reports cancellation as confirmed only after a successful, non-redirected response with `status: cancelled`.
+See [GitHub setup](tool-credentials.md#github) for connection and recovery steps.
 The instance page (`src/views/instance.tsx`, route `/admin/tools/:tool/instances/:name`) is the ninth page on the seam.
 Its header holds the Test connection form and the Enabled switch, and below it come the failure banner, the setup steps, the optional GitHub card, the AWX controller address, the Connection card, the Trusted certificates panel with its inspection dialog, the Danger zone and two notes, in one column.
 The Connection card is `CredentialEditor` with the instance's `configured` state and saved non-secret values, which `credentialEditor()` takes from the instance metadata and only for fields the profile does not mark secret; a secret field is the same empty native textarea as in the Add instance sheet, and the editor empties it, and the pasted or uploaded certificate, when the page is left (`pagehide`) as well as when a sheet closes.
@@ -112,7 +118,7 @@ The props carry a token's id, label, creator, access, scope, expiry and status, 
 The page frame is `Frame` in `src/views/frame.tsx`, built on Astryx `AppShell`: a header with the breadcrumb, a content area with the page title, description and a row of action links (`FrameAction`: a primary or secondary button that is a link, optionally naming the sheet it opens through `sheetTrigger`), and the side navigation slot.
 `adminChrome()` in `src/server/admin/design/ui.ts` builds the breadcrumb, brand, administration links, account menu and help panel once for the frame, so the links, landmarks and titles stay identical.
 The side navigation is an Astryx `SideNav` with a `SideNavSection` per group and a `SideNavItem` per link, whose current page is derived from the request path.
-The frame renders the legacy markup for the account menu and help panel through `dangerouslySetInnerHTML`, so React neither re-renders nor compares what `confirm.js` updates there.
+The frame renders the legacy markup for the account menu and help panel through `dangerouslySetInnerHTML`.
 The frame receives the remaining confirmation time as typed data and uses one countdown for both copies of the React pill.
 The [pill component](../src/views/reauth.tsx) updates the text, `.unlock.on` or `.unlock.off` class, and lock icon together.
 The identity confirmation dialog hands the remaining duration to the frame through `artium-reauth` after password confirmation or verified SSO confirmation.
@@ -128,10 +134,9 @@ It includes the CSRF token, applies conversions from the captured `data-type` co
 For a credential form, `submitForm` reads any pending PEM selection captured by the submit and builds the request's `value` from the captured values of the profile and TLS controls.
 When the endpoint changes, it omits an untouched connection IP or certificate name.
 After creating or updating an instance with credentials, `submitForm` runs the optional connection test and stores the save message with any normalization notices and test outcome.
-Both `ActionForm` and `confirm.js` use `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
+`ActionForm` uses `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
 After certificate trust is saved, `submitForm` uses [`retestConnection`](../src/views/retest.ts) to test with `X-Artium-Retest: 1` and stores the outcome for the reloaded instance page.
-`scriptedFormSelector` matches only the GitHub connection form, which `confirm.js` submits.
-For a plain form submitted before React can handle it, `confirm.js` captures the submitted values and hands them to `ActionForm` after `astryx-hydrated`, when the dialog listeners are ready.
+For a form submitted before React can handle it, `confirm.js` captures the submitted values and hands them to `ActionForm` after `astryx-hydrated`, when the dialog listeners are ready.
 `ActionForm` also captures the submitted values before waiting for dialog readiness, and both handlers share a page-wide submit lock.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.

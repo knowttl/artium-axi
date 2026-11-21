@@ -72,7 +72,7 @@ test.each([{ expired: true, alerts: ['The credential expired or was revoked'] },
     expect(find(html, element => attribute(element, 'role') === 'alert').map(element => text(element).includes('The credential expired or was revoked') ? 'The credential expired or was revoked' : text(element))).toEqual(alerts)
   })
 
-test('the device authorization panel is hidden and empty until confirm.js fills it, and holds the cancel control outside the form', () => {
+test('the device authorization panel is hidden and empty until a connection starts, and holds the disabled cancel control outside the form', () => {
   const html = render(added)
   const [panel] = find(html, element => attribute(element, 'data-github-authorization') !== undefined)
   expect(attribute(panel!, 'hidden')).toBe('')
@@ -82,7 +82,7 @@ test('the device authorization panel is hidden and empty until confirm.js fills 
   expect([link!.tagName, attribute(link!, 'href'), attribute(link!, 'target'), attribute(link!, 'rel')]).toEqual(['a', undefined, '_blank', 'noopener noreferrer'])
   expect(inside('data-github-status').map(element => attribute(element, 'role'))).toEqual(['status'])
   const [cancel] = inside('data-cancel-github')
-  expect([cancel!.tagName, attribute(cancel!, 'type'), text(cancel!)]).toEqual(['button', 'button', 'Cancel connection'])
+  expect([cancel!.tagName, attribute(cancel!, 'type'), text(cancel!), attribute(cancel!, 'aria-disabled')]).toEqual(['button', 'button', 'Cancel connection', 'true'])
   expect(nodes(connectForm(html)).some(element => attribute(element, 'data-github-authorization') !== undefined)).toBe(false)
 })
 

@@ -5,7 +5,8 @@ import { completePemFields } from './certificate-verification.js'
 import { claimLinkEvent } from './claim-link.js'
 import { confirmationEvent, type ConfirmationRequest } from './confirmation.js'
 import { createdTokenEvent } from './created-token.js'
-import { reauthRequestEvent } from './reauth.js'
+import type { GithubDeviceStart } from './github-device.js'
+import { requestReauth } from './reauth.js'
 import { retestConnection } from './retest.js'
 import { storeTestOutcome, type TestOutcome } from './test-outcome.js'
 import { successKey } from './toasts.js'
@@ -27,8 +28,11 @@ export interface SubmitRequest {
   retestUrl?: string
   showTest?: (outcome: TestOutcome) => void
   showInspection?: (inspection: CertificateInspection) => void
-  report: (text: string, reload?: boolean) => void
+  showDevice?: (connection: GithubDeviceStart, report: Report) => Promise<void>
+  report: Report
 }
+
+export type Report = (text: string, reload?: boolean) => void
 
 type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
 type Body = Record<string, unknown>
@@ -125,7 +129,7 @@ function shapeBody({ fields, typed }: FormDraft, body: Body): string | null {
   return null
 }
 
-export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, report }: SubmitRequest) {
+export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, showDevice, report }: SubmitRequest) {
   const submission = beginSubmit(form, submitter)
   if (!submission) return
   const { button, release } = submission
@@ -175,7 +179,7 @@ export async function submitForm({ form, submitter, draft, action, method, confi
     if (response.status === 401 && !response.redirected) {
       const result = await response.clone().json() as { error: { code: string } }
       if (result.error.code === 'REAUTH_REQUIRED') {
-        if (!await ask<boolean>(reauthRequestEvent, { csrf: body._csrf })) return
+        if (!await requestReauth(body._csrf)) return
         response = await send()
       }
     }
@@ -192,6 +196,10 @@ export async function submitForm({ form, submitter, draft, action, method, confi
     if (!response.ok) {
       const { error } = await response.json() as { error: { message: string, next: string, code: string } }
       report(`${error.message} ${error.next} (${error.code})`, error.code === 'REVISION_CONFLICT')
+      return
+    }
+    if (showDevice) {
+      await showDevice(await response.json() as GithubDeviceStart, report)
       return
     }
     if (showInspection) {
