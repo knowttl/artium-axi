@@ -898,7 +898,7 @@ test('invitations show each new link once and allow resend and revoke through th
     await page.wait('a[href^="/admin/settings/sign-in/"]');
     await page.open(base + '/admin');
     await page.click('a[href="/admin/invitations"]');
-    await page.wait('form[data-invitation-link]');
+    await page.wait('form[action="/v1/admin/sso/invitations"]');
     check(await page.eval(() => document.querySelector('[role=main] .astryx-banner-frame').innerText.includes('can’t be claimed yet')), 'Missing disabled-provider banner');
     const newInvitation = 'a[data-sheet="sheet-new-invitation"]';
     await page.click(newInvitation);
@@ -914,18 +914,19 @@ test('invitations show each new link once and allow resend and revoke through th
       check(await page.eval(() => !document.querySelector('#confirmation').open), 'Invalid creation lifetime opened confirmation');
     }
     await page.fill('#sheet-new-invitation [name=expiresInDays]', '1');
-    await page.click('form[data-invitation-link] button');
+    await page.click('form[action="/v1/admin/sso/invitations"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('#invitation-link:modal [data-claim-link]:focus');
     check(await page.eval(() => !document.querySelector('#sheet-new-invitation').open), 'The creation sheet stayed open under the claim link');
     const first = await page.eval(() => document.querySelector('[data-claim-link]').value);
+    check(await page.eval(() => { const link = document.querySelector('[data-claim-link]'); return link.selectionStart === 0 && link.selectionEnd === link.value.length; }), 'Invitation link was not selected for copying');
     check(first.startsWith(base + '/auth/sso/'), 'Invitation was not a link for this server');
     await page.eval(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.copied = text; } } }));
     await page.click('#invitation-link [data-copy]');
     check(await page.eval(() => window.copied === document.querySelector('[data-claim-link]').value &&
       document.querySelector('#invitation-link [data-copy-status]').textContent === 'Copied.'), 'Invitation link copy failed');
-    await page.click('#invitation-link form button');
+    await page.click('#invitation-link button[value=done]');
     await page.wait('tr[data-invitation]');
     check(await page.eval(() => document.querySelector('[data-claim-link]').value === ''), 'Old link was redisplayed');
     check(await page.eval(() => document.querySelector('tr[data-invitation]').innerText.includes('Synthetic Role')), 'Direct role was not retained');
@@ -948,7 +949,7 @@ test('invitations show each new link once and allow resend and revoke through th
     check(await page.eval(() => !document.querySelector('dialog[id^="sheet-resend-"][open]')), 'The resend sheet stayed open under the claim link');
     const second = await page.eval(() => document.querySelector('[data-claim-link]').value);
     check(second !== first, 'Resend reused the old link');
-    await page.click('#invitation-link form button');
+    await page.press('Escape');
     await page.wait('tr[data-invitation]');
     const expiry = await page.eval(() => document.querySelector('tr[data-invitation] time').dateTime);
     await page.click('form[action$="/revoke"] button');
@@ -982,7 +983,7 @@ test('invitations link an existing local user through its detail page and recent
   `)
   await expireConfirmation()
   browser(`
-    await page.click('form[data-invitation-link] button');
+    await page.click('form[action="/v1/admin/sso/invitations"] button');
     await page.wait('#confirmation[open]');
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('#reauth-dialog[open]');
@@ -990,7 +991,7 @@ test('invitations link an existing local user through its detail page and recent
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('#invitation-link:modal [data-claim-link]:focus');
     check(await page.eval(() => !document.querySelector('#sheet-new-invitation').open), 'The account-linking sheet stayed open under the claim link');
-    await page.click('#invitation-link form button');
+    await page.click('#invitation-link button[value=done]');
     await page.wait('tr[data-invitation]');
     const invitations = await page.eval(async () => (await (await fetch('/v1/admin/sso/invitations')).json()).invitations);
     check(invitations.length === 1 && invitations[0].userId === 'synthetic-ordinary', 'Link invitation did not bind the existing account');

@@ -6,14 +6,14 @@ import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { Field } from '@astryxdesign/core/Field'
 import { HStack } from '@astryxdesign/core/HStack'
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from '@astryxdesign/core/Table'
-import { Heading, Text } from '@astryxdesign/core/Text'
+import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { Token } from '@astryxdesign/core/Token'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
 import { useState } from 'react'
 import { ActionForm, Revision } from './action-form.js'
-import { useCopy } from './copy.js'
+import { ClaimLinkDialog } from './claim-link.js'
 import { Icon } from './icon.js'
 import { RoleOptions, type RoleOption } from './role-options.js'
 import { Sheet, sheetTrigger } from './sheet.js'
@@ -71,26 +71,6 @@ function ResendSheet({ csrf, path, invitation }: { csrf: string, path: string, i
       <Revision value={actions!.revision} />
       <Lifetime />
     </Sheet>
-  )
-}
-
-function ClaimLinkDialog() {
-  const { source, status, copy } = useCopy<HTMLInputElement>()
-  return (
-    <dialog id="invitation-link" className="modal" aria-labelledby="invitation-link-title">
-      <div className="modal-body">
-        <Heading level={2} id="invitation-link-title"><span className="ico-circle ok"><Icon name="link" /></span>Copy the invitation link now</Heading>
-        <p>This link is shown once. Send it to the person over a channel you trust. Their provider must be enabled before they can claim it.</p>
-        <div className="copy-group">
-          <div className="copyfield">
-            <input ref={source} className="input" data-claim-link="" readOnly aria-label="Invitation link" />
-            <Button type="button" label="Copy" variant="primary" icon={<Icon name="copy" />} onClick={copy} data-copy="" />
-          </div>
-          <p className="copy-status" data-copy-status="" role="status">{status}</p>
-        </div>
-      </div>
-      <form method="dialog" className="modal-foot"><Button type="submit" label="Done" variant="secondary" /></form>
-    </dialog>
   )
 }
 

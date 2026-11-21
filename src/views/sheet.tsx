@@ -57,17 +57,10 @@ export interface SheetProps {
   children: ReactNode
 }
 
-export function SheetFrame({ name, open, query = sheetQuery, returnFocusId, closeHref, title, description, claimLink, children }: Pick<SheetProps, 'name' | 'open' | 'query' | 'returnFocusId' | 'closeHref' | 'title' | 'description' | 'claimLink' | 'children'>) {
+export function SheetFrame({ name, open, query = sheetQuery, returnFocusId, closeHref, title, description, children }: Pick<SheetProps, 'name' | 'open' | 'query' | 'returnFocusId' | 'closeHref' | 'title' | 'description' | 'children'>) {
   const id = `sheet-${name}`
   const dialog = useRef<HTMLDialogElement>(null)
   const [modal, setModal] = useState(false)
-  useEffect(() => {
-    if (!claimLink) return
-    const element = dialog.current!
-    const close = () => element.close()
-    element.addEventListener('artium-invitation-link-created', close)
-    return () => element.removeEventListener('artium-invitation-link-created', close)
-  }, [claimLink])
   useEffect(() => {
     if (!open) return
     const url = new URL(location.href)
@@ -106,7 +99,7 @@ export function SheetFrame({ name, open, query = sheetQuery, returnFocusId, clos
 
 export function Sheet({ name, open, query, returnFocusId, closeHref, title, description, submit, action, method = 'POST', csrf, consequence, confirmTitle, confirmAction, successUrl, successMessage, claimLink, saveTool, footLead, children }: SheetProps) {
   return (
-    <SheetFrame name={name} open={open} query={query} returnFocusId={returnFocusId} closeHref={closeHref} title={title} description={description} claimLink={claimLink}>
+    <SheetFrame name={name} open={open} query={query} returnFocusId={returnFocusId} closeHref={closeHref} title={title} description={description}>
       <ActionForm action={action} method={method} csrf={csrf} confirmation={consequence ? { consequence, title: confirmTitle ?? submit, action: confirmAction ?? submit } : undefined}
         successUrl={successUrl} successMessage={successMessage} claimLink={claimLink} saveTool={saveTool}>
         <div className="sheet-body">

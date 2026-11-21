@@ -65,8 +65,8 @@ The GitHub connection card on this page is the same `GithubConnection` view, abo
 The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`.
 Tools, People and Audit use the shared React [`FilterForm`](../src/views/filter-form.tsx) for their GET forms.
 See [Browser administration](admin-guide.md#browser-administration) for submission and fallback behavior.
-After a successful create or resend marked with `claimLink` in `ActionForm`, `confirm.js` emits `artium-invitation-link-created` so React closes the sheet before `confirm.js` opens the native one-time link dialog (`#invitation-link`).
-The provider choice stays a native `select` inside an Astryx `Field`, and `confirm.js` sends the lifetime in days as a number.
+After a successful create or resend marked with `claimLink` in `ActionForm`, `submitForm` closes the sheet and announces the claim path on `artium-claim-link`, and the React `ClaimLinkDialog` (`#invitation-link`, `src/views/claim-link.tsx`) shows the link once, selected and focused, then reloads the page when it closes.
+The provider choice stays a native `select` inside an Astryx `Field`, and the lifetime in days is sent as a number.
 The Roles list opens its New role sheet from `?sheet=new-role`, and the earlier `?dialog=new-role` link redirects there.
 The role detail page opens its Rename role sheet from `?sheet=rename-role`.
 Its tool tiles and Raw API switches stay native checkboxes, because Astryx checkboxes emit inline SVG shapes, and its tool grants form sets `trackChanges` on `ActionForm`, so Save tools stays disabled and Discard hidden until a checkbox differs from its saved state.
