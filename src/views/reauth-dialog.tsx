@@ -73,6 +73,7 @@ export function ReauthDialog({ sso }: { sso: boolean }) {
     }
   }, [request])
   const cancel = () => {
+    setPassword('')
     request?.resolve(false)
     setRequest(null)
   }

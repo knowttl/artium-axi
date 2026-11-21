@@ -2860,8 +2860,10 @@ test('cancelled reauth preserves the draft and does not create a role', async ()
     await page.fill('form[action="/v1/admin/roles"] [name=name]', 'Synthetic cancelled role');
     await page.click('form[action="/v1/admin/roles"] button');
     await page.wait('#reauth-dialog[open]');
+    await page.fill('#reauth-dialog [name=password]', 'CANARY-unused-password');
     await page.click('[data-reauth-cancel]');
     await page.wait('#reauth-dialog:not([open])');
+    check(await page.eval(() => document.querySelector('#reauth-dialog [name=password]').value === ''), 'Cancelled confirmation retained the password');
     check(await page.eval(() => document.querySelector('form[action="/v1/admin/roles"] [name=name]').value === 'Synthetic cancelled role'), 'Cancelled draft was lost');
     check(await page.eval(async () => {
       const { roles } = await (await fetch('/v1/admin/roles')).json();

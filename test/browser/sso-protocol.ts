@@ -452,7 +452,7 @@ test('cancelled SSO confirmation keeps the entered draft without making the chan
     check(await page.eval(async () => !(await (await fetch('/v1/admin/roles')).json()).roles.some(role => role.name === 'Synthetic resumed role')), 'Cancelled action created a role');`)
 })
 
-test('closing the provider window without confirming reports it, re-enables the dialog and keeps the draft', async () => {
+test('closing the provider window without confirming reports it, allows retry and keeps the draft', async () => {
   await configure({ administrator: true })
   browser(prepareChange)
   openReauthPopup()
@@ -460,8 +460,10 @@ test('closing the provider window without confirming reports it, re-enables the 
   selectPage('/admin/roles')
   browser(`await page.wait('#reauth-dialog [data-reauth-error]');
     check(await page.eval(() => document.querySelector('[data-reauth-error]').innerText.includes('Confirmation window closed')), 'Closing the window was not reported');
-    check(await page.eval(() => document.querySelector('#reauth-dialog button[type=submit]').getAttribute('aria-disabled') !== 'true'), 'The dialog stayed disabled after the window closed');
     check(await page.eval(() => document.querySelector('form[action="/v1/admin/roles"] [name=name]').value === 'Synthetic resumed role'), 'Closing the window lost the draft');`)
+  openReauthPopup()
+  browser(`await page.eval(() => window.close());`)
+  selectPage('/admin/roles')
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.equal(evidence.sessions[0].reauthenticated_at, null)
 })
