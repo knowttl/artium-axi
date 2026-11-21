@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.57](https://github.com/knowttl/artium-axi/compare/v0.0.56...v0.0.57) (2026-11-21)
+
+
+### Bug Fixes
+
+* **views:** remove the legacy admin form script ([#574](https://github.com/knowttl/artium-axi/issues/574)) ([19fa31d](https://github.com/knowttl/artium-axi/commit/19fa31de78f648b4def2fab96c1cf2df992626bc))
+
 ## [0.0.56](https://github.com/knowttl/artium-axi/compare/v0.0.55...v0.0.56) (2026-11-21)
 
 
