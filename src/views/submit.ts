@@ -1,4 +1,5 @@
-import { readTestResponse } from '../shared/diagnostic.js'
+import { readSuccessfulTestHealth, readTestResponse, structuredDiagnostic } from '../shared/diagnostic.js'
+import { errors } from '../shared/errors.js'
 import type { Confirmation } from './action-form.js'
 import type { CertificateInspection } from './certificate-inspection.js'
 import { completePemFields } from './certificate-verification.js'
@@ -7,14 +8,12 @@ import { confirmationEvent, type ConfirmationRequest } from './confirmation.js'
 import { createdTokenEvent } from './created-token.js'
 import type { GithubDeviceStart } from './github-device.js'
 import { requestReauth } from './reauth.js'
-import { retestConnection } from './retest.js'
 import { storeTestOutcome, type TestOutcome } from './test-outcome.js'
 import { successKey } from './toasts.js'
 
 export interface SubmitRequest {
   form: HTMLFormElement
   submitter: HTMLButtonElement | null
-  draft?: FormDraft
   action: string
   method: string
   confirmation?: Confirmation
@@ -38,15 +37,11 @@ type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
 type Body = Record<string, unknown>
 type FormDraft = ReturnType<typeof snapshotForm>
 
-export interface DeferredSubmitEvent extends SubmitEvent {
-  astryxDraft?: FormDraft
-}
-
 const hydrated = typeof document === 'undefined' ? undefined : new Promise<void>(resolve => {
   document.addEventListener('astryx-hydrated', () => resolve(), { once: true })
 })
 
-export function beginSubmit(form: HTMLFormElement, submitter: HTMLButtonElement | null) {
+function beginSubmit(form: HTMLFormElement, submitter: HTMLButtonElement | null) {
   const button = submitter ?? form.querySelector<HTMLButtonElement>('button:not([form]):not([type=button]):not([type=reset])')!
   const page = document.documentElement
   const pending = 'data-submit-pending'
@@ -100,7 +95,7 @@ function applyProfile(form: HTMLFormElement, fields: FormData, body: Body): stri
   return null
 }
 
-export function snapshotForm(form: HTMLFormElement) {
+function snapshotForm(form: HTMLFormElement) {
   return {
     fields: new FormData(form),
     typed: Array.from(form.querySelectorAll<Control>('[data-type]'), input => ({
@@ -129,12 +124,44 @@ function shapeBody({ fields, typed }: FormDraft, body: Body): string | null {
   return null
 }
 
-export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, showDevice, report }: SubmitRequest) {
+async function retestConnection(url: string, csrf: unknown): Promise<TestOutcome | { redirect: string }> {
+  let response: Response
+  try {
+    response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Artium-Retest': '1' }, body: JSON.stringify({ _csrf: csrf }) })
+  } catch {
+    return { message: 'Connection test: Could not reach the artium admin server. Run Test connection again.' }
+  }
+  if (response.redirected) return { redirect: response.url }
+  const status = ` HTTP ${response.status}.`
+  let result
+  try { result = await response.json() }
+  catch (error) {
+    return { message: error instanceof SyntaxError
+      ? `Connection test: response was not valid JSON.${status} Check the server or proxy response format. Run Test connection again.`
+      : `Connection test: response body could not be read.${status} Check the connection for an interrupted response. Run Test connection again.` }
+  }
+  if (response.ok) {
+    const health = readSuccessfulTestHealth(result)
+    return health ? { message: 'Connected', health }
+      : { message: `Connection test: response did not match the connection-test format.${status} Check server and client version compatibility. Run Test connection again.` }
+  }
+  const code = result?.error?.code
+  const errorCode = typeof code === 'string' && Object.hasOwn(errors, code) ? code as keyof typeof errors : undefined
+  const detail = structuredDiagnostic(result?.error?.diagnostic)
+  const message = `Connection test:${status}` + (errorCode ? ` ${errors[errorCode].message} (${errorCode}).` : ' Server error code unavailable.') +
+    (detail?.stage ? ` Failed step: ${detail.stage}.` : '') + (detail?.toolCode ? ` Code: ${detail.toolCode}.` : '') +
+    (detail?.transportCode ? ` Transport: ${detail.transportCode}.` : '') + (detail?.providerCode ? ` Provider: ${detail.providerCode}.` : '') +
+    (detail?.upstreamStatus === undefined ? '' : ` Upstream HTTP ${detail.upstreamStatus}.`) +
+    (detail?.trust ? ` Certificate trust: ${detail.trust}.` : '') + ' Run Test connection again.'
+  return { message }
+}
+
+export async function submitForm({ form, submitter, action, method, confirmation, token, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, showDevice, report }: SubmitRequest) {
   const submission = beginSubmit(form, submitter)
   if (!submission) return
   const { button, release } = submission
   try {
-    draft ??= snapshotForm(form)
+    const draft = snapshotForm(form)
     if (form.querySelector('[data-credential-editor]')) await completePemFields(draft.fields)
     const body: Body = bodyFrom ? { _csrf: draft.fields.get('_csrf'), ...bodyFrom(draft.fields) } : Object.fromEntries(draft.fields)
     const invalidProfile = applyProfile(form, draft.fields, body)

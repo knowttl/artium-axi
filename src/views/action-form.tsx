@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import { confirmationRouteFor } from '../shared/confirmation-routes.js'
 import type { CertificateInspection } from './certificate-inspection.js'
 import type { GithubDeviceStart } from './github-device.js'
-import { submitForm, type DeferredSubmitEvent, type Report } from './submit.js'
+import { submitForm, type Report } from './submit.js'
 import type { TestOutcome } from './test-outcome.js'
 import { toastEvent, type ToastDetail } from './toasts.js'
 
@@ -51,6 +51,13 @@ export function MessageArea({ message }: { message: FormMessageState | null }) {
 }
 
 export const useFormDirty = () => useContext(FormDirtyContext)
+
+export function useTextDraft(initialValue: string) {
+  const ref = useRef<HTMLInputElement>(null)
+  const [value, onChange] = useState(initialValue)
+  useLayoutEffect(() => { onChange(ref.current!.value) }, [])
+  return { ref, value, onChange }
+}
 
 const differsFromDefaults = (form: HTMLFormElement) =>
   Array.from(form.elements).some(field => field instanceof HTMLInputElement && field.type === 'checkbox' && field.checked !== field.defaultChecked)
@@ -102,8 +109,7 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
       onSubmit={event => {
         event.preventDefault()
         event.stopPropagation()
-        const { submitter, astryxDraft } = event.nativeEvent as DeferredSubmitEvent
-        void submitForm({ form: event.currentTarget, submitter: submitter as HTMLButtonElement | null, draft: astryxDraft, action, method, confirmation,
+        void submitForm({ form: event.currentTarget, submitter: (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null, action, method, confirmation,
           token: token || undefined, successUrl, successMessage, claimLink, createdToken, bodyFrom, saveTool, retestUrl, showTest, showInspection, showDevice, report })
       }}
       onInput={trackChanges ? event => setDirty(differsFromDefaults(event.currentTarget)) : undefined} onReset={trackChanges ? () => setDirty(false) : undefined}>

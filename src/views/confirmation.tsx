@@ -17,7 +17,7 @@ export interface ConfirmationRequest {
   resolve: (typedName: string | null) => void
 }
 
-// The confirmation tiers for the page script's forms: tier 2 shows the consequence, tier 3 also needs the exact name typed.
+// The confirmation tiers for admin action forms: tier 2 shows the consequence, tier 3 also needs the exact name typed.
 export function Confirmation() {
   const [request, setRequest] = useState<ConfirmationRequest | null>(null)
   const [shown, setShown] = useState<ConfirmationRequest | null>(null)

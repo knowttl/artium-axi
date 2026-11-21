@@ -1,5 +1,14 @@
 import { expect, test } from 'vitest'
 import { errorDiagnostic } from '../src/server/error-diagnostic.js'
+import { readTestResponse } from '../src/shared/diagnostic.js'
+
+test('a stale browser test request gives reload guidance without replacing health', async () => {
+  const response = Response.json({ error: { code: 'CSRF_INVALID', source: 'artium-axi', requestId: 'synthetic-request',
+    message: 'Synthetic request rejection.', next: 'Retry.' } }, { status: 403 })
+  await expect(readTestResponse(response)).resolves.toEqual({ error: {
+    code: 'CSRF_INVALID', message: 'The form token or request origin is invalid.', next: 'Reload the form on this server and submit it again.',
+  } })
+})
 
 test('diagnostics bound frames and exclude messages, function names and paths outside application code', () => {
   const error = Object.assign(new Error('CANARY-message'), { code: 'ERR_SYNTHETIC' })

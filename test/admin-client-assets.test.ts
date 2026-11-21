@@ -36,6 +36,8 @@ afterAll(async () => {
 const assets = [
   ['/admin/assets/hydrate.js', 'application/javascript'],
   ['/admin/assets/astryx.css', 'text/css'],
+  ['/admin/assets/style.css', 'text/css'],
+  ['/admin/assets/reauth-complete.js', 'application/javascript'],
 ]
 
 test.each(assets)('%s is served same-origin without a session under the script and style policy', async (url, type) => {

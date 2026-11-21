@@ -5,8 +5,7 @@ import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } f
 import { Text } from '@astryxdesign/core/Text'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { VStack } from '@astryxdesign/core/VStack'
-import { useState } from 'react'
-import { ActionForm, Revision, useFormDirty } from './action-form.js'
+import { ActionForm, Revision, useFormDirty, useTextDraft } from './action-form.js'
 import { Panel } from './panel.js'
 import { Sheet } from './sheet.js'
 import { badgeVariants, type Status } from './status.js'
@@ -149,12 +148,12 @@ function Delete({ csrf, path, name, changed, blocked }: Pick<RoleProps, 'csrf' |
 }
 
 function RenameSheet({ csrf, path, changed, name, rename }: Pick<RoleProps, 'csrf' | 'path' | 'changed' | 'name' | 'rename'>) {
-  const [draft, setDraft] = useState(name)
+  const draft = useTextDraft(name)
   return (
     <Sheet name="rename-role" open={rename.open} closeHref={rename.closeHref} title="Rename role" description="Renaming keeps its members and grants."
       submit="Rename" action={path} method="PATCH" csrf={csrf} successMessage="Role renamed.">
       <Revision value={changed.revision} />
-      <TextInput label="Role name" htmlName="name" value={draft} onChange={setDraft} autoComplete="off" {...{ required: true }} />
+      <TextInput label="Role name" htmlName="name" {...draft} autoComplete="off" {...{ required: true }} />
     </Sheet>
   )
 }

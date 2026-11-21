@@ -23,7 +23,7 @@ interface Attempt {
   popupWatch?: ReturnType<typeof setInterval>
 }
 
-// The identity confirmation for the page script's forms: a password posted here, or a provider window for SSO. Cancel resolves false so the script keeps the draft.
+// The identity confirmation for admin action forms: a password posted here, or a provider window for SSO. Cancel resolves false so the form keeps its draft.
 export function ReauthDialog({ sso }: { sso: boolean }) {
   const [request, setRequest] = useState<ReauthRequest | null>(null)
   const [password, setPassword] = useState('')

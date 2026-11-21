@@ -8,7 +8,7 @@ import { TextInput } from '@astryxdesign/core/TextInput'
 import { Token } from '@astryxdesign/core/Token'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
-import { useState } from 'react'
+import { useTextDraft } from './action-form.js'
 import { Icon } from './icon.js'
 import { Sheet, sheetTrigger } from './sheet.js'
 
@@ -35,11 +35,11 @@ function Tools({ tools }: { tools: RolesProps['roles'][number]['tools'] }) {
 }
 
 function NewRoleSheet({ open, closeHref, csrf }: RolesProps['newRole']) {
-  const [name, setName] = useState('')
+  const name = useTextDraft('')
   return (
     <Sheet name="new-role" open={open} closeHref={closeHref} title="New role" description="Name it for the people who need it, such as Read-only analysts. You choose its tools next."
       submit="Create role" action="/v1/admin/roles" csrf={csrf} successUrl="/admin/roles/{id}" successMessage="Role created. Choose the tools it grants.">
-      <TextInput label="Role name" htmlName="name" value={name} onChange={setName} autoComplete="off" {...{ required: true }} />
+      <TextInput label="Role name" htmlName="name" {...name} autoComplete="off" {...{ required: true }} />
     </Sheet>
   )
 }
