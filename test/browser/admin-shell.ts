@@ -613,6 +613,7 @@ test('administrators can disable and re-enable token creation', () => {
     check(await page.eval(() => document.querySelector('[name=mintingEnabled]').checked), 'Minting is not enabled by default');
     await page.click('[name=mintingEnabled]');
     await page.fill('[name=maxLifetimeHours]', '2');
+    await page.fill('[name=ssoWindowDays]', '3.5');
     await page.click('form[action="/v1/admin/token-settings"] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
     await page.wait('[name=maxLifetimeHours][value="2"]');
@@ -620,6 +621,7 @@ test('administrators can disable and re-enable token creation', () => {
     check(await page.eval(() => !document.querySelector('form[action="/v1/account/tokens"]')), 'Minting remained available');
     await page.open(base + '/admin/tokens');
     check(await page.eval(() => !document.querySelector('[name=mintingEnabled]').checked), 'Disabled setting was not saved');
+    check(await page.eval(() => document.querySelector('[name=ssoWindowDays]').value === '3.5'), 'SSO sign-in window was not saved in days');
     await page.click('[name=mintingEnabled]');
     await page.click('form[action="/v1/admin/token-settings"] button');
     await page.wait('#confirmation[open]'); await page.click('#confirmation button[value=confirmed]');
@@ -664,8 +666,11 @@ test('ordinary users can create temporary tokens after recent authentication exp
     check(await page.eval(() => window.sameDocument === true), 'Confirmation reloaded the page instead of refreshing the pill');
     check(token.startsWith('artd_'), 'Token was not shown');
     await closeCreatedToken();
-    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('Synthetic token')), 'Token was not listed');
-    check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('detection list')), 'Exact selection was not retained alongside tool-wide access');
+    await page.wait('tr[data-token]');
+    const row = await page.eval(() => document.querySelector('tr[data-token]').innerText);
+    check(row.includes('Synthetic token'), 'Token was not listed');
+    check(row.includes('Read-only · Single use'), 'Default token access and reuse were not saved');
+    check(row.includes('detection list'), 'Exact selection was not retained alongside tool-wide access');
   `)
 })
 
@@ -678,6 +683,8 @@ test('token creation applies tool instances to all selections', () => {
     await page.wait('[name=enabled][value=false]');
     await page.open(base + '/account');
     await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Split token');
+    await page.click('[name=readOnly]');
+    await page.click('[name=reusable]');
     await page.click('[name="tool:falcon-axi"]');
     await page.click('[name="instance:falcon-axi"][value="lab"]');
     await page.click('[name="command:falcon-axi"][value="detection list"]');
@@ -685,6 +692,8 @@ test('token creation applies tool instances to all selections', () => {
     await page.click('form[action="/v1/account/tokens"] button');
     await readCreatedToken();
     await closeCreatedToken();
+    await page.wait('tr[data-token]');
+    check(await page.eval(() => document.querySelector('tr[data-token] .token-access').innerText.includes('Writes allowed · Reusable')), 'Selected token access and reuse were not saved');
     check(await page.eval(() => {
       const row = [...document.querySelectorAll('tr')].find(item => item.innerText.includes('Split token'));
       const items = [...row.querySelectorAll('li')];
@@ -705,10 +714,11 @@ test('token creation by date and time expires the token at that moment', () => {
     }
     await page.open(base + '/account');
     const expiry = await page.eval(() => {
-      const date = new Date(Date.now() + 2 * 86400000);
-      date.setSeconds(0, 0);
+      const date = new Date();
+      date.setDate(date.getDate() + 2);
+      date.setHours(12, 0, 0, 0);
       const pad = value => String(value).padStart(2, '0');
-      return { field: date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes()), iso: date.toISOString() };
+      return { field: date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T12:00', iso: date.toISOString() };
     });
     await page.fill('form[action="/v1/account/tokens"] [name=label]', 'Dated token');
     await page.fill('form[action="/v1/account/tokens"] [name=expiryType]', 'date');
@@ -717,6 +727,7 @@ test('token creation by date and time expires the token at that moment', () => {
     await page.click('form[action="/v1/account/tokens"] button');
     await readCreatedToken();
     await closeCreatedToken();
+    await page.wait('tr[data-token] time');
     check(await page.eval('() => (' + (iso => [...document.querySelectorAll('tr')].find(row => row.innerText.includes('Dated token'))?.querySelector('time')?.dateTime === iso).toString() + ')(' + JSON.stringify(expiry.iso) + ')'), 'The token did not expire at the chosen date and time');
   `)
 })
