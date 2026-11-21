@@ -33,10 +33,10 @@ export function ClaimLinkDialog() {
               <div className="copy-group">
                 <div className="copyfield">
                   <input ref={source} className="input" value={link ?? ''} readOnly aria-label="Invitation link" onFocus={event => event.currentTarget.select()}
-                    {...{ 'data-claim-link': '', 'data-autofocus': '' }} />
-                  <Button type="button" label="Copy" variant="primary" icon={<Icon name="copy" />} onClick={copy} data-copy="" />
+                    data-autofocus="" />
+                  <Button type="button" label="Copy" variant="primary" icon={<Icon name="copy" />} onClick={copy} />
                 </div>
-                <p className="copy-status" data-copy-status="" role="status">{status}</p>
+                <p className="copy-status" role="status">{status}</p>
               </div>
             </VStack>
           </LayoutContent>
