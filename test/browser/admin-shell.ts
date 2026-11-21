@@ -6,7 +6,7 @@ import { on, once } from 'node:events'
 import { createInterface } from 'node:readline'
 import { createServer, type AddressInfo } from 'node:net'
 import type { Readable } from 'node:stream'
-import { after, afterEach, before, beforeEach, test } from 'node:test'
+import { after, afterEach, before, beforeEach, test, type TestContext } from 'node:test'
 import { waitForReauthPills, waitForTime } from './harness.mjs'
 
 type Fixture = {
@@ -887,6 +887,35 @@ test('user detail designates a break-glass administrator and removing it signs t
     await page.wait('form[action="/login"]');`)
 })
 
+async function observeInvitationHydration(context: TestContext) {
+  const targets: { url: string, webSocketDebuggerUrl: string }[] = await (await fetch('http://127.0.0.1:' + chromeDebugPort + '/json/list')).json()
+  const target = targets.find(page => page.url === fixture.url + '/admin/users')
+  assert.ok(target, 'The browser fixture did not open the users page')
+  const socket = new WebSocket(target.webSocketDebuggerUrl)
+  context.after(() => socket.close())
+  await once(socket, 'open', { signal: AbortSignal.timeout(5000) })
+  let nextId = 0
+  const send = async (method: string, params: object = {}) => {
+    const id = ++nextId
+    const messages = on(socket, 'message', { signal: AbortSignal.timeout(5000) })
+    socket.send(JSON.stringify({ id, method, params }))
+    for await (const [message] of messages) {
+      const reply = JSON.parse(message.data)
+      if (reply.id !== id) continue
+      assert.equal(reply.error, undefined, JSON.stringify(reply.error))
+      return reply.result
+    }
+  }
+  await send('Page.enable')
+  const result = await send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    document.addEventListener('astryx-hydrated', () => {
+      if (location.origin === ${JSON.stringify(fixture.url)} && location.pathname === '/admin/invitations') {
+        document.documentElement.dataset.testHydrated = '';
+      }
+    }, { once: true });` })
+  assert.ok(result?.identifier, 'Chrome did not register the invitation hydration observer')
+}
+
 const invitationResult = `
     const watchInvitationResponse = () => page.eval(() => {
       const original = window.fetch.bind(window);
@@ -933,7 +962,8 @@ const invitationResult = `
     };
 `
 
-test('invitations show each new link once and allow resend and revoke through the real forms', async () => {
+test('invitations show each new link once and allow resend and revoke through the real forms', async context => {
+  await observeInvitationHydration(context)
   browser(`
     await page.open(base + '/admin/settings/sign-in?add=entra');
     await page.fill('[name=name]', 'Synthetic provider');
@@ -1011,7 +1041,8 @@ test('invitations show each new link once and allow resend and revoke through th
   `)
 })
 
-test('invitations link an existing local user through its detail page and recent-auth confirmation', async () => {
+test('invitations link an existing local user through its detail page and recent-auth confirmation', async context => {
+  await observeInvitationHydration(context)
   browser(`
     await page.open(base + '/admin/settings/sign-in?add=entra');
     await page.fill('[name=name]', 'Synthetic provider');
