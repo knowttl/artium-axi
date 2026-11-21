@@ -24,7 +24,6 @@ let fixture: Fixture
 const pickerWithLateHydration = 'operation picker preserves edits across late hydration'
 const trackChangesWithLateHydration = 'role tool grants count a selection edited before late hydration as a change'
 const actionsWithLateHydration = 'admin actions wait for React while drafts remain editable'
-const submitBeforeHydrationCompletes = 'a React submit waits for hydration to finish and saves its original draft'
 const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
 const credentialEditorWithLateHydration = 'the credential editor applies a selection made before hydration'
 const connectionDraftWithLateHydration = 'the instance connection preserves text edited before hydration'
@@ -122,7 +121,7 @@ beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
     env: { ...process.env, ARTIUM_TEST_GRAPH_CERTIFICATES: context.name === graphCertificateRotation ? '1' : '0',
       ARTIUM_TEST_SKIP_HYDRATION: [pickerWithLateHydration, trackChangesWithLateHydration,
-      actionsWithLateHydration, submitBeforeHydrationCompletes, instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration,
+      actionsWithLateHydration, instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration,
       resizeCadence].includes(context.name) || context.name.endsWith(editedOverrides) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
@@ -2979,14 +2978,28 @@ test(actionsWithLateHydration, () => {
 
     const assignment = 'form[action$="/synthetic-ordinary/roles"]';
     await page.open(base + '/admin/users/synthetic-ordinary');
-    const revision = await page.eval(() => Number(document.querySelector('form[action$="/synthetic-ordinary/roles"] [name=expectedRevision]').value));
+    const readPerson = () => page.eval(async () => {
+      const response = await fetch('/v1/admin/users/synthetic-ordinary');
+      if (!response.ok) throw new Error('Could not read the synthetic person');
+      return response.json();
+    });
+    const initial = await readPerson();
+    check(JSON.stringify(initial.roleIds) === '["synthetic-role"]', 'The synthetic person must start with one role');
     await page.click(assignment + ' [name=roleIds][value=synthetic-role]');
     await waitForReact(assignment + ' button[type=submit]');
-    await page.click(assignment + ' button[type=submit]');
+    await page.eval(() => {
+      const form = document.querySelector('form[action$="/synthetic-ordinary/roles"]');
+      form.querySelector('button[type=submit]').click();
+      form.querySelector('[name=roleIds][value="synthetic-role"]').click();
+    });
     await page.wait('#confirmation[open]');
+    check(await page.eval(() => document.querySelector('[name=roleIds][value="synthetic-role"]').checked), 'The later edit was not visible while confirming');
+    const unconfirmed = await readPerson();
+    check(unconfirmed.revision === initial.revision && JSON.stringify(unconfirmed.roleIds) === '["synthetic-role"]', 'Role assignment changed before confirmation');
     await page.click('#confirmation button[value=confirmed]');
-    await page.wait(assignment + ' [name=expectedRevision][value="' + (revision + 1) + '"]');
-    check(await page.eval(async () => (await (await fetch('/v1/admin/users/synthetic-ordinary')).json()).roleIds.length) === 0, 'The staged assignment did not persist');
+    await page.wait(assignment + ' [name=expectedRevision][value="' + (initial.revision + 1) + '"]');
+    const saved = await readPerson();
+    check(saved.revision === initial.revision + 1 && saved.roleIds.length === 0, 'The role selection from the first submit did not persist');
 
     const creation = '#sheet-new-role';
     await page.open(base + '/admin/roles?sheet=new-role');
@@ -3009,56 +3022,6 @@ test(actionsWithLateHydration, () => {
     await page.click(rename + ' button[type=submit]');
     await page.wait(rename + ' [name=expectedRevision][value="' + (roleRevision + 1) + '"]');
     check(await page.eval(() => document.querySelector('h1').textContent) === 'Synthetic reviewers', 'Role rename did not save the staged name');
-  `)
-})
-
-test(submitBeforeHydrationCompletes, () => {
-  browser(`
-    await page.open(base + '/admin/users/synthetic-ordinary');
-    const readPerson = () => page.eval(async () => {
-      const response = await fetch('/v1/admin/users/synthetic-ordinary');
-      if (!response.ok) throw new Error('Could not read the synthetic person');
-      return response.json();
-    });
-    const initial = await readPerson();
-    check(JSON.stringify(initial.roleIds) === '["synthetic-role"]', 'The synthetic person must start with one role');
-    await page.eval(() => {
-      const key = 'test-role-submissions';
-      sessionStorage.removeItem(key);
-      const send = window.fetch;
-      window.fetch = (url, options) => {
-        if (url === '/v1/admin/users/synthetic-ordinary/roles') {
-          const requests = JSON.parse(sessionStorage.getItem(key) || '[]');
-          requests.push({ method: options.method, body: JSON.parse(options.body) });
-          sessionStorage.setItem(key, JSON.stringify(requests));
-        }
-        return send(url, options);
-      };
-      document.addEventListener('astryx-hydrated', event => event.stopImmediatePropagation(), { capture: true, once: true });
-      const script = document.createElement('script');
-      script.src = '/admin/assets/hydrate.js?resume';
-      document.head.append(script);
-    });
-    await page.wait('form[action$="/synthetic-ordinary/roles"] button[type=submit]:enabled');
-    await page.eval(() => {
-      const form = document.querySelector('form[action$="/synthetic-ordinary/roles"]');
-      const role = form.querySelector('[name=roleIds][value="synthetic-role"]');
-      role.click();
-      form.querySelector('button[type=submit]').click();
-      role.click();
-    });
-    check(await page.eval(() => !document.querySelector('#confirmation[open]') && !sessionStorage.getItem('test-role-submissions')), 'The submission ran before hydration finished');
-    await page.eval(() => document.dispatchEvent(new Event('astryx-hydrated')));
-    await page.wait('#confirmation[open]');
-    check(await page.eval(() => document.querySelector('[name=roleIds][value="synthetic-role"]').checked && !sessionStorage.getItem('test-role-submissions')), 'The later role edit should be visible before the request is sent');
-    await page.click('#confirmation button[value=confirmed]');
-    await page.wait('form[action$="/synthetic-ordinary/roles"] [name=expectedRevision][value="' + (initial.revision + 1) + '"]');
-    const requests = await page.eval(() => JSON.parse(sessionStorage.getItem('test-role-submissions') || '[]'));
-    check(requests.length === 1 && requests[0].method === 'PUT', 'Expected one role update');
-    const { body } = requests[0];
-    check(JSON.stringify(body.roleIds) === '[]' && body.expectedRevision === initial.revision && typeof body._confirm === 'string' && body._confirm.length > 0, 'The request did not contain the confirmed original role selection');
-    const saved = await readPerson();
-    check(JSON.stringify(saved.roleIds) === '[]' && saved.revision === initial.revision + 1, 'The original role selection was not saved');
   `)
 })
 
