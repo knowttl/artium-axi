@@ -12,6 +12,7 @@ auto_fix:
 ignore_patterns: []
 
 review:
+  max_fix_rounds: 4
   path_instructions:
     - path: "**"
       instructions: |
