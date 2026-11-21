@@ -1049,11 +1049,8 @@ test.each([
   const page = await app.inject({ method: 'GET', url: `/admin/tools/${tool}/instances/certificate-support`,
     headers: { cookie: login.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ') } })
   expect(page.statusCode, page.body).toBe(200)
-  if (supported) expect(page.body).toContain('Initial trust fills Certificate verification.')
-  else {
-    expect(page.body).toContain('This tool does not support a shared trusted certificate field.')
-    expect(page.body).toContain('Trust this certificate')
-  }
+  const { props } = JSON.parse(/data-astryx-props>(.*?)<\/script>/s.exec(page.body)![1]!) as { props: { certificates: { trust: { fills: boolean } } } }
+  expect(props.certificates.trust.fills).toBe(supported)
 })
 
 type Element = DefaultTreeAdapterMap['element']
@@ -3366,17 +3363,22 @@ test.each((Object.keys(values) as ToolName[]).filter(tool => tool !== 'ssh-axi')
 test.each(Object.keys(values) as ToolName[])('%s pages carry no legacy markup island or legacyHtml data on any tab or its instance page', async tool => {
   const paths = ['instances', 'writes', 'access', 'advanced', 'raw-api'].map(tab => `/admin/tools/${tool}?tab=${tab}`)
   if (tool !== 'ssh-axi') {
-    store.createInstance(tool, { name: 'lab', description: 'Synthetic lab.' }, values[tool as keyof typeof values], actor, Date.now())
+    store.createInstance(tool, { name: 'lab', description: 'Synthetic lab reviewing legacy-island and legacyHtml.' }, values[tool as keyof typeof values], actor, Date.now())
     paths.push(`/admin/tools/${tool}/instances/lab`, `/admin/tools/${tool}?sheet=add-instance`, `/admin/tools/${tool}?sheet=edit-lab`)
   }
   const cookie = await browserCookie()
   for (const url of paths) {
     const response = await app.inject({ method: 'GET', url, headers: { cookie } })
     expect(response.statusCode, url).toBe(200)
-    expect(/data-astryx-props>(.*?)<\/script>/s.exec(response.body)![1], url).not.toContain('legacyHtml')
-    const islands = [...response.body.matchAll(/<div class="legacy-island"([^>]*)>(.*?)<\/div>/gs)]
-    expect(islands.map(([, attributes, content]) => [attributes!.trim(), content]), url)
-      .toEqual(islands.map(() => ['data-certificate-details=""', '']))
+    const elements = nodes(parse(response.body))
+    const data = elements.find(element => element.tagName === 'script' && attribute(element, 'data-astryx-props') !== undefined)!
+    let hasLegacyHtml = false
+    JSON.parse(text(data), (key, value) => {
+      if (key === 'legacyHtml') hasLegacyHtml = true
+      return value
+    })
+    expect(hasLegacyHtml, url).toBe(false)
+    expect(elements.some(element => attribute(element, 'class')?.split(/[\t\n\f\r ]+/).includes('legacy-island')), url).toBe(false)
   }
 })
 

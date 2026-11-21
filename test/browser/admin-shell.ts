@@ -32,6 +32,7 @@ const connectionDraftWithLateHydration = 'the instance connection preserves text
 const combinedPemWithLateHydration = 'the instance credential waits for a PEM selected before hydration'
 const editedOverrides = ' endpoint changes keep explicitly edited certificate overrides'
 const resizeCadence = 'confirmation expiry survives resizing across the mobile breakpoint'
+const graphCertificateRotation = 'certificate inspection pins and replaces the selected Graph endpoint'
 let chromeDebugPort: number
 
 before(async () => {
@@ -121,7 +122,8 @@ function browser(script: string) {
 
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
-    env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration,
+    env: { ...process.env, ARTIUM_TEST_GRAPH_CERTIFICATES: context.name === graphCertificateRotation ? '1' : '0',
+      ARTIUM_TEST_SKIP_HYDRATION: [testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration,
       submitWithLateHydration, submitBeforeDialogs, instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration,
       combinedPemWithLateHydration, resizeCadence].includes(context.name) || context.name.endsWith(editedOverrides) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
@@ -2054,7 +2056,7 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     check(await page.eval(() => document.querySelector('[data-certificate-details] input[readonly]').value) === ${JSON.stringify(new X509Certificate(fixture.certificatePem).fingerprint256)}, 'Incorrect full fingerprint');
     check(await page.eval(() => document.querySelector('#certificate-inspection').innerText.includes('interception')), 'Network-path warning missing');
     check(await page.eval(() => document.querySelector('[data-trust-certificate] [name=mode]').value === 'ca'), 'CA trust is not the default');
-    check(await page.eval(() => document.querySelector('[data-trust-certificate] option[value=pin]').textContent.includes('Strict leaf pinning')), 'Strict pinning is unavailable');
+    check(await page.eval(() => !document.querySelector('[data-trust-certificate] option[value=pin]').disabled), 'Strict pinning is unavailable');
     check(await page.eval(() => document.querySelector('#certificate-inspection').scrollWidth <= document.querySelector('#certificate-inspection').clientWidth), 'Certificate dialog overflows the narrow screen');
     await page.click('[data-trust-certificate] button');
     check(await page.eval(() => document.querySelector('#certificate-inspection').open), 'Trust saved without fingerprint confirmation');
@@ -2081,7 +2083,7 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     await page.click('[data-inspect-certificate] button');
     await page.wait('#certificate-inspection[open]');
     check(await page.eval(() => document.querySelector('[data-certificate-details]').textContent.includes('No trust is needed')), 'Default trust was not explained');
-    check(await page.eval(() => document.querySelector('[data-trust-certificate]').hidden), 'Already verified endpoint offers trust');
+    check(await page.eval(() => !document.querySelector('[data-trust-certificate]')), 'Already verified endpoint offers trust');
     await page.click('[data-close-certificate]');
     await page.click('form[data-method=DELETE][action$="/certificates"] button');
     await page.wait('#confirmation[open]');
@@ -2089,6 +2091,100 @@ test('certificate inspection reviews the saved endpoint and trusts it in one con
     await page.wait('[data-inspect-certificate][hidden]');
     check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('No certificates trusted')), 'Removed trust remains displayed');
   `)
+})
+
+test(graphCertificateRotation, () => {
+  browser(`
+    const firstFingerprint = ${JSON.stringify(new X509Certificate(fixture.certificatePem).fingerprint256)};
+    const inspectGraph = async fingerprint => {
+      await page.eval(() => {
+        const select = document.querySelector('[name=endpointIndex]');
+        const option = [...select.options].find(option => option.textContent === 'graph.microsoft.com');
+        if (!option || option.disabled) throw new Error('The saved Graph endpoint is unavailable');
+        select.value = option.value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      await page.click('[data-inspect-certificate] button');
+      await page.wait('#certificate-inspection[open]');
+      check(await page.eval(() => document.querySelector('[data-certificate-details]').innerText.includes('Hostname: graph.microsoft.com')), 'Inspection used the wrong saved endpoint');
+      check(await page.eval(() => document.querySelector('[data-certificate-details] input[readonly]').value) === fingerprint, 'Inspection showed the wrong leaf fingerprint');
+    };
+    const confirmPin = async label => {
+      check(await page.eval(() => document.querySelector('[data-trust-certificate] button').textContent) === label, 'Unexpected trust action');
+      await page.click('[name=confirmedFingerprint]');
+      await page.click('[data-trust-certificate] button');
+      await page.wait('#certificate-inspection:not([open])');
+      await page.wait('[data-test-result]:not(:empty)');
+      check(await page.eval(() => document.querySelector('[data-test-result]').textContent) === 'Connected', 'Connection retest failed after saving the pin');
+    };
+    const savedPin = async fingerprint => {
+      const certificates = await page.eval(async () => {
+        const response = await fetch('/v1/admin/tools/mg-axi/instances/default/certificates');
+        return (await response.json()).certificates;
+      });
+      check(certificates.length === 1 && certificates[0].endpoint === 'https://graph.microsoft.com/'
+        && certificates[0].mode === 'pin' && certificates[0].leafFingerprint === fingerprint, 'Expected one strict pin for the selected Graph leaf');
+    };
+    await createInstance('mg-axi', { mode: 'application', tenantId: '11111111-1111-4111-8111-111111111111',
+      clientId: '22222222-2222-4222-8222-222222222222', auth: 'client-secret', clientSecret: 'CANARY-graph-pin' });
+    await page.click('form[data-test-tool] button');
+    await page.wait('[data-inspect-certificate]:not([hidden])');
+    await inspectGraph(firstFingerprint);
+    await page.eval(() => {
+      const mode = document.querySelector('#certificate-trust-mode');
+      if (mode.querySelector('option[value=pin]').disabled) throw new Error('Strict pinning is unavailable');
+      mode.value = 'pin';
+      mode.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await confirmPin('Trust this certificate');
+    await savedPin(firstFingerprint);
+    const rotated = await page.eval(async () => (await (await fetch('/test/rotate-graph-certificate', { method: 'POST' })).json()).fingerprint);
+    check(rotated !== firstFingerprint, 'The fake upstream did not rotate its certificate');
+    await inspectGraph(rotated);
+    check(await page.eval(() => document.querySelector('#certificate-trust-mode').value === 'pin'
+      && document.querySelector('#certificate-trust-mode option[value=ca]').disabled), 'Replacement offered a change of trust mode');
+    await confirmPin('Replace trusted certificate');
+    await savedPin(rotated);
+  `)
+})
+
+test('a rejected trust reports inside the certificate dialog and keeps it open', () => {
+  browser(`
+    await createInstance('vectra-axi', { kind: 'qux', apiVersion: '2.5', origin: base, auth: 'token', token: 'CANARY-rejected' });
+    await page.click('form[data-test-tool] button');
+    await page.wait('[data-inspect-certificate]:not([hidden])');
+    await page.click('[data-inspect-certificate] button');
+    await page.wait('#certificate-inspection[open]');
+    await page.eval(() => {
+      const original = window.fetch.bind(window);
+      window.fetch = async (url, options) => String(url).endsWith('/certificates/trust')
+        ? Response.json({ error: { code: 'INVALID_INPUT', source: 'artium-axi', requestId: 'synthetic-request', message: 'Synthetic rejection.', next: 'Inspect the certificate again.' } }, { status: 400 })
+        : original(url, options);
+    });
+    await page.click('[name=confirmedFingerprint]');
+    await page.click('[data-trust-certificate] button');
+    await page.wait('#certificate-inspection [role=alert]:focus');
+    check(await page.eval(() => document.activeElement.textContent) === 'Synthetic rejection. Inspect the certificate again. (INVALID_INPUT)', 'Trust rejection missing from the certificate dialog');
+    check(await page.eval(() => document.querySelector('#certificate-inspection').open), 'Trust rejection closed the dialog');
+    check(await page.eval(() => ![...document.querySelectorAll('.astryx-toast')].some(toast => toast.textContent.includes('Synthetic rejection'))), 'Trust rejection used a toast');
+  `)
+})
+
+test('certificate inspection offers the certificate name for an IP endpoint and saves it', async () => {
+  browser(`
+    await createInstance('technitium-axi', { origin: base.replace('localhost', '127.0.0.1'), auth: 'token', tokenKind: 'api', token: 'CANARY-name' });
+    await page.click('form[data-test-tool] button');
+    await page.wait('[data-inspect-certificate]:not([hidden])');
+    await page.click('[data-inspect-certificate] button');
+    await page.wait('#certificate-inspection[open]');
+    check(await page.eval(() => document.querySelector('[data-use-certificate-name]').textContent) === 'Use localhost as the name and keep connecting to 127.0.0.1', 'Certificate name offer missing');
+    await page.click('[data-use-certificate-name]');
+    await page.wait('form[data-save-tool] [name=expectedRevision][value="2"]');
+    check(await page.eval(() => !document.querySelector('#certificate-inspection[open]')), 'Certificate dialog stayed open after the name change');
+  `)
+  const { stored } = await (await fetch(fixture.clock.replace('/test/clock', '/test/tools/technitium-axi'))).json() as { stored: { origin: string, tlsServerName?: string } }
+  assert.equal(stored.tlsServerName, 'localhost')
+  assert.equal(new URL(stored.origin).hostname, '127.0.0.1')
 })
 
 test('trust automatically tests credentials and displays the exact failure', () => {

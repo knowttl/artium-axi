@@ -122,16 +122,9 @@ test('inspection stays hidden until a certificate failure offers it', () => {
   expect(failed).toContain('Compare the fingerprint with the one the appliance shows before trusting.')
 })
 
-test.each([
-  { fills: true, note: 'Initial trust fills Certificate verification.' },
-  { fills: false, note: 'This tool does not support a shared trusted certificate field.' },
-])('the trust form fills the credential fields only when the tool supports them (fills=$fills)', ({ fills, note }) => {
-  const html = render({ certificates: { ...base.certificates, trust: { fills, caOption: 'Trust the issuing CA (synthetic)' } } })
-  const form = formFor(html, `${path}/certificates/trust`)
-  expect(controls(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['inspectionId', 'hidden', undefined], ['fillFields', 'hidden', String(fills)], ['confirmedFingerprint', 'checkbox', undefined]])
-  expect(text(form)).toContain(note)
-  expect(nodes(form).filter(element => element.tagName === 'option').map(text)).toEqual(['Trust the issuing CA (synthetic)', 'Strict leaf pinning (re-trust after every rotation)'])
-  expect(attribute(formFor(html, `${path}/certificates/use-name`), 'hidden')).toBe('')
+test('the trust and name forms exist only once a certificate has been inspected', () => {
+  const html = render()
+  expect(forms(html).filter(form => attribute(form, 'action')?.match(/certificates\/(trust|use-name)$/))).toEqual([])
 })
 
 test('each trusted certificate offers its own removal with its endpoint details', () => {

@@ -26,15 +26,18 @@ import { createVectraAdapter } from '../../dist/src/server/adapters/vectra.js'
 import { createMgAdapter } from '../../dist/src/server/adapters/mg.js'
 import { createAzAdapter } from '../../dist/src/server/adapters/az.js'
 import { createLdapAdapter } from '../../dist/src/server/adapters/ldap.js'
+import { createTechnitiumAdapter } from '../../dist/src/server/adapters/technitium.js'
 import { createGhAdapter } from '../../dist/src/server/adapters/gh.js'
 import { loadCredentialProfile } from '../../dist/src/server/adapters/credential-profile.js'
 import { AzureTokenCache } from '../../dist/src/server/adapters/azure-token-cache.js'
 import { FakeTokenTransport } from '../../dist/test/fixtures/azure-token-transport.js'
-import { createTestCertificates } from './certificates.ts'
+import { createInspectionCertificates, createTestCertificates } from './certificates.ts'
 import { seedBrowserSso, seedSsoInvitation, seedSsoRules } from '../../dist/test/fixtures/sso.js'
 
 const directory = mkdtempSync(join(tmpdir(), 'artium-browser-'))
-createTestCertificates(directory, ['localhost'], 1)
+const graphCertificates = process.env.ARTIUM_TEST_GRAPH_CERTIFICATES === '1'
+if (graphCertificates) createInspectionCertificates(directory, 'http://127.0.0.1/')
+else createTestCertificates(directory, ['localhost'], 1)
 const key = new EnvironmentKeyProvider({ ARTIUM_AXI_MASTER_KEY: Buffer.alloc(32, 1).toString('base64') })
 const db = openStore(join(directory, 'artium.db'), key)
 await seedToolUser(db)
@@ -50,7 +53,7 @@ const profile = tool => loadCredentialProfile(tool, join(process.cwd(), `tools/n
 const adapters = [createFalconAdapter(source), createVectraAdapter(source, join(directory, 'writes.log'), profile('vectra-axi')),
   createMgAdapter(source, join(directory, 'mg-writes.log'), profile('mg-axi')),
   createAzAdapter(source, join(directory, 'az-writes.log'), new AzureTokenCache(new FakeTokenTransport())),
-  createLdapAdapter(source, profile('ldap-axi')), createGhAdapter(source)]
+  createLdapAdapter(source, profile('ldap-axi')), createGhAdapter(source), createTechnitiumAdapter(source)]
 const deliveryFile = join(directory, 'ldap-delivery.json')
 // Use the real preparation and secret scan, replacing only the executable boundary.
 for (const adapter of adapters) {
@@ -80,6 +83,12 @@ Date.now = () => realNow() + offset
 server.post('/test/trust-ca', async () => {
   setDefaultCACertificates([...getCACertificates('default'), readFileSync(join(directory, 'ca.crt'), 'utf8')])
   return { trusted: true }
+})
+if (graphCertificates) server.post('/test/rotate-graph-certificate', async () => {
+  const leaf = readFileSync(join(directory, 'rotated.crt'), 'utf8')
+  proxy.addContext('graph.microsoft.com', { key: readFileSync(join(directory, 'server.key')),
+    cert: leaf + readFileSync(join(directory, 'intermediate.crt'), 'utf8') + readFileSync(join(directory, 'ca.crt'), 'utf8') })
+  return { fingerprint: new X509Certificate(leaf).fingerprint256 }
 })
 server.post('/login/device/code', async request => {
   const input = new URLSearchParams(request.body)
@@ -218,7 +227,7 @@ proxy.listen(0, '127.0.0.1', async () => {
     sockets.add(socket)
     return socket
   }
-  tls.connect = (options, ...args) => connectTls(options.socket && sockets.has(options.socket)
+  tls.connect = (options, ...args) => connectTls(options.socket && sockets.has(options.socket) && !(graphCertificates && options.servername === 'graph.microsoft.com')
     ? { ...options, servername: 'localhost', ca } : options, ...args)
   syncBuiltinESMExports()
   const cert = new X509Certificate(readFileSync(join(directory, 'server.crt')))
