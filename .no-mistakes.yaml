@@ -21,7 +21,7 @@ review:
         Use only fakes, synthetic users and canary credentials during the build; escalate live services, real credentials, deployment and irreversible actions.
         Review the intended public outcomes across sibling callers and error paths together, using the submission checklist in CONTRIBUTING.md.
         For startup changes, include installed executable paths, every supported host hook, account replacement, cancellation and session-lock release. For writes, include uncertain outcomes, rename recovery, native help and confirmation rules.
-        For every repair, identify the reported invariant and inspect its sibling callers, cases and failure paths before editing. Repair the whole invariant together rather than only the reported example, verify through its public interface, then review the complete base-to-candidate diff, including earlier repairs and final documentation. A focused repair check never replaces this final-diff review.
+        Fix the reported invariant at the sibling sites that existed before this PR. Do not add new mechanism to cover a new interleaving; if the fix needs one, file it as an issue.
         Do not cap valid findings, narrow design/style review, lower acceptance standards or reduce the configured repair budget to shorten elapsed time. This checklist adds no review gate.
         Before a repair's focused verification, run pnpm install --frozen-lockfile if dependencies are missing, using the package.json Node and pnpm toolchain. Complete pnpm build before any probe that uses dist. Do not return a repair as verified when dependencies or compiled output prevented verification.
         Run pnpm lint before returning any repair.
