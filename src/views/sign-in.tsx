@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } f
 import { Text } from '@astryxdesign/core/Text'
 import { VisuallyHidden } from '@astryxdesign/core/VisuallyHidden'
 import { VStack } from '@astryxdesign/core/VStack'
+import { HydrationGate } from './hydrated.js'
 import { Icon } from './icon.js'
 import { Panel } from './panel.js'
 import { ProviderFields } from './provider-fields.js'
@@ -36,21 +37,23 @@ function AddProvider({ open, fromEmptyState, closeHref, csrf }: SignInProps['add
       <SheetFrame name="add-provider" open query={addProviderQuery} returnFocusId={returnFocusId} closeHref={closeHref} title="Add a sign-in provider" description="Pick the kind of identity provider. You configure its credential and rules next.">
         <form method="get" action={closeHref}>
           {fromEmptyState && <input type="hidden" name="addFrom" value="empty" />}
-          <div className="sheet-body">
-            <fieldset className="options">
-              <legend className="sr-only">Kind of identity provider</legend>
-              {kinds.map(kind => (
-                <label key={kind.value} className="option">
-                  <input type="radio" name="add" value={kind.value} defaultChecked={kind.value === 'entra'} />
-                  <div><strong>{kind.name}</strong><span>{kind.detail}</span></div>
-                </label>
-              ))}
-            </fieldset>
-          </div>
-          <div className="sheet-foot">
-            <SheetCancel />
-            <Button type="submit" label="Continue" variant="primary" />
-          </div>
+          <HydrationGate>
+            <div className="sheet-body">
+              <fieldset className="options">
+                <legend className="sr-only">Kind of identity provider</legend>
+                {kinds.map(kind => (
+                  <label key={kind.value} className="option">
+                    <input type="radio" name="add" value={kind.value} defaultChecked={kind.value === 'entra'} />
+                    <div><strong>{kind.name}</strong><span>{kind.detail}</span></div>
+                  </label>
+                ))}
+              </fieldset>
+            </div>
+            <div className="sheet-foot">
+              <SheetCancel />
+              <Button type="submit" label="Continue" variant="primary" />
+            </div>
+          </HydrationGate>
         </form>
       </SheetFrame>
     )

@@ -125,7 +125,7 @@ Administration pages share a left sidebar grouped into Access, Tools and Securit
 | `/admin/settings/sign-in/:id/matches/:ruleId` | Who matches a role rule, from saved sign-in claims. |
 | `/device` | Approve or deny a CLI sign-in or identity confirmation code. |
 
-People and Audit show **Apply** before the interactive controls load and when JavaScript is disabled.
+People, Audit and Tools filter inputs become available once the interactive controls load.
 Once the controls load, changing a dropdown applies the current filters automatically.
 Only Audit's **Custom** range keeps **Apply** visible after loading so you can submit the UTC date fields.
 On Tools, press Enter in **Filter tools** to search within the current **Show** view.

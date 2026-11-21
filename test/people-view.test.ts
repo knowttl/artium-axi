@@ -111,5 +111,7 @@ test('add-user roles list each role with its tools, and say so when there are no
   const withRoles = render()
   expect(find(withRoles, element => element.tagName === 'label' && attribute(element, 'class') === 'check').map(text)).toEqual(['Synthetic RoleSynthetic Tool', 'AdministratorCan manage people, roles, tools and sign-in. Tool access still comes from roles.'])
   const without = render({ addUser: { ...addUser, roles: [] } })
-  expect(text(find(without, element => element.tagName === 'fieldset')[0]!)).toContain('No roles yet. Create a role on Roles to grant tool access.')
+  const [roles] = find(without, element => element.tagName === 'fieldset'
+    && element.childNodes.some(child => 'tagName' in child && child.tagName === 'legend' && text(child) === 'Roles'))
+  expect(text(roles!)).toContain('No roles yet. Create a role on Roles to grant tool access.')
 })

@@ -24,6 +24,7 @@ let fixture: Fixture
 const pickerWithLateHydration = 'operation picker is inert until late hydration and then follows edits'
 const trackChangesWithLateHydration = 'role tool grants ignore a click made before late hydration'
 const actionsWithLateHydration = 'admin forms are inert until delayed hydration and native confirmation works'
+const filtersWithLateHydration = 'admin filters and provider chooser wait for hydration'
 const instanceSheetWithLateHydration = 'Add instance accepts a credential draft after modal promotion'
 const credentialEditorWithLateHydration = 'the credential editor applies selections after delayed hydration'
 const connectionDraftWithLateHydration = 'the instance connection applies certificate edits after delayed hydration'
@@ -127,7 +128,7 @@ beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
     env: { ...process.env, ARTIUM_TEST_GRAPH_CERTIFICATES: context.name === graphCertificateRotation ? '1' : '0',
       ARTIUM_TEST_SKIP_HYDRATION: [pickerWithLateHydration, trackChangesWithLateHydration,
-      actionsWithLateHydration, instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration,
+      actionsWithLateHydration, filtersWithLateHydration, instanceSheetWithLateHydration, credentialEditorWithLateHydration, connectionDraftWithLateHydration,
       resizeCadence].includes(context.name) || context.name.endsWith(editedOverrides) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
@@ -1460,9 +1461,9 @@ test('sign-in settings creates a disabled provider and saves a certificate witho
     await page.wait('[role=main] a[href$="add=choose"]');
     check(await page.eval(() => document.querySelector('[role=main]').innerText.includes('New providers start disabled')), 'Missing disabled-sign-in guidance');
     await page.click('[role=main] a[href$="add=choose"]');
-    await page.wait('dialog[open] [name=add][value=entra]:checked');
+    await page.wait('#sheet-add-provider:modal [name=add][value=entra]:checked:enabled');
     await page.click('dialog[open] form button');
-    await page.wait('[name=tenantId]');
+    await page.wait('#sheet-add-entra:modal [name=tenantId]:enabled');
     await page.fill('[name=name]', 'Synthetic provider');
     await page.fill('[name=tenantId]', '11111111-1111-4111-8111-111111111111');
     await page.click('form[action="/v1/admin/sso/providers"] button');
@@ -3610,24 +3611,36 @@ test('user search combines filters, retains them through pagination and explains
   `)
 })
 
+test(filtersWithLateHydration, () => {
+  browser(`
+    const forms = [
+      ['/admin/users', 'form.filters', ['[name=q]', '[name=source]', '[name=status]', '[name=role]', 'button[type=submit]']],
+      ['/admin/audit', 'form.filters', ['[name=requestId]', '[name=delegationId]', '[name=event]', 'button[type=submit]']],
+      ['/admin/audit?range=custom', 'form.filters', ['[name=from]', '[name=to]', 'button[type=submit]']],
+      ['/admin/tools?show=attention', 'form.filters', ['[name=q]']],
+      ['/admin/settings/sign-in?add=choose&addFrom=empty', '#sheet-add-provider form', ['[name=add][value=entra]', '[name=add][value=oidc]', 'button[type=submit]']],
+    ];
+    for (const [path, form, controls] of forms) {
+      await page.open(base + path);
+      for (const control of controls) {
+        const selector = form + ' ' + control;
+        check(await page.eval('() => document.querySelector(' + JSON.stringify(selector) + ')?.matches(":disabled")'), selector + ' was enabled before hydration on ' + path);
+      }
+      await resumeHydration();
+      for (const control of controls) await page.wait(form + ' ' + control + ':enabled');
+    }
+    await page.wait('#sheet-add-provider:modal');
+    await page.click('#sheet-add-provider [name=add][value=oidc]');
+    await page.click('#sheet-add-provider button[type=submit]');
+    await page.wait('#sheet-add-oidc[open]');
+    check(await page.eval(() => new URL(location.href).searchParams.get('addFrom') === 'empty'), 'Provider chooser lost its launch source');
+  `)
+})
+
 test('tool search and the audit custom range submit through the hydrated filter form', () => {
   browser(`
-    const waitForRootTheme = () => page.eval(() => new Promise((resolve, reject) => {
-      const root = document.documentElement;
-      if (root.hasAttribute('data-astryx-theme')) { resolve(); return; }
-      const observer = new MutationObserver(() => {
-        observer.disconnect();
-        clearTimeout(timeout);
-        resolve();
-      });
-      const timeout = setTimeout(() => {
-        observer.disconnect();
-        reject(new Error('Timed out waiting for the root Astryx theme'));
-      }, 5000);
-      observer.observe(root, { attributeFilter: ['data-astryx-theme'] });
-    }));
     await page.open(base + '/admin/tools?show=attention');
-    await waitForRootTheme();
+    await page.wait('form.filters [name=q]:enabled');
     await page.fill('[name=q]', 'vectra');
     await page.press('Enter');
     await page.wait('form.filters a[href="/admin/tools?show=attention&q=vectra"][aria-current=page]');
@@ -3635,13 +3648,13 @@ test('tool search and the audit custom range submit through the hydrated filter 
       const query = new URLSearchParams(location.search);
       return location.pathname === '/admin/tools' && query.get('q') === 'vectra' && query.get('show') === 'attention';
     }), 'Tool search lost the view or the text');
-    await waitForRootTheme();
+    await page.wait('form.filters [name=q]:enabled');
     await page.fill('[name=q]', '');
     await page.press('Enter');
     await page.wait('form.filters a[href="/admin/tools?show=attention"][aria-current=page]');
     check(await page.eval(() => location.pathname === '/admin/tools' && location.search === '?show=attention'), 'Clearing tool search sent q or lost the view');
     await page.open(base + '/admin/audit?range=custom');
-    await waitForRootTheme();
+    await page.wait('form.filters [name=from]:enabled');
     await page.fill('[name=from]', '2026-01-01T00:00:00Z');
     const apply = (await page.snapshot()).match(/uid=(\\S+) button "Apply"/)?.[1];
     check(apply, 'Custom range hid Apply');

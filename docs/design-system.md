@@ -80,7 +80,8 @@ See the [certificate trust runbook](runbook.md#trusting-one-tool-from-the-admini
 The GitHub connection card on this page is the same `GithubConnection` view, above the Connection card.
 The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`.
 Tools, People and Audit use the shared React [`FilterForm`](../src/views/filter-form.tsx) for their GET forms.
-See [Browser administration](admin-guide.md#browser-administration) for submission and fallback behavior.
+Filter inputs and Apply are disabled until React hydrates, and links for preset views remain available during page load.
+See [Browser administration](admin-guide.md#browser-administration) for filter submission behavior.
 Invitation creation, resend and linking an existing user use the shared React `ActionForm` with `claimLink`.
 After a successful submission, `submitForm` closes the sheet and emits the absolute claim URL with the `artium-claim-link` event.
 The React [`ClaimLinkDialog`](../src/views/claim-link.tsx) focuses and selects the URL field when it opens.
@@ -94,6 +95,7 @@ The Sign-in & SSO list (`SignIn` in `src/views/sign-in.tsx`, route `/admin/setti
 The list shows the sign-in mode, break-glass readiness and pending invitations as three summary cards, then a Providers panel with each provider's kind, issuer, status and a link to its page; it also opens the Add provider sheets from `?add=choose` (a GET chooser), `?add=entra` and `?add=oidc` (the create form on the shared `Sheet` and `ActionForm`, with its tier 2 confirmation).
 Only the requested sheet is rendered, so provider forms never share field IDs on the page.
 The chooser carries the empty-state launcher's focus destination into either provider form.
+Its radio buttons and Continue button become available after React hydrates.
 The who-matches page is read-only and shows the people whose last recorded sign-in claims match a role rule.
 Their props are provider names, kinds, issuers, a `configured` flag, counts and people an administrator already sees, and carry no credential value.
 The provider page (`Provider` in `src/views/provider.tsx`, route `/admin/settings/sign-in/:id`) is the twelfth page on the seam, with a Setup, Credential, Role rules and Settings tab.
@@ -137,9 +139,9 @@ After creating or updating an instance with credentials, `submitForm` runs the o
 `ActionForm` uses `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
 After certificate trust is saved, `submitForm` tests with `X-Artium-Retest: 1` and stores the outcome for the reloaded instance page.
 Once React handles a submit, `submitForm` holds a page-wide submit lock and captures the submitted values before waiting for `astryx-hydrated`, when the dialog listeners are ready.
-Until React hydrates, `ActionForm` renders its fields and buttons inside a disabled `fieldset` (`data-hydration-gate`, shown as `display: contents`), so nothing can be edited or submitted while the page loads.
+Wrap migrated administration form controls in the shared `HydrationGate`, which renders a disabled `fieldset` (`data-hydration-gate`, shown as `display: contents`) until React hydrates.
 A form whose confirmation route has a native confirmation page (the `native` entry in `src/shared/confirmation-routes.ts`) stays enabled and posts natively to that page, so it also works without JavaScript.
-Every form built on `ActionForm`, including `Sheet`, inherits this; a new form must not add its own pre-hydration handling or its own `<form>` that posts to an API route.
+Use `ActionForm` or `Sheet` for API submissions and `FilterForm` for list filters, which all apply the shared gate.
 See [browser administration](admin-guide.md#browser-administration) for the actions that support server confirmation.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
 Their name fields and submit buttons become available after React hydrates.
