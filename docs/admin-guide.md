@@ -168,13 +168,15 @@ See [credential certificate trust](runbook.md#trusting-one-tool-from-the-adminis
 Administration screens share a sidebar; ordinary users get a top bar only.
 Signed-in dashboard screens have an account menu showing identity and sign-in source, with links to your account and sign-out.
 Signed-in authentication cards instead show your identity and a sign-out control below the card.
-On administration screens, the top bar also shows the remaining confirmation window: "Changes unlocked" with the minutes left, or "Changes locked".
-On the Overview, People, Roles, Invitations and Tools list pages, the person, role and tool detail pages, SSH audit and SSH hosts, at 767px and narrower, open **Navigation** to find that status and the System, Light and Dark theme switch.
+The administration and Account top bars show "Changes unlocked" with the minutes left, or "Changes locked".
+The status refreshes every 30 seconds while the page is active and updates after successful confirmation.
+At 767px and narrower, open the header's **Navigation** or **Menu** disclosure to find that status and the System, Light and Dark theme switch.
 Local admin forms open a password dialog when confirmation expires, then resume the pending action after successful confirmation.
 SSO admin forms instead open a confirmation window with the session's provider, with a forced login and fresh authentication-time check.
 For Entra, configure `auth_time` as an optional ID-token claim in the application registration, following [Microsoft's optional-claims instructions](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims).
 Confirmation is refused if that claim is absent or stale.
-After confirming with the same identity, use **Continue to Artium** to resume the pending action in the original window.
+After signing in with the same identity, select **Continue to Artium** on the **One more step** screen to resume the pending action in the original window.
+You can close the popup when it shows **Identity confirmed**.
 Keep the original window open; drafts, including credential fields, remain there and are not stored for the round trip.
 Allow popups for artium if the browser blocks the confirmation window.
 Cancel keeps the entered values without submitting the change.

@@ -65,7 +65,6 @@ export interface Viewer {
   sso: boolean
   local: boolean
   csrf: string
-  // Epoch milliseconds when recent identity confirmation expires; 0 when it has.
 }
 
 export interface Page extends PageHeader {
