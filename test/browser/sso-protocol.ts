@@ -7,7 +7,7 @@ import type { Readable } from 'node:stream'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { after, afterEach, before, beforeEach, test } from 'node:test'
-import { waitForTime } from './harness.mjs'
+import { waitForReauthPills, waitForTime } from './harness.mjs'
 
 type Fixture = {
   url: string
@@ -90,6 +90,7 @@ async function configure(value: {
   enabled?: boolean
   localBreakGlass?: boolean
   administrator?: boolean
+  grantFalcon?: boolean
   tamperSignature?: boolean
   claims?: Record<string, string | string[] | number>
 }) {
@@ -397,13 +398,42 @@ test('SSO identity confirmation resumes the pending form through the real popup 
   selectPage('/admin/roles')
   browser(`await page.wait('form[action$="/tools"]');
     check(await page.eval(() => document.querySelector('h1').innerText === 'Synthetic resumed role'), 'Pending role was not saved');
-    check(await page.eval(() => document.querySelector('[data-reauth-until]').innerText.includes('Changes unlocked')), 'Recent-auth window was not updated');`)
+    check(await page.eval(() => document.querySelector('[data-reauth-method]').innerText.includes('Changes unlocked')), 'Recent-auth window was not updated');`)
   const evidence: SsoEvidence = await (await fetch(fixture.ssoEvidence)).json()
   assert.deepEqual(evidence.callbackCookies, { session: false, preauth: true, csrf: false })
   assert.equal(evidence.authorizations.at(-1)!.prompt, 'login')
   assert.equal(evidence.sessions.length, 1)
   assert.ok(evidence.sessions[0].reauthenticated_at)
   assert.equal(evidence.events.filter(event => event.event === 'reauth').length, 1)
+})
+
+test('SSO popup confirmation refreshes both pills on the original document', async () => {
+  await configure({ grantFalcon: true })
+  browser(`${signIn}
+    ${waitForReauthPills}
+    await page.wait('a[href="/account"]');
+    await page.click('a[href="/account"]');
+    await page.wait('form[data-create-token]');
+    await page.wait('html[data-astryx-theme]');
+    await waitForReauthPills('Changes locked', 'off', '#i-lock');
+    await page.eval(() => {
+      window.sameDocument = true;
+      const now = Date.now.bind(Date);
+      Date.now = () => now() + 960_000;
+    });
+    await page.fill('form[data-create-token] [name=label]', 'Synthetic SSO token');
+    await page.click('[data-token-tool="falcon-axi"]');
+    await page.click('form[data-create-token] button');
+    await page.wait('#reauth-dialog[open]');`)
+  openReauthPopup()
+  browser(`await page.click('[data-oidc-approve]');
+    await page.wait('a[href="/reauth?complete=1"]');
+    await page.click('a[href="/reauth?complete=1"]');`)
+  selectPage('/account')
+  browser(`${waitForReauthPills}
+    await page.wait('#created-token[open]');
+    check(await page.eval(() => window.sameDocument === true), 'SSO confirmation replaced the opener document');
+    await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');`)
 })
 
 test('cancelled SSO confirmation keeps the entered draft without making the change', async () => {

@@ -66,5 +66,9 @@ export function requireBrowserAdmin(db: Database.Database, id: string, mutation:
 }
 
 export function recentBrowserAuth(session: BrowserSession, now = Date.now()): boolean {
-  return session.reauthenticated_at !== null && session.reauthenticated_at + authDefaults.recentAuthMs > now
+  return browserReauthRemainingMs(session, now) > 0
+}
+
+export function browserReauthRemainingMs(session: BrowserSession, now = Date.now()): number {
+  return session.reauthenticated_at === null ? 0 : Math.max(0, session.reauthenticated_at + authDefaults.recentAuthMs - now)
 }

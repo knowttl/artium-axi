@@ -7,7 +7,7 @@ import { createInterface } from 'node:readline'
 import { createServer, type AddressInfo } from 'node:net'
 import type { Readable } from 'node:stream'
 import { after, afterEach, before, beforeEach, test } from 'node:test'
-import { waitForTime } from './harness.mjs'
+import { waitForReauthPills, waitForTime } from './harness.mjs'
 
 type Fixture = {
   url: string
@@ -381,14 +381,14 @@ test('hydrating the overview frame keeps the elements the confirmation script al
   assert.equal((await fetch(fixture.clock.replace('/test/clock', '/test/overview'), { method: 'POST' })).status, 200)
   browser(`
     ${waitForTime}
+    ${waitForReauthPills}
     await page.open(base + '/admin');
     await page.wait('html[data-astryx-theme]');
     const iso = '2026-01-01T00:00:00.000Z';
     await waitForTime('li time[datetime="' + iso + '"]', iso);
-    check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
-    await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
-    await page.wait('.unlock.off', 35000);
-    check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'The confirmation pill stopped following the confirmation state after hydration');
+    await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');
+    await page.eval(() => { const now = performance.now.bind(performance); performance.now = () => now() + 900_000; });
+    await waitForReauthPills('Changes locked', 'off', '#i-lock', 35000);
   `)
 })
 
@@ -426,13 +426,13 @@ test('the confirmation pill keeps following the confirmation state when the narr
   chrome(['emulate', '--viewport', '390x844x1,mobile,touch'])
   try {
     browser(`
+      ${waitForReauthPills}
       await page.open(base + '/admin');
       await page.wait('html[data-astryx-theme]');
       await page.wait('[data-testid=mobile-nav-toggle]');
-      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
-      await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
-      await page.wait('.unlock.off', 35000);
-      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'The confirmation pill stopped following the confirmation state on a narrow screen');
+      await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');
+      await page.eval(() => { const now = performance.now.bind(performance); performance.now = () => now() + 900_000; });
+      await waitForReauthPills('Changes locked', 'off', '#i-lock', 35000);
     `)
   } finally {
     chrome(['stop'])
@@ -463,7 +463,7 @@ test('the overview keeps landmarks and a reachable theme switch at both widths',
         check(await page.eval(() => {
           const header = document.querySelector('.frame-topbar').getBoundingClientRect();
           const main = document.querySelector('[role=main]').getBoundingClientRect();
-          const controls = [...document.querySelectorAll('.frame-topbar [data-reauth-until], .frame-topbar .learn > summary, .frame-topbar form[action="/theme"], .frame-topbar [data-testid=mobile-nav-toggle]')]
+          const controls = [...document.querySelectorAll('.frame-topbar [data-reauth-method], .frame-topbar .learn > summary, .frame-topbar form[action="/theme"], .frame-topbar [data-testid=mobile-nav-toggle]')]
             .filter(control => control.checkVisibility());
           return header.bottom <= main.top && controls.every(control => {
             const bounds = control.getBoundingClientRect();
@@ -474,13 +474,13 @@ test('the overview keeps landmarks and a reachable theme switch at both widths',
           const toggle = document.querySelector('[data-testid=mobile-nav-toggle]').getBoundingClientRect();
           const centre = element => { const bounds = element.getBoundingClientRect(); return (bounds.top + bounds.bottom) / 2; };
           const row = [...document.querySelectorAll('.frame-topbar .crumbs, .frame-topbar .learn > summary')].map(centre);
-          const hidden = [...document.querySelectorAll('.frame-topbar [data-reauth-until], .frame-topbar form[action="/theme"]')].filter(control => control.checkVisibility());
+          const hidden = [...document.querySelectorAll('.frame-topbar [data-reauth-method], .frame-topbar form[action="/theme"]')].filter(control => control.checkVisibility());
           return row.length === 2 && row.every(value => Math.abs(value - (toggle.top + toggle.bottom) / 2) < 4) && hidden.length === 0;
         }), 'The narrow header is not one row without the pill and theme switch');
         await page.click('[data-testid=mobile-nav-toggle]'); await page.wait('.frame-mobile-nav details[open]');` : ''}
         const placement = await page.eval(() => {
           const visible = selector => [...document.querySelectorAll(selector)].filter(element => element.checkVisibility());
-          return [visible('form[action="/theme"]').map(form => [Boolean(form.closest('${region}')), form.elements.next.value]), visible('[data-reauth-until]').map(pill => Boolean(pill.closest('${region}')))];
+          return [visible('form[action="/theme"]').map(form => [Boolean(form.closest('${region}')), form.elements.next.value]), visible('[data-reauth-method]').map(pill => Boolean(pill.closest('${region}')))];
         });
         check(placement[0].length === 1 && placement[0][0][0] && placement[0][0][1] === '/admin' && placement[1].length === 1 && placement[1][0], 'Theme switch and confirmation pill are not in ${region}: ' + JSON.stringify(placement));
         check(await page.eval(() => { const button = document.querySelector('${region} form[action="/theme"] button[value=${choice}]'); button.focus(); return document.activeElement === button && button.getAttribute('aria-pressed') === 'false'; }), 'Theme choice must be keyboard focusable and change');
@@ -518,21 +518,24 @@ test('confirmation expiry survives resizing across the mobile breakpoint', () =>
   try {
     chrome(['resize', '1280', '900'])
     browser(`
+      ${waitForReauthPills}
       await page.open(base + '/admin');
       await page.wait('html[data-astryx-theme]');
-      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent.includes('Changes unlocked')), 'Confirmation should start unlocked');
-      await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() + 900_000; });
-      await page.wait('.unlock.off', 35000);
+      await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');
+      await page.eval(() => { const now = performance.now.bind(performance); performance.now = () => now() + 900_000; });
+      await waitForReauthPills('Changes locked', 'off', '#i-lock', 35000);
     `)
     chrome(['resize', '390', '900'])
     browser(`
+      ${waitForReauthPills}
       await page.wait('[data-testid=mobile-nav-toggle]');
-      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'Mobile header restored an expired confirmation');
+      await waitForReauthPills('Changes locked', 'off', '#i-lock');
     `)
     chrome(['resize', '1280', '900'])
     browser(`
+      ${waitForReauthPills}
       await page.wait('.astryx-app-shell-sidenav');
-      check(await page.eval(() => document.querySelector('[data-reauth-text]').textContent === 'Changes locked'), 'Desktop header restored an expired confirmation');
+      await waitForReauthPills('Changes locked', 'off', '#i-lock');
     `)
   } finally { chrome(['resize', '1280', '900']) }
 })
@@ -589,31 +592,10 @@ test('ordinary users can create temporary tokens after recent authentication exp
   `)
   await expireConfirmation()
   browser(`
-    const waitForPills = pattern => page.eval('() => (' + (expectedText => {
-      const pattern = new RegExp(expectedText);
-      const matches = () => ['.frame-controls-header', '.frame-controls-drawer'].every(placement => {
-        const pills = document.querySelectorAll(placement + ' [data-reauth-method]');
-        const text = pills[0]?.querySelector('[data-reauth-text]')?.textContent;
-        return pills.length === 1 && text != null && pattern.test(text);
-      });
-      if (matches()) return;
-      return new Promise((resolve, reject) => {
-        const observer = new MutationObserver(() => {
-          if (!matches()) return;
-          observer.disconnect();
-          clearTimeout(timeout);
-          resolve();
-        });
-        const timeout = setTimeout(() => {
-          observer.disconnect();
-          reject(new Error('Expected one recent-authentication pill in each frame placement with text matching ' + expectedText));
-        }, 5000);
-        observer.observe(document.body, { childList: true, characterData: true, subtree: true });
-      });
-    }).toString() + ')(' + JSON.stringify(pattern.source) + ')');
+    ${waitForReauthPills}
     await page.open(base + '/account');
     await page.wait('html[data-astryx-theme]');
-    await waitForPills(/^Changes unlocked · 1[0-5] min$/);
+    await waitForReauthPills('Changes locked', 'off', '#i-lock');
     await page.eval(() => { window.sameDocument = true; });
     await page.fill('form[data-create-token] [name=label]', 'Synthetic token');
     await page.click('[data-token-tool="falcon-axi"]');
@@ -623,7 +605,7 @@ test('ordinary users can create temporary tokens after recent authentication exp
     await page.fill('#reauth-dialog [name=password]', 'CANARY-local-password');
     await page.click('#reauth-dialog button:not([type=button])');
     await page.wait('#created-token[open]');
-    await waitForPills(/^Changes unlocked · (29|30) min$/);
+    await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');
     check(await page.eval(() => window.sameDocument === true), 'Confirmation reloaded the page instead of refreshing the pill');
     check(await page.eval(() => document.querySelector('[data-created-token]').value.startsWith('artd_')), 'Token was not shown');
     await page.click('[data-close-created-token]');
@@ -2823,7 +2805,7 @@ test('expired confirmation resumes the populated action exactly once after a wro
     const mobile = await page.eval(() => document.querySelector('[data-testid=mobile-nav-toggle]').getClientRects().length > 0);
     if (mobile) await page.click('[data-testid=mobile-nav-toggle]');
     const controls = mobile ? '.frame-controls-drawer' : '.frame-controls-header';
-    check(await page.eval('() => document.querySelector(' + JSON.stringify(controls + ' [data-reauth-until]') + ').innerText.includes("Changes unlocked")'), 'Confirmation window was not refreshed');
+    check(await page.eval('() => document.querySelector(' + JSON.stringify(controls + ' [data-reauth-method]') + ').innerText.includes("Changes unlocked")'), 'Confirmation window was not refreshed');
     check(await page.eval(async () => {
       const { records } = await (await fetch('/v1/admin/audit')).json();
       return records.filter(record => record.action === 'create-role').length === 1;

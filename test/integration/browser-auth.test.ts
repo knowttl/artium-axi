@@ -859,10 +859,10 @@ test('the overview frame keeps the administration links, landmarks, title and co
     const switches = nodesOf(controls[0]!).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/theme')
     expect(switches).toHaveLength(1)
     expect(nodesOf(switches[0]!).find(element => attribute(element, 'name') === 'next')?.attrs.find(item => item.name === 'value')?.value).toBe('/admin')
-    expect(nodesOf(controls[0]!).filter(element => attribute(element, 'data-reauth-until') !== undefined)).toHaveLength(1)
+    expect(nodesOf(controls[0]!).filter(element => attribute(element, 'data-reauth-method') !== undefined)).toHaveLength(1)
   }
   expect(nodesOf(root).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/theme')).toHaveLength(2)
-  expect(nodesOf(root).filter(element => attribute(element, 'data-reauth-until') !== undefined)).toHaveLength(2)
+  expect(nodesOf(root).filter(element => attribute(element, 'data-reauth-method') !== undefined)).toHaveLength(2)
   const sidebar = document.find(element => attribute(element, 'class')?.split(' ').includes('astryx-app-shell-sidenav'))!
   expect(nodesOf(sidebar).filter(element => element.tagName === 'form' && attribute(element, 'action') === '/logout')).toHaveLength(1)
   const outside = document.filter(element => !nodesOf(root).includes(element))

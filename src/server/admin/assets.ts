@@ -4,6 +4,9 @@ import { retestScript } from './retest.js'
 
 export const adminStyle = tokens + components
 
+const reauthCompleteMessage = 'artium-reauth-complete'
+export const reauthCompleteScript = `window.opener?.postMessage('${reauthCompleteMessage}', location.origin);`
+
 export const adminScript = `
 ${retestScript}
 for (const editor of document.querySelectorAll('[data-credential-editor]')) {
@@ -143,8 +146,9 @@ function showError(target, error) {
   say(target, error.message + ' ' + error.next + ' (' + error.code + ')', error.code === 'REVISION_CONFLICT');
 }
 
-function announceReauth(until) {
-  hydrated.then(() => document.dispatchEvent(new CustomEvent('artium-reauth', { detail: until })));
+function announceReauth(remainingMs) {
+  const expiresAt = performance.now() + remainingMs;
+  hydrated.then(() => document.dispatchEvent(new CustomEvent('artium-reauth', { detail: expiresAt })));
 }
 
 function reauthenticate(csrf) {
@@ -160,14 +164,14 @@ function reauthenticate(csrf) {
     let popup;
     let popupClosed;
     const completed = async event => {
-      if (event.origin !== location.origin || event.source !== popup || event.data !== 'artium-reauth-complete' || closed) return;
+      if (event.origin !== location.origin || event.source !== popup || event.data !== '${reauthCompleteMessage}' || closed) return;
       try {
         const response = await fetch('/reauth?status=1', { headers: { Accept: 'application/json' }, signal: controller.signal });
         if (!response.ok || response.redirected) throw new Error();
         const status = await response.json();
-        if (status.sessionId !== document.body.dataset.sessionId || status.until <= Date.now()) throw new Error();
+        if (status.sessionId !== document.body.dataset.sessionId || !(status.remainingMs > 0)) throw new Error();
         if (closed) return;
-        announceReauth(status.until);
+        announceReauth(status.remainingMs);
         dialog.close('confirmed');
       } catch { if (!closed) error.textContent = 'Identity confirmation did not complete for this session. Try again or cancel to keep your draft.'; }
     };
@@ -206,7 +210,7 @@ function reauthenticate(csrf) {
           form.elements.password.focus();
           return;
         }
-        announceReauth(Number(response.headers.get('x-artium-reauth-until')));
+        announceReauth(Number(response.headers.get('x-artium-reauth-remaining-ms')));
         dialog.close('confirmed');
       } catch { if (!closed) error.textContent = 'Password confirmation could not complete. Try again or cancel to keep your draft.'; }
       finally { if (!closed) button.disabled = false; }

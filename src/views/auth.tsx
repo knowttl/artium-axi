@@ -13,7 +13,6 @@ import { useState } from 'react'
 import { useClientValue } from './client-value.js'
 import { useCopy } from './copy.js'
 import { Icon } from './icon.js'
-import { ReauthCompleteNotice } from './reauth.js'
 import { Time } from './time.js'
 
 export interface AuthButton {
@@ -38,7 +37,7 @@ export interface AuthField {
 }
 
 export type AuthBlock =
-  | { kind: 'text', parts: (string | { code: string })[], hint?: true, marker?: string, notifiesOpener?: true }
+  | { kind: 'text', parts: (string | { code: string })[], hint?: true }
   | { kind: 'divider', label: string }
   | { kind: 'banner', status: 'success' | 'warning', text: string }
   | { kind: 'code', value: string }
@@ -91,12 +90,9 @@ function CopyValue({ value, label }: { value: string, label: string }) {
 function Block({ block }: { block: AuthBlock }) {
   switch (block.kind) {
     case 'text': return (
-      <>
-        <Text as="p" type={block.hint ? 'supporting' : 'body'} {...block.marker ? { [block.marker]: '' } : {}}>
-          {block.parts.map((part, index) => typeof part === 'string' ? part : <Code key={index}>{part.code}</Code>)}
-        </Text>
-        {block.notifiesOpener && <ReauthCompleteNotice />}
-      </>
+      <Text as="p" type={block.hint ? 'supporting' : 'body'}>
+        {block.parts.map((part, index) => typeof part === 'string' ? part : <Code key={index}>{part.code}</Code>)}
+      </Text>
     )
     case 'divider': return <Divider label={block.label} />
     case 'banner': return <Banner status={block.status} title={block.text} icon={<Icon name={block.status === 'success' ? 'check' : 'alert'} />} />

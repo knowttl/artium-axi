@@ -66,7 +66,6 @@ export interface Viewer {
   local: boolean
   csrf: string
   // Epoch milliseconds when recent identity confirmation expires; 0 when it has.
-  reauthUntil: number
 }
 
 export interface Page extends PageHeader {

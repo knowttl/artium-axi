@@ -10,7 +10,8 @@ import { ArtiumError } from '../../shared/errors.js'
 import type { Audit } from '../audit/audit.js'
 import type { AuthAttempts } from './attempts.js'
 import { LocalAuthProvider, localAuthenticationMethod } from './local.js'
-import { browserIdentity, createBrowserSession, readBrowserSession, recentBrowserAuth, type BrowserSession } from './sessions.js'
+import { browserIdentity, browserReauthRemainingMs, createBrowserSession, readBrowserSession, recentBrowserAuth, type BrowserSession } from './sessions.js'
+import { reauthCompleteScript } from '../admin/assets.js'
 import { escape } from '../admin/escape.js'
 import { readThemeMode, registerThemeRoute } from '../admin/theme-mode.js'
 import { renderAuthPage, renderPage } from '../admin/render-page.js'
@@ -39,7 +40,6 @@ export function browserViewer(reply: FastifyReply, current: BrowserSession): Vie
     sso: current.source === 'sso',
     local: current.source === 'local',
     csrf: reply.generateCsrf(),
-    reauthUntil: current.reauthenticated_at === null ? 0 : current.reauthenticated_at + authDefaults.recentAuthMs,
   }
 }
 
@@ -104,6 +104,7 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
   const cancel = (current: BrowserSession): AuthButton => ({ label: 'Cancel', tone: 'ghost', href: home(current) })
 
   registerThemeRoute(app)
+  app.get('/admin/assets/reauth-complete.js', async (_request, reply) => reply.type('application/javascript').send(reauthCompleteScript))
   app.get('/', async (_request, reply) => reply.redirect('/admin'))
   app.get('/login', async (request, reply) => {
     if (request.cookies[browserCookie]) {
@@ -221,13 +222,13 @@ export function registerBrowser(app: FastifyInstance, db: Database.Database, aud
     if (current.must_change) return reply.redirect('/password')
     const query = z.object({ complete: z.literal('1').optional(), status: z.literal('1').optional() }).strict().safeParse(request.query)
     if (!query.success) throw new ArtiumError('INVALID_INPUT')
-    if (query.data.status) return { sessionId: current.id, until: recentBrowserAuth(current) ? current.reauthenticated_at! + authDefaults.recentAuthMs : 0 }
+    if (query.data.status) return { sessionId: current.id, remainingMs: browserReauthRemainingMs(current) }
     if (current.source === 'sso') {
       const identity = browserIdentity(db, current)
       if (query.data.complete) {
         if (!recentBrowserAuth(current)) throw new ArtiumError('REAUTH_REQUIRED')
-        return renderAuthPage(reply, { title: 'Identity confirmed', mark: signedOut, blocks: [
-          { kind: 'text', notifiesOpener: true, parts: ['Confirmation complete. You can close this window and return to your pending action.'] },
+        return renderAuthPage(reply, { title: 'Identity confirmed', mark: signedOut, notifiesOpener: true, blocks: [
+          { kind: 'text', parts: ['Confirmation complete. You can close this window and return to your pending action.'] },
           { kind: 'buttons', buttons: [{ label: 'Continue to Artium', tone: 'secondary', href: home(current) }] }] }, current)
       }
       return renderAuthPage(reply, { title: 'Confirm identity', mark: { icon: 'lock', tone: 'neutral' },

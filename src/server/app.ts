@@ -396,7 +396,8 @@ export function createApp(options: {
   app.post('/v1/auth/reauth', async (request, reply) => {
     if (!request.headers.authorization && request.cookies[browserCookie]) {
       const until = await browser.reauthenticate(request)
-      return reply.header('x-artium-reauth-until', until).code(204).send()
+      return reply.header('x-artium-reauth-until', until)
+        .header('x-artium-reauth-remaining-ms', Math.max(0, until - Date.now())).code(204).send()
     }
     const token = bearer(request.headers.authorization)
     const userId = authenticate(db, token)
