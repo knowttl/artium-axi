@@ -33,6 +33,7 @@ export interface FrameProps {
   navigation: NavigationSection[]
   account: string
   reauth: ReauthState
+  sso: boolean
   controls: string
   topbarEnd: string
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Icon } from './icon.js'
 
 const reauthEvent = 'artium-reauth'
+export const reauthCompleteMessage = 'artium-reauth-complete'
 const refreshMs = 30_000
 const minuteMs = 60_000
 
@@ -13,6 +14,11 @@ interface ReauthSample {
   remainingMs: number
   wallTime: number
   monotonicTime: number
+}
+
+export function announceReauth(remainingMs: number) {
+  const sample: ReauthSample = { remainingMs, wallTime: Date.now(), monotonicTime: performance.now() }
+  document.dispatchEvent(new CustomEvent(reauthEvent, { detail: sample }))
 }
 
 export function useReauthWindow({ remainingMs }: ReauthState) {

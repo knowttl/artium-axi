@@ -102,12 +102,12 @@ The side navigation is an Astryx `SideNav` with a `SideNavSection` per group and
 The frame renders the legacy markup for the account menu and help panel through `dangerouslySetInnerHTML`, so React neither re-renders nor compares what `confirm.js` updates there.
 The frame receives the remaining confirmation time as typed data and uses one countdown for both copies of the React pill.
 The [pill component](../src/views/reauth.tsx) updates the text, `.unlock.on` or `.unlock.off` class, and lock icon together.
-`confirm.js` hands the remaining duration to the frame through `artium-reauth` after password confirmation or verified SSO confirmation.
+The identity confirmation dialog hands the remaining duration to the frame through `artium-reauth` after password confirmation or verified SSO confirmation.
 The SSO completion page uses `/admin/assets/reauth-complete.js` to message the original window, which checks the message's origin and source and verifies recent confirmation for the current session with the server.
 See [browser administration](admin-guide.md#browser-administration) for the refresh cadence and confirmation flow.
 Below the Astryx mobile breakpoint a native navigation disclosure remains usable without JavaScript, listing the same `SideNavItem` links without a second `SideNav`, and CSS hides the desktop sidebar.
 The frame retains one banner, one main and one navigation landmark, labelled "Administration" for administrators and "Account" for other people.
-The identity confirmation dialog and icon sprite that `confirm.js` drives stay outside the React root; the toasts and the action confirmation dialog (`Confirmation` in `src/views/confirmation.tsx`, on the Astryx dialog) are part of it, and `confirm.js` asks it to confirm a form through the `artium-confirm` event.
+The icon sprite stays outside the React root; the toasts, the action confirmation dialog (`Confirmation` in `src/views/confirmation.tsx`, on the Astryx dialog) and the identity confirmation dialog (`ReauthDialog` in `src/views/reauth-dialog.tsx`) are part of it, and `confirm.js` asks them to confirm a form through the `artium-confirm` and `artium-reauth-request` events.
 The New role and Rename sheets pass no confirmation text, so `confirm.js` submits them without a confirmation dialog.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
 `ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes that `confirm.js` reads (method, consequence, title, action, typed name, success URL and success message), and `Sheet` builds on it, so a view writes an API form without repeating them.
@@ -240,7 +240,7 @@ Icons are drawn on a 24px grid with a 1.75 stroke in `currentColor`, shown at 16
 | Option card | `.options`, `.option` | unchecked, checked | Native radio |
 | Code and copy | Copy controls use [`useCopy`](../src/views/copy.ts) in the hydrated React view | Idle, copied, or clipboard access unavailable (the source is selected for manual copying) | `role="status"` announces the copy result |
 | Disclosure card | `details.card.disclosure` | closed, open | Native disclosure |
-| Dialog | The identity confirmation is a native `<dialog class="modal">` with `.modal-body`, `.modal-foot`, `.ico-circle`; the action confirmation (tier 2 or 3) is the Astryx `Dialog` in `Confirmation` | confirmation tier 2 or 3, identity confirmation | `showModal`, Esc closes, a backdrop press does not, title names the action, focus returns to the control that submitted |
+| Dialog | The identity confirmation (`ReauthDialog`) and the action confirmation (tier 2 or 3, `Confirmation`) are the Astryx `Dialog` | confirmation tier 2 or 3, identity confirmation | `showModal`, Esc closes, a backdrop press does not, title names the action, focus returns to the control that submitted |
 | Toasts | `Toasts` in `src/views/toasts.tsx` on the Astryx toast viewport | none, success, error, conflict with **Reload latest** | A success saved by `confirm.js` shows after the page reloads and is announced politely; an error from a form with no message area of its own is announced assertively and clears on the next submission of a form without its own message area |
 | Steps | `steps()`: `ol.steps`, `.step` | done, fail, to do, current | Ordered list; the state is in visually hidden text |
 | Segmented control and search | `.seg` (links or visually hidden radios), `.search`, `.filters` | current or checked | GET forms; JavaScript may apply them live |
