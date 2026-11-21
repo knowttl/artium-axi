@@ -24,6 +24,10 @@ export interface DeferredSubmitEvent extends SubmitEvent {
   astryxDraft?: FormDraft
 }
 
+const hydrated = typeof document === 'undefined' ? undefined : new Promise<void>(resolve => {
+  document.addEventListener('astryx-hydrated', () => resolve(), { once: true })
+})
+
 export function beginSubmit(form: HTMLFormElement, submitter: HTMLButtonElement | null) {
   const button = submitter ?? form.querySelector<HTMLButtonElement>('button:not([form]):not([type=button]):not([type=reset])')!
   const page = document.documentElement
@@ -74,8 +78,9 @@ export async function submitForm({ form, submitter, draft, action, method, confi
   if (!submission) return
   const { button, release } = submission
   try {
-    report('')
     draft ??= snapshotForm(form)
+    await hydrated
+    report('')
     const body: Body = Object.fromEntries(draft.fields)
     if (confirmation) {
       const confirmAction = confirmation.action || button.textContent!.trim()

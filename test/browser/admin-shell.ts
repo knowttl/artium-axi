@@ -25,6 +25,8 @@ const testWithoutHydration = 'direct credential tests finish when hydration is u
 const testWithLateHydration = 'latest direct credential result survives late hydration'
 const pickerWithLateHydration = 'operation picker preserves edits across late hydration'
 const trackChangesWithLateHydration = 'role tool grants count a selection edited before late hydration as a change'
+const submitWithLateHydration = 'a server-rendered submit saves its original draft after hydration'
+const submitBeforeDialogs = 'a React submit waits for dialogs and saves its original draft'
 const instanceSheetWithLateHydration = 'Add instance preserves a credential draft through modal promotion'
 const resizeCadence = 'confirmation expiry survives resizing across the mobile breakpoint'
 let chromeDebugPort: number
@@ -107,7 +109,7 @@ function browser(script: string) {
 beforeEach(async context => {
   server = spawn(process.execPath, ['test/fake-service/browser-auth.mjs'], {
     env: { ...process.env, ARTIUM_TEST_SKIP_HYDRATION: [testWithoutHydration, testWithLateHydration, pickerWithLateHydration, trackChangesWithLateHydration,
-      instanceSheetWithLateHydration, resizeCadence].includes(context.name) ? '1' : '0' },
+      submitWithLateHydration, submitBeforeDialogs, instanceSheetWithLateHydration, resizeCadence].includes(context.name) ? '1' : '0' },
     stdio: ['ignore', 'pipe', 'inherit'],
   })
   const lines = createInterface({ input: server.stdout })
@@ -2423,6 +2425,73 @@ test(trackChangesWithLateHydration, () => {
   `)
 })
 
+for (const name of [submitWithLateHydration, submitBeforeDialogs]) {
+  test(name, () => {
+    browser(`
+      await page.open(base + '/admin/users/synthetic-ordinary');
+      const readPerson = () => page.eval(async () => {
+        const response = await fetch('/v1/admin/users/synthetic-ordinary');
+        if (!response.ok) throw new Error('Could not read the synthetic person');
+        return response.json();
+      });
+      const initial = await readPerson();
+      check(JSON.stringify(initial.roleIds) === '["synthetic-role"]', 'The synthetic person must start with one role');
+      const submitBeforeDialogs = ${name === submitBeforeDialogs};
+      await page.eval('() => (' + (submitBeforeDialogs => {
+        const form = document.querySelector('form[action$="/synthetic-ordinary/roles"]');
+        const role = form.querySelector('[name=roleIds][value="synthetic-role"]');
+        const submit = () => {
+          role.click();
+          form.requestSubmit(form.querySelector('button[type=submit]'));
+          role.click();
+        };
+        const key = 'test-role-submissions';
+        sessionStorage.removeItem(key);
+        const send = window.fetch;
+        window.fetch = (url, options) => {
+          if (url === '/v1/admin/users/synthetic-ordinary/roles') {
+            const requests = JSON.parse(sessionStorage.getItem(key) || '[]');
+            requests.push({ method: options.method, body: JSON.parse(options.body) });
+            sessionStorage.setItem(key, JSON.stringify(requests));
+          }
+          return send(url, options);
+        };
+        if (submitBeforeDialogs) {
+          const add = document.addEventListener;
+          document.addEventListener = function (type, listener, options) {
+            if (type === 'artium-confirm') {
+              document.addEventListener = add;
+              let reachedScript = false;
+              document.addEventListener('submit', () => { reachedScript = true; }, { once: true });
+              submit();
+              if (reachedScript) throw new Error('The early submit did not reach the React handler');
+            }
+            return add.call(this, type, listener, options);
+          };
+        } else {
+          submit();
+        }
+      }).toString() + ')(' + submitBeforeDialogs + ')');
+      check(await page.eval(() => !document.querySelector('#confirmation[open]') && !sessionStorage.getItem('test-role-submissions')), 'The submission ran before hydration');
+      await page.eval(() => {
+        const script = document.createElement('script');
+        script.src = '/admin/assets/hydrate.js?resume';
+        document.head.append(script);
+      });
+      await page.wait('#confirmation[open]');
+      check(await page.eval(() => document.querySelector('[name=roleIds][value="synthetic-role"]').checked && !sessionStorage.getItem('test-role-submissions')), 'The later role edit should be visible before the request is sent');
+      await page.click('#confirmation button[value=confirmed]');
+      await page.wait('form[action$="/synthetic-ordinary/roles"] [name=expectedRevision][value="' + (initial.revision + 1) + '"]');
+      const requests = await page.eval(() => JSON.parse(sessionStorage.getItem('test-role-submissions') || '[]'));
+      check(requests.length === 1 && requests[0].method === 'PUT', 'Expected one role update');
+      const { body } = requests[0];
+      check(JSON.stringify(body.roleIds) === '[]' && body.expectedRevision === initial.revision && typeof body._confirm === 'string' && body._confirm.length > 0, 'The request did not contain the confirmed original role selection');
+      const saved = await readPerson();
+      check(JSON.stringify(saved.roleIds) === '[]' && saved.revision === initial.revision + 1, 'The original role selection was not saved');
+    `)
+  })
+}
+
 test('native settings status follows the JSON as it is edited', () => {
   browser(`
     await page.open(base + '/admin/tools/kubernetes-axi?tab=advanced');
@@ -3333,6 +3402,8 @@ test('role tool grants and membership explain effective tools and an empty role 
     await page.click('form[action="/v1/admin/roles"] button');
     await page.wait('[name=tools]');
     check(await page.eval(() => document.querySelector('h1').textContent === 'Synthetic readers'), 'New role did not open its page');
+    await page.wait('.astryx-toast:not([data-type=error])');
+    check(await page.eval(() => document.querySelector('.astryx-toast:not([data-type=error])').textContent === 'Role created. Choose the tools it grants.'), 'The role destination did not show its configured success message');
     const roleHref = await page.eval(() => location.pathname);
     await page.click('[name=tools][value="falcon-axi"]');
     await page.click('form:has([name=tools]) button');

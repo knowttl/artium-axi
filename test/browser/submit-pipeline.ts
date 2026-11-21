@@ -32,7 +32,6 @@ const readSettings = `
 `
 const toolApi = '/v1/admin/tools/falcon-axi'
 const roleApi = '/v1/admin/roles/synthetic-role'
-const personApi = '/v1/admin/users/synthetic-ordinary'
 const routes = 'form[action$="/raw-api/routes"]'
 
 test('route patterns are sent as trimmed lines with the revision as a number', () => {
@@ -87,79 +86,5 @@ test('invalid JSON in a plain form is reported and nothing is sent', () => {
     await page.wait('.astryx-toast[data-type=error]');
     check(await page.eval(() => document.querySelector('.astryx-toast[data-type=error]')?.textContent === 'Enter valid JSON in approvedHostKeys.'), 'The invalid JSON was not reported');
     check((${sentRequests}).length === 0, 'A request was sent with invalid JSON');
-  `)
-})
-
-test('a pre-hydration submission confirms and saves the original draft after edits', () => {
-  browser(`
-    const within = (promise, message) => {
-      let timer;
-      const deadline = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), 5000); });
-      return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
-    };
-    const inFrame = fn => page.eval('() => (' + fn.toString() + ')(' + within.toString() + ')');
-    await page.open(base + '/admin/users/synthetic-ordinary');
-    ${readSettings}
-    const initial = await readSettings('${personApi}');
-    await inFrame(async within => {
-      const html = (await (await fetch(location.href)).text()).replace(/<script\\b[^>]*hydrate\\.js[^>]*><\\/script>/, '');
-      const frame = document.createElement('iframe');
-      frame.srcdoc = html;
-      const loaded = new Promise(resolve => frame.addEventListener('load', resolve, { once: true }));
-      document.body.append(frame);
-      await within(loaded, 'The server-rendered frame did not load');
-      const win = frame.contentWindow;
-      win.dialogs = 0;
-      win.document.addEventListener('artium-confirm', () => { win.dialogs += 1; });
-      win.submission = Promise.withResolvers();
-      const send = win.fetch;
-      win.fetch = async (input, init) => {
-        if (!init?.body) return send(input, init);
-        win.sent = true;
-        const response = await send(input, init);
-        win.submission.resolve({ method: init.method, body: JSON.parse(init.body), status: response.status });
-        return response;
-      };
-      const form = win.document.querySelector('form[action$="/synthetic-ordinary/roles"]');
-      const role = form.querySelector('[name=roleIds][value="synthetic-role"]');
-      role.click();
-      form.querySelector('button').click();
-      role.click();
-    });
-    check(await page.eval(() => {
-      const win = document.querySelector('iframe').contentWindow;
-      return win.dialogs === 0 && !win.document.querySelector('#confirmation[open]') && !win.sent;
-    }), 'The form was handled before the page hydrated');
-    const { method, body, status } = await inFrame(async within => {
-      const win = document.querySelector('iframe').contentWindow;
-      const dialog = win.document.querySelector('#confirmation');
-      const script = win.document.createElement('script');
-      script.src = '/admin/assets/hydrate.js';
-      const loaded = new Promise((resolve, reject) => {
-        script.onload = resolve;
-        script.onerror = () => reject(new Error('The hydration script failed to load'));
-      });
-      win.document.head.append(script);
-      await within(loaded, 'The hydration script did not load');
-      let observer;
-      try {
-        await within(new Promise(resolve => {
-          if (dialog.open) return resolve();
-          observer = new MutationObserver(() => { if (dialog.open) resolve(); });
-          observer.observe(dialog, { attributes: true, attributeFilter: ['open'] });
-        }), 'The deferred submit did not open confirmation');
-      } finally {
-        observer?.disconnect();
-      }
-      if (!win.document.querySelector('[name=roleIds][value="synthetic-role"]').checked) throw new Error('The live form must contain the later role selection');
-      const submission = win.submission.promise;
-      dialog.querySelector('button[value=confirmed]').click();
-      return within(submission, 'The deferred submit did not receive a response');
-    });
-    check(JSON.stringify(initial.roleIds) === '["synthetic-role"]', 'The synthetic user must start with the selected role');
-    check(method === 'PUT' && JSON.stringify(body.roleIds) === '[]' && body.expectedRevision === initial.revision && typeof body._confirm === 'string' && body._confirm.length > 0, 'The deferred submit did not send the confirmed original draft: ' + JSON.stringify(body));
-    check(status === 200, 'The deferred submit failed with HTTP ' + status);
-    const saved = await readSettings('${personApi}');
-    check(JSON.stringify(saved.roleIds) === '[]' && saved.revision === initial.revision + 1, 'The deferred submit did not persist the original empty role selection');
   `)
 })
