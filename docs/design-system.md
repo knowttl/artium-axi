@@ -136,10 +136,11 @@ When the endpoint changes, it omits an untouched connection IP or certificate na
 After creating or updating an instance with credentials, `submitForm` runs the optional connection test and stores the save message with any normalization notices and test outcome.
 `ActionForm` uses `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
 After certificate trust is saved, `submitForm` tests with `X-Artium-Retest: 1` and stores the outcome for the reloaded instance page.
-`ActionForm` captures the submitted values before waiting for `astryx-hydrated`, when the dialog listeners are ready, and holds a page-wide submit lock.
-Forms with server confirmation can submit natively while React loads or when JavaScript is off.
-Before the hydration bundle executes, React-dependent forms also submit natively and cannot hand that activation to `ActionForm`.
+Once React handles a submit, `submitForm` holds a page-wide submit lock and captures the submitted values before waiting for `astryx-hydrated`, when the dialog listeners are ready.
+Before the hydration bundle executes, forms submit natively.
+See [browser administration](admin-guide.md#browser-administration) for the actions that support server confirmation.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
+Their name fields read the current input value during hydration so text entered while the bundle is loading is preserved.
 Astryx checkboxes emit inline SVG shapes, so the role and administrator checkboxes stay native.
 `ActionForm` in `src/views/action-form.tsx` owns the `data-api` form attributes (method, consequence, title, action, typed name, success URL and success message) and the submission itself, and `Sheet` builds on it, so a view writes an API form without repeating them.
 The person detail page's "More actions" overflow menu keeps a native `details` disclosure, because Astryx dropdown components need runtime inline styles (see issue 462), and builds its items from Astryx `Button` and `ActionForm`.
@@ -300,7 +301,6 @@ Once React hydrates, `sheetTrigger` opens an already rendered sheet in place whe
 Close, Cancel and Escape dismiss the modal and return focus to the actual in-page launcher or to the associated control for a server-opened sheet.
 For a launcher inside a menu, focus returns to the menu summary.
 `Sheet` wraps `SheetFrame` with an `ActionForm` and uses `FormMessage` to show and focus plain-form errors inside the open dialog.
-See [browser administration](admin-guide.md#browser-administration) for confirmation without the page script.
 
 **Destructive placement.**
 Destructive actions live in a danger zone card at the bottom of detail pages, or in an overflow menu, never next to Save.
