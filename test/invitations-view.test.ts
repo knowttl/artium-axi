@@ -89,9 +89,12 @@ test.each([true, false])('the new-invitation sheet is open without JavaScript on
 })
 
 test('the claim link dialog is closed, empty, read only and labelled until a link is created', () => {
-  const [input] = find(render(), element => element.tagName === 'input' && attribute(element, 'data-claim-link') !== undefined)
-  expect([attribute(input!, 'readonly'), attribute(input!, 'value'), attribute(input!, 'aria-label')]).toEqual(['', '', 'Invitation link'])
-  expect(find(render(), element => element.tagName === 'dialog' && attribute(element, 'id') === 'invitation-link' && attribute(element, 'open') === undefined)).toHaveLength(1)
+  const [dialog] = find(render(), element => element.tagName === 'dialog' && attribute(element, 'id') === 'invitation-link')
+  expect(attribute(dialog!, 'open')).toBeUndefined()
+  const [input] = nodes(dialog!).filter(element => element.tagName === 'input' && attribute(element, 'data-claim-link') !== undefined)
+  expect(attribute(input!, 'readonly')).toBeDefined()
+  expect(attribute(input!, 'value') ?? '').toBe('')
+  expect(attribute(input!, 'aria-label')).toBe('Invitation link')
 })
 
 test('a banner names its problem and links to the fix', () => {
