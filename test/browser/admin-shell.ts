@@ -912,9 +912,14 @@ const invitationResult = `
       return { value, expiresAt };
     };
     const closeClaimLink = async (close, expiresAt) => {
-      await page.eval(() => { document.documentElement.dataset.beforeInvitationReload = ''; });
+      const url = await page.eval(() => {
+        document.documentElement.dataset.beforeInvitationReload = '';
+        return location.href;
+      });
       await close();
       await page.wait('html:not([data-before-invitation-reload]) #invitation-link:not([open])');
+      const { href, type } = await page.eval(() => ({ href: location.href, type: performance.getEntriesByType('navigation')[0].type }));
+      check(href === url && type === 'reload', 'Closing the claim link did not reload the same URL');
       check(await page.eval(() => document.querySelector('#invitation-link [data-claim-link]').value === ''), 'The claim link survived the reload');
       await page.wait('tr[data-invitation] time');
       const expiry = await page.eval(() => document.querySelector('tr[data-invitation] time').dateTime);

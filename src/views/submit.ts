@@ -134,7 +134,7 @@ export async function submitForm({ form, submitter, draft, action, method, confi
     }
     if (claimLink) {
       const { claimPath } = await response.json() as { claimPath: string }
-      form.closest('dialog')?.close()
+      form.closest('dialog')!.close()
       document.dispatchEvent(new CustomEvent(claimLinkEvent, { detail: new URL(claimPath, location.origin).href }))
       return
     }

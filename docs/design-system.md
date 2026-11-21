@@ -65,7 +65,9 @@ The GitHub connection card on this page is the same `GithubConnection` view, abo
 The Tools list's Show filter is a row of Astryx link buttons that mark the current view with `aria-current="page"`.
 Tools, People and Audit use the shared React [`FilterForm`](../src/views/filter-form.tsx) for their GET forms.
 See [Browser administration](admin-guide.md#browser-administration) for submission and fallback behavior.
-After a successful create or resend marked with `claimLink` in `ActionForm`, `submitForm` closes the sheet and announces the claim path on `artium-claim-link`, and the React `ClaimLinkDialog` (`#invitation-link`, `src/views/claim-link.tsx`) shows the link once, selected and focused, then reloads the page when it closes.
+Invitation creation, resend and linking an existing user use the shared React `ActionForm` with `claimLink`.
+After a successful submission, `submitForm` closes the sheet and emits the absolute claim URL with the `artium-claim-link` event.
+The React `ClaimLinkDialog` (`#invitation-link`, `src/views/claim-link.tsx`) shows the link once, selected and focused, then reloads the page when it closes.
 The provider choice stays a native `select` inside an Astryx `Field`, and the lifetime in days is sent as a number.
 The Roles list opens its New role sheet from `?sheet=new-role`, and the earlier `?dialog=new-role` link redirects there.
 The role detail page opens its Rename role sheet from `?sheet=rename-role`.
@@ -112,7 +114,7 @@ The icon sprite stays outside the React root.
 The root contains the toasts and both confirmation dialogs.
 `ActionForm` submits plain forms through [`submitForm`](../src/views/submit.ts), which shapes the body from `data-type` controls and sends the CSRF token and, for revision-checked mutations, `expectedRevision`.
 Both `ActionForm` and `confirm.js` use `artium-confirm` for action confirmation and `artium-reauth-request` for identity confirmation.
-`confirm.js` still submits forms matched by `scriptedFormSelector`, including credential, token, invitation, GitHub and certificate forms.
+`confirm.js` still submits forms matched by `scriptedFormSelector`, including credential, token, GitHub and certificate forms.
 For a plain form submitted before React can handle it, `confirm.js` captures the submitted values and hands them to `ActionForm` after `astryx-hydrated`, when the dialog listeners are ready.
 `ActionForm` also captures the submitted values before waiting for dialog readiness, and both handlers share a page-wide submit lock.
 The New role and Rename sheets pass no confirmation text, so they submit without a confirmation dialog.
