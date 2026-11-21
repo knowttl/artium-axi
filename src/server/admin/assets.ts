@@ -2,7 +2,7 @@ import { components } from './design/components.js'
 import { tokens } from './design/tokens.js'
 import { scriptedFormSelector } from '../../views/action-form.js'
 import { reauthCompleteMessage, reauthRequestEvent } from '../../views/reauth.js'
-import { snapshotForm } from '../../views/submit.js'
+import { beginSubmit, snapshotForm } from '../../views/submit.js'
 import { retestScript } from './retest.js'
 
 export const adminStyle = tokens + components
@@ -220,7 +220,6 @@ function renderTestResult(result) {
   step.querySelector('.mark').replaceChildren(mark);
 }
 
-let pendingAction = false;
 function showCertificateInspection(result) {
   const dialog = document.getElementById('certificate-inspection');
   const details = dialog.querySelector('[data-certificate-details]');
@@ -365,32 +364,35 @@ async function connectGithub(connection, csrf, message) {
   } finally { clearInterval(timer); cancel.disabled = true; }
 }
 ${snapshotForm.toString()}
+${beginSubmit.toString()}
 document.addEventListener('submit', async event => {
   const form = event.target;
   if (!form.matches('[data-api]')) return;
   event.preventDefault();
+  if (event.astryxDraft) return;
+  const { submitter } = event;
+  const submission = beginSubmit(form, submitter);
+  if (!submission) return;
+  const { button, release } = submission;
   if (!form.matches('${scriptedFormSelector}')) {
-    if (event.astryxDraft) return;
-    const astryxDraft = snapshotForm(form);
-    const submitter = event.submitter;
-    hydrated.then(() => form.dispatchEvent(Object.assign(new SubmitEvent('submit', { bubbles: true, cancelable: true, submitter }), { astryxDraft })));
+    let astryxDraft;
+    try {
+      astryxDraft = snapshotForm(form);
+      await hydrated;
+    } finally { release(); }
+    form.dispatchEvent(Object.assign(new SubmitEvent('submit', { bubbles: true, cancelable: true, submitter }), { astryxDraft }));
     return;
   }
-  // A filter control placed inside this form can belong to another form.
-  const button = event.submitter || form.querySelector('button:not([form]):not([type=button]):not([type=reset])');
-  if (pendingAction || button.disabled) return;
-  pendingAction = true;
-  button.disabled = true;
   const message = form.hasAttribute('data-trust-certificate') || form.hasAttribute('data-certificate-name-form')
     ? form.closest('dialog').querySelector('[data-certificate-error]')
     : form.closest('dialog')?.querySelector('[data-sheet-message]') || null;
-  say(message, '');
-  const testResult = form.dataset.testTool ? document.querySelector('[data-test-result]') : null;
-  if (testResult) testResult.textContent = '';
-  const fields = new FormData(form);
-  const body = Object.fromEntries(fields);
   try {
-    const typedName = form.dataset.confirm ? await confirmChange(form, (event.submitter || button).textContent.trim()) : null;
+    say(message, '');
+    const testResult = form.dataset.testTool ? document.querySelector('[data-test-result]') : null;
+    if (testResult) testResult.textContent = '';
+    const fields = new FormData(form);
+    const body = Object.fromEntries(fields);
+    const typedName = form.dataset.confirm ? await confirmChange(form, button.textContent.trim()) : null;
     if (form.dataset.confirm && typedName === null) {
       const dialog = document.getElementById('confirmation');
       if (dialog.open) await new Promise(resolve => dialog.addEventListener('close', resolve, { once: true }));
@@ -542,6 +544,6 @@ document.addEventListener('submit', async event => {
     sessionStorage.setItem('artium-toast', 'Change saved.');
     location.reload();
   } catch { say(message, 'Request could not complete. Reload the page to check the current state before trying again.'); }
-  finally { button.disabled = false; pendingAction = false; }
+  finally { release(); }
 });
 `

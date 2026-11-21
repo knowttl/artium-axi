@@ -90,16 +90,16 @@ const instances: InstancesProps = { page: '/admin/tools/falcon-axi', ssh: false,
 
 const renderInstances = (panel: Partial<InstancesProps> = {}) => render({ panel: { tab: 'instances', instances: { ...instances, ...panel } } })
 const instanceForms = (html: string, name: string) => forms(html).filter(form => attribute(form, 'action')?.endsWith(`/instances/${name}`) || attribute(form, 'action')?.endsWith(`/instances/${name}/test`))
-const summary = (form: Element) => [attribute(form, 'action'), attribute(form, 'data-method'), attribute(form, 'data-confirm'), attribute(form, 'data-confirm-name'), attribute(form, 'data-success-message')]
+const summary = (form: Element) => [attribute(form, 'action'), attribute(form, 'data-method'), attribute(form, 'data-confirm'), attribute(form, 'data-confirm-name')]
 
 test('an enabled instance offers Test, Disable and Delete, each on its own route with the instance identity and revision', () => {
   const [test, disable, remove] = instanceForms(renderInstances(), 'lab')
-  expect(summary(test!)).toEqual(['/v1/admin/tools/falcon-axi/instances/lab/test', 'POST', undefined, undefined, 'Test passed.'])
+  expect(summary(test!)).toEqual(['/v1/admin/tools/falcon-axi/instances/lab/test', 'POST', undefined, undefined])
   expect(summary(disable!)).toEqual(['/v1/admin/tools/falcon-axi/instances/lab', 'PATCH',
-    'Disable lab? Calls to it fail with INSTANCE_DISABLED until you enable it again. Its credential and certificates are kept.', undefined, undefined])
+    'Disable lab? Calls to it fail with INSTANCE_DISABLED until you enable it again. Its credential and certificates are kept.', undefined])
   expect(controls(disable!)).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedId', 'hidden', 'synthetic-lab-id'], ['expectedRevision', 'hidden', '3'], ['enabled', 'hidden', 'false']])
   expect(summary(remove!)).toEqual(['/v1/admin/tools/falcon-axi/instances/lab', 'DELETE',
-    'Delete lab? Its credential, certificate trust and health are removed. Calls that name it fail with INSTANCE_NOT_FOUND. Audit history is kept.', 'lab', undefined])
+    'Delete lab? Its credential, certificate trust and health are removed. Calls that name it fail with INSTANCE_NOT_FOUND. Audit history is kept.', 'lab'])
   expect(controls(remove!)).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedId', 'hidden', 'synthetic-lab-id'], ['expectedRevision', 'hidden', '3']])
 })
 
@@ -150,7 +150,7 @@ test('the Add instance sheet posts the new instance with the tool revision, a te
   const [dialog] = find(html, element => element.tagName === 'dialog' && attribute(element, 'id') === 'sheet-add-instance')
   expect([attribute(dialog!, 'aria-labelledby'), attribute(dialog!, 'open')]).toEqual(['sheet-add-instance-title', ''])
   const form = addForm(html)
-  expect(summary(form)).toEqual(['/v1/admin/tools/falcon-axi/instances', 'POST', 'Add this CrowdStrike Falcon instance? It starts read-only.', undefined, undefined])
+  expect(summary(form)).toEqual(['/v1/admin/tools/falcon-axi/instances', 'POST', 'Add this CrowdStrike Falcon instance? It starts read-only.', undefined])
   expect([attribute(form, 'data-confirm-title'), attribute(form, 'data-confirm-action'), attribute(form, 'data-save-tool')]).toEqual(['Add instance', 'Add instance', 'falcon-axi'])
   expect(controls(form).filter(([name]) => !String(name).startsWith('profile.'))).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedToolRevision', 'hidden', '7'],
     ['name', 'text', ''], ['description', 'textarea', undefined], [undefined, 'file', undefined], [undefined, 'textarea', undefined], [undefined, 'checkbox', undefined]])
@@ -167,7 +167,7 @@ test('the Add instance sheet warns that scripts may need to name an instance onl
 
 test('AWX adds an instance by origin through its own route and asks for no credential', () => {
   const form = addForm(renderInstances({ addInstance: addInstance({ awx: true, editor: null, tool: 'awx-axi', api: '/v1/admin/tools/awx-axi' }) }))
-  expect(summary(form)).toEqual(['/v1/admin/tools/awx-axi/origin', 'PUT', 'Add this CrowdStrike Falcon instance? It starts read-only.', undefined, undefined])
+  expect(summary(form)).toEqual(['/v1/admin/tools/awx-axi/origin', 'PUT', 'Add this CrowdStrike Falcon instance? It starts read-only.', undefined])
   expect(attribute(form, 'data-save-tool')).toBeUndefined()
   expect(controls(form)).toEqual([['_csrf', 'hidden', 'synthetic-csrf'], ['expectedToolRevision', 'hidden', '7'], ['expectedRevision', 'hidden', '0'], ['instance', 'text', ''], ['origin', 'url', '']])
   expect(nodes(form).filter(element => attribute(element, 'data-credential-editor') !== undefined || attribute(element, 'data-save-and-test') !== undefined)).toEqual([])

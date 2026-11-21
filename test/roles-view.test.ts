@@ -82,8 +82,8 @@ test('the new-role form posts the name with the CSRF token, asks for no confirma
   expect(controls.map(control => [attribute(control, 'name'), attribute(control, 'type') ?? 'text', attribute(control, 'value') ?? '', attribute(control, 'required')])).toEqual([
     ['_csrf', 'hidden', 'synthetic-csrf', undefined], ['name', 'text', '', ''],
   ])
-  expect(['method', 'data-method', 'data-confirm', 'data-confirm-title', 'data-confirm-action', 'data-success-url', 'data-success-message'].map(name => attribute(form, name)))
-    .toEqual(['post', 'POST', undefined, undefined, undefined, '/admin/roles/{id}', 'Role created. Choose the tools it grants.'])
+  expect(['method', 'data-method', 'data-confirm', 'data-confirm-title', 'data-confirm-action'].map(name => attribute(form, name)))
+    .toEqual(['post', 'POST', undefined, undefined, undefined])
 })
 
 test('the role name keeps its label and the sheet an error line that takes focus', () => {

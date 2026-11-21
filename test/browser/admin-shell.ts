@@ -854,10 +854,16 @@ test('GitHub device connection shows the code, stores approval and cancels recon
     await page.click('#confirmation button[value=confirmed]');
     await page.wait('[data-github-authorization]:not([hidden])');
     await page.wait('body[data-github-poll="waiting"]');
+    await page.click('form:has([name=enabled]) button');
+    check(await page.eval(() => !document.querySelector('#confirmation[open]')), 'An Enabled submit interrupted the pending connection');
     await page.click('[data-cancel-github]');
     await page.wait('body[data-github-cancel="200"] [data-cancel-github]:disabled');
     check(await page.eval(() => document.querySelector('[data-github-status]').textContent.includes('Connection cancelled.')), 'Cancellation not confirmed');
     check(await page.eval(() => document.querySelector('[data-connect-github] [name=expectedRevision]').value) === revision, 'Cancel replaced credential');
+    await page.wait('[data-connect-github] button[type=submit]:not(:disabled)');
+    await page.click('form:has([name=enabled]) button');
+    await page.wait('#confirmation[open]');
+    await page.click('#confirmation button[value=cancel]');
   `)
 })
 

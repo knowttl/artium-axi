@@ -87,7 +87,7 @@ export function ActionForm({ action, method, csrf, confirmation, successUrl, suc
   }
   return (
     <form ref={form} className={className} data-api="" data-method={method} data-confirm={confirmation?.consequence} data-confirm-title={confirmation?.title}
-      data-confirm-action={confirmation?.action} data-confirm-name={confirmation?.typedName} data-confirm-token={token || undefined} data-success-url={successUrl} data-success-message={successMessage}
+      data-confirm-action={confirmation?.action} data-confirm-name={confirmation?.typedName} data-confirm-token={token || undefined}
       data-invitation-link={claimLink ? '' : undefined} data-save-tool={saveTool} {...attributes} action={action} method="post"
       onSubmit={event => {
         if (event.currentTarget.matches(scriptedFormSelector)) return

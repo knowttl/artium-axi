@@ -24,7 +24,21 @@ export interface DeferredSubmitEvent extends SubmitEvent {
   astryxDraft?: FormDraft
 }
 
-let pending = false
+export function beginSubmit(form: HTMLFormElement, submitter: HTMLButtonElement | null) {
+  const button = submitter ?? form.querySelector<HTMLButtonElement>('button:not([form]):not([type=button]):not([type=reset])')!
+  const page = document.documentElement
+  const pending = 'data-submit-pending'
+  if (page.hasAttribute(pending) || button.disabled) return
+  page.setAttribute(pending, '')
+  button.disabled = true
+  return {
+    button,
+    release() {
+      button.disabled = false
+      page.removeAttribute(pending)
+    },
+  }
+}
 
 export function snapshotForm(form: HTMLFormElement) {
   return {
@@ -35,7 +49,6 @@ export function snapshotForm(form: HTMLFormElement) {
       type: input.dataset.type,
       checked: input instanceof HTMLInputElement && input.type === 'checkbox' ? input.checked : undefined,
     })),
-    hasRoleIds: Boolean(form.querySelector('[name=roleIds]')),
   }
 }
 
@@ -43,7 +56,7 @@ function ask<Answer>(type: string, detail: object) {
   return new Promise<Answer>(resolve => document.dispatchEvent(new CustomEvent(type, { cancelable: true, detail: { ...detail, resolve } })))
 }
 
-function shapeBody({ fields, typed, hasRoleIds }: FormDraft, body: Body): string | null {
+function shapeBody({ fields, typed }: FormDraft, body: Body): string | null {
   for (const { name, value, type, checked } of typed) {
     if (type === 'boolean') body[name] = checked ?? (value === 'true')
     if (type === 'number') body[name] = Number(value)
@@ -53,17 +66,15 @@ function shapeBody({ fields, typed, hasRoleIds }: FormDraft, body: Body): string
       try { body[name] = JSON.parse(value) } catch { return `Enter valid JSON in ${name}.` }
     }
   }
-  if (hasRoleIds) body.roleIds = fields.getAll('roleIds')
   return null
 }
 
 export async function submitForm({ form, submitter, draft, action, method, confirmation, token, successUrl, successMessage, report }: SubmitRequest) {
-  const button = submitter ?? form.querySelector<HTMLButtonElement>('button:not([form]):not([type=button]):not([type=reset])')!
-  if (pending || button.disabled) return
-  pending = true
-  button.disabled = true
-  report('')
+  const submission = beginSubmit(form, submitter)
+  if (!submission) return
+  const { button, release } = submission
   try {
+    report('')
     draft ??= snapshotForm(form)
     const body: Body = Object.fromEntries(draft.fields)
     if (confirmation) {
@@ -121,7 +132,6 @@ export async function submitForm({ form, submitter, draft, action, method, confi
   } catch {
     report('Request could not complete. Reload the page to check the current state before trying again.')
   } finally {
-    button.disabled = false
-    pending = false
+    release()
   }
 }
