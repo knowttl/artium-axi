@@ -10,14 +10,28 @@ export interface ReauthState {
   sso: boolean
 }
 
+interface ReauthSample {
+  remainingMs: number
+  wallTime: number
+  monotonicTime: number
+}
+
 export function useReauthWindow({ remainingMs }: ReauthState) {
   const [remaining, setRemaining] = useState(remainingMs)
   useEffect(() => {
     const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming
-    let expiresAt = performance.timeOrigin + navigation.responseStart + remainingMs
-    const refresh = () => setRemaining(Math.max(0, expiresAt - Date.now()))
+    let sample: ReauthSample = {
+      remainingMs, wallTime: performance.timeOrigin + navigation.responseStart, monotonicTime: navigation.responseStart,
+    }
+    const refresh = () => {
+      const wallTime = Date.now()
+      const monotonicTime = performance.now()
+      const elapsed = Math.max(0, wallTime - sample.wallTime, monotonicTime - sample.monotonicTime)
+      sample = { remainingMs: Math.max(0, sample.remainingMs - elapsed), wallTime, monotonicTime }
+      setRemaining(sample.remainingMs)
+    }
     const confirmed = (event: Event) => {
-      expiresAt = (event as CustomEvent<number>).detail
+      sample = (event as CustomEvent<ReauthSample>).detail
       refresh()
     }
     refresh()
@@ -36,7 +50,7 @@ export function ReauthPill({ minutes, sso }: { minutes: number, sso: boolean }) 
     <span className={`unlock ${minutes ? 'on' : 'off'}`} data-reauth-method={sso ? 'sso' : 'local'}
       title="Changes need an identity confirmation in the last 15 minutes. You are asked to confirm when you save.">
       <Icon name={minutes ? 'unlock' : 'lock'} />
-      <span data-reauth-text="">{minutes ? `Changes unlocked · ${minutes} min` : 'Changes locked'}</span>
+      <span>{minutes ? `Changes unlocked · ${minutes} min` : 'Changes locked'}</span>
     </span>
   )
 }

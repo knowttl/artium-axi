@@ -205,7 +205,7 @@ export function registerSso(app: FastifyInstance, db: Database.Database, audit: 
           db.prepare('UPDATE sessions SET reauthenticated_at = ? WHERE id = ?').run(authTime.data * 1000, session.id)
           db.prepare('UPDATE users SET last_sso_sign_in_at = ? WHERE id = ?').run(Date.now(), session.user_id)
         })
-        return renderAuthPage(reply, { title: 'Identity confirmed', description: 'Your identity has been confirmed.', mark: { icon: 'check', tone: 'ok' },
+        return renderAuthPage(reply, { title: 'One more step', description: 'Continue to Artium to finish confirming your identity.', mark: { icon: 'check', tone: 'ok' },
           blocks: [{ kind: 'buttons', buttons: [{ label: 'Continue to Artium', tone: 'primary', href: '/reauth?complete=1' }] }] })
       }
       const csrfSecret = randomBytes(32).toString('base64url')

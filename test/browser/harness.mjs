@@ -12,7 +12,7 @@ export const waitForReauthPills = `const waitForReauthPills = (expectedText, sta
       const pill = pills[0];
       return pills.length === 1 && pill.className === 'unlock ' + state
         && pill.querySelector('use')?.getAttribute('href') === icon
-        && pill.querySelector('[data-reauth-text]')?.textContent === expectedText;
+        && pill.textContent === expectedText;
     });
     if (matches()) return;
     const fail = () => new Error('Expected one recent-authentication pill in each frame placement showing ' + expectedText + ', ' + state + ', ' + icon);

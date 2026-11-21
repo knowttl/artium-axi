@@ -147,8 +147,8 @@ function showError(target, error) {
 }
 
 function announceReauth(remainingMs) {
-  const expiresAt = Date.now() + remainingMs;
-  hydrated.then(() => document.dispatchEvent(new CustomEvent('artium-reauth', { detail: expiresAt })));
+  const sample = { remainingMs, wallTime: Date.now(), monotonicTime: performance.now() };
+  hydrated.then(() => document.dispatchEvent(new CustomEvent('artium-reauth', { detail: sample })));
 }
 
 function reauthenticate(csrf) {

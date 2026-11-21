@@ -382,6 +382,9 @@ test('account CLI command copies its text', () => {
 })
 
 async function verifyReauthCadence() {
+  const response = await fetch(fixture.clock, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ advanceMs: 812_000 }) })
+  assert.equal(response.status, 200)
   browser(`${waitForReauthPills}
     await page.open(base + '/admin');
     await page.eval(() => {
@@ -393,7 +396,7 @@ async function verifyReauthCadence() {
       document.head.append(script);
     });
     await page.wait('html[data-reauth-test-hydrated]');
-    await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock');`)
+    await waitForReauthPills('Changes unlocked · 2 min', 'on', '#i-unlock');`)
   const targets: { url: string, webSocketDebuggerUrl: string }[] = await (await fetch(`http://127.0.0.1:${chromeDebugPort}/json/list`)).json()
   const target = targets.find(page => page.url === fixture.url + '/admin')
   assert.ok(target)
@@ -422,16 +425,14 @@ async function verifyReauthCadence() {
   try {
     await once(socket, 'open', { signal: AbortSignal.timeout(5000) })
     await send('Emulation.setVirtualTimePolicy', { policy: 'pause' })
-    const clock = await send('Runtime.evaluate', { expression: `(() => {
-      const now = Date.now.bind(Date);
-      Date.now = () => now() + 830_000;
-      return performance.now() - Number(document.documentElement.dataset.reauthTestHydrated);
-    })()`, returnByValue: true })
+    const clock = await send('Runtime.evaluate', {
+      expression: 'performance.now() - Number(document.documentElement.dataset.reauthTestHydrated)', returnByValue: true,
+    })
     const elapsed = clock?.result?.value
     assert.ok(elapsed !== undefined && elapsed >= 0 && elapsed < 29_750, `Unexpected time since hydration: ${elapsed}`)
 
     await advance(29_750 - elapsed)
-    browser(`${waitForReauthPills} await waitForReauthPills('Changes unlocked · 15 min', 'on', '#i-unlock', 0);`)
+    browser(`${waitForReauthPills} await waitForReauthPills('Changes unlocked · 2 min', 'on', '#i-unlock', 0);`)
     await advance(500)
     browser(`${waitForReauthPills}
       await waitForReauthPills('Changes unlocked · 1 min', 'on', '#i-unlock', 0);
@@ -439,6 +440,9 @@ async function verifyReauthCadence() {
     await advance(29_500)
     browser(`${waitForReauthPills} await waitForReauthPills('Changes unlocked · 1 min', 'on', '#i-unlock', 0);`)
     await advance(500)
+    browser(`${waitForReauthPills} await waitForReauthPills('Changes locked', 'off', '#i-lock', 0);`)
+    browser(`await page.eval(() => { const now = Date.now.bind(Date); Date.now = () => now() - 120_000; });`)
+    await advance(30_000)
     browser(`${waitForReauthPills} await waitForReauthPills('Changes locked', 'off', '#i-lock', 0);`)
   } finally { socket.close() }
 }

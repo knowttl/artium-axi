@@ -394,6 +394,7 @@ test('SSO identity confirmation resumes the pending form through the real popup 
   openReauthPopup()
   browser(`await page.click('[data-oidc-approve]');
     await page.wait('a[href="/reauth?complete=1"]');
+    check(await page.eval(() => document.querySelector('main').textContent.includes('Continue to Artium to finish confirming your identity.')), 'The provider callback did not explain the required Continue step');
     await page.click('a[href="/reauth?complete=1"]');`)
   selectPage('/admin/roles')
   browser(`await page.wait('form[action$="/tools"]');
